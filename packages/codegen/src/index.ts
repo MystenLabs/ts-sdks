@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
-import { relative } from 'node:path';
+import { join, relative } from 'node:path';
 import { deserialize } from '@mysten/move-bytecode-template';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import type ts from 'typescript';
@@ -161,8 +161,8 @@ class ModuleBuilder {
 				(param) => !this.isContextReference(param),
 			);
 
-			this.addImport('./utils/index.ts', 'normalizeMoveArguments');
-			this.addImport('./utils/index.ts', 'type RawTransactionArgument');
+			this.addImport('../utils/index.ts', 'normalizeMoveArguments');
+			this.addImport('../utils/index.ts', 'type RawTransactionArgument');
 
 			names.push(name);
 			statements.push(
@@ -268,58 +268,50 @@ class ModuleBuilder {
 	}
 }
 
-async function main() {
-	const modules = [
-		'./tests/move/paywalrus/build/paywalrus/bytecode_modules/feed.mv',
-		'./tests/move/paywalrus/build/paywalrus/bytecode_modules/policy.mv',
-		'./tests/move/paywalrus/build/paywalrus/bytecode_modules/other.mv',
-		'./tests/move/paywalrus/build/paywalrus/bytecode_modules/managed.mv',
-	];
+async function generatePackage(path: string, name: string) {
+	const modules = (await readdir(join(path, 'build', name, 'bytecode_modules')))
+		.map((mod) => join(path, 'build', name, 'bytecode_modules', mod))
+		.filter((mod) => mod.endsWith('.mv'));
 
-	const builders = await Promise.all(modules.map(ModuleBuilder.fromFile));
+	console.log(modules);
+
+	const builders = await Promise.all(modules.map((mod) => ModuleBuilder.fromFile(mod)));
 
 	for (const builder of builders) {
 		builder.renderBCSTypes();
 		builder.renderFunctions();
 		const module = builder.moduleDef.module_handles[builder.moduleDef.self_module_handle_idx];
+		await mkdir(`./tests/generated/${name}`, { recursive: true });
 		await writeFile(
-			`./tests/generated/${builder.moduleDef.identifiers[module.name]}.ts`,
+			`./tests/generated/${name}/${builder.moduleDef.identifiers[module.name]}.ts`,
 			builder.toString(`./${builder.moduleDef.identifiers[module.name]}.ts`),
 		);
-
-		console.log(builder.moduleDef.function_defs[2].code);
 	}
 
-	const depDirs = await readdir(
-		'./tests/move/paywalrus/build/paywalrus/bytecode_modules/dependencies',
-	);
+	const depsPath = join(path, 'build', name, 'bytecode_modules', 'dependencies');
+	const depDirs = await readdir(depsPath);
 
 	for (const dir of depDirs) {
-		const modules = await readdir(
-			`./tests/move/paywalrus/build/paywalrus/bytecode_modules/dependencies/${dir}`,
-		);
+		const modules = await readdir(join(depsPath, dir));
 
 		for (const modFile of modules) {
-			let builder;
-			try {
-				builder = await ModuleBuilder.fromFile(
-					`./tests/move/paywalrus/build/paywalrus/bytecode_modules/dependencies/${dir}/${modFile}`,
-				);
-			} catch (e) {
-				console.log(e);
-				continue;
-			}
+			const builder = await ModuleBuilder.fromFile(join(depsPath, dir, modFile));
+
 			const module = builder.moduleDef.module_handles[builder.moduleDef.self_module_handle_idx];
 			const moduleName = builder.moduleDef.identifiers[module.name];
 			const moduleAddress = builder.moduleDef.address_identifiers[module.address];
 			builder.renderBCSTypes();
-			await mkdir(`./tests/generated/deps/${moduleAddress}`, { recursive: true });
+			await mkdir(`./tests/generated/${name}/deps/${moduleAddress}`, { recursive: true });
 			await writeFile(
-				`./tests/generated/deps/${moduleAddress}/${moduleName}.ts`,
-				builder.toString(`./deps/${moduleAddress}/${moduleName}.ts`),
+				`./tests/generated/${name}/deps/${moduleAddress}/${moduleName}.ts`,
+				builder.toString(`./${name}/deps/${moduleAddress}/${moduleName}.ts`),
 			);
 		}
 	}
 }
 
-main().then(console.log, console.error);
+Promise.all(
+	['paywalrus', 'wal', 'wal_exchange', 'walrus'].map((name) =>
+		generatePackage(join(__dirname, '..', 'tests', 'move', name), name),
+	),
+).then(console.log, console.error);

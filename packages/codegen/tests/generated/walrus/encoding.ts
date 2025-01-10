@@ -1,0 +1,25 @@
+import { bcs } from "@mysten/sui/bcs";
+import { type Transaction } from "@mysten/sui/transactions";
+import { normalizeMoveArguments, type RawTransactionArgument } from "../utils/index.ts";
+export function init(packageAddress: string) {
+    function encoded_blob_length(options: {
+        arguments: [
+            RawTransactionArgument<number | bigint>,
+            RawTransactionArgument<number>,
+            RawTransactionArgument<number>
+        ];
+    }) {
+        const argumentsTypes = [
+            "u64",
+            "u8",
+            "u16"
+        ];
+        return (tx: Transaction) => tx.moveCall({
+            package: packageAddress,
+            module: "encoding",
+            function: "encoded_blob_length",
+            arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
+        });
+    }
+    return { encoded_blob_length };
+}
