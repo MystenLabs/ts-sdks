@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.21.0
+
+### Minor Changes
+
+- 3d8a0d9: expose `pureBcsSchemaFromTypeName` utility
+
 ## 1.20.0
 
 ### Minor Changes
