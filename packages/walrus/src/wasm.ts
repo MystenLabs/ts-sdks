@@ -4,7 +4,7 @@
 import { BlobEncoder, from_signed_messages_and_indices, MessageType } from '@mysten/walrus-wasm';
 
 import { blobIdFromBytes } from './utils/bcs.js';
-import type { BlobMetadataWithId, SliverPair } from './utils/bcs.js';
+import type { BlobMetadataWithId, SliverData, SliverPair } from './utils/bcs.js';
 
 export interface EncodedBlob {
 	sliverPairs: (typeof SliverPair.$inferInput)[];
@@ -61,11 +61,17 @@ export function combineSignatures(
 
 export function decodePrimarySlivers(
 	nShards: number,
-	size: number | bigint,
-	sliverPairs: (typeof SliverPair.$inferInput)[],
+	size: number | bigint | string,
+	slivers: (typeof SliverData.$inferInput)[],
 ): Uint8Array {
 	const encoder = new BlobEncoder(nShards);
-	const bytes = encoder.decode_primary(BigInt(size), sliverPairs);
+	const bytes = encoder.decode_primary(
+		BigInt(size),
+		slivers.map((sliver) => ({
+			...sliver,
+			_sliver_type: undefined,
+		})),
+	);
 	return new Uint8Array(bytes);
 }
 
