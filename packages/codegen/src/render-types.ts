@@ -13,6 +13,7 @@ interface RenderTypeSignatureOptions {
 	format: TypeSignatureFormat;
 	moduleDef: DeserializedModule;
 	onDependency?: (address: string, name: string) => void;
+	onTypeParameter?: (typeParameter: number) => void;
 }
 
 export function renderTypeSignature(
@@ -101,6 +102,7 @@ export function renderTypeSignature(
 	}
 
 	if ('TypeParameter' in type) {
+		options.onTypeParameter?.(type.TypeParameter);
 		switch (options.format) {
 			case 'typescriptArg':
 				return `T${type.TypeParameter}`;
@@ -184,15 +186,19 @@ function renderDataType(
 	const typeName = options.moduleDef.identifiers[handle.name];
 
 	const moduleHandle = options.moduleDef.module_handles[handle.module];
-	const moduleAddress = options.moduleDef.address_identifiers[moduleHandle.address];
+	const moduleAddress = normalizeSuiAddress(
+		options.moduleDef.address_identifiers[moduleHandle.address],
+	);
 	const moduleName = options.moduleDef.identifiers[moduleHandle.name];
 
 	if (options.format === 'typeTag') {
 		if (typeParameters.length === 0) {
-			return `${moduleAddress}::${moduleName}::${typeName}`;
+			// eslint-disable-next-line no-template-curly-in-string
+			return `${moduleAddress === normalizeSuiAddress('0x0') ? '${packageAddress}' : moduleAddress}::${moduleName}::${typeName}`;
 		}
 
-		return `${moduleAddress}::${moduleName}::${typeName}<${typeParameters.map((type) => renderTypeSignature(type, options)).join(', ')}>`;
+		// eslint-disable-next-line no-template-curly-in-string
+		return `${moduleAddress === normalizeSuiAddress('0x0') ? '${packageAddress}' : moduleAddress}::${moduleName}::${typeName}<${typeParameters.map((type) => renderTypeSignature(type, options)).join(', ')}>`;
 	}
 
 	if (moduleAddress === MOVE_STDLIB_ADDRESS) {
@@ -238,7 +244,7 @@ function renderDataType(
 	const typeNameRef =
 		handle.module === options.moduleDef.self_module_handle_idx
 			? typeName
-			: `${moduleName}.${typeName}`;
+			: `${getSafeName(moduleName)}.${typeName}`;
 
 	if (handle.module !== options.moduleDef.self_module_handle_idx) {
 		options.onDependency?.(moduleAddress, moduleName);
@@ -261,4 +267,59 @@ function renderDataType(
 		default:
 			throw new Error(`Unknown format: ${options.format}`);
 	}
+}
+
+const JS_RESERVED_NAMES = [
+	'new',
+	'delete',
+	'class',
+	'function',
+	'import',
+	'export',
+	'return',
+	'this',
+	'super',
+	'arguments',
+	'eval',
+	'void',
+	'typeof',
+	'instanceof',
+	'delete',
+	'in',
+	'from',
+	'of',
+	'as',
+	'async',
+	'await',
+	'break',
+	'case',
+	'catch',
+	'continue',
+	'debugger',
+	'default',
+	'do',
+	'else',
+	'finally',
+	'for',
+	'function',
+	'if',
+	'import',
+	'in',
+	'instanceof',
+	'new',
+	'return',
+	'switch',
+	'throw',
+	'try',
+	'typeof',
+	'var',
+	'void',
+	'while',
+	'with',
+	'yield',
+	'package',
+];
+
+export function getSafeName(name: string) {
+	return JS_RESERVED_NAMES.includes(name) ? `_${name}` : name;
 }

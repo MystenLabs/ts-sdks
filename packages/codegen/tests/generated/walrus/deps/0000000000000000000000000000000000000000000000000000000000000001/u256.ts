@@ -1,1 +1,0 @@
-import { bcs } from "@mysten/sui/bcs";

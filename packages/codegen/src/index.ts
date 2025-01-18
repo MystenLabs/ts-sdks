@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { deserialize } from '@mysten/move-bytecode-template';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import type ts from 'typescript';
 
-import { renderTypeSignature } from './render-types.js';
+import { getSafeName, renderTypeSignature } from './render-types.js';
 import type { DeserializedModule, TypeSignature } from './types.js';
 import { mapToObject, parseTS, printStatements } from './utils.js';
 
@@ -39,13 +39,21 @@ class ModuleBuilder {
 	}
 
 	addStarImport(module: string, name: string) {
-		this.starImports.set(name, module);
+		this.starImports.set(getSafeName(name), module);
 	}
 
 	renderBCSTypes() {
 		this.addImport('@mysten/sui/bcs', 'bcs');
 		this.renderStructs();
 		this.renderEnums();
+	}
+
+	hasBcsTypes() {
+		return this.moduleDef.struct_defs.length > 0 || this.moduleDef.enum_defs.length > 0;
+	}
+
+	hasTypesOrFunctions() {
+		return this.hasBcsTypes() || this.moduleDef.function_defs.length > 0;
 	}
 
 	renderStructs() {
@@ -65,7 +73,13 @@ class ModuleBuilder {
 				renderTypeSignature(field.signature, {
 					format: 'bcs',
 					moduleDef: this.moduleDef,
-					onDependency: (address, mod) => this.addStarImport(`./deps/${address}/${mod}`, mod),
+					onDependency: (address, mod) =>
+						this.addStarImport(
+							normalizeSuiAddress(address) === normalizeSuiAddress('0x0')
+								? `./${mod}.js`
+								: `./deps/${address}/${mod}.js`,
+							mod,
+						),
 				}),
 			]);
 
@@ -105,7 +119,7 @@ class ModuleBuilder {
 					signature: renderTypeSignature(field.signature, {
 						format: 'bcs',
 						moduleDef: this.moduleDef,
-						onDependency: (address, mod) => this.addStarImport(`./deps/${address}/${mod}`, mod),
+						onDependency: (address, mod) => this.addStarImport(`./deps/${address}/${mod}.js`, mod),
 					}),
 				})),
 			}));
@@ -154,38 +168,48 @@ class ModuleBuilder {
 
 		for (const func of this.moduleDef.function_defs) {
 			const handle = this.moduleDef.function_handles[func.function];
-			const name = this.moduleDef.identifiers[handle.name];
 			const moduleName =
 				this.moduleDef.identifiers[this.moduleDef.module_handles[handle.module].name];
 			const parameters = this.moduleDef.signatures[handle.parameters].filter(
 				(param) => !this.isContextReference(param),
 			);
+			const name = this.moduleDef.identifiers[handle.name];
+			const fnName = getSafeName(name);
 
-			this.addImport('../utils/index.ts', 'normalizeMoveArguments');
-			this.addImport('../utils/index.ts', 'type RawTransactionArgument');
+			this.addImport('./utils/index.ts', 'normalizeMoveArguments');
+			this.addImport('./utils/index.ts', 'type RawTransactionArgument');
 
-			names.push(name);
+			names.push(fnName);
+
+			const usedTypeParameters = new Set<number>();
+			const argumentsTypes = parameters
+				.map((param) =>
+					renderTypeSignature(param, {
+						format: 'typescriptArg',
+						moduleDef: this.moduleDef,
+						onTypeParameter: (typeParameter) => usedTypeParameters.add(typeParameter),
+					}),
+				)
+				.map((type) => `RawTransactionArgument<${type}>`)
+				.join(',\n');
+
+			const typeParameters = handle.type_parameters.filter((_, i) => usedTypeParameters.has(i));
+
+			if (usedTypeParameters.size > 0) {
+				this.addImport('@mysten/sui/bcs', 'type BcsType');
+			}
+
 			statements.push(
 				...parseTS/* ts */ `function
-					${name}${
-						handle.type_parameters.length
+					${fnName}${
+						typeParameters.length
 							? `<
-							${handle.type_parameters.map((_, i) => `T${i} extends BcsType<any>`)}
+							${typeParameters.map((_, i) => `T${i} extends BcsType<any>`)}
 						>`
 							: ''
 					}(options: {
 						arguments: [
-						${parameters
-							.map((param) =>
-								renderTypeSignature(param, {
-									format: 'typescriptArg',
-									moduleDef: this.moduleDef,
-									onDependency: (address, mod) =>
-										this.addStarImport(`./deps/${address}/${mod}`, mod),
-								}),
-							)
-							.map((type) => `RawTransactionArgument<${type}>`)
-							.join(',\n')}],
+						${argumentsTypes}],
 
 						${
 							handle.type_parameters.length
@@ -247,7 +271,7 @@ class ModuleBuilder {
 		return false;
 	}
 
-	toString(path: string) {
+	toString(modDir: string, filePath: string) {
 		const importStatements = [...this.imports.entries()].flatMap(
 			([module, names]) =>
 				parseTS`import { ${[...names].join(', ')} } from '${modulePath(module)}'`,
@@ -259,8 +283,17 @@ class ModuleBuilder {
 		return printStatements([...importStatements, ...starImportStatements, ...this.statements]);
 
 		function modulePath(mod: string) {
+			const sourcePath = resolve(modDir, filePath);
+			const destPath = resolve(modDir, mod);
+			const sourceDirectory = sourcePath.split('/').slice(0, -1).join('/');
+			const relativePath = relative(sourceDirectory, destPath);
 			if (mod.startsWith('./')) {
-				return relative(path, mod).slice(1);
+				console.log({
+					sourcePath,
+					destPath,
+					relativePath,
+				});
+				return relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
 			}
 
 			return mod;
@@ -278,13 +311,17 @@ async function generatePackage(path: string, name: string) {
 	const builders = await Promise.all(modules.map((mod) => ModuleBuilder.fromFile(mod)));
 
 	for (const builder of builders) {
+		if (!builder.hasTypesOrFunctions()) {
+			continue;
+		}
+
 		builder.renderBCSTypes();
 		builder.renderFunctions();
 		const module = builder.moduleDef.module_handles[builder.moduleDef.self_module_handle_idx];
-		await mkdir(`./tests/generated/${name}`, { recursive: true });
+		await mkdir(`./tests/generated`, { recursive: true });
 		await writeFile(
-			`./tests/generated/${name}/${builder.moduleDef.identifiers[module.name]}.ts`,
-			builder.toString(`./${builder.moduleDef.identifiers[module.name]}.ts`),
+			`./tests/generated/${builder.moduleDef.identifiers[module.name]}.ts`,
+			builder.toString('./', `./${builder.moduleDef.identifiers[module.name]}.ts`),
 		);
 	}
 
@@ -297,14 +334,20 @@ async function generatePackage(path: string, name: string) {
 		for (const modFile of modules) {
 			const builder = await ModuleBuilder.fromFile(join(depsPath, dir, modFile));
 
+			if (!builder.hasBcsTypes()) {
+				continue;
+			}
+
 			const module = builder.moduleDef.module_handles[builder.moduleDef.self_module_handle_idx];
 			const moduleName = builder.moduleDef.identifiers[module.name];
-			const moduleAddress = builder.moduleDef.address_identifiers[module.address];
+			const moduleAddress = normalizeSuiAddress(
+				builder.moduleDef.address_identifiers[module.address],
+			);
 			builder.renderBCSTypes();
-			await mkdir(`./tests/generated/${name}/deps/${moduleAddress}`, { recursive: true });
+			await mkdir(`./tests/generated/deps/${moduleAddress}`, { recursive: true });
 			await writeFile(
-				`./tests/generated/${name}/deps/${moduleAddress}/${moduleName}.ts`,
-				builder.toString(`./${name}/deps/${moduleAddress}/${moduleName}.ts`),
+				`./tests/generated/deps/${moduleAddress}/${moduleName}.ts`,
+				builder.toString('./', `./deps/${moduleAddress}/${moduleName}.ts`),
 			);
 		}
 	}
