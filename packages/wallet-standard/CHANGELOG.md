@@ -731,7 +731,7 @@
 - da72e73a9: Change the address of Move package for staking and validator related Move modules.
 - 0672b5990: The Wallet Standard now only supports the `Transaction` type, instead of the previous
   `SignableTransaction` type.
-- 0a7b42a6d: This changes almost all occurences of "delegate", "delegation" (and various
+- 0a7b42a6d: This changes almost all occurrences of "delegate", "delegation" (and various
   capitalizations/forms) to their equivalent "stake"-based name. Function names, function argument
   names, RPC endpoints, Move functions, and object fields have been updated with this new naming
   convention.
