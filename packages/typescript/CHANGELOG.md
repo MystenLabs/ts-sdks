@@ -1216,7 +1216,7 @@
 
 ### Minor Changes
 
-- 6c1f81228: Remove signature from trasaction digest hash
+- 6c1f81228: Remove signature from transaction digest hash
 - 519e11551: Allow keypairs to be exported
 - b03bfaec2: Add getTransactionAuthSigners endpoint
 
