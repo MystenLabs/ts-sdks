@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-module.exports = {
+module. = {
 	plugins: ['@tanstack/query', 'unused-imports', 'prettier', 'header', 'require-extensions'],
 	extends: [
 		'eslint:recommended',
