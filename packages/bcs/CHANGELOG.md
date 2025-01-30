@@ -50,7 +50,7 @@
 
 ### Patch Changes
 
-- 7fc464a: Remove unique symbols from types to improve compatability between version
+- 7fc464a: Remove unique symbols from types to improve compatibility between version
 - 0f27a97: Update dependencies
 
 ## 1.0.2
