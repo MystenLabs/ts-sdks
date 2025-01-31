@@ -1,7 +1,6 @@
 {
-    "root": true,
-    "title": "@mysten/bcs",
-    "pages": [
-        "index"
-    ]
+	"root": true,
+	"title": "BCS",
+	"description": "Encoding and decoding Sui objects",
+	"pages": ["index"]
 }

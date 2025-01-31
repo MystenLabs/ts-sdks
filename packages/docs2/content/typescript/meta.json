@@ -1,6 +1,7 @@
 {
 	"root": true,
-	"title": "@mysten/sui",
+	"title": "Sui SDK",
+	"description": "TypeScript interfaces for Sui",
 	"pages": [
 		"index",
 		"install",

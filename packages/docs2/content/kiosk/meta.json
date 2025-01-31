@@ -1,6 +1,7 @@
 {
 	"root": true,
-	"title": "@mysten/kiosk",
+	"title": "Kiosk",
+	"description": "Interact with on-chain commerce applications",
 	"pages": [
 		"index",
 		"kiosk-client",

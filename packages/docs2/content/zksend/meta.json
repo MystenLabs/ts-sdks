@@ -1,6 +1,7 @@
 {
 	"root": true,
-	"title": "@mysten/zksend",
+	"title": "ZkSend",
+	"description": "Send Sui with a link",
 	"pages": [
 		"index",
 		"dapp",

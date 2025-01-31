@@ -11,8 +11,7 @@ import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
  */
 export const baseOptions: BaseLayoutProps = {
 	nav: {
-		// can be JSX too!
-		title: 'Sui Typescript SDKs',
+		title: 'Mysten Labs SDKs',
 	},
 	links: [
 		{
