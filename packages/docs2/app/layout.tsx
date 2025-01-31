@@ -3,7 +3,26 @@
 import './global.css';
 
 import { RootProvider } from 'fumadocs-ui/provider';
+import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+
+export const metadata: Metadata = {
+	title: {
+		template: '%s | Sui TypeScript Docs',
+		default: 'Sui TypeScript Docs',
+	},
+	description:
+		'Sui TypeScript Documentation. Discover the power of Sui through examples, guides, and concepts.',
+	openGraph: {
+		title: 'Sui TypeScript Docs',
+		description:
+			'Sui TypeScript Documentation. Discover the power of Sui through examples, guides, and concepts.',
+		siteName: 'Sui TypeScript Docs',
+	},
+	appleWebApp: {
+		title: 'Sui TypeScript Docs',
+	},
+};
 
 const inter = Inter({
 	subsets: ['latin'],
