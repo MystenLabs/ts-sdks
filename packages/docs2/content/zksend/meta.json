@@ -1,0 +1,10 @@
+{
+	"root": true,
+	"title": "@mysten/zksend",
+	"pages": [
+		"index",
+		"dapp",
+		"link-builder"
+	]
+}
+

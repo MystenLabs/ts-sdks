@@ -185,7 +185,7 @@ importers:
         version: 3.1.6(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tanstack/react-query':
         specifier: ^5.50.1
-        version: 5.62.14(react@18.3.1)
+        version: 5.50.1(react@18.3.1)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -246,7 +246,7 @@ importers:
         version: 3.1.6(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tanstack/react-query':
         specifier: ^5.50.1
-        version: 5.62.14(react@18.3.1)
+        version: 5.50.1(react@18.3.1)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -335,7 +335,7 @@ importers:
         version: 11.1.6(size-limit@11.1.6)
       '@tanstack/react-query':
         specifier: ^5.50.1
-        version: 5.62.14(react@18.3.1)
+        version: 5.50.1(react@18.3.1)
       '@testing-library/dom':
         specifier: ^10.3.1
         version: 10.4.0
@@ -484,7 +484,7 @@ importers:
         version: link:../zksend
       '@tanstack/react-query':
         specifier: ^5.50.1
-        version: 5.62.14(react@18.3.1)
+        version: 5.50.1(react@18.3.1)
       '@types/node':
         specifier: ^22.10.5
         version: 22.10.5
@@ -516,6 +516,36 @@ importers:
 
   packages/docs2:
     dependencies:
+      '@mysten/bcs':
+        specifier: workspace:*
+        version: link:../bcs
+      '@mysten/dapp-kit':
+        specifier: workspace:*
+        version: link:../dapp-kit
+      '@mysten/deepbook':
+        specifier: workspace:*
+        version: link:../deepbook
+      '@mysten/enoki':
+        specifier: workspace:*
+        version: link:../enoki
+      '@mysten/graphql-transport':
+        specifier: workspace:*
+        version: link:../graphql-transport
+      '@mysten/kiosk':
+        specifier: workspace:*
+        version: link:../kiosk
+      '@mysten/sui':
+        specifier: workspace:*
+        version: link:../typescript
+      '@mysten/wallet-standard':
+        specifier: workspace:*
+        version: link:../wallet-standard
+      '@mysten/zksend':
+        specifier: workspace:*
+        version: link:../zksend
+      '@tanstack/react-query':
+        specifier: ^5.50.1
+        version: 5.50.1(react@19.0.0)
       fumadocs-core:
         specifier: 15.0.0
         version: 15.0.0(@types/react@19.0.8)(next@15.1.6(@babel/core@7.26.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -4252,13 +4282,13 @@ packages:
     peerDependencies:
       eslint: ^8.57.0 || ^9.0.0
 
-  '@tanstack/query-core@5.62.12':
-    resolution: {integrity: sha512-6igFeBgymHkCxVgaEk+yiLwkMf9haui/EQLmI3o9CatOyDThEoFKe8toLWvWliZC/Jf+h7NwHi/zjfyLArr1ow==}
+  '@tanstack/query-core@5.50.1':
+    resolution: {integrity: sha512-lpfhKPrJlyV2DSVcQb/HuozH3Av3kws4ge22agx+lNGpFkS4vLZ7St0l3GLwlAD+bqB+qXGex3JdRKUNtMviEQ==}
 
-  '@tanstack/react-query@5.62.14':
-    resolution: {integrity: sha512-ev/6eVdJvX9vpomKmFuXsrQb6TwqqBn/7OeB0KZkHjEYk/Bo1XBMj8wRmobn8pqdU8lK271tUjt+0B0UQ9MZ6A==}
+  '@tanstack/react-query@5.50.1':
+    resolution: {integrity: sha512-s0DW3rVBDPReDDovUjVqItVa3R2nPfUANK9nqGvarO2DwTiY9U4EBTsqizMxItRCoGgK5apeM7D3mxlHrSKpdQ==}
     peerDependencies:
-      react: ^18 || ^19
+      react: ^18.0.0
 
   '@tanstack/react-virtual@3.11.2':
     resolution: {integrity: sha512-OuFzMXPF4+xZgx8UzJha0AieuMihhhaWG0tCqpp6tDzlFwOmNBPYMuLOtMJ1Tr4pXLHmgjcWhG6RlknY2oNTdQ==}
@@ -13720,12 +13750,17 @@ snapshots:
       - supports-color
       - typescript
 
-  '@tanstack/query-core@5.62.12': {}
+  '@tanstack/query-core@5.50.1': {}
 
-  '@tanstack/react-query@5.62.14(react@18.3.1)':
+  '@tanstack/react-query@5.50.1(react@18.3.1)':
     dependencies:
-      '@tanstack/query-core': 5.62.12
+      '@tanstack/query-core': 5.50.1
       react: 18.3.1
+
+  '@tanstack/react-query@5.50.1(react@19.0.0)':
+    dependencies:
+      '@tanstack/query-core': 5.50.1
+      react: 19.0.0
 
   '@tanstack/react-virtual@3.11.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:

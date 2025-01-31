@@ -1,0 +1,10 @@
+{
+	"root": true,
+	"title": "@mysten/kiosk",
+	"pages": [
+		"index",
+		"kiosk-client",
+		"advanced-examples",
+		"from-v1"
+	]
+}

@@ -1,0 +1,21 @@
+{
+	"root": true,
+	"title": "@mysten/sui",
+	"pages": [
+		"index",
+		"install",
+		"hello-sui",
+		"faucet",
+		"sui-client",
+		"graphql",
+		"transaction-building",
+		"cryptography",
+		"utils",
+		"bcs",
+		"zklogin",
+		"executors",
+		"plugins",
+		"owned-object-pool",
+		"migrations"
+	]
+}

@@ -1,0 +1,15 @@
+{
+	"root": true,
+	"title": "@mysten/dapp-kit",
+	"pages": [
+		"index",
+		"create-dapp",
+		"sui-client-provider",
+		"rpc-hooks",
+		"wallet-provider",
+		"wallet-components",
+		"wallet-hooks",
+		"stashed",
+		"themes"
+	]
+}

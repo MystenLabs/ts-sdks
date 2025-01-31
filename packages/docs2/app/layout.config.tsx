@@ -12,13 +12,16 @@ import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
 export const baseOptions: BaseLayoutProps = {
 	nav: {
 		// can be JSX too!
-		title: 'My App',
+		title: 'Sui Typescript SDKs',
 	},
 	links: [
 		{
-			text: 'Documentation',
-			url: '/docs',
-			active: 'nested-url',
+			text: 'GitHub',
+			url: 'https://github.com/MystenLabs/ts-sdks',
+		},
+		{
+			text: 'Discord',
+			url: 'https://discord.com/invite/Sui',
 		},
 	],
 };

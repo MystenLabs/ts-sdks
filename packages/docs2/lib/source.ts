@@ -6,6 +6,6 @@ import { createMDXSource } from 'fumadocs-mdx';
 import { docs, meta } from '@/.source';
 
 export const source = loader({
-	baseUrl: '/docs',
+	baseUrl: '/',
 	source: createMDXSource(docs, meta),
 });
