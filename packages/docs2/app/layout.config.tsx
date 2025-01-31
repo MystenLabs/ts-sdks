@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
 
 /**
@@ -8,15 +10,15 @@ import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
  * Docs Layout: app/docs/layout.tsx
  */
 export const baseOptions: BaseLayoutProps = {
-  nav: {
-    // can be JSX too!
-    title: 'My App',
-  },
-  links: [
-    {
-      text: 'Documentation',
-      url: '/docs',
-      active: 'nested-url',
-    },
-  ],
+	nav: {
+		// can be JSX too!
+		title: 'My App',
+	},
+	links: [
+		{
+			text: 'Documentation',
+			url: '/docs',
+			active: 'nested-url',
+		},
+	],
 };
