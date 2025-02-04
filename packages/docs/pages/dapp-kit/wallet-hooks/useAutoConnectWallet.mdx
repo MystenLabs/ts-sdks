@@ -23,6 +23,26 @@ function MyComponent() {
 
 <UseAutoConnectionStatusExample />
 
+## To Enable Auto-Connect Wallet
+Use `autoConnect` as props in `<WalletProvider/>` 
+- `autoConnect` - Enables automatically reconnecting to the most recently used wallet account upon
+  mounting.
+
+ 
+```tsx
+import { WalletProvider } from '@mysten/dapp-kit';
+ 
+function App() {
+	return (
+		<WalletProvider autoConnect>
+			<YourApp />
+		</WalletProvider>
+	);
+}
+```
+
+[Read More](https://sdk.mystenlabs.com/dapp-kit/wallet-provider)
+
 ## Auto-connection status properties
 
 - `disabled` - When the auto-connection functionality is disabled.
