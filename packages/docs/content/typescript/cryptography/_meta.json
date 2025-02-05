@@ -1,4 +1,5 @@
 {
 	"keypairs": "Key pairs",
-	"multisig": "Multi-Signature Transactions"
+	"multisig": "Multi-Signature Transactions",
+	"passkey": "Passkey"
 }

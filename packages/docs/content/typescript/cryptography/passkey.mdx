@@ -1,0 +1,94 @@
+---
+title: Passkey
+---
+
+Similar to other Keypair classes, the Sui TypeScript SDK provides the `PasskeyKeypair` that handles
+communication with the passkey device and signing with it. This SDK defines the address and
+signatures according to [SIP-9](https://github.com/sui-foundation/sips/blob/main/sips/sip-9.md).
+
+To use, import the `PasskeyKeypair` class from `@mysten/sui/keypairs/passkey`.
+
+```typescript
+import {
+	BrowserPasskeyProvider,
+	BrowserPasswordProviderOptions,
+	PasskeyKeypair,
+} from '@mysten/sui/keypairs/passkey';
+```
+
+## Create a new passkey
+
+To create a new passkey with the passkey device, and initialize a `PasskeyKeypair`, you can use the
+`PasskeyProvider` and provide the `rpName`, `rpId` and additional options. Note that
+`getPasskeyInstance` call will initialize a new passkey wallet for the origin.
+
+```typescript
+const keypair = await PasskeyKeypair.getPasskeyInstance(
+	new BrowserPasskeyProvider('Sui Passkey Example', {
+		rpName: 'Sui Passkey Example',
+		rpId: window.location.hostname,
+	} as BrowserPasswordProviderOptions),
+);
+```
+
+Because a passkey device will only return the public key upon creation, but not upon signing, it is
+recommended for the frontend to always cache the `PasskeyKeypair` instance that contains the public
+key in the wallet. When a user tries to sign a transaction, it will just call signTransaction on the
+same instance and the public key is available when constructing the passkey signature.
+
+It is recommended that the user should only be allowed to create a passkey wallet once per origin.
+If the user ended up with multiple passkeys for the same origin, the passkey UI would show a list of
+all passkeys of the same origin and the user can choose which one to use. This can be a confusing
+experience since they do not remember which passkey is the way that the wallet was created for.
+
+## Recover a passkey
+
+However, if the user is logged out or uses a different browser or device, or the `PasskeyKeypair`
+instance is no longer present for any reason, the user should be prompt to recover the public key
+(e.g. "Log in to existing passkey wallet") to be able to use the passkey wallet again. If the user
+is prompted to create a new key in passkey device, a fresh new wallet with new address will be
+created.
+
+One can recover the unique public key with exactly two passkey signatures on two messages. This
+means that if the user is asked to sign two messages, the developer can recover an unique public key
+and its Sui address.
+
+```typescript
+let provider = new BrowserPasskeyProvider('Sui Passkey Example', {
+	rpName: 'Sui Passkey Example',
+	rpId: window.location.hostname,
+} as BrowserPasswordProviderOptions);
+
+const testMessage = new TextEncoder().encode('Hello world!');
+const possiblePks = await PasskeyKeypair.signAndRecover(provider, testMessage);
+
+const testMessage2 = new TextEncoder().encode('Hello world 2!');
+const possiblePks2 = await PasskeyKeypair.signAndRecover(provider, testMessage2);
+
+const commonPk = findCommonPublicKey(possiblePks, possiblePks2);
+const keypair = new PasskeyKeypair(provider, commonPk.toRawBytes());
+```
+
+Alternatively, the developer can choose to ask the user to only sign one personal message that
+returns two possible public keys. Then the frontend may derive the addresses for both, and check
+onchain for the unique address that contains assets. Or the frontend may retrieve additional
+signatures from past transaction history for the given address. This may a preferred user experience
+since the user is only prompted to sign one message, but the frontend needs to do extra work.
+
+## Usage
+
+The usage for a passkey keypair is the same as any other keypair. You can derive the public key,
+derive the address, sign personal messages, sign transactions and verify signatures. See the
+[Key pairs](./keypairs.mdx) documentation for more details.
+
+```typescript
+const publicKey = keypair.getPublicKey();
+const address = publicKey.toSuiAddress();
+
+const message = new TextEncoder().encode('hello world');
+const { signature } = await keypair.signPersonalMessage(message);
+
+const txSignature = await passkey.signTransaction(txBytes);
+```
+
+An example implemention can be found [here](https://github.com/MystenLabs/passkey-example).
