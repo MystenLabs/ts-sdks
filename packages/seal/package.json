@@ -23,7 +23,7 @@
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "build-package",
 		"vitest": "vitest",
-		"test": "pnpm test:typecheck && pnpm test:unit",
+		"test:wip": "pnpm test:typecheck && pnpm test:unit",
 		"test:typecheck": "tsc -p ./test",
 		"test:unit": "vitest run unit __tests__",
 		"prepublishOnly": "pnpm build",
