@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.12.28
+
+### Patch Changes
+
+- @mysten/sui@1.21.2
+
 ## 0.12.27
 
 ### Patch Changes

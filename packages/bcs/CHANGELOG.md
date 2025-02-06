@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.4.0
+
+### Minor Changes
+
+- 95b1ea5: Add bcs.byteVector for parsing a vector<u8> into a Uint8Array
+
 ## 1.3.0
 
 ### Minor Changes

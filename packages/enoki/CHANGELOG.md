@@ -1,5 +1,11 @@
 # @mysten/enoki
 
+## 0.4.25
+
+### Patch Changes
+
+- @mysten/sui@1.21.2
+
 ## 0.4.24
 
 ### Patch Changes

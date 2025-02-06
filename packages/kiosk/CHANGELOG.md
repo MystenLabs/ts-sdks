@@ -1,5 +1,11 @@
 # @mysten/kiosk
 
+## 0.10.6
+
+### Patch Changes
+
+- @mysten/sui@1.21.2
+
 ## 0.10.5
 
 ### Patch Changes

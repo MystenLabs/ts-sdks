@@ -1,5 +1,11 @@
 # @mysten/suins
 
+## 0.7.1
+
+### Patch Changes
+
+- @mysten/sui@1.21.2
+
 ## 0.7.0
 
 ### Minor Changes
