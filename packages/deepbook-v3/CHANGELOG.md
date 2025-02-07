@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.12.29
+
+### Patch Changes
+
+- c982198: Experimental GIGA token
+
 ## 0.12.28
 
 ### Patch Changes
