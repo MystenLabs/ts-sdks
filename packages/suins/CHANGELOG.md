@@ -1,5 +1,11 @@
 # @mysten/suins
 
+## 0.7.2
+
+### Patch Changes
+
+- 28cee91: Patch path import
+
 ## 0.7.1
 
 ### Patch Changes
