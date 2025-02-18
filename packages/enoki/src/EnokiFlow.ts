@@ -155,7 +155,7 @@ export class EnokiFlow {
 			}
 
 			case 'apple': {
-				params.set('response_type', 'code%20id_token')
+				params.set('response_type', 'code id_token')
 				params.set('scope', 'email')
 				params.set('response_mode', 'form_post')
 				oauthUrl = `https://appleid.apple.com/auth/authorize?${params}`;
