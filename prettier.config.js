@@ -8,7 +8,9 @@ module.exports = {
 	tabWidth: 2,
 	trailingComma: 'all',
 	useTabs: true,
-	plugins: ['@ianvs/prettier-plugin-sort-imports'],
+	// TODO: Add this back in:
+	// plugins: ['@ianvs/prettier-plugin-sort-imports'],
+	importOrderParserPlugins: ['typescript', 'jsx', 'decorators'],
 	importOrder: [
 		'<BUILT_IN_MODULES>',
 		'<THIRD_PARTY_MODULES>',

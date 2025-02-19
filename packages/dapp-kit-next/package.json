@@ -1,0 +1,62 @@
+{
+	"name": "@mysten/dapp-kit-next",
+	"author": "Mysten Labs <build@mystenlabs.com>",
+	"description": "TODO",
+	"homepage": "https://sdk.mystenlabs.com/typescript",
+	"version": "0.0.1",
+	"license": "Apache-2.0",
+	"private": true,
+	"files": [
+		"CHANGELOG.md",
+		"LICENSE",
+		"README.md",
+		"dist",
+		"src"
+	],
+	"type": "module",
+	"main": "./dist/cjs/index.js",
+	"module": "./dist/esm/index.js",
+	"types": "./dist/cjs/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/esm/index.js",
+			"require": "./dist/cjs/index.js"
+		}
+	},
+	"scripts": {
+		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+		"build": "build-dapp-kit",
+		"test": "pnpm test:typecheck && pnpm vitest run",
+		"test:typecheck": "tsc -b ./test",
+		"prepublishOnly": "pnpm build",
+		"prettier:check": "prettier -c --ignore-unknown .",
+		"prettier:fix": "prettier -w --ignore-unknown .",
+		"eslint:check": "eslint --max-warnings=0 .",
+		"eslint:fix": "pnpm run eslint:check --fix",
+		"lint": "pnpm run eslint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
+	},
+	"bugs": {
+		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@mysten/build-scripts": "workspace:*",
+		"typescript": "^5.7.2",
+		"vite": "^6.0.7"
+	},
+	"dependencies": {
+		"@lit/task": "^1.0.2",
+		"@mysten/sui": "workspace:*",
+		"@mysten/wallet-standard": "workspace:*",
+		"@mysten/zksend": "workspace:*",
+		"@nanostores/lit": "^0.2.2",
+		"@nanostores/persistent": "^0.10.2",
+		"@sveltejs/vite-plugin-svelte": "^5.0.3",
+		"lit": "^3.2.1",
+		"nanostores": "^0.10.3",
+		"svelte": "^5.20.1"
+	}
+}
