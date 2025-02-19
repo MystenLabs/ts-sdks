@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { toHex } from '@mysten/bcs';
 import type { InferBcsType } from '@mysten/bcs';
 
 import type { Committee } from '../contracts/committee.js';
@@ -11,7 +12,7 @@ const BLOB_ID_LEN = 32;
 
 export function encodedBlobLength(unencodedLength: number, nShards: number): number {
 	const safetyLimit = decodingSafetyLimit(nShards);
-	const maxFaulty = Math.floor((nShards - 1) / 3);
+	const maxFaulty = getMaxFaultyNodes(nShards);
 	const minCorrect = nShards - maxFaulty;
 	const primary = minCorrect - maxFaulty - safetyLimit;
 	const secondary = minCorrect - safetyLimit;
@@ -25,10 +26,24 @@ export function encodedBlobLength(unencodedLength: number, nShards: number): num
 
 export function getPrimarySourceSymbols(nShards: number): number {
 	const safetyLimit = decodingSafetyLimit(nShards);
-	const maxFaulty = Math.floor((nShards - 1) / 3);
+	const maxFaulty = getMaxFaultyNodes(nShards);
 	const minCorrect = nShards - maxFaulty;
 	const primary = minCorrect - maxFaulty - safetyLimit;
 	return primary;
+}
+
+export function isQuorum(size: number, nShards: number): boolean {
+	const maxFaulty = getMaxFaultyNodes(nShards);
+	return size > 2 * maxFaulty;
+}
+
+export function isAboveValidity(size: number, nShards: number): boolean {
+	const maxFaulty = getMaxFaultyNodes(nShards);
+	return size > maxFaulty;
+}
+
+export function getMaxFaultyNodes(nShards: number): number {
+	return Math.floor((nShards - 1) / 3);
 }
 
 function decodingSafetyLimit(nShards: number): number {
@@ -104,4 +119,13 @@ export function nodesByShardIndex(committee: InferBcsType<ReturnType<typeof Comm
 	}
 
 	return nodesByShardIndex;
+}
+
+export async function hash(value: any) {
+	const stringified = JSON.stringify(value);
+	const bytes = new TextEncoder().encode(stringified);
+
+	const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+	const hashArr = new Uint8Array(hashBuffer);
+	return toHex(hashArr);
 }

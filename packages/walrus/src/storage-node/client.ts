@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { BlobMetadata, BlobMetadataWithId, SliverData } from '../utils/bcs.js';
+<<<<<<< HEAD
+import { StorageNodeAPIError, StorageNodeError, UserAbortError } from './error.js';
+=======
 import {
 	ConnectionTimeoutError,
 	StorageNodeAPIError,
 	StorageNodeError,
 	UserAbortError,
 } from './error.js';
+>>>>>>> origin/main
 import type {
 	GetBlobMetadataRequestInput,
 	GetBlobMetadataResponse,

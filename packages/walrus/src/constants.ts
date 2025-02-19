@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { BlobStatus } from './storage-node/types.js';
 import type { WalrusPackageConfig } from './types.js';
 
 export const TESTNET_WALRUS_PACKAGE_CONFIG: WalrusPackageConfig = {
@@ -17,4 +18,12 @@ export const TESTNET_WALRUS_PACKAGE_CONFIG: WalrusPackageConfig = {
 			'0xb60118f86ecb38ec79e74586f1bb184939640911ee1d63a84138d080632ee28a',
 		],
 	},
+};
+
+// Ranking of blob status types from earliest -> latest in the lifecycle of a blob.
+export const statusLifecycleRank: Record<BlobStatus['type'], number> = {
+	nonexistent: 0,
+	deletable: 1,
+	permanent: 2,
+	invalid: 3,
 };

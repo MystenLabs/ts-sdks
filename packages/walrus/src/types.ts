@@ -61,6 +61,11 @@ export interface StorageNode {
 	id: string;
 }
 
+export interface CommitteeInfo {
+	byShardIndex: Map<number, StorageNode>;
+	nodes: StorageNode[];
+}
+
 export interface StorageWithSizeOptions {
 	size: number;
 	epochs: number;
@@ -91,6 +96,14 @@ export type GetStorageConfirmationOptions = {
 	WalrusClientRequestOptions;
 
 export type ReadBlobOptions = {
+	blobId: string;
+} & WalrusClientRequestOptions;
+
+export type GetCertificationEpochOptions = {
+	blobId: string;
+} & WalrusClientRequestOptions;
+
+export type GetVerifiedBlobStatusOptions = {
 	blobId: string;
 } & WalrusClientRequestOptions;
 
