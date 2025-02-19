@@ -20,13 +20,13 @@ module.exports = {
 	],
 	overrides: [
 		{
-			files: 'packages/**/*',
+			files: 'docs/**/*',
 			options: {
 				proseWrap: 'always',
 			},
 		},
 		{
-			files: 'external-crates/move/documentation/book/**/*',
+			files: 'packages/**/*',
 			options: {
 				proseWrap: 'always',
 			},
