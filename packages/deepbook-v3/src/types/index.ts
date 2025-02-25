@@ -85,8 +85,15 @@ export interface CreatePoolAdminParams {
 	minSize: number;
 	whitelisted: boolean;
 	stablePool: boolean;
+}
+
+export interface CreatePermissionlessPoolParams {
+	baseCoinKey: string;
+	quoteCoinKey: string;
+	tickSize: number;
+	lotSize: number;
+	minSize: number;
 	deepCoin?: TransactionObjectArgument;
-	baseCoin?: TransactionObjectArgument;
 }
 
 export interface Config {

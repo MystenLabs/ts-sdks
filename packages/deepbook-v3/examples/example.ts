@@ -191,12 +191,20 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	// })(tx);
 
 	// const [base, quote, deep] = dbClient.deepBook.swapExactBaseForQuote({
-	// 	poolKey: 'SUI_DBUSDC',
-	// 	amount: 1,
+	// 	poolKey: 'DBUSDT_DBUSDC',
+	// 	amount: 10,
 	// 	minOut: 0,
-	// 	deepAmount: 1,
+	// 	deepAmount: 0,
 	// })(tx);
 	// tx.transferObjects([base, quote, deep], getActiveAddress());
+
+	dbClient.deepBook.createPermissionlessPool({
+		baseCoinKey: 'JUWACOIN',
+		quoteCoinKey: 'DBUSDC',
+		tickSize: 0.00001,
+		lotSize: 0.1,
+		minSize: 1,
+	})(tx);
 
 	let res = await signAndExecute(tx, env);
 

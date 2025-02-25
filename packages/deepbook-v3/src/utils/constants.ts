@@ -44,6 +44,11 @@ export const testnetCoins: CoinMap = {
 		type: `0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDT::DBUSDT`,
 		scalar: 1000000,
 	},
+	JUWACOIN: {
+		address: `0x5a05eae00f9919affd7f27b5bdf10d4d5783f77654ac1d5af807e5774baa407c`,
+		type: `0x5a05eae00f9919affd7f27b5bdf10d4d5783f77654ac1d5af807e5774baa407c::juwacoin::JUWACOIN`,
+		scalar: 1000000,
+	},
 };
 
 export const mainnetCoins: CoinMap = {
