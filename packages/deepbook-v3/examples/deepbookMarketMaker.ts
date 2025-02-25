@@ -111,11 +111,11 @@ export class DeepBookMarketMaker extends DeepBookClient {
 	placeLimitOrderExample = (tx: Transaction) => {
 		tx.add(
 			this.deepBook.placeLimitOrder({
-				poolKey: 'SUI_DBUSDC',
+				poolKey: 'DEEP_DBUSDC',
 				balanceManagerKey: 'MANAGER_1',
 				clientOrderId: '123456789',
-				price: 1,
-				quantity: 10,
+				price: 0.99,
+				quantity: 100,
 				isBid: true,
 				// orderType default: no restriction
 				// selfMatchingOption default: allow self matching

@@ -76,18 +76,18 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 (async () => {
 	// Update constant for env
 	const env = 'testnet';
-	const adminCapID = '';
+	const adminCapID = '0x29a62a5385c549dd8e9565312265d2bda0b8700c1560b3e34941671325daae77';
 
 	// Initialize with balance managers if needed
 	const balanceManagers = {
 		MANAGER_1: {
-			address: '',
+			address: '0x9846e63a0574f469b04a3bcc42b6b879740cdf1264ba0aa7f2c2ac6a9cfd1380',
 			tradeCap: '',
 		},
 	};
 
 	const dbClient = new DeepBookClient({
-		address: '0x0',
+		address: getActiveAddress(),
 		env: env,
 		client: new SuiClient({
 			url: getFullnodeUrl(env),
@@ -98,15 +98,105 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 
 	const tx = new Transaction();
 
-	dbClient.deepBookAdmin.createPoolAdmin({
-		baseCoinKey: 'DEEP',
-		quoteCoinKey: 'USDC',
-		tickSize: 0.000001,
-		lotSize: 0.1,
-		minSize: 1,
-		whitelisted: false,
-		stablePool: false,
-	})(tx);
+	// dbClient.deepBookAdmin.enableVersion(2)(tx);
+
+	// dbClient.deepBookAdmin.createPoolAdmin({
+	// 	baseCoinKey: 'DEEP',
+	// 	quoteCoinKey: 'SUI',
+	// 	tickSize: 0.00001,
+	// 	lotSize: 10,
+	// 	minSize: 100,
+	// 	whitelisted: true,
+	// 	stablePool: false,
+	// })(tx);
+
+	// dbClient.deepBookAdmin.createPoolAdmin({
+	// 	baseCoinKey: 'DEEP',
+	// 	quoteCoinKey: 'DBUSDC',
+	// 	tickSize: 0.00001,
+	// 	lotSize: 10,
+	// 	minSize: 100,
+	// 	whitelisted: true,
+	// 	stablePool: false,
+	// })(tx);
+
+	// dbClient.deepBookAdmin.createPoolAdmin({
+	// 	baseCoinKey: 'SUI',
+	// 	quoteCoinKey: 'DBUSDC',
+	// 	tickSize: 0.001,
+	// 	lotSize: 0.1,
+	// 	minSize: 1,
+	// 	whitelisted: false,
+	// 	stablePool: false,
+	// })(tx);
+
+	// dbClient.deepBookAdmin.createPoolAdmin({
+	// 	baseCoinKey: 'DBUSDT',
+	// 	quoteCoinKey: 'DBUSDC',
+	// 	tickSize: 0.00001,
+	// 	lotSize: 0.1,
+	// 	minSize: 1,
+	// 	whitelisted: false,
+	// 	stablePool: true,
+	// })(tx);
+
+	// dbClient.balanceManager.createAndShareBalanceManager()(tx);
+	// dbClient.balanceManager.depositIntoManager('MANAGER_1', 'SUI', 10)(tx);
+	// dbClient.balanceManager.depositIntoManager('MANAGER_1', 'DBUSDC', 100)(tx);
+	// dbClient.balanceManager.depositIntoManager('MANAGER_1', 'DBUSDT', 100)(tx);
+	// dbClient.balanceManager.depositIntoManager('MANAGER_1', 'DEEP', 900)(tx);
+
+	// dbClient.deepBook.placeLimitOrder({
+	// 	poolKey: 'DEEP_DBUSDC',
+	// 	balanceManagerKey: 'MANAGER_1',
+	// 	clientOrderId: '123456789',
+	// 	price: 1.01,
+	// 	quantity: 100,
+	// 	isBid: false,
+	// 	// orderType default: no restriction
+	// 	// selfMatchingOption default: allow self matching
+	// 	// payWithDeep default: true
+	// })(tx);
+
+	// dbClient.deepBook.addDeepPricePoint('SUI_DBUSDC', 'DEEP_DBUSDC')(tx);
+
+	// dbClient.deepBook.placeLimitOrder({
+	// 	poolKey: 'SUI_DBUSDC',
+	// 	balanceManagerKey: 'MANAGER_1',
+	// 	clientOrderId: '123456789',
+	// 	price: 1,
+	// 	quantity: 1,
+	// 	isBid: true,
+	// 	// orderType default: no restriction
+	// 	// selfMatchingOption default: allow self matching
+	// 	// payWithDeep default: true
+	// })(tx);
+
+	// const [base, quote, deep] = dbClient.deepBook.swapExactBaseForQuote({
+	// 	poolKey: 'SUI_DBUSDC',
+	// 	amount: 1,
+	// 	minOut: 0,
+	// 	deepAmount: 1,
+	// })(tx);
+	// tx.transferObjects([base, quote, deep], getActiveAddress());
+
+	// dbClient.deepBook.placeLimitOrder({
+	// 	poolKey: 'DBUSDT_DBUSDC',
+	// 	balanceManagerKey: 'MANAGER_1',
+	// 	clientOrderId: '123456789',
+	// 	price: 1,
+	// 	quantity: 10,
+	// 	isBid: true,
+	// 	payWithDeep: false,
+	// })(tx);
+
+	// const [base, quote, deep] = dbClient.deepBook.swapExactBaseForQuote({
+	// 	poolKey: 'SUI_DBUSDC',
+	// 	amount: 1,
+	// 	minOut: 0,
+	// 	deepAmount: 1,
+	// })(tx);
+	// tx.transferObjects([base, quote, deep], getActiveAddress());
 
 	let res = await signAndExecute(tx, env);
 
