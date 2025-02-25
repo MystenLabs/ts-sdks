@@ -35,6 +35,23 @@ export class BalanceManagerContract {
 	};
 
 	/**
+	 * @description Create and share a new BalanceManager, manually set the owner
+	 * @returns A function that takes a Transaction object
+	 */
+	createAndShareBalanceManagerWithOwner = (ownerAddress: string) => (tx: Transaction) => {
+		const manager = tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new_with_owner`,
+			arguments: [tx.pure.address(ownerAddress)],
+		});
+
+		tx.moveCall({
+			target: '0x2::transfer::public_share_object',
+			arguments: [manager],
+			typeArguments: [`${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::BalanceManager`],
+		});
+	};
+
+	/**
 	 * @description Deposit funds into the BalanceManager
 	 * @param {string} managerKey The key of the BalanceManager
 	 * @param {string} coinKey The key of the coin to deposit
