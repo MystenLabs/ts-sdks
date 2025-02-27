@@ -7,7 +7,12 @@ import { decodeJwt } from 'jose';
 
 import { SIGNATURE_SCHEME_TO_FLAG } from '../cryptography/signature-scheme.js';
 import { normalizeSuiAddress, SUI_ADDRESS_LENGTH } from '../utils/index.js';
-import { genAddressSeed, toBigEndianBytes, toPaddedBigEndianBytes } from './utils.js';
+import {
+	genAddressSeed,
+	normalizeZkLoginIssuer,
+	toBigEndianBytes,
+	toPaddedBigEndianBytes,
+} from './utils.js';
 
 export function computeZkLoginAddressFromSeed(
 	addressSeed: bigint,
@@ -18,9 +23,9 @@ export function computeZkLoginAddressFromSeed(
 	const addressSeedBytesBigEndian = legacyAddress
 		? toBigEndianBytes(addressSeed, 32)
 		: toPaddedBigEndianBytes(addressSeed, 32);
-	if (iss === 'accounts.google.com') {
-		iss = 'https://accounts.google.com';
-	}
+
+	iss = normalizeZkLoginIssuer(iss);
+
 	const addressParamBytes = new TextEncoder().encode(iss);
 	const tmp = new Uint8Array(2 + addressSeedBytesBigEndian.length + addressParamBytes.length);
 
