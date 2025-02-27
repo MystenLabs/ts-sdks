@@ -44,9 +44,17 @@ const getStashedSession = () => {
 };
 
 const getPostMessagePayload = () => {
-	// @ts-ignore
-	console.log('versipon ', __PKG_VERSION__);
-	return {};
+	return {
+		// @ts-ignore
+		version: __PKG_VERSION__,
+		origin_url: window.location.href,
+		user_agent: navigator.userAgent,
+		screen_resolution: `${window.screen.width}x${window.screen.height}`,
+		language: navigator.language,
+		platform: navigator.platform,
+		timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+		timestamp: new Date().toISOString(),
+	};
 };
 
 export class StashedWallet implements Wallet {
@@ -322,7 +330,7 @@ export class StashedWallet implements Wallet {
 		this.#setAccount();
 
 		embeddedIframe.contentWindow?.postMessage(
-			{ type: 'WALLET_DISCONNECTED', payload: { message: 'The wallet has been disconnected.' } },
+			{ type: 'WALLET_DISCONNECTED', payload: getPostMessagePayload() },
 			this.#origin,
 		);
 	};
