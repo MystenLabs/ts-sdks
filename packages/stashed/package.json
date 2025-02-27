@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/stashed",
-	"version": "0.12.16",
+	"version": "0.0.1",
 	"description": "TODO: Write Description",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -22,7 +22,7 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"watch": "watch 'pnpm run build' src/",
-		"build": "build-package",
+		"build": "build-stashed",
 		"prepublishOnly": "pnpm build",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",

@@ -10,7 +10,8 @@
 	},
 	"bin": {
 		"build-package": "./src/build-package.ts",
-		"build-dapp-kit": "./src/build-dapp-kit.ts"
+		"build-dapp-kit": "./src/build-dapp-kit.ts",
+		"build-stashed": "./src/build-stashed.ts"
 	},
 	"scripts": {
 		"prettier:check": "prettier -c --ignore-unknown .",

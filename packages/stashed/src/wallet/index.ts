@@ -43,6 +43,12 @@ const getStashedSession = () => {
 	return { addresses, token };
 };
 
+const getPostMessagePayload = () => {
+	// @ts-ignore
+	console.log('versipon ', __PKG_VERSION__);
+	return {};
+};
+
 export class StashedWallet implements Wallet {
 	#events: Emitter<WalletEventsMap>;
 	#accounts: ReadonlyWalletAccount[];
@@ -356,7 +362,7 @@ export function registerStashedWallet(
 	setInterval(() => {
 		if (!walletStatusCheckEnabled) return;
 		embeddedIframe.contentWindow?.postMessage(
-			{ type: 'WALLET_STATUS_REQUEST' },
+			{ type: 'WALLET_STATUS_REQUEST', payload: getPostMessagePayload() },
 			origin || DEFAULT_STASHED_ORIGIN,
 		);
 	}, 1000);
