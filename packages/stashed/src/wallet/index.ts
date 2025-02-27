@@ -317,7 +317,7 @@ export class StashedWallet implements Wallet {
 
 		embeddedIframe.contentWindow?.postMessage(
 			{ type: 'WALLET_DISCONNECTED', payload: { message: 'The wallet has been disconnected.' } },
-			'http://localhost:3000', // todo: use actual domain
+			this.#origin,
 		);
 	};
 }
@@ -335,7 +335,7 @@ export function registerStashedWallet(
 	/* @ts-ignore */
 	embeddedIframe = document.createElement('iframe');
 	embeddedIframe.style.display = 'none';
-	embeddedIframe.src = 'http://localhost:3000/embed'; // origin || DEFAULT_STASHED_ORIGIN;
+	embeddedIframe.src = `${origin || DEFAULT_STASHED_ORIGIN}/embed`;
 	document.body.appendChild(embeddedIframe);
 
 	const wallets = getWallets();
@@ -357,13 +357,12 @@ export function registerStashedWallet(
 		if (!walletStatusCheckEnabled) return;
 		embeddedIframe.contentWindow?.postMessage(
 			{ type: 'WALLET_STATUS_REQUEST' },
-			'http://localhost:3000', // todo: use actual domain
+			origin || DEFAULT_STASHED_ORIGIN,
 		);
 	}, 1000);
 
 	window.addEventListener('message', (event) => {
-		if (event.origin !== 'http://localhost:3000' && event.origin !== 'https://getstashed.com')
-			return;
+		if (event.origin !== 'http://localhost:3000' && event.origin !== DEFAULT_STASHED_ORIGIN) return;
 		const { type, payload } = event.data;
 
 		if (type === 'WALLET_STATUS') {
