@@ -198,9 +198,21 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	// })(tx);
 	// tx.transferObjects([base, quote, deep], getActiveAddress());
 
+	// dbClient.deepBook.createPermissionlessPool({
+	// 	baseCoinKey: 'JUWACOIN',
+	// 	quoteCoinKey: 'DBUSDC',
+	// 	tickSize: 0.00001,
+	// 	lotSize: 0.1,
+	// 	minSize: 1,
+	// })(tx);
+
+	// dbClient.deepBookAdmin.addStableCoin('DBUSDT')(tx);
+	// dbClient.deepBookAdmin.addStableCoin('DBUSDC')(tx);
+	// dbClient.deepBookAdmin.addStableCoin('JUWACOIN')(tx);
+
 	dbClient.deepBook.createPermissionlessPool({
 		baseCoinKey: 'JUWACOIN',
-		quoteCoinKey: 'DBUSDC',
+		quoteCoinKey: 'DBUSDT',
 		tickSize: 0.00001,
 		lotSize: 0.1,
 		minSize: 1,

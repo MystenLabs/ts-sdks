@@ -153,4 +153,18 @@ export class DeepBookAdminContract {
 			],
 		});
 	};
+
+	/**
+	 * @description Sets the treasury address where pool creation fees will be sent
+	 * @param {string} treasuryAddress The treasury address
+	 * @returns A function that takes a Transaction object
+	 */
+	addStableCoin = (stableCoinKey: string) => (tx: Transaction) => {
+		const stableCoinType = this.#config.getCoin(stableCoinKey).type;
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::add_stablecoin`,
+			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
+			typeArguments: [stableCoinType],
+		});
+	};
 }
