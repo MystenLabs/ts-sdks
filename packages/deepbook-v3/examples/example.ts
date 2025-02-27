@@ -210,13 +210,15 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	// dbClient.deepBookAdmin.addStableCoin('DBUSDC')(tx);
 	// dbClient.deepBookAdmin.addStableCoin('JUWACOIN')(tx);
 
-	dbClient.deepBook.createPermissionlessPool({
-		baseCoinKey: 'JUWACOIN',
-		quoteCoinKey: 'DBUSDT',
-		tickSize: 0.00001,
-		lotSize: 0.1,
-		minSize: 1,
-	})(tx);
+	// dbClient.deepBook.createPermissionlessPool({
+	// 	baseCoinKey: 'JUWACOIN',
+	// 	quoteCoinKey: 'DBUSDT',
+	// 	tickSize: 0.00001,
+	// 	lotSize: 0.1,
+	// 	minSize: 1,
+	// })(tx);
+
+	dbClient.deepBookAdmin.removeStableCoin('JUWACOIN')(tx);
 
 	let res = await signAndExecute(tx, env);
 
