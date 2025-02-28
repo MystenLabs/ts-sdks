@@ -35,6 +35,9 @@ const STASHED_SESSION_KEY = 'stashed:session';
 let embeddedIframe: HTMLIFrameElement;
 
 let walletStatusCheckEnabled = false;
+let stashedWalletInstance: StashedWallet | null = null;
+let stashedWalletOrigin: string;
+let walletStatusIntervalId: NodeJS.Timeout | null = null;
 
 export const STASHED_WALLET_NAME = 'Stashed' as const;
 
@@ -294,9 +297,10 @@ export class StashedWallet implements Wallet {
 				this.#setMultipleAccounts(addresses);
 			}
 
+			embedStashedIframe();
+
 			return { accounts: this.accounts };
 		}
-		walletStatusCheckEnabled = false;
 		const popup = new StashedPopup({
 			name: this.#name,
 			origin: this.#origin,
@@ -319,22 +323,79 @@ export class StashedWallet implements Wallet {
 
 		this.#setMultipleAccounts(response.selectedAddresses);
 
-		setTimeout(() => {
-			walletStatusCheckEnabled = true;
-		}, 2000);
+		embedStashedIframe();
+
 		return { accounts: this.accounts };
 	};
 
 	#disconnect: StandardDisconnectMethod = async () => {
-		localStorage.removeItem(STASHED_SESSION_KEY);
-		this.#setAccount();
-
 		embeddedIframe.contentWindow?.postMessage(
-			{ type: 'WALLET_DISCONNECTED', payload: getPostMessagePayload() },
+			{
+				type: 'WALLET_DISCONNECTED',
+				payload: getPostMessagePayload(),
+				session: getStashedSession().token,
+			},
 			this.#origin,
 		);
+
+		localStorage.removeItem(STASHED_SESSION_KEY);
+
+		this.#setAccount();
+
+		setTimeout(() => {
+			document.body.removeChild(embeddedIframe);
+			window.removeEventListener('message', () => {});
+			clearWalletStatusInterval();
+		}, 2000);
 	};
 }
+
+// Function to clear the interval
+function clearWalletStatusInterval() {
+	if (walletStatusIntervalId !== null) {
+		clearInterval(walletStatusIntervalId);
+		walletStatusIntervalId = null;
+	}
+}
+
+const embedStashedIframe = () => {
+	/* @ts-ignore */
+	embeddedIframe = document.createElement('iframe');
+	embeddedIframe.style.display = 'none';
+	embeddedIframe.src = `${stashedWalletOrigin}/embed`;
+	document.body.appendChild(embeddedIframe);
+	// every 3 seconds, check if the wallet is connected
+	walletStatusCheckEnabled = true;
+	walletStatusIntervalId = setInterval(() => {
+		if (!walletStatusCheckEnabled) return;
+		embeddedIframe.contentWindow?.postMessage(
+			{
+				type: 'WALLET_STATUS_REQUEST',
+				payload: getPostMessagePayload(),
+				session: getStashedSession().token,
+			},
+			stashedWalletOrigin,
+		);
+	}, 1000);
+
+	window.addEventListener('message', (event) => {
+		if (event.origin !== stashedWalletOrigin) return;
+		const { type, payload } = event.data;
+
+		if (type === 'WALLET_STATUS') {
+			if (!walletStatusCheckEnabled || !stashedWalletInstance) return;
+
+			stashedWalletInstance.accounts.forEach((account) => {
+				const foundAddress = (payload?.accounts || []).some((item: any) => {
+					return item.account.address === account.address;
+				});
+				if (!foundAddress) {
+					stashedWalletInstance?.removeAccount(account.address);
+				}
+			});
+		}
+	});
+};
 
 export function registerStashedWallet(
 	name: string,
@@ -346,64 +407,30 @@ export function registerStashedWallet(
 		network?: StashedSupportedNetwork;
 	} = {},
 ) {
-	/* @ts-ignore */
-	embeddedIframe = document.createElement('iframe');
-	embeddedIframe.style.display = 'none';
-	embeddedIframe.src = `${origin || DEFAULT_STASHED_ORIGIN}/embed`;
-	document.body.appendChild(embeddedIframe);
-
 	const wallets = getWallets();
 
 	let addressFromRedirect: string | null = null;
 
-	const wallet = new StashedWallet({
+	stashedWalletInstance = new StashedWallet({
 		name,
 		network,
 		origin,
 		address: addressFromRedirect,
 	});
 
-	const unregister = wallets.register(wallet);
+	stashedWalletOrigin = origin || DEFAULT_STASHED_ORIGIN;
 
-	// every 3 seconds, check if the wallet is connected
-	walletStatusCheckEnabled = true;
-	setInterval(() => {
-		if (!walletStatusCheckEnabled) return;
-		embeddedIframe.contentWindow?.postMessage(
-			{ type: 'WALLET_STATUS_REQUEST', payload: getPostMessagePayload() },
-			origin || DEFAULT_STASHED_ORIGIN,
-		);
-	}, 1000);
-
-	window.addEventListener('message', (event) => {
-		if (event.origin !== 'http://localhost:3000' && event.origin !== DEFAULT_STASHED_ORIGIN) return;
-		const { type, payload } = event.data;
-
-		if (type === 'WALLET_STATUS') {
-			if (!walletStatusCheckEnabled) return;
-
-			wallet.accounts.forEach((account) => {
-				const foundAddress = (payload?.accounts || []).some((item: any) => {
-					return item.account.address === account.address;
-				});
-				if (!foundAddress) {
-					wallet.removeAccount(account.address);
-				}
-			});
-		}
-	});
+	const unregister = wallets.register(stashedWalletInstance);
 
 	/* @ts-ignore */
 	if (window.stashed) {
 		// don't register stashed web if extension is installed.
 		// we prefer the extension over the web wallet.
-		document.body.removeChild(embeddedIframe);
-		window.removeEventListener('message', () => {});
 		unregister();
 	}
 
 	return {
-		wallet,
+		wallet: stashedWalletInstance,
 		unregister,
 		addressFromRedirect,
 	};
