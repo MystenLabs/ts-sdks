@@ -79,6 +79,7 @@
 	},
 	"dependencies": {
 		"@mysten/sui": "workspace:*",
+		"@mysten/enoki-connect": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
 		"@mysten/zksend": "workspace:*",
 		"@radix-ui/react-dialog": "^1.1.1",
