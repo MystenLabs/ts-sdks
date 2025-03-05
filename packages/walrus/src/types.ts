@@ -86,6 +86,8 @@ export interface StorageWithSizeOptions {
 	size: number;
 	/** The number of epoch the storage will be reserved for. */
 	epochs: number;
+	/** The encod */
+	encodingType: EncodingType;
 	/** optionally specify a WAL coin pay for the registration.  This will consume WAL from the signer by default. */
 	walCoin?: TransactionObjectArgument;
 }
@@ -94,6 +96,8 @@ export interface RegisterBlobOptions extends StorageWithSizeOptions {
 	blobId: string;
 	rootHash: Uint8Array;
 	deletable: boolean;
+	/** The encod */
+	encodingType: EncodingType;
 	/** optionally specify a WAL coin pay for the registration.  This will consume WAL from the signer by default. */
 	walCoin?: TransactionObjectArgument;
 	/** The attributes to write for the blob. */
@@ -128,7 +132,9 @@ export type GetCertificationEpochOptions = ReadBlobOptions;
 
 export type GetBlobMetadataOptions = ReadBlobOptions;
 
-export type GetSliversOptions = ReadBlobOptions;
+export type GetSliversOptions = {
+	encodingType: EncodingType;
+} & ReadBlobOptions;
 
 export type GetVerifiedBlobStatusOptions = ReadBlobOptions;
 
@@ -216,3 +222,5 @@ export type WriteBlobAttributesOptions = {
 			blobObject?: never;
 	  }
 );
+
+export type EncodingType = Extract<typeof EncodingType.$inferInput, string>;

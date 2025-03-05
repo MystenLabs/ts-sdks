@@ -4,7 +4,7 @@
 import type { InferBcsType } from '@mysten/bcs';
 
 import type { Committee } from '../contracts/committee.js';
-import type { EncodingType } from './bcs.js';
+import type { EncodingType } from '../types.js';
 import { BlobId } from './bcs.js';
 
 const DIGEST_LEN = 32;
@@ -13,7 +13,7 @@ const BLOB_ID_LEN = 32;
 export function encodedBlobLength(
 	unencodedLength: number,
 	nShards: number,
-	encodingType: typeof EncodingType.$inferType.$kind,
+	encodingType: EncodingType,
 ): number {
 	const { primarySymbols, secondarySymbols } = getSourceSymbols(nShards, encodingType);
 
@@ -25,10 +25,7 @@ export function encodedBlobLength(
 	return nShards * metadata + sliversSize;
 }
 
-export function getSourceSymbols(
-	nShards: number,
-	encodingType: typeof EncodingType.$inferType.$kind,
-) {
+export function getSourceSymbols(nShards: number, encodingType: EncodingType) {
 	const safetyLimit = decodingSafetyLimit(nShards, encodingType);
 	const maxFaulty = getMaxFaultyNodes(nShards);
 	const minCorrect = nShards - maxFaulty;
@@ -53,10 +50,7 @@ export function getMaxFaultyNodes(nShards: number): number {
 	return Math.floor((nShards - 1) / 3);
 }
 
-function decodingSafetyLimit(
-	nShards: number,
-	encodingType: typeof EncodingType.$inferType.$kind,
-): number {
+function decodingSafetyLimit(nShards: number, encodingType: EncodingType): number {
 	switch (encodingType) {
 		case 'RedStuff':
 			return Math.min(5, Math.floor(getMaxFaultyNodes(nShards) / 5));

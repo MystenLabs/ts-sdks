@@ -38,6 +38,7 @@ import type {
 	CertifyBlobOptions,
 	CommitteeInfo,
 	DeleteBlobOptions,
+	EncodingType,
 	ExtendBlobOptions,
 	GetBlobMetadataOptions,
 	GetCertificationEpochOptions,
@@ -58,13 +59,18 @@ import type {
 	WriteSliverOptions,
 	WriteSliversToNodeOptions,
 } from './types.js';
-import type { EncodingType } from './utils/bcs.js';
-import { blobIdToInt, IntentType, SliverData, StorageConfirmation } from './utils/bcs.js';
+import {
+	EncodingType as BcsEncodingType,
+	blobIdToInt,
+	IntentType,
+	SliverData,
+	StorageConfirmation,
+} from './utils/bcs.js';
 import {
 	chunk,
 	encodedBlobLength,
-	getPrimarySourceSymbols,
 	getShardIndicesByNodeId,
+	getSourceSymbols,
 	isAboveValidity,
 	isQuorum,
 	signersToBitmap,
@@ -74,7 +80,7 @@ import {
 } from './utils/index.js';
 import { SuiObjectDataLoader } from './utils/object-loader.js';
 import { shuffle, weightedShuffle } from './utils/randomness.js';
-import { combineSignatures, decodePrimarySlivers, encodeBlob } from './wasm.js';
+import { combineSignatures, computeMetadata, decodePrimarySlivers, encodeBlob } from './wasm.js';
 
 export class WalrusClient {
 	#storageNodeClient: StorageNodeClient;
@@ -179,16 +185,29 @@ export class WalrusClient {
 		const numShards = systemState.committee.n_shards;
 
 		const blobMetadata = await this.getBlobMetadata({ blobId, signal });
-		const slivers = await this.getSlivers({ blobId, signal });
-		const encodingType = blobMetadata.metadata.V1.encoding_type;
+		const encodingType = blobMetadata.metadata.V1.encoding_type.$kind;
 
-		return decodePrimarySlivers(
+		const slivers = await this.getSlivers({ blobId, signal, encodingType });
+
+		const blobBytes = decodePrimarySlivers(
 			blobId,
 			numShards,
 			blobMetadata.metadata.V1.unencoded_length,
 			slivers,
 			encodingType,
 		);
+
+		const reconstructedBlobMetadata = computeMetadata(
+			systemState.committee.n_shards,
+			blobBytes,
+			encodingType,
+		);
+
+		if (reconstructedBlobMetadata.blob_id !== blobId) {
+			throw new Error('dfodfjdfind');
+		}
+
+		return blobBytes;
 	}
 
 	async getBlobMetadata({ blobId, signal }: GetBlobMetadataOptions) {
@@ -267,7 +286,7 @@ export class WalrusClient {
 		}
 	}
 
-	async getSlivers({ blobId, signal }: GetSliversOptions) {
+	async getSlivers({ blobId, signal, encodingType }: GetSliversOptions) {
 		const committee = await this.#getReadCommittee({ blobId, signal });
 		const randomizedNodes = weightedShuffle(
 			committee.nodes.map((node) => ({
@@ -278,7 +297,7 @@ export class WalrusClient {
 
 		const stakingState = await this.stakingState();
 		const numShards = stakingState.n_shards;
-		const minSymbols = getPrimarySourceSymbols(numShards);
+		const { primarySymbols: minSymbols } = getSourceSymbols(numShards, encodingType);
 
 		const sliverPairIndices = randomizedNodes.flatMap((node) =>
 			node.shardIndices.map((shardIndex) => ({
@@ -512,9 +531,9 @@ export class WalrusClient {
 	/**
 	 * Calculate the cost of storing a blob for a given a size and number of epochs.
 	 */
-	async storageCost(size: number, epochs: number) {
+	async storageCost(size: number, epochs: number, encodingType: EncodingType) {
 		const systemState = await this.systemState();
-		const encodedSize = encodedBlobLength(size, systemState.committee.n_shards);
+		const encodedSize = encodedBlobLength(size, systemState.committee.n_shards, encodingType);
 		const storageUnits = storageUnitsFromSize(encodedSize);
 		const storageCost =
 			BigInt(storageUnits) * BigInt(systemState.storage_price_per_unit_size) * BigInt(epochs);
@@ -533,11 +552,11 @@ export class WalrusClient {
 	 * tx.transferObjects([await client.createStorage({ size: 1000, epochs: 3 })], owner);
 	 * ```
 	 */
-	async createStorage({ size, epochs, walCoin }: StorageWithSizeOptions) {
+	async createStorage({ size, epochs, walCoin, encodingType }: StorageWithSizeOptions) {
 		const systemObject = await this.systemObject();
 		const systemState = await this.systemState();
-		const encodedSize = encodedBlobLength(size, systemState.committee.n_shards);
-		const { storageCost } = await this.storageCost(size, epochs);
+		const encodedSize = encodedBlobLength(size, systemState.committee.n_shards, encodingType);
+		const { storageCost } = await this.storageCost(size, epochs, encodingType);
 
 		return (tx: Transaction) => {
 			const coin = walCoin
@@ -577,8 +596,9 @@ export class WalrusClient {
 		size,
 		epochs,
 		owner,
+		encodingType,
 	}: StorageWithSizeOptions & { transaction?: Transaction; owner: string }) {
-		transaction.transferObjects([await this.createStorage({ size, epochs })], owner);
+		transaction.transferObjects([await this.createStorage({ size, epochs, encodingType })], owner);
 
 		return transaction;
 	}
@@ -644,9 +664,10 @@ export class WalrusClient {
 		deletable,
 		walCoin,
 		attributes,
+		encodingType,
 	}: RegisterBlobOptions) {
-		const storage = await this.createStorage({ size, epochs, walCoin });
-		const { writeCost } = await this.storageCost(size, epochs);
+		const storage = await this.createStorage({ size, epochs, walCoin, encodingType });
+		const { writeCost } = await this.storageCost(size, epochs, encodingType);
 
 		return (tx: Transaction) => {
 			const writeCoin = walCoin
@@ -951,13 +972,18 @@ export class WalrusClient {
 	 */
 	async extendBlob({ blobObjectId, epochs, endEpoch, walCoin }: ExtendBlobOptions) {
 		const blob = await this.#objectLoader.load(blobObjectId, Blob());
+		const encodingType = BcsEncodingType.parse(new Uint8Array([blob.encoding_type])).$kind;
 		const numEpochs = typeof epochs === 'number' ? epochs : endEpoch - blob.storage.end_epoch;
 
 		if (numEpochs <= 0) {
 			return (_tx: Transaction) => {};
 		}
 
-		const { storageCost } = await this.storageCost(Number(blob.storage.storage_size), numEpochs);
+		const { storageCost } = await this.storageCost(
+			Number(blob.storage.storage_size),
+			numEpochs,
+			encodingType,
+		);
 
 		return (tx: Transaction) => {
 			const coin = walCoin
@@ -1257,10 +1283,7 @@ export class WalrusClient {
 	 * const { blobId, metadata, sliversByNode, rootHash } = await client.encodeBlob(blob);
 	 * ```
 	 */
-	async encodeBlob(
-		blob: Uint8Array,
-		encodingType: Extract<typeof EncodingType.$inferInput, string>,
-	) {
+	async encodeBlob(blob: Uint8Array, encodingType: EncodingType) {
 		const systemState = await this.systemState();
 		const committee = await this.#getActiveCommittee();
 
@@ -1409,6 +1432,7 @@ export class WalrusClient {
 			deletable,
 			owner,
 			attributes,
+			encodingType,
 		});
 
 		const controller = new AbortController();

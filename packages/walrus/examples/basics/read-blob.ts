@@ -4,7 +4,6 @@
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 import { WalrusClient } from '../../src/client.js';
-import { computeMetadata } from '../../src/wasm.js';
 
 /** @ts-ignore */
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
@@ -19,23 +18,14 @@ const walrusClient = new WalrusClient({
 });
 
 export async function retrieveBlob(blobId: string) {
-	const systemState = await walrusClient.systemState();
 	const blobBytes = await walrusClient.readBlob({ blobId });
-
-	const reconstructedBlobMetadata = computeMetadata(systemState.committee.n_shards, blobBytes);
-	if (reconstructedBlobMetadata.blob_id !== blobId) {
-		console.log('inconsistent blob -- try more slivers');
-		return null;
-	}
-
 	return new Blob([new Uint8Array(blobBytes)]);
 }
 
 (async function main() {
-	const blob = await retrieveBlob('cUTGpAG6MixSTbM8-KHvUoK_eGn4bXJP1a8U5cQq9yw');
+	const blob = await retrieveBlob('vFB2qz768MTocyT00s0TdjicmEmSHP3HTmvBVKk9v2M');
 
-	// Convert Uint8Array to string using TextDecoder
-	const textDecoder = new TextDecoder('utf-8'); // Specify encoding, e.g., "utf-8"
+	const textDecoder = new TextDecoder('utf-8');
 	const resultString = textDecoder.decode(await blob?.arrayBuffer());
 
 	console.log(resultString);
