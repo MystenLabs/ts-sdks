@@ -3,10 +3,10 @@
 
 import { blake2b } from '@noble/hashes/blake2b';
 import { bytesToHex } from '@noble/hashes/utils';
-import { decodeJwt } from 'jose';
 
 import { SIGNATURE_SCHEME_TO_FLAG } from '../cryptography/signature-scheme.js';
 import { normalizeSuiAddress, SUI_ADDRESS_LENGTH } from '../utils/index.js';
+import { decodeJwt } from './jwt-utils.js';
 import {
 	genAddressSeed,
 	normalizeZkLoginIssuer,
@@ -24,9 +24,7 @@ export function computeZkLoginAddressFromSeed(
 		? toBigEndianBytes(addressSeed, 32)
 		: toPaddedBigEndianBytes(addressSeed, 32);
 
-	iss = normalizeZkLoginIssuer(iss);
-
-	const addressParamBytes = new TextEncoder().encode(iss);
+	const addressParamBytes = new TextEncoder().encode(normalizeZkLoginIssuer(iss));
 	const tmp = new Uint8Array(2 + addressSeedBytesBigEndian.length + addressParamBytes.length);
 
 	tmp.set([SIGNATURE_SCHEME_TO_FLAG.ZkLogin]);
@@ -67,13 +65,6 @@ export function jwtToAddress(jwt: string, userSalt: string | bigint, legacyAddre
 	lengthChecks(jwt);
 
 	const decodedJWT = decodeJwt(jwt);
-	if (!decodedJWT.sub || !decodedJWT.iss || !decodedJWT.aud) {
-		throw new Error('Missing jwt data');
-	}
-
-	if (Array.isArray(decodedJWT.aud)) {
-		throw new Error('Not supported aud. Aud is an array, string was expected.');
-	}
 
 	return computeZkLoginAddress({
 		userSalt,

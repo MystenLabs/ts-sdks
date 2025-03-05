@@ -15,3 +15,4 @@ export { toZkLoginPublicIdentifier, ZkLoginPublicIdentifier } from './publickey.
 export type { ZkLoginSignatureInputs } from './bcs.js';
 export { poseidonHash } from './poseidon.js';
 export { generateNonce, generateRandomness } from './nonce.js';
+export { decodeJwt } from './jwt-utils.js';
