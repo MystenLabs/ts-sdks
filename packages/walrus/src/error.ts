@@ -26,5 +26,8 @@ export class BehindCurrentEpochError extends RetryableWalrusClientError {}
 /** Thrown when a blob is not certified or determined to not exist. */
 export class BlobNotCertifiedError extends RetryableWalrusClientError {}
 
+/** Thrown when a blob was determined to be incorrectly encoded. */
+export class InconsistentBlobError extends WalrusClientError {}
+
 /** Thrown when blob is blocked by a quorum of storage nodes. */
 export class BlobBlockedError extends Error {}

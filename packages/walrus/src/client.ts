@@ -23,6 +23,7 @@ import {
 	BehindCurrentEpochError,
 	BlobBlockedError,
 	BlobNotCertifiedError,
+	InconsistentBlobError,
 	NoBlobMetadataReceivedError,
 	NoBlobStatusReceivedError,
 	NotEnoughBlobConfirmationsError,
@@ -187,7 +188,7 @@ export class WalrusClient {
 		const blobMetadata = await this.getBlobMetadata({ blobId, signal });
 		const encodingType = blobMetadata.metadata.V1.encoding_type.$kind;
 
-		const slivers = await this.getSlivers({ blobId, signal, encodingType });
+		const slivers = await this.getSlivers({ blobId, encodingType, signal });
 
 		const blobBytes = decodePrimarySlivers(
 			blobId,
@@ -204,7 +205,7 @@ export class WalrusClient {
 		);
 
 		if (reconstructedBlobMetadata.blob_id !== blobId) {
-			throw new Error('dfodfjdfind');
+			throw new InconsistentBlobError('The specified blob was encoded incorrectly.');
 		}
 
 		return blobBytes;
