@@ -4,31 +4,39 @@
 import type { InferBcsType } from '@mysten/bcs';
 
 import type { Committee } from '../contracts/committee.js';
+import type { EncodingType } from './bcs.js';
 import { BlobId } from './bcs.js';
 
 const DIGEST_LEN = 32;
 const BLOB_ID_LEN = 32;
 
-export function encodedBlobLength(unencodedLength: number, nShards: number): number {
-	const safetyLimit = decodingSafetyLimit(nShards);
-	const maxFaulty = getMaxFaultyNodes(nShards);
-	const minCorrect = nShards - maxFaulty;
-	const primary = minCorrect - maxFaulty - safetyLimit;
-	const secondary = minCorrect - safetyLimit;
+export function encodedBlobLength(
+	unencodedLength: number,
+	nShards: number,
+	encodingType: typeof EncodingType.$inferType.$kind,
+): number {
+	const { primarySymbols, secondarySymbols } = getSourceSymbols(nShards, encodingType);
 
-	const size = Math.floor((Math.max(unencodedLength, 1) - 1) / (primary * secondary)) + 1;
+	const size =
+		Math.floor((Math.max(unencodedLength, 1) - 1) / (primarySymbols * secondarySymbols)) + 1;
 
-	const sliversSize = (primary + secondary) * size * nShards;
+	const sliversSize = (primarySymbols + secondarySymbols) * size * nShards;
 	const metadata = nShards * DIGEST_LEN * 2 + BLOB_ID_LEN;
 	return nShards * metadata + sliversSize;
 }
 
-export function getPrimarySourceSymbols(nShards: number): number {
-	const safetyLimit = decodingSafetyLimit(nShards);
+export function getSourceSymbols(
+	nShards: number,
+	encodingType: typeof EncodingType.$inferType.$kind,
+) {
+	const safetyLimit = decodingSafetyLimit(nShards, encodingType);
 	const maxFaulty = getMaxFaultyNodes(nShards);
 	const minCorrect = nShards - maxFaulty;
-	const primary = minCorrect - maxFaulty - safetyLimit;
-	return primary;
+
+	return {
+		primarySymbols: minCorrect - maxFaulty - safetyLimit,
+		secondarySymbols: minCorrect - safetyLimit,
+	};
 }
 
 export function isQuorum(size: number, nShards: number): boolean {
@@ -45,20 +53,17 @@ export function getMaxFaultyNodes(nShards: number): number {
 	return Math.floor((nShards - 1) / 3);
 }
 
-function decodingSafetyLimit(nShards: number): number {
-	switch (true) {
-		case nShards <= 15: // f=5, 3f+1=16, 0.2*f=1
+function decodingSafetyLimit(
+	nShards: number,
+	encodingType: typeof EncodingType.$inferType.$kind,
+): number {
+	switch (encodingType) {
+		case 'RedStuff':
+			return Math.min(5, Math.floor(getMaxFaultyNodes(nShards) / 5));
+		case 'RS2':
 			return 0;
-		case nShards <= 30: // f=10, 3f+1=31, 0.2*f=2
-			return 1;
-		case nShards <= 45: // f=15, 3f+1=46, 0.2*f=3
-			return 2;
-		case nShards <= 60: // f=15, 3f+1=46, 0.2*f=3
-			return 3;
-		case nShards <= 75: // f=20, 3f+1=61, 0.2*f=4
-			return 4;
-		default: // f=25, 3f+1=76, 0.2*f=5
-			return 5;
+		default:
+			throw new Error(`Encountered unknown encoding type of ${encodingType}`);
 	}
 }
 
