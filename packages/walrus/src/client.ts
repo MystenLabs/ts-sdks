@@ -688,7 +688,7 @@ export class WalrusClient {
 						blobIdToInt(blobId),
 						BigInt(bcs.u256().parse(rootHash)),
 						size,
-						0,
+						BcsEncodingType.serialize(encodingType).toBytes()[0],
 						deletable,
 						writeCoin,
 					],

@@ -78,7 +78,7 @@ export function decodePrimarySlivers(
 ): Uint8Array {
 	const encoder = new BlobEncoder(nShards);
 
-	const bytes = encoder.decode_primary(
+	const [bytes] = encoder.decode_primary(
 		BlobId.serialize(blobId).toBytes(),
 		BigInt(size),
 		slivers.map((sliver) => ({
@@ -87,6 +87,7 @@ export function decodePrimarySlivers(
 		})),
 		BcsEncodingType.serialize(encodingType).toBytes()[0],
 	);
+
 	return new Uint8Array(bytes);
 }
 

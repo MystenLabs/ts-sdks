@@ -6,7 +6,7 @@ import type { WalrusPackageConfig } from './types.js';
 
 export const TESTNET_WALRUS_PACKAGE_CONFIG: WalrusPackageConfig = {
 	packageId: '0x795ddbc26b8cfff2551f45e198b87fc19473f2df50f995376b924ac80e56f88b',
-	latestPackageId: '0x883b27de942203191726d6722dc097b6d5499234be2aa22c3872849c45fdd712',
+	latestPackageId: '0x261b2e46428a152570f9ac08972d67f7c12d62469ccd381a51774c1df7a829ca',
 	systemObjectId: '0x98ebc47370603fe81d9e15491b2f1443d619d1dab720d586e429ed233e1255c1',
 	stakingPoolId: '0x20266a17b4f1a216727f3eef5772f8d486a9e3b5e319af80a5b75809c035561d',
 	walPackageId: '0x8190b041122eb492bf63cb464476bd68c6b7e570a4079645a8b28732b6197a82',

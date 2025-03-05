@@ -171,11 +171,42 @@ function isLikeNone(x) {
     return x === undefined || x === null;
 }
 
+let cachedUint16ArrayMemory0 = null;
+
+function getUint16ArrayMemory0() {
+    if (cachedUint16ArrayMemory0 === null || cachedUint16ArrayMemory0.byteLength === 0) {
+        cachedUint16ArrayMemory0 = new Uint16Array(wasm.memory.buffer);
+    }
+    return cachedUint16ArrayMemory0;
+}
+
+function passArray16ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 2, 2) >>> 0;
+    getUint16ArrayMemory0().set(arg, ptr / 2);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
 function takeFromExternrefTable0(idx) {
     const value = wasm.__wbindgen_export_4.get(idx);
     wasm.__externref_table_dealloc(idx);
     return value;
 }
+/**
+ * @param {MessageType} message_type
+ * @param {any} signed_messages
+ * @param {Uint16Array} signer_indices
+ * @returns {any}
+ */
+module.exports.from_signed_messages_and_indices = function(message_type, signed_messages, signer_indices) {
+    const ptr0 = passArray16ToWasm0(signer_indices, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.from_signed_messages_and_indices(message_type, signed_messages, ptr0, len0);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+};
 
 function passArray8ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 1, 1) >>> 0;
@@ -183,24 +214,6 @@ function passArray8ToWasm0(arg, malloc) {
     WASM_VECTOR_LEN = arg.length;
     return ptr;
 }
-
-function getArrayU8FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
-}
-/**
- * @param {Uint8Array} msg
- * @returns {Uint8Array}
- */
-module.exports.blake2b256 = function(msg) {
-    const ptr0 = passArray8ToWasm0(msg, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.blake2b256(ptr0, len0);
-    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
-    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-    return v2;
-};
-
 /**
  * @param {Uint8Array} signature
  * @param {Uint8Array} public_key
@@ -221,6 +234,10 @@ module.exports.bls12381_min_pk_verify = function(signature, public_key, msg) {
     return ret[0] !== 0;
 };
 
+function getArrayU8FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
+}
 /**
  * Aggregate a list of signatures.
  * The signatures must be of the type Vec<Vec<u8>> with each signature being a 96 bytes long serialized signature.
@@ -256,35 +273,17 @@ module.exports.bls12381_min_pk_verify_aggregate = function(public_keys, msg, sig
     return ret[0] !== 0;
 };
 
-let cachedUint16ArrayMemory0 = null;
-
-function getUint16ArrayMemory0() {
-    if (cachedUint16ArrayMemory0 === null || cachedUint16ArrayMemory0.byteLength === 0) {
-        cachedUint16ArrayMemory0 = new Uint16Array(wasm.memory.buffer);
-    }
-    return cachedUint16ArrayMemory0;
-}
-
-function passArray16ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 2, 2) >>> 0;
-    getUint16ArrayMemory0().set(arg, ptr / 2);
-    WASM_VECTOR_LEN = arg.length;
-    return ptr;
-}
 /**
- * @param {MessageType} message_type
- * @param {any} signed_messages
- * @param {Uint16Array} signer_indices
- * @returns {any}
+ * @param {Uint8Array} msg
+ * @returns {Uint8Array}
  */
-module.exports.from_signed_messages_and_indices = function(message_type, signed_messages, signer_indices) {
-    const ptr0 = passArray16ToWasm0(signer_indices, wasm.__wbindgen_malloc);
+module.exports.blake2b256 = function(msg) {
+    const ptr0 = passArray8ToWasm0(msg, wasm.__wbindgen_malloc);
     const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.from_signed_messages_and_indices(message_type, signed_messages, ptr0, len0);
-    if (ret[2]) {
-        throw takeFromExternrefTable0(ret[1]);
-    }
-    return takeFromExternrefTable0(ret[0]);
+    const ret = wasm.blake2b256(ptr0, len0);
+    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v2;
 };
 
 /**
@@ -335,7 +334,7 @@ class BlobEncoder {
      * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::encode_with_metadata].
      * Returns a tuple with a vector of [walrus_core::encoding::slivers::SliverPair]´s and a [walrus_core::metadata::VerifiedBlobMetadataWithId]`.
      * @param {Uint8Array} data
-     * @param {any} encoding_type
+     * @param {number} encoding_type
      * @returns {any}
      */
     encode_with_metadata(data, encoding_type) {
@@ -351,7 +350,7 @@ class BlobEncoder {
      * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::compute_metadata].
      * Returns [walrus_core::metadata::VerifiedBlobMetadataWithId].
      * @param {Uint8Array} data
-     * @param {any} encoding_type
+     * @param {number} encoding_type
      * @returns {any}
      */
     compute_metadata(data, encoding_type) {
@@ -371,7 +370,7 @@ class BlobEncoder {
      * @param {any} blob_id
      * @param {bigint} blob_size
      * @param {any} slivers
-     * @param {any} encoding_type
+     * @param {number} encoding_type
      * @returns {any}
      */
     decode_primary(blob_id, blob_size, slivers, encoding_type) {
@@ -404,11 +403,6 @@ module.exports.__wbg_call_672a4d21634d4a24 = function() { return handleError(fun
 
 module.exports.__wbg_done_769e5ede4b31c67b = function(arg0) {
     const ret = arg0.done;
-    return ret;
-};
-
-module.exports.__wbg_entries_3265d4158b33e5dc = function(arg0) {
-    const ret = Object.entries(arg0);
     return ret;
 };
 
@@ -564,11 +558,6 @@ module.exports.__wbindgen_is_function = function(arg0) {
 module.exports.__wbindgen_is_object = function(arg0) {
     const val = arg0;
     const ret = typeof(val) === 'object' && val !== null;
-    return ret;
-};
-
-module.exports.__wbindgen_is_string = function(arg0) {
-    const ret = typeof(arg0) === 'string';
     return ret;
 };
 

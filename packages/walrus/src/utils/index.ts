@@ -17,8 +17,12 @@ export function encodedBlobLength(
 ): number {
 	const { primarySymbols, secondarySymbols } = getSourceSymbols(nShards, encodingType);
 
-	const size =
+	let size =
 		Math.floor((Math.max(unencodedLength, 1) - 1) / (primarySymbols * secondarySymbols)) + 1;
+
+	if (encodingType === 'RS2' && size % 2 === 1) {
+		size = size + 1;
+	}
 
 	const sliversSize = (primarySymbols + secondarySymbols) * size * nShards;
 	const metadata = nShards * DIGEST_LEN * 2 + BLOB_ID_LEN;
