@@ -6,8 +6,8 @@ import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import type { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
+import { decodeJwt } from '@mysten/sui/zklogin';
 import type { ZkLoginSignatureInputs } from '@mysten/sui/zklogin';
-import { decodeJwt } from 'jose';
 import type { WritableAtom } from 'nanostores';
 import { atom, onMount, onSet } from 'nanostores';
 
@@ -187,10 +187,7 @@ export class EnokiFlow {
 			throw new Error('Missing ID Token');
 		}
 
-		const decodedJwt = decodeJwt(jwt);
-		if (!decodedJwt.sub || !decodedJwt.aud || typeof decodedJwt.aud !== 'string') {
-			throw new Error('Missing JWT data');
-		}
+		decodeJwt(jwt);
 
 		const { address, salt } = await this.#enokiClient.getZkLogin({ jwt });
 

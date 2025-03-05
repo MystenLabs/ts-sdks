@@ -142,9 +142,7 @@ export function toZkLoginPublicIdentifier(
 		? toBigEndianBytes(addressSeed, 32)
 		: toPaddedBigEndianBytes(addressSeed, 32);
 
-	iss = normalizeZkLoginIssuer(iss);
-
-	const issBytes = new TextEncoder().encode(iss);
+	const issBytes = new TextEncoder().encode(normalizeZkLoginIssuer(iss));
 	const tmp = new Uint8Array(1 + issBytes.length + addressSeedBytesBigEndian.length);
 	tmp.set([issBytes.length], 0);
 	tmp.set(issBytes, 1);

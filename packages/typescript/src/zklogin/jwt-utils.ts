@@ -1,6 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { JwtPayload } from './jwt-decode.js';
+import { jwtDecode } from './jwt-decode.js';
+import { normalizeZkLoginIssuer } from './utils.js';
+
 function base64UrlCharTo6Bits(base64UrlChar: string): number[] {
 	if (base64UrlChar.length !== 1) {
 		throw new Error('Invalid base64Url character: ' + base64UrlChar);
@@ -110,4 +114,29 @@ export function extractClaimValue<R>(claim: Claim, claimName: string): R {
 		throw new Error(`Invalid field name: found ${name} expected ${claimName}`);
 	}
 	return value;
+}
+
+export function decodeJwt(jwt: string): Omit<JwtPayload, 'iss' | 'aud' | 'sub'> & {
+	iss: string;
+	aud: string;
+	sub: string;
+	rawIss: string;
+} {
+	const { iss, aud, sub, ...decodedJWT } = jwtDecode(jwt);
+
+	if (!sub || !iss || !aud) {
+		throw new Error('Missing jwt data');
+	}
+
+	if (Array.isArray(aud)) {
+		throw new Error('Not supported aud. Aud is an array, string was expected.');
+	}
+
+	return {
+		...decodedJWT,
+		iss: normalizeZkLoginIssuer(iss),
+		rawIss: iss,
+		aud,
+		sub,
+	};
 }
