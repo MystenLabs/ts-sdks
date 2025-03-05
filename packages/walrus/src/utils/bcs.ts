@@ -15,7 +15,7 @@ const SliverPairMetadata = bcs.struct('SliverPairMetadata', {
 	secondary_hash: MerkleNode,
 });
 
-const EncodingType = bcs
+export const EncodingType = bcs
 	.enum('EncodingType', {
 		RedStuff: null,
 		RS2: null,

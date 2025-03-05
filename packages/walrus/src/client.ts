@@ -58,6 +58,7 @@ import type {
 	WriteSliverOptions,
 	WriteSliversToNodeOptions,
 } from './types.js';
+import type { EncodingType } from './utils/bcs.js';
 import { blobIdToInt, IntentType, SliverData, StorageConfirmation } from './utils/bcs.js';
 import {
 	chunk,
@@ -179,8 +180,15 @@ export class WalrusClient {
 
 		const blobMetadata = await this.getBlobMetadata({ blobId, signal });
 		const slivers = await this.getSlivers({ blobId, signal });
+		const encodingType = blobMetadata.metadata.V1.encoding_type;
 
-		return decodePrimarySlivers(numShards, blobMetadata.metadata.V1.unencoded_length, slivers);
+		return decodePrimarySlivers(
+			blobId,
+			numShards,
+			blobMetadata.metadata.V1.unencoded_length,
+			slivers,
+			encodingType,
+		);
 	}
 
 	async getBlobMetadata({ blobId, signal }: GetBlobMetadataOptions) {
@@ -1249,12 +1257,15 @@ export class WalrusClient {
 	 * const { blobId, metadata, sliversByNode, rootHash } = await client.encodeBlob(blob);
 	 * ```
 	 */
-	async encodeBlob(blob: Uint8Array) {
+	async encodeBlob(
+		blob: Uint8Array,
+		encodingType: Extract<typeof EncodingType.$inferInput, string>,
+	) {
 		const systemState = await this.systemState();
 		const committee = await this.#getActiveCommittee();
 
 		const numShards = systemState.committee.n_shards;
-		const { blobId, metadata, sliverPairs, rootHash } = encodeBlob(numShards, blob);
+		const { blobId, metadata, sliverPairs, rootHash } = encodeBlob(numShards, blob, encodingType);
 
 		const sliversByNodeMap = new Map<number, SliversForNode>();
 
@@ -1382,11 +1393,12 @@ export class WalrusClient {
 		signal,
 		owner,
 		attributes,
+		encodingType = 'RS2',
 	}: WriteBlobOptions) {
 		const systemState = await this.systemState();
 		const committee = await this.#getActiveCommittee();
 
-		const { sliversByNode, blobId, metadata, rootHash } = await this.encodeBlob(blob);
+		const { sliversByNode, blobId, metadata, rootHash } = await this.encodeBlob(blob, encodingType);
 
 		const suiBlobObject = await this.executeRegisterBlobTransaction({
 			signer,
