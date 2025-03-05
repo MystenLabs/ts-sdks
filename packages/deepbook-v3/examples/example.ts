@@ -83,6 +83,8 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 		MANAGER_1: {
 			address: '0x9846e63a0574f469b04a3bcc42b6b879740cdf1264ba0aa7f2c2ac6a9cfd1380',
 			tradeCap: '',
+			depositCap: '0xaec102c477c37ee7e322172bea3869de0b2a1ef6d6184d4ba4354ca335c24828',
+			withdrawCap: '0x43d0df18b395bb0035d6e312f32182dcfdeeb112815c808b7fa16642f367f404',
 		},
 	};
 
@@ -97,6 +99,15 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	});
 
 	const tx = new Transaction();
+
+	// const test = dbClient.balanceManager.mintDepositCap('MANAGER_1')(tx);
+	// tx.transferObjects([test], getActiveAddress());
+
+	// const test = dbClient.balanceManager.mintWithdrawalCap('MANAGER_1')(tx);
+	// tx.transferObjects([test], getActiveAddress());
+	// dbClient.balanceManager.depositWithCap('MANAGER_1', 'SUI', 0.01)(tx);
+	const result = dbClient.balanceManager.withdrawWithCap('MANAGER_1', 'SUI', 0.01)(tx);
+	tx.transferObjects([result], getActiveAddress());
 
 	// dbClient.deepBookAdmin.enableVersion(2)(tx);
 
@@ -218,7 +229,7 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	// 	minSize: 1,
 	// })(tx);
 
-	dbClient.deepBookAdmin.removeStableCoin('JUWACOIN')(tx);
+	// dbClient.deepBookAdmin.removeStableCoin('JUWACOIN')(tx);
 
 	let res = await signAndExecute(tx, env);
 

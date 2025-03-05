@@ -7,6 +7,8 @@ import type { TransactionObjectArgument } from '@mysten/sui/transactions';
 export interface BalanceManager {
 	address: string;
 	tradeCap: string | undefined;
+	depositCap: string | undefined;
+	withdrawCap: string | undefined;
 }
 
 export interface Coin {

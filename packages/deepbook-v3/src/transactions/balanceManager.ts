@@ -175,6 +175,102 @@ export class BalanceManagerContract {
 	};
 
 	/**
+	 * @description Mint a TradeCap
+	 * @param {string} managerKey The name of the BalanceManager
+	 * @returns A function that takes a Transaction object
+	 */
+	mintTradeCap = (managerKey: string) => (tx: Transaction) => {
+		const manager = this.#config.getBalanceManager(managerKey);
+		const managerId = manager.address;
+		return tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_trade_cap`,
+			arguments: [tx.object(managerId)],
+		});
+	};
+
+	/**
+	 * @description Mint a DepositCap
+	 * @param {string} managerKey The name of the BalanceManager
+	 * @returns A function that takes a Transaction object
+	 */
+	mintDepositCap = (managerKey: string) => (tx: Transaction) => {
+		const manager = this.#config.getBalanceManager(managerKey);
+		const managerId = manager.address;
+		return tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_deposit_cap`,
+			arguments: [tx.object(managerId)],
+		});
+	};
+
+	/**
+	 * @description Mint a DepositCap
+	 * @param {string} managerKey The name of the BalanceManager
+	 * @returns A function that takes a Transaction object
+	 */
+	mintWithdrawalCap = (managerKey: string) => (tx: Transaction) => {
+		const manager = this.#config.getBalanceManager(managerKey);
+		const managerId = manager.address;
+		return tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_withdraw_cap`,
+			arguments: [tx.object(managerId)],
+		});
+	};
+
+	/**
+	 * @description Deposit using the DepositCap
+	 * @param {string} managerKey The name of the BalanceManager
+	 * @param {string} coinKey The name of the coin to deposit
+	 * @param {number} amountToDeposit The amount to deposit
+	 * @returns A function that takes a Transaction object
+	 */
+	depositWithCap =
+		(managerKey: string, coinKey: string, amountToDeposit: number) => (tx: Transaction) => {
+			tx.setSenderIfNotSet(this.#config.address);
+			const manager = this.#config.getBalanceManager(managerKey);
+			const managerId = manager.address;
+			if (!manager.depositCap) {
+				throw new Error(`DepositCap not set for ${managerKey}`);
+			}
+			const depositCapId = manager.depositCap;
+			const coin = this.#config.getCoin(coinKey);
+			const depositInput = Math.round(amountToDeposit * coin.scalar);
+			const deposit = coinWithBalance({
+				type: coin.type,
+				balance: depositInput,
+			});
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::deposit_with_cap`,
+				arguments: [tx.object(managerId), tx.object(depositCapId), deposit],
+				typeArguments: [coin.type],
+			});
+		};
+
+	/**
+	 * @description Withdraw using the WithdrawCap
+	 * @param {string} managerKey The name of the BalanceManager
+	 * @param {string} coinKey The name of the coin to withdraw
+	 * @param {number} amountToWithdraw The amount to withdraw
+	 * @returns A function that takes a Transaction object
+	 */
+	withdrawWithCap =
+		(managerKey: string, coinKey: string, amountToWithdraw: number) => (tx: Transaction) => {
+			tx.setSenderIfNotSet(this.#config.address);
+			const manager = this.#config.getBalanceManager(managerKey);
+			const managerId = manager.address;
+			if (!manager.withdrawCap) {
+				throw new Error(`WithdrawCap not set for ${managerKey}`);
+			}
+			const withdrawCapId = manager.withdrawCap;
+			const coin = this.#config.getCoin(coinKey);
+			const withdrawAmount = Math.round(amountToWithdraw * coin.scalar);
+			return tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::withdraw_with_cap`,
+				arguments: [tx.object(managerId), tx.object(withdrawCapId), tx.pure.u64(withdrawAmount)],
+				typeArguments: [coin.type],
+			});
+		};
+
+	/**
 	 * @description Get the owner of the BalanceManager
 	 * @param {string} managerKey The key of the BalanceManager
 	 * @returns A function that takes a Transaction object
