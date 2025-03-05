@@ -24,6 +24,8 @@ import type { Theme } from '../themes/themeContract.js';
 import { createInMemoryStore } from '../utils/stateStorage.js';
 import { getRegisteredWallets } from '../utils/walletUtils.js';
 import { createWalletStore } from '../walletStore.js';
+import type { EnokiConnectWalletManagerProps } from './EnokiConnectWalletManager.js';
+import { EnokiConnectWalletManager } from './EnokiConnectWalletManager.js';
 import { InjectedThemeStyles } from './styling/InjectedThemeStyles.js';
 
 export type WalletProviderProps = {
@@ -41,6 +43,9 @@ export type WalletProviderProps = {
 
 	/** Enables the Stashed wallet */
 	stashedWallet?: StashedWalletConfig;
+
+	/** Enables Enoki Connect wallets */
+	enokiConnectConfig?: EnokiConnectWalletManagerProps;
 
 	/** Configures how the most recently connected to wallet account is stored. Set to `null` to disable persisting state entirely. Defaults to using localStorage if it is available. */
 	storage?: StateStorage | null;
@@ -64,6 +69,7 @@ export function WalletProvider({
 	enableUnsafeBurner = false,
 	autoConnect = false,
 	stashedWallet,
+	enokiConnectConfig,
 	theme = lightTheme,
 	children,
 }: WalletProviderProps) {
@@ -83,6 +89,7 @@ export function WalletProvider({
 				walletFilter={walletFilter}
 				enableUnsafeBurner={enableUnsafeBurner}
 				stashedWallet={stashedWallet}
+				enokiConnectConfig={enokiConnectConfig}
 			>
 				{/* TODO: We ideally don't want to inject styles if people aren't using the UI components */}
 				{theme ? <InjectedThemeStyles theme={theme} /> : null}
@@ -94,7 +101,12 @@ export function WalletProvider({
 
 type WalletConnectionManagerProps = Pick<
 	WalletProviderProps,
-	'preferredWallets' | 'walletFilter' | 'enableUnsafeBurner' | 'stashedWallet' | 'children'
+	| 'preferredWallets'
+	| 'walletFilter'
+	| 'enableUnsafeBurner'
+	| 'stashedWallet'
+	| 'enokiConnectConfig'
+	| 'children'
 >;
 
 function WalletConnectionManager({
@@ -102,6 +114,7 @@ function WalletConnectionManager({
 	walletFilter = DEFAULT_WALLET_FILTER,
 	enableUnsafeBurner = false,
 	stashedWallet,
+	enokiConnectConfig,
 	children,
 }: WalletConnectionManagerProps) {
 	useWalletsChanged(preferredWallets, walletFilter);
@@ -110,5 +123,10 @@ function WalletConnectionManager({
 	useUnsafeBurnerWallet(enableUnsafeBurner);
 	useAutoConnectWallet();
 
-	return children;
+	return (
+		<>
+			{enokiConnectConfig ? <EnokiConnectWalletManager {...enokiConnectConfig} /> : null}
+			{children}
+		</>
+	);
 }

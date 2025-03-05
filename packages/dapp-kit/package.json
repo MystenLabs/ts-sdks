@@ -78,6 +78,7 @@
 		"vitest": "^2.1.8"
 	},
 	"dependencies": {
+		"@mysten/enoki-connect": "workspace:*",
 		"@mysten/sui": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
 		"@mysten/zksend": "workspace:*",
