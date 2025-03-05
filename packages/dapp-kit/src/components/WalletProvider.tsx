@@ -45,7 +45,7 @@ export type WalletProviderProps = {
 	stashedWallet?: StashedWalletConfig;
 
 	/** Enables Enoki Connect wallets */
-	enokiConnectConfig: EnokiConnectWalletManagerProps;
+	enokiConnectConfig?: EnokiConnectWalletManagerProps;
 
 	/** Configures how the most recently connected to wallet account is stored. Set to `null` to disable persisting state entirely. Defaults to using localStorage if it is available. */
 	storage?: StateStorage | null;
