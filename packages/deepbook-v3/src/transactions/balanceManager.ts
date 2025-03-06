@@ -203,7 +203,7 @@ export class BalanceManagerContract {
 	};
 
 	/**
-	 * @description Mint a DepositCap
+	 * @description Mint a WithdrawalCap
 	 * @param {string} managerKey The name of the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
