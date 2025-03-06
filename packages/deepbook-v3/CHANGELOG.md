@@ -1,5 +1,13 @@
 # @mysten/deepbook-v3
 
+## 0.12.30
+
+### Patch Changes
+
+- da31bc5: Add SEND token to SDK
+- Updated dependencies [03975f4]
+  - @mysten/sui@1.22.0
+
 ## 0.12.29
 
 ### Patch Changes

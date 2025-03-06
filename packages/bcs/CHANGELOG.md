@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.5.0
+
+### Minor Changes
+
+- 03975f4: replace bs58 and bech32 packages with @scure/base
+
 ## 1.4.0
 
 ### Minor Changes

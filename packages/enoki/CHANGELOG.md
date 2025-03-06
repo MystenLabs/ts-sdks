@@ -1,5 +1,12 @@
 # @mysten/enoki
 
+## 0.4.26
+
+### Patch Changes
+
+- Updated dependencies [03975f4]
+  - @mysten/sui@1.22.0
+
 ## 0.4.25
 
 ### Patch Changes

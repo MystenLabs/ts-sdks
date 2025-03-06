@@ -1,5 +1,16 @@
 # @mysten/sui.js
 
+## 1.22.0
+
+### Minor Changes
+
+- 03975f4: replace bs58 and bech32 packages with @scure/base
+
+### Patch Changes
+
+- Updated dependencies [03975f4]
+  - @mysten/bcs@1.5.0
+
 ## 1.21.2
 
 ### Patch Changes
