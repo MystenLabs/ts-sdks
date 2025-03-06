@@ -6,9 +6,9 @@ import type { TransactionObjectArgument } from '@mysten/sui/transactions';
 // SPDX-License-Identifier: Apache-2.0
 export interface BalanceManager {
 	address: string;
-	tradeCap: string | undefined;
-	depositCap: string | undefined;
-	withdrawCap: string | undefined;
+	tradeCap?: string;
+	depositCap?: string;
+	withdrawCap?: string;
 }
 
 export interface Coin {
