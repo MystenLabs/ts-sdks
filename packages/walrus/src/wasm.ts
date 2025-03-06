@@ -3,8 +3,9 @@
 
 import { BlobEncoder, from_signed_messages_and_indices, MessageType } from '@mysten/walrus-wasm';
 
-import { blobIdFromBytes } from './utils/bcs.js';
+import type { EncodingType } from './types.js';
 import type { BlobMetadata, BlobMetadataWithId, SliverData, SliverPair } from './utils/bcs.js';
+import { EncodingType as BcsEncodingType, BlobId, blobIdFromBytes } from './utils/bcs.js';
 
 export interface EncodedBlob {
 	sliverPairs: (typeof SliverPair.$inferInput)[];
@@ -13,10 +14,17 @@ export interface EncodedBlob {
 	rootHash: Uint8Array;
 }
 
-export function encodeBlob(nShards: number, bytes: Uint8Array): EncodedBlob {
+export function encodeBlob(
+	nShards: number,
+	bytes: Uint8Array,
+	encodingType: EncodingType,
+): EncodedBlob {
 	const encoder = new BlobEncoder(nShards);
 
-	const [sliverPairs, metadata, rootHash] = encoder.encode_with_metadata(bytes);
+	const [sliverPairs, metadata, rootHash] = encoder.encode_with_metadata(
+		bytes,
+		BcsEncodingType.serialize(encodingType).toBytes()[0],
+	);
 
 	return {
 		sliverPairs,
@@ -62,27 +70,37 @@ export function combineSignatures(
 }
 
 export function decodePrimarySlivers(
+	blobId: string,
 	nShards: number,
 	size: number | bigint | string,
 	slivers: (typeof SliverData.$inferInput)[],
+	encodingType: EncodingType,
 ): Uint8Array {
 	const encoder = new BlobEncoder(nShards);
-	const bytes = encoder.decode_primary(
+
+	const [bytes] = encoder.decode_primary(
+		BlobId.serialize(blobId).toBytes(),
 		BigInt(size),
 		slivers.map((sliver) => ({
 			...sliver,
 			_sliver_type: undefined,
 		})),
+		BcsEncodingType.serialize(encodingType).toBytes()[0],
 	);
+
 	return new Uint8Array(bytes);
 }
 
 export function computeMetadata(
 	nShards: number,
 	bytes: Uint8Array,
+	encodingType: EncodingType,
 ): typeof BlobMetadataWithId.$inferInput & { blob_id: string } {
 	const encoder = new BlobEncoder(nShards);
-	const metadata = encoder.compute_metadata(bytes);
+	const metadata = encoder.compute_metadata(
+		bytes,
+		BcsEncodingType.serialize(encodingType).toBytes()[0],
+	);
 
 	return {
 		...metadata,

@@ -29,32 +29,20 @@ export class BlobEncoder {
   free(): void;
   constructor(n_shards: number);
   /**
-   * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::encode].
-   * Returns a vector of [walrus_core::encoding::slivers::SliverPair]´s.
-   */
-  encode(data: Uint8Array): any;
-  /**
    * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::encode_with_metadata].
    * Returns a tuple with a vector of [walrus_core::encoding::slivers::SliverPair]´s and a [walrus_core::metadata::VerifiedBlobMetadataWithId]`.
    */
-  encode_with_metadata(data: Uint8Array): any;
+  encode_with_metadata(data: Uint8Array, encoding_type: number): any;
   /**
    * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::compute_metadata].
    * Returns [walrus_core::metadata::VerifiedBlobMetadataWithId].
    */
-  compute_metadata(data: Uint8Array): any;
+  compute_metadata(data: Uint8Array, encoding_type: number): any;
   /**
    * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::decode].
    * The input `slivers` is expected to be a `Vec<SliverData<Primary>>`.
    * See also [BlobEncoder::decode_secondary].
    * Returns `Vec<u8>`.
    */
-  decode_primary(blob_size: bigint, slivers: any): any;
-  /**
-   * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::decode].
-   * The input `slivers` is expected to be a `Vec<SliverData<Secondary>>`.
-   * See also [BlobEncoder::decode_primary].
-   * Returns `Vec<u8>`.
-   */
-  decode_secondary(blob_size: bigint, slivers: any): any;
+  decode_primary(blob_id: any, blob_size: bigint, slivers: any, encoding_type: number): any;
 }

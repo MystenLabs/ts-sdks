@@ -171,19 +171,6 @@ function isLikeNone(x) {
     return x === undefined || x === null;
 }
 
-function takeFromExternrefTable0(idx) {
-    const value = wasm.__wbindgen_export_4.get(idx);
-    wasm.__externref_table_dealloc(idx);
-    return value;
-}
-
-function passArray8ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 1, 1) >>> 0;
-    getUint8ArrayMemory0().set(arg, ptr / 1);
-    WASM_VECTOR_LEN = arg.length;
-    return ptr;
-}
-
 let cachedUint16ArrayMemory0 = null;
 
 function getUint16ArrayMemory0() {
@@ -198,6 +185,12 @@ function passArray16ToWasm0(arg, malloc) {
     getUint16ArrayMemory0().set(arg, ptr / 2);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
+}
+
+function takeFromExternrefTable0(idx) {
+    const value = wasm.__wbindgen_export_4.get(idx);
+    wasm.__externref_table_dealloc(idx);
+    return value;
 }
 /**
  * @param {MessageType} message_type
@@ -215,6 +208,12 @@ module.exports.from_signed_messages_and_indices = function(message_type, signed_
     return takeFromExternrefTable0(ret[0]);
 };
 
+function passArray8ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 1, 1) >>> 0;
+    getUint8ArrayMemory0().set(arg, ptr / 1);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
 /**
  * @param {Uint8Array} signature
  * @param {Uint8Array} public_key
@@ -332,30 +331,16 @@ class BlobEncoder {
         return this;
     }
     /**
-     * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::encode].
-     * Returns a vector of [walrus_core::encoding::slivers::SliverPair]´s.
-     * @param {Uint8Array} data
-     * @returns {any}
-     */
-    encode(data) {
-        const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.blobencoder_encode(this.__wbg_ptr, ptr0, len0);
-        if (ret[2]) {
-            throw takeFromExternrefTable0(ret[1]);
-        }
-        return takeFromExternrefTable0(ret[0]);
-    }
-    /**
      * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::encode_with_metadata].
      * Returns a tuple with a vector of [walrus_core::encoding::slivers::SliverPair]´s and a [walrus_core::metadata::VerifiedBlobMetadataWithId]`.
      * @param {Uint8Array} data
+     * @param {number} encoding_type
      * @returns {any}
      */
-    encode_with_metadata(data) {
+    encode_with_metadata(data, encoding_type) {
         const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.blobencoder_encode_with_metadata(this.__wbg_ptr, ptr0, len0);
+        const ret = wasm.blobencoder_encode_with_metadata(this.__wbg_ptr, ptr0, len0, encoding_type);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
@@ -365,12 +350,13 @@ class BlobEncoder {
      * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::compute_metadata].
      * Returns [walrus_core::metadata::VerifiedBlobMetadataWithId].
      * @param {Uint8Array} data
+     * @param {number} encoding_type
      * @returns {any}
      */
-    compute_metadata(data) {
+    compute_metadata(data, encoding_type) {
         const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.blobencoder_compute_metadata(this.__wbg_ptr, ptr0, len0);
+        const ret = wasm.blobencoder_compute_metadata(this.__wbg_ptr, ptr0, len0, encoding_type);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
@@ -381,28 +367,14 @@ class BlobEncoder {
      * The input `slivers` is expected to be a `Vec<SliverData<Primary>>`.
      * See also [BlobEncoder::decode_secondary].
      * Returns `Vec<u8>`.
+     * @param {any} blob_id
      * @param {bigint} blob_size
      * @param {any} slivers
+     * @param {number} encoding_type
      * @returns {any}
      */
-    decode_primary(blob_size, slivers) {
-        const ret = wasm.blobencoder_decode_primary(this.__wbg_ptr, blob_size, slivers);
-        if (ret[2]) {
-            throw takeFromExternrefTable0(ret[1]);
-        }
-        return takeFromExternrefTable0(ret[0]);
-    }
-    /**
-     * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::decode].
-     * The input `slivers` is expected to be a `Vec<SliverData<Secondary>>`.
-     * See also [BlobEncoder::decode_primary].
-     * Returns `Vec<u8>`.
-     * @param {bigint} blob_size
-     * @param {any} slivers
-     * @returns {any}
-     */
-    decode_secondary(blob_size, slivers) {
-        const ret = wasm.blobencoder_decode_secondary(this.__wbg_ptr, blob_size, slivers);
+    decode_primary(blob_id, blob_size, slivers, encoding_type) {
+        const ret = wasm.blobencoder_decode_primary(this.__wbg_ptr, blob_id, blob_size, slivers, encoding_type);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
@@ -419,37 +391,37 @@ module.exports.__wbg_String_fed4d24b68977888 = function(arg0, arg1) {
     getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
 };
 
-module.exports.__wbg_buffer_61b7ce01341d7f88 = function(arg0) {
+module.exports.__wbg_buffer_609cc3eee51ed158 = function(arg0) {
     const ret = arg0.buffer;
     return ret;
 };
 
-module.exports.__wbg_call_b0d8e36992d9900d = function() { return handleError(function (arg0, arg1) {
+module.exports.__wbg_call_672a4d21634d4a24 = function() { return handleError(function (arg0, arg1) {
     const ret = arg0.call(arg1);
     return ret;
 }, arguments) };
 
-module.exports.__wbg_done_f22c1561fa919baa = function(arg0) {
+module.exports.__wbg_done_769e5ede4b31c67b = function(arg0) {
     const ret = arg0.done;
     return ret;
 };
 
-module.exports.__wbg_get_9aa3dff3f0266054 = function(arg0, arg1) {
-    const ret = arg0[arg1 >>> 0];
-    return ret;
-};
-
-module.exports.__wbg_get_bbccf8970793c087 = function() { return handleError(function (arg0, arg1) {
+module.exports.__wbg_get_67b2ba62fc30de12 = function() { return handleError(function (arg0, arg1) {
     const ret = Reflect.get(arg0, arg1);
     return ret;
 }, arguments) };
+
+module.exports.__wbg_get_b9b93047fe3cf45b = function(arg0, arg1) {
+    const ret = arg0[arg1 >>> 0];
+    return ret;
+};
 
 module.exports.__wbg_getwithrefkey_bb8f74a92cb2e784 = function(arg0, arg1) {
     const ret = arg0[arg1];
     return ret;
 };
 
-module.exports.__wbg_instanceof_ArrayBuffer_670ddde44cdb2602 = function(arg0) {
+module.exports.__wbg_instanceof_ArrayBuffer_e14585432e3737fc = function(arg0) {
     let result;
     try {
         result = arg0 instanceof ArrayBuffer;
@@ -460,7 +432,7 @@ module.exports.__wbg_instanceof_ArrayBuffer_670ddde44cdb2602 = function(arg0) {
     return ret;
 };
 
-module.exports.__wbg_instanceof_Uint8Array_28af5bc19d6acad8 = function(arg0) {
+module.exports.__wbg_instanceof_Uint8Array_17156bcf118086a9 = function(arg0) {
     let result;
     try {
         result = arg0 instanceof Uint8Array;
@@ -471,69 +443,69 @@ module.exports.__wbg_instanceof_Uint8Array_28af5bc19d6acad8 = function(arg0) {
     return ret;
 };
 
-module.exports.__wbg_isArray_1ba11a930108ec51 = function(arg0) {
+module.exports.__wbg_isArray_a1eab7e0d067391b = function(arg0) {
     const ret = Array.isArray(arg0);
     return ret;
 };
 
-module.exports.__wbg_isSafeInteger_12f5549b2fca23f4 = function(arg0) {
+module.exports.__wbg_isSafeInteger_343e2beeeece1bb0 = function(arg0) {
     const ret = Number.isSafeInteger(arg0);
     return ret;
 };
 
-module.exports.__wbg_iterator_23604bb983791576 = function() {
+module.exports.__wbg_iterator_9a24c88df860dc65 = function() {
     const ret = Symbol.iterator;
     return ret;
 };
 
-module.exports.__wbg_length_65d1cd11729ced11 = function(arg0) {
+module.exports.__wbg_length_a446193dc22c12f8 = function(arg0) {
     const ret = arg0.length;
     return ret;
 };
 
-module.exports.__wbg_length_d65cf0786bfc5739 = function(arg0) {
+module.exports.__wbg_length_e2d2a49132c1b256 = function(arg0) {
     const ret = arg0.length;
     return ret;
 };
 
-module.exports.__wbg_new_254fa9eac11932ae = function() {
-    const ret = new Array();
-    return ret;
-};
-
-module.exports.__wbg_new_3ff5b33b1ce712df = function(arg0) {
-    const ret = new Uint8Array(arg0);
-    return ret;
-};
-
-module.exports.__wbg_new_688846f374351c92 = function() {
+module.exports.__wbg_new_405e22f390576ce2 = function() {
     const ret = new Object();
     return ret;
 };
 
-module.exports.__wbg_next_01dd9234a5bf6d05 = function() { return handleError(function (arg0) {
-    const ret = arg0.next();
+module.exports.__wbg_new_78feb108b6472713 = function() {
+    const ret = new Array();
     return ret;
-}, arguments) };
+};
 
-module.exports.__wbg_next_137428deb98342b0 = function(arg0) {
+module.exports.__wbg_new_a12002a7f91c75be = function(arg0) {
+    const ret = new Uint8Array(arg0);
+    return ret;
+};
+
+module.exports.__wbg_next_25feadfc0913fea9 = function(arg0) {
     const ret = arg0.next;
     return ret;
 };
 
-module.exports.__wbg_set_1d80752d0d5f0b21 = function(arg0, arg1, arg2) {
-    arg0[arg1 >>> 0] = arg2;
-};
+module.exports.__wbg_next_6574e1a8a62d1055 = function() { return handleError(function (arg0) {
+    const ret = arg0.next();
+    return ret;
+}, arguments) };
 
-module.exports.__wbg_set_23d69db4e5c66a6e = function(arg0, arg1, arg2) {
-    arg0.set(arg1, arg2 >>> 0);
+module.exports.__wbg_set_37837023f3d740e8 = function(arg0, arg1, arg2) {
+    arg0[arg1 >>> 0] = arg2;
 };
 
 module.exports.__wbg_set_3fda3bac07393de4 = function(arg0, arg1, arg2) {
     arg0[arg1] = arg2;
 };
 
-module.exports.__wbg_value_4c32fd138a88eee2 = function(arg0) {
+module.exports.__wbg_set_65595bdd868b3009 = function(arg0, arg1, arg2) {
+    arg0.set(arg1, arg2 >>> 0);
+};
+
+module.exports.__wbg_value_cd1ffa7b1ab794f1 = function(arg0) {
     const ret = arg0.value;
     return ret;
 };
