@@ -5,9 +5,20 @@ import type { Transaction } from '@mysten/sui/transactions';
 import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 
 import { OrderType, SelfMatchingOptions } from '../types/index.js';
-import type { PlaceLimitOrderParams, PlaceMarketOrderParams, SwapParams } from '../types/index.js';
+import type {
+	CreatePermissionlessPoolParams,
+	PlaceLimitOrderParams,
+	PlaceMarketOrderParams,
+	SwapParams,
+} from '../types/index.js';
 import type { DeepBookConfig } from '../utils/config.js';
-import { DEEP_SCALAR, FLOAT_SCALAR, GAS_BUDGET, MAX_TIMESTAMP } from '../utils/config.js';
+import {
+	DEEP_SCALAR,
+	FLOAT_SCALAR,
+	GAS_BUDGET,
+	MAX_TIMESTAMP,
+	POOL_CREATION_FEE,
+} from '../utils/config.js';
 
 /**
  * DeepBookContract class for managing DeepBook operations.
@@ -537,8 +548,8 @@ export class DeepBookContract {
 		}
 		const { poolKey, amount: baseAmount, deepAmount, minOut: minQuote } = params;
 
-		let pool = this.#config.getPool(poolKey);
-		let deepCoinType = this.#config.getCoin('DEEP').type;
+		const pool = this.#config.getPool(poolKey);
+		const deepCoinType = this.#config.getCoin('DEEP').type;
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
@@ -581,8 +592,8 @@ export class DeepBookContract {
 		}
 		const { poolKey, amount: quoteAmount, deepAmount, minOut: minBase } = params;
 
-		let pool = this.#config.getPool(poolKey);
-		let deepCoinType = this.#config.getCoin('DEEP').type;
+		const pool = this.#config.getPool(poolKey);
+		const deepCoinType = this.#config.getCoin('DEEP').type;
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
@@ -699,6 +710,45 @@ export class DeepBookContract {
 		tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_order_deep_price`,
 			arguments: [tx.object(pool.address)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Create a new pool permissionlessly
+	 * @param {CreatePermissionlessPoolParams} params Parameters for creating permissionless pool
+	 * @returns A function that takes a Transaction object
+	 */
+	createPermissionlessPool = (params: CreatePermissionlessPoolParams) => (tx: Transaction) => {
+		tx.setSenderIfNotSet(this.#config.address);
+		const { baseCoinKey, quoteCoinKey, tickSize, lotSize, minSize, deepCoin } = params;
+		const baseCoin = this.#config.getCoin(baseCoinKey);
+		const quoteCoin = this.#config.getCoin(quoteCoinKey);
+		const deepCoinType = this.#config.getCoin('DEEP').type;
+
+		const baseScalar = baseCoin.scalar;
+		const quoteScalar = quoteCoin.scalar;
+
+		const adjustedTickSize = (tickSize * FLOAT_SCALAR * quoteScalar) / baseScalar;
+		const adjustedLotSize = lotSize * baseScalar;
+		const adjustedMinSize = minSize * baseScalar;
+
+		const deepCoinInput =
+			deepCoin ??
+			coinWithBalance({
+				type: deepCoinType,
+				balance: POOL_CREATION_FEE,
+			});
+
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::create_permissionless_pool`,
+			arguments: [
+				tx.object(this.#config.REGISTRY_ID), // registry_id
+				tx.pure.u64(adjustedTickSize), // adjusted tick_size
+				tx.pure.u64(adjustedLotSize), // adjusted lot_size
+				tx.pure.u64(adjustedMinSize), // adjusted min_size
+				deepCoinInput,
+			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};

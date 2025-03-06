@@ -6,7 +6,9 @@ import type { TransactionObjectArgument } from '@mysten/sui/transactions';
 // SPDX-License-Identifier: Apache-2.0
 export interface BalanceManager {
 	address: string;
-	tradeCap: string | undefined;
+	tradeCap?: string;
+	depositCap?: string;
+	withdrawCap?: string;
 }
 
 export interface Coin {
@@ -85,8 +87,15 @@ export interface CreatePoolAdminParams {
 	minSize: number;
 	whitelisted: boolean;
 	stablePool: boolean;
+}
+
+export interface CreatePermissionlessPoolParams {
+	baseCoinKey: string;
+	quoteCoinKey: string;
+	tickSize: number;
+	lotSize: number;
+	minSize: number;
 	deepCoin?: TransactionObjectArgument;
-	baseCoin?: TransactionObjectArgument;
 }
 
 export interface Config {

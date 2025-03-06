@@ -153,4 +153,32 @@ export class DeepBookAdminContract {
 			],
 		});
 	};
+
+	/**
+	 * @description Add a coin to whitelist of stable coins
+	 * @param {string} stableCoinKey The name of the stable coin to be added
+	 * @returns A function that takes a Transaction object
+	 */
+	addStableCoin = (stableCoinKey: string) => (tx: Transaction) => {
+		const stableCoinType = this.#config.getCoin(stableCoinKey).type;
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::add_stablecoin`,
+			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
+			typeArguments: [stableCoinType],
+		});
+	};
+
+	/**
+	 * @description Remove a coin from whitelist of stable coins
+	 * @param {string} stableCoinKey The name of the stable coin to be removed
+	 * @returns A function that takes a Transaction object
+	 */
+	removeStableCoin = (stableCoinKey: string) => (tx: Transaction) => {
+		const stableCoinType = this.#config.getCoin(stableCoinKey).type;
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::remove_stablecoin`,
+			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
+			typeArguments: [stableCoinType],
+		});
+	};
 }
