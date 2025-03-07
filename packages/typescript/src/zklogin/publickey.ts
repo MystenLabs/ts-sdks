@@ -13,7 +13,7 @@ import { graphql } from '../graphql/schemas/latest/index.js';
 import { normalizeSuiAddress, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
 import { extractClaimValue } from './jwt-utils.js';
 import { parseZkLoginSignature } from './signature.js';
-import { toBigEndianBytes, toPaddedBigEndianBytes } from './utils.js';
+import { normalizeZkLoginIssuer, toBigEndianBytes, toPaddedBigEndianBytes } from './utils.js';
 
 /**
  * A zkLogin public identifier
@@ -142,7 +142,7 @@ export function toZkLoginPublicIdentifier(
 		? toBigEndianBytes(addressSeed, 32)
 		: toPaddedBigEndianBytes(addressSeed, 32);
 
-	const issBytes = new TextEncoder().encode(iss);
+	const issBytes = new TextEncoder().encode(normalizeZkLoginIssuer(iss));
 	const tmp = new Uint8Array(1 + issBytes.length + addressSeedBytesBigEndian.length);
 	tmp.set([issBytes.length], 0);
 	tmp.set(issBytes, 1);

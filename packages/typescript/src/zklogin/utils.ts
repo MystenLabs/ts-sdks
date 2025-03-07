@@ -103,3 +103,10 @@ export function genAddressSeed(
 		poseidonHash([BigInt(salt)]),
 	]);
 }
+
+export function normalizeZkLoginIssuer(iss: string) {
+	if (iss === 'accounts.google.com') {
+		return 'https://accounts.google.com';
+	}
+	return iss;
+}
