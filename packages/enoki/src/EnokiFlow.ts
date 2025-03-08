@@ -37,6 +37,7 @@ export interface ZkLoginState {
 	provider?: AuthProvider;
 	address?: string;
 	salt?: string;
+	publicKey?: string;
 }
 
 // State that session-bound, and is encrypted in storage.
@@ -192,12 +193,13 @@ export class EnokiFlow {
 			throw new Error('Missing JWT data');
 		}
 
-		const { address, salt } = await this.#enokiClient.getZkLogin({ jwt });
+		const { address, salt, publicKey } = await this.#enokiClient.getZkLogin({ jwt });
 
 		this.$zkLoginState.set({
 			...this.$zkLoginState.get(),
 			salt,
 			address,
+			publicKey,
 		});
 		await this.#setSession({
 			...zkp,

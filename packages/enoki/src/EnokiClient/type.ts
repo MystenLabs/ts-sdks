@@ -30,6 +30,7 @@ export interface GetZkLoginApiInput {
 export interface GetZkLoginApiResponse {
 	address: string;
 	salt: string;
+	publicKey: string;
 }
 
 export interface CreateZkLoginNonceApiInput {
