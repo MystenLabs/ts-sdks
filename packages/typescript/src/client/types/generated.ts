@@ -1004,9 +1004,7 @@ export interface SuiMoveModuleId {
 export interface SuiMoveNormalizedEnum {
 	abilities: SuiMoveAbilitySet;
 	typeParameters: SuiMoveStructTypeParameter[];
-	variants: {
-		[key: string]: SuiMoveNormalizedField[];
-	};
+	variants: [string, SuiMoveNormalizedField[]][];
 }
 export interface SuiMoveNormalizedField {
 	name: string;
