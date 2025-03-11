@@ -364,7 +364,7 @@ const embedStashedIframe = () => {
 	embeddedIframe.style.display = 'none';
 	embeddedIframe.src = `${stashedWalletOrigin}/embed`;
 	document.body.appendChild(embeddedIframe);
-	// every 3 seconds, check if the wallet is connected
+	// every second, check if the wallet is connected
 	walletStatusCheckEnabled = true;
 	walletStatusIntervalId = setInterval(() => {
 		if (!walletStatusCheckEnabled) return;
