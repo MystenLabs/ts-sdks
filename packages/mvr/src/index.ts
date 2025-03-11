@@ -7,13 +7,13 @@ import { existsSync, readdirSync, statSync, writeFileSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { extname, resolve } from 'path';
 import { parseArgs } from 'util';
+import type { NamedPackagesPluginCache } from '@mysten/sui/src/transactions';
 import { isValidNamedPackage } from '@mysten/sui/utils';
 import { prompt } from 'enquirer';
 import beautify from 'js-beautify';
 
 const TYPES_AND_TARGET_MATCHES = /[@a-zA-Z0-9/.-]+::[a-zA-Z0-9]+::[a-zA-Z0-9]+/g;
 const MVR_NAME_MATCHES = /[@a-zA-Z0-9/.-]+::/g;
-
 const ACCEPTED_FILES = ['.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs'];
 
 // TODO: Is there a better way to do this? Maybe through .gitignore? Kinda risky.
@@ -38,7 +38,6 @@ const SKIPPED_DIRS = [
 
 const SKIPPED_FILES = ['mvr.ts'];
 const MAX_BATCH_SIZE = 25; // files to process per batch.
-
 const BASE_API_URL = (network: 'mainnet' | 'testnet') => `https://qa.${network}.mvr.mystenlabs.com`;
 
 const WARNING_MESSAGE = `/**
@@ -67,6 +66,11 @@ const { values: args } = parseArgs({
 			default: FILE_NAME,
 			short: 'f',
 		},
+		depth: {
+			type: 'string',
+			default: '10',
+			short: 'd',
+		},
 	},
 });
 
@@ -87,8 +91,40 @@ async function main() {
 
 	console.log(`Generating ${args.fileName}...`);
 
-	const detectedNames = await findDetectedNamesInFiles(args.directory);
+	const detectedNames = await findNames(args.directory, Number(args.depth));
 
+	const { mainnet, testnet } = await crossNetworkResolution(detectedNames);
+
+	writeOutputFile(outDir, mainnet, testnet);
+}
+
+main();
+
+function writeOutputFile(
+	outDir: string,
+	mainnet: NamedPackagesPluginCache,
+	testnet: NamedPackagesPluginCache,
+) {
+	const outputFile = `${WARNING_MESSAGE}
+const testnetResolution = {
+	packages: ${JSON.stringify(testnet.packages).replaceAll('"', "'")},
+	types: ${JSON.stringify(testnet.types).replaceAll('"', "'")},
+};
+
+const mainnetResolution = {
+	packages: ${JSON.stringify(mainnet.packages).replaceAll('"', "'")},
+	types: ${JSON.stringify(mainnet.types).replaceAll('"', "'")},
+};
+
+export function getMvrCache(network: 'mainnet' | 'testnet') {
+	return network === 'mainnet' ? mainnetResolution : testnetResolution;
+}\n
+`;
+
+	writeFileSync(outDir, beautify(outputFile, { indent_size: 4, indent_char: '\t' }), 'utf8');
+}
+
+async function crossNetworkResolution(detectedNames: Set<string>) {
 	const mainnetPackages = await resolvePackages(
 		Array.from(detectedNames).filter((x) => !x.includes('::')),
 		'mainnet',
@@ -109,26 +145,17 @@ async function main() {
 		'testnet',
 	);
 
-	const outputFile = `${WARNING_MESSAGE}
-const testnetResolution = {
-	packages: ${JSON.stringify(testnetPackages).replaceAll('"', "'")},
-	types: ${JSON.stringify(testnetTypes).replaceAll('"', "'")},
-};
-
-const mainnetResolution = {
-	packages: ${JSON.stringify(mainnetPackages).replaceAll('"', "'")},
-	types: ${JSON.stringify(mainnetTypes).replaceAll('"', "'")},
-};
-
-export function getMvrCache(network: 'mainnet' | 'testnet') {
-	return network === 'mainnet' ? mainnetResolution : testnetResolution;
-}\n
-`;
-
-	writeFileSync(outDir, beautify(outputFile, { indent_size: 4, indent_char: '\t' }), 'utf8');
+	return {
+		mainnet: {
+			packages: mainnetPackages,
+			types: mainnetTypes,
+		},
+		testnet: {
+			packages: testnetPackages,
+			types: testnetTypes,
+		},
+	};
 }
-
-main();
 
 async function resolvePackages(packages: string[], network: 'mainnet' | 'testnet') {
 	const batches = batch(packages, 50);
@@ -180,7 +207,7 @@ async function resolveTypes(types: string[], network: 'mainnet' | 'testnet') {
 
 			const data = await response.json();
 
-			// TODO: Bring this back in once I fix the API.
+			// TODO: Bring this back in once I upload the fix to the API.
 			// if (!response.ok) throw new Error(`Failed to resolve types: ${data?.message}`);
 
 			if (!data?.resolution) return;
@@ -197,20 +224,29 @@ async function resolveTypes(types: string[], network: 'mainnet' | 'testnet') {
 	return results;
 }
 
-export async function findDetectedNamesInFiles(directory: string) {
+/**
+ * Finds all the MVR names in the given directory.
+ * @param directory - The directory to search for MVR names.
+ * @returns A set of all the MVR names found in the directory.
+ */
+export async function findNames(directory: string, depth: number = 10) {
 	const detectedNames = new Set<string>();
-	const files = readFilesRecursively(directory);
+	const files = readFilesRecursively(directory, depth);
 
+	// We batch the files to avoid trying to open too many files at once.
 	const batches = batch(files);
 
 	for (const batch of batches) {
-		await findMvrNamesInFiles(batch, detectedNames);
+		await processFilesBatch(batch, detectedNames);
 	}
 
 	return detectedNames;
 }
 
-async function findMvrNamesInFiles(files: string[], detectedNames: Set<string>) {
+/**
+ * Finds all the MVR names in the given files.
+ */
+async function processFilesBatch(files: string[], detectedNames: Set<string>) {
 	await Promise.all(
 		files.map(async (file) => {
 			const content = await readFile(file, 'utf8');
@@ -219,6 +255,9 @@ async function findMvrNamesInFiles(files: string[], detectedNames: Set<string>) 
 	);
 }
 
+/**
+ * Extracts all the MVR names from the given file's data (content).
+ */
 function extractMvrNames(content: string) {
 	const relevantNames = new Set<string>();
 	// find all "fully qualified" matches.
@@ -243,7 +282,19 @@ function extractMvrNames(content: string) {
 	return relevantNames;
 }
 
-function readFilesRecursively(dir: string, fileList: string[] = [], currentDepth = 0) {
+/**
+ * Find all the matching files in the given directory,
+ * and recursively search for files in subdirectories.
+ */
+function readFilesRecursively(
+	dir: string,
+	maxDepth: number = 10,
+	fileList: string[] = [],
+	currentDepth = 0,
+) {
+	// We limit the depth to avoid going too deep into the directory tree.
+	if (currentDepth > maxDepth) return fileList;
+
 	const files = readdirSync(dir);
 
 	files.forEach((file) => {
@@ -255,7 +306,7 @@ function readFilesRecursively(dir: string, fileList: string[] = [], currentDepth
 				return;
 			}
 
-			readFilesRecursively(filePath, fileList, currentDepth + 1);
+			readFilesRecursively(filePath, maxDepth, fileList, currentDepth + 1);
 		} else if (ACCEPTED_FILES.includes(extname(filePath)) && !SKIPPED_FILES.includes(file)) {
 			fileList.push(filePath);
 		}
@@ -264,6 +315,9 @@ function readFilesRecursively(dir: string, fileList: string[] = [], currentDepth
 	return fileList;
 }
 
+/**
+ * Batch the given array into smaller arrays of the given size.
+ */
 function batch<T>(array: T[], batchSize: number = MAX_BATCH_SIZE) {
 	const result = [];
 	for (let i = 0; i < array.length; i += batchSize) {

@@ -17,6 +17,7 @@ Available options:
 
 - `-d <directory>`: The directory to run the command in (defaults to `.`)
 - `-f <output-file>`: The output's file name (defaults to `mvr.ts`)
+- `-d <depth>`: The depth of recursive search for MVR names (defaults to `10`)
 
 
 ### Use the static file in your project
