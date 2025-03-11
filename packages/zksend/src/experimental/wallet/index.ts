@@ -411,6 +411,13 @@ export function registerStashedWallet(
 
 	let addressFromRedirect: string | null = null;
 
+	try {
+		const params = new URLSearchParams(window.location.search);
+		addressFromRedirect = params.get('stashed_address') || params.get('zksend_address');
+	} catch {
+		// Ignore errors
+	}
+
 	stashedWalletInstance = new StashedWallet({
 		name,
 		network,
