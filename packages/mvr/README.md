@@ -26,6 +26,7 @@ Once you have your static file, you can use it in your project by importing it a
 
 ```ts
 import { getMvrCache } from './mvr.ts';
+import { NamedPackagesPlugin } from '@mysten/sui/src/transactions';
 
 // create a cache for your network.
 const cache = getMvrCache('mainnet');
