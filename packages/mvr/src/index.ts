@@ -125,25 +125,15 @@ export function getMvrCache(network: 'mainnet' | 'testnet') {
 }
 
 async function crossNetworkResolution(detectedNames: Set<string>) {
-	const mainnetPackages = await resolvePackages(
-		Array.from(detectedNames).filter((x) => !x.includes('::')),
-		'mainnet',
-	);
+	const packages = Array.from(detectedNames).filter((x) => !x.includes('::'));
+	const types = Array.from(detectedNames).filter((x) => x.includes('::'));
 
-	const mainnetTypes = await resolveTypes(
-		Array.from(detectedNames).filter((x) => x.includes('::')),
-		'mainnet',
-	);
-
-	const testnetPackages = await resolvePackages(
-		Array.from(detectedNames).filter((x) => !x.includes('::')),
-		'testnet',
-	);
-
-	const testnetTypes = await resolveTypes(
-		Array.from(detectedNames).filter((x) => x.includes('::')),
-		'testnet',
-	);
+	const [mainnetPackages, mainnetTypes, testnetPackages, testnetTypes] = await Promise.all([
+		resolvePackages(packages, 'mainnet'),
+		resolveTypes(types, 'mainnet'),
+		resolvePackages(packages, 'testnet'),
+		resolveTypes(types, 'testnet'),
+	]);
 
 	return {
 		mainnet: {
