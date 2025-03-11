@@ -12,6 +12,10 @@
 		".": {
 			"import": "./dist/esm/index.js",
 			"require": "./dist/cjs/index.js"
+		},
+		"./experimental/unified-adapter": {
+			"import": "./dist/esm/experimental/unified-adapter/index.js",
+			"require": "./dist/cjs/experimental/unified-adapter/index.js"
 		}
 	},
 	"sideEffects": false,

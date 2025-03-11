@@ -15,5 +15,3 @@ export { getSentTransactionsWithLinks } from './links/get-sent-transactions.js';
 export { MAINNET_CONTRACT_IDS, TESTNET_CONTRACT_IDS } from './links/zk-bag.js';
 export * from './wallet/index.js';
 export * from './wallet/channel/index.js';
-
-export * as experimentalStashed from './experimental/stashed/index.js';
