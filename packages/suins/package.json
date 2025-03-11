@@ -50,9 +50,9 @@
 		"@mysten/build-scripts": "workspace:*",
 		"@types/tmp": "^0.2.6",
 		"ts-retry-promise": "^0.8.1",
-		"typescript": "^5.8.2",
-		"vite": "^6.2.1",
-		"vitest": "^2.1.9"
+		"typescript": "^5.7.2",
+		"vite": "^6.0.7",
+		"vitest": "^2.1.8"
 	},
 	"repository": {
 		"type": "git",
