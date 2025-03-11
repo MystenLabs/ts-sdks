@@ -102,6 +102,14 @@ The code imports the `requestSuiFromFaucetV1` function from the SDK and calls it
 provided address. The code also imports `SuiClient` to create a new client on the Sui network that
 it uses to query the address and output the amount of SUI the address owns before and after using
 the faucet. You can check the total SUI for your address using the Sui Wallet or Sui Client CLI.
+In case you encountered the `SyntaxError: Cannot use import statement outside a module` error, easily update the "type" in package.json file to be set on "module":
+```javascript
+{
+  ...
+  "type": "module",
+  ...
+}
+```
 
 <Callout type="info">
 	Faucets on Devnet and Testnet are rate limited. If you run the script too many times, you surpass
