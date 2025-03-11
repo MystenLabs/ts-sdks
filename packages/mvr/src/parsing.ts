@@ -1,8 +1,5 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-/* eslint-disable @typescript-eslint/ban-types */
-/* eslint-disable no-restricted-globals */
-
 import { existsSync, readdirSync, statSync, writeFileSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { extname, resolve } from 'path';
@@ -74,7 +71,7 @@ const { values: args } = parseArgs({
 	},
 });
 
-async function main() {
+export async function parser() {
 	const outDir = resolve(process.cwd(), args.fileName);
 
 	if (existsSync(outDir)) {
@@ -84,9 +81,7 @@ async function main() {
 			message: `The file ${outDir} already exists. Do you want to overwrite it?`,
 		});
 
-		if (!shouldOverwrite) {
-			return process.exit(0);
-		}
+		if (!shouldOverwrite) return process.exit(0);
 	}
 
 	console.log(`Generating ${args.fileName}...`);
@@ -97,8 +92,6 @@ async function main() {
 
 	writeOutputFile(outDir, mainnet, testnet);
 }
-
-main();
 
 function writeOutputFile(
 	outDir: string,
@@ -124,7 +117,7 @@ export function getMvrCache(network: 'mainnet' | 'testnet') {
 	writeFileSync(outDir, beautify(outputFile, { indent_size: 4, indent_char: '\t' }), 'utf8');
 }
 
-async function crossNetworkResolution(detectedNames: Set<string>) {
+export async function crossNetworkResolution(detectedNames: Set<string>) {
 	const packages = Array.from(detectedNames).filter((x) => !x.includes('::'));
 	const types = Array.from(detectedNames).filter((x) => x.includes('::'));
 

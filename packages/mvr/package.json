@@ -48,5 +48,5 @@
 		"js-beautify": "^1.15.4"
 	},
 	"sideEffects": false,
-	"bin": "./bin/index.js"
+	"bin": "./bin/parser.js"
 }
