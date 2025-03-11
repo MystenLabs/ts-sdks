@@ -1,4 +1,5 @@
 {
+	"name": "@mysten/zksend-experimental",
 	"private": true,
 	"import": "../../dist/esm/experimental/index.js",
 	"main": "../../dist/cjs/experimental/index.js",
