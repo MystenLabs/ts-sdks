@@ -1,5 +1,12 @@
 # @mysten/kiosk
 
+## 0.11.0
+
+### Minor Changes
+
+- d76da22: Remove MatchAny filter when loading owned kiosks. This may result in an extra request,
+  and a change of cursor format when loading owned kiosks
+
 ## 0.10.8
 
 ### Patch Changes
