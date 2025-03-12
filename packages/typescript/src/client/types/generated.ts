@@ -99,11 +99,18 @@ export type CompressedSignature =
 	  }
 	| {
 			ZkLogin: string;
+	  }
+	| {
+			Passkey: string;
 	  };
 /** Uses an enum to allow for future expansion of the ConsensusDeterminedVersionAssignments. */
-export type ConsensusDeterminedVersionAssignments = {
-	CancelledTransactions: [string, [string, string][]][];
-};
+export type ConsensusDeterminedVersionAssignments =
+	| {
+			CancelledTransactions: [string, [string, string][]][];
+	  }
+	| {
+			CancelledTransactionsV2: [string, [[string, string], string][]][];
+	  };
 export type SuiParsedData =
 	| {
 			dataType: 'moveObject';
@@ -166,6 +173,7 @@ export interface DryRunTransactionBlockResponse {
 	balanceChanges: BalanceChange[];
 	effects: TransactionEffects;
 	events: SuiEvent[];
+	executionErrorSource?: string | null;
 	input: TransactionBlockData;
 	objectChanges: SuiObjectChange[];
 }
@@ -437,8 +445,8 @@ export interface MultiSig {
 	sigs: CompressedSignature[];
 }
 /**
- * Deprecated, use [struct MultiSig] instead. The struct that contains signatures and public keys necessary
- * for authenticating a MultiSigLegacy.
+ * Deprecated, use [struct MultiSig] instead. The struct that contains signatures and public keys
+ * necessary for authenticating a MultiSigLegacy.
  */
 export interface MultiSigLegacy {
 	/** A bitmap that indicates the position of which public key the signature should be authenticated with. */
@@ -956,6 +964,7 @@ export type SuiEndOfEpochTransactionKind =
 	| 'AuthenticatorStateCreate'
 	| 'RandomnessStateCreate'
 	| 'CoinDenyListStateCreate'
+	| 'StoreExecutionTimeObservations'
 	| {
 			ChangeEpoch: SuiChangeEpoch;
 	  }
@@ -1466,6 +1475,16 @@ export type SuiTransactionBlockKind =
 			kind: 'ConsensusCommitPrologueV3';
 			round: string;
 			sub_dag_index?: string | null;
+	  }
+	| {
+			additional_state_digest: string;
+			commit_timestamp_ms: string;
+			consensus_commit_digest: string;
+			consensus_determined_version_assignments: ConsensusDeterminedVersionAssignments;
+			epoch: string;
+			kind: 'ConsensusCommitPrologueV4';
+			round: string;
+			sub_dag_index?: string | null;
 	  };
 export interface SuiTransactionBlockResponse {
 	balanceChanges?: BalanceChange[] | null;
@@ -1594,9 +1613,16 @@ export interface ZkLoginInputs {
 	issBase64Details: Claim;
 	proofPoints: ZkLoginProof;
 }
+export type ZkLoginIntentScope = 'TransactionData' | 'PersonalMessage';
 /** The struct for zk login proof. */
 export interface ZkLoginProof {
 	a: string[];
 	b: string[][];
 	c: string[];
+}
+export interface ZkLoginVerifyResult {
+	/** The errors field captures any verification error */
+	errors: string[];
+	/** The boolean result of the verification. If true, errors should be empty. */
+	success: boolean;
 }

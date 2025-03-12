@@ -180,6 +180,20 @@ export interface TryMultiGetPastObjectsParams {
 	/** options for specifying the content to be returned */
 	options?: RpcTypes.SuiObjectDataOptions | null | undefined;
 }
+/** Verify a zklogin signature for the given bytes, intent scope and author. */
+export interface VerifyZkLoginSignatureParams {
+	/**
+	 * The Base64 string of bcs bytes for raw transaction data or personal message indicated by
+	 * intent_scope.
+	 */
+	bytes: string;
+	/** The Base64 string of the zklogin signature to verify. */
+	signature: string;
+	/** The intent scope, either transaction data or personal message. Used to parse bytes. */
+	intentScope: RpcTypes.ZkLoginIntentScope;
+	/** The author of the signature. */
+	author: string;
+}
 /** Return the total coin balance for all coin type, owned by the address owner. */
 export interface GetAllBalancesParams {
 	/** the owner's Sui address */

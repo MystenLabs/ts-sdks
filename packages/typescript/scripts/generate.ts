@@ -17,12 +17,16 @@ import type {
 } from './open-rpc.js';
 
 const packageRoot = path.resolve(import.meta.url.slice(5), '../..');
-const openRpcSpec: OpenRpcSpec = JSON.parse(
-	await fs.readFile(
-		path.resolve(packageRoot, '../../crates/sui-open-rpc/spec/openrpc.json'),
-		'utf-8',
-	),
+
+const res = await fetch(
+	'https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/main/crates/sui-open-rpc/spec/openrpc.json',
 );
+
+if (!res.ok) {
+	throw new Error(`Failed to fetch JSON rpc spec`);
+}
+
+const openRpcSpec: OpenRpcSpec = JSON.parse(await res.text());
 export const LICENSE_HEADER = `
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
