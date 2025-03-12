@@ -45,19 +45,19 @@
 	"homepage": "https://github.com/mystenlabs/ts-sdks#readme",
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"@types/node": "^22.10.5",
+		"@types/node": "^22.13.10",
 		"@types/react": "^18.3.3",
 		"@types/react-dom": "^18.3.0",
-		"@vitejs/plugin-react-swc": "^3.7.0",
+		"@vitejs/plugin-react-swc": "^3.8.0",
 		"react": "^18.3.1",
 		"react-dom": "^18.3.1",
-		"typescript": "^5.7.2",
-		"vite": "^6.0.7"
+		"typescript": "^5.8.2",
+		"vite": "^6.2.1"
 	},
 	"dependencies": {
 		"@mysten/sui": "workspace:*",
-		"@nanostores/react": "^0.7.2",
-		"nanostores": "^0.10.3"
+		"@nanostores/react": "^0.8.4",
+		"nanostores": "^0.11.4"
 	},
 	"peerDependencies": {
 		"@types/react": ">=17.0.0",

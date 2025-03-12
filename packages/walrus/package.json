@@ -42,11 +42,11 @@
 	"devDependencies": {
 		"@hono/node-server": "^1.13.8",
 		"@mysten/build-scripts": "workspace:*",
-		"@types/node": "^22.10.5",
-		"hono": "^4.6.20",
-		"typescript": "^5.7.2",
-		"undici": "^7.4.0",
-		"vitest": "^2.1.8"
+		"@types/node": "^22.13.10",
+		"hono": "^4.7.4",
+		"typescript": "^5.8.2",
+		"undici": "^7.5.0",
+		"vitest": "^3.0.8"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:*",

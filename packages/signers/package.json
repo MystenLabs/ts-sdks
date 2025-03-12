@@ -47,16 +47,16 @@
 	"homepage": "https://github.com/mystenlabs/ts-sdks#readme",
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"@types/node": "^22.10.5",
+		"@types/node": "^22.13.10",
 		"dotenv": "^16.4.5",
-		"typescript": "^5.7.2",
-		"vitest": "^2.1.8"
+		"typescript": "^5.8.2",
+		"vitest": "^3.0.8"
 	},
 	"dependencies": {
 		"@google-cloud/kms": "^4.5.0",
 		"@mysten/sui": "workspace:*",
-		"@noble/curves": "^1.4.2",
-		"@noble/hashes": "^1.4.0",
+		"@noble/curves": "^1.8.1",
+		"@noble/hashes": "^1.7.1",
 		"asn1-ts": "^8.0.2"
 	},
 	"engines": {
