@@ -1,5 +1,12 @@
 # @mysten/suins-toolkit
 
+## 0.5.43
+
+### Patch Changes
+
+- Updated dependencies [cf3d12d]
+  - @mysten/sui@1.24.0
+
 ## 0.5.42
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.24.0
+
+### Minor Changes
+
+- cf3d12d: Update json rpc types
+
 ## 1.23.0
 
 ### Minor Changes

@@ -1,5 +1,13 @@
 # @mysten/zksend
 
+## 0.12.19
+
+### Patch Changes
+
+- Updated dependencies [cf3d12d]
+  - @mysten/sui@1.24.0
+  - @mysten/wallet-standard@0.13.29
+
 ## 0.12.18
 
 ### Patch Changes

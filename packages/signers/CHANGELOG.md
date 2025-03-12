@@ -1,5 +1,12 @@
 # @mysten/signers
 
+## 0.1.12
+
+### Patch Changes
+
+- Updated dependencies [cf3d12d]
+  - @mysten/sui@1.24.0
+
 ## 0.1.11
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @mysten/create-dapp
 
+## 0.3.54
+
+### Patch Changes
+
+- Updated dependencies [cf3d12d]
+  - @mysten/sui@1.24.0
+  - @mysten/dapp-kit@0.14.53
+
 ## 0.3.53
 
 ### Patch Changes

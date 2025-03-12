@@ -1,5 +1,12 @@
 # @mysten/deepbook-v3
 
+## 0.13.1
+
+### Patch Changes
+
+- Updated dependencies [cf3d12d]
+  - @mysten/sui@1.24.0
+
 ## 0.13.0
 
 ### Minor Changes

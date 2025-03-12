@@ -1,5 +1,12 @@
 # @mysten/enoki
 
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies [cf3d12d]
+  - @mysten/sui@1.24.0
+
 ## 0.5.0
 
 ### Minor Changes

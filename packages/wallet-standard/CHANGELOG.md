@@ -1,5 +1,12 @@
 # @mysten/wallet-standard
 
+## 0.13.29
+
+### Patch Changes
+
+- Updated dependencies [cf3d12d]
+  - @mysten/sui@1.24.0
+
 ## 0.13.28
 
 ### Patch Changes
