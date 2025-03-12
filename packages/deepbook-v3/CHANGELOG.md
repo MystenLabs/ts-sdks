@@ -1,5 +1,18 @@
 # @mysten/deepbook-v3
 
+## 0.13.0
+
+### Minor Changes
+
+- 27a1e7d: Support for permissionless pool creation and balance manager functions
+
+### Patch Changes
+
+- ba6f895: SEND pool
+- Updated dependencies [8baac61]
+- Updated dependencies [8baac61]
+  - @mysten/sui@1.23.0
+
 ## 0.12.30
 
 ### Patch Changes

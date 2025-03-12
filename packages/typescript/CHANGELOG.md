@@ -1,5 +1,15 @@
 # @mysten/sui.js
 
+## 1.23.0
+
+### Minor Changes
+
+- 8baac61: remove jose dependency
+
+### Patch Changes
+
+- 8baac61: Add check for malformed google iss in toZkLoginPublicIdentifier
+
 ## 1.22.0
 
 ### Minor Changes
