@@ -325,7 +325,7 @@ export function mapNormalizedMoveEnum(
 						) ?? [],
 				},
 			})) ?? [],
-		variants:
+		variants: Object.fromEntries(
 			enumNode.variants?.map((variant) => [
 				variant.name,
 				variant.fields?.map((field) => ({
@@ -333,5 +333,6 @@ export function mapNormalizedMoveEnum(
 					type: mapOpenMoveType(field.type?.signature),
 				})) ?? [],
 			]) ?? [],
+		),
 	};
 }
