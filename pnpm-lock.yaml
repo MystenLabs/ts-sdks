@@ -579,9 +579,15 @@ importers:
       '@mysten/sui':
         specifier: workspace:*
         version: link:../typescript
+      '@mysten/wallet-standard':
+        specifier: workspace:*
+        version: link:../wallet-standard
       '@nanostores/react':
         specifier: ^0.7.2
         version: 0.7.3(nanostores@0.10.3)(react@18.3.1)
+      mitt:
+        specifier: ^3.0.1
+        version: 3.0.1
       nanostores:
         specifier: ^0.10.3
         version: 0.10.3
@@ -589,6 +595,12 @@ importers:
       '@mysten/build-scripts':
         specifier: workspace:*
         version: link:../build-scripts
+      '@mysten/dapp-kit':
+        specifier: workspace:*
+        version: link:../dapp-kit
+      '@tanstack/react-query':
+        specifier: ^5.50.1
+        version: 5.50.1(react@18.3.1)
       '@types/node':
         specifier: ^22.10.5
         version: 22.10.5
