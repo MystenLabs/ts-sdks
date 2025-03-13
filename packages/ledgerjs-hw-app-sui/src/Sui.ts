@@ -113,7 +113,9 @@ export default class Sui {
 
 		const bip32KeyPayload = buildBip32KeyPayload(path);
 		const payloads = [payloadTxn, bip32KeyPayload];
-		const { major } = await this.getVersion();
+
+		// The public getVersion is decorated with a lock in the constructor:
+		const { major } = await this.#internalGetVersion();
 
 		this.#log('Object List length', objectList.length);
 		this.#log('App version', major);
@@ -146,6 +148,10 @@ export default class Sui {
 	 * Retrieve the app version on the attached Ledger device.
 	 */
 	async getVersion(): Promise<GetVersionResult> {
+		return await this.#internalGetVersion();
+	}
+
+	async #internalGetVersion() {
 		const [major, minor, patch] = await this.#sendChunks(0x00, 0x00, 0x00, 0x00, Buffer.alloc(1));
 		return {
 			major,
