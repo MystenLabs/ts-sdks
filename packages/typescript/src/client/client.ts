@@ -826,4 +826,11 @@ export class SuiClient {
 		// This should never happen, because the above case should always throw, but just adding it in the event that something goes horribly wrong.
 		throw new Error('Unexpected error while waiting for transaction block.');
 	}
+
+	experimental_asClientExtension(this: SuiClient) {
+		return {
+			name: 'jsonRPC',
+			register: () => this,
+		} as const;
+	}
 }
