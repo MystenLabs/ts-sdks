@@ -89,12 +89,12 @@ export default class Sui {
 	 *
 	 * @param txn - The transaction; this can be any of a node Buffer, Uint8Array, or a hexadecimal string, encoding the form of the transaction appropriate for hashing and signing.
 	 * @param path - The path to use when signing the transaction.
-	 * @param objectTypes - A list of object types used for clear signing.
+	 * @param options - Additional options used for clear signing purposes.
 	 */
 	async signTransaction(
 		path: string,
 		txn: string | Buffer | Uint8Array,
-		objectTypes: string[] = [],
+		options?: { objectTypes: string[] },
 	): Promise<SignTransactionResult> {
 		const cla = 0x00;
 		const ins = 0x03;
@@ -117,6 +117,7 @@ export default class Sui {
 
 		// The public getVersion is decorated with a lock in the constructor:
 		const { major } = await this.#internalGetVersion();
+		const objectTypes = options?.objectTypes ?? [];
 
 		this.#log('Object IDs list length', objectTypes.length);
 		this.#log('App version', major);
