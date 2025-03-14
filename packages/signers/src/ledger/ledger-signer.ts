@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type SuiLedgerClient from '@mysten/ledgerjs-hw-app-sui';
+import type { SignatureWithBytes } from '@mysten/sui/cryptography';
 import { messageWithIntent, Signer, toSerializedSignature } from '@mysten/sui/cryptography';
 import { Ed25519PublicKey } from '@mysten/sui/src/keypairs/ed25519/publickey.js';
 // import { Transaction } from '@mysten/sui/src/transactions';
@@ -53,7 +54,11 @@ export class LedgerSigner extends Signer {
 		return this.#publicKey;
 	}
 
-	async signTransaction(bytes: Uint8Array) {
+	/**
+	 * Signs the provided transaction bytes.
+	 * @returns The signed transaction bytes and signature.
+	 */
+	async signTransaction(bytes: Uint8Array): Promise<SignatureWithBytes> {
 		const intentMessage = messageWithIntent('TransactionData', bytes);
 		const { coinTypes } = getClearSigningOptions(bytes);
 		const { signature } = await this.#suiLedgerClient.signTransaction(
