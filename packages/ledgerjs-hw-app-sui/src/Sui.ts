@@ -70,6 +70,7 @@ export default class Sui {
 		const payload = buildBip32KeyPayload(path);
 		const response = await this.#sendChunks(cla, ins, p1, p2, payload);
 		const keySize = response[0];
+
 		const publicKey = response.slice(1, keySize + 1); // slice uses end index.
 		let address: Uint8Array | null = null;
 		if (response.length > keySize + 2) {
@@ -88,12 +89,12 @@ export default class Sui {
 	 *
 	 * @param txn - The transaction; this can be any of a node Buffer, Uint8Array, or a hexadecimal string, encoding the form of the transaction appropriate for hashing and signing.
 	 * @param path - The path to use when signing the transaction.
-	 * @param objectList - A list of object IDs used for clear signing.
+	 * @param objectTypes - A list of object types used for clear signing.
 	 */
 	async signTransaction(
 		path: string,
 		txn: string | Buffer | Uint8Array,
-		objectTypes: Array<string | Buffer | Uint8Array> = [],
+		objectTypes: string[] = [],
 	): Promise<SignTransactionResult> {
 		const cla = 0x00;
 		const ins = 0x03;
@@ -117,7 +118,7 @@ export default class Sui {
 		// The public getVersion is decorated with a lock in the constructor:
 		const { major } = await this.#internalGetVersion();
 
-		this.#log('Object List length', objectTypes.length);
+		this.#log('Object IDs list length', objectTypes.length);
 		this.#log('App version', major);
 
 		if (major > 0 && objectTypes.length > 0) {

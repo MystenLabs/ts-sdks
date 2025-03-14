@@ -5,18 +5,24 @@ Management Services (KMS) like AWS KMS and GCP KMS.
 
 ## Table of Contents
 
-- [AWS KMS Signer](#aws-kms-signer)
-  - [Usage](#usage)
-  - [API](#api)
-    - [fromKeyId](#fromkeyid)
-      - [Parameters](#parameters)
-      - [Examples](#examples)
-- [GCP KMS Signer](#gcp-kms-signer)
-  - [Usage](#usage-1)
-  - [API](#api-1)
-    - [fromOptions](#fromoptions)
-      - [Parameters](#parameters-1)
-      - [Examples](#examples-1)
+- [Sui KMS Signers](#sui-kms-signers)
+  - [Table of Contents](#table-of-contents)
+  - [AWS KMS Signer](#aws-kms-signer)
+    - [Usage](#usage)
+    - [API](#api)
+      - [fromKeyId](#fromkeyid)
+        - [Parameters](#parameters)
+        - [Examples](#examples)
+  - [GCP KMS Signer](#gcp-kms-signer)
+    - [Usage](#usage-1)
+      - [fromOptions](#fromoptions)
+        - [Parameters](#parameters-1)
+        - [Examples](#examples-1)
+  - [Ledger Signer](#ledger-signer)
+    - [Usage](#usage-2)
+      - [fromDerivationPath](#fromderivationpath)
+        - [Parameters](#parameters-2)
+        - [Examples](#examples-2)
 
 ## AWS KMS Signer
 
@@ -139,4 +145,44 @@ const { signature } = await signer.signPersonalMessage(messageBytes);
 // Verify the signature against the public key
 const isValid = await publicKey.verifyPersonalMessage(messageBytes, signature);
 console.log(isValid); // Should print true if the signature is valid
+```
+
+## Ledger Signer
+
+The Ledger Signer allows you to leverage a Ledger hardware wallet to sign Sui transactions.
+
+### Usage
+
+#### fromDerivationPath
+
+Creates a Ledger signer from the provided options. This method initializes the signer with the
+necessary GCP credentials and configuration, allowing it to interact with a Ledger hardare wallet to
+perform cryptographic operations.
+
+##### Parameters
+
+- `options`
+  **[object](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object)** An
+  object containing GCP credentials and configuration.
+  - `projectId`
+    **[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)**
+    The GCP project ID.
+
+##### Examples
+
+```typescript
+const signer = await LedgerSigner.fromDerivationPath({
+	derivationPath: "m/44'/784'/0'/0'/0'",
+});
+
+// Log the Sui address:
+console.log(signer.toSuiAddress());
+
+// Define a test transaction:
+const testTransaction = new Transaction();
+const transactionBytes = await testTransaction.build();
+
+// Sign a test transaction:
+const { signature } = await signer.signTransaction(transactionBytes);
+console.log(signature);
 ```
