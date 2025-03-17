@@ -75,7 +75,6 @@ const { values: args } = parseArgs({
 		testnetUrl: {
 			type: 'string',
 			default: BASE_API_URL('testnet'),
-			
 		},
 	},
 });
