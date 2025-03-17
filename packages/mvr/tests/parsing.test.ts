@@ -63,12 +63,17 @@ describe('Parsing of project files', () => {
 					'@mvr/metadata': '0xb96f44d08ae214887cae08d8ae061bbf6f0908b1bfccb710eea277f45150b9f4',
 				},
 				// TODO: Fix missing types after API deployment.
-				types: {},
+				types: {
+					'@mvr/metadata::git::GitInfo':
+						'0xb96f44d08ae214887cae08d8ae061bbf6f0908b1bfccb710eea277f45150b9f4::git::GitInfo',
+					'@mvr/metadata::package_info::PackageInfo':
+						'0xb96f44d08ae214887cae08d8ae061bbf6f0908b1bfccb710eea277f45150b9f4::package_info::PackageInfo',
+				},
 			},
 		};
 
 		const { mainnet, testnet } = await crossNetworkResolution(new Set(expected));
 		expect(mainnet).toStrictEqual(expectedResults.mainnet);
-		expect(testnet).toEqual(expectedResults.testnet);
+		expect(testnet).toStrictEqual(expectedResults.testnet);
 	});
 });

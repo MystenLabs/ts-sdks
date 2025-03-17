@@ -68,6 +68,15 @@ const { values: args } = parseArgs({
 			default: '10',
 			short: 'd',
 		},
+		mainnetUrl: {
+			type: 'string',
+			default: BASE_API_URL('mainnet'),
+		},
+		testnetUrl: {
+			type: 'string',
+			default: BASE_API_URL('testnet'),
+			
+		},
 	},
 });
 
@@ -122,10 +131,10 @@ export async function crossNetworkResolution(detectedNames: Set<string>) {
 	const types = Array.from(detectedNames).filter((x) => x.includes('::'));
 
 	const [mainnetPackages, mainnetTypes, testnetPackages, testnetTypes] = await Promise.all([
-		resolvePackages(packages, 'mainnet'),
-		resolveTypes(types, 'mainnet'),
-		resolvePackages(packages, 'testnet'),
-		resolveTypes(types, 'testnet'),
+		resolvePackages(packages, args.mainnetUrl),
+		resolveTypes(types, args.mainnetUrl),
+		resolvePackages(packages, args.testnetUrl),
+		resolveTypes(types, args.testnetUrl),
 	]);
 
 	return {
@@ -140,14 +149,14 @@ export async function crossNetworkResolution(detectedNames: Set<string>) {
 	};
 }
 
-async function resolvePackages(packages: string[], network: 'mainnet' | 'testnet') {
+async function resolvePackages(packages: string[], apiUrl: string) {
 	const batches = batch(packages, 50);
 
 	const results: Record<string, string> = {};
 
 	await Promise.all(
 		batches.map(async (batch) => {
-			const response = await fetch(`${BASE_API_URL(network)}/v1/resolution/bulk`, {
+			const response = await fetch(`${apiUrl}/v1/resolution/bulk`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -173,14 +182,14 @@ async function resolvePackages(packages: string[], network: 'mainnet' | 'testnet
 	return results;
 }
 
-async function resolveTypes(types: string[], network: 'mainnet' | 'testnet') {
+async function resolveTypes(types: string[], apiUrl: string) {
 	const batches = batch(types, 50);
 
 	const results: Record<string, string> = {};
 
 	await Promise.all(
 		batches.map(async (batch) => {
-			const response = await fetch(`${BASE_API_URL(network)}/v1/type-resolution/bulk`, {
+			const response = await fetch(`${apiUrl}/v1/type-resolution/bulk`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -190,8 +199,7 @@ async function resolveTypes(types: string[], network: 'mainnet' | 'testnet') {
 
 			const data = await response.json();
 
-			// TODO: Bring this back in once I upload the fix to the API.
-			// if (!response.ok) throw new Error(`Failed to resolve types: ${data?.message}`);
+			if (!response.ok) throw new Error(`Failed to resolve types: ${data?.message}`);
 
 			if (!data?.resolution) return;
 
