@@ -14,12 +14,13 @@ const _demoFunction = () => {
 			// eslint-disable-next-line prettier/prettier
 			"@mvr/app::type::Type<@kiosk/core::kiosk::Kiosk, bool>",
 			// eslint-disable-next-line prettier/prettier
-            "app.sui/app::t::T"
+            "app.sui/app::t::T",
+			'@pkg/qwer::mvr_b::V2',
 		],
 	});
 
 	transaction.makeMoveVec({
-		type: '@mvr/type::wow::Wow',
+		type: '@pkg/qwer::mvr_a::V1',
 		elements: [],
 	});
 };

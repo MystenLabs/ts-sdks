@@ -14,19 +14,24 @@ describe('Parsing of project files', () => {
 			'@mvr/app::type::Type2',
 			'@kiosk/core::kiosk::Kiosk',
 			'app.sui/app::t::T',
-			'@mvr/type::wow::Wow',
 			'@mvr/app/2',
 			'@mvr/app',
 			'@kiosk/core',
 			'app.sui/app',
-			'@mvr/type',
+			'@pkg/qwer',
 			// nested directory files
 			'@nested/app::demo::test',
 			'@nested/app',
+			'@pkg/qwer::mvr_a::V1',
+			'@pkg/qwer::mvr_b::V2',
 		];
 
 		const files = await findNames(resolve(__dirname, 'demo-project'));
-		for (const file of expected) expect(files.has(file)).toBe(true);
+		for (const file of expected) {
+			console.log(files);
+			console.log(file);
+			expect(files).toContain(file);
+		}
 	});
 
 	it('Should properly resolve packages and types in both networks', async () => {
@@ -38,6 +43,8 @@ describe('Parsing of project files', () => {
 			'@mvr/core::app_record::AppRecord',
 			'@mvr/metadata::git::GitInfo',
 			'@mvr/metadata::package_info::PackageInfo',
+			'@pkg/qwer::mvr_a::V1',
+			'@pkg/qwer::mvr_b::V2',
 		];
 
 		const expectedResults = {
@@ -56,18 +63,25 @@ describe('Parsing of project files', () => {
 						'0xf6b71233780a3f362137b44ac219290f4fd34eb81e0cb62ddf4bb38d1f9a3a1::git::GitInfo',
 					'@mvr/metadata::package_info::PackageInfo':
 						'0xf6b71233780a3f362137b44ac219290f4fd34eb81e0cb62ddf4bb38d1f9a3a1::package_info::PackageInfo',
+					'@pkg/qwer::mvr_a::V1':
+						'0xc168b8766e69c07b1b5ed194e3dc2b4a2a0e328ae6a06a2cae40e2ec83a3f94f::mvr_a::V1',
+					'@pkg/qwer::mvr_b::V2':
+						'0x1dcc0337dfe29d3a20fbaceb28febc424e6b8631e93338ed574b40aadc2a9ea::mvr_b::V2',
 				},
 			},
 			testnet: {
 				packages: {
 					'@mvr/metadata': '0xb96f44d08ae214887cae08d8ae061bbf6f0908b1bfccb710eea277f45150b9f4',
 				},
-				// TODO: Fix missing types after API deployment.
 				types: {
 					'@mvr/metadata::git::GitInfo':
 						'0xb96f44d08ae214887cae08d8ae061bbf6f0908b1bfccb710eea277f45150b9f4::git::GitInfo',
 					'@mvr/metadata::package_info::PackageInfo':
 						'0xb96f44d08ae214887cae08d8ae061bbf6f0908b1bfccb710eea277f45150b9f4::package_info::PackageInfo',
+					'@pkg/qwer::mvr_a::V1':
+						'0x77adfd262090b6645ea05087e252796a205d0369f165c99aa8147f3c678b579::mvr_a::V1',
+					'@pkg/qwer::mvr_b::V2':
+						'0x6b991ed7e0164d0927df2eaf4fb075d528b4b86d6feee35711cf8d49f2538691::mvr_b::V2',
 				},
 			},
 		};

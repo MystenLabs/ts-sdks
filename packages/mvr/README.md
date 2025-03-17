@@ -9,6 +9,7 @@ This can be used to cache all MVR names for performance & security reasons, and 
 
 You can generate your static file by running the following command:
 
+// TODO: Double-check how that will be callable.
 ```bash
 pnpm dlx @mysten/mvr
 ```
@@ -18,6 +19,8 @@ Available options:
 - `-d <directory>`: The directory to run the command in (defaults to `.`)
 - `-f <output-file>`: The output's file name (defaults to `mvr.ts`)
 - `-d <depth>`: The depth of recursive search for MVR names (defaults to `10`)
+- `-mainnetUrl <url>`: The URL to the mainnet MVR (defaults to `https://mainnet.mvr.mystenlabs.com`)
+- `-testnetUrl <url>`: The URL to the testnet MVR (defaults to `https://testnet.mvr.mystenlabs.com`)
 
 
 ### Use the static file in your project

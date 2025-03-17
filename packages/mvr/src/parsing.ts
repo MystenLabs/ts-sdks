@@ -9,11 +9,11 @@ import { isValidNamedPackage } from '@mysten/sui/utils';
 import { prompt } from 'enquirer';
 import beautify from 'js-beautify';
 
-const TYPES_AND_TARGET_MATCHES = /[@a-zA-Z0-9/.-]+::[a-zA-Z0-9]+::[a-zA-Z0-9]+/g;
+const TYPES_AND_TARGET_MATCHES = /[@a-zA-Z0-9/.-]+::[a-zA-Z0-9_]+::[a-zA-Z0-9_]+/g;
 const MVR_NAME_MATCHES = /[@a-zA-Z0-9/.-]+::/g;
 const ACCEPTED_FILES = ['.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs'];
 
-// TODO: Is there a better way to do this? Maybe through .gitignore? Kinda risky.
+// TODO: Is there a better way to do this? Maybe through .gitignore? Or?
 const SKIPPED_DIRS = [
 	'node_modules',
 	'dist',
@@ -181,6 +181,10 @@ async function resolvePackages(packages: string[], apiUrl: string) {
 	return results;
 }
 
+// TODO: Switch to `/struct-definition/bulk` endpoint when released,
+// as this endpoint will be the right one for "non-nested" struct resolution.
+// The current endpoint will fail with "generic" parameter lookups (which are not existent)
+// on this parser.
 async function resolveTypes(types: string[], apiUrl: string) {
 	const batches = batch(types, 50);
 
