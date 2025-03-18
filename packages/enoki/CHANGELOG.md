@@ -1,5 +1,12 @@
 # @mysten/enoki
 
+## 0.5.2
+
+### Patch Changes
+
+- e8c4cd8: fix enoki sdk build
+- 402c126: expose zkLogin public key
+
 ## 0.5.1
 
 ### Patch Changes

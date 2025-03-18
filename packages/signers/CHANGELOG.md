@@ -1,5 +1,11 @@
 # @mysten/signers
 
+## 0.1.13
+
+### Patch Changes
+
+- 1e87d03: Add new WebCrypto signer
+
 ## 0.1.12
 
 ### Patch Changes

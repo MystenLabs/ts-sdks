@@ -1,5 +1,11 @@
 # @mysten/walrus
 
+## 0.0.2
+
+### Patch Changes
+
+- e6c72c1: Fix testnet bcs mismatch
+
 ## 0.0.1
 
 ### Patch Changes
