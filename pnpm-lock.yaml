@@ -74,7 +74,7 @@ importers:
         version: 3.2.0(@typescript-eslint/eslint-plugin@8.19.0(@typescript-eslint/parser@8.19.0(eslint@8.57.1)(typescript@5.7.2))(eslint@8.57.1)(typescript@5.7.2))(eslint@8.57.1)
       graphql-config:
         specifier: ^5.0.3
-        version: 5.1.3(@types/node@22.10.9)(graphql@16.10.0)(typescript@5.7.2)
+        version: 5.1.3(@types/node@22.10.5)(graphql@16.10.0)(typescript@5.7.2)
       prettier:
         specifier: ^3.3.2
         version: 3.4.2
@@ -399,7 +399,7 @@ importers:
         version: 0.2.3
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@swc/core@1.10.4)(@types/node@22.10.5)(typescript@5.7.2)
+        version: 10.9.2(@swc/core@1.10.4(@swc/helpers@0.5.15))(@types/node@22.10.5)(typescript@5.7.2)
       ts-retry-promise:
         specifier: ^0.8.1
         version: 0.8.1
@@ -436,7 +436,7 @@ importers:
         version: 0.2.3
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@swc/core@1.10.4)(@types/node@22.10.5)(typescript@5.7.2)
+        version: 10.9.2(@swc/core@1.10.4(@swc/helpers@0.5.15))(@types/node@22.10.5)(typescript@5.7.2)
       ts-retry-promise:
         specifier: ^0.8.1
         version: 0.8.1
@@ -828,7 +828,7 @@ importers:
         version: link:../build-scripts
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@swc/core@1.10.4)(@types/node@22.10.9)(typescript@5.7.2)
+        version: 10.9.2(@swc/core@1.10.4(@swc/helpers@0.5.15))(@types/node@22.10.9)(typescript@5.7.2)
       typescript:
         specifier: ^5.7.2
         version: 5.7.2
@@ -956,7 +956,7 @@ importers:
         version: 5.7.2
       typescript-json-schema:
         specifier: ^0.65.1
-        version: 0.65.1(@swc/core@1.10.4)
+        version: 0.65.1(@swc/core@1.10.4(@swc/helpers@0.5.15))
 
   packages/walrus:
     dependencies:
@@ -979,12 +979,27 @@ importers:
       '@mysten/build-scripts':
         specifier: workspace:*
         version: link:../build-scripts
+      '@mysten/dapp-kit':
+        specifier: workspace:*
+        version: link:../dapp-kit
       '@types/node':
         specifier: ^22.10.5
         version: 22.10.5
+      '@types/react':
+        specifier: ^18.3.3
+        version: 18.3.18
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.5(@types/react@18.3.18)
       hono:
         specifier: ^4.6.20
         version: 4.6.20
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
       typescript:
         specifier: ^5.7.2
         version: 5.7.2
@@ -1059,7 +1074,7 @@ packages:
     resolution: {integrity: sha512-9anThAaj1dQr6IGmzBMcfzOQKTa5artjuPmw8NYK/fiGEMjADbSguBY2FMDykt+QhilR3wc9VA/3yVju7JHg7Q==}
     hasBin: true
     peerDependencies:
-      graphql: ^16.8.1
+      graphql: '*'
 
   '@ardatan/sync-fetch@0.0.1':
     resolution: {integrity: sha512-xhlTqH0m31mnsG0tIP4ETgfSB6gXDaYYsUWTrlUV93fFQPI9dd8hE0Ot6MHLCtqgB32hwJAC3YZMWlXZw7AleA==}
@@ -2437,6 +2452,7 @@ packages:
   '@faker-js/faker@9.3.0':
     resolution: {integrity: sha512-r0tJ3ZOkMd9xsu3VRfqlFR6cz0V/jFYRswAIpC+m/DIfAUXq7g8N7wTAlhSANySXYGKzGryfDXwtwsY8TxEIDw==}
     engines: {node: '>=18.0.0', npm: '>=9.0.0'}
+    deprecated: Please update to a newer version
 
   '@fastify/busboy@2.1.1':
     resolution: {integrity: sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA==}
@@ -10889,22 +10905,6 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  '@graphql-tools/executor-http@1.2.4(@types/node@22.10.9)(graphql@16.10.0)':
-    dependencies:
-      '@graphql-hive/gateway-abort-signal-any': 0.0.3(graphql@16.10.0)
-      '@graphql-tools/executor-common': 0.0.1(graphql@16.10.0)
-      '@graphql-tools/utils': 10.7.1(graphql@16.10.0)
-      '@repeaterjs/repeater': 3.0.6
-      '@whatwg-node/disposablestack': 0.0.5
-      '@whatwg-node/fetch': 0.10.1
-      extract-files: 11.0.0
-      graphql: 16.10.0
-      meros: 1.3.0(@types/node@22.10.9)
-      tslib: 2.8.1
-      value-or-promise: 1.0.12
-    transitivePeerDependencies:
-      - '@types/node'
-
   '@graphql-tools/executor-legacy-ws@1.1.9(graphql@16.10.0)':
     dependencies:
       '@graphql-tools/utils': 10.7.1(graphql@16.10.0)
@@ -11059,27 +11059,6 @@ snapshots:
       '@ardatan/sync-fetch': 0.0.1
       '@graphql-tools/executor-graphql-ws': 1.3.7(graphql@16.10.0)
       '@graphql-tools/executor-http': 1.2.4(@types/node@22.10.5)(graphql@16.10.0)
-      '@graphql-tools/executor-legacy-ws': 1.1.9(graphql@16.10.0)
-      '@graphql-tools/utils': 10.7.1(graphql@16.10.0)
-      '@graphql-tools/wrap': 10.0.27(graphql@16.10.0)
-      '@types/ws': 8.5.13
-      '@whatwg-node/fetch': 0.10.1
-      graphql: 16.10.0
-      isomorphic-ws: 5.0.0(ws@8.18.0)
-      tslib: 2.8.1
-      value-or-promise: 1.0.12
-      ws: 8.18.0
-    transitivePeerDependencies:
-      - '@types/node'
-      - bufferutil
-      - encoding
-      - utf-8-validate
-
-  '@graphql-tools/url-loader@8.0.22(@types/node@22.10.9)(graphql@16.10.0)':
-    dependencies:
-      '@ardatan/sync-fetch': 0.0.1
-      '@graphql-tools/executor-graphql-ws': 1.3.7(graphql@16.10.0)
-      '@graphql-tools/executor-http': 1.2.4(@types/node@22.10.9)(graphql@16.10.0)
       '@graphql-tools/executor-legacy-ws': 1.1.9(graphql@16.10.0)
       '@graphql-tools/utils': 10.7.1(graphql@16.10.0)
       '@graphql-tools/wrap': 10.0.27(graphql@16.10.0)
@@ -15520,27 +15499,6 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  graphql-config@5.1.3(@types/node@22.10.9)(graphql@16.10.0)(typescript@5.7.2):
-    dependencies:
-      '@graphql-tools/graphql-file-loader': 8.0.10(graphql@16.10.0)
-      '@graphql-tools/json-file-loader': 8.0.10(graphql@16.10.0)
-      '@graphql-tools/load': 8.0.11(graphql@16.10.0)
-      '@graphql-tools/merge': 9.0.16(graphql@16.10.0)
-      '@graphql-tools/url-loader': 8.0.22(@types/node@22.10.9)(graphql@16.10.0)
-      '@graphql-tools/utils': 10.7.1(graphql@16.10.0)
-      cosmiconfig: 8.3.6(typescript@5.7.2)
-      graphql: 16.10.0
-      jiti: 2.4.2
-      minimatch: 9.0.5
-      string-env-interpolation: 1.0.1
-      tslib: 2.8.1
-    transitivePeerDependencies:
-      - '@types/node'
-      - bufferutil
-      - encoding
-      - typescript
-      - utf-8-validate
-
   graphql-request@6.1.0(graphql@16.10.0):
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.10.0)
@@ -16488,10 +16446,6 @@ snapshots:
   meros@1.3.0(@types/node@22.10.5):
     optionalDependencies:
       '@types/node': 22.10.5
-
-  meros@1.3.0(@types/node@22.10.9):
-    optionalDependencies:
-      '@types/node': 22.10.9
 
   micromark-core-commonmark@2.0.2:
     dependencies:
@@ -18316,7 +18270,7 @@ snapshots:
       '@ts-morph/common': 0.26.0
       code-block-writer: 13.0.3
 
-  ts-node@10.9.2(@swc/core@1.10.4)(@types/node@18.19.74)(typescript@5.5.4):
+  ts-node@10.9.2(@swc/core@1.10.4(@swc/helpers@0.5.15))(@types/node@18.19.74)(typescript@5.5.4):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.11
@@ -18336,7 +18290,7 @@ snapshots:
     optionalDependencies:
       '@swc/core': 1.10.4(@swc/helpers@0.5.15)
 
-  ts-node@10.9.2(@swc/core@1.10.4)(@types/node@22.10.5)(typescript@5.7.2):
+  ts-node@10.9.2(@swc/core@1.10.4(@swc/helpers@0.5.15))(@types/node@22.10.5)(typescript@5.7.2):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.11
@@ -18356,7 +18310,7 @@ snapshots:
     optionalDependencies:
       '@swc/core': 1.10.4(@swc/helpers@0.5.15)
 
-  ts-node@10.9.2(@swc/core@1.10.4)(@types/node@22.10.9)(typescript@5.7.2):
+  ts-node@10.9.2(@swc/core@1.10.4(@swc/helpers@0.5.15))(@types/node@22.10.9)(typescript@5.7.2):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.11
@@ -18493,14 +18447,14 @@ snapshots:
       typescript: 5.7.3
       yaml: 2.7.0
 
-  typescript-json-schema@0.65.1(@swc/core@1.10.4):
+  typescript-json-schema@0.65.1(@swc/core@1.10.4(@swc/helpers@0.5.15)):
     dependencies:
       '@types/json-schema': 7.0.15
       '@types/node': 18.19.74
       glob: 7.2.3
       path-equal: 1.2.5
       safe-stable-stringify: 2.5.0
-      ts-node: 10.9.2(@swc/core@1.10.4)(@types/node@18.19.74)(typescript@5.5.4)
+      ts-node: 10.9.2(@swc/core@1.10.4(@swc/helpers@0.5.15))(@types/node@18.19.74)(typescript@5.5.4)
       typescript: 5.5.4
       yargs: 17.7.2
     transitivePeerDependencies:

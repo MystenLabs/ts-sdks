@@ -42,8 +42,13 @@
 	"devDependencies": {
 		"@hono/node-server": "^1.13.8",
 		"@mysten/build-scripts": "workspace:*",
+		"@mysten/dapp-kit": "workspace:*",
 		"@types/node": "^22.10.5",
+		"@types/react": "^18.3.3",
+		"@types/react-dom": "^18.3.0",
 		"hono": "^4.6.20",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1",
 		"typescript": "^5.7.2",
 		"undici": "^7.4.0",
 		"vitest": "^2.1.8"

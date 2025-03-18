@@ -4,6 +4,12 @@
 import type { BcsType } from '@mysten/sui/bcs';
 import { bcs } from '@mysten/sui/bcs';
 
+import { BlsCommittee } from '../contracts/bls_aggregate.js';
+import { VecMap } from '../contracts/deps/0x0000000000000000000000000000000000000000000000000000000000000002/vec_map.js';
+import { EventBlob } from '../contracts/event_blob.js';
+import { ExtendedField } from '../contracts/extended_field.js';
+import { FutureAccountingRingBuffer } from '../contracts/storage_accounting.js';
+
 const MerkleNode = bcs.enum('MerkleNode', {
 	Empty: null,
 	Digest: bcs.bytes(32),
@@ -136,3 +142,19 @@ export const StorageConfirmationBody = bcs.struct('StorageConfirmationBody', {
 });
 
 export const StorageConfirmation = ProtocolMessage(StorageConfirmationBody);
+
+// TODO: Remove these once testnet is updated
+const TestnetEventBlobCertificationState = bcs.struct('EventBlobCertificationState', {
+	latest_certified_blob: bcs.option(EventBlob()),
+	aggregate_weight_per_blob: VecMap(bcs.u256(), bcs.u16()),
+});
+export const TestnetSystemStateInnerV1 = bcs.struct('SystemStateInnerV1', {
+	committee: BlsCommittee(),
+	total_capacity_size: bcs.u64(),
+	used_capacity_size: bcs.u64(),
+	storage_price_per_unit_size: bcs.u64(),
+	write_price_per_unit_size: bcs.u64(),
+	future_accounting: FutureAccountingRingBuffer(),
+	event_blob_certification_state: TestnetEventBlobCertificationState,
+	deny_list_sizes: ExtendedField(),
+});

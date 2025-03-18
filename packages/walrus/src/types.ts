@@ -169,6 +169,13 @@ export type WriteEncodedBlobOptions = {
 } & DeletableConfirmationOptions &
 	WalrusClientRequestOptions;
 
+export type WriteEncodedBlobToNodesOptions = {
+	blobId: string;
+	metadata: Uploadable | typeof BlobMetadata.$inferInput;
+	sliversByNode: SliversForNode[];
+} & DeletableConfirmationOptions &
+	WalrusClientRequestOptions;
+
 export type WriteBlobOptions = {
 	blob: Uint8Array;
 	deletable: boolean;

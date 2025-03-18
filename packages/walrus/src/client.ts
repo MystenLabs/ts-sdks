@@ -55,11 +55,18 @@ import type {
 	WriteBlobAttributesOptions,
 	WriteBlobOptions,
 	WriteEncodedBlobOptions,
+	WriteEncodedBlobToNodesOptions,
 	WriteMetadataOptions,
 	WriteSliverOptions,
 	WriteSliversToNodeOptions,
 } from './types.js';
-import { blobIdToInt, IntentType, SliverData, StorageConfirmation } from './utils/bcs.js';
+import {
+	blobIdToInt,
+	IntentType,
+	SliverData,
+	StorageConfirmation,
+	TestnetSystemStateInnerV1,
+} from './utils/bcs.js';
 import {
 	chunk,
 	encodedBlobLength,
@@ -153,7 +160,10 @@ export class WalrusClient {
 		const systemState = await this.#objectLoader.loadFieldObject(
 			this.packageConfig.systemObjectId,
 			{ type: 'u64', value: (await this.systemObject()).version },
-			SystemStateInnerV1(),
+
+			this.packageConfig.systemObjectId === TESTNET_WALRUS_PACKAGE_CONFIG.systemObjectId
+				? (TestnetSystemStateInnerV1 as never)
+				: SystemStateInnerV1(),
 		);
 
 		return systemState;
@@ -1352,6 +1362,55 @@ export class WalrusClient {
 	}
 
 	/**
+	 * Write a blob to all storage nodes
+	 *
+	 * @usage
+	 * ```ts
+	 * await client.writeEncodedBlobToNodes({ blob, deletable, epochs, signer });
+	 * ```
+	 */
+	async writeEncodedBlobToNodes({
+		blobId,
+		metadata,
+		sliversByNode,
+		signal,
+		...options
+	}: WriteEncodedBlobToNodesOptions) {
+		const systemState = await this.systemState();
+		const committee = await this.#getActiveCommittee();
+
+		const controller = new AbortController();
+		let failures = 0;
+
+		const confirmations = await Promise.all(
+			sliversByNode.map((slivers, nodeIndex) => {
+				return this.writeEncodedBlobToNode({
+					blobId,
+					nodeIndex,
+					metadata,
+					slivers,
+					signal: signal ? AbortSignal.any([controller.signal, signal]) : controller.signal,
+					...options,
+				}).catch(() => {
+					failures += committee.nodes[nodeIndex].shardIndices.length;
+
+					if (isAboveValidity(failures, systemState.committee.n_shards)) {
+						controller.abort();
+
+						throw new NotEnoughBlobConfirmationsError(
+							`Too many failures while writing blob ${blobId} to nodes`,
+						);
+					}
+
+					return null;
+				});
+			}),
+		);
+
+		return confirmations;
+	}
+
+	/**
 	 * Write encoded blob to a storage node
 	 *
 	 * @usage
@@ -1400,9 +1459,6 @@ export class WalrusClient {
 		owner,
 		attributes,
 	}: WriteBlobOptions) {
-		const systemState = await this.systemState();
-		const committee = await this.#getActiveCommittee();
-
 		const { sliversByNode, blobId, metadata, rootHash } = await this.encodeBlob(blob);
 
 		const suiBlobObject = await this.executeRegisterBlobTransaction({
@@ -1416,35 +1472,16 @@ export class WalrusClient {
 			attributes,
 		});
 
-		const controller = new AbortController();
 		const blobObjectId = suiBlobObject.blob.id.id;
-		let failures = 0;
 
-		const confirmations = await Promise.all(
-			sliversByNode.map((slivers, nodeIndex) => {
-				return this.writeEncodedBlobToNode({
-					blobId,
-					nodeIndex,
-					metadata,
-					slivers,
-					deletable,
-					objectId: blobObjectId,
-					signal: signal ? AbortSignal.any([controller.signal, signal]) : controller.signal,
-				}).catch(() => {
-					failures += committee.nodes[nodeIndex].shardIndices.length;
-
-					if (isAboveValidity(failures, systemState.committee.n_shards)) {
-						controller.abort();
-
-						throw new NotEnoughBlobConfirmationsError(
-							`Too many failures while writing blob ${blobId} to nodes`,
-						);
-					}
-
-					return null;
-				});
-			}),
-		);
+		const confirmations = await this.writeEncodedBlobToNodes({
+			blobId,
+			metadata,
+			sliversByNode,
+			deletable,
+			objectId: blobObjectId,
+			signal,
+		});
 
 		await this.executeCertifyBlobTransaction({
 			signer,
