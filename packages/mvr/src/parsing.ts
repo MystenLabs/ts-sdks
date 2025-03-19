@@ -40,10 +40,10 @@ const { values: args } = parseArgs({
 			default: '.',
 			short: 'd',
 		},
-		fileName: {
+		output: {
 			type: 'string',
 			default: DEFAULT_FILE_NAME,
-			short: 'f',
+			short: 'o',
 		},
 		depth: {
 			type: 'string',
@@ -70,18 +70,18 @@ const { values: args } = parseArgs({
 			default: DEFAULT_EXCLUDE_PATTERNS,
 			short: 'e',
 		},
-		override: {
+		force: {
 			type: 'boolean',
 			default: false,
-			short: 'o',
+			short: 'f',
 		},
 	},
 });
 
 export async function parser() {
-	const outDir = resolve(process.cwd(), args.fileName);
+	const outDir = resolve(process.cwd(), args.output);
 
-	if (existsSync(outDir) && !args.override) {
+	if (existsSync(outDir) && !args.force) {
 		const { overwrite } = (await prompt({
 			type: 'confirm',
 			name: 'overwrite',
@@ -92,7 +92,7 @@ export async function parser() {
 		if (!overwrite) return process.exit(1);
 	}
 
-	console.log(`Generating ${args.fileName}...`);
+	console.log(`Generating ${args.output}...`);
 
 	const detectedNames = await findNames({});
 
@@ -228,16 +228,16 @@ export async function findNames({
 	include = args.include,
 	exclude = args.exclude,
 	depth = parseInt(args.depth),
-	fileName = args.fileName,
+	output = args.output,
 }: {
 	directory?: string;
 	include?: string[];
 	exclude?: string[];
 	depth?: number;
-	fileName?: string;
+	output?: string;
 }) {
 	const detectedNames = new Set<string>();
-	const excluded = [...exclude, fileName];
+	const excluded = [...exclude, output];
 
 	const files = glob.sync(include, {
 		ignore: excluded,

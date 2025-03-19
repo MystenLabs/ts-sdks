@@ -17,13 +17,13 @@ pnpm dlx @mysten/mvr
 Available options:
 
 - `--directory <directory>`: The directory to run the command in (defaults to `.`)
-- `--output-file <output-file>`: The output's file name (defaults to `mvr.ts`)
+- `--output <file-name>`: The output's file name (defaults to `mvr.ts`)
 - `--depth <depth>`: The depth of recursive search for MVR names (defaults to `10`)
 - `--url-mainnet <url>`: The URL to the mainnet MVR (defaults to `https://mainnet.mvr.mystenlabs.com`)
 - `--url-testnet <url>`: The URL to the testnet MVR (defaults to `https://testnet.mvr.mystenlabs.com`)
 - `--include <dir_patterns>`: The directory patterns to include in the search (defaults to `**/*.{js,ts,jsx,tsx,mjs,cjs}`)
 - `--exclude <dir_patterns>`: The directory patterns to exclude in the search (defaults to `'node_modules/**', '**/.*'`)
-- `--override`: Override the existing MVR file (useful in CI) (defaults to `false`)
+- `--force`: Force overwrite the existing MVR file (useful in CI) (defaults to `false`)
 
 ### Use the static file in your project
 
