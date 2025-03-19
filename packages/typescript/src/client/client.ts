@@ -3,6 +3,7 @@
 import { fromBase58, toBase64, toHex } from '@mysten/bcs';
 
 import type { Signer } from '../cryptography/index.js';
+import type { Experimental_SuiClient } from '../experimental/client.js';
 import type { Transaction } from '../transactions/index.js';
 import { isTransaction } from '../transactions/index.js';
 import {
@@ -830,7 +831,18 @@ export class SuiClient {
 	experimental_asClientExtension(this: SuiClient) {
 		return {
 			name: 'jsonRPC',
-			register: () => this,
+			register: (client: Experimental_SuiClient) => {
+				client.$registerTransport({
+					// TODO: implement other methods, probably not inline
+					getReferenceGasPrice: async () => {
+						const referenceGasPrice = await this.getReferenceGasPrice();
+						return {
+							referenceGasPrice,
+						};
+					},
+				});
+				return this;
+			},
 		} as const;
 	}
 }
