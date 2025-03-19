@@ -6,8 +6,8 @@ import { describe, expect, it } from 'vitest';
 
 import { crossNetworkResolution, findNames } from '../src/parsing';
 
-describe('Parsing of project files', () => {
-	it('should find all the functionc alls and types in a file', async () => {
+describe.concurrent('Parsing of project files', () => {
+	it('should find all the function calls and types in a file', async () => {
 		const expected = [
 			'@mvr/app/2::demo::test',
 			'@mvr/app::type::Type',
@@ -26,12 +26,38 @@ describe('Parsing of project files', () => {
 			'@pkg/qwer::mvr_b::V2',
 		];
 
-		const files = await findNames(resolve(__dirname, 'demo-project'));
+		const files = await findNames({ directory: resolve(__dirname, 'demo-project') });
 		for (const file of expected) {
-			console.log(files);
-			console.log(file);
 			expect(files).toContain(file);
 		}
+	});
+
+	it('should find function calls (etc) with some specific patterns', async () => {
+		// only include specific pattern
+		const limitedInclusionFiles = await findNames({
+			directory: resolve(__dirname, 'demo-project'),
+			include: ['nested/**/*.js'],
+		});
+
+		expect([...limitedInclusionFiles]).toEqual(['@nested/app::demo::test', '@nested/app']);
+
+		// exclude specific pattern
+		const excludedFiles = await findNames({
+			directory: resolve(__dirname, 'demo-project'),
+			exclude: ['nested/**/*.js'],
+		});
+
+		expect(excludedFiles).not.toContain('@nested/app::demo::test');
+		expect(excludedFiles).not.toContain('@nested/app');
+
+		// depth = 0, so we only check root (index.ts file)
+		const noDepth = await findNames({
+			directory: resolve(__dirname, 'demo-project'),
+			depth: 0,
+		});
+
+		expect(noDepth).not.toContain('@nested/app::demo::test');
+		expect(noDepth).not.toContain('@nested/app');
 	});
 
 	it('Should properly resolve packages and types in both networks', async () => {
@@ -60,13 +86,13 @@ describe('Parsing of project files', () => {
 					'@mvr/core::app_record::AppRecord':
 						'0x62c1f5b1cb9e3bfc3dd1f73c95066487b662048a6358eabdbf67f6cdeca6db4b::app_record::AppRecord',
 					'@mvr/metadata::git::GitInfo':
-						'0xf6b71233780a3f362137b44ac219290f4fd34eb81e0cb62ddf4bb38d1f9a3a1::git::GitInfo',
+						'0x0f6b71233780a3f362137b44ac219290f4fd34eb81e0cb62ddf4bb38d1f9a3a1::git::GitInfo',
 					'@mvr/metadata::package_info::PackageInfo':
-						'0xf6b71233780a3f362137b44ac219290f4fd34eb81e0cb62ddf4bb38d1f9a3a1::package_info::PackageInfo',
+						'0x0f6b71233780a3f362137b44ac219290f4fd34eb81e0cb62ddf4bb38d1f9a3a1::package_info::PackageInfo',
 					'@pkg/qwer::mvr_a::V1':
 						'0xc168b8766e69c07b1b5ed194e3dc2b4a2a0e328ae6a06a2cae40e2ec83a3f94f::mvr_a::V1',
 					'@pkg/qwer::mvr_b::V2':
-						'0x1dcc0337dfe29d3a20fbaceb28febc424e6b8631e93338ed574b40aadc2a9ea::mvr_b::V2',
+						'0x01dcc0337dfe29d3a20fbaceb28febc424e6b8631e93338ed574b40aadc2a9ea::mvr_b::V2',
 				},
 			},
 			testnet: {
@@ -79,7 +105,7 @@ describe('Parsing of project files', () => {
 					'@mvr/metadata::package_info::PackageInfo':
 						'0xb96f44d08ae214887cae08d8ae061bbf6f0908b1bfccb710eea277f45150b9f4::package_info::PackageInfo',
 					'@pkg/qwer::mvr_a::V1':
-						'0x77adfd262090b6645ea05087e252796a205d0369f165c99aa8147f3c678b579::mvr_a::V1',
+						'0x077adfd262090b6645ea05087e252796a205d0369f165c99aa8147f3c678b579::mvr_a::V1',
 					'@pkg/qwer::mvr_b::V2':
 						'0x6b991ed7e0164d0927df2eaf4fb075d528b4b86d6feee35711cf8d49f2538691::mvr_b::V2',
 				},
