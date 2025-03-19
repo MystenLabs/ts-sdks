@@ -20,6 +20,11 @@ function getCompressedPublicKey(publicKey: Uint8Array) {
 	return compressed;
 }
 
+export interface ExportedWebCryptoKeypair {
+	privateKey: CryptoKey;
+	publicKey: Uint8Array;
+}
+
 export class WebCryptoSigner extends Signer {
 	privateKey: CryptoKey;
 
@@ -37,7 +42,14 @@ export class WebCryptoSigner extends Signer {
 
 		const publicKey = await globalThis.crypto.subtle.exportKey('raw', keypair.publicKey);
 
-		return new WebCryptoSigner(keypair.privateKey, new Uint8Array(publicKey));
+		return new WebCryptoSigner(
+			keypair.privateKey,
+			getCompressedPublicKey(new Uint8Array(publicKey)),
+		);
+	}
+
+	static import(data: ExportedWebCryptoKeypair) {
+		return new WebCryptoSigner(data.privateKey, data.publicKey);
 	}
 
 	getKeyScheme(): SignatureScheme {
@@ -47,7 +59,16 @@ export class WebCryptoSigner extends Signer {
 	constructor(privateKey: CryptoKey, publicKey: Uint8Array) {
 		super();
 		this.privateKey = privateKey;
-		this.#publicKey = new Secp256r1PublicKey(getCompressedPublicKey(publicKey));
+		this.#publicKey = new Secp256r1PublicKey(publicKey);
+	}
+
+	// Exports the keypair to store in IndexedDB.
+	export(): ExportedWebCryptoKeypair {
+		// TODO: Should we add something like `toJSON` on this so that if you attempt to serialize it throws?
+		return {
+			privateKey: this.privateKey,
+			publicKey: this.#publicKey.toRawBytes(),
+		};
 	}
 
 	getPublicKey() {
