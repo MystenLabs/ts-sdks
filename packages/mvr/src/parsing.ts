@@ -107,15 +107,8 @@ async function writeOutputFile(
 	testnet: NamedPackagesPluginCache,
 ) {
 	const outputFile = `${WARNING_MESSAGE}
-const testnetResolution = {
-	packages: ${JSON.stringify(testnet.packages).replaceAll('"', "'")},
-	types: ${JSON.stringify(testnet.types).replaceAll('"', "'")},
-};
-
-const mainnetResolution = {
-	packages: ${JSON.stringify(mainnet.packages).replaceAll('"', "'")},
-	types: ${JSON.stringify(mainnet.types).replaceAll('"', "'")},
-};
+const mainnetResolution = ${JSON.stringify(mainnet, null, 2)}
+const testnetResolution = ${JSON.stringify(testnet, null, 2)}
 
 export function getMvrCache(network: 'mainnet' | 'testnet') {
 	return network === 'mainnet' ? mainnetResolution : testnetResolution;
