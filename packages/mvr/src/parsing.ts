@@ -156,9 +156,13 @@ async function resolvePackages(packages: string[], apiUrl: string) {
 				}),
 			});
 
+			if (!response.ok) {
+				const errorBody = await response.json().catch(() => ({}));
+				throw new Error(`Failed to resolve packages: ${errorBody?.message}`);
+			}
+
 			const data = await response.json();
 
-			if (!response.ok) throw new Error(`Failed to resolve packages: ${data?.message}`);
 			if (!data?.resolution) return;
 
 			for (const pkg of Object.keys(data?.resolution)) {
@@ -193,9 +197,12 @@ async function resolveTypes(types: string[], apiUrl: string) {
 				}),
 			});
 
-			const data = await response.json();
+			if (!response.ok) {
+				const errorBody = await response.json().catch(() => ({}));
+				throw new Error(`Failed to resolve types: ${errorBody?.message}`);
+			}
 
-			if (!response.ok) throw new Error(`Failed to resolve types: ${data?.message}`);
+			const data = await response.json();
 
 			if (!data?.resolution) return;
 
