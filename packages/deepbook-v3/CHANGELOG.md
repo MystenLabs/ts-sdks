@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.13.2
+
+### Patch Changes
+
+- b93b0f2: Add WAL token
+
 ## 0.13.1
 
 ### Patch Changes
