@@ -5,7 +5,7 @@ import { registerEnokiConnectWallet } from '@mysten/enoki-connect';
 import { useEffect } from 'react';
 
 export type EnokiConnectWalletConfig = {
-	appId: string;
+	publicAppSlug: string;
 	dappName: string;
 	enokiApiUrl?: string;
 	network?: SupportedNetwork;
@@ -14,26 +14,26 @@ export type EnokiConnectWalletConfig = {
 export type EnokiConnectWalletManagerProps = {
 	enokiApiUrl?: string;
 	network?: SupportedNetwork;
-	appIds: string[];
+	publicAppSlugs: string[];
 	dappName: string;
 };
 
 export function EnokiConnectWalletManager({
-	appIds,
+	publicAppSlugs,
 	enokiApiUrl,
 	network,
 	dappName,
 }: EnokiConnectWalletManagerProps) {
-	const uniqueAppIds = new Set(appIds);
+	const uniqueAppIds = new Set(publicAppSlugs);
 
-	if (uniqueAppIds.size !== appIds.length) {
-		throw new Error('Duplicate appIds are not allowed');
+	if (uniqueAppIds.size !== publicAppSlugs.length) {
+		throw new Error('Duplicate publicAppSlugs are not allowed');
 	}
 
-	return appIds.map((appId) => (
+	return publicAppSlugs.map((aPublicAppSlug) => (
 		<EnokiConnectWallet
-			key={appId}
-			appId={appId}
+			key={aPublicAppSlug}
+			publicAppSlug={aPublicAppSlug}
 			enokiApiUrl={enokiApiUrl}
 			network={network}
 			dappName={dappName}
@@ -41,20 +41,30 @@ export function EnokiConnectWalletManager({
 	));
 }
 
-function EnokiConnectWallet({ appId, enokiApiUrl, network, dappName }: EnokiConnectWalletConfig) {
+function EnokiConnectWallet({
+	publicAppSlug,
+	enokiApiUrl,
+	network,
+	dappName,
+}: EnokiConnectWalletConfig) {
 	useEffect(() => {
 		async function register() {
 			try {
 				const { unregister } = await registerEnokiConnectWallet({
-					appId,
+					publicAppSlug,
 					dappName,
 					enokiApiUrl,
 					network,
 				});
+
 				return unregister;
 			} catch (error) {
 				// ignore errors (could be network errors, etc.)
-				console.log(`Failed to register Enoki Connect wallet ${dappName}. AppId: ${appId}`, error);
+				console.log(
+					`Failed to register Enoki Connect wallet ${dappName}. PublicAppSlug: ${publicAppSlug}`,
+					error,
+				);
+
 				return null;
 			}
 		}
@@ -66,7 +76,7 @@ function EnokiConnectWallet({ appId, enokiApiUrl, network, dappName }: EnokiConn
 				unregister?.();
 			});
 		};
-	}, [appId, enokiApiUrl, network, dappName]);
+	}, [publicAppSlug, enokiApiUrl, network, dappName]);
 
 	return null;
 }
