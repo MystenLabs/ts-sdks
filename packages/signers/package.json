@@ -27,8 +27,7 @@
 		"aws",
 		"dist",
 		"gcp",
-		"src",
-		"webcrypto"
+		"src"
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
