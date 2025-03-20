@@ -56,6 +56,9 @@ function MyComponent() {
 ## Arguments
 
 - `message`: The message to sign, as a `Uint8Array`.
+- `chain`: (optional) The chain identifier the message should be signed for. This is useful when
+  signing messages for zkLogin accounts which rely on a network-bound zero knowledge proof to obtain
+  the message signature.
 
 ## Result
 

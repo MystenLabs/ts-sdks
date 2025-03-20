@@ -18,7 +18,7 @@ import type { PartialBy } from '../../types/utilityTypes.js';
 import { useCurrentAccount } from './useCurrentAccount.js';
 import { useCurrentWallet } from './useCurrentWallet.js';
 
-type UseSignPersonalMessageArgs = PartialBy<SuiSignPersonalMessageInput, 'account'>;
+type UseSignPersonalMessageArgs = PartialBy<SuiSignPersonalMessageInput, 'account' | 'chain'>;
 
 type UseSignPersonalMessageResult = SuiSignPersonalMessageOutput;
 
@@ -71,6 +71,7 @@ export function useSignPersonalMessage({
 				return await signPersonalMessageFeature.signPersonalMessage({
 					...signPersonalMessageArgs,
 					account: signerAccount,
+					chain: signPersonalMessageArgs.chain ?? signerAccount.chains[0],
 				});
 			}
 

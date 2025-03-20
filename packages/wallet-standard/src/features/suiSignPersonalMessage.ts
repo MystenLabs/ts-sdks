@@ -1,10 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { WalletAccount } from '@wallet-standard/core';
+import type { IdentifierString, WalletAccount } from '@wallet-standard/core';
 
 /** The latest API version of the signPersonalMessage API. */
-export type SuiSignPersonalMessageVersion = '1.0.0';
+export type SuiSignPersonalMessageVersion = '1.1.0';
 
 /**
  * A Wallet Standard feature for signing a personal message, and returning the
@@ -27,6 +27,7 @@ export type SuiSignPersonalMessageMethod = (
 export interface SuiSignPersonalMessageInput {
 	message: Uint8Array;
 	account: WalletAccount;
+	chain?: IdentifierString;
 }
 
 /** Output of signing personal messages. */
