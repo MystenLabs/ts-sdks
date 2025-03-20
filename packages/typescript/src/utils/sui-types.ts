@@ -3,6 +3,8 @@
 
 import { fromBase58, splitGenericParameters } from '@mysten/bcs';
 
+import { isValidNamedPackage } from './move-registry.js';
+
 const TX_DIGEST_LENGTH = 32;
 
 /** Returns whether the tx digest is valid based on the serialization format */
@@ -30,7 +32,7 @@ export function isValidSuiObjectId(value: string): boolean {
 	return isValidSuiAddress(value);
 }
 
-type StructTag = {
+export type StructTag = {
 	address: string;
 	module: string;
 	name: string;
@@ -46,6 +48,8 @@ function parseTypeTag(type: string): string | StructTag {
 export function parseStructTag(type: string): StructTag {
 	const [address, module] = type.split('::');
 
+	const isMvrPackage = isValidNamedPackage(address);
+
 	const rest = type.slice(address.length + module.length + 4);
 	const name = rest.includes('<') ? rest.slice(0, rest.indexOf('<')) : rest;
 	const typeParams = rest.includes('<')
@@ -55,7 +59,7 @@ export function parseStructTag(type: string): StructTag {
 		: [];
 
 	return {
-		address: normalizeSuiAddress(address),
+		address: isMvrPackage ? address : normalizeSuiAddress(address),
 		module,
 		name,
 		typeParams,

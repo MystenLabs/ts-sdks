@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { isValidNamedPackage, isValidNamedType } from '../../utils/move-registry.js';
+import { normalizeStructTag, parseStructTag } from '../../utils/sui-types.js';
+import type { StructTag } from '../../utils/sui-types.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
 
 export type NamedPackagesPluginCache = {
@@ -21,9 +23,10 @@ export type NameResolutionRequest = {
  * Looks up all `.move` names in a transaction block.
  * Returns a list of all the names found.
  */
-export const findTransactionBlockNames = (
-	builder: TransactionDataBuilder,
-): { packages: string[]; types: string[] } => {
+export function findNamesInTransaction(builder: TransactionDataBuilder): {
+	packages: string[];
+	types: string[];
+} {
 	const packages: Set<string> = new Set();
 	const types: Set<string> = new Set();
 
@@ -40,7 +43,7 @@ export const findTransactionBlockNames = (
 		if (!tx) continue;
 
 		const pkg = tx.package.split('::')[0];
-		if (pkg.includes(NAME_SEPARATOR)) {
+		if (hasMvrName(pkg)) {
 			if (!isValidNamedPackage(pkg)) throw new Error(`Invalid package name: ${pkg}`);
 			packages.add(pkg);
 		}
@@ -54,32 +57,99 @@ export const findTransactionBlockNames = (
 		packages: [...packages],
 		types: [...types],
 	};
-};
+}
 
 /**
- * Returns a list of unique types that include a name
- * from the given list.
- *  */
-function getNamesFromTypeList(types: string[]) {
-	const names = new Set<string>();
+ * Extracts all first-level types from a list of types.
+ * E.g. for the input `['@mvr/demo::a::A<@mvr/demo::b::B>']`,
+ * the output will be `['@mvr/demo::a::A', '@mvr/demo::b::B']`.
+ */
+export function getFirstLevelNamedTypes(types: string[]) {
+	const results: Set<string> = new Set();
+
 	for (const type of types) {
-		if (type.includes(NAME_SEPARATOR)) {
-			if (!isValidNamedType(type)) throw new Error(`Invalid type with names: ${type}`);
-			names.add(type);
-		}
+		findMvrNames(type).forEach((name) => results.add(name));
 	}
-	return [...names];
+
+	return [...results];
+}
+
+/**
+ * Extracts all named types from a given type.
+ */
+function findMvrNames(type: string | StructTag) {
+	const types: Set<string> = new Set();
+
+	if (typeof type === 'string' && !hasMvrName(type)) return [];
+
+	let tag = isStructTag(type) ? type : parseStructTag(type);
+
+	if (hasMvrName(tag.address)) types.add(`${tag.address}::${tag.module}::${tag.name}`);
+
+	for (const param of tag.typeParams) {
+		findMvrNames(param).forEach((name) => types.add(name));
+	}
+
+	return [...types];
+}
+
+// /**
+//  * Allows partial replacements of known types with their resolved equivalents.
+//  * E.g. `@mvr/demo::a::A<@mvr/demo::b::B>` can be resolved, if we already have
+//  * the address for `@mvr/demo::b::B` and the address for `@mvr/demo::a::A`,
+//  * without the need to have the full type in the cache.
+//  *
+//  * Returns the fully composed resolved types (if any) in a `named-type -> normalized-type` map.
+//  */
+export function populateNamedTypesFromCache(types: string[], typeCache: Record<string, string>) {
+	const composedTypes: Record<string, string> = {};
+
+	types.forEach((type) => {
+		const normalized = normalizeStructTag(findAndReplaceCachedTypes(type, typeCache));
+		composedTypes[type] = normalized;
+	});
+
+	return composedTypes;
+}
+
+/**
+ * Traverses a type, and replaces any found names with their resolved equivalents,
+ * based on the supplied type cache.
+ */
+function findAndReplaceCachedTypes(
+	tag: string | StructTag,
+	typeCache: Record<string, string>,
+): StructTag {
+	const type = isStructTag(tag) ? tag : parseStructTag(tag);
+
+	let typeTag = `${type.address}::${type.module}::${type.name}`;
+	const cacheHit = typeCache[typeTag];
+
+	if (cacheHit) {
+		let [mvrName] = cacheHit.split('::');
+
+		return {
+			...type,
+			address: mvrName,
+			typeParams: type.typeParams.map((param) => findAndReplaceCachedTypes(param, typeCache)),
+		};
+	}
+
+	return {
+		...type,
+		typeParams: type.typeParams.map((param) => findAndReplaceCachedTypes(param, typeCache)),
+	};
 }
 
 /**
  * Replace all names & types in a transaction block
  * with their resolved names/types.
  */
-export const replaceNames = (builder: TransactionDataBuilder, cache: NamedPackagesPluginCache) => {
+export function replaceNames(builder: TransactionDataBuilder, cache: NamedPackagesPluginCache) {
 	for (const command of builder.commands) {
 		// Replacements for `MakeMoveVec` commands (that can include types)
 		if (command.MakeMoveVec?.type) {
-			if (!command.MakeMoveVec.type.includes(NAME_SEPARATOR)) continue;
+			if (!hasMvrName(command.MakeMoveVec.type)) continue;
 			if (!cache.types[command.MakeMoveVec.type])
 				throw new Error(`No resolution found for type: ${command.MakeMoveVec.type}`);
 			command.MakeMoveVec.type = cache.types[command.MakeMoveVec.type];
@@ -91,11 +161,11 @@ export const replaceNames = (builder: TransactionDataBuilder, cache: NamedPackag
 		const nameParts = tx.package.split('::');
 		const name = nameParts[0];
 
-		if (name.includes(NAME_SEPARATOR) && !cache.packages[name])
+		if (hasMvrName(name) && !cache.packages[name])
 			throw new Error(`No address found for package: ${name}`);
 
 		// Replace package name with address.
-		if (name.includes(NAME_SEPARATOR)) {
+		if (hasMvrName(name)) {
 			nameParts[0] = cache.packages[name];
 			tx.package = nameParts.join('::');
 		}
@@ -104,7 +174,7 @@ export const replaceNames = (builder: TransactionDataBuilder, cache: NamedPackag
 		if (!types) continue;
 
 		for (let i = 0; i < types.length; i++) {
-			if (!types[i].includes(NAME_SEPARATOR)) continue;
+			if (!hasMvrName(types[i])) continue;
 
 			if (!cache.types[types[i]]) throw new Error(`No resolution found for type: ${types[i]}`);
 			types[i] = cache.types[types[i]];
@@ -112,36 +182,43 @@ export const replaceNames = (builder: TransactionDataBuilder, cache: NamedPackag
 
 		tx.typeArguments = types;
 	}
-};
+}
 
-export const listToRequests = (
-	names: { packages: string[]; types: string[] },
-	batchSize: number,
-): NameResolutionRequest[][] => {
-	const results: NameResolutionRequest[] = [];
-	const uniqueNames = deduplicate(names.packages);
-	const uniqueTypes = deduplicate(names.types);
-
-	for (const [idx, name] of uniqueNames.entries()) {
-		results.push({ id: idx, type: 'package', name } as NameResolutionRequest);
-	}
-	for (const [idx, type] of uniqueTypes.entries()) {
-		results.push({
-			id: idx + uniqueNames.length,
-			type: 'moveType',
-			name: type,
-		} as NameResolutionRequest);
-	}
-
-	return batch(results, batchSize);
-};
-
-const deduplicate = <T>(arr: T[]): T[] => [...new Set(arr)];
-
-const batch = <T>(arr: T[], size: number): T[][] => {
+export function batch<T>(arr: T[], size: number): T[][] {
 	const batches = [];
 	for (let i = 0; i < arr.length; i += size) {
 		batches.push(arr.slice(i, i + size));
 	}
 	return batches;
-};
+}
+
+/**
+ * Returns a list of unique types that include a name
+ * from the given list. This list is retrieved from the Transaction Data.
+ */
+function getNamesFromTypeList(types: string[]) {
+	const names = new Set<string>();
+	for (const type of types) {
+		if (hasMvrName(type)) {
+			if (!isValidNamedType(type)) throw new Error(`Invalid type with names: ${type}`);
+			names.add(type);
+		}
+	}
+	return [...names];
+}
+
+function hasMvrName(nameOrType: string) {
+	return (
+		nameOrType.includes(NAME_SEPARATOR) || nameOrType.includes('@') || nameOrType.includes('.sui')
+	);
+}
+
+function isStructTag(type: string | StructTag): type is StructTag {
+	return (
+		typeof type === 'object' &&
+		'address' in type &&
+		'module' in type &&
+		'name' in type &&
+		'typeParams' in type
+	);
+}

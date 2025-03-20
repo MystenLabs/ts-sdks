@@ -48,6 +48,35 @@ describe('parseStructTag', () => {
       }
     `);
 	});
+
+	it('parses named struct tags correctly', () => {
+		expect(parseStructTag('@mvr/demo::foo::bar')).toMatchInlineSnapshot(`
+      {
+        "address": "@mvr/demo",
+        "module": "foo",
+        "name": "bar",
+        "typeParams": [],
+      }
+    `);
+
+		expect(parseStructTag('@mvr/demo::foo::bar<inner.mvr.sui/demo::baz::qux, bool>'))
+			.toMatchInlineSnapshot(`
+      {
+        "address": "@mvr/demo",
+        "module": "foo",
+        "name": "bar",
+        "typeParams": [
+          {
+            "address": "inner.mvr.sui/demo",
+            "module": "baz",
+            "name": "qux",
+            "typeParams": [],
+          },
+          "bool",
+        ],
+      }
+    `);
+	});
 });
 
 describe('normalizeStructTag', () => {
@@ -59,5 +88,15 @@ describe('normalizeStructTag', () => {
 		expect(normalizeStructTag('0x2::foo::bar<0x3::another::package>')).toEqual(
 			'0x0000000000000000000000000000000000000000000000000000000000000002::foo::bar<0x0000000000000000000000000000000000000000000000000000000000000003::another::package>',
 		);
+	});
+
+	it('normalizes named package addresses', () => {
+		const checks = [
+			'@mvr/demo::foo::bar<inner.mvr.sui/demo::baz::qux,bool>',
+			'@mvr/demo::foo::bar',
+			'@mvr/demo::foo::bar<inner.mvr.sui/demo::baz::Qux,bool,inner@mvr/demo::foo::Nested<u64,bool>>',
+		];
+
+		for (const check of checks) expect(normalizeStructTag(parseStructTag(check))).toEqual(check);
 	});
 });
