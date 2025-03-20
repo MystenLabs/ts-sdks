@@ -98,7 +98,7 @@ function registerUnsafeBurnerWallet(suiClient: SuiClient) {
 					on: this.#on,
 				},
 				'sui:signPersonalMessage': {
-					version: '1.1.0',
+					version: '1.0.0',
 					signPersonalMessage: this.#signPersonalMessage,
 				},
 				'sui:signTransactionBlock': {
