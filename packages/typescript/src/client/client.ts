@@ -3,6 +3,7 @@
 import { fromBase58, toBase64, toHex } from '@mysten/bcs';
 
 import type { Signer } from '../cryptography/index.js';
+import type { Experimental_SuiClient } from '../experimental/client.js';
 import type { Transaction } from '../transactions/index.js';
 import { isTransaction } from '../transactions/index.js';
 import {
@@ -825,5 +826,23 @@ export class SuiClient {
 
 		// This should never happen, because the above case should always throw, but just adding it in the event that something goes horribly wrong.
 		throw new Error('Unexpected error while waiting for transaction block.');
+	}
+
+	experimental_asClientExtension(this: SuiClient) {
+		return {
+			name: 'jsonRPC',
+			register: (client: Experimental_SuiClient) => {
+				client.$registerTransport({
+					// TODO: implement other methods, probably not inline
+					getReferenceGasPrice: async () => {
+						const referenceGasPrice = await this.getReferenceGasPrice();
+						return {
+							referenceGasPrice,
+						};
+					},
+				});
+				return this;
+			},
+		} as const;
 	}
 }
