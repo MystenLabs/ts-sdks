@@ -28,3 +28,4 @@ packages:
   - '!packages/typescript/keypairs/passkey'
   - '!packages/typescript/graphql/schemas/latest'
   - '!packages/signers/utils'
+  - '!packages/signers/webcrypto'
