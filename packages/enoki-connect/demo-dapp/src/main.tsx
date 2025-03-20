@@ -21,7 +21,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <WalletProvider
             autoConnect
             enokiConnectConfig={{
-              appIds: ["test", "test1"],
+              publicAppSlugs: ["dev", "test1"],
               enokiApiUrl: "http://localhost:3084",
               network: "testnet",
               dappName: "Test Dapp",
