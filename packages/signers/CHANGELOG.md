@@ -1,5 +1,13 @@
 # @mysten/signers
 
+## 0.1.14
+
+### Patch Changes
+
+- 5217cab: Fix signature not having lowS enforced
+- a08ead6: Add webcrypto to the files allowlist
+- b34f523: Fix re-constructing signers from exported bytes, and introduce import / export methods
+
 ## 0.1.13
 
 ### Patch Changes
