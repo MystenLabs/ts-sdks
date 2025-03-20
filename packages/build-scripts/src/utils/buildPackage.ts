@@ -1,8 +1,9 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { execSync } from 'child_process';
+import * as child_process from 'child_process';
 import { existsSync, promises as fs } from 'fs';
+import util from 'node:util';
 import * as path from 'path';
 import type { BuildOptions } from 'esbuild';
 import { build } from 'esbuild';
@@ -20,6 +21,8 @@ interface PackageJSON {
 }
 
 const ignorePatterns = [/\.test.ts$/, /\.graphql$/];
+
+const exec = util.promisify(child_process.exec);
 
 export async function buildPackage(buildOptions?: BuildOptions) {
 	const allFiles = await findAllFiles(path.join(process.cwd(), 'src'));
@@ -53,17 +56,19 @@ async function buildCJS(
 	{ sideEffects }: PackageJSON,
 	buildOptions?: BuildOptions,
 ) {
-	await build({
-		format: 'cjs',
-		logLevel: 'error',
-		target: 'es2020',
-		entryPoints,
-		outdir: 'dist/cjs',
-		sourcemap: true,
-		outbase: 'src',
-		...buildOptions,
-	});
-	await buildTypes('tsconfig.json');
+	await Promise.all([
+		build({
+			format: 'cjs',
+			logLevel: 'error',
+			target: 'es2020',
+			entryPoints,
+			outdir: 'dist/cjs',
+			sourcemap: true,
+			outbase: 'src',
+			...buildOptions,
+		}),
+		buildTypes('tsconfig.json'),
+	]);
 
 	const pkg: PackageJSON = {
 		private: true,
@@ -114,10 +119,7 @@ async function buildESM(
 }
 
 async function buildTypes(config: string) {
-	execSync(`pnpm tsc --build ${config}`, {
-		stdio: 'inherit',
-		cwd: process.cwd(),
-	});
+	return exec(`pnpm tsc --project ${config}`);
 }
 
 async function buildImportDirectories({ exports, sideEffects }: PackageJSON) {
