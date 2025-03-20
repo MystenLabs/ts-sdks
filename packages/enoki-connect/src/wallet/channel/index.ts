@@ -25,18 +25,18 @@ export class EnokiConnectPopup {
 	#resolve: (data: unknown) => void;
 	#reject: (error: Error) => void;
 	#interval: ReturnType<typeof setInterval> | null = null;
-	#enokiAppId: string;
+	#publicAppSlug: string;
 
 	constructor({
 		name,
 		network,
 		origin,
-		enokiAppId,
+		publicAppSlug,
 	}: {
 		name: string;
 		network: SupportedNetwork;
 		origin: string;
-		enokiAppId: string;
+		publicAppSlug: string;
 	}) {
 		const popup = window.open('about:blank', '_blank');
 
@@ -49,7 +49,7 @@ export class EnokiConnectPopup {
 		this.#origin = origin;
 		this.#name = name;
 		this.#network = network;
-		this.#enokiAppId = enokiAppId;
+		this.#publicAppSlug = publicAppSlug;
 		const { promise, resolve, reject } = withResolvers();
 		this.#promise = promise;
 		this.#resolve = resolve;
@@ -81,7 +81,7 @@ export class EnokiConnectPopup {
 					origin: window.origin,
 					name: this.#name,
 					payload: { type, ...data } as EnokiConnectRequestData,
-					enokiAppId: this.#enokiAppId,
+					publicAppSlug: this.#publicAppSlug,
 				} satisfies EnokiConnectRequest),
 			)}`,
 		);

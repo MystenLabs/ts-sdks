@@ -56,7 +56,7 @@ export class EnokiConnectWallet implements Wallet {
 	#dappName: string;
 	#icon: WalletIcon;
 	#network: SupportedNetwork;
-	#appId: string;
+	#publicAppSlug: string;
 
 	get name() {
 		return this.#walletName;
@@ -113,14 +113,14 @@ export class EnokiConnectWallet implements Wallet {
 	}
 
 	constructor({
-		appId,
+		publicAppSlug,
 		walletName,
 		dappName,
 		origin,
 		icon,
 		network,
 	}: {
-		appId: string;
+		publicAppSlug: string;
 		walletName: string;
 		dappName: string;
 		network: SupportedNetwork;
@@ -134,8 +134,8 @@ export class EnokiConnectWallet implements Wallet {
 		this.#dappName = dappName;
 		this.#icon = icon;
 		this.#network = network;
-		this.#appId = appId;
-		this.id = `enoki-connect-${appId}`;
+		this.#publicAppSlug = publicAppSlug;
+		this.id = `enoki-connect-${publicAppSlug}`;
 	}
 
 	#signTransactionBlock: SuiSignTransactionBlockMethod = async ({
@@ -149,7 +149,7 @@ export class EnokiConnectWallet implements Wallet {
 			name: this.#dappName,
 			origin: this.#origin,
 			network: chainToNetwork(chain, this.#network),
-			enokiAppId: this.#appId,
+			publicAppSlug: this.#publicAppSlug,
 		});
 		const response = await popup.send({
 			type: 'sign-transaction',
@@ -168,7 +168,7 @@ export class EnokiConnectWallet implements Wallet {
 			name: this.#dappName,
 			origin: this.#origin,
 			network: chainToNetwork(chain, this.#network),
-			enokiAppId: this.#appId,
+			publicAppSlug: this.#publicAppSlug,
 		});
 		const tx = Transaction.from(await transaction.toJSON());
 
@@ -191,7 +191,7 @@ export class EnokiConnectWallet implements Wallet {
 			name: this.#dappName,
 			origin: this.#origin,
 			network: this.#network,
-			enokiAppId: this.#appId,
+			publicAppSlug: this.#publicAppSlug,
 		});
 		const bytes = toBase64(message);
 		const response = await popup.send({
@@ -249,7 +249,7 @@ export class EnokiConnectWallet implements Wallet {
 			name: this.#dappName,
 			origin: this.#origin,
 			network: this.#network,
-			enokiAppId: this.#appId,
+			publicAppSlug: this.#publicAppSlug,
 		});
 
 		const response = await popup.send({
@@ -271,7 +271,7 @@ export class EnokiConnectWallet implements Wallet {
 	};
 
 	#getRecentAddressKey() {
-		return `enoki-connect-${this.#appId}:recentAddress`;
+		return `enoki-connect-${this.#publicAppSlug}:recentAddress`;
 	}
 }
 
@@ -282,8 +282,8 @@ type EnokiConnectMetadata = {
 	appUrl: string;
 };
 
-async function getEnokiConnectMetadata(appId: string, enokiApiUrl: string) {
-	const res = await fetch(new URL(`/connect/metadata/${appId}`, enokiApiUrl));
+async function getEnokiConnectMetadata(publicAppSlug: string, enokiApiUrl: string) {
+	const res = await fetch(new URL(`/connect/metadata/${publicAppSlug}`, enokiApiUrl));
 
 	if (!res.ok) {
 		throw new Error('Failed to fetch enoki connect metadata');
@@ -295,17 +295,17 @@ async function getEnokiConnectMetadata(appId: string, enokiApiUrl: string) {
 }
 
 export async function registerEnokiConnectWallet({
-	appId,
+	publicAppSlug,
 	dappName,
 	network = 'mainnet',
 	enokiApiUrl = 'https://api.enoki.mystenlabs.com',
 }: {
-	appId: string;
+	publicAppSlug: string;
 	dappName: string;
 	network?: SupportedNetwork;
 	enokiApiUrl?: string;
 }) {
-	const data = await getEnokiConnectMetadata(appId, enokiApiUrl);
+	const data = await getEnokiConnectMetadata(publicAppSlug, enokiApiUrl);
 	const wallets = getWallets();
 	const wallet = new EnokiConnectWallet({
 		walletName: data.name,
@@ -313,7 +313,7 @@ export async function registerEnokiConnectWallet({
 		origin: data.appUrl,
 		icon: data.logoUrl,
 		network,
-		appId,
+		publicAppSlug,
 	});
 	const unregister = wallets.register(wallet);
 

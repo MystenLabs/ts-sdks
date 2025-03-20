@@ -25,7 +25,7 @@ export const EnokiConnectRequest = object({
 	id: pipe(string('`id` is required'), uuid()),
 	origin: pipe(string(), url('`origin` must be a valid URL')),
 	name: optional(string()),
-	enokiAppId: string('`enokiAppId` is required'),
+	publicAppSlug: string('`publicAppSlug` is required'),
 	payload: EnokiConnectRequestData,
 });
 
