@@ -18,7 +18,7 @@ import {
 	WalletNotConnectedError,
 } from '../../errors/walletErrors.js';
 import type { PartialBy } from '../../types/utilityTypes.js';
-import { useSuiClient } from '../useSuiClient.js';
+import { useSuiClientContext } from '../useSuiClient.js';
 import { useCurrentAccount } from './useCurrentAccount.js';
 import { useCurrentWallet } from './useCurrentWallet.js';
 import { useReportTransactionEffects } from './useReportTransactionEffects.js';
@@ -77,7 +77,7 @@ export function useSignAndExecuteTransaction<
 > {
 	const { currentWallet, supportedIntents } = useCurrentWallet();
 	const currentAccount = useCurrentAccount();
-	const client = useSuiClient();
+	const { client, network } = useSuiClientContext();
 	const { mutate: reportTransactionEffects } = useReportTransactionEffects();
 
 	const executeTransaction: ({
@@ -119,7 +119,6 @@ export function useSignAndExecuteTransaction<
 					'No wallet account is selected to sign the transaction with.',
 				);
 			}
-			const chain = signTransactionArgs.chain ?? signerAccount?.chains[0];
 
 			if (
 				!currentWallet.features['sui:signTransaction'] &&
@@ -130,6 +129,7 @@ export function useSignAndExecuteTransaction<
 				);
 			}
 
+			const chain = signTransactionArgs.chain ?? `sui:${network}`;
 			const { signature, bytes } = await signTransaction(currentWallet, {
 				...signTransactionArgs,
 				transaction: {
@@ -143,7 +143,7 @@ export function useSignAndExecuteTransaction<
 					},
 				},
 				account: signerAccount,
-				chain: signTransactionArgs.chain ?? signerAccount.chains[0],
+				chain,
 			});
 
 			const result = await executeTransaction({ bytes, signature });

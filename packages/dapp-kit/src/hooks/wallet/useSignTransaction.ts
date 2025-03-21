@@ -14,7 +14,7 @@ import {
 	WalletNotConnectedError,
 } from '../../errors/walletErrors.js';
 import type { PartialBy } from '../../types/utilityTypes.js';
-import { useSuiClient } from '../useSuiClient.js';
+import { useSuiClientContext } from '../useSuiClient.js';
 import { useCurrentAccount } from './useCurrentAccount.js';
 import { useCurrentWallet } from './useCurrentWallet.js';
 import { useReportTransactionEffects } from './useReportTransactionEffects.js';
@@ -59,7 +59,7 @@ export function useSignTransaction({
 > {
 	const { currentWallet } = useCurrentWallet();
 	const currentAccount = useCurrentAccount();
-	const client = useSuiClient();
+	const { client, network } = useSuiClientContext();
 
 	const { mutate: reportTransactionEffects } = useReportTransactionEffects();
 
@@ -86,6 +86,7 @@ export function useSignTransaction({
 				);
 			}
 
+			const chain = signTransactionArgs.chain ?? `sui:${network}`;
 			const { bytes, signature } = await signTransaction(currentWallet, {
 				...signTransactionArgs,
 				transaction: {
@@ -99,7 +100,7 @@ export function useSignTransaction({
 					},
 				},
 				account: signerAccount,
-				chain: signTransactionArgs.chain ?? signerAccount.chains[0],
+				chain,
 			});
 
 			return {
@@ -109,7 +110,7 @@ export function useSignTransaction({
 					reportTransactionEffects({
 						effects,
 						account: signerAccount,
-						chain: signTransactionArgs.chain ?? signerAccount.chains[0],
+						chain,
 					});
 				},
 			};

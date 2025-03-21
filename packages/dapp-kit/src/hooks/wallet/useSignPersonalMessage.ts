@@ -15,10 +15,11 @@ import {
 } from '../..//errors/walletErrors.js';
 import { walletMutationKeys } from '../../constants/walletMutationKeys.js';
 import type { PartialBy } from '../../types/utilityTypes.js';
+import { useSuiClientContext } from '../useSuiClient.js';
 import { useCurrentAccount } from './useCurrentAccount.js';
 import { useCurrentWallet } from './useCurrentWallet.js';
 
-type UseSignPersonalMessageArgs = PartialBy<SuiSignPersonalMessageInput, 'account'>;
+type UseSignPersonalMessageArgs = PartialBy<SuiSignPersonalMessageInput, 'account' | 'chain'>;
 
 type UseSignPersonalMessageResult = SuiSignPersonalMessageOutput;
 
@@ -51,6 +52,7 @@ export function useSignPersonalMessage({
 > {
 	const { currentWallet } = useCurrentWallet();
 	const currentAccount = useCurrentAccount();
+	const { network } = useSuiClientContext();
 
 	return useMutation({
 		mutationKey: walletMutationKeys.signPersonalMessage(mutationKey),
@@ -71,6 +73,7 @@ export function useSignPersonalMessage({
 				return await signPersonalMessageFeature.signPersonalMessage({
 					...signPersonalMessageArgs,
 					account: signerAccount,
+					chain: signPersonalMessageArgs.chain ?? `sui:${network}`,
 				});
 			}
 

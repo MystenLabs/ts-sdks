@@ -20,7 +20,7 @@ export const superCoolFeature: IdentifierRecord<unknown> = {
 export const suiFeatures: SuiFeatures = {
 	...signMessageFeature,
 	'sui:signPersonalMessage': {
-		version: '1.0.0',
+		version: '1.1.0',
 		signPersonalMessage: vi.fn(),
 	},
 	'sui:signTransactionBlock': {

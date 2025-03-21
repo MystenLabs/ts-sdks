@@ -109,8 +109,55 @@ describe('useSignPersonalMessage', () => {
 
 		signPersonalMessageMock.mockReturnValueOnce({ bytes: 'abc', signature: '123' });
 
-		result.current.signPersonalMessage.mutate({
-			message: new Uint8Array().fill(123),
+		const message = new Uint8Array().fill(123);
+		result.current.signPersonalMessage.mutate({ message, chain: 'sui:testnet' });
+
+		expect(signPersonalMessageMock).toHaveBeenCalledWith({
+			message,
+			account: mockWallet.accounts[0],
+			chain: `sui:testnet`,
+		});
+
+		await waitFor(() => expect(result.current.signPersonalMessage.isSuccess).toBe(true));
+		expect(result.current.signPersonalMessage.data).toStrictEqual({
+			bytes: 'abc',
+			signature: '123',
+		});
+
+		act(() => unregister());
+	});
+
+	test('defaults the `chain` to the active network', async () => {
+		const { unregister, mockWallet } = registerMockWallet({
+			walletName: 'Mock Wallet 1',
+			features: suiFeatures,
+		});
+
+		const wrapper = createWalletProviderContextWrapper();
+		const { result } = renderHook(
+			() => ({
+				connectWallet: useConnectWallet(),
+				signPersonalMessage: useSignPersonalMessage(),
+			}),
+			{ wrapper },
+		);
+
+		result.current.connectWallet.mutate({ wallet: mockWallet });
+
+		await waitFor(() => expect(result.current.connectWallet.isSuccess).toBe(true));
+
+		const signPersonalMessageFeature = mockWallet.features['sui:signPersonalMessage'];
+		const signPersonalMessageMock = signPersonalMessageFeature!.signPersonalMessage as Mock;
+
+		signPersonalMessageMock.mockReturnValueOnce({ bytes: 'abc', signature: '123' });
+
+		const message = new Uint8Array().fill(123);
+		result.current.signPersonalMessage.mutate({ message });
+
+		expect(signPersonalMessageMock).toHaveBeenCalledWith({
+			message,
+			account: mockWallet.accounts[0],
+			chain: 'sui:test',
 		});
 
 		await waitFor(() => expect(result.current.signPersonalMessage.isSuccess).toBe(true));
