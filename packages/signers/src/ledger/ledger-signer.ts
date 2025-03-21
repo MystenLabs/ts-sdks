@@ -4,7 +4,7 @@
 import type SuiLedgerClient from '@mysten/ledgerjs-hw-app-sui';
 import { messageWithIntent, Signer, toSerializedSignature } from '@mysten/sui/cryptography';
 import { Ed25519PublicKey } from '@mysten/sui/src/keypairs/ed25519/publickey.js';
-import { Transaction } from '@mysten/sui/src/transactions';
+// import { Transaction } from '@mysten/sui/src/transactions';
 import { toBase64 } from '@mysten/sui/utils';
 
 /**
@@ -116,19 +116,19 @@ export class LedgerSigner extends Signer {
 	}
 }
 
-function getClearSigningOptions(transactionBytes: Uint8Array) {
-	const transaction = Transaction.from(transactionBytes);
-	const data = transaction.getData();
+function getClearSigningOptions(_transactionBytes: Uint8Array) {
+	// const transaction = Transaction.from(transactionBytes);
+	// const data = transaction.getData();
 
-	const gasObjectIds = data.gasData.payment?.map((object) => object.objectId) ?? [];
-	const inputObjectIds = data.inputs
-		.map((input) => {
-			if (input.$kind !== 'Object' || input.Object.$kind !== 'ImmOrOwnedObject') {
-				return null;
-			}
-			return input.Object.ImmOrOwnedObject.objectId;
-		})
-		.filter((objectId): objectId is string => !!objectId);
+	// const _gasObjectIds = data.gasData.payment?.map((object) => object.objectId) ?? [];
+	// const _inputObjectIds = data.inputs
+	// 	.map((input) => {
+	// 		if (input.$kind !== 'Object' || input.Object.$kind !== 'ImmOrOwnedObject') {
+	// 			return null;
+	// 		}
+	// 		return input.Object.ImmOrOwnedObject.objectId;
+	// 	})
+	// 	.filter((objectId): objectId is string => !!objectId);
 
 	// FIXME: Fetch all the coin types from the above IDs
 	return {

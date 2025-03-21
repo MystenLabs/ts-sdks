@@ -1,7 +1,7 @@
 {
 	"name": "@mysten/signers",
 	"version": "0.1.14",
-	"description": "A collection of KMS signers for various cloud providers",
+	"description": "A collection of signers for various providers",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"type": "commonjs",
@@ -32,7 +32,9 @@
 		"dist",
 		"gcp",
 		"src",
-		"webcrypto"
+		"webcrypto",
+		"ledger",
+		"src"
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
