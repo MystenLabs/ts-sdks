@@ -60,19 +60,11 @@ export class LedgerSigner extends Signer {
 	 */
 	async signTransaction(bytes: Uint8Array): Promise<SignatureWithBytes> {
 		const intentMessage = messageWithIntent('TransactionData', bytes);
-<<<<<<< HEAD
-		const { coinTypes } = getClearSigningOptions(bytes);
-		const { signature } = await this.#suiLedgerClient.signTransaction(
-			this.#derivationPath,
-			intentMessage,
-			coinTypes,
-=======
 		const transactionOptions = getClearSigningOptions(bytes);
 		const { signature } = await this.#suiLedgerClient.signTransaction(
 			this.#derivationPath,
 			intentMessage,
 			transactionOptions,
->>>>>>> 75405bd (fix)
 		);
 
 		return {
@@ -145,6 +137,6 @@ function getClearSigningOptions(_transactionBytes: Uint8Array) {
 
 	// FIXME: Fetch all the coin types from the above IDs
 	return {
-		coinTypes: ['0x2::coin::Coin<0x2::sui::SUI>'],
+		objectTypes: ['0x2::coin::Coin<0x2::sui::SUI>'],
 	};
 }

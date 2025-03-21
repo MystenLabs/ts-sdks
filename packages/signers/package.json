@@ -31,10 +31,10 @@
 		"aws",
 		"dist",
 		"gcp",
-		"src",
-		"webcrypto",
 		"ledger",
-		"src"
+		"src",
+		"src",
+		"webcrypto"
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
