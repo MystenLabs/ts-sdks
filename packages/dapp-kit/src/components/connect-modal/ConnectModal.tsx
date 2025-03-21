@@ -7,7 +7,9 @@ import clsx from 'clsx';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 
+import { DEFAULT_WALLET_FILTER } from '../../constants/walletDefaults.js';
 import { useConnectWallet } from '../../hooks/wallet/useConnectWallet.js';
+import { useWallets } from '../../hooks/wallet/useWallets.js';
 import { getWalletUniqueIdentifier } from '../../utils/walletUtils.js';
 import { BackIcon } from '../icons/BackIcon.js';
 import { CloseIcon } from '../icons/CloseIcon.js';
@@ -44,12 +46,23 @@ type UncontrolledModalProps = {
 type ConnectModalProps = {
 	/** The trigger button that opens the dialog. */
 	trigger: NonNullable<ReactNode>;
+
+	/** Filter the wallets shown in the modal. */
+	walletFilter?: (wallet: WalletWithRequiredFeatures) => boolean;
 } & (ControlledModalProps | UncontrolledModalProps);
 
-export function ConnectModal({ trigger, open, defaultOpen, onOpenChange }: ConnectModalProps) {
+export function ConnectModal({
+	trigger,
+	open,
+	defaultOpen,
+	onOpenChange,
+	walletFilter = DEFAULT_WALLET_FILTER,
+}: ConnectModalProps) {
 	const [isModalOpen, setModalOpen] = useState(open ?? defaultOpen);
 	const [currentView, setCurrentView] = useState<ConnectModalView>();
 	const [selectedWallet, setSelectedWallet] = useState<WalletWithRequiredFeatures>();
+
+	const wallets = useWallets().filter(walletFilter);
 	const { mutate, isError } = useConnectWallet();
 
 	const resetSelection = () => {
@@ -113,6 +126,7 @@ export function ConnectModal({ trigger, open, defaultOpen, onOpenChange }: Conne
 										<Heading as="h2">Connect a Wallet</Heading>
 									</Dialog.Title>
 									<WalletList
+										wallets={wallets}
 										selectedWalletName={getWalletUniqueIdentifier(selectedWallet)}
 										onPlaceholderClick={() => setCurrentView('getting-started')}
 										onSelect={(wallet) => {

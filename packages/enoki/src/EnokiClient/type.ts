@@ -4,8 +4,7 @@
 import type { PublicKey } from '@mysten/sui/cryptography';
 import type { ZkLoginSignatureInputs } from '@mysten/sui/zklogin';
 
-import type { AuthProvider } from '../EnokiFlow.js';
-
+export type AuthProvider = 'google' | 'facebook' | 'twitch';
 export type EnokiNetwork = 'mainnet' | 'testnet' | 'devnet';
 export type EnokiDomainNetwork = 'mainnet' | 'testnet';
 export type EnokiSubanameStatus = 'PENDING' | 'ACTIVE';

@@ -10,15 +10,18 @@ import { EnokiFlow } from './EnokiFlow.js';
 
 const EnokiFlowContext = createContext<EnokiFlow | null>(null);
 
+/** @deprecated use `registerEnokiWallets` instead */
 export interface EnokiFlowProviderProps extends EnokiFlowConfig {
 	children: ReactNode;
 }
 
+/** @deprecated use `registerEnokiWallets` instead */
 export function EnokiFlowProvider({ children, ...config }: EnokiFlowProviderProps) {
 	const [enokiFlow] = useState(() => new EnokiFlow(config));
 	return <EnokiFlowContext.Provider value={enokiFlow}>{children}</EnokiFlowContext.Provider>;
 }
 
+/** @deprecated use `registerEnokiWallets` and dapp-kit wallet hooks instead */
 export function useEnokiFlow() {
 	const context = useContext(EnokiFlowContext);
 	if (!context) {
@@ -27,16 +30,19 @@ export function useEnokiFlow() {
 	return context;
 }
 
+/** @deprecated use `registerEnokiWallets` and dapp-kit wallet hooks instead */
 export function useZkLogin() {
 	const flow = useEnokiFlow();
 	return useStore(flow.$zkLoginState);
 }
 
+/** @deprecated use `registerEnokiWallets` and dapp-kit wallet hooks instead */
 export function useZkLoginSession() {
 	const flow = useEnokiFlow();
 	return useStore(flow.$zkLoginSession).value;
 }
 
+/** @deprecated use `registerEnokiWallets` and dapp-kit wallet hooks instead */
 export function useAuthCallback() {
 	const flow = useEnokiFlow();
 	const [state, setState] = useState<string | null>(null);

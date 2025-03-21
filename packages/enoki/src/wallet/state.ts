@@ -9,33 +9,23 @@ import type { ZkLoginSignatureInputs } from '@mysten/sui/zklogin';
 import type { WritableAtom } from 'nanostores';
 import { atom, onMount, onSet } from 'nanostores';
 
-import type { Encryption } from './encryption.js';
-import { createDefaultEncryption } from './encryption.js';
-import type { EnokiClientConfig } from './EnokiClient/index.js';
-import { EnokiClient } from './EnokiClient/index.js';
-import type { AuthProvider, EnokiNetwork } from './EnokiClient/type.js';
-import { EnokiKeypair } from './EnokiKeypair.js';
-import type { SyncStore } from './stores.js';
-import { createSessionStorage } from './stores.js';
+import type { Encryption } from '../encryption.js';
+import { createDefaultEncryption } from '../encryption.js';
+import type { EnokiClientConfig } from '../EnokiClient/index.js';
+import { EnokiClient } from '../EnokiClient/index.js';
+import type { AuthProvider, EnokiNetwork } from '../EnokiClient/type.js';
+import { EnokiKeypair } from '../EnokiKeypair.js';
+import type { SyncStore } from '../stores.js';
+import { createSessionStorage } from '../stores.js';
 
-/**
- * @deprecated Use `RegisterEnokiWalletsOptions` instead
- */
-export interface EnokiFlowConfig extends EnokiClientConfig {
-	/**
-	 * The storage interface to persist Enoki data locally.
-	 * If not provided, it will use a sessionStorage-backed store.
-	 */
+interface EnokiFlowConfig extends EnokiClientConfig {
 	store?: SyncStore;
-	/**
-	 * The encryption interface that will be used to encrypt data before storing it locally.
-	 * If not provided, it will use a default encryption interface.
-	 */
 	encryption?: Encryption;
+	network?: EnokiNetwork;
 }
 
 // State that is not bound to a session, and is encrypted.
-export interface ZkLoginState {
+interface ZkLoginState {
 	provider?: AuthProvider;
 	address?: string;
 	salt?: string;
@@ -43,7 +33,7 @@ export interface ZkLoginState {
 }
 
 // State that session-bound, and is encrypted in storage.
-export interface ZkLoginSession {
+interface ZkLoginSession {
 	ephemeralKeyPair: string;
 	maxEpoch: number;
 	randomness: string;
@@ -53,20 +43,18 @@ export interface ZkLoginSession {
 	proof?: ZkLoginSignatureInputs;
 }
 
-const createStorageKeys = (apiKey: string) => ({
-	STATE: `@enoki/flow/state/${apiKey}`,
-	SESSION: `@enoki/flow/session/${apiKey}`,
+const createStorageKeys = (apiKey: string, network: EnokiNetwork) => ({
+	STATE: `@enoki/flow/state/${apiKey}/${network}`,
+	SESSION: `@enoki/flow/session/${apiKey}/${network}`,
 });
 
-/**
- * @deprecated Use `registerEnokiWallets` instead
- */
-export class EnokiFlow {
+export class INTERNAL_EnokiFlow {
 	#storageKeys: { STATE: string; SESSION: string };
 	#enokiClient: EnokiClient;
 	#encryption: Encryption;
 	#encryptionKey: string;
 	#store: SyncStore;
+	#network: EnokiNetwork;
 
 	$zkLoginSession: WritableAtom<{ initialized: boolean; value: ZkLoginSession | null }>;
 	$zkLoginState: WritableAtom<ZkLoginState>;
@@ -77,9 +65,10 @@ export class EnokiFlow {
 			apiUrl: config.apiUrl,
 		});
 		this.#encryptionKey = config.apiKey;
+		this.#network = config.network ?? 'mainnet';
 		this.#encryption = config.encryption ?? createDefaultEncryption();
 		this.#store = config.store ?? createSessionStorage();
-		this.#storageKeys = createStorageKeys(config.apiKey);
+		this.#storageKeys = createStorageKeys(config.apiKey, this.#network);
 
 		let storedState = null;
 		try {
@@ -104,21 +93,20 @@ export class EnokiFlow {
 		});
 	}
 
-	get enokiClient() {
-		return this.#enokiClient;
+	get network() {
+		return this.#network;
 	}
 
 	async createAuthorizationURL(input: {
 		provider: AuthProvider;
 		clientId: string;
 		redirectUrl: string;
-		network?: 'mainnet' | 'testnet' | 'devnet';
 		extraParams?: Record<string, unknown>;
 	}) {
 		const ephemeralKeyPair = new Ed25519Keypair();
 		const { nonce, randomness, maxEpoch, estimatedExpiration } =
 			await this.#enokiClient.createZkLoginNonce({
-				network: input.network,
+				network: this.#network,
 				ephemeralPublicKey: ephemeralKeyPair.getPublicKey(),
 			});
 
@@ -173,7 +161,6 @@ export class EnokiFlow {
 		return oauthUrl;
 	}
 
-	// TODO: Should our SDK manage this automatically in addition to exposing a method?
 	async handleAuthCallback(hash: string = window.location.hash) {
 		const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
 
@@ -259,7 +246,7 @@ export class EnokiFlow {
 	}
 
 	// TODO: Should this return the proof if it already exists?
-	async getProof({ network }: { network?: EnokiNetwork } = {}) {
+	async getProof() {
 		const zkp = await this.getSession();
 		const { salt } = this.$zkLoginState.get();
 
@@ -278,7 +265,7 @@ export class EnokiFlow {
 		const ephemeralKeyPair = Ed25519Keypair.fromSecretKey(fromBase64(zkp.ephemeralKeyPair));
 
 		const proof = await this.#enokiClient.createZkLoginZkp({
-			network,
+			network: this.#network,
 			jwt: zkp.jwt,
 			maxEpoch: zkp.maxEpoch,
 			randomness: zkp.randomness,
@@ -293,9 +280,9 @@ export class EnokiFlow {
 		return proof;
 	}
 
-	async getKeypair({ network }: { network?: EnokiNetwork } = {}) {
+	async getKeypair() {
 		// Get the proof, so that we ensure it exists in state:
-		await this.getProof({ network });
+		await this.getProof();
 
 		const zkp = await this.getSession();
 

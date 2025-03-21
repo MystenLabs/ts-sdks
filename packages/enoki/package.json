@@ -45,6 +45,8 @@
 	"homepage": "https://github.com/mystenlabs/ts-sdks#readme",
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
+		"@mysten/dapp-kit": "workspace:*",
+		"@tanstack/react-query": "^5.50.1",
 		"@types/node": "^22.10.5",
 		"@types/react": "^18.3.3",
 		"@types/react-dom": "^18.3.0",
@@ -56,7 +58,9 @@
 	},
 	"dependencies": {
 		"@mysten/sui": "workspace:*",
+		"@mysten/wallet-standard": "workspace:*",
 		"@nanostores/react": "^0.7.2",
+		"mitt": "^3.0.1",
 		"nanostores": "^0.10.3"
 	},
 	"peerDependencies": {

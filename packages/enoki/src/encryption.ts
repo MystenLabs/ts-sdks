@@ -4,7 +4,7 @@
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 
 /**
- * An interface
+ * A general interface for specifying how data should be encrypted and decrypted.
  */
 export interface Encryption {
 	encrypt(password: string, data: string): Promise<string>;
