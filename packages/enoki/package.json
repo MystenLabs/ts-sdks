@@ -55,8 +55,10 @@
 		"vite": "^6.0.7"
 	},
 	"dependencies": {
+		"@mysten/signers": "workspace:*",
 		"@mysten/sui": "workspace:*",
 		"@nanostores/react": "^0.7.2",
+		"idb-keyval": "^6.2.1",
 		"nanostores": "^0.10.3"
 	},
 	"peerDependencies": {
