@@ -93,7 +93,7 @@ export default class Sui {
 	async signTransaction(
 		path: string,
 		txn: string | Buffer | Uint8Array,
-		objectList: Array<string | Buffer | Uint8Array> = [],
+		objectTypes: Array<string | Buffer | Uint8Array> = [],
 	): Promise<SignTransactionResult> {
 		const cla = 0x00;
 		const ins = 0x03;
@@ -117,18 +117,18 @@ export default class Sui {
 		// The public getVersion is decorated with a lock in the constructor:
 		const { major } = await this.#internalGetVersion();
 
-		this.#log('Object List length', objectList.length);
+		this.#log('Object List length', objectTypes.length);
 		this.#log('App version', major);
 
-		if (major > 0 && objectList.length > 0) {
+		if (major > 0 && objectTypes.length > 0) {
 			// Build object list payload:
 			const numItems = Buffer.alloc(4);
-			numItems.writeUInt32LE(objectList.length, 0);
+			numItems.writeUInt32LE(objectTypes.length, 0);
 
 			let listData = Buffer.from(numItems);
 
 			// Add each item with its length prefix:
-			for (const item of objectList) {
+			for (const item of objectTypes) {
 				const rawItem = typeof item == 'string' ? Buffer.from(item, 'hex') : Buffer.from(item);
 				const itemLen = Buffer.alloc(4);
 				itemLen.writeUInt32LE(rawItem.length, 0);

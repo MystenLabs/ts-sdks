@@ -14,6 +14,10 @@
 			"import": "./dist/esm/gcp/index.js",
 			"require": "./dist/cjs/gcp/index.js"
 		},
+		"./ledger": {
+			"import": "./dist/esm/ledger/index.js",
+			"require": "./dist/cjs/ledger/index.js"
+		},
 		"./webcrypto": {
 			"import": "./dist/esm/webcrypto/index.js",
 			"require": "./dist/cjs/webcrypto/index.js"
@@ -59,6 +63,7 @@
 	},
 	"dependencies": {
 		"@google-cloud/kms": "^4.5.0",
+		"@mysten/ledgerjs-hw-app-sui": "workspace:*",
 		"@mysten/sui": "workspace:*",
 		"@noble/curves": "^1.4.2",
 		"@noble/hashes": "^1.4.0",
