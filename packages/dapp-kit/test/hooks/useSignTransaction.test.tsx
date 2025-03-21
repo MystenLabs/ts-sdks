@@ -90,6 +90,53 @@ describe('useSignTransaction', () => {
 			reportTransactionEffects: expect.any(Function),
 		});
 
+		expect(signTransactionMock).toHaveBeenCalledWith({
+			transaction: expect.any(Object),
+			account: mockWallet.accounts[0],
+			chain: `sui:testnet`,
+		});
+
+		act(() => unregister());
+	});
+
+	test('defaults the `chain` to the active network', async () => {
+		const { unregister, mockWallet } = registerMockWallet({
+			walletName: 'Mock Wallet 1',
+			features: suiFeatures,
+		});
+
+		const wrapper = createWalletProviderContextWrapper();
+		const { result } = renderHook(
+			() => ({
+				connectWallet: useConnectWallet(),
+				signTransaction: useSignTransaction(),
+			}),
+			{ wrapper },
+		);
+
+		result.current.connectWallet.mutate({ wallet: mockWallet });
+
+		await waitFor(() => expect(result.current.connectWallet.isSuccess).toBe(true));
+
+		const signTransactionFeature = mockWallet.features['sui:signTransaction'];
+		const signTransactionMock = signTransactionFeature!.signTransaction as Mock;
+
+		signTransactionMock.mockReturnValueOnce({
+			bytes: 'abc',
+			signature: '123',
+		});
+
+		result.current.signTransaction.mutate({
+			transaction: new Transaction(),
+		});
+
+		await waitFor(() => expect(result.current.signTransaction.isSuccess).toBe(true));
+		expect(signTransactionMock).toHaveBeenCalledWith({
+			transaction: expect.any(Object),
+			account: mockWallet.accounts[0],
+			chain: 'sui:test',
+		});
+
 		act(() => unregister());
 	});
 });
