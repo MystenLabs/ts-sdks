@@ -112,13 +112,14 @@ describe('useSignPersonalMessage', () => {
 		const message = new Uint8Array().fill(123);
 		result.current.signPersonalMessage.mutate({ message, chain: 'sui:testnet' });
 
+		await waitFor(() => expect(result.current.signPersonalMessage.isSuccess).toBe(true));
+
 		expect(signPersonalMessageMock).toHaveBeenCalledWith({
 			message,
 			account: mockWallet.accounts[0],
 			chain: `sui:testnet`,
 		});
 
-		await waitFor(() => expect(result.current.signPersonalMessage.isSuccess).toBe(true));
 		expect(result.current.signPersonalMessage.data).toStrictEqual({
 			bytes: 'abc',
 			signature: '123',
@@ -154,13 +155,14 @@ describe('useSignPersonalMessage', () => {
 		const message = new Uint8Array().fill(123);
 		result.current.signPersonalMessage.mutate({ message });
 
+		await waitFor(() => expect(result.current.signPersonalMessage.isSuccess).toBe(true));
+
 		expect(signPersonalMessageMock).toHaveBeenCalledWith({
 			message,
 			account: mockWallet.accounts[0],
 			chain: 'sui:test',
 		});
 
-		await waitFor(() => expect(result.current.signPersonalMessage.isSuccess).toBe(true));
 		expect(result.current.signPersonalMessage.data).toStrictEqual({
 			bytes: 'abc',
 			signature: '123',
