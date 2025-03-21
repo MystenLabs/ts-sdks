@@ -1,40 +1,46 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import {
+	ConnectButton,
+	useConnectWallet,
+	useCurrentAccount,
+	useSignAndExecuteTransaction,
+	useSuiClientContext,
+	useWallets,
+} from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
 import { useState } from 'react';
 
-import { useAuthCallback, useEnokiFlow, useZkLogin } from '../src/react.tsx';
+import { isEnokiWallet } from '../src/wallet/index.js';
 
 export function App() {
-	const flow = useEnokiFlow();
-	const zkLogin = useZkLogin();
-	const [result, setResult] = useState<any>(null);
+	const { mutate: connect } = useConnectWallet();
+	const currentAccount = useCurrentAccount();
+	const [result, setResult] = useState<any>();
 
-	useAuthCallback();
+	const wallets = useWallets().filter(isEnokiWallet);
+	const googleWallet = wallets.find((wallet) => wallet.provider === 'google');
+
+	const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
+	const { selectNetwork, networks } = useSuiClientContext();
 
 	return (
 		<div>
-			<div>Address: {zkLogin.address}</div>
-			<div>Provider: {zkLogin.provider}</div>
-			{!zkLogin.address ? (
+			<ConnectButton walletFilter={(wallet) => !isEnokiWallet(wallet)} />
+
+			{googleWallet ? (
 				<button
-					onClick={async () => {
-						window.location.href = await flow.createAuthorizationURL({
-							provider: 'google',
-							clientId: '705781974144-cltddr1ggjnuc3kaimtc881r2n5bderc.apps.googleusercontent.com',
-							redirectUrl: window.location.href.split('#')[0],
-						});
+					disabled={!!currentAccount}
+					onClick={() => {
+						connect({ wallet: googleWallet });
 					}}
 				>
-					Sign in with Google
+					{currentAccount?.address ?? 'Sign in with Google'}
 				</button>
-			) : (
-				<button onClick={() => flow.logout()}>Sign Out</button>
-			)}
+			) : null}
 
-			{zkLogin.address && (
+			{currentAccount && (
 				<button
 					onClick={async () => {
 						try {
@@ -45,18 +51,11 @@ export function App() {
 								arguments: [transaction.object('0x6')],
 							});
 
-							const result = await flow.sponsorAndExecuteTransaction({
-								network: 'testnet',
-								// @ts-expect-error: Type references not quite doing their thing:
-								client: new SuiClient({ url: getFullnodeUrl('testnet') }),
-								// @ts-expect-error: Type references not quite doing their thing:
-								transaction,
-							});
-
-							setResult(result);
+							const result = await signAndExecute({ transaction });
+							setResult(result.digest);
 						} catch (e) {
 							console.log(e);
-							setResult({ error: e });
+							setResult({ error: (e as Error).stack });
 						}
 					}}
 				>
@@ -65,6 +64,14 @@ export function App() {
 			)}
 
 			{result && <div>{JSON.stringify(result)}</div>}
+
+			<ul>
+				{Object.keys(networks).map((network) => (
+					<li key={network}>
+						<button onClick={() => selectNetwork(network)}>{network}</button>
+					</li>
+				))}
+			</ul>
 		</div>
 	);
 }
