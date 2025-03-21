@@ -19,7 +19,7 @@ import type {
 	SuiSignTransactionMethod,
 	Wallet,
 } from '@mysten/wallet-standard';
-import { getWallets, ReadonlyWalletAccount, SUI_MAINNET_CHAIN } from '@mysten/wallet-standard';
+import { getWallets, ReadonlyWalletAccount } from '@mysten/wallet-standard';
 import type { Emitter } from 'mitt';
 import mitt from 'mitt';
 
