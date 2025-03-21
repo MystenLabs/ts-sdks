@@ -38,4 +38,15 @@ describe('Event Reading API', () => {
 		});
 		expect(query1.data.length).toEqual(0);
 	});
+
+	it('Error: Get All Events', async () => {
+		await expect(async () => {
+			await toolbox.client.queryEvents({
+				query: {
+					TimeRange: { startTime: '0', endTime: Date.now().toString() },
+					Sender: toolbox.address(),
+				},
+			});
+		}).rejects.toThrowError('Invalid query parameters, please provide only one query object');
+	});
 });
