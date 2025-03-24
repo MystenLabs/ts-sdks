@@ -25,7 +25,7 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "build-package",
-		"prepublishOnly": "pnpm build",
+		"prepublishOnly": "pnpm turbo build",
 		"test:e2e": "vitest run",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",

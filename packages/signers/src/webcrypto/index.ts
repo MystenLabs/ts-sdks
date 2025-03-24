@@ -49,6 +49,9 @@ export class WebCryptoSigner extends Signer {
 		);
 	}
 
+	/**
+	 * Imports a keypair using the value returned by `export()`.
+	 */
 	static import(data: ExportedWebCryptoKeypair) {
 		return new WebCryptoSigner(data.privateKey, data.publicKey);
 	}
@@ -63,13 +66,25 @@ export class WebCryptoSigner extends Signer {
 		this.#publicKey = new Secp256r1PublicKey(publicKey);
 	}
 
-	// Exports the keypair to store in IndexedDB.
+	/**
+	 * Exports the keypair so that it can be stored in IndexedDB.
+	 */
 	export(): ExportedWebCryptoKeypair {
-		// TODO: Should we add something like `toJSON` on this so that if you attempt to serialize it throws?
-		return {
+		const exportedKeypair = {
 			privateKey: this.privateKey,
 			publicKey: this.#publicKey.toRawBytes(),
 		};
+
+		Object.defineProperty(exportedKeypair, 'toJSON', {
+			enumerable: false,
+			value: () => {
+				throw new Error(
+					'The exported keypair must not be serialized. It must be stored in IndexedDB directly.',
+				);
+			},
+		});
+
+		return exportedKeypair;
 	}
 
 	getPublicKey() {

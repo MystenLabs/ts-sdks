@@ -27,7 +27,7 @@
 		"eslint:fix": "pnpm run eslint:check --fix",
 		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix",
 		"lint": "pnpm run eslint:check && pnpm run prettier:check",
-		"prepublishOnly": "pnpm build",
+		"prepublishOnly": "pnpm turbo build",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"test:e2e": "vitest run"

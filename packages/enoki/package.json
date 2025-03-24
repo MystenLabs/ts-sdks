@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/enoki",
-	"version": "0.5.2",
+	"version": "0.5.3",
 	"description": "TODO: Description",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -27,7 +27,7 @@
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "build-package",
 		"demo": "vite ./demo",
-		"prepublishOnly": "pnpm build",
+		"prepublishOnly": "pnpm turbo build",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"eslint:check": "eslint --max-warnings=0 .",
@@ -55,8 +55,10 @@
 		"vite": "^6.0.7"
 	},
 	"dependencies": {
+		"@mysten/signers": "workspace:*",
 		"@mysten/sui": "workspace:*",
 		"@nanostores/react": "^0.7.2",
+		"idb-keyval": "^6.2.1",
 		"nanostores": "^0.10.3"
 	},
 	"peerDependencies": {

@@ -3,7 +3,6 @@
 
 import type { SignatureWithBytes } from '@mysten/sui/cryptography';
 import { Signer } from '@mysten/sui/cryptography';
-import type { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import type { ZkLoginSignatureInputs } from '@mysten/sui/zklogin';
 import { getZkLoginSignature, ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
 
@@ -12,14 +11,14 @@ export class EnokiPublicKey extends ZkLoginPublicIdentifier {}
 export class EnokiKeypair extends Signer {
 	#proof: ZkLoginSignatureInputs;
 	#maxEpoch: number;
-	#ephemeralKeypair: Ed25519Keypair;
+	#ephemeralKeypair: Signer;
 	#publicKey: EnokiPublicKey;
 
 	constructor(input: {
 		address: string;
 		maxEpoch: number;
 		proof: ZkLoginSignatureInputs;
-		ephemeralKeypair: Ed25519Keypair;
+		ephemeralKeypair: Signer;
 	}) {
 		super();
 		this.#proof = input.proof;

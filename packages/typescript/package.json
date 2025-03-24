@@ -109,7 +109,7 @@
 		"test:typecheck": "tsc -p ./test",
 		"test:unit": "vitest run unit __tests__",
 		"test:e2e": "vitest run --config test/e2e/vitest.config.mts",
-		"prepublishOnly": "pnpm build",
+		"prepublishOnly": "pnpm turbo build",
 		"size": "size-limit",
 		"analyze": "size-limit --why",
 		"prettier:check": "prettier -c --ignore-unknown .",

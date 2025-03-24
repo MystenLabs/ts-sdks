@@ -1,6 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { ExportedWebCryptoKeypair } from '@mysten/signers/webcrypto';
+import { WebCryptoSigner } from '@mysten/signers/webcrypto';
 import type { SuiClient } from '@mysten/sui/client';
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
@@ -8,6 +10,8 @@ import type { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { decodeJwt } from '@mysten/sui/zklogin';
 import type { ZkLoginSignatureInputs } from '@mysten/sui/zklogin';
+import type { UseStore } from 'idb-keyval';
+import { createStore, get, set } from 'idb-keyval';
 import type { WritableAtom } from 'nanostores';
 import { atom, onMount, onSet } from 'nanostores';
 
@@ -19,18 +23,30 @@ import { EnokiKeypair } from './EnokiKeypair.js';
 import type { SyncStore } from './stores.js';
 import { createSessionStorage } from './stores.js';
 
-export interface EnokiFlowConfig extends EnokiClientConfig {
-	/**
-	 * The storage interface to persist Enoki data locally.
-	 * If not provided, it will use a sessionStorage-backed store.
-	 */
-	store?: SyncStore;
-	/**
-	 * The encryption interface that will be used to encrypt data before storing it locally.
-	 * If not provided, it will use a default encryption interface.
-	 */
-	encryption?: Encryption;
-}
+export type EnokiFlowConfig = EnokiClientConfig &
+	(
+		| {
+				experimental_nativeCryptoSigner?: unknown;
+				/**
+				 * The storage interface to persist Enoki data locally.
+				 * If not provided, it will use a sessionStorage-backed store.
+				 */
+				store?: SyncStore;
+				/**
+				 * The encryption interface that will be used to encrypt data before storing it locally.
+				 * If not provided, it will use a default encryption interface.
+				 */
+				encryption?: Encryption;
+		  }
+		| {
+				store?: never;
+				encryption?: never;
+				/**
+				 * Enables the new native crypto signer for the EnokiFlow, which is more secure.
+				 */
+				experimental_nativeCryptoSigner: true;
+		  }
+	);
 
 // State that is not bound to a session, and is encrypted.
 export interface ZkLoginState {
@@ -64,6 +80,8 @@ export class EnokiFlow {
 	#encryption: Encryption;
 	#encryptionKey: string;
 	#store: SyncStore;
+	#useNativeCryptoSigner: boolean;
+	#idbStore?: UseStore;
 
 	$zkLoginSession: WritableAtom<{ initialized: boolean; value: ZkLoginSession | null }>;
 	$zkLoginState: WritableAtom<ZkLoginState>;
@@ -74,6 +92,14 @@ export class EnokiFlow {
 			apiUrl: config.apiUrl,
 		});
 		this.#encryptionKey = config.apiKey;
+
+		if (config.experimental_nativeCryptoSigner) {
+			this.#useNativeCryptoSigner = true;
+			this.#idbStore = createStore('enoki', config.apiKey);
+		} else {
+			this.#useNativeCryptoSigner = false;
+		}
+
 		this.#encryption = config.encryption ?? createDefaultEncryption();
 		this.#store = config.store ?? createSessionStorage();
 		this.#storageKeys = createStorageKeys(config.apiKey);
@@ -112,7 +138,10 @@ export class EnokiFlow {
 		network?: 'mainnet' | 'testnet' | 'devnet';
 		extraParams?: Record<string, unknown>;
 	}) {
-		const ephemeralKeyPair = new Ed25519Keypair();
+		const ephemeralKeyPair = this.#useNativeCryptoSigner
+			? await WebCryptoSigner.generate()
+			: new Ed25519Keypair();
+
 		const { nonce, randomness, maxEpoch, estimatedExpiration } =
 			await this.#enokiClient.createZkLoginNonce({
 				network: input.network,
@@ -160,11 +189,19 @@ export class EnokiFlow {
 		}
 
 		this.$zkLoginState.set({ provider: input.provider });
+		if (this.#useNativeCryptoSigner) {
+			await set('ephemeralKeyPair', ephemeralKeyPair, this.#idbStore);
+		}
+
 		await this.#setSession({
 			expiresAt: estimatedExpiration,
 			maxEpoch,
 			randomness,
-			ephemeralKeyPair: toBase64(decodeSuiPrivateKey(ephemeralKeyPair.getSecretKey()).secretKey),
+			ephemeralKeyPair: this.#useNativeCryptoSigner
+				? '@@native'
+				: toBase64(
+						decodeSuiPrivateKey((ephemeralKeyPair as Ed25519Keypair).getSecretKey()).secretKey,
+					),
 		});
 
 		return oauthUrl;
@@ -272,7 +309,18 @@ export class EnokiFlow {
 			throw new Error('Missing required parameters for proof generation');
 		}
 
-		const ephemeralKeyPair = Ed25519Keypair.fromSecretKey(fromBase64(zkp.ephemeralKeyPair));
+		let storedNativeSigner: ExportedWebCryptoKeypair | undefined = undefined;
+		if (this.#useNativeCryptoSigner && zkp.ephemeralKeyPair === '@@native') {
+			storedNativeSigner = await get('ephemeralKeyPair', this.#idbStore);
+			if (!storedNativeSigner) {
+				throw new Error('Native signer not found in store.');
+			}
+		}
+
+		const ephemeralKeyPair =
+			zkp.ephemeralKeyPair === '@@native'
+				? WebCryptoSigner.import(storedNativeSigner!)
+				: Ed25519Keypair.fromSecretKey(fromBase64(zkp.ephemeralKeyPair));
 
 		const proof = await this.#enokiClient.createZkLoginZkp({
 			network,
@@ -306,11 +354,24 @@ export class EnokiFlow {
 			throw new Error('Stored proof is expired.');
 		}
 
+		let storedNativeSigner: ExportedWebCryptoKeypair | undefined = undefined;
+		if (this.#useNativeCryptoSigner && zkp.ephemeralKeyPair === '@@native') {
+			storedNativeSigner = await get('ephemeralKeyPair', this.#idbStore);
+			if (!storedNativeSigner) {
+				throw new Error('Native signer not found in store.');
+			}
+		}
+
+		const ephemeralKeypair =
+			zkp.ephemeralKeyPair === '@@native'
+				? WebCryptoSigner.import(storedNativeSigner!)
+				: Ed25519Keypair.fromSecretKey(fromBase64(zkp.ephemeralKeyPair));
+
 		return new EnokiKeypair({
 			address,
+			ephemeralKeypair,
 			maxEpoch: zkp.maxEpoch,
 			proof: zkp.proof,
-			ephemeralKeypair: Ed25519Keypair.fromSecretKey(fromBase64(zkp.ephemeralKeyPair)),
 		});
 	}
 

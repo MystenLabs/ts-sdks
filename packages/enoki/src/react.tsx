@@ -10,9 +10,9 @@ import { EnokiFlow } from './EnokiFlow.js';
 
 const EnokiFlowContext = createContext<EnokiFlow | null>(null);
 
-export interface EnokiFlowProviderProps extends EnokiFlowConfig {
+export type EnokiFlowProviderProps = EnokiFlowConfig & {
 	children: ReactNode;
-}
+};
 
 export function EnokiFlowProvider({ children, ...config }: EnokiFlowProviderProps) {
 	const [enokiFlow] = useState(() => new EnokiFlow(config));

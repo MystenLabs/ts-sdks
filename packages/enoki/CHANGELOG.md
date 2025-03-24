@@ -1,5 +1,13 @@
 # @mysten/enoki
 
+## 0.5.3
+
+### Patch Changes
+
+- 850369a: Add experimental support for WebCrypto signer
+- Updated dependencies [850369a]
+  - @mysten/signers@0.1.15
+
 ## 0.5.2
 
 ### Patch Changes
