@@ -1,5 +1,11 @@
 # @mysten/signers
 
+## 0.1.15
+
+### Patch Changes
+
+- 850369a: Prevent exported webcrypto keys from being serialized.
+
 ## 0.1.14
 
 ### Patch Changes
