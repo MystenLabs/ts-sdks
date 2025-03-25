@@ -67,7 +67,7 @@ export interface ZkLoginSession {
 	proof?: ZkLoginSignatureInputs;
 }
 
-export type AuthProvider = 'google' | 'facebook' | 'twitch';
+export type AuthProvider = 'google' | 'facebook' | 'twitch' | 'apple';
 
 const createStorageKeys = (apiKey: string) => ({
 	STATE: `@enoki/flow/state/${apiKey}`,
@@ -181,6 +181,14 @@ export class EnokiFlow {
 			case 'twitch': {
 				params.set('force_verify', 'true');
 				oauthUrl = `https://id.twitch.tv/oauth2/authorize?${params}`;
+				break;
+			}
+
+			case 'apple': {
+				params.set('response_type', 'code id_token')
+				params.set('scope', 'email')
+				params.set('response_mode', 'form_post')
+				oauthUrl = `https://appleid.apple.com/auth/authorize?${params}`;
 				break;
 			}
 
