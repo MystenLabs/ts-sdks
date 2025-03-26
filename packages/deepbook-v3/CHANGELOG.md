@@ -1,5 +1,13 @@
 # @mysten/deepbook-v3
 
+## 0.13.3
+
+### Patch Changes
+
+- 98d25ad: WAL pools support
+- Updated dependencies [e8b5d04]
+  - @mysten/sui@1.25.0
+
 ## 0.13.2
 
 ### Patch Changes

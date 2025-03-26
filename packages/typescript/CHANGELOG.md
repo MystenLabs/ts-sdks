@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.25.0
+
+### Minor Changes
+
+- e8b5d04: Update NamedPackagesPlugin to use the new MVR API and support single-types in the cache
+
 ## 1.24.0
 
 ### Minor Changes

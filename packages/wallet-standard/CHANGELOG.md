@@ -1,5 +1,16 @@
 # @mysten/wallet-standard
 
+## 0.14.0
+
+### Minor Changes
+
+- 68a9ecd: Add an optional `chain` parameter to the `signPersonalMessage` feature
+
+### Patch Changes
+
+- Updated dependencies [e8b5d04]
+  - @mysten/sui@1.25.0
+
 ## 0.13.29
 
 ### Patch Changes

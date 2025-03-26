@@ -1,5 +1,21 @@
 # @mysten/enoki
 
+## 0.6.0
+
+### Minor Changes
+
+- 132e67d: Add `registerEnokiWallets` for better compatibility with the wallet-standard and dApp-kit
+- 132e67d: Deprecate `EnokiFlow` and remove sponsorship and execution from the EnokiFlow class
+
+### Patch Changes
+
+- 132e67d: Clear the ephemeral keypair from IDB for the experimental web crypto signer
+- Updated dependencies [68a9ecd]
+- Updated dependencies [e8b5d04]
+  - @mysten/wallet-standard@0.14.0
+  - @mysten/sui@1.25.0
+  - @mysten/signers@0.1.16
+
 ## 0.5.3
 
 ### Patch Changes
