@@ -1,5 +1,11 @@
 # @mysten/seal
 
+## 0.3.0
+
+### Minor Changes
+
+- ecc8b7e: New interfaces
+
 ## 0.2.0
 
 ### Minor Changes
