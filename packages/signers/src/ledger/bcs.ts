@@ -17,6 +17,9 @@ const MoveObjectType = bcs.enum('MoveObjectType', {
 	Coin: bcs.TypeTag,
 });
 
+const SUI_FRAMEWORK_ADDRESS = normalizeSuiAddress('0x2');
+const SUI_SYSTEM_ADDRESS = normalizeSuiAddress('0x3');
+
 export const SuiMoveObject = bcs.struct('SuiMoveObject', {
 	data: bcs.enum('Data', {
 		MoveObject: bcs.struct('MoveObject', {
@@ -25,18 +28,22 @@ export const SuiMoveObject = bcs.struct('SuiMoveObject', {
 					const structTag = parseStructTag(objectType);
 
 					if (
-						structTag.address === normalizeSuiAddress('0x2') &&
+						structTag.address === SUI_FRAMEWORK_ADDRESS &&
 						structTag.module === 'coin' &&
 						structTag.name === 'Coin' &&
 						typeof structTag.typeParams[0] === 'object'
 					) {
 						const innerStructTag = structTag.typeParams[0];
-						if (innerStructTag.name === 'sui' && innerStructTag.module === 'SUI') {
+						if (
+							innerStructTag.address === SUI_FRAMEWORK_ADDRESS &&
+							innerStructTag.module === 'sui' &&
+							innerStructTag.name === 'SUI'
+						) {
 							return { GasCoin: true, $kind: 'GasCoin' };
 						}
 						return { Coin: normalizeStructTag(innerStructTag), $kind: 'Coin' };
 					} else if (
-						structTag.address === normalizeSuiAddress('0x3') &&
+						structTag.address === SUI_SYSTEM_ADDRESS &&
 						structTag.module === 'staking_pool' &&
 						structTag.name === 'StakedSui'
 					) {
