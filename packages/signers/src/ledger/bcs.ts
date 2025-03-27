@@ -10,15 +10,15 @@ import {
 	parseStructTag,
 } from '@mysten/sui/utils';
 
+const SUI_FRAMEWORK_ADDRESS = normalizeSuiAddress('0x2');
+const SUI_SYSTEM_ADDRESS = normalizeSuiAddress('0x3');
+
 const MoveObjectType = bcs.enum('MoveObjectType', {
 	Other: bcs.StructTag,
 	GasCoin: null,
 	StakedSui: null,
 	Coin: bcs.TypeTag,
 });
-
-const SUI_FRAMEWORK_ADDRESS = normalizeSuiAddress('0x2');
-const SUI_SYSTEM_ADDRESS = normalizeSuiAddress('0x3');
 
 export const SuiMoveObject = bcs.struct('SuiMoveObject', {
 	data: bcs.enum('Data', {

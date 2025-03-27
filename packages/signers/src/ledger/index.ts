@@ -157,7 +157,7 @@ export class LedgerSigner extends Signer {
 				return SuiMoveObject.serialize({
 					data: {
 						MoveObject: {
-							type: object.data.type!,
+							type: object.data.bcs.type,
 							hasPublicTransfer: object.data.bcs.hasPublicTransfer,
 							version: object.data.bcs.version,
 							contents: object.data.bcs.bcsBytes,
