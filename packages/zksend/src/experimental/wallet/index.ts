@@ -139,7 +139,7 @@ export class StashedWallet implements Wallet {
 		this.#network = network;
 
 		if (address) {
-			this.#setAccount(address);
+			this.#setAccounts([address]);
 		}
 	}
 
@@ -221,23 +221,23 @@ export class StashedWallet implements Wallet {
 		return () => this.#events.off(event, listener);
 	};
 
-	#setAccount(address?: string) {
-		if (address) {
-			this.#accounts = [
-				new ReadonlyWalletAccount({
-					address,
-					chains: [SUI_MAINNET_CHAIN],
-					features: ['sui:signTransactionBlock', 'sui:signPersonalMessage'],
-					// NOTE: Stashed doesn't support getting public keys, and zkLogin accounts don't have meaningful public keys anyway
-					publicKey: new Uint8Array(),
-				}),
-			];
-		} else {
-			this.#accounts = [];
-		}
+	// #setAccount(address?: string) {
+	// 	if (address) {
+	// 		this.#accounts = [
+	// 			new ReadonlyWalletAccount({
+	// 				address,
+	// 				chains: [SUI_MAINNET_CHAIN],
+	// 				features: ['sui:signTransactionBlock', 'sui:signPersonalMessage'],
+	// 				// NOTE: Stashed doesn't support getting public keys, and zkLogin accounts don't have meaningful public keys anyway
+	// 				publicKey: new Uint8Array(),
+	// 			}),
+	// 		];
+	// 	} else {
+	// 		this.#accounts = [];
+	// 	}
 
-		this.#events.emit('change', { accounts: this.accounts });
-	}
+	// 	this.#events.emit('change', { accounts: this.accounts });
+	// }
 
 	removeAccount(address: string) {
 		const { addresses, token } = getStashedSession();
@@ -258,8 +258,8 @@ export class StashedWallet implements Wallet {
 		this.#events.emit('change', { accounts: this.accounts });
 	}
 
-	#setMultipleAccounts(addresses: string[]) {
-		if (addresses) {
+	#setAccounts(addresses?: string[]) {
+		if (addresses && addresses.length) {
 			this.#accounts = addresses.map((address) => {
 				return new ReadonlyWalletAccount({
 					address,
@@ -281,7 +281,7 @@ export class StashedWallet implements Wallet {
 			const { addresses } = getStashedSession();
 
 			if (addresses.length) {
-				this.#setMultipleAccounts(addresses);
+				this.#setAccounts(addresses);
 			}
 
 			embedStashedIframe();
@@ -308,7 +308,7 @@ export class StashedWallet implements Wallet {
 			JSON.stringify({ addresses: response.addresses, token: response.session }),
 		);
 
-		this.#setMultipleAccounts(response.addresses);
+		this.#setAccounts(response.addresses);
 
 		embedStashedIframe();
 
@@ -327,7 +327,7 @@ export class StashedWallet implements Wallet {
 
 		localStorage.removeItem(STASHED_SESSION_KEY);
 
-		this.#setAccount();
+		this.#setAccounts();
 
 		setTimeout(() => {
 			document.body.removeChild(embeddedIframe);
