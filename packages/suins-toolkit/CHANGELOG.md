@@ -1,5 +1,12 @@
 # @mysten/suins-toolkit
 
+## 0.5.45
+
+### Patch Changes
+
+- 6dbb979: Deprecates the toolkit and encourages usage of `@mysten/suins`. Suins-toolkit was never
+  maintained but there is a steady stream of downloads.
+
 ## 0.5.44
 
 ### Patch Changes
