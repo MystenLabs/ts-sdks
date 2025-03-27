@@ -13,7 +13,6 @@ import {
 	ExpiredSessionKeyError,
 	GeneralError,
 	InconsistentKeyServersError,
-	InvalidKeyServerError,
 	InvalidPersonalMessageSignatureError,
 	InvalidPTBError,
 	InvalidThresholdError,
