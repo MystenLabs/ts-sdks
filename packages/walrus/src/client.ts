@@ -22,6 +22,7 @@ import { StakingInnerV1 } from './contracts/staking_inner.js';
 import { StakingPool } from './contracts/staking_pool.js';
 import { Staking } from './contracts/staking.js';
 import { Storage } from './contracts/storage_resource.js';
+import { init as initSubsidiesContract } from './contracts/subsidies.js';
 import { SystemStateInnerV1 } from './contracts/system_state_inner.js';
 import { init as initSystemContract, System } from './contracts/system.js';
 import {
@@ -165,6 +166,18 @@ export class WalrusClient {
 	#getSystemContract = this.#memo.create('getSystemContract', async () => {
 		const { package_id } = await this.systemObject();
 		return initSystemContract(package_id);
+	});
+
+	#getSubsidiesContract = this.#memo.create('getSubsidiesContract', async () => {
+		if (!this.#packageConfig.subsidiesObjectId) {
+			throw new WalrusClientError('Subsidies object ID not defined in package config');
+		}
+
+		const subsidiesObject = await this.#objectLoader.load(this.#packageConfig.subsidiesObjectId);
+
+		const packageId = parseStructTag(subsidiesObject.type!).address;
+
+		return initSubsidiesContract(packageId);
 	});
 
 	#getBlobContract = this.#memo.create('getBlobContract', async () => {
@@ -589,6 +602,9 @@ export class WalrusClient {
 		const { storageCost } = await this.storageCost(size, epochs);
 		const walType = await this.#walType();
 		const systemContract = await this.#getSystemContract();
+		const subsidiesContract = this.#packageConfig.subsidiesObjectId
+			? await this.#getSubsidiesContract()
+			: null;
 
 		return (tx: Transaction) => {
 			const coin = walCoin
@@ -601,9 +617,19 @@ export class WalrusClient {
 					);
 
 			const storage = tx.add(
-				systemContract.reserve_space({
-					arguments: [systemObject.id.id, encodedSize, epochs, coin],
-				}),
+				subsidiesContract
+					? subsidiesContract.reserve_space({
+							arguments: [
+								this.#packageConfig.subsidiesObjectId!,
+								systemObject.id.id,
+								encodedSize,
+								epochs,
+								coin,
+							],
+						})
+					: systemContract.reserve_space({
+							arguments: [systemObject.id.id, encodedSize, epochs, coin],
+						}),
 			);
 			tx.moveCall({
 				target: '0x2::coin::destroy_zero',
@@ -1023,6 +1049,9 @@ export class WalrusClient {
 		const { storageCost } = await this.storageCost(Number(blob.storage.storage_size), numEpochs);
 		const walType = await this.#walType();
 		const systemContract = await this.#getSystemContract();
+		const subsidiesContract = this.#packageConfig.subsidiesObjectId
+			? await this.#getSubsidiesContract()
+			: null;
 
 		return (tx: Transaction) => {
 			const coin = walCoin
@@ -1036,14 +1065,19 @@ export class WalrusClient {
 					);
 
 			tx.add(
-				systemContract.extend_blob({
-					arguments: [
-						tx.object(this.#packageConfig.systemObjectId),
-						tx.object(blobObjectId),
-						numEpochs,
-						coin,
-					],
-				}),
+				subsidiesContract
+					? subsidiesContract.extend_blob({
+							arguments: [
+								this.#packageConfig.subsidiesObjectId!,
+								this.#packageConfig.systemObjectId,
+								blobObjectId,
+								numEpochs,
+								coin,
+							],
+						})
+					: systemContract.extend_blob({
+							arguments: [this.#packageConfig.systemObjectId, blobObjectId, numEpochs, coin],
+						}),
 			);
 
 			tx.moveCall({

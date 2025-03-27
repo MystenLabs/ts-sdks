@@ -25,6 +25,7 @@ export interface WalrusPackageConfig {
 	systemObjectId: string;
 	/** The staking pool ID of the Walrus package */
 	stakingPoolId: string;
+	subsidiesObjectId?: string;
 	exchange?: {
 		packageId: string;
 		exchangeIds: string[];

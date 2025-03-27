@@ -20,6 +20,7 @@ export const TESTNET_WALRUS_PACKAGE_CONFIG = {
 
 export const MAINNET_WALRUS_PACKAGE_CONFIG = {
 	systemObjectId: '0xTODO',
+	subsidiesObjectId: '0xTODO',
 	stakingPoolId: '0xTODO',
 } satisfies WalrusPackageConfig;
 
