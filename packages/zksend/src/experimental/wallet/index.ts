@@ -221,24 +221,6 @@ export class StashedWallet implements Wallet {
 		return () => this.#events.off(event, listener);
 	};
 
-	// #setAccount(address?: string) {
-	// 	if (address) {
-	// 		this.#accounts = [
-	// 			new ReadonlyWalletAccount({
-	// 				address,
-	// 				chains: [SUI_MAINNET_CHAIN],
-	// 				features: ['sui:signTransactionBlock', 'sui:signPersonalMessage'],
-	// 				// NOTE: Stashed doesn't support getting public keys, and zkLogin accounts don't have meaningful public keys anyway
-	// 				publicKey: new Uint8Array(),
-	// 			}),
-	// 		];
-	// 	} else {
-	// 		this.#accounts = [];
-	// 	}
-
-	// 	this.#events.emit('change', { accounts: this.accounts });
-	// }
-
 	removeAccount(address: string) {
 		const { addresses, token } = getStashedSession();
 
