@@ -1,5 +1,12 @@
 # @mysten/walrus
 
+## 0.0.4
+
+### Patch Changes
+
+- 833e007: Add mainnet package ids
+- 833e007: Add support for subsidies
+
 ## 0.0.3
 
 ### Patch Changes
