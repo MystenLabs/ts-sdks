@@ -19,9 +19,9 @@ export const TESTNET_WALRUS_PACKAGE_CONFIG = {
 } satisfies WalrusPackageConfig;
 
 export const MAINNET_WALRUS_PACKAGE_CONFIG = {
-	systemObjectId: '0xTODO',
-	subsidiesObjectId: '0xTODO',
-	stakingPoolId: '0xTODO',
+	systemObjectId: '0x2134d52768ea07e8c43570ef975eb3e4c27a39fa6396bef985b5abc58d03ddd2',
+	stakingPoolId: '0x10b9d30c28448939ce6c4d6c6e0ffce4a7f8a4ada8248bdad09ef8b70e4a3904',
+	subsidiesObjectId: '0xb606eb177899edc2130c93bf65985af7ec959a2755dc126c953755e59324209e',
 } satisfies WalrusPackageConfig;
 
 // Ranking of blob status types from earliest -> latest in the lifecycle of a blob.

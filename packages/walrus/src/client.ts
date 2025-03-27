@@ -595,49 +595,77 @@ export class WalrusClient {
 	 * tx.transferObjects([await client.createStorage({ size: 1000, epochs: 3 })], owner);
 	 * ```
 	 */
-	async createStorage({ size, epochs, walCoin }: StorageWithSizeOptions) {
+	async createStorage({ size, epochs, walCoin, owner }: StorageWithSizeOptions) {
 		const systemObject = await this.systemObject();
 		const systemState = await this.systemState();
 		const encodedSize = encodedBlobLength(size, systemState.committee.n_shards);
 		const { storageCost } = await this.storageCost(size, epochs);
-		const walType = await this.#walType();
 		const systemContract = await this.#getSystemContract();
 		const subsidiesContract = this.#packageConfig.subsidiesObjectId
 			? await this.#getSubsidiesContract()
 			: null;
 
-		return (tx: Transaction) => {
-			const coin = walCoin
-				? tx.splitCoins(walCoin, [storageCost])[0]
+		return this.#withWal(
+			storageCost,
+			owner,
+			walCoin ?? null,
+			subsidiesContract !== null,
+			(coin, tx) => {
+				return tx.add(
+					subsidiesContract
+						? subsidiesContract.reserve_space({
+								arguments: [
+									this.#packageConfig.subsidiesObjectId!,
+									systemObject.id.id,
+									encodedSize,
+									epochs,
+									coin,
+								],
+							})
+						: systemContract.reserve_space({
+								arguments: [systemObject.id.id, encodedSize, epochs, coin],
+							}),
+				);
+			},
+		);
+	}
+
+	async #withWal<T>(
+		amount: bigint,
+		owner: string,
+		source: TransactionObjectArgument | null,
+		withSubsidies: boolean,
+		fn: (coin: TransactionObjectArgument, tx: Transaction) => T,
+	) {
+		const walType = await this.#walType();
+
+		return (tx: Transaction): T => {
+			const coin = source
+				? tx.splitCoins(source, [amount])[0]
 				: tx.add(
 						coinWithBalance({
-							balance: storageCost,
+							balance: amount,
 							type: walType,
 						}),
 					);
 
-			const storage = tx.add(
-				subsidiesContract
-					? subsidiesContract.reserve_space({
-							arguments: [
-								this.#packageConfig.subsidiesObjectId!,
-								systemObject.id.id,
-								encodedSize,
-								epochs,
-								coin,
-							],
-						})
-					: systemContract.reserve_space({
-							arguments: [systemObject.id.id, encodedSize, epochs, coin],
-						}),
-			);
-			tx.moveCall({
-				target: '0x2::coin::destroy_zero',
-				typeArguments: [walType],
-				arguments: [coin],
-			});
+			const result = fn(coin, tx);
 
-			return storage;
+			if (withSubsidies) {
+				if (source) {
+					tx.mergeCoins(source, [coin]);
+				} else {
+					tx.transferObjects([coin], owner);
+				}
+			} else {
+				tx.moveCall({
+					target: '0x2::coin::destroy_zero',
+					typeArguments: [walType],
+					arguments: [coin],
+				});
+			}
+
+			return result;
 		};
 	}
 
@@ -654,8 +682,8 @@ export class WalrusClient {
 		size,
 		epochs,
 		owner,
-	}: StorageWithSizeOptions & { transaction?: Transaction; owner: string }) {
-		transaction.transferObjects([await this.createStorage({ size, epochs })], owner);
+	}: StorageWithSizeOptions & { transaction?: Transaction }) {
+		transaction.transferObjects([await this.createStorage({ size, epochs, owner })], owner);
 
 		return transaction;
 	}
@@ -721,11 +749,11 @@ export class WalrusClient {
 		rootHash,
 		deletable,
 		walCoin,
+		owner,
 		attributes,
 	}: RegisterBlobOptions) {
-		const storage = await this.createStorage({ size, epochs, walCoin });
+		const storage = await this.createStorage({ size, epochs, walCoin, owner });
 		const { writeCost } = await this.storageCost(size, epochs);
-		const walType = await this.#walType();
 		const systemContract = await this.#getSystemContract();
 		const writeAttributes = attributes
 			? await this.#writeBlobAttributesForRef({
@@ -734,16 +762,7 @@ export class WalrusClient {
 				})
 			: null;
 
-		return (tx: Transaction) => {
-			const writeCoin = walCoin
-				? tx.splitCoins(walCoin, [writeCost])[0]
-				: tx.add(
-						coinWithBalance({
-							balance: writeCost,
-							type: walType,
-						}),
-					);
-
+		return this.#withWal(writeCost, owner, walCoin ?? null, false, (writeCoin, tx) => {
 			const blob = tx.add(
 				systemContract.register_blob({
 					arguments: [
@@ -759,18 +778,12 @@ export class WalrusClient {
 				}),
 			);
 
-			tx.moveCall({
-				target: '0x2::coin::destroy_zero',
-				typeArguments: [walType],
-				arguments: [writeCoin],
-			});
-
 			if (writeAttributes) {
 				tx.add((tx) => writeAttributes(tx, blob));
 			}
 
 			return blob;
-		};
+		});
 	}
 
 	/**
@@ -783,12 +796,11 @@ export class WalrusClient {
 	 */
 	async registerBlobTransaction({
 		transaction = new Transaction(),
-		owner,
 		...options
-	}: RegisterBlobOptions & { transaction?: Transaction; owner: string }) {
+	}: RegisterBlobOptions & { transaction?: Transaction }) {
 		const registration = transaction.add(await this.registerBlob(options));
 
-		transaction.transferObjects([registration], owner);
+		transaction.transferObjects([registration], options.owner);
 
 		return transaction;
 	}
@@ -804,7 +816,7 @@ export class WalrusClient {
 	async executeRegisterBlobTransaction({
 		signer,
 		...options
-	}: RegisterBlobOptions & { transaction?: Transaction; signer: Signer; owner?: string }): Promise<{
+	}: RegisterBlobOptions & { transaction?: Transaction; signer: Signer }): Promise<{
 		blob: ReturnType<typeof Blob>['$inferType'];
 		digest: string;
 	}> {
@@ -1038,7 +1050,7 @@ export class WalrusClient {
 	 * const tx = await client.extendBlobTransaction({ blobObjectId, epochs });
 	 * ```
 	 */
-	async extendBlob({ blobObjectId, epochs, endEpoch, walCoin }: ExtendBlobOptions) {
+	async extendBlob({ blobObjectId, epochs, endEpoch, walCoin, owner }: ExtendBlobOptions) {
 		const blob = await this.#objectLoader.load(blobObjectId, Blob());
 		const numEpochs = typeof epochs === 'number' ? epochs : endEpoch - blob.storage.end_epoch;
 
@@ -1047,45 +1059,34 @@ export class WalrusClient {
 		}
 
 		const { storageCost } = await this.storageCost(Number(blob.storage.storage_size), numEpochs);
-		const walType = await this.#walType();
 		const systemContract = await this.#getSystemContract();
 		const subsidiesContract = this.#packageConfig.subsidiesObjectId
 			? await this.#getSubsidiesContract()
 			: null;
 
-		return (tx: Transaction) => {
-			const coin = walCoin
-				? tx.splitCoins(walCoin, [storageCost])[0]
-				: tx.add(
-						coinWithBalance({
-							balance: storageCost,
-
-							type: walType,
-						}),
-					);
-
-			tx.add(
-				subsidiesContract
-					? subsidiesContract.extend_blob({
-							arguments: [
-								this.#packageConfig.subsidiesObjectId!,
-								this.#packageConfig.systemObjectId,
-								blobObjectId,
-								numEpochs,
-								coin,
-							],
-						})
-					: systemContract.extend_blob({
-							arguments: [this.#packageConfig.systemObjectId, blobObjectId, numEpochs, coin],
-						}),
-			);
-
-			tx.moveCall({
-				target: '0x2::coin::destroy_zero',
-				typeArguments: [walType],
-				arguments: [coin],
-			});
-		};
+		return this.#withWal(
+			storageCost,
+			owner,
+			walCoin ?? null,
+			subsidiesContract !== null,
+			(coin, tx) => {
+				tx.add(
+					subsidiesContract
+						? subsidiesContract.extend_blob({
+								arguments: [
+									this.#packageConfig.subsidiesObjectId!,
+									this.#packageConfig.systemObjectId,
+									blobObjectId,
+									numEpochs,
+									coin,
+								],
+							})
+						: systemContract.extend_blob({
+								arguments: [this.#packageConfig.systemObjectId, blobObjectId, numEpochs, coin],
+							}),
+				);
+			},
+		);
 	}
 
 	/**
@@ -1553,7 +1554,7 @@ export class WalrusClient {
 			blobId,
 			rootHash,
 			deletable,
-			owner,
+			owner: owner ?? signer.toSuiAddress(),
 			attributes,
 		});
 
