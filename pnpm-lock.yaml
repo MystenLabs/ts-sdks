@@ -6484,16 +6484,10 @@ packages:
   get-tsconfig@4.8.1:
     resolution: {integrity: sha512-k9PN+cFBmaLWtVz29SkUoqU5O0slLuHJXt/2P+tMVFT+phsSGXGkp9t3rQIqdz0e+06EHNGs3oM6ZX1s2zHxRg==}
 
-<<<<<<< HEAD
   giget@1.2.5:
     resolution: {integrity: sha512-r1ekGw/Bgpi3HLV3h1MRBIlSAdHoIMklpaQ3OQLFcRw9PwAj2rqigvIbg+dBUI51OxVI2jsEtDywDBjSiuf7Ug==}
     hasBin: true
 
-  github-from-package@0.0.0:
-    resolution: {integrity: sha512-SyHy3T1v2NUXn29OsWdxmK6RwHD+vkj3v8en8AOBZ1wBQ/hCAQ5bAQTD02kW4W9tUp/3Qh6J8r9EvntiyCmOOw==}
-
-=======
->>>>>>> 2ccf8ea (work)
   github-slugger@2.0.0:
     resolution: {integrity: sha512-IaOQ9puYtjrkq7Y0Ygl9KDZnrf/aiUJYUpVf89y8kyaxbRG7Y1SrX/jaumrv81vc61+kiMempujsM3Yw7w5qcw==}
 
@@ -15882,7 +15876,6 @@ snapshots:
     dependencies:
       resolve-pkg-maps: 1.0.0
 
-<<<<<<< HEAD
   giget@1.2.5:
     dependencies:
       citty: 0.1.6
@@ -15893,10 +15886,6 @@ snapshots:
       pathe: 2.0.3
       tar: 6.2.1
 
-  github-from-package@0.0.0: {}
-
-=======
->>>>>>> 2ccf8ea (work)
   github-slugger@2.0.0: {}
 
   glob-parent@5.1.2:
