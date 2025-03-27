@@ -24,6 +24,7 @@ packages:
   - '!packages/typescript/graphql/schemas/2024.4'
   - '!packages/signers/aws'
   - '!packages/signers/gcp'
+  - '!packages/signers/ledger'
   - '!packages/typescript/zklogin'
   - '!packages/typescript/keypairs/passkey'
   - '!packages/typescript/graphql/schemas/latest'

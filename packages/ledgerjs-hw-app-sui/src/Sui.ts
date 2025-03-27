@@ -70,6 +70,7 @@ export default class Sui {
 		const payload = buildBip32KeyPayload(path);
 		const response = await this.#sendChunks(cla, ins, p1, p2, payload);
 		const keySize = response[0];
+
 		const publicKey = response.slice(1, keySize + 1); // slice uses end index.
 		let address: Uint8Array | null = null;
 		if (response.length > keySize + 2) {
@@ -86,39 +87,75 @@ export default class Sui {
 	/**
 	 * Sign a transaction with the key at a BIP32 path.
 	 *
-	 * @param txn - The transaction; this can be any of a node Buffer, Uint8Array, or a hexadecimal string, encoding the form of the transaction appropriate for hashing and signing.
-	 * @param path - the path to use when signing the transaction.
+	 * @param txn - The transaction bytes to sign.
+	 * @param path - The path to use when signing the transaction.
+	 * @param options - Additional options used for clear signing purposes.
 	 */
 	async signTransaction(
 		path: string,
-		txn: string | Buffer | Uint8Array,
+		txn: Uint8Array,
+		options?: {
+			bcsObjects: Uint8Array[];
+		},
 	): Promise<SignTransactionResult> {
 		const cla = 0x00;
 		const ins = 0x03;
 		const p1 = 0;
 		const p2 = 0;
-		// Transaction payload is the byte length as uint32le followed by the bytes
-		// Type guard not actually required but TypeScript can't tell that.
+
 		if (this.#verbose) this.#log(txn);
-		const rawTxn = typeof txn == 'string' ? Buffer.from(txn, 'hex') : Buffer.from(txn);
+
+		// Transaction payload is the byte length as uint32le followed by the bytes
+		const rawTxn = Buffer.from(txn);
 		const hashSize = Buffer.alloc(4);
 		hashSize.writeUInt32LE(rawTxn.length, 0);
-		// Bip32key payload same as getPublicKey
+
+		// Build transaction payload:
+		const payloadTxn = Buffer.concat([hashSize, rawTxn]);
+		this.#log('Payload Txn', payloadTxn);
+
 		const bip32KeyPayload = buildBip32KeyPayload(path);
-		// These are just squashed together
-		const payload_txn = Buffer.concat([hashSize, rawTxn]);
-		this.#log('Payload Txn', payload_txn);
-		// TODO batch this since the payload length can be uint32le.max long
-		const signature = await this.#sendChunks(cla, ins, p1, p2, [payload_txn, bip32KeyPayload]);
-		return {
-			signature,
-		};
+		const payloads = [payloadTxn, bip32KeyPayload];
+
+		// The public getVersion is decorated with a lock in the constructor:
+		const { major } = await this.#internalGetVersion();
+		const bcsObjects = options?.bcsObjects ?? [];
+
+		this.#log('Objects list length', bcsObjects.length);
+		this.#log('App version', major);
+
+		if (major > 0 && bcsObjects.length > 0) {
+			// Build object list payload:
+			const numItems = Buffer.alloc(4);
+			numItems.writeUInt32LE(bcsObjects.length, 0);
+
+			let listData = Buffer.from(numItems);
+
+			// Add each item with its length prefix:
+			for (const item of bcsObjects) {
+				const rawItem = Buffer.from(item);
+				const itemLen = Buffer.alloc(4);
+				itemLen.writeUInt32LE(rawItem.length, 0);
+
+				listData = Buffer.concat([listData, itemLen, rawItem]);
+			}
+
+			payloads.push(listData);
+		}
+
+		// Send the chunks and return the signature
+		const signature = await this.#sendChunks(cla, ins, p1, p2, payloads);
+		return { signature };
 	}
 
 	/**
 	 * Retrieve the app version on the attached Ledger device.
 	 */
 	async getVersion(): Promise<GetVersionResult> {
+		return await this.#internalGetVersion();
+	}
+
+	async #internalGetVersion() {
 		const [major, minor, patch] = await this.#sendChunks(0x00, 0x00, 0x00, 0x00, Buffer.alloc(1));
 		return {
 			major,

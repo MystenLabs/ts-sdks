@@ -3,7 +3,7 @@
 
 import { bcs } from '@mysten/bcs';
 
-import { Address, ObjectDigest, SuiObjectRef } from './bcs.js';
+import { Address, ObjectDigest, Owner, SuiObjectRef } from './bcs.js';
 
 const PackageUpgradeError = bcs.enum('PackageUpgradeError', {
 	UnableToFetchPackage: bcs.struct('UnableToFetchPackage', { packageId: Address }),
@@ -132,15 +132,6 @@ const GasCostSummary = bcs.struct('GasCostSummary', {
 	storageCost: bcs.u64(),
 	storageRebate: bcs.u64(),
 	nonRefundableStorageFee: bcs.u64(),
-});
-
-const Owner = bcs.enum('Owner', {
-	AddressOwner: Address,
-	ObjectOwner: Address,
-	Shared: bcs.struct('Shared', {
-		initialSharedVersion: bcs.u64(),
-	}),
-	Immutable: null,
 });
 
 const TransactionEffectsV1 = bcs.struct('TransactionEffectsV1', {
