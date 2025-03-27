@@ -38,8 +38,8 @@ export type StashedRequest = InferOutput<typeof StashedRequest>;
 export const StashedResponseData = variant('type', [
 	object({
 		type: literal('connect'),
-		selectedAddresses: array(string()),
-		session: string(),
+		addresses: array(string('`addresses` is required')),
+		session: string('`session` is required'),
 	}),
 	object({
 		type: literal('sign-transaction-block'),

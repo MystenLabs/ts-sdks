@@ -299,16 +299,16 @@ export class StashedWallet implements Wallet {
 			network: this.#network,
 		});
 
-		if (!('selectedAddresses' in response)) {
+		if (!('addresses' in response)) {
 			throw new Error('Unexpected response');
 		}
 
 		localStorage.setItem(
 			STASHED_SESSION_KEY,
-			JSON.stringify({ addresses: response.selectedAddresses, token: response.session }),
+			JSON.stringify({ addresses: response.addresses, token: response.session }),
 		);
 
-		this.#setMultipleAccounts(response.selectedAddresses);
+		this.#setMultipleAccounts(response.addresses);
 
 		embedStashedIframe();
 
