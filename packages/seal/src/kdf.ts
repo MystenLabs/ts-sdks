@@ -18,6 +18,7 @@ import type { G2Element, GTElement } from './bls12381.js';
 export function kdf(
 	element: GTElement,
 	nonce: G2Element,
+	public_key: G2Element,
 	id: Uint8Array,
 	info: Uint8Array,
 ): Uint8Array {
@@ -44,6 +45,7 @@ export function kdf(
 		...permutedBytes,
 		...nonce.toBytes(),
 		...G1Element.hashToCurve(id).toBytes(),
+		...public_key.toBytes(),
 	]);
 	return hkdf(sha3_256, inputBytes, '', info, 32);
 }

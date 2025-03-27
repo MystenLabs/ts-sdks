@@ -73,7 +73,7 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 		}
 		const [r, nonce, keys] = encapBatched(this.publicKeys, id);
 		const encryptedShares = msgAndInfos.map((msgAndInfo, i) =>
-			xor(msgAndInfo.msg, kdf(keys[i], nonce, id, msgAndInfo.info)),
+			xor(msgAndInfo.msg, kdf(keys[i], nonce, this.publicKeys[i], id, msgAndInfo.info)),
 		);
 		const encryptedRandomness = xor(randomnessKey, r.toBytes());
 
@@ -112,11 +112,12 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 	static decrypt(
 		nonce: G2Element,
 		sk: G1Element,
+		pk: G2Element,
 		ciphertext: Uint8Array,
 		id: Uint8Array,
 		info: Uint8Array,
 	): Uint8Array {
-		return xor(ciphertext, kdf(decap(nonce, sk), nonce, id, info));
+		return xor(ciphertext, kdf(decap(nonce, sk), nonce, pk, id, info));
 	}
 }
 

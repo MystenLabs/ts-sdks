@@ -148,6 +148,7 @@ describe('Seal encryption tests', () => {
 					[`${id}:${objectId2}`, usk2],
 					[`${id}:${objectId3}`, usk3],
 				]),
+				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(msg);
 
@@ -158,6 +159,7 @@ describe('Seal encryption tests', () => {
 					[`${id}:${objectId2}`, usk2],
 					[`${id}:${objectId3}`, usk3],
 				]),
+				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(msg);
 
@@ -165,6 +167,7 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>([[`${id}:${objectId1}`, usk1]]),
+				publicKeys: [pk1, pk2, pk3],
 			}),
 		).rejects.toThrow();
 	});
@@ -243,6 +246,7 @@ describe('Seal encryption tests', () => {
 					[`${id}:${objectId2}`, usk2],
 					[`${id}:${objectId3}`, usk3],
 				]),
+				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(msg);
 
@@ -253,6 +257,7 @@ describe('Seal encryption tests', () => {
 					[`${id}:${objectId2}`, usk2],
 					[`${id}:${objectId3}`, usk3],
 				]),
+				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(msg);
 
@@ -260,6 +265,7 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>([[`${id}:${objectId1}`, usk1]]),
+				publicKeys: [pk1, pk2, pk3],
 			}),
 		).rejects.toThrow();
 	});
@@ -321,6 +327,7 @@ describe('Seal encryption tests', () => {
 					[`${id}:${objectId2}`, usk2],
 					[`${id}:${objectId3}`, usk3],
 				]),
+				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(key);
 
@@ -331,6 +338,7 @@ describe('Seal encryption tests', () => {
 					[`${id}:${objectId2}`, usk2],
 					[`${id}:${objectId3}`, usk3],
 				]),
+				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(key);
 
@@ -338,6 +346,7 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>([[`${id}:${objectId1}`, usk1]]),
+				publicKeys: [pk1, pk2, pk3],
 			}),
 		).rejects.toThrow();
 	});
@@ -356,10 +365,62 @@ describe('Seal encryption tests', () => {
 			G2Element.generator().multiply(Scalar.fromNumber(12345)),
 		);
 		const nonce = G2Element.generator().multiply(Scalar.fromNumber(12345));
-		const key = kdf(x, nonce, new Uint8Array([0]), new Uint8Array([]));
+		const key = kdf(x, nonce, nonce, new Uint8Array([0]), new Uint8Array([]));
 		expect(key).toEqual(
-			fromHex('57d43441a0b561088d4162a1b38ea8a2d443dd2c50ec4aca0610a1a79c057f74'),
+			fromHex('b037a9c0a1f7f6abeaad0f5da4d84c194c51536666ca3a7ea84ece820e180a1d'),
 		);
+	});
+
+	it('Rust test vector decryption', async () => {
+		// Test created with seal-cli using the command:
+		// cargo run --bin seal-cli encrypt-hmac --message 48656C6C6F2C20776F726C6421 --aad 0x0000000000000000000000000000000000000000000000000000000000000001 --package-id 0x0 --id 0x381dd9078c322a4663c392761a0211b527c127b29583851217f948d62131f409 --threshold 2 aeb258b9fb9a2f29f74eb0a1a895860bb1c6ba3f9ea7075366de159e4764413e9ec0597ac9c0dad409723935440a45f40eee4728630ae3ea40a68a819375bba1d78d7810f901d8a469d785d00cfed6bd28f01d41e49c5652d924e9d19fddcf62 b1076a26f4f82f39d0e767fcd2118659362afe40bce4e8d553258c86756bb74f888bca79f2d6b71edf6e25af89efa83713a223b48a19d2e551897ac92ac7458336cd489be3be025e348ca93f4c94d22594f96f0e08990e51a7de9da8ff29c98f 95fcb465af3791f31d53d80db6c8dcf9f83a419b2570614ecfbb068f47613da17cb9ffc66bb052b9546f17196929538f0bd2d38e1f515d9916e2db13dc43e0ccbd4cb3d7cbb13ffecc0b68b37481ebaaaa17cad18096a9c2c27a797f17d78623 -- 0x34401905bebdf8c04f3cd5f04f442a39372c8dc321c29edfb4f9cb30b23ab96 0xd726ecf6f7036ee3557cd6c7b93a49b231070e8eecada9cfa157e40e3f02e5d3 0xdba72804cc9504a82bbaa13ed4a83a0e2c6219d7e45125cf57fd10cbab957a97
+		const encryptedObject = fromHex(
+			'00000000000000000000000000000000000000000000000000000000000000000020381dd9078c322a4663c392761a0211b527c127b29583851217f948d62131f40903034401905bebdf8c04f3cd5f04f442a39372c8dc321c29edfb4f9cb30b23ab9601d726ecf6f7036ee3557cd6c7b93a49b231070e8eecada9cfa157e40e3f02e5d302dba72804cc9504a82bbaa13ed4a83a0e2c6219d7e45125cf57fd10cbab957a970302008c7e9c702be331084ba1c40d54bd07569612087991b8e9717542077712c37805de9576eb7a25dce369630c0f65f7ccfc02087e48776dc0b81d78b30a2dac08c0541fa34e027b3907e626d60e4b8549e0d7e415839cca34929b198a22b9fad14b0377f32f4c3c551e93c46986703c671b370aa54a24c77111c9663afc7b97b68df93afb9add95cf87d0fb96e09c2d1b3c3f2012b055f349982e41d0fac3c5765f8f4c3fb320455e880dff07bfdfb888d6a9eda0b8688798888896d65897069ab45869f27f39a71e0ffdda584c4ec2d3f13a21a359ed3bc596d28a0320fd97959645010d7727ea2390be3b1f37874ad8c50120000000000000000000000000000000000000000000000000000000000000000191e8e72a6120830fc5f937c2c89ae3f08eea2c49a56dafb250c489aa1c515a5f',
+		);
+		const parsed = EncryptedObject.parse(encryptedObject);
+		const id = createFullId(DST, parsed.packageId, parsed.id);
+
+		let pk0 = G2Element.fromBytes(
+			fromHex(
+				'aeb258b9fb9a2f29f74eb0a1a895860bb1c6ba3f9ea7075366de159e4764413e9ec0597ac9c0dad409723935440a45f40eee4728630ae3ea40a68a819375bba1d78d7810f901d8a469d785d00cfed6bd28f01d41e49c5652d924e9d19fddcf62',
+			),
+		);
+		let pk1 = G2Element.fromBytes(
+			fromHex(
+				'b1076a26f4f82f39d0e767fcd2118659362afe40bce4e8d553258c86756bb74f888bca79f2d6b71edf6e25af89efa83713a223b48a19d2e551897ac92ac7458336cd489be3be025e348ca93f4c94d22594f96f0e08990e51a7de9da8ff29c98f',
+			),
+		);
+		let pk2 = G2Element.fromBytes(
+			fromHex(
+				'95fcb465af3791f31d53d80db6c8dcf9f83a419b2570614ecfbb068f47613da17cb9ffc66bb052b9546f17196929538f0bd2d38e1f515d9916e2db13dc43e0ccbd4cb3d7cbb13ffecc0b68b37481ebaaaa17cad18096a9c2c27a797f17d78623',
+			),
+		);
+
+		let usk0 = G1Element.fromBytes(
+			fromHex(
+				'8244fcbe49870a4d4aa947b7034a873e168580e18b5834ea34940dc9f492eda03a9b20c3c3c120b1a462f1642575e0cc',
+			),
+		);
+		let usk1 = G1Element.fromBytes(
+			fromHex(
+				'a0f04b759ed2ff477f0fe5b672992235205d2af502f659d4bbb484b745e35fd7a9ff11e37e12111023a891c3fa98a2d3',
+			),
+		);
+
+		const objectId0 = '0x034401905bebdf8c04f3cd5f04f442a39372c8dc321c29edfb4f9cb30b23ab96';
+		const objectId1 = '0xd726ecf6f7036ee3557cd6c7b93a49b231070e8eecada9cfa157e40e3f02e5d3';
+
+		const msg = new TextEncoder().encode('Hello, world!');
+		await expect(
+			decrypt({
+				encryptedObject: parsed,
+				keys: new Map<KeyCacheKey, G1Element>([
+					[`${id}:${objectId0}`, usk0],
+					[`${id}:${objectId1}`, usk1],
+				]),
+				publicKeys: [pk0, pk1, pk2],
+			}),
+		).resolves.toEqual(msg);
 	});
 
 	it('test single key server', async () => {
@@ -396,6 +457,7 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>([[`${id}:${objectId1}`, usk1]]),
+				publicKeys: [pk1],
 			}),
 		).resolves.toEqual(msg);
 
@@ -403,6 +465,7 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>(),
+				publicKeys: [pk1],
 			}),
 		).rejects.toThrow();
 	});
@@ -462,6 +525,7 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>([[`${id}:${objectId1}`, usk1]]),
+				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(msg);
 
@@ -469,6 +533,7 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>([[`${id}:${objectId2}`, usk2]]),
+				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(msg);
 
@@ -476,6 +541,7 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>(),
+				publicKeys: [pk1, pk2, pk3],
 			}),
 		).rejects.toThrow();
 	});

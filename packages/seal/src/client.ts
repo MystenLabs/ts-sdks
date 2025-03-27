@@ -139,7 +139,9 @@ export class SealClient {
 			threshold: encryptedObject.threshold,
 		});
 
-		return decrypt({ encryptedObject, keys: this.#cachedKeys });
+		const publicKeys = (await this.getKeyServers()).map((server) => G2Element.fromBytes(server.pk));
+
+		return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys });
 	}
 
 	#validateEncryptionServices(services: string[], threshold: number) {
