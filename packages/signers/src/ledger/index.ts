@@ -66,7 +66,11 @@ export class LedgerSigner extends Signer {
 	 */
 	override async signTransaction(bytes: Uint8Array): Promise<SignatureWithBytes> {
 		const intentMessage = messageWithIntent('TransactionData', bytes);
-		const transactionOptions = await this.#getClearSigningOptions(bytes);
+		const transactionOptions = await this.#getClearSigningOptions(bytes).catch(() => ({
+			// Fail gracefully so network errors or serialization issues don't break transaction signing:
+			bcsObjects: [],
+		}));
+
 		const { signature } = await this.#ledgerClient.signTransaction(
 			this.#derivationPath,
 			intentMessage,
