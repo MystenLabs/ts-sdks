@@ -68,8 +68,7 @@ export class StashedWallet implements Wallet {
 	#accounts: ReadonlyWalletAccount[];
 	#origin: string;
 	#name: string;
-	#network: StashedSupportedNetwork;
-	#chain: SuiChain;
+
 	get name() {
 		return STASHED_WALLET_NAME;
 	}
@@ -126,10 +125,8 @@ export class StashedWallet implements Wallet {
 
 	constructor({
 		name,
-		network,
 		address,
 		origin = DEFAULT_STASHED_ORIGIN,
-		chain = SUI_MAINNET_CHAIN,
 	}: {
 		name: string;
 		network: StashedSupportedNetwork;
@@ -141,15 +138,17 @@ export class StashedWallet implements Wallet {
 		this.#events = mitt();
 		this.#origin = origin;
 		this.#name = name;
-		this.#network = network;
-		this.#chain = chain;
 
 		if (address) {
 			this.#setAccounts([{ address }]);
 		}
 	}
 
-	#signTransactionBlock: SuiSignTransactionBlockMethod = async ({ transactionBlock, account }) => {
+	#signTransactionBlock: SuiSignTransactionBlockMethod = async ({
+		transactionBlock,
+		account,
+		chain,
+	}) => {
 		transactionBlock.setSenderIfNotSet(account.address);
 
 		const data = await transactionBlock.toJSON();
@@ -157,15 +156,13 @@ export class StashedWallet implements Wallet {
 		const popup = new StashedPopup({
 			name: this.#name,
 			origin: this.#origin,
-			network: this.#network,
-			chain: this.#chain,
 		});
 
 		const response = await popup.send({
-			type: 'sign-transaction-block',
+			type: 'sign-transaction',
 			transaction: data,
 			address: account.address,
-			network: this.#network,
+			chain,
 			session: getStashedSession().token,
 		});
 
@@ -175,12 +172,11 @@ export class StashedWallet implements Wallet {
 		};
 	};
 
-	#signTransaction: SuiSignTransactionMethod = async ({ transaction, account }) => {
+	#signTransaction: SuiSignTransactionMethod = async ({ transaction, account, chain }) => {
 		const popup = new StashedPopup({
 			name: this.#name,
 			origin: this.#origin,
-			network: this.#network,
-			chain: this.#chain,
+			chain,
 		});
 
 		const tx = Transaction.from(await transaction.toJSON());
@@ -189,10 +185,10 @@ export class StashedWallet implements Wallet {
 		const data = await tx.toJSON();
 
 		const response = await popup.send({
-			type: 'sign-transaction-block',
+			type: 'sign-transaction',
 			transaction: data,
 			address: account.address,
-			network: this.#network,
+			chain,
 			session: getStashedSession().token,
 		});
 
@@ -202,25 +198,23 @@ export class StashedWallet implements Wallet {
 		};
 	};
 
-	#signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message, account }) => {
+	#signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message, account, chain }) => {
 		const popup = new StashedPopup({
 			name: this.#name,
 			origin: this.#origin,
-			network: this.#network,
-			chain: this.#chain,
+			chain,
 		});
-		const bytes = toBase64(message);
 
 		const response = await popup.send({
 			type: 'sign-personal-message',
-			bytes,
+			message: toBase64(message),
 			address: account.address,
-			network: this.#network,
+			chain,
 			session: getStashedSession().token,
 		});
 
 		return {
-			bytes,
+			bytes: response.bytes,
 			signature: response.signature,
 		};
 	};
@@ -281,13 +275,10 @@ export class StashedWallet implements Wallet {
 		const popup = new StashedPopup({
 			name: this.#name,
 			origin: this.#origin,
-			network: this.#network,
-			chain: this.#chain,
 		});
 
 		const response = await popup.send({
 			type: 'connect',
-			network: this.#network,
 		});
 
 		if (!('accounts' in response)) {

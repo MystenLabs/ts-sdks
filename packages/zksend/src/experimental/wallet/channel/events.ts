@@ -7,21 +7,27 @@ import { array, literal, object, optional, pipe, string, url, uuid, variant } fr
 export const StashedRequestData = variant('type', [
 	object({
 		type: literal('connect'),
-		network: string('`network` is required'),
 	}),
 	object({
-		type: literal('sign-transaction-block'),
+		type: literal('sign-transaction'),
 		transaction: string('`transaction` is required'),
 		address: string('`address` is required'),
-		network: string('`network` is required'),
+		chain: string('`chain` is required'),
+		session: string('`session` is required'),
+	}),
+	object({
+		type: literal('sign-and-execute-transaction'),
+		transaction: string('`transaction` is required'),
+		address: string('`address` is required'),
+		chain: string('`chain` is required'),
 		session: string('`session` is required'),
 	}),
 	object({
 		type: literal('sign-personal-message'),
-		bytes: string('`bytes` is required'),
+		message: string('`message` is required'),
 		address: string('`address` is required'),
 		session: string('`session` is required'),
-		network: string('`network` is required'),
+		chain: string('`chain` is required'),
 	}),
 ]);
 export type StashedRequestData = InferOutput<typeof StashedRequestData>;
@@ -48,9 +54,16 @@ export const StashedResponseData = variant('type', [
 		session: string('`session` is required'),
 	}),
 	object({
-		type: literal('sign-transaction-block'),
+		type: literal('sign-transaction'),
 		bytes: string(),
 		signature: string(),
+	}),
+	object({
+		type: literal('sign-and-execute-transaction'),
+		bytes: string(),
+		signature: string(),
+		digest: string(),
+		effects: optional(string()),
 	}),
 	object({
 		type: literal('sign-personal-message'),
