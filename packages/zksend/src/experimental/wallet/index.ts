@@ -27,7 +27,6 @@ import type { Emitter } from 'mitt';
 import mitt from 'mitt';
 
 import { DEFAULT_STASHED_ORIGIN, StashedPopup } from './channel/index.js';
-import type { StashedSupportedNetwork } from './types.js';
 
 const PACKAGE_VERSION = 'v1';
 
@@ -136,7 +135,6 @@ export class StashedWallet implements Wallet {
 		origin = DEFAULT_STASHED_ORIGIN,
 	}: {
 		name: string;
-		network: StashedSupportedNetwork;
 		origin?: string;
 		address?: string | null;
 		chain?: SuiChain;
@@ -411,10 +409,8 @@ export function registerStashedWallet(
 	name: string,
 	{
 		origin,
-		network = 'mainnet',
 	}: {
 		origin?: string;
-		network?: StashedSupportedNetwork;
 	} = {},
 ) {
 	const wallets = getWallets();
@@ -430,7 +426,6 @@ export function registerStashedWallet(
 
 	stashedWalletInstance = new StashedWallet({
 		name,
-		network,
 		origin,
 		address: addressFromRedirect,
 	});
