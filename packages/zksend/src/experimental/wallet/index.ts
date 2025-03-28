@@ -22,7 +22,12 @@ import type {
 	SuiSignTransactionMethod,
 	Wallet,
 } from '@mysten/wallet-standard';
-import { getWallets, ReadonlyWalletAccount, SUI_MAINNET_CHAIN } from '@mysten/wallet-standard';
+import {
+	getWallets,
+	ReadonlyWalletAccount,
+	SUI_CHAINS,
+	SUI_MAINNET_CHAIN,
+} from '@mysten/wallet-standard';
 import type { Emitter } from 'mitt';
 import mitt from 'mitt';
 
@@ -83,7 +88,7 @@ export class StashedWallet implements Wallet {
 	}
 
 	get chains() {
-		return [SUI_MAINNET_CHAIN] as const;
+		return SUI_CHAINS;
 	}
 
 	get accounts() {
