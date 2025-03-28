@@ -65,12 +65,12 @@ export class LedgerSigner extends Signer {
 	 * @returns The signed transaction bytes and signature.
 	 */
 	override async signTransaction(bytes: Uint8Array): Promise<SignatureWithBytes> {
-		const intentMessage = messageWithIntent('TransactionData', bytes);
 		const transactionOptions = await this.#getClearSigningOptions(bytes).catch(() => ({
 			// Fail gracefully so network errors or serialization issues don't break transaction signing:
 			bcsObjects: [],
 		}));
 
+		const intentMessage = messageWithIntent('TransactionData', bytes);
 		const { signature } = await this.#ledgerClient.signTransaction(
 			this.#derivationPath,
 			intentMessage,
@@ -88,19 +88,24 @@ export class LedgerSigner extends Signer {
 	}
 
 	/**
-	 * Generic signing is not supported by Ledger.
-	 * @throws Always throws an error indicating generic signing is unsupported.
+	 * Signs the provided personal message.
+	 * @returns The signed message bytes and signature.
 	 */
-	override sign(): never {
-		throw new Error('Ledger Signer does not support generic signing.');
-	}
+	override async signPersonalMessage(bytes: Uint8Array): Promise<SignatureWithBytes> {
+		const intentMessage = messageWithIntent('PersonalMessage', bytes);
+		const { signature } = await this.#ledgerClient.signTransaction(
+			this.#derivationPath,
+			intentMessage,
+		);
 
-	/**
-	 * Signing personal messages is not supported by the Sui Ledger app.
-	 * @throws Always throws an error indicating message signing is unsupported.
-	 */
-	override signPersonalMessage(): never {
-		throw new Error('Ledger Signer does not support signing personal messages.');
+		return {
+			bytes: toBase64(bytes),
+			signature: toSerializedSignature({
+				signature,
+				signatureScheme: this.getKeyScheme(),
+				publicKey: this.#publicKey,
+			}),
+		};
 	}
 
 	/**
@@ -175,5 +180,21 @@ export class LedgerSigner extends Signer {
 			.filter((bcsBytes): bcsBytes is Uint8Array => !!bcsBytes);
 
 		return { bcsObjects };
+	}
+
+	/**
+	 * Generic signing is not supported by Ledger.
+	 * @throws Always throws an error indicating generic signing is unsupported.
+	 */
+	override sign(): never {
+		throw new Error('Ledger Signer does not support generic signing.');
+	}
+
+	/**
+	 * Generic signing is not supported by Ledger.
+	 * @throws Always throws an error indicating generic signing is unsupported.
+	 */
+	override signWithIntent(): never {
+		throw new Error('Ledger Signer does not support generic signing.');
 	}
 }
