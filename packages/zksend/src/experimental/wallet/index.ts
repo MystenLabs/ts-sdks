@@ -136,22 +136,16 @@ export class StashedWallet implements Wallet {
 
 	constructor({
 		name,
-		address,
 		origin = DEFAULT_STASHED_ORIGIN,
 	}: {
 		name: string;
 		origin?: string;
-		address?: string | null;
 		chain?: SuiChain;
 	}) {
 		this.#accounts = [];
 		this.#events = mitt();
 		this.#origin = origin;
 		this.#name = name;
-
-		if (address) {
-			this.#setAccounts([{ address }]);
-		}
 	}
 
 	#signTransactionBlock: SuiSignTransactionBlockMethod = async ({
@@ -432,7 +426,6 @@ export function registerStashedWallet(
 	stashedWalletInstance = new StashedWallet({
 		name,
 		origin,
-		address: addressFromRedirect,
 	});
 
 	stashedWalletOrigin = origin || DEFAULT_STASHED_ORIGIN;
