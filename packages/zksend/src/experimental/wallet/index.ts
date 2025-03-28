@@ -60,7 +60,7 @@ const getPostMessagePayload = () => {
 		language: navigator.language,
 		platform: navigator.platform,
 		timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-		timestamp: new Date().toISOString(),
+		timestamp: Date.now(),
 	};
 };
 
