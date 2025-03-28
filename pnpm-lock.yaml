@@ -488,9 +488,6 @@ importers:
       '@mysten/suins':
         specifier: workspace:*
         version: link:../suins
-      '@mysten/suins-toolkit':
-        specifier: workspace:*
-        version: link:../suins-toolkit
       '@mysten/wallet-standard':
         specifier: workspace:*
         version: link:../wallet-standard
@@ -896,28 +893,6 @@ importers:
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.13.13)(happy-dom@16.3.0)(jsdom@25.0.1)(lightningcss@1.29.1)(msw@2.7.0(@types/node@22.13.13)(typescript@5.8.2))
-
-  packages/suins-toolkit:
-    dependencies:
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../typescript
-    devDependencies:
-      '@faker-js/faker':
-        specifier: ^9.3.0
-        version: 9.3.0
-      '@mysten/build-scripts':
-        specifier: workspace:*
-        version: link:../build-scripts
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@swc/core@1.10.4)(@types/node@22.13.13)(typescript@5.7.2)
-      typescript:
-        specifier: ^5.7.2
-        version: 5.7.2
-      vitest:
-        specifier: ^2.1.8
-        version: 2.1.8(@types/node@22.13.13)(happy-dom@16.3.0)(jsdom@25.0.1)(lightningcss@1.29.1)(msw@2.7.0(@types/node@22.13.13)(typescript@5.7.2))
 
   packages/typescript:
     dependencies:
@@ -2531,11 +2506,6 @@ packages:
   '@eslint/plugin-kit@0.2.4':
     resolution: {integrity: sha512-zSkKow6H5Kdm0ZUQUB2kV5JIXqoG0+uH5YADhaEHswm664N9Db8dXSi0nMJpacpMf+MyyglF1vnZohpEg5yUtg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@faker-js/faker@9.3.0':
-    resolution: {integrity: sha512-r0tJ3ZOkMd9xsu3VRfqlFR6cz0V/jFYRswAIpC+m/DIfAUXq7g8N7wTAlhSANySXYGKzGryfDXwtwsY8TxEIDw==}
-    engines: {node: '>=18.0.0', npm: '>=9.0.0'}
-    deprecated: Please update to a newer version
 
   '@fastify/busboy@2.1.1':
     resolution: {integrity: sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA==}
@@ -10905,8 +10875,6 @@ snapshots:
     dependencies:
       levn: 0.4.1
 
-  '@faker-js/faker@9.3.0': {}
-
   '@fastify/busboy@2.1.1': {}
 
   '@floating-ui/core@1.6.8':
@@ -18889,26 +18857,6 @@ snapshots:
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
       '@types/node': 22.10.5
-      acorn: 8.14.0
-      acorn-walk: 8.3.4
-      arg: 4.1.3
-      create-require: 1.1.1
-      diff: 4.0.2
-      make-error: 1.3.6
-      typescript: 5.7.2
-      v8-compile-cache-lib: 3.0.1
-      yn: 3.1.1
-    optionalDependencies:
-      '@swc/core': 1.10.4(@swc/helpers@0.5.15)
-
-  ts-node@10.9.2(@swc/core@1.10.4)(@types/node@22.13.13)(typescript@5.7.2):
-    dependencies:
-      '@cspotcode/source-map-support': 0.8.1
-      '@tsconfig/node10': 1.0.11
-      '@tsconfig/node12': 1.0.11
-      '@tsconfig/node14': 1.0.3
-      '@tsconfig/node16': 1.0.4
-      '@types/node': 22.13.13
       acorn: 8.14.0
       acorn-walk: 8.3.4
       arg: 4.1.3

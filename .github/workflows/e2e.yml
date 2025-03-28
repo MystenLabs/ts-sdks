@@ -39,7 +39,3 @@ jobs:
 
       - name: Run kiosk sdk e2e tests
         run: pnpm --filter @mysten/kiosk test:e2e
-
-      - name: Run suins-toolkit sdk e2e tests
-        run: pnpm --filter @mysten/suins-toolkit test:e2e
-        shell: bash

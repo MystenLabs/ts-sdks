@@ -26,7 +26,6 @@
 		"@mysten/signers": "workspace:*",
 		"@mysten/sui": "workspace:*",
 		"@mysten/suins": "workspace:*",
-		"@mysten/suins-toolkit": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
 		"@mysten/walrus": "workspace:*",
 		"@mysten/zksend": "workspace:*",
