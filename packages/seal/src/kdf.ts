@@ -42,13 +42,13 @@ export function kdf(
 			pi * COEFFICIENT_SIZE,
 		);
 	});
-	const info = new Uint8Array([...fromHex(objectId), index]);
 	const inputBytes = new Uint8Array([
 		...permutedBytes,
 		...nonce.toBytes(),
 		...G1Element.hashToCurve(id).toBytes(),
+		...fromHex(objectId),
 	]);
-	return hkdf(sha3_256, inputBytes, '', info, 32);
+	return hkdf(sha3_256, inputBytes, '', new Uint8Array([index]), 32);
 }
 
 export enum KeyPurpose {
