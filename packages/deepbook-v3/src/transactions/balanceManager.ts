@@ -3,19 +3,23 @@
 import { coinWithBalance } from '@mysten/sui/transactions';
 import type { Transaction } from '@mysten/sui/transactions';
 
-import type { DeepBookConfig } from '../utils/config.js';
+import type { Environment } from '../types/index.js';
+import { mainnetPackageIds, testnetPackageIds } from '../utils/constants.js';
 
 /**
  * BalanceManagerContract class for managing BalanceManager operations.
  */
 export class BalanceManagerContract {
-	#config: DeepBookConfig;
+	#deepbookPackageId: string;
 
 	/**
-	 * @param {DeepBookConfig} config Configuration for BalanceManagerContract
+	 * @param {Environment} env Environment for BalanceManagerContract
 	 */
-	constructor(config: DeepBookConfig) {
-		this.#config = config;
+	constructor(env: Environment) {
+		this.#deepbookPackageId =
+			env === 'mainnet'
+				? mainnetPackageIds.DEEPBOOK_PACKAGE_ID
+				: testnetPackageIds.DEEPBOOK_PACKAGE_ID;
 	}
 
 	/**
@@ -24,13 +28,13 @@ export class BalanceManagerContract {
 	 */
 	createAndShareBalanceManager = () => (tx: Transaction) => {
 		const manager = tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new`,
+			target: `${this.#deepbookPackageId}::balance_manager::new`,
 		});
 
 		tx.moveCall({
 			target: '0x2::transfer::public_share_object',
 			arguments: [manager],
-			typeArguments: [`${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::BalanceManager`],
+			typeArguments: [`${this.#deepbookPackageId}::balance_manager::BalanceManager`],
 		});
 	};
 
@@ -40,60 +44,53 @@ export class BalanceManagerContract {
 	 */
 	createAndShareBalanceManagerWithOwner = (ownerAddress: string) => (tx: Transaction) => {
 		const manager = tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new_with_owner`,
+			target: `${this.#deepbookPackageId}::balance_manager::new_with_owner`,
 			arguments: [tx.pure.address(ownerAddress)],
 		});
 
 		tx.moveCall({
 			target: '0x2::transfer::public_share_object',
 			arguments: [manager],
-			typeArguments: [`${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::BalanceManager`],
+			typeArguments: [`${this.#deepbookPackageId}::balance_manager::BalanceManager`],
 		});
 	};
 
 	/**
 	 * @description Deposit funds into the BalanceManager
-	 * @param {string} managerKey The key of the BalanceManager
-	 * @param {string} coinKey The key of the coin to deposit
+	 * @param {string} managerAddress The address of the BalanceManager
+	 * @param {string} coinType The type of the coin to deposit
 	 * @param {number} amountToDeposit The amount to deposit
 	 * @returns A function that takes a Transaction object
 	 */
 	depositIntoManager =
-		(managerKey: string, coinKey: string, amountToDeposit: number) => (tx: Transaction) => {
-			tx.setSenderIfNotSet(this.#config.address);
-			const managerId = this.#config.getBalanceManager(managerKey).address;
-			const coin = this.#config.getCoin(coinKey);
-			const depositInput = Math.round(amountToDeposit * coin.scalar);
+		(managerAddress: string, coinType: string, amountToDeposit: number) => (tx: Transaction) => {
 			const deposit = coinWithBalance({
-				type: coin.type,
-				balance: depositInput,
+				type: coinType,
+				balance: amountToDeposit,
 			});
 
 			tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::deposit`,
-				arguments: [tx.object(managerId), deposit],
-				typeArguments: [coin.type],
+				target: `${this.#deepbookPackageId}::balance_manager::deposit`,
+				arguments: [tx.object(managerAddress), deposit],
+				typeArguments: [coinType],
 			});
 		};
 
 	/**
 	 * @description Withdraw funds from the BalanceManager
-	 * @param {string} managerKey The key of the BalanceManager
-	 * @param {string} coinKey The key of the coin to withdraw
+	 * @param {string} managerAddress The address of the BalanceManager
+	 * @param {string} coinType The type of the coin to deposit
 	 * @param {number} amountToWithdraw The amount to withdraw
 	 * @param {string} recipient The recipient of the withdrawn funds
 	 * @returns A function that takes a Transaction object
 	 */
 	withdrawFromManager =
-		(managerKey: string, coinKey: string, amountToWithdraw: number, recipient: string) =>
+		(managerAddress: string, coinType: string, amountToWithdraw: number, recipient: string) =>
 		(tx: Transaction) => {
-			const managerId = this.#config.getBalanceManager(managerKey).address;
-			const coin = this.#config.getCoin(coinKey);
-			const withdrawInput = Math.round(amountToWithdraw * coin.scalar);
 			const coinObject = tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::withdraw`,
-				arguments: [tx.object(managerId), tx.pure.u64(withdrawInput)],
-				typeArguments: [coin.type],
+				target: `${this.#deepbookPackageId}::balance_manager::withdraw`,
+				arguments: [tx.object(managerAddress), tx.pure.u64(amountToWithdraw)],
+				typeArguments: [coinType],
 			});
 
 			tx.transferObjects([coinObject], recipient);
@@ -101,19 +98,17 @@ export class BalanceManagerContract {
 
 	/**
 	 * @description Withdraw all funds from the BalanceManager
-	 * @param {string} managerKey The key of the BalanceManager
-	 * @param {string} coinKey The key of the coin to withdraw
+	 * @param {string} managerAddress The address of the BalanceManager
+	 * @param {string} coinType The type of the coin to deposit
 	 * @param {string} recipient The recipient of the withdrawn funds
 	 * @returns A function that takes a Transaction object
 	 */
 	withdrawAllFromManager =
-		(managerKey: string, coinKey: string, recipient: string) => (tx: Transaction) => {
-			const managerId = this.#config.getBalanceManager(managerKey).address;
-			const coin = this.#config.getCoin(coinKey);
+		(managerAddress: string, coinType: string, recipient: string) => (tx: Transaction) => {
 			const withdrawalCoin = tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::withdraw_all`,
-				arguments: [tx.object(managerId)],
-				typeArguments: [coin.type],
+				target: `${this.#deepbookPackageId}::balance_manager::withdraw_all`,
+				arguments: [tx.object(managerAddress)],
+				typeArguments: [coinType],
 			});
 
 			tx.transferObjects([withdrawalCoin], recipient);
@@ -121,178 +116,169 @@ export class BalanceManagerContract {
 
 	/**
 	 * @description Check the balance of the BalanceManager
-	 * @param {string} managerKey The key of the BalanceManager
-	 * @param {string} coinKey The key of the coin to check the balance of
+	 * @param {string} managerAddress The address of the BalanceManager
+	 * @param {string} coinType The type of the coin to deposit
 	 * @returns A function that takes a Transaction object
 	 */
-	checkManagerBalance = (managerKey: string, coinKey: string) => (tx: Transaction) => {
-		const managerId = this.#config.getBalanceManager(managerKey).address;
-		const coin = this.#config.getCoin(coinKey);
+	checkManagerBalance = (managerAddress: string, coinType: string) => (tx: Transaction) => {
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance`,
-			arguments: [tx.object(managerId)],
-			typeArguments: [coin.type],
+			target: `${this.#deepbookPackageId}::balance_manager::balance`,
+			arguments: [tx.object(managerAddress)],
+			typeArguments: [coinType],
 		});
 	};
 
 	/**
 	 * @description Generate a trade proof for the BalanceManager. Calls the appropriate function based on whether tradeCap is set.
-	 * @param {string} managerKey The key of the BalanceManager
+	 * @param {string} managerAddress The address of the BalanceManager
+	 * @param {string} tradeCapAddress The address of the TradeCap
 	 * @returns A function that takes a Transaction object
 	 */
-	generateProof = (managerKey: string) => (tx: Transaction) => {
-		const balanceManager = this.#config.getBalanceManager(managerKey);
+	generateProof = (managerAddress: string, tradeCapAddress?: string) => (tx: Transaction) => {
 		return tx.add(
-			balanceManager.tradeCap
-				? this.generateProofAsTrader(balanceManager.address, balanceManager.tradeCap)
-				: this.generateProofAsOwner(balanceManager.address),
+			tradeCapAddress
+				? this.generateProofAsTrader(managerAddress, tradeCapAddress)
+				: this.generateProofAsOwner(managerAddress),
 		);
 	};
 
 	/**
 	 * @description Generate a trade proof as the owner
-	 * @param {string} managerId The ID of the BalanceManager
+	 * @param {string} managerAddress The address of the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	generateProofAsOwner = (managerId: string) => (tx: Transaction) => {
+	generateProofAsOwner = (managerAddress: string) => (tx: Transaction) => {
 		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::generate_proof_as_owner`,
-			arguments: [tx.object(managerId)],
+			target: `${this.#deepbookPackageId}::balance_manager::generate_proof_as_owner`,
+			arguments: [tx.object(managerAddress)],
 		});
 	};
 
 	/**
 	 * @description Generate a trade proof as a trader
-	 * @param {string} managerId The ID of the BalanceManager
-	 * @param {string} tradeCapId The ID of the tradeCap
+	 * @param {string} managerAddress The address of the BalanceManager
+	 * @param {string} tradeCapAddress The address of the TradeCap
 	 * @returns A function that takes a Transaction object
 	 */
-	generateProofAsTrader = (managerId: string, tradeCapId: string) => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::generate_proof_as_trader`,
-			arguments: [tx.object(managerId), tx.object(tradeCapId)],
-		});
-	};
+	generateProofAsTrader =
+		(managerAddress: string, tradeCapAddress: string) => (tx: Transaction) => {
+			return tx.moveCall({
+				target: `${this.#deepbookPackageId}::balance_manager::generate_proof_as_trader`,
+				arguments: [tx.object(managerAddress), tx.object(tradeCapAddress)],
+			});
+		};
 
 	/**
 	 * @description Mint a TradeCap
-	 * @param {string} managerKey The name of the BalanceManager
+	 * @param {string} managerAddress The address of the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	mintTradeCap = (managerKey: string) => (tx: Transaction) => {
-		const manager = this.#config.getBalanceManager(managerKey);
-		const managerId = manager.address;
+	mintTradeCap = (managerAddress: string) => (tx: Transaction) => {
 		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_trade_cap`,
-			arguments: [tx.object(managerId)],
+			target: `${this.#deepbookPackageId}::balance_manager::mint_trade_cap`,
+			arguments: [tx.object(managerAddress)],
 		});
 	};
 
 	/**
 	 * @description Mint a DepositCap
-	 * @param {string} managerKey The name of the BalanceManager
+	 * @param {string} managerAddress The address of the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	mintDepositCap = (managerKey: string) => (tx: Transaction) => {
-		const manager = this.#config.getBalanceManager(managerKey);
-		const managerId = manager.address;
+	mintDepositCap = (managerAddress: string) => (tx: Transaction) => {
 		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_deposit_cap`,
-			arguments: [tx.object(managerId)],
+			target: `${this.#deepbookPackageId}::balance_manager::mint_deposit_cap`,
+			arguments: [tx.object(managerAddress)],
 		});
 	};
 
 	/**
 	 * @description Mint a WithdrawalCap
-	 * @param {string} managerKey The name of the BalanceManager
+	 * @param {string} managerAddress The address of the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	mintWithdrawalCap = (managerKey: string) => (tx: Transaction) => {
-		const manager = this.#config.getBalanceManager(managerKey);
-		const managerId = manager.address;
+	mintWithdrawalCap = (managerAddress: string) => (tx: Transaction) => {
 		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_withdraw_cap`,
-			arguments: [tx.object(managerId)],
+			target: `${this.#deepbookPackageId}::balance_manager::mint_withdraw_cap`,
+			arguments: [tx.object(managerAddress)],
 		});
 	};
 
 	/**
 	 * @description Deposit using the DepositCap
-	 * @param {string} managerKey The name of the BalanceManager
-	 * @param {string} coinKey The name of the coin to deposit
+	 * @param {string} managerAddress The address of the BalanceManager
+	 * @param {string} depositCapAddress The address of the DepositCap
+	 * @param {string} coinType The type of the coin to deposit
 	 * @param {number} amountToDeposit The amount to deposit
 	 * @returns A function that takes a Transaction object
 	 */
 	depositWithCap =
-		(managerKey: string, coinKey: string, amountToDeposit: number) => (tx: Transaction) => {
-			tx.setSenderIfNotSet(this.#config.address);
-			const manager = this.#config.getBalanceManager(managerKey);
-			const managerId = manager.address;
-			if (!manager.depositCap) {
-				throw new Error(`DepositCap not set for ${managerKey}`);
-			}
-			const depositCapId = manager.depositCap;
-			const coin = this.#config.getCoin(coinKey);
-			const depositInput = Math.round(amountToDeposit * coin.scalar);
+		(
+			managerAddress: string,
+			depositCapAddress: string,
+			coinType: string,
+			amountToDeposit: number,
+		) =>
+		(tx: Transaction) => {
 			const deposit = coinWithBalance({
-				type: coin.type,
-				balance: depositInput,
+				type: coinType,
+				balance: amountToDeposit,
 			});
 			tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::deposit_with_cap`,
-				arguments: [tx.object(managerId), tx.object(depositCapId), deposit],
-				typeArguments: [coin.type],
+				target: `${this.#deepbookPackageId}::balance_manager::deposit_with_cap`,
+				arguments: [tx.object(managerAddress), tx.object(depositCapAddress), deposit],
+				typeArguments: [coinType],
 			});
 		};
 
 	/**
 	 * @description Withdraw using the WithdrawCap
-	 * @param {string} managerKey The name of the BalanceManager
-	 * @param {string} coinKey The name of the coin to withdraw
+	 * @param {string} managerAddress The address of the BalanceManager
+	 * @param {string} withdrawCapAddress The address of the DepositCap
+	 * @param {string} coinType The type of the coin to deposit
 	 * @param {number} amountToWithdraw The amount to withdraw
 	 * @returns A function that takes a Transaction object
 	 */
 	withdrawWithCap =
-		(managerKey: string, coinKey: string, amountToWithdraw: number) => (tx: Transaction) => {
-			tx.setSenderIfNotSet(this.#config.address);
-			const manager = this.#config.getBalanceManager(managerKey);
-			const managerId = manager.address;
-			if (!manager.withdrawCap) {
-				throw new Error(`WithdrawCap not set for ${managerKey}`);
-			}
-			const withdrawCapId = manager.withdrawCap;
-			const coin = this.#config.getCoin(coinKey);
-			const withdrawAmount = Math.round(amountToWithdraw * coin.scalar);
+		(
+			managerAddress: string,
+			withdrawCapAddress: string,
+			coinType: string,
+			amountToWithdraw: number,
+		) =>
+		(tx: Transaction) => {
 			return tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::withdraw_with_cap`,
-				arguments: [tx.object(managerId), tx.object(withdrawCapId), tx.pure.u64(withdrawAmount)],
-				typeArguments: [coin.type],
+				target: `${this.#deepbookPackageId}::balance_manager::withdraw_with_cap`,
+				arguments: [
+					tx.object(managerAddress),
+					tx.object(withdrawCapAddress),
+					tx.pure.u64(amountToWithdraw),
+				],
+				typeArguments: [coinType],
 			});
 		};
 
 	/**
 	 * @description Get the owner of the BalanceManager
-	 * @param {string} managerKey The key of the BalanceManager
+	 * @param {string} managerAddress The address of the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	owner = (managerKey: string) => (tx: Transaction) => {
-		const managerId = this.#config.getBalanceManager(managerKey).address;
+	owner = (managerAddress: string) => (tx: Transaction) => {
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::owner`,
-			arguments: [tx.object(managerId)],
+			target: `${this.#deepbookPackageId}::balance_manager::owner`,
+			arguments: [tx.object(managerAddress)],
 		});
 	};
 
 	/**
 	 * @description Get the ID of the BalanceManager
-	 * @param {string} managerKey The key of the BalanceManager
+	 * @param {string} managerAddress The address of the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	id = (managerKey: string) => (tx: Transaction) => {
-		const managerId = this.#config.getBalanceManager(managerKey).address;
+	id = (managerAddress: string) => (tx: Transaction) => {
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::id`,
-			arguments: [tx.object(managerId)],
+			target: `${this.#deepbookPackageId}::balance_manager::id`,
+			arguments: [tx.object(managerAddress)],
 		});
 	};
 }
