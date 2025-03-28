@@ -59,11 +59,6 @@ export const StashedResponseData = variant('type', [
 		bytes: string(),
 		signature: string(),
 	}),
-	object({
-		type: literal('sign-and-execute'),
-		bytes: string(),
-		signature: string(),
-	}),
 ]);
 export type StashedResponseData = InferOutput<typeof StashedResponseData>;
 
