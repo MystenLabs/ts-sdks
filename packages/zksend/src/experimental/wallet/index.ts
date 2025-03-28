@@ -218,18 +218,13 @@ export class StashedWallet implements Wallet {
 
 		const data = await tx.toJSON();
 
-		const response = await popup
-			.send({
-				type: 'sign-and-execute-transaction',
-				transaction: data,
-				address: account.address,
-				chain,
-				session: getStashedSession().token,
-			})
-			.catch((error) => {
-				throw error;
-			});
-
+		const response = await popup.send({
+			type: 'sign-and-execute-transaction',
+			transaction: data,
+			address: account.address,
+			chain,
+			session: getStashedSession().token,
+		});
 		return {
 			bytes: response.bytes,
 			signature: response.signature,
