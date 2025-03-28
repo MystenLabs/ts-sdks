@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Transaction } from '@mysten/sui/transactions';
-import { toBase64 } from '@mysten/sui/utils';
+import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import type {
 	StandardConnectFeature,
 	StandardConnectMethod,
@@ -43,7 +43,7 @@ let stashedWalletOrigin: string;
 let walletStatusIntervalId: NodeJS.Timeout | null = null;
 
 export const STASHED_WALLET_NAME = 'Stashed' as const;
-type StashedAccount = { address: string; publicKey?: Uint8Array };
+type StashedAccount = { address: string; publicKey?: string };
 
 const getStashedSession = (): { accounts: StashedAccount[]; token: string } => {
 	const { accounts = [], token } = JSON.parse(localStorage.getItem(STASHED_SESSION_KEY) || '{}');
@@ -256,7 +256,7 @@ export class StashedWallet implements Wallet {
 					address: account.address,
 					chains: [SUI_MAINNET_CHAIN],
 					features: ['sui:signTransactionBlock', 'sui:signPersonalMessage'],
-					publicKey: account.publicKey ? account.publicKey : new Uint8Array(),
+					publicKey: account.publicKey ? fromBase64(account.publicKey) : new Uint8Array(),
 				});
 			});
 		} else {
