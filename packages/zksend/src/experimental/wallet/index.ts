@@ -43,10 +43,11 @@ let stashedWalletOrigin: string;
 let walletStatusIntervalId: NodeJS.Timeout | null = null;
 
 export const STASHED_WALLET_NAME = 'Stashed' as const;
+type StashedAccount = { address: string; publicKey?: Uint8Array };
 
-const getStashedSession = () => {
-	const { addresses = [], token } = JSON.parse(localStorage.getItem(STASHED_SESSION_KEY) || '{}');
-	return { addresses, token };
+const getStashedSession = (): { accounts: StashedAccount[]; token: string } => {
+	const { accounts = [], token } = JSON.parse(localStorage.getItem(STASHED_SESSION_KEY) || '{}');
+	return { accounts, token };
 };
 
 const getPostMessagePayload = () => {
@@ -144,7 +145,7 @@ export class StashedWallet implements Wallet {
 		this.#chain = chain;
 
 		if (address) {
-			this.#setAccounts([address]);
+			this.#setAccounts([{ address }]);
 		}
 	}
 
@@ -230,14 +231,14 @@ export class StashedWallet implements Wallet {
 	};
 
 	removeAccount(address: string) {
-		const { addresses, token } = getStashedSession();
+		const { accounts, token } = getStashedSession();
 
-		if (addresses.includes(address)) {
-			addresses.splice(addresses.indexOf(address), 1);
+		const filteredAccounts = accounts.filter((account) => account.address !== address);
+		if (filteredAccounts.length !== accounts.length) {
 			localStorage.setItem(
 				STASHED_SESSION_KEY,
 				JSON.stringify({
-					addresses,
+					accounts: filteredAccounts,
 					token,
 				}),
 			);
@@ -248,15 +249,14 @@ export class StashedWallet implements Wallet {
 		this.#events.emit('change', { accounts: this.accounts });
 	}
 
-	#setAccounts(addresses?: string[]) {
-		if (addresses && addresses.length) {
-			this.#accounts = addresses.map((address) => {
+	#setAccounts(accounts?: StashedAccount[]) {
+		if (accounts && accounts.length) {
+			this.#accounts = accounts.map((account) => {
 				return new ReadonlyWalletAccount({
-					address,
+					address: account.address,
 					chains: [SUI_MAINNET_CHAIN],
 					features: ['sui:signTransactionBlock', 'sui:signPersonalMessage'],
-					// NOTE: Stashed doesn't support getting public keys, and zkLogin accounts don't have meaningful public keys anyway
-					publicKey: new Uint8Array(),
+					publicKey: account.publicKey ? account.publicKey : new Uint8Array(),
 				});
 			});
 		} else {
@@ -268,10 +268,10 @@ export class StashedWallet implements Wallet {
 
 	#connect: StandardConnectMethod = async (input) => {
 		if (input?.silent) {
-			const { addresses } = getStashedSession();
+			const { accounts } = getStashedSession();
 
-			if (addresses.length) {
-				this.#setAccounts(addresses);
+			if (accounts.length) {
+				this.#setAccounts(accounts);
 			}
 
 			embedStashedIframe();
@@ -290,16 +290,16 @@ export class StashedWallet implements Wallet {
 			network: this.#network,
 		});
 
-		if (!('addresses' in response)) {
+		if (!('accounts' in response)) {
 			throw new Error('Unexpected response');
 		}
 
 		localStorage.setItem(
 			STASHED_SESSION_KEY,
-			JSON.stringify({ addresses: response.addresses, token: response.session }),
+			JSON.stringify({ accounts: response.accounts, token: response.session }),
 		);
 
-		this.#setAccounts(response.addresses);
+		this.#setAccounts(response.accounts);
 
 		embedStashedIframe();
 
