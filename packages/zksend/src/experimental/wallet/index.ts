@@ -11,6 +11,7 @@ import type {
 	StandardEventsFeature,
 	StandardEventsListeners,
 	StandardEventsOnMethod,
+	SuiChain,
 	SuiSignPersonalMessageFeature,
 	SuiSignPersonalMessageMethod,
 	SuiSignTransactionBlockFeature,
@@ -66,7 +67,7 @@ export class StashedWallet implements Wallet {
 	#origin: string;
 	#name: string;
 	#network: StashedSupportedNetwork;
-
+	#chain: SuiChain;
 	get name() {
 		return STASHED_WALLET_NAME;
 	}
@@ -126,17 +127,20 @@ export class StashedWallet implements Wallet {
 		network,
 		address,
 		origin = DEFAULT_STASHED_ORIGIN,
+		chain = SUI_MAINNET_CHAIN,
 	}: {
 		name: string;
 		network: StashedSupportedNetwork;
 		origin?: string;
 		address?: string | null;
+		chain?: SuiChain;
 	}) {
 		this.#accounts = [];
 		this.#events = mitt();
 		this.#origin = origin;
 		this.#name = name;
 		this.#network = network;
+		this.#chain = chain;
 
 		if (address) {
 			this.#setAccounts([address]);
@@ -146,17 +150,18 @@ export class StashedWallet implements Wallet {
 	#signTransactionBlock: SuiSignTransactionBlockMethod = async ({ transactionBlock, account }) => {
 		transactionBlock.setSenderIfNotSet(account.address);
 
-		const data = transactionBlock.serialize();
+		const data = await transactionBlock.toJSON();
 
 		const popup = new StashedPopup({
 			name: this.#name,
 			origin: this.#origin,
 			network: this.#network,
+			chain: this.#chain,
 		});
 
 		const response = await popup.send({
 			type: 'sign-transaction-block',
-			data,
+			transaction: data,
 			address: account.address,
 			network: this.#network,
 			session: getStashedSession().token,
@@ -173,16 +178,17 @@ export class StashedWallet implements Wallet {
 			name: this.#name,
 			origin: this.#origin,
 			network: this.#network,
+			chain: this.#chain,
 		});
 
 		const tx = Transaction.from(await transaction.toJSON());
 		tx.setSenderIfNotSet(account.address);
 
-		const data = tx.serialize();
+		const data = await tx.toJSON();
 
 		const response = await popup.send({
 			type: 'sign-transaction-block',
-			data,
+			transaction: data,
 			address: account.address,
 			network: this.#network,
 			session: getStashedSession().token,
@@ -199,6 +205,7 @@ export class StashedWallet implements Wallet {
 			name: this.#name,
 			origin: this.#origin,
 			network: this.#network,
+			chain: this.#chain,
 		});
 		const bytes = toBase64(message);
 
@@ -274,6 +281,7 @@ export class StashedWallet implements Wallet {
 			name: this.#name,
 			origin: this.#origin,
 			network: this.#network,
+			chain: this.#chain,
 		});
 
 		const response = await popup.send({
