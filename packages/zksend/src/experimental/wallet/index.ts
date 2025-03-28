@@ -168,8 +168,6 @@ export class StashedWallet implements Wallet {
 			session: getStashedSession().token,
 		});
 
-		console.log('response', response);
-
 		return {
 			transactionBlockBytes: response.bytes,
 			signature: response.signature,
@@ -287,13 +285,10 @@ export class StashedWallet implements Wallet {
 			chain: this.#chain,
 		});
 
-		console.log('popup', popup);
 		const response = await popup.send({
 			type: 'connect',
 			network: this.#network,
 		});
-
-		console.log('response', response);
 
 		if (!('addresses' in response)) {
 			throw new Error('Unexpected response');
@@ -391,7 +386,6 @@ export function registerStashedWallet(
 	} = {},
 ) {
 	const wallets = getWallets();
-	console.log('wallets', wallets);
 
 	let addressFromRedirect: string | null = null;
 

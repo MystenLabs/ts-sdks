@@ -146,13 +146,11 @@ export class StashedHost {
 	}
 
 	static fromUrl(url: string = window.location.href) {
-		console.log('from url', url);
 		const parsed = new URL(url);
 		const hash = parsed.hash.slice(1); // Remove the # character
 		const { requestId, appOrigin, appName, version, ...rest } = JSON.parse(
 			atob(decodeURIComponent(hash)),
 		);
-		console.log('parsitng request', { version, requestId, appOrigin, appName, rest });
 		const request = parse(StashedRequest, {
 			version,
 			requestId,
@@ -164,7 +162,6 @@ export class StashedHost {
 			},
 		});
 
-		console.log('request', request);
 		return new StashedHost(request);
 	}
 
