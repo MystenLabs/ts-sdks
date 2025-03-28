@@ -68,6 +68,21 @@ export const ObjectArg = bcs.enum('ObjectArg', {
 	Receiving: SuiObjectRef,
 });
 
+export const Owner = bcs.enum('Owner', {
+	AddressOwner: Address,
+	ObjectOwner: Address,
+	Shared: bcs.struct('Shared', {
+		initialSharedVersion: bcs.u64(),
+	}),
+	Immutable: null,
+	ConsensusV2: bcs.struct('ConsensusV2', {
+		authenticator: bcs.struct('Authenticator', {
+			SingleOwner: bcs.string(),
+		}),
+		startVersion: bcs.string(),
+	}),
+});
+
 export const CallArg = bcs.enum('CallArg', {
 	Pure: bcs.struct('Pure', {
 		bytes: bcs.vector(bcs.u8()).transform({
