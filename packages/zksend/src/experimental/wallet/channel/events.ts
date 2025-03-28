@@ -42,7 +42,7 @@ export const StashedResponseData = variant('type', [
 		accounts: array(
 			object({
 				address: string('`address` is required'),
-				publicKey: optional(string(), '`publicKey` must be a string'),
+				publicKey: optional(string('`publicKey` must be a string')),
 			}),
 		),
 		session: string('`session` is required'),
