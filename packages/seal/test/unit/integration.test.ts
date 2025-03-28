@@ -220,7 +220,7 @@ describe('Integration test', () => {
 		// client with only 2 servers should suffice
 		const client2Servers = new SealClient({
 			suiClient,
-			serverObjectIds: objectIds,
+			serverObjectIds: objectIds.slice(0, 2),
 			verifyKeyServers: false,
 		});
 
