@@ -148,7 +148,6 @@ describe('Seal encryption tests', () => {
 					[`${id}:${objectId2}`, usk2],
 					[`${id}:${objectId3}`, usk3],
 				]),
-				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(msg);
 
@@ -159,7 +158,6 @@ describe('Seal encryption tests', () => {
 					[`${id}:${objectId2}`, usk2],
 					[`${id}:${objectId3}`, usk3],
 				]),
-				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(msg);
 
@@ -167,7 +165,6 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>([[`${id}:${objectId1}`, usk1]]),
-				publicKeys: [pk1, pk2, pk3],
 			}),
 		).rejects.toThrow();
 	});
@@ -246,7 +243,6 @@ describe('Seal encryption tests', () => {
 					[`${id}:${objectId2}`, usk2],
 					[`${id}:${objectId3}`, usk3],
 				]),
-				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(msg);
 
@@ -257,7 +253,6 @@ describe('Seal encryption tests', () => {
 					[`${id}:${objectId2}`, usk2],
 					[`${id}:${objectId3}`, usk3],
 				]),
-				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(msg);
 
@@ -265,7 +260,6 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>([[`${id}:${objectId1}`, usk1]]),
-				publicKeys: [pk1, pk2, pk3],
 			}),
 		).rejects.toThrow();
 	});
@@ -327,7 +321,6 @@ describe('Seal encryption tests', () => {
 					[`${id}:${objectId2}`, usk2],
 					[`${id}:${objectId3}`, usk3],
 				]),
-				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(key);
 
@@ -338,7 +331,6 @@ describe('Seal encryption tests', () => {
 					[`${id}:${objectId2}`, usk2],
 					[`${id}:${objectId3}`, usk3],
 				]),
-				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(key);
 
@@ -346,7 +338,6 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>([[`${id}:${objectId1}`, usk1]]),
-				publicKeys: [pk1, pk2, pk3],
 			}),
 		).rejects.toThrow();
 	});
@@ -365,7 +356,7 @@ describe('Seal encryption tests', () => {
 			G2Element.generator().multiply(Scalar.fromNumber(12345)),
 		);
 		const nonce = G2Element.generator().multiply(Scalar.fromNumber(12345));
-		const key = kdf(x, nonce, nonce, new Uint8Array([0]), new Uint8Array([]));
+		const key = kdf(x, nonce, new Uint8Array([0]), '0x0000000000000000000000000000000000000000000000000000000000000000', 42);
 		expect(key).toEqual(
 			fromHex('b037a9c0a1f7f6abeaad0f5da4d84c194c51536666ca3a7ea84ece820e180a1d'),
 		);
@@ -379,22 +370,6 @@ describe('Seal encryption tests', () => {
 		);
 		const parsed = EncryptedObject.parse(encryptedObject);
 		const id = createFullId(DST, parsed.packageId, parsed.id);
-
-		let pk0 = G2Element.fromBytes(
-			fromHex(
-				'aeb258b9fb9a2f29f74eb0a1a895860bb1c6ba3f9ea7075366de159e4764413e9ec0597ac9c0dad409723935440a45f40eee4728630ae3ea40a68a819375bba1d78d7810f901d8a469d785d00cfed6bd28f01d41e49c5652d924e9d19fddcf62',
-			),
-		);
-		let pk1 = G2Element.fromBytes(
-			fromHex(
-				'b1076a26f4f82f39d0e767fcd2118659362afe40bce4e8d553258c86756bb74f888bca79f2d6b71edf6e25af89efa83713a223b48a19d2e551897ac92ac7458336cd489be3be025e348ca93f4c94d22594f96f0e08990e51a7de9da8ff29c98f',
-			),
-		);
-		let pk2 = G2Element.fromBytes(
-			fromHex(
-				'95fcb465af3791f31d53d80db6c8dcf9f83a419b2570614ecfbb068f47613da17cb9ffc66bb052b9546f17196929538f0bd2d38e1f515d9916e2db13dc43e0ccbd4cb3d7cbb13ffecc0b68b37481ebaaaa17cad18096a9c2c27a797f17d78623',
-			),
-		);
 
 		let usk0 = G1Element.fromBytes(
 			fromHex(
@@ -418,7 +393,6 @@ describe('Seal encryption tests', () => {
 					[`${id}:${objectId0}`, usk0],
 					[`${id}:${objectId1}`, usk1],
 				]),
-				publicKeys: [pk0, pk1, pk2],
 			}),
 		).resolves.toEqual(msg);
 	});
@@ -457,7 +431,6 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>([[`${id}:${objectId1}`, usk1]]),
-				publicKeys: [pk1],
 			}),
 		).resolves.toEqual(msg);
 
@@ -465,7 +438,6 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>(),
-				publicKeys: [pk1],
 			}),
 		).rejects.toThrow();
 	});
@@ -525,7 +497,6 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>([[`${id}:${objectId1}`, usk1]]),
-				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(msg);
 
@@ -533,7 +504,6 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>([[`${id}:${objectId2}`, usk2]]),
-				publicKeys: [pk1, pk2, pk3],
 			}),
 		).resolves.toEqual(msg);
 
@@ -541,7 +511,6 @@ describe('Seal encryption tests', () => {
 			decrypt({
 				encryptedObject: parsed,
 				keys: new Map<KeyCacheKey, G1Element>(),
-				publicKeys: [pk1, pk2, pk3],
 			}),
 		).rejects.toThrow();
 	});

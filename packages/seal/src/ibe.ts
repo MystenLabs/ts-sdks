@@ -46,7 +46,7 @@ export abstract class IBEServers {
 	 */
 	abstract encryptBatched(
 		id: Uint8Array,
-		msgAndInfos: { msg: Uint8Array; info: Uint8Array }[],
+		msgAndInfos: { msg: Uint8Array; index: number }[],
 		randomnessKey: Uint8Array,
 	): typeof IBEEncryptions.$inferType;
 }
@@ -65,7 +65,7 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 
 	encryptBatched(
 		id: Uint8Array,
-		msgAndInfos: { msg: Uint8Array; info: Uint8Array }[],
+		msgAndInfos: { msg: Uint8Array; index: number }[],
 		randomnessKey: Uint8Array,
 	): typeof IBEEncryptions.$inferType {
 		if (this.publicKeys.length === 0 || this.publicKeys.length !== msgAndInfos.length) {
@@ -73,7 +73,7 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 		}
 		const [r, nonce, keys] = encapBatched(this.publicKeys, id);
 		const encryptedShares = msgAndInfos.map((msgAndInfo, i) =>
-			xor(msgAndInfo.msg, kdf(keys[i], nonce, this.publicKeys[i], id, msgAndInfo.info)),
+			xor(msgAndInfo.msg, kdf(keys[i], nonce, id, this.objectIds[i], msgAndInfo.index)),
 		);
 		const encryptedRandomness = xor(randomnessKey, r.toBytes());
 
@@ -112,12 +112,11 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 	static decrypt(
 		nonce: G2Element,
 		sk: G1Element,
-		pk: G2Element,
 		ciphertext: Uint8Array,
 		id: Uint8Array,
-		info: Uint8Array,
+		[objectId, index]: [string, number],
 	): Uint8Array {
-		return xor(ciphertext, kdf(decap(nonce, sk), nonce, pk, id, info));
+		return xor(ciphertext, kdf(decap(nonce, sk), nonce, id, objectId, index));
 	}
 }
 

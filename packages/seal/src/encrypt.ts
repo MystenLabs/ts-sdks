@@ -75,7 +75,7 @@ export async function encrypt({
 		fromHex(fullId),
 		shares.map(({ share, index }) => ({
 			msg: share,
-			info: new Uint8Array([index]),
+			index: index,
 		})),
 		deriveKey(KeyPurpose.EncryptedRandomness, key),
 	);
@@ -113,7 +113,7 @@ function encryptBatched(
 	keyServers: KeyServer[],
 	kemType: KemType,
 	id: Uint8Array,
-	shares: { msg: Uint8Array; info: Uint8Array }[],
+	shares: { msg: Uint8Array; index: number }[],
 	randomnessKey: Uint8Array,
 ): typeof IBEEncryptions.$inferType {
 	switch (kemType) {

@@ -139,18 +139,7 @@ export class SealClient {
 			threshold: encryptedObject.threshold,
 		});
 
-		// Get the public keys for the key servers that are in the encrypted object.
-		const publicKeys = await Promise.all(
-			encryptedObject.services.map(async ([objectId, _]) => {
-				const server = (await this.getKeyServers()).find((server) => server.objectId === objectId);
-				if (!server) {
-					throw new InvalidKeyServerError(`Key server ${objectId} not found`);
-				}
-				return G2Element.fromBytes(server.pk);
-			}),
-		);
-
-		return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys });
+		return decrypt({ encryptedObject, keys: this.#cachedKeys });
 	}
 
 	#validateEncryptionServices(services: string[], threshold: number) {

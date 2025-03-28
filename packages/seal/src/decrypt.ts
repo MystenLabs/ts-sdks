@@ -17,7 +17,6 @@ import { createFullId } from './utils.js';
 export interface DecryptOptions {
 	encryptedObject: typeof EncryptedObject.$inferType;
 	keys: Map<KeyCacheKey, G1Element>;
-	publicKeys: G2Element[];
 }
 
 /**
@@ -27,11 +26,7 @@ export interface DecryptOptions {
  *
  * @returns - The decrypted plaintext corresponding to ciphertext.
  */
-export async function decrypt({
-	encryptedObject,
-	keys,
-	publicKeys,
-}: DecryptOptions): Promise<Uint8Array> {
+export async function decrypt({ encryptedObject, keys }: DecryptOptions): Promise<Uint8Array> {
 	if (!encryptedObject.encryptedShares.BonehFranklinBLS12381) {
 		throw new UnsupportedFeatureError('Encryption mode not supported');
 	}
@@ -60,14 +55,12 @@ export async function decrypt({
 	const shares = inKeystore.map((i: number) => {
 		const [objectId, index] = encryptedObject.services[i];
 		// Use the index as the unique info parameter to allow for multiple shares per key server.
-		const info = new Uint8Array([index]);
 		const share = BonehFranklinBLS12381Services.decrypt(
 			nonce,
 			keys.get(`${fullId}:${objectId}`)!,
-			publicKeys[i],
 			encryptedShares[i],
 			fromHex(fullId),
-			info,
+			[objectId, index],
 		);
 		// The Shamir secret sharing library expects the index/x-coordinate to be at the end of the share.
 		return { index, share };
