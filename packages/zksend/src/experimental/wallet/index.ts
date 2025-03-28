@@ -230,11 +230,8 @@ export class StashedWallet implements Wallet {
 				session: getStashedSession().token,
 			})
 			.catch((error) => {
-				console.log('eror ', error);
 				throw error;
 			});
-
-		console.log('response', response);
 
 		return {
 			bytes: response.bytes,
@@ -422,7 +419,6 @@ export function registerStashedWallet(
 		network?: StashedSupportedNetwork;
 	} = {},
 ) {
-	console.log('Registering Stashed Wallet');
 	const wallets = getWallets();
 
 	let addressFromRedirect: string | null = null;
