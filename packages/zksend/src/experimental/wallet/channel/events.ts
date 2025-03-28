@@ -27,7 +27,6 @@ export const StashedRequestData = variant('type', [
 		message: string('`message` is required'),
 		address: string('`address` is required'),
 		session: string('`session` is required'),
-		chain: string('`chain` is required'),
 	}),
 ]);
 export type StashedRequestData = InferOutput<typeof StashedRequestData>;

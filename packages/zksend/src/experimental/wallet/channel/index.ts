@@ -142,6 +142,7 @@ export class StashedHost {
 		const { requestId, appOrigin, appName, version, ...rest } = JSON.parse(
 			atob(decodeURIComponent(hash)),
 		);
+		console.log('rest', rest);
 
 		const request = parse(StashedRequest, {
 			version,

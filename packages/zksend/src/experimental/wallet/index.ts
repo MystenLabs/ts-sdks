@@ -241,20 +241,20 @@ export class StashedWallet implements Wallet {
 		};
 	};
 
-	#signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message, account, chain }) => {
+	#signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message, account }) => {
 		const popup = new StashedPopup({
 			name: this.#name,
 			origin: this.#origin,
-			chain,
 		});
 
 		const response = await popup.send({
 			type: 'sign-personal-message',
 			message: toBase64(message),
 			address: account.address,
-			chain: chain ?? SUI_MAINNET_CHAIN,
 			session: getStashedSession().token,
 		});
+
+		console.log('response', response);
 
 		return {
 			bytes: response.bytes,
