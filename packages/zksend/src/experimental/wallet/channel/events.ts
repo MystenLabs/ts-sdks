@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { InferOutput } from 'valibot';
-import { array, literal, object, optional, pipe, string, url, uuid, variant } from 'valibot';
+import { array, literal, object, pipe, string, url, uuid, variant } from 'valibot';
 
 export const StashedRequestData = variant('type', [
 	object({
@@ -11,7 +11,7 @@ export const StashedRequestData = variant('type', [
 	}),
 	object({
 		type: literal('sign-transaction-block'),
-		data: string('`data` is required'),
+		transaction: string('`transaction` is required'),
 		address: string('`address` is required'),
 		network: string('`network` is required'),
 		session: string('`session` is required'),
