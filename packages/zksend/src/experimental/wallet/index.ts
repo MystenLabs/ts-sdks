@@ -54,9 +54,9 @@ const getStashedSession = (): { accounts: StashedAccount[]; token: string } => {
 const getPostMessagePayload = () => {
 	return {
 		version: PACKAGE_VERSION,
-		origin_url: window.location.href,
-		user_agent: navigator.userAgent,
-		screen_resolution: `${window.screen.width}x${window.screen.height}`,
+		originUrl: window.location.href,
+		userAgent: navigator.userAgent,
+		screenResolution: `${window.screen.width}x${window.screen.height}`,
 		language: navigator.language,
 		platform: navigator.platform,
 		timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
