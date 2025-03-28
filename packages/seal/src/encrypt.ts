@@ -75,7 +75,7 @@ export async function encrypt({
 		fromHex(fullId),
 		shares.map(({ share, index }) => ({
 			msg: share,
-			index: index,
+			index,
 		})),
 		deriveKey(KeyPurpose.EncryptedRandomness, key),
 	);

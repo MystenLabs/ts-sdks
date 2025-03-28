@@ -1,13 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { fromHex } from '@mysten/bcs';
 import { hkdf } from '@noble/hashes/hkdf';
 import { hmac } from '@noble/hashes/hmac';
 import { sha3_256 } from '@noble/hashes/sha3';
 
 import { G1Element } from './bls12381.js';
 import type { G2Element, GTElement } from './bls12381.js';
-import { fromHex } from '@mysten/bcs';
 
 /**
  * The default key derivation function.
@@ -46,9 +46,9 @@ export function kdf(
 		...permutedBytes,
 		...nonce.toBytes(),
 		...G1Element.hashToCurve(id).toBytes(),
-		...fromHex(objectId),
 	]);
-	return hkdf(sha3_256, inputBytes, '', new Uint8Array([index]), 32);
+	const info = new Uint8Array([...fromHex(objectId), index]);
+	return hkdf(sha3_256, inputBytes, '', info, 32);
 }
 
 export enum KeyPurpose {
