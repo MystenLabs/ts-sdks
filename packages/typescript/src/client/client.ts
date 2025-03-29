@@ -532,6 +532,9 @@ export class SuiClient extends Experimental_SuiClient implements SelfRegistering
 	 * Get events for a given query criteria
 	 */
 	async queryEvents(input: QueryEventsParams): Promise<PaginatedEvents> {
+		if (Object.keys(input.query).length > 1)
+			throw new Error('Invalid query parameters, please provide only one query object');
+
 		return await this.transport.request({
 			method: 'suix_queryEvents',
 			params: [
