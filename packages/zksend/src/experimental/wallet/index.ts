@@ -43,9 +43,7 @@ type WalletEventsMap = {
 
 const STASHED_SESSION_KEY = 'stashed:session';
 
-let walletStatusCheckEnabled = false;
 let stashedWalletOrigin: string;
-let walletStatusIntervalId: NodeJS.Timeout | null = null;
 
 export const STASHED_WALLET_NAME = 'Stashed' as const;
 type StashedAccount = { address: string; publicKey?: string };
@@ -74,6 +72,8 @@ export class StashedWallet implements Wallet {
 	#origin: string;
 	#name: string;
 	#embeddedIframe: HTMLIFrameElement | null;
+	#walletStatusCheckEnabled: boolean;
+	#walletStatusIntervalId: NodeJS.Timeout | null = null;
 
 	get name() {
 		return STASHED_WALLET_NAME;
@@ -147,10 +147,12 @@ export class StashedWallet implements Wallet {
 		this.#origin = origin;
 		this.#name = name;
 		this.#embeddedIframe = null;
+		this.#walletStatusCheckEnabled = false;
+		this.#walletStatusIntervalId = null;
 	}
 
 	#handleWalletStatusMessage = (event: MessageEvent) => {
-		if (event.origin !== stashedWalletOrigin || !walletStatusCheckEnabled) return;
+		if (event.origin !== stashedWalletOrigin || !this.#walletStatusCheckEnabled) return;
 		try {
 			const message = parse(IframeMessageWalletStatusPayload, event.data);
 			if (message.type === 'WALLET_STATUS') {
@@ -164,7 +166,15 @@ export class StashedWallet implements Wallet {
 				});
 			}
 		} catch (error) {
-			console.debug('Invalid wallet status message:', error);
+			console.warn('Invalid wallet status message:', error);
+		}
+	};
+
+	// Function to clear the interval
+	#clearWalletStatusInterval = () => {
+		if (this.#walletStatusIntervalId !== null) {
+			clearInterval(this.#walletStatusIntervalId);
+			this.#walletStatusIntervalId = null;
 		}
 	};
 
@@ -176,22 +186,26 @@ export class StashedWallet implements Wallet {
 			this.#embeddedIframe.src = `${stashedWalletOrigin}/embed`;
 			document.body.appendChild(this.#embeddedIframe);
 
-			walletStatusCheckEnabled = true;
-			walletStatusIntervalId = setInterval(() => {
-				if (!walletStatusCheckEnabled || !this.#embeddedIframe) return;
-				this.#embeddedIframe.contentWindow?.postMessage(
-					{
-						type: 'WALLET_STATUS_REQUEST',
-						payload: getPostMessagePayload(),
-						session: getStashedSession().token,
-					},
-					stashedWalletOrigin,
-				);
-			}, 1000);
+			this.#walletStatusCheckEnabled = true;
+
+			// Wait 5 seconds before checking wallet status to avoid race condition which returns empty accounts
+			setTimeout(() => {
+				this.#walletStatusIntervalId = setInterval(() => {
+					if (!this.#walletStatusCheckEnabled || !this.#embeddedIframe) return;
+					this.#embeddedIframe.contentWindow?.postMessage(
+						{
+							type: 'WALLET_STATUS_REQUEST',
+							payload: getPostMessagePayload(),
+							session: getStashedSession().token,
+						},
+						stashedWalletOrigin,
+					);
+				}, 1000);
+			}, 5000);
 
 			window.addEventListener('message', this.#handleWalletStatusMessage);
 		} catch (error) {
-			console.debug('Wallet status check setup failed:', error);
+			console.warn('Wallet status check setup failed:', error);
 		}
 	};
 
@@ -320,6 +334,10 @@ export class StashedWallet implements Wallet {
 
 		this.#accounts = this.#accounts.filter((account) => account.address !== address);
 
+		if (this.#accounts.length === 0) {
+			this.#handleWalletIframeDisconnect();
+		}
+
 		this.#events.emit('change', { accounts: this.accounts });
 	}
 
@@ -377,6 +395,18 @@ export class StashedWallet implements Wallet {
 		return { accounts: this.accounts };
 	};
 
+	#handleWalletIframeDisconnect = () => {
+		this.#walletStatusCheckEnabled = false;
+
+		setTimeout(() => {
+			if (this.#embeddedIframe) {
+				document.body.removeChild(this.#embeddedIframe);
+			}
+			window.removeEventListener('message', () => {});
+			this.#clearWalletStatusInterval();
+		}, 2000);
+	};
+
 	#disconnect: StandardDisconnectMethod = async () => {
 		this.#embeddedIframe?.contentWindow?.postMessage(
 			{
@@ -391,22 +421,8 @@ export class StashedWallet implements Wallet {
 
 		this.#setAccounts();
 
-		setTimeout(() => {
-			if (this.#embeddedIframe) {
-				document.body.removeChild(this.#embeddedIframe);
-			}
-			window.removeEventListener('message', () => {});
-			clearWalletStatusInterval();
-		}, 2000);
+		this.#handleWalletIframeDisconnect();
 	};
-}
-
-// Function to clear the interval
-function clearWalletStatusInterval() {
-	if (walletStatusIntervalId !== null) {
-		clearInterval(walletStatusIntervalId);
-		walletStatusIntervalId = null;
-	}
 }
 
 export function registerStashedWallet(
