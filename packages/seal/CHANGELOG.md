@@ -1,5 +1,11 @@
 # @mysten/seal
 
+## 0.3.2
+
+### Patch Changes
+
+- d899c1d: Expose EncryptedObject
+
 ## 0.3.1
 
 ### Patch Changes
