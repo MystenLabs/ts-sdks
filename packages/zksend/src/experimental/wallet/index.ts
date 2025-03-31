@@ -148,41 +148,46 @@ export class StashedWallet implements Wallet {
 	}
 
 	#embedStashedIframe = () => {
-		/* @ts-ignore */
-		this.#embeddedIframe = document.createElement('iframe');
-		this.#embeddedIframe.style.display = 'none';
-		this.#embeddedIframe.src = `${stashedWalletOrigin}/embed`;
-		document.body.appendChild(this.#embeddedIframe);
-		// every second, check if the wallet is connected
-		walletStatusCheckEnabled = true;
-		walletStatusIntervalId = setInterval(() => {
-			if (!walletStatusCheckEnabled || !this.#embeddedIframe) return;
-			this.#embeddedIframe.contentWindow?.postMessage(
-				{
-					type: 'WALLET_STATUS_REQUEST',
-					payload: getPostMessagePayload(),
-					session: getStashedSession().token,
-				},
-				stashedWalletOrigin,
-			);
-		}, 1000);
+		try {
+			/* @ts-ignore */
+			this.#embeddedIframe = document.createElement('iframe');
+			this.#embeddedIframe.style.display = 'none';
+			this.#embeddedIframe.src = `${stashedWalletOrigin}/embed`;
+			document.body.appendChild(this.#embeddedIframe);
+			// every second, check if the wallet is connected
+			walletStatusCheckEnabled = true;
+			walletStatusIntervalId = setInterval(() => {
+				if (!walletStatusCheckEnabled || !this.#embeddedIframe) return;
+				this.#embeddedIframe.contentWindow?.postMessage(
+					{
+						type: 'WALLET_STATUS_REQUEST',
+						payload: getPostMessagePayload(),
+						session: getStashedSession().token,
+					},
+					stashedWalletOrigin,
+				);
+			}, 1000);
 
-		window.addEventListener('message', (event) => {
-			if (event.origin !== stashedWalletOrigin) return;
-			const { type, payload } = event.data;
+			window.addEventListener('message', (event) => {
+				if (event.origin !== stashedWalletOrigin) return;
+				const { type, payload } = event.data;
 
-			if (type === 'WALLET_STATUS') {
-				if (!walletStatusCheckEnabled) return;
-				this.#accounts.forEach((account) => {
-					const foundAddress = (payload?.accounts || []).some((item: any) => {
-						return item.account.address === account.address;
+				if (type === 'WALLET_STATUS') {
+					if (!walletStatusCheckEnabled) return;
+					this.#accounts.forEach((account) => {
+						const foundAddress = (payload?.accounts || []).some((item: any) => {
+							return item.account.address === account.address;
+						});
+						if (!foundAddress) {
+							this.removeAccount(account.address);
+						}
 					});
-					if (!foundAddress) {
-						this.removeAccount(account.address);
-					}
-				});
-			}
-		});
+				}
+			});
+		} catch (error) {
+			// Silently handle any errors in the wallet status check
+			console.debug('Wallet status check setup failed:', error);
+		}
 	};
 
 	#signTransactionBlock: SuiSignTransactionBlockMethod = async ({
