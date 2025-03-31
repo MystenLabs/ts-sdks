@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.26.0
+
+### Minor Changes
+
+- 906dd14: Parallel Executor: add additional signatures
+
 ## 1.25.0
 
 ### Minor Changes
