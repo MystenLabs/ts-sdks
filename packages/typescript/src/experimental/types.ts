@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 /* eslint-disable @typescript-eslint/ban-types */
 
-import type { Experimental_SuiClient } from './client.js';
+import type { Experimental_BaseClient } from './client.js';
 
 export type SuiClientRegistration<
-	T extends Experimental_SuiClient = Experimental_SuiClient,
+	T extends Experimental_BaseClient = Experimental_BaseClient,
 	Name extends string = string,
 	Extension = unknown,
 > =
@@ -16,7 +16,7 @@ export type SuiClientRegistration<
 	| SelfRegisteringClientExtension<T, Name, Extension>;
 
 export interface SelfRegisteringClientExtension<
-	T extends Experimental_SuiClient = Experimental_SuiClient,
+	T extends Experimental_BaseClient = Experimental_BaseClient,
 	Name extends string = string,
 	Extension = unknown,
 > {
@@ -36,7 +36,7 @@ export type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) ex
 	? I
 	: never;
 
-export type ClientWithExtensions<T> = Experimental_SuiClient & T;
+export type ClientWithExtensions<T> = Experimental_BaseClient & T;
 
 export namespace Experimental_SuiClientTypes {
 	export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet' | (string & {});

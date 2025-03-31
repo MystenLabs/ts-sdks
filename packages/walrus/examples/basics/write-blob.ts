@@ -15,24 +15,23 @@ setGlobalDispatcher(
 	}),
 );
 
-const suiClient = new SuiClient({
+const client = new SuiClient({
 	url: getFullnodeUrl('testnet'),
-});
-
-const walrusClient = new WalrusClient({
-	network: 'testnet',
-	suiClient,
-	storageNodeClientOptions: {
-		timeout: 60_000,
-	},
-});
+}).$extend(
+	WalrusClient.experimental_asClientExtension({
+		network: 'testnet',
+		storageNodeClientOptions: {
+			timeout: 60_000,
+		},
+	}),
+);
 
 async function uploadFile() {
 	const keypair = await getFundedKeypair();
 
 	const file = new TextEncoder().encode('Hello from the TS SDK!!!\n');
 
-	const { blobId } = await walrusClient.writeBlob({
+	const { blobId } = await client.walrus.writeBlob({
 		blob: file,
 		deletable: false,
 		epochs: 3,

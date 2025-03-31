@@ -1,11 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Experimental_SuiClient } from './client.js';
+import { Experimental_BaseClient } from './client.js';
 import type { Experimental_SuiClientTypes } from './types.js';
 
 export abstract class Experimental_CoreClient
-	extends Experimental_SuiClient
+	extends Experimental_BaseClient
 	implements Experimental_SuiClientTypes.TransportMethods
 {
 	core = this;
