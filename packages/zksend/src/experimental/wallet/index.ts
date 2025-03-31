@@ -30,7 +30,9 @@ import {
 } from '@mysten/wallet-standard';
 import type { Emitter } from 'mitt';
 import mitt from 'mitt';
+import { parse } from 'valibot';
 
+import { IframeMessageWalletStatusPayload } from './channel/events.js';
 import { DEFAULT_STASHED_ORIGIN, StashedPopup } from './channel/index.js';
 
 const PACKAGE_VERSION = 'v1';
@@ -147,6 +149,25 @@ export class StashedWallet implements Wallet {
 		this.#embeddedIframe = null;
 	}
 
+	#handleWalletStatusMessage = (event: MessageEvent) => {
+		if (event.origin !== stashedWalletOrigin || !walletStatusCheckEnabled) return;
+		try {
+			const message = parse(IframeMessageWalletStatusPayload, event.data);
+			if (message.type === 'WALLET_STATUS') {
+				this.#accounts.forEach((account) => {
+					const foundAddress = message.payload.accounts.some(
+						(item) => item.account.address === account.address,
+					);
+					if (!foundAddress) {
+						this.removeAccount(account.address);
+					}
+				});
+			}
+		} catch (error) {
+			console.debug('Invalid wallet status message:', error);
+		}
+	};
+
 	#embedStashedIframe = () => {
 		try {
 			/* @ts-ignore */
@@ -154,7 +175,7 @@ export class StashedWallet implements Wallet {
 			this.#embeddedIframe.style.display = 'none';
 			this.#embeddedIframe.src = `${stashedWalletOrigin}/embed`;
 			document.body.appendChild(this.#embeddedIframe);
-			// every second, check if the wallet is connected
+
 			walletStatusCheckEnabled = true;
 			walletStatusIntervalId = setInterval(() => {
 				if (!walletStatusCheckEnabled || !this.#embeddedIframe) return;
@@ -168,24 +189,8 @@ export class StashedWallet implements Wallet {
 				);
 			}, 1000);
 
-			window.addEventListener('message', (event) => {
-				if (event.origin !== stashedWalletOrigin) return;
-				const { type, payload } = event.data;
-
-				if (type === 'WALLET_STATUS') {
-					if (!walletStatusCheckEnabled) return;
-					this.#accounts.forEach((account) => {
-						const foundAddress = (payload?.accounts || []).some((item: any) => {
-							return item.account.address === account.address;
-						});
-						if (!foundAddress) {
-							this.removeAccount(account.address);
-						}
-					});
-				}
-			});
+			window.addEventListener('message', this.#handleWalletStatusMessage);
 		} catch (error) {
-			// Silently handle any errors in the wallet status check
 			console.debug('Wallet status check setup failed:', error);
 		}
 	};
