@@ -1,5 +1,13 @@
 # @mysten/walrus
 
+## 0.0.6
+
+### Patch Changes
+
+- 7d6e114: Fix walrus wasm bindings not working in bundled client applications
+- Updated dependencies [7d6e114]
+  - @mysten/walrus-wasm@0.0.2
+
 ## 0.0.5
 
 ### Patch Changes

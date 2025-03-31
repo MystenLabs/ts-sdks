@@ -3,7 +3,7 @@
   "collaborators": [
     "jonaslindstrom"
   ],
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": false,
   "files": [
     "walrus_wasm_bg.wasm",
