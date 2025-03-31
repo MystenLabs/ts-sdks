@@ -108,7 +108,11 @@ export class ParallelTransactionExecutor {
 		await this.#updateCache(() => this.#waitForLastDigest());
 	}
 
-	async executeTransaction(transaction: Transaction, additionalSignatures: string[] , options?: SuiTransactionBlockResponseOptions) {
+	async executeTransaction(
+		transaction: Transaction,
+		options?: SuiTransactionBlockResponseOptions,
+		additionalSignatures: string[] = [],
+	) {
 		const { promise, resolve, reject } = promiseWithResolvers<{
 			digest: string;
 			effects: string;
@@ -118,7 +122,7 @@ export class ParallelTransactionExecutor {
 
 		const execute = () => {
 			this.#executeQueue.runTask(() => {
-				const promise = this.#execute(transaction, additionalSignatures, usedObjects, options);
+				const promise = this.#execute(transaction, usedObjects, options, additionalSignatures);
 
 				return promise.then(resolve, reject);
 			});
@@ -181,9 +185,9 @@ export class ParallelTransactionExecutor {
 
 	async #execute(
 		transaction: Transaction,
-		additionalSignatures: string[],
 		usedObjects: Set<string>,
 		options?: SuiTransactionBlockResponseOptions,
+		additionalSignatures: string[] = [],
 	) {
 		let gasCoin!: CoinWithBalance;
 		try {
@@ -219,7 +223,7 @@ export class ParallelTransactionExecutor {
 
 			const results = await this.#cache.executeTransaction({
 				transaction: bytes,
-				signature: [ signature, ...additionalSignatures ],
+				signature: [signature, ...additionalSignatures],
 				options: {
 					...options,
 					showEffects: true,

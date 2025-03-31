@@ -85,8 +85,8 @@ export class SerialTransactionExecutor {
 
 	executeTransaction(
 		transaction: Transaction | Uint8Array,
-		additionalSignatures: string[],
 		options?: SuiTransactionBlockResponseOptions,
+		additionalSignatures: string[] = [],
 	) {
 		return this.#queue.runTask(async () => {
 			const bytes = isTransaction(transaction)
@@ -96,7 +96,7 @@ export class SerialTransactionExecutor {
 			const { signature } = await this.#signer.signTransaction(bytes);
 			const results = await this.#cache
 				.executeTransaction({
-					signature: [ signature, ...additionalSignatures ],
+					signature: [signature, ...additionalSignatures],
 					transaction: bytes,
 					options,
 				})
