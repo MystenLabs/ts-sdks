@@ -173,7 +173,6 @@ export class StashedWallet implements Wallet {
 
 			if (type === 'WALLET_STATUS') {
 				if (!walletStatusCheckEnabled) return;
-
 				this.#accounts.forEach((account) => {
 					const foundAddress = (payload?.accounts || []).some((item: any) => {
 						return item.account.address === account.address;
