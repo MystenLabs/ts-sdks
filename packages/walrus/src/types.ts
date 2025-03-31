@@ -3,6 +3,7 @@
 
 import type { SuiClient } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
+import type { ClientWithExtensions } from '@mysten/sui/experimental';
 import type { TransactionObjectArgument } from '@mysten/sui/transactions';
 
 import type { StorageNodeInfo } from './contracts/storage_node.js';
@@ -31,7 +32,9 @@ export interface WalrusPackageConfig {
 
 type SuiClientOrRpcUrl =
 	| {
-			suiClient: SuiClient;
+			suiClient: ClientWithExtensions<{
+				jsonRpc: SuiClient;
+			}>;
 			suiRpcUrl?: never;
 	  }
 	| {
@@ -54,11 +57,12 @@ type WalrusNetworkOrPackageConfig =
  *
  * This is used to configure the Walrus client to use a specific storage node client options, network, and Sui client or RPC URL.
  */
-export type WalrusClientConfig = {
+export type WalrusClientConfig = WalrusClientExtensionOptions & SuiClientOrRpcUrl;
+
+export type WalrusClientExtensionOptions = {
 	storageNodeClientOptions?: StorageNodeClientOptions;
 	wasmUrl?: string;
-} & WalrusNetworkOrPackageConfig &
-	SuiClientOrRpcUrl;
+} & WalrusNetworkOrPackageConfig;
 
 export type WalrusClientRequestOptions = Pick<RequestOptions, 'signal'>;
 

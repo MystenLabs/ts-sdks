@@ -4,44 +4,36 @@
 import type { BcsType } from '@mysten/bcs';
 import { pureBcsSchemaFromTypeName } from '@mysten/sui/bcs';
 import type { PureTypeName, ShapeFromPureTypeName } from '@mysten/sui/bcs';
-import type { SuiClient, SuiObjectData, SuiObjectResponse } from '@mysten/sui/client';
+import type { SuiObjectData } from '@mysten/sui/client';
+import type {
+	Experimental_BaseClient,
+	Experimental_SuiClientTypes,
+} from '@mysten/sui/experimental';
 import { deriveDynamicFieldID } from '@mysten/sui/utils';
 import DataLoader from 'dataloader';
 
 import { Field } from '../contracts/deps/0x0000000000000000000000000000000000000000000000000000000000000002/dynamic_field.js';
 
-export class SuiObjectDataLoader extends DataLoader<string, SuiObjectData> {
-	#dynamicFieldCache = new Map<string, Map<string, SuiObjectData>>();
-	constructor(suiClient: SuiClient) {
-		super(
-			async (ids: readonly string[]) => {
-				const objects = await suiClient.multiGetObjects({
-					ids: ids as string[],
-					options: {
-						showType: true,
-						showBcs: true,
-					},
-				});
+export class SuiObjectDataLoader extends DataLoader<
+	string,
+	Experimental_SuiClientTypes.ObjectResponse
+> {
+	#dynamicFieldCache = new Map<string, Map<string, Experimental_SuiClientTypes.ObjectResponse>>();
+	constructor(suiClient: Experimental_BaseClient) {
+		super(async (ids: readonly string[]) => {
+			const { objects } = await suiClient.core.getObjects({
+				objectIds: ids as string[],
+			});
 
-				return objects.map((object, i) => {
-					return this.#getObjectFromResponse(ids[i], object);
-				});
-			},
-			{
-				maxBatchSize: 50,
-			},
-		);
+			return objects;
+		});
 	}
 
 	override async load<T = SuiObjectData>(id: string, schema?: BcsType<T, any>): Promise<T> {
 		const data = await super.load(id);
 
 		if (schema) {
-			if (data.bcs?.dataType !== 'moveObject') {
-				throw new Error(`Object ${id} is not a move object`);
-			}
-
-			return schema.fromBase64(data.bcs.bcsBytes);
+			return schema.parse(data.content);
 		}
 
 		return data as T;
@@ -57,16 +49,12 @@ export class SuiObjectDataLoader extends DataLoader<string, SuiObjectData> {
 			return data as (T | Error)[];
 		}
 
-		return data.map((d, i) => {
+		return data.map((d) => {
 			if (d instanceof Error) {
 				return d;
 			}
 
-			if (d.bcs?.dataType !== 'moveObject') {
-				return new Error(`Object ${ids[i]} is not a move object`);
-			}
-
-			return schema.fromBase64(d.bcs.bcsBytes);
+			return schema.parse(d.content);
 		});
 	}
 
@@ -90,14 +78,6 @@ export class SuiObjectDataLoader extends DataLoader<string, SuiObjectData> {
 	override clear(key: string) {
 		this.#dynamicFieldCache.delete(key);
 		return super.clear(key);
-	}
-
-	#getObjectFromResponse(id: string, response: SuiObjectResponse) {
-		if (response.error || !response.data) {
-			throw new Error(`Failed to fetch object ${id}: ${response.error}`);
-		}
-
-		return response.data;
 	}
 
 	async loadFieldObject<K extends PureTypeName, T>(

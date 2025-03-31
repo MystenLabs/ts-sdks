@@ -3,7 +3,7 @@
 import { fromBase58, toBase64, toHex } from '@mysten/bcs';
 
 import type { Signer } from '../cryptography/index.js';
-import { Experimental_SuiClient } from '../experimental/client.js';
+import { Experimental_BaseClient } from '../experimental/client.js';
 import { JSONRpcTransport } from '../experimental/transports/jsonRPC.js';
 import type {
 	Experimental_SuiClientTypes,
@@ -134,8 +134,9 @@ export function isSuiClient(client: unknown): client is SuiClient {
 	);
 }
 
-export class SuiClient extends Experimental_SuiClient implements SelfRegisteringClientExtension {
+export class SuiClient extends Experimental_BaseClient implements SelfRegisteringClientExtension {
 	core: JSONRpcTransport = new JSONRpcTransport(this);
+	jsonRpc = this;
 	protected transport: SuiTransport;
 
 	get [SUI_CLIENT_BRAND]() {

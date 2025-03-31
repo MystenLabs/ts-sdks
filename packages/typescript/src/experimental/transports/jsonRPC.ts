@@ -34,6 +34,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 				options: {
 					showOwner: true,
 					showType: true,
+					showBcs: true,
 				},
 			});
 
@@ -55,6 +56,11 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 			owner: options.address,
 			limit: options.limit,
 			cursor: options.cursor,
+			options: {
+				showOwner: true,
+				showType: true,
+				showBcs: true,
+			},
 		});
 
 		return {

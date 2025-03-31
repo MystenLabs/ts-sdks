@@ -11,7 +11,7 @@ import type {
 	UnionToIntersection,
 } from './types.js';
 
-export abstract class Experimental_SuiClient {
+export abstract class Experimental_BaseClient {
 	network: Experimental_SuiClientTypes.Network;
 
 	constructor({ network }: Experimental_SuiClientTypes.SuiClientOptions) {
@@ -40,7 +40,7 @@ export abstract class Experimental_SuiClient {
 					{
 						[K in keyof this]: this[K];
 					},
-					keyof Experimental_SuiClient
+					keyof Experimental_BaseClient
 				> &
 					UnionToIntersection<
 						{
