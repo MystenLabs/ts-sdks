@@ -47,6 +47,7 @@ const getStashedSession = (): { accounts: StashedAccount[]; token: string } => {
 	return { accounts, token };
 };
 
+const SUI_WALLET_EXTENSION_NAME = 'Sui Wallet' as const;
 export class StashedWallet implements Wallet {
 	#events: Emitter<WalletEventsMap>;
 	#accounts: ReadonlyWalletAccount[];
@@ -321,6 +322,15 @@ export function registerStashedWallet(
 ) {
 	const wallets = getWallets();
 
+	const extension = wallets.get().find((wallet) => wallet.name === SUI_WALLET_EXTENSION_NAME);
+	if (extension) {
+		return;
+	}
+
+	console.log(
+		'wallets.wallets',
+		wallets.get().forEach((item) => console.log('item ', item)),
+	);
 	let addressFromRedirect: string | null = null;
 
 	try {
@@ -337,12 +347,12 @@ export function registerStashedWallet(
 
 	const unregister = wallets.register(stashedWalletInstance);
 
-	/* @ts-ignore */
-	if (window.stashed) {
-		// don't register stashed web if extension is installed.
-		// we prefer the extension over the web wallet.
-		unregister();
-	}
+	// listen for wallet registration
+	wallets.on('register', (wallet) => {
+		if (wallet.name === SUI_WALLET_EXTENSION_NAME) {
+			unregister();
+		}
+	});
 
 	return {
 		wallet: stashedWalletInstance,
