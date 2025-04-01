@@ -1,5 +1,11 @@
 # @mysten/walrus-wasm
 
+## 0.0.4
+
+### Patch Changes
+
+- 3e9bb8d: add 'import' to walrus-wasm exports
+
 ## 0.0.3
 
 ### Patch Changes

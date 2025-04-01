@@ -1,5 +1,12 @@
 # @mysten/walrus
 
+## 0.0.8
+
+### Patch Changes
+
+- Updated dependencies [3e9bb8d]
+  - @mysten/walrus-wasm@0.0.4
+
 ## 0.0.7
 
 ### Patch Changes
