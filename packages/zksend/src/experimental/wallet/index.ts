@@ -328,10 +328,6 @@ export function registerStashedWallet(
 		return;
 	}
 
-	console.log(
-		'wallets.wallets',
-		wallets.get().forEach((item) => console.log('item ', item)),
-	);
 	let addressFromRedirect: string | null = null;
 
 	try {
