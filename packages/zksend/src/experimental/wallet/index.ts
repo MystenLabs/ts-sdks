@@ -11,7 +11,6 @@ import type {
 	StandardEventsFeature,
 	StandardEventsListeners,
 	StandardEventsOnMethod,
-	SuiChain,
 	SuiSignAndExecuteTransactionFeature,
 	SuiSignAndExecuteTransactionMethod,
 	SuiSignPersonalMessageFeature,
@@ -58,7 +57,6 @@ export class StashedWallet implements Wallet {
 	#icon: WalletIcon =
 		'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1NiIgaGVpZ2h0PSI1NiIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjU0IiBoZWlnaHQ9IjU0IiB4PSIxIiB5PSIxIiBmaWxsPSIjNTE5REU5IiByeD0iMjciLz48cmVjdCB3aWR0aD0iNTQiIGhlaWdodD0iNTQiIHg9IjEiIHk9IjEiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIyIiByeD0iMjciLz48cGF0aCBmaWxsPSIjMDAwIiBkPSJNMTguMzUzIDM1LjA2NGMuOTIxIDMuNDM4IDQuMzYzIDYuNTUxIDExLjQ4MyA0LjY0NCA2Ljc5NC0xLjgyMSAxMS4wNTItNy40MSA5Ljk0OC0xMS41My0uMzgxLTEuNDIzLTEuNTMtMi4zODctMy4zLTIuMjNsLTE1LjgzMiAxLjMyYy0uOTk3LjA3Ni0xLjQ1NC0uMDg4LTEuNzE4LS43MTYtLjI1Ni0uNTk5LS4xMS0xLjI0MSAxLjA5NC0xLjg1bDEyLjA0OC02LjE4M2MuOTI0LS40NyAxLjUzOS0uNjY2IDIuMTAxLS40NjguMzUyLjEyOC41ODQuNjM4LjM3MSAxLjI2N2wtLjc4MSAyLjMwNmMtLjk1OSAyLjgzIDEuMDk0IDMuNDg4IDIuMjUgMy4xNzggMS43NTEtLjQ2OSAyLjE2My0yLjEzNiAxLjU5OS00LjI0LTEuNDMtNS4zMzctNy4wOS02LjE3LTEyLjIyMy00Ljc5Ni01LjIyMiAxLjQtOS43NDggNS42My04LjM2NiAxMC43ODkuMzI1IDEuMjE1IDEuNDQ0IDIuMTg2IDIuNzQgMi4xNTdsMS45NzgtLjAwNWMuNDA3LS4wMS4yNi4wMjQgMS4wNDYtLjA0MS43ODQtLjA2NSAyLjg4LS4zMjMgMi44OC0uMzIzbDEwLjI4Ni0xLjE2NC4yNjUtLjAzOGMuNjAyLS4xMDMgMS4wNTYuMDUzIDEuNDQuNzE1LjU3Ni45OTEtLjMwMiAxLjczOC0xLjM1MiAyLjYzM2wtLjA4NS4wNzItOS4wNDEgNy43OTJjLTEuNTUgMS4zMzctMi42MzkuODM0LTMuMDItLjU4OWwtMS4zNS01LjA0Yy0uMzM0LTEuMjQ0LTEuNTUtMi4yMjEtMi45NzQtMS44NC0xLjc4LjQ3Ny0xLjkyNCAyLjU1LTEuNDg3IDQuMThaIi8+PC9zdmc+Cg==' as const;
 	#name: string;
-	#useDynamicMetadata: boolean = true;
 
 	get name() {
 		return this.#walletName;
@@ -122,40 +120,20 @@ export class StashedWallet implements Wallet {
 	constructor({
 		name,
 		origin,
-		useDynamicMetadata = true,
+		icon,
+		walletName,
 	}: {
 		name: string;
 		origin?: string;
-		useDynamicMetadata?: boolean;
-		chain?: SuiChain;
+		icon?: WalletIcon;
+		walletName?: string;
 	}) {
 		this.#accounts = [];
 		this.#events = mitt();
 		this.#origin = origin || DEFAULT_STASHED_ORIGIN;
 		this.#name = name;
-		this.#useDynamicMetadata = useDynamicMetadata;
-		if (this.#useDynamicMetadata) {
-			this.#fetchWalletMetadata();
-		}
-	}
-
-	async #fetchWalletMetadata() {
-		try {
-			const response = await fetch(METADATA_API_URL);
-			if (!response.ok) throw new Error('Failed to fetch wallet metadata');
-
-			const metadata = await response.json();
-
-			// Update properties with values from API
-			if (metadata.name) this.#walletName = metadata.name;
-			if (metadata.icon) this.#icon = metadata.icon;
-			if (metadata.origin && this.#origin === DEFAULT_STASHED_ORIGIN) {
-				this.#origin = metadata.origin;
-			}
-		} catch (error) {
-			console.debug('Failed to fetch wallet metadata:', error);
-			// Fall back to defaults which were already set
-		}
+		this.#walletName = walletName || STASHED_WALLET_NAME;
+		this.#icon = icon || this.#icon;
 	}
 
 	#signTransactionBlock: SuiSignTransactionBlockMethod = async ({
@@ -343,11 +321,11 @@ export class StashedWallet implements Wallet {
 	};
 }
 
-export function registerStashedWallet(
+export async function registerStashedWallet(
 	name: string,
 	{
 		origin,
-		useDynamicMetadata,
+		useDynamicMetadata = true,
 	}: {
 		origin?: string;
 		useDynamicMetadata?: boolean;
@@ -369,10 +347,21 @@ export function registerStashedWallet(
 		// Ignore errors
 	}
 
+	let metadata = {};
+	if (useDynamicMetadata) {
+		try {
+			const response = await fetch(METADATA_API_URL);
+			if (!response.ok) throw new Error('Failed to fetch wallet metadata');
+			metadata = await response.json();
+		} catch (error) {
+			console.error('Error fetching metadata', error);
+		}
+	}
+
 	const stashedWalletInstance = new StashedWallet({
 		name,
 		origin,
-		useDynamicMetadata,
+		...metadata,
 	});
 
 	const unregister = wallets.register(stashedWalletInstance);
