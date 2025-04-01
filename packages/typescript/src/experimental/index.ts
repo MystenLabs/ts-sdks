@@ -16,3 +16,5 @@ export {
 	type Experimental_SuiClientTypes,
 	type SuiClientRegistration,
 };
+
+export { ClientCache, type ClientCacheOptions } from './cache.js';

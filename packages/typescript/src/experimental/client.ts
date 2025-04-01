@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /* eslint-disable @typescript-eslint/ban-types */
 
+import { ClientCache } from './cache.js';
 import type { Experimental_CoreClient } from './core.js';
 import type {
 	ClientWithExtensions,
@@ -13,6 +14,7 @@ import type {
 
 export abstract class Experimental_BaseClient {
 	network: Experimental_SuiClientTypes.Network;
+	cache = new ClientCache();
 
 	constructor({ network }: Experimental_SuiClientTypes.SuiClientOptions) {
 		this.network = network;
