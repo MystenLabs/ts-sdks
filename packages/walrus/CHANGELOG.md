@@ -1,5 +1,13 @@
 # @mysten/walrus
 
+## 0.0.7
+
+### Patch Changes
+
+- ea2ce74: Add missing wasm bindings
+- Updated dependencies [ea2ce74]
+  - @mysten/walrus-wasm@0.0.3
+
 ## 0.0.6
 
 ### Patch Changes
