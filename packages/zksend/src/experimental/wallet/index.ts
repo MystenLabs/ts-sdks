@@ -48,6 +48,7 @@ const getStashedSession = (): { accounts: StashedAccount[]; token: string } => {
 };
 
 const SUI_WALLET_EXTENSION_ID = 'com.sui.extension' as const;
+
 export class StashedWallet implements Wallet {
 	#events: Emitter<WalletEventsMap>;
 	#accounts: ReadonlyWalletAccount[];
