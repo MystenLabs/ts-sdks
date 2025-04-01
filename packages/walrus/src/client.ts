@@ -5,7 +5,7 @@ import type { InferBcsType } from '@mysten/bcs';
 import { bcs } from '@mysten/bcs';
 import { SuiClient } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
-import type { ClientWithExtensions } from '@mysten/sui/experimental';
+import type { ClientCache, ClientWithExtensions } from '@mysten/sui/experimental';
 import type { TransactionObjectArgument } from '@mysten/sui/transactions';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
@@ -81,7 +81,6 @@ import {
 	toShardIndex,
 	toTypeString,
 } from './utils/index.js';
-import { MemoCache } from './utils/memo.js';
 import { SuiObjectDataLoader } from './utils/object-loader.js';
 import { shuffle, weightedShuffle } from './utils/randomness.js';
 import { getWasmBindings } from './wasm.js';
@@ -98,7 +97,8 @@ export class WalrusClient {
 
 	#blobMetadataConcurrencyLimit = 10;
 	#readCommittee?: CommitteeInfo | Promise<CommitteeInfo> | null;
-	#memo = new MemoCache();
+
+	#cache: ClientCache;
 
 	constructor(config: WalrusClientConfig) {
 		if (config.network && !config.packageConfig) {
@@ -127,6 +127,7 @@ export class WalrusClient {
 
 		this.#storageNodeClient = new StorageNodeClient(config.storageNodeClientOptions);
 		this.#objectLoader = new SuiObjectDataLoader(this.#suiClient);
+		this.#cache = this.#suiClient.cache.scope('@mysten/walrus');
 	}
 
 	static experimental_asClientExtension(options: WalrusClientExtensionOptions) {
@@ -145,65 +146,79 @@ export class WalrusClient {
 		};
 	}
 	/** The Move type for a WAL coin */
-	#walType = this.#memo.create('walType', async () => {
-		const stakedWal = await this.#suiClient.jsonRpc.getNormalizedMoveStruct({
-			package: await this.#getPackageId(),
-			module: 'staked_wal',
-			struct: 'StakedWal',
+	#walType() {
+		return this.#cache.read(['walType'], async () => {
+			const stakedWal = await this.#suiClient.jsonRpc.getNormalizedMoveStruct({
+				package: await this.#getPackageId(),
+				module: 'staked_wal',
+				struct: 'StakedWal',
+			});
+
+			const balanceType = stakedWal.fields.find((field) => field.name === 'principal')?.type;
+
+			if (!balanceType) {
+				throw new WalrusClientError('WAL type not found');
+			}
+
+			const parsed = parseStructTag(toTypeString(balanceType));
+			const coinType = parsed.typeParams[0];
+
+			if (!coinType) {
+				throw new WalrusClientError('WAL type not found');
+			}
+
+			return normalizeStructTag(coinType);
 		});
+	}
 
-		const balanceType = stakedWal.fields.find((field) => field.name === 'principal')?.type;
-
-		if (!balanceType) {
-			throw new WalrusClientError('WAL type not found');
-		}
-
-		const parsed = parseStructTag(toTypeString(balanceType));
-		const coinType = parsed.typeParams[0];
-
-		if (!coinType) {
-			throw new WalrusClientError('WAL type not found');
-		}
-
-		return normalizeStructTag(coinType);
-	});
-
-	#getPackageId = this.#memo.create('getPackageId', async () => {
-		const system = await this.#objectLoader.load(this.#packageConfig.systemObjectId);
-		return parseStructTag(system.type!).address;
-	});
+	#getPackageId() {
+		return this.#cache.read(['getPackageId'], async () => {
+			const system = await this.#objectLoader.load(this.#packageConfig.systemObjectId);
+			return parseStructTag(system.type!).address;
+		});
+	}
 
 	/** The Move type for a Blob object */
-	getBlobType = this.#memo.create('getBlobType', async () => {
-		return `${await this.#getPackageId()}::blob::Blob`;
-	});
+	getBlobType() {
+		return this.#cache.read(['getBlobType'], async () => {
+			return `${await this.#getPackageId()}::blob::Blob`;
+		});
+	}
 
-	#getSystemContract = this.#memo.create('getSystemContract', async () => {
-		const { package_id } = await this.systemObject();
-		return initSystemContract(package_id);
-	});
+	#getSystemContract() {
+		return this.#cache.read(['getSystemContract'], async () => {
+			const { package_id } = await this.systemObject();
+			return initSystemContract(package_id);
+		});
+	}
 
-	#getSubsidiesContract = this.#memo.create('getSubsidiesContract', async () => {
-		if (!this.#packageConfig.subsidiesObjectId) {
-			throw new WalrusClientError('Subsidies object ID not defined in package config');
-		}
+	#getSubsidiesContract() {
+		return this.#cache.read(['getSubsidiesContract'], async () => {
+			if (!this.#packageConfig.subsidiesObjectId) {
+				throw new WalrusClientError('Subsidies object ID not defined in package config');
+			}
 
-		const subsidiesObject = await this.#objectLoader.load(this.#packageConfig.subsidiesObjectId);
+			const subsidiesObject = await this.#objectLoader.load(this.#packageConfig.subsidiesObjectId);
 
-		const packageId = parseStructTag(subsidiesObject.type!).address;
+			const packageId = parseStructTag(subsidiesObject.type!).address;
 
-		return initSubsidiesContract(packageId);
-	});
+			return initSubsidiesContract(packageId);
+		});
+	}
 
-	#getBlobContract = this.#memo.create('getBlobContract', async () => {
-		const { package_id } = await this.systemObject();
-		return initBlobContract(package_id);
-	});
+	#getBlobContract() {
+		return this.#cache.read(['getBlobContract'], async () => {
+			const { package_id } = await this.systemObject();
+			return initBlobContract(package_id);
+		});
+	}
 
-	#getMetadataContract = this.#memo.create('getMetadataContract', async () => {
-		const { package_id } = await this.systemObject();
-		return initMetadataContract(package_id);
-	});
+	#getMetadataContract() {
+		return this.#cache.read(['getMetadataContract'], async () => {
+			const { package_id } = await this.systemObject();
+			return initMetadataContract(package_id);
+		});
+	}
 
 	#wasmBindings = this.#memo.create('wasmBindings', async () => {
 		return getWasmBindings(this.#wasmUrl);
@@ -1657,10 +1672,12 @@ export class WalrusClient {
 		};
 	}
 
-	#getActiveCommittee = this.#memo.create('getActiveCommittee', async () => {
-		const stakingState = await this.stakingState();
-		return this.#getCommittee(stakingState.committee);
-	});
+	#getActiveCommittee() {
+		return this.#cache.read(['getActiveCommittee'], async () => {
+			const stakingState = await this.stakingState();
+			return this.#getCommittee(stakingState.committee);
+		});
+	}
 
 	async #stakingPool(committee: InferBcsType<ReturnType<typeof Committee>>) {
 		const nodeIds = committee.pos0.contents.map((node) => node.key);
@@ -1685,8 +1702,7 @@ export class WalrusClient {
 	 */
 	reset() {
 		this.#objectLoader.clearAll();
-		this.#readCommittee = null;
-		this.#memo.reset();
+		this.#cache.clear();
 	}
 
 	#retryOnPossibleEpochChange<T extends (...args: any[]) => Promise<any>>(fn: T): T {
