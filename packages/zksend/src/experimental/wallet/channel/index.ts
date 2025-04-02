@@ -75,15 +75,18 @@ export class StashedPopup {
 	} & Extract<StashedRequestData, { type: T }>): Promise<StashedResponseTypes[T]> {
 		window.addEventListener('message', this.#listener);
 
+		console.log('sending data ', data);
 		const requestData = {
-			...data,
 			version: this.#version,
 			requestId: this.#id,
 			appUrl: window.location.href.split('#')[0],
 			appName: this.#name,
-			chain: this.#chain,
+			payload: {
+				type,
+				chain: this.#chain,
+				...data,
+			},
 		};
-
 		const encodedRequestData = btoa(JSON.stringify(requestData));
 
 		this.#popup.location.assign(
@@ -136,22 +139,15 @@ export class StashedHost {
 		this.#request = request;
 	}
 
-	static fromUrl(url: string = window.location.href) {
-		const parsed = new URL(url);
-		const hash = parsed.hash.slice(1); // Remove the # character
-		const { requestId, appUrl, appName, version, ...rest } = JSON.parse(
-			atob(decodeURIComponent(hash)),
-		);
+	static fromPayload(payload: StashedRequest) {
+		const { requestId, appUrl, appName, version, ...rest } = payload;
 
 		const request = parse(StashedRequest, {
 			version,
 			requestId,
 			appUrl,
 			appName,
-			payload: {
-				type: parsed.pathname.split('/').pop(),
-				...rest,
-			},
+			...rest,
 		});
 
 		return new StashedHost(request);
