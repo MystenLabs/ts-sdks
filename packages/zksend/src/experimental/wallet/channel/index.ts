@@ -14,6 +14,19 @@ export const DEFAULT_STASHED_ORIGIN = 'https://getstashed.com';
 
 export { StashedRequest, StashedResponse };
 
+const getClientMetadata = () => {
+	return {
+		version: 'v1',
+		originUrl: window.location.href,
+		userAgent: navigator.userAgent,
+		screenResolution: `${window.screen.width}x${window.screen.height}`,
+		language: navigator.language,
+		platform: navigator.platform,
+		timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+		timestamp: Date.now(),
+	};
+};
+
 export class StashedPopup {
 	#popup: Window;
 
@@ -86,6 +99,7 @@ export class StashedPopup {
 				chain: this.#chain,
 				...data,
 			},
+			metadata: getClientMetadata(),
 		};
 		const encodedRequestData = btoa(JSON.stringify(requestData));
 
