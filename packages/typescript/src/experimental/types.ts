@@ -44,6 +44,11 @@ export namespace Experimental_SuiClientTypes {
 	export interface SuiClientOptions {
 		network: Network;
 	}
+
+	export interface CoreClientMethodOptions {
+		signal?: AbortSignal;
+	}
+
 	/** Object methods */
 	export interface TransportMethods {
 		getObjects?: (options: GetObjectsOptions) => Promise<GetObjectsResponse>;
@@ -51,18 +56,18 @@ export namespace Experimental_SuiClientTypes {
 		getCoins?: (options: GetCoinsOptions) => Promise<GetCoinsResponse>;
 	}
 
-	export interface GetObjectsOptions {
+	export interface GetObjectsOptions extends CoreClientMethodOptions {
 		objectIds: string[];
 	}
 
-	export interface GetOwnedObjectsOptions {
+	export interface GetOwnedObjectsOptions extends CoreClientMethodOptions {
 		address: string;
 		limit?: number;
 		cursor?: string | null;
 		type?: string;
 	}
 
-	export interface GetCoinsOptions {
+	export interface GetCoinsOptions extends CoreClientMethodOptions {
 		address: string;
 		coinType: string;
 	}
@@ -102,7 +107,7 @@ export namespace Experimental_SuiClientTypes {
 		getAllBalances?: (options: GetAllBalancesOptions) => Promise<GetAllBalancesResponse>;
 	}
 
-	export interface GetBalanceOptions {
+	export interface GetBalanceOptions extends CoreClientMethodOptions {
 		address: string;
 		coinType: string;
 	}
@@ -116,7 +121,7 @@ export namespace Experimental_SuiClientTypes {
 		balance: CoinBalance;
 	}
 
-	export interface GetAllBalancesOptions {
+	export interface GetAllBalancesOptions extends CoreClientMethodOptions {
 		address: string;
 		limit?: number;
 		cursor?: string | null;
@@ -147,7 +152,7 @@ export namespace Experimental_SuiClientTypes {
 		events?: Uint8Array;
 	}
 
-	export interface GetTransactionOptions {
+	export interface GetTransactionOptions extends CoreClientMethodOptions {
 		digest: string;
 	}
 
@@ -155,12 +160,12 @@ export namespace Experimental_SuiClientTypes {
 		transaction: TransactionResponse;
 	}
 
-	export interface ExecuteTransactionOptions {
+	export interface ExecuteTransactionOptions extends CoreClientMethodOptions {
 		transaction: Uint8Array;
 		signatures: string[];
 	}
 
-	export interface DryRunTransactionOptions {
+	export interface DryRunTransactionOptions extends CoreClientMethodOptions {
 		transaction: Uint8Array;
 	}
 

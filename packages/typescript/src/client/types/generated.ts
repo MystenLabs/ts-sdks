@@ -176,6 +176,7 @@ export interface DryRunTransactionBlockResponse {
 	executionErrorSource?: string | null;
 	input: TransactionBlockData;
 	objectChanges: SuiObjectChange[];
+	suggestedGasPrice?: string | null;
 }
 export type DynamicFieldInfo =
 	| {

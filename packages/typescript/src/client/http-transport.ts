@@ -27,6 +27,7 @@ export interface SuiHTTPTransportOptions {
 export interface SuiTransportRequestOptions {
 	method: string;
 	params: unknown[];
+	signal?: AbortSignal;
 }
 
 // eslint-disable-next-line @typescript-eslint/ban-types
@@ -36,6 +37,7 @@ export interface SuiTransportSubscribeOptions<T> {
 	unsubscribe: string;
 	params: unknown[];
 	onMessage: (event: T) => void;
+	signal?: AbortSignal;
 }
 
 export interface SuiTransport {
@@ -90,6 +92,7 @@ export class SuiHTTPTransport implements SuiTransport {
 
 		const res = await this.fetch(this.#options.rpc?.url ?? this.#options.url, {
 			method: 'POST',
+			signal: input.signal,
 			headers: {
 				'Content-Type': 'application/json',
 				'Client-Sdk-Type': 'typescript',
@@ -125,6 +128,13 @@ export class SuiHTTPTransport implements SuiTransport {
 
 	async subscribe<T>(input: SuiTransportSubscribeOptions<T>): Promise<() => Promise<boolean>> {
 		const unsubscribe = await this.#getWebsocketClient().subscribe(input);
+
+		if (input.signal) {
+			input.signal.throwIfAborted();
+			input.signal.addEventListener('abort', () => {
+				unsubscribe();
+			});
+		}
 
 		return async () => !!(await unsubscribe());
 	}
