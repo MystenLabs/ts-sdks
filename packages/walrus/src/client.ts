@@ -1637,7 +1637,7 @@ export class WalrusClient {
 			throw new WalrusClientError(`Failed to ${action}: ${effects?.status.error}`);
 		}
 
-		await this.#suiClient.jsonRpc.waitForTransaction({
+		await this.#suiClient.core.waitForTransaction({
 			digest,
 		});
 

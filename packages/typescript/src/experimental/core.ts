@@ -43,4 +43,40 @@ export abstract class Experimental_CoreClient
 	): Promise<Experimental_SuiClientTypes.DryRunTransactionResponse>;
 
 	abstract getReferenceGasPrice(): Promise<Experimental_SuiClientTypes.GetReferenceGasPriceResponse>;
+
+	async waitForTransaction({
+		signal,
+		timeout = 60 * 1000,
+		...input
+	}: {
+		/** An optional abort signal that can be used to cancel the wait. */
+		signal?: AbortSignal;
+		/** The amount of time to wait for transaction. Defaults to one minute. */
+		timeout?: number;
+	} & Experimental_SuiClientTypes.GetTransactionOptions): Promise<Experimental_SuiClientTypes.GetTransactionResponse> {
+		const abortSignal = signal
+			? AbortSignal.any([AbortSignal.timeout(timeout), signal])
+			: AbortSignal.timeout(timeout);
+
+		const abortPromise = new Promise((_, reject) => {
+			abortSignal.addEventListener('abort', () => reject(abortSignal.reason));
+		});
+
+		abortPromise.catch(() => {
+			// Swallow unhandled rejections that might be thrown after early return
+		});
+
+		// eslint-disable-next-line no-constant-condition
+		while (true) {
+			abortSignal.throwIfAborted();
+			try {
+				return await this.getTransaction({
+					...input,
+					signal: abortSignal,
+				});
+			} catch (e) {
+				await Promise.race([new Promise((resolve) => setTimeout(resolve, 2_000)), abortPromise]);
+			}
+		}
+	}
 }

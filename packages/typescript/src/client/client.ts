@@ -50,6 +50,8 @@ import type {
 	GetCommitteeInfoParams,
 	GetDynamicFieldObjectParams,
 	GetDynamicFieldsParams,
+	GetLatestCheckpointSequenceNumberParams,
+	GetLatestSuiSystemStateParams,
 	GetMoveFunctionArgTypesParams,
 	GetNormalizedMoveFunctionParams,
 	GetNormalizedMoveModuleParams,
@@ -58,6 +60,7 @@ import type {
 	GetObjectParams,
 	GetOwnedObjectsParams,
 	GetProtocolConfigParams,
+	GetReferenceGasPriceParams,
 	GetStakesByIdsParams,
 	GetStakesParams,
 	GetTotalSupplyParams,
@@ -153,10 +156,11 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		this.transport = options.transport ?? new SuiHTTPTransport({ url: options.url });
 	}
 
-	async getRpcApiVersion(): Promise<string | undefined> {
+	async getRpcApiVersion({ signal }: { signal?: AbortSignal } = {}): Promise<string | undefined> {
 		const resp = await this.transport.request<{ info: { version: string } }>({
 			method: 'rpc.discover',
 			params: [],
+			signal,
 		});
 
 		return resp.info.version;
@@ -173,6 +177,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'suix_getCoins',
 			params: [input.owner, input.coinType, input.cursor, input.limit],
+			signal: input.signal,
 		});
 	}
 
@@ -187,6 +192,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'suix_getAllCoins',
 			params: [input.owner, input.cursor, input.limit],
+			signal: input.signal,
 		});
 	}
 
@@ -200,6 +206,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'suix_getBalance',
 			params: [input.owner, input.coinType],
+			signal: input.signal,
 		});
 	}
 
@@ -210,7 +217,11 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		if (!input.owner || !isValidSuiAddress(normalizeSuiAddress(input.owner))) {
 			throw new Error('Invalid Sui address');
 		}
-		return await this.transport.request({ method: 'suix_getAllBalances', params: [input.owner] });
+		return await this.transport.request({
+			method: 'suix_getAllBalances',
+			params: [input.owner],
+			signal: input.signal,
+		});
 	}
 
 	/**
@@ -220,6 +231,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'suix_getCoinMetadata',
 			params: [input.coinType],
+			signal: input.signal,
 		});
 	}
 
@@ -230,6 +242,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'suix_getTotalSupply',
 			params: [input.coinType],
+			signal: input.signal,
 		});
 	}
 
@@ -238,8 +251,12 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	 * @param method the method to be invoked
 	 * @param args the arguments to be passed to the RPC request
 	 */
-	async call<T = unknown>(method: string, params: unknown[]): Promise<T> {
-		return await this.transport.request({ method, params });
+	async call<T = unknown>(
+		method: string,
+		params: unknown[],
+		{ signal }: { signal?: AbortSignal } = {},
+	): Promise<T> {
+		return await this.transport.request({ method, params, signal });
 	}
 
 	/**
@@ -251,6 +268,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'sui_getMoveFunctionArgTypes',
 			params: [input.package, input.module, input.function],
+			signal: input.signal,
 		});
 	}
 
@@ -264,6 +282,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'sui_getNormalizedMoveModulesByPackage',
 			params: [input.package],
+			signal: input.signal,
 		});
 	}
 
@@ -276,6 +295,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'sui_getNormalizedMoveModule',
 			params: [input.package, input.module],
+			signal: input.signal,
 		});
 	}
 
@@ -288,6 +308,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'sui_getNormalizedMoveFunction',
 			params: [input.package, input.module, input.function],
+			signal: input.signal,
 		});
 	}
 
@@ -300,6 +321,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'sui_getNormalizedMoveStruct',
 			params: [input.package, input.module, input.struct],
+			signal: input.signal,
 		});
 	}
 
@@ -322,6 +344,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 				input.cursor,
 				input.limit,
 			],
+			signal: input.signal,
 		});
 	}
 
@@ -335,6 +358,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'sui_getObject',
 			params: [input.id, input.options],
+			signal: input.signal,
 		});
 	}
 
@@ -342,6 +366,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'sui_tryGetPastObject',
 			params: [input.id, input.version, input.options],
+			signal: input.signal,
 		});
 	}
 
@@ -362,6 +387,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'sui_multiGetObjects',
 			params: [input.ids, input.options],
+			signal: input.signal,
 		});
 	}
 
@@ -382,6 +408,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 				input.limit,
 				(input.order || 'descending') === 'descending',
 			],
+			signal: input.signal,
 		});
 	}
 
@@ -394,6 +421,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'sui_getTransactionBlock',
 			params: [input.digest, input.options],
+			signal: input.signal,
 		});
 	}
 
@@ -414,6 +442,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'sui_multiGetTransactionBlocks',
 			params: [input.digests, input.options],
+			signal: input.signal,
 		});
 	}
 
@@ -422,6 +451,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		signature,
 		options,
 		requestType,
+		signal,
 	}: ExecuteTransactionBlockParams): Promise<SuiTransactionBlockResponse> {
 		const result: SuiTransactionBlockResponse = await this.transport.request({
 			method: 'sui_executeTransactionBlock',
@@ -430,6 +460,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 				Array.isArray(signature) ? signature : [signature],
 				options,
 			],
+			signal,
 		});
 
 		if (requestType === 'WaitForLocalExecution') {
@@ -478,10 +509,11 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	 * Get total number of transactions
 	 */
 
-	async getTotalTransactionBlocks(): Promise<bigint> {
+	async getTotalTransactionBlocks({ signal }: { signal?: AbortSignal } = {}): Promise<bigint> {
 		const resp = await this.transport.request<string>({
 			method: 'sui_getTotalTransactionBlocks',
 			params: [],
+			signal,
 		});
 		return BigInt(resp);
 	}
@@ -489,10 +521,11 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	/**
 	 * Getting the reference gas price for the network
 	 */
-	async getReferenceGasPrice(): Promise<bigint> {
+	async getReferenceGasPrice({ signal }: GetReferenceGasPriceParams = {}): Promise<bigint> {
 		const resp = await this.transport.request<string>({
 			method: 'suix_getReferenceGasPrice',
 			params: [],
+			signal,
 		});
 		return BigInt(resp);
 	}
@@ -504,7 +537,11 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		if (!input.owner || !isValidSuiAddress(normalizeSuiAddress(input.owner))) {
 			throw new Error('Invalid Sui address');
 		}
-		return await this.transport.request({ method: 'suix_getStakes', params: [input.owner] });
+		return await this.transport.request({
+			method: 'suix_getStakes',
+			params: [input.owner],
+			signal: input.signal,
+		});
 	}
 
 	/**
@@ -519,14 +556,21 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'suix_getStakesByIds',
 			params: [input.stakedSuiIds],
+			signal: input.signal,
 		});
 	}
 
 	/**
 	 * Return the latest system state content.
 	 */
-	async getLatestSuiSystemState(): Promise<SuiSystemStateSummary> {
-		return await this.transport.request({ method: 'suix_getLatestSuiSystemState', params: [] });
+	async getLatestSuiSystemState({
+		signal,
+	}: GetLatestSuiSystemStateParams = {}): Promise<SuiSystemStateSummary> {
+		return await this.transport.request({
+			method: 'suix_getLatestSuiSystemState',
+			params: [],
+			signal,
+		});
 	}
 
 	/**
@@ -541,6 +585,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 				input.limit,
 				(input.order || 'descending') === 'descending',
 			],
+			signal: input.signal,
 		});
 	}
 
@@ -560,6 +605,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 			unsubscribe: 'suix_unsubscribeEvent',
 			params: [input.filter],
 			onMessage: input.onMessage,
+			signal: input.signal,
 		});
 	}
 
@@ -577,6 +623,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 			unsubscribe: 'suix_unsubscribeTransaction',
 			params: [input.filter],
 			onMessage: input.onMessage,
+			signal: input.signal,
 		});
 	}
 
@@ -605,9 +652,12 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 			throw new Error('Unknown transaction block format.');
 		}
 
+		input.signal?.throwIfAborted();
+
 		return await this.transport.request({
 			method: 'sui_devInspectTransactionBlock',
 			params: [input.sender, devInspectTxBytes, input.gasPrice?.toString(), input.epoch],
+			signal: input.signal,
 		});
 	}
 
@@ -637,6 +687,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'suix_getDynamicFields',
 			params: [input.parentId, input.cursor, input.limit],
+			signal: input.signal,
 		});
 	}
 
@@ -647,16 +698,20 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'suix_getDynamicFieldObject',
 			params: [input.parentId, input.name],
+			signal: input.signal,
 		});
 	}
 
 	/**
 	 * Get the sequence number of the latest checkpoint that has been executed
 	 */
-	async getLatestCheckpointSequenceNumber(): Promise<string> {
+	async getLatestCheckpointSequenceNumber({
+		signal,
+	}: GetLatestCheckpointSequenceNumberParams = {}): Promise<string> {
 		const resp = await this.transport.request({
 			method: 'sui_getLatestCheckpointSequenceNumber',
 			params: [],
+			signal,
 		});
 		return String(resp);
 	}
@@ -665,7 +720,11 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	 * Returns information about a given checkpoint
 	 */
 	async getCheckpoint(input: GetCheckpointParams): Promise<Checkpoint> {
-		return await this.transport.request({ method: 'sui_getCheckpoint', params: [input.id] });
+		return await this.transport.request({
+			method: 'sui_getCheckpoint',
+			params: [input.id],
+			signal: input.signal,
+		});
 	}
 
 	/**
@@ -677,6 +736,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'sui_getCheckpoints',
 			params: [input.cursor, input?.limit, input.descendingOrder],
+			signal: input.signal,
 		});
 	}
 
@@ -687,32 +747,47 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'suix_getCommitteeInfo',
 			params: [input?.epoch],
+			signal: input?.signal,
 		});
 	}
 
-	async getNetworkMetrics(): Promise<NetworkMetrics> {
-		return await this.transport.request({ method: 'suix_getNetworkMetrics', params: [] });
+	async getNetworkMetrics({ signal }: { signal?: AbortSignal } = {}): Promise<NetworkMetrics> {
+		return await this.transport.request({
+			method: 'suix_getNetworkMetrics',
+			params: [],
+			signal,
+		});
 	}
 
-	async getAddressMetrics(): Promise<AddressMetrics> {
-		return await this.transport.request({ method: 'suix_getLatestAddressMetrics', params: [] });
+	async getAddressMetrics({ signal }: { signal?: AbortSignal } = {}): Promise<AddressMetrics> {
+		return await this.transport.request({
+			method: 'suix_getLatestAddressMetrics',
+			params: [],
+			signal,
+		});
 	}
 
 	async getEpochMetrics(
-		input?: { descendingOrder?: boolean } & PaginationArguments<EpochMetricsPage['nextCursor']>,
+		input?: {
+			descendingOrder?: boolean;
+			signal?: AbortSignal;
+		} & PaginationArguments<EpochMetricsPage['nextCursor']>,
 	): Promise<EpochMetricsPage> {
 		return await this.transport.request({
 			method: 'suix_getEpochMetrics',
 			params: [input?.cursor, input?.limit, input?.descendingOrder],
+			signal: input?.signal,
 		});
 	}
 
 	async getAllEpochAddressMetrics(input?: {
 		descendingOrder?: boolean;
+		signal?: AbortSignal;
 	}): Promise<AllEpochsAddressMetrics> {
 		return await this.transport.request({
 			method: 'suix_getAllEpochAddressMetrics',
 			params: [input?.descendingOrder],
+			signal: input?.signal,
 		});
 	}
 
@@ -722,38 +797,52 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	async getEpochs(
 		input?: {
 			descendingOrder?: boolean;
+			signal?: AbortSignal;
 		} & PaginationArguments<EpochPage['nextCursor']>,
 	): Promise<EpochPage> {
 		return await this.transport.request({
 			method: 'suix_getEpochs',
 			params: [input?.cursor, input?.limit, input?.descendingOrder],
+			signal: input?.signal,
 		});
 	}
 
 	/**
 	 * Returns list of top move calls by usage
 	 */
-	async getMoveCallMetrics(): Promise<MoveCallMetrics> {
-		return await this.transport.request({ method: 'suix_getMoveCallMetrics', params: [] });
+	async getMoveCallMetrics({ signal }: { signal?: AbortSignal } = {}): Promise<MoveCallMetrics> {
+		return await this.transport.request({
+			method: 'suix_getMoveCallMetrics',
+			params: [],
+			signal,
+		});
 	}
 
 	/**
 	 * Return the committee information for the asked epoch
 	 */
-	async getCurrentEpoch(): Promise<EpochInfo> {
-		return await this.transport.request({ method: 'suix_getCurrentEpoch', params: [] });
+	async getCurrentEpoch({ signal }: { signal?: AbortSignal } = {}): Promise<EpochInfo> {
+		return await this.transport.request({
+			method: 'suix_getCurrentEpoch',
+			params: [],
+			signal,
+		});
 	}
 
 	/**
 	 * Return the Validators APYs
 	 */
-	async getValidatorsApy(): Promise<ValidatorsApy> {
-		return await this.transport.request({ method: 'suix_getValidatorsApy', params: [] });
+	async getValidatorsApy({ signal }: { signal?: AbortSignal } = {}): Promise<ValidatorsApy> {
+		return await this.transport.request({
+			method: 'suix_getValidatorsApy',
+			params: [],
+			signal,
+		});
 	}
 
 	// TODO: Migrate this to `sui_getChainIdentifier` once it is widely available.
-	async getChainIdentifier(): Promise<string> {
-		const checkpoint = await this.getCheckpoint({ id: '0' });
+	async getChainIdentifier({ signal }: { signal?: AbortSignal } = {}): Promise<string> {
+		const checkpoint = await this.getCheckpoint({ id: '0', signal });
 		const bytes = fromBase58(checkpoint.digest);
 		return toHex(bytes.slice(0, 4));
 	}
@@ -762,6 +851,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'suix_resolveNameServiceAddress',
 			params: [input.name],
+			signal: input.signal,
 		});
 	}
 
@@ -775,6 +865,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 			await this.transport.request({
 				method: 'suix_resolveNameServiceNames',
 				params: [input.address, input.cursor, input.limit],
+				signal: input.signal,
 			});
 
 		return {
@@ -788,6 +879,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		return await this.transport.request({
 			method: 'sui_getProtocolConfig',
 			params: [input?.version],
+			signal: input?.signal,
 		});
 	}
 
