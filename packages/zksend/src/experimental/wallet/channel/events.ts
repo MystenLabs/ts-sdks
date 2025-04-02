@@ -47,7 +47,7 @@ export type StashedRequestData = InferOutput<typeof StashedRequestData>;
 export const StashedRequest = object({
 	version: literal('v1'),
 	requestId: pipe(string('`requestId` is required'), uuid()),
-	appOrigin: pipe(string(), url('`appOrigin` must be a valid URL')),
+	appUrl: pipe(string(), url('`appUrl` must be a valid URL')),
 	appName: string('`appName` is required'),
 	payload: StashedRequestData,
 	metadata: optional(record(string(), any())),

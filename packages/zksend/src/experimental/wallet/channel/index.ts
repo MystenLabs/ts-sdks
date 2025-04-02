@@ -79,7 +79,7 @@ export class StashedPopup {
 			...data,
 			version: this.#version,
 			requestId: this.#id,
-			appOrigin: window.origin,
+			appUrl: window.location.href.split('#')[0],
 			appName: this.#name,
 			chain: this.#chain,
 		};
@@ -139,14 +139,14 @@ export class StashedHost {
 	static fromUrl(url: string = window.location.href) {
 		const parsed = new URL(url);
 		const hash = parsed.hash.slice(1); // Remove the # character
-		const { requestId, appOrigin, appName, version, ...rest } = JSON.parse(
+		const { requestId, appUrl, appName, version, ...rest } = JSON.parse(
 			atob(decodeURIComponent(hash)),
 		);
 
 		const request = parse(StashedRequest, {
 			version,
 			requestId,
-			appOrigin,
+			appUrl,
 			appName,
 			payload: {
 				type: parsed.pathname.split('/').pop(),
@@ -168,7 +168,7 @@ export class StashedHost {
 				source: 'zksend-channel',
 				payload,
 			} satisfies StashedResponse,
-			this.#request.appOrigin,
+			this.#request.appUrl,
 		);
 	}
 
