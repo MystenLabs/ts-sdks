@@ -2,7 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { InferOutput } from 'valibot';
-import { array, literal, object, optional, pipe, string, url, uuid, variant } from 'valibot';
+import {
+	any,
+	array,
+	literal,
+	object,
+	optional,
+	pipe,
+	record,
+	string,
+	url,
+	uuid,
+	variant,
+} from 'valibot';
 
 export const StashedRequestData = variant('type', [
 	object({
@@ -38,6 +50,7 @@ export const StashedRequest = object({
 	appOrigin: pipe(string(), url('`appOrigin` must be a valid URL')),
 	appName: string('`appName` is required'),
 	payload: StashedRequestData,
+	metadata: optional(record(string(), any())),
 });
 
 export type StashedRequest = InferOutput<typeof StashedRequest>;
