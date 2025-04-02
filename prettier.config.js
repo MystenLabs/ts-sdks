@@ -8,16 +8,6 @@ module.exports = {
 	tabWidth: 2,
 	trailingComma: 'all',
 	useTabs: true,
-	plugins: ['@ianvs/prettier-plugin-sort-imports'],
-	importOrder: [
-		'<BUILT_IN_MODULES>',
-		'<THIRD_PARTY_MODULES>',
-		'',
-		'^@/(.*)$',
-		'^~/(.*)$',
-		'',
-		'^[.]',
-	],
 	overrides: [
 		{
 			files: 'packages/**/*',
@@ -26,9 +16,19 @@ module.exports = {
 			},
 		},
 		{
-			files: 'external-crates/move/documentation/book/**/*',
+			plugins: ['@ianvs/prettier-plugin-sort-imports'],
+			files: 'packages/**/*.tsx?',
 			options: {
 				proseWrap: 'always',
+				importOrder: [
+					'<BUILT_IN_MODULES>',
+					'<THIRD_PARTY_MODULES>',
+					'',
+					'^@/(.*)$',
+					'^~/(.*)$',
+					'',
+					'^[.]',
+				],
 			},
 		},
 	],

@@ -67,7 +67,7 @@ import {
 	computeZkLoginAddressFromSeed,
 	jwtToAddress,
 	toZkLoginPublicIdentifier,
-	genAddressSeed
+	genAddressSeed,
 } from '@mysten/sui/zklogin';
 
 const address = jwtToAddress(jwtAsString, salt, true);
@@ -83,6 +83,6 @@ const address = computeZkLoginAddress({
 const address = toZkLoginPublicIdentifier(
 	genAddressSeed(userSalt, claimName, claimValue, aud),
 	iss,
-	{ legacyAddress: true }
+	{ legacyAddress: true },
 ).toSuiAddress();
 ```
