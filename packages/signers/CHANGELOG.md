@@ -1,5 +1,20 @@
 # @mysten/signers
 
+## 0.2.0
+
+### Minor Changes
+
+- 156ae13: Add new LedgerSigner class for signing transactions with a Ledger hardware wallet
+
+### Patch Changes
+
+- 7ba32a4: update dependencies
+- Updated dependencies [7ba32a4]
+- Updated dependencies [156ae13]
+- Updated dependencies [156ae13]
+  - @mysten/ledgerjs-hw-app-sui@0.5.0
+  - @mysten/sui@1.26.1
+
 ## 0.1.17
 
 ### Patch Changes

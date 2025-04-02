@@ -1,5 +1,13 @@
 # @mysten/suins
 
+## 0.7.8
+
+### Patch Changes
+
+- 7ba32a4: update dependencies
+- Updated dependencies [7ba32a4]
+  - @mysten/sui@1.26.1
+
 ## 0.7.7
 
 ### Patch Changes

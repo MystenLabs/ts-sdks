@@ -1,5 +1,17 @@
 # @mysten/enoki
 
+## 0.6.2
+
+### Patch Changes
+
+- 7ba32a4: update dependencies
+- 4d7f04c: Add new EnokiClient methods
+- Updated dependencies [156ae13]
+- Updated dependencies [7ba32a4]
+  - @mysten/signers@0.2.0
+  - @mysten/wallet-standard@0.14.2
+  - @mysten/sui@1.26.1
+
 ## 0.6.1
 
 ### Patch Changes

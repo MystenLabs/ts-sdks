@@ -1,5 +1,15 @@
 # @mysten/dapp-kit
 
+## 0.15.2
+
+### Patch Changes
+
+- 7ba32a4: update dependencies
+- Updated dependencies [7ba32a4]
+  - @mysten/wallet-standard@0.14.2
+  - @mysten/sui@1.26.1
+  - @mysten/zksend@0.12.22
+
 ## 0.15.1
 
 ### Patch Changes

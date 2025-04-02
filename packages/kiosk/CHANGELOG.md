@@ -1,5 +1,13 @@
 # @mysten/kiosk
 
+## 0.11.4
+
+### Patch Changes
+
+- 7ba32a4: update dependencies
+- Updated dependencies [7ba32a4]
+  - @mysten/sui@1.26.1
+
 ## 0.11.3
 
 ### Patch Changes

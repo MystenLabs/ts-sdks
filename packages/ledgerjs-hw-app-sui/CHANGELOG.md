@@ -1,5 +1,16 @@
 # @mysten/ledgerjs-hw-app-sui
 
+## 0.5.0
+
+### Minor Changes
+
+- 156ae13: Remove option to pass `txn` as a hexadecimal string or Buffer
+- 156ae13: Add `options` parameter to the `signTransaction` method for clear signing displays
+
+### Patch Changes
+
+- 7ba32a4: update dependencies
+
 ## 0.4.2
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # Change Log
 
+## 1.6.0
+
+### Minor Changes
+
+- c3a788c: Expose `Owner` struct and update it to support `ConsensusV2` owner types
+
+### Patch Changes
+
+- 7ba32a4: update dependencies
+
 ## 1.5.0
 
 ### Minor Changes

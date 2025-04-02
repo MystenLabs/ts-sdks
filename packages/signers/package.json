@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/signers",
-	"version": "0.1.17",
+	"version": "0.2.0",
 	"description": "A collection of signers for various providers",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
