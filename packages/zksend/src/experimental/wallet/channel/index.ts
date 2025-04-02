@@ -103,7 +103,7 @@ export class StashedPopup {
 		const encodedRequestData = btoa(JSON.stringify(requestData));
 
 		this.#popup.location.assign(
-			`${this.#origin}/dapp/${type}${data ? `#${encodedRequestData}` : ''}`,
+			`${this.#origin}/dapp-request${data ? `#${encodedRequestData}` : ''}`,
 		);
 
 		return this.#promise as Promise<StashedResponseTypes[T]>;
