@@ -18,6 +18,8 @@ import type {
 	GetAppApiResponse,
 	GetSubnamesApiInput,
 	GetSubnamesApiResponse,
+	GetZkLoginAddressesApiInput,
+	GetZkLoginAddressesApiResponse,
 	GetZkLoginApiInput,
 	GetZkLoginApiResponse,
 } from './type.js';
@@ -81,6 +83,15 @@ export class EnokiClient {
 
 	getZkLogin(input: GetZkLoginApiInput) {
 		return this.#fetch<GetZkLoginApiResponse>('zklogin', {
+			method: 'GET',
+			headers: {
+				[ZKLOGIN_HEADER]: input.jwt,
+			},
+		});
+	}
+
+	getZkLoginAddresses(input: GetZkLoginAddressesApiInput) {
+		return this.#fetch<GetZkLoginAddressesApiResponse>('zklogin/addresses', {
 			method: 'GET',
 			headers: {
 				[ZKLOGIN_HEADER]: input.jwt,

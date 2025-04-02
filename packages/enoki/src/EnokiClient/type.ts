@@ -32,6 +32,19 @@ export interface GetZkLoginApiResponse {
 	salt: string;
 }
 
+export interface GetZkLoginAddressesApiInput {
+	jwt: string;
+}
+export interface GetZkLoginAddressesApiResponse {
+	addresses: {
+		clientId: string;
+		salt: string;
+		address: string;
+		publicKey: string;
+		legacy?: boolean;
+	}[];
+}
+
 export interface CreateZkLoginNonceApiInput {
 	network?: EnokiNetwork;
 	ephemeralPublicKey: PublicKey;
