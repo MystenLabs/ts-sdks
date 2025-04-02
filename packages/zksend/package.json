@@ -40,9 +40,9 @@
 	"homepage": "https://github.com/mystenlabs/ts-sdks#readme",
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"@types/node": "^22.10.5",
-		"typescript": "^5.7.2",
-		"vitest": "^2.1.8"
+		"@types/node": "^22.13.17",
+		"typescript": "^5.8.2",
+		"vitest": "^3.1.1"
 	},
 	"dependencies": {
 		"@mysten/sui": "workspace:*",

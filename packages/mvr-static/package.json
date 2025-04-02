@@ -36,15 +36,15 @@
 	},
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"typescript": "^5.7.2",
-		"vitest": "^2.1.8"
+		"typescript": "^5.8.2",
+		"vitest": "^3.1.1"
 	},
 	"dependencies": {
 		"@mysten/sui": "workspace:*",
-		"@types/node": "^22.10.5",
+		"@types/node": "^22.13.17",
 		"enquirer": "^2.4.1",
 		"glob": "^11.0.1",
-		"prettier": "^3.3.2"
+		"prettier": "^3.5.3"
 	},
 	"sideEffects": false,
 	"bin": "./bin/parser.js"

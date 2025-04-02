@@ -5,7 +5,7 @@ import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { getFaucetHost, requestSuiFromFaucetV0 } from '@mysten/sui/faucet';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
-import { MIST_PER_SUI } from '@mysten/sui/utils';
+import { MIST_PER_SUI, parseStructTag } from '@mysten/sui/utils';
 
 import { TESTNET_WALRUS_PACKAGE_CONFIG } from '../src/index.js';
 
@@ -39,12 +39,21 @@ export async function getFundedKeypair() {
 	if (Number(walBalance.totalBalance) < Number(MIST_PER_SUI) / 2) {
 		const tx = new Transaction();
 
+		const exchange = await suiClient.getObject({
+			id: TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0],
+			options: {
+				showType: true,
+			},
+		});
+
+		const exchangePackageId = parseStructTag(exchange.data?.type!).address;
+
 		const wal = tx.moveCall({
-			package: TESTNET_WALRUS_PACKAGE_CONFIG.exchange!.packageId,
+			package: exchangePackageId,
 			module: 'wal_exchange',
 			function: 'exchange_all_for_wal',
 			arguments: [
-				tx.object(TESTNET_WALRUS_PACKAGE_CONFIG.exchange!.exchangeIds[0]),
+				tx.object(TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0]),
 				coinWithBalance({
 					balance: MIST_PER_SUI / 2n,
 				}),
@@ -58,12 +67,14 @@ export async function getFundedKeypair() {
 			signer: keypair,
 		});
 
-		await suiClient.waitForTransaction({
+		const { effects } = await suiClient.waitForTransaction({
 			digest,
 			options: {
-				showEvents: true,
+				showEffects: true,
 			},
 		});
+
+		console.log(effects);
 	}
 
 	return keypair;

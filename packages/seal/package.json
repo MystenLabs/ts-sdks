@@ -44,17 +44,17 @@
 	},
 	"homepage": "https://github.com/mystenlabs/ts-sdks#readme",
 	"devDependencies": {
-		"@hey-api/openapi-ts": "^0.61.2",
+		"@hey-api/openapi-ts": "^0.66.1",
 		"@mysten/build-scripts": "workspace:*",
-		"@types/node": "^22.10.5",
-		"typescript": "^5.7.2",
-		"vitest": "^2.1.8"
+		"@types/node": "^22.13.17",
+		"typescript": "^5.8.2",
+		"vitest": "^3.1.1"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:*",
 		"@mysten/sui": "workspace:*",
-		"@noble/curves": "^1.4.2",
-		"@noble/hashes": "^1.4.0",
+		"@noble/curves": "^1.8.1",
+		"@noble/hashes": "^1.7.1",
 		"shamir-secret-sharing": "0.0.3"
 	}
 }

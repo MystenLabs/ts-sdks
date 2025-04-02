@@ -29,7 +29,7 @@
 		"@mysten/wallet-standard": "workspace:*",
 		"@mysten/walrus": "workspace:*",
 		"@mysten/zksend": "workspace:*",
-		"@tanstack/react-query": "^5.50.1",
+		"@tanstack/react-query": "^5.71.3",
 		"fast-glob": "^3.3.3",
 		"fumadocs-core": "15.1.2",
 		"fumadocs-docgen": "^2.0.0",
@@ -37,7 +37,7 @@
 		"fumadocs-typescript": "^3.1.0",
 		"fumadocs-ui": "15.1.2",
 		"gray-matter": "^4.0.3",
-		"next": "15.2.3",
+		"next": "15.2.4",
 		"react": "^18.3.1",
 		"react-dom": "^18.3.1",
 		"remark": "^15.0.1",
@@ -46,15 +46,15 @@
 		"remark-stringify": "^11.0.0"
 	},
 	"devDependencies": {
-		"@tailwindcss/postcss": "^4.0.0",
+		"@tailwindcss/postcss": "^4.1.1",
 		"@types/mdx": "^2.0.13",
-		"@types/node": "^22.10.5",
+		"@types/node": "^22.13.17",
 		"@types/react": "^18.3.3",
 		"@types/react-dom": "^18.3.0",
-		"postcss": "^8.5.1",
-		"tailwindcss": "^4.0.0",
-		"typedoc": "^0.27.6",
+		"postcss": "^8.5.3",
+		"tailwindcss": "^4.1.1",
+		"typedoc": "^0.28.1",
 		"typedoc-plugin-mermaid": "^1.12.0",
-		"typescript": "^5.7.2"
+		"typescript": "^5.8.2"
 	}
 }

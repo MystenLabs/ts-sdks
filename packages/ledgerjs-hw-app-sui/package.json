@@ -69,10 +69,10 @@
 	"devDependencies": {
 		"@ledgerhq/hw-transport-mocker": "^6.29.0",
 		"@mysten/build-scripts": "workspace:*",
-		"@size-limit/preset-small-lib": "^11.1.4",
-		"@types/node": "^22.10.5",
-		"size-limit": "^11.1.4",
-		"typescript": "^5.7.2",
-		"vitest": "^2.1.8"
+		"@size-limit/preset-small-lib": "^11.2.0",
+		"@types/node": "^22.13.17",
+		"size-limit": "^11.2.0",
+		"typescript": "^5.8.2",
+		"vitest": "^3.1.1"
 	}
 }

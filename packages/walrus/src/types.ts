@@ -26,10 +26,7 @@ export interface WalrusPackageConfig {
 	/** The staking pool ID of the Walrus package */
 	stakingPoolId: string;
 	subsidiesObjectId?: string;
-	exchange?: {
-		packageId: string;
-		exchangeIds: string[];
-	};
+	exchangeIds?: string[];
 }
 
 type SuiClientOrRpcUrl =

@@ -42,18 +42,18 @@
 	"homepage": "https://github.com/mystenlabs/ts-sdks#readme",
 	"devDependencies": {
 		"@graphql-codegen/add": "^5.0.3",
-		"@graphql-codegen/cli": "^5.0.2",
-		"@graphql-codegen/typed-document-node": "^5.0.9",
-		"@graphql-codegen/typescript": "4.1.2",
-		"@graphql-codegen/typescript-document-nodes": "4.0.12",
-		"@graphql-codegen/typescript-operations": "^4.2.3",
+		"@graphql-codegen/cli": "^5.0.5",
+		"@graphql-codegen/typed-document-node": "^5.1.1",
+		"@graphql-codegen/typescript": "4.1.6",
+		"@graphql-codegen/typescript-document-nodes": "4.0.16",
+		"@graphql-codegen/typescript-operations": "^4.6.0",
 		"@mysten/build-scripts": "workspace:*",
-		"@parcel/watcher": "^2.4.1",
-		"@types/node": "^22.10.5",
+		"@parcel/watcher": "^2.5.1",
+		"@types/node": "^22.13.17",
 		"graphql-config": "^5.0.3",
-		"typescript": "^5.7.2",
-		"vitest": "^2.1.8",
-		"wait-on": "^8.0.1"
+		"typescript": "^5.8.2",
+		"vitest": "^3.1.1",
+		"wait-on": "^8.0.3"
 	},
 	"dependencies": {
 		"@graphql-typed-document-node/core": "^3.2.0",

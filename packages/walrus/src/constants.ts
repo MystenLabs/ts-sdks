@@ -5,17 +5,15 @@ import type { BlobStatus } from './storage-node/types.js';
 import type { WalrusPackageConfig } from './types.js';
 
 export const TESTNET_WALRUS_PACKAGE_CONFIG = {
-	systemObjectId: '0x98ebc47370603fe81d9e15491b2f1443d619d1dab720d586e429ed233e1255c1',
-	stakingPoolId: '0x20266a17b4f1a216727f3eef5772f8d486a9e3b5e319af80a5b75809c035561d',
-	exchange: {
-		packageId: '0x17365683421a6242d21cc795298cfd61de541618a8dc9d03a12642571808821b',
-		exchangeIds: [
-			'0x59ab926eb0d94d0d6d6139f11094ea7861914ad2ecffc7411529c60019133997',
-			'0x89127f53890840ab6c52fca96b4a5cf853d7de52318d236807ad733f976eef7b',
-			'0x9f9b4f113862e8b1a3591d7955fadd7c52ecc07cf24be9e3492ce56eb8087805',
-			'0xb60118f86ecb38ec79e74586f1bb184939640911ee1d63a84138d080632ee28a',
-		],
-	},
+	systemObjectId: '0x6c2547cbbc38025cf3adac45f63cb0a8d12ecf777cdc75a4971612bf97fdf6af',
+	stakingPoolId: '0xbe46180321c30aab2f8b3501e24048377287fa708018a5b7c2792b35fe339ee3',
+	subsidiesObjectId: '0xda799d85db0429765c8291c594d334349ef5bc09220e79ad397b30106161a0af',
+	exchangeIds: [
+		'0xf4d164ea2def5fe07dc573992a029e010dba09b1a8dcbc44c5c2e79567f39073',
+		'0x19825121c52080bb1073662231cfea5c0e4d905fd13e95f21e9a018f2ef41862',
+		'0x83b454e524c71f30803f4d6c302a86fb6a39e96cdfb873c2d1e93bc1c26a3bc5',
+		'0x8d63209cf8589ce7aef8f262437163c67577ed09f3e636a9d8e0813843fb8bf1',
+	],
 } satisfies WalrusPackageConfig;
 
 export const MAINNET_WALRUS_PACKAGE_CONFIG = {
