@@ -65,13 +65,7 @@ import type {
 	WriteSliverOptions,
 	WriteSliversToNodeOptions,
 } from './types.js';
-import {
-	blobIdToInt,
-	IntentType,
-	SliverData,
-	StorageConfirmation,
-	TestnetSystemStateInnerV1,
-} from './utils/bcs.js';
+import { blobIdToInt, IntentType, SliverData, StorageConfirmation } from './utils/bcs.js';
 import {
 	chunk,
 	encodedBlobLength,
@@ -210,10 +204,7 @@ export class WalrusClient {
 		const systemState = await this.#objectLoader.loadFieldObject(
 			this.#packageConfig.systemObjectId,
 			{ type: 'u64', value: (await this.systemObject()).version },
-
-			this.#packageConfig.systemObjectId === TESTNET_WALRUS_PACKAGE_CONFIG.systemObjectId
-				? (TestnetSystemStateInnerV1 as never)
-				: SystemStateInnerV1(),
+			SystemStateInnerV1(),
 		);
 
 		return systemState;
