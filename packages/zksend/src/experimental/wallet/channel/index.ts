@@ -88,7 +88,6 @@ export class StashedPopup {
 	} & Extract<StashedRequestData, { type: T }>): Promise<StashedResponseTypes[T]> {
 		window.addEventListener('message', this.#listener);
 
-		console.log('sending data ', data);
 		const requestData = {
 			version: this.#version,
 			requestId: this.#id,
