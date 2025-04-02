@@ -155,7 +155,7 @@ export class StashedHost {
 		window.opener.postMessage(
 			{
 				id: this.#request.id,
-				source: 'zksend-channel',
+				source: 'stashed-channel',
 				payload,
 			} satisfies StashedResponse,
 			this.#request.origin,
