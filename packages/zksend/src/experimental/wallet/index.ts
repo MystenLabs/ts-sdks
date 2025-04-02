@@ -328,15 +328,6 @@ export function registerStashedWallet(
 		return;
 	}
 
-	let addressFromRedirect: string | null = null;
-
-	try {
-		const params = new URLSearchParams(window.location.search);
-		addressFromRedirect = params.get('stashed_address') || params.get('zksend_address');
-	} catch {
-		// Ignore errors
-	}
-
 	const stashedWalletInstance = new StashedWallet({
 		name,
 		origin,
@@ -354,6 +345,5 @@ export function registerStashedWallet(
 	return {
 		wallet: stashedWalletInstance,
 		unregister,
-		addressFromRedirect,
 	};
 }
