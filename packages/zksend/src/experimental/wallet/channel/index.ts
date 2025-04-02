@@ -167,6 +167,7 @@ export class StashedHost {
 				id: this.#request.requestId,
 				source: 'stashed-channel',
 				payload,
+				version: this.#request.version,
 			} satisfies StashedResponse,
 			this.#request.appUrl,
 		);
