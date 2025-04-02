@@ -98,7 +98,7 @@ export namespace Experimental_SuiClientTypes {
 	}
 
 	export interface CoinResponse extends ObjectResponse {
-		balance: bigint;
+		balance: string;
 	}
 
 	/** Balance methods */
@@ -114,7 +114,7 @@ export namespace Experimental_SuiClientTypes {
 
 	export interface CoinBalance {
 		coinType: string;
-		balance: bigint;
+		balance: string;
 	}
 
 	export interface GetBalanceResponse {
@@ -148,7 +148,7 @@ export namespace Experimental_SuiClientTypes {
 		// TODO: Return parsed data:
 		// We need structured representations of effects, events, and transaction data
 		bcs: Uint8Array;
-		effects: Uint8Array;
+		effects: TransactionEffects;
 		events?: Uint8Array;
 	}
 
@@ -182,7 +182,7 @@ export namespace Experimental_SuiClientTypes {
 	}
 
 	export interface GetReferenceGasPriceResponse {
-		referenceGasPrice: bigint;
+		referenceGasPrice: string;
 	}
 
 	/** ObjectOwner types */
@@ -234,17 +234,17 @@ export namespace Experimental_SuiClientTypes {
 	/** Effects */
 
 	export interface TransactionEffects {
-		bcs: Uint8Array;
+		bcs: Uint8Array | null;
 		digest: string;
 		version: number;
 		status: ExecutionStatus;
-		epoch: bigint | null;
+		epoch: string | null;
 		gasUsed: GasCostSummary;
 		transactionDigest: string;
-		gasObject: ChangedObject;
+		gasObject: ChangedObject | null;
 		eventsDigest: string | null;
 		dependencies: string[];
-		lamportVersion: bigint | null;
+		lamportVersion: string | null;
 		changedObjects: ChangedObject[];
 		unchangedSharedObjects: UnchangedSharedObject[];
 		auxiliaryDataDigest: string | null;
@@ -253,11 +253,11 @@ export namespace Experimental_SuiClientTypes {
 	export interface ChangedObject {
 		id: string;
 		inputState: 'Unknown' | 'DoesNotExist' | 'Exists';
-		inputVersion: bigint | null;
+		inputVersion: string | null;
 		inputDigest: string | null;
 		inputOwner: ObjectOwner | null;
 		outputState: 'Unknown' | 'DoesNotExist' | 'ObjectWrite' | 'PackageWrite';
-		outputVersion: bigint | null;
+		outputVersion: string | null;
 		outputDigest: string | null;
 		outputOwner: ObjectOwner | null;
 		idOperation: 'Unknown' | 'None' | 'Created' | 'Deleted';
@@ -265,10 +265,10 @@ export namespace Experimental_SuiClientTypes {
 	}
 
 	export interface GasCostSummary {
-		computationCost: bigint;
-		storageCost: bigint;
-		storageRebate: bigint;
-		nonRefundableStorageFee: bigint;
+		computationCost: string;
+		storageCost: string;
+		storageRebate: string;
+		nonRefundableStorageFee: string;
 	}
 
 	export type ExecutionStatus =
@@ -288,11 +288,11 @@ export namespace Experimental_SuiClientTypes {
 			| 'ReadOnlyRoot'
 			| 'MutateDeleted'
 			| 'ReadDeleted'
-			| 'Canceled'
+			| 'Cancelled'
 			| 'PerEpochConfig';
 		objectId: string;
-		version: bigint;
-		digest: string;
-		objectType: string;
+		version: string | null;
+		digest: string | null;
+		objectType: string | null;
 	}
 }

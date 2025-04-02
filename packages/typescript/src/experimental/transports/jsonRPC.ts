@@ -7,11 +7,14 @@ import { bcs } from '../../bcs/index.js';
 import type {
 	ObjectOwner,
 	SuiClient,
+	SuiObjectChange,
 	SuiObjectData,
 	SuiTransactionBlockResponse,
+	TransactionEffects,
 } from '../../client/index.js';
 import { batch } from '../../transactions/plugins/utils.js';
 import { Transaction } from '../../transactions/Transaction.js';
+import { normalizeStructTag } from '../../utils/sui-types.js';
 import { Experimental_CoreClient } from '../core.js';
 import { ObjectError } from '../errors.js';
 import type { Experimental_SuiClientTypes } from '../types.js';
@@ -88,7 +91,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 					id: coin.coinObjectId,
 					version: coin.version,
 					digest: coin.digest,
-					balance: BigInt(coin.balance),
+					balance: coin.balance,
 					type: `0x2::coin::Coin<${coin.coinType}>`,
 					content: Coin.serialize({
 						id: coin.coinObjectId,
@@ -116,7 +119,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 		return {
 			balance: {
 				coinType: balance.coinType,
-				balance: BigInt(balance.totalBalance),
+				balance: balance.totalBalance,
 			},
 		};
 	}
@@ -128,7 +131,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 		return {
 			balances: balances.map((balance) => ({
 				coinType: balance.coinType,
-				balance: BigInt(balance.totalBalance),
+				balance: balance.totalBalance,
 			})),
 			hasNextPage: false,
 			cursor: null,
@@ -156,6 +159,8 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 			options: {
 				showEffects: true,
 				showEvents: true,
+				showObjectChanges: true,
+				showRawInput: true,
 			},
 		});
 
@@ -172,8 +177,10 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 		return {
 			transaction: {
 				digest: await tx.getDigest(),
-				// TODO: Effects aren't returned as bcs from dryRun, once we define structured effects we can return those instead
-				effects: result.effects as never,
+				effects: parseTransactionEffectsJson({
+					effects: result.effects,
+					objectChanges: result.objectChanges,
+				}),
 				signatures: [],
 				bcs: options.transaction,
 			},
@@ -182,7 +189,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 	async getReferenceGasPrice() {
 		const referenceGasPrice = await this.#jsonRpcClient.getReferenceGasPrice();
 		return {
-			referenceGasPrice,
+			referenceGasPrice: String(referenceGasPrice),
 		};
 	}
 }
@@ -253,9 +260,283 @@ function parseTransaction(
 
 	return {
 		digest: transaction.digest,
-		effects: new Uint8Array(transaction.rawEffects!),
+		effects: parseTransactionEffects({
+			effects: new Uint8Array(transaction.rawEffects!),
+			objectChanges: transaction.objectChanges ?? null,
+		}),
 		bcs: bcs.TransactionData.serialize(parsedTx.intentMessage.value).toBytes(),
 		signatures: parsedTx.txSignatures,
+	};
+}
+
+function parseTransactionEffects({
+	effects,
+	epoch,
+	objectChanges,
+}: {
+	effects: Uint8Array;
+	objectChanges: SuiObjectChange[] | null;
+	epoch?: string | null;
+}): Experimental_SuiClientTypes.TransactionEffects {
+	const parsed = bcs.TransactionEffects.parse(effects);
+	const objectTypes: Record<string, string> = {};
+
+	objectChanges?.forEach((change) => {
+		if (change.type !== 'published') {
+			objectTypes[change.objectId] = change.objectType;
+		}
+	});
+
+	switch (parsed.$kind) {
+		case 'V1':
+			return parseTransactionEffectsV1({ bytes: effects, effects: parsed.V1, epoch, objectTypes });
+		case 'V2':
+			return parseTransactionEffectsV2({ bytes: effects, effects: parsed.V2, epoch, objectTypes });
+		default:
+			throw new Error(
+				`Unknown transaction effects version: ${(parsed as { $kind: string }).$kind}`,
+			);
+	}
+}
+
+function parseTransactionEffectsV1(_: {
+	bytes: Uint8Array;
+	effects: NonNullable<(typeof bcs.TransactionEffects.$inferType)['V1']>;
+	epoch?: string | null;
+	objectTypes: Record<string, string>;
+}): Experimental_SuiClientTypes.TransactionEffects {
+	throw new Error('V1 effects are not supported yet');
+}
+
+function parseTransactionEffectsV2({
+	bytes,
+	effects,
+	epoch,
+	objectTypes,
+}: {
+	bytes: Uint8Array;
+	effects: NonNullable<(typeof bcs.TransactionEffects.$inferType)['V2']>;
+	epoch?: string | null;
+	objectTypes: Record<string, string>;
+}): Experimental_SuiClientTypes.TransactionEffects {
+	const changedObjects = effects.changedObjects.map(
+		([id, change]): Experimental_SuiClientTypes.ChangedObject => {
+			return {
+				id,
+				inputState: change.inputState.$kind === 'Exist' ? 'Exists' : 'DoesNotExist',
+				inputVersion: change.inputState.Exist?.[0][0] ?? null,
+				inputDigest: change.inputState.Exist?.[0][1] ?? null,
+				inputOwner: change.inputState.Exist?.[1] ?? null,
+				outputState:
+					change.outputState.$kind === 'NotExist' ? 'DoesNotExist' : change.outputState.$kind,
+				outputVersion:
+					change.outputState.$kind === 'PackageWrite'
+						? change.outputState.PackageWrite?.[0]
+						: change.outputState.ObjectWrite
+							? effects.lamportVersion
+							: null,
+				outputDigest:
+					change.outputState.$kind === 'PackageWrite'
+						? change.outputState.PackageWrite?.[1]
+						: (change.outputState.ObjectWrite?.[0] ?? null),
+				outputOwner: change.outputState.ObjectWrite?.[1] ?? null,
+				idOperation: change.idOperation.$kind,
+				objectType: objectTypes[id] ?? null,
+			};
+		},
+	);
+
+	return {
+		bcs: bytes,
+		digest: effects.transactionDigest,
+		version: 2,
+		status:
+			effects.status.$kind === 'Success'
+				? {
+						success: true,
+						error: null,
+					}
+				: {
+						success: false,
+						// TODO: add command
+						error: effects.status.Failed.error.$kind,
+					},
+		epoch: epoch ?? null,
+		gasUsed: effects.gasUsed,
+		transactionDigest: effects.transactionDigest,
+		gasObject:
+			effects.gasObjectIndex === null ? null : (changedObjects[effects.gasObjectIndex] ?? null),
+		eventsDigest: effects.eventsDigest,
+		dependencies: effects.dependencies,
+		lamportVersion: effects.lamportVersion,
+		changedObjects,
+		unchangedSharedObjects: effects.unchangedSharedObjects.map(
+			([objectId, object]): Experimental_SuiClientTypes.UnchangedSharedObject => {
+				return {
+					kind: object.$kind,
+					objectId: objectId,
+					version:
+						object.$kind === 'ReadOnlyRoot'
+							? object.ReadOnlyRoot[0]
+							: (object[object.$kind] as string | null),
+					digest: object.$kind === 'ReadOnlyRoot' ? object.ReadOnlyRoot[1] : null,
+					objectType: objectTypes[objectId] ?? null,
+				};
+			},
+		),
+		auxiliaryDataDigest: effects.auxDataDigest,
+	};
+}
+
+function parseTransactionEffectsJson({
+	bytes,
+	effects,
+	epoch,
+	objectChanges,
+}: {
+	bytes?: Uint8Array;
+	effects: TransactionEffects;
+	epoch?: string | null;
+	objectChanges: SuiObjectChange[] | null;
+}): Experimental_SuiClientTypes.TransactionEffects {
+	const changedObjects: Experimental_SuiClientTypes.ChangedObject[] = [];
+	const unchangedSharedObjects: Experimental_SuiClientTypes.UnchangedSharedObject[] = [];
+
+	objectChanges?.forEach((change) => {
+		switch (change.type) {
+			case 'published':
+				changedObjects.push({
+					id: change.packageId,
+					inputState: 'DoesNotExist',
+					inputVersion: null,
+					inputDigest: null,
+					inputOwner: null,
+					outputState: 'PackageWrite',
+					outputVersion: change.version,
+					outputDigest: change.digest,
+					outputOwner: null,
+					idOperation: 'Created',
+					objectType: null,
+				});
+				break;
+			case 'transferred':
+				changedObjects.push({
+					id: change.objectId,
+					inputState: 'Exists',
+					inputVersion: change.version,
+					inputDigest: change.digest,
+					inputOwner: {
+						$kind: 'AddressOwner' as const,
+						AddressOwner: change.sender,
+					},
+					outputState: 'ObjectWrite',
+					outputVersion: change.version,
+					outputDigest: change.digest,
+					outputOwner: parseOwner(change.recipient),
+					idOperation: 'None',
+					objectType: change.objectType,
+				});
+				break;
+			case 'mutated':
+				changedObjects.push({
+					id: change.objectId,
+					inputState: 'Exists',
+					inputVersion: change.previousVersion,
+					inputDigest: null,
+					inputOwner: parseOwner(change.owner),
+					outputState: 'ObjectWrite',
+					outputVersion: change.version,
+					outputDigest: change.digest,
+					outputOwner: parseOwner(change.owner),
+					idOperation: 'None',
+					objectType: change.objectType,
+				});
+				break;
+			case 'deleted':
+				changedObjects.push({
+					id: change.objectId,
+					inputState: 'Exists',
+					inputVersion: change.version,
+					inputDigest: effects.deleted?.find((d) => d.objectId === change.objectId)?.digest ?? null,
+					inputOwner: null,
+					outputState: 'DoesNotExist',
+					outputVersion: null,
+					outputDigest: null,
+					outputOwner: null,
+					idOperation: 'Deleted',
+					objectType: change.objectType,
+				});
+				break;
+			case 'wrapped':
+				changedObjects.push({
+					id: change.objectId,
+					inputState: 'Exists',
+					inputVersion: change.version,
+					inputDigest: null,
+					inputOwner: {
+						$kind: 'AddressOwner' as const,
+						AddressOwner: change.sender,
+					},
+					outputState: 'ObjectWrite',
+					outputVersion: change.version,
+					outputDigest:
+						effects.wrapped?.find((w) => w.objectId === change.objectId)?.digest ?? null,
+					outputOwner: {
+						$kind: 'ObjectOwner' as const,
+						ObjectOwner: change.sender,
+					},
+					idOperation: 'None',
+					objectType: change.objectType,
+				});
+				break;
+			case 'created':
+				changedObjects.push({
+					id: change.objectId,
+					inputState: 'DoesNotExist',
+					inputVersion: null,
+					inputDigest: null,
+					inputOwner: null,
+					outputState: 'ObjectWrite',
+					outputVersion: change.version,
+					outputDigest: change.digest,
+					outputOwner: parseOwner(change.owner),
+					idOperation: 'Created',
+					objectType: change.objectType,
+				});
+				break;
+		}
+	});
+
+	return {
+		bcs: bytes ?? null,
+		digest: effects.transactionDigest,
+		version: 2,
+		status:
+			effects.status.status === 'success'
+				? { success: true, error: null }
+				: { success: false, error: effects.status.error! },
+		epoch: epoch ?? null,
+		gasUsed: effects.gasUsed,
+		transactionDigest: effects.transactionDigest,
+		gasObject: {
+			id: effects.gasObject?.reference.objectId,
+			inputState: 'Exists',
+			inputVersion: null,
+			inputDigest: null,
+			inputOwner: null,
+			outputState: 'ObjectWrite',
+			outputVersion: effects.gasObject.reference.version,
+			outputDigest: effects.gasObject.reference.digest,
+			outputOwner: parseOwner(effects.gasObject.owner),
+			idOperation: 'None',
+			objectType: normalizeStructTag('0x2::coin::Coin<0x2::sui::SUI>'),
+		},
+		eventsDigest: effects.eventsDigest ?? null,
+		dependencies: effects.dependencies ?? [],
+		lamportVersion: effects.gasObject.reference.version,
+		changedObjects,
+		unchangedSharedObjects,
+		auxiliaryDataDigest: null,
 	};
 }
 

@@ -748,7 +748,9 @@ export class WalrusClient {
 			'create storage',
 		);
 
-		const createdObjectIds = effects?.created?.map((effect) => effect.reference.objectId) ?? [];
+		const createdObjectIds = effects?.changedObjects
+			.filter((object) => object.idOperation === 'Created')
+			.map((object) => object.id);
 
 		const createdObjects = await this.#suiClient.core.getObjects({
 			objectIds: createdObjectIds,
@@ -865,7 +867,9 @@ export class WalrusClient {
 			'register blob',
 		);
 
-		const createdObjectIds = effects?.created?.map((effect) => effect.reference.objectId) ?? [];
+		const createdObjectIds = effects?.changedObjects
+			.filter((object) => object.idOperation === 'Created')
+			.map((object) => object.id);
 
 		const createdObjects = await this.#suiClient.core.getObjects({
 			objectIds: createdObjectIds,
@@ -1625,15 +1629,18 @@ export class WalrusClient {
 	}
 
 	async #executeTransaction(transaction: Transaction, signer: Signer, action: string) {
-		const { digest, effects } = await this.#suiClient.jsonRpc.signAndExecuteTransaction({
-			transaction,
-			signer,
-			options: {
-				showEffects: true,
-			},
+		transaction.setSenderIfNotSet(signer.toSuiAddress());
+		const bytes = await transaction.build({ client: this.#suiClient.jsonRpc });
+		const { signature } = await signer.signTransaction(bytes);
+
+		const {
+			transaction: { digest, effects },
+		} = await this.#suiClient.core.executeTransaction({
+			transaction: bytes,
+			signatures: [signature],
 		});
 
-		if (effects?.status.status !== 'success') {
+		if (effects?.status.error) {
 			throw new WalrusClientError(`Failed to ${action}: ${effects?.status.error}`);
 		}
 
