@@ -24,6 +24,7 @@ export const StashedRequestData = variant('type', [
 	}),
 	object({
 		type: literal('sign-personal-message'),
+		chain: optional(string('`chain` is required')),
 		message: string('`message` is required'),
 		address: string('`address` is required'),
 		session: string('`session` is required'),
