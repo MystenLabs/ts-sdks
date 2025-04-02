@@ -3,33 +3,29 @@
 
 import type { Transaction } from '@mysten/sui/transactions';
 
-import type { CreatePoolAdminParams } from '../types/index.js';
-import type { DeepBookConfig } from '../utils/config.js';
-import { FLOAT_SCALAR } from '../utils/config.js';
+import type { CreatePoolAdminParams, Environment } from '../types/index.js';
+import { mainnetPackageIds, testnetPackageIds } from '../utils/constants.js';
 
 /**
  * DeepBookAdminContract class for managing admin actions.
  */
 export class DeepBookAdminContract {
-	#config: DeepBookConfig;
+	#deepbookPackageId: string;
+	#adminCap: string;
+	#registryId: string;
 
 	/**
-	 * @param {DeepBookConfig} config Configuration for DeepBookAdminContract
+	 * @param {Environment} env Environment for DeepBookAdminContract
+	 * @param {string} adminCap Admin capability for DeepBookAdminContract
 	 */
-	constructor(config: DeepBookConfig) {
-		this.#config = config;
-	}
-
-	/**
-	 * @returns The admin capability required for admin operations
-	 * @throws Error if the admin capability is not set
-	 */
-	#adminCap() {
-		const adminCap = this.#config.adminCap;
-		if (!adminCap) {
-			throw new Error('ADMIN_CAP environment variable not set');
-		}
-		return adminCap;
+	constructor(env: Environment, adminCap?: string) {
+		this.#deepbookPackageId =
+			env === 'mainnet'
+				? mainnetPackageIds.DEEPBOOK_PACKAGE_ID
+				: testnetPackageIds.DEEPBOOK_PACKAGE_ID;
+		this.#adminCap = adminCap ?? '';
+		this.#registryId =
+			env === 'mainnet' ? mainnetPackageIds.REGISTRY_ID : testnetPackageIds.REGISTRY_ID;
 	}
 
 	/**
@@ -38,73 +34,60 @@ export class DeepBookAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	createPoolAdmin = (params: CreatePoolAdminParams) => (tx: Transaction) => {
-		tx.setSenderIfNotSet(this.#config.address);
-		const { baseCoinKey, quoteCoinKey, tickSize, lotSize, minSize, whitelisted, stablePool } =
+		const { baseCoinType, quoteCoinType, tickSize, lotSize, minSize, whitelisted, stablePool } =
 			params;
-		const baseCoin = this.#config.getCoin(baseCoinKey);
-		const quoteCoin = this.#config.getCoin(quoteCoinKey);
 
-		const baseScalar = baseCoin.scalar;
-		const quoteScalar = quoteCoin.scalar;
-
-		const adjustedTickSize = (tickSize * FLOAT_SCALAR * quoteScalar) / baseScalar;
-		const adjustedLotSize = lotSize * baseScalar;
-		const adjustedMinSize = minSize * baseScalar;
+		// TODO: make metadata call to get adjusted tick size, lot size, and min size
+		const adjustedTickSize = tickSize;
+		const adjustedLotSize = lotSize;
+		const adjustedMinSize = minSize;
 
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::create_pool_admin`,
+			target: `${this.#deepbookPackageId}::pool::create_pool_admin`,
 			arguments: [
-				tx.object(this.#config.REGISTRY_ID), // registry_id
+				tx.object(this.#registryId), // registry_id
 				tx.pure.u64(adjustedTickSize), // adjusted tick_size
 				tx.pure.u64(adjustedLotSize), // adjusted lot_size
 				tx.pure.u64(adjustedMinSize), // adjusted min_size
 				tx.pure.bool(whitelisted),
 				tx.pure.bool(stablePool),
-				tx.object(this.#adminCap()),
+				tx.object(this.#adminCap),
 			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
+			typeArguments: [baseCoinType, quoteCoinType],
 		});
 	};
 
 	/**
 	 * @description Unregister a pool as admin
-	 * @param {string} poolKey The key of the pool to be unregistered by admin
+	 * @param {string} poolAddress The address of the pool to be unregistered by admin
+	 * @param {string} baseCoinType The type of the base coin
+	 * @param {string} quoteCoinType The type of the quote coin
 	 * @returns A function that takes a Transaction object
 	 */
-	unregisterPoolAdmin = (poolKey: string) => (tx: Transaction) => {
-		const pool = this.#config.getPool(poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::unregister_pool_admin`,
-			arguments: [
-				tx.object(pool.address),
-				tx.object(this.#config.REGISTRY_ID),
-				tx.object(this.#adminCap()),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
+	unregisterPoolAdmin =
+		(poolAddress: string, baseCoinType: string, quoteCoinType: string) => (tx: Transaction) => {
+			tx.moveCall({
+				target: `${this.#deepbookPackageId}::pool::unregister_pool_admin`,
+				arguments: [tx.object(poolAddress), tx.object(this.#registryId), tx.object(this.#adminCap)],
+				typeArguments: [baseCoinType, quoteCoinType],
+			});
+		};
 
 	/**
 	 * @description Update the allowed versions for a pool
-	 * @param {string} poolKey The key of the pool to be updated
+	 * @param {string} poolAddress The address of the pool to be updated
+	 * @param {string} baseCoinType The type of the base coin
+	 * @param {string} quoteCoinType The type of the quote coin
 	 * @returns A function that takes a Transaction object
 	 */
-	updateAllowedVersions = (poolKey: string) => (tx: Transaction) => {
-		const pool = this.#config.getPool(poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::update_allowed_versions`,
-			arguments: [
-				tx.object(pool.address),
-				tx.object(this.#config.REGISTRY_ID),
-				tx.object(this.#adminCap()),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
+	updateAllowedVersions =
+		(poolAddress: string, baseCoinType: string, quoteCoinType: string) => (tx: Transaction) => {
+			tx.moveCall({
+				target: `${this.#deepbookPackageId}::pool::update_allowed_versions`,
+				arguments: [tx.object(poolAddress), tx.object(this.#registryId), tx.object(this.#adminCap)],
+				typeArguments: [baseCoinType, quoteCoinType],
+			});
+		};
 
 	/**
 	 * @description Enable a specific version
@@ -113,12 +96,8 @@ export class DeepBookAdminContract {
 	 */
 	enableVersion = (version: number) => (tx: Transaction) => {
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::enable_version`,
-			arguments: [
-				tx.object(this.#config.REGISTRY_ID),
-				tx.pure.u64(version),
-				tx.object(this.#adminCap()),
-			],
+			target: `${this.#deepbookPackageId}::registry::enable_version`,
+			arguments: [tx.object(this.#registryId), tx.pure.u64(version), tx.object(this.#adminCap)],
 		});
 	};
 
@@ -129,12 +108,8 @@ export class DeepBookAdminContract {
 	 */
 	disableVersion = (version: number) => (tx: Transaction) => {
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::disable_version`,
-			arguments: [
-				tx.object(this.#config.REGISTRY_ID),
-				tx.pure.u64(version),
-				tx.object(this.#adminCap()),
-			],
+			target: `${this.#deepbookPackageId}::registry::disable_version`,
+			arguments: [tx.object(this.#registryId), tx.pure.u64(version), tx.object(this.#adminCap)],
 		});
 	};
 
@@ -145,39 +120,37 @@ export class DeepBookAdminContract {
 	 */
 	setTreasuryAddress = (treasuryAddress: string) => (tx: Transaction) => {
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::set_treasury_address`,
+			target: `${this.#deepbookPackageId}::registry::set_treasury_address`,
 			arguments: [
-				tx.object(this.#config.REGISTRY_ID),
+				tx.object(this.#registryId),
 				tx.pure.address(treasuryAddress),
-				tx.object(this.#adminCap()),
+				tx.object(this.#adminCap),
 			],
 		});
 	};
 
 	/**
 	 * @description Add a coin to whitelist of stable coins
-	 * @param {string} stableCoinKey The name of the stable coin to be added
+	 * @param {string} stableCoinType The type of the stable coin to be added
 	 * @returns A function that takes a Transaction object
 	 */
-	addStableCoin = (stableCoinKey: string) => (tx: Transaction) => {
-		const stableCoinType = this.#config.getCoin(stableCoinKey).type;
+	addStableCoin = (stableCoinType: string) => (tx: Transaction) => {
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::add_stablecoin`,
-			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
+			target: `${this.#deepbookPackageId}::registry::add_stablecoin`,
+			arguments: [tx.object(this.#registryId), tx.object(this.#adminCap)],
 			typeArguments: [stableCoinType],
 		});
 	};
 
 	/**
 	 * @description Remove a coin from whitelist of stable coins
-	 * @param {string} stableCoinKey The name of the stable coin to be removed
+	 * @param {string} stableCoinType The type of the stable coin to be removed
 	 * @returns A function that takes a Transaction object
 	 */
-	removeStableCoin = (stableCoinKey: string) => (tx: Transaction) => {
-		const stableCoinType = this.#config.getCoin(stableCoinKey).type;
+	removeStableCoin = (stableCoinType: string) => (tx: Transaction) => {
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::remove_stablecoin`,
-			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
+			target: `${this.#deepbookPackageId}::registry::remove_stablecoin`,
+			arguments: [tx.object(this.#registryId), tx.object(this.#adminCap)],
 			typeArguments: [stableCoinType],
 		});
 	};
