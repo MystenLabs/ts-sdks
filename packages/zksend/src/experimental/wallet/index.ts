@@ -47,7 +47,7 @@ const getStashedSession = (): { accounts: StashedAccount[]; token: string } => {
 	return { accounts, token };
 };
 
-const SUI_WALLET_EXTENSION_ID = 'com.sui.extension' as const;
+const SUI_WALLET_EXTENSION_ID = 'com.mystenlabs.suiwallet' as const;
 
 export class StashedWallet implements Wallet {
 	#events: Emitter<WalletEventsMap>;
