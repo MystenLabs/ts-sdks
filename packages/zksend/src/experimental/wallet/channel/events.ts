@@ -89,6 +89,7 @@ export type StashedResponseData = InferOutput<typeof StashedResponseData>;
 export const StashedResponsePayload = variant('type', [
 	object({
 		type: literal('reject'),
+		reason: optional(string('`reason` must be a string')),
 	}),
 	object({
 		type: literal('resolve'),
