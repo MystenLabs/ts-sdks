@@ -7,11 +7,7 @@ import { WalrusClient } from '../../src/client.js';
 
 const client = new SuiClient({
 	url: getFullnodeUrl('testnet'),
-}).$extend(
-	WalrusClient.experimental_asClientExtension({
-		network: 'testnet',
-	}),
-);
+}).$extend(WalrusClient.experimental_asClientExtension());
 
 export async function retrieveBlob(blobId: string) {
 	const blobBytes = await client.walrus.readBlob({ blobId });

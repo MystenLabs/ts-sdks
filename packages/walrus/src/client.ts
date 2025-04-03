@@ -136,7 +136,7 @@ export class WalrusClient {
 	static experimental_asClientExtension({
 		packageConfig,
 		...options
-	}: WalrusClientExtensionOptions) {
+	}: WalrusClientExtensionOptions = {}) {
 		return {
 			name: 'walrus' as const,
 			register: (
