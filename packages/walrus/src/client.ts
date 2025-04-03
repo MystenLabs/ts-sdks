@@ -17,7 +17,7 @@ import {
 } from './constants.js';
 import { Blob, init as initBlobContract } from './contracts/blob.js';
 import type { Committee } from './contracts/committee.js';
-import { init as initMetadataContract } from './contracts/metadata.js';
+import { init as initMetadataContract, Metadata } from './contracts/metadata.js';
 import { StakingInnerV1 } from './contracts/staking_inner.js';
 import { StakingPool } from './contracts/staking_pool.js';
 import { Staking } from './contracts/staking.js';
@@ -1176,41 +1176,17 @@ export class WalrusClient {
 	}: {
 		blobObjectId: string;
 	}): Promise<Record<string, string> | null> {
-		const response = await this.#suiClient.jsonRpc.getDynamicFieldObject({
+		const response = await this.#suiClient.core.getDynamicField({
 			parentId: blobObjectId,
 			name: {
 				type: 'vector<u8>',
-				value: [...new TextEncoder().encode('metadata')],
+				bcs: new TextEncoder().encode('metadata'),
 			},
 		});
 
-		if (response.error?.code === 'dynamicFieldNotFound') {
-			return null;
-		}
+		const metadata = Metadata().parse(response.dynamicField.value.bcs);
 
-		if (response.error || !response.data) {
-			throw new WalrusClientError(
-				`Failed to fetch metadata for object ${blobObjectId}: ${response.error}`,
-			);
-		}
-
-		const metadata = (
-			response.data as unknown as {
-				content: {
-					fields: {
-						value: {
-							fields: {
-								metadata: {
-									fields: { contents: { fields: { key: string; value: string } }[] };
-								};
-							};
-						};
-					};
-				};
-			}
-		).content.fields.value.fields.metadata.fields.contents;
-
-		return Object.fromEntries(metadata.map(({ fields: { key, value } }) => [key, value]));
+		return Object.fromEntries(metadata.metadata.contents.map(({ key, value }) => [key, value]));
 	}
 
 	async #writeBlobAttributesForRef({

@@ -51,9 +51,11 @@ export namespace Experimental_SuiClientTypes {
 
 	/** Object methods */
 	export interface TransportMethods {
-		getObjects?: (options: GetObjectsOptions) => Promise<GetObjectsResponse>;
-		getOwnedObjects?: (options: GetOwnedObjectsOptions) => Promise<GetOwnedObjectsResponse>;
-		getCoins?: (options: GetCoinsOptions) => Promise<GetCoinsResponse>;
+		getObjects: (options: GetObjectsOptions) => Promise<GetObjectsResponse>;
+		getOwnedObjects: (options: GetOwnedObjectsOptions) => Promise<GetOwnedObjectsResponse>;
+		getCoins: (options: GetCoinsOptions) => Promise<GetCoinsResponse>;
+		getDynamicFields: (options: GetDynamicFieldsOptions) => Promise<GetDynamicFieldsResponse>;
+		getDynamicField: (options: GetDynamicFieldOptions) => Promise<GetDynamicFieldResponse>;
 	}
 
 	export interface GetObjectsOptions extends CoreClientMethodOptions {
@@ -70,6 +72,17 @@ export namespace Experimental_SuiClientTypes {
 	export interface GetCoinsOptions extends CoreClientMethodOptions {
 		address: string;
 		coinType: string;
+	}
+
+	export interface GetDynamicFieldsOptions extends CoreClientMethodOptions {
+		parentId: string;
+		limit?: number;
+		cursor?: string | null;
+	}
+
+	export interface GetDynamicFieldOptions extends CoreClientMethodOptions {
+		parentId: string;
+		name: DynamicFieldName;
 	}
 
 	export interface GetObjectsResponse {
@@ -101,10 +114,43 @@ export namespace Experimental_SuiClientTypes {
 		balance: string;
 	}
 
+	export interface GetDynamicFieldsResponse {
+		hasNextPage: boolean;
+		cursor: string | null;
+		dynamicFields: {
+			name: DynamicFieldName;
+			id: string;
+			version: string;
+			digest: string;
+			type: string;
+		}[];
+	}
+
+	export interface GetDynamicFieldResponse {
+		dynamicField: {
+			name: DynamicFieldName;
+			value: DynamicFieldValue;
+			id: string;
+			version: string;
+			digest: string;
+			type: string;
+		};
+	}
+
+	export interface DynamicFieldName {
+		type: string;
+		bcs: Uint8Array;
+	}
+
+	export interface DynamicFieldValue {
+		type: string;
+		bcs: Uint8Array;
+	}
+
 	/** Balance methods */
 	export interface TransportMethods {
-		getBalance?: (options: GetBalanceOptions) => Promise<GetBalanceResponse>;
-		getAllBalances?: (options: GetAllBalancesOptions) => Promise<GetAllBalancesResponse>;
+		getBalance: (options: GetBalanceOptions) => Promise<GetBalanceResponse>;
+		getAllBalances: (options: GetAllBalancesOptions) => Promise<GetAllBalancesResponse>;
 	}
 
 	export interface GetBalanceOptions extends CoreClientMethodOptions {
@@ -135,11 +181,9 @@ export namespace Experimental_SuiClientTypes {
 
 	/** Transaction methods */
 	export interface TransportMethods {
-		getTransaction?: (options: GetTransactionOptions) => Promise<GetTransactionResponse>;
-		executeTransaction?: (
-			options: ExecuteTransactionOptions,
-		) => Promise<ExecuteTransactionResponse>;
-		dryRunTransaction?: (options: DryRunTransactionOptions) => Promise<DryRunTransactionResponse>;
+		getTransaction: (options: GetTransactionOptions) => Promise<GetTransactionResponse>;
+		executeTransaction: (options: ExecuteTransactionOptions) => Promise<ExecuteTransactionResponse>;
+		dryRunTransaction: (options: DryRunTransactionOptions) => Promise<DryRunTransactionResponse>;
 	}
 
 	export interface TransactionResponse {
@@ -209,9 +253,9 @@ export namespace Experimental_SuiClientTypes {
 		Immutable: true;
 	}
 
-	export interface ConsensusV2Owner {
+	export interface ConsensusV2 {
 		$kind: 'ConsensusV2';
-		ConsensusV2Owner: {
+		ConsensusV2: {
 			authenticator: ConsensusV2Authenticator;
 			startVersion: string;
 		};
@@ -224,12 +268,7 @@ export namespace Experimental_SuiClientTypes {
 
 	export type ConsensusV2Authenticator = SingleOwnerAuthenticator;
 
-	export type ObjectOwner =
-		| AddressOwner
-		| ParentOwner
-		| SharedOwner
-		| ImmutableOwner
-		| ConsensusV2Owner;
+	export type ObjectOwner = AddressOwner | ParentOwner | SharedOwner | ImmutableOwner | ConsensusV2;
 
 	/** Effects */
 

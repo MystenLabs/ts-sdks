@@ -192,6 +192,29 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 			referenceGasPrice: String(referenceGasPrice),
 		};
 	}
+
+	async getDynamicFields(options: Experimental_SuiClientTypes.GetDynamicFieldsOptions) {
+		const dynamicFields = await this.#jsonRpcClient.getDynamicFields({
+			parentId: options.parentId,
+			limit: options.limit,
+			cursor: options.cursor,
+		});
+
+		return {
+			dynamicFields: dynamicFields.data.map((dynamicField) => ({
+				id: dynamicField.objectId,
+				version: dynamicField.version,
+				digest: dynamicField.digest,
+				type: dynamicField.objectType,
+				name: {
+					type: dynamicField.name.type,
+					bcs: fromBase64(dynamicField.bcsName),
+				},
+			})),
+			hasNextPage: dynamicFields.hasNextPage,
+			cursor: dynamicFields.nextCursor,
+		};
+	}
 }
 
 function parseObject(object: SuiObjectData): Experimental_SuiClientTypes.ObjectResponse {
@@ -217,7 +240,7 @@ function parseOwner(owner: ObjectOwner): Experimental_SuiClientTypes.ObjectOwner
 	if ('ConsensusV2' in owner) {
 		return {
 			$kind: 'ConsensusV2',
-			ConsensusV2Owner: {
+			ConsensusV2: {
 				authenticator: {
 					$kind: 'SingleOwner',
 					SingleOwner: owner.ConsensusV2.authenticator.SingleOwner,
@@ -339,7 +362,7 @@ function parseTransactionEffectsV2({
 					change.outputState.$kind === 'PackageWrite'
 						? change.outputState.PackageWrite?.[1]
 						: (change.outputState.ObjectWrite?.[0] ?? null),
-				outputOwner: change.outputState.ObjectWrite?.[1] ?? null,
+				outputOwner: change.outputState.ObjectWrite ? change.outputState.ObjectWrite[1] : null,
 				idOperation: change.idOperation.$kind,
 				objectType: objectTypes[id] ?? null,
 			};

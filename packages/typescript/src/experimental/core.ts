@@ -1,6 +1,9 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { TypeTagSerializer } from '../bcs/type-tag-serializer.js';
+import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
+import { normalizeStructTag, parseStructTag, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
 import { Experimental_BaseClient } from './client.js';
 import type { Experimental_SuiClientTypes } from './types.js';
 
@@ -43,6 +46,48 @@ export abstract class Experimental_CoreClient
 	): Promise<Experimental_SuiClientTypes.DryRunTransactionResponse>;
 
 	abstract getReferenceGasPrice(): Promise<Experimental_SuiClientTypes.GetReferenceGasPriceResponse>;
+
+	abstract getDynamicFields(
+		options: Experimental_SuiClientTypes.GetDynamicFieldsOptions,
+	): Promise<Experimental_SuiClientTypes.GetDynamicFieldsResponse>;
+
+	async getDynamicField(
+		options: Experimental_SuiClientTypes.GetDynamicFieldOptions,
+	): Promise<Experimental_SuiClientTypes.GetDynamicFieldResponse> {
+		const fieldId = deriveDynamicFieldID(
+			options.parentId,
+			TypeTagSerializer.parseFromStr(options.name.type),
+			options.name.bcs,
+		);
+		const {
+			objects: [fieldObject],
+		} = await this.getObjects({
+			objectIds: [fieldId],
+		});
+
+		if (fieldObject instanceof Error) {
+			throw fieldObject;
+		}
+
+		const fieldType = parseStructTag(fieldObject.type);
+
+		return {
+			dynamicField: {
+				id: fieldObject.id,
+				digest: fieldObject.digest,
+				version: fieldObject.version,
+				type: fieldObject.type,
+				name: {
+					type: normalizeStructTag(fieldType.typeParams[0]),
+					bcs: options.name.bcs,
+				},
+				value: {
+					type: normalizeStructTag(fieldType.typeParams[1]),
+					bcs: fieldObject.content.slice(SUI_ADDRESS_LENGTH + options.name.bcs.length),
+				},
+			},
+		};
+	}
 
 	async waitForTransaction({
 		signal,
