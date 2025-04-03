@@ -78,11 +78,17 @@ export abstract class Experimental_CoreClient
 				version: fieldObject.version,
 				type: fieldObject.type,
 				name: {
-					type: normalizeStructTag(fieldType.typeParams[0]),
+					type:
+						typeof fieldType.typeParams[0] === 'string'
+							? fieldType.typeParams[0]
+							: normalizeStructTag(fieldType.typeParams[0]),
 					bcs: options.name.bcs,
 				},
 				value: {
-					type: normalizeStructTag(fieldType.typeParams[1]),
+					type:
+						typeof fieldType.typeParams[1] === 'string'
+							? fieldType.typeParams[1]
+							: normalizeStructTag(fieldType.typeParams[1]),
 					bcs: fieldObject.content.slice(SUI_ADDRESS_LENGTH + options.name.bcs.length),
 				},
 			},

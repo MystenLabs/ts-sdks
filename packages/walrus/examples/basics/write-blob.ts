@@ -17,6 +17,7 @@ setGlobalDispatcher(
 
 const client = new SuiClient({
 	url: getFullnodeUrl('testnet'),
+	network: 'testnet',
 }).$extend(
 	WalrusClient.experimental_asClientExtension({
 		storageNodeClientOptions: {
