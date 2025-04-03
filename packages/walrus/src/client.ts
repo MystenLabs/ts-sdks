@@ -132,6 +132,7 @@ export class WalrusClient {
 
 	static experimental_asClientExtension({
 		packageConfig,
+		network,
 		...options
 	}: WalrusClientExtensionOptions = {}) {
 		return {
@@ -141,9 +142,9 @@ export class WalrusClient {
 					jsonRpc: SuiClient;
 				}>,
 			) => {
-				const network = client.network;
+				let walrusNetwork = network || client.network;
 
-				if (network !== 'mainnet' && network !== 'testnet') {
+				if (walrusNetwork !== 'mainnet' && walrusNetwork !== 'testnet') {
 					throw new WalrusClientError('Walrus client only supports mainnet and testnet');
 				}
 
@@ -155,7 +156,7 @@ export class WalrusClient {
 								...options,
 							}
 						: {
-								network: network as 'mainnet' | 'testnet',
+								network: walrusNetwork as 'mainnet' | 'testnet',
 								suiClient: client,
 								...options,
 							},
@@ -1198,7 +1199,7 @@ export class WalrusClient {
 			parentId: blobObjectId,
 			name: {
 				type: 'vector<u8>',
-				bcs: new TextEncoder().encode('metadata'),
+				bcs: bcs.string().serialize('metadata').toBytes(),
 			},
 		});
 

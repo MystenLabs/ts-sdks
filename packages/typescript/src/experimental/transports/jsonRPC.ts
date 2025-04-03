@@ -157,7 +157,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 			transactionBlock: options.transaction,
 			signature: options.signatures,
 			options: {
-				showEffects: true,
+				showRawEffects: true,
 				showEvents: true,
 				showObjectChanges: true,
 				showRawInput: true,

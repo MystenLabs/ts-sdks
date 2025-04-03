@@ -68,6 +68,7 @@ export type WalrusClientConfig = BaseWalrusClientConfig &
 
 export type WalrusClientExtensionOptions = BaseWalrusClientConfig & {
 	packageConfig?: WalrusPackageConfig;
+	network?: 'mainnet' | 'testnet';
 };
 
 export type WalrusClientRequestOptions = Pick<RequestOptions, 'signal'>;
