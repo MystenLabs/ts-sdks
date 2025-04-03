@@ -52,17 +52,23 @@ type WalrusNetworkOrPackageConfig =
 			packageConfig: WalrusPackageConfig;
 	  };
 
+interface BaseWalrusClientConfig {
+	storageNodeClientOptions?: StorageNodeClientOptions;
+	wasmUrl?: string;
+}
+
 /**
  * Configuration for the Walrus client.
  *
  * This is used to configure the Walrus client to use a specific storage node client options, network, and Sui client or RPC URL.
  */
-export type WalrusClientConfig = WalrusClientExtensionOptions & SuiClientOrRpcUrl;
+export type WalrusClientConfig = BaseWalrusClientConfig &
+	WalrusNetworkOrPackageConfig &
+	SuiClientOrRpcUrl;
 
-export type WalrusClientExtensionOptions = {
-	storageNodeClientOptions?: StorageNodeClientOptions;
-	wasmUrl?: string;
-} & WalrusNetworkOrPackageConfig;
+export type WalrusClientExtensionOptions = BaseWalrusClientConfig & {
+	packageConfig?: WalrusPackageConfig;
+};
 
 export type WalrusClientRequestOptions = Pick<RequestOptions, 'signal'>;
 

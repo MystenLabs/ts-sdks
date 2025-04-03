@@ -130,7 +130,10 @@ export class WalrusClient {
 		this.#cache = this.#suiClient.cache.scope('@mysten/walrus');
 	}
 
-	static experimental_asClientExtension(options: WalrusClientExtensionOptions) {
+	static experimental_asClientExtension({
+		packageConfig,
+		...options
+	}: WalrusClientExtensionOptions) {
 		return {
 			name: 'walrus' as const,
 			register: (
@@ -138,10 +141,25 @@ export class WalrusClient {
 					jsonRpc: SuiClient;
 				}>,
 			) => {
-				return new WalrusClient({
-					...options,
-					suiClient: client,
-				});
+				const network = client.network;
+
+				if (network !== 'mainnet' && network !== 'testnet') {
+					throw new WalrusClientError('Walrus client only supports mainnet and testnet');
+				}
+
+				return new WalrusClient(
+					packageConfig
+						? {
+								packageConfig,
+								suiClient: client,
+								...options,
+							}
+						: {
+								network: network as 'mainnet' | 'testnet',
+								suiClient: client,
+								...options,
+							},
+				);
 			},
 		};
 	}
