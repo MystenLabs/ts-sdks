@@ -7,9 +7,6 @@ import { Hono } from 'hono';
 
 import { BlobBlockedError, BlobNotCertifiedError, WalrusClient } from '../../src/index.js';
 
-/** @ts-ignore */
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 const app = new Hono();
 
 const suiClient = new SuiClient({

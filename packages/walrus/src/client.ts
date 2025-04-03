@@ -158,7 +158,7 @@ export class WalrusClient {
 	});
 
 	/** The Move type for a Blob object */
-	#getBlobType = this.#memo.create('getBlobType', async () => {
+	getBlobType = this.#memo.create('getBlobType', async () => {
 		return `${await this.#getPackageId()}::blob::Blob`;
 	});
 
@@ -700,7 +700,7 @@ export class WalrusClient {
 			...options,
 			owner: options.transaction?.getData().sender ?? signer.toSuiAddress(),
 		});
-		const blobType = await this.#getBlobType();
+		const blobType = await this.getBlobType();
 
 		const { digest, effects } = await this.#executeTransaction(
 			transaction,
@@ -820,7 +820,7 @@ export class WalrusClient {
 			...options,
 			owner: options.owner ?? options.transaction?.getData().sender ?? signer.toSuiAddress(),
 		});
-		const blobType = await this.#getBlobType();
+		const blobType = await this.getBlobType();
 		const { digest, effects } = await this.#executeTransaction(
 			transaction,
 			signer,

@@ -51,8 +51,10 @@ export function FileUpload() {
 			throw new Error('Failed to register blob');
 		}
 
+		const blobType = await walrusClient.getBlobType();
+
 		const blobObject = objectChanges?.find(
-			(change) => change.type === 'created' && change.objectType === walrusClient.blobType,
+			(change) => change.type === 'created' && change.objectType === blobType,
 		);
 
 		if (!blobObject || blobObject.type !== 'created') {

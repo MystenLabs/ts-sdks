@@ -42,15 +42,6 @@ const walrusClient = new WalrusClient({
 });
 ```
 
-Walrus `testnet` nodes currently use self-signed certificates. Until all nodes are updated to use
-valid certificates, you may need to configure your environment to ignore certificate errors.
-
-In node this can be done though an environment variable:
-
-```ts
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-```
-
 For some environments you may need to customize how data is fetched:
 
 ```ts
