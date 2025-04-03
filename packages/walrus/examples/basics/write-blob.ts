@@ -19,7 +19,6 @@ const client = new SuiClient({
 	url: getFullnodeUrl('testnet'),
 }).$extend(
 	WalrusClient.experimental_asClientExtension({
-		network: 'testnet',
 		storageNodeClientOptions: {
 			timeout: 60_000,
 		},
