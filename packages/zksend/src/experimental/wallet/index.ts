@@ -163,11 +163,11 @@ export class StashedWallet implements Wallet {
 			chain,
 		});
 
-		const data = await transaction.toJSON();
+		const tx = await transaction.toJSON();
 
 		const response = await popup.send({
 			type: 'sign-transaction',
-			transaction: data,
+			transaction: tx,
 			address: account.address,
 			chain,
 			session: getStashedSession().token,
