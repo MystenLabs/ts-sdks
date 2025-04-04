@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /* eslint-disable @typescript-eslint/ban-types */
 
+import { ClientCache } from './cache.js';
 import type { Experimental_CoreClient } from './core.js';
 import type {
 	ClientWithExtensions,
@@ -11,8 +12,9 @@ import type {
 	UnionToIntersection,
 } from './types.js';
 
-export abstract class Experimental_SuiClient {
+export abstract class Experimental_BaseClient {
 	network: Experimental_SuiClientTypes.Network;
+	cache = new ClientCache();
 
 	constructor({ network }: Experimental_SuiClientTypes.SuiClientOptions) {
 		this.network = network;
@@ -40,7 +42,7 @@ export abstract class Experimental_SuiClient {
 					{
 						[K in keyof this]: this[K];
 					},
-					keyof Experimental_SuiClient
+					keyof Experimental_BaseClient
 				> &
 					UnionToIntersection<
 						{

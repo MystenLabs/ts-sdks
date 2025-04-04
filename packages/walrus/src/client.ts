@@ -5,6 +5,7 @@ import type { InferBcsType } from '@mysten/bcs';
 import { bcs } from '@mysten/bcs';
 import { SuiClient } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
+import type { ClientCache, ClientWithExtensions } from '@mysten/sui/experimental';
 import type { TransactionObjectArgument } from '@mysten/sui/transactions';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
@@ -16,7 +17,7 @@ import {
 } from './constants.js';
 import { Blob, init as initBlobContract } from './contracts/blob.js';
 import type { Committee } from './contracts/committee.js';
-import { init as initMetadataContract } from './contracts/metadata.js';
+import { init as initMetadataContract, Metadata } from './contracts/metadata.js';
 import { StakingInnerV1 } from './contracts/staking_inner.js';
 import { StakingPool } from './contracts/staking_pool.js';
 import { Staking } from './contracts/staking.js';
@@ -56,6 +57,7 @@ import type {
 	StorageNode,
 	StorageWithSizeOptions,
 	WalrusClientConfig,
+	WalrusClientExtensionOptions,
 	WalrusPackageConfig,
 	WriteBlobAttributesOptions,
 	WriteBlobOptions,
@@ -79,7 +81,6 @@ import {
 	toShardIndex,
 	toTypeString,
 } from './utils/index.js';
-import { MemoCache } from './utils/memo.js';
 import { SuiObjectDataLoader } from './utils/object-loader.js';
 import { shuffle, weightedShuffle } from './utils/randomness.js';
 import {
@@ -94,12 +95,15 @@ export class WalrusClient {
 	#storageNodeClient: StorageNodeClient;
 
 	#packageConfig: WalrusPackageConfig;
-	#suiClient: SuiClient;
+	#suiClient: ClientWithExtensions<{
+		jsonRpc: SuiClient;
+	}>;
 	#objectLoader: SuiObjectDataLoader;
 
 	#blobMetadataConcurrencyLimit = 10;
 	#readCommittee?: CommitteeInfo | Promise<CommitteeInfo> | null;
-	#memo = new MemoCache();
+
+	#cache: ClientCache;
 
 	constructor(config: WalrusClientConfig) {
 		if (config.network && !config.packageConfig) {
@@ -126,68 +130,117 @@ export class WalrusClient {
 
 		this.#storageNodeClient = new StorageNodeClient(config.storageNodeClientOptions);
 		this.#objectLoader = new SuiObjectDataLoader(this.#suiClient);
+		this.#cache = this.#suiClient.cache.scope('@mysten/walrus');
 	}
 
+	static experimental_asClientExtension({
+		packageConfig,
+		network,
+		...options
+	}: WalrusClientExtensionOptions = {}) {
+		return {
+			name: 'walrus' as const,
+			register: (
+				client: ClientWithExtensions<{
+					jsonRpc: SuiClient;
+				}>,
+			) => {
+				let walrusNetwork = network || client.network;
+
+				if (walrusNetwork !== 'mainnet' && walrusNetwork !== 'testnet') {
+					throw new WalrusClientError('Walrus client only supports mainnet and testnet');
+				}
+
+				return new WalrusClient(
+					packageConfig
+						? {
+								packageConfig,
+								suiClient: client,
+								...options,
+							}
+						: {
+								network: walrusNetwork as 'mainnet' | 'testnet',
+								suiClient: client,
+								...options,
+							},
+				);
+			},
+		};
+	}
 	/** The Move type for a WAL coin */
-	#walType = this.#memo.create('walType', async () => {
-		const stakedWal = await this.#suiClient.getNormalizedMoveStruct({
-			package: await this.#getPackageId(),
-			module: 'staked_wal',
-			struct: 'StakedWal',
+	#walType() {
+		return this.#cache.read(['walType'], async () => {
+			const stakedWal = await this.#suiClient.jsonRpc.getNormalizedMoveStruct({
+				package: await this.#getPackageId(),
+				module: 'staked_wal',
+				struct: 'StakedWal',
+			});
+
+			const balanceType = stakedWal.fields.find((field) => field.name === 'principal')?.type;
+
+			if (!balanceType) {
+				throw new WalrusClientError('WAL type not found');
+			}
+
+			const parsed = parseStructTag(toTypeString(balanceType));
+			const coinType = parsed.typeParams[0];
+
+			if (!coinType) {
+				throw new WalrusClientError('WAL type not found');
+			}
+
+			return normalizeStructTag(coinType);
 		});
+	}
 
-		const balanceType = stakedWal.fields.find((field) => field.name === 'principal')?.type;
-
-		if (!balanceType) {
-			throw new WalrusClientError('WAL type not found');
-		}
-
-		const parsed = parseStructTag(toTypeString(balanceType));
-		const coinType = parsed.typeParams[0];
-
-		if (!coinType) {
-			throw new WalrusClientError('WAL type not found');
-		}
-
-		return normalizeStructTag(coinType);
-	});
-
-	#getPackageId = this.#memo.create('getPackageId', async () => {
-		const system = await this.#objectLoader.load(this.#packageConfig.systemObjectId);
-		return parseStructTag(system.type!).address;
-	});
+	#getPackageId() {
+		return this.#cache.read(['getPackageId'], async () => {
+			const system = await this.#objectLoader.load(this.#packageConfig.systemObjectId);
+			return parseStructTag(system.type!).address;
+		});
+	}
 
 	/** The Move type for a Blob object */
-	getBlobType = this.#memo.create('getBlobType', async () => {
-		return `${await this.#getPackageId()}::blob::Blob`;
-	});
+	getBlobType() {
+		return this.#cache.read(['getBlobType'], async () => {
+			return `${await this.#getPackageId()}::blob::Blob`;
+		});
+	}
 
-	#getSystemContract = this.#memo.create('getSystemContract', async () => {
-		const { package_id } = await this.systemObject();
-		return initSystemContract(package_id);
-	});
+	#getSystemContract() {
+		return this.#cache.read(['getSystemContract'], async () => {
+			const { package_id } = await this.systemObject();
+			return initSystemContract(package_id);
+		});
+	}
 
-	#getSubsidiesContract = this.#memo.create('getSubsidiesContract', async () => {
-		if (!this.#packageConfig.subsidiesObjectId) {
-			throw new WalrusClientError('Subsidies object ID not defined in package config');
-		}
+	#getSubsidiesContract() {
+		return this.#cache.read(['getSubsidiesContract'], async () => {
+			if (!this.#packageConfig.subsidiesObjectId) {
+				throw new WalrusClientError('Subsidies object ID not defined in package config');
+			}
 
-		const subsidiesObject = await this.#objectLoader.load(this.#packageConfig.subsidiesObjectId);
+			const subsidiesObject = await this.#objectLoader.load(this.#packageConfig.subsidiesObjectId);
 
-		const packageId = parseStructTag(subsidiesObject.type!).address;
+			const packageId = parseStructTag(subsidiesObject.type!).address;
 
-		return initSubsidiesContract(packageId);
-	});
+			return initSubsidiesContract(packageId);
+		});
+	}
 
-	#getBlobContract = this.#memo.create('getBlobContract', async () => {
-		const { package_id } = await this.systemObject();
-		return initBlobContract(package_id);
-	});
+	#getBlobContract() {
+		return this.#cache.read(['getBlobContract'], async () => {
+			const { package_id } = await this.systemObject();
+			return initBlobContract(package_id);
+		});
+	}
 
-	#getMetadataContract = this.#memo.create('getMetadataContract', async () => {
-		const { package_id } = await this.systemObject();
-		return initMetadataContract(package_id);
-	});
+	#getMetadataContract() {
+		return this.#cache.read(['getMetadataContract'], async () => {
+			const { package_id } = await this.systemObject();
+			return initMetadataContract(package_id);
+		});
+	}
 
 	/** The cached system object for the walrus package */
 	systemObject() {
@@ -708,25 +761,25 @@ export class WalrusClient {
 			'create storage',
 		);
 
-		const createdObjectIds = effects?.created?.map((effect) => effect.reference.objectId) ?? [];
+		const createdObjectIds = effects?.changedObjects
+			.filter((object) => object.idOperation === 'Created')
+			.map((object) => object.id);
 
-		const createdObjects = await this.#suiClient.multiGetObjects({
-			ids: createdObjectIds,
-			options: {
-				showType: true,
-				showBcs: true,
-			},
+		const createdObjects = await this.#suiClient.core.getObjects({
+			objectIds: createdObjectIds,
 		});
 
-		const suiBlobObject = createdObjects.find((object) => object.data?.type === blobType);
+		const suiBlobObject = createdObjects.objects.find(
+			(object) => !(object instanceof Error) && object.type === blobType,
+		);
 
-		if (!suiBlobObject || suiBlobObject.data?.bcs?.dataType !== 'moveObject') {
+		if (suiBlobObject instanceof Error || !suiBlobObject) {
 			throw new WalrusClientError('Storage object not found in transaction effects');
 		}
 
 		return {
 			digest,
-			storage: Storage().fromBase64(suiBlobObject.data.bcs.bcsBytes),
+			storage: Storage().parse(suiBlobObject.content),
 		};
 	}
 
@@ -827,25 +880,25 @@ export class WalrusClient {
 			'register blob',
 		);
 
-		const createdObjectIds = effects?.created?.map((effect) => effect.reference.objectId) ?? [];
+		const createdObjectIds = effects?.changedObjects
+			.filter((object) => object.idOperation === 'Created')
+			.map((object) => object.id);
 
-		const createdObjects = await this.#suiClient.multiGetObjects({
-			ids: createdObjectIds,
-			options: {
-				showType: true,
-				showBcs: true,
-			},
+		const createdObjects = await this.#suiClient.core.getObjects({
+			objectIds: createdObjectIds,
 		});
 
-		const suiBlobObject = createdObjects.find((object) => object.data?.type === blobType);
+		const suiBlobObject = createdObjects.objects.find(
+			(object) => !(object instanceof Error) && object.type === blobType,
+		);
 
-		if (!suiBlobObject || suiBlobObject.data?.bcs?.dataType !== 'moveObject') {
+		if (suiBlobObject instanceof Error || !suiBlobObject) {
 			throw new WalrusClientError('Blob object not found in transaction effects');
 		}
 
 		return {
 			digest,
-			blob: Blob().fromBase64(suiBlobObject.data.bcs.bcsBytes),
+			blob: Blob().parse(suiBlobObject.content),
 		};
 	}
 
@@ -1129,41 +1182,17 @@ export class WalrusClient {
 	}: {
 		blobObjectId: string;
 	}): Promise<Record<string, string> | null> {
-		const response = await this.#suiClient.getDynamicFieldObject({
+		const response = await this.#suiClient.core.getDynamicField({
 			parentId: blobObjectId,
 			name: {
 				type: 'vector<u8>',
-				value: [...new TextEncoder().encode('metadata')],
+				bcs: bcs.string().serialize('metadata').toBytes(),
 			},
 		});
 
-		if (response.error?.code === 'dynamicFieldNotFound') {
-			return null;
-		}
+		const metadata = Metadata().parse(response.dynamicField.value.bcs);
 
-		if (response.error || !response.data) {
-			throw new WalrusClientError(
-				`Failed to fetch metadata for object ${blobObjectId}: ${response.error}`,
-			);
-		}
-
-		const metadata = (
-			response.data as unknown as {
-				content: {
-					fields: {
-						value: {
-							fields: {
-								metadata: {
-									fields: { contents: { fields: { key: string; value: string } }[] };
-								};
-							};
-						};
-					};
-				};
-			}
-		).content.fields.value.fields.metadata.fields.contents;
-
-		return Object.fromEntries(metadata.map(({ fields: { key, value } }) => [key, value]));
+		return Object.fromEntries(metadata.metadata.contents.map(({ key, value }) => [key, value]));
 	}
 
 	async #writeBlobAttributesForRef({
@@ -1581,19 +1610,22 @@ export class WalrusClient {
 	}
 
 	async #executeTransaction(transaction: Transaction, signer: Signer, action: string) {
-		const { digest, effects } = await this.#suiClient.signAndExecuteTransaction({
-			transaction,
-			signer,
-			options: {
-				showEffects: true,
-			},
+		transaction.setSenderIfNotSet(signer.toSuiAddress());
+		const bytes = await transaction.build({ client: this.#suiClient.jsonRpc });
+		const { signature } = await signer.signTransaction(bytes);
+
+		const {
+			transaction: { digest, effects },
+		} = await this.#suiClient.core.executeTransaction({
+			transaction: bytes,
+			signatures: [signature],
 		});
 
-		if (effects?.status.status !== 'success') {
+		if (effects?.status.error) {
 			throw new WalrusClientError(`Failed to ${action}: ${effects?.status.error}`);
 		}
 
-		await this.#suiClient.waitForTransaction({
+		await this.#suiClient.core.waitForTransaction({
 			digest,
 		});
 
@@ -1628,10 +1660,12 @@ export class WalrusClient {
 		};
 	}
 
-	#getActiveCommittee = this.#memo.create('getActiveCommittee', async () => {
-		const stakingState = await this.stakingState();
-		return this.#getCommittee(stakingState.committee);
-	});
+	#getActiveCommittee() {
+		return this.#cache.read(['getActiveCommittee'], async () => {
+			const stakingState = await this.stakingState();
+			return this.#getCommittee(stakingState.committee);
+		});
+	}
 
 	async #stakingPool(committee: InferBcsType<ReturnType<typeof Committee>>) {
 		const nodeIds = committee.pos0.contents.map((node) => node.key);
@@ -1656,8 +1690,7 @@ export class WalrusClient {
 	 */
 	reset() {
 		this.#objectLoader.clearAll();
-		this.#readCommittee = null;
-		this.#memo.reset();
+		this.#cache.clear();
 	}
 
 	#retryOnPossibleEpochChange<T extends (...args: any[]) => Promise<any>>(fn: T): T {

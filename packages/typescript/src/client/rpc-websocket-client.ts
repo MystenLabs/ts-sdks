@@ -38,6 +38,7 @@ type SubscriptionRequest<T = any> = {
 	unsubscribe: string;
 	params: any[];
 	onMessage: (event: T) => void;
+	signal?: AbortSignal;
 };
 
 /**
@@ -102,7 +103,7 @@ export class WebsocketClient {
 		}
 	}
 
-	async makeRequest<T>(method: string, params: any[]): Promise<T> {
+	async makeRequest<T>(method: string, params: any[], signal?: AbortSignal): Promise<T> {
 		const webSocket = await this.#setupWebSocket();
 
 		return new Promise<Extract<JsonRpcMessage, { id: number }>>((resolve, reject) => {
@@ -114,6 +115,11 @@ export class WebsocketClient {
 					this.#pendingRequests.delete(this.#requestId);
 					reject(new Error(`Request timeout: ${method}`));
 				}, this.options.callTimeout),
+			});
+
+			signal?.addEventListener('abort', () => {
+				this.#pendingRequests.delete(this.#requestId);
+				reject(signal.reason);
 			});
 
 			webSocket.send(JSON.stringify({ jsonrpc: '2.0', id: this.#requestId, method, params }));
@@ -225,6 +231,7 @@ class RpcSubscription {
 		const newSubscriptionId = await client.makeRequest<number>(
 			this.input.method,
 			this.input.params,
+			this.input.signal,
 		);
 
 		if (this.subscribed) {

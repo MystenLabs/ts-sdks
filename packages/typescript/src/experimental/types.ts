@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 /* eslint-disable @typescript-eslint/ban-types */
 
-import type { Experimental_SuiClient } from './client.js';
+import type { Experimental_BaseClient } from './client.js';
 
 export type SuiClientRegistration<
-	T extends Experimental_SuiClient = Experimental_SuiClient,
+	T extends Experimental_BaseClient = Experimental_BaseClient,
 	Name extends string = string,
 	Extension = unknown,
 > =
@@ -16,7 +16,7 @@ export type SuiClientRegistration<
 	| SelfRegisteringClientExtension<T, Name, Extension>;
 
 export interface SelfRegisteringClientExtension<
-	T extends Experimental_SuiClient = Experimental_SuiClient,
+	T extends Experimental_BaseClient = Experimental_BaseClient,
 	Name extends string = string,
 	Extension = unknown,
 > {
@@ -36,7 +36,7 @@ export type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) ex
 	? I
 	: never;
 
-export type ClientWithExtensions<T> = Experimental_SuiClient & T;
+export type ClientWithExtensions<T> = Experimental_BaseClient & T;
 
 export namespace Experimental_SuiClientTypes {
 	export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet' | (string & {});
@@ -44,27 +44,45 @@ export namespace Experimental_SuiClientTypes {
 	export interface SuiClientOptions {
 		network: Network;
 	}
-	/** Object methods */
-	export interface TransportMethods {
-		getObjects?: (options: GetObjectsOptions) => Promise<GetObjectsResponse>;
-		getOwnedObjects?: (options: GetOwnedObjectsOptions) => Promise<GetOwnedObjectsResponse>;
-		getCoins?: (options: GetCoinsOptions) => Promise<GetCoinsResponse>;
+
+	export interface CoreClientMethodOptions {
+		signal?: AbortSignal;
 	}
 
-	export interface GetObjectsOptions {
+	/** Object methods */
+	export interface TransportMethods {
+		getObjects: (options: GetObjectsOptions) => Promise<GetObjectsResponse>;
+		getOwnedObjects: (options: GetOwnedObjectsOptions) => Promise<GetOwnedObjectsResponse>;
+		getCoins: (options: GetCoinsOptions) => Promise<GetCoinsResponse>;
+		getDynamicFields: (options: GetDynamicFieldsOptions) => Promise<GetDynamicFieldsResponse>;
+		getDynamicField: (options: GetDynamicFieldOptions) => Promise<GetDynamicFieldResponse>;
+	}
+
+	export interface GetObjectsOptions extends CoreClientMethodOptions {
 		objectIds: string[];
 	}
 
-	export interface GetOwnedObjectsOptions {
+	export interface GetOwnedObjectsOptions extends CoreClientMethodOptions {
 		address: string;
 		limit?: number;
 		cursor?: string | null;
 		type?: string;
 	}
 
-	export interface GetCoinsOptions {
+	export interface GetCoinsOptions extends CoreClientMethodOptions {
 		address: string;
 		coinType: string;
+	}
+
+	export interface GetDynamicFieldsOptions extends CoreClientMethodOptions {
+		parentId: string;
+		limit?: number;
+		cursor?: string | null;
+	}
+
+	export interface GetDynamicFieldOptions extends CoreClientMethodOptions {
+		parentId: string;
+		name: DynamicFieldName;
 	}
 
 	export interface GetObjectsResponse {
@@ -93,30 +111,63 @@ export namespace Experimental_SuiClientTypes {
 	}
 
 	export interface CoinResponse extends ObjectResponse {
-		balance: bigint;
+		balance: string;
+	}
+
+	export interface GetDynamicFieldsResponse {
+		hasNextPage: boolean;
+		cursor: string | null;
+		dynamicFields: {
+			name: DynamicFieldName;
+			id: string;
+			version: string;
+			digest: string;
+			type: string;
+		}[];
+	}
+
+	export interface GetDynamicFieldResponse {
+		dynamicField: {
+			name: DynamicFieldName;
+			value: DynamicFieldValue;
+			id: string;
+			version: string;
+			digest: string;
+			type: string;
+		};
+	}
+
+	export interface DynamicFieldName {
+		type: string;
+		bcs: Uint8Array;
+	}
+
+	export interface DynamicFieldValue {
+		type: string;
+		bcs: Uint8Array;
 	}
 
 	/** Balance methods */
 	export interface TransportMethods {
-		getBalance?: (options: GetBalanceOptions) => Promise<GetBalanceResponse>;
-		getAllBalances?: (options: GetAllBalancesOptions) => Promise<GetAllBalancesResponse>;
+		getBalance: (options: GetBalanceOptions) => Promise<GetBalanceResponse>;
+		getAllBalances: (options: GetAllBalancesOptions) => Promise<GetAllBalancesResponse>;
 	}
 
-	export interface GetBalanceOptions {
+	export interface GetBalanceOptions extends CoreClientMethodOptions {
 		address: string;
 		coinType: string;
 	}
 
 	export interface CoinBalance {
 		coinType: string;
-		balance: bigint;
+		balance: string;
 	}
 
 	export interface GetBalanceResponse {
 		balance: CoinBalance;
 	}
 
-	export interface GetAllBalancesOptions {
+	export interface GetAllBalancesOptions extends CoreClientMethodOptions {
 		address: string;
 		limit?: number;
 		cursor?: string | null;
@@ -130,11 +181,9 @@ export namespace Experimental_SuiClientTypes {
 
 	/** Transaction methods */
 	export interface TransportMethods {
-		getTransaction?: (options: GetTransactionOptions) => Promise<GetTransactionResponse>;
-		executeTransaction?: (
-			options: ExecuteTransactionOptions,
-		) => Promise<ExecuteTransactionResponse>;
-		dryRunTransaction?: (options: DryRunTransactionOptions) => Promise<DryRunTransactionResponse>;
+		getTransaction: (options: GetTransactionOptions) => Promise<GetTransactionResponse>;
+		executeTransaction: (options: ExecuteTransactionOptions) => Promise<ExecuteTransactionResponse>;
+		dryRunTransaction: (options: DryRunTransactionOptions) => Promise<DryRunTransactionResponse>;
 	}
 
 	export interface TransactionResponse {
@@ -143,11 +192,11 @@ export namespace Experimental_SuiClientTypes {
 		// TODO: Return parsed data:
 		// We need structured representations of effects, events, and transaction data
 		bcs: Uint8Array;
-		effects: Uint8Array;
+		effects: TransactionEffects;
 		events?: Uint8Array;
 	}
 
-	export interface GetTransactionOptions {
+	export interface GetTransactionOptions extends CoreClientMethodOptions {
 		digest: string;
 	}
 
@@ -155,12 +204,12 @@ export namespace Experimental_SuiClientTypes {
 		transaction: TransactionResponse;
 	}
 
-	export interface ExecuteTransactionOptions {
+	export interface ExecuteTransactionOptions extends CoreClientMethodOptions {
 		transaction: Uint8Array;
 		signatures: string[];
 	}
 
-	export interface DryRunTransactionOptions {
+	export interface DryRunTransactionOptions extends CoreClientMethodOptions {
 		transaction: Uint8Array;
 	}
 
@@ -177,7 +226,7 @@ export namespace Experimental_SuiClientTypes {
 	}
 
 	export interface GetReferenceGasPriceResponse {
-		referenceGasPrice: bigint;
+		referenceGasPrice: string;
 	}
 
 	/** ObjectOwner types */
@@ -204,9 +253,9 @@ export namespace Experimental_SuiClientTypes {
 		Immutable: true;
 	}
 
-	export interface ConsensusV2Owner {
+	export interface ConsensusV2 {
 		$kind: 'ConsensusV2';
-		ConsensusV2Owner: {
+		ConsensusV2: {
 			authenticator: ConsensusV2Authenticator;
 			startVersion: string;
 		};
@@ -219,27 +268,22 @@ export namespace Experimental_SuiClientTypes {
 
 	export type ConsensusV2Authenticator = SingleOwnerAuthenticator;
 
-	export type ObjectOwner =
-		| AddressOwner
-		| ParentOwner
-		| SharedOwner
-		| ImmutableOwner
-		| ConsensusV2Owner;
+	export type ObjectOwner = AddressOwner | ParentOwner | SharedOwner | ImmutableOwner | ConsensusV2;
 
 	/** Effects */
 
 	export interface TransactionEffects {
-		bcs: Uint8Array;
+		bcs: Uint8Array | null;
 		digest: string;
 		version: number;
 		status: ExecutionStatus;
-		epoch: bigint | null;
+		epoch: string | null;
 		gasUsed: GasCostSummary;
 		transactionDigest: string;
-		gasObject: ChangedObject;
+		gasObject: ChangedObject | null;
 		eventsDigest: string | null;
 		dependencies: string[];
-		lamportVersion: bigint | null;
+		lamportVersion: string | null;
 		changedObjects: ChangedObject[];
 		unchangedSharedObjects: UnchangedSharedObject[];
 		auxiliaryDataDigest: string | null;
@@ -248,11 +292,11 @@ export namespace Experimental_SuiClientTypes {
 	export interface ChangedObject {
 		id: string;
 		inputState: 'Unknown' | 'DoesNotExist' | 'Exists';
-		inputVersion: bigint | null;
+		inputVersion: string | null;
 		inputDigest: string | null;
 		inputOwner: ObjectOwner | null;
 		outputState: 'Unknown' | 'DoesNotExist' | 'ObjectWrite' | 'PackageWrite';
-		outputVersion: bigint | null;
+		outputVersion: string | null;
 		outputDigest: string | null;
 		outputOwner: ObjectOwner | null;
 		idOperation: 'Unknown' | 'None' | 'Created' | 'Deleted';
@@ -260,10 +304,10 @@ export namespace Experimental_SuiClientTypes {
 	}
 
 	export interface GasCostSummary {
-		computationCost: bigint;
-		storageCost: bigint;
-		storageRebate: bigint;
-		nonRefundableStorageFee: bigint;
+		computationCost: string;
+		storageCost: string;
+		storageRebate: string;
+		nonRefundableStorageFee: string;
 	}
 
 	export type ExecutionStatus =
@@ -283,11 +327,11 @@ export namespace Experimental_SuiClientTypes {
 			| 'ReadOnlyRoot'
 			| 'MutateDeleted'
 			| 'ReadDeleted'
-			| 'Canceled'
+			| 'Cancelled'
 			| 'PerEpochConfig';
 		objectId: string;
-		version: bigint;
-		digest: string;
-		objectType: string;
+		version: string | null;
+		digest: string | null;
+		objectType: string | null;
 	}
 }
