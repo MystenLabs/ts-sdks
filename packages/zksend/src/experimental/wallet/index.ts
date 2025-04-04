@@ -11,7 +11,6 @@ import type {
 	StandardEventsFeature,
 	StandardEventsListeners,
 	StandardEventsOnMethod,
-	SuiChain,
 	SuiSignAndExecuteTransactionFeature,
 	SuiSignAndExecuteTransactionMethod,
 	SuiSignPersonalMessageFeature,
@@ -21,6 +20,7 @@ import type {
 	SuiSignTransactionFeature,
 	SuiSignTransactionMethod,
 	Wallet,
+	WalletIcon,
 } from '@mysten/wallet-standard';
 import {
 	getWallets,
@@ -30,6 +30,8 @@ import {
 } from '@mysten/wallet-standard';
 import type { Emitter } from 'mitt';
 import mitt from 'mitt';
+import type { InferOutput } from 'valibot';
+import { boolean, custom, object, parse, string } from 'valibot';
 
 import { DEFAULT_STASHED_ORIGIN, StashedPopup } from './channel/index.js';
 
@@ -48,19 +50,35 @@ const getStashedSession = (): { accounts: StashedAccount[]; token: string } => {
 };
 
 const SUI_WALLET_EXTENSION_ID = 'com.mystenlabs.suiwallet' as const;
+const METADATA_API_URL = 'http://localhost:3001/api/wallet/metadata';
 
+const WalletMetadataSchema = object({
+	id: string('Wallet ID is required'),
+	walletName: string('Wallet name is required'),
+	icon: string('Icon must be a valid wallet icon format'),
+	enabled: boolean('Enabled is required'),
+});
+
+type WalletMetadata = InferOutput<typeof WalletMetadataSchema>;
 export class StashedWallet implements Wallet {
+	#id: string;
 	#events: Emitter<WalletEventsMap>;
 	#accounts: ReadonlyWalletAccount[];
 	#origin: string;
+	#walletName: string;
+	#icon: WalletIcon;
 	#name: string;
 
 	get name() {
-		return STASHED_WALLET_NAME;
+		return this.#walletName;
+	}
+
+	get id() {
+		return this.#id;
 	}
 
 	get icon() {
-		return 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1NiIgaGVpZ2h0PSI1NiIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjU0IiBoZWlnaHQ9IjU0IiB4PSIxIiB5PSIxIiBmaWxsPSIjNTE5REU5IiByeD0iMjciLz48cmVjdCB3aWR0aD0iNTQiIGhlaWdodD0iNTQiIHg9IjEiIHk9IjEiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIyIiByeD0iMjciLz48cGF0aCBmaWxsPSIjMDAwIiBkPSJNMTguMzUzIDM1LjA2NGMuOTIxIDMuNDM4IDQuMzYzIDYuNTUxIDExLjQ4MyA0LjY0NCA2Ljc5NC0xLjgyMSAxMS4wNTItNy40MSA5Ljk0OC0xMS41My0uMzgxLTEuNDIzLTEuNTMtMi4zODctMy4zLTIuMjNsLTE1LjgzMiAxLjMyYy0uOTk3LjA3Ni0xLjQ1NC0uMDg4LTEuNzE4LS43MTYtLjI1Ni0uNTk5LS4xMS0xLjI0MSAxLjA5NC0xLjg1bDEyLjA0OC02LjE4M2MuOTI0LS40NyAxLjUzOS0uNjY2IDIuMTAxLS40NjguMzUyLjEyOC41ODQuNjM4LjM3MSAxLjI2N2wtLjc4MSAyLjMwNmMtLjk1OSAyLjgzIDEuMDk0IDMuNDg4IDIuMjUgMy4xNzggMS43NTEtLjQ2OSAyLjE2My0yLjEzNiAxLjU5OS00LjI0LTEuNDMtNS4zMzctNy4wOS02LjE3LTEyLjIyMy00Ljc5Ni01LjIyMiAxLjQtOS43NDggNS42My04LjM2NiAxMC43ODkuMzI1IDEuMjE1IDEuNDQ0IDIuMTg2IDIuNzQgMi4xNTdsMS45NzgtLjAwNWMuNDA3LS4wMS4yNi4wMjQgMS4wNDYtLjA0MS43ODQtLjA2NSAyLjg4LS4zMjMgMi44OC0uMzIzbDEwLjI4Ni0xLjE2NC4yNjUtLjAzOGMuNjAyLS4xMDMgMS4wNTYuMDUzIDEuNDQuNzE1LjU3Ni45OTEtLjMwMiAxLjczOC0xLjM1MiAyLjYzM2wtLjA4NS4wNzItOS4wNDEgNy43OTJjLTEuNTUgMS4zMzctMi42MzkuODM0LTMuMDItLjU4OWwtMS4zNS01LjA0Yy0uMzM0LTEuMjQ0LTEuNTUtMi4yMjEtMi45NzQtMS44NC0xLjc4LjQ3Ny0xLjkyNCAyLjU1LTEuNDg3IDQuMThaIi8+PC9zdmc+Cg==' as const;
+		return this.#icon;
 	}
 
 	get version() {
@@ -116,16 +134,20 @@ export class StashedWallet implements Wallet {
 
 	constructor({
 		name,
-		origin = DEFAULT_STASHED_ORIGIN,
+		origin,
+		metadata,
 	}: {
 		name: string;
 		origin?: string;
-		chain?: SuiChain;
+		metadata: WalletMetadata;
 	}) {
+		this.#id = metadata.id;
 		this.#accounts = [];
 		this.#events = mitt();
-		this.#origin = origin;
+		this.#origin = origin || DEFAULT_STASHED_ORIGIN;
 		this.#name = name;
+		this.#walletName = metadata.walletName;
+		this.#icon = metadata.icon as WalletIcon;
 	}
 
 	#signTransactionBlock: SuiSignTransactionBlockMethod = async ({
@@ -309,13 +331,23 @@ export class StashedWallet implements Wallet {
 		this.#setAccounts();
 	};
 }
+async function fetchMetadata(metadataApiUrl: string): Promise<WalletMetadata> {
+	const response = await fetch(metadataApiUrl);
+	if (!response.ok) {
+		throw new Error('Failed to fetch wallet metadata');
+	}
+	const data = await response.json();
+	return parse(WalletMetadataSchema, data);
+}
 
-export function registerStashedWallet(
+export async function registerStashedWallet(
 	name: string,
 	{
 		origin,
+		metadataApiUrl = METADATA_API_URL,
 	}: {
 		origin?: string;
+		metadataApiUrl?: string;
 	} = {},
 ) {
 	const wallets = getWallets();
@@ -325,9 +357,17 @@ export function registerStashedWallet(
 		return;
 	}
 
+	const metadata = await fetchMetadata(metadataApiUrl);
+
+	if (!metadata?.enabled) {
+		console.log('Stashed wallet is not currently enabled.');
+		return;
+	}
+
 	const stashedWalletInstance = new StashedWallet({
 		name,
 		origin,
+		metadata,
 	});
 
 	const unregister = wallets.register(stashedWalletInstance);
