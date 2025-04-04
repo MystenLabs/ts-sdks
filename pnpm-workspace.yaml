@@ -30,3 +30,4 @@ packages:
   - '!packages/typescript/graphql/schemas/latest'
   - '!packages/signers/utils'
   - '!packages/signers/webcrypto'
+  - '!packages/zksend/experimental/unified-adapter'

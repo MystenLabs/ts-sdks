@@ -21,7 +21,8 @@
 	"sideEffects": false,
 	"files": [
 		"CHANGELOG.md",
-		"dist"
+		"dist",
+		"experimental"
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",

@@ -1,0 +1,6 @@
+{
+	"private": true,
+	"import": "../../dist/esm/experimental/unified-adapter/index.js",
+	"main": "../../dist/cjs/experimental/unified-adapter/index.js",
+	"sideEffects": false
+}
