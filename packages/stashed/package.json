@@ -1,0 +1,56 @@
+{
+	"name": "@mysten/stashed",
+	"version": "0.12.16",
+	"description": "TODO: Write Description",
+	"license": "Apache-2.0",
+	"author": "Mysten Labs <build@mystenlabs.com>",
+	"type": "commonjs",
+	"main": "./dist/cjs/index.js",
+	"module": "./dist/esm/index.js",
+	"types": "./dist/cjs/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/esm/index.js",
+			"require": "./dist/cjs/index.js"
+		}
+	},
+	"sideEffects": false,
+	"files": [
+		"CHANGELOG.md",
+		"dist"
+	],
+	"scripts": {
+		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+		"watch": "watch 'pnpm run build' src/",
+		"build": "build-package",
+		"prepublishOnly": "pnpm build",
+		"prettier:check": "prettier -c --ignore-unknown .",
+		"prettier:fix": "prettier -w --ignore-unknown .",
+		"eslint:check": "eslint --max-warnings=0 .",
+		"eslint:fix": "pnpm run eslint:check --fix",
+		"lint": "pnpm run eslint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/mystenlabs/ts-sdks.git"
+	},
+	"bugs": {
+		"url": "https://github.com/mystenlabs/ts-sdks/issues"
+	},
+	"homepage": "https://github.com/mystenlabs/ts-sdks#readme",
+	"devDependencies": {
+		"@mysten/build-scripts": "workspace:*",
+		"@types/node": "^22.10.5",
+		"typescript": "^5.7.2",
+		"vitest": "^2.1.8"
+	},
+	"dependencies": {
+		"@mysten/sui": "latest",
+		"@mysten/wallet-standard": "latest",
+		"mitt": "^3.0.1",
+		"nanostores": "^0.10.3",
+		"valibot": "^0.36.0",
+		"watch": "^1.0.2"
+	}
+}
