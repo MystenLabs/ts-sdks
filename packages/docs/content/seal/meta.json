@@ -1,0 +1,6 @@
+{
+	"root": true,
+	"title": "Seal",
+	"description": "Use Seal, a decentralized secrets management service that secures your data using threshold encryption and on-chain access control.",
+	"pages": ["index"]
+}
