@@ -1,5 +1,11 @@
 # @mysten/seal
 
+## 0.3.5
+
+### Patch Changes
+
+- ed7333b: Add readme
+
 ## 0.3.4
 
 ### Patch Changes

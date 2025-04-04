@@ -1,5 +1,11 @@
 # @mysten/walrus
 
+## 0.0.10
+
+### Patch Changes
+
+- a83d4a5: update readme
+
 ## 0.0.9
 
 ### Patch Changes
