@@ -30,7 +30,10 @@ import {
 } from '@mysten/wallet-standard';
 import type { Emitter } from 'mitt';
 import mitt from 'mitt';
+import { parse } from 'valibot';
 
+import getClientMetadata from '../utils/getClientMetadata.js';
+import { InboundIframeMessage } from './channel/events.js';
 import { DEFAULT_STASHED_ORIGIN, StashedPopup } from './channel/index.js';
 
 type WalletEventsMap = {
@@ -48,12 +51,13 @@ const getStashedSession = (): { accounts: StashedAccount[]; token: string } => {
 };
 
 const SUI_WALLET_EXTENSION_ID = 'com.mystenlabs.suiwallet' as const;
-
 export class StashedWallet implements Wallet {
 	#events: Emitter<WalletEventsMap>;
 	#accounts: ReadonlyWalletAccount[];
 	#origin: string;
 	#name: string;
+	#embeddedIframe: HTMLIFrameElement | null;
+	#walletStatusIntervalId: NodeJS.Timeout | null = null;
 
 	get name() {
 		return STASHED_WALLET_NAME;
@@ -126,7 +130,56 @@ export class StashedWallet implements Wallet {
 		this.#events = mitt();
 		this.#origin = origin;
 		this.#name = name;
+		this.#embeddedIframe = null;
+		this.#walletStatusIntervalId = null;
 	}
+
+	#handleWalletStatusMessage = (event: MessageEvent) => {
+		if (event.origin !== this.#origin) return;
+		try {
+			const message = parse(InboundIframeMessage, event.data);
+			if (message.type === 'IFRAME_READY') {
+				this.#embeddedIframe?.contentWindow?.postMessage(
+					{
+						type: 'INIT_EMBED',
+					},
+					this.#origin,
+				);
+			} else if (message.type === 'WALLET_STATUS') {
+				this.#accounts.forEach((account) => {
+					const foundAddress = message.payload?.accounts?.some(
+						(item) => item.account.address === account.address,
+					);
+					if (!foundAddress) {
+						this.removeAccount(account.address);
+					}
+				});
+			}
+		} catch (error) {
+			console.warn('Invalid wallet status message:', error);
+		}
+	};
+
+	// Function to clear the interval
+	#clearWalletStatusInterval = () => {
+		if (this.#walletStatusIntervalId !== null) {
+			clearInterval(this.#walletStatusIntervalId);
+			this.#walletStatusIntervalId = null;
+		}
+	};
+
+	#embedStashedIframe = () => {
+		try {
+			/* @ts-ignore */
+			this.#embeddedIframe = document.createElement('iframe');
+			this.#embeddedIframe.style.display = 'none';
+			this.#embeddedIframe.src = `${this.#origin}/embed`;
+			document.body.appendChild(this.#embeddedIframe);
+			window.addEventListener('message', this.#handleWalletStatusMessage);
+		} catch (error) {
+			console.warn('Wallet status check setup failed:', error);
+		}
+	};
 
 	#signTransactionBlock: SuiSignTransactionBlockMethod = async ({
 		transactionBlock,
@@ -194,7 +247,6 @@ export class StashedWallet implements Wallet {
 		tx.setSenderIfNotSet(account.address);
 
 		const data = await tx.toJSON();
-
 		const response = await popup.send({
 			type: 'sign-and-execute-transaction',
 			transaction: data,
@@ -202,6 +254,7 @@ export class StashedWallet implements Wallet {
 			chain,
 			session: getStashedSession().token,
 		});
+
 		return {
 			bytes: response.bytes,
 			signature: response.signature,
@@ -250,6 +303,10 @@ export class StashedWallet implements Wallet {
 
 		this.#accounts = this.#accounts.filter((account) => account.address !== address);
 
+		if (this.#accounts.length === 0) {
+			this.#handleWalletIframeDisconnect();
+		}
+
 		this.#events.emit('change', { accounts: this.accounts });
 	}
 
@@ -278,6 +335,8 @@ export class StashedWallet implements Wallet {
 				this.#setAccounts(accounts);
 			}
 
+			this.#embedStashedIframe();
+
 			return { accounts: this.accounts };
 		}
 		const popup = new StashedPopup({
@@ -300,13 +359,36 @@ export class StashedWallet implements Wallet {
 
 		this.#setAccounts(response.accounts);
 
+		this.#embedStashedIframe();
+
 		return { accounts: this.accounts };
 	};
 
+	#handleWalletIframeDisconnect = () => {
+		setTimeout(() => {
+			if (this.#embeddedIframe) {
+				document.body.removeChild(this.#embeddedIframe);
+			}
+			window.removeEventListener('message', () => {});
+			this.#clearWalletStatusInterval();
+		}, 2000);
+	};
+
 	#disconnect: StandardDisconnectMethod = async () => {
+		this.#embeddedIframe?.contentWindow?.postMessage(
+			{
+				type: 'WALLET_DISCONNECTED',
+				payload: getClientMetadata(),
+				session: getStashedSession().token,
+			},
+			this.#origin,
+		);
+
 		localStorage.removeItem(STASHED_SESSION_KEY);
 
 		this.#setAccounts();
+
+		this.#handleWalletIframeDisconnect();
 	};
 }
 
