@@ -163,10 +163,7 @@ export class StashedWallet implements Wallet {
 			chain,
 		});
 
-		const tx = Transaction.from(await transaction.toJSON());
-		tx.setSenderIfNotSet(account.address);
-
-		const data = await tx.toJSON();
+		const data = await transaction.toJSON();
 
 		const response = await popup.send({
 			type: 'sign-transaction',
