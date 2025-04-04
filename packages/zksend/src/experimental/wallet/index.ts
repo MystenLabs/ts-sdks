@@ -53,6 +53,7 @@ const SUI_WALLET_EXTENSION_ID = 'com.sui.extension' as const;
 const METADATA_API_URL = 'http://localhost:3001/api/wallet/metadata';
 
 const WalletMetadataSchema = object({
+	id: string('Wallet ID is required'),
 	walletName: string('Wallet name is required'),
 	icon: string('Icon must be a valid wallet icon format'),
 	enabled: boolean('Enabled is required'),
@@ -60,6 +61,7 @@ const WalletMetadataSchema = object({
 
 type WalletMetadata = InferOutput<typeof WalletMetadataSchema>;
 export class StashedWallet implements Wallet {
+	#id: string;
 	#events: Emitter<WalletEventsMap>;
 	#accounts: ReadonlyWalletAccount[];
 	#origin: string;
@@ -69,6 +71,10 @@ export class StashedWallet implements Wallet {
 
 	get name() {
 		return this.#walletName;
+	}
+
+	get id() {
+		return this.#id;
 	}
 
 	get icon() {
@@ -135,12 +141,13 @@ export class StashedWallet implements Wallet {
 		origin?: string;
 		metadata: WalletMetadata;
 	}) {
+		this.#id = metadata.id;
 		this.#accounts = [];
 		this.#events = mitt();
 		this.#origin = origin || DEFAULT_STASHED_ORIGIN;
 		this.#name = name;
 		this.#walletName = metadata.walletName;
-		this.#icon = metadata.icon;
+		this.#icon = metadata.icon as WalletIcon;
 	}
 
 	#signTransactionBlock: SuiSignTransactionBlockMethod = async ({
