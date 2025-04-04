@@ -27,6 +27,8 @@ import mitt from 'mitt';
 import { DEFAULT_STASHED_ORIGIN, StashedPopup } from './channel/index.js';
 import type { StashedSupportedNetwork } from './types.js';
 
+const PACKAGE_VERSION = 'v1';
+
 type WalletEventsMap = {
 	[E in keyof StandardEventsListeners]: Parameters<StandardEventsListeners[E]>[0];
 };
@@ -49,8 +51,7 @@ const getStashedSession = () => {
 
 const getPostMessagePayload = () => {
 	return {
-		// @ts-ignore
-		version: __PKG_VERSION__,
+		version: PACKAGE_VERSION,
 		origin_url: window.location.href,
 		user_agent: navigator.userAgent,
 		screen_resolution: `${window.screen.width}x${window.screen.height}`,
@@ -166,6 +167,8 @@ export class StashedWallet implements Wallet {
 			network: this.#network,
 			session: getStashedSession().token,
 		});
+
+		console.log('response', response);
 
 		return {
 			transactionBlockBytes: response.bytes,
@@ -284,10 +287,13 @@ export class StashedWallet implements Wallet {
 			chain: this.#chain,
 		});
 
+		console.log('popup', popup);
 		const response = await popup.send({
 			type: 'connect',
 			network: this.#network,
 		});
+
+		console.log('response', response);
 
 		if (!('addresses' in response)) {
 			throw new Error('Unexpected response');
@@ -385,6 +391,7 @@ export function registerStashedWallet(
 	} = {},
 ) {
 	const wallets = getWallets();
+	console.log('wallets', wallets);
 
 	let addressFromRedirect: string | null = null;
 

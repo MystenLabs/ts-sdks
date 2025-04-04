@@ -21,6 +21,7 @@ export { StashedRequest, StashedResponse };
 export class StashedPopup {
 	#popup: Window;
 
+	#version: string;
 	#id: string;
 	#origin: string;
 	#name: string;
@@ -56,6 +57,7 @@ export class StashedPopup {
 		this.#name = name;
 		this.#network = network;
 		this.#chain = chain;
+		this.#version = 'v1';
 		const { promise, resolve, reject } = withResolvers();
 		this.#promise = promise;
 		this.#resolve = resolve;
@@ -83,10 +85,12 @@ export class StashedPopup {
 
 		const requestData = {
 			...data,
+			version: this.#version,
 			requestId: this.#id,
 			appOrigin: window.origin,
 			network: this.#network,
 			appName: this.#name,
+			chain: this.#chain,
 		};
 
 		const encodedRequestData = btoa(JSON.stringify(requestData));
@@ -142,10 +146,15 @@ export class StashedHost {
 	}
 
 	static fromUrl(url: string = window.location.href) {
+		console.log('from url', url);
 		const parsed = new URL(url);
 		const hash = parsed.hash.slice(1); // Remove the # character
-		const { requestId, appOrigin, appName, ...rest } = JSON.parse(atob(decodeURIComponent(hash)));
+		const { requestId, appOrigin, appName, version, ...rest } = JSON.parse(
+			atob(decodeURIComponent(hash)),
+		);
+		console.log('parsitng request', { version, requestId, appOrigin, appName, rest });
 		const request = parse(StashedRequest, {
+			version,
 			requestId,
 			appOrigin,
 			appName,
@@ -155,6 +164,7 @@ export class StashedHost {
 			},
 		});
 
+		console.log('request', request);
 		return new StashedHost(request);
 	}
 
