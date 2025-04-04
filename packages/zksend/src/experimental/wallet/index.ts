@@ -12,6 +12,8 @@ import type {
 	StandardEventsListeners,
 	StandardEventsOnMethod,
 	SuiChain,
+	SuiSignAndExecuteTransactionFeature,
+	SuiSignAndExecuteTransactionMethod,
 	SuiSignPersonalMessageFeature,
 	SuiSignPersonalMessageMethod,
 	SuiSignTransactionBlockFeature,
@@ -94,7 +96,8 @@ export class StashedWallet implements Wallet {
 		StandardEventsFeature &
 		SuiSignTransactionBlockFeature &
 		SuiSignTransactionFeature &
-		SuiSignPersonalMessageFeature {
+		SuiSignPersonalMessageFeature &
+		SuiSignAndExecuteTransactionFeature {
 		return {
 			'standard:connect': {
 				version: '1.0.0',
@@ -117,8 +120,12 @@ export class StashedWallet implements Wallet {
 				signTransaction: this.#signTransaction,
 			},
 			'sui:signPersonalMessage': {
-				version: '1.0.0',
+				version: '1.1.0',
 				signPersonalMessage: this.#signPersonalMessage,
+			},
+			'sui:signAndExecuteTransaction': {
+				version: '2.0.0',
+				signAndExecuteTransaction: this.#signAndExecuteTransaction,
 			},
 		};
 	}
@@ -198,6 +205,45 @@ export class StashedWallet implements Wallet {
 		};
 	};
 
+	#signAndExecuteTransaction: SuiSignAndExecuteTransactionMethod = async ({
+		transaction,
+		account,
+		chain,
+	}) => {
+		const popup = new StashedPopup({
+			name: this.#name,
+			origin: this.#origin,
+			chain,
+		});
+
+		const tx = Transaction.from(await transaction.toJSON());
+		tx.setSenderIfNotSet(account.address);
+
+		const data = await tx.toJSON();
+
+		const response = await popup
+			.send({
+				type: 'sign-and-execute-transaction',
+				transaction: data,
+				address: account.address,
+				chain,
+				session: getStashedSession().token,
+			})
+			.catch((error) => {
+				console.log('eror ', error);
+				throw error;
+			});
+
+		console.log('response', response);
+
+		return {
+			bytes: response.bytes,
+			signature: response.signature,
+			digest: response.digest,
+			effects: response.effects || '',
+		};
+	};
+
 	#signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message, account, chain }) => {
 		const popup = new StashedPopup({
 			name: this.#name,
@@ -209,7 +255,7 @@ export class StashedWallet implements Wallet {
 			type: 'sign-personal-message',
 			message: toBase64(message),
 			address: account.address,
-			chain,
+			chain: chain ?? SUI_MAINNET_CHAIN,
 			session: getStashedSession().token,
 		});
 
@@ -376,6 +422,7 @@ export function registerStashedWallet(
 		network?: StashedSupportedNetwork;
 	} = {},
 ) {
+	console.log('Registering Stashed Wallet');
 	const wallets = getWallets();
 
 	let addressFromRedirect: string | null = null;
