@@ -48,6 +48,7 @@ export namespace Experimental_SuiClientTypes {
 	export interface TransportMethods {
 		getObjects?: (options: GetObjectsOptions) => Promise<GetObjectsResponse>;
 		getOwnedObjects?: (options: GetOwnedObjectsOptions) => Promise<GetOwnedObjectsResponse>;
+		getCoins?: (options: GetCoinsOptions) => Promise<GetCoinsResponse>;
 	}
 
 	export interface GetObjectsOptions {
@@ -61,12 +62,23 @@ export namespace Experimental_SuiClientTypes {
 		type?: string;
 	}
 
+	export interface GetCoinsOptions {
+		address: string;
+		coinType: string;
+	}
+
 	export interface GetObjectsResponse {
 		objects: (ObjectResponse | Error)[];
 	}
 
 	export interface GetOwnedObjectsResponse {
 		objects: ObjectResponse[];
+		hasNextPage: boolean;
+		cursor: string | null;
+	}
+
+	export interface GetCoinsResponse {
+		objects: CoinResponse[];
 		hasNextPage: boolean;
 		cursor: string | null;
 	}
@@ -78,6 +90,10 @@ export namespace Experimental_SuiClientTypes {
 		owner: ObjectOwner;
 		type: string;
 		content: Uint8Array;
+	}
+
+	export interface CoinResponse extends ObjectResponse {
+		balance: bigint;
 	}
 
 	/** Balance methods */
@@ -146,7 +162,6 @@ export namespace Experimental_SuiClientTypes {
 
 	export interface DryRunTransactionOptions {
 		transaction: Uint8Array;
-		signatures: string[];
 	}
 
 	export interface DryRunTransactionResponse {
@@ -210,4 +225,69 @@ export namespace Experimental_SuiClientTypes {
 		| SharedOwner
 		| ImmutableOwner
 		| ConsensusV2Owner;
+
+	/** Effects */
+
+	export interface TransactionEffects {
+		bcs: Uint8Array;
+		digest: string;
+		version: number;
+		status: ExecutionStatus;
+		epoch: bigint | null;
+		gasUsed: GasCostSummary;
+		transactionDigest: string;
+		gasObject: ChangedObject;
+		eventsDigest: string | null;
+		dependencies: string[];
+		lamportVersion: bigint | null;
+		changedObjects: ChangedObject[];
+		unchangedSharedObjects: UnchangedSharedObject[];
+		auxiliaryDataDigest: string | null;
+	}
+
+	export interface ChangedObject {
+		id: string;
+		inputState: 'Unknown' | 'DoesNotExist' | 'Exists';
+		inputVersion: bigint | null;
+		inputDigest: string | null;
+		inputOwner: ObjectOwner | null;
+		outputState: 'Unknown' | 'DoesNotExist' | 'ObjectWrite' | 'PackageWrite';
+		outputVersion: bigint | null;
+		outputDigest: string | null;
+		outputOwner: ObjectOwner | null;
+		idOperation: 'Unknown' | 'None' | 'Created' | 'Deleted';
+		objectType: string | null;
+	}
+
+	export interface GasCostSummary {
+		computationCost: bigint;
+		storageCost: bigint;
+		storageRebate: bigint;
+		nonRefundableStorageFee: bigint;
+	}
+
+	export type ExecutionStatus =
+		| {
+				success: true;
+				error: null;
+		  }
+		| {
+				success: false;
+				// TODO: this should probably be typed better: https://github.com/bmwill/sui/blob/646a2c819346dc140cc649eb9fea368fb14f96e5/crates/sui-rpc-api/proto/sui/rpc/v2beta/execution_status.proto#L22
+				error: string;
+		  };
+
+	export interface UnchangedSharedObject {
+		kind:
+			| 'Unknown'
+			| 'ReadOnlyRoot'
+			| 'MutateDeleted'
+			| 'ReadDeleted'
+			| 'Canceled'
+			| 'PerEpochConfig';
+		objectId: string;
+		version: bigint;
+		digest: string;
+		objectType: string;
+	}
 }

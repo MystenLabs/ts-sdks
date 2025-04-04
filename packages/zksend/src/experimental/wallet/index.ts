@@ -360,15 +360,6 @@ export async function registerStashedWallet(
 		return;
 	}
 
-	let addressFromRedirect: string | null = null;
-
-	try {
-		const params = new URLSearchParams(window.location.search);
-		addressFromRedirect = params.get('stashed_address') || params.get('zksend_address');
-	} catch {
-		// Ignore errors
-	}
-
 	const metadata = await fetchMetadata(metadataApiUrl);
 
 	if (!metadata?.enabled) {
@@ -394,6 +385,5 @@ export async function registerStashedWallet(
 	return {
 		wallet: stashedWalletInstance,
 		unregister,
-		addressFromRedirect,
 	};
 }

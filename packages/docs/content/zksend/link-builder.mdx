@@ -21,10 +21,6 @@ You can start creating your own zkSend link using the `ZkSendLinkBuilder` class.
 constructor takes an object with the following options:
 
 - **`sender`** (required) - Required. The address of the sender / creator of the link.
-- **`redirect`** (optional) - The redirect configuration for the link. See "Claim redirect" below
-  for more information.
-  - **`url`** - The url to redirect to after the link have been claimed.
-  - **`name`** - The name of your dApp. This will be shown to the user when claiming the link.
 - **`client`** (optional) - The `@mysten/sui` client used to fetch data to construct the link. If
   not provided, a default client will be used.
 - **`network`** (optional) - The Sui network that the link will be created for. Defaults to
@@ -126,35 +122,6 @@ await link.create({
 	signer: yourKeypair,
 	// Wait until the new link is ready to be indexed so it is claimable
 	waitForTransaction: true,
-});
-```
-
-## Claim redirect
-
-You can configure a redirect for the link, which will redirect the user to a URL of your choice
-after the link has been claimed. This is useful for dApps that want to use zkSend / Stashed as an
-onboarding tool, and have the user redirected to their dApp after claiming the link.
-
-To configure a redirect, you need to provide a `redirect` object when creating the link. This object
-takes the following params:
-
-- **`url`** - The URL to redirect to after the link has been claimed.
-- **`name`** - The name of your dApp. This will be shown to the user when claiming the link.
-
-When redirecting to the URL, if the user claims with zkLogin, then Stashed will automatically add a
-`stashed_address` query parameter to the URL, containing the Sui address of the user that claimed
-the asset. The [Stashed wallet](./dapp) will automatically read this query parameter, and consider
-itself connected as a result of a claim redirect.
-
-```ts
-import { ZkSendLinkBuilder } from '@mysten/zksend';
-
-const link = new ZkSendLinkBuilder({
-	sender: '0x...',
-	redirect: {
-		url: 'https://your-dapp.com',
-		name: 'Your dApp',
-	},
 });
 ```
 

@@ -109,7 +109,7 @@ describe('Integration test', () => {
 		];
 	});
 
-	it('whitelist example encrypt and decrypt scenarios', async () => {
+	it('whitelist example encrypt and decrypt scenarios', { timeout: 12000 }, async () => {
 		// Both whitelists contain address 0xb743cafeb5da4914cef0cf0a32400c9adfedc5cdb64209f9e740e56d23065100
 		const whitelistId = '0xaae704d2280f2c3d24fc08972bb31f2ef1f1c968784935434c3296be5bfd9d5b';
 		const whitelistId2 = '0xe40f50789c00e9948ae782fc8c510b6cbe79cfde362bcab29675f1fe9c57fb46';

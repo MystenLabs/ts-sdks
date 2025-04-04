@@ -14,7 +14,9 @@ import type { ZkBagContractOptions } from './zk-bag.js';
 import { getContractIds, ZkBag } from './zk-bag.js';
 
 interface ZkSendLinkRedirect {
+	/** @deprecated zkSend link redirects are no longer supported */
 	url: string;
+	/** @deprecated zkSend link redirects are no longer supported */
 	name?: string;
 }
 
@@ -25,6 +27,7 @@ export interface ZkSendLinkBuilderOptions {
 	network?: 'mainnet' | 'testnet';
 	client?: SuiClient;
 	sender: string;
+	/** @deprecated zkSend link redirects are no longer supported */
 	redirect?: ZkSendLinkRedirect;
 	contract?: ZkBagContractOptions | null;
 }
@@ -59,6 +62,7 @@ export class ZkSendLinkBuilder {
 	#path: string;
 	keypair: Keypair;
 	#client: SuiClient;
+	/** @deprecated Remove once this functionality is removed from Stashed */
 	#redirect?: ZkSendLinkRedirect;
 	#coinsByType = new Map<string, CoinStruct[]>();
 	#contract?: ZkBag<ZkBagContractOptions>;

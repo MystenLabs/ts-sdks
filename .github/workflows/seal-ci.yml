@@ -1,6 +1,7 @@
 ---
 name: Seal Integration tests
 on:
+  pull_request:
   workflow_dispatch:
   repository_dispatch:
     types: [seal-integration-tests]
@@ -23,6 +24,9 @@ jobs:
           cache: "pnpm"
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build Seal dependencies
+        run: pnpm turbo build --filter @mysten/seal   
 
       - name: Run integration tests
         run: pnpm --filter @mysten/seal test:unit

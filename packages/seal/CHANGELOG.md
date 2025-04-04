@@ -1,5 +1,24 @@
 # @mysten/seal
 
+## 0.3.3
+
+### Patch Changes
+
+- Updated dependencies [906dd14]
+  - @mysten/sui@1.26.0
+
+## 0.3.2
+
+### Patch Changes
+
+- d899c1d: Expose EncryptedObject
+
+## 0.3.1
+
+### Patch Changes
+
+- d2ef9ef: Update encryption format, and export errors
+
 ## 0.3.0
 
 ### Minor Changes

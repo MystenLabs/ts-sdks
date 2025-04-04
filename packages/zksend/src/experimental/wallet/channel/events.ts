@@ -2,7 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { InferOutput } from 'valibot';
-import { array, literal, object, optional, pipe, string, url, uuid, variant } from 'valibot';
+import {
+	any,
+	array,
+	literal,
+	object,
+	optional,
+	pipe,
+	record,
+	string,
+	url,
+	uuid,
+	variant,
+} from 'valibot';
 
 export const StashedRequestData = variant('type', [
 	object({
@@ -24,6 +36,7 @@ export const StashedRequestData = variant('type', [
 	}),
 	object({
 		type: literal('sign-personal-message'),
+		chain: optional(string('`chain` is required')),
 		message: string('`message` is required'),
 		address: string('`address` is required'),
 		session: string('`session` is required'),
@@ -34,9 +47,10 @@ export type StashedRequestData = InferOutput<typeof StashedRequestData>;
 export const StashedRequest = object({
 	version: literal('v1'),
 	requestId: pipe(string('`requestId` is required'), uuid()),
-	appOrigin: pipe(string(), url('`appOrigin` must be a valid URL')),
+	appUrl: pipe(string(), url('`appUrl` must be a valid URL')),
 	appName: string('`appName` is required'),
 	payload: StashedRequestData,
+	metadata: optional(record(string(), any())),
 });
 
 export type StashedRequest = InferOutput<typeof StashedRequest>;
@@ -75,6 +89,7 @@ export type StashedResponseData = InferOutput<typeof StashedResponseData>;
 export const StashedResponsePayload = variant('type', [
 	object({
 		type: literal('reject'),
+		reason: optional(string('`reason` must be a string')),
 	}),
 	object({
 		type: literal('resolve'),
@@ -85,8 +100,9 @@ export type StashedResponsePayload = InferOutput<typeof StashedResponsePayload>;
 
 export const StashedResponse = object({
 	id: pipe(string(), uuid()),
-	source: literal('zksend-channel'),
+	source: literal('stashed-channel'),
 	payload: StashedResponsePayload,
+	version: literal('v1'),
 });
 export type StashedResponse = InferOutput<typeof StashedResponse>;
 

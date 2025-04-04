@@ -232,7 +232,7 @@ export class StorageNodeClient {
 		let response: Response | undefined;
 
 		try {
-			response = await this.#fetch(`${nodeUrl}${path}`, {
+			response = await (0, this.#fetch)(`${nodeUrl}${path}`, {
 				...init,
 				signal: signal ? AbortSignal.any([timeoutSignal, signal]) : timeoutSignal,
 			});

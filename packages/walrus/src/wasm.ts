@@ -1,11 +1,17 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { BlobEncoder, from_signed_messages_and_indices, MessageType } from '@mysten/walrus-wasm';
+import { fromBase64 } from '@mysten/bcs';
+import init, {
+	BlobEncoder,
+	bls12381_min_pk_aggregate,
+	bls12381_min_pk_verify,
+} from '@mysten/walrus-wasm';
 
+import type { StorageConfirmation } from './storage-node/types.js';
 import type { EncodingType } from './types.js';
 import type { BlobMetadata, BlobMetadataWithId, SliverData, SliverPair } from './utils/bcs.js';
-import { EncodingType as BcsEncodingType, BlobId, blobIdFromBytes } from './utils/bcs.js';
+import { BlobId, blobIdFromBytes } from './utils/bcs.js';
 
 export interface EncodedBlob {
 	sliverPairs: (typeof SliverPair.$inferInput)[];
@@ -14,17 +20,20 @@ export interface EncodedBlob {
 	rootHash: Uint8Array;
 }
 
-export function encodeBlob(
+export async function encodeBlob(
 	nShards: number,
 	bytes: Uint8Array,
 	encodingType: EncodingType = 'RS2',
-): EncodedBlob {
+): Promise<EncodedBlob> {
+	await init();
+
 	const encoder = new BlobEncoder(nShards);
 
-	const [sliverPairs, metadata, rootHash] = encoder.encode_with_metadata(
-		bytes,
-		BcsEncodingType.serialize(encodingType).toBytes()[0],
-	);
+	if (encodingType !== 'RS2') {
+		throw new Error(`Unsupported encoding type: ${encodingType}`);
+	}
+
+	const [sliverPairs, metadata, rootHash] = encoder.encode_with_metadata(bytes);
 
 	return {
 		sliverPairs,
@@ -37,35 +46,23 @@ export function encodeBlob(
 export interface CombinedSignature {
 	signers: number[];
 	serializedMessage: Uint8Array;
-	signature: string;
+	signature: Uint8Array;
 }
 
-export interface Confirmation {
-	serializedMessage: string;
-	signature: string;
-}
-
-export function combineSignatures(
-	confirmations: Confirmation[],
+export async function combineSignatures(
+	confirmations: StorageConfirmation[],
 	signerIndices: number[],
-): CombinedSignature {
-	const combined = from_signed_messages_and_indices(
-		MessageType.Confirmation,
-		confirmations.map((confirmation) => ({
-			serializedMessage: confirmation.serializedMessage,
-			signature: confirmation.signature,
-		})),
-		new Uint16Array(signerIndices),
-	) as {
-		signers: number[];
-		serialized_message: number[];
-		signature: string;
-	};
+): Promise<CombinedSignature> {
+	await init();
+
+	const signature = bls12381_min_pk_aggregate(
+		confirmations.map((confirmation) => fromBase64(confirmation.signature)),
+	);
 
 	return {
 		signers: signerIndices,
-		serializedMessage: new Uint8Array(combined.serialized_message),
-		signature: combined.signature,
+		serializedMessage: fromBase64(confirmations[0].serializedMessage),
+		signature,
 	};
 }
 
@@ -78,17 +75,30 @@ export function decodePrimarySlivers(
 ): Uint8Array {
 	const encoder = new BlobEncoder(nShards);
 
-	const [bytes] = encoder.decode_primary(
+	if (encodingType !== 'RS2') {
+		throw new Error(`Unsupported encoding type: ${encodingType}`);
+	}
+
+	const [bytes] = encoder.decode(
 		BlobId.serialize(blobId).toBytes(),
 		BigInt(size),
 		slivers.map((sliver) => ({
 			...sliver,
 			_sliver_type: undefined,
 		})),
-		BcsEncodingType.serialize(encodingType).toBytes()[0],
 	);
 
 	return new Uint8Array(bytes);
+}
+
+export async function getVerifySignature() {
+	await init();
+	return (confirmation: StorageConfirmation, publicKey: Uint8Array) =>
+		bls12381_min_pk_verify(
+			fromBase64(confirmation.signature),
+			publicKey,
+			fromBase64(confirmation.serializedMessage),
+		);
 }
 
 export function computeMetadata(
@@ -97,10 +107,11 @@ export function computeMetadata(
 	encodingType: EncodingType = 'RS2',
 ): typeof BlobMetadataWithId.$inferInput & { blob_id: string } {
 	const encoder = new BlobEncoder(nShards);
-	const metadata = encoder.compute_metadata(
-		bytes,
-		BcsEncodingType.serialize(encodingType).toBytes()[0],
-	);
+	const metadata = encoder.compute_metadata(bytes);
+
+	if (encodingType !== 'RS2') {
+		throw new Error(`Unsupported encoding type: ${encodingType}`);
+	}
 
 	return {
 		...metadata,

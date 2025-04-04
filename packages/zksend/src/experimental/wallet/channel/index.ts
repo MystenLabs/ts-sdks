@@ -14,6 +14,19 @@ export const DEFAULT_STASHED_ORIGIN = 'https://getstashed.com';
 
 export { StashedRequest, StashedResponse };
 
+const getClientMetadata = () => {
+	return {
+		version: 'v1',
+		originUrl: window.location.href,
+		userAgent: navigator.userAgent,
+		screenResolution: `${window.screen.width}x${window.screen.height}`,
+		language: navigator.language,
+		platform: navigator.platform,
+		timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+		timestamp: Date.now(),
+	};
+};
+
 export class StashedPopup {
 	#popup: Window;
 
@@ -76,18 +89,21 @@ export class StashedPopup {
 		window.addEventListener('message', this.#listener);
 
 		const requestData = {
-			...data,
 			version: this.#version,
 			requestId: this.#id,
-			appOrigin: window.origin,
+			appUrl: window.location.href.split('#')[0],
 			appName: this.#name,
-			chain: this.#chain,
+			payload: {
+				type,
+				chain: this.#chain,
+				...data,
+			},
+			metadata: getClientMetadata(),
 		};
-
 		const encodedRequestData = btoa(JSON.stringify(requestData));
 
 		this.#popup.location.assign(
-			`${this.#origin}/dapp/${type}${data ? `#${encodedRequestData}` : ''}`,
+			`${this.#origin}/dapp-request${data ? `#${encodedRequestData}` : ''}`,
 		);
 
 		return this.#promise as Promise<StashedResponseTypes[T]>;
@@ -136,22 +152,15 @@ export class StashedHost {
 		this.#request = request;
 	}
 
-	static fromUrl(url: string = window.location.href) {
-		const parsed = new URL(url);
-		const hash = parsed.hash.slice(1); // Remove the # character
-		const { requestId, appOrigin, appName, version, ...rest } = JSON.parse(
-			atob(decodeURIComponent(hash)),
-		);
+	static fromPayload(payload: StashedRequest) {
+		const { requestId, appUrl, appName, version, ...rest } = payload;
 
 		const request = parse(StashedRequest, {
 			version,
 			requestId,
-			appOrigin,
+			appUrl,
 			appName,
-			payload: {
-				type: parsed.pathname.split('/').pop(),
-				...rest,
-			},
+			...rest,
 		});
 
 		return new StashedHost(request);
@@ -165,10 +174,11 @@ export class StashedHost {
 		window.opener.postMessage(
 			{
 				id: this.#request.requestId,
-				source: 'zksend-channel',
+				source: 'stashed-channel',
 				payload,
+				version: this.#request.version,
 			} satisfies StashedResponse,
-			this.#request.appOrigin,
+			this.#request.appUrl,
 		);
 	}
 

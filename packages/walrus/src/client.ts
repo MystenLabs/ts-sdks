@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { InferBcsType } from '@mysten/bcs';
-import { bcs, fromBase64 } from '@mysten/bcs';
+import { bcs } from '@mysten/bcs';
 import { SuiClient } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
 import type { TransactionObjectArgument } from '@mysten/sui/transactions';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
-import { bls12381_min_pk_verify } from '@mysten/walrus-wasm';
 
 import {
 	MAINNET_WALRUS_PACKAGE_CONFIG,
@@ -89,7 +88,13 @@ import {
 import { MemoCache } from './utils/memo.js';
 import { SuiObjectDataLoader } from './utils/object-loader.js';
 import { shuffle, weightedShuffle } from './utils/randomness.js';
-import { combineSignatures, computeMetadata, decodePrimarySlivers, encodeBlob } from './wasm.js';
+import {
+	combineSignatures,
+	computeMetadata,
+	decodePrimarySlivers,
+	encodeBlob,
+	getVerifySignature,
+} from './wasm.js';
 
 export class WalrusClient {
 	#storageNodeClient: StorageNodeClient;
@@ -888,14 +893,15 @@ export class WalrusClient {
 			},
 		}).toBase64();
 
+		const verifySignature = await getVerifySignature();
+
 		const filteredConfirmations = confirmations
 			.map((confirmation, index) => {
 				const isValid =
 					confirmation?.serializedMessage === confirmationMessage &&
-					bls12381_min_pk_verify(
-						fromBase64(confirmation.signature),
+					verifySignature(
+						confirmation,
 						new Uint8Array(committee.nodes[index].info.public_key.bytes),
-						fromBase64(confirmation.serializedMessage),
 					);
 
 				return isValid
@@ -913,7 +919,7 @@ export class WalrusClient {
 			);
 		}
 
-		const combinedSignature = combineSignatures(
+		const combinedSignature = await combineSignatures(
 			filteredConfirmations,
 			filteredConfirmations.map(({ index }) => index),
 		);
@@ -924,7 +930,7 @@ export class WalrusClient {
 				arguments: [
 					tx.object(this.#packageConfig.systemObjectId),
 					tx.object(blobObjectId),
-					tx.pure.vector('u8', fromBase64(combinedSignature.signature)),
+					tx.pure.vector('u8', combinedSignature.signature),
 					tx.pure.vector(
 						'u8',
 						signersToBitmap(combinedSignature.signers, systemState.committee.members.length),
@@ -1367,7 +1373,7 @@ export class WalrusClient {
 		const committee = await this.#getActiveCommittee();
 
 		const numShards = systemState.committee.n_shards;
-		const { blobId, metadata, sliverPairs, rootHash } = encodeBlob(numShards, blob);
+		const { blobId, metadata, sliverPairs, rootHash } = await encodeBlob(numShards, blob);
 
 		const sliversByNodeMap = new Map<number, SliversForNode>();
 

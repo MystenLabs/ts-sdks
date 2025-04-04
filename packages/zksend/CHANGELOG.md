@@ -1,5 +1,14 @@
 # @mysten/zksend
 
+## 0.12.21
+
+### Patch Changes
+
+- 2e4740b: Mark link redirect as deprecated.
+- Updated dependencies [906dd14]
+  - @mysten/sui@1.26.0
+  - @mysten/wallet-standard@0.14.1
+
 ## 0.12.20
 
 ### Patch Changes

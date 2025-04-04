@@ -3,9 +3,12 @@
 import { fromBase58, toBase64, toHex } from '@mysten/bcs';
 
 import type { Signer } from '../cryptography/index.js';
-import type { Experimental_SuiClient } from '../experimental/client.js';
+import { Experimental_SuiClient } from '../experimental/client.js';
 import { JSONRpcTransport } from '../experimental/transports/jsonRPC.js';
-import type { SelfRegisteringClientExtension } from '../experimental/types.js';
+import type {
+	Experimental_SuiClientTypes,
+	SelfRegisteringClientExtension,
+} from '../experimental/types.js';
 import type { Transaction } from '../transactions/index.js';
 import { isTransaction } from '../transactions/index.js';
 import {
@@ -109,7 +112,9 @@ export interface OrderArguments {
  * Configuration options for the SuiClient
  * You must provide either a `url` or a `transport`
  */
-export type SuiClientOptions = NetworkOrTransport;
+export type SuiClientOptions = NetworkOrTransport & {
+	network?: Experimental_SuiClientTypes.Network;
+};
 
 type NetworkOrTransport =
 	| {
@@ -129,7 +134,8 @@ export function isSuiClient(client: unknown): client is SuiClient {
 	);
 }
 
-export class SuiClient implements SelfRegisteringClientExtension {
+export class SuiClient extends Experimental_SuiClient implements SelfRegisteringClientExtension {
+	core: JSONRpcTransport = new JSONRpcTransport(this);
 	protected transport: SuiTransport;
 
 	get [SUI_CLIENT_BRAND]() {
@@ -142,6 +148,7 @@ export class SuiClient implements SelfRegisteringClientExtension {
 	 * @param options configuration options for the API Client
 	 */
 	constructor(options: SuiClientOptions) {
+		super({ network: options.network ?? 'unknown' });
 		this.transport = options.transport ?? new SuiHTTPTransport({ url: options.url });
 	}
 
@@ -833,8 +840,7 @@ export class SuiClient implements SelfRegisteringClientExtension {
 	experimental_asClientExtension(this: SuiClient) {
 		return {
 			name: 'jsonRPC',
-			register: (client: Experimental_SuiClient) => {
-				client.$registerTransport(new JSONRpcTransport(this));
+			register: () => {
 				return this;
 			},
 		} as const;

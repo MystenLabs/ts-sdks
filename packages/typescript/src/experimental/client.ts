@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /* eslint-disable @typescript-eslint/ban-types */
 
+import type { Experimental_CoreClient } from './core.js';
 import type {
 	ClientWithExtensions,
 	Experimental_SuiClientTypes,
@@ -10,53 +11,14 @@ import type {
 	UnionToIntersection,
 } from './types.js';
 
-export class Experimental_SuiClient implements Experimental_SuiClientTypes.TransportMethods {
-	#transports: Experimental_SuiClientTypes.TransportMethods[] = [];
+export abstract class Experimental_SuiClient {
 	network: Experimental_SuiClientTypes.Network;
 
 	constructor({ network }: Experimental_SuiClientTypes.SuiClientOptions) {
 		this.network = network;
 	}
 
-	#transportMethod<T extends keyof Experimental_SuiClientTypes.TransportMethods>(
-		method: T,
-		...args: Parameters<NonNullable<Experimental_SuiClientTypes.TransportMethods[T]>>
-	): ReturnType<NonNullable<Experimental_SuiClientTypes.TransportMethods[T]>> {
-		for (const transport of this.#transports) {
-			if (transport[method]) {
-				return (transport[method] as (...args: any[]) => any)(...args);
-			}
-		}
-		throw new Error(`No transport method found for ${method}`);
-	}
-
-	getBalance(options: Experimental_SuiClientTypes.GetBalanceOptions) {
-		return this.#transportMethod('getBalance', options);
-	}
-
-	getAllBalances(options: Experimental_SuiClientTypes.GetAllBalancesOptions) {
-		return this.#transportMethod('getAllBalances', options);
-	}
-
-	getTransaction(options: Experimental_SuiClientTypes.GetTransactionOptions) {
-		return this.#transportMethod('getTransaction', options);
-	}
-
-	executeTransaction(options: Experimental_SuiClientTypes.ExecuteTransactionOptions) {
-		return this.#transportMethod('executeTransaction', options);
-	}
-
-	dryRunTransaction(options: Experimental_SuiClientTypes.DryRunTransactionOptions) {
-		return this.#transportMethod('dryRunTransaction', options);
-	}
-
-	getReferenceGasPrice() {
-		return this.#transportMethod('getReferenceGasPrice');
-	}
-
-	$registerTransport(transport: Experimental_SuiClientTypes.TransportMethods) {
-		this.#transports.push(transport);
-	}
+	abstract core: Experimental_CoreClient;
 
 	$extend<const Registrations extends SuiClientRegistration<this>[]>(
 		...registrations: Registrations
