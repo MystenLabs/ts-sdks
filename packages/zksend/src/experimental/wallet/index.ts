@@ -372,7 +372,7 @@ export async function registerStashedWallet(
 	const metadata = await fetchMetadata(metadataApiUrl);
 
 	if (!metadata?.enabled) {
-		console.error('Stashed wallet is not currently enabled.');
+		console.log('Stashed wallet is not currently enabled.');
 		return;
 	}
 
