@@ -54,10 +54,7 @@ const METADATA_API_URL = 'http://localhost:3001/api/wallet/metadata';
 
 const WalletMetadataSchema = object({
 	walletName: string('Wallet name is required'),
-	icon: custom<WalletIcon>((value) => {
-		if (typeof value !== 'string') return false;
-		return /^data:image\/(svg\+xml|webp|png|gif);base64,[A-Za-z0-9+/=]+$/.test(value);
-	}, 'Icon must be a valid wallet icon format'),
+	icon: string('Icon must be a valid wallet icon format'),
 	enabled: boolean('Enabled is required'),
 });
 
