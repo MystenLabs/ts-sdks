@@ -917,18 +917,20 @@ export class WalrusClient {
 		const systemContract = await this.#getSystemContract();
 
 		return (tx: Transaction) => {
-			systemContract.certify_blob({
-				arguments: [
-					tx.object(this.#packageConfig.systemObjectId),
-					tx.object(blobObjectId),
-					tx.pure.vector('u8', combinedSignature.signature),
-					tx.pure.vector(
-						'u8',
-						signersToBitmap(combinedSignature.signers, systemState.committee.members.length),
-					),
-					tx.pure.vector('u8', combinedSignature.serializedMessage),
-				],
-			});
+			tx.add(
+				systemContract.certify_blob({
+					arguments: [
+						tx.object(this.#packageConfig.systemObjectId),
+						tx.object(blobObjectId),
+						tx.pure.vector('u8', combinedSignature.signature),
+						tx.pure.vector(
+							'u8',
+							signersToBitmap(combinedSignature.signers, systemState.committee.members.length),
+						),
+						tx.pure.vector('u8', combinedSignature.serializedMessage),
+					],
+				}),
+			);
 		};
 	}
 
