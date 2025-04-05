@@ -1,5 +1,11 @@
 # @mysten/walrus
 
+## 0.0.11
+
+### Patch Changes
+
+- 4425284: Fix certify_blob transaction
+
 ## 0.0.10
 
 ### Patch Changes
