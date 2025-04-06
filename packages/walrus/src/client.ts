@@ -987,14 +987,20 @@ export class WalrusClient {
 	 * tx.transferObjects([storage], owner);
 	 * ```
 	 */
-	deleteBlob({ blobObjectId }: DeleteBlobOptions) {
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: this.#packageConfig.systemObjectId,
-				module: 'system',
-				function: 'delete_blob',
-				arguments: [tx.object(this.#packageConfig.systemObjectId), tx.object(blobObjectId)],
-			});
+	async deleteBlob({ blobObjectId }: DeleteBlobOptions) {
+		const systemContract = await this.#getSystemContract();
+		return (tx: Transaction) => {
+			const storage = tx.add(
+				systemContract.delete_blob({
+					arguments: [
+						tx.object(this.#packageConfig.systemObjectId),
+						tx.object(blobObjectId),
+					],
+				}),
+			);
+
+      return storage
+		};
 	}
 
 	/**
@@ -1005,12 +1011,13 @@ export class WalrusClient {
 	 * const tx = await client.deleteBlobTransaction({ blobObjectId, owner });
 	 * ```
 	 */
-	deleteBlobTransaction({
+	async deleteBlobTransaction({
 		owner,
 		blobObjectId,
 		transaction = new Transaction(),
 	}: DeleteBlobOptions & { transaction?: Transaction; owner: string }) {
-		transaction.transferObjects([this.deleteBlob({ blobObjectId })], owner);
+    const storage = transaction.add(await this.deleteBlob({blobObjectId}))
+		transaction.transferObjects([storage], owner);
 
 		return transaction;
 	}
@@ -1029,7 +1036,7 @@ export class WalrusClient {
 		blobObjectId,
 	}: DeleteBlobOptions & { signer: Signer; transaction?: Transaction }) {
 		const { digest } = await this.#executeTransaction(
-			this.deleteBlobTransaction({
+			await this.deleteBlobTransaction({
 				blobObjectId,
 				transaction,
 				owner: transaction.getData().sender ?? signer.toSuiAddress(),
