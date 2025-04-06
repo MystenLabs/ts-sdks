@@ -16,7 +16,7 @@ and an instance of the walrus SDK.
 ```ts
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
-import { WalrusClient } from '../src/index.js';
+import { WalrusClient } from '@mysten/walrus';
 
 const suiClient = new SuiClient({
 	url: getFullnodeUrl('testnet'),
@@ -99,7 +99,7 @@ const file = new TextEncoder().encode('Hello from the TS SDK!!!\n');
 
 const { blobId } = await walrusClient.writeBlob({
 	blob: file,
-	deletable: true,
+	deletable: false,
 	epochs: 3,
 	signer: keypair,
 });
