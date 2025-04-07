@@ -82,16 +82,11 @@ import {
 import { MemoCache } from './utils/memo.js';
 import { SuiObjectDataLoader } from './utils/object-loader.js';
 import { shuffle, weightedShuffle } from './utils/randomness.js';
-import {
-	combineSignatures,
-	computeMetadata,
-	decodePrimarySlivers,
-	encodeBlob,
-	getVerifySignature,
-} from './wasm.js';
+import { getWasmBindings } from './wasm.js';
 
 export class WalrusClient {
 	#storageNodeClient: StorageNodeClient;
+	#wasmUrl: string | undefined;
 
 	#packageConfig: WalrusPackageConfig;
 	#suiClient: SuiClient;
@@ -117,6 +112,8 @@ export class WalrusClient {
 		} else {
 			this.#packageConfig = config.packageConfig!;
 		}
+
+		this.#wasmUrl = config.wasmUrl;
 
 		this.#suiClient =
 			config.suiClient ??
@@ -189,6 +186,10 @@ export class WalrusClient {
 		return initMetadataContract(package_id);
 	});
 
+	#wasmBindings = this.#memo.create('wasmBindings', async () => {
+		return getWasmBindings(this.#wasmUrl);
+	});
+
 	/** The cached system object for the walrus package */
 	systemObject() {
 		return this.#objectLoader.load(this.#packageConfig.systemObjectId, System());
@@ -233,14 +234,19 @@ export class WalrusClient {
 
 		const slivers = await this.getSlivers({ blobId, signal });
 
-		const blobBytes = decodePrimarySlivers(
+		const bindings = await this.#wasmBindings();
+
+		const blobBytes = bindings.decodePrimarySlivers(
 			blobId,
 			numShards,
 			blobMetadata.metadata.V1.unencoded_length,
 			slivers,
 		);
 
-		const reconstructedBlobMetadata = computeMetadata(systemState.committee.n_shards, blobBytes);
+		const reconstructedBlobMetadata = bindings.computeMetadata(
+			systemState.committee.n_shards,
+			blobBytes,
+		);
 
 		if (reconstructedBlobMetadata.blob_id !== blobId) {
 			throw new InconsistentBlobError('The specified blob was encoded incorrectly.');
@@ -884,7 +890,8 @@ export class WalrusClient {
 			},
 		}).toBase64();
 
-		const verifySignature = await getVerifySignature();
+		const bindings = await this.#wasmBindings();
+		const verifySignature = bindings.getVerifySignature();
 
 		const filteredConfirmations = confirmations
 			.map((confirmation, index) => {
@@ -910,7 +917,7 @@ export class WalrusClient {
 			);
 		}
 
-		const combinedSignature = await combineSignatures(
+		const combinedSignature = bindings.combineSignatures(
 			filteredConfirmations,
 			filteredConfirmations.map(({ index }) => index),
 		);
@@ -1370,7 +1377,8 @@ export class WalrusClient {
 		const committee = await this.#getActiveCommittee();
 
 		const numShards = systemState.committee.n_shards;
-		const { blobId, metadata, sliverPairs, rootHash } = await encodeBlob(numShards, blob);
+		const bindings = await this.#wasmBindings();
+		const { blobId, metadata, sliverPairs, rootHash } = bindings.encodeBlob(numShards, blob);
 
 		const sliversByNodeMap = new Map<number, SliversForNode>();
 

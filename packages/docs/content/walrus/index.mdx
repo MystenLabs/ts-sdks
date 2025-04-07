@@ -182,6 +182,39 @@ const walrusClient = new WalrusClient({
 });
 ```
 
+### Loading the wasm module in vite or client side apps
+
+The walrus SDK requires wasm bindings to encode and decode blobs. When running in node or bun and
+some bundlers this will work without any additional configuration.
+
+In some cases you may need to manually specify where the SDK loads the wasm bindings from.
+
+In vite you can get the url for the wasm bindings by importing the wasm file with a `?url` suffix,
+and then passed into the walrus client:
+
+```ts
+import walrusWasmUrl from '@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url';
+
+const walrusClient = new WalrusClient({
+	network: 'testnet',
+	suiClient,
+	wasmUrl: walrusWasmUrl,
+});
+```
+
+If you are unable to get a url for the wasm file in your bundler or build system, you can self host
+the wasm bindings, or load them from a CDN:
+
+```ts
+import url from '@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url';
+
+const walrusClient = new WalrusClient({
+	network: 'testnet',
+	suiClient,
+	wasmUrl: 'https://unpkg.com/@mysten/walrus-wasm@latest/web/walrus_wasm_bg.wasm',
+});
+```
+
 ### Known fetch limitations you might run into
 
 - Some nodes can be slow to respond. When running in node, the default connectTimeout is 10 seconds

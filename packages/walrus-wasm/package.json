@@ -12,6 +12,11 @@
       "browser": "./web/walrus_wasm.js",
       "import": "./index.js",
       "require": "./index.js"
+    },
+    "./web/walrus_wasm_bg.wasm": {
+      "browser": "./web/walrus_wasm_bg.wasm",
+      "import": "./web/walrus_wasm_bg.wasm",
+      "require": "./web/walrus_wasm_bg.wasm"
     }
   }
 }

@@ -56,6 +56,7 @@ type WalrusNetworkOrPackageConfig =
  */
 export type WalrusClientConfig = {
 	storageNodeClientOptions?: StorageNodeClientOptions;
+	wasmUrl?: string;
 } & WalrusNetworkOrPackageConfig &
 	SuiClientOrRpcUrl;
 

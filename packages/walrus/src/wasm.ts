@@ -20,101 +20,108 @@ export interface EncodedBlob {
 	rootHash: Uint8Array;
 }
 
-export async function encodeBlob(
-	nShards: number,
-	bytes: Uint8Array,
-	encodingType: EncodingType = 'RS2',
-): Promise<EncodedBlob> {
-	await init();
-
-	const encoder = new BlobEncoder(nShards);
-
-	if (encodingType !== 'RS2') {
-		throw new Error(`Unsupported encoding type: ${encodingType}`);
-	}
-
-	const [sliverPairs, metadata, rootHash] = encoder.encode_with_metadata(bytes);
-
-	return {
-		sliverPairs,
-		blobId: blobIdFromBytes(new Uint8Array(metadata.blob_id)),
-		metadata: metadata.metadata,
-		rootHash: new Uint8Array(rootHash.Digest),
-	};
-}
-
 export interface CombinedSignature {
 	signers: number[];
 	serializedMessage: Uint8Array;
 	signature: Uint8Array;
 }
 
-export async function combineSignatures(
-	confirmations: StorageConfirmation[],
-	signerIndices: number[],
-): Promise<CombinedSignature> {
-	await init();
+export async function getWasmBindings(url?: string) {
+	await init({ module_or_path: url });
 
-	const signature = bls12381_min_pk_aggregate(
-		confirmations.map((confirmation) => fromBase64(confirmation.signature)),
-	);
+	function encodeBlob(
+		nShards: number,
+		bytes: Uint8Array,
+		encodingType: EncodingType = 'RS2',
+	): EncodedBlob {
+		const encoder = new BlobEncoder(nShards);
 
-	return {
-		signers: signerIndices,
-		serializedMessage: fromBase64(confirmations[0].serializedMessage),
-		signature,
-	};
-}
+		if (encodingType !== 'RS2') {
+			throw new Error(`Unsupported encoding type: ${encodingType}`);
+		}
 
-export function decodePrimarySlivers(
-	blobId: string,
-	nShards: number,
-	size: number | bigint | string,
-	slivers: (typeof SliverData.$inferInput)[],
-	encodingType: EncodingType = 'RS2',
-): Uint8Array {
-	const encoder = new BlobEncoder(nShards);
+		const [sliverPairs, metadata, rootHash] = encoder.encode_with_metadata(bytes);
 
-	if (encodingType !== 'RS2') {
-		throw new Error(`Unsupported encoding type: ${encodingType}`);
+		return {
+			sliverPairs,
+			blobId: blobIdFromBytes(new Uint8Array(metadata.blob_id)),
+			metadata: metadata.metadata,
+			rootHash: new Uint8Array(rootHash.Digest),
+		};
 	}
 
-	const [bytes] = encoder.decode(
-		BlobId.serialize(blobId).toBytes(),
-		BigInt(size),
-		slivers.map((sliver) => ({
-			...sliver,
-			_sliver_type: undefined,
-		})),
-	);
-
-	return new Uint8Array(bytes);
-}
-
-export async function getVerifySignature() {
-	await init();
-	return (confirmation: StorageConfirmation, publicKey: Uint8Array) =>
-		bls12381_min_pk_verify(
-			fromBase64(confirmation.signature),
-			publicKey,
-			fromBase64(confirmation.serializedMessage),
+	function combineSignatures(
+		confirmations: StorageConfirmation[],
+		signerIndices: number[],
+	): CombinedSignature {
+		const signature = bls12381_min_pk_aggregate(
+			confirmations.map((confirmation) => fromBase64(confirmation.signature)),
 		);
-}
 
-export function computeMetadata(
-	nShards: number,
-	bytes: Uint8Array,
-	encodingType: EncodingType = 'RS2',
-): typeof BlobMetadataWithId.$inferInput & { blob_id: string } {
-	const encoder = new BlobEncoder(nShards);
-	const metadata = encoder.compute_metadata(bytes);
+		return {
+			signers: signerIndices,
+			serializedMessage: fromBase64(confirmations[0].serializedMessage),
+			signature,
+		};
+	}
 
-	if (encodingType !== 'RS2') {
-		throw new Error(`Unsupported encoding type: ${encodingType}`);
+	function decodePrimarySlivers(
+		blobId: string,
+		nShards: number,
+		size: number | bigint | string,
+		slivers: (typeof SliverData.$inferInput)[],
+		encodingType: EncodingType = 'RS2',
+	): Uint8Array {
+		const encoder = new BlobEncoder(nShards);
+
+		if (encodingType !== 'RS2') {
+			throw new Error(`Unsupported encoding type: ${encodingType}`);
+		}
+
+		const [bytes] = encoder.decode(
+			BlobId.serialize(blobId).toBytes(),
+			BigInt(size),
+			slivers.map((sliver) => ({
+				...sliver,
+				_sliver_type: undefined,
+			})),
+		);
+
+		return new Uint8Array(bytes);
+	}
+
+	function getVerifySignature() {
+		return (confirmation: StorageConfirmation, publicKey: Uint8Array) =>
+			bls12381_min_pk_verify(
+				fromBase64(confirmation.signature),
+				publicKey,
+				fromBase64(confirmation.serializedMessage),
+			);
+	}
+
+	function computeMetadata(
+		nShards: number,
+		bytes: Uint8Array,
+		encodingType: EncodingType = 'RS2',
+	): typeof BlobMetadataWithId.$inferInput & { blob_id: string } {
+		const encoder = new BlobEncoder(nShards);
+		const metadata = encoder.compute_metadata(bytes);
+
+		if (encodingType !== 'RS2') {
+			throw new Error(`Unsupported encoding type: ${encodingType}`);
+		}
+
+		return {
+			...metadata,
+			blob_id: blobIdFromBytes(new Uint8Array(metadata.blob_id)),
+		};
 	}
 
 	return {
-		...metadata,
-		blob_id: blobIdFromBytes(new Uint8Array(metadata.blob_id)),
+		encodeBlob,
+		combineSignatures,
+		decodePrimarySlivers,
+		getVerifySignature,
+		computeMetadata,
 	};
 }
