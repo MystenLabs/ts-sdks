@@ -1,5 +1,11 @@
 # @mysten/walrus-wasm
 
+## 0.0.5
+
+### Patch Changes
+
+- 4389b36: Add support for customizing wasm url
+
 ## 0.0.4
 
 ### Patch Changes
