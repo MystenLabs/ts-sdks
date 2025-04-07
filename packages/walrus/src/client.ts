@@ -992,14 +992,11 @@ export class WalrusClient {
 		return (tx: Transaction) => {
 			const storage = tx.add(
 				systemContract.delete_blob({
-					arguments: [
-						tx.object(this.#packageConfig.systemObjectId),
-						tx.object(blobObjectId),
-					],
+					arguments: [tx.object(this.#packageConfig.systemObjectId), tx.object(blobObjectId)],
 				}),
 			);
 
-      return storage
+			return storage;
 		};
 	}
 
@@ -1016,7 +1013,7 @@ export class WalrusClient {
 		blobObjectId,
 		transaction = new Transaction(),
 	}: DeleteBlobOptions & { transaction?: Transaction; owner: string }) {
-    const storage = transaction.add(await this.deleteBlob({blobObjectId}))
+		const storage = transaction.add(await this.deleteBlob({ blobObjectId }));
 		transaction.transferObjects([storage], owner);
 
 		return transaction;

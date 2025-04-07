@@ -41,7 +41,10 @@ async function uploadFile() {
 
 	console.log('created blob', blobObject.id.id);
 
-	await walrusClient.deleteBlob({ blobObjectId: blobObject.id.id });
+	await walrusClient.executeDeleteBlobTransaction({
+		signer: keypair,
+		blobObjectId: blobObject.id.id,
+	});
 
 	console.log('deleted blob', blobObject.id.id);
 }
