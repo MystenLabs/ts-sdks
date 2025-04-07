@@ -1,5 +1,11 @@
 # @mysten/walrus
 
+## 0.0.12
+
+### Patch Changes
+
+- 3be4016: fix packageId in deleteBlob move call
+
 ## 0.0.11
 
 ### Patch Changes
