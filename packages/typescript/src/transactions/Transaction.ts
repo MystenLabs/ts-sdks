@@ -34,6 +34,12 @@ export type TransactionObjectArgument =
 export type TransactionResult = Extract<Argument, { Result: unknown }> &
 	Extract<Argument, { NestedResult: unknown }>[];
 
+export type TransactionResultArgument =
+	| Extract<Argument, { Result: unknown }>
+	| Extract<Argument, { NestedResult: unknown }>[];
+
+export type AsyncThunk<T extends TransactionResultArgument> = (tx: Transaction) => Promise<T>;
+
 function createTransactionResult(index: number, length = Infinity): TransactionResult {
 	const baseResult = { $kind: 'Result' as const, Result: index };
 
@@ -135,6 +141,11 @@ export class Transaction {
 	#serializationPlugins: TransactionPlugin[];
 	#buildPlugins: TransactionPlugin[];
 	#intentResolvers = new Map<string, TransactionPlugin>();
+	#asyncThunks: {
+		noCommandsError: Error;
+		index: number;
+		thunk: AsyncThunk<TransactionResultArgument>[];
+	}[] = [];
 
 	/**
 	 * Converts from a serialize transaction kind (built with `build({ onlyTransactionKind: true })`) to a `Transaction` class.
@@ -383,6 +394,22 @@ export class Transaction {
 		return this.object(Inputs.SharedObjectRef(...args));
 	}
 
+	addAsync<T extends TransactionResultArgument>(command: AsyncThunk<T>): T {
+		this.#asyncThunks.push({
+			// Capture the error here so that users can find the root cause when we run the async thunk later
+			noCommandsError: new Error(
+				'function passed to addAsync did not add any commands to transaction',
+			),
+			index: this.#data.commands.length,
+			thunk: [command],
+		});
+		return this.add(
+			Commands.Intent({
+				name: 'AsyncThunk',
+			}),
+		);
+	}
+
 	/** Add a transaction to the transaction */
 	add<T = TransactionResult>(command: Command | ((tx: Transaction) => T)): T {
 		if (typeof command === 'function') {
@@ -571,6 +598,22 @@ export class Transaction {
 	async #prepareBuild(options: BuildTransactionOptions) {
 		if (!options.onlyTransactionKind && !this.#data.sender) {
 			throw new Error('Missing transaction sender');
+		}
+
+		while (this.#asyncThunks.length > 0) {
+			const { index, thunk, noCommandsError } = this.#asyncThunks.shift()!;
+			const commands = this.#data.commands;
+			this.#data.commands = commands.slice(0, index - 1);
+			const result = (await thunk[0](this)) as TransactionResult;
+
+			const newCommands = this.#data.commands.slice(index - 1);
+
+			if (newCommands.length === 0) {
+				throw noCommandsError;
+			}
+
+			this.#data.commands = commands;
+			this.#data.replaceCommand(index, newCommands, result.Result);
 		}
 
 		await this.#runPlugins([...this.#buildPlugins, resolveTransactionData], options);

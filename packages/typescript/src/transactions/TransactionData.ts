@@ -258,7 +258,7 @@ export class TransactionDataBuilder implements TransactionData {
 		}
 	}
 
-	replaceCommand(index: number, replacement: Command | Command[]) {
+	replaceCommand(index: number, replacement: Command | Command[], resultIndex = index) {
 		if (!Array.isArray(replacement)) {
 			this.commands[index] = replacement;
 			return;
@@ -271,12 +271,20 @@ export class TransactionDataBuilder implements TransactionData {
 			this.mapArguments((arg) => {
 				switch (arg.$kind) {
 					case 'Result':
+						if (arg.Result === index) {
+							arg.Result = resultIndex;
+						}
+
 						if (arg.Result > index) {
 							arg.Result += sizeDiff;
 						}
 						break;
 
 					case 'NestedResult':
+						if (arg.NestedResult[0] === index) {
+							arg.NestedResult[0] = resultIndex;
+						}
+
 						if (arg.NestedResult[0] > index) {
 							arg.NestedResult[0] += sizeDiff;
 						}
