@@ -66,7 +66,7 @@ describe('secp256k1-keypair', () => {
 	it('create keypair from secret key', () => {
 		const secret_key = new Uint8Array(VALID_SECP256K1_SECRET_KEY);
 		const pub_key = new Uint8Array(VALID_SECP256K1_PUBLIC_KEY);
-		let pub_key_base64 = toBase64(pub_key);
+		const pub_key_base64 = toBase64(pub_key);
 		const keypair = Secp256k1Keypair.fromSecretKey(secret_key);
 		expect(keypair.getPublicKey().toRawBytes()).toEqual(new Uint8Array(pub_key));
 		expect(keypair.getPublicKey().toBase64()).toEqual(pub_key_base64);
@@ -74,7 +74,7 @@ describe('secp256k1-keypair', () => {
 
 	it('creating keypair from invalid secret key throws error', () => {
 		const secret_key = new Uint8Array(INVALID_SECP256K1_SECRET_KEY);
-		let secret_key_base64 = toBase64(secret_key);
+		const secret_key_base64 = toBase64(secret_key);
 		const secretKey = fromBase64(secret_key_base64);
 		expect(() => {
 			Secp256k1Keypair.fromSecretKey(secretKey);

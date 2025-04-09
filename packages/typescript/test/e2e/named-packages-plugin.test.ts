@@ -270,7 +270,7 @@ const simplePtb = async (network: 'mainnet' | 'testnet') => {
 
 	transaction.addSerializationPlugin(network === 'mainnet' ? mainnetPlugin : testnetPlugin);
 
-	let v1 = transaction.moveCall({
+	const v1 = transaction.moveCall({
 		target: `@pkg/qwer::mvr_a::new_v1`,
 	});
 

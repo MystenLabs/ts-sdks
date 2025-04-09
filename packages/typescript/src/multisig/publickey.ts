@@ -259,7 +259,7 @@ export class MultiSigPublicKey extends PublicKey {
 		const compressedSignatures: CompressedSignature[] = new Array(signatures.length);
 
 		for (let i = 0; i < signatures.length; i++) {
-			let parsed = parseSerializedSignature(signatures[i]);
+			const parsed = parseSerializedSignature(signatures[i]);
 			if (parsed.signatureScheme === 'MultiSig') {
 				throw new Error('MultiSig is not supported inside MultiSig');
 			}
@@ -297,13 +297,13 @@ export class MultiSigPublicKey extends PublicKey {
 			bitmap |= 1 << publicKeyIndex;
 		}
 
-		let multisig: MultiSigStruct = {
+		const multisig: MultiSigStruct = {
 			sigs: compressedSignatures,
 			bitmap,
 			multisig_pk: this.multisigPublicKey,
 		};
 		const bytes = bcs.MultiSig.serialize(multisig, { maxSize: 8192 }).toBytes();
-		let tmp = new Uint8Array(bytes.length + 1);
+		const tmp = new Uint8Array(bytes.length + 1);
 		tmp.set([SIGNATURE_SCHEME_TO_FLAG['MultiSig']]);
 		tmp.set(bytes, 1);
 		return toBase64(tmp);
@@ -317,7 +317,7 @@ export function parsePartialSignatures(
 	multisig: MultiSigStruct,
 	options: { client?: SuiGraphQLClient } = {},
 ): ParsedPartialMultiSigSignature[] {
-	let res: ParsedPartialMultiSigSignature[] = new Array(multisig.sigs.length);
+	const res: ParsedPartialMultiSigSignature[] = new Array(multisig.sigs.length);
 	for (let i = 0; i < multisig.sigs.length; i++) {
 		const [signatureScheme, signature] = Object.entries(multisig.sigs[i]).filter(
 			([name]) => name !== '$kind',
@@ -346,7 +346,7 @@ function asIndices(bitmap: number): Uint8Array {
 	if (bitmap < 0 || bitmap > 1024) {
 		throw new Error('Invalid bitmap');
 	}
-	let res: number[] = [];
+	const res: number[] = [];
 	for (let i = 0; i < 10; i++) {
 		if ((bitmap & (1 << i)) !== 0) {
 			res.push(i);

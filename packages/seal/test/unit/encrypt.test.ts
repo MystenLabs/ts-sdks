@@ -377,12 +377,12 @@ describe('Seal encryption tests', () => {
 		const parsed = EncryptedObject.parse(encryptedObject);
 		const id = createFullId(DST, parsed.packageId, parsed.id);
 
-		let usk0 = G1Element.fromBytes(
+		const usk0 = G1Element.fromBytes(
 			fromHex(
 				'8244fcbe49870a4d4aa947b7034a873e168580e18b5834ea34940dc9f492eda03a9b20c3c3c120b1a462f1642575e0cc',
 			),
 		);
-		let usk1 = G1Element.fromBytes(
+		const usk1 = G1Element.fromBytes(
 			fromHex(
 				'a0f04b759ed2ff477f0fe5b672992235205d2af502f659d4bbb484b745e35fd7a9ff11e37e12111023a891c3fa98a2d3',
 			),

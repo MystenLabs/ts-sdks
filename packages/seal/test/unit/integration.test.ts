@@ -163,7 +163,7 @@ describe('Integration test', () => {
 			whitelistId2,
 		]);
 
-		let encryptedObject2 = EncryptedObject.parse(encryptedBytes2);
+		const encryptedObject2 = EncryptedObject.parse(encryptedBytes2);
 		// fetch keys for both ids.
 		await client.fetchKeys({
 			ids: [whitelistId, whitelistId2],

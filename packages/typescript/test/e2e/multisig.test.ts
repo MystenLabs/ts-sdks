@@ -18,24 +18,24 @@ describe('MultiSig with zklogin signature', () => {
 	it('Execute tx with multisig with 1 sig and 1 zkLogin sig combined', async () => {
 		// default ephemeral keypair, address_seed and zklogin inputs defined: https://github.com/MystenLabs/sui/blob/071a2955f7dbb83ee01c35d3a4257926a50a35f5/crates/sui-types/src/unit_tests/zklogin_test_vectors.json
 		// set up default zklogin public identifier with address seed consistent with default zklogin proof.
-		let pkZklogin = toZkLoginPublicIdentifier(
+		const pkZklogin = toZkLoginPublicIdentifier(
 			BigInt('2455937816256448139232531453880118833510874847675649348355284726183344259587'),
 			'https://id.twitch.tv/oauth2',
 		);
 		// set up ephemeral keypair, consistent with default zklogin proof.
-		let parsed = decodeSuiPrivateKey(
+		const parsed = decodeSuiPrivateKey(
 			'suiprivkey1qzdlfxn2qa2lj5uprl8pyhexs02sg2wrhdy7qaq50cqgnffw4c2477kg9h3',
 		);
-		let ephemeralKeypair = Ed25519Keypair.fromSecretKey(parsed.secretKey);
+		const ephemeralKeypair = Ed25519Keypair.fromSecretKey(parsed.secretKey);
 
 		// set up default single keypair.
-		let kp = Ed25519Keypair.fromSecretKey(
+		const kp = Ed25519Keypair.fromSecretKey(
 			new Uint8Array([
 				126, 57, 195, 235, 248, 196, 105, 68, 115, 164, 8, 221, 100, 250, 137, 160, 245, 43, 220,
 				168, 250, 73, 119, 95, 19, 242, 100, 105, 81, 114, 86, 105,
 			]),
 		);
-		let pkSingle = kp.getPublicKey();
+		const pkSingle = kp.getPublicKey();
 		// construct multisig address.
 		const multiSigPublicKey = MultiSigPublicKey.fromPublicKeys({
 			threshold: 1,
@@ -44,17 +44,17 @@ describe('MultiSig with zklogin signature', () => {
 				{ publicKey: pkZklogin, weight: 1 },
 			],
 		});
-		let multisigAddr = multiSigPublicKey.toSuiAddress();
+		const multisigAddr = multiSigPublicKey.toSuiAddress();
 		const configPath = path.join(tmpdir(), 'client.yaml');
-		let toolbox = await setupWithFundedAddress(kp, multisigAddr, configPath);
+		const toolbox = await setupWithFundedAddress(kp, multisigAddr, configPath);
 
 		// construct a transfer from the multisig address.
 		const tx = new Transaction();
 		tx.setSenderIfNotSet(multisigAddr);
 		const coin = tx.splitCoins(tx.gas, [1]);
 		tx.transferObjects([coin], DEFAULT_RECIPIENT);
-		let client = toolbox.client;
-		let bytes = await tx.build({ client: toolbox.client });
+		const client = toolbox.client;
+		const bytes = await tx.build({ client: toolbox.client });
 
 		// sign with the single keypair.
 		const singleSig = (await kp.signTransaction(bytes)).signature;
@@ -100,7 +100,7 @@ describe('MultiSig with zklogin signature', () => {
 
 		// combine to multisig and execute the transaction.
 		const signature = multiSigPublicKey.combinePartialSignatures([singleSig, zkLoginSig]);
-		let result = await client.executeTransactionBlock({
+		const result = await client.executeTransactionBlock({
 			transactionBlock: bytes,
 			signature,
 			options: { showEffects: true },

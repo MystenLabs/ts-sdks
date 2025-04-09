@@ -183,7 +183,7 @@ describe('Transaction Builders', () => {
 
 			// Step 2. Confirm that its functions work as expected in its
 			// first version
-			let callOrigTx = new Transaction();
+			const callOrigTx = new Transaction();
 			callOrigTx.moveCall({
 				target: `${packageId}::serializer_tests::value`,
 				arguments: [callOrigTx.object(sharedObjectId)],

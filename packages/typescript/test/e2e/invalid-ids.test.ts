@@ -35,7 +35,7 @@ describe('Object id/Address/Transaction digest validation', () => {
 		).rejects.toThrowError(/Invalid Sui Object id/);
 
 		//wrong batch request
-		let objectIds = ['0xBABE', '0xCAFE', '0xWRONG', '0xFACE'];
+		const objectIds = ['0xBABE', '0xCAFE', '0xWRONG', '0xFACE'];
 		await expect(toolbox.client.multiGetObjects({ ids: objectIds })).rejects.toThrowError(
 			/Invalid Sui Object id 0xWRONG/,
 		);
@@ -48,7 +48,7 @@ describe('Object id/Address/Transaction digest validation', () => {
 		);
 
 		//wrong batch request
-		let digests = ['AQ7FA8JTGs368CvMkXj2iFz2WUWwzP6AAWgsLpPLxUmr', 'wrong'];
+		const digests = ['AQ7FA8JTGs368CvMkXj2iFz2WUWwzP6AAWgsLpPLxUmr', 'wrong'];
 		await expect(toolbox.client.multiGetTransactionBlocks({ digests })).rejects.toThrowError(
 			/Invalid Transaction digest wrong/,
 		);

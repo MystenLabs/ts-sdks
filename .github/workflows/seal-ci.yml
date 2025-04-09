@@ -20,13 +20,13 @@ jobs:
       - name: Install Node
         uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # pin@v4.0.2
         with:
-          node-version: "20"
-          cache: "pnpm"
+          node-version: '20'
+          cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build Seal dependencies
-        run: pnpm turbo build --filter @mysten/seal   
+        run: pnpm turbo build --filter @mysten/seal
 
       - name: Run integration tests
         run: pnpm --filter @mysten/seal test:unit

@@ -283,7 +283,7 @@ export class SealClient {
 					controller.signal,
 				);
 				// Check validity of the keys and add them to the cache.
-				let receivedIds = new Set<string>();
+				const receivedIds = new Set<string>();
 				for (const { fullId, key } of allKeys) {
 					const keyElement = G1Element.fromBytes(key);
 					if (

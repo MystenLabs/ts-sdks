@@ -42,13 +42,13 @@ describe('Secp256k1PublicKey', () => {
 
 		expect(() => {
 			const invalid_pubkey_buffer = new Uint8Array(INVALID_SECP256K1_PUBLIC_KEY);
-			let invalid_pubkey_base64 = toBase64(invalid_pubkey_buffer);
+			const invalid_pubkey_base64 = toBase64(invalid_pubkey_buffer);
 			new Secp256k1PublicKey(invalid_pubkey_base64);
 		}).toThrow();
 
 		expect(() => {
 			const pubkey_buffer = new Uint8Array(VALID_SECP256K1_PUBLIC_KEY);
-			let wrong_encode = toHex(pubkey_buffer);
+			const wrong_encode = toHex(pubkey_buffer);
 			new Secp256k1PublicKey(wrong_encode);
 		}).toThrow();
 
@@ -59,14 +59,14 @@ describe('Secp256k1PublicKey', () => {
 
 	it('toBase64', () => {
 		const pub_key = new Uint8Array(VALID_SECP256K1_PUBLIC_KEY);
-		let pub_key_base64 = toBase64(pub_key);
+		const pub_key_base64 = toBase64(pub_key);
 		const key = new Secp256k1PublicKey(pub_key_base64);
 		expect(key.toBase64()).toEqual(pub_key_base64);
 	});
 
 	it('toBuffer', () => {
 		const pub_key = new Uint8Array(VALID_SECP256K1_PUBLIC_KEY);
-		let pub_key_base64 = toBase64(pub_key);
+		const pub_key_base64 = toBase64(pub_key);
 		const key = new Secp256k1PublicKey(pub_key_base64);
 		expect(key.toRawBytes().length).toBe(33);
 		expect(new Secp256k1PublicKey(key.toRawBytes()).equals(key)).toBe(true);

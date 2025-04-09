@@ -4,7 +4,7 @@
 // Helper utility: write number as an ULEB array.
 // Original code is taken from: https://www.npmjs.com/package/uleb128 (no longer exists)
 export function ulebEncode(num: number): number[] {
-	let arr = [];
+	const arr = [];
 	let len = 0;
 
 	if (num === 0) {
@@ -34,7 +34,7 @@ export function ulebDecode(arr: number[] | Uint8Array): {
 
 	// eslint-disable-next-line no-constant-condition
 	while (true) {
-		let byte = arr[len];
+		const byte = arr[len];
 		len += 1;
 		total |= (byte & 0x7f) << shift;
 		if ((byte & 0x80) === 0) {

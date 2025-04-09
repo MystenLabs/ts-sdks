@@ -314,7 +314,7 @@ export class DeepBookClient {
 
 		try {
 			const orderInformation = res.results![0].returnValues![0][0];
-			let orderInfo = Order.parse(new Uint8Array(orderInformation));
+			const orderInfo = Order.parse(new Uint8Array(orderInformation));
 
 			if (!orderInfo) {
 				return null;

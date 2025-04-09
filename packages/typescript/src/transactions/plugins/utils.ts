@@ -82,7 +82,7 @@ function findMvrNames(type: string | StructTag) {
 
 	if (typeof type === 'string' && !hasMvrName(type)) return types;
 
-	let tag = isStructTag(type) ? type : parseStructTag(type);
+	const tag = isStructTag(type) ? type : parseStructTag(type);
 
 	if (hasMvrName(tag.address)) types.add(`${tag.address}::${tag.module}::${tag.name}`);
 
@@ -122,7 +122,7 @@ function findAndReplaceCachedTypes(
 ): StructTag {
 	const type = isStructTag(tag) ? tag : parseStructTag(tag);
 
-	let typeTag = `${type.address}::${type.module}::${type.name}`;
+	const typeTag = `${type.address}::${type.module}::${type.name}`;
 	const cacheHit = typeCache[typeTag];
 
 	return {

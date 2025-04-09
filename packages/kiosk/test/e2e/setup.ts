@@ -190,14 +190,14 @@ function getCreatedObjectIdByType(res: SuiTransactionBlockResponse, type: string
 }
 
 export async function getPublisherObject(toolbox: TestToolbox): Promise<string> {
-	let res = await toolbox.client.getOwnedObjects({
+	const res = await toolbox.client.getOwnedObjects({
 		filter: {
 			StructType: '0x2::package::Publisher',
 		},
 		owner: toolbox.address(),
 	});
 
-	let publisherObj = res.data[0].data?.objectId;
+	const publisherObj = res.data[0].data?.objectId;
 	expect(publisherObj).not.toBeUndefined();
 
 	return publisherObj ?? '';

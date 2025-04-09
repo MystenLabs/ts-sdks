@@ -44,7 +44,7 @@ describe('AES encryption', () => {
 		it('should fail decryption with wrong AAD', async () => {
 			const aes = new AesGcm256(testMessage, testAad);
 			const key = await aes.generateKey();
-			let ciphertext = await aes.encrypt(key);
+			const ciphertext = await aes.encrypt(key);
 			if (!('Aes256Gcm' in ciphertext)) {
 				throw new Error('Invalid ciphertext');
 			}

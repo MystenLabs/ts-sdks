@@ -129,7 +129,7 @@ describe('Multisig scenarios', () => {
 			bitmap: 5,
 			multisig_pk: bcs.MultiSigPublicKey.parse(multiSigPublicKey.toRawBytes()),
 		}).toBytes();
-		let tmp = new Uint8Array(bytes.length + 1);
+		const tmp = new Uint8Array(bytes.length + 1);
 		tmp.set([SIGNATURE_SCHEME_TO_FLAG['MultiSig']]);
 		tmp.set(bytes, 1);
 
@@ -194,7 +194,7 @@ describe('Multisig scenarios', () => {
 			bitmap: 1,
 			multisig_pk: bcs.MultiSigPublicKey.parse(multiSigPublicKey.toRawBytes()),
 		}).toBytes();
-		let tmp = new Uint8Array(bytes.length + 1);
+		const tmp = new Uint8Array(bytes.length + 1);
 		tmp.set([SIGNATURE_SCHEME_TO_FLAG['MultiSig']]);
 		tmp.set(bytes, 1);
 

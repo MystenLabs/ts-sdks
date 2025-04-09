@@ -72,26 +72,26 @@ describe('zkLogin signature', () => {
 		async () => {
 			// this test assumes the localnet epoch is smaller than 3. it will fail if localnet has ran for too long and passed epoch 3.
 			// test case generated from `sui keytool zk-login-insecure-sign-personal-message --data "hello" --max-epoch 3`
-			let bytes = 'aGVsbG8='; // the base64 encoding of "hello"
-			let testSignature =
+			const bytes = 'aGVsbG8='; // the base64 encoding of "hello"
+			const testSignature =
 				'BQNMODIxMjAxNjM1OTAxNDk1MDg0Mjg0MTUyNTc3NTE1NjQ4NzI2MjEzOTk0OTQ3ODkwNjkwMTc5ODI5NjEwMTkyNTI3MTY5MTU2NTE4ME0xNjE1NTM3MDU2ODcyNzI3OTgxODg5MzYwMzc1NDQwNzYxNzM3NzcxNTgwOTA2NTUwMTYyODczNjg4MjcyNTU3NTIzMjgzNDkyMzcyNgExAwJNMTE2MTk3MTE1NjYyNDg1NTk1NzUyNzE0MDEzMTI1NzE2OTg5NTkxMDA2MjM3NjM4NzY0NjM1OTEzNDY1NTY2OTM1NzI5NzQxOTE1MDlMNTIyOTU4MjE1NDQ1MzkxMDM4MzYwMzYzNjEzNTY0NDU5MTc1NTk3NDI1OTQyMDg4NjUxMzYwMTQ2Mjc0OTk5Mzg2NTA2MTkyODU2NAJNMTA5MDE5ODc3NzAyNTI5NzkzOTM2NDM4NDU1MjM1MzQ2NTQ4MjY3MTkyODUzMzA2NzQwNTk3Nzg0Nzg3NzYwODQ2Mjc4NjQyNzg0NzJMMjg0MjQxNTQ4Mjg0NjQyNzg5NzAwNjM2OTIyMDk0NDUyNjUzMzgwNzc3ODIxMzQyOTA5NTQ2NDc1ODc0MTE5NTkxMTU5NjE0MzY4MwIBMQEwA00xODg1NDIyNzM3ODk4ODA1MDA3NTM2NTExNjAxNzEzNTYxOTQ1MzA3NDcyOTcwNzE5OTgyOTA5OTA2OTUwMDk3NzgzNTcwNjY1OTU4OEw0ODU5NzY1MTQ5OTgxMDYyMTIxOTc0Njg3NTYxNzc4NDA2ODU0NzAxNjEyNzk4NTU2NTE3NzQ4OTU1NDA5NzgxMjkxNTA1MDYzNjQxATEod2lhWE56SWpvaWFIUjBjSE02THk5dllYVjBhQzV6ZFdrdWFXOGlMQwI+ZXlKcmFXUWlPaUp6ZFdrdGEyVjVMV2xrSWl3aWRIbHdJam9pU2xkVUlpd2lZV3huSWpvaVVsTXlOVFlpZlFNMjA0MzUzNjY2MDAwMzYzNzU3NDU5MjU5NjM0NTY4NjEzMDc5MjUyMDk0NzAyMTkzMzQwMTg1NjQxNTgxNDg1NDQwMzYxOTYyODQ2NDIDAAAAAAAAAGEA+XrHUDMkMaPswTIFsqIgx3yX6j7IvU1T/1yzw4kjKwjgLL0ZtPQZjc2djX7Q9pFoBdObkSZ6JZ4epiOf05q4BrnG7hYw7z5xEUSmSNsGu7IoT3J0z77lP/zuUDzBpJIA';
-			let parsed = parseSerializedZkLoginSignature(testSignature);
-			let pk = new ZkLoginPublicIdentifier(parsed.publicKey, {
+			const parsed = parseSerializedZkLoginSignature(testSignature);
+			const pk = new ZkLoginPublicIdentifier(parsed.publicKey, {
 				client: new SuiGraphQLClient({
 					url: DEFAULT_GRAPHQL_URL,
 				}),
 			});
 
 			// verifies ok bc max_epoch 3 is within upper bound.
-			let res = await pk.verifyPersonalMessage(fromBase64(bytes), parsed.signature);
+			const res = await pk.verifyPersonalMessage(fromBase64(bytes), parsed.signature);
 			expect(res).toBe(true);
 
 			// test case generated from `sui keytool zk-login-insecure-sign-personal-message --data "hello" --max-epoch 100`
 			// fails to verify bc max_epoch too large.
-			let testSignature2 =
+			const testSignature2 =
 				'BQNNMTU3MTEzMjIxMjQyNzE4OTQyODkwNzkwMzcyMTAyNzkxNDU1MzAxMTc4NzgxMDIyOTYzNzQ2Njk5MTE0NzU5MDY3ODYyNDYyNzQ2MTBNMTY2MDg4MjI5MjU0NDI1OTQyMjkxMjY4MDIzMzUyNDE3NDU3NTcwMDc0NjUxMjQ0MTI1OTczMTE2MDM5NzYwMTk2ODk0MzE5ODY5MDYBMQMCTTEzNDQ1MjU4Mzc0Mjk4MTE1MjAzMjEwODM4NzU1Nzk0MDExMTg1NDU0OTgzODgxMTg5OTYwNTQzODc5NjMzMDE5OTQxODEyMDk2MjYzTDE3Njk4NDE1NzUzNDg4NDgzOTEzMjMxMTA3NDMyNDkzMTkyOTAxMTEwNjY0NzE2OTkxMzQwNzY0NjExMzg2OTk5NDg1NDAyODA3MzgCTTE0ODU5NDk0ODMxNjI4MzQyMDEzMTM0NDA4NzAxMTIwNDUxMDI4MDkyMTg4MDAxMTMwOTkxNjkxMjAyNzMyMzA2NzcxODI4NTYxNzU0TTIwMzM1NDE4NjE3NzgyMzU5MTQ2NTg0NzcwNzM0MDcyMzI3NzYwMjAyNDYwMDE2NDY0NjAwNjQzMDA2Nzg5NzAyODg0MzQ1NTkzNjg5AgExATADTTE4Nzk4Mjk5MDAzOTAyMDI3MDcxNTg1ODY5MjY3MzYyOTc5ODUwOTExNzA3Nzk2MzU0NDQyMTY2NzEzOTcyNjQ2NzE2OTQ1OTgyMjM4TTEyMDExNjg0MjA0MDI0NTMxNzY2ODUxMTU0OTAyMzI5Njk4MDIwODQ3NTQ1NDU5NDk2MjA2MDI2NDg5MTE5MzUzODI4NTI2NTE5MzAwATEod2lhWE56SWpvaWFIUjBjSE02THk5dllYVjBhQzV6ZFdrdWFXOGlMQwI+ZXlKcmFXUWlPaUp6ZFdrdGEyVjVMV2xrSWl3aWRIbHdJam9pU2xkVUlpd2lZV3huSWpvaVVsTXlOVFlpZlFNMjA0MzUzNjY2MDAwMzYzNzU3NDU5MjU5NjM0NTY4NjEzMDc5MjUyMDk0NzAyMTkzMzQwMTg1NjQxNTgxNDg1NDQwMzYxOTYyODQ2NDJkAAAAAAAAAGEA+XrHUDMkMaPswTIFsqIgx3yX6j7IvU1T/1yzw4kjKwjgLL0ZtPQZjc2djX7Q9pFoBdObkSZ6JZ4epiOf05q4BrnG7hYw7z5xEUSmSNsGu7IoT3J0z77lP/zuUDzBpJIA';
-			let parsed2 = parseSerializedZkLoginSignature(testSignature2);
-			let res1 = await pk.verifyPersonalMessage(fromBase64(bytes), parsed2.signature);
+			const parsed2 = parseSerializedZkLoginSignature(testSignature2);
+			const res1 = await pk.verifyPersonalMessage(fromBase64(bytes), parsed2.signature);
 			expect(res1).toBe(false);
 		},
 		{
@@ -104,28 +104,28 @@ describe('zkLogin signature', () => {
 		'verify transaction data with zklogin',
 		async () => {
 			// this test assumes the localnet epoch is smaller than 3. it will fail if localnet has ran for too long and passed epoch 3.
-			let bytes =
+			const bytes =
 				'AAACACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAxawU0NcBzUEjfOeFhCMcbEO0UZDc8fySmLcBavf7cF8AAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAAEAAMDw0OKiyouNDkBV7EghDsd9BV2zU0As2gHXCFumHT1cAc/OLfzdVoEphi8yCEaHgSSrh8nwhU6goYIZ39PLEoYkAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADA8NDiosqLjQ5AVexIIQ7HfQVds1NALNoB1whbph09XAEAAAAAAAAAAQAAAAAAAAAA';
-			let testSignature =
+			const testSignature =
 				'BQNNMTUzODUzNzAwODM3MTY5NDUxNzk5NTQ4Nzk3ODgwMjEyODE0MDYxODAzODUyMTA3OTY2NjAyNzYwNjMwMTU4MDE0NzE0MzUwNDU5MDVNMTA3NTk1NzUzNjA4MTczNjIzODQ4NzE1MDY1NTkxMzA0NjEwMTAyNzI4MDg5NDY4OTc2NjUwMDg5NjkzNDUzNDkwNzI1NzkyMjE4NzIBMQMCTDE3NTYyNjk4MTk0Nzg2NzkwNTYzMjk1MjAxNTE2ODQ4OTU4NjIxNTQ2Njc3OTY5MDc4NDYxNzU0OTUzNzE3NjE3MTc4MzU1NjIyODFMNzY5MzM5MjIyNDkwNzAwODEzODgzMTMyNDI0NjYxMjA1NjM1MzkyNTU3Njk3NjY4NjIyMzMyMzMwMzE0MzkyNTg2NTg5NDcxNTMzOAJNMTc3MzUxMTQwOTU4MzY3NzY0NDQ0NTc3MTM2MzAwOTQxNzY2Mzc5NTYwMzc3MzQ0MTQ4MDc4OTcyNDk0NTI5NzI5OTQ0OTA1OTc3NTRMOTMxMzYyMzYyMTUwMzM4OTk0MzU4MjQ1Njc5NDkwMjM5NzUyNjc4NjczNjQ1MTQ4MzY0MTAzNzMyMzkzOTg3MzAxNzE0Nzg2NzA0OQIBMQEwA00yMDg3MDcxNTY2MzU5MTYwOTY5MjAzNzk5MzkyNDkwNzMyMjcwMjUwNTM4NzE5MjEyMjI3OTc5MDg0NzgyMzIxOTI4MjQxODc0OTA3M00yMDUyMjg2NTI1NjMyMjY1NTQzOTY2NTI3ODM3OTI1ODQ5NDcyMDQ0MTYzMzcxNzE3MjM3MTYzOTA5Njk2MTM4ODE0MjM0OTUzNDg4NQExKHdpYVhOeklqb2lhSFIwY0hNNkx5OXZZWFYwYUM1emRXa3VhVzhpTEMCPmV5SnJhV1FpT2lKemRXa3RhMlY1TFdsa0lpd2lkSGx3SWpvaVNsZFVJaXdpWVd4bklqb2lVbE15TlRZaWZRTTIwNDM1MzY2NjAwMDM2Mzc1NzQ1OTI1OTYzNDU2ODYxMzA3OTI1MjA5NDcwMjE5MzM0MDE4NTY0MTU4MTQ4NTQ0MDM2MTk2Mjg0NjQyBQAAAAAAAABhAMY6yGE+HfJrftA5rtd/SH4DxhNNXMCfjZNP5XmIBxi46JE9TQeGoArtwbWF3dSI7Vm1DxkGaXh3TT2tGz0yfwi5xu4WMO8+cRFEpkjbBruyKE9ydM++5T/87lA8waSSAA==';
-			let parsed = parseSerializedZkLoginSignature(testSignature);
-			let pk = new ZkLoginPublicIdentifier(parsed.publicKey, {
+			const parsed = parseSerializedZkLoginSignature(testSignature);
+			const pk = new ZkLoginPublicIdentifier(parsed.publicKey, {
 				client: new SuiGraphQLClient({
 					url: DEFAULT_GRAPHQL_URL,
 				}),
 			});
 
 			// verifies ok bc max_epoch 5 is within upper bound.
-			let res = await pk.verifyTransaction(fromBase64(bytes), parsed.signature);
+			const res = await pk.verifyTransaction(fromBase64(bytes), parsed.signature);
 			expect(res).toBe(true);
 
 			// fails to verify bc max_epoch 100 is too large.
-			let bytes2 =
+			const bytes2 =
 				'AAACACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAmVK6vlS7h4Bk7iSsmbXT73zalN44jN4t6nWMqixOD3MAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAAEAAMDw0OKiyouNDkBV7EghDsd9BV2zU0As2gHXCFumHT1cAReb2i3yG/eC+JHyRIa6pazI7GAPbjy2GlxBjekvTpouAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADA8NDiosqLjQ5AVexIIQ7HfQVds1NALNoB1whbph09XAEAAAAAAAAAAQAAAAAAAAAA';
-			let testSignature2 =
+			const testSignature2 =
 				'BQNLNjE1NDU3MTU5NjYwMDM3ODM1MTY2OTE1OTkwMzg1MjQ3NTkzMDg3NTk3NzM4Nzg2MzkxNjE3MTU4MDg1ODIzMTcyNjg4MzkyMjg3TTE0ODc4NTgwNDQ2ODcxNzE3Mzc2ODEwNjM5ODIxNDQxNDk5OTI0MDQxNjMwMzQ5MTExNTAwNzQzOTk2NTY0MzczNTU5NDU2NDg4NDY5ATEDAkwxOTI5MDM5OTU1Mjk3Njg0NzU0NDU5NDc2NzQwMzEyNjMzMDI0NTMwOTk2MjAwMzI3ODUxNzc2NDk5MTUyNjQ3MjUxMjQ1MzA3OTEwTDU4OTY0NzA0NDQyMTkyODA1MDYwNjM5MTI2NTMzODk1ODIyNzIzMDA4NDI0MjkwMDMxNTIxMjk2Njk3OTM1MTc2NTQ1NTczMDMyODcCTDcyOTk2ODY3MjgzOTc3MzQ3MDg3NjYzNDUzMjcwODc2ODc3MTgzOTU5MTQwNzkwMTc0MjIwOTUwNTkzNTg3MTcxMjg3MjA2Njk2OTFNMTAxNzIyNzE1ODY2OTc0MzY4MTU1MTQzOTcyMjkyMTgzMzUxMDg1NDY2NTEzNzI1MTI5MTE2NjI3NDcxNDg5MjU2NDY5OTk0NTQxMjYCATEBMANMNjMwNDA2MTEyMzQ1OTY1NjE5MzQ1ODAzOTA0MzExNTg0OTU2ODgwMDM1Njc5NTU5NTUxNTAwNDAwNTE1ODA3NDkxMTI5MzA3MDI0OEwyMjI2NTQ3MzA3NzY0MzE5NjA1NDgwMzk3NDE4MTM5MTEwODk5NDk2NTQxODM4MzM5OTU0MTkwMDQzOTc0ODQzNTAxNDUxNzc2Mzc5ATEod2lhWE56SWpvaWFIUjBjSE02THk5dllYVjBhQzV6ZFdrdWFXOGlMQwI+ZXlKcmFXUWlPaUp6ZFdrdGEyVjVMV2xrSWl3aWRIbHdJam9pU2xkVUlpd2lZV3huSWpvaVVsTXlOVFlpZlFNMjA0MzUzNjY2MDAwMzYzNzU3NDU5MjU5NjM0NTY4NjEzMDc5MjUyMDk0NzAyMTkzMzQwMTg1NjQxNTgxNDg1NDQwMzYxOTYyODQ2NDJkAAAAAAAAAGEAHvkRO3Mx6v8o57/BfVE/lOyy/XNNIo3I8elULrhPn0f2hENWzhvW+xEfPX0V4de38++4mYi7ctY8XNJmkBPODrnG7hYw7z5xEUSmSNsGu7IoT3J0z77lP/zuUDzBpJIA';
-			let parsed2 = parseSerializedZkLoginSignature(testSignature2);
-			let res1 = await pk.verifyPersonalMessage(fromBase64(bytes2), parsed2.signature);
+			const parsed2 = parseSerializedZkLoginSignature(testSignature2);
+			const res1 = await pk.verifyPersonalMessage(fromBase64(bytes2), parsed2.signature);
 			expect(res1).toBe(false);
 		},
 		{

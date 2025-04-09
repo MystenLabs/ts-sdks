@@ -142,7 +142,7 @@ export class WalrusClient {
 					jsonRpc: SuiClient;
 				}>,
 			) => {
-				let walrusNetwork = network || client.network;
+				const walrusNetwork = network || client.network;
 
 				if (walrusNetwork !== 'mainnet' && walrusNetwork !== 'testnet') {
 					throw new WalrusClientError('Walrus client only supports mainnet and testnet');
@@ -239,9 +239,11 @@ export class WalrusClient {
 		});
 	}
 
-	#wasmBindings = this.#memo.create('wasmBindings', async () => {
-		return getWasmBindings(this.#wasmUrl);
-	});
+	#wasmBindings() {
+		return this.#cache.read(['wasmBindings'], async () => {
+			return getWasmBindings(this.#wasmUrl);
+		});
+	}
 
 	/** The cached system object for the walrus package */
 	systemObject() {

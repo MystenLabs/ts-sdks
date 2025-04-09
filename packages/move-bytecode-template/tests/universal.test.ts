@@ -12,32 +12,32 @@ describe('move-binary-template', () => {
 	});
 
 	it('should deserialize big u64 values', () => {
-		let bytes = u64ModuleBytes(); // u64
-		let de = template.deserialize(bytes);
-		let ser = template.serialize(de);
-		let de2 = template.deserialize(ser); // deserialize again
+		const bytes = u64ModuleBytes(); // u64
+		const de = template.deserialize(bytes);
+		const ser = template.serialize(de);
+		const de2 = template.deserialize(ser); // deserialize again
 
 		expect(de).toEqual(de2);
 		expect(ser).toEqual(bytes);
 	});
 
 	it('should de / ser', () => {
-		let bytes = pokemonBytes();
-		let de = template.deserialize(bytes);
-		let ser = template.serialize(de);
+		const bytes = pokemonBytes();
+		const de = template.deserialize(bytes);
+		const ser = template.serialize(de);
 
 		expect(ser).toEqual(bytes);
 	});
 
 	it('should update identifiers', () => {
-		let patched = template.update_identifiers(pokemonBytes(), {
+		const patched = template.update_identifiers(pokemonBytes(), {
 			Stats: 'PokeStats',
 			pokemon_v1: 'capymon',
 			new: 'capy_new',
 			speed: 'capy_speed',
 		});
 
-		let de = template.deserialize(patched);
+		const de = template.deserialize(patched);
 
 		expect(de.identifiers.includes('PokeStats')).toBeTruthy();
 		expect(de.identifiers.includes('capymon')).toBeTruthy();
@@ -46,7 +46,7 @@ describe('move-binary-template', () => {
 	});
 
 	it('should update constants', () => {
-		let _constants = template.get_constants(coinTemplateBytes());
+		const _constants = template.get_constants(coinTemplateBytes());
 		let updatedConsts;
 
 		// Update `6u8` to `3u8`
@@ -78,9 +78,9 @@ describe('move-binary-template', () => {
 	});
 
 	it('should not update constants if there is an expected_value value miss-match', () => {
-		let bytesBefore = coinTemplateBytes();
+		const bytesBefore = coinTemplateBytes();
 		expect(() => {
-			let bytesAfter = template.update_constants(
+			const bytesAfter = template.update_constants(
 				bytesBefore,
 				bcs.u8().serialize(8).toBytes(), // new value
 				bcs.u8().serialize(0).toBytes(), // incorrect expected current value (it should be 6)
@@ -93,9 +93,9 @@ describe('move-binary-template', () => {
 	});
 
 	it('should not update constants if there is an expected_type miss-match', () => {
-		let bytesBefore = coinTemplateBytes();
+		const bytesBefore = coinTemplateBytes();
 		expect(() => {
-			let bytesAfter = template.update_constants(
+			const bytesAfter = template.update_constants(
 				bytesBefore,
 				bcs.u8().serialize(8).toBytes(), // new value
 				bcs.u8().serialize(6).toBytes(), // expected current value

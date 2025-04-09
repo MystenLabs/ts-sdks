@@ -58,7 +58,7 @@ export class BcsReader {
 	 * @returns
 	 */
 	read8(): number {
-		let value = this.dataView.getUint8(this.bytePosition);
+		const value = this.dataView.getUint8(this.bytePosition);
 		this.shift(1);
 		return value;
 	}
@@ -67,7 +67,7 @@ export class BcsReader {
 	 * @returns
 	 */
 	read16(): number {
-		let value = this.dataView.getUint16(this.bytePosition, true);
+		const value = this.dataView.getUint16(this.bytePosition, true);
 		this.shift(2);
 		return value;
 	}
@@ -76,7 +76,7 @@ export class BcsReader {
 	 * @returns
 	 */
 	read32(): number {
-		let value = this.dataView.getUint32(this.bytePosition, true);
+		const value = this.dataView.getUint32(this.bytePosition, true);
 		this.shift(4);
 		return value;
 	}
@@ -85,10 +85,10 @@ export class BcsReader {
 	 * @returns
 	 */
 	read64(): string {
-		let value1 = this.read32();
-		let value2 = this.read32();
+		const value1 = this.read32();
+		const value2 = this.read32();
 
-		let result = value2.toString(16) + value1.toString(16).padStart(8, '0');
+		const result = value2.toString(16) + value1.toString(16).padStart(8, '0');
 
 		return BigInt('0x' + result).toString(10);
 	}
@@ -96,9 +96,9 @@ export class BcsReader {
 	 * Read U128 value from the buffer and shift cursor by 16.
 	 */
 	read128(): string {
-		let value1 = BigInt(this.read64());
-		let value2 = BigInt(this.read64());
-		let result = value2.toString(16) + value1.toString(16).padStart(16, '0');
+		const value1 = BigInt(this.read64());
+		const value2 = BigInt(this.read64());
+		const result = value2.toString(16) + value1.toString(16).padStart(16, '0');
 
 		return BigInt('0x' + result).toString(10);
 	}
@@ -107,9 +107,9 @@ export class BcsReader {
 	 * @returns
 	 */
 	read256(): string {
-		let value1 = BigInt(this.read128());
-		let value2 = BigInt(this.read128());
-		let result = value2.toString(16) + value1.toString(16).padStart(32, '0');
+		const value1 = BigInt(this.read128());
+		const value2 = BigInt(this.read128());
+		const result = value2.toString(16) + value1.toString(16).padStart(32, '0');
 
 		return BigInt('0x' + result).toString(10);
 	}
@@ -118,8 +118,8 @@ export class BcsReader {
 	 * @param num Number of bytes to read.
 	 */
 	readBytes(num: number): Uint8Array {
-		let start = this.bytePosition + this.dataView.byteOffset;
-		let value = new Uint8Array(this.dataView.buffer, start, num);
+		const start = this.bytePosition + this.dataView.byteOffset;
+		const value = new Uint8Array(this.dataView.buffer, start, num);
 
 		this.shift(num);
 
@@ -131,9 +131,9 @@ export class BcsReader {
 	 * @returns {Number} The ULEB value.
 	 */
 	readULEB(): number {
-		let start = this.bytePosition + this.dataView.byteOffset;
-		let buffer = new Uint8Array(this.dataView.buffer, start);
-		let { value, length } = ulebDecode(buffer);
+		const start = this.bytePosition + this.dataView.byteOffset;
+		const buffer = new Uint8Array(this.dataView.buffer, start);
+		const { value, length } = ulebDecode(buffer);
 
 		this.shift(length);
 
@@ -146,8 +146,8 @@ export class BcsReader {
 	 * @returns {Array<Any>} Array of the resulting values, returned by callback.
 	 */
 	readVec(cb: (reader: BcsReader, i: number, length: number) => any): any[] {
-		let length = this.readULEB();
-		let result = [];
+		const length = this.readULEB();
+		const result = [];
 		for (let i = 0; i < length; i++) {
 			result.push(cb(this, i, length));
 		}

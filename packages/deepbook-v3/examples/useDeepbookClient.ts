@@ -41,7 +41,7 @@ config();
 	// mmClient.placeLimitOrderExample(tx);
 	// mmClient.flashLoanExample(tx);
 
-	let res = await mmClient.signAndExecute(tx);
+	const res = await mmClient.signAndExecute(tx);
 
 	console.dir(res, { depth: null });
 })();

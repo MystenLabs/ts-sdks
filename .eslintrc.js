@@ -40,6 +40,7 @@ module.exports = {
 		'packages/walrus/src/node-api',
 	],
 	rules: {
+		'prefer-const': 'error',
 		'no-case-declarations': 'off',
 		'no-implicit-coercion': [2, { number: true, string: true, boolean: false }],
 		'@typescript-eslint/no-redeclare': 'off',

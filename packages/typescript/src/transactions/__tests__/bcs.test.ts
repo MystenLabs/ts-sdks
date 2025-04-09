@@ -61,8 +61,8 @@ function ref(): { objectId: string; version: string; digest: string } {
 }
 
 it('can serialize transaction data with a programmable transaction', () => {
-	let sui = normalizeSuiAddress('0x2');
-	let txData = {
+	const sui = normalizeSuiAddress('0x2');
+	const txData = {
 		$kind: 'V1',
 		V1: {
 			sender: normalizeSuiAddress('0xBAD'),

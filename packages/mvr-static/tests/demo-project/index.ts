@@ -13,9 +13,9 @@ const _demoFunction = () => {
 			'@mvr/app::type::Type',
 			`@mvr/app::type::Type2`,
 			// eslint-disable-next-line prettier/prettier
-			"@mvr/app::type::Type<@kiosk/core::kiosk::Kiosk, bool>",
+			'@mvr/app::type::Type<@kiosk/core::kiosk::Kiosk, bool>',
 			// eslint-disable-next-line prettier/prettier
-            "app.sui/app::t::T",
+			'app.sui/app::t::T',
 			'@pkg/qwer::mvr_b::V2',
 		],
 	});

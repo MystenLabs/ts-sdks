@@ -76,7 +76,7 @@ export async function retrieveKeyServers({
 				);
 			}
 
-			let ks = KeyServerMove.parse(fromBase64(res.data.bcs!.bcsBytes));
+			const ks = KeyServerMove.parse(fromBase64(res.data.bcs!.bcsBytes));
 			if (ks.keyType !== 0) {
 				throw new UnsupportedFeatureError(`Unsupported key type ${ks.keyType}`);
 			}

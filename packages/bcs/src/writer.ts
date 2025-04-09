@@ -192,7 +192,7 @@ export class BcsWriter {
 }
 
 function toLittleEndian(bigint: bigint, size: number) {
-	let result = new Uint8Array(size);
+	const result = new Uint8Array(size);
 	let i = 0;
 	while (bigint > 0) {
 		result[i] = Number(bigint % BigInt(256));
