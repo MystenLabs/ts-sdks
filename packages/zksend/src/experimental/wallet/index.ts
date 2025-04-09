@@ -361,9 +361,7 @@ export async function registerStashedWallet(
 
 	let metadata: WalletMetadata | undefined;
 	try {
-		const response = await fetch(metadataApiUrl);
-		if (!response.ok) throw new Error('Failed to fetch wallet metadata');
-		metadata = await response.json();
+		metadata = await fetchMetadata(metadataApiUrl);
 	} catch (error) {
 		console.error('Error fetching metadata', error);
 	}
