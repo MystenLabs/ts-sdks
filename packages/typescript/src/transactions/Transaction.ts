@@ -34,11 +34,7 @@ export type TransactionObjectArgument =
 export type TransactionResult = Extract<Argument, { Result: unknown }> &
 	Extract<Argument, { NestedResult: unknown }>[];
 
-export type TransactionResultArgument =
-	| Extract<Argument, { Result: unknown }>
-	| Extract<Argument, { NestedResult: unknown }>[];
-
-export type AsyncThunk<T extends TransactionResultArgument> = (tx: Transaction) => Promise<T>;
+export type AsyncThunk = (tx: Transaction) => Promise<TransactionResult>;
 
 function createTransactionResult(index: number, length = Infinity): TransactionResult {
 	const baseResult = { $kind: 'Result' as const, Result: index };
@@ -141,11 +137,12 @@ export class Transaction {
 	#serializationPlugins: TransactionPlugin[];
 	#buildPlugins: TransactionPlugin[];
 	#intentResolvers = new Map<string, TransactionPlugin>();
-	#asyncThunks: {
-		noCommandsError: Error;
-		index: number;
-		thunk: AsyncThunk<TransactionResultArgument>[];
-	}[] = [];
+	#lastPendingTask: Promise<void> | undefined;
+	#parent?: {
+		transaction: Transaction;
+		commandIndex: number;
+		inputIndex: number;
+	};
 
 	/**
 	 * Converts from a serialize transaction kind (built with `build({ onlyTransactionKind: true })`) to a `Transaction` class.
@@ -394,31 +391,129 @@ export class Transaction {
 		return this.object(Inputs.SharedObjectRef(...args));
 	}
 
-	addAsync<T extends TransactionResultArgument>(command: AsyncThunk<T>): T {
-		this.#asyncThunks.push({
-			// Capture the error here so that users can find the root cause when we run the async thunk later
-			noCommandsError: new Error(
-				'function passed to addAsync did not add any commands to transaction',
-			),
-			index: this.#data.commands.length,
-			thunk: [command],
+	#fork() {
+		const fork = new Transaction();
+		fork.#data = this.#data.shallowClone();
+		fork.#parent = {
+			transaction: this,
+			commandIndex: this.#data.commands.length,
+			inputIndex: this.#data.inputs.length,
+		};
+		fork.#lastPendingTask = this.#lastPendingTask;
+		return fork;
+	}
+
+	#commit(transaction: Transaction) {
+		this.#data = transaction.#data;
+		this.#lastPendingTask = transaction.#lastPendingTask;
+	}
+
+	/** Destructively merges a transaction into the current transaction. The passed transaction will not be usable after merging. */
+	#merge(transaction: Transaction, replace?: number, resultIndex?: number) {
+		if (transaction.#lastPendingTask) {
+			throw new Error('Cannot merge transactions that have pending tasks');
+		}
+
+		if (transaction.#parent && transaction.#parent.transaction !== this) {
+			throw new Error(
+				'Cannot merge transactions that were not forked from the current transaction',
+			);
+		}
+
+		const commandIndex = transaction.#parent?.commandIndex ?? 0;
+		const inputIndex = transaction.#parent?.inputIndex ?? 0;
+
+		const newInputs = this.#data.inputs.slice(inputIndex);
+
+		const inputIndexMapping = new Map<number, number>();
+
+		for (const [index, input] of newInputs.entries()) {
+			if (input.$kind === 'Pure') {
+				this.#data.inputs.push(input);
+				inputIndexMapping.set(inputIndex + index, this.#data.inputs.length - 1);
+			} else {
+				inputIndexMapping.set(inputIndex + index, this.object(input).Input);
+			}
+		}
+
+		transaction.#data.mapArguments((arg) => {
+			if (arg.$kind === 'Input') {
+				arg.Input = inputIndexMapping.get(arg.Input) ?? arg.Input;
+			}
+
+			return arg;
 		});
-		return this.add(
-			Commands.Intent({
-				name: 'AsyncThunk',
-			}),
-		);
+
+		const newCommands = this.#data.commands.slice(commandIndex);
+
+		if (replace !== undefined) {
+			this.#data.replaceCommand(replace, newCommands, resultIndex);
+		} else {
+			this.#data.commands.push(...newCommands);
+		}
+
+		this.#data.sender = this.#data.sender ?? transaction.#data.sender;
+		this.#data.expiration = this.#data.expiration ?? transaction.#data.expiration;
+		this.#data.gasData = {
+			owner: this.#data.gasConfig.owner ?? transaction.#data.gasData.owner,
+			payment: this.#data.gasConfig.payment ?? transaction.#data.gasData.payment,
+			price: this.#data.gasConfig.price ?? transaction.#data.gasData.price,
+			budget: this.#data.gasConfig.budget ?? transaction.#data.gasData.budget,
+		};
+
+		transaction.#intentResolvers.forEach((resolver, intent) => {
+			this.addIntentResolver(intent, resolver);
+		});
 	}
 
 	/** Add a transaction to the transaction */
-	add<T = TransactionResult>(command: Command | ((tx: Transaction) => T)): T {
-		if (typeof command === 'function') {
-			return command(this);
+	add<T extends Command | ((tx: Transaction) => unknown) | AsyncThunk | Transaction>(
+		command: T,
+	): T extends Command | AsyncThunk
+		? TransactionResult
+		: T extends Transaction
+			? void
+			: T extends (...args: any[]) => unknown
+				? ReturnType<T>
+				: TransactionResult {
+		if (isTransaction(command)) {
+			this.#merge(Transaction.from(command));
+			return undefined as never;
 		}
 
-		const index = this.#data.commands.push(command);
+		if (typeof command === 'function') {
+			const fork = this.#fork();
+			const result = command(fork);
+			const currentCommandIndex = this.#data.commands.length;
 
-		return createTransactionResult(index - 1) as T;
+			if (!(result && typeof result === 'object' && 'then' in result)) {
+				this.#commit(fork);
+				return result as never;
+			}
+
+			this.#data.commands.push({
+				$kind: '$Intent',
+				$Intent: {
+					name: 'AsyncThunk',
+					inputs: {},
+					data: {},
+				},
+			});
+
+			this.#addPendingTask(
+				(result as Promise<TransactionResult>).then(async (r) => {
+					await fork.#lastPendingTask;
+					return r;
+				}),
+				(realResult) => {
+					this.#merge(fork, currentCommandIndex, realResult.Result);
+				},
+			);
+		} else {
+			this.#data.commands.push(command);
+		}
+
+		return createTransactionResult(this.#data.commands.length - 1) as never;
 	}
 
 	#normalizeTransactionArgument(arg: TransactionArgument | SerializedBcs<any>) {
@@ -596,24 +691,12 @@ export class Transaction {
 	 * so that it can be built into bytes.
 	 */
 	async #prepareBuild(options: BuildTransactionOptions) {
-		if (!options.onlyTransactionKind && !this.#data.sender) {
-			throw new Error('Missing transaction sender');
+		if (this.#parent) {
+			throw new Error('This is a temporary transaction that cannot be built');
 		}
 
-		while (this.#asyncThunks.length > 0) {
-			const { index, thunk, noCommandsError } = this.#asyncThunks.shift()!;
-			const commands = this.#data.commands;
-			this.#data.commands = commands.slice(0, index - 1);
-			const result = (await thunk[0](this)) as TransactionResult;
-
-			const newCommands = this.#data.commands.slice(index - 1);
-
-			if (newCommands.length === 0) {
-				throw noCommandsError;
-			}
-
-			this.#data.commands = commands;
-			this.#data.replaceCommand(index, newCommands, result.Result);
+		if (!options.onlyTransactionKind && !this.#data.sender) {
+			throw new Error('Missing transaction sender');
 		}
 
 		await this.#runPlugins([...this.#buildPlugins, resolveTransactionData], options);
@@ -656,7 +739,17 @@ export class Transaction {
 		await createNext(0)();
 	}
 
+	#addPendingTask<T>(promise: Promise<T>, action: (result: T) => void) {
+		this.#lastPendingTask = Promise.all([this.#lastPendingTask, promise]).then(([_, result]) => {
+			action(result);
+			if (this.#lastPendingTask === promise) {
+				this.#lastPendingTask = undefined;
+			}
+		});
+	}
+
 	async prepareForSerialization(options: SerializeTransactionOptions) {
+		await this.#lastPendingTask;
 		const intents = new Set<string>();
 		for (const command of this.#data.commands) {
 			if (command.$Intent) {

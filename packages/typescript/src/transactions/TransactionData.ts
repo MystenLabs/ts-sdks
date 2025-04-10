@@ -303,4 +303,17 @@ export class TransactionDataBuilder implements TransactionData {
 	snapshot(): TransactionData {
 		return parse(TransactionData, this);
 	}
+
+	shallowClone() {
+		return new TransactionDataBuilder({
+			version: this.version,
+			sender: this.sender,
+			expiration: this.expiration,
+			gasData: {
+				...this.gasData,
+			},
+			inputs: [...this.inputs],
+			commands: [...this.commands],
+		});
+	}
 }
