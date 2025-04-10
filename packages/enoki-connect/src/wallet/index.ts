@@ -4,6 +4,7 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import type {
+	IdentifierString,
 	StandardConnectFeature,
 	StandardConnectMethod,
 	StandardDisconnectFeature,
@@ -28,11 +29,9 @@ import {
 } from '@mysten/wallet-standard';
 import type { Emitter } from 'mitt';
 import mitt from 'mitt';
+import { DappPostMessageChannel, decodeJwtSession } from '@mysten/wallet-core';
 
-import { EnokiConnectPopup } from './channel/index.js';
-import type { SupportedNetwork } from './types.js';
-
-export type { SupportedNetwork } from './types.js';
+export type SupportedNetwork = 'mainnet' | 'testnet';
 
 type WalletEventsMap = {
 	[E in keyof StandardEventsListeners]: Parameters<StandardEventsListeners[E]>[0];
@@ -40,22 +39,15 @@ type WalletEventsMap = {
 
 const SUPPORTED_CHAINS = [SUI_MAINNET_CHAIN, SUI_TESTNET_CHAIN] as const;
 
-function chainToNetwork(chain: string, defaultNetwork: SupportedNetwork) {
-	if (SUPPORTED_CHAINS.includes(chain as (typeof SUPPORTED_CHAINS)[number])) {
-		return chain.split(':')[1] as SupportedNetwork;
-	}
-	return defaultNetwork;
-}
-
 export class EnokiConnectWallet implements Wallet {
 	readonly id: string;
 	#events: Emitter<WalletEventsMap>;
 	#accounts: ReadonlyWalletAccount[];
-	#origin: string;
+	#hostOrigin: string;
 	#walletName: string;
 	#dappName: string;
 	#icon: WalletIcon;
-	#network: SupportedNetwork;
+	#defaultChain: IdentifierString;
 	#publicAppSlug: string;
 
 	get name() {
@@ -116,7 +108,7 @@ export class EnokiConnectWallet implements Wallet {
 		publicAppSlug,
 		walletName,
 		dappName,
-		origin,
+		hostOrigin,
 		icon,
 		network,
 	}: {
@@ -124,16 +116,16 @@ export class EnokiConnectWallet implements Wallet {
 		walletName: string;
 		dappName: string;
 		network: SupportedNetwork;
-		origin: string;
+		hostOrigin: string;
 		icon: WalletIcon;
 	}) {
 		this.#accounts = [];
 		this.#events = mitt();
-		this.#origin = origin;
+		this.#hostOrigin = hostOrigin;
 		this.#walletName = walletName;
 		this.#dappName = dappName;
 		this.#icon = icon;
-		this.#network = network;
+		this.#defaultChain = `sui:${network}`;
 		this.#publicAppSlug = publicAppSlug;
 		this.id = `enoki-connect-${publicAppSlug}`;
 	}
@@ -145,16 +137,13 @@ export class EnokiConnectWallet implements Wallet {
 	}) => {
 		transactionBlock.setSenderIfNotSet(account.address);
 
-		const popup = new EnokiConnectPopup({
-			name: this.#dappName,
-			origin: this.#origin,
-			network: chainToNetwork(chain, this.#network),
-			publicAppSlug: this.#publicAppSlug,
-		});
+		const popup = this.#getNewPopupChannel();
 		const response = await popup.send({
 			type: 'sign-transaction',
-			data: JSON.stringify(transactionBlock.getData()),
+			chain,
+			transaction: JSON.stringify(transactionBlock.getData()),
 			address: account.address,
+			session: localStorage.getItem(this.#getSessionKey()) ?? '',
 		});
 
 		return {
@@ -164,20 +153,17 @@ export class EnokiConnectWallet implements Wallet {
 	};
 
 	#signTransaction: SuiSignTransactionMethod = async ({ transaction, account, chain }) => {
-		const popup = new EnokiConnectPopup({
-			name: this.#dappName,
-			origin: this.#origin,
-			network: chainToNetwork(chain, this.#network),
-			publicAppSlug: this.#publicAppSlug,
-		});
+		const popup = this.#getNewPopupChannel();
 		const tx = Transaction.from(await transaction.toJSON());
 
 		tx.setSenderIfNotSet(account.address);
 
 		const response = await popup.send({
 			type: 'sign-transaction',
-			data: JSON.stringify(await tx.getData()),
+			chain,
+			transaction: JSON.stringify(await tx.getData()),
 			address: account.address,
+			session: localStorage.getItem(this.#getSessionKey()) ?? '',
 		});
 
 		return {
@@ -187,17 +173,15 @@ export class EnokiConnectWallet implements Wallet {
 	};
 
 	#signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message, account }) => {
-		const popup = new EnokiConnectPopup({
-			name: this.#dappName,
-			origin: this.#origin,
-			network: this.#network,
-			publicAppSlug: this.#publicAppSlug,
-		});
+		const popup = this.#getNewPopupChannel();
 		const bytes = toBase64(message);
 		const response = await popup.send({
 			type: 'sign-personal-message',
-			bytes,
+			// TODO: use chain from signPersonalMessage input when available
+			chain: this.#defaultChain,
+			message: bytes,
 			address: account.address,
+			session: localStorage.getItem(this.#getSessionKey()) ?? '',
 		});
 
 		return {
@@ -212,18 +196,10 @@ export class EnokiConnectWallet implements Wallet {
 		return () => this.#events.off(event, listener);
 	};
 
-	#setAccount(account?: { address: string; publicKey: string }) {
-		if (account) {
-			this.#accounts = [
-				new ReadonlyWalletAccount({
-					address: account.address,
-					chains: SUPPORTED_CHAINS,
-					features: ['sui:signTransactionBlock', 'sui:signPersonalMessage', 'sui:signTransaction'],
-					publicKey: fromBase64(account.publicKey),
-				}),
-			];
-
-			localStorage.setItem(this.#getRecentAddressKey(), JSON.stringify(account));
+	#setAccounts(session?: string) {
+		if (session) {
+			this.#accounts = this.#getAccountsFromSession(session);
+			localStorage.setItem(this.#getSessionKey(), session);
 		} else {
 			this.#accounts = [];
 		}
@@ -233,45 +209,68 @@ export class EnokiConnectWallet implements Wallet {
 
 	#connect: StandardConnectMethod = async (input) => {
 		if (input?.silent) {
-			const account = localStorage.getItem(this.#getRecentAddressKey());
+			const session = localStorage.getItem(this.#getSessionKey());
 
-			if (account) {
-				const parsedAccount = JSON.parse(account);
-				if (parsedAccount.address && parsedAccount.publicKey) {
-					this.#setAccount(parsedAccount);
-				}
+			if (session) {
+				this.#setAccounts(session);
 			}
 
 			return { accounts: this.accounts };
 		}
 
-		const popup = new EnokiConnectPopup({
-			name: this.#dappName,
-			origin: this.#origin,
-			network: this.#network,
-			publicAppSlug: this.#publicAppSlug,
-		});
-
+		const popup = this.#getNewPopupChannel();
 		const response = await popup.send({
 			type: 'connect',
+			// TODO: use chain from connect input when available
+			chain: this.#defaultChain,
 		});
 
-		if (!('address' in response) || !('publicKey' in response)) {
-			throw new Error('Unexpected response');
-		}
-
-		this.#setAccount({ address: response.address, publicKey: response.publicKey });
+		this.#setAccounts(response.session);
 
 		return { accounts: this.accounts };
 	};
 
 	#disconnect: StandardDisconnectMethod = async () => {
-		localStorage.removeItem(this.#getRecentAddressKey());
-		this.#setAccount();
+		localStorage.removeItem(this.#getSessionKey());
+		this.#setAccounts();
 	};
 
-	#getRecentAddressKey() {
-		return `enoki-connect-${this.#publicAppSlug}:recentAddress`;
+	#getSessionKey() {
+		return `enoki-connect-${this.#publicAppSlug}:session`;
+	}
+
+	#getNewPopupChannel() {
+		return new DappPostMessageChannel({
+			appName: this.#dappName,
+			hostOrigin: this.#hostOrigin,
+			extraRequestOptions: {
+				publicAppSlug: this.#publicAppSlug,
+			},
+		});
+	}
+
+	#getAccountsFromSession(session: string) {
+		try {
+			const { session: decodedSession } = decodeJwtSession(session);
+
+			return decodedSession.accounts.map(
+				(anAccount) =>
+					new ReadonlyWalletAccount({
+						address: anAccount.address,
+						chains: anAccount.chains ?? SUPPORTED_CHAINS,
+						features: anAccount.features ?? [
+							'sui:signTransactionBlock',
+							'sui:signPersonalMessage',
+							'sui:signTransaction',
+						],
+						publicKey: fromBase64(anAccount.publicKey),
+						label: anAccount.nickname,
+						icon: anAccount.icon as WalletIcon,
+					}),
+			);
+		} catch (error) {
+			return [];
+		}
 	}
 }
 
@@ -310,7 +309,7 @@ export async function registerEnokiConnectWallet({
 	const wallet = new EnokiConnectWallet({
 		walletName: data.name,
 		dappName,
-		origin: data.appUrl,
+		hostOrigin: data.appUrl,
 		icon: data.logoUrl,
 		network,
 		publicAppSlug,
