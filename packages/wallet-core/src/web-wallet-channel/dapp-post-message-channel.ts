@@ -5,17 +5,17 @@ import { safeParse } from 'valibot';
 import type { JsonData, RequestDataType, RequestType } from './requests.js';
 import type { ResponseTypes } from './responses.js';
 import { Response } from './responses.js';
-import { getClientMetadata, withResolvers } from './utils.js';
+import { withResolvers } from '../utils.js';
+import { getClientMetadata } from './utils.js';
 
-type WindowRequestOptions = {
+type DappPostMessageChannelOptions = {
 	appName: string;
 	hostOrigin: string;
 	hostPathname?: string;
 	extraRequestOptions?: Record<string, JsonData>;
-	popup?: Window;
 };
 
-export class WindowRequest {
+export class DappPostMessageChannel {
 	#popup: Window;
 	#version = 'v1' as const;
 	#id: string;
@@ -33,16 +33,15 @@ export class WindowRequest {
 		hostOrigin,
 		hostPathname = 'dapp-request',
 		extraRequestOptions,
-		popup,
-	}: WindowRequestOptions) {
-		const popupWindow = popup ?? window.open('about:blank', '_blank');
+	}: DappPostMessageChannelOptions) {
+		const popup = window.open('about:blank', '_blank');
 
-		if (!popupWindow) {
+		if (!popup) {
 			throw new Error('Failed to open new window');
 		}
 
 		this.#id = crypto.randomUUID();
-		this.#popup = popupWindow;
+		this.#popup = popup;
 		this.#hostOrigin = hostOrigin;
 		this.#hostPathname = hostPathname;
 		this.#appName = appName;

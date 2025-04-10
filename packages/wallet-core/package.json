@@ -1,7 +1,7 @@
 {
-	"name": "@mysten/window-wallet-channel",
+	"name": "@mysten/wallet-core",
 	"version": "0.0.1-experimental",
-	"description": "Use Window postMessage method to connect with a web wallet",
+	"description": "Core wallet functionality",
 	"private": true,
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",

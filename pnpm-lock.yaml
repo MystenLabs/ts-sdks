@@ -1001,6 +1001,22 @@ importers:
         specifier: ^8.18.1
         version: 8.18.1
 
+  packages/wallet-core:
+    dependencies:
+      valibot:
+        specifier: ^0.36.0
+        version: 0.36.0
+    devDependencies:
+      '@mysten/build-scripts':
+        specifier: workspace:*
+        version: link:../build-scripts
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+      vitest:
+        specifier: ^3.1.1
+        version: 3.1.1(@types/debug@4.1.12)(@types/node@22.13.17)(happy-dom@16.3.0)(jiti@2.4.2)(jsdom@25.0.1)(lightningcss@1.29.2)(msw@2.7.3(@types/node@22.13.17)(typescript@5.8.2))(tsx@4.19.3)(yaml@2.7.1)
+
   packages/wallet-standard:
     dependencies:
       '@mysten/sui':
@@ -1073,22 +1089,6 @@ importers:
         version: 3.1.1(@types/debug@4.1.12)(@types/node@22.13.17)(happy-dom@16.3.0)(jiti@2.4.2)(jsdom@25.0.1)(lightningcss@1.29.2)(msw@2.7.3(@types/node@22.13.17)(typescript@5.8.2))(tsx@4.19.3)(yaml@2.7.1)
 
   packages/walrus-wasm: {}
-
-  packages/window-wallet-channel:
-    dependencies:
-      valibot:
-        specifier: ^0.36.0
-        version: 0.36.0
-    devDependencies:
-      '@mysten/build-scripts':
-        specifier: workspace:*
-        version: link:../build-scripts
-      typescript:
-        specifier: ^5.8.2
-        version: 5.8.2
-      vitest:
-        specifier: ^3.1.1
-        version: 3.1.1(@types/debug@4.1.12)(@types/node@22.13.17)(happy-dom@16.3.0)(jiti@2.4.2)(jsdom@25.0.1)(lightningcss@1.29.2)(msw@2.7.3(@types/node@22.13.17)(typescript@5.8.2))(tsx@4.19.3)(yaml@2.7.1)
 
   packages/zksend:
     dependencies:

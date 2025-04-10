@@ -6,7 +6,7 @@ import type { RequestType } from './requests.js';
 import { Request } from './requests.js';
 import type { ResponsePayloadType, ResponseType } from './responses.js';
 
-export class HostResponse {
+export class WalletPostMessageChannel {
 	#request: RequestType;
 
 	constructor(request: RequestType) {
@@ -22,14 +22,14 @@ export class HostResponse {
 	static fromPayload(payload: RequestType) {
 		const request = parse(Request, payload);
 
-		return new HostResponse(request);
+		return new WalletPostMessageChannel(request);
 	}
 
 	static fromUrlHash(hash: string = window.location.hash.slice(1)) {
 		const decoded = atob(decodeURIComponent(hash));
 		const request = parse(Request, JSON.parse(decoded));
 
-		return new HostResponse(request);
+		return new WalletPostMessageChannel(request);
 	}
 
 	getRequestData() {
@@ -40,7 +40,7 @@ export class HostResponse {
 		window.opener.postMessage(
 			{
 				id: this.#request.requestId,
-				source: 'window-wallet-channel',
+				source: 'web-wallet-channel',
 				payload,
 				version: this.#request.version,
 			} satisfies ResponseType,
