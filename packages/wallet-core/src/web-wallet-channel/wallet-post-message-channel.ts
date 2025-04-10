@@ -5,6 +5,7 @@ import { parse } from 'valibot';
 import type { RequestType } from './requests.js';
 import { Request } from './requests.js';
 import type { ResponsePayloadType, ResponseType } from './responses.js';
+import { verifyJwtSession } from '../jwt-session/index.js';
 
 export class WalletPostMessageChannel {
 	#request: RequestType;
@@ -34,6 +35,27 @@ export class WalletPostMessageChannel {
 
 	getRequestData() {
 		return this.#request;
+	}
+
+	async verifyJwtSession(secretKey: Uint8Array) {
+		if (!('session' in this.#request.payload)) {
+			return null;
+		}
+
+		const { session } = await verifyJwtSession(this.#request.payload.session, secretKey);
+
+		if (session.appOrigin !== new URL(this.#request.appUrl).origin) {
+			throw new Error('App and session origin mismatch');
+		}
+
+		const requestAddress = this.#request.payload.address;
+		const addressInSession = session.accounts.find((account) => account.address === requestAddress);
+
+		if (!addressInSession) {
+			throw new Error('Requested account not found in session');
+		}
+
+		return session;
 	}
 
 	sendMessage(payload: ResponsePayloadType) {
