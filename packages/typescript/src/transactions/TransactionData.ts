@@ -211,33 +211,47 @@ export class TransactionDataBuilder implements TransactionData {
 		});
 	}
 
-	mapArguments(fn: (arg: Argument, command: Command) => Argument) {
-		for (const command of this.commands) {
+	mapArguments(fn: (arg: Argument, command: Command, commandIndex: number) => Argument) {
+		for (const [commandIndex, command] of this.commands.entries()) {
 			switch (command.$kind) {
 				case 'MoveCall':
-					command.MoveCall.arguments = command.MoveCall.arguments.map((arg) => fn(arg, command));
+					command.MoveCall.arguments = command.MoveCall.arguments.map((arg) =>
+						fn(arg, command, commandIndex),
+					);
 					break;
 				case 'TransferObjects':
 					command.TransferObjects.objects = command.TransferObjects.objects.map((arg) =>
-						fn(arg, command),
+						fn(arg, command, commandIndex),
 					);
-					command.TransferObjects.address = fn(command.TransferObjects.address, command);
+					command.TransferObjects.address = fn(
+						command.TransferObjects.address,
+						command,
+						commandIndex,
+					);
 					break;
 				case 'SplitCoins':
-					command.SplitCoins.coin = fn(command.SplitCoins.coin, command);
-					command.SplitCoins.amounts = command.SplitCoins.amounts.map((arg) => fn(arg, command));
+					command.SplitCoins.coin = fn(command.SplitCoins.coin, command, commandIndex);
+					command.SplitCoins.amounts = command.SplitCoins.amounts.map((arg) =>
+						fn(arg, command, commandIndex),
+					);
 					break;
 				case 'MergeCoins':
-					command.MergeCoins.destination = fn(command.MergeCoins.destination, command);
-					command.MergeCoins.sources = command.MergeCoins.sources.map((arg) => fn(arg, command));
+					command.MergeCoins.destination = fn(
+						command.MergeCoins.destination,
+						command,
+						commandIndex,
+					);
+					command.MergeCoins.sources = command.MergeCoins.sources.map((arg) =>
+						fn(arg, command, commandIndex),
+					);
 					break;
 				case 'MakeMoveVec':
 					command.MakeMoveVec.elements = command.MakeMoveVec.elements.map((arg) =>
-						fn(arg, command),
+						fn(arg, command, commandIndex),
 					);
 					break;
 				case 'Upgrade':
-					command.Upgrade.ticket = fn(command.Upgrade.ticket, command);
+					command.Upgrade.ticket = fn(command.Upgrade.ticket, command, commandIndex);
 					break;
 				case '$Intent':
 					const inputs = command.$Intent.inputs;
@@ -245,8 +259,8 @@ export class TransactionDataBuilder implements TransactionData {
 
 					for (const [key, value] of Object.entries(inputs)) {
 						command.$Intent.inputs[key] = Array.isArray(value)
-							? value.map((arg) => fn(arg, command))
-							: fn(value, command);
+							? value.map((arg) => fn(arg, command, commandIndex))
+							: fn(value, command, commandIndex);
 					}
 
 					break;
@@ -268,14 +282,16 @@ export class TransactionDataBuilder implements TransactionData {
 		this.commands.splice(index, 1, ...replacement);
 
 		if (sizeDiff !== 0) {
-			this.mapArguments((arg) => {
+			this.mapArguments((arg, _command, commandIndex) => {
+				if (commandIndex < index + replacement.length) {
+					return arg;
+				}
+
 				switch (arg.$kind) {
 					case 'Result':
 						if (arg.Result === index) {
 							arg.Result = resultIndex;
-						}
-
-						if (arg.Result > index) {
+						} else if (arg.Result > index) {
 							arg.Result += sizeDiff;
 						}
 						break;
@@ -283,9 +299,7 @@ export class TransactionDataBuilder implements TransactionData {
 					case 'NestedResult':
 						if (arg.NestedResult[0] === index) {
 							arg.NestedResult[0] = resultIndex;
-						}
-
-						if (arg.NestedResult[0] > index) {
+						} else if (arg.NestedResult[0] > index) {
 							arg.NestedResult[0] += sizeDiff;
 						}
 						break;

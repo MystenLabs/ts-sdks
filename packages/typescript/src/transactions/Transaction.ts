@@ -410,6 +410,9 @@ export class Transaction {
 
 	/** Destructively merges a transaction into the current transaction. The passed transaction will not be usable after merging. */
 	#merge(transaction: Transaction, replace?: number, resultIndex?: number) {
+		console.log(replace, resultIndex);
+		console.dir(transaction.#data.commands, { depth: null });
+		console.dir(this.#data.commands, { depth: null });
 		if (transaction.#lastPendingTask) {
 			throw new Error('Cannot merge transactions that have pending tasks');
 		}
@@ -423,7 +426,7 @@ export class Transaction {
 		const commandIndex = transaction.#parent?.commandIndex ?? 0;
 		const inputIndex = transaction.#parent?.inputIndex ?? 0;
 
-		const newInputs = this.#data.inputs.slice(inputIndex);
+		const newInputs = transaction.#data.inputs.slice(inputIndex);
 
 		const inputIndexMapping = new Map<number, number>();
 
@@ -444,7 +447,7 @@ export class Transaction {
 			return arg;
 		});
 
-		const newCommands = this.#data.commands.slice(commandIndex);
+		const newCommands = transaction.#data.commands.slice(commandIndex);
 
 		if (replace !== undefined) {
 			this.#data.replaceCommand(replace, newCommands, resultIndex);
@@ -467,18 +470,15 @@ export class Transaction {
 	}
 
 	/** Add a transaction to the transaction */
-	add<T extends Command | ((tx: Transaction) => unknown) | AsyncThunk | Transaction>(
-		command: T,
-	): T extends Command | AsyncThunk
-		? TransactionResult
-		: T extends Transaction
-			? void
-			: T extends (...args: any[]) => unknown
-				? ReturnType<T>
-				: TransactionResult {
+
+	add<T extends Command>(command: T): TransactionResult;
+	add(transaction: Transaction): void;
+	add<T extends void | TransactionResult | TransactionArgument>(thunk: (tx: Transaction) => T): T;
+	add(asyncThunk: AsyncThunk): TransactionResult;
+	add(command: Command | AsyncThunk | Transaction | ((tx: Transaction) => unknown)): unknown {
 		if (isTransaction(command)) {
 			this.#merge(Transaction.from(command));
-			return undefined as never;
+			return;
 		}
 
 		if (typeof command === 'function') {
@@ -488,7 +488,7 @@ export class Transaction {
 
 			if (!(result && typeof result === 'object' && 'then' in result)) {
 				this.#commit(fork);
-				return result as never;
+				return result;
 			}
 
 			this.#data.commands.push({
@@ -502,8 +502,27 @@ export class Transaction {
 
 			this.#addPendingTask(
 				(result as Promise<TransactionResult>).then(async (r) => {
-					await fork.#lastPendingTask;
-					return r;
+					// We need to add a reference to the result in the transaction data that gets updated as other async thunks are resolved
+					const resultIntent = {
+						$kind: '$Intent',
+						$Intent: {
+							name: 'AsyncThunkResult',
+							inputs: {
+								result: {
+									$kind: 'Result',
+									Result: r.Result,
+								},
+							},
+							data: {},
+						},
+					} as const;
+					fork.#data.commands.push(resultIntent);
+					await fork.#waitForPendingTasks();
+
+					// Remove the result intent from the transaction data
+					fork.#data.commands.pop();
+					// Return the updated result
+					return resultIntent.$Intent.inputs.result;
 				}),
 				(realResult) => {
 					this.#merge(fork, currentCommandIndex, realResult.Result);
@@ -513,7 +532,7 @@ export class Transaction {
 			this.#data.commands.push(command);
 		}
 
-		return createTransactionResult(this.#data.commands.length - 1) as never;
+		return createTransactionResult(this.#data.commands.length - 1);
 	}
 
 	#normalizeTransactionArgument(arg: TransactionArgument | SerializedBcs<any>) {
@@ -742,14 +761,20 @@ export class Transaction {
 	#addPendingTask<T>(promise: Promise<T>, action: (result: T) => void) {
 		this.#lastPendingTask = Promise.all([this.#lastPendingTask, promise]).then(([_, result]) => {
 			action(result);
-			if (this.#lastPendingTask === promise) {
-				this.#lastPendingTask = undefined;
-			}
 		});
 	}
 
+	async #waitForPendingTasks() {
+		let lastTask;
+		do {
+			lastTask = this.#lastPendingTask;
+			await lastTask;
+		} while (this.#lastPendingTask && lastTask !== this.#lastPendingTask);
+		this.#lastPendingTask = undefined;
+	}
+
 	async prepareForSerialization(options: SerializeTransactionOptions) {
-		await this.#lastPendingTask;
+		await this.#waitForPendingTasks();
 		const intents = new Set<string>();
 		for (const command of this.#data.commands) {
 			if (command.$Intent) {
