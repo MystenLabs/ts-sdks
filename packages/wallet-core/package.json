@@ -45,6 +45,7 @@
 		"vitest": "^3.1.1"
 	},
 	"dependencies": {
+		"jose": "^6.0.10",
 		"valibot": "^0.36.0"
 	}
 }

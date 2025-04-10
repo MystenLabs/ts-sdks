@@ -6,12 +6,6 @@ import * as v from 'valibot';
 export const ResponseData = v.variant('type', [
 	v.object({
 		type: v.literal('connect'),
-		accounts: v.array(
-			v.object({
-				address: v.string('`address` is required'),
-				publicKey: v.optional(v.string('`publicKey` must be a string')),
-			}),
-		),
 		session: v.string('`session` is required'),
 	}),
 	v.object({
