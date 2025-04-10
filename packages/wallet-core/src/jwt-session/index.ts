@@ -10,6 +10,8 @@ const AccountSchema = v.object({
 	publicKey: v.string(),
 	nickname: v.optional(v.string()),
 	icon: v.optional(v.string()),
+	chains: v.optional(v.array(v.pipe(v.string(), v.regex<`${string}:${string}`>(/^.+:.+$/)))),
+	features: v.optional(v.array(v.pipe(v.string(), v.regex<`${string}:${string}`>(/^.+:.+$/)))),
 });
 
 const JwtSessionSchema = v.looseObject({
@@ -47,7 +49,10 @@ export function decodeJwtSession(jwt: string): JwtSessionPayload & JWTPayload {
 	return v.parse(JwtSessionSchema, decodedJwt);
 }
 
-export async function verifyJwtSession(jwt: string, secretKey: Uint8Array) {
+export async function verifyJwtSession(
+	jwt: string,
+	secretKey: Uint8Array,
+): Promise<JwtSessionPayload & JWTPayload> {
 	const verified = await jwtVerify(jwt, secretKey, { algorithms: ['HS256'] });
 
 	return v.parse(JwtSessionSchema, verified.payload);
