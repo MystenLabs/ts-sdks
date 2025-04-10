@@ -6,8 +6,3 @@ export {
 	registerEnokiConnectWallet,
 	type SupportedNetwork,
 } from './wallet/index.js';
-export {
-	type EnokiConnectRequest,
-	type EnokiConnectResponse,
-	EnokiConnectHost,
-} from './wallet/channel/index.js';
