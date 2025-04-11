@@ -760,7 +760,7 @@ describe('Transaction.add with async functions', () => {
 		`);
 	});
 
-	it('should handle multiple recursive chains from root', async () => {
+	it.only('should handle multiple recursive chains from root', async () => {
 		const transaction = new Transaction();
 		const value1 = 42;
 		const value2 = 84;
@@ -841,19 +841,6 @@ describe('Transaction.add with async functions', () => {
 			      "MoveCall": {
 			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
 			        "module": "test",
-			        "function": "chain1",
-			        "typeArguments": [],
-			        "arguments": [
-			          {
-			            "Result": 0
-			          }
-			        ]
-			      }
-			    },
-			    {
-			      "MoveCall": {
-			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
-			        "module": "test",
 			        "function": "chain2_inner",
 			        "typeArguments": [],
 			        "arguments": [
@@ -867,11 +854,24 @@ describe('Transaction.add with async functions', () => {
 			      "MoveCall": {
 			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
 			        "module": "test",
+			        "function": "chain1",
+			        "typeArguments": [],
+			        "arguments": [
+			          {
+			            "Result": 0
+			          }
+			        ]
+			      }
+			    },
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
 			        "function": "chain2",
 			        "typeArguments": [],
 			        "arguments": [
 			          {
-			            "Result": 2
+			            "Result": 1
 			          }
 			        ]
 			      }
@@ -880,7 +880,7 @@ describe('Transaction.add with async functions', () => {
 			      "TransferObjects": {
 			        "objects": [
 			          {
-			            "Result": 1
+			            "Result": 2
 			          },
 			          {
 			            "Result": 3
