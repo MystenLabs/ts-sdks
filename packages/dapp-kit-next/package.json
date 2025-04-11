@@ -50,7 +50,7 @@
 		"@mysten/sui": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
 		"@mysten/zksend": "workspace:*",
-		"@nanostores/persistent": "^0.10.2",
-		"nanostores": "^0.10.3"
+		"@nanostores/persistent": "^1.0.0",
+		"nanostores": "^1.0.1"
 	}
 }

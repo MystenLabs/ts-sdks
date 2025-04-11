@@ -401,11 +401,11 @@ importers:
         specifier: workspace:*
         version: link:../zksend
       '@nanostores/persistent':
-        specifier: ^0.10.2
-        version: 0.10.2(nanostores@0.10.3)
+        specifier: ^1.0.0
+        version: 1.0.0(nanostores@1.0.1)
       nanostores:
-        specifier: ^0.10.3
-        version: 0.10.3
+        specifier: ^1.0.1
+        version: 1.0.1
     devDependencies:
       '@mysten/build-scripts':
         specifier: workspace:*
@@ -3124,11 +3124,11 @@ packages:
     resolution: {integrity: sha512-wK+5pLK5XFmgtH3aQ2YVvA3HohS3xqV/OxuVOdNx9Wpnz7VE/fnC+e1A7ln6LFYeck7gOJ/dsZV6OLplOtAJ2w==}
     engines: {node: '>=18'}
 
-  '@nanostores/persistent@0.10.2':
-    resolution: {integrity: sha512-BEndnLhRC+yP7gXTESepBbSj8XNl8OXK9hu4xAgKC7MWJHKXnEqJMqY47LUyHxK6vYgFnisyHmqq+vq8AUFyIg==}
-    engines: {node: ^18.0.0 || >=20.0.0}
+  '@nanostores/persistent@1.0.0':
+    resolution: {integrity: sha512-iuucWTxcxSLwHvcxBTIAwofDc+KO7cw5EiQklAltJX6Ynx/CKTecOCUG76kF42yNnCZZQcMeuIcl99DkxekIig==}
+    engines: {node: ^20.0.0 || >=22.0.0}
     peerDependencies:
-      nanostores: ^0.9.0 || ^0.10.0 || ^0.11.0
+      nanostores: ^0.9.0 || ^0.10.0 || ^0.11.0 || ^1.0.0
 
   '@nanostores/react@0.7.3':
     resolution: {integrity: sha512-/XuLAMENRu/Q71biW4AZ4qmU070vkZgiQ28gaTSNRPm2SZF5zGAR81zPE1MaMB4SeOp6ZTst92NBaG75XSspNg==}
@@ -7422,6 +7422,10 @@ packages:
   nanostores@0.10.3:
     resolution: {integrity: sha512-Nii8O1XqmawqSCf9o2aWqVxhKRN01+iue9/VEd1TiJCr9VT5XxgPFbF1Edl1XN6pwJcZRsl8Ki+z01yb/T/C2g==}
     engines: {node: ^18.0.0 || >=20.0.0}
+
+  nanostores@1.0.1:
+    resolution: {integrity: sha512-kNZ9xnoJYKg/AfxjrVL4SS0fKX++4awQReGqWnwTRHxeHGZ1FJFVgTqr/eMrNQdp0Tz7M7tG/TDaX8QfHDwVCw==}
+    engines: {node: ^20.0.0 || >=22.0.0}
 
   natural-compare-lite@1.4.0:
     resolution: {integrity: sha512-Tj+HTDSJJKaZnfiuw+iaF9skdPpTo2GtEly5JHnWV/hfv2Qj/9RKsGISQtLh2ox3l5EAGw487hnBee0sIJ6v2g==}
@@ -11791,9 +11795,9 @@ snapshots:
       outvariant: 1.4.3
       strict-event-emitter: 0.5.1
 
-  '@nanostores/persistent@0.10.2(nanostores@0.10.3)':
+  '@nanostores/persistent@1.0.0(nanostores@1.0.1)':
     dependencies:
-      nanostores: 0.10.3
+      nanostores: 1.0.1
 
   '@nanostores/react@0.7.3(nanostores@0.10.3)(react@18.3.1)':
     dependencies:
@@ -17003,6 +17007,8 @@ snapshots:
       picocolors: 1.1.1
 
   nanostores@0.10.3: {}
+
+  nanostores@1.0.1: {}
 
   natural-compare-lite@1.4.0: {}
 
