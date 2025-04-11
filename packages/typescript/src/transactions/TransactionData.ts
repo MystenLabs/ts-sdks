@@ -291,7 +291,9 @@ export class TransactionDataBuilder implements TransactionData {
 					case 'Result':
 						if (arg.Result === index) {
 							arg.Result = resultIndex;
-						} else if (arg.Result > index) {
+						}
+
+						if (arg.Result > index) {
 							arg.Result += sizeDiff;
 						}
 						break;
@@ -299,7 +301,9 @@ export class TransactionDataBuilder implements TransactionData {
 					case 'NestedResult':
 						if (arg.NestedResult[0] === index) {
 							arg.NestedResult[0] = resultIndex;
-						} else if (arg.NestedResult[0] > index) {
+						}
+
+						if (arg.NestedResult[0] > index) {
 							arg.NestedResult[0] += sizeDiff;
 						}
 						break;
