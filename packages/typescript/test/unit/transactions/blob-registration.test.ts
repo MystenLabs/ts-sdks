@@ -103,23 +103,15 @@ describe('Blob registration transaction building', () => {
 			      "$kind": "$Intent",
 			    },
 			    {
-			      "$kind": "MoveCall",
-			      "MoveCall": {
-			        "arguments": [
-			          {
-			            "$kind": "Result",
-			            "Result": 2,
-			          },
-			          {
-			            "$kind": "Result",
-			            "Result": 0,
-			          },
-			        ],
-			        "function": "register",
-			        "module": "blob",
-			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
-			        "typeArguments": [],
+			      "$Intent": {
+			        "data": {
+			          "balance": 123n,
+			          "type": "0x0000000000000000000000000000000000000000000000000000000000000002::wal::WAL",
+			        },
+			        "inputs": {},
+			        "name": "CoinWithBalance",
 			      },
+			      "$kind": "$Intent",
 			    },
 			    {
 			      "$kind": "MoveCall",
@@ -142,7 +134,7 @@ describe('Blob registration transaction building', () => {
 			          },
 			          {
 			            "$kind": "Result",
-			            "Result": 3,
+			            "Result": 1,
 			          },
 			        ],
 			        "function": "reserve_space",
@@ -152,15 +144,23 @@ describe('Blob registration transaction building', () => {
 			      },
 			    },
 			    {
-			      "$Intent": {
-			        "data": {
-			          "balance": 123n,
-			          "type": "0x0000000000000000000000000000000000000000000000000000000000000002::wal::WAL",
-			        },
-			        "inputs": {},
-			        "name": "CoinWithBalance",
+			      "$kind": "MoveCall",
+			      "MoveCall": {
+			        "arguments": [
+			          {
+			            "$kind": "Result",
+			            "Result": 2,
+			          },
+			          {
+			            "$kind": "Result",
+			            "Result": 0,
+			          },
+			        ],
+			        "function": "register",
+			        "module": "blob",
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "typeArguments": [],
 			      },
-			      "$kind": "$Intent",
 			    },
 			    {
 			      "$kind": "TransferObjects",
@@ -173,7 +173,7 @@ describe('Blob registration transaction building', () => {
 			        "objects": [
 			          {
 			            "$kind": "Result",
-			            "Result": 1,
+			            "Result": 3,
 			          },
 			        ],
 			      },

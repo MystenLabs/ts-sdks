@@ -408,8 +408,8 @@ export class Transaction {
 		fork.#serializationPlugins = this.#serializationPlugins;
 		fork.#buildPlugins = this.#buildPlugins;
 		fork.#intentResolvers = this.#intentResolvers;
-		fork.#section = this.#section + 1;
-		fork.#path = this.#path + `.${this.#section}`;
+		// TODO: padding keys to make sorting work is probably bad
+		fork.#path = this.#path + `.${fork.#section.toString().padStart(3, '0')}`;
 		fork.#sectionMap = this.#sectionMap;
 		fork.#pendingPromises = this.#pendingPromises;
 		this.#section += 2;
@@ -469,14 +469,14 @@ export class Transaction {
 	}
 
 	#addCommand<T extends Command>(command: T) {
-		this.#sectionMap.set(command, this.#path + `.${this.#section}`);
+		this.#sectionMap.set(command, this.#path + `.${this.#section.toString().padStart(3, '0')}`);
 		this.#data.commands.push(command);
 
 		return command;
 	}
 
 	#addInput<T extends 'pure' | 'object'>(type: T, input: CallArg) {
-		this.#sectionMap.set(input, this.#path + `.${this.#section}`);
+		this.#sectionMap.set(input, this.#path + `.${this.#section.toString().padStart(3, '0')}`);
 		return this.#data.addInput(type, input);
 	}
 
