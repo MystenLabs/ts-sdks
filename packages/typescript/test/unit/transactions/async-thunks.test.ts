@@ -74,13 +74,13 @@ describe('Transaction.add with async functions', () => {
 			  },
 			  "inputs": [
 			    {
-			      "Pure": {
-			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+			      "UnresolvedObject": {
+			        "objectId": "0x0000000000000000000000000000000000000000000000000000000000000123"
 			      }
 			    },
 			    {
-			      "UnresolvedObject": {
-			        "objectId": "0x0000000000000000000000000000000000000000000000000000000000000123"
+			      "Pure": {
+			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 			      }
 			    }
 			  ],
@@ -93,7 +93,7 @@ describe('Transaction.add with async functions', () => {
 			        "typeArguments": [],
 			        "arguments": [
 			          {
-			            "Input": 1
+			            "Input": 0
 			          }
 			        ]
 			      }
@@ -106,7 +106,7 @@ describe('Transaction.add with async functions', () => {
 			          }
 			        ],
 			        "address": {
-			          "Input": 0
+			          "Input": 1
 			        }
 			      }
 			    }
@@ -142,12 +142,12 @@ describe('Transaction.add with async functions', () => {
 			  "inputs": [
 			    {
 			      "Pure": {
-			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+			        "bytes": "KgAAAA=="
 			      }
 			    },
 			    {
 			      "Pure": {
-			        "bytes": "KgAAAA=="
+			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 			      }
 			    }
 			  ],
@@ -160,7 +160,7 @@ describe('Transaction.add with async functions', () => {
 			        "typeArguments": [],
 			        "arguments": [
 			          {
-			            "Input": 1
+			            "Input": 0
 			          }
 			        ]
 			      }
@@ -173,7 +173,7 @@ describe('Transaction.add with async functions', () => {
 			          }
 			        ],
 			        "address": {
-			          "Input": 0
+			          "Input": 1
 			        }
 			      }
 			    }
@@ -216,12 +216,12 @@ describe('Transaction.add with async functions', () => {
 			  "inputs": [
 			    {
 			      "Pure": {
-			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+			        "bytes": "KgAAAA=="
 			      }
 			    },
 			    {
 			      "Pure": {
-			        "bytes": "KgAAAA=="
+			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 			      }
 			    }
 			  ],
@@ -234,7 +234,7 @@ describe('Transaction.add with async functions', () => {
 			        "typeArguments": [],
 			        "arguments": [
 			          {
-			            "Input": 1
+			            "Input": 0
 			          }
 			        ]
 			      }
@@ -260,7 +260,7 @@ describe('Transaction.add with async functions', () => {
 			          }
 			        ],
 			        "address": {
-			          "Input": 0
+			          "Input": 1
 			        }
 			      }
 			    }
@@ -303,12 +303,12 @@ describe('Transaction.add with async functions', () => {
 			  "inputs": [
 			    {
 			      "Pure": {
-			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+			        "bytes": "KgAAAA=="
 			      }
 			    },
 			    {
 			      "Pure": {
-			        "bytes": "KgAAAA=="
+			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 			      }
 			    }
 			  ],
@@ -321,7 +321,7 @@ describe('Transaction.add with async functions', () => {
 			        "typeArguments": [],
 			        "arguments": [
 			          {
-			            "Input": 1
+			            "Input": 0
 			          }
 			        ]
 			      }
@@ -347,7 +347,7 @@ describe('Transaction.add with async functions', () => {
 			          }
 			        ],
 			        "address": {
-			          "Input": 0
+			          "Input": 1
 			        }
 			      }
 			    }
@@ -562,17 +562,17 @@ describe('Transaction.add with async functions', () => {
 			  "inputs": [
 			    {
 			      "Pure": {
-			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-			      }
-			    },
-			    {
-			      "Pure": {
 			        "bytes": "AQAAAA=="
 			      }
 			    },
 			    {
 			      "Pure": {
 			        "bytes": "AgAAAA=="
+			      }
+			    },
+			    {
+			      "Pure": {
+			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 			      }
 			    }
 			  ],
@@ -585,7 +585,7 @@ describe('Transaction.add with async functions', () => {
 			        "typeArguments": [],
 			        "arguments": [
 			          {
-			            "Input": 1
+			            "Input": 0
 			          }
 			        ]
 			      }
@@ -598,7 +598,7 @@ describe('Transaction.add with async functions', () => {
 			        "typeArguments": [],
 			        "arguments": [
 			          {
-			            "Input": 2
+			            "Input": 1
 			          }
 			        ]
 			      }
@@ -614,7 +614,7 @@ describe('Transaction.add with async functions', () => {
 			          }
 			        ],
 			        "address": {
-			          "Input": 0
+			          "Input": 2
 			        }
 			      }
 			    }
@@ -690,13 +690,13 @@ describe('Transaction.add with async functions', () => {
 			  },
 			  "inputs": [
 			    {
-			      "Pure": {
-			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+			      "UnresolvedObject": {
+			        "objectId": "0x0000000000000000000000000000000000000000000000000000000000000123"
 			      }
 			    },
 			    {
-			      "UnresolvedObject": {
-			        "objectId": "0x0000000000000000000000000000000000000000000000000000000000000123"
+			      "Pure": {
+			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 			      }
 			    }
 			  ],
@@ -709,7 +709,7 @@ describe('Transaction.add with async functions', () => {
 			        "typeArguments": [],
 			        "arguments": [
 			          {
-			            "Input": 1
+			            "Input": 0
 			          }
 			        ]
 			      }
@@ -722,7 +722,7 @@ describe('Transaction.add with async functions', () => {
 			        "typeArguments": [],
 			        "arguments": [
 			          {
-			            "Input": 1
+			            "Input": 0
 			          }
 			        ]
 			      }
@@ -751,7 +751,7 @@ describe('Transaction.add with async functions', () => {
 			          }
 			        ],
 			        "address": {
-			          "Input": 0
+			          "Input": 1
 			        }
 			      }
 			    }
@@ -809,17 +809,17 @@ describe('Transaction.add with async functions', () => {
 			  "inputs": [
 			    {
 			      "Pure": {
-			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-			      }
-			    },
-			    {
-			      "Pure": {
 			        "bytes": "KgAAAA=="
 			      }
 			    },
 			    {
 			      "Pure": {
 			        "bytes": "VAAAAA=="
+			      }
+			    },
+			    {
+			      "Pure": {
+			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 			      }
 			    }
 			  ],
@@ -832,7 +832,7 @@ describe('Transaction.add with async functions', () => {
 			        "typeArguments": [],
 			        "arguments": [
 			          {
-			            "Input": 1
+			            "Input": 0
 			          }
 			        ]
 			      }
@@ -858,7 +858,7 @@ describe('Transaction.add with async functions', () => {
 			        "typeArguments": [],
 			        "arguments": [
 			          {
-			            "Input": 2
+			            "Input": 1
 			          }
 			        ]
 			      }
@@ -887,7 +887,7 @@ describe('Transaction.add with async functions', () => {
 			          }
 			        ],
 			        "address": {
-			          "Input": 0
+			          "Input": 2
 			        }
 			      }
 			    }
