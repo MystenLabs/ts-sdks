@@ -3,4 +3,5 @@
 
 import './components/dapp-kit-connect-modal.svelte';
 
-export { $wallets, reg } from './store-v2/index.js';
+export { createDAppKitStore, getDefaultStore } from './store-v2/index.js';
+export type { DAppKitStore } from './store-v2/index.js';

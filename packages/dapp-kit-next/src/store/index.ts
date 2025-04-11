@@ -21,51 +21,6 @@
 
 // // 	const methods = createMethods({ $state, actions, $client });
 
-// // 	//
-// // 	onMount($state, () => {
-// // 		const walletsApi = getWallets();
-// // 		actions.setWalletRegistered(getRegisteredWallets(preferredWallets, walletFilter));
-
-// // 		const unsubscribeFromRegister = walletsApi.on('register', () => {
-// // 			actions.setWalletRegistered(getRegisteredWallets(preferredWallets, walletFilter));
-// // 		});
-
-// // 		const unsubscribeFromUnregister = walletsApi.on('unregister', (unregisteredWallet) => {
-// // 			actions.setWalletUnregistered(
-// // 				getRegisteredWallets(preferredWallets, walletFilter),
-// // 				unregisteredWallet,
-// // 			);
-// // 		});
-
-// // 		return () => {
-// // 			unsubscribeFromRegister();
-// // 			unsubscribeFromUnregister();
-// // 		};
-// // 	});
-
-// // 	/**
-// // 	 *  Handle various changes in properties for a wallet.
-// // 	 */
-// // 	onMount($state, () => {
-// // 		let currentWalletChangeEvent: (() => void) | null = null;
-
-// // 		const unlisten = listenKeys($state, ['currentWallet'], ({ currentWallet }) => {
-// // 			currentWalletChangeEvent =
-// // 				currentWallet?.features['standard:events'].on('change', ({ accounts }) => {
-// // 					// TODO: We should handle features changing that might make the list of wallets
-// // 					// or even the current wallet incompatible with the dApp.
-// // 					if (accounts) {
-// // 						actions.updateWalletAccounts(accounts);
-// // 					}
-// // 				}) ?? null;
-// // 		});
-
-// // 		return () => {
-// // 			unlisten();
-// // 			currentWalletChangeEvent?.();
-// // 		};
-// // 	});
-
 // // 	return {
 // // 		...methods,
 // // 		atoms: {

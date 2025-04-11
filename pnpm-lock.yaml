@@ -403,9 +403,6 @@ importers:
       '@nanostores/persistent':
         specifier: ^1.0.0
         version: 1.0.0(nanostores@1.0.1)
-      mitt:
-        specifier: latest
-        version: 3.0.1
       nanostores:
         specifier: ^1.0.1
         version: 1.0.1
