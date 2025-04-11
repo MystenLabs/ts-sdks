@@ -19,7 +19,6 @@ const JsonSchema: v.GenericSchema<JsonData> = v.lazy(() =>
 export const RequestData = v.variant('type', [
 	v.object({
 		type: v.literal('connect'),
-		chain: v.string('`chain` is required'),
 	}),
 	v.object({
 		type: v.literal('sign-transaction'),
