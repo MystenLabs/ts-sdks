@@ -317,16 +317,11 @@ export class Transaction {
 		return this.pure;
 	}
 
-	static #counter = 0;
-
-	#id: string;
-
 	constructor() {
 		const globalPlugins = getGlobalPluginRegistry();
 		this.#data = new TransactionDataBuilder();
 		this.#buildPlugins = [...globalPlugins.buildPlugins.values()];
 		this.#serializationPlugins = [...globalPlugins.serializationPlugins.values()];
-		this.#id = String(Transaction.#counter++);
 	}
 
 	/** Returns an argument for the gas coin, to be used in a transaction. */
@@ -413,8 +408,7 @@ export class Transaction {
 		fork.#sectionMap = this.#sectionMap;
 		fork.#pendingPromises = this.#pendingPromises;
 		this.#section += 2;
-		// For debugging, probably should remove this
-		fork.#id = `${this.#id}->${fork.#id}`;
+
 		return fork;
 	}
 
@@ -450,7 +444,6 @@ export class Transaction {
 					name: 'AsyncTransactionThunk',
 					inputs: {},
 					data: {
-						id: fork.#id,
 						result: null as TransactionResult | null,
 					},
 				},
