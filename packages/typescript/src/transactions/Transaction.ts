@@ -29,12 +29,19 @@ import { getIdFromCallArg } from './utils.js';
 
 export type TransactionObjectArgument =
 	| Exclude<InferInput<typeof Argument>, { Input: unknown; type?: 'pure' }>
-	| ((tx: Transaction) => Exclude<InferInput<typeof Argument>, { Input: unknown; type?: 'pure' }>);
+	| ((tx: Transaction) => Exclude<InferInput<typeof Argument>, { Input: unknown; type?: 'pure' }>)
+	| AsyncTransactionThunk<TransactionResultArgument>;
 
 export type TransactionResult = Extract<Argument, { Result: unknown }> &
 	Extract<Argument, { NestedResult: unknown }>[];
 
-export type AsyncThunk = (tx: Transaction) => Promise<TransactionResult>;
+export type TransactionResultArgument =
+	| Extract<Argument, { Result: unknown }>
+	| readonly Extract<Argument, { NestedResult: unknown }>[];
+
+export type AsyncTransactionThunk<
+	T extends TransactionResultArgument | void = TransactionResultArgument | void,
+> = (tx: Transaction) => Promise<T | void>;
 
 function createTransactionResult(index: number, length = Infinity): TransactionResult {
 	const baseResult = { $kind: 'Result' as const, Result: index };
@@ -137,12 +144,13 @@ export class Transaction {
 	#serializationPlugins: TransactionPlugin[];
 	#buildPlugins: TransactionPlugin[];
 	#intentResolvers = new Map<string, TransactionPlugin>();
-	#lastPendingTask: Promise<void> | undefined;
+	#lastPendingTask: Promise<unknown> | undefined;
 	#parent?: {
 		transaction: Transaction;
 		commandIndex: number;
 		inputIndex: number;
 	};
+	#locked = false;
 
 	/**
 	 * Converts from a serialize transaction kind (built with `build({ onlyTransactionKind: true })`) to a `Transaction` class.
@@ -288,6 +296,10 @@ export class Transaction {
 		Object.defineProperty(this, 'pure', {
 			enumerable: false,
 			value: createPure<Argument>((value): Argument => {
+				if (this.#locked) {
+					throw new Error('Transaction is locked');
+				}
+
 				if (isSerializedBcs(value)) {
 					return this.#data.addInput('pure', {
 						$kind: 'Pure',
@@ -312,11 +324,16 @@ export class Transaction {
 		return this.pure;
 	}
 
+	static #counter = 0;
+
+	#id: string;
+
 	constructor() {
 		const globalPlugins = getGlobalPluginRegistry();
 		this.#data = new TransactionDataBuilder();
 		this.#buildPlugins = [...globalPlugins.buildPlugins.values()];
 		this.#serializationPlugins = [...globalPlugins.serializationPlugins.values()];
+		this.#id = String(Transaction.#counter++);
 	}
 
 	/** Returns an argument for the gas coin, to be used in a transaction. */
@@ -331,8 +348,12 @@ export class Transaction {
 		typeof createObjectMethods<{ $kind: 'Input'; Input: number; type?: 'object' }>
 	> = createObjectMethods(
 		(value: TransactionObjectInput): { $kind: 'Input'; Input: number; type?: 'object' } => {
+			if (this.#locked) {
+				throw new Error('Transaction is locked');
+			}
+
 			if (typeof value === 'function') {
-				return this.object(value(this));
+				return this.object(this.add(value as (tx: Transaction) => TransactionObjectArgument));
 			}
 
 			if (typeof value === 'object' && is(Argument, value)) {
@@ -392,6 +413,10 @@ export class Transaction {
 	}
 
 	#fork() {
+		if (this.#locked) {
+			throw new Error(`Transaction ${this.#id} is locked`);
+		}
+
 		const fork = new Transaction();
 		fork.#data = this.#data.shallowClone();
 		fork.#parent = {
@@ -399,20 +424,23 @@ export class Transaction {
 			commandIndex: this.#data.commands.length,
 			inputIndex: this.#data.inputs.length,
 		};
-		fork.#lastPendingTask = this.#lastPendingTask;
+		fork.#intentResolvers = this.#intentResolvers;
+
+		fork.#id = `${this.#id}->${fork.#id}`;
 		return fork;
 	}
 
 	#commit(transaction: Transaction) {
 		this.#data = transaction.#data;
-		this.#lastPendingTask = transaction.#lastPendingTask;
+		transaction.#locked = true;
 	}
 
 	/** Destructively merges a transaction into the current transaction. The passed transaction will not be usable after merging. */
 	#merge(transaction: Transaction, replace?: number, resultIndex?: number) {
-		console.log(replace, resultIndex);
-		console.dir(transaction.#data.commands, { depth: null });
-		console.dir(this.#data.commands, { depth: null });
+		if (this.#locked) {
+			throw new Error(`Transaction ${this.#id} is locked`);
+		}
+
 		if (transaction.#lastPendingTask) {
 			throw new Error('Cannot merge transactions that have pending tasks');
 		}
@@ -448,6 +476,8 @@ export class Transaction {
 		});
 
 		const newCommands = transaction.#data.commands.slice(commandIndex);
+		console.log(`merging ${transaction.#id} into ${this.#id}`, commandIndex);
+		console.dir(transaction.#data.commands, { depth: null });
 
 		if (replace !== undefined) {
 			this.#data.replaceCommand(replace, newCommands, resultIndex);
@@ -463,19 +493,25 @@ export class Transaction {
 			price: this.#data.gasConfig.price ?? transaction.#data.gasData.price,
 			budget: this.#data.gasConfig.budget ?? transaction.#data.gasData.budget,
 		};
-
-		transaction.#intentResolvers.forEach((resolver, intent) => {
-			this.addIntentResolver(intent, resolver);
-		});
 	}
 
 	/** Add a transaction to the transaction */
 
 	add<T extends Command>(command: T): TransactionResult;
 	add(transaction: Transaction): void;
-	add<T extends void | TransactionResult | TransactionArgument>(thunk: (tx: Transaction) => T): T;
-	add(asyncThunk: AsyncThunk): TransactionResult;
-	add(command: Command | AsyncThunk | Transaction | ((tx: Transaction) => unknown)): unknown {
+	add<T extends void | TransactionResultArgument | TransactionArgument | Command>(
+		thunk: (tx: Transaction) => T,
+	): T;
+	add<T extends TransactionResultArgument | void>(
+		asyncTransactionThunk: AsyncTransactionThunk<T>,
+	): T;
+	add(
+		command: Command | AsyncTransactionThunk | Transaction | ((tx: Transaction) => unknown),
+	): unknown {
+		if (this.#locked) {
+			throw new Error(`Transaction ${this.#id} is locked`);
+		}
+
 		if (isTransaction(command)) {
 			this.#merge(Transaction.from(command));
 			return;
@@ -484,51 +520,87 @@ export class Transaction {
 		if (typeof command === 'function') {
 			const fork = this.#fork();
 			const result = command(fork);
-			const currentCommandIndex = this.#data.commands.length;
 
-			if (!(result && typeof result === 'object' && 'then' in result)) {
+			if (!(result && typeof result === 'object' && 'then' in result) && !fork.#lastPendingTask) {
 				this.#commit(fork);
 				return result;
 			}
 
-			this.#data.commands.push({
+			const currentCommandIndex = this.#data.commands.length;
+			const placeholder = {
 				$kind: '$Intent',
 				$Intent: {
-					name: 'AsyncThunk',
+					name: 'AsyncTransactionThunk',
 					inputs: {},
-					data: {},
+					data: {
+						id: fork.#id,
+					},
 				},
-			});
+			} as const;
+			this.#data.commands.push(placeholder);
 
 			this.#addPendingTask(
-				(result as Promise<TransactionResult>).then(async (r) => {
+				Promise.resolve(result as Promise<TransactionResult>).then(async (r) => {
 					// We need to add a reference to the result in the transaction data that gets updated as other async thunks are resolved
-					const resultIntent = {
-						$kind: '$Intent',
-						$Intent: {
-							name: 'AsyncThunkResult',
-							inputs: {
-								result: {
-									$kind: 'Result',
-									Result: r.Result,
-								},
-							},
-							data: {},
-						},
-					} as const;
-					fork.#data.commands.push(resultIntent);
-					await fork.#waitForPendingTasks();
+					const resultIntent =
+						r && '$kind' in r && r.$kind === 'Result'
+							? ({
+									$kind: '$Intent',
+									$Intent: {
+										name: 'AsyncTransactionThunkResult',
+										inputs: {
+											result: {
+												$kind: 'Result',
+												Result: r.Result,
+											},
+										},
+										data: {
+											id: fork.#id,
+										},
+									},
+								} as const)
+							: null;
 
-					// Remove the result intent from the transaction data
-					fork.#data.commands.pop();
-					// Return the updated result
-					return resultIntent.$Intent.inputs.result;
+					if (resultIntent) {
+						fork.#data.commands.push(resultIntent);
+					}
+
+					await fork.#waitForPendingTasks();
+					fork.#locked = true;
+
+					if (resultIntent) {
+						fork.#data.replaceCommand(fork.#data.commands.indexOf(resultIntent), []);
+					}
+
+					return resultIntent?.$Intent.inputs.result.Result;
 				}),
-				(realResult) => {
-					this.#merge(fork, currentCommandIndex, realResult.Result);
+				(resultIndex) => {
+					const newCommandIndex = this.#data.commands.indexOf(placeholder);
+
+					// Update the fork to add commands resolved for the parent transaction
+					if (newCommandIndex !== currentCommandIndex) {
+						fork.#data.mapArguments((arg, _command, commandIndex) => {
+							if (commandIndex >= currentCommandIndex) {
+								if (arg.$kind === 'Result') {
+									arg.Result += newCommandIndex - currentCommandIndex;
+								} else if (arg.$kind === 'NestedResult') {
+									arg.NestedResult[0] += newCommandIndex - currentCommandIndex;
+								}
+							}
+
+							return arg;
+						});
+					}
+
+					this.#merge(
+						fork,
+						newCommandIndex,
+						resultIndex ? resultIndex + newCommandIndex - currentCommandIndex : undefined,
+					);
 				},
 			);
 		} else {
+			console.log('adding', command, 'to', this.#id);
 			this.#data.commands.push(command);
 		}
 
@@ -545,7 +617,20 @@ export class Transaction {
 
 	#resolveArgument(arg: TransactionArgument): Argument {
 		if (typeof arg === 'function') {
-			return parse(Argument, arg(this));
+			const resolved = arg(this);
+
+			if (typeof resolved === 'function') {
+				return this.#resolveArgument(resolved);
+			}
+
+			if (resolved && typeof resolved === 'object' && 'then' in resolved) {
+				return parse(
+					Argument,
+					this.add(() => resolved),
+				);
+			}
+
+			return parse(Argument, resolved);
 		}
 
 		return parse(Argument, arg);
@@ -759,9 +844,15 @@ export class Transaction {
 	}
 
 	#addPendingTask<T>(promise: Promise<T>, action: (result: T) => void) {
-		this.#lastPendingTask = Promise.all([this.#lastPendingTask, promise]).then(([_, result]) => {
+		const pendingTask = Promise.all([this.#lastPendingTask, promise]).then(([_, result]) => {
 			action(result);
+
+			if (this.#lastPendingTask === pendingTask) {
+				this.#lastPendingTask = undefined;
+			}
 		});
+
+		this.#lastPendingTask = pendingTask;
 	}
 
 	async #waitForPendingTasks() {
@@ -769,7 +860,7 @@ export class Transaction {
 		do {
 			lastTask = this.#lastPendingTask;
 			await lastTask;
-		} while (this.#lastPendingTask && lastTask !== this.#lastPendingTask);
+		} while (lastTask !== this.#lastPendingTask);
 		this.#lastPendingTask = undefined;
 	}
 

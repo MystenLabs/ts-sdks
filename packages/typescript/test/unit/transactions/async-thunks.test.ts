@@ -759,4 +759,140 @@ describe('Transaction.add with async functions', () => {
 			}"
 		`);
 	});
+
+	it('should handle multiple recursive chains from root', async () => {
+		const transaction = new Transaction();
+		const value1 = 42;
+		const value2 = 84;
+
+		const result1 = transaction.add(async (tx) => {
+			return tx.moveCall({
+				target: '0x1::test::chain1',
+				arguments: [
+					tx.add(async (tx) => {
+						return tx.moveCall({
+							target: '0x1::test::chain1_inner',
+							arguments: [tx.pure(bcs.U32.serialize(value1))],
+						});
+					}),
+				],
+			});
+		});
+
+		const result2 = transaction.add(async (tx) => {
+			return tx.moveCall({
+				target: '0x1::test::chain2',
+				arguments: [
+					tx.add(async (tx) => {
+						return tx.moveCall({
+							target: '0x1::test::chain2_inner',
+							arguments: [tx.pure(bcs.U32.serialize(value2))],
+						});
+					}),
+				],
+			});
+		});
+
+		transaction.transferObjects([result1, result2], '0x0');
+
+		expect(await transaction.toJSON()).toMatchInlineSnapshot(`
+			"{
+			  "version": 2,
+			  "sender": null,
+			  "expiration": null,
+			  "gasData": {
+			    "budget": null,
+			    "price": null,
+			    "owner": null,
+			    "payment": null
+			  },
+			  "inputs": [
+			    {
+			      "Pure": {
+			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+			      }
+			    },
+			    {
+			      "Pure": {
+			        "bytes": "KgAAAA=="
+			      }
+			    },
+			    {
+			      "Pure": {
+			        "bytes": "VAAAAA=="
+			      }
+			    }
+			  ],
+			  "commands": [
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
+			        "function": "chain1_inner",
+			        "typeArguments": [],
+			        "arguments": [
+			          {
+			            "Input": 1
+			          }
+			        ]
+			      }
+			    },
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
+			        "function": "chain1",
+			        "typeArguments": [],
+			        "arguments": [
+			          {
+			            "Result": 0
+			          }
+			        ]
+			      }
+			    },
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
+			        "function": "chain2_inner",
+			        "typeArguments": [],
+			        "arguments": [
+			          {
+			            "Input": 2
+			          }
+			        ]
+			      }
+			    },
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
+			        "function": "chain2",
+			        "typeArguments": [],
+			        "arguments": [
+			          {
+			            "Result": 2
+			          }
+			        ]
+			      }
+			    },
+			    {
+			      "TransferObjects": {
+			        "objects": [
+			          {
+			            "Result": 1
+			          },
+			          {
+			            "Result": 3
+			          }
+			        ],
+			        "address": {
+			          "Input": 0
+			        }
+			      }
+			    }
+			  ]
+			}"
+		`);
+	});
 });

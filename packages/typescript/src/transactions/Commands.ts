@@ -8,11 +8,12 @@ import { parse } from 'valibot';
 import { normalizeSuiObjectId } from '../utils/sui-types.js';
 import { Argument } from './data/internal.js';
 import type { CallArg, Command } from './data/internal.js';
-import type { Transaction } from './Transaction.js';
+import type { AsyncTransactionThunk, Transaction } from './Transaction.js';
 
 export type TransactionArgument =
 	| InferInput<typeof Argument>
-	| ((tx: Transaction) => InferInput<typeof Argument>);
+	| ((tx: Transaction) => InferInput<typeof Argument>)
+	| AsyncTransactionThunk;
 export type TransactionInput = CallArg;
 
 // Keep in sync with constants in
