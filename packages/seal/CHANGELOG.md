@@ -1,5 +1,14 @@
 # @mysten/seal
 
+## 0.3.6
+
+### Patch Changes
+
+- ad8b845: Increase max session key TTL to 30 min
+- Updated dependencies [4d13ef8]
+- Updated dependencies [4d13ef8]
+  - @mysten/sui@1.27.0
+
 ## 0.3.5
 
 ### Patch Changes
