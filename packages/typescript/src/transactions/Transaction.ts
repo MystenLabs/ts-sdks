@@ -415,7 +415,6 @@ export class Transaction {
 	/** Add a transaction to the transaction */
 
 	add<T extends Command>(command: T): TransactionResult;
-	add(transaction: Transaction): void;
 	add<T extends void | TransactionResultArgument | TransactionArgument | Command>(
 		thunk: (tx: Transaction) => T,
 	): T;
@@ -425,11 +424,6 @@ export class Transaction {
 	add(
 		command: Command | AsyncTransactionThunk | Transaction | ((tx: Transaction) => unknown),
 	): unknown {
-		if (isTransaction(command)) {
-			// this.#merge(Transaction.from(command));
-			return;
-		}
-
 		if (typeof command === 'function') {
 			const fork = this.#fork();
 			const result = command(fork);
