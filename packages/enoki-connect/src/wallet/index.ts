@@ -221,8 +221,6 @@ export class EnokiConnectWallet implements Wallet {
 		const popup = this.#getNewPopupChannel();
 		const response = await popup.send({
 			type: 'connect',
-			// TODO: use chain from connect input when available
-			chain: this.#defaultChain,
 		});
 
 		this.#setAccounts(response.session);
