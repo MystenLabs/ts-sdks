@@ -1001,6 +1001,25 @@ importers:
         specifier: ^8.18.1
         version: 8.18.1
 
+  packages/wallet-core:
+    dependencies:
+      jose:
+        specifier: ^6.0.10
+        version: 6.0.10
+      valibot:
+        specifier: ^0.36.0
+        version: 0.36.0
+    devDependencies:
+      '@mysten/build-scripts':
+        specifier: workspace:*
+        version: link:../build-scripts
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+      vitest:
+        specifier: ^3.1.1
+        version: 3.1.1(@types/debug@4.1.12)(@types/node@22.13.17)(happy-dom@16.3.0)(jiti@2.4.2)(jsdom@25.0.1)(lightningcss@1.29.2)(msw@2.7.3(@types/node@22.13.17)(typescript@5.8.2))(tsx@4.19.3)(yaml@2.7.1)
+
   packages/wallet-standard:
     dependencies:
       '@mysten/sui':
@@ -6782,6 +6801,9 @@ packages:
 
   jose@5.10.0:
     resolution: {integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==}
+
+  jose@6.0.10:
+    resolution: {integrity: sha512-skIAxZqcMkOrSwjJvplIPYrlXGpxTPnro2/QWTDCxAdWQrSTV5/KqspMWmi5WAx5+ULswASJiZ0a+1B/Lxt9cw==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -16040,6 +16062,8 @@ snapshots:
       '@sideway/pinpoint': 2.0.0
 
   jose@5.10.0: {}
+
+  jose@6.0.10: {}
 
   js-tokens@4.0.0: {}
 
