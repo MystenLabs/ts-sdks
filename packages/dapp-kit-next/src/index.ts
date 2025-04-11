@@ -2,3 +2,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import './components/dapp-kit-connect-modal.svelte';
+
+export { $wallets, reg } from './store-v2/index.js';

@@ -51,6 +51,7 @@
 		"@mysten/wallet-standard": "workspace:*",
 		"@mysten/zksend": "workspace:*",
 		"@nanostores/persistent": "^1.0.0",
+		"mitt": "latest",
 		"nanostores": "^1.0.1"
 	}
 }

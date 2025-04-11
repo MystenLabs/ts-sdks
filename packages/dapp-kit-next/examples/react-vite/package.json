@@ -12,7 +12,9 @@
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@mysten/dapp-kit-next": "workspace:*"
+    "@mysten/dapp-kit-next": "workspace:*",
+    "@mysten/wallet-standard": "workspace:*",
+    "@nanostores/react": "latest"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
