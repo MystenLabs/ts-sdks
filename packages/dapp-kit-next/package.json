@@ -1,0 +1,54 @@
+{
+	"name": "@mysten/dapp-kit-next",
+	"author": "Mysten Labs <build@mystenlabs.com>",
+	"description": "Framework-agnostic toolkit for building decentralized applications on Sui.",
+	"homepage": "https://sdk.mystenlabs.com/typescript",
+	"version": "0.0.1",
+	"license": "Apache-2.0",
+	"private": true,
+	"files": [
+		"CHANGELOG.md",
+		"LICENSE",
+		"README.md",
+		"dist",
+		"src"
+	],
+	"type": "module",
+	"main": "./dist/cjs/index.js",
+	"module": "./dist/esm/index.js",
+	"types": "./dist/cjs/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/esm/index.js",
+			"require": "./dist/cjs/index.js"
+		}
+	},
+	"scripts": {
+		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+		"build": "build-dapp-kit-next",
+		"prepublishOnly": "pnpm build",
+		"prettier:check": "prettier -c --ignore-unknown .",
+		"prettier:fix": "prettier -w --ignore-unknown .",
+		"eslint:check": "eslint --max-warnings=0 .",
+		"eslint:fix": "pnpm run eslint:check --fix",
+		"lint": "pnpm run eslint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
+	},
+	"bugs": {
+		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@mysten/build-scripts": "workspace:*",
+		"@tsconfig/svelte": "^5.0.4",
+		"svelte": "^5.25.10",
+		"typescript": "^5.8.2"
+	},
+	"dependencies": {
+		"@mysten/sui": "workspace:*",
+		"@mysten/wallet-standard": "workspace:*",
+		"@mysten/zksend": "workspace:*"
+	}
+}
