@@ -6,7 +6,7 @@ import { bcs } from '@mysten/bcs';
 import { SuiClient } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
 import type { ClientCache, ClientWithExtensions } from '@mysten/sui/experimental';
-import type { TransactionObjectArgument } from '@mysten/sui/transactions';
+import type { TransactionObjectArgument, TransactionResult } from '@mysten/sui/transactions';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
 
@@ -652,51 +652,54 @@ export class WalrusClient {
 	 * tx.transferObjects([await client.createStorage({ size: 1000, epochs: 3 })], owner);
 	 * ```
 	 */
-	async createStorage({ size, epochs, walCoin, owner }: StorageWithSizeOptions) {
-		const systemObject = await this.systemObject();
-		const systemState = await this.systemState();
-		const encodedSize = encodedBlobLength(size, systemState.committee.n_shards);
-		const { storageCost } = await this.storageCost(size, epochs);
-		const systemContract = await this.#getSystemContract();
-		const subsidiesContract = this.#packageConfig.subsidiesObjectId
-			? await this.#getSubsidiesContract()
-			: null;
+	createStorage({ size, epochs, walCoin, owner }: StorageWithSizeOptions) {
+		return async (tx: Transaction) => {
+			const systemObject = await this.systemObject();
+			const systemState = await this.systemState();
+			const encodedSize = encodedBlobLength(size, systemState.committee.n_shards);
+			const { storageCost } = await this.storageCost(size, epochs);
+			const systemContract = await this.#getSystemContract();
+			const subsidiesContract = this.#packageConfig.subsidiesObjectId
+				? await this.#getSubsidiesContract()
+				: null;
 
-		return this.#withWal(
-			storageCost,
-			owner,
-			walCoin ?? null,
-			subsidiesContract !== null,
-			(coin, tx) => {
-				return tx.add(
-					subsidiesContract
-						? subsidiesContract.reserve_space({
-								arguments: [
-									this.#packageConfig.subsidiesObjectId!,
-									systemObject.id.id,
-									encodedSize,
-									epochs,
-									coin,
-								],
-							})
-						: systemContract.reserve_space({
-								arguments: [systemObject.id.id, encodedSize, epochs, coin],
-							}),
-				);
-			},
-		);
+			return tx.add(
+				this.#withWal(
+					storageCost,
+					owner,
+					walCoin ?? null,
+					subsidiesContract !== null,
+					(coin, tx) => {
+						return tx.add(
+							subsidiesContract
+								? subsidiesContract.reserve_space({
+										arguments: [
+											this.#packageConfig.subsidiesObjectId!,
+											systemObject.id.id,
+											encodedSize,
+											epochs,
+											coin,
+										],
+									})
+								: systemContract.reserve_space({
+										arguments: [systemObject.id.id, encodedSize, epochs, coin],
+									}),
+						);
+					},
+				),
+			);
+		};
 	}
 
-	async #withWal<T>(
+	#withWal<T extends TransactionResult | void>(
 		amount: bigint,
 		owner: string,
 		source: TransactionObjectArgument | null,
 		withSubsidies: boolean,
-		fn: (coin: TransactionObjectArgument, tx: Transaction) => T,
+		fn: (coin: TransactionObjectArgument, tx: Transaction) => T | Promise<T>,
 	) {
-		const walType = await this.#walType();
-
-		return (tx: Transaction): T => {
+		return async (tx: Transaction): Promise<T> => {
+			const walType = await this.#walType();
 			const coin = source
 				? tx.splitCoins(source, [amount])[0]
 				: tx.add(
@@ -706,7 +709,7 @@ export class WalrusClient {
 						}),
 					);
 
-			const result = fn(coin, tx);
+			const result = await fn(coin, tx);
 
 			if (withSubsidies) {
 				if (source) {
@@ -731,16 +734,16 @@ export class WalrusClient {
 	 *
 	 * @usage
 	 * ```ts
-	 * const tx = await client.createStorageTransaction({ size: 1000, epochs: 3, owner: signer.toSuiAddress() });
+	 * const tx = client.createStorageTransaction({ size: 1000, epochs: 3, owner: signer.toSuiAddress() });
 	 * ```
 	 */
-	async createStorageTransaction({
+	createStorageTransaction({
 		transaction = new Transaction(),
 		size,
 		epochs,
 		owner,
 	}: StorageWithSizeOptions & { transaction?: Transaction }) {
-		transaction.transferObjects([await this.createStorage({ size, epochs, owner })], owner);
+		transaction.transferObjects([this.createStorage({ size, epochs, owner })], owner);
 
 		return transaction;
 	}
@@ -757,7 +760,7 @@ export class WalrusClient {
 		signer,
 		...options
 	}: StorageWithSizeOptions & { transaction?: Transaction; signer: Signer }) {
-		const transaction = await this.createStorageTransaction({
+		const transaction = this.createStorageTransaction({
 			...options,
 			owner: options.transaction?.getData().sender ?? signer.toSuiAddress(),
 		});
@@ -796,10 +799,10 @@ export class WalrusClient {
 	 *
 	 * @usage
 	 * ```ts
-	 * tx.transferObjects([await client.registerBlob({ size: 1000, epochs: 3, blobId, rootHash, deletable: true })], owner);
+	 * tx.transferObjects([client.registerBlob({ size: 1000, epochs: 3, blobId, rootHash, deletable: true })], owner);
 	 * ```
 	 */
-	async registerBlob({
+	registerBlob({
 		size,
 		epochs,
 		blobId,
@@ -809,38 +812,41 @@ export class WalrusClient {
 		owner,
 		attributes,
 	}: RegisterBlobOptions) {
-		const storage = await this.createStorage({ size, epochs, walCoin, owner });
-		const { writeCost } = await this.storageCost(size, epochs);
-		const systemContract = await this.#getSystemContract();
-		const writeAttributes = attributes
-			? await this.#writeBlobAttributesForRef({
-					attributes,
-					existingAttributes: null,
-				})
-			: null;
+		return async (tx: Transaction) => {
+			const { writeCost } = await this.storageCost(size, epochs);
+			const systemContract = await this.#getSystemContract();
 
-		return this.#withWal(writeCost, owner, walCoin ?? null, false, (writeCoin, tx) => {
-			const blob = tx.add(
-				systemContract.register_blob({
-					arguments: [
-						tx.object(this.#packageConfig.systemObjectId),
-						storage,
-						blobIdToInt(blobId),
-						BigInt(bcs.u256().parse(rootHash)),
-						size,
-						1,
-						deletable,
-						writeCoin,
-					],
+			return tx.add(
+				this.#withWal(writeCost, owner, walCoin ?? null, false, async (writeCoin, tx) => {
+					const blob = tx.add(
+						systemContract.register_blob({
+							arguments: [
+								tx.object(this.#packageConfig.systemObjectId),
+								this.createStorage({ size, epochs, walCoin, owner }),
+								blobIdToInt(blobId),
+								BigInt(bcs.u256().parse(rootHash)),
+								size,
+								1,
+								deletable,
+								writeCoin,
+							],
+						}),
+					);
+
+					if (attributes) {
+						tx.add(
+							this.#writeBlobAttributesForRef({
+								attributes,
+								existingAttributes: null,
+								blob,
+							}),
+						);
+					}
+
+					return blob;
 				}),
 			);
-
-			if (writeAttributes) {
-				tx.add((tx) => writeAttributes(tx, blob));
-			}
-
-			return blob;
-		});
+		};
 	}
 
 	/**
@@ -848,14 +854,14 @@ export class WalrusClient {
 	 *
 	 * @usage
 	 * ```ts
-	 * const tx = await client.registerBlobTransaction({ size: 1000, epochs: 3, blobId, rootHash, deletable: true });
+	 * const tx = client.registerBlobTransaction({ size: 1000, epochs: 3, blobId, rootHash, deletable: true });
 	 * ```
 	 */
-	async registerBlobTransaction({
+	registerBlobTransaction({
 		transaction = new Transaction(),
 		...options
 	}: RegisterBlobOptions & { transaction?: Transaction }) {
-		const registration = transaction.add(await this.registerBlob(options));
+		const registration = transaction.add(this.registerBlob(options));
 
 		transaction.transferObjects([registration], options.owner);
 
@@ -877,7 +883,7 @@ export class WalrusClient {
 		blob: ReturnType<typeof Blob>['$inferType'];
 		digest: string;
 	}> {
-		const transaction = await this.registerBlobTransaction({
+		const transaction = this.registerBlobTransaction({
 			...options,
 			owner: options.owner ?? options.transaction?.getData().sender ?? signer.toSuiAddress(),
 		});
@@ -915,70 +921,70 @@ export class WalrusClient {
 	 *
 	 * @usage
 	 * ```ts
-	 * tx.add(await client.certifyBlob({ blobId, blobObjectId, confirmations }));
+	 * tx.add(client.certifyBlob({ blobId, blobObjectId, confirmations }));
 	 * ```
 	 */
-	async certifyBlob({ blobId, blobObjectId, confirmations, deletable }: CertifyBlobOptions) {
-		const systemState = await this.systemState();
-		const committee = await this.#getActiveCommittee();
+	certifyBlob({ blobId, blobObjectId, confirmations, deletable }: CertifyBlobOptions) {
+		return async (tx: Transaction) => {
+			const systemState = await this.systemState();
+			const committee = await this.#getActiveCommittee();
 
-		if (confirmations.length !== systemState.committee.members.length) {
-			throw new WalrusClientError(
-				'Invalid number of confirmations. Confirmations array must contain an entry for each node',
-			);
-		}
+			if (confirmations.length !== systemState.committee.members.length) {
+				throw new WalrusClientError(
+					'Invalid number of confirmations. Confirmations array must contain an entry for each node',
+				);
+			}
 
-		const confirmationMessage = StorageConfirmation.serialize({
-			intent: IntentType.BLOB_CERT_MSG,
-			epoch: systemState.committee.epoch,
-			messageContents: {
-				blobId,
-				blobType: deletable
-					? {
-							Deletable: {
-								objectId: blobObjectId,
+			const confirmationMessage = StorageConfirmation.serialize({
+				intent: IntentType.BLOB_CERT_MSG,
+				epoch: systemState.committee.epoch,
+				messageContents: {
+					blobId,
+					blobType: deletable
+						? {
+								Deletable: {
+									objectId: blobObjectId,
+								},
+							}
+						: {
+								Permanent: null,
 							},
-						}
-					: {
-							Permanent: null,
-						},
-			},
-		}).toBase64();
+				},
+			}).toBase64();
 
-		const bindings = await this.#wasmBindings();
-		const verifySignature = bindings.getVerifySignature();
+			const bindings = await this.#wasmBindings();
+			const verifySignature = bindings.getVerifySignature();
 
-		const filteredConfirmations = confirmations
-			.map((confirmation, index) => {
-				const isValid =
-					confirmation?.serializedMessage === confirmationMessage &&
-					verifySignature(
-						confirmation,
-						new Uint8Array(committee.nodes[index].info.public_key.bytes),
-					);
+			const filteredConfirmations = confirmations
+				.map((confirmation, index) => {
+					const isValid =
+						confirmation?.serializedMessage === confirmationMessage &&
+						verifySignature(
+							confirmation,
+							new Uint8Array(committee.nodes[index].info.public_key.bytes),
+						);
 
-				return isValid
-					? {
-							index,
-							...confirmation,
-						}
-					: null;
-			})
-			.filter((confirmation) => confirmation !== null);
+					return isValid
+						? {
+								index,
+								...confirmation,
+							}
+						: null;
+				})
+				.filter((confirmation) => confirmation !== null);
 
-		if (!isQuorum(filteredConfirmations.length, systemState.committee.members.length)) {
-			throw new NotEnoughBlobConfirmationsError(
-				`Too many invalid confirmations received for blob (${filteredConfirmations.length} of ${systemState.committee.members.length})`,
+			if (!isQuorum(filteredConfirmations.length, systemState.committee.members.length)) {
+				throw new NotEnoughBlobConfirmationsError(
+					`Too many invalid confirmations received for blob (${filteredConfirmations.length} of ${systemState.committee.members.length})`,
+				);
+			}
+
+			const combinedSignature = bindings.combineSignatures(
+				filteredConfirmations,
+				filteredConfirmations.map(({ index }) => index),
 			);
-		}
+			const systemContract = await this.#getSystemContract();
 
-		const combinedSignature = bindings.combineSignatures(
-			filteredConfirmations,
-			filteredConfirmations.map(({ index }) => index),
-		);
-		const systemContract = await this.#getSystemContract();
-
-		return (tx: Transaction) => {
 			tx.add(
 				systemContract.certify_blob({
 					arguments: [
@@ -1001,10 +1007,10 @@ export class WalrusClient {
 	 *
 	 * @usage
 	 * ```ts
-	 * const tx = await client.certifyBlobTransaction({ blobId, blobObjectId, confirmations });
+	 * const tx = client.certifyBlobTransaction({ blobId, blobObjectId, confirmations });
 	 * ```
 	 */
-	async certifyBlobTransaction({
+	certifyBlobTransaction({
 		transaction = new Transaction(),
 		blobId,
 		blobObjectId,
@@ -1013,7 +1019,7 @@ export class WalrusClient {
 	}: CertifyBlobOptions & {
 		transaction?: Transaction;
 	}) {
-		transaction.add(await this.certifyBlob({ blobId, blobObjectId, confirmations, deletable }));
+		transaction.add(this.certifyBlob({ blobId, blobObjectId, confirmations, deletable }));
 
 		return transaction;
 	}
@@ -1033,7 +1039,7 @@ export class WalrusClient {
 		transaction?: Transaction;
 		signer: Signer;
 	}) {
-		const transaction = await this.certifyBlobTransaction(options);
+		const transaction = this.certifyBlobTransaction(options);
 
 		const { digest } = await this.#executeTransaction(transaction, signer, 'certify blob');
 
@@ -1049,9 +1055,9 @@ export class WalrusClient {
 	 * tx.transferObjects([storage], owner);
 	 * ```
 	 */
-	async deleteBlob({ blobObjectId }: DeleteBlobOptions) {
-		const systemContract = await this.#getSystemContract();
-		return (tx: Transaction) => {
+	deleteBlob({ blobObjectId }: DeleteBlobOptions) {
+		return async (tx: Transaction) => {
+			const systemContract = await this.#getSystemContract();
 			const storage = tx.add(
 				systemContract.delete_blob({
 					arguments: [tx.object(this.#packageConfig.systemObjectId), tx.object(blobObjectId)],
@@ -1067,15 +1073,15 @@ export class WalrusClient {
 	 *
 	 * @usage
 	 * ```ts
-	 * const tx = await client.deleteBlobTransaction({ blobObjectId, owner });
+	 * const tx = client.deleteBlobTransaction({ blobObjectId, owner });
 	 * ```
 	 */
-	async deleteBlobTransaction({
+	deleteBlobTransaction({
 		owner,
 		blobObjectId,
 		transaction = new Transaction(),
 	}: DeleteBlobOptions & { transaction?: Transaction; owner: string }) {
-		const storage = transaction.add(await this.deleteBlob({ blobObjectId }));
+		const storage = transaction.add(this.deleteBlob({ blobObjectId }));
 		transaction.transferObjects([storage], owner);
 
 		return transaction;
@@ -1095,7 +1101,7 @@ export class WalrusClient {
 		blobObjectId,
 	}: DeleteBlobOptions & { signer: Signer; transaction?: Transaction }) {
 		const { digest } = await this.#executeTransaction(
-			await this.deleteBlobTransaction({
+			this.deleteBlobTransaction({
 				blobObjectId,
 				transaction,
 				owner: transaction.getData().sender ?? signer.toSuiAddress(),
@@ -1112,46 +1118,50 @@ export class WalrusClient {
 	 *
 	 * @usage
 	 * ```ts
-	 * const tx = await client.extendBlobTransaction({ blobObjectId, epochs });
+	 * const tx = client.extendBlobTransaction({ blobObjectId, epochs });
 	 * ```
 	 */
-	async extendBlob({ blobObjectId, epochs, endEpoch, walCoin, owner }: ExtendBlobOptions) {
-		const blob = await this.#objectLoader.load(blobObjectId, Blob());
-		const numEpochs = typeof epochs === 'number' ? epochs : endEpoch - blob.storage.end_epoch;
+	extendBlob({ blobObjectId, epochs, endEpoch, walCoin, owner }: ExtendBlobOptions) {
+		return async (tx: Transaction) => {
+			const blob = await this.#objectLoader.load(blobObjectId, Blob());
+			const numEpochs = typeof epochs === 'number' ? epochs : endEpoch - blob.storage.end_epoch;
 
-		if (numEpochs <= 0) {
-			return (_tx: Transaction) => {};
-		}
+			if (numEpochs <= 0) {
+				return;
+			}
 
-		const { storageCost } = await this.storageCost(Number(blob.storage.storage_size), numEpochs);
-		const systemContract = await this.#getSystemContract();
-		const subsidiesContract = this.#packageConfig.subsidiesObjectId
-			? await this.#getSubsidiesContract()
-			: null;
+			const { storageCost } = await this.storageCost(Number(blob.storage.storage_size), numEpochs);
+			const systemContract = await this.#getSystemContract();
+			const subsidiesContract = this.#packageConfig.subsidiesObjectId
+				? await this.#getSubsidiesContract()
+				: null;
 
-		return this.#withWal(
-			storageCost,
-			owner,
-			walCoin ?? null,
-			subsidiesContract !== null,
-			(coin, tx) => {
-				tx.add(
-					subsidiesContract
-						? subsidiesContract.extend_blob({
-								arguments: [
-									this.#packageConfig.subsidiesObjectId!,
-									this.#packageConfig.systemObjectId,
-									blobObjectId,
-									numEpochs,
-									coin,
-								],
-							})
-						: systemContract.extend_blob({
-								arguments: [this.#packageConfig.systemObjectId, blobObjectId, numEpochs, coin],
-							}),
-				);
-			},
-		);
+			return tx.add(
+				this.#withWal(
+					storageCost,
+					owner,
+					walCoin ?? null,
+					subsidiesContract !== null,
+					async (coin, tx) => {
+						tx.add(
+							subsidiesContract
+								? subsidiesContract.extend_blob({
+										arguments: [
+											this.#packageConfig.subsidiesObjectId!,
+											this.#packageConfig.systemObjectId,
+											blobObjectId,
+											numEpochs,
+											coin,
+										],
+									})
+								: systemContract.extend_blob({
+										arguments: [this.#packageConfig.systemObjectId, blobObjectId, numEpochs, coin],
+									}),
+						);
+					},
+				),
+			);
+		};
 	}
 
 	/**
@@ -1159,14 +1169,14 @@ export class WalrusClient {
 	 *
 	 * @usage
 	 * ```ts
-	 * const tx = await client.extendBlobTransaction({ blobObjectId, epochs });
+	 * const tx = client.extendBlobTransaction({ blobObjectId, epochs });
 	 * ```
 	 */
 	async extendBlobTransaction({
 		transaction = new Transaction(),
 		...options
 	}: ExtendBlobOptions & { transaction?: Transaction }) {
-		transaction.add(await this.extendBlob(options));
+		transaction.add(this.extendBlob(options));
 
 		return transaction;
 	}
@@ -1210,16 +1220,19 @@ export class WalrusClient {
 		return Object.fromEntries(metadata.metadata.contents.map(({ key, value }) => [key, value]));
 	}
 
-	async #writeBlobAttributesForRef({
+	#writeBlobAttributesForRef({
 		attributes,
 		existingAttributes,
+		blob,
 	}: {
 		attributes: Record<string, string | null>;
 		existingAttributes: Record<string, string> | null;
+		blob: TransactionObjectArgument;
 	}) {
-		const blobContract = await this.#getBlobContract();
-		const metadataContract = await this.#getMetadataContract();
-		return (tx: Transaction, blob: TransactionObjectArgument) => {
+		return async (tx: Transaction) => {
+			const blobContract = await this.#getBlobContract();
+			const metadataContract = await this.#getMetadataContract();
+
 			if (!existingAttributes) {
 				tx.add(
 					blobContract.add_metadata({
@@ -1263,23 +1276,23 @@ export class WalrusClient {
 	 *
 	 * @usage
 	 * ```ts
-	 * tx.add(await client.writeBlobAttributes({ blobObjectId, attributes: { key: 'value', keyToRemove: null } }));
+	 * tx.add(client.writeBlobAttributes({ blobObjectId, attributes: { key: 'value', keyToRemove: null } }));
 	 * ```
 	 */
-	async writeBlobAttributes({ blobObject, blobObjectId, attributes }: WriteBlobAttributesOptions) {
-		const existingAttributes = blobObjectId
-			? await this.readBlobAttributes({ blobObjectId })
-			: null;
-
-		const writeAttributes = await this.#writeBlobAttributesForRef({
-			attributes,
-			existingAttributes,
-		});
-
-		return (tx: Transaction) => {
+	writeBlobAttributes({ blobObject, blobObjectId, attributes }: WriteBlobAttributesOptions) {
+		return async (tx: Transaction) => {
+			const existingAttributes = blobObjectId
+				? await this.readBlobAttributes({ blobObjectId })
+				: null;
 			const blob = blobObject ?? tx.object(blobObjectId);
 
-			tx.add((tx) => writeAttributes(tx, blob));
+			tx.add(
+				this.#writeBlobAttributesForRef({
+					attributes,
+					existingAttributes,
+					blob,
+				}),
+			);
 		};
 	}
 
@@ -1291,7 +1304,7 @@ export class WalrusClient {
 	 *
 	 * @usage
 	 * ```ts
-	 * const tx = await client.writeBlobAttributesTransaction({ blobObjectId, attributes: { key: 'value', keyToRemove: null } });
+	 * const tx = client.writeBlobAttributesTransaction({ blobObjectId, attributes: { key: 'value', keyToRemove: null } });
 	 * ```
 	 */
 	async writeBlobAttributesTransaction({
@@ -1627,6 +1640,8 @@ export class WalrusClient {
 
 	async #executeTransaction(transaction: Transaction, signer: Signer, action: string) {
 		transaction.setSenderIfNotSet(signer.toSuiAddress());
+		await transaction.prepareForSerialization({ client: this.#suiClient.jsonRpc });
+		console.dir(await transaction.getData(), { depth: null });
 		const bytes = await transaction.build({ client: this.#suiClient.jsonRpc });
 		const { signature } = await signer.signTransaction(bytes);
 

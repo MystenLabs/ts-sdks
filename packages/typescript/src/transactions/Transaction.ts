@@ -29,10 +29,19 @@ import { getIdFromCallArg } from './utils.js';
 
 export type TransactionObjectArgument =
 	| Exclude<InferInput<typeof Argument>, { Input: unknown; type?: 'pure' }>
-	| ((tx: Transaction) => Exclude<InferInput<typeof Argument>, { Input: unknown; type?: 'pure' }>);
+	| ((tx: Transaction) => Exclude<InferInput<typeof Argument>, { Input: unknown; type?: 'pure' }>)
+	| AsyncTransactionThunk<TransactionResultArgument>;
 
 export type TransactionResult = Extract<Argument, { Result: unknown }> &
 	Extract<Argument, { NestedResult: unknown }>[];
+
+export type TransactionResultArgument =
+	| Extract<Argument, { Result: unknown }>
+	| readonly Extract<Argument, { NestedResult: unknown }>[];
+
+export type AsyncTransactionThunk<
+	T extends TransactionResultArgument | void = TransactionResultArgument | void,
+> = (tx: Transaction) => Promise<T | void>;
 
 function createTransactionResult(index: number, length = Infinity): TransactionResult {
 	const baseResult = { $kind: 'Result' as const, Result: index };
@@ -135,6 +144,10 @@ export class Transaction {
 	#serializationPlugins: TransactionPlugin[];
 	#buildPlugins: TransactionPlugin[];
 	#intentResolvers = new Map<string, TransactionPlugin>();
+	#path = '0';
+	#section = 0;
+	#sectionMap = new Map<CallArg | Command, string>();
+	#pendingPromises = new Set<Promise<unknown>>();
 
 	/**
 	 * Converts from a serialize transaction kind (built with `build({ onlyTransactionKind: true })`) to a `Transaction` class.
@@ -281,7 +294,7 @@ export class Transaction {
 			enumerable: false,
 			value: createPure<Argument>((value): Argument => {
 				if (isSerializedBcs(value)) {
-					return this.#data.addInput('pure', {
+					return this.#addInput('pure', {
 						$kind: 'Pure',
 						Pure: {
 							bytes: value.toBase64(),
@@ -290,7 +303,7 @@ export class Transaction {
 				}
 
 				// TODO: we can also do some deduplication here
-				return this.#data.addInput(
+				return this.#addInput(
 					'pure',
 					is(NormalizedCallArg, value)
 						? parse(NormalizedCallArg, value)
@@ -324,7 +337,7 @@ export class Transaction {
 	> = createObjectMethods(
 		(value: TransactionObjectInput): { $kind: 'Input'; Input: number; type?: 'object' } => {
 			if (typeof value === 'function') {
-				return this.object(value(this));
+				return this.object(this.add(value as (tx: Transaction) => TransactionObjectArgument));
 			}
 
 			if (typeof value === 'object' && is(Argument, value)) {
@@ -347,7 +360,7 @@ export class Transaction {
 
 			return inserted
 				? { $kind: 'Input', Input: this.#data.inputs.indexOf(inserted), type: 'object' }
-				: this.#data.addInput(
+				: this.#addInput(
 						'object',
 						typeof value === 'string'
 							? {
@@ -383,15 +396,75 @@ export class Transaction {
 		return this.object(Inputs.SharedObjectRef(...args));
 	}
 
+	#fork() {
+		const fork = new Transaction();
+
+		fork.#data = this.#data;
+		fork.#serializationPlugins = this.#serializationPlugins;
+		fork.#buildPlugins = this.#buildPlugins;
+		fork.#intentResolvers = this.#intentResolvers;
+		// TODO: padding keys to make sorting work is probably bad
+		fork.#path = this.#path + `.${fork.#section.toString().padStart(3, '0')}`;
+		fork.#sectionMap = this.#sectionMap;
+		fork.#pendingPromises = this.#pendingPromises;
+		this.#section += 2;
+
+		return fork;
+	}
+
 	/** Add a transaction to the transaction */
-	add<T = TransactionResult>(command: Command | ((tx: Transaction) => T)): T {
+
+	add<T extends Command>(command: T): TransactionResult;
+	add<T extends void | TransactionResultArgument | TransactionArgument | Command>(
+		thunk: (tx: Transaction) => T,
+	): T;
+	add<T extends TransactionResultArgument | void>(
+		asyncTransactionThunk: AsyncTransactionThunk<T>,
+	): T;
+	add(
+		command: Command | AsyncTransactionThunk | Transaction | ((tx: Transaction) => unknown),
+	): unknown {
 		if (typeof command === 'function') {
-			return command(this);
+			const fork = this.#fork();
+			const result = command(fork);
+
+			if (!(result && typeof result === 'object' && 'then' in result)) {
+				return result;
+			}
+
+			const placeholder = this.#addCommand({
+				$kind: '$Intent',
+				$Intent: {
+					name: 'AsyncTransactionThunk',
+					inputs: {},
+					data: {
+						result: null as TransactionResult | null,
+					},
+				},
+			});
+
+			this.#addPendingTask(
+				Promise.resolve(result as Promise<TransactionResult>).then((result) => {
+					placeholder.$Intent.data.result = result;
+				}),
+			);
+		} else {
+			this.#addCommand(command);
 		}
 
-		const index = this.#data.commands.push(command);
+		return createTransactionResult(this.#data.commands.length - 1);
+	}
 
-		return createTransactionResult(index - 1) as T;
+	#addCommand<T extends Command>(command: T) {
+		this.#sectionMap.set(command, this.#path + `.${this.#section.toString().padStart(3, '0')}`);
+		this.#data.commands.push(command);
+
+		return command;
+	}
+
+	#addInput<T extends 'pure' | 'object'>(type: T, input: CallArg) {
+		this.#sectionMap.set(input, this.#path + `.${this.#section.toString().padStart(3, '0')}`);
+		return this.#data.addInput(type, input);
 	}
 
 	#normalizeTransactionArgument(arg: TransactionArgument | SerializedBcs<any>) {
@@ -404,7 +477,20 @@ export class Transaction {
 
 	#resolveArgument(arg: TransactionArgument): Argument {
 		if (typeof arg === 'function') {
-			return parse(Argument, arg(this));
+			const resolved = arg(this);
+
+			if (typeof resolved === 'function') {
+				return this.#resolveArgument(resolved);
+			}
+
+			if (resolved && typeof resolved === 'object' && 'then' in resolved) {
+				return parse(
+					Argument,
+					this.add(() => resolved),
+				);
+			}
+
+			return parse(Argument, resolved);
 		}
 
 		return parse(Argument, arg);
@@ -423,8 +509,8 @@ export class Transaction {
 					: this.#normalizeTransactionArgument(amount),
 			),
 		);
-		const index = this.#data.commands.push(command);
-		return createTransactionResult(index - 1, amounts.length) as Extract<
+		this.#addCommand(command);
+		return createTransactionResult(this.#data.commands.length - 1, amounts.length) as Extract<
 			Argument,
 			{ Result: unknown }
 		> & {
@@ -613,7 +699,89 @@ export class Transaction {
 		await createNext(0)();
 	}
 
+	async #waitForPendingTasks() {
+		while (this.#pendingPromises.size > 0) {
+			await Promise.all(this.#pendingPromises);
+		}
+	}
+
+	#addPendingTask<T>(promise: Promise<T>) {
+		const task = promise.finally(() => this.#pendingPromises.delete(task));
+		this.#pendingPromises.add(task);
+	}
+
+	#sortCommandsAndInputs() {
+		const unorderedCommands = this.#data.commands;
+		const unorderedInputs = this.#data.inputs;
+		const orderedCommands = this.#data.commands
+			.filter((cmd) => cmd.$Intent?.name !== 'AsyncTransactionThunk')
+			.sort((a, b) => {
+				const sectionA = this.#sectionMap.get(a);
+				const sectionB = this.#sectionMap.get(b);
+				const indexA = this.#data.commands.indexOf(a);
+				const indexB = this.#data.commands.indexOf(b);
+
+				return sectionA!.localeCompare(sectionB!) || indexA - indexB;
+			});
+
+		const orderedInputs = this.#data.inputs.slice().sort((a, b) => {
+			const sectionA = this.#sectionMap.get(a);
+			const sectionB = this.#sectionMap.get(b);
+			const indexA = this.#data.inputs.indexOf(a);
+			const indexB = this.#data.inputs.indexOf(b);
+			return sectionA!.localeCompare(sectionB!) || indexA - indexB;
+		});
+
+		this.#data.commands = orderedCommands;
+		this.#data.inputs = orderedInputs;
+
+		function getOriginalIndex(index: number): number {
+			const command = unorderedCommands[index];
+			if (command.$Intent?.name === 'AsyncTransactionThunk') {
+				const result = command.$Intent.data.result as TransactionResult | null;
+
+				if (result == null) {
+					throw new Error('AsyncTransactionThunk has not been resolved');
+				}
+
+				return getOriginalIndex(result.Result);
+			}
+
+			const updated = orderedCommands.indexOf(command);
+
+			if (updated === -1) {
+				throw new Error('Unable to find original index for command');
+			}
+
+			return updated;
+		}
+
+		this.#data.mapArguments((arg) => {
+			if (arg.$kind === 'Input') {
+				const updated = orderedInputs.indexOf(unorderedInputs[arg.Input]);
+
+				if (updated === -1) {
+					throw new Error('Input has not been resolved');
+				}
+
+				return { ...arg, Input: updated };
+			} else if (arg.$kind === 'Result') {
+				const updated = getOriginalIndex(arg.Result);
+
+				return { ...arg, Result: updated };
+			} else if (arg.$kind === 'NestedResult') {
+				const updated = getOriginalIndex(arg.NestedResult[0]);
+
+				return { ...arg, NestedResult: [updated, arg.NestedResult[1]] };
+			}
+
+			return arg;
+		});
+	}
+
 	async prepareForSerialization(options: SerializeTransactionOptions) {
+		await this.#waitForPendingTasks();
+		this.#sortCommandsAndInputs();
 		const intents = new Set<string>();
 		for (const command of this.#data.commands) {
 			if (command.$Intent) {
