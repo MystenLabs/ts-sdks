@@ -294,6 +294,9 @@ importers:
 
   packages/dapp-kit:
     dependencies:
+      '@mysten/enoki-connect':
+        specifier: workspace:*
+        version: link:../enoki-connect
       '@mysten/sui':
         specifier: workspace:*
         version: link:../typescript
