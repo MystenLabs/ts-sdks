@@ -624,8 +624,8 @@ importers:
         specifier: workspace:*
         version: link:../wallet-standard
       '@nanostores/react':
-        specifier: ^0.7.2
-        version: 0.7.3(nanostores@0.10.3)(react@18.3.1)
+        specifier: ^1.0.0
+        version: 1.0.0(nanostores@1.0.1)(react@18.3.1)
       idb-keyval:
         specifier: ^6.2.1
         version: 6.2.1
@@ -633,8 +633,8 @@ importers:
         specifier: ^3.0.1
         version: 3.0.1
       nanostores:
-        specifier: ^0.10.3
-        version: 0.10.3
+        specifier: ^1.0.1
+        version: 1.0.1
     devDependencies:
       '@mysten/build-scripts':
         specifier: workspace:*
@@ -1123,8 +1123,8 @@ importers:
         specifier: ^3.0.1
         version: 3.0.1
       nanostores:
-        specifier: ^0.10.3
-        version: 0.10.3
+        specifier: ^1.0.1
+        version: 1.0.1
       valibot:
         specifier: ^0.36.0
         version: 0.36.0
@@ -3117,11 +3117,11 @@ packages:
     peerDependencies:
       nanostores: ^0.9.0 || ^0.10.0 || ^0.11.0 || ^1.0.0
 
-  '@nanostores/react@0.7.3':
-    resolution: {integrity: sha512-/XuLAMENRu/Q71biW4AZ4qmU070vkZgiQ28gaTSNRPm2SZF5zGAR81zPE1MaMB4SeOp6ZTst92NBaG75XSspNg==}
-    engines: {node: ^18.0.0 || >=20.0.0}
+  '@nanostores/react@1.0.0':
+    resolution: {integrity: sha512-eDduyNy+lbQJMg6XxZ/YssQqF6b4OXMFEZMYKPJCCmBevp1lg0g+4ZRi94qGHirMtsNfAWKNwsjOhC+q1gvC+A==}
+    engines: {node: ^20.0.0 || >=22.0.0}
     peerDependencies:
-      nanostores: ^0.9.0 || ^0.10.0 || ^0.11.0
+      nanostores: ^0.9.0 || ^0.10.0 || ^0.11.0 || ^1.0.0
       react: '>=18.0.0'
 
   '@next/env@15.2.4':
@@ -7405,10 +7405,6 @@ packages:
 
   nanospinner@1.2.2:
     resolution: {integrity: sha512-Zt/AmG6qRU3e+WnzGGLuMCEAO/dAu45stNbHY223tUxldaDAeE+FxSPsd9Q+j+paejmm0ZbrNVs5Sraqy3dRxA==}
-
-  nanostores@0.10.3:
-    resolution: {integrity: sha512-Nii8O1XqmawqSCf9o2aWqVxhKRN01+iue9/VEd1TiJCr9VT5XxgPFbF1Edl1XN6pwJcZRsl8Ki+z01yb/T/C2g==}
-    engines: {node: ^18.0.0 || >=20.0.0}
 
   nanostores@1.0.1:
     resolution: {integrity: sha512-kNZ9xnoJYKg/AfxjrVL4SS0fKX++4awQReGqWnwTRHxeHGZ1FJFVgTqr/eMrNQdp0Tz7M7tG/TDaX8QfHDwVCw==}
@@ -11743,9 +11739,9 @@ snapshots:
     dependencies:
       nanostores: 1.0.1
 
-  '@nanostores/react@0.7.3(nanostores@0.10.3)(react@18.3.1)':
+  '@nanostores/react@1.0.0(nanostores@1.0.1)(react@18.3.1)':
     dependencies:
-      nanostores: 0.10.3
+      nanostores: 1.0.1
       react: 18.3.1
 
   '@next/env@15.2.4': {}
@@ -16949,8 +16945,6 @@ snapshots:
   nanospinner@1.2.2:
     dependencies:
       picocolors: 1.1.1
-
-  nanostores@0.10.3: {}
 
   nanostores@1.0.1: {}
 
