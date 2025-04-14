@@ -919,4 +919,114 @@ describe('Transaction.add with async functions', () => {
 			'Result { Result: 2 } is not available to use the current async thunk',
 		);
 	});
+
+	it('sync transaction arguments', async () => {
+		const tx = new Transaction();
+
+		tx.add(async (tx) => {
+			tx.moveCall({
+				target: '0x1::test::root',
+				arguments: [
+					(tx) =>
+						tx.moveCall({
+							target: '0x1::test::inner',
+						}),
+				],
+			});
+		});
+
+		expect(await tx.toJSON()).toMatchInlineSnapshot(`
+			"{
+			  "version": 2,
+			  "sender": null,
+			  "expiration": null,
+			  "gasData": {
+			    "budget": null,
+			    "price": null,
+			    "owner": null,
+			    "payment": null
+			  },
+			  "inputs": [],
+			  "commands": [
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
+			        "function": "inner",
+			        "typeArguments": [],
+			        "arguments": []
+			      }
+			    },
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
+			        "function": "root",
+			        "typeArguments": [],
+			        "arguments": [
+			          {
+			            "Result": 0
+			          }
+			        ]
+			      }
+			    }
+			  ]
+			}"
+		`);
+	});
+
+	it('async transaction arguments', async () => {
+		const tx = new Transaction();
+
+		tx.moveCall({
+			target: '0x1::test::root',
+			arguments: [
+				async (tx) => {
+					await new Promise((resolve) => setTimeout(resolve, 100));
+					return tx.moveCall({
+						target: '0x1::test::inner',
+					});
+				},
+			],
+		});
+
+		expect(await tx.toJSON()).toMatchInlineSnapshot(`
+			"{
+			  "version": 2,
+			  "sender": null,
+			  "expiration": null,
+			  "gasData": {
+			    "budget": null,
+			    "price": null,
+			    "owner": null,
+			    "payment": null
+			  },
+			  "inputs": [],
+			  "commands": [
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
+			        "function": "inner",
+			        "typeArguments": [],
+			        "arguments": []
+			      }
+			    },
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
+			        "function": "root",
+			        "typeArguments": [],
+			        "arguments": [
+			          {
+			            "Result": 0
+			          }
+			        ]
+			      }
+			    }
+			  ]
+			}"
+		`);
+	});
 });

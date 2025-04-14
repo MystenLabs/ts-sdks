@@ -497,17 +497,10 @@ export class Transaction {
 
 	#resolveArgument(arg: TransactionArgument): Argument {
 		if (typeof arg === 'function') {
-			const resolved = arg(this);
+			const resolved = this.add(arg as never);
 
 			if (typeof resolved === 'function') {
 				return this.#resolveArgument(resolved);
-			}
-
-			if (resolved && typeof resolved === 'object' && 'then' in resolved) {
-				return parse(
-					Argument,
-					this.add(() => resolved),
-				);
 			}
 
 			return parse(Argument, resolved);
