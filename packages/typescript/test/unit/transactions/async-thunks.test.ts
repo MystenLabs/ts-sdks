@@ -915,61 +915,8 @@ describe('Transaction.add with async functions', () => {
 
 		rootTransaction.transferObjects([result], '0x0');
 
-		expect(await rootTransaction.toJSON()).toMatchInlineSnapshot(`
-			"{
-			  "version": 2,
-			  "sender": null,
-			  "expiration": null,
-			  "gasData": {
-			    "budget": null,
-			    "price": null,
-			    "owner": null,
-			    "payment": null
-			  },
-			  "inputs": [
-			    {
-			      "Pure": {
-			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-			      }
-			    }
-			  ],
-			  "commands": [
-			    {
-			      "MoveCall": {
-			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
-			        "module": "test",
-			        "function": "add1",
-			        "typeArguments": [],
-			        "arguments": []
-			      }
-			    },
-			    {
-			      "TransferObjects": {
-			        "objects": [
-			          {
-			            "Result": 2
-			          }
-			        ],
-			        "address": {
-			          "Input": 0
-			        }
-			      }
-			    },
-			    {
-			      "MoveCall": {
-			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
-			        "module": "test",
-			        "function": "add2",
-			        "typeArguments": [],
-			        "arguments": [
-			          {
-			            "Result": 0
-			          }
-			        ]
-			      }
-			    }
-			  ]
-			}"
-		`);
+		await expect(rootTransaction.toJSON()).rejects.toThrow(
+			'Result { Result: 2 } is not available to use the current async thunk',
+		);
 	});
 });

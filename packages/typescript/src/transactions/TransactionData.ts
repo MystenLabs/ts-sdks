@@ -211,64 +211,65 @@ export class TransactionDataBuilder implements TransactionData {
 		});
 	}
 
+	mapCommandArguments(
+		index: number,
+		fn: (arg: Argument, command: Command, commandIndex: number) => Argument,
+	) {
+		const command = this.commands[index];
+
+		switch (command.$kind) {
+			case 'MoveCall':
+				command.MoveCall.arguments = command.MoveCall.arguments.map((arg) =>
+					fn(arg, command, index),
+				);
+				break;
+			case 'TransferObjects':
+				command.TransferObjects.objects = command.TransferObjects.objects.map((arg) =>
+					fn(arg, command, index),
+				);
+				command.TransferObjects.address = fn(command.TransferObjects.address, command, index);
+				break;
+			case 'SplitCoins':
+				command.SplitCoins.coin = fn(command.SplitCoins.coin, command, index);
+				command.SplitCoins.amounts = command.SplitCoins.amounts.map((arg) =>
+					fn(arg, command, index),
+				);
+				break;
+			case 'MergeCoins':
+				command.MergeCoins.destination = fn(command.MergeCoins.destination, command, index);
+				command.MergeCoins.sources = command.MergeCoins.sources.map((arg) =>
+					fn(arg, command, index),
+				);
+				break;
+			case 'MakeMoveVec':
+				command.MakeMoveVec.elements = command.MakeMoveVec.elements.map((arg) =>
+					fn(arg, command, index),
+				);
+				break;
+			case 'Upgrade':
+				command.Upgrade.ticket = fn(command.Upgrade.ticket, command, index);
+				break;
+			case '$Intent':
+				const inputs = command.$Intent.inputs;
+				command.$Intent.inputs = {};
+
+				for (const [key, value] of Object.entries(inputs)) {
+					command.$Intent.inputs[key] = Array.isArray(value)
+						? value.map((arg) => fn(arg, command, index))
+						: fn(value, command, index);
+				}
+
+				break;
+			case 'Publish':
+				break;
+			default:
+				throw new Error(`Unexpected transaction kind: ${(command as { $kind: unknown }).$kind}`);
+		}
+	}
+
 	mapArguments(fn: (arg: Argument, command: Command, commandIndex: number) => Argument) {
-		for (const [commandIndex, command] of this.commands.entries()) {
-			switch (command.$kind) {
-				case 'MoveCall':
-					command.MoveCall.arguments = command.MoveCall.arguments.map((arg) =>
-						fn(arg, command, commandIndex),
-					);
-					break;
-				case 'TransferObjects':
-					command.TransferObjects.objects = command.TransferObjects.objects.map((arg) =>
-						fn(arg, command, commandIndex),
-					);
-					command.TransferObjects.address = fn(
-						command.TransferObjects.address,
-						command,
-						commandIndex,
-					);
-					break;
-				case 'SplitCoins':
-					command.SplitCoins.coin = fn(command.SplitCoins.coin, command, commandIndex);
-					command.SplitCoins.amounts = command.SplitCoins.amounts.map((arg) =>
-						fn(arg, command, commandIndex),
-					);
-					break;
-				case 'MergeCoins':
-					command.MergeCoins.destination = fn(
-						command.MergeCoins.destination,
-						command,
-						commandIndex,
-					);
-					command.MergeCoins.sources = command.MergeCoins.sources.map((arg) =>
-						fn(arg, command, commandIndex),
-					);
-					break;
-				case 'MakeMoveVec':
-					command.MakeMoveVec.elements = command.MakeMoveVec.elements.map((arg) =>
-						fn(arg, command, commandIndex),
-					);
-					break;
-				case 'Upgrade':
-					command.Upgrade.ticket = fn(command.Upgrade.ticket, command, commandIndex);
-					break;
-				case '$Intent':
-					const inputs = command.$Intent.inputs;
-					command.$Intent.inputs = {};
-
-					for (const [key, value] of Object.entries(inputs)) {
-						command.$Intent.inputs[key] = Array.isArray(value)
-							? value.map((arg) => fn(arg, command, commandIndex))
-							: fn(value, command, commandIndex);
-					}
-
-					break;
-				case 'Publish':
-					break;
-				default:
-					throw new Error(`Unexpected transaction kind: ${(command as { $kind: unknown }).$kind}`);
-			}
+		for (const commandIndex of this.commands.keys()) {
+			this.mapCommandArguments(commandIndex, fn);
 		}
 	}
 

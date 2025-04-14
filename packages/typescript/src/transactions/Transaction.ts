@@ -149,6 +149,7 @@ export class Transaction {
 	#intentResolvers = new Map<string, TransactionPlugin>();
 	#inputSection: InputSection = [];
 	#commandSection: CommandSection = [];
+	#availableResults: Set<number> = new Set();
 	#pendingPromises = new Set<Promise<unknown>>();
 
 	/**
@@ -406,6 +407,7 @@ export class Transaction {
 		fork.#buildPlugins = this.#buildPlugins;
 		fork.#intentResolvers = this.#intentResolvers;
 		fork.#pendingPromises = this.#pendingPromises;
+		fork.#availableResults = new Set(this.#availableResults);
 
 		this.#inputSection.push(fork.#inputSection);
 		this.#commandSection.push(fork.#commandSection);
@@ -428,6 +430,7 @@ export class Transaction {
 			const result = command(fork);
 
 			if (!(result && typeof result === 'object' && 'then' in result)) {
+				this.#availableResults = fork.#availableResults;
 				return result;
 			}
 
@@ -455,8 +458,26 @@ export class Transaction {
 	}
 
 	#addCommand<T extends Command>(command: T) {
+		const resultIndex = this.#data.commands.length;
 		this.#commandSection.push(command);
+		this.#availableResults.add(resultIndex);
 		this.#data.commands.push(command);
+
+		this.#data.mapCommandArguments(resultIndex, (arg) => {
+			if (arg.$kind === 'Result' && !this.#availableResults.has(arg.Result)) {
+				throw new Error(
+					`Result { Result: ${arg.Result} } is not available to use the current async thunk`,
+				);
+			}
+
+			if (arg.$kind === 'NestedResult' && !this.#availableResults.has(arg.NestedResult[0])) {
+				throw new Error(
+					`Result { NestedResult: [${arg.NestedResult[0]}, ${arg.NestedResult[1]}] } is not available to use the current async thunk`,
+				);
+			}
+
+			return arg;
+		});
 
 		return command;
 	}
