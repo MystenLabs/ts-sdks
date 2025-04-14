@@ -400,15 +400,12 @@ importers:
       '@mysten/zksend':
         specifier: workspace:*
         version: link:../zksend
-<<<<<<< HEAD
-=======
       '@nanostores/persistent':
         specifier: ^1.0.0
         version: 1.0.0(nanostores@1.0.1)
       nanostores:
         specifier: ^1.0.1
         version: 1.0.1
->>>>>>> 423de19 (work)
     devDependencies:
       '@mysten/build-scripts':
         specifier: workspace:*
@@ -423,18 +420,13 @@ importers:
         specifier: ^5.8.2
         version: 5.8.2
 
-<<<<<<< HEAD
-=======
-  packages/dapp-kit-next/examples/react-vite:
+  packages/dapp-kit-next/examples/react/simple:
     dependencies:
       '@mysten/dapp-kit-next':
         specifier: workspace:*
-        version: link:../..
-      '@mysten/wallet-standard':
-        specifier: workspace:*
-        version: link:../../../wallet-standard
+        version: link:../../..
       '@nanostores/react':
-        specifier: latest
+        specifier: ^1.0.0
         version: 1.0.0(nanostores@1.0.1)(react@19.1.0)
       react:
         specifier: ^19.0.0
@@ -477,7 +469,6 @@ importers:
         specifier: ^6.2.0
         version: 6.2.5(@types/node@22.13.17)(jiti@2.4.2)(lightningcss@1.29.2)(tsx@4.19.3)(yaml@2.7.1)
 
->>>>>>> 423de19 (work)
   packages/deepbook:
     dependencies:
       '@mysten/sui':
@@ -6163,8 +6154,6 @@ packages:
       jiti:
         optional: true
 
-<<<<<<< HEAD
-=======
   eslint@9.24.0:
     resolution: {integrity: sha512-eh/jxIEJyZrvbWRe4XuVclLPDYSYYYgLy5zXGGxD6j8zjSAxFEzI2fL/8xNq6O2yKqVt+eF2YhV+hxjV6UKXwQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
@@ -6175,7 +6164,6 @@ packages:
       jiti:
         optional: true
 
->>>>>>> 423de19 (work)
   esm-env@1.2.2:
     resolution: {integrity: sha512-Epxrv+Nr/CaL4ZcFGPJIYLWFom+YeV1DqMLHJoEd9SYRxNbaFruBwfEX/kkHUJf55j2+TUbmDcmuilbP1TmXHA==}
 
@@ -15678,8 +15666,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-<<<<<<< HEAD
-=======
   eslint@9.24.0(jiti@2.4.2):
     dependencies:
       '@eslint-community/eslint-utils': 4.5.1(eslint@9.24.0(jiti@2.4.2))
@@ -15722,7 +15708,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
->>>>>>> 423de19 (work)
   esm-env@1.2.2: {}
 
   espree@10.3.0:

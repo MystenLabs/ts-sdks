@@ -5,3 +5,5 @@ import './components/dapp-kit-connect-modal.svelte';
 
 export { createDAppKitStore, getDefaultStore } from './store/index.js';
 export type { DAppKitStore } from './store/index.js';
+
+export { getWalletUniqueIdentifier } from './utils/wallets.js';
