@@ -137,6 +137,9 @@ function getGlobalPluginRegistry() {
 	}
 }
 
+type InputSection = (CallArg | InputSection)[];
+type CommandSection = (Command | CommandSection)[];
+
 /**
  * Transaction Builder
  */
@@ -144,9 +147,8 @@ export class Transaction {
 	#serializationPlugins: TransactionPlugin[];
 	#buildPlugins: TransactionPlugin[];
 	#intentResolvers = new Map<string, TransactionPlugin>();
-	#path = '0';
-	#section = 0;
-	#sectionMap = new Map<CallArg | Command, string>();
+	#inputSection: InputSection = [];
+	#commandSection: CommandSection = [];
 	#pendingPromises = new Set<Promise<unknown>>();
 
 	/**
@@ -403,11 +405,10 @@ export class Transaction {
 		fork.#serializationPlugins = this.#serializationPlugins;
 		fork.#buildPlugins = this.#buildPlugins;
 		fork.#intentResolvers = this.#intentResolvers;
-		// TODO: padding keys to make sorting work is probably bad
-		fork.#path = this.#path + `.${fork.#section.toString().padStart(3, '0')}`;
-		fork.#sectionMap = this.#sectionMap;
 		fork.#pendingPromises = this.#pendingPromises;
-		this.#section += 2;
+
+		this.#inputSection.push(fork.#inputSection);
+		this.#commandSection.push(fork.#commandSection);
 
 		return fork;
 	}
@@ -421,9 +422,7 @@ export class Transaction {
 	add<T extends TransactionResultArgument | void>(
 		asyncTransactionThunk: AsyncTransactionThunk<T>,
 	): T;
-	add(
-		command: Command | AsyncTransactionThunk | Transaction | ((tx: Transaction) => unknown),
-	): unknown {
+	add(command: Command | AsyncTransactionThunk | ((tx: Transaction) => unknown)): unknown {
 		if (typeof command === 'function') {
 			const fork = this.#fork();
 			const result = command(fork);
@@ -456,14 +455,14 @@ export class Transaction {
 	}
 
 	#addCommand<T extends Command>(command: T) {
-		this.#sectionMap.set(command, this.#path + `.${this.#section.toString().padStart(3, '0')}`);
+		this.#commandSection.push(command);
 		this.#data.commands.push(command);
 
 		return command;
 	}
 
 	#addInput<T extends 'pure' | 'object'>(type: T, input: CallArg) {
-		this.#sectionMap.set(input, this.#path + `.${this.#section.toString().padStart(3, '0')}`);
+		this.#inputSection.push(input);
 		return this.#data.addInput(type, input);
 	}
 
@@ -713,24 +712,13 @@ export class Transaction {
 	#sortCommandsAndInputs() {
 		const unorderedCommands = this.#data.commands;
 		const unorderedInputs = this.#data.inputs;
-		const orderedCommands = this.#data.commands
-			.filter((cmd) => cmd.$Intent?.name !== 'AsyncTransactionThunk')
-			.sort((a, b) => {
-				const sectionA = this.#sectionMap.get(a);
-				const sectionB = this.#sectionMap.get(b);
-				const indexA = this.#data.commands.indexOf(a);
-				const indexB = this.#data.commands.indexOf(b);
+		console.dir(unorderedCommands, { depth: Infinity });
 
-				return sectionA!.localeCompare(sectionB!) || indexA - indexB;
-			});
-
-		const orderedInputs = this.#data.inputs.slice().sort((a, b) => {
-			const sectionA = this.#sectionMap.get(a);
-			const sectionB = this.#sectionMap.get(b);
-			const indexA = this.#data.inputs.indexOf(a);
-			const indexB = this.#data.inputs.indexOf(b);
-			return sectionA!.localeCompare(sectionB!) || indexA - indexB;
-		});
+		const orderedCommands = (this.#commandSection as Command[])
+			.flat(Infinity)
+			.filter((cmd) => cmd.$Intent?.name !== 'AsyncTransactionThunk');
+		console.dir(this.#commandSection, { depth: Infinity });
+		const orderedInputs = (this.#inputSection as CallArg[]).flat(Infinity);
 
 		this.#data.commands = orderedCommands;
 		this.#data.inputs = orderedInputs;
