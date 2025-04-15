@@ -1,5 +1,11 @@
 # @mysten/walrus-wasm
 
+## 0.0.6
+
+### Patch Changes
+
+- 981a39d: Add separate esm entrypoint
+
 ## 0.0.5
 
 ### Patch Changes
