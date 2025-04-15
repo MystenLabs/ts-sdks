@@ -472,13 +472,19 @@ export class Transaction {
 		this.#data.mapCommandArguments(resultIndex, (arg) => {
 			if (arg.$kind === 'Result' && !this.#availableResults.has(arg.Result)) {
 				throw new Error(
-					`Result { Result: ${arg.Result} } is not available to use the current async thunk`,
+					`Result { Result: ${arg.Result} } is not available to use the current transaction`,
 				);
 			}
 
 			if (arg.$kind === 'NestedResult' && !this.#availableResults.has(arg.NestedResult[0])) {
 				throw new Error(
-					`Result { NestedResult: [${arg.NestedResult[0]}, ${arg.NestedResult[1]}] } is not available to use the current async thunk`,
+					`Result { NestedResult: [${arg.NestedResult[0]}, ${arg.NestedResult[1]}] } is not available to use the current transaction`,
+				);
+			}
+
+			if (arg.$kind === 'Input' && arg.Input >= this.#data.inputs.length) {
+				throw new Error(
+					`Input { Input: ${arg.Input} } references an input that does not exist in the current transaction`,
 				);
 			}
 
