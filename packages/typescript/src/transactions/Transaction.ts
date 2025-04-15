@@ -163,6 +163,9 @@ export class Transaction {
 			typeof serialized === 'string' ? fromBase64(serialized) : serialized,
 		);
 
+		tx.#inputSection = tx.#data.inputs;
+		tx.#commandSection = tx.#data.commands;
+
 		return tx;
 	}
 
@@ -184,6 +187,9 @@ export class Transaction {
 		} else {
 			newTransaction.#data = TransactionDataBuilder.restore(JSON.parse(transaction));
 		}
+
+		newTransaction.#inputSection = newTransaction.#data.inputs;
+		newTransaction.#commandSection = newTransaction.#data.commands;
 
 		return newTransaction;
 	}
@@ -710,6 +716,9 @@ export class Transaction {
 		};
 
 		await createNext(0)();
+
+		this.#inputSection = this.#data.inputs;
+		this.#commandSection = this.#data.commands;
 	}
 
 	async #waitForPendingTasks() {
@@ -726,13 +735,25 @@ export class Transaction {
 		const unorderedCommands = this.#data.commands;
 		const unorderedInputs = this.#data.inputs;
 
-		const orderedCommands = (this.#commandSection as Command[])
-			.flat(Infinity)
-			.filter((cmd) => cmd.$Intent?.name !== 'AsyncTransactionThunk');
+		const orderedCommands = (this.#commandSection as Command[]).flat(Infinity);
 		const orderedInputs = (this.#inputSection as CallArg[]).flat(Infinity);
 
-		this.#data.commands = orderedCommands;
+		if (orderedCommands.length !== unorderedCommands.length) {
+			throw new Error('Unexpected number of commands found in transaction data');
+		}
+
+		if (orderedInputs.length !== unorderedInputs.length) {
+			throw new Error('Unexpected number of inputs found in transaction data');
+		}
+
+		const filteredCommands = orderedCommands.filter(
+			(cmd) => cmd.$Intent?.name !== 'AsyncTransactionThunk',
+		);
+
+		this.#data.commands = filteredCommands;
 		this.#data.inputs = orderedInputs;
+		this.#commandSection = filteredCommands;
+		this.#inputSection = orderedInputs;
 
 		function getOriginalIndex(index: number): number {
 			const command = unorderedCommands[index];
@@ -746,7 +767,7 @@ export class Transaction {
 				return getOriginalIndex(result.Result);
 			}
 
-			const updated = orderedCommands.indexOf(command);
+			const updated = filteredCommands.indexOf(command);
 
 			if (updated === -1) {
 				throw new Error('Unable to find original index for command');
