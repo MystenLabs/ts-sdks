@@ -193,7 +193,7 @@ export class EnokiFlow {
 
 		this.$zkLoginState.set({ provider: input.provider });
 		if (this.#useNativeCryptoSigner) {
-			await set('ephemeralKeyPair', ephemeralKeyPair, this.#idbStore);
+			await set('ephemeralKeyPair', (ephemeralKeyPair as WebCryptoSigner).export(), this.#idbStore);
 		}
 
 		await this.#setSession({
