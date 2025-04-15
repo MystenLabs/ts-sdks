@@ -1640,8 +1640,6 @@ export class WalrusClient {
 
 	async #executeTransaction(transaction: Transaction, signer: Signer, action: string) {
 		transaction.setSenderIfNotSet(signer.toSuiAddress());
-		await transaction.prepareForSerialization({ client: this.#suiClient.jsonRpc });
-		console.dir(await transaction.getData(), { depth: null });
 		const bytes = await transaction.build({ client: this.#suiClient.jsonRpc });
 		const { signature } = await signer.signTransaction(bytes);
 
