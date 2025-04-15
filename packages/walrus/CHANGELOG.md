@@ -1,5 +1,13 @@
 # @mysten/walrus
 
+## 0.0.15
+
+### Patch Changes
+
+- 986c4e3: Add onError to storageNodeClientOptions
+- Updated dependencies [5cea435]
+  - @mysten/sui@1.27.1
+
 ## 0.0.14
 
 ### Patch Changes

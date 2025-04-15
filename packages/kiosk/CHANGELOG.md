@@ -1,5 +1,13 @@
 # @mysten/kiosk
 
+## 0.11.6
+
+### Patch Changes
+
+- 986c4e3: Fix transasction construction for royalty_rule::fee_amount
+- Updated dependencies [5cea435]
+  - @mysten/sui@1.27.1
+
 ## 0.11.5
 
 ### Patch Changes

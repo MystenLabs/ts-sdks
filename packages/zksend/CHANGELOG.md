@@ -1,5 +1,14 @@
 # @mysten/zksend
 
+## 0.12.24
+
+### Patch Changes
+
+- 9cacba9: Add experimental adapter package
+- Updated dependencies [5cea435]
+  - @mysten/sui@1.27.1
+  - @mysten/wallet-standard@0.14.4
+
 ## 0.12.23
 
 ### Patch Changes

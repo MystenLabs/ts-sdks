@@ -1,5 +1,15 @@
 # @mysten/enoki
 
+## 0.6.4
+
+### Patch Changes
+
+- 20568cd: Fix the public key not being stored in IndexedDB for `EnokiFlow` and Enoki wallets
+- Updated dependencies [5cea435]
+  - @mysten/sui@1.27.1
+  - @mysten/signers@0.2.2
+  - @mysten/wallet-standard@0.14.4
+
 ## 0.6.3
 
 ### Patch Changes

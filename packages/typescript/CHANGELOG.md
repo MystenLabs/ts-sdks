@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.27.1
+
+### Patch Changes
+
+- 5cea435: Allow coinWithBalance return value to be used in multiple commands
+
 ## 1.27.0
 
 ### Minor Changes
