@@ -298,7 +298,7 @@ describe('Testing Kiosk SDK transaction building & querying e2e', () => {
 			address: toolbox.address(),
 		});
 		const personalKiosk = kioskOwnerCaps.find((x) => x.isPersonal);
-		//
+
 		await purchaseOnNewKiosk(toolbox, kioskClient, personalKiosk!, heroType, heroId, true);
 		await purchaseOnNewKiosk(toolbox, kioskClient, personalKiosk!, villainType, villainId, false);
 	});

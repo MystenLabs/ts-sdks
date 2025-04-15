@@ -44,6 +44,11 @@ export type StorageNodeClientOptions = {
 	 * @default 30_000ms (30 seconds)
 	 */
 	timeout?: number;
+
+	/**
+	 * Callback for individual network errors.
+	 */
+	onError?: (error: Error) => void;
 };
 
 export type RequestOptions = {
@@ -55,10 +60,11 @@ export type RequestOptions = {
 export class StorageNodeClient {
 	#fetch: Fetch;
 	#timeout: number;
-
-	constructor({ fetch: overriddenFetch, timeout }: StorageNodeClientOptions = {}) {
+	#onError?: (error: Error) => void;
+	constructor({ fetch: overriddenFetch, timeout, onError }: StorageNodeClientOptions = {}) {
 		this.#fetch = overriddenFetch ?? globalThis.fetch;
 		this.#timeout = timeout ?? 30_000;
+		this.#onError = onError;
 	}
 
 	/**
@@ -242,8 +248,12 @@ export class StorageNodeClient {
 			}
 
 			if (error instanceof Error && error.name === 'AbortError') {
-				throw new ConnectionTimeoutError();
+				const error = new ConnectionTimeoutError();
+				this.#onError?.(error);
+				throw error;
 			}
+
+			this.#onError?.(error as Error);
 
 			throw error;
 		}
@@ -252,7 +262,9 @@ export class StorageNodeClient {
 			const errorText = await response.text().catch((reason) => reason);
 			const errorJSON = safeParseJSON(errorText);
 			const errorMessage = errorJSON ? undefined : errorText;
-			throw StorageNodeAPIError.generate(response.status, errorJSON, errorMessage);
+			const error = StorageNodeAPIError.generate(response.status, errorJSON, errorMessage);
+			this.#onError?.(error);
+			throw error;
 		}
 
 		return response;

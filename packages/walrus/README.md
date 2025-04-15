@@ -13,8 +13,7 @@ and an instance of the walrus SDK.
 
 ```ts
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-
-import { WalrusClient } from '../src/index.js';
+import { WalrusClient } from '@mysten/walrus';
 
 const suiClient = new SuiClient({
 	url: getFullnodeUrl('testnet'),
@@ -97,7 +96,7 @@ const file = new TextEncoder().encode('Hello from the TS SDK!!!\n');
 
 const { blobId } = await walrusClient.writeBlob({
 	blob: file,
-	deletable: true,
+	deletable: false,
 	epochs: 3,
 	signer: keypair,
 });
@@ -144,6 +143,25 @@ successfully to read or publish a blob.
 When using the lower level methods to build your own read or publish flows, it is recommended to
 understand the number of shards/sliver that need to be successfully written or read for you
 operation to succeed, and gracefully handle cases where some nodes may be in a bad state.
+
+### Network errors
+
+Walrus is designed to be handle some nodes being down, and the SDK will only throw errors when it
+can't read from or write to enough storage nodes. When trying to troubleshoot problems, it can be
+challenging to figure out whats going wrong when you don't see all the individual network errors.
+
+You can pass an `onError` option in the storageNodeClientOptions to get the individual errors from
+failed requests:
+
+```ts
+const walrusClient = new WalrusClient({
+	network: 'testnet',
+	suiClient,
+	storageNodeClientOptions: {
+		onError: (error) => console.log(error),
+	},
+});
+```
 
 ## Configuring network requests
 

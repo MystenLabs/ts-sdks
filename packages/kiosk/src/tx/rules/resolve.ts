@@ -23,8 +23,6 @@ export async function resolveRoyaltyRule(params: RuleResolvingParams) {
 		policyId,
 	} = params;
 
-	const policyObj = tx.object(policyId);
-
 	// We attempt to resolve the fee amount outside of the PTB so that the split amount is known before the transaction is sent.
 	// This improves the display of the transaction within the wallet.
 
@@ -34,8 +32,10 @@ export async function resolveRoyaltyRule(params: RuleResolvingParams) {
 	feeTx.moveCall({
 		target: `${packageId}::royalty_rule::fee_amount`,
 		typeArguments: [itemType],
-		arguments: [policyObj, tx.pure.u64(price || '0')],
+		arguments: [feeTx.object(policyId), feeTx.pure.u64(price || '0')],
 	});
+
+	const policyObj = tx.object(policyId);
 
 	const { results } = await kioskClient.client.devInspectTransactionBlock({
 		sender: tx.getData().sender || normalizeSuiAddress('0x0'),
