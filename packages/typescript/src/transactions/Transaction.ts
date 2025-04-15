@@ -445,7 +445,7 @@ export class Transaction {
 				},
 			});
 
-			this.#addPendingTask(
+			this.#pendingPromises.add(
 				Promise.resolve(result as Promise<TransactionResult>).then((result) => {
 					placeholder.$Intent.data.result = result;
 				}),
@@ -714,24 +714,21 @@ export class Transaction {
 
 	async #waitForPendingTasks() {
 		while (this.#pendingPromises.size > 0) {
-			await Promise.all(this.#pendingPromises);
+			const newPromise = Promise.all(this.#pendingPromises);
+			this.#pendingPromises.clear();
+			this.#pendingPromises.add(newPromise);
+			await newPromise;
+			this.#pendingPromises.delete(newPromise);
 		}
-	}
-
-	#addPendingTask<T>(promise: Promise<T>) {
-		const task = promise.finally(() => this.#pendingPromises.delete(task));
-		this.#pendingPromises.add(task);
 	}
 
 	#sortCommandsAndInputs() {
 		const unorderedCommands = this.#data.commands;
 		const unorderedInputs = this.#data.inputs;
-		console.dir(unorderedCommands, { depth: Infinity });
 
 		const orderedCommands = (this.#commandSection as Command[])
 			.flat(Infinity)
 			.filter((cmd) => cmd.$Intent?.name !== 'AsyncTransactionThunk');
-		console.dir(this.#commandSection, { depth: Infinity });
 		const orderedInputs = (this.#inputSection as CallArg[]).flat(Infinity);
 
 		this.#data.commands = orderedCommands;
