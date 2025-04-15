@@ -12,7 +12,7 @@ import type { Argument } from '../data/internal.js';
 import { Inputs } from '../Inputs.js';
 import type { BuildTransactionOptions } from '../json-rpc-resolver.js';
 import { getClient } from '../json-rpc-resolver.js';
-import type { Transaction } from '../Transaction.js';
+import type { Transaction, TransactionResult } from '../Transaction.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
 
 const COIN_WITH_BALANCE = 'CoinWithBalance';
@@ -26,12 +26,18 @@ export function coinWithBalance({
 	balance: bigint | number;
 	type?: string;
 	useGasCoin?: boolean;
-}) {
+}): (tx: Transaction) => TransactionResult {
+	let coinResult: TransactionResult | null = null;
+
 	return (tx: Transaction) => {
+		if (coinResult) {
+			return coinResult;
+		}
+
 		tx.addIntentResolver(COIN_WITH_BALANCE, resolveCoinBalance);
 		const coinType = type === 'gas' ? type : normalizeStructTag(type);
 
-		return tx.add(
+		coinResult = tx.add<TransactionResult>(
 			Commands.Intent({
 				name: COIN_WITH_BALANCE,
 				inputs: {},
@@ -41,6 +47,8 @@ export function coinWithBalance({
 				} satisfies InferInput<typeof CoinWithBalanceData>,
 			}),
 		);
+
+		return coinResult;
 	};
 }
 

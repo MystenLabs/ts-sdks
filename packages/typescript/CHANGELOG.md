@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 1.27.0
+
+### Minor Changes
+
+- 4d13ef8: Add abort signals to all SuiClient methods
+- 4d13ef8: Add effects parsing and dynamic field queries to experimental core client
+
 ## 1.26.1
 
 ### Patch Changes

@@ -53,8 +53,8 @@ export class SessionKey {
 		if (!isValidSuiObjectId(packageId) || !isValidSuiAddress(address)) {
 			throw new UserError(`Invalid package ID ${packageId} or address ${address}`);
 		}
-		if (ttlMin > 10 || ttlMin < 1) {
-			throw new UserError(`Invalid TTL ${ttlMin}, must be between 1 and 10`);
+		if (ttlMin > 30 || ttlMin < 1) {
+			throw new UserError(`Invalid TTL ${ttlMin}, must be between 1 and 30`);
 		}
 
 		this.#address = address;
