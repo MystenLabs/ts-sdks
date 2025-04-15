@@ -147,7 +147,7 @@ export class INTERNAL_ONLY_EnokiFlow {
 
 		this.$zkLoginState.set({ provider: input.provider });
 
-		await set('ephemeralKeyPair', ephemeralKeyPair, this.#idbStore);
+		await set('ephemeralKeyPair', ephemeralKeyPair.export(), this.#idbStore);
 		await this.#setSession({
 			expiresAt: estimatedExpiration,
 			maxEpoch,
