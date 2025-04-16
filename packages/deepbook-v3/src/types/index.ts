@@ -39,8 +39,10 @@ export enum SelfMatchingOptions {
 }
 
 export interface PlaceLimitOrderParams {
-	poolKey: string;
-	balanceManagerKey: string;
+	poolAddress: string;
+	balanceManagerAddress: string;
+	baseCoinType: string;
+	quoteCoinType: string;
 	clientOrderId: string;
 	price: number;
 	quantity: number;
@@ -52,8 +54,10 @@ export interface PlaceLimitOrderParams {
 }
 
 export interface PlaceMarketOrderParams {
-	poolKey: string;
-	balanceManagerKey: string;
+	poolAddress: string;
+	balanceManagerAddress: string;
+	baseCoinType: string;
+	quoteCoinType: string;
 	clientOrderId: string;
 	quantity: number;
 	isBid: boolean;
@@ -62,15 +66,19 @@ export interface PlaceMarketOrderParams {
 }
 
 export interface ProposalParams {
-	poolKey: string;
-	balanceManagerKey: string;
+	poolAddress: string;
+	balanceManagerAddress: string;
+	baseCoinType: string;
+	quoteCoinType: string;
 	takerFee: number;
 	makerFee: number;
 	stakeRequired: number;
 }
 
 export interface SwapParams {
-	poolKey: string;
+	poolAddress: string;
+	baseCoinType: string;
+	quoteCoinType: string;
 	amount: number;
 	deepAmount: number;
 	minOut: number;
@@ -80,8 +88,8 @@ export interface SwapParams {
 }
 
 export interface CreatePoolAdminParams {
-	baseCoinKey: string;
-	quoteCoinKey: string;
+	baseCoinType: string;
+	quoteCoinType: string;
 	tickSize: number;
 	lotSize: number;
 	minSize: number;
@@ -90,8 +98,8 @@ export interface CreatePoolAdminParams {
 }
 
 export interface CreatePermissionlessPoolParams {
-	baseCoinKey: string;
-	quoteCoinKey: string;
+	baseCoinType: string;
+	quoteCoinType: string;
 	tickSize: number;
 	lotSize: number;
 	minSize: number;
