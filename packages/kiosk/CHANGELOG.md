@@ -1,5 +1,11 @@
 # @mysten/kiosk
 
+## 0.12.0
+
+### Minor Changes
+
+- d81b9a7: Use default pagination limit when loading kiosks
+
 ## 0.11.6
 
 ### Patch Changes
