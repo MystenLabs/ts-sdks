@@ -1,16 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type {
-	PaginatedObjectsResponse,
-	PaginationArguments,
-	SuiClient,
-	SuiObjectData,
-	SuiObjectResponse,
-} from '@mysten/sui/client';
+import type { PaginationArguments, SuiObjectData } from '@mysten/sui/client';
 import { isValidSuiAddress } from '@mysten/sui/utils';
 
 import type {
+	ClientWithKioskExtension,
 	FetchKioskOptions,
 	KioskExtension,
 	KioskListing,
@@ -27,9 +22,10 @@ import {
 	getAllObjects,
 	getKioskObject,
 } from '../utils.js';
+import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 
 export async function fetchKiosk(
-	client: SuiClient,
+	client: ClientWithKioskExtension,
 	kioskId: string,
 	pagination: PaginationArguments<string>,
 	options: FetchKioskOptions,
@@ -91,7 +87,7 @@ const DEFAULT_PAGE_SIZE = 50;
 const PERSON_KIOSK_CURSOR = 'personal';
 const OWNED_KIOSKS_CURSOR = 'owned';
 export async function getOwnedKiosks(
-	client: SuiClient,
+	client: ClientWithKioskExtension,
 	address: string,
 	options?: {
 		pagination?: PaginationArguments<string>;
@@ -116,15 +112,9 @@ export async function getOwnedKiosks(
 
 	if (options?.personalKioskType && cursorType === PERSON_KIOSK_CURSOR) {
 		const personalKioskResponse = formatOwnedKioskResponse(
-			await client.getOwnedObjects({
-				owner: address,
-				filter: {
-					StructType: options.personalKioskType,
-				},
-				options: {
-					showContent: true,
-					showType: true,
-				},
+			await client.core.getOwnedObjects({
+				address,
+				type: options.personalKioskType,
 				cursor,
 				limit,
 			}),
@@ -149,15 +139,10 @@ export async function getOwnedKiosks(
 		}
 
 		const ownedKiosksResponse = formatOwnedKioskResponse(
-			await client.getOwnedObjects({
-				owner: address,
-				filter: {
-					StructType: KIOSK_OWNER_CAP,
-				},
-				options: {
-					showContent: true,
-					showType: true,
-				},
+			await client.core.getOwnedObjects({
+				address,
+				type: KIOSK_OWNER_CAP,
+				cursor: PERSON_KIOSK_CURSOR,
 				limit: remainingLimit,
 			}),
 			OWNED_KIOSKS_CURSOR,
@@ -175,16 +160,9 @@ export async function getOwnedKiosks(
 	}
 
 	return formatOwnedKioskResponse(
-		await client.getOwnedObjects({
-			owner: address,
-			filter: {
-				StructType: KIOSK_OWNER_CAP,
-			},
-			options: {
-				showContent: true,
-				showType: true,
-			},
-			// cursor might be an empty string if the number of personal kiosks was a multiple of the limit.
+		await client.core.getOwnedObjects({
+			address,
+			type: KIOSK_OWNER_CAP,
 			cursor: cursor ? cursor : null,
 			limit,
 		}),
@@ -193,33 +171,32 @@ export async function getOwnedKiosks(
 }
 
 function formatOwnedKioskResponse(
-	response: PaginatedObjectsResponse,
+	response: Experimental_SuiClientTypes.GetOwnedObjectsResponse,
 	cursorType: string,
 ): OwnedKiosks {
-	const { data, hasNextPage, nextCursor } = response;
+	const { objects, hasNextPage, cursor } = response;
 	// get kioskIds from the OwnerCaps.
-	const kioskIdList = data?.map((x: SuiObjectResponse) => {
-		const fields =
-			x.data?.content?.dataType === 'moveObject'
-				? (x.data.content.fields as unknown as
-						| {
-								cap: { fields: { for: string } };
-								for?: never;
-						  }
-						| {
-								cap?: never;
-								for: string;
-						  })
-				: null;
+	const kioskIdList = objects?.map((x) => {
+		// TODO fix parsing
+		const fields = x.data.content.fields as unknown as
+			| {
+					cap: { fields: { for: string } };
+					for?: never;
+			  }
+			| {
+					cap?: never;
+					for: string;
+			  };
+
 		return fields?.cap ? fields?.cap?.fields?.for : (fields?.for as string);
 	});
 
 	// clean up data that might have an error in them.
 	// only return valid objects.
-	const filteredData = data.filter((x) => 'data' in x).map((x) => x.data) as SuiObjectData[];
+	const filteredData = objects.filter((x) => 'data' in x).map((x) => x.data) as SuiObjectData[];
 
 	return {
-		nextCursor: nextCursor ? `${cursorType}:${nextCursor}` : nextCursor,
+		nextCursor: cursor ? `${cursorType}:${cursor}` : cursor,
 		hasNextPage,
 		kioskOwnerCaps: filteredData.map((x, idx) => ({
 			isPersonal: x.type !== KIOSK_OWNER_CAP,
@@ -234,22 +211,22 @@ function formatOwnedKioskResponse(
 
 // Get a kiosk extension data for a given kioskId and extensionType.
 export async function fetchKioskExtension(
-	client: SuiClient,
+	client: ClientWithKioskExtension,
 	kioskId: string,
 	extensionType: string,
 ): Promise<KioskExtension | null> {
-	const extension = await client.getDynamicFieldObject({
+	const extension = await client.core.getDynamicField({
 		parentId: kioskId,
 		name: {
 			type: `0x2::kiosk_extension::ExtensionKey<${extensionType}>`,
-			value: {
-				dummy_field: false,
-			},
+			bcs: new Uint8Array(),
 		},
 	});
 
-	if (!extension.data) return null;
+	// TODO: can this be missing?
+	if (!extension.dynamicField) return null;
 
+	// TODO: parse data
 	const fields = (extension?.data?.content as { fields: { [k: string]: any } })?.fields?.value
 		?.fields;
 
