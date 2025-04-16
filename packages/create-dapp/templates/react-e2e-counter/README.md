@@ -47,17 +47,7 @@ sui client switch --address 0xYOUR_ADDRESS...
 ```
 
 We can ensure we have some Sui in our new wallet by requesting Sui from the
-faucet (make sure to replace the address with your address):
-
-```bash
-curl --location --request POST 'https://faucet.testnet.sui.io/gas' \
---header 'Content-Type: application/json' \
---data-raw '{
-    "FixedAmountRequest": {
-        "recipient": "<YOUR_ADDRESS>"
-    }
-}'
-```
+faucet `https://faucet.sui.io`.
 
 ### Publishing the move package
 

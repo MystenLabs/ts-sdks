@@ -100,7 +100,7 @@ https://stackoverflow.com/questions/52676244/node-version-not-updating-after-nvm
 To run E2E tests against Devnet
 
 ```
-VITE_FAUCET_URL='https://faucet.devnet.sui.io:443/gas' VITE_FULLNODE_URL='https://fullnode.devnet.sui.io' pnpm --filter @mysten/sui exec vitest e2e
+VITE_FAUCET_URL='https://faucet.devnet.sui.io:443/v2/gas' VITE_FULLNODE_URL='https://fullnode.devnet.sui.io' pnpm --filter @mysten/sui exec vitest e2e
 ```
 
 ## Connecting to Sui Network

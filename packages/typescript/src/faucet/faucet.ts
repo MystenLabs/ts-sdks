@@ -103,6 +103,24 @@ export async function requestSuiFromFaucetV1(input: {
 	});
 }
 
+export async function requestSuiFromFaucetV2(input: {
+	host: string;
+	recipient: string;
+	headers?: HeadersInit;
+}): Promise<BatchFaucetResponse> {
+	return faucetRequest({
+		host: input.host,
+		path: '/v2/gas',
+		body: {
+			FixedAmountRequest: {
+				recipient: input.recipient,
+			},
+		},
+		headers: input.headers,
+		method: 'POST',
+	});
+}
+
 export async function getFaucetRequestStatus(input: {
 	host: string;
 	taskId: string;
