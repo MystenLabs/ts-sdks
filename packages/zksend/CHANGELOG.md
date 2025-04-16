@@ -1,5 +1,11 @@
 # @mysten/zksend
 
+## 0.12.25
+
+### Patch Changes
+
+- d914fd3: revert zksend channel name change
+
 ## 0.12.24
 
 ### Patch Changes
