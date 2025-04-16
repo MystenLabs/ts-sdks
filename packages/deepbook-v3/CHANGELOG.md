@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.14.0
+
+### Minor Changes
+
+- 5e7eeb9: Package Upgrade ID
+
 ## 0.13.7
 
 ### Patch Changes
