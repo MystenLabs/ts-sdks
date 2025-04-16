@@ -49,6 +49,8 @@
 	"dependencies": {
 		"@mysten/sui": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
-		"@mysten/zksend": "workspace:*"
+		"@mysten/zksend": "workspace:*",
+		"@nanostores/persistent": "^1.0.0",
+		"nanostores": "^1.0.1"
 	}
 }
