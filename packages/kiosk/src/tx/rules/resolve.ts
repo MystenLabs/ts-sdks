@@ -13,15 +13,7 @@ import { lock } from '../kiosk.js';
  * A helper to resolve the royalty rule.
  */
 export async function resolveRoyaltyRule(params: RuleResolvingParams) {
-	const {
-		kioskClient,
-		transaction: tx,
-		itemType,
-		price,
-		packageId,
-		transferRequest,
-		policyId,
-	} = params;
+	const { client, transaction: tx, itemType, price, packageId, transferRequest, policyId } = params;
 
 	// We attempt to resolve the fee amount outside of the PTB so that the split amount is known before the transaction is sent.
 	// This improves the display of the transaction within the wallet.
@@ -37,7 +29,8 @@ export async function resolveRoyaltyRule(params: RuleResolvingParams) {
 
 	const policyObj = tx.object(policyId);
 
-	const { results } = await kioskClient.client.devInspectTransactionBlock({
+	// TODO: Implement devInspect for core client
+	const { results } = await client.core.devInspectTransactionBlock({
 		sender: tx.getData().sender || normalizeSuiAddress('0x0'),
 		transactionBlock: feeTx,
 	});
@@ -84,7 +77,7 @@ export function resolveKioskLockRule(params: RuleResolvingParams) {
 
 	if (!kiosk || !kioskCap) throw new Error('Missing Owned Kiosk or Owned Kiosk Cap');
 
-	lock(tx, itemType, kiosk, kioskCap, policyId, purchasedItem);
+	tx.add(lock({ itemType, kiosk, kioskCap, policy: policyId, item: purchasedItem }));
 
 	// proves that the item is locked in the kiosk to the TP.
 	tx.moveCall({

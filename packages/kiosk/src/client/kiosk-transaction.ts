@@ -82,7 +82,7 @@ export class KioskTransaction {
 			share: true,
 			transfer: true,
 		});
-		const [kiosk, cap] = kioskTx.createKiosk(this.transaction);
+		const [kiosk, cap] = this.transaction.add(kioskTx.createKiosk());
 		this.kiosk = kiosk;
 		this.kioskCap = cap;
 		return this;
@@ -125,7 +125,7 @@ export class KioskTransaction {
 	 */
 	createAndShare(address: string) {
 		this.#validateFinalizedStatus();
-		const cap = kioskTx.createKioskAndShare(this.transaction);
+		const cap = this.transaction.add(kioskTx.createKioskAndShare());
 		this.transaction.transferObjects([cap], this.transaction.pure.address(address));
 	}
 
@@ -135,7 +135,7 @@ export class KioskTransaction {
 	share() {
 		this.#validateKioskIsSet();
 		this.#setPendingStatuses({ share: false });
-		kioskTx.shareKiosk(this.transaction, this.kiosk!);
+		this.transaction.add(kioskTx.shareKiosk({ kiosk: this.kiosk! }));
 	}
 
 	/**
@@ -156,12 +156,13 @@ export class KioskTransaction {
 	 */
 	borrowTx({ itemType, itemId }: ItemId, callback: (item: TransactionArgument) => void) {
 		this.#validateKioskIsSet();
-		const [itemObj, promise] = kioskTx.borrowValue(
-			this.transaction,
-			itemType,
-			this.kiosk!,
-			this.kioskCap!,
-			itemId,
+		const [itemObj, promise] = this.transaction.add(
+			kioskTx.borrowValue({
+				itemType,
+				kiosk: this.kiosk!,
+				kioskCap: this.kioskCap!,
+				itemId,
+			}),
 		);
 
 		callback(itemObj);
@@ -177,12 +178,13 @@ export class KioskTransaction {
 	 */
 	borrow({ itemType, itemId }: ItemId): [TransactionArgument, TransactionArgument] {
 		this.#validateKioskIsSet();
-		const [itemObj, promise] = kioskTx.borrowValue(
-			this.transaction,
-			itemType,
-			this.kiosk!,
-			this.kioskCap!,
-			itemId,
+		const [itemObj, promise] = this.transaction.add(
+			kioskTx.borrowValue({
+				itemType,
+				kiosk: this.kiosk!,
+				kioskCap: this.kioskCap!,
+				itemId,
+			}),
 		);
 
 		return [itemObj, promise];
@@ -194,7 +196,14 @@ export class KioskTransaction {
 	 */
 	return({ itemType, item, promise }: ItemValue & { promise: TransactionArgument }) {
 		this.#validateKioskIsSet();
-		kioskTx.returnValue(this.transaction, itemType, this.kiosk!, item, promise);
+		this.transaction.add(
+			kioskTx.returnValue({
+				itemType,
+				kiosk: this.kiosk!,
+				item,
+				promise,
+			}),
+		);
 		return this;
 	}
 
@@ -205,7 +214,13 @@ export class KioskTransaction {
 	 */
 	withdraw(address: string, amount?: string | bigint | number) {
 		this.#validateKioskIsSet();
-		const coin = kioskTx.withdrawFromKiosk(this.transaction, this.kiosk!, this.kioskCap!, amount);
+		const coin = this.transaction.add(
+			kioskTx.withdrawFromKiosk({
+				kiosk: this.kiosk!,
+				kioskCap: this.kioskCap!,
+				amount,
+			}),
+		);
 		this.transaction.transferObjects([coin], this.transaction.pure.address(address));
 		return this;
 	}
@@ -217,7 +232,14 @@ export class KioskTransaction {
 	 */
 	place({ itemType, item }: ItemReference) {
 		this.#validateKioskIsSet();
-		kioskTx.place(this.transaction, itemType, this.kiosk!, this.kioskCap!, item);
+		this.transaction.add(
+			kioskTx.place({
+				itemType,
+				kiosk: this.kiosk!,
+				kioskCap: this.kioskCap!,
+				item,
+			}),
+		);
 		return this;
 	}
 
@@ -229,10 +251,17 @@ export class KioskTransaction {
 	 */
 	placeAndList({ itemType, item, price }: ItemReference & Price) {
 		this.#validateKioskIsSet();
-		kioskTx.placeAndList(this.transaction, itemType, this.kiosk!, this.kioskCap!, item, price);
+		this.transaction.add(
+			kioskTx.placeAndList({
+				itemType,
+				kiosk: this.kiosk!,
+				kioskCap: this.kioskCap!,
+				item,
+				price,
+			}),
+		);
 		return this;
 	}
-
 	/**
 	 * A function to list an item in the kiosk.
 	 * @param itemType The type `T` of the item
@@ -241,7 +270,17 @@ export class KioskTransaction {
 	 */
 	list({ itemType, itemId, price }: ItemId & { price: string | bigint }) {
 		this.#validateKioskIsSet();
-		kioskTx.list(this.transaction, itemType, this.kiosk!, this.kioskCap!, itemId, price);
+
+		this.transaction.add(
+			kioskTx.list({
+				itemType,
+				kiosk: this.kiosk!,
+				kioskCap: this.kioskCap!,
+				itemId,
+				price,
+			}),
+		);
+
 		return this;
 	}
 
@@ -252,7 +291,14 @@ export class KioskTransaction {
 	 */
 	delist({ itemType, itemId }: ItemId) {
 		this.#validateKioskIsSet();
-		kioskTx.delist(this.transaction, itemType, this.kiosk!, this.kioskCap!, itemId);
+		this.transaction.add(
+			kioskTx.delist({
+				itemType,
+				kiosk: this.kiosk!,
+				kioskCap: this.kioskCap!,
+				itemId,
+			}),
+		);
 		return this;
 	}
 
@@ -264,7 +310,12 @@ export class KioskTransaction {
 	 */
 	take({ itemType, itemId }: ItemId): TransactionObjectArgument {
 		this.#validateKioskIsSet();
-		return kioskTx.take(this.transaction, itemType, this.kiosk!, this.kioskCap!, itemId);
+		return kioskTx.take({
+			itemType,
+			kiosk: this.kiosk!,
+			kioskCap: this.kioskCap!,
+			itemId,
+		});
 	}
 
 	/**
@@ -296,7 +347,16 @@ export class KioskTransaction {
 		policy,
 	}: ItemReference & { policy: ObjectArgument; itemId?: string }) {
 		this.#validateKioskIsSet();
-		kioskTx.lock(this.transaction, itemType, this.kiosk!, this.kioskCap!, policy, itemId ?? item);
+
+		this.transaction.add(
+			kioskTx.lock({
+				itemType,
+				kiosk: this.kiosk!,
+				kioskCap: this.kioskCap!,
+				policy,
+				item: itemId ?? item,
+			}),
+		);
 		return this;
 	}
 
@@ -314,15 +374,20 @@ export class KioskTransaction {
 		itemId,
 		price,
 		sellerKiosk,
-	}: ItemId & Price & { sellerKiosk: ObjectArgument }): [
-		TransactionObjectArgument,
-		TransactionObjectArgument,
-	] {
+	}: ItemId & Price & { sellerKiosk: ObjectArgument }) {
 		// Split the coin for the amount of the listing.
 		const coin = this.transaction.splitCoins(this.transaction.gas, [
 			this.transaction.pure.u64(price),
 		]);
-		return kioskTx.purchase(this.transaction, itemType, sellerKiosk, itemId, coin);
+
+		return this.transaction.add(
+			kioskTx.purchase({
+				itemType,
+				kiosk: sellerKiosk,
+				itemId,
+				payment: coin,
+			}),
+		);
 	}
 
 	/**

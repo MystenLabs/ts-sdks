@@ -4,10 +4,10 @@
 import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 
 import {
-	attachFloorPriceRuleTx,
-	attachKioskLockRuleTx,
-	attachPersonalKioskRuleTx,
-	attachRoyaltyRuleTx,
+	floorPriceRule,
+	kioskLockRule,
+	personalKioskRule,
+	royaltyRule,
 } from '../tx/rules/attach.js';
 import {
 	createTransferPolicy,
@@ -172,14 +172,15 @@ export class TransferPolicyTransaction {
 		// Hard-coding package Ids as these don't change.
 		// Also, it's hard to keep versioning as with network wipes, mainnet
 		// and testnet will conflict.
-		attachRoyaltyRuleTx(
-			this.transaction,
-			this.type!,
-			this.policy!,
-			this.policyCap!,
-			percentageBps,
-			minAmount,
-			this.kioskClient.getRulePackageId('royaltyRulePackageId'),
+		this.transaction.add(
+			royaltyRule({
+				type: this.type!,
+				policy: this.policy!,
+				policyCap: this.policyCap!,
+				percentageBps,
+				minAmount,
+				packageId: this.kioskClient.getRulePackageId('royaltyRulePackageId'),
+			}),
 		);
 		return this;
 	}
@@ -191,12 +192,13 @@ export class TransferPolicyTransaction {
 	addLockRule() {
 		this.#validateInputs();
 
-		attachKioskLockRuleTx(
-			this.transaction,
-			this.type!,
-			this.policy!,
-			this.policyCap!,
-			this.kioskClient.getRulePackageId('kioskLockRulePackageId'),
+		this.transaction.add(
+			kioskLockRule({
+				type: this.type!,
+				policy: this.policy!,
+				policyCap: this.policyCap!,
+				packageId: this.kioskClient.getRulePackageId('kioskLockRulePackageId'),
+			}),
 		);
 		return this;
 	}
@@ -207,12 +209,13 @@ export class TransferPolicyTransaction {
 	addPersonalKioskRule() {
 		this.#validateInputs();
 
-		attachPersonalKioskRuleTx(
-			this.transaction,
-			this.type!,
-			this.policy!,
-			this.policyCap!,
-			this.kioskClient.getRulePackageId('personalKioskRulePackageId'),
+		this.transaction.add(
+			personalKioskRule({
+				type: this.type!,
+				policy: this.policy!,
+				policyCap: this.policyCap!,
+				packageId: this.kioskClient.getRulePackageId('personalKioskRulePackageId'),
+			}),
 		);
 		return this;
 	}
@@ -224,13 +227,14 @@ export class TransferPolicyTransaction {
 	addFloorPriceRule(minPrice: string | bigint) {
 		this.#validateInputs();
 
-		attachFloorPriceRuleTx(
-			this.transaction,
-			this.type!,
-			this.policy!,
-			this.policyCap!,
-			minPrice,
-			this.kioskClient.getRulePackageId('floorPriceRulePackageId'),
+		this.transaction.add(
+			floorPriceRule({
+				type: this.type!,
+				policy: this.policy!,
+				policyCap: this.policyCap!,
+				minPrice,
+				packageId: this.kioskClient.getRulePackageId('floorPriceRulePackageId'),
+			}),
 		);
 		return this;
 	}

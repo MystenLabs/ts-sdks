@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type {
-	DynamicFieldInfo,
 	PaginationArguments,
 	SuiClient,
 	SuiObjectData,
@@ -10,58 +9,59 @@ import type {
 	SuiObjectDataOptions,
 	SuiObjectResponse,
 } from '@mysten/sui/client';
-import {
-	fromBase64,
-	normalizeStructTag,
-	normalizeSuiAddress,
-	parseStructTag,
-} from '@mysten/sui/utils';
+import { normalizeStructTag, normalizeSuiAddress, parseStructTag } from '@mysten/sui/utils';
 
 import { KioskType } from './bcs.js';
-import type { Kiosk, KioskData, KioskListing, TransferPolicyCap } from './types/index.js';
+import type {
+	ClientWithKioskExtension,
+	Kiosk,
+	KioskData,
+	KioskListing,
+	TransferPolicyCap,
+} from './types/index.js';
 import { TRANSFER_POLICY_CAP_TYPE } from './types/index.js';
+import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 
 const DEFAULT_QUERY_LIMIT = 50;
 
-export async function getKioskObject(client: SuiClient, id: string): Promise<Kiosk> {
-	const queryRes = await client.getObject({ id, options: { showBcs: true } });
+export async function getKioskObject(client: ClientWithKioskExtension, id: string): Promise<Kiosk> {
+	const queryRes = await client.core.getObjects({ objectIds: [id] });
 
-	if (!queryRes || queryRes.error || !queryRes.data) {
-		throw new Error(`Kiosk ${id} not found; ${queryRes.error}`);
+	const object = queryRes.objects[0];
+
+	if (!object || object instanceof Error) {
+		throw new Error(`Kiosk ${id} not found`);
 	}
 
-	if (!queryRes.data.bcs || !('bcsBytes' in queryRes.data.bcs)) {
-		throw new Error(`Invalid kiosk query: ${id}, expected object, got package`);
-	}
-
-	return KioskType.parse(fromBase64(queryRes.data.bcs!.bcsBytes));
+	return KioskType.parse(object.content);
 }
 
 // helper to extract kiosk data from dynamic fields.
 export function extractKioskData(
-	data: DynamicFieldInfo[],
+	data: Experimental_SuiClientTypes.GetDynamicFieldsResponse['dynamicFields'],
 	listings: KioskListing[],
 	lockedItemIds: string[],
 	kioskId: string,
 ): KioskData {
 	return data.reduce<KioskData>(
-		(acc: KioskData, val: DynamicFieldInfo) => {
+		(acc, val) => {
 			const type = val.name.type;
 
 			if (type.startsWith('0x2::kiosk::Item')) {
-				acc.itemIds.push(val.objectId);
+				acc.itemIds.push(val.id);
 				acc.items.push({
-					objectId: val.objectId,
-					type: val.objectType,
+					objectId: val.id,
+					type: val.type,
 					isLocked: false,
 					kioskId,
 				});
 			}
 			if (type.startsWith('0x2::kiosk::Listing')) {
-				acc.listingIds.push(val.objectId);
+				// TODO parse bcs
+				acc.listingIds.push(val.id);
 				listings.push({
 					objectId: (val.name.value as { id: string }).id,
-					listingId: val.objectId,
+					listingId: val.id,
 					isExclusive: (val.name.value as { is_exclusive: boolean }).is_exclusive,
 				});
 			}
@@ -71,8 +71,8 @@ export function extractKioskData(
 
 			if (type.startsWith('0x2::kiosk_extension::ExtensionKey')) {
 				acc.extensions.push({
-					objectId: val.objectId,
-					type: normalizeStructTag(parseStructTag(val.name.type).typeParams[0]),
+					objectId: val.id,
+					type: normalizeStructTag(parseStructTag(val.type).typeParams[0]),
 				});
 			}
 
@@ -158,53 +158,26 @@ export function attachLockedItems(kioskData: KioskData, lockedItemIds: string[])
  * RPC calls that allow filtering of Type / batch fetching of spec
  */
 export async function getAllDynamicFields(
-	client: SuiClient,
+	client: ClientWithKioskExtension,
 	parentId: string,
 	pagination: PaginationArguments<string>,
 ) {
 	let hasNextPage = true;
 	let cursor = undefined;
-	const data: DynamicFieldInfo[] = [];
+	const data: Experimental_SuiClientTypes.GetDynamicFieldsResponse['dynamicFields'] = [];
 
 	while (hasNextPage) {
-		const result = await client.getDynamicFields({
+		const result = await client.core.getDynamicFields({
 			parentId,
 			limit: pagination.limit || undefined,
 			cursor,
 		});
-		data.push(...result.data);
+		data.push(...result.dynamicFields);
 		hasNextPage = result.hasNextPage;
-		cursor = result.nextCursor;
+		cursor = result.cursor;
 	}
 
 	return data;
-}
-
-/**
- * A helper to fetch all objects that works with pagination.
- * It will fetch all objects in the array, and limit it to 50/request.
- * Requests are sent using `Promise.all`.
- */
-export async function getAllObjects(
-	client: SuiClient,
-	ids: string[],
-	options: SuiObjectDataOptions,
-	limit: number = DEFAULT_QUERY_LIMIT,
-) {
-	const chunks = Array.from({ length: Math.ceil(ids.length / limit) }, (_, index) =>
-		ids.slice(index * limit, index * limit + limit),
-	);
-
-	const results = await Promise.all(
-		chunks.map((chunk) => {
-			return client.multiGetObjects({
-				ids: chunk,
-				options,
-			});
-		}),
-	);
-
-	return results.flat();
 }
 
 /**

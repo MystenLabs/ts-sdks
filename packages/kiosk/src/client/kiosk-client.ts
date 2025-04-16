@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { PaginationArguments, SuiClient } from '@mysten/sui/client';
+import type { PaginationArguments } from '@mysten/sui/client';
 
 import {
 	FLOOR_PRICE_RULE_ADDRESS,
@@ -18,13 +18,14 @@ import {
 	queryTransferPolicy,
 	queryTransferPolicyCapsByType,
 } from '../query/transfer-policy.js';
-import { Network } from '../types/index.js';
 import type {
+	CoreSuiClient,
 	FetchKioskOptions,
 	KioskClientOptions,
 	KioskData,
 	OwnedKiosks,
 } from '../types/index.js';
+import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 
 /**
  * A Client that allows you to interact with kiosk.
@@ -33,20 +34,26 @@ import type {
  * If you pass packageIds, all functionality will be managed using these packages.
  */
 export class KioskClient {
-	client: SuiClient;
-	network: Network;
-	rules: TransferPolicyRule[];
-	packageIds?: BaseRulePackageIds;
+	#client: CoreSuiClient;
+	#network: Experimental_SuiClientTypes.Network;
+	#rules: TransferPolicyRule[];
+	#packageIds: BaseRulePackageIds;
 
 	constructor(options: KioskClientOptions) {
-		this.client = options.client;
-		this.network = options.network;
-		this.rules = rules; // add all the default rules.
-		this.packageIds = options.packageIds;
+		this.#client = options.client;
+		this.#rules = rules; // add all the default rules.
+		this.#network = options.network ?? this.#client.network;
+		this.#packageIds = {
+			royaltyRulePackageId: ROYALTY_RULE_ADDRESS[this.#network],
+			kioskLockRulePackageId: KIOSK_LOCK_RULE_ADDRESS[this.#network],
+			personalKioskRulePackageId: PERSONAL_KIOSK_RULE_ADDRESS[this.#network],
+			floorPriceRulePackageId: FLOOR_PRICE_RULE_ADDRESS[this.#network],
+			...options.packageIds,
+		};
 
 		// Add the custom Package Ids too on the rule list.
 		// Only adds the rules that are passed in the packageId object.
-		if (options.packageIds) this.rules.push(...getBaseRules(options.packageIds));
+		if (options.packageIds) this.#rules.push(...getBaseRules(options.packageIds));
 	}
 
 	/// Querying
@@ -65,9 +72,10 @@ export class KioskClient {
 		pagination?: PaginationArguments<string>;
 	}): Promise<OwnedKiosks> {
 		const personalPackageId =
-			this.packageIds?.personalKioskRulePackageId || PERSONAL_KIOSK_RULE_ADDRESS[this.network];
+			this.#packageIds?.personalKioskRulePackageId ||
+			PERSONAL_KIOSK_RULE_ADDRESS[this.#client.network];
 
-		return getOwnedKiosks(this.client, address, {
+		return getOwnedKiosks(this.#client, address, {
 			pagination,
 			personalKioskType: personalPackageId
 				? `${personalPackageId}::personal_kiosk::PersonalKioskCap`
