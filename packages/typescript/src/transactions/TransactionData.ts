@@ -211,54 +211,69 @@ export class TransactionDataBuilder implements TransactionData {
 		});
 	}
 
-	mapArguments(fn: (arg: Argument, command: Command) => Argument) {
-		for (const command of this.commands) {
-			switch (command.$kind) {
-				case 'MoveCall':
-					command.MoveCall.arguments = command.MoveCall.arguments.map((arg) => fn(arg, command));
-					break;
-				case 'TransferObjects':
-					command.TransferObjects.objects = command.TransferObjects.objects.map((arg) =>
-						fn(arg, command),
-					);
-					command.TransferObjects.address = fn(command.TransferObjects.address, command);
-					break;
-				case 'SplitCoins':
-					command.SplitCoins.coin = fn(command.SplitCoins.coin, command);
-					command.SplitCoins.amounts = command.SplitCoins.amounts.map((arg) => fn(arg, command));
-					break;
-				case 'MergeCoins':
-					command.MergeCoins.destination = fn(command.MergeCoins.destination, command);
-					command.MergeCoins.sources = command.MergeCoins.sources.map((arg) => fn(arg, command));
-					break;
-				case 'MakeMoveVec':
-					command.MakeMoveVec.elements = command.MakeMoveVec.elements.map((arg) =>
-						fn(arg, command),
-					);
-					break;
-				case 'Upgrade':
-					command.Upgrade.ticket = fn(command.Upgrade.ticket, command);
-					break;
-				case '$Intent':
-					const inputs = command.$Intent.inputs;
-					command.$Intent.inputs = {};
+	mapCommandArguments(
+		index: number,
+		fn: (arg: Argument, command: Command, commandIndex: number) => Argument,
+	) {
+		const command = this.commands[index];
 
-					for (const [key, value] of Object.entries(inputs)) {
-						command.$Intent.inputs[key] = Array.isArray(value)
-							? value.map((arg) => fn(arg, command))
-							: fn(value, command);
-					}
+		switch (command.$kind) {
+			case 'MoveCall':
+				command.MoveCall.arguments = command.MoveCall.arguments.map((arg) =>
+					fn(arg, command, index),
+				);
+				break;
+			case 'TransferObjects':
+				command.TransferObjects.objects = command.TransferObjects.objects.map((arg) =>
+					fn(arg, command, index),
+				);
+				command.TransferObjects.address = fn(command.TransferObjects.address, command, index);
+				break;
+			case 'SplitCoins':
+				command.SplitCoins.coin = fn(command.SplitCoins.coin, command, index);
+				command.SplitCoins.amounts = command.SplitCoins.amounts.map((arg) =>
+					fn(arg, command, index),
+				);
+				break;
+			case 'MergeCoins':
+				command.MergeCoins.destination = fn(command.MergeCoins.destination, command, index);
+				command.MergeCoins.sources = command.MergeCoins.sources.map((arg) =>
+					fn(arg, command, index),
+				);
+				break;
+			case 'MakeMoveVec':
+				command.MakeMoveVec.elements = command.MakeMoveVec.elements.map((arg) =>
+					fn(arg, command, index),
+				);
+				break;
+			case 'Upgrade':
+				command.Upgrade.ticket = fn(command.Upgrade.ticket, command, index);
+				break;
+			case '$Intent':
+				const inputs = command.$Intent.inputs;
+				command.$Intent.inputs = {};
 
-					break;
-				case 'Publish':
-					break;
-				default:
-					throw new Error(`Unexpected transaction kind: ${(command as { $kind: unknown }).$kind}`);
-			}
+				for (const [key, value] of Object.entries(inputs)) {
+					command.$Intent.inputs[key] = Array.isArray(value)
+						? value.map((arg) => fn(arg, command, index))
+						: fn(value, command, index);
+				}
+
+				break;
+			case 'Publish':
+				break;
+			default:
+				throw new Error(`Unexpected transaction kind: ${(command as { $kind: unknown }).$kind}`);
 		}
 	}
 
-	replaceCommand(index: number, replacement: Command | Command[]) {
+	mapArguments(fn: (arg: Argument, command: Command, commandIndex: number) => Argument) {
+		for (const commandIndex of this.commands.keys()) {
+			this.mapCommandArguments(commandIndex, fn);
+		}
+	}
+
+	replaceCommand(index: number, replacement: Command | Command[], resultIndex = index) {
 		if (!Array.isArray(replacement)) {
 			this.commands[index] = replacement;
 			return;
@@ -268,15 +283,27 @@ export class TransactionDataBuilder implements TransactionData {
 		this.commands.splice(index, 1, ...replacement);
 
 		if (sizeDiff !== 0) {
-			this.mapArguments((arg) => {
+			this.mapArguments((arg, _command, commandIndex) => {
+				if (commandIndex < index + replacement.length) {
+					return arg;
+				}
+
 				switch (arg.$kind) {
 					case 'Result':
+						if (arg.Result === index) {
+							arg.Result = resultIndex;
+						}
+
 						if (arg.Result > index) {
 							arg.Result += sizeDiff;
 						}
 						break;
 
 					case 'NestedResult':
+						if (arg.NestedResult[0] === index) {
+							arg.NestedResult[0] = resultIndex;
+						}
+
 						if (arg.NestedResult[0] > index) {
 							arg.NestedResult[0] += sizeDiff;
 						}
@@ -294,5 +321,18 @@ export class TransactionDataBuilder implements TransactionData {
 
 	snapshot(): TransactionData {
 		return parse(TransactionData, this);
+	}
+
+	shallowClone() {
+		return new TransactionDataBuilder({
+			version: this.version,
+			sender: this.sender,
+			expiration: this.expiration,
+			gasData: {
+				...this.gasData,
+			},
+			inputs: [...this.inputs],
+			commands: [...this.commands],
+		});
 	}
 }

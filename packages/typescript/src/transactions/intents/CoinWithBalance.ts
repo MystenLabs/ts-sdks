@@ -37,7 +37,7 @@ export function coinWithBalance({
 		tx.addIntentResolver(COIN_WITH_BALANCE, resolveCoinBalance);
 		const coinType = type === 'gas' ? type : normalizeStructTag(type);
 
-		coinResult = tx.add<TransactionResult>(
+		coinResult = tx.add(
 			Commands.Intent({
 				name: COIN_WITH_BALANCE,
 				inputs: {},
