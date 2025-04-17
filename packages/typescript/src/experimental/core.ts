@@ -5,6 +5,7 @@ import { TypeTagSerializer } from '../bcs/type-tag-serializer.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { normalizeStructTag, parseStructTag, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
 import { Experimental_BaseClient } from './client.js';
+import { ObjectError } from './errors.js';
 import type { Experimental_SuiClientTypes } from './types.js';
 
 export abstract class Experimental_CoreClient
@@ -66,6 +67,12 @@ export abstract class Experimental_CoreClient
 		});
 
 		if (fieldObject instanceof Error) {
+			if (ObjectError.isNotFound(fieldObject)) {
+				return {
+					dynamicField: null,
+				};
+			}
+
 			throw fieldObject;
 		}
 
