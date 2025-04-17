@@ -1,5 +1,16 @@
 # @mysten/zksend
 
+## 0.12.26
+
+### Patch Changes
+
+- 3eb8990: use window-wallet-core for experimental unified-adapter
+- Updated dependencies [2705dc8]
+- Updated dependencies [3eb8990]
+  - @mysten/sui@1.28.0
+  - @mysten/window-wallet-core@0.0.2
+  - @mysten/wallet-standard@0.14.5
+
 ## 0.12.25
 
 ### Patch Changes

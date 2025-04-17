@@ -1,5 +1,18 @@
 # @mysten/create-dapp
 
+## 0.4.0
+
+### Minor Changes
+
+- 2705dc8: Added a requestSuiFromFaucetV2 and added a deprecation comment on the previous
+  requestSuiFromFaucetV0, V1, and status.
+
+### Patch Changes
+
+- Updated dependencies [2705dc8]
+  - @mysten/sui@1.28.0
+  - @mysten/dapp-kit@0.15.6
+
 ## 0.3.60
 
 ### Patch Changes

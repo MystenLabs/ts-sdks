@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 1.28.0
+
+### Minor Changes
+
+- 2705dc8: Added a requestSuiFromFaucetV2 and added a deprecation comment on the previous
+  requestSuiFromFaucetV0, V1, and status.
+
 ## 1.27.1
 
 ### Patch Changes
