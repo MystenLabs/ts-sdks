@@ -198,7 +198,7 @@ export class EnokiConnectWallet implements Wallet {
 			bytes: response.bytes,
 			signature: response.signature,
 			digest: response.digest,
-			effects: response.effects || '',
+			effects: response.effects,
 		};
 	};
 
