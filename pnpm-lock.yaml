@@ -682,7 +682,7 @@ importers:
         specifier: workspace:*
         version: link:../typescript
       '@mysten/wallet-core':
-        specifier: workspace:0.0.1-experimental
+        specifier: workspace:*
         version: link:../wallet-core
       '@mysten/wallet-standard':
         specifier: workspace:*

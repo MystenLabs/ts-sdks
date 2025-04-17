@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/enoki-connect",
-	"version": "0.0.1-experimental",
+	"version": "0.0.1",
 	"description": "Enoki Connect Wallet-Standard implementation",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -46,7 +46,7 @@
 	},
 	"dependencies": {
 		"@mysten/sui": "workspace:*",
-		"@mysten/wallet-core": "workspace:0.0.1-experimental",
+		"@mysten/wallet-core": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
 		"mitt": "^3.0.1"
 	}
