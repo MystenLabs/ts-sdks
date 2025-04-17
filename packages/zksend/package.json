@@ -53,6 +53,7 @@
 		"@mysten/sui": "workspace:*",
 		"@mysten/utils": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
+		"@mysten/window-wallet-core": "workspace:*",
 		"mitt": "^3.0.1",
 		"nanostores": "^0.10.3",
 		"valibot": "^0.36.0"

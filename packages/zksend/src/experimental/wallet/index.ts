@@ -23,18 +23,14 @@ import type {
 	Wallet,
 	WalletIcon,
 } from '@mysten/wallet-standard';
-import {
-	getWallets,
-	ReadonlyWalletAccount,
-	SUI_CHAINS,
-	SUI_MAINNET_CHAIN,
-} from '@mysten/wallet-standard';
+import { getWallets, ReadonlyWalletAccount, SUI_CHAINS } from '@mysten/wallet-standard';
 import type { Emitter } from 'mitt';
 import mitt from 'mitt';
 import type { InferOutput } from 'valibot';
 import { boolean, object, parse, string } from 'valibot';
+import { DappPostMessageChannel, decodeJwtSession } from '@mysten/window-wallet-core';
 
-import { DEFAULT_STASHED_ORIGIN, StashedPopup } from './channel/index.js';
+const DEFAULT_STASHED_ORIGIN = 'https://getstashed.com';
 
 type WalletEventsMap = {
 	[E in keyof StandardEventsListeners]: Parameters<StandardEventsListeners[E]>[0];
@@ -43,12 +39,6 @@ type WalletEventsMap = {
 const STASHED_SESSION_KEY = 'stashed:session';
 
 export const STASHED_WALLET_NAME = 'Stashed' as const;
-type StashedAccount = { address: string; publicKey?: string };
-
-const getStashedSession = (): { accounts: StashedAccount[]; token: string } => {
-	const { accounts = [], token } = JSON.parse(localStorage.getItem(STASHED_SESSION_KEY) || '{}');
-	return { accounts, token };
-};
 
 const SUI_WALLET_EXTENSION_ID = 'com.mystenlabs.suiwallet' as const;
 const METADATA_API_URL = 'http://localhost:3001/api/wallet/metadata';
@@ -59,6 +49,41 @@ const WalletMetadataSchema = object({
 	icon: string('Icon must be a valid wallet icon format'),
 	enabled: boolean('Enabled is required'),
 });
+
+function setSessionToStorage(session: string) {
+	localStorage.setItem(STASHED_SESSION_KEY, session);
+}
+
+function getSessionFromStorage() {
+	const session = localStorage.getItem(STASHED_SESSION_KEY);
+
+	if (!session) {
+		throw new Error('No session found');
+	}
+
+	return session;
+}
+
+const walletAccountFeatures = [
+	'sui:signTransaction',
+	'sui:signAndExecuteTransaction',
+	'sui:signPersonalMessage',
+	'sui:signTransactionBlock',
+	'sui:signAndExecuteTransactionBlock',
+] as const;
+
+async function getAccountsFromSession(session: string) {
+	const { payload } = await decodeJwtSession(session);
+
+	return payload.accounts.map((account) => {
+		return new ReadonlyWalletAccount({
+			address: account.address,
+			chains: SUI_CHAINS,
+			features: walletAccountFeatures,
+			publicKey: fromBase64(account.publicKey),
+		});
+	});
+}
 
 type WalletMetadata = InferOutput<typeof WalletMetadataSchema>;
 export class StashedWallet implements Wallet {
@@ -161,17 +186,14 @@ export class StashedWallet implements Wallet {
 
 		const data = await transactionBlock.toJSON();
 
-		const popup = new StashedPopup({
-			name: this.#name,
-			origin: this.#origin,
-		});
+		const popup = this.#getNewPopupChannel();
 
 		const response = await popup.send({
 			type: 'sign-transaction',
 			transaction: data,
 			address: account.address,
 			chain,
-			session: getStashedSession().token,
+			session: getSessionFromStorage(),
 		});
 
 		return {
@@ -181,11 +203,7 @@ export class StashedWallet implements Wallet {
 	};
 
 	#signTransaction: SuiSignTransactionMethod = async ({ transaction, account, chain }) => {
-		const popup = new StashedPopup({
-			name: this.#name,
-			origin: this.#origin,
-			chain,
-		});
+		const popup = this.#getNewPopupChannel();
 
 		const tx = await transaction.toJSON();
 
@@ -194,7 +212,7 @@ export class StashedWallet implements Wallet {
 			transaction: tx,
 			address: account.address,
 			chain,
-			session: getStashedSession().token,
+			session: getSessionFromStorage(),
 		});
 
 		return {
@@ -208,11 +226,7 @@ export class StashedWallet implements Wallet {
 		account,
 		chain,
 	}) => {
-		const popup = new StashedPopup({
-			name: this.#name,
-			origin: this.#origin,
-			chain,
-		});
+		const popup = this.#getNewPopupChannel();
 
 		const tx = Transaction.from(await transaction.toJSON());
 		tx.setSenderIfNotSet(account.address);
@@ -224,27 +238,25 @@ export class StashedWallet implements Wallet {
 			transaction: data,
 			address: account.address,
 			chain,
-			session: getStashedSession().token,
+			session: getSessionFromStorage(),
 		});
 		return {
 			bytes: response.bytes,
 			signature: response.signature,
 			digest: response.digest,
-			effects: response.effects || '',
+			effects: response.effects,
 		};
 	};
 
 	#signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message, account }) => {
-		const popup = new StashedPopup({
-			name: this.#name,
-			origin: this.#origin,
-		});
+		const popup = this.#getNewPopupChannel();
 
 		const response = await popup.send({
 			type: 'sign-personal-message',
 			message: toBase64(message),
 			address: account.address,
-			session: getStashedSession().token,
+			session: getSessionFromStorage(),
+			chain: account.chains[0],
 		});
 
 		return {
@@ -258,81 +270,50 @@ export class StashedWallet implements Wallet {
 		return () => this.#events.off(event, listener);
 	};
 
-	removeAccount(address: string) {
-		const { accounts, token } = getStashedSession();
-
-		const filteredAccounts = accounts.filter((account) => account.address !== address);
-		if (filteredAccounts.length !== accounts.length) {
-			localStorage.setItem(
-				STASHED_SESSION_KEY,
-				JSON.stringify({
-					accounts: filteredAccounts,
-					token,
-				}),
-			);
-		}
-
-		this.#accounts = this.#accounts.filter((account) => account.address !== address);
-
-		this.#events.emit('change', { accounts: this.accounts });
-	}
-
-	#setAccounts(accounts?: StashedAccount[]) {
-		if (accounts && accounts.length) {
-			this.#accounts = accounts.map((account) => {
-				return new ReadonlyWalletAccount({
-					address: account.address,
-					chains: [SUI_MAINNET_CHAIN],
-					features: ['sui:signTransactionBlock', 'sui:signPersonalMessage'],
-					publicKey: account.publicKey ? fromBase64(account.publicKey) : new Uint8Array(),
-				});
-			});
-		} else {
-			this.#accounts = [];
-		}
-
+	#setAccounts(accounts: ReadonlyWalletAccount[]) {
+		this.#accounts = accounts;
 		this.#events.emit('change', { accounts: this.accounts });
 	}
 
 	#connect: StandardConnectMethod = async (input) => {
 		if (input?.silent) {
-			const { accounts } = getStashedSession();
+			try {
+				const accounts = await getAccountsFromSession(getSessionFromStorage());
 
-			if (accounts.length) {
-				this.#setAccounts(accounts);
+				if (accounts.length) {
+					this.#setAccounts(accounts);
+				}
+			} catch (error) {
+				// Do nothing
 			}
 
 			return { accounts: this.accounts };
 		}
-		const popup = new StashedPopup({
-			name: this.#name,
-			origin: this.#origin,
-		});
 
+		const popup = this.#getNewPopupChannel();
 		const response = await popup.send({
 			type: 'connect',
 		});
 
-		if (!('accounts' in response)) {
-			throw new Error('Unexpected response');
-		}
-
-		localStorage.setItem(
-			STASHED_SESSION_KEY,
-			JSON.stringify({ accounts: response.accounts, token: response.session }),
-		);
-
-		this.#setAccounts(response.accounts);
+		setSessionToStorage(response.session);
+		this.#setAccounts(await getAccountsFromSession(response.session));
 
 		return { accounts: this.accounts };
 	};
 
 	#disconnect: StandardDisconnectMethod = async () => {
 		localStorage.removeItem(STASHED_SESSION_KEY);
-
-		this.#setAccounts();
+		this.#setAccounts([]);
 	};
+
+	#getNewPopupChannel() {
+		return new DappPostMessageChannel({
+			appName: this.#name,
+			hostOrigin: this.#origin,
+		});
+	}
 }
+
 async function fetchMetadata(metadataApiUrl: string): Promise<WalletMetadata> {
 	const response = await fetch(metadataApiUrl);
 	if (!response.ok) {
