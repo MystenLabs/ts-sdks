@@ -66,7 +66,7 @@ const testMessage2 = new TextEncoder().encode('Hello world 2!');
 const possiblePks2 = await PasskeyKeypair.signAndRecover(provider, testMessage2);
 
 const commonPk = findCommonPublicKey(possiblePks, possiblePks2);
-const keypair = new PasskeyKeypair(provider, commonPk.toRawBytes());
+const keypair = new PasskeyKeypair(commonPk.toRawBytes(), provider);
 ```
 
 Alternatively, the developer can choose to ask the user to only sign one personal message that
