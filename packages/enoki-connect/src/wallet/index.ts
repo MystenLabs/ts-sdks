@@ -12,6 +12,8 @@ import type {
 	StandardEventsFeature,
 	StandardEventsListeners,
 	StandardEventsOnMethod,
+	SuiSignAndExecuteTransactionFeature,
+	SuiSignAndExecuteTransactionMethod,
 	SuiSignPersonalMessageFeature,
 	SuiSignPersonalMessageMethod,
 	SuiSignTransactionBlockFeature,
@@ -75,7 +77,8 @@ export class EnokiConnectWallet implements Wallet {
 		StandardEventsFeature &
 		SuiSignTransactionBlockFeature &
 		SuiSignTransactionFeature &
-		SuiSignPersonalMessageFeature {
+		SuiSignPersonalMessageFeature &
+		SuiSignAndExecuteTransactionFeature {
 		return {
 			'standard:connect': {
 				version: '1.0.0',
@@ -100,6 +103,10 @@ export class EnokiConnectWallet implements Wallet {
 			'sui:signPersonalMessage': {
 				version: '1.1.0',
 				signPersonalMessage: this.#signPersonalMessage,
+			},
+			'sui:signAndExecuteTransaction': {
+				version: '2.0.0',
+				signAndExecuteTransaction: this.#signAndExecuteTransaction,
 			},
 		};
 	}
@@ -141,9 +148,9 @@ export class EnokiConnectWallet implements Wallet {
 		const response = await popup.send({
 			type: 'sign-transaction',
 			chain,
-			transaction: JSON.stringify(transactionBlock.getData()),
+			transaction: await transactionBlock.toJSON(),
 			address: account.address,
-			session: localStorage.getItem(this.#getSessionKey()) ?? '',
+			session: this.#getStoredSession(),
 		});
 
 		return {
@@ -154,16 +161,13 @@ export class EnokiConnectWallet implements Wallet {
 
 	#signTransaction: SuiSignTransactionMethod = async ({ transaction, account, chain }) => {
 		const popup = this.#getNewPopupChannel();
-		const tx = Transaction.from(await transaction.toJSON());
-
-		tx.setSenderIfNotSet(account.address);
 
 		const response = await popup.send({
 			type: 'sign-transaction',
 			chain,
-			transaction: JSON.stringify(await tx.getData()),
+			transaction: await transaction.toJSON(),
 			address: account.address,
-			session: localStorage.getItem(this.#getSessionKey()) ?? '',
+			session: this.#getStoredSession(),
 		});
 
 		return {
@@ -172,20 +176,45 @@ export class EnokiConnectWallet implements Wallet {
 		};
 	};
 
+	#signAndExecuteTransaction: SuiSignAndExecuteTransactionMethod = async ({
+		transaction,
+		account,
+		chain,
+	}) => {
+		const popup = this.#getNewPopupChannel();
+		const tx = Transaction.from(await transaction.toJSON());
+
+		tx.setSenderIfNotSet(account.address);
+
+		const response = await popup.send({
+			type: 'sign-and-execute-transaction',
+			transaction: await tx.toJSON(),
+			address: account.address,
+			chain,
+			session: this.#getStoredSession(),
+		});
+
+		return {
+			bytes: response.bytes,
+			signature: response.signature,
+			digest: response.digest,
+			effects: response.effects || '',
+		};
+	};
+
 	#signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message, account }) => {
 		const popup = this.#getNewPopupChannel();
-		const bytes = toBase64(message);
 		const response = await popup.send({
 			type: 'sign-personal-message',
 			// TODO: use chain from signPersonalMessage input when available
 			chain: this.#defaultChain,
-			message: bytes,
+			message: toBase64(message),
 			address: account.address,
-			session: localStorage.getItem(this.#getSessionKey()) ?? '',
+			session: this.#getStoredSession(),
 		});
 
 		return {
-			bytes,
+			bytes: response.bytes,
 			signature: response.signature,
 		};
 	};
@@ -209,7 +238,7 @@ export class EnokiConnectWallet implements Wallet {
 
 	#connect: StandardConnectMethod = async (input) => {
 		if (input?.silent) {
-			const session = localStorage.getItem(this.#getSessionKey());
+			const session = this.#getStoredSession();
 
 			if (session) {
 				this.#setAccounts(session);
@@ -235,6 +264,16 @@ export class EnokiConnectWallet implements Wallet {
 
 	#getSessionKey() {
 		return `enoki-connect-${this.#publicAppSlug}:session`;
+	}
+
+	#getStoredSession() {
+		const session = localStorage.getItem(this.#getSessionKey());
+
+		if (!session) {
+			throw new Error('No session found');
+		}
+
+		return session;
 	}
 
 	#getNewPopupChannel() {
