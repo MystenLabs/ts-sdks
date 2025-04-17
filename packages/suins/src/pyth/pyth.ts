@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '@mysten/sui/bcs';
-import type { SuiClient } from '@mysten/sui/client';
 import type { Transaction } from '@mysten/sui/transactions';
 import { coinWithBalance } from '@mysten/sui/transactions';
 import { fromBase64, fromHex, parseStructTag } from '@mysten/sui/utils';
@@ -10,6 +9,8 @@ import { fromBase64, fromHex, parseStructTag } from '@mysten/sui/utils';
 import type { HexString } from './PriceServiceConnection.js';
 import { PriceServiceConnection } from './PriceServiceConnection.js';
 import { extractVaaBytesFromAccumulatorMessage } from './pyth-helpers.js';
+import type { SuiNSCompatibleClient } from '../types.js';
+import { PriceIdentifier, PythState } from '../bcs.js';
 
 const MAX_ARGUMENT_SIZE = 16 * 1024;
 export type ObjectId = string;
@@ -31,12 +32,12 @@ export class SuiPythClient {
 	#priceFeedObjectIdCache: Map<HexString, Promise<ObjectId>> = new Map();
 	#priceTableInfo?: Promise<{ id: ObjectId; fieldType: ObjectId }>;
 	#baseUpdateFee?: Promise<number>;
-	provider: SuiClient;
+	#client: SuiNSCompatibleClient;
 	pythStateId: ObjectId;
 	wormholeStateId: ObjectId;
 
-	constructor(provider: SuiClient, pythStateId: ObjectId, wormholeStateId: ObjectId) {
-		this.provider = provider;
+	constructor(client: SuiNSCompatibleClient, pythStateId: ObjectId, wormholeStateId: ObjectId) {
+		this.#client = client;
 		this.pythStateId = pythStateId;
 		this.wormholeStateId = wormholeStateId;
 	}
@@ -147,25 +148,25 @@ export class SuiPythClient {
 	 */
 	async #fetchPriceFeedObjectId(feedId: HexString): Promise<ObjectId> {
 		const { id: tableId, fieldType } = await this.getPriceTableInfo();
-		const result = await this.provider.getDynamicFieldObject({
+		const result = await this.#client.core.getDynamicField({
 			parentId: tableId,
 			name: {
 				type: `${fieldType}::price_identifier::PriceIdentifier`,
-				value: {
+				bcs: PriceIdentifier.serialize({
 					bytes: Array.from(fromHex(feedId)),
-				},
+				}).toBytes(),
 			},
 		});
 
-		if (!result.data || !result.data.content) {
+		if (!result.dynamicField) {
 			throw new Error(`Price feed object ID for feed ID ${feedId} not found.`);
 		}
-		if (result.data.content.dataType !== 'moveObject') {
+
+		if (result.dynamicField.value.type !== 'address') {
 			throw new Error('Price feed type mismatch');
 		}
 
-		// @ts-ignore
-		return result.data.content.fields.value;
+		return bcs.Address.parse(result.dynamicField.value.bcs);
 	}
 
 	/**
@@ -191,26 +192,26 @@ export class SuiPythClient {
 	 * @returns Price table object ID and field type
 	 */
 	async #fetchPriceTableInfo(): Promise<{ id: ObjectId; fieldType: ObjectId }> {
-		const result = await this.provider.getDynamicFieldObject({
+		const result = await this.#client.core.getDynamicField({
 			parentId: this.pythStateId,
 			name: {
 				type: 'vector<u8>',
-				value: 'price_info',
+				bcs: bcs.string().serialize('price_info').toBytes(),
 			},
 		});
 
-		if (!result.data || !result.data.type) {
+		if (!result.dynamicField) {
 			throw new Error('Price Table not found, contract may not be initialized');
 		}
 
-		const priceIdentifier = parseStructTag(result.data.type).typeParams[0];
+		const priceIdentifier = parseStructTag(result.dynamicField.type).typeParams[0];
 		if (
 			typeof priceIdentifier === 'object' &&
 			priceIdentifier !== null &&
 			priceIdentifier.name === 'PriceIdentifier' &&
 			'address' in priceIdentifier
 		) {
-			return { id: result.data.objectId, fieldType: priceIdentifier.address };
+			return { id: result.dynamicField.id, fieldType: priceIdentifier.address };
 		} else {
 			throw new Error('fieldType not found');
 		}
@@ -255,23 +256,14 @@ export class SuiPythClient {
 	 * @param objectId Object ID to fetch the package ID for.
 	 */
 	async #getPackageId(objectId: ObjectId): Promise<ObjectId> {
-		const result = await this.provider.getObject({
-			id: objectId,
-			options: { showContent: true },
+		const {
+			objects: [result],
+		} = await this.#client.core.getObjects({
+			objectIds: [objectId],
 		});
 
-		if (
-			result.data?.content?.dataType === 'moveObject' &&
-			'upgrade_cap' in result.data.content.fields
-		) {
-			const fields = result.data.content.fields as {
-				upgrade_cap: {
-					fields: {
-						package: ObjectId;
-					};
-				};
-			};
-			return fields.upgrade_cap.fields.package;
+		if (!(result instanceof Error)) {
+			return PythState.parse(result.content).upgrade_cap.package;
 		}
 
 		throw new Error(`Cannot fetch package ID for object ${objectId}`);
@@ -280,17 +272,17 @@ export class SuiPythClient {
 	 * Gets the base update fee from the Pyth state object.
 	 */
 	async #fetchBaseUpdateFee(): Promise<number> {
-		const result = await this.provider.getObject({
-			id: this.pythStateId,
-			options: { showContent: true },
+		const {
+			objects: [result],
+		} = await this.#client.core.getObjects({
+			objectIds: [this.pythStateId],
 		});
 
-		if (!result.data || result.data.content?.dataType !== 'moveObject') {
+		if (result instanceof Error) {
 			throw new Error('Unable to fetch Pyth state object');
 		}
 
-		const fields = result.data.content.fields as { base_update_fee: number };
-		return fields.base_update_fee;
+		return Number.parseInt(PythState.parse(result.content).base_update_fee, 10);
 	}
 
 	/**
