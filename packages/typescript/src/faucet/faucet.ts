@@ -29,6 +29,17 @@ type BatchStatusFaucetResponse = {
 	error?: string | null;
 };
 
+type FaucetResponseV2 = {
+	status: 'Success' | FaucetFailure;
+	coin_sent: FaucetCoinInfo | null;
+};
+
+type FaucetFailure = {
+	Failure: {
+		internal: string;
+	};
+};
+
 type FaucetRequest = {
 	host: string;
 	path: string;
@@ -67,6 +78,39 @@ async function faucetRequest({ host, path, body, headers, method }: FaucetReques
 	}
 }
 
+async function faucetRequestV2({ host, path, body, headers, method }: FaucetRequest) {
+	const endpoint = new URL(path, host).toString();
+	const res = await fetch(endpoint, {
+		method,
+		body: body ? JSON.stringify(body) : undefined,
+		headers: {
+			'Content-Type': 'application/json',
+			...(headers || {}),
+		},
+	});
+
+	if (res.status === 429) {
+		throw new FaucetRateLimitError(
+			`Too many requests from this client have been sent to the faucet. Please retry later`,
+		);
+	}
+
+	try {
+		const parsed = await res.json();
+		if (parsed.status != 'Success') {
+			throw new Error(`Faucet returns error: ${parsed.status}`);
+		}
+		return parsed;
+	} catch (e) {
+		throw new Error(
+			`Encountered error when parsing response from faucet, error: ${e}, status ${res.status}, response ${res}`,
+		);
+	}
+}
+
+/**
+ * @deprecated("Use requestSuiFromFaucetV2 instead")
+ */
 export async function requestSuiFromFaucetV0(input: {
 	host: string;
 	recipient: string;
@@ -85,6 +129,9 @@ export async function requestSuiFromFaucetV0(input: {
 	});
 }
 
+/**
+ * @deprecated("Use requestSuiFromFaucetV2 instead")
+ */
 export async function requestSuiFromFaucetV1(input: {
 	host: string;
 	recipient: string;
@@ -107,8 +154,8 @@ export async function requestSuiFromFaucetV2(input: {
 	host: string;
 	recipient: string;
 	headers?: HeadersInit;
-}): Promise<BatchFaucetResponse> {
-	return faucetRequest({
+}): Promise<FaucetResponseV2> {
+	return faucetRequestV2({
 		host: input.host,
 		path: '/v2/gas',
 		body: {
@@ -121,6 +168,9 @@ export async function requestSuiFromFaucetV2(input: {
 	});
 }
 
+/**
+ * @deprecated("Use requestSuiFromFaucetV2 which returns directly a success or failure status")
+ */
 export async function getFaucetRequestStatus(input: {
 	host: string;
 	taskId: string;
