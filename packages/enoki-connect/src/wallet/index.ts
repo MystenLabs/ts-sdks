@@ -1,7 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import type {
 	IdentifierString,
@@ -149,8 +148,6 @@ export class EnokiConnectWallet implements Wallet {
 		account,
 		chain,
 	}) => {
-		transactionBlock.setSenderIfNotSet(account.address);
-
 		const popup = this.#getNewPopupChannel();
 		const response = await popup.send({
 			type: 'sign-transaction',
@@ -168,7 +165,6 @@ export class EnokiConnectWallet implements Wallet {
 
 	#signTransaction: SuiSignTransactionMethod = async ({ transaction, account, chain }) => {
 		const popup = this.#getNewPopupChannel();
-
 		const response = await popup.send({
 			type: 'sign-transaction',
 			chain,
@@ -189,13 +185,9 @@ export class EnokiConnectWallet implements Wallet {
 		chain,
 	}) => {
 		const popup = this.#getNewPopupChannel();
-		const tx = Transaction.from(await transaction.toJSON());
-
-		tx.setSenderIfNotSet(account.address);
-
 		const response = await popup.send({
 			type: 'sign-and-execute-transaction',
-			transaction: await tx.toJSON(),
+			transaction: await transaction.toJSON(),
 			address: account.address,
 			chain,
 			session: this.#getStoredSession(),
@@ -209,12 +201,11 @@ export class EnokiConnectWallet implements Wallet {
 		};
 	};
 
-	#signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message, account }) => {
+	#signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message, account, chain }) => {
 		const popup = this.#getNewPopupChannel();
 		const response = await popup.send({
 			type: 'sign-personal-message',
-			// TODO: use chain from signPersonalMessage input when available
-			chain: this.#defaultChain,
+			chain: chain ?? this.#defaultChain,
 			message: toBase64(message),
 			address: account.address,
 			session: this.#getStoredSession(),
