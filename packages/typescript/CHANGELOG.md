@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.28.1
+
+### Patch Changes
+
+- 3cd4e53: Fix coinWithBalance with a 0 balance when using a gas coin
+
 ## 1.28.0
 
 ### Minor Changes
