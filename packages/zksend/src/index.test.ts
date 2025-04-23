@@ -4,7 +4,7 @@
 import { describe } from 'node:test';
 import { getFullnodeUrl, SuiClient, SuiObjectChange } from '@mysten/sui/client';
 import { decodeSuiPrivateKey, Keypair } from '@mysten/sui/cryptography';
-import { getFaucetHost, requestSuiFromFaucetV0 } from '@mysten/sui/faucet';
+import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { MIST_PER_SUI, toBase64 } from '@mysten/sui/utils';
@@ -45,7 +45,7 @@ beforeAll(async () => {
 
 async function getSuiFromFaucet(keypair: Keypair) {
 	const faucetHost = getFaucetHost('testnet');
-	const result = await requestSuiFromFaucetV0({
+	const result = await requestSuiFromFaucetV2({
 		host: faucetHost,
 		recipient: keypair.toSuiAddress(),
 	});

@@ -31,7 +31,7 @@ type BatchStatusFaucetResponse = {
 
 type FaucetResponseV2 = {
 	status: 'Success' | FaucetFailure;
-	coin_sent: FaucetCoinInfo | null;
+	coins_sent: FaucetCoinInfo[] | null;
 };
 
 type FaucetFailure = {

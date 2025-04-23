@@ -14,7 +14,7 @@ import type { Keypair } from '../../../src/cryptography/index.js';
 import {
 	FaucetRateLimitError,
 	getFaucetHost,
-	requestSuiFromFaucetV1,
+	requestSuiFromFaucetV2,
 } from '../../../src/faucet/index.js';
 import { Ed25519Keypair } from '../../../src/keypairs/ed25519/index.js';
 import { Transaction, UpgradePolicy } from '../../../src/transactions/index.js';
@@ -132,7 +132,7 @@ export async function setupWithFundedAddress(
 ) {
 	const client = getClient(rpcURL ?? DEFAULT_FULLNODE_URL);
 	await retry(
-		async () => await requestSuiFromFaucetV1({ host: DEFAULT_FAUCET_URL, recipient: address }),
+		async () => await requestSuiFromFaucetV2({ host: DEFAULT_FAUCET_URL, recipient: address }),
 		{
 			backoff: 'EXPONENTIAL',
 			// overall timeout in 60 seconds

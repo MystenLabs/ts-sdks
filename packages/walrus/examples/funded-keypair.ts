@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { getFaucetHost, requestSuiFromFaucetV0 } from '@mysten/sui/faucet';
+import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
 import { MIST_PER_SUI, parseStructTag } from '@mysten/sui/utils';
@@ -24,7 +24,7 @@ export async function getFundedKeypair() {
 	});
 
 	if (BigInt(balance.totalBalance) < MIST_PER_SUI) {
-		await requestSuiFromFaucetV0({
+		await requestSuiFromFaucetV2({
 			host: getFaucetHost('testnet'),
 			recipient: keypair.toSuiAddress(),
 		});

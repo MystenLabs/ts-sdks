@@ -5,17 +5,17 @@ title: Faucet
 Devnet, Testnet, and local networks include faucets that mint SUI. You can use the Sui TypeScript
 SDK to call a network's faucet and provide SUI to the address you provide.
 
-To request SUI from a faucet, import the `requestSuiFromFaucetV0` function from the
+To request SUI from a faucet, import the `requestSuiFromFaucetV2` function from the
 `@mysten/sui/faucet` package to your project.
 
 ```typescript
-import { getFaucetHost, requestSuiFromFaucetV0 } from '@mysten/sui/faucet';
+import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
 ```
 
-Use `requestSuiFromFaucetV0` in your TypeScript code to request SUI from the network's faucet.
+Use `requestSuiFromFaucetV2` in your TypeScript code to request SUI from the network's faucet.
 
 ```typescript
-await requestSuiFromFaucetV0({
+await requestSuiFromFaucetV2({
 	host: getFaucetHost('testnet'),
 	recipient: <RECIPIENT_ADDRESS>,
 });
@@ -23,5 +23,6 @@ await requestSuiFromFaucetV0({
 
 <Callout type="info">
 	Faucets on Devnet and Testnet are rate limited. If you run the script too many times, you surpass
-	the limit and must wait to successfully run it again.
+	the limit and must wait to successfully run it again. For testnet,the best way to get SUI is via
+  the Web UI: `faucet.sui.io`.
 </Callout>
