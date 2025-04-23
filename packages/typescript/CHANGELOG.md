@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.28.2
+
+### Patch Changes
+
+- 9a94aea: Add client.core.getObject method for fetching single objects
+
 ## 1.28.1
 
 ### Patch Changes

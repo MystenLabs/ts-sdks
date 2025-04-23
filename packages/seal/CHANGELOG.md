@@ -1,5 +1,16 @@
 # @mysten/seal
 
+## 0.4.0
+
+### Minor Changes
+
+- 9a94aea: Add experimental client extension support
+
+### Patch Changes
+
+- Updated dependencies [9a94aea]
+  - @mysten/sui@1.28.2
+
 ## 0.3.9
 
 ### Patch Changes
