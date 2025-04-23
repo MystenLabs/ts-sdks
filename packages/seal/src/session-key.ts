@@ -8,7 +8,6 @@ import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { isValidSuiAddress, isValidSuiObjectId } from '@mysten/sui/utils';
 import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
-
 import { generateSecretKey, toPublicKey, toVerificationKey } from './elgamal.js';
 import {
 	ExpiredSessionKeyError,
@@ -28,6 +27,15 @@ export type Certificate = {
 	creation_time: number;
 	ttl_min: number;
 	signature: string;
+};
+
+export type SessionKeyType = {
+	address: string;
+	packageId: string;
+	creationTimeMs: number;
+	ttlMin: number;
+	personalMessageSignature?: string;
+	sessionKey: string;
 };
 
 export class SessionKey {
@@ -134,5 +142,53 @@ export class SessionKey {
 			decryptionKey: egSk,
 			requestSignature: toBase64(await this.#sessionKey.sign(msgToSign)),
 		};
+	}
+
+	/**
+	 * Export the Session Key object from the instance. Store the object in IndexedDB to persist.
+	 */
+	export(): SessionKeyType {
+		const obj = {
+			address: this.#address,
+			packageId: this.#packageId,
+			creationTimeMs: this.#creationTimeMs,
+			ttlMin: this.#ttlMin,
+			personalMessageSignature: this.#personalMessageSignature,
+			sessionKey: this.#sessionKey.getSecretKey(), // bech32 encoded string
+		};
+
+		Object.defineProperty(obj, 'toJSON', {
+			enumerable: false,
+			value: () => {
+				throw new Error('This object is not serializable');
+			},
+		});
+		return obj;
+	}
+
+	/**
+	 * Restore a SessionKey instance for the given object.
+	 * @returns A new SessionKey instance with restored state
+	 */
+	static async import(data: SessionKeyType): Promise<SessionKey> {
+		const instance = new SessionKey({
+			address: data.address,
+			packageId: data.packageId,
+			ttlMin: data.ttlMin,
+		});
+
+		instance.#creationTimeMs = data.creationTimeMs;
+		instance.#sessionKey = Ed25519Keypair.fromSecretKey(data.sessionKey);
+
+		// check if personal message signature is consistent with the personal message committing to
+		// the session key pk, package id, ttlMin.
+		if (data.personalMessageSignature) {
+			await instance.setPersonalMessageSignature(data.personalMessageSignature);
+		}
+
+		if (instance.isExpired()) {
+			throw new ExpiredSessionKeyError();
+		}
+		return instance;
 	}
 }
