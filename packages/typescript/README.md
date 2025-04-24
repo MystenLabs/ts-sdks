@@ -157,7 +157,8 @@ await client.getCoins({
 
 ## Getting coins from the faucet
 
-You can request sui from the faucet when running against devnet or localnet. For testnet, visit faucet.sui.io.
+You can request sui from the faucet when running against devnet or localnet. For testnet, visit
+faucet.sui.io.
 
 ```typescript
 import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';

@@ -16,8 +16,8 @@ declare module 'vitest' {
 
 const SUI_TOOLS_TAG =
 	process.env.SUI_TOOLS_TAG || process.arch === 'arm64'
-		? '2e256a70aa0ff81972ded6ebd57f7679e2ea194d-arm64'
-		: '2e256a70aa0ff81972ded6ebd57f7679e2ea194d';
+		? '28dc33fc8fc43e50819c42c22b0d557b889c107e-arm64'
+		: '28dc33fc8fc43e50819c42c22b0d557b889c107e';
 
 export default async function setup({ provide }: GlobalSetupContext) {
 	console.log('Starting test containers');
@@ -37,6 +37,7 @@ export default async function setup({ provide }: GlobalSetupContext) {
 		.start();
 
 	const localnet = await new GenericContainer(`mysten/sui-tools:${SUI_TOOLS_TAG}`)
+		// .withPullPolicy(PullPolicy.alwaysPull())
 		.withCommand([
 			'sui',
 			'start',
