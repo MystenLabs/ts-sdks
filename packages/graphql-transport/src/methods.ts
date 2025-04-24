@@ -1380,6 +1380,9 @@ export const RPC_METHODS: {
 			max_package_dependencies: 'u32',
 			bridge_should_try_to_finalize_committee: 'bool',
 			consensus_voting_rounds: 'u32',
+			consensus_commit_rate_estimation_window_size: 'u32',
+			consensus_gc_depth: 'u32',
+			use_object_per_epoch_marker_table_v2: 'bool',
 		};
 
 		for (const { key, value } of protocolConfig.configs) {
