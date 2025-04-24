@@ -45,17 +45,9 @@ beforeAll(async () => {
 
 async function getSuiFromFaucet(keypair: Keypair) {
 	const faucetHost = getFaucetHost('testnet');
-	const result = await requestSuiFromFaucetV2({
+	await requestSuiFromFaucetV2({
 		host: faucetHost,
 		recipient: keypair.toSuiAddress(),
-	});
-
-	if (result.error) {
-		throw new Error(result.error);
-	}
-
-	await client.waitForTransaction({
-		digest: result.transferredGasObjects[0].transferTxDigest,
 	});
 }
 
