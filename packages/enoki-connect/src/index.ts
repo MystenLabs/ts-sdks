@@ -3,6 +3,6 @@
 
 export {
 	EnokiConnectWallet,
-	registerEnokiConnectWallet,
+	registerEnokiConnectWallets,
 	type SupportedNetwork,
 } from './wallet/index.js';
