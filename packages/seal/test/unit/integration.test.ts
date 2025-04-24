@@ -16,7 +16,6 @@ import {
 	InvalidPersonalMessageSignatureError,
 	InvalidPTBError,
 	InvalidThresholdError,
-	InvalidUserSignatureError,
 	NoAccessError,
 	toMajorityError,
 } from '../../src/error';
@@ -266,10 +265,6 @@ describe('Integration test', () => {
 	it('test fetchKeys throws SealAPIError', async () => {
 		// Setup encrypted object.
 		const whitelistId = '0xaae704d2280f2c3d24fc08972bb31f2ef1f1c968784935434c3296be5bfd9d5b';
-		const txBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'whitelist', suiClient, [
-			whitelistId,
-		]);
-
 		const client = new SealClient({
 			suiClient,
 			serverObjectIds: objectIds,
@@ -291,17 +286,11 @@ describe('Integration test', () => {
 			address: wrongSuiAddress,
 			packageId: TESTNET_PACKAGE_ID,
 			ttlMin: 10,
-			signer: keypair,
 		});
-
-		await expect(
-			client.fetchKeys({
-				ids: [encryptedObject.id],
-				txBytes,
-				sessionKey,
-				threshold: encryptedObject.threshold,
-			}),
-		).rejects.toThrow(InvalidUserSignatureError);
+		const sig = await keypair.signPersonalMessage(sessionKey.getPersonalMessage());
+		await expect(sessionKey.setPersonalMessageSignature(sig.signature)).rejects.toThrow(
+			InvalidPersonalMessageSignatureError,
+		);
 
 		// Wrong txBytes fails to verify.
 		const sessionKey2 = new SessionKey({

@@ -65,6 +65,9 @@ export class SessionKey {
 			throw new UserError(`Invalid TTL ${ttlMin}, must be between 1 and 30`);
 		}
 
+		if (signer && signer.getPublicKey().toSuiAddress() !== address) {
+			throw new UserError('Signer address does not match session key address');
+		}
 		this.#address = address;
 		this.#packageId = packageId;
 		this.#creationTimeMs = Date.now();
@@ -170,18 +173,19 @@ export class SessionKey {
 	 * Restore a SessionKey instance for the given object.
 	 * @returns A new SessionKey instance with restored state
 	 */
-	static async import(data: SessionKeyType): Promise<SessionKey> {
+	static async import(data: SessionKeyType, { signer }: { signer?: Signer }): Promise<SessionKey> {
 		const instance = new SessionKey({
 			address: data.address,
 			packageId: data.packageId,
 			ttlMin: data.ttlMin,
+			signer,
 		});
 
 		instance.#creationTimeMs = data.creationTimeMs;
 		instance.#sessionKey = Ed25519Keypair.fromSecretKey(data.sessionKey);
 
-		// check if personal message signature is consistent with the personal message committing to
-		// the session key pk, package id, ttlMin.
+		// check if personal message signature is consistent with the personal message committed to
+		// the session key pk, package id, creationTime and ttlMin.
 		if (data.personalMessageSignature) {
 			await instance.setPersonalMessageSignature(data.personalMessageSignature);
 		}
