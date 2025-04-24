@@ -10,23 +10,23 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Theme } from "@radix-ui/themes";
 import App from "./App.tsx";
 import { networkConfig } from "./networkConfig.ts";
+import { registerEnokiConnectWallet } from "@mysten/enoki-connect";
 
 const queryClient = new QueryClient();
+
+registerEnokiConnectWallet({
+  publicAppSlug: "dev-app",
+  enokiApiUrl: "http://localhost:3084",
+  network: "testnet",
+  dappName: "Test Dapp",
+}).catch(() => {});
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <Theme appearance="dark">
       <QueryClientProvider client={queryClient}>
         <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
-          <WalletProvider
-            autoConnect
-            enokiConnectConfig={{
-              publicAppSlugs: ["dev", "test1"],
-              enokiApiUrl: "http://localhost:3084",
-              network: "testnet",
-              dappName: "Test Dapp",
-            }}
-          >
+          <WalletProvider autoConnect>
             <App />
           </WalletProvider>
         </SuiClientProvider>
