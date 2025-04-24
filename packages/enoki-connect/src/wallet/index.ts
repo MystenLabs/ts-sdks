@@ -321,7 +321,7 @@ async function getEnokiConnectMetadata(publicAppSlugs: string[], enokiApiUrl: st
 	const queryParams = new URLSearchParams();
 
 	for (const publicAppSlug of sortedPublicAppSlugs) {
-		queryParams.append('publicAppSlugs', publicAppSlug);
+		queryParams.append('s', publicAppSlug);
 	}
 
 	queryParams.sort();
