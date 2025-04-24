@@ -23,37 +23,41 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 	#jsonRpcClient: SuiClient;
 
 	constructor(jsonRpcClient: SuiClient) {
-		super({ network: jsonRpcClient.network });
+		super({ network: jsonRpcClient.network, root: jsonRpcClient.root });
 		this.#jsonRpcClient = jsonRpcClient;
 	}
 
-	async getObjects(options: Experimental_SuiClientTypes.GetObjectsOptions) {
-		const batches = batch(options.objectIds, 50);
-		const results: Experimental_SuiClientTypes.GetObjectsResponse['objects'] = [];
+	getObjects = this.root.middleware.wrap(
+		'core',
+		'getObjects',
+		async (options: Experimental_SuiClientTypes.GetObjectsOptions) => {
+			const batches = batch(options.objectIds, 50);
+			const results: Experimental_SuiClientTypes.GetObjectsResponse['objects'] = [];
 
-		for (const batch of batches) {
-			const objects = await this.#jsonRpcClient.multiGetObjects({
-				ids: batch,
-				options: {
-					showOwner: true,
-					showType: true,
-					showBcs: true,
-				},
-			});
+			for (const batch of batches) {
+				const objects = await this.#jsonRpcClient.multiGetObjects({
+					ids: batch,
+					options: {
+						showOwner: true,
+						showType: true,
+						showBcs: true,
+					},
+				});
 
-			for (const [idx, object] of objects.entries()) {
-				if (object.error) {
-					results.push(ObjectError.fromResponse(object.error, batch[idx]));
-				} else {
-					results.push(parseObject(object.data!));
+				for (const [idx, object] of objects.entries()) {
+					if (object.error) {
+						results.push(ObjectError.fromResponse(object.error, batch[idx]));
+					} else {
+						results.push(parseObject(object.data!));
+					}
 				}
 			}
-		}
 
-		return {
-			objects: results,
-		};
-	}
+			return {
+				objects: results,
+			};
+		},
+	);
 	async getOwnedObjects(options: Experimental_SuiClientTypes.GetOwnedObjectsOptions) {
 		const objects = await this.#jsonRpcClient.getOwnedObjects({
 			owner: options.address,

@@ -10,13 +10,17 @@ import type {
 	Experimental_SuiClientTypes,
 	SuiClientRegistration,
 } from './types.js';
+import { ClientMiddlewareStack } from './middleware.js';
 
 export abstract class Experimental_BaseClient {
 	network: Experimental_SuiClientTypes.Network;
 	cache = new ClientCache();
+	middleware = new ClientMiddlewareStack();
+	root: Experimental_BaseClient;
 
-	constructor({ network }: Experimental_SuiClientTypes.SuiClientOptions) {
+	constructor({ network, root }: Experimental_SuiClientTypes.SuiClientOptions) {
 		this.network = network;
+		this.root = root ?? this;
 	}
 
 	abstract core: Experimental_CoreClient;

@@ -36,6 +36,7 @@ export namespace Experimental_SuiClientTypes {
 
 	export interface SuiClientOptions {
 		network: Network;
+		root?: Experimental_BaseClient;
 	}
 
 	export interface CoreClientMethodOptions {
