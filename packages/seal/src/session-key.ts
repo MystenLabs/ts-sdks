@@ -4,7 +4,7 @@
 import { toBase64 } from '@mysten/bcs';
 import { bcs } from '@mysten/sui/bcs';
 import type { Signer } from '@mysten/sui/cryptography';
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import type { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { isValidSuiAddress, isValidSuiObjectId } from '@mysten/sui/utils';
 import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
@@ -96,14 +96,11 @@ export class SessionKey {
 		return new TextEncoder().encode(message);
 	}
 
-	async setPersonalMessageSignature(personalMessageSignature: string) {
+	async setPersonalMessageSignature(personalMessageSignature: string, client?: SuiGraphQLClient) {
 		try {
-			// TODO: Fix this to work with any network
 			await verifyPersonalMessageSignature(this.getPersonalMessage(), personalMessageSignature, {
 				address: this.#address,
-				client: new SuiGraphQLClient({
-					url: 'https://sui-testnet.mystenlabs.com/graphql',
-				}),
+				client,
 			});
 			this.#personalMessageSignature = personalMessageSignature;
 		} catch (e) {
@@ -173,7 +170,10 @@ export class SessionKey {
 	 * Restore a SessionKey instance for the given object.
 	 * @returns A new SessionKey instance with restored state
 	 */
-	static async import(data: SessionKeyType, { signer }: { signer?: Signer }): Promise<SessionKey> {
+	static async import(
+		data: SessionKeyType,
+		{ signer, client }: { signer?: Signer; client?: SuiGraphQLClient },
+	): Promise<SessionKey> {
 		const instance = new SessionKey({
 			address: data.address,
 			packageId: data.packageId,
@@ -187,7 +187,7 @@ export class SessionKey {
 		// check if personal message signature is consistent with the personal message committed to
 		// the session key pk, package id, creationTime and ttlMin.
 		if (data.personalMessageSignature) {
-			await instance.setPersonalMessageSignature(data.personalMessageSignature);
+			await instance.setPersonalMessageSignature(data.personalMessageSignature, client);
 		}
 
 		if (instance.isExpired()) {
