@@ -248,7 +248,7 @@ export namespace Experimental_SuiClientTypes {
 	}
 
 	export interface TransportMethods {
-		verifyZkLoginSignature: (
+		verifyZkLoginSignature?: (
 			options: VerifyZkLoginSignatureOptions,
 		) => Promise<ZkLoginVerifyResponse>;
 	}

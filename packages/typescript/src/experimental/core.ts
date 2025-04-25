@@ -62,10 +62,6 @@ export abstract class Experimental_CoreClient
 		options?: Experimental_SuiClientTypes.GetReferenceGasPriceOptions,
 	): Promise<Experimental_SuiClientTypes.GetReferenceGasPriceResponse>;
 
-	abstract verifyZkLoginSignature(
-		options: Experimental_SuiClientTypes.VerifyZkLoginSignatureOptions,
-	): Promise<Experimental_SuiClientTypes.ZkLoginVerifyResponse>;
-
 	abstract getDynamicFields(
 		options: Experimental_SuiClientTypes.GetDynamicFieldsOptions,
 	): Promise<Experimental_SuiClientTypes.GetDynamicFieldsResponse>;

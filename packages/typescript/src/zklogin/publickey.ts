@@ -14,12 +14,15 @@ import type { ZkLoginSignatureInputs } from './bcs.js';
 import { extractClaimValue } from './jwt-utils.js';
 import { parseZkLoginSignature } from './signature.js';
 import { normalizeZkLoginIssuer, toBigEndianBytes, toPaddedBigEndianBytes } from './utils.js';
-import type { Experimental_CoreClient } from '../experimental/core.js';
-import type { ClientWithExtensions } from '../experimental/types.js';
+import type { ClientWithExtensions, Experimental_SuiClientTypes } from '../experimental/types.js';
 
 export interface ZkLoginCompatibleClient
 	extends ClientWithExtensions<{
-		core: Experimental_CoreClient;
+		core: {
+			verifyZkLoginSignature: NonNullable<
+				Experimental_SuiClientTypes.TransportMethods['verifyZkLoginSignature']
+			>;
+		};
 	}> {}
 
 /**
