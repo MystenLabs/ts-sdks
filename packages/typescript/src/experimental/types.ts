@@ -234,6 +234,25 @@ export namespace Experimental_SuiClientTypes {
 		referenceGasPrice: string;
 	}
 
+	/** ZkLogin methods */
+	export interface VerifyZkLoginSignatureOptions extends CoreClientMethodOptions {
+		bytes: string;
+		signature: string;
+		intentScope: 'TransactionData' | 'PersonalMessage';
+		author: string;
+	}
+
+	export interface ZkLoginVerifyResponse {
+		success: boolean;
+		errors: string[];
+	}
+
+	export interface TransportMethods {
+		verifyZkLoginSignature: (
+			options: VerifyZkLoginSignatureOptions,
+		) => Promise<ZkLoginVerifyResponse>;
+	}
+
 	/** ObjectOwner types */
 
 	export interface AddressOwner {

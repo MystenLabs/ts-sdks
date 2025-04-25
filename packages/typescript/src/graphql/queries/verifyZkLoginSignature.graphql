@@ -1,0 +1,16 @@
+query verifyZkLoginSignature(
+	$bytes: Base64!
+	$signature: Base64!
+	$intentScope: ZkLoginIntentScope!
+	$author: SuiAddress!
+) {
+	verifyZkloginSignature(
+		bytes: $bytes
+		signature: $signature
+		intentScope: $intentScope
+		author: $author
+	) {
+		success
+		errors
+	}
+}

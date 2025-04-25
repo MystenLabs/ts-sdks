@@ -9,26 +9,32 @@ import { PublicKey } from '../cryptography/publickey.js';
 import type { PublicKeyInitData } from '../cryptography/publickey.js';
 import { SIGNATURE_SCHEME_TO_FLAG } from '../cryptography/signature-scheme.js';
 import { SuiGraphQLClient } from '../graphql/client.js';
-import { graphql } from '../graphql/schemas/latest/index.js';
 import { normalizeSuiAddress, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
 import type { ZkLoginSignatureInputs } from './bcs.js';
 import { extractClaimValue } from './jwt-utils.js';
 import { parseZkLoginSignature } from './signature.js';
 import { normalizeZkLoginIssuer, toBigEndianBytes, toPaddedBigEndianBytes } from './utils.js';
+import type { Experimental_CoreClient } from '../experimental/core.js';
+import type { ClientWithExtensions } from '../experimental/types.js';
+
+export interface ZkLoginCompatibleClient
+	extends ClientWithExtensions<{
+		core: Experimental_CoreClient;
+	}> {}
 
 /**
  * A zkLogin public identifier
  */
 export class ZkLoginPublicIdentifier extends PublicKey {
 	#data: Uint8Array;
-	#client?: SuiGraphQLClient;
+	#client?: ZkLoginCompatibleClient;
 	#legacyAddress: boolean;
 
 	/**
 	 * Create a new ZkLoginPublicIdentifier object
 	 * @param value zkLogin public identifier as buffer or base-64 encoded string
 	 */
-	constructor(value: PublicKeyInitData, { client }: { client?: SuiGraphQLClient } = {}) {
+	constructor(value: PublicKeyInitData, { client }: { client?: ZkLoginCompatibleClient } = {}) {
 		super();
 
 		this.#client = client;
@@ -127,7 +133,7 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 			address: address,
 			bytes: toBase64(message),
 			signature: parsedSignature.serializedSignature,
-			intentScope: 'PERSONAL_MESSAGE',
+			intentScope: 'PersonalMessage',
 			client: this.#client,
 		});
 	}
@@ -142,7 +148,7 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 			address: address,
 			bytes: toBase64(transaction),
 			signature: parsedSignature.serializedSignature,
-			intentScope: 'TRANSACTION_DATA',
+			intentScope: 'TransactionData',
 			client: this.#client,
 		});
 	}
@@ -159,7 +165,7 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 export function toZkLoginPublicIdentifier(
 	addressSeed: bigint,
 	iss: string,
-	options?: { client?: SuiGraphQLClient; legacyAddress?: boolean },
+	options?: { client?: ZkLoginCompatibleClient; legacyAddress?: boolean },
 ): ZkLoginPublicIdentifier {
 	// Consists of iss_bytes_len || iss_bytes || padded_32_byte_address_seed.
 	const addressSeedBytesBigEndian = options?.legacyAddress
@@ -173,25 +179,6 @@ export function toZkLoginPublicIdentifier(
 	tmp.set(addressSeedBytesBigEndian, 1 + issBytes.length);
 	return new ZkLoginPublicIdentifier(tmp, options);
 }
-
-const VerifyZkLoginSignatureQuery = graphql(`
-	query Zklogin(
-		$bytes: Base64!
-		$signature: Base64!
-		$intentScope: ZkLoginIntentScope!
-		$author: SuiAddress!
-	) {
-		verifyZkloginSignature(
-			bytes: $bytes
-			signature: $signature
-			intentScope: $intentScope
-			author: $author
-		) {
-			success
-			errors
-		}
-	}
-`);
 
 function normalizeZkLoginPublicKeyBytes(bytes: Uint8Array, legacyAddress = false) {
 	const issByteLength = bytes[0] + 1;
@@ -217,23 +204,17 @@ async function graphqlVerifyZkLoginSignature({
 	address: string;
 	bytes: string;
 	signature: string;
-	intentScope: 'PERSONAL_MESSAGE' | 'TRANSACTION_DATA';
-	client?: SuiGraphQLClient;
+	intentScope: 'PersonalMessage' | 'TransactionData';
+	client?: ZkLoginCompatibleClient;
 }) {
-	const resp = await client.query({
-		query: VerifyZkLoginSignatureQuery,
-		variables: {
-			bytes,
-			signature,
-			intentScope,
-			author: address,
-		},
+	const resp = await client.core.verifyZkLoginSignature({
+		bytes,
+		signature,
+		intentScope,
+		author: address,
 	});
 
-	return (
-		resp.data?.verifyZkloginSignature.success === true &&
-		resp.data?.verifyZkloginSignature.errors.length === 0
-	);
+	return resp.success === true && resp.errors.length === 0;
 }
 
 export function parseSerializedZkLoginSignature(signature: Uint8Array | string) {

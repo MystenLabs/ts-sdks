@@ -228,6 +228,20 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 			cursor: dynamicFields.nextCursor,
 		};
 	}
+
+	async verifyZkLoginSignature(options: Experimental_SuiClientTypes.VerifyZkLoginSignatureOptions) {
+		const result = await this.#jsonRpcClient.verifyZkLoginSignature({
+			bytes: options.bytes,
+			signature: options.signature,
+			intentScope: options.intentScope,
+			author: options.author,
+		});
+
+		return {
+			success: result.success,
+			errors: result.errors,
+		};
+	}
 }
 
 function parseObject(object: SuiObjectData): Experimental_SuiClientTypes.ObjectResponse {

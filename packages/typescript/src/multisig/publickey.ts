@@ -14,10 +14,10 @@ import {
 } from '../cryptography/signature-scheme.js';
 import type { SignatureFlag, SignatureScheme } from '../cryptography/signature-scheme.js';
 import { parseSerializedSignature } from '../cryptography/signature.js';
-import type { SuiGraphQLClient } from '../graphql/client.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 // eslint-disable-next-line import/no-cycle
 import { publicKeyFromRawBytes } from '../verify/index.js';
+import type { ZkLoginCompatibleClient } from '../zklogin/publickey.js';
 import { toZkLoginPublicIdentifier } from '../zklogin/publickey.js';
 import { MultiSigSigner } from './signer.js';
 
@@ -76,7 +76,7 @@ export class MultiSigPublicKey extends PublicKey {
 		 *  MultiSig public key as buffer or base-64 encoded string
 		 */
 		value: string | Uint8Array | MultiSigPublicKeyStruct,
-		options: { client?: SuiGraphQLClient } = {},
+		options: { client?: ZkLoginCompatibleClient } = {},
 	) {
 		super();
 
@@ -315,7 +315,7 @@ export class MultiSigPublicKey extends PublicKey {
  */
 export function parsePartialSignatures(
 	multisig: MultiSigStruct,
-	options: { client?: SuiGraphQLClient } = {},
+	options: { client?: ZkLoginCompatibleClient } = {},
 ): ParsedPartialMultiSigSignature[] {
 	const res: ParsedPartialMultiSigSignature[] = new Array(multisig.sigs.length);
 	for (let i = 0; i < multisig.sigs.length; i++) {

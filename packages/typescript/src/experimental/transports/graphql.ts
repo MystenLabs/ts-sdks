@@ -20,6 +20,8 @@ import {
 	GetReferenceGasPriceDocument,
 	GetTransactionBlockDocument,
 	MultiGetObjectsDocument,
+	VerifyZkLoginSignatureDocument,
+	ZkLoginIntentScope,
 } from '../../graphql/generated/queries.js';
 import { ObjectError } from '../errors.js';
 import { fromBase64, toBase64 } from '@mysten/utils';
@@ -310,8 +312,34 @@ export class GraphQLTransport extends Experimental_CoreClient {
 			hasNextPage: result.pageInfo.hasNextPage,
 		};
 	}
-}
 
+	async verifyZkLoginSignature(
+		options: Experimental_SuiClientTypes.VerifyZkLoginSignatureOptions,
+	): Promise<Experimental_SuiClientTypes.ZkLoginVerifyResponse> {
+		const intentScope =
+			options.intentScope === 'TransactionData'
+				? ZkLoginIntentScope.TransactionData
+				: ZkLoginIntentScope.PersonalMessage;
+
+		const result = await this.#graphqlQuery(
+			{
+				query: VerifyZkLoginSignatureDocument,
+				variables: {
+					bytes: options.bytes,
+					signature: options.signature,
+					intentScope,
+					author: options.author,
+				},
+			},
+			(result) => result.verifyZkloginSignature,
+		);
+
+		return {
+			success: result.success,
+			errors: result.errors,
+		};
+	}
+}
 export type GraphQLResponseErrors = Array<{
 	message: string;
 	locations?: { line: number; column: number }[];

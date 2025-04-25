@@ -98,6 +98,8 @@ import type {
 	TryGetPastObjectParams,
 	Unsubscribe,
 	ValidatorsApy,
+	VerifyZkLoginSignatureParams,
+	ZkLoginVerifyResult,
 } from './types/index.js';
 
 export interface PaginationArguments<Cursor> {
@@ -880,6 +882,14 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 			method: 'sui_getProtocolConfig',
 			params: [input?.version],
 			signal: input?.signal,
+		});
+	}
+
+	async verifyZkLoginSignature(input: VerifyZkLoginSignatureParams): Promise<ZkLoginVerifyResult> {
+		return await this.transport.request({
+			method: 'sui_verifyZkLoginSignature',
+			params: [input.bytes, input.signature, input.intentScope, input.author],
+			signal: input.signal,
 		});
 	}
 

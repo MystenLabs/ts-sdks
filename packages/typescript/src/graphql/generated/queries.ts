@@ -5427,6 +5427,16 @@ export type GetTransactionBlockQuery = { __typename?: 'Query', transactionBlock?
 
 export type Transaction_FieldsFragment = { __typename?: 'TransactionBlock', digest?: string | null, bcs?: any | null, signatures?: Array<any> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: any, unchangedSharedObjects: { __typename?: 'UnchangedSharedObjectConnection', nodes: Array<{ __typename: 'SharedObjectCancelled' } | { __typename: 'SharedObjectDelete' } | { __typename: 'SharedObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: any, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> } } | null };
 
+export type VerifyZkLoginSignatureQueryVariables = Exact<{
+  bytes: Scalars['Base64']['input'];
+  signature: Scalars['Base64']['input'];
+  intentScope: ZkLoginIntentScope;
+  author: Scalars['SuiAddress']['input'];
+}>;
+
+
+export type VerifyZkLoginSignatureQuery = { __typename?: 'Query', verifyZkloginSignature: { __typename?: 'ZkLoginVerifyResult', success: boolean, errors: Array<string> } };
+
 export class TypedDocumentString<TResult, TVariables>
   extends String
   implements DocumentTypeDecoration<TResult, TVariables>
@@ -6036,3 +6046,16 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
     }
   }
 }`) as unknown as TypedDocumentString<GetTransactionBlockQuery, GetTransactionBlockQueryVariables>;
+export const VerifyZkLoginSignatureDocument = new TypedDocumentString(`
+    query verifyZkLoginSignature($bytes: Base64!, $signature: Base64!, $intentScope: ZkLoginIntentScope!, $author: SuiAddress!) {
+  verifyZkloginSignature(
+    bytes: $bytes
+    signature: $signature
+    intentScope: $intentScope
+    author: $author
+  ) {
+    success
+    errors
+  }
+}
+    `) as unknown as TypedDocumentString<VerifyZkLoginSignatureQuery, VerifyZkLoginSignatureQueryVariables>;
