@@ -13,3 +13,4 @@ export const SUI_CLOCK_OBJECT_ID = normalizeSuiObjectId('0x6');
 export const SUI_SYSTEM_MODULE_NAME = 'sui_system';
 export const SUI_TYPE_ARG = `${SUI_FRAMEWORK_ADDRESS}::sui::SUI`;
 export const SUI_SYSTEM_STATE_OBJECT_ID: string = normalizeSuiObjectId('0x5');
+export const SUI_RANDOM_OBJECT_ID = normalizeSuiObjectId('0x8');
