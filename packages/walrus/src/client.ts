@@ -785,7 +785,9 @@ export class WalrusClient {
 		);
 
 		if (suiBlobObject instanceof Error || !suiBlobObject) {
-			throw new WalrusClientError('Storage object not found in transaction effects');
+			throw new WalrusClientError(
+				`Storage object not found in transaction effects for transaction (${digest})`,
+			);
 		}
 
 		return {
@@ -907,7 +909,9 @@ export class WalrusClient {
 		);
 
 		if (suiBlobObject instanceof Error || !suiBlobObject) {
-			throw new WalrusClientError('Blob object not found in transaction effects');
+			throw new WalrusClientError(
+				`Blob object not found in transaction effects for transaction (${digest})`,
+			);
 		}
 
 		return {
@@ -1651,7 +1655,7 @@ export class WalrusClient {
 		});
 
 		if (effects?.status.error) {
-			throw new WalrusClientError(`Failed to ${action}: ${effects?.status.error}`);
+			throw new WalrusClientError(`Failed to ${action} (${digest}): ${effects?.status.error}`);
 		}
 
 		await this.#suiClient.core.waitForTransaction({

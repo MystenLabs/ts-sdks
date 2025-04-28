@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { SuiTransactionBlockResponseOptions } from '@mysten/sui/client';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
@@ -16,6 +17,7 @@ export async function getSentTransactionsWithLinks({
 	contract = getContractIds(network),
 	client = new SuiClient({ url: getFullnodeUrl(network) }),
 	loadClaimedAssets = false,
+	options,
 	...linkOptions
 }: {
 	address: string;
@@ -30,6 +32,7 @@ export async function getSentTransactionsWithLinks({
 	path?: string;
 	claimApi?: string;
 	client?: SuiClient;
+	options?: SuiTransactionBlockResponseOptions;
 }) {
 	const packageId = normalizeSuiAddress(contract.packageId);
 
@@ -41,6 +44,7 @@ export async function getSentTransactionsWithLinks({
 		cursor,
 		limit,
 		options: {
+			...options,
 			showInput: true,
 			showObjectChanges: true,
 			showBalanceChanges: true,
