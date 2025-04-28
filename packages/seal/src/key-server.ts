@@ -57,9 +57,12 @@ export async function retrieveKeyServers({
 	objectIds: string[];
 	client: SealCompatibleClient;
 }): Promise<KeyServer[]> {
-	// todo: do not fetch the same object ID if this is fetched before.
-	return await Promise.all(
-		objectIds.map(async (objectId) => {
+	const uniqueIds = Array.from(new Set(objectIds));
+	const fetchedServers: Record<string, KeyServer> = {};
+
+	// Only fetch key server information for each unique objectId.
+	await Promise.all(
+		uniqueIds.map(async (objectId) => {
 			let res;
 			try {
 				res = await client.core.getObject({
@@ -74,7 +77,7 @@ export async function retrieveKeyServers({
 				throw new UnsupportedFeatureError(`Unsupported key type ${ks.keyType}`);
 			}
 
-			return {
+			fetchedServers[objectId] = {
 				objectId,
 				name: ks.name,
 				url: ks.url,
@@ -83,6 +86,15 @@ export async function retrieveKeyServers({
 			};
 		}),
 	);
+
+	return objectIds.map((objectId) => {
+		if (!fetchedServers[objectId]) {
+			console.error(`KeyServer ${objectId} not found in fetched servers`);
+			throw new InvalidGetObjectError(`KeyServer ${objectId} not found`);
+		}
+
+		return fetchedServers[objectId];
+	});
 }
 
 /**

@@ -218,7 +218,7 @@ export class SealClient {
 	/**
 	 * Fetch keys from the key servers and update the cache.
 	 *
-	 * It is recommended to call this function once for all ids of all encrypted obejcts if
+	 * It is recommended to call this function once for all ids of all encrypted objects if
 	 * there are multiple, then call decrypt for each object. This avoids calling fetchKey
 	 * individually for each decrypt.
 	 *
