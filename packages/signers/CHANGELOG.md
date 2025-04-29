@@ -1,5 +1,11 @@
 # @mysten/signers
 
+## 0.2.7
+
+### Patch Changes
+
+- 8356318: Fix broken message signing for the Ledger signer
+
 ## 0.2.6
 
 ### Patch Changes

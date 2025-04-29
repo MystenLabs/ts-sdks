@@ -1,5 +1,12 @@
 # @mysten/enoki
 
+## 0.6.9
+
+### Patch Changes
+
+- Updated dependencies [8356318]
+  - @mysten/signers@0.2.7
+
 ## 0.6.8
 
 ### Patch Changes
