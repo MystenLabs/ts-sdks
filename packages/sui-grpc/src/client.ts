@@ -12,7 +12,8 @@ import { GrpcCoreClient } from './core.js';
 import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 import { Experimental_BaseClient } from '@mysten/sui/experimental';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { Transaction } from '@mysten/sui/transactions';
 interface SuiGrpcTransportOptions extends GrpcWebOptions {
 	transport?: never;
 }
@@ -47,7 +48,7 @@ export class SuiGrpcClient extends Experimental_BaseClient {
 }
 
 const client = new SuiGrpcClient({
-	network: 'mainnet',
+	network: 'testnet',
 	transport: new GrpcWebFetchTransport({ baseUrl: getFullnodeUrl('mainnet') }),
 });
 
@@ -62,25 +63,52 @@ const client = new SuiGrpcClient({
 // 		console.dir(res, { depth: null });
 // 	});
 
-new SuiClient({
-	url: getFullnodeUrl('mainnet'),
-}).core
-	.getTransaction({
-		digest: 'HVcWBNrSY5EPM5jGkyTwzPUCXdDpgLcCHXozr6XoMMFQ',
-	})
-	.then((res) => {
-		// console.log(JSON.stringify(res, null, 2));
+// new SuiClient({
+// 	url: getFullnodeUrl('testnet'),
+// }).core
+// 	.getTransaction({
+// 		digest: 'HVcWBNrSY5EPM5jGkyTwzPUCXdDpgLcCHXozr6XoMMFQ',
+// 	})
+// 	.then((res) => {
+// 		// console.log(JSON.stringify(res, null, 2));
 
-		console.log('\n\n\n\n');
-		client.core
-			.getTransaction({
-				digest: 'HVcWBNrSY5EPM5jGkyTwzPUCXdDpgLcCHXozr6XoMMFQ',
-			})
-			.then((res) => {
-				console.dir(res, { depth: null });
-				// console.log(JSON.stringify(res, null, 2));
-			})
-			.catch((error) => {
-				console.error(error);
-			});
+// 		console.log('\n\n\n\n');
+// 		client.core
+// 			.getTransaction({
+// 				digest: 'HVcWBNrSY5EPM5jGkyTwzPUCXdDpgLcCHXozr6XoMMFQ',
+// 			})
+// 			.then((res) => {
+// 				console.dir(res, { depth: null });
+// 				// console.log(JSON.stringify(res, null, 2));
+// 			})
+// 			.catch((error) => {
+// 				console.error(error);
+// 			});
+// 	});
+
+async function main() {
+	const suiClient = new SuiClient({
+		url: getFullnodeUrl('testnet'),
 	});
+
+	const keypair = Ed25519Keypair.fromSecretKey(
+		'suiprivkey1qzmcxscyglnl9hnq82crqsuns0q33frkseks5jw0fye3tuh83l7e6ajfhxx',
+	);
+
+	const tx = new Transaction();
+
+	const coin = tx.splitCoins(tx.gas, [1]);
+	tx.transferObjects([coin], keypair.toSuiAddress());
+
+	const txBytes = await tx.build({ client: suiClient });
+	const { signature } = await keypair.signTransaction(txBytes);
+
+	const res = await client.core.executeTransaction({
+		transaction: txBytes,
+		signatures: [signature],
+	});
+
+	console.dir(res, { depth: null });
+}
+
+main().catch(console.error);
