@@ -6,7 +6,8 @@
 		"outDir": "dist/cjs",
 		"isolatedModules": true,
 		"rootDir": "src",
-		"lib": ["ESNext", "dom"]
-	},
-	"references": [{ "path": "../utils" }]
+		"lib": ["ESNext", "dom"],
+		"noUnusedLocals": false,
+		"noUnusedParameters": false
+	}
 }

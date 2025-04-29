@@ -32,7 +32,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		const results: Experimental_SuiClientTypes.GetObjectsResponse['objects'] = [];
 
 		for (const batch of batches) {
-			const response = await this.#client.ledgerServiceClient.batchGetObjects({
+			const response = await this.#client.ledgerService.batchGetObjects({
 				requests: batch.map((id) => ({ objectId: id })),
 				readMask: {
 					paths: ['owner', 'object_type', 'bcs', 'digest', 'version', 'object_id'],
@@ -130,7 +130,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	async getTransaction(
 		options: Experimental_SuiClientTypes.GetTransactionOptions,
 	): Promise<Experimental_SuiClientTypes.GetTransactionResponse> {
-		const { response } = await this.#client.ledgerServiceClient.getTransaction({
+		const { response } = await this.#client.ledgerService.getTransaction({
 			digest: options.digest,
 			readMask: {
 				paths: ['digest', 'transaction', 'effects', 'signatures'],
@@ -171,10 +171,31 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	async dryRunTransaction(
 		options: Experimental_SuiClientTypes.DryRunTransactionOptions,
 	): Promise<Experimental_SuiClientTypes.DryRunTransactionResponse> {
-		throw new Error('Not implemented');
+		const { response } = await this.#client.liveDataService.simulateTransaction({
+			transaction: {
+				bcs: {
+					value: options.transaction,
+				},
+			},
+			readMask: {
+				paths: [
+					'transaction.digest',
+					'transaction.transaction',
+					'transaction.effects',
+					'transaction.signatures',
+				],
+			},
+		});
+
+		return {
+			transaction: {
+				...parseTransaction(response.transaction!),
+				bcs: options.transaction,
+			},
+		};
 	}
 	async getReferenceGasPrice(): Promise<Experimental_SuiClientTypes.GetReferenceGasPriceResponse> {
-		const response = await this.#client.ledgerServiceClient.getEpoch({});
+		const response = await this.#client.ledgerService.getEpoch({});
 
 		return {
 			referenceGasPrice: response.response.referenceGasPrice?.toString()!,
@@ -382,7 +403,7 @@ export function parseTransactionEffects({
 
 	return {
 		bcs: effects.bcs?.value!,
-		digest: effects.transactionDigest!,
+		digest: effects.digest!,
 		version: 2,
 		status: effects.status?.success
 			? {
@@ -456,7 +477,7 @@ function parseTransaction(
 	})!;
 
 	return {
-		digest: transaction.digest!,
+		digest: transaction.digest ?? effects.transactionDigest!,
 		effects,
 		bcs: transaction.transaction?.bcs?.value!,
 		signatures: transaction.signatures.map((signature) => toBase64(signature.bcs?.value!)),

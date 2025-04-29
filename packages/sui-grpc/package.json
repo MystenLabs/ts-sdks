@@ -45,16 +45,6 @@
 	"bugs": {
 		"url": "https://github.com/MystenLabs/ts-sdks/issues"
 	},
-	"size-limit": [
-		{
-			"path": "dist/index.js",
-			"limit": "10 kB"
-		},
-		{
-			"path": "dist/index.mjs",
-			"limit": "10 kB"
-		}
-	],
 	"homepage": "https://github.com/MystenLabs/ts-sdks#readme",
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
@@ -67,7 +57,6 @@
 		"@mysten/utils": "workspace:*",
 		"@protobuf-ts/grpcweb-transport": "^2.9.6",
 		"@protobuf-ts/runtime": "^2.9.6",
-		"@protobuf-ts/runtime-rpc": "^2.9.6",
-		"google-protobuf": "^3.21.4"
+		"@protobuf-ts/runtime-rpc": "^2.9.6"
 	}
 }

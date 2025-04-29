@@ -593,6 +593,9 @@ importers:
       '@mysten/sui':
         specifier: workspace:*
         version: link:../typescript
+      '@mysten/sui-grpc':
+        specifier: workspace:*
+        version: link:../sui-grpc
       '@mysten/suins':
         specifier: workspace:*
         version: link:../suins
@@ -1059,9 +1062,6 @@ importers:
       '@protobuf-ts/runtime-rpc':
         specifier: ^2.9.6
         version: 2.9.6
-      google-protobuf:
-        specifier: ^3.21.4
-        version: 3.21.4
     devDependencies:
       '@mysten/build-scripts':
         specifier: workspace:*
@@ -6849,9 +6849,6 @@ packages:
   google-gax@4.4.1:
     resolution: {integrity: sha512-Phyp9fMfA00J3sZbJxbbB4jC55b7DBjE3F6poyL3wKMEBVKA79q6BGuHcTiM28yOzVql0NDbRL8MLLh8Iwk9Dg==}
     engines: {node: '>=14'}
-
-  google-protobuf@3.21.4:
-    resolution: {integrity: sha512-MnG7N936zcKTco4Jd2PX2U96Kf9PxygAPKBug+74LHzmHXmceN16MmRcdgZv+DGef/S9YvQAfRsNCn4cjf9yyQ==}
 
   gopd@1.2.0:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
@@ -16426,8 +16423,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-
-  google-protobuf@3.21.4: {}
 
   gopd@1.2.0: {}
 
