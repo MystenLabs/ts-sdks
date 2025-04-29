@@ -153,6 +153,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 				showObjectChanges: true,
 				showRawEffects: true,
 				showEvents: true,
+				showEffects: true,
 			},
 			signal: options.signal,
 		});
@@ -170,6 +171,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 				showEvents: true,
 				showObjectChanges: true,
 				showRawInput: true,
+				showEffects: true,
 			},
 			signal: options.signal,
 		});
@@ -320,6 +322,7 @@ function parseTransaction(
 		effects: parseTransactionEffects({
 			effects: new Uint8Array(transaction.rawEffects!),
 			objectTypes,
+			epoch: transaction.effects?.executedEpoch,
 		}),
 		bcs: bcs.TransactionData.serialize(parsedTx.intentMessage.value).toBytes(),
 		signatures: parsedTx.txSignatures,

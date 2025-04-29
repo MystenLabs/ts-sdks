@@ -64,26 +64,23 @@ const client = new SuiGrpcClient({
 
 new SuiClient({
 	url: getFullnodeUrl('mainnet'),
-})
-	.getTransactionBlock({
-		digest: 'HVcWBNrSY5EPM5jGkyTwzPUCXdDpgLcCHXozr6XoMMFQ',
-		options: {
-			showRawEffects: true,
-		},
-	})
-	.then((res) => {
-		// console.log(toHex(new Uint8Array(res.rawEffects!)));
-		// const effects = bcs.TransactionEffects.parse(new Uint8Array(res.rawEffects!));
-		// console.dir(effects, { depth: null });
-	});
-
-client.core
+}).core
 	.getTransaction({
 		digest: 'HVcWBNrSY5EPM5jGkyTwzPUCXdDpgLcCHXozr6XoMMFQ',
 	})
 	.then((res) => {
-		console.dir(res, { depth: null });
-	})
-	.catch((error) => {
-		console.error(error);
+		// console.log(JSON.stringify(res, null, 2));
+
+		console.log('\n\n\n\n');
+		client.core
+			.getTransaction({
+				digest: 'HVcWBNrSY5EPM5jGkyTwzPUCXdDpgLcCHXozr6XoMMFQ',
+			})
+			.then((res) => {
+				console.dir(res, { depth: null });
+				// console.log(JSON.stringify(res, null, 2));
+			})
+			.catch((error) => {
+				console.error(error);
+			});
 	});
