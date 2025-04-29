@@ -89,7 +89,6 @@ export async function retrieveKeyServers({
 
 	return objectIds.map((objectId) => {
 		if (!fetchedServers[objectId]) {
-			console.error(`KeyServer ${objectId} not found in fetched servers`);
 			throw new InvalidGetObjectError(`KeyServer ${objectId} not found`);
 		}
 
