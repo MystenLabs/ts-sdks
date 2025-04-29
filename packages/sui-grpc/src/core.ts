@@ -6,9 +6,15 @@ import { Experimental_CoreClient } from '@mysten/sui/experimental';
 import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2beta/owner.js';
 import { Owner_OwnerKind } from './proto/sui/rpc/v2beta/owner.js';
-import { chunk, fromBase64, fromHex, toBase64, toHex } from '@mysten/utils';
-import { bcs } from '@mysten/sui/bcs';
+import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import type { ExecutedTransaction } from './proto/sui/rpc/v2beta/executed_transaction.js';
+import type { TransactionEffects } from './proto/sui/rpc/v2beta/effects.js';
+import {
+	ChangedObject_IdOperation,
+	ChangedObject_InputObjectState,
+	ChangedObject_OutputObjectState,
+	UnchangedSharedObject_UnchangedSharedObjectKind,
+} from './proto/sui/rpc/v2beta/effects.js';
 export interface GrpcCoreClientOptions {
 	client: SuiGrpcClient;
 }
@@ -42,7 +48,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 							version: object.version?.toString()!,
 							digest: object.digest!,
 							content: object.bcs?.value!,
-							owner: mapOwner(object.owner!),
+							owner: mapOwner(object.owner)!,
 							type: object.objectType!,
 						};
 					},
@@ -70,7 +76,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 				digest: object.digest!,
 				// TODO: List owned objects doesn't return content right now
 				content: new Uint8Array(),
-				owner: mapOwner(object.owner!),
+				owner: mapOwner(object.owner)!,
 				type: object.objectType!,
 			}),
 		);
@@ -99,7 +105,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 					digest: object.digest!,
 					// TODO: List owned objects doesn't return content right now
 					content: new Uint8Array(),
-					owner: mapOwner(object.owner!),
+					owner: mapOwner(object.owner)!,
 					type: object.objectType!,
 					balance: object.balance?.toString()!,
 				}),
@@ -127,9 +133,10 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		const { response } = await this.#client.ledgerServiceClient.getTransaction({
 			digest: options.digest,
 			readMask: {
-				paths: ['effects.bcs', 'digest', 'transaction', 'input_objects', 'output_objects'],
+				paths: ['digest', 'transaction', 'effects', 'signatures'],
 			},
 		});
+
 		return {
 			transaction: parseTransaction(response),
 		};
@@ -150,11 +157,10 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 			})),
 			readMask: {
 				paths: [
-					'transaction.effects.bcs',
 					'transaction.digest',
 					'transaction.transaction',
-					'transaction.input_objects',
-					'transaction.output_objects',
+					'transaction.effects',
+					'transaction.signatures',
 				],
 			},
 		});
@@ -207,7 +213,10 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	// }
 }
 
-function mapOwner(owner: Owner): Experimental_SuiClientTypes.ObjectOwner {
+function mapOwner(owner: Owner | null | undefined): Experimental_SuiClientTypes.ObjectOwner | null {
+	if (!owner) {
+		return null;
+	}
 	if (owner.kind === Owner_OwnerKind.IMMUTABLE) {
 		return {
 			$kind: 'Immutable',
@@ -216,8 +225,8 @@ function mapOwner(owner: Owner): Experimental_SuiClientTypes.ObjectOwner {
 	}
 	if (owner.kind === Owner_OwnerKind.ADDRESS) {
 		return {
-			$kind: 'AddressOwner',
 			AddressOwner: owner.address!,
+			$kind: 'AddressOwner',
 		};
 	}
 	if (owner.kind === Owner_OwnerKind.OBJECT) {
@@ -251,125 +260,178 @@ function mapOwner(owner: Owner): Experimental_SuiClientTypes.ObjectOwner {
 	throw new Error('Unknown owner kind');
 }
 
+function mapIdOperation(
+	operation: ChangedObject_IdOperation | undefined,
+): null | 'Created' | 'Deleted' | 'Unknown' | 'None' {
+	if (operation == null) {
+		return null;
+	}
+	switch (operation) {
+		case ChangedObject_IdOperation.CREATED:
+			return 'Created';
+		case ChangedObject_IdOperation.DELETED:
+			return 'Deleted';
+		case ChangedObject_IdOperation.NONE:
+		case ChangedObject_IdOperation.ID_OPERATION_UNKNOWN:
+			return 'None';
+		default:
+			operation satisfies never;
+			return 'Unknown';
+	}
+}
+
+function mapInputObjectState(
+	state: ChangedObject_InputObjectState | undefined,
+): null | 'Exists' | 'DoesNotExist' | 'Unknown' {
+	if (state == null) {
+		return null;
+	}
+	switch (state) {
+		case ChangedObject_InputObjectState.EXISTS:
+			return 'Exists';
+		case ChangedObject_InputObjectState.DOES_NOT_EXIST:
+			return 'DoesNotExist';
+		case ChangedObject_InputObjectState.UNKNOWN:
+			return 'Unknown';
+		default:
+			state satisfies never;
+			return 'Unknown';
+	}
+}
+
+function mapOutputObjectState(
+	state: ChangedObject_OutputObjectState | undefined,
+): null | 'ObjectWrite' | 'PackageWrite' | 'DoesNotExist' | 'Unknown' {
+	if (state == null) {
+		return null;
+	}
+	switch (state) {
+		case ChangedObject_OutputObjectState.OBJECT_WRITE:
+			return 'ObjectWrite';
+		case ChangedObject_OutputObjectState.PACKAGE_WRITE:
+			return 'PackageWrite';
+		case ChangedObject_OutputObjectState.DOES_NOT_EXIST:
+			return 'DoesNotExist';
+		case ChangedObject_OutputObjectState.UNKNOWN:
+			return 'Unknown';
+		default:
+			state satisfies never;
+			return 'Unknown';
+	}
+}
+
+function mapUnchangedSharedObjectKind(
+	kind: UnchangedSharedObject_UnchangedSharedObjectKind | undefined,
+):
+	| null
+	| 'Unknown'
+	| 'ReadOnlyRoot'
+	| 'MutateDeleted'
+	| 'ReadDeleted'
+	| 'Cancelled'
+	| 'PerEpochConfig' {
+	if (kind == null) {
+		return null;
+	}
+	switch (kind) {
+		case UnchangedSharedObject_UnchangedSharedObjectKind.UNCHANGED_SHARED_OBJECT_KIND_UNKNOWN:
+			return 'Unknown';
+		case UnchangedSharedObject_UnchangedSharedObjectKind.READ_ONLY_ROOT:
+			return 'ReadOnlyRoot';
+		case UnchangedSharedObject_UnchangedSharedObjectKind.MUTATE_DELETED:
+			return 'MutateDeleted';
+		case UnchangedSharedObject_UnchangedSharedObjectKind.READ_DELETED:
+			return 'ReadDeleted';
+		case UnchangedSharedObject_UnchangedSharedObjectKind.CANCELED:
+			return 'Cancelled';
+		case UnchangedSharedObject_UnchangedSharedObjectKind.PER_EPOCH_CONFIG:
+			return 'PerEpochConfig';
+		default:
+			kind satisfies never;
+			return 'Unknown';
+	}
+}
+
 export function parseTransactionEffects({
 	effects,
-	epoch,
-	objectTypes,
 }: {
-	effects: Uint8Array;
-	objectTypes: Record<string, string>;
-	epoch?: string | null;
-}): Experimental_SuiClientTypes.TransactionEffects {
-	const fixed = fromHex(toHex(effects));
-
-	// compare fixed and effects
-	console.log(effects, fixed);
-	for (let i = 0; i < fixed.length; i++) {
-		if (fixed[i] !== effects[i]) {
-			console.log(`byte ${i} is different: ${fixed[i]} !== ${effects[i]}`);
-		}
+	effects: TransactionEffects | undefined;
+}): Experimental_SuiClientTypes.TransactionEffects | null {
+	if (!effects) {
+		return null;
 	}
 
-	const parsed = bcs.TransactionEffects.parse(fromHex(toHex(effects)));
-
-	switch (parsed.$kind) {
-		case 'V1':
-			return parseTransactionEffectsV1({ bytes: effects, effects: parsed.V1, epoch, objectTypes });
-		case 'V2':
-			return parseTransactionEffectsV2({ bytes: effects, effects: parsed.V2, epoch, objectTypes });
-		default:
-			throw new Error(
-				`Unknown transaction effects version: ${(parsed as { $kind: string }).$kind}`,
-			);
-	}
-}
-
-function parseTransactionEffectsV1(_: {
-	bytes: Uint8Array;
-	effects: NonNullable<(typeof bcs.TransactionEffects.$inferType)['V1']>;
-	epoch?: string | null;
-	objectTypes: Record<string, string>;
-}): Experimental_SuiClientTypes.TransactionEffects {
-	throw new Error('V1 effects are not supported yet');
-}
-
-function parseTransactionEffectsV2({
-	bytes,
-	effects,
-	epoch,
-	objectTypes,
-}: {
-	bytes: Uint8Array;
-	effects: NonNullable<(typeof bcs.TransactionEffects.$inferType)['V2']>;
-	epoch?: string | null;
-	objectTypes: Record<string, string>;
-}): Experimental_SuiClientTypes.TransactionEffects {
 	const changedObjects = effects.changedObjects.map(
-		([id, change]): Experimental_SuiClientTypes.ChangedObject => {
+		(change): Experimental_SuiClientTypes.ChangedObject => {
 			return {
-				id,
-				inputState: change.inputState.$kind === 'Exist' ? 'Exists' : 'DoesNotExist',
-				inputVersion: change.inputState.Exist?.[0][0] ?? null,
-				inputDigest: change.inputState.Exist?.[0][1] ?? null,
-				inputOwner: change.inputState.Exist?.[1] ?? null,
-				outputState:
-					change.outputState.$kind === 'NotExist' ? 'DoesNotExist' : change.outputState.$kind,
-				outputVersion:
-					change.outputState.$kind === 'PackageWrite'
-						? change.outputState.PackageWrite?.[0]
-						: change.outputState.ObjectWrite
-							? effects.lamportVersion
-							: null,
-				outputDigest:
-					change.outputState.$kind === 'PackageWrite'
-						? change.outputState.PackageWrite?.[1]
-						: (change.outputState.ObjectWrite?.[0] ?? null),
-				outputOwner: change.outputState.ObjectWrite ? change.outputState.ObjectWrite[1] : null,
-				idOperation: change.idOperation.$kind,
-				objectType: objectTypes[id] ?? null,
+				id: change.objectId!,
+				inputState: mapInputObjectState(change.inputState)!,
+				inputVersion: change.inputVersion?.toString() ?? null,
+				inputDigest: change.inputDigest ?? null,
+				inputOwner: mapOwner(change.inputOwner),
+				outputState: mapOutputObjectState(change.outputState)!,
+				outputVersion: change.outputVersion?.toString() ?? null,
+				outputDigest: change.outputDigest ?? null,
+				outputOwner: mapOwner(change.outputOwner),
+				idOperation: mapIdOperation(change.idOperation)!,
+				// TODO: Grpc is not returning this yet
+				objectType: change.objectType ?? null,
 			};
 		},
 	);
 
 	return {
-		bcs: bytes,
-		digest: effects.transactionDigest,
+		bcs: effects.bcs?.value!,
+		digest: effects.transactionDigest!,
 		version: 2,
-		status:
-			effects.status.$kind === 'Success'
-				? {
-						success: true,
-						error: null,
-					}
-				: {
-						success: false,
-						// TODO: add command
-						error: effects.status.Failed.error.$kind,
-					},
-		epoch: epoch ?? null,
-		gasUsed: effects.gasUsed,
-		transactionDigest: effects.transactionDigest,
-		gasObject:
-			effects.gasObjectIndex === null ? null : (changedObjects[effects.gasObjectIndex] ?? null),
-		eventsDigest: effects.eventsDigest,
+		status: effects.status?.success
+			? {
+					success: true,
+					error: null,
+				}
+			: {
+					success: false,
+					// TODO: parse errors properly
+					error: JSON.stringify(effects.status?.error),
+				},
+		epoch: effects.epoch?.toString() ?? null,
+		gasUsed: {
+			computationCost: effects.gasUsed?.computationCost?.toString()!,
+			storageCost: effects.gasUsed?.storageCost?.toString()!,
+			storageRebate: effects.gasUsed?.storageRebate?.toString()!,
+			nonRefundableStorageFee: effects.gasUsed?.nonRefundableStorageFee?.toString()!,
+		},
+		transactionDigest: effects.transactionDigest!,
+		gasObject: {
+			id: effects.gasObject?.objectId!,
+			inputState: mapInputObjectState(effects.gasObject?.inputState)!,
+			inputVersion: effects.gasObject?.inputVersion?.toString() ?? null,
+			inputDigest: effects.gasObject?.inputDigest ?? null,
+			inputOwner: mapOwner(effects.gasObject?.inputOwner),
+			outputState: mapOutputObjectState(effects.gasObject?.outputState)!,
+			outputVersion: effects.gasObject?.outputVersion?.toString() ?? null,
+			outputDigest: effects.gasObject?.outputDigest ?? null,
+			outputOwner: mapOwner(effects.gasObject?.outputOwner),
+			idOperation: mapIdOperation(effects.gasObject?.idOperation)!,
+			objectType: effects.gasObject?.objectType ?? null,
+		},
+		eventsDigest: effects.eventsDigest ?? null,
 		dependencies: effects.dependencies,
-		lamportVersion: effects.lamportVersion,
+		lamportVersion: effects.lamportVersion?.toString() ?? null,
 		changedObjects,
 		unchangedSharedObjects: effects.unchangedSharedObjects.map(
-			([objectId, object]): Experimental_SuiClientTypes.UnchangedSharedObject => {
+			(object): Experimental_SuiClientTypes.UnchangedSharedObject => {
 				return {
-					kind: object.$kind,
-					objectId: objectId,
-					version:
-						object.$kind === 'ReadOnlyRoot'
-							? object.ReadOnlyRoot[0]
-							: (object[object.$kind] as string | null),
-					digest: object.$kind === 'ReadOnlyRoot' ? object.ReadOnlyRoot[1] : null,
-					objectType: objectTypes[objectId] ?? null,
+					kind: mapUnchangedSharedObjectKind(object.kind)!,
+					// TODO: we are inconsistent about id vs objectId
+					objectId: object.objectId!,
+					version: object.version?.toString() ?? null,
+					digest: object.digest ?? null,
+					objectType: object.objectType ?? null,
 				};
 			},
 		),
-		auxiliaryDataDigest: effects.auxDataDigest,
+		auxiliaryDataDigest: effects.auxiliaryDataDigest ?? null,
 	};
 }
 
@@ -390,16 +452,12 @@ function parseTransaction(
 	});
 
 	const effects = parseTransactionEffects({
-		effects: transaction.effects?.bcs?.value!,
-		epoch: transaction.effects?.epoch?.toString(),
-		objectTypes,
-	});
-
-	console.dir(effects, { depth: null });
+		effects: transaction.effects,
+	})!;
 
 	return {
-		effects,
 		digest: transaction.digest!,
+		effects,
 		bcs: transaction.transaction?.bcs?.value!,
 		signatures: transaction.signatures.map((signature) => toBase64(signature.bcs?.value!)),
 	};

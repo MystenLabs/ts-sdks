@@ -154,6 +154,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 				showObjectChanges: true,
 				showRawEffects: true,
 				showEvents: true,
+				showEffects: true,
 			},
 			signal: options.signal,
 		});
@@ -171,6 +172,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 				showEvents: true,
 				showObjectChanges: true,
 				showRawInput: true,
+				showEffects: true,
 			},
 			signal: options.signal,
 		});
