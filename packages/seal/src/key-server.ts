@@ -58,41 +58,52 @@ export async function retrieveKeyServers({
 	client: SealCompatibleClient;
 }): Promise<KeyServer[]> {
 	const uniqueIds = Array.from(new Set(objectIds));
-	const fetchedServers: Record<string, KeyServer> = {};
+	const { objects } = await client.core.getObjects({
+		objectIds: uniqueIds,
+	});
 
-	// Only fetch key server information for each unique objectId.
-	await Promise.all(
-		uniqueIds.map(async (objectId) => {
-			let res;
-			try {
-				res = await client.core.getObject({
-					objectId,
-				});
-			} catch (e) {
-				throw new InvalidGetObjectError(`KeyServer ${objectId} not found; ${(e as Error).message}`);
+	// Create a single pass lookup map from objectId to key server data.
+	const serverDataMap = Object.fromEntries(
+		objects.map((res, i) => {
+			const objectId = uniqueIds[i];
+
+			if (res instanceof Error) {
+				throw new InvalidGetObjectError(
+					`KeyServer ${objectId} not found; ${(res as Error).message}`,
+				);
 			}
 
-			const ks = KeyServerMove.parse(res.object.content);
+			const ks = KeyServerMove.parse(res.content);
 			if (ks.keyType !== 0) {
 				throw new UnsupportedFeatureError(`Unsupported key type ${ks.keyType}`);
 			}
 
-			fetchedServers[objectId] = {
+			return [
 				objectId,
-				name: ks.name,
-				url: ks.url,
-				keyType: KeyServerType.BonehFranklinBLS12381,
-				pk: new Uint8Array(ks.pk),
-			};
+				{
+					objectId,
+					name: ks.name,
+					url: ks.url,
+					pk: new Uint8Array(ks.pk),
+				},
+			];
 		}),
 	);
 
+	// Return the preserved order of the input objectIds, creating a new object for each occurence.
 	return objectIds.map((objectId) => {
-		if (!fetchedServers[objectId]) {
+		const data = serverDataMap[objectId];
+		if (!data) {
 			throw new InvalidGetObjectError(`KeyServer ${objectId} not found`);
 		}
 
-		return fetchedServers[objectId];
+		return {
+			objectId,
+			name: data.name,
+			url: data.url,
+			keyType: KeyServerType.BonehFranklinBLS12381,
+			pk: data.pk,
+		};
 	});
 }
 

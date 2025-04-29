@@ -249,7 +249,7 @@ export class SealClient {
 		}
 
 		let completedServerCount = 0;
-		const remainingKeyServers = new Map<string, KeyServer>();
+		const remainingKeyServers = new Set<KeyServer>();
 		const fullIds = ids.map((id) => createFullId(DST, sessionKey.getPackageId(), id));
 
 		// Count a server as completed if it has keys for all fullIds.
@@ -259,7 +259,7 @@ export class SealClient {
 			for (const fullId of fullIds) {
 				if (!this.#cachedKeys.has(`${fullId}:${server.objectId}`)) {
 					hasAllKeys = false;
-					remainingKeyServers.set(server.objectId, server);
+					remainingKeyServers.add(server);
 					break;
 				}
 			}
@@ -275,7 +275,7 @@ export class SealClient {
 		}
 
 		// Check server validities.
-		for (const server of remainingKeyServers.values()) {
+		for (const server of remainingKeyServers) {
 			if (server.keyType !== KeyServerType.BonehFranklinBLS12381) {
 				throw new InvalidKeyServerError(
 					`Server ${server.objectId} has invalid key type: ${server.keyType}`,
@@ -289,7 +289,7 @@ export class SealClient {
 		const controller = new AbortController();
 		const errors: Error[] = [];
 
-		const keyFetches = [...remainingKeyServers.values()].map(async (server) => {
+		const keyFetches = [...remainingKeyServers].map(async (server) => {
 			try {
 				const allKeys = await fetchKeysForAllIds(
 					server.url,
@@ -327,10 +327,9 @@ export class SealClient {
 					receivedIds.size === expectedIds.size &&
 					[...receivedIds].every((id) => expectedIds.has(id));
 
-				// Count each occurrence of this servers objectId from the original keyServers array.
+				// Return early if the completed servers is more than threshold.
 				if (hasAllKeys) {
-					const occurrences = keyServers.filter((ks) => ks.objectId === server.objectId).length;
-					completedServerCount += occurrences;
+					completedServerCount++;
 
 					if (completedServerCount >= threshold) {
 						controller.abort();
