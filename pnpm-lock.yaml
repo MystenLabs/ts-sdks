@@ -1143,6 +1143,40 @@ importers:
         specifier: ^3.2.1
         version: 3.2.1(@types/debug@4.1.12)(@types/node@22.15.29)(happy-dom@17.6.1)(jiti@2.4.2)(jsdom@26.1.0)(lightningcss@1.30.1)(msw@2.9.0(@types/node@22.15.29)(typescript@5.8.3))(tsx@4.19.4)(yaml@2.8.0)
 
+  packages/sui-grpc:
+    dependencies:
+      '@mysten/sui':
+        specifier: workspace:*
+        version: link:../typescript
+      '@mysten/utils':
+        specifier: workspace:*
+        version: link:../utils
+      '@protobuf-ts/grpcweb-transport':
+        specifier: ^2.9.6
+        version: 2.9.6
+      '@protobuf-ts/runtime':
+        specifier: ^2.9.6
+        version: 2.9.6
+      '@protobuf-ts/runtime-rpc':
+        specifier: ^2.9.6
+        version: 2.9.6
+      google-protobuf:
+        specifier: ^3.21.4
+        version: 3.21.4
+    devDependencies:
+      '@mysten/build-scripts':
+        specifier: workspace:*
+        version: link:../build-scripts
+      '@protobuf-ts/plugin':
+        specifier: ^2.9.6
+        version: 2.9.6
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+      vitest:
+        specifier: ^3.1.1
+        version: 3.1.1(@types/debug@4.1.12)(@types/node@22.13.17)(happy-dom@16.3.0)(jiti@2.4.2)(jsdom@25.0.1)(lightningcss@1.29.2)(msw@2.7.3(@types/node@22.13.17)(typescript@5.8.2))(tsx@4.19.3)(yaml@2.7.1)
+
   packages/suins:
     dependencies:
       '@mysten/sui':
@@ -3421,6 +3455,26 @@ packages:
   '@pnpm/npm-conf@2.3.1':
     resolution: {integrity: sha512-c83qWb22rNRuB0UaVCI0uRPNRr8Z0FWnEIvT47jiHAmOIUHbBOg5XvV7pM5x+rKn9HRpjxquDbXYSXr3fAKFcw==}
     engines: {node: '>=12'}
+
+  '@protobuf-ts/grpcweb-transport@2.9.6':
+    resolution: {integrity: sha512-TDBLxRkPSe/2daIlEpNEGQKDikBPtl4gUqYx7ap+b69YUkCcYH08w/12VuuA+uvnWdEEbS0DSxsJQZQyhptZHA==}
+
+  '@protobuf-ts/plugin-framework@2.9.6':
+    resolution: {integrity: sha512-w7A1RXrDCiVzcaRE6YJP7FCARuAFe/Vc4SNQnHAi4CF0V6mEtyjAYEIC5BNYgIRaJEqB26zzsBQjIem3R02SCA==}
+
+  '@protobuf-ts/plugin@2.9.6':
+    resolution: {integrity: sha512-Wpv5rkXeu6E5Y4r0TjWE0bzRGddiTYl/RM+tLgVlS0r8CqOBqNAmlWv+s8ltf/F75rVrahUal0cpyhFwha9GRA==}
+    hasBin: true
+
+  '@protobuf-ts/protoc@2.9.6':
+    resolution: {integrity: sha512-c0XvAPDIBAovH9HxV8gBv8gzOTreQIqibcusrB1+DxvFiSvy+2V1tjbUmG5gJEbjk3aAOaoj0a3+QuE+P28xUw==}
+    hasBin: true
+
+  '@protobuf-ts/runtime-rpc@2.9.6':
+    resolution: {integrity: sha512-0UeqDRzNxgsh08lY5eWzFJNfD3gZ8Xf+WG1HzbIAbVAigzigwjwsYNNhTeas5H3gco1U5owTzCg177aambKOOw==}
+
+  '@protobuf-ts/runtime@2.9.6':
+    resolution: {integrity: sha512-C0CfpKx4n4LBbUrajOdRj2BTbd3qBoK0SiKWLq7RgCoU6xiN4wesBMFHUOBp3fFzKeZwgU8Q2KtzaqzIvPLRXg==}
 
   '@protobufjs/aspromise@1.1.2':
     resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
@@ -7042,6 +7096,9 @@ packages:
     resolution: {integrity: sha512-Phyp9fMfA00J3sZbJxbbB4jC55b7DBjE3F6poyL3wKMEBVKA79q6BGuHcTiM28yOzVql0NDbRL8MLLh8Iwk9Dg==}
     engines: {node: '>=14'}
 
+  google-protobuf@3.21.4:
+    resolution: {integrity: sha512-MnG7N936zcKTco4Jd2PX2U96Kf9PxygAPKBug+74LHzmHXmceN16MmRcdgZv+DGef/S9YvQAfRsNCn4cjf9yyQ==}
+
   gopd@1.2.0:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
     engines: {node: '>= 0.4'}
@@ -9554,6 +9611,11 @@ packages:
 
   typescript-json-schema@0.65.1:
     resolution: {integrity: sha512-tuGH7ff2jPaUYi6as3lHyHcKpSmXIqN7/mu50x3HlYn0EHzLpmt3nplZ7EuhUkO0eqDRc9GqWNkfjgBPIS9kxg==}
+    hasBin: true
+
+  typescript@3.9.10:
+    resolution: {integrity: sha512-w6fIxVE/H1PkLKcCPsFqKE7Kv7QUwhU8qQY2MueZXWx5cPZdwFupLgKK3vntcK98BtNHZtAF4LA/yl2a7k8R6Q==}
+    engines: {node: '>=4.2.0'}
     hasBin: true
 
   typescript@5.5.4:
@@ -12438,6 +12500,32 @@ snapshots:
       '@pnpm/config.env-replace': 1.1.0
       '@pnpm/network.ca-file': 1.0.2
       config-chain: 1.1.13
+
+  '@protobuf-ts/grpcweb-transport@2.9.6':
+    dependencies:
+      '@protobuf-ts/runtime': 2.9.6
+      '@protobuf-ts/runtime-rpc': 2.9.6
+
+  '@protobuf-ts/plugin-framework@2.9.6':
+    dependencies:
+      '@protobuf-ts/runtime': 2.9.6
+      typescript: 3.9.10
+
+  '@protobuf-ts/plugin@2.9.6':
+    dependencies:
+      '@protobuf-ts/plugin-framework': 2.9.6
+      '@protobuf-ts/protoc': 2.9.6
+      '@protobuf-ts/runtime': 2.9.6
+      '@protobuf-ts/runtime-rpc': 2.9.6
+      typescript: 3.9.10
+
+  '@protobuf-ts/protoc@2.9.6': {}
+
+  '@protobuf-ts/runtime-rpc@2.9.6':
+    dependencies:
+      '@protobuf-ts/runtime': 2.9.6
+
+  '@protobuf-ts/runtime@2.9.6': {}
 
   '@protobufjs/aspromise@1.1.2': {}
 
@@ -16877,6 +16965,8 @@ snapshots:
       - encoding
       - supports-color
 
+  google-protobuf@3.21.4: {}
+
   gopd@1.2.0: {}
 
   gql.tada@1.8.10(graphql@16.11.0)(typescript@5.8.3):
@@ -19944,6 +20034,8 @@ snapshots:
     transitivePeerDependencies:
       - '@swc/core'
       - '@swc/wasm'
+
+  typescript@3.9.10: {}
 
   typescript@5.5.4: {}
 

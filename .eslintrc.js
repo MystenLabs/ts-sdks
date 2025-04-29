@@ -166,5 +166,14 @@ module.exports = {
 				'require-extensions/require-extensions': 'off',
 			},
 		},
+		{
+			files: ['packages/sui-grpc/src/proto/**/*'],
+			rules: {
+				'@typescript-eslint/ban-types': 'off',
+				eqeqeq: 'off',
+				'prefer-const': 'off',
+				'@typescript-eslint/no-unused-vars': 'off',
+			},
+		},
 	],
 };
