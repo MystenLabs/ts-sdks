@@ -15,6 +15,8 @@ import {
 	ChangedObject_OutputObjectState,
 	UnchangedSharedObject_UnchangedSharedObjectKind,
 } from './proto/sui/rpc/v2beta/effects.js';
+import { TransactionDataBuilder } from '@mysten/sui/transactions';
+import { bcs } from '@mysten/sui/bcs';
 export interface GrpcCoreClientOptions {
 	client: SuiGrpcClient;
 }
@@ -32,7 +34,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		const results: Experimental_SuiClientTypes.GetObjectsResponse['objects'] = [];
 
 		for (const batch of batches) {
-			const response = await this.#client.ledgerServiceClient.batchGetObjects({
+			const response = await this.#client.ledgerService.batchGetObjects({
 				requests: batch.map((id) => ({ objectId: id })),
 				readMask: {
 					paths: ['owner', 'object_type', 'bcs', 'digest', 'version', 'object_id'],
@@ -130,7 +132,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	async getTransaction(
 		options: Experimental_SuiClientTypes.GetTransactionOptions,
 	): Promise<Experimental_SuiClientTypes.GetTransactionResponse> {
-		const { response } = await this.#client.ledgerServiceClient.getTransaction({
+		const { response } = await this.#client.ledgerService.getTransaction({
 			digest: options.digest,
 			readMask: {
 				paths: ['digest', 'transaction', 'effects', 'signatures'],
@@ -171,10 +173,31 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	async dryRunTransaction(
 		options: Experimental_SuiClientTypes.DryRunTransactionOptions,
 	): Promise<Experimental_SuiClientTypes.DryRunTransactionResponse> {
-		throw new Error('Not implemented');
+		const { response } = await this.#client.liveDataService.simulateTransaction({
+			transaction: {
+				bcs: {
+					value: options.transaction,
+				},
+			},
+			readMask: {
+				paths: [
+					'transaction.digest',
+					'transaction.transaction',
+					'transaction.effects',
+					'transaction.signatures',
+				],
+			},
+		});
+
+		return {
+			transaction: {
+				...parseTransaction(response.transaction!),
+				bcs: options.transaction,
+			},
+		};
 	}
 	async getReferenceGasPrice(): Promise<Experimental_SuiClientTypes.GetReferenceGasPriceResponse> {
-		const response = await this.#client.ledgerServiceClient.getEpoch({});
+		const response = await this.#client.ledgerService.getEpoch({});
 
 		return {
 			referenceGasPrice: response.response.referenceGasPrice?.toString()!,
@@ -211,6 +234,10 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	// ): Promise<Experimental_SuiClientTypes.ZkLoginVerifyResponse> {
 	// 	throw new Error('Not implemented');
 	// }
+
+	resolveTransactionPlugin(): never {
+		throw new Error('GRPC client does not support transaction resolution yet');
+	}
 }
 
 function mapOwner(owner: Owner | null | undefined): Experimental_SuiClientTypes.ObjectOwner | null {
@@ -374,15 +401,13 @@ export function parseTransactionEffects({
 				outputDigest: change.outputDigest ?? null,
 				outputOwner: mapOwner(change.outputOwner),
 				idOperation: mapIdOperation(change.idOperation)!,
-				// TODO: Grpc is not returning this yet
-				objectType: change.objectType ?? null,
 			};
 		},
 	);
 
 	return {
 		bcs: effects.bcs?.value!,
-		digest: effects.transactionDigest!,
+		digest: effects.digest!,
 		version: 2,
 		status: effects.status?.success
 			? {
@@ -394,7 +419,6 @@ export function parseTransactionEffects({
 					// TODO: parse errors properly
 					error: JSON.stringify(effects.status?.error),
 				},
-		epoch: effects.epoch?.toString() ?? null,
 		gasUsed: {
 			computationCost: effects.gasUsed?.computationCost?.toString()!,
 			storageCost: effects.gasUsed?.storageCost?.toString()!,
@@ -413,7 +437,6 @@ export function parseTransactionEffects({
 			outputDigest: effects.gasObject?.outputDigest ?? null,
 			outputOwner: mapOwner(effects.gasObject?.outputOwner),
 			idOperation: mapIdOperation(effects.gasObject?.idOperation)!,
-			objectType: effects.gasObject?.objectType ?? null,
 		},
 		eventsDigest: effects.eventsDigest ?? null,
 		dependencies: effects.dependencies,
@@ -427,7 +450,6 @@ export function parseTransactionEffects({
 					objectId: object.objectId!,
 					version: object.version?.toString() ?? null,
 					digest: object.digest ?? null,
-					objectType: object.objectType ?? null,
 				};
 			},
 		),
@@ -438,6 +460,17 @@ export function parseTransactionEffects({
 function parseTransaction(
 	transaction: ExecutedTransaction,
 ): Experimental_SuiClientTypes.TransactionResponse {
+	const parsedTx = bcs.SenderSignedData.parse(transaction.transaction?.bcs?.value!)[0];
+	const bytes = bcs.TransactionData.serialize(parsedTx.intentMessage.value).toBytes();
+	const data = TransactionDataBuilder.restore({
+		version: 2,
+		sender: parsedTx.intentMessage.value.V1.sender,
+		expiration: parsedTx.intentMessage.value.V1.expiration,
+		gasData: parsedTx.intentMessage.value.V1.gasData,
+		inputs: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.inputs,
+		commands: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.commands,
+	});
+
 	const objectTypes: Record<string, string> = {};
 	transaction.inputObjects.forEach((object) => {
 		if (object.objectId && object.objectType) {
@@ -457,8 +490,13 @@ function parseTransaction(
 
 	return {
 		digest: transaction.digest!,
+		epoch: transaction.effects?.epoch?.toString() ?? null,
 		effects,
-		bcs: transaction.transaction?.bcs?.value!,
-		signatures: transaction.signatures.map((signature) => toBase64(signature.bcs?.value!)),
+		objectTypes: Promise.resolve(objectTypes),
+		transaction: {
+			...data,
+			bcs: bytes,
+		},
+		signatures: parsedTx.txSignatures,
 	};
 }

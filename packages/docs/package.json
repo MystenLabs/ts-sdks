@@ -28,6 +28,7 @@
 		"@mysten/signers": "workspace:*",
 		"@mysten/slush-wallet": "workspace:*",
 		"@mysten/sui": "workspace:*",
+		"@mysten/sui-grpc": "workspace:*",
 		"@mysten/suins": "workspace:*",
 		"@mysten/utils": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
