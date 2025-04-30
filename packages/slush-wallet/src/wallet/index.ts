@@ -242,15 +242,15 @@ export class SlushWallet implements Wallet {
 		};
 	};
 
-	#signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message, account }) => {
+	#signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message, account, chain }) => {
 		const popup = this.#getNewPopupChannel();
 
 		const response = await popup.send({
 			type: 'sign-personal-message',
 			message: toBase64(message),
 			address: account.address,
+			chain: chain ?? account.chains[0],
 			session: getSessionFromStorage(),
-			chain: account.chains[0],
 		});
 
 		return {
