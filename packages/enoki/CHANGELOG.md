@@ -1,5 +1,13 @@
 # @mysten/enoki
 
+## 0.6.10
+
+### Patch Changes
+
+- @mysten/sui@1.29.1
+- @mysten/signers@0.2.8
+- @mysten/wallet-standard@0.14.9
+
 ## 0.6.9
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @mysten/slush-wallet
 
+## 0.1.2
+
+### Patch Changes
+
+- 3f87e73: Fix broken message signing for zkLogin accounts in the web version of Slush Wallet
+  - @mysten/sui@1.29.1
+  - @mysten/wallet-standard@0.14.9
+
 ## 0.1.1
 
 ### Patch Changes
