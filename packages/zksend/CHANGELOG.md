@@ -1,5 +1,11 @@
 # @mysten/zksend
 
+## 0.13.2
+
+### Patch Changes
+
+- 1d5f685: Do not fetch object changes and balance changes for link lists
+
 ## 0.13.1
 
 ### Patch Changes
