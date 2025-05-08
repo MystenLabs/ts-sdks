@@ -9,6 +9,9 @@ import type {
 
 import type { SuiSignTransactionBlockInput } from './suiSignTransactionBlock.js';
 
+/** Name of the feature. */
+export const SuiSignAndExecuteTransactionBlock = 'sui:signAndExecuteTransactionBlock';
+
 /** The latest API version of the signAndExecuteTransactionBlock API. */
 export type SuiSignAndExecuteTransactionBlockVersion = '1.0.0';
 
@@ -21,7 +24,7 @@ export type SuiSignAndExecuteTransactionBlockVersion = '1.0.0';
  */
 export type SuiSignAndExecuteTransactionBlockFeature = {
 	/** Namespace for the feature. */
-	'sui:signAndExecuteTransactionBlock': {
+	[SuiSignAndExecuteTransactionBlock]: {
 		/** Version of the feature API. */
 		version: SuiSignAndExecuteTransactionBlockVersion;
 		/** @deprecated Use `sui:signAndExecuteTransaction` instead. */

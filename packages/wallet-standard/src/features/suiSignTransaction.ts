@@ -3,6 +3,9 @@
 
 import type { IdentifierString, WalletAccount } from '@wallet-standard/core';
 
+/** Name of the feature. */
+export const SuiSignTransaction = 'sui:signTransaction';
+
 /** The latest API version of the signTransaction API. */
 export type SuiSignTransactionVersion = '2.0.0';
 
@@ -12,7 +15,7 @@ export type SuiSignTransactionVersion = '2.0.0';
  */
 export type SuiSignTransactionFeature = {
 	/** Namespace for the feature. */
-	'sui:signTransaction': {
+	[SuiSignTransaction]: {
 		/** Version of the feature API. */
 		version: SuiSignTransactionVersion;
 		signTransaction: SuiSignTransactionMethod;
