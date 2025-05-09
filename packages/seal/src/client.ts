@@ -19,7 +19,7 @@ import type { KeyServer } from './key-server.js';
 import { fetchKeysForAllIds } from './keys.js';
 import type { SessionKey } from './session-key.js';
 import type { KeyCacheKey, SealCompatibleClient } from './types.js';
-import { createFullId } from './utils.js';
+import { createFullId, occurences } from './utils.js';
 
 /**
  * Configuration options for initializing a SealClient
@@ -158,16 +158,8 @@ export class SealClient {
 
 	#validateEncryptionServices(services: string[], threshold: number) {
 		// Check that the client's key servers are a subset of the encrypted object's key servers.
-		const serverObjectIdsMap = new Map<string, number>();
 		for (const objectId of this.#serverObjectIds) {
-			serverObjectIdsMap.set(objectId, (serverObjectIdsMap.get(objectId) ?? 0) + 1);
-		}
-		const servicesMap = new Map<string, number>();
-		for (const service of services) {
-			servicesMap.set(service, (servicesMap.get(service) ?? 0) + 1);
-		}
-		for (const [objectId, count] of serverObjectIdsMap) {
-			if (servicesMap.get(objectId) !== count) {
+			if (occurences(this.#serverObjectIds, objectId) < occurences(services, objectId)) {
 				throw new InconsistentKeyServersError(
 					`Client's key servers must be a subset of the encrypted object's key servers`,
 				);
