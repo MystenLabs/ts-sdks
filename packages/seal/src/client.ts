@@ -252,16 +252,10 @@ export class SealClient {
 		// Count a server as completed if it has keys for all fullIds.
 		// Duplicated key server ids will be counted towards the threshold.
 		for (const server of keyServers) {
-			let hasAllKeys = true;
-			for (const fullId of fullIds) {
-				if (!this.#cachedKeys.has(`${fullId}:${server.objectId}`)) {
-					hasAllKeys = false;
-					remainingKeyServers.add(server);
-					break;
-				}
-			}
-			if (hasAllKeys) {
+			if (fullIds.every((fullId) => this.#cachedKeys.has(`${fullId}:${server.objectId}`))) {
 				completedServerCount++;
+			} else {
+				remainingKeyServers.add(server);
 			}
 		}
 
