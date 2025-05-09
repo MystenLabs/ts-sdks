@@ -8,7 +8,7 @@ import { sha3_256 } from '@noble/hashes/sha3';
 
 import type { Ciphertext } from './bcs.js';
 import { DecryptionError, InvalidCiphertextError } from './error.js';
-import { xorUnchecked } from './utils.js';
+import { flatten, xorUnchecked } from './utils.js';
 
 // Use a fixed IV for AES. This is okay because the key is unique for each message.
 export const iv = Uint8Array.from([
@@ -158,7 +158,7 @@ export class Hmac256Ctr implements EncryptionInput {
 
 	private static computeMac(key: Uint8Array, aad: Uint8Array, ciphertext: Uint8Array): Uint8Array {
 		const macKey = hmac(sha3_256, key, MacKeyTag);
-		const macInput = new Uint8Array([...toBytes(aad.length), ...aad, ...ciphertext]);
+		const macInput = flatten([toBytes(aad.length), aad, ciphertext]);
 		const mac = hmac(sha3_256, macKey, macInput);
 		return mac;
 	}
