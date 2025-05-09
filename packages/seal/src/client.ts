@@ -159,7 +159,7 @@ export class SealClient {
 	#validateEncryptionServices(services: string[], threshold: number) {
 		// Check that the client's key servers are a subset of the encrypted object's key servers.
 		if (
-			this.#serverObjectIds.some(
+			services.some(
 				(objectId) => count(this.#serverObjectIds, objectId) < count(services, objectId),
 			)
 		) {
