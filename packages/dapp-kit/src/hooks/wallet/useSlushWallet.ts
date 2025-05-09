@@ -18,23 +18,19 @@ export function useSlushWallet(config?: SlushWalletConfig) {
 		let cleanup: (() => void) | undefined;
 		let isMounted = true;
 
-		const setupWallet = async () => {
-			try {
-				const result = await registerSlushWallet(config.name, {
-					origin: config.origin,
-				});
+		try {
+			const result = registerSlushWallet(config.name, {
+				origin: config.origin,
+			});
 
-				if (isMounted && result) {
-					cleanup = result.unregister;
-				} else if (result) {
-					result.unregister();
-				}
-			} catch (error) {
-				console.error('Failed to register Slush wallet:', error);
+			if (isMounted && result) {
+				cleanup = result.unregister;
+			} else if (result) {
+				result.unregister();
 			}
-		};
-
-		setupWallet();
+		} catch (error) {
+			console.error('Failed to register Slush wallet:', error);
+		}
 
 		return () => {
 			isMounted = false;
