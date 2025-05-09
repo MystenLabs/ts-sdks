@@ -1,5 +1,11 @@
 # @mysten/seal
 
+## 0.4.3
+
+### Patch Changes
+
+- d3f0e8d: Export SessionKeyType
+
 ## 0.4.2
 
 ### Patch Changes

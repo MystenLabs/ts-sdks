@@ -1,5 +1,12 @@
 # @mysten/enoki-connect
 
+## 0.0.5
+
+### Patch Changes
+
+- 0bb98c5: update metadata api
+- 8126945: add devnet to supported networks
+
 ## 0.0.4
 
 ### Patch Changes
