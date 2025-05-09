@@ -1,6 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { fromBase64, fromHex } from '@mysten/bcs';
+import { fromBase64, fromHex, toHex } from '@mysten/bcs';
 import { bls12_381 } from '@noble/curves/bls12-381';
 
 import { KeyServerMove } from './bcs.js';
@@ -15,6 +15,7 @@ import { DST_POP } from './ibe.js';
 import { PACKAGE_VERSION } from './version.js';
 import type { SealCompatibleClient } from './types.js';
 import { Version } from './utils.js';
+import type { G1Element } from './bls12381.js';
 
 export type KeyServer = {
 	objectId: string;
@@ -135,5 +136,25 @@ export function verifyKeyServerVersion(response: Response) {
 		throw new InvalidKeyServerVersionError(
 			`Key server version ${keyServerVersion} is not supported`,
 		);
+	}
+}
+
+export interface DerivedKey {
+	toString(): string;
+}
+
+/**
+ * A user secret key for the Boneh-Franklin BLS12381 scheme.
+ * This is a wrapper around the G1Element type.
+ */
+export class BonehFranklinBLS12381DerivedKey implements DerivedKey {
+	representation: string;
+
+	constructor(public key: G1Element) {
+		this.representation = toHex(key.toBytes());
+	}
+
+	toString(): string {
+		return this.representation;
 	}
 }

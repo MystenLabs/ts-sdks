@@ -14,8 +14,13 @@ import {
 	toMajorityError,
 } from './error.js';
 import { BonehFranklinBLS12381Services, DST } from './ibe.js';
-import { KeyServerType, retrieveKeyServers, verifyKeyServer } from './key-server.js';
-import type { KeyServer } from './key-server.js';
+import {
+	BonehFranklinBLS12381DerivedKey,
+	KeyServerType,
+	retrieveKeyServers,
+	verifyKeyServer,
+} from './key-server.js';
+import type { DerivedKey, KeyServer } from './key-server.js';
 import { fetchKeysForAllIds } from './keys.js';
 import type { SessionKey } from './session-key.js';
 import type { KeyCacheKey, SealCompatibleClient } from './types.js';
@@ -218,7 +223,7 @@ export class SealClient {
 	/**
 	 * Fetch keys from the key servers and update the cache.
 	 *
-	 * It is recommended to call this function once for all ids of all encrypted obejcts if
+	 * It is recommended to call this function once for all ids of all encrypted objects if
 	 * there are multiple, then call decrypt for each object. This avoids calling fetchKey
 	 * individually for each decrypt.
 	 *
@@ -343,6 +348,65 @@ export class SealClient {
 
 		if (completedServerCount < threshold) {
 			throw toMajorityError(errors);
+		}
+	}
+
+	/**
+	 * Get derived keys from the given services.
+	 *
+	 * @param id - The id of the encrypted object.
+	 * @param txBytes - The transaction bytes to use (that calls seal_approve* functions).
+	 * @param sessionKey - The session key to use.
+	 * @param threshold - The threshold.
+	 * @returns - Derived keys for the given services that are in the cache as a "service object ID" -> derived key map. If the call is succesful, exactly threshold keys will be returned.
+	 */
+	async getDerivedKeys({
+		kemType = KemType.BonehFranklinBLS12381DemCCA,
+		id,
+		txBytes,
+		sessionKey,
+		threshold,
+	}: {
+		kemType?: KemType;
+		id: string;
+		txBytes: Uint8Array;
+		sessionKey: SessionKey;
+		threshold: number;
+	}): Promise<Map<string, DerivedKey>> {
+		switch (kemType) {
+			case KemType.BonehFranklinBLS12381DemCCA:
+				const keyServers = await this.getKeyServers();
+				if (threshold > this.#serverObjectIds.length) {
+					throw new InvalidThresholdError(
+						`Invalid threshold ${threshold} for ${this.#serverObjectIds.length} servers`,
+					);
+				}
+				await this.fetchKeys({
+					ids: [id],
+					txBytes,
+					sessionKey,
+					threshold,
+				});
+
+				// After calling fetchKeys, we can be sure that there are at least `threshold` of the required keys in the cache.
+				// It is also checked there that the KeyServerType is BonehFranklinBLS12381 for all services.
+
+				const fullId = createFullId(DST, sessionKey.getPackageId(), id);
+
+				const derivedKeys = new Map<string, DerivedKey>();
+				let servicesAdded = 0;
+				for (const keyServer of keyServers) {
+					// The code below assumes that the KeyServerType is BonehFranklinBLS12381.
+					const cachedKey = this.#cachedKeys.get(`${fullId}:${keyServer.objectId}`);
+					if (cachedKey) {
+						derivedKeys.set(keyServer.objectId, new BonehFranklinBLS12381DerivedKey(cachedKey));
+						if (++servicesAdded === threshold) {
+							// We have enough keys, so we can stop.
+							break;
+						}
+					}
+				}
+				return derivedKeys;
 		}
 	}
 }

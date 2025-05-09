@@ -21,6 +21,11 @@ import {
 } from '../../src/error';
 import { KeyServerType } from '../../src/key-server';
 import { RequestFormat, SessionKey } from '../../src/session-key';
+import { decrypt } from '../../src/decrypt';
+import { KeyCacheKey } from '../../src/types';
+import { G1Element } from '../../src/bls12381';
+import { createFullId } from '../../src/utils';
+import { DST } from '../../src/ibe';
 
 /**
  * Helper function
@@ -138,6 +143,7 @@ describe('Integration test', () => {
 			ttlMin: 10,
 			signer: keypair,
 		});
+
 		// decrypt the object encrypted to whitelist 1.
 		const decryptedBytes = await client.decrypt({
 			data: encryptedBytes,
@@ -179,6 +185,58 @@ describe('Integration test', () => {
 		});
 
 		expect(decryptedBytes2).toEqual(data2);
+	});
+
+	it('test getDerivedKeys', { timeout: 12000 }, async () => {
+		// Both whitelists contain address 0xb743cafeb5da4914cef0cf0a32400c9adfedc5cdb64209f9e740e56d23065100
+		const whitelistId = '0xaae704d2280f2c3d24fc08972bb31f2ef1f1c968784935434c3296be5bfd9d5b';
+		const data = new Uint8Array([1, 2, 3]);
+
+		const client = new SealClient({
+			suiClient,
+			serverObjectIds: objectIds,
+			verifyKeyServers: false,
+		});
+
+		const txBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'whitelist', suiClient, [
+			whitelistId,
+		]);
+
+		const sessionKey = new SessionKey({
+			address: suiAddress,
+			packageId: TESTNET_PACKAGE_ID,
+			ttlMin: 10,
+			signer: keypair,
+		});
+
+		const derivedKeys = await client.getDerivedKeys({
+			id: whitelistId,
+			txBytes,
+			sessionKey,
+			threshold: 2,
+		});
+
+		expect(derivedKeys).toHaveLength(2);
+
+		const { encryptedObject: encryptedBytes } = await client.encrypt({
+			threshold: 2,
+			packageId: TESTNET_PACKAGE_ID,
+			id: whitelistId,
+			data,
+		});
+		const encryptedObject = EncryptedObject.parse(encryptedBytes);
+
+		// Map to the format used for the key cache
+		const fullId = createFullId(DST, TESTNET_PACKAGE_ID, whitelistId);
+		const keys = new Map<KeyCacheKey, G1Element>();
+		derivedKeys.forEach((value, s) => {
+			keys.set(`${fullId}:${s}`, G1Element.fromBytes(fromHex(value.toString())));
+		});
+		const decryptedData = await decrypt({
+			encryptedObject,
+			keys,
+		});
+		expect(decryptedData).toEqual(data);
 	});
 
 	it('client extension', { timeout: 12000 }, async () => {
