@@ -143,6 +143,7 @@ export class InvalidKeyServerVersionError extends UserError {}
 export class InvalidCiphertextError extends UserError {}
 export class InvalidThresholdError extends UserError {}
 export class InconsistentKeyServersError extends UserError {}
+export class DecryptionError extends UserError {}
 
 export function toMajorityError(errors: Error[]): Error {
 	let maxCount = 0;

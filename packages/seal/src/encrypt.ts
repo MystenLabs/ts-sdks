@@ -136,11 +136,13 @@ async function split(
 		throw new Error('Invalid threshold or number of shares');
 	} else if (threshold === 1) {
 		// If the threshold is 1, the secret is not split.
+		const share = secret;
+
 		const result = [];
-		for (let i = 1; i <= n; i++) {
+		for (let index = 1; index <= n; index++) {
 			// The shared polynomial is a constant in this case, so the index doesn't matter.
 			// To make sure they are unique, we use a counter.
-			result.push({ share: secret, index: i });
+			result.push({ share, index });
 		}
 		return Promise.resolve(result);
 	}

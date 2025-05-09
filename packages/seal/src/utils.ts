@@ -48,6 +48,11 @@ export function flatten(arrays: Uint8Array[]): Uint8Array {
 	return result;
 }
 
+/** Count the number of occurrences of a value in an array. */
+export function count<T>(array: T[], value: T): number {
+	return array.reduce((count, item) => (item === value ? count + 1 : count), 0);
+}
+
 /**
  * A simple class to represent a version number of the form x.y.z.
  */

@@ -60,7 +60,7 @@ export async function fetchKeysForAllIds(
 	verifyKeyServerVersion(response);
 
 	return resp.decryption_keys.map((dk: { id: Uint8Array; encrypted_key: [string, string] }) => ({
-		fullId: toHex(new Uint8Array(dk.id)),
+		fullId: toHex(dk.id),
 		key: elgamalDecrypt(encKey, dk.encrypted_key.map(fromBase64) as [Uint8Array, Uint8Array]),
 	}));
 }

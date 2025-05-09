@@ -7,8 +7,8 @@ import { hmac } from '@noble/hashes/hmac';
 import { sha3_256 } from '@noble/hashes/sha3';
 
 import type { Ciphertext } from './bcs.js';
-import { InvalidCiphertextError } from './error.js';
-import { xorUnchecked } from './utils.js';
+import { DecryptionError, InvalidCiphertextError } from './error.js';
+import { flatten, xorUnchecked } from './utils.js';
 
 // Use a fixed IV for AES. This is okay because the key is unique for each message.
 export const iv = Uint8Array.from([
@@ -76,19 +76,22 @@ export class AesGcm256 implements EncryptionInput {
 			throw new InvalidCiphertextError(`Invalid ciphertext ${ciphertext}`);
 		}
 
-		const aesCryptoKey = await crypto.subtle.importKey('raw', key, 'AES-GCM', false, ['decrypt']);
-
-		return new Uint8Array(
-			await crypto.subtle.decrypt(
-				{
-					name: 'AES-GCM',
-					iv,
-					additionalData: new Uint8Array(ciphertext.Aes256Gcm.aad ?? []),
-				},
-				aesCryptoKey,
-				new Uint8Array(ciphertext.Aes256Gcm.blob),
-			),
-		);
+		try {
+			const aesCryptoKey = await crypto.subtle.importKey('raw', key, 'AES-GCM', false, ['decrypt']);
+			return new Uint8Array(
+				await crypto.subtle.decrypt(
+					{
+						name: 'AES-GCM',
+						iv,
+						additionalData: new Uint8Array(ciphertext.Aes256Gcm.aad ?? []),
+					},
+					aesCryptoKey,
+					new Uint8Array(ciphertext.Aes256Gcm.blob),
+				),
+			);
+		} catch (e) {
+			throw new DecryptionError(`Decryption failed`);
+		}
 	}
 }
 
@@ -148,21 +151,21 @@ export class Hmac256Ctr implements EncryptionInput {
 		const blob = new Uint8Array(ciphertext.Hmac256Ctr.blob);
 		const mac = Hmac256Ctr.computeMac(key, aad, blob);
 		if (!equalBytes(mac, new Uint8Array(ciphertext.Hmac256Ctr.mac))) {
-			throw new InvalidCiphertextError(`Invalid MAC ${mac}`);
+			throw new DecryptionError(`Invalid MAC ${mac}`);
 		}
 		return Hmac256Ctr.encryptInCtrMode(key, blob);
 	}
 
 	private static computeMac(key: Uint8Array, aad: Uint8Array, ciphertext: Uint8Array): Uint8Array {
 		const macKey = hmac(sha3_256, key, MacKeyTag);
-		const macInput = new Uint8Array([...toBytes(aad.length), ...aad, ...ciphertext]);
+		const macInput = flatten([toBytes(aad.length), aad, ciphertext]);
 		const mac = hmac(sha3_256, macKey, macInput);
 		return mac;
 	}
 
 	private static encryptInCtrMode(key: Uint8Array, msg: Uint8Array): Uint8Array {
 		const blockSize = 32;
-		const result = Uint8Array.from({ length: msg.length }, () => 0);
+		const result = new Uint8Array(msg.length);
 		const encryptionKey = hmac(sha3_256, key, EncryptionKeyTag);
 		for (let i = 0; i * blockSize < msg.length; i++) {
 			const block = msg.subarray(i * blockSize, (i + 1) * blockSize);

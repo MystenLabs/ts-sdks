@@ -14,7 +14,7 @@ import {
 import { DST_POP } from './ibe.js';
 import { PACKAGE_VERSION } from './version.js';
 import type { SealCompatibleClient } from './types.js';
-import { Version } from './utils.js';
+import { flatten, Version } from './utils.js';
 
 export type KeyServer = {
 	objectId: string;
@@ -117,7 +117,7 @@ export async function verifyKeyServer(server: KeyServer, timeout: number): Promi
 	if (serviceResponse.service_id !== server.objectId) {
 		return false;
 	}
-	const fullMsg = new Uint8Array([...DST_POP, ...server.pk, ...fromHex(server.objectId)]);
+	const fullMsg = flatten([DST_POP, server.pk, fromHex(server.objectId)]);
 	return bls12_381.verifyShortSignature(fromBase64(serviceResponse.pop), fullMsg, server.pk);
 }
 
