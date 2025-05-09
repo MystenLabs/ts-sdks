@@ -5,6 +5,7 @@ import { computed, readonlyType } from 'nanostores';
 import { createState } from './state.js';
 import { syncRegisteredWallets } from './initializers/registered-wallets.js';
 import { createActions } from './actions/index.js';
+import { DAppKitError } from '../utils/errors.js';
 import { autoConnectWallet } from './initializers/autoconnect-wallet.js';
 import { createInMemoryStorage, DEFAULT_STORAGE_KEY, getDefaultStorage } from '../utils/storage.js';
 import type { StateStorage } from '../utils/storage.js';
@@ -12,11 +13,11 @@ import { syncStateToStorage } from './initializers/sync-state-to-storage.js';
 import { getAssociatedWalletOrThrow } from '../utils/wallets.js';
 import { manageWalletConnection } from './initializers/manage-connection.js';
 
-export type DAppKitStore = ReturnType<typeof createDAppKitStore>;
+export type DAppKit = ReturnType<typeof createDAppKit>;
 
-type CreateDAppKitStoreOptions = {
+type CreateDAppKitOptions = {
 	/**
-	 * Enables automatically reconnecting to the most recently used wallet account upon mounting.
+	 * Enables automatically connecting to the most recently used wallet account.
 	 * @defaultValue `true`
 	 */
 	autoConnect?: boolean;
@@ -34,11 +35,35 @@ type CreateDAppKitStoreOptions = {
 	storageKey?: string;
 };
 
-export function createDAppKitStore({
+let defaultInstance: DAppKit | undefined;
+
+export function createDAppKit(options: CreateDAppKitOptions) {
+	const dAppKit = createDAppKitInstance(options);
+
+	if (!defaultInstance) {
+		defaultInstance = dAppKit;
+
+		globalThis.__DEFAULT_DAPP_KIT_INSTANCE__ ||= defaultInstance;
+		if (globalThis.__DEFAULT_DAPP_KIT_INSTANCE__ !== defaultInstance) {
+			console.warn('Detected multiple dApp-kit instances. This may cause un-expected behavior.');
+		}
+	}
+
+	return dAppKit;
+}
+
+export function getDefaultInstance() {
+	if (!defaultInstance) {
+		throw new DAppKitError('dApp-kit has not been initialized yet.');
+	}
+	return defaultInstance;
+}
+
+export function createDAppKitInstance({
 	autoConnect = true,
 	storage = getDefaultStorage(),
 	storageKey = DEFAULT_STORAGE_KEY,
-}: CreateDAppKitStoreOptions = {}) {
+}: CreateDAppKitOptions = {}) {
 	const $state = createState();
 	const actions = createActions($state);
 
@@ -103,21 +128,4 @@ export function createDAppKitStore({
 			}
 		}),
 	};
-}
-
-let defaultStore: DAppKitStore | undefined;
-
-export function getDefaultStore() {
-	if (!defaultStore) {
-		defaultStore = createDAppKitStore();
-
-		(globalThis as any).__DAPP_KIT_DEFAULT_STORE__ ||= defaultStore;
-		if ((globalThis as any).__DAPP_KIT_DEFAULT_STORE__ !== defaultStore) {
-			console.warn(
-				'Detected multiple dApp-kit store instances. This may cause un-expected behavior.',
-			);
-		}
-	}
-
-	return defaultStore;
 }
