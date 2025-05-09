@@ -158,12 +158,14 @@ export class SealClient {
 
 	#validateEncryptionServices(services: string[], threshold: number) {
 		// Check that the client's key servers are a subset of the encrypted object's key servers.
-		for (const objectId of this.#serverObjectIds) {
-			if (occurences(this.#serverObjectIds, objectId) < occurences(services, objectId)) {
-				throw new InconsistentKeyServersError(
-					`Client's key servers must be a subset of the encrypted object's key servers`,
-				);
-			}
+		if (
+			this.#serverObjectIds.some(
+				(objectId) => occurences(this.#serverObjectIds, objectId) < occurences(services, objectId),
+			)
+		) {
+			throw new InconsistentKeyServersError(
+				`Client's key servers must be a subset of the encrypted object's key servers`,
+			);
 		}
 		// Check that the threshold can be met with the client's key servers.
 		if (threshold > this.#serverObjectIds.length) {
