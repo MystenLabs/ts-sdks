@@ -310,14 +310,10 @@ export class SealClient {
 
 				// Check if all the receivedIds are consistent with the requested fullIds.
 				// If so, consider the key server got all keys and mark as completed.
-				const expectedIds = new Set(fullIds);
-				const hasAllKeys =
-					receivedIds.size === expectedIds.size &&
-					[...receivedIds].every((id) => expectedIds.has(id));
-
-				// Return early if the completed servers is more than threshold.
-				if (hasAllKeys) {
+				if (fullIds.every((fullIds) => receivedIds.has(fullIds))) {
 					completedServerCount++;
+
+					// Return early if the completed servers is more than the threshold.
 					if (completedServerCount >= threshold) {
 						controller.abort();
 					}
