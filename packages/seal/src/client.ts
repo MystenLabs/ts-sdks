@@ -19,7 +19,7 @@ import type { KeyServer } from './key-server.js';
 import { fetchKeysForAllIds } from './keys.js';
 import type { SessionKey } from './session-key.js';
 import type { KeyCacheKey, SealCompatibleClient } from './types.js';
-import { createFullId, occurences } from './utils.js';
+import { createFullId, count } from './utils.js';
 
 /**
  * Configuration options for initializing a SealClient
@@ -160,7 +160,7 @@ export class SealClient {
 		// Check that the client's key servers are a subset of the encrypted object's key servers.
 		if (
 			this.#serverObjectIds.some(
-				(objectId) => occurences(this.#serverObjectIds, objectId) < occurences(services, objectId),
+				(objectId) => count(this.#serverObjectIds, objectId) < count(services, objectId),
 			)
 		) {
 			throw new InconsistentKeyServersError(

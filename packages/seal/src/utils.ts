@@ -49,7 +49,7 @@ export function flatten(arrays: Uint8Array[]): Uint8Array {
 }
 
 /** Count the number of occurences of a value in an array. */
-export function occurences<T>(array: T[], value: T): number {
+export function count<T>(array: T[], value: T): number {
 	return array.reduce((count, item) => (item === value ? count + 1 : count), 0);
 }
 
