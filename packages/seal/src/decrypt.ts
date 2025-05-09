@@ -12,7 +12,7 @@ import { InvalidCiphertextError, UnsupportedFeatureError } from './error.js';
 import { BonehFranklinBLS12381Services, DST } from './ibe.js';
 import { deriveKey, KeyPurpose } from './kdf.js';
 import type { KeyCacheKey } from './types.js';
-import { createFullId } from './utils.js';
+import { createFullId, flatten } from './utils.js';
 
 export interface DecryptOptions {
 	encryptedObject: typeof EncryptedObject.$inferType;
@@ -52,7 +52,7 @@ export async function decrypt({ encryptedObject, keys }: DecryptOptions): Promis
 	const nonce = G2Element.fromBytes(encryptedObject.encryptedShares.BonehFranklinBLS12381.nonce);
 
 	// Decrypt each share.
-	const shares = inKeystore.map((i: number) => {
+	const shares = inKeystore.map((i) => {
 		const [objectId, index] = encryptedObject.services[i];
 		// Use the index as the unique info parameter to allow for multiple shares per key server.
 		const share = BonehFranklinBLS12381Services.decrypt(
@@ -67,26 +67,19 @@ export async function decrypt({ encryptedObject, keys }: DecryptOptions): Promis
 	});
 
 	// Combine the decrypted shares into the key.
-	const key = await combine(shares);
-	const demKey = deriveKey(KeyPurpose.DEM, key);
+	const baseKey = await combine(shares);
+
+	const demKey = deriveKey(KeyPurpose.DEM, baseKey);
+
 	if (encryptedObject.ciphertext.Aes256Gcm) {
-		try {
-			// Decrypt the ciphertext with the key.
-			return AesGcm256.decrypt(demKey, encryptedObject.ciphertext);
-		} catch {
-			throw new Error('Decryption failed');
-		}
+		return AesGcm256.decrypt(demKey, encryptedObject.ciphertext);
+	} else if (encryptedObject.ciphertext.Hmac256Ctr) {
+		return Hmac256Ctr.decrypt(demKey, encryptedObject.ciphertext);
 	} else if (encryptedObject.ciphertext.Plain) {
 		// In case `Plain` mode is used, return the key.
 		return demKey;
-	} else if (encryptedObject.ciphertext.Hmac256Ctr) {
-		try {
-			return Hmac256Ctr.decrypt(demKey, encryptedObject.ciphertext);
-		} catch {
-			throw new Error('Decryption failed');
-		}
 	} else {
-		throw new Error('Invalid encrypted object');
+		throw new InvalidCiphertextError('Invalid ciphertext type');
 	}
 }
 
@@ -106,11 +99,6 @@ async function combine(shares: { index: number; share: Uint8Array }[]): Promise<
 
 	// The Shamir secret sharing library expects the index/x-coordinate to be at the end of the share
 	return externalCombine(
-		shares.map(({ index, share }) => {
-			const packedShare = new Uint8Array(share.length + 1);
-			packedShare.set(share, 0);
-			packedShare[share.length] = index;
-			return packedShare;
-		}),
+		shares.map(({ index, share }) => flatten([share, new Uint8Array([index])])),
 	);
 }

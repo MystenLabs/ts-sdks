@@ -7,7 +7,7 @@ import { hmac } from '@noble/hashes/hmac';
 import { sha3_256 } from '@noble/hashes/sha3';
 
 import type { Ciphertext } from './bcs.js';
-import { InvalidCiphertextError } from './error.js';
+import { DecryptionError, InvalidCiphertextError } from './error.js';
 import { xorUnchecked } from './utils.js';
 
 // Use a fixed IV for AES. This is okay because the key is unique for each message.
@@ -76,19 +76,22 @@ export class AesGcm256 implements EncryptionInput {
 			throw new InvalidCiphertextError(`Invalid ciphertext ${ciphertext}`);
 		}
 
-		const aesCryptoKey = await crypto.subtle.importKey('raw', key, 'AES-GCM', false, ['decrypt']);
-
-		return new Uint8Array(
-			await crypto.subtle.decrypt(
-				{
-					name: 'AES-GCM',
-					iv,
-					additionalData: new Uint8Array(ciphertext.Aes256Gcm.aad ?? []),
-				},
-				aesCryptoKey,
-				new Uint8Array(ciphertext.Aes256Gcm.blob),
-			),
-		);
+		try {
+			const aesCryptoKey = await crypto.subtle.importKey('raw', key, 'AES-GCM', false, ['decrypt']);
+			return new Uint8Array(
+				await crypto.subtle.decrypt(
+					{
+						name: 'AES-GCM',
+						iv,
+						additionalData: new Uint8Array(ciphertext.Aes256Gcm.aad ?? []),
+					},
+					aesCryptoKey,
+					new Uint8Array(ciphertext.Aes256Gcm.blob),
+				),
+			);
+		} catch (e) {
+			throw new DecryptionError(`Decryption failed`);
+		}
 	}
 }
 
@@ -148,7 +151,7 @@ export class Hmac256Ctr implements EncryptionInput {
 		const blob = new Uint8Array(ciphertext.Hmac256Ctr.blob);
 		const mac = Hmac256Ctr.computeMac(key, aad, blob);
 		if (!equalBytes(mac, new Uint8Array(ciphertext.Hmac256Ctr.mac))) {
-			throw new InvalidCiphertextError(`Invalid MAC ${mac}`);
+			throw new DecryptionError(`Invalid MAC ${mac}`);
 		}
 		return Hmac256Ctr.encryptInCtrMode(key, blob);
 	}
