@@ -413,6 +413,7 @@ function parseTransaction(
 		digest: transaction.digest!,
 		effects: parseTransactionEffects({
 			effects: new Uint8Array(transaction.effects?.bcs!),
+			epoch: transaction.effects?.epoch?.epochId,
 			objectTypes,
 		}),
 		bcs: transaction.bcs!,

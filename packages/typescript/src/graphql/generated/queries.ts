@@ -5408,7 +5408,7 @@ export type DryRunTransactionBlockQueryVariables = Exact<{
 }>;
 
 
-export type DryRunTransactionBlockQuery = { __typename?: 'Query', dryRunTransactionBlock: { __typename?: 'DryRunResult', error?: string | null, transaction?: { __typename?: 'TransactionBlock', digest?: string | null, bcs?: any | null, signatures?: Array<any> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: any, unchangedSharedObjects: { __typename?: 'UnchangedSharedObjectConnection', nodes: Array<{ __typename: 'SharedObjectCancelled' } | { __typename: 'SharedObjectDelete' } | { __typename: 'SharedObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: any, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> } } | null } | null } };
+export type DryRunTransactionBlockQuery = { __typename?: 'Query', dryRunTransactionBlock: { __typename?: 'DryRunResult', error?: string | null, transaction?: { __typename?: 'TransactionBlock', digest?: string | null, bcs?: any | null, signatures?: Array<any> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: any, epoch?: { __typename?: 'Epoch', epochId: any } | null, unchangedSharedObjects: { __typename?: 'UnchangedSharedObjectConnection', nodes: Array<{ __typename: 'SharedObjectCancelled' } | { __typename: 'SharedObjectDelete' } | { __typename: 'SharedObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: any, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> } } | null } | null } };
 
 export type ExecuteTransactionBlockMutationVariables = Exact<{
   txBytes: Scalars['String']['input'];
@@ -5416,16 +5416,16 @@ export type ExecuteTransactionBlockMutationVariables = Exact<{
 }>;
 
 
-export type ExecuteTransactionBlockMutation = { __typename?: 'Mutation', executeTransactionBlock: { __typename?: 'ExecutionResult', errors?: Array<string> | null, effects: { __typename?: 'TransactionBlockEffects', transactionBlock?: { __typename?: 'TransactionBlock', digest?: string | null, bcs?: any | null, signatures?: Array<any> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: any, unchangedSharedObjects: { __typename?: 'UnchangedSharedObjectConnection', nodes: Array<{ __typename: 'SharedObjectCancelled' } | { __typename: 'SharedObjectDelete' } | { __typename: 'SharedObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: any, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> } } | null } | null } } };
+export type ExecuteTransactionBlockMutation = { __typename?: 'Mutation', executeTransactionBlock: { __typename?: 'ExecutionResult', errors?: Array<string> | null, effects: { __typename?: 'TransactionBlockEffects', transactionBlock?: { __typename?: 'TransactionBlock', digest?: string | null, bcs?: any | null, signatures?: Array<any> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: any, epoch?: { __typename?: 'Epoch', epochId: any } | null, unchangedSharedObjects: { __typename?: 'UnchangedSharedObjectConnection', nodes: Array<{ __typename: 'SharedObjectCancelled' } | { __typename: 'SharedObjectDelete' } | { __typename: 'SharedObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: any, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> } } | null } | null } } };
 
 export type GetTransactionBlockQueryVariables = Exact<{
   digest: Scalars['String']['input'];
 }>;
 
 
-export type GetTransactionBlockQuery = { __typename?: 'Query', transactionBlock?: { __typename?: 'TransactionBlock', digest?: string | null, bcs?: any | null, signatures?: Array<any> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: any, unchangedSharedObjects: { __typename?: 'UnchangedSharedObjectConnection', nodes: Array<{ __typename: 'SharedObjectCancelled' } | { __typename: 'SharedObjectDelete' } | { __typename: 'SharedObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: any, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> } } | null } | null };
+export type GetTransactionBlockQuery = { __typename?: 'Query', transactionBlock?: { __typename?: 'TransactionBlock', digest?: string | null, bcs?: any | null, signatures?: Array<any> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: any, epoch?: { __typename?: 'Epoch', epochId: any } | null, unchangedSharedObjects: { __typename?: 'UnchangedSharedObjectConnection', nodes: Array<{ __typename: 'SharedObjectCancelled' } | { __typename: 'SharedObjectDelete' } | { __typename: 'SharedObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: any, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> } } | null } | null };
 
-export type Transaction_FieldsFragment = { __typename?: 'TransactionBlock', digest?: string | null, bcs?: any | null, signatures?: Array<any> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: any, unchangedSharedObjects: { __typename?: 'UnchangedSharedObjectConnection', nodes: Array<{ __typename: 'SharedObjectCancelled' } | { __typename: 'SharedObjectDelete' } | { __typename: 'SharedObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: any, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> } } | null };
+export type Transaction_FieldsFragment = { __typename?: 'TransactionBlock', digest?: string | null, bcs?: any | null, signatures?: Array<any> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: any, epoch?: { __typename?: 'Epoch', epochId: any } | null, unchangedSharedObjects: { __typename?: 'UnchangedSharedObjectConnection', nodes: Array<{ __typename: 'SharedObjectCancelled' } | { __typename: 'SharedObjectDelete' } | { __typename: 'SharedObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: any, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> } } | null };
 
 export type VerifyZkLoginSignatureQueryVariables = Exact<{
   bytes: Scalars['Base64']['input'];
@@ -5580,6 +5580,9 @@ export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
   signatures
   effects {
     bcs
+    epoch {
+      epochId
+    }
     unchangedSharedObjects {
       nodes {
         __typename
@@ -5882,6 +5885,9 @@ export const DryRunTransactionBlockDocument = new TypedDocumentString(`
   signatures
   effects {
     bcs
+    epoch {
+      epochId
+    }
     unchangedSharedObjects {
       nodes {
         __typename
@@ -5944,6 +5950,9 @@ export const ExecuteTransactionBlockDocument = new TypedDocumentString(`
   signatures
   effects {
     bcs
+    epoch {
+      epochId
+    }
     unchangedSharedObjects {
       nodes {
         __typename
@@ -6001,6 +6010,9 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
   signatures
   effects {
     bcs
+    epoch {
+      epochId
+    }
     unchangedSharedObjects {
       nodes {
         __typename
