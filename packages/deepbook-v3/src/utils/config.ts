@@ -66,7 +66,7 @@ export class DeepBookConfig {
 			this.DEEP_TREASURY_ID = testnetPackageIds.DEEP_TREASURY_ID;
 		}
 
-		this.balanceManager = new BalanceManagerContract(this);
+		this.balanceManager = new BalanceManagerContract(env);
 	}
 
 	// Getters
@@ -101,3 +101,11 @@ export class DeepBookConfig {
 		return this.balanceManagers[managerKey];
 	}
 }
+
+export const convertToDeepBookPrice = (
+	price: number,
+	baseDecimals: number,
+	quoteDecimals: number,
+): number => {
+	return price * FLOAT_SCALAR * 10 ** (quoteDecimals - baseDecimals);
+};
