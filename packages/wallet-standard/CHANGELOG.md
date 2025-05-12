@@ -1,5 +1,11 @@
 # @mysten/wallet-standard
 
+## 0.15.0
+
+### Minor Changes
+
+- afbbb80: Expose variables for feature names
+
 ## 0.14.9
 
 ### Patch Changes

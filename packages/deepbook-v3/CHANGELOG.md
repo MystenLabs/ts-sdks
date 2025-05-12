@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.14.6
+
+### Patch Changes
+
+- 7a223e5: Add support for admin adjusting tick size
+
 ## 0.14.5
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @mysten/enoki
 
+## 0.6.11
+
+### Patch Changes
+
+- Updated dependencies [afbbb80]
+  - @mysten/wallet-standard@0.15.0
+
 ## 0.6.10
 
 ### Patch Changes
