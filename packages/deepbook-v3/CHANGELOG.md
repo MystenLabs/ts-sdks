@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.14.7
+
+### Patch Changes
+
+- e7c5b81: Function to adjust min and lot size as admin
+
 ## 0.14.6
 
 ### Patch Changes
