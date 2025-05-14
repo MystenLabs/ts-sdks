@@ -12,6 +12,7 @@
 		"../signers",
 		"../slush-wallet",
 		"../suins",
+		"../sui-grpc",
 		"../typescript",
 		"../utils",
 		"../wallet-standard",

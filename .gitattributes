@@ -1,0 +1,3 @@
+packages/sui-grpc/src/proto/** linguist-generated=true
+packages/typescript/src/graphql/generated/** linguist-generated=true
+packages/graphql-transport/src/generated/** linguist-generated=true
