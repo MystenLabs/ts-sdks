@@ -162,12 +162,10 @@ export class SealClient {
 		for (const objectId of this.#serverObjectIds) {
 			serverObjectIdsMap.set(objectId, (serverObjectIdsMap.get(objectId) ?? 0) + 1);
 		}
-
 		const servicesMap = new Map<string, number>();
 		for (const service of services) {
 			servicesMap.set(service, (servicesMap.get(service) ?? 0) + 1);
 		}
-
 		for (const [objectId, count] of serverObjectIdsMap) {
 			if (servicesMap.get(objectId) !== count) {
 				throw new InconsistentKeyServersError(
@@ -175,7 +173,6 @@ export class SealClient {
 				);
 			}
 		}
-
 		// Check that the threshold can be met with the client's key servers.
 		if (threshold > this.#serverObjectIds.length) {
 			throw new InvalidThresholdError(
@@ -263,7 +260,6 @@ export class SealClient {
 					break;
 				}
 			}
-
 			if (hasAllKeys) {
 				completedServerCount++;
 			}
@@ -300,7 +296,6 @@ export class SealClient {
 					this.#timeout,
 					controller.signal,
 				);
-
 				// Check validity of the keys and add them to the cache.
 				const receivedIds = new Set<string>();
 				for (const { fullId, key } of allKeys) {
@@ -315,7 +310,6 @@ export class SealClient {
 						console.warn('Received invalid key from key server ' + server.objectId);
 						continue;
 					}
-
 					this.#cachedKeys.set(`${fullId}:${server.objectId}`, keyElement);
 					receivedIds.add(fullId);
 				}
@@ -339,7 +333,6 @@ export class SealClient {
 				if (!controller.signal.aborted) {
 					errors.push(error as Error);
 				}
-
 				// If there are too many errors that the threshold is not attainable, return early with error.
 				if (remainingKeyServers.size - errors.length < threshold - completedServerCount) {
 					controller.abort(error);
