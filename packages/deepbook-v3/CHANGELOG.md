@@ -1,5 +1,32 @@
 # @mysten/deepbook-v3
 
+## 0.14.7
+
+### Patch Changes
+
+- e7c5b81: Function to adjust min and lot size as admin
+
+## 0.14.6
+
+### Patch Changes
+
+- 7a223e5: Add support for admin adjusting tick size
+
+## 0.14.5
+
+### Patch Changes
+
+- @mysten/sui@1.29.1
+
+## 0.14.4
+
+### Patch Changes
+
+- Updated dependencies [7d66a32]
+- Updated dependencies [eb91fba]
+- Updated dependencies [19a8045]
+  - @mysten/sui@1.29.0
+
 ## 0.14.3
 
 ### Patch Changes

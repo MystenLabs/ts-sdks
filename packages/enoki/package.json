@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/enoki",
-	"version": "0.6.7",
+	"version": "0.6.11",
 	"description": "TODO: Description",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -60,10 +60,10 @@
 		"@mysten/signers": "workspace:*",
 		"@mysten/sui": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
-		"@nanostores/react": "^0.7.2",
+		"@nanostores/react": "^1.0.0",
 		"idb-keyval": "^6.2.1",
 		"mitt": "^3.0.1",
-		"nanostores": "^0.10.3"
+		"nanostores": "^1.0.1"
 	},
 	"peerDependencies": {
 		"@types/react": ">=17.0.0",

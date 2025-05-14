@@ -4,6 +4,9 @@
 import type { Transaction } from '@mysten/sui/transactions';
 import type { IdentifierString, WalletAccount } from '@wallet-standard/core';
 
+/** Name of the feature. */
+export const SuiSignTransactionBlock = 'sui:signTransactionBlock';
+
 /** The latest API version of the signTransactionBlock API. */
 export type SuiSignTransactionBlockVersion = '1.0.0';
 
@@ -15,7 +18,7 @@ export type SuiSignTransactionBlockVersion = '1.0.0';
  */
 export type SuiSignTransactionBlockFeature = {
 	/** Namespace for the feature. */
-	'sui:signTransactionBlock': {
+	[SuiSignTransactionBlock]: {
 		/** Version of the feature API. */
 		version: SuiSignTransactionBlockVersion;
 		/** @deprecated Use `sui:signTransaction` instead. */

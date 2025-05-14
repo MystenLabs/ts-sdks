@@ -10,6 +10,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { toBase64 } from '@mysten/sui/utils';
 
 import { SuiMoveObject } from './bcs.js';
+import { bcs } from '@mysten/sui/bcs';
 
 /**
  * Configuration options for initializing the LedgerSigner.
@@ -92,7 +93,10 @@ export class LedgerSigner extends Signer {
 	 * @returns The signed message bytes and signature.
 	 */
 	override async signPersonalMessage(bytes: Uint8Array): Promise<SignatureWithBytes> {
-		const intentMessage = messageWithIntent('PersonalMessage', bytes);
+		const intentMessage = messageWithIntent(
+			'PersonalMessage',
+			bcs.byteVector().serialize(bytes).toBytes(),
+		);
 		const { signature } = await this.#ledgerClient.signTransaction(
 			this.#derivationPath,
 			intentMessage,

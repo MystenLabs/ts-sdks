@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.6.1
+
+### Patch Changes
+
+- 7e1c525: Correctly handle byteOffset in Uint8Arrays when reading bcs bytes
+
 ## 1.6.0
 
 ### Minor Changes

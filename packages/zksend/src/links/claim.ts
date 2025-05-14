@@ -179,6 +179,7 @@ export class ZkSendLink {
 	async loadAssets(
 		options: {
 			transaction?: SuiTransactionBlockResponse;
+			loadAssets?: boolean;
 			loadClaimedAssets?: boolean;
 		} = {},
 	) {

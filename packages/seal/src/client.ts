@@ -14,12 +14,17 @@ import {
 	toMajorityError,
 } from './error.js';
 import { BonehFranklinBLS12381Services, DST } from './ibe.js';
-import { KeyServerType, retrieveKeyServers, verifyKeyServer } from './key-server.js';
-import type { KeyServer } from './key-server.js';
+import {
+	BonehFranklinBLS12381DerivedKey,
+	KeyServerType,
+	retrieveKeyServers,
+	verifyKeyServer,
+} from './key-server.js';
+import type { DerivedKey, KeyServer } from './key-server.js';
 import { fetchKeysForAllIds } from './keys.js';
 import type { SessionKey } from './session-key.js';
 import type { KeyCacheKey, SealCompatibleClient } from './types.js';
-import { createFullId } from './utils.js';
+import { createFullId, count } from './utils.js';
 
 /**
  * Configuration options for initializing a SealClient
@@ -158,20 +163,16 @@ export class SealClient {
 
 	#validateEncryptionServices(services: string[], threshold: number) {
 		// Check that the client's key servers are a subset of the encrypted object's key servers.
-		const serverObjectIdsMap = new Map<string, number>();
-		for (const objectId of this.#serverObjectIds) {
-			serverObjectIdsMap.set(objectId, (serverObjectIdsMap.get(objectId) ?? 0) + 1);
-		}
-		const servicesMap = new Map<string, number>();
-		for (const service of services) {
-			servicesMap.set(service, (servicesMap.get(service) ?? 0) + 1);
-		}
-		for (const [objectId, count] of serverObjectIdsMap) {
-			if (servicesMap.get(objectId) !== count) {
-				throw new InconsistentKeyServersError(
-					`Client's key servers must be a subset of the encrypted object's key servers`,
-				);
-			}
+		// TODO: fix this check to allow for non-equal weights.
+		if (
+			services.some((objectId) => {
+				const countInClient = count(this.#serverObjectIds, objectId);
+				return countInClient > 0 && countInClient !== count(services, objectId);
+			})
+		) {
+			throw new InconsistentKeyServersError(
+				`Client's key servers must be a subset of the encrypted object's key servers`,
+			);
 		}
 		// Check that the threshold can be met with the client's key servers.
 		if (threshold > this.#serverObjectIds.length) {
@@ -252,16 +253,10 @@ export class SealClient {
 		// Count a server as completed if it has keys for all fullIds.
 		// Duplicated key server ids will be counted towards the threshold.
 		for (const server of keyServers) {
-			let hasAllKeys = true;
-			for (const fullId of fullIds) {
-				if (!this.#cachedKeys.has(`${fullId}:${server.objectId}`)) {
-					hasAllKeys = false;
-					remainingKeyServers.add(server);
-					break;
-				}
-			}
-			if (hasAllKeys) {
+			if (fullIds.every((fullId) => this.#cachedKeys.has(`${fullId}:${server.objectId}`))) {
 				completedServerCount++;
+			} else {
+				remainingKeyServers.add(server);
 			}
 		}
 
@@ -316,15 +311,10 @@ export class SealClient {
 
 				// Check if all the receivedIds are consistent with the requested fullIds.
 				// If so, consider the key server got all keys and mark as completed.
-				const expectedIds = new Set(fullIds);
-				const hasAllKeys =
-					receivedIds.size === expectedIds.size &&
-					[...receivedIds].every((id) => expectedIds.has(id));
-
-				// Return early if the completed servers is more than threshold.
-				if (hasAllKeys) {
+				if (fullIds.every((fullIds) => receivedIds.has(fullIds))) {
 					completedServerCount++;
 
+					// Return early if the completed servers is more than the threshold.
 					if (completedServerCount >= threshold) {
 						controller.abort();
 					}
@@ -344,6 +334,65 @@ export class SealClient {
 
 		if (completedServerCount < threshold) {
 			throw toMajorityError(errors);
+		}
+	}
+
+	/**
+	 * Get derived keys from the given services.
+	 *
+	 * @param id - The id of the encrypted object.
+	 * @param txBytes - The transaction bytes to use (that calls seal_approve* functions).
+	 * @param sessionKey - The session key to use.
+	 * @param threshold - The threshold.
+	 * @returns - Derived keys for the given services that are in the cache as a "service object ID" -> derived key map. If the call is succesful, exactly threshold keys will be returned.
+	 */
+	async getDerivedKeys({
+		kemType = KemType.BonehFranklinBLS12381DemCCA,
+		id,
+		txBytes,
+		sessionKey,
+		threshold,
+	}: {
+		kemType?: KemType;
+		id: string;
+		txBytes: Uint8Array;
+		sessionKey: SessionKey;
+		threshold: number;
+	}): Promise<Map<string, DerivedKey>> {
+		switch (kemType) {
+			case KemType.BonehFranklinBLS12381DemCCA:
+				const keyServers = await this.getKeyServers();
+				if (threshold > this.#serverObjectIds.length) {
+					throw new InvalidThresholdError(
+						`Invalid threshold ${threshold} for ${this.#serverObjectIds.length} servers`,
+					);
+				}
+				await this.fetchKeys({
+					ids: [id],
+					txBytes,
+					sessionKey,
+					threshold,
+				});
+
+				// After calling fetchKeys, we can be sure that there are at least `threshold` of the required keys in the cache.
+				// It is also checked there that the KeyServerType is BonehFranklinBLS12381 for all services.
+
+				const fullId = createFullId(DST, sessionKey.getPackageId(), id);
+
+				const derivedKeys = new Map<string, DerivedKey>();
+				let servicesAdded = 0;
+				for (const keyServer of keyServers) {
+					// The code below assumes that the KeyServerType is BonehFranklinBLS12381.
+					const cachedKey = this.#cachedKeys.get(`${fullId}:${keyServer.objectId}`);
+					if (cachedKey) {
+						derivedKeys.set(keyServer.objectId, new BonehFranklinBLS12381DerivedKey(cachedKey));
+						if (++servicesAdded === threshold) {
+							// We have enough keys, so we can stop.
+							break;
+						}
+					}
+				}
+				return derivedKeys;
 		}
 	}
 }

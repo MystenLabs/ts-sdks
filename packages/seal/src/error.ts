@@ -31,6 +31,10 @@ export class SealAPIError extends SealError {
 				return new InvalidUserSignatureError(requestId);
 			case 'InvalidSessionSignature':
 				return new InvalidSessionKeySignatureError(requestId);
+			case 'InvalidSDKVersion':
+				return new InvalidSDKVersionError(requestId);
+			case 'DeprecatedSDKVersion':
+				return new DeprecatedSDKVersionError(requestId);
 			case 'Failure':
 				return new InternalError(requestId);
 			default:
@@ -91,6 +95,20 @@ export class InvalidSessionKeySignatureError extends SealAPIError {
 	}
 }
 
+// Errors returned by the Seal server that indicate that the SDK version is invalid (implying that HTTP headers used by the SDK are being removed) or deprecated (implying that the SDK should be upgraded).
+
+export class InvalidSDKVersionError extends SealAPIError {
+	constructor(requestId?: string) {
+		super('SDK version is invalid', requestId);
+	}
+}
+
+export class DeprecatedSDKVersionError extends SealAPIError {
+	constructor(requestId?: string) {
+		super('SDK version is deprecated', requestId);
+	}
+}
+
 /** Server error indicating that the user does not have access to one or more of the requested keys */
 export class NoAccessError extends SealAPIError {
 	constructor(requestId?: string) {
@@ -121,9 +139,11 @@ export class InvalidGetObjectError extends UserError {}
 export class UnsupportedFeatureError extends UserError {}
 export class UnsupportedNetworkError extends UserError {}
 export class InvalidKeyServerError extends UserError {}
+export class InvalidKeyServerVersionError extends UserError {}
 export class InvalidCiphertextError extends UserError {}
 export class InvalidThresholdError extends UserError {}
 export class InconsistentKeyServersError extends UserError {}
+export class DecryptionError extends UserError {}
 
 export function toMajorityError(errors: Error[]): Error {
 	let maxCount = 0;

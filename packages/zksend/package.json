@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/zksend",
-	"version": "0.12.28",
+	"version": "0.13.3",
 	"description": "TODO: Write Description",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -55,7 +55,7 @@
 		"@mysten/wallet-standard": "workspace:*",
 		"@mysten/window-wallet-core": "workspace:*",
 		"mitt": "^3.0.1",
-		"nanostores": "^0.10.3",
+		"nanostores": "^1.0.1",
 		"valibot": "^0.36.0"
 	}
 }

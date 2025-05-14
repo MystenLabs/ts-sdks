@@ -5,9 +5,12 @@ import { toHex } from '@mysten/bcs';
 import type { Fp2, Fp12 } from '@noble/curves/abstract/tower';
 import type { ProjPointType } from '@noble/curves/abstract/weierstrass';
 import { bls12_381 } from '@noble/curves/bls12-381';
+import { flatten } from './utils.js';
 
 export class G1Element {
 	point: ProjPointType<bigint>;
+
+	public static readonly SIZE = 48;
 
 	constructor(point: ProjPointType<bigint>) {
 		this.point = point;
@@ -51,6 +54,8 @@ export class G1Element {
 export class G2Element {
 	point: ProjPointType<Fp2>;
 
+	public static readonly SIZE = 96;
+
 	constructor(point: ProjPointType<Fp2>) {
 		this.point = point;
 	}
@@ -85,17 +90,37 @@ export class G2Element {
 export class GTElement {
 	element: Fp12;
 
+	public static readonly SIZE = 576;
+
 	constructor(element: Fp12) {
 		this.element = element;
 	}
 
 	toBytes(): Uint8Array {
-		return bls12_381.fields.Fp12.toBytes(this.element);
+		// This permutation reorders the 6 pairs of coefficients of the GT element for compatability with the Rust and Move implementations.
+		//
+		// The permutation P may be computed as:
+		// for i in 0..3 {
+		//   for j in 0..2 {
+		//     P[2 * i + j] = i + 3 * j;
+		//   }
+		// }
+		const P = [0, 3, 1, 4, 2, 5];
+		const PAIR_SIZE = GTElement.SIZE / P.length;
+
+		const bytes = bls12_381.fields.Fp12.toBytes(this.element);
+		return flatten(P.map((p) => bytes.subarray(p * PAIR_SIZE, (p + 1) * PAIR_SIZE)));
+	}
+
+	equals(other: GTElement): boolean {
+		return bls12_381.fields.Fp12.eql(this.element, other.element);
 	}
 }
 
 export class Scalar {
 	scalar: bigint;
+
+	public static readonly SIZE = 32;
 
 	constructor(scalar: bigint) {
 		this.scalar = scalar;

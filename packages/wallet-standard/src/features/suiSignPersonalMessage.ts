@@ -3,6 +3,9 @@
 
 import type { IdentifierString, WalletAccount } from '@wallet-standard/core';
 
+/** Name of the feature. */
+export const SuiSignPersonalMessage = 'sui:signPersonalMessage';
+
 /** The latest API version of the signPersonalMessage API. */
 export type SuiSignPersonalMessageVersion = '1.1.0';
 
@@ -12,7 +15,7 @@ export type SuiSignPersonalMessageVersion = '1.1.0';
  */
 export type SuiSignPersonalMessageFeature = {
 	/** Namespace for the feature. */
-	'sui:signPersonalMessage': {
+	[SuiSignPersonalMessage]: {
 		/** Version of the feature API. */
 		version: SuiSignPersonalMessageVersion;
 		signPersonalMessage: SuiSignPersonalMessageMethod;

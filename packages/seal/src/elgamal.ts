@@ -7,10 +7,10 @@ import { G1Element, G2Element, Scalar } from './bls12381.js';
  * Decrypt a ciphertext with a given secret key. The secret key must be a 32-byte scalar.
  * The ciphertext is a pair of G1Elements (48 bytes).
  */
-export function elgamalDecrypt(sk: Uint8Array, ciphertext: [Uint8Array, Uint8Array]): Uint8Array {
+export function elgamalDecrypt(sk: Uint8Array, [c0, c1]: [Uint8Array, Uint8Array]): Uint8Array {
 	return decrypt(Scalar.fromBytes(sk), [
-		G1Element.fromBytes(ciphertext[0]),
-		G1Element.fromBytes(ciphertext[1]),
+		G1Element.fromBytes(c0),
+		G1Element.fromBytes(c1),
 	]).toBytes();
 }
 
@@ -18,8 +18,8 @@ export function elgamalDecrypt(sk: Uint8Array, ciphertext: [Uint8Array, Uint8Arr
  * Decrypt a ciphertext with a given secret key. The secret key must be a 32-byte scalar.
  * The ciphertext is a pair of G1Elements (48 bytes).
  */
-function decrypt(sk: Scalar, encryption: [G1Element, G1Element]): G1Element {
-	return encryption[1].subtract(encryption[0].multiply(sk));
+function decrypt(sk: Scalar, [c0, c1]: [G1Element, G1Element]): G1Element {
+	return c1.subtract(c0.multiply(sk));
 }
 
 /** Generate a random secret key. */

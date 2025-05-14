@@ -52,7 +52,9 @@ export abstract class IBEServers {
 }
 
 /**
- * Identity-based encryption based on the Boneh-Franklin IBE scheme.
+ * Identity-based encryption based on the Boneh-Franklin IBE scheme (https://eprint.iacr.org/2001/090).
+ * Note that this implementation is of the "BasicIdent" protocol which on its own is not CCA secure, so this IBE implementation should not be used on its own.
+ *
  * This object represents a set of key servers that can be used to encrypt messages for a given identity.
  */
 export class BonehFranklinBLS12381Services extends IBEServers {
@@ -72,8 +74,8 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 			throw new Error('Invalid public keys');
 		}
 		const [r, nonce, keys] = encapBatched(this.publicKeys, id);
-		const encryptedShares = msgAndIndices.map((msgAndIndex, i) =>
-			xor(msgAndIndex.msg, kdf(keys[i], nonce, id, this.objectIds[i], msgAndIndex.index)),
+		const encryptedShares = msgAndIndices.map(({ msg, index }, i) =>
+			xor(msg, kdf(keys[i], nonce, id, this.objectIds[i], index)),
 		);
 		const encryptedRandomness = xor(randomnessKey, r.toBytes());
 
@@ -95,9 +97,9 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 	 * @returns True if the user secret key is valid for the given public key and id.
 	 */
 	static verifyUserSecretKey(userSecretKey: G1Element, id: string, publicKey: G2Element): boolean {
-		const lhs = userSecretKey.pairing(G2Element.generator()).toBytes();
-		const rhs = G1Element.hashToCurve(fromHex(id)).pairing(publicKey).toBytes();
-		return lhs.length === rhs.length && lhs.every((value, index) => value === rhs[index]);
+		const lhs = userSecretKey.pairing(G2Element.generator());
+		const rhs = G1Element.hashToCurve(fromHex(id)).pairing(publicKey);
+		return lhs.equals(rhs);
 	}
 
 	/**

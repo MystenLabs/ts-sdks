@@ -25,6 +25,7 @@ import type {
 import {
 	getWallets,
 	ReadonlyWalletAccount,
+	SUI_DEVNET_CHAIN,
 	SUI_MAINNET_CHAIN,
 	SUI_TESTNET_CHAIN,
 } from '@mysten/wallet-standard';
@@ -32,13 +33,13 @@ import type { Emitter } from 'mitt';
 import mitt from 'mitt';
 import { DappPostMessageChannel, decodeJwtSession } from '@mysten/window-wallet-core';
 
-export type SupportedNetwork = 'mainnet' | 'testnet';
+export type SupportedNetwork = 'mainnet' | 'testnet' | 'devnet';
 
 type WalletEventsMap = {
 	[E in keyof StandardEventsListeners]: Parameters<StandardEventsListeners[E]>[0];
 };
 
-const SUPPORTED_CHAINS = [SUI_MAINNET_CHAIN, SUI_TESTNET_CHAIN] as const;
+const SUPPORTED_CHAINS = [SUI_MAINNET_CHAIN, SUI_TESTNET_CHAIN, SUI_DEVNET_CHAIN] as const;
 const ACCOUNT_FEATURES = [
 	'sui:signTransaction',
 	'sui:signAndExecuteTransaction',
@@ -310,13 +311,23 @@ export class EnokiConnectWallet implements Wallet {
 }
 
 type EnokiConnectMetadata = {
+	publicAppSlug: string;
 	name: string;
 	logoUrl: WalletIcon;
 	appUrl: string;
 };
 
-async function getEnokiConnectMetadata(publicAppSlug: string, enokiApiUrl: string) {
-	const res = await fetch(new URL(`/connect/metadata/${publicAppSlug}`, enokiApiUrl));
+async function getEnokiConnectMetadata(publicAppSlugs: string[], enokiApiUrl: string) {
+	const sortedPublicAppSlugs = [...publicAppSlugs].sort();
+	const queryParams = new URLSearchParams();
+
+	for (const publicAppSlug of sortedPublicAppSlugs) {
+		queryParams.append('slugs', publicAppSlug);
+	}
+
+	queryParams.sort();
+
+	const res = await fetch(new URL(`/v1/connect/metadata?${queryParams.toString()}`, enokiApiUrl));
 
 	if (!res.ok) {
 		throw new Error('Failed to fetch enoki connect metadata');
@@ -324,34 +335,46 @@ async function getEnokiConnectMetadata(publicAppSlug: string, enokiApiUrl: strin
 
 	const { data } = await res.json();
 
-	return data as EnokiConnectMetadata;
+	return data as EnokiConnectMetadata[];
 }
 
-export async function registerEnokiConnectWallet({
-	publicAppSlug,
+export async function registerEnokiConnectWallets({
+	publicAppSlugs,
 	dappName,
 	network = 'mainnet',
 	enokiApiUrl = 'https://api.enoki.mystenlabs.com',
 }: {
-	publicAppSlug: string;
+	publicAppSlugs: string[];
 	dappName: string;
 	network?: SupportedNetwork;
 	enokiApiUrl?: string;
 }) {
-	const data = await getEnokiConnectMetadata(publicAppSlug, enokiApiUrl);
 	const wallets = getWallets();
-	const wallet = new EnokiConnectWallet({
-		walletName: data.name,
-		dappName,
-		hostOrigin: data.appUrl,
-		icon: data.logoUrl,
-		network,
-		publicAppSlug,
-	});
-	const unregister = wallets.register(wallet);
+	const data = await getEnokiConnectMetadata(publicAppSlugs, enokiApiUrl);
+	const unregisterCallbacks: (() => void)[] = [];
+	const registeredWallets: EnokiConnectWallet[] = [];
+
+	for (const aWalletMetadata of data) {
+		const wallet = new EnokiConnectWallet({
+			walletName: aWalletMetadata.name,
+			dappName,
+			hostOrigin: aWalletMetadata.appUrl,
+			icon: aWalletMetadata.logoUrl,
+			network,
+			publicAppSlug: aWalletMetadata.publicAppSlug,
+		});
+		const unregister = wallets.register(wallet);
+
+		unregisterCallbacks.push(unregister);
+		registeredWallets.push(wallet);
+	}
 
 	return {
-		wallet,
-		unregister,
+		wallets: registeredWallets,
+		unregister: () => {
+			for (const unregister of unregisterCallbacks) {
+				unregister();
+			}
+		},
 	};
 }

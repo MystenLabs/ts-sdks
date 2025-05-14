@@ -7,6 +7,7 @@ import { elgamalDecrypt, toPublicKey, toVerificationKey } from './elgamal.js';
 import { SealAPIError } from './error.js';
 import type { Certificate } from './session-key.js';
 import { PACKAGE_VERSION } from './version.js';
+import { verifyKeyServerVersion } from './key-server.js';
 
 /**
  * Helper function to request all keys from URL with requestSig, txBytes, ephemeral pubkey.
@@ -55,10 +56,11 @@ export async function fetchKeysForAllIds(
 		signal: combinedSignal,
 	});
 	await SealAPIError.assertResponse(response, requestId);
-
 	const resp = await response.json();
+	verifyKeyServerVersion(response);
+
 	return resp.decryption_keys.map((dk: { id: Uint8Array; encrypted_key: [string, string] }) => ({
-		fullId: toHex(new Uint8Array(dk.id)),
+		fullId: toHex(dk.id),
 		key: elgamalDecrypt(encKey, dk.encrypted_key.map(fromBase64) as [Uint8Array, Uint8Array]),
 	}));
 }

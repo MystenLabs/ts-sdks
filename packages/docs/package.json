@@ -21,6 +21,7 @@
 		"@mysten/deepbook": "workspace:*",
 		"@mysten/deepbook-v3": "workspace:*",
 		"@mysten/enoki": "workspace:*",
+		"@mysten/enoki-connect": "workspace:*",
 		"@mysten/graphql-transport": "workspace:*",
 		"@mysten/kiosk": "workspace:*",
 		"@mysten/seal": "workspace:*",

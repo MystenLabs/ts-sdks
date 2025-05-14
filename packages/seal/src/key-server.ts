@@ -1,11 +1,12 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { fromBase64, fromHex } from '@mysten/bcs';
+import { fromBase64, fromHex, toHex } from '@mysten/bcs';
 import { bls12_381 } from '@noble/curves/bls12-381';
 
 import { KeyServerMove } from './bcs.js';
 import {
 	InvalidGetObjectError,
+	InvalidKeyServerVersionError,
 	SealAPIError,
 	UnsupportedFeatureError,
 	UnsupportedNetworkError,
@@ -13,6 +14,8 @@ import {
 import { DST_POP } from './ibe.js';
 import { PACKAGE_VERSION } from './version.js';
 import type { SealCompatibleClient } from './types.js';
+import type { G1Element } from './bls12381.js';
+import { flatten, Version } from './utils.js';
 
 export type KeyServer = {
 	objectId: string;
@@ -25,6 +28,8 @@ export type KeyServer = {
 export enum KeyServerType {
 	BonehFranklinBLS12381 = 0,
 }
+
+export const SERVER_VERSION_REQUIREMENT = new Version('0.2.0');
 
 /**
  * Returns a static list of Seal key server object ids that the dapp can choose to use.
@@ -129,11 +134,49 @@ export async function verifyKeyServer(server: KeyServer, timeout: number): Promi
 	});
 
 	await SealAPIError.assertResponse(response, requestId);
+	verifyKeyServerVersion(response);
 	const serviceResponse = await response.json();
 
 	if (serviceResponse.service_id !== server.objectId) {
 		return false;
 	}
-	const fullMsg = new Uint8Array([...DST_POP, ...server.pk, ...fromHex(server.objectId)]);
+	const fullMsg = flatten([DST_POP, server.pk, fromHex(server.objectId)]);
 	return bls12_381.verifyShortSignature(fromBase64(serviceResponse.pop), fullMsg, server.pk);
+}
+
+/**
+ * Verify the key server version. Throws an `InvalidKeyServerError` if the version is not supported.
+ *
+ * @param response - The response from the key server.
+ */
+export function verifyKeyServerVersion(response: Response) {
+	const keyServerVersion = response.headers.get('X-KeyServer-Version');
+	if (keyServerVersion == null) {
+		throw new InvalidKeyServerVersionError('Key server version not found');
+	}
+	if (new Version(keyServerVersion).older_than(SERVER_VERSION_REQUIREMENT)) {
+		throw new InvalidKeyServerVersionError(
+			`Key server version ${keyServerVersion} is not supported`,
+		);
+	}
+}
+
+export interface DerivedKey {
+	toString(): string;
+}
+
+/**
+ * A user secret key for the Boneh-Franklin BLS12381 scheme.
+ * This is a wrapper around the G1Element type.
+ */
+export class BonehFranklinBLS12381DerivedKey implements DerivedKey {
+	representation: string;
+
+	constructor(public key: G1Element) {
+		this.representation = toHex(key.toBytes());
+	}
+
+	toString(): string {
+		return this.representation;
+	}
 }

@@ -6,7 +6,9 @@
 		"outDir": "dist/cjs",
 		"isolatedModules": true,
 		"jsx": "react-jsx",
-		"rootDir": "src"
+		"rootDir": "src",
+		"experimentalDecorators": true,
+		"useDefineForClassFields": false
 	},
 	"references": [
 		{ "path": "../typescript" },

@@ -3,6 +3,12 @@
 
 import type { IdentifierString, WalletAccount } from '@wallet-standard/core';
 
+/** Name of the feature. */
+export const SuiReportTransactionEffects = 'sui:reportTransactionEffects';
+
+/** The latest API version of the reportTransactionEffects API. */
+export type SuiReportTransactionEffectsVersion = '1.0.0';
+
 /**
  * A Wallet Standard feature for reporting the effects of a transaction block executed by a dapp
  * The feature allows wallets to updated their caches using the effects of the transaction
@@ -10,9 +16,9 @@ import type { IdentifierString, WalletAccount } from '@wallet-standard/core';
  */
 export type SuiReportTransactionEffectsFeature = {
 	/** Namespace for the feature. */
-	'sui:reportTransactionEffects': {
+	[SuiReportTransactionEffects]: {
 		/** Version of the feature API. */
-		version: '1.0.0';
+		version: SuiReportTransactionEffectsVersion;
 		reportTransactionEffects: SuiReportTransactionEffectsMethod;
 	};
 };

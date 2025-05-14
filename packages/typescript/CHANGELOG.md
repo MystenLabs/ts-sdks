@@ -1,5 +1,20 @@
 # @mysten/sui.js
 
+## 1.29.1
+
+### Patch Changes
+
+- Updated dependencies [7e1c525]
+  - @mysten/bcs@1.6.1
+
+## 1.29.0
+
+### Minor Changes
+
+- 7d66a32: Add support for async thunks inn tx.add
+- eb91fba: memoize tx.add calls to avoid accidental duplicate inputs and commands in transactions
+- 19a8045: Add verifyZkLoginSignature to core API and support SuiClient in verifySignature methods
+
 ## 1.28.2
 
 ### Patch Changes

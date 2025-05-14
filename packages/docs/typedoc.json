@@ -5,6 +5,7 @@
 		"../deepbook",
 		"../deepbook-v3",
 		"../enoki",
+		"../enoki-connect",
 		"../graphql-transport",
 		"../kiosk",
 		"../seal",

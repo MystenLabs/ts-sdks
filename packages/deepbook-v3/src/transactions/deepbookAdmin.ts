@@ -181,4 +181,65 @@ export class DeepBookAdminContract {
 			typeArguments: [stableCoinType],
 		});
 	};
+
+	/**
+	 * @description Adjust the tick size of a pool
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {number} newTickSize The new tick size
+	 * @returns A function that takes a Transaction object
+	 */
+	adjustTickSize = (poolKey: string, newTickSize: number) => (tx: Transaction) => {
+		tx.setSenderIfNotSet(this.#config.address);
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+		const baseScalar = baseCoin.scalar;
+		const quoteScalar = quoteCoin.scalar;
+
+		const adjustedTickSize = (newTickSize * FLOAT_SCALAR * quoteScalar) / baseScalar;
+
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::adjust_tick_size_admin`,
+			arguments: [
+				tx.object(pool.address), // pool address
+				tx.pure.u64(adjustedTickSize), // adjusted tick_size
+				tx.object(this.#adminCap()),
+				tx.object.clock(),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Adjust the lot size and min size of a pool
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {number} newLotSize The new lot size
+	 * @param {number} newMinSize The new min size
+	 * @returns A function that takes a Transaction object
+	 */
+	adjustMinLotSize =
+		(poolKey: string, newLotSize: number, newMinSize: number) => (tx: Transaction) => {
+			tx.setSenderIfNotSet(this.#config.address);
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+			const baseScalar = baseCoin.scalar;
+
+			const adjustedLotSize = newLotSize * baseScalar;
+			const adjustedMinSize = newMinSize * baseScalar;
+
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::adjust_min_lot_size_admin`,
+				arguments: [
+					tx.object(pool.address), // pool address
+					tx.pure.u64(adjustedLotSize),
+					tx.pure.u64(adjustedMinSize),
+					tx.object(this.#adminCap()),
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 }

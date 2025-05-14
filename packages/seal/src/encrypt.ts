@@ -59,16 +59,15 @@ export async function encrypt({
 		);
 	}
 
-	// Generate a random symmetric key and encrypt the encryption input using this key.
-	const key = await encryptionInput.generateKey();
-	const demKey = deriveKey(KeyPurpose.DEM, key);
-	const ciphertext = await encryptionInput.encrypt(demKey);
+	// Generate a random base key.
+	const baseKey = await encryptionInput.generateKey();
 
-	// Split the symmetric key into shares and encrypt each share with the public keys of the key servers.
-	const shares = await split(key, keyServers.length, threshold);
+	// Split the key into shares and encrypt each share with the public keys of the key servers.
+	const shares = await split(baseKey, keyServers.length, threshold);
 
 	// Encrypt the shares with the public keys of the key servers.
 	const fullId = createFullId(DST, packageId, id);
+	const randomnessKey = deriveKey(KeyPurpose.EncryptedRandomness, baseKey);
 	const encryptedShares = encryptBatched(
 		keyServers,
 		kemType,
@@ -77,12 +76,16 @@ export async function encrypt({
 			msg: share,
 			index,
 		})),
-		deriveKey(KeyPurpose.EncryptedRandomness, key),
+		randomnessKey,
 	);
 
+	// Encrypt the object with the derived DEM key.
+	const demKey = deriveKey(KeyPurpose.DEM, baseKey);
+	const ciphertext = await encryptionInput.encrypt(demKey);
+
 	// Services and indices of their shares are stored as a tuple
-	const services: [string, number][] = keyServers.map((server, i) => [
-		server.objectId,
+	const services: [string, number][] = keyServers.map(({ objectId }, i) => [
+		objectId,
 		shares[i].index,
 	]);
 
@@ -113,16 +116,12 @@ function encryptBatched(
 	keyServers: KeyServer[],
 	kemType: KemType,
 	id: Uint8Array,
-	shares: { msg: Uint8Array; index: number }[],
+	msgs: { msg: Uint8Array; index: number }[],
 	randomnessKey: Uint8Array,
 ): typeof IBEEncryptions.$inferType {
 	switch (kemType) {
 		case KemType.BonehFranklinBLS12381DemCCA:
-			return new BonehFranklinBLS12381Services(keyServers).encryptBatched(
-				id,
-				shares,
-				randomnessKey,
-			);
+			return new BonehFranklinBLS12381Services(keyServers).encryptBatched(id, msgs, randomnessKey);
 	}
 }
 
@@ -137,11 +136,13 @@ async function split(
 		throw new Error('Invalid threshold or number of shares');
 	} else if (threshold === 1) {
 		// If the threshold is 1, the secret is not split.
+		const share = secret;
+
 		const result = [];
-		for (let i = 0; i < n; i++) {
+		for (let index = 1; index <= n; index++) {
 			// The shared polynomial is a constant in this case, so the index doesn't matter.
 			// To make sure they are unique, we use a counter.
-			result.push({ share: secret, index: i });
+			result.push({ share, index });
 		}
 		return Promise.resolve(result);
 	}
@@ -149,7 +150,7 @@ async function split(
 	return externalSplit(secret, n, threshold).then((share) =>
 		share.map((s) => ({
 			share: s.subarray(0, s.length - 1),
-			// split() returns the share index in the last byte
+			// split() returns the share index in the last byte. See https://github.com/privy-io/shamir-secret-sharing/blob/b59534d03e66d44ae36fc074aaf0684aa39c7505/src/index.ts#L247.
 			index: s[s.length - 1],
 		})),
 	);

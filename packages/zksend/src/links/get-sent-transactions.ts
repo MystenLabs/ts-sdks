@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { SuiTransactionBlockResponseOptions } from '@mysten/sui/client';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
@@ -15,7 +16,9 @@ export async function getSentTransactionsWithLinks({
 	network = 'mainnet',
 	contract = getContractIds(network),
 	client = new SuiClient({ url: getFullnodeUrl(network) }),
+	loadAssets = true,
 	loadClaimedAssets = false,
+	options,
 	...linkOptions
 }: {
 	address: string;
@@ -23,6 +26,7 @@ export async function getSentTransactionsWithLinks({
 	cursor?: string;
 	limit?: number;
 	network?: 'mainnet' | 'testnet';
+	loadAssets?: boolean;
 	loadClaimedAssets?: boolean;
 
 	// Link options:
@@ -30,6 +34,7 @@ export async function getSentTransactionsWithLinks({
 	path?: string;
 	claimApi?: string;
 	client?: SuiClient;
+	options?: SuiTransactionBlockResponseOptions;
 }) {
 	const packageId = normalizeSuiAddress(contract.packageId);
 
@@ -41,9 +46,14 @@ export async function getSentTransactionsWithLinks({
 		cursor,
 		limit,
 		options: {
+			// Allow these to be explicitly overridden:
+			showObjectChanges: loadAssets,
+			showBalanceChanges: loadAssets,
+
+			...options,
+
+			// This is required to do filtering:
 			showInput: true,
-			showObjectChanges: true,
-			showBalanceChanges: true,
 		},
 	});
 
@@ -93,6 +103,7 @@ export async function getSentTransactionsWithLinks({
 
 						await link.loadAssets({
 							transaction: res,
+							loadAssets,
 							loadClaimedAssets,
 						});
 
@@ -136,7 +147,7 @@ export async function getSentTransactionsWithLinks({
 							...linkOptions,
 						});
 
-						await link.loadAssets({ loadClaimedAssets });
+						await link.loadAssets({ loadAssets, loadClaimedAssets });
 
 						return link;
 					}),

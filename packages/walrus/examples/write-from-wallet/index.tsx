@@ -1,11 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 import { WalrusClient } from '../../src/client.js';
-import { getFundedKeypair } from '../funded-keypair.js';
 
 const suiClient = new SuiClient({
 	url: getFullnodeUrl('testnet'),
@@ -21,12 +20,15 @@ const walrusClient = new WalrusClient({
 
 export function FileUpload() {
 	const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+	const currentAccount = useCurrentAccount();
+
+	if (!currentAccount) {
+		return <div>No account connected</div>;
+	}
 
 	return <button onClick={uploadFile}>Upload File</button>;
 
 	async function uploadFile() {
-		const keypair = await getFundedKeypair();
-
 		const file = new TextEncoder().encode('Hello from the TS SDK!!!\n');
 
 		const encoded = await walrusClient.encodeBlob(file);
@@ -37,8 +39,9 @@ export function FileUpload() {
 			size: file.length,
 			deletable: true,
 			epochs: 3,
-			owner: keypair.toSuiAddress(),
+			owner: currentAccount!.address,
 		});
+		registerBlobTransaction.setSender(currentAccount!.address);
 
 		const { digest } = await signAndExecuteTransaction({ transaction: registerBlobTransaction });
 
@@ -75,6 +78,7 @@ export function FileUpload() {
 			confirmations,
 			deletable: true,
 		});
+		certifyBlobTransaction.setSender(currentAccount!.address);
 
 		const { digest: certifyDigest } = await signAndExecuteTransaction({
 			transaction: certifyBlobTransaction,
