@@ -11,6 +11,8 @@ import type { PublicKey } from './publickey.js';
 import { SIGNATURE_FLAG_TO_SCHEME, SIGNATURE_SCHEME_TO_FLAG } from './signature-scheme.js';
 import type { SignatureScheme } from './signature-scheme.js';
 import { toSerializedSignature } from './signature.js';
+import type { Transaction } from '../transactions/Transaction.js';
+import type { ClientWithCoreApi } from '../experimental/index.js';
 
 export const PRIVATE_KEY_SIZE = 32;
 export const LEGACY_PRIVATE_KEY_SIZE = 64;
@@ -24,6 +26,11 @@ export type ParsedKeypair = {
 export interface SignatureWithBytes {
 	bytes: string;
 	signature: string;
+}
+
+export interface SignAndExecuteOptions {
+	transaction: Transaction;
+	client: ClientWithCoreApi;
 }
 
 /**
@@ -69,6 +76,15 @@ export abstract class Signer {
 			bytes: toBase64(bytes),
 			signature,
 		};
+	}
+
+	async signAndExecuteTransaction({ transaction, client }: SignAndExecuteOptions) {
+		const bytes = await transaction.build({ client });
+		const { signature } = await this.signTransaction(bytes);
+		return client.core.executeTransaction({
+			transaction: bytes,
+			signatures: [signature],
+		});
 	}
 
 	toSuiAddress(): string {

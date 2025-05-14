@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { Transaction } from '../../../src/transactions/Transaction.js';
 import { bcs } from '../../../src/bcs/index.js';
 import { Commands } from '../../../src/transactions/Commands.js';
-import type { BuildTransactionOptions } from '../../../src/transactions/json-rpc-resolver.js';
+import type { BuildTransactionOptions } from '../../../src/transactions/resolve.js';
 import type { TransactionDataBuilder } from '../../../src/transactions/TransactionData.js';
 
 const TEST_INTENT = 'TestIntent';

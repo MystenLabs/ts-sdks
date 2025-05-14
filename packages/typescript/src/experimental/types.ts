@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /* eslint-disable @typescript-eslint/ban-types */
 
+import type { TransactionPlugin } from '../transactions/index.js';
 import type { Experimental_BaseClient } from './client.js';
 
 export type SuiClientRegistration<
@@ -185,6 +186,7 @@ export namespace Experimental_SuiClientTypes {
 		getTransaction: (options: GetTransactionOptions) => Promise<GetTransactionResponse>;
 		executeTransaction: (options: ExecuteTransactionOptions) => Promise<ExecuteTransactionResponse>;
 		dryRunTransaction: (options: DryRunTransactionOptions) => Promise<DryRunTransactionResponse>;
+		resolveTransactionPlugin: () => TransactionPlugin;
 	}
 
 	export interface TransactionResponse {

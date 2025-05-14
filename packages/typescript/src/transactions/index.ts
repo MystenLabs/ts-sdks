@@ -44,7 +44,7 @@ export type {
 	BuildTransactionOptions,
 	SerializeTransactionOptions,
 	TransactionPlugin,
-} from './json-rpc-resolver.js';
+} from './resolve.js';
 
 export { Arguments } from './Arguments.js';
 
