@@ -3,16 +3,19 @@
 
 import { parse } from 'valibot';
 
-import type { BcsType } from '../bcs/index.js';
-import { bcs } from '../bcs/index.js';
-import type { SuiClient } from '../client/client.js';
-import { normalizeSuiAddress, normalizeSuiObjectId, SUI_TYPE_ARG } from '../utils/index.js';
-import { ObjectRef } from './data/internal.js';
-import type { Argument, CallArg, Command, OpenMoveTypeSignature } from './data/internal.js';
-import { Inputs } from './Inputs.js';
-import { getPureBcsSchema, isTxContext, normalizedTypeToMoveTypeSignature } from './serializer.js';
-import type { TransactionDataBuilder } from './TransactionData.js';
+import { normalizeSuiAddress, normalizeSuiObjectId, SUI_TYPE_ARG } from '../../utils/index.js';
+import { ObjectRef } from '../../transactions/data/internal.js';
+import type { CallArg, Command, OpenMoveTypeSignature } from '../../transactions/data/internal.js';
+import { Inputs } from '../../transactions/Inputs.js';
+import {
+	getPureBcsSchema,
+	isTxContext,
+	normalizedTypeToMoveTypeSignature,
+} from '../../transactions/serializer.js';
+import type { TransactionDataBuilder } from '../../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
+import type { SuiClient } from '../../client/index.js';
+import type { BuildTransactionOptions } from '../../transactions/index.js';
 
 // The maximum objects that can be fetched at once using multiGetObjects.
 const MAX_OBJECTS_PER_FETCH = 50;
@@ -21,56 +24,37 @@ const MAX_OBJECTS_PER_FETCH = 50;
 const GAS_SAFE_OVERHEAD = 1000n;
 const MAX_GAS = 50_000_000_000;
 
-export interface BuildTransactionOptions {
-	client?: SuiClient;
-	onlyTransactionKind?: boolean;
+export function resolveTransactionPlugin(client: SuiClient) {
+	return async function resolveTransactionData(
+		transactionData: TransactionDataBuilder,
+		options: BuildTransactionOptions,
+		next: () => Promise<void>,
+	) {
+		await normalizeInputs(transactionData, client);
+		await resolveObjectReferences(transactionData, client);
+
+		if (!options.onlyTransactionKind) {
+			await setGasPrice(transactionData, client);
+			await setGasBudget(transactionData, client);
+			await setGasPayment(transactionData, client);
+		}
+
+		return await next();
+	};
 }
 
-export interface SerializeTransactionOptions extends BuildTransactionOptions {
-	supportedIntents?: string[];
-}
-
-export type TransactionPlugin = (
-	transactionData: TransactionDataBuilder,
-	options: BuildTransactionOptions,
-	next: () => Promise<void>,
-) => Promise<void>;
-
-export async function resolveTransactionData(
-	transactionData: TransactionDataBuilder,
-	options: BuildTransactionOptions,
-	next: () => Promise<void>,
-) {
-	await normalizeInputs(transactionData, options);
-	await resolveObjectReferences(transactionData, options);
-
-	if (!options.onlyTransactionKind) {
-		await setGasPrice(transactionData, options);
-		await setGasBudget(transactionData, options);
-		await setGasPayment(transactionData, options);
-	}
-	await validate(transactionData);
-	return await next();
-}
-
-async function setGasPrice(
-	transactionData: TransactionDataBuilder,
-	options: BuildTransactionOptions,
-) {
+async function setGasPrice(transactionData: TransactionDataBuilder, client: SuiClient) {
 	if (!transactionData.gasConfig.price) {
-		transactionData.gasConfig.price = String(await getClient(options).getReferenceGasPrice());
+		transactionData.gasConfig.price = String(await client.getReferenceGasPrice());
 	}
 }
 
-async function setGasBudget(
-	transactionData: TransactionDataBuilder,
-	options: BuildTransactionOptions,
-) {
+async function setGasBudget(transactionData: TransactionDataBuilder, client: SuiClient) {
 	if (transactionData.gasConfig.budget) {
 		return;
 	}
 
-	const dryRunResult = await getClient(options).dryRunTransactionBlock({
+	const dryRunResult = await client.dryRunTransactionBlock({
 		transactionBlock: transactionData.build({
 			overrides: {
 				gasData: {
@@ -104,12 +88,9 @@ async function setGasBudget(
 }
 
 // The current default is just picking _all_ coins we can which may not be ideal.
-async function setGasPayment(
-	transactionData: TransactionDataBuilder,
-	options: BuildTransactionOptions,
-) {
+async function setGasPayment(transactionData: TransactionDataBuilder, client: SuiClient) {
 	if (!transactionData.gasConfig.payment) {
-		const coins = await getClient(options).getCoins({
+		const coins = await client.getCoins({
 			owner: transactionData.gasConfig.owner || transactionData.sender!,
 			coinType: SUI_TYPE_ARG,
 		});
@@ -141,10 +122,7 @@ async function setGasPayment(
 	}
 }
 
-async function resolveObjectReferences(
-	transactionData: TransactionDataBuilder,
-	options: BuildTransactionOptions,
-) {
+async function resolveObjectReferences(transactionData: TransactionDataBuilder, client: SuiClient) {
 	// Keep track of the object references that will need to be resolved at the end of the transaction.
 	// We keep the input by-reference to avoid needing to re-resolve it:
 	const objectsToResolve = transactionData.inputs.filter((input) => {
@@ -164,7 +142,7 @@ async function resolveObjectReferences(
 	const resolved = (
 		await Promise.all(
 			objectChunks.map((chunk) =>
-				getClient(options).multiGetObjects({
+				client.multiGetObjects({
 					ids: chunk,
 					options: { showOwner: true },
 				}),
@@ -246,10 +224,7 @@ async function resolveObjectReferences(
 	}
 }
 
-async function normalizeInputs(
-	transactionData: TransactionDataBuilder,
-	options: BuildTransactionOptions,
-) {
+async function normalizeInputs(transactionData: TransactionDataBuilder, client: SuiClient) {
 	const { inputs, commands } = transactionData;
 	const moveCallsToResolve: Extract<Command, { MoveCall: unknown }>['MoveCall'][] = [];
 	const moveFunctionsToResolve = new Set<string>();
@@ -282,24 +257,10 @@ async function normalizeInputs(
 				moveCallsToResolve.push(command.MoveCall);
 			}
 		}
-
-		// Special handling for values that where previously encoded using the wellKnownEncoding pattern.
-		// This should only happen when transaction data was hydrated from an old version of the SDK
-		switch (command.$kind) {
-			case 'SplitCoins':
-				command.SplitCoins.amounts.forEach((amount) => {
-					normalizeRawArgument(amount, bcs.U64, transactionData);
-				});
-				break;
-			case 'TransferObjects':
-				normalizeRawArgument(command.TransferObjects.address, bcs.Address, transactionData);
-				break;
-		}
 	});
 
 	const moveFunctionParameters = new Map<string, OpenMoveTypeSignature[]>();
 	if (moveFunctionsToResolve.size > 0) {
-		const client = getClient(options);
 		await Promise.all(
 			[...moveFunctionsToResolve].map(async (functionName) => {
 				const [packageId, moduleId, functionId] = functionName.split('::');
@@ -400,35 +361,6 @@ async function normalizeInputs(
 	});
 }
 
-function validate(transactionData: TransactionDataBuilder) {
-	transactionData.inputs.forEach((input, index) => {
-		if (input.$kind !== 'Object' && input.$kind !== 'Pure') {
-			throw new Error(
-				`Input at index ${index} has not been resolved.  Expected a Pure or Object input, but found ${JSON.stringify(
-					input,
-				)}`,
-			);
-		}
-	});
-}
-
-function normalizeRawArgument(
-	arg: Argument,
-	schema: BcsType<any>,
-	transactionData: TransactionDataBuilder,
-) {
-	if (arg.$kind !== 'Input') {
-		return;
-	}
-	const input = transactionData.inputs[arg.Input];
-
-	if (input.$kind !== 'UnresolvedPure') {
-		return;
-	}
-
-	transactionData.inputs[arg.Input] = Inputs.Pure(schema.serialize(input.UnresolvedPure.value));
-}
-
 function isUsedAsMutable(transactionData: TransactionDataBuilder, index: number) {
 	let usedAsMutable = false;
 
@@ -469,14 +401,4 @@ function isReceivingType(type: OpenMoveTypeSignature): boolean {
 		type.body.datatype.module === 'transfer' &&
 		type.body.datatype.type === 'Receiving'
 	);
-}
-
-export function getClient(options: BuildTransactionOptions): SuiClient {
-	if (!options.client) {
-		throw new Error(
-			`No sui client passed to Transaction#build, but transaction data was not sufficient to build offline.`,
-		);
-	}
-
-	return options.client;
 }

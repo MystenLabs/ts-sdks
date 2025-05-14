@@ -19,6 +19,7 @@ import { Experimental_CoreClient } from '../core.js';
 import { ObjectError } from '../errors.js';
 import type { Experimental_SuiClientTypes } from '../types.js';
 import { parseTransactionEffects } from './utils.js';
+import { resolveTransactionPlugin } from './json-rpc-resolver.js';
 
 export class JSONRpcTransport extends Experimental_CoreClient {
 	#jsonRpcClient: SuiClient;
@@ -241,6 +242,10 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 			success: result.success,
 			errors: result.errors,
 		};
+	}
+
+	resolveTransactionPlugin() {
+		return resolveTransactionPlugin(this.#jsonRpcClient);
 	}
 }
 

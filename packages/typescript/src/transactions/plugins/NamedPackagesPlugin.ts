@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { parseStructTag } from '../../utils/sui-types.js';
-import type { BuildTransactionOptions } from '../json-rpc-resolver.js';
+import type { BuildTransactionOptions } from '../resolve.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
 import type { NamedPackagesPluginCache } from './utils.js';
 import {

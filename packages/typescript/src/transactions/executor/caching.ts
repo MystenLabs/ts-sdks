@@ -4,7 +4,7 @@
 import { bcs } from '../../bcs/index.js';
 import type { ExecuteTransactionBlockParams, SuiClient } from '../../client/index.js';
 import type { Signer } from '../../cryptography/keypair.js';
-import type { BuildTransactionOptions } from '../json-rpc-resolver.js';
+import type { BuildTransactionOptions } from '../resolve.js';
 import type { ObjectCacheOptions } from '../ObjectCache.js';
 import { ObjectCache } from '../ObjectCache.js';
 import type { Transaction } from '../Transaction.js';

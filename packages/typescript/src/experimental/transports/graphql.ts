@@ -339,6 +339,10 @@ export class GraphQLTransport extends Experimental_CoreClient {
 			errors: result.errors,
 		};
 	}
+
+	resolveTransactionPlugin(): never {
+		throw new Error('GraphQL client does not support transaction resolution yet');
+	}
 }
 export type GraphQLResponseErrors = Array<{
 	message: string;

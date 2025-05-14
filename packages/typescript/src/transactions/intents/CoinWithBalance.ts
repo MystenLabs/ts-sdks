@@ -10,8 +10,8 @@ import { normalizeStructTag } from '../../utils/sui-types.js';
 import { Commands } from '../Commands.js';
 import type { Argument } from '../data/internal.js';
 import { Inputs } from '../Inputs.js';
-import type { BuildTransactionOptions } from '../json-rpc-resolver.js';
-import { getClient } from '../json-rpc-resolver.js';
+import { getClient } from '../resolve.js';
+import type { BuildTransactionOptions } from '../resolve.js';
 import type { Transaction, TransactionResult } from '../Transaction.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
 
@@ -92,7 +92,7 @@ async function resolveCoinBalance(
 	}
 
 	const coinsByType = new Map<string, CoinStruct[]>();
-	const client = getClient(buildOptions);
+	const client = getSuiClient(buildOptions);
 	await Promise.all(
 		[...coinTypes].map(async (coinType) => {
 			coinsByType.set(
@@ -218,4 +218,13 @@ async function getCoinsOfType({
 
 		throw new Error(`Not enough coins of type ${coinType} to satisfy requested balance`);
 	}
+}
+
+export function getSuiClient(options: BuildTransactionOptions): SuiClient {
+	const client = getClient(options) as SuiClient;
+	if (!client.jsonRpc) {
+		throw new Error(`CoinWithBalance intent currently only works with SuiClient`);
+	}
+
+	return client;
 }
