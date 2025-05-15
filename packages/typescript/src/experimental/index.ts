@@ -9,6 +9,7 @@ import type {
 	Experimental_SuiClientTypes,
 	SuiClientRegistration,
 } from './types.js';
+export { parseTransactionBcs, parseTransactionEffectsBcs } from './transports/utils.js';
 
 export {
 	Experimental_BaseClient,

@@ -33,6 +33,9 @@ fragment TRANSACTION_FIELDS on TransactionBlock {
 	signatures
 	effects {
 		bcs
+		epoch {
+			epochId
+		}
 		unchangedSharedObjects {
 			nodes {
 				__typename
