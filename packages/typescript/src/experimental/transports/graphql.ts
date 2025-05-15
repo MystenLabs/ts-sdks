@@ -423,10 +423,7 @@ function parseTransaction(
 				return promise.then.bind(promise);
 			},
 		},
-		transaction: {
-			bcs: transaction.bcs!,
-			data: parseTransactionBcs(transaction.bcs!),
-		},
+		transaction: parseTransactionBcs(transaction.bcs!),
 		signatures: transaction.signatures!,
 	};
 }

@@ -203,10 +203,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 					},
 				},
 				signatures: [],
-				transaction: {
-					bcs: options.transaction,
-					data: parseTransactionBcs(options.transaction),
-				},
+				transaction: parseTransactionBcs(options.transaction),
 			},
 		};
 	}
@@ -354,8 +351,8 @@ function parseTransaction(
 			},
 		},
 		transaction: {
+			...data,
 			bcs: bytes,
-			data,
 		},
 		signatures: parsedTx.txSignatures,
 	};
