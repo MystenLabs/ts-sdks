@@ -12,6 +12,7 @@ import type { StateStorage } from '../utils/storage.js';
 import { syncStateToStorage } from './initializers/sync-state-to-storage.js';
 import { getAssociatedWalletOrThrow } from '../utils/wallets.js';
 import { manageWalletConnection } from './initializers/manage-connection.js';
+import { publicKeyFromSuiBytes } from '@mysten/sui/verify';
 
 export type DAppKit = ReturnType<typeof createDAppKitInstance>;
 
@@ -75,6 +76,13 @@ export function createDAppKitInstance({
 		...actions,
 		$state: readonlyType($state),
 		$wallets: computed($state, (state) => state.wallets),
+		$publicKey: computed($state, (state) =>
+			state.connection.status === 'connected'
+				? publicKeyFromSuiBytes(new Uint8Array(state.connection.currentAccount.publicKey), {
+						address: state.connection.currentAccount.address,
+					})
+				: null,
+		),
 		$connection: computed([$state], ({ connection, wallets }) => {
 			switch (connection.status) {
 				case 'connected':

@@ -1671,9 +1671,7 @@ export class WalrusClient {
 	async #executeTransaction(transaction: Transaction, signer: Signer, action: string) {
 		transaction.setSenderIfNotSet(signer.toSuiAddress());
 
-		const {
-			transaction: { digest, effects },
-		} = await signer.signAndExecuteTransaction({
+		const { digest, effects } = await signer.signAndExecuteTransaction({
 			transaction,
 			client: this.#suiClient,
 		});
