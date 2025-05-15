@@ -4,7 +4,6 @@
 import { toBase64 } from '@mysten/bcs';
 import { bcs } from '@mysten/sui/bcs';
 import type { Signer } from '@mysten/sui/cryptography';
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { isValidSuiAddress, isValidSuiObjectId } from '@mysten/sui/utils';
 import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
@@ -14,6 +13,7 @@ import {
 	InvalidPersonalMessageSignatureError,
 	UserError,
 } from './error.js';
+import type { ZkLoginCompatibleClient } from '@mysten/sui/zklogin';
 
 export const RequestFormat = bcs.struct('RequestFormat', {
 	ptb: bcs.vector(bcs.U8),
@@ -46,17 +46,20 @@ export class SessionKey {
 	#sessionKey: Ed25519Keypair;
 	#personalMessageSignature?: string;
 	#signer?: Signer;
+	#client?: ZkLoginCompatibleClient;
 
 	constructor({
 		address,
 		packageId,
 		ttlMin,
 		signer,
+		client,
 	}: {
 		address: string;
 		packageId: string;
 		ttlMin: number;
 		signer?: Signer;
+		client?: ZkLoginCompatibleClient;
 	}) {
 		if (!isValidSuiObjectId(packageId) || !isValidSuiAddress(address)) {
 			throw new UserError(`Invalid package ID ${packageId} or address ${address}`);
@@ -74,6 +77,7 @@ export class SessionKey {
 		this.#ttlMin = ttlMin;
 		this.#sessionKey = Ed25519Keypair.generate();
 		this.#signer = signer;
+		this.#client = client;
 	}
 
 	isExpired(): boolean {
@@ -98,12 +102,9 @@ export class SessionKey {
 
 	async setPersonalMessageSignature(personalMessageSignature: string) {
 		try {
-			// TODO: Fix this to work with any network
 			await verifyPersonalMessageSignature(this.getPersonalMessage(), personalMessageSignature, {
 				address: this.#address,
-				client: new SuiGraphQLClient({
-					url: 'https://sui-testnet.mystenlabs.com/graphql',
-				}),
+				client: this.#client,
 			});
 			this.#personalMessageSignature = personalMessageSignature;
 		} catch (e) {
@@ -173,12 +174,16 @@ export class SessionKey {
 	 * Restore a SessionKey instance for the given object.
 	 * @returns A new SessionKey instance with restored state
 	 */
-	static async import(data: SessionKeyType, { signer }: { signer?: Signer }): Promise<SessionKey> {
+	static async import(
+		data: SessionKeyType,
+		{ signer, client }: { signer?: Signer; client?: ZkLoginCompatibleClient },
+	): Promise<SessionKey> {
 		const instance = new SessionKey({
 			address: data.address,
 			packageId: data.packageId,
 			ttlMin: data.ttlMin,
 			signer,
+			client,
 		});
 
 		instance.#creationTimeMs = data.creationTimeMs;
