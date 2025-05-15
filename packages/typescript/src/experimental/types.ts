@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /* eslint-disable @typescript-eslint/ban-types */
 
-import type { TransactionPlugin } from '../transactions/index.js';
+import type { SerializedTransactionDataV2, TransactionPlugin } from '../transactions/index.js';
 import type { Experimental_BaseClient } from './client.js';
 
 export type SuiClientRegistration<
@@ -192,10 +192,14 @@ export namespace Experimental_SuiClientTypes {
 	export interface TransactionResponse {
 		digest: string;
 		signatures: string[];
+		epoch: string | null;
 		effects: TransactionEffects;
-		// TODO: Return parsed data:
-		// We need structured representations events, and transaction data
-		bcs: Uint8Array;
+		objectTypes: PromiseLike<Record<string, string>>;
+		transaction: {
+			data: SerializedTransactionDataV2;
+			bcs: Uint8Array;
+		};
+		// TODO: add events
 		// events?: Uint8Array;
 	}
 
@@ -303,7 +307,6 @@ export namespace Experimental_SuiClientTypes {
 		digest: string;
 		version: number;
 		status: ExecutionStatus;
-		epoch: string | null;
 		gasUsed: GasCostSummary;
 		transactionDigest: string;
 		gasObject: ChangedObject | null;
@@ -326,7 +329,6 @@ export namespace Experimental_SuiClientTypes {
 		outputDigest: string | null;
 		outputOwner: ObjectOwner | null;
 		idOperation: 'Unknown' | 'None' | 'Created' | 'Deleted';
-		objectType: string | null;
 	}
 
 	export interface GasCostSummary {
@@ -358,6 +360,5 @@ export namespace Experimental_SuiClientTypes {
 		objectId: string;
 		version: string | null;
 		digest: string | null;
-		objectType: string | null;
 	}
 }
