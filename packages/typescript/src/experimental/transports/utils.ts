@@ -7,8 +7,11 @@ import type { Experimental_SuiClientTypes } from '../types.js';
 
 export function parseTransactionBcs(
 	bytes: Uint8Array,
-): Experimental_SuiClientTypes.TransactionResponse['transaction']['data'] {
-	return TransactionDataBuilder.fromBytes(bytes).snapshot();
+): Experimental_SuiClientTypes.TransactionResponse['transaction'] {
+	return {
+		...TransactionDataBuilder.fromBytes(bytes).snapshot(),
+		bcs: bytes,
+	};
 }
 
 export function parseTransactionEffectsBcs(

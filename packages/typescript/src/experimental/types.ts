@@ -195,12 +195,13 @@ export namespace Experimental_SuiClientTypes {
 		epoch: string | null;
 		effects: TransactionEffects;
 		objectTypes: PromiseLike<Record<string, string>>;
-		transaction: {
-			data: SerializedTransactionDataV2;
-			bcs: Uint8Array;
-		};
+		transaction: TransactionData;
 		// TODO: add events
 		// events?: Uint8Array;
+	}
+
+	export interface TransactionData extends SerializedTransactionDataV2 {
+		bcs: Uint8Array;
 	}
 
 	export interface GetTransactionOptions extends CoreClientMethodOptions {
