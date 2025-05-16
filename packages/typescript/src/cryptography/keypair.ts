@@ -81,13 +81,15 @@ export abstract class Signer {
 	async signAndExecuteTransaction({
 		transaction,
 		client,
-	}: SignAndExecuteOptions): Promise<Experimental_SuiClientTypes.ExecuteTransactionResponse> {
+	}: SignAndExecuteOptions): Promise<Experimental_SuiClientTypes.TransactionResponse> {
 		const bytes = await transaction.build({ client });
 		const { signature } = await this.signTransaction(bytes);
-		return client.core.executeTransaction({
+		const response = await client.core.executeTransaction({
 			transaction: bytes,
 			signatures: [signature],
 		});
+
+		return response.transaction;
 	}
 
 	toSuiAddress(): string {

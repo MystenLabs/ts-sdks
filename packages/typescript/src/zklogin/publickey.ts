@@ -56,6 +56,47 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 		}
 	}
 
+	static fromBytes(
+		bytes: Uint8Array,
+		{
+			client,
+			address,
+			legacyAddress,
+		}: { client?: ZkLoginCompatibleClient; address?: string; legacyAddress?: boolean } = {},
+	) {
+		let publicKey: ZkLoginPublicIdentifier;
+
+		if (legacyAddress === true) {
+			publicKey = new ZkLoginPublicIdentifier(normalizeZkLoginPublicKeyBytes(bytes, true), {
+				client,
+			});
+		} else if (legacyAddress === false) {
+			publicKey = new ZkLoginPublicIdentifier(normalizeZkLoginPublicKeyBytes(bytes, false), {
+				client,
+			});
+		} else if (address) {
+			publicKey = new ZkLoginPublicIdentifier(normalizeZkLoginPublicKeyBytes(bytes, false), {
+				client,
+			});
+
+			if (publicKey.toSuiAddress() !== address) {
+				publicKey = new ZkLoginPublicIdentifier(normalizeZkLoginPublicKeyBytes(bytes, true), {
+					client,
+				});
+			}
+		} else {
+			publicKey = new ZkLoginPublicIdentifier(bytes, {
+				client,
+			});
+		}
+
+		if (address && publicKey.toSuiAddress() !== address) {
+			throw new Error('Public key bytes do not match the provided address');
+		}
+
+		return publicKey;
+	}
+
 	static fromProof(address: string, proof: ZkLoginSignatureInputs) {
 		const { issBase64Details, addressSeed } = proof;
 		const iss = extractClaimValue<string>(issBase64Details, 'iss');

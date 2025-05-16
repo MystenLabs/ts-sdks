@@ -17,6 +17,8 @@ import { switchNetworkCreator } from './actions/switch-network.js';
 import { connectWalletCreator } from './actions/connect-wallet.js';
 import { disconnectWalletCreator } from './actions/disconnect-wallet.js';
 import { switchAccountCreator } from './actions/switch-account.js';
+import { publicKeyFromSuiBytes } from '@mysten/sui/verify';
+import { createSignerActions } from './actions/signer.js';
 
 export type DAppKit<TNetworks extends Networks = Networks> = ReturnType<
 	typeof createDAppKitInstance<TNetworks>
@@ -79,6 +81,8 @@ export function createDAppKitInstance<TNetworks extends Networks>({
 
 	return {
 		getClient,
+		// temporary stubs
+		...createSignerActions(),
 		connectWallet: connectWalletCreator(state),
 		disconnectWallet: disconnectWalletCreator(state),
 		switchAccount: switchAccountCreator(state),
@@ -87,6 +91,13 @@ export function createDAppKitInstance<TNetworks extends Networks>({
 		$wallets: computed(state.$state, (state) => state.wallets),
 		$currentNetwork: readonlyType(state.$currentNetwork),
 		$currentClient: computed(state.$currentNetwork, (network) => getClient(network)),
+		$publicKey: computed(state.$state, (state) =>
+			state.connection.status === 'connected'
+				? publicKeyFromSuiBytes(new Uint8Array(state.connection.currentAccount.publicKey), {
+						address: state.connection.currentAccount.address,
+					})
+				: null,
+		),
 		$connection: computed([state.$state], ({ connection, wallets }) => {
 			switch (connection.status) {
 				case 'connected':
