@@ -2,4 +2,4 @@
 '@mysten/seal': patch
 ---
 
-introduced deduplication of key server object fetching
+introduced batched requests for key server objects
