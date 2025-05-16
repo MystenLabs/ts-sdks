@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { TypeTagSerializer } from '../bcs/type-tag-serializer.js';
+import type { TransactionPlugin } from '../transactions/index.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { normalizeStructTag, parseStructTag, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
 import { Experimental_BaseClient } from './client.js';
-import type { Experimental_SuiClientTypes } from './types.js';
+import type { ClientWithExtensions, Experimental_SuiClientTypes } from './types.js';
+
+export type ClientWithCoreApi = ClientWithExtensions<{
+	core: Experimental_CoreClient;
+}>;
 
 export abstract class Experimental_CoreClient
 	extends Experimental_BaseClient
@@ -65,6 +70,8 @@ export abstract class Experimental_CoreClient
 	abstract getDynamicFields(
 		options: Experimental_SuiClientTypes.GetDynamicFieldsOptions,
 	): Promise<Experimental_SuiClientTypes.GetDynamicFieldsResponse>;
+
+	abstract resolveTransactionPlugin(): TransactionPlugin;
 
 	async getDynamicField(
 		options: Experimental_SuiClientTypes.GetDynamicFieldOptions,

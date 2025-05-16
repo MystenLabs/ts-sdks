@@ -43,12 +43,6 @@ export class WalletPostMessageChannel {
 			return null;
 		}
 
-		if (!window.opener?.location.href) {
-			throw new Error(
-				'This functionality requires a window opened through `window.open`. `window.opener` is not available.',
-			);
-		}
-
 		const session = await verifyJwtSession(this.#request.payload.session, secretKey);
 
 		if (session.aud !== new URL(this.#request.appUrl).origin) {

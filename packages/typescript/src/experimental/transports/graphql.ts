@@ -27,7 +27,7 @@ import { ObjectError } from '../errors.js';
 import { fromBase64, toBase64 } from '@mysten/utils';
 import { normalizeStructTag, normalizeSuiAddress } from '../../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../../utils/dynamic-fields.js';
-import { parseTransactionEffects } from './utils.js';
+import { parseTransactionBcs, parseTransactionEffectsBcs } from './utils.js';
 
 export class GraphQLTransport extends Experimental_CoreClient {
 	#graphqlClient: SuiGraphQLClient;
@@ -339,6 +339,10 @@ export class GraphQLTransport extends Experimental_CoreClient {
 			errors: result.errors,
 		};
 	}
+
+	resolveTransactionPlugin(): never {
+		throw new Error('GraphQL client does not support transaction resolution yet');
+	}
 }
 export type GraphQLResponseErrors = Array<{
 	message: string;
@@ -411,11 +415,10 @@ function parseTransaction(
 
 	return {
 		digest: transaction.digest!,
-		effects: parseTransactionEffects({
-			effects: new Uint8Array(transaction.effects?.bcs!),
-			objectTypes,
-		}),
-		bcs: transaction.bcs!,
+		effects: parseTransactionEffectsBcs(new Uint8Array(transaction.effects?.bcs!)),
+		epoch: transaction.effects?.epoch?.epochId ?? null,
+		objectTypes: Promise.resolve(objectTypes),
+		transaction: parseTransactionBcs(transaction.bcs!),
 		signatures: transaction.signatures!,
 	};
 }

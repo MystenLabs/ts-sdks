@@ -16,12 +16,12 @@ import { Argument, NormalizedCallArg, ObjectRef, TransactionExpiration } from '.
 import { serializeV1TransactionData } from './data/v1.js';
 import { SerializedTransactionDataV2 } from './data/v2.js';
 import { Inputs } from './Inputs.js';
+import { resolveTransactionPlugin } from './resolve.js';
 import type {
 	BuildTransactionOptions,
 	SerializeTransactionOptions,
 	TransactionPlugin,
-} from './json-rpc-resolver.js';
-import { resolveTransactionData } from './json-rpc-resolver.js';
+} from './resolve.js';
 import { createObjectMethods } from './object.js';
 import { createPure } from './pure.js';
 import { TransactionDataBuilder } from './TransactionData.js';
@@ -693,7 +693,7 @@ export class Transaction {
 			throw new Error('Missing transaction sender');
 		}
 
-		await this.#runPlugins([...this.#buildPlugins, resolveTransactionData], options);
+		await this.#runPlugins([...this.#buildPlugins, resolveTransactionPlugin], options);
 	}
 
 	async #runPlugins(plugins: TransactionPlugin[], options: SerializeTransactionOptions) {

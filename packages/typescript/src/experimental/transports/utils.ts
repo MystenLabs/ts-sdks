@@ -2,24 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '../../bcs/index.js';
+import { TransactionDataBuilder } from '../../transactions/index.js';
 import type { Experimental_SuiClientTypes } from '../types.js';
 
-export function parseTransactionEffects({
-	effects,
-	epoch,
-	objectTypes,
-}: {
-	effects: Uint8Array;
-	objectTypes: Record<string, string>;
-	epoch?: string | null;
-}): Experimental_SuiClientTypes.TransactionEffects {
+export function parseTransactionBcs(
+	bytes: Uint8Array,
+): Experimental_SuiClientTypes.TransactionResponse['transaction'] {
+	return {
+		...TransactionDataBuilder.fromBytes(bytes).snapshot(),
+		bcs: bytes,
+	};
+}
+
+export function parseTransactionEffectsBcs(
+	effects: Uint8Array,
+): Experimental_SuiClientTypes.TransactionEffects {
 	const parsed = bcs.TransactionEffects.parse(effects);
 
 	switch (parsed.$kind) {
 		case 'V1':
-			return parseTransactionEffectsV1({ bytes: effects, effects: parsed.V1, epoch, objectTypes });
+			return parseTransactionEffectsV1({ bytes: effects, effects: parsed.V1 });
 		case 'V2':
-			return parseTransactionEffectsV2({ bytes: effects, effects: parsed.V2, epoch, objectTypes });
+			return parseTransactionEffectsV2({ bytes: effects, effects: parsed.V2 });
 		default:
 			throw new Error(
 				`Unknown transaction effects version: ${(parsed as { $kind: string }).$kind}`,
@@ -30,8 +34,6 @@ export function parseTransactionEffects({
 function parseTransactionEffectsV1(_: {
 	bytes: Uint8Array;
 	effects: NonNullable<(typeof bcs.TransactionEffects.$inferType)['V1']>;
-	epoch?: string | null;
-	objectTypes: Record<string, string>;
 }): Experimental_SuiClientTypes.TransactionEffects {
 	throw new Error('V1 effects are not supported yet');
 }
@@ -39,13 +41,9 @@ function parseTransactionEffectsV1(_: {
 function parseTransactionEffectsV2({
 	bytes,
 	effects,
-	epoch,
-	objectTypes,
 }: {
 	bytes: Uint8Array;
 	effects: NonNullable<(typeof bcs.TransactionEffects.$inferType)['V2']>;
-	epoch?: string | null;
-	objectTypes: Record<string, string>;
 }): Experimental_SuiClientTypes.TransactionEffects {
 	const changedObjects = effects.changedObjects.map(
 		([id, change]): Experimental_SuiClientTypes.ChangedObject => {
@@ -69,7 +67,6 @@ function parseTransactionEffectsV2({
 						: (change.outputState.ObjectWrite?.[0] ?? null),
 				outputOwner: change.outputState.ObjectWrite ? change.outputState.ObjectWrite[1] : null,
 				idOperation: change.idOperation.$kind,
-				objectType: objectTypes[id] ?? null,
 			};
 		},
 	);
@@ -89,7 +86,6 @@ function parseTransactionEffectsV2({
 						// TODO: add command
 						error: effects.status.Failed.error.$kind,
 					},
-		epoch: epoch ?? null,
 		gasUsed: effects.gasUsed,
 		transactionDigest: effects.transactionDigest,
 		gasObject:
@@ -108,7 +104,6 @@ function parseTransactionEffectsV2({
 							? object.ReadOnlyRoot[0]
 							: (object[object.$kind] as string | null),
 					digest: object.$kind === 'ReadOnlyRoot' ? object.ReadOnlyRoot[1] : null,
-					objectType: objectTypes[objectId] ?? null,
 				};
 			},
 		),

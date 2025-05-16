@@ -104,29 +104,42 @@ function parseSignature(signature: string, options: { client?: ZkLoginCompatible
 export function publicKeyFromRawBytes(
 	signatureScheme: SignatureScheme,
 	bytes: Uint8Array,
-	options: { client?: ZkLoginCompatibleClient } = {},
+	options: { client?: ZkLoginCompatibleClient; address?: string } = {},
 ): PublicKey {
+	let publicKey: PublicKey;
 	switch (signatureScheme) {
 		case 'ED25519':
-			return new Ed25519PublicKey(bytes);
+			publicKey = new Ed25519PublicKey(bytes);
+			break;
 		case 'Secp256k1':
-			return new Secp256k1PublicKey(bytes);
+			publicKey = new Secp256k1PublicKey(bytes);
+			break;
 		case 'Secp256r1':
-			return new Secp256r1PublicKey(bytes);
+			publicKey = new Secp256r1PublicKey(bytes);
+			break;
 		case 'MultiSig':
-			return new MultiSigPublicKey(bytes);
+			publicKey = new MultiSigPublicKey(bytes);
+			break;
 		case 'ZkLogin':
-			return new ZkLoginPublicIdentifier(bytes, options);
+			publicKey = ZkLoginPublicIdentifier.fromBytes(bytes, options);
+			break;
 		case 'Passkey':
-			return new PasskeyPublicKey(bytes);
+			publicKey = new PasskeyPublicKey(bytes);
+			break;
 		default:
 			throw new Error(`Unsupported signature scheme ${signatureScheme}`);
 	}
+
+	if (options.address && publicKey.toSuiAddress() !== options.address) {
+		throw new Error(`Public key bytes do not match the provided address`);
+	}
+
+	return publicKey;
 }
 
 export function publicKeyFromSuiBytes(
 	publicKey: string | Uint8Array,
-	options: { client?: ZkLoginCompatibleClient } = {},
+	options: { client?: ZkLoginCompatibleClient; address?: string } = {},
 ) {
 	const bytes = typeof publicKey === 'string' ? fromBase64(publicKey) : publicKey;
 
