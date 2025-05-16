@@ -417,12 +417,7 @@ function parseTransaction(
 		digest: transaction.digest!,
 		effects: parseTransactionEffectsBcs(new Uint8Array(transaction.effects?.bcs!)),
 		epoch: transaction.effects?.epoch?.epochId ?? null,
-		objectTypes: {
-			get then() {
-				const promise = Promise.resolve(objectTypes);
-				return promise.then.bind(promise);
-			},
-		},
+		objectTypes: Promise.resolve(objectTypes),
 		transaction: parseTransactionBcs(transaction.bcs!),
 		signatures: transaction.signatures!,
 	};
