@@ -196,12 +196,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 				digest: await tx.getDigest(),
 				epoch: null,
 				effects,
-				objectTypes: {
-					get then() {
-						const promise = Promise.resolve(objectTypes);
-						return promise.then.bind(promise);
-					},
-				},
+				objectTypes: Promise.resolve(objectTypes),
 				signatures: [],
 				transaction: parseTransactionBcs(options.transaction),
 			},
@@ -344,12 +339,7 @@ function parseTransaction(
 		digest: transaction.digest,
 		epoch: transaction.effects?.executedEpoch ?? null,
 		effects: parseTransactionEffectsBcs(new Uint8Array(transaction.rawEffects!)),
-		objectTypes: {
-			get then() {
-				const promise = Promise.resolve(objectTypes);
-				return promise.then.bind(promise);
-			},
-		},
+		objectTypes: Promise.resolve(objectTypes),
 		transaction: {
 			...data,
 			bcs: bytes,
