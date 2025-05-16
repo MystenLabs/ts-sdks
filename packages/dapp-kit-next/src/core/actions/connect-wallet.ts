@@ -25,7 +25,7 @@ export type ConnectWalletArgs = {
 	account?: UiWalletAccount;
 } & Omit<StandardConnectInput, 'silent'>;
 
-export function connectWalletCreator($state: DAppKitState) {
+export function connectWalletCreator({ $state }: DAppKitState) {
 	/**
 	 * Prompts the specified wallet to connect and authorize new accounts for the current domain.
 	 */

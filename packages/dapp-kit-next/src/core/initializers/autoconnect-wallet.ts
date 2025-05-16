@@ -11,11 +11,11 @@ import { getWalletUniqueIdentifier } from '../../utils/wallets.js';
  * Attempts to connect to a previously authorized wallet account on mount and when new wallets are registered.
  */
 export function autoConnectWallet({
-	$state,
+	state: { $state },
 	storage,
 	storageKey,
 }: {
-	$state: DAppKitState;
+	state: DAppKitState;
 	storage: StateStorage;
 	storageKey: string;
 }) {

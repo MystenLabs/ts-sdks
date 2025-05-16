@@ -12,7 +12,7 @@ export type SwitchAccountArgs = {
 	account: UiWalletAccount;
 };
 
-export function switchAccountCreator($state: DAppKitState) {
+export function switchAccountCreator({ $state }: DAppKitState) {
 	/**
 	 * Switches the currently selected account to the specified account.
 	 */

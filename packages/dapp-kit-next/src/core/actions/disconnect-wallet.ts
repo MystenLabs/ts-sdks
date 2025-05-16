@@ -11,7 +11,7 @@ import { getAssociatedWallet } from '../../utils/wallets.js';
 
 export type DisconnectWalletArgs = Parameters<StandardDisconnectMethod>;
 
-export function disconnectWalletCreator($state: DAppKitState) {
+export function disconnectWalletCreator({ $state }: DAppKitState) {
 	/**
 	 * Disconnects the current wallet from the application and prompts the current wallet
 	 * to deauthorize accounts from the current domain depending on the wallet's implemetation

@@ -12,7 +12,7 @@ import { getOrCreateUiWalletForStandardWallet_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as
 /**
  * Handles updating the store in response to wallets being added, removed, and their properties changing.
  */
-export function syncRegisteredWallets($state: DAppKitState) {
+export function syncRegisteredWallets({ $state }: DAppKitState) {
 	onMount($state, () => {
 		const walletsApi = getWallets();
 		const unsubscribeCallbacksByWallet = new Map<Wallet, () => void>();

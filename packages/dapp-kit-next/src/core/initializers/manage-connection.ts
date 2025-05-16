@@ -10,7 +10,7 @@ import { uiWalletAccountBelongsToUiWallet, uiWalletAccountsAreSame } from '@wall
 /**
  * Handles updating the connection state in response to wallets and their properties changing.
  */
-export function manageWalletConnection($state: DAppKitState) {
+export function manageWalletConnection({ $state }: DAppKitState) {
 	onMount($state, () => {
 		return listenKeys($state, ['wallets'], async ({ connection, wallets }) => {
 			if (connection.status !== 'connected') return;

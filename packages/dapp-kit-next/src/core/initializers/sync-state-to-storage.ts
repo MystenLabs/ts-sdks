@@ -12,11 +12,11 @@ import { getWalletUniqueIdentifier } from '../../utils/wallets.js';
  * Syncs the most recently connected wallet name and address to storage.
  */
 export function syncStateToStorage({
-	$state,
+	state: { $state },
 	storage,
 	storageKey,
 }: {
-	$state: DAppKitState;
+	state: DAppKitState;
 	storage: StateStorage;
 	storageKey: string;
 }) {
