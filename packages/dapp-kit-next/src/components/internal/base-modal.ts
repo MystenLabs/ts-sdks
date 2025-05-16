@@ -135,7 +135,9 @@ export class BaseModal extends LitElement {
 
 	protected handleDialogClick() {
 		if (this.#nextClickIsFromContent) {
-			// When someone clicks the dialog backdrop, the click event
+			// This trick uses event bubbling to determine whether or not the click originated
+			// from the dialog content or dialog backdrop psuedo-element. If you click the dialog
+			// content, then `nextClickIsFromContent` will be set to true and we'll early exit.
 			this.#nextClickIsFromContent = false;
 			return;
 		}

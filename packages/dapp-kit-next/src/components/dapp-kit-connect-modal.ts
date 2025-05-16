@@ -29,8 +29,10 @@ export class DAppKitConnectModal extends ScopedRegistryHost(BaseModal) {
 	override render() {
 		return html`<dialog @click=${this.handleDialogClick}>
 			<div @click=${this.handleContentClick}>
-				hello
-				<button @click=${this.close}>cancel</button>
+				<div>
+					hello
+					<button @click=${this.close}>cancel</button>
+				</div>
 			</div>
 		</dialog>`;
 	}
