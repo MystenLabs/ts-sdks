@@ -44,6 +44,7 @@ import type { BlobMetadataWithId, BlobStatus, GetSliverResponse } from './storag
 import type {
 	CertifyBlobOptions,
 	CommitteeInfo,
+	ComputeBlobMetadataOptions,
 	DeleteBlobOptions,
 	ExtendBlobOptions,
 	GetBlobMetadataOptions,
@@ -308,6 +309,31 @@ export class WalrusClient {
 		}
 
 		return blobBytes;
+	}
+
+	async computeBlobMetadata({ bytes, numShards }: ComputeBlobMetadataOptions) {
+		let shardCount: number | undefined;
+		if (typeof numShards === 'number') {
+			shardCount = numShards;
+		} else {
+			const systemState = await this.systemState();
+			shardCount = systemState.committee.n_shards;
+		}
+
+		const bindings = await this.#wasmBindings();
+		const { blob_id, metadata } = bindings.computeMetadata(shardCount, bytes);
+
+		return {
+			blobId: blob_id,
+			metadata: {
+				encodingType: metadata.V1.encoding_type,
+				hashes: Array.from(metadata.V1.hashes).map((hashes) => ({
+					primaryHash: hashes.primary_hash,
+					secondaryHash: hashes.secondary_hash,
+				})),
+				unencodedLength: metadata.V1.unencoded_length,
+			},
+		};
 	}
 
 	async getBlobMetadata({ blobId, signal }: GetBlobMetadataOptions) {

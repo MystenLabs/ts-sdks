@@ -56,49 +56,64 @@ async function constructTxBytes(
 const pk = fromBase64(
 	'oEC1VIuwQo+6FZiVwHCAy/3HbvAbuIyiztXIWwd4LgmXCh9WhOKg3T0+Mb62y9fqAsSaN5SybG09n/3JnkmEzJgdDXLpM8KvMwkha/cBHp6Cx7aCdogvGLoOp/RadyHb',
 );
-const MOCK_KEY_SERVERS = [
-	{
-		name: 'server1',
-		objectId: 'server1',
-		url: 'url1',
-		keyType: KeyServerType.BonehFranklinBLS12381,
-		pk,
-	},
-	{
-		name: 'server2',
-		objectId: 'server2',
-		url: 'url2',
-		keyType: KeyServerType.BonehFranklinBLS12381,
-		pk,
-	},
-	{
-		name: 'server3',
-		objectId: 'server3',
-		url: 'url3',
-		keyType: KeyServerType.BonehFranklinBLS12381,
-		pk,
-	},
-	{
-		name: 'server4',
-		objectId: 'server4',
-		url: 'url4',
-		keyType: KeyServerType.BonehFranklinBLS12381,
-		pk,
-	},
-	{
-		name: 'server5',
-		objectId: 'server5',
-		url: 'url5',
-		keyType: KeyServerType.BonehFranklinBLS12381,
-		pk,
-	},
-];
+const MOCK_KEY_SERVERS = new Map([
+	[
+		'server1',
+		{
+			name: 'server1',
+			objectId: 'server1',
+			url: 'url1',
+			keyType: KeyServerType.BonehFranklinBLS12381,
+			pk,
+		},
+	],
+	[
+		'server2',
+		{
+			name: 'server2',
+			objectId: 'server2',
+			url: 'url2',
+			keyType: KeyServerType.BonehFranklinBLS12381,
+			pk,
+		},
+	],
+	[
+		'server3',
+		{
+			name: 'server3',
+			objectId: 'server3',
+			url: 'url3',
+			keyType: KeyServerType.BonehFranklinBLS12381,
+			pk,
+		},
+	],
+	[
+		'server4',
+		{
+			name: 'server4',
+			objectId: 'server4',
+			url: 'url4',
+			keyType: KeyServerType.BonehFranklinBLS12381,
+			pk,
+		},
+	],
+	[
+		'server5',
+		{
+			name: 'server5',
+			objectId: 'server5',
+			url: 'url5',
+			keyType: KeyServerType.BonehFranklinBLS12381,
+			pk,
+		},
+	],
+]);
 describe('Integration test', () => {
 	let keypair: Ed25519Keypair;
 	let suiAddress: string;
 	let suiClient: SuiClient;
 	let TESTNET_PACKAGE_ID: string;
-	let objectIds: string[];
+	let objectIds: [string, number][];
 	beforeAll(async () => {
 		keypair = Ed25519Keypair.fromSecretKey(
 			'suiprivkey1qqgzvw5zc2zmga0uyp4rzcgk42pzzw6387zqhahr82pp95yz0scscffh2d8',
@@ -108,8 +123,8 @@ describe('Integration test', () => {
 		TESTNET_PACKAGE_ID = '0x9709d4ee371488c2bc09f508e98e881bd1d5335e0805d7e6a99edd54a7027954';
 		// Object ids pointing to ci key servers' urls
 		objectIds = [
-			'0x5ff11892a21430921fa7b1e3e0eb63d6d25dff2e0c8eeb6b5a79b37c974e355e',
-			'0xe015d62f26a7877de22e6d3c763e97c1aa9a8d064cd79a1bf8fc6b435f7a50b4',
+			['0x5ff11892a21430921fa7b1e3e0eb63d6d25dff2e0c8eeb6b5a79b37c974e355e', 1],
+			['0xe015d62f26a7877de22e6d3c763e97c1aa9a8d064cd79a1bf8fc6b435f7a50b4', 1],
 		];
 	});
 
@@ -282,9 +297,8 @@ describe('Integration test', () => {
 		const data = new Uint8Array([1, 2, 3]);
 
 		objectIds = [
-			'0x5ff11892a21430921fa7b1e3e0eb63d6d25dff2e0c8eeb6b5a79b37c974e355e',
-			'0x5ff11892a21430921fa7b1e3e0eb63d6d25dff2e0c8eeb6b5a79b37c974e355e',
-			'0xe015d62f26a7877de22e6d3c763e97c1aa9a8d064cd79a1bf8fc6b435f7a50b4',
+			['0x5ff11892a21430921fa7b1e3e0eb63d6d25dff2e0c8eeb6b5a79b37c974e355e', 2],
+			['0xe015d62f26a7877de22e6d3c763e97c1aa9a8d064cd79a1bf8fc6b435f7a50b4', 1],
 		];
 
 		// encrypt using 2 out of 3
@@ -342,10 +356,14 @@ describe('Integration test', () => {
 			}),
 		).rejects.toThrow(InvalidThresholdError);
 
-		// client with different weights should fail
+		// client with different weights should fail even though the threshold could be achieved
+		objectIds = [
+			['0x5ff11892a21430921fa7b1e3e0eb63d6d25dff2e0c8eeb6b5a79b37c974e355e', 1],
+			['0xe015d62f26a7877de22e6d3c763e97c1aa9a8d064cd79a1bf8fc6b435f7a50b4', 1],
+		];
 		const clientDifferentWeight = new SealClient({
 			suiClient,
-			serverObjectIds: objectIds.slice(1),
+			serverObjectIds: objectIds,
 			verifyKeyServers: false,
 		});
 
@@ -462,9 +480,14 @@ describe('Integration test', () => {
 		const globalFetch = vi.fn();
 		global.fetch = globalFetch;
 
+		objectIds = [
+			['0x5ff11892a21430921fa7b1e3e0eb63d6d25dff2e0c8eeb6b5a79b37c974e355e', 3],
+			['0xe015d62f26a7877de22e6d3c763e97c1aa9a8d064cd79a1bf8fc6b435f7a50b4', 2],
+		];
 		const client = new SealClient({
 			suiClient,
-			serverObjectIds: [objectIds[0], objectIds[0], objectIds[0], objectIds[1], objectIds[1]],
+			serverObjectIds: objectIds,
+			verifyKeyServers: false,
 		});
 		vi.spyOn(client as any, 'getKeyServers').mockResolvedValue(MOCK_KEY_SERVERS);
 

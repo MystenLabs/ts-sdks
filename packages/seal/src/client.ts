@@ -9,9 +9,11 @@ import { AesGcm256, Hmac256Ctr } from './dem.js';
 import { DemType, encrypt, KemType } from './encrypt.js';
 import {
 	InconsistentKeyServersError,
+	InvalidClientOptionsError,
 	InvalidKeyServerError,
 	InvalidThresholdError,
 	toMajorityError,
+	TooManyFailedFetchKeyRequestsError,
 } from './error.js';
 import { BonehFranklinBLS12381Services, DST } from './ibe.js';
 import {
@@ -36,7 +38,7 @@ import { createFullId, count } from './utils.js';
  */
 
 export interface SealClientExtensionOptions {
-	serverObjectIds: string[];
+	serverObjectIds: [string, number][];
 	verifyKeyServers?: boolean;
 	timeout?: number;
 }
@@ -47,16 +49,29 @@ export interface SealClientOptions extends SealClientExtensionOptions {
 
 export class SealClient {
 	#suiClient: SealCompatibleClient;
-	#serverObjectIds: string[];
+	#weights: Map<string, number>;
+	#keyServers: Promise<Map<string, KeyServer>> | null = null;
 	#verifyKeyServers: boolean;
-	#keyServers: Promise<KeyServer[]> | null = null;
 	// A caching map for: fullId:object_id -> partial key.
 	#cachedKeys = new Map<KeyCacheKey, G1Element>();
 	#timeout: number;
+	#totalWeight: number;
 
 	constructor(options: SealClientOptions) {
 		this.#suiClient = options.suiClient;
-		this.#serverObjectIds = options.serverObjectIds;
+
+		if (
+			new Set(options.serverObjectIds.map(([objectId, _]) => objectId)).size !==
+			options.serverObjectIds.length
+		) {
+			throw new InvalidClientOptionsError('Duplicate object IDs');
+		}
+
+		this.#weights = new Map(options.serverObjectIds);
+		this.#totalWeight = options.serverObjectIds
+			.map(([_, weight]) => weight)
+			.reduce((sum, term) => sum + term, 0);
+
 		this.#verifyKeyServers = options.verifyKeyServers ?? true;
 		this.#timeout = options.timeout ?? 10_000;
 	}
@@ -105,7 +120,7 @@ export class SealClient {
 	}) {
 		// TODO: Verify that packageId is first version of its package (else throw error).
 		return encrypt({
-			keyServers: await this.getKeyServers(),
+			keyServers: await this.#getWeightedKeyServers(),
 			kemType,
 			threshold,
 			packageId,
@@ -127,8 +142,7 @@ export class SealClient {
 	 * Decrypt the given encrypted bytes using cached keys.
 	 * Calls fetchKeys in case one or more of the required keys is not cached yet.
 	 * The function throws an error if the client's key servers are not a subset of
-	 * the encrypted object's key servers (including the same weights) or if the
-	 * threshold cannot be met.
+	 * the encrypted object's key servers or if the threshold cannot be met.
 	 *
 	 * @param data - The encrypted bytes to decrypt.
 	 * @param sessionKey - The session key to use.
@@ -161,12 +175,15 @@ export class SealClient {
 		return decrypt({ encryptedObject, keys: this.#cachedKeys });
 	}
 
+	#weight(objectId: string) {
+		return this.#weights.get(objectId) ?? 0;
+	}
+
 	#validateEncryptionServices(services: string[], threshold: number) {
 		// Check that the client's key servers are a subset of the encrypted object's key servers.
-		// TODO: fix this check to allow for non-equal weights.
 		if (
 			services.some((objectId) => {
-				const countInClient = count(this.#serverObjectIds, objectId);
+				const countInClient = this.#weight(objectId);
 				return countInClient > 0 && countInClient !== count(services, objectId);
 			})
 		) {
@@ -175,27 +192,42 @@ export class SealClient {
 			);
 		}
 		// Check that the threshold can be met with the client's key servers.
-		if (threshold > this.#serverObjectIds.length) {
+		if (threshold > this.#totalWeight) {
 			throw new InvalidThresholdError(
-				`Invalid threshold ${threshold} for ${this.#serverObjectIds.length} servers`,
+				`Invalid threshold ${threshold} for ${this.#totalWeight} servers`,
 			);
 		}
 	}
 
-	async getKeyServers() {
+	async getKeyServers(): Promise<Map<string, KeyServer>> {
 		if (!this.#keyServers) {
 			this.#keyServers = this.#loadKeyServers().catch((error) => {
 				this.#keyServers = null;
 				throw error;
 			});
 		}
-
 		return this.#keyServers;
 	}
 
-	async #loadKeyServers(): Promise<KeyServer[]> {
+	/**
+	 * Returns a list of key servers with multiplicity according to their weights.
+	 * The list is used for encryption.
+	 */
+	async #getWeightedKeyServers() {
+		const keyServers = await this.getKeyServers();
+		const keyServersWithMultiplicity = [];
+		for (const [objectId, weight] of this.#weights) {
+			const keyServer = keyServers.get(objectId)!;
+			for (let i = 0; i < weight; i++) {
+				keyServersWithMultiplicity.push(keyServer);
+			}
+		}
+		return keyServersWithMultiplicity;
+	}
+
+	async #loadKeyServers(): Promise<Map<string, KeyServer>> {
 		const keyServers = await retrieveKeyServers({
-			objectIds: this.#serverObjectIds,
+			objectIds: [...this.#weights].map(([objectId]) => objectId),
 			client: this.#suiClient,
 		});
 
@@ -212,8 +244,7 @@ export class SealClient {
 				}),
 			);
 		}
-
-		return keyServers;
+		return new Map(keyServers.map((server) => [server.objectId, server]));
 	}
 
 	/**
@@ -239,34 +270,36 @@ export class SealClient {
 		sessionKey: SessionKey;
 		threshold: number;
 	}) {
-		const keyServers = await this.getKeyServers();
-		if (threshold > keyServers.length || threshold < 1 || keyServers.length < 1) {
+		if (threshold > this.#totalWeight || threshold < 1) {
 			throw new InvalidThresholdError(
-				`Invalid threshold ${threshold} for ${keyServers.length} servers`,
+				`Invalid threshold ${threshold} servers with weights ${this.#weights}`,
 			);
 		}
-
-		let completedServerCount = 0;
-		const remainingKeyServers = new Set<KeyServer>();
+		const keyServers = await this.getKeyServers();
 		const fullIds = ids.map((id) => createFullId(DST, sessionKey.getPackageId(), id));
 
 		// Count a server as completed if it has keys for all fullIds.
 		// Duplicated key server ids will be counted towards the threshold.
-		for (const server of keyServers) {
-			if (fullIds.every((fullId) => this.#cachedKeys.has(`${fullId}:${server.objectId}`))) {
-				completedServerCount++;
+		let completedWeight = 0;
+		const remainingKeyServers = [];
+		let remainingKeyServersWeight = 0;
+		for (const objectId of keyServers.keys()) {
+			if (fullIds.every((fullId) => this.#cachedKeys.has(`${fullId}:${objectId}`))) {
+				completedWeight += this.#weight(objectId)!;
 			} else {
-				remainingKeyServers.add(server);
+				remainingKeyServers.push(objectId);
+				remainingKeyServersWeight += this.#weight(objectId)!;
 			}
 		}
 
 		// Return early if we have enough keys from cache.
-		if (completedServerCount >= threshold) {
+		if (completedWeight >= threshold) {
 			return;
 		}
 
 		// Check server validities.
-		for (const server of remainingKeyServers) {
+		for (const objectId of remainingKeyServers) {
+			const server = keyServers.get(objectId)!;
 			if (server.keyType !== KeyServerType.BonehFranklinBLS12381) {
 				throw new InvalidKeyServerError(
 					`Server ${server.objectId} has invalid key type: ${server.keyType}`,
@@ -280,7 +313,8 @@ export class SealClient {
 		const controller = new AbortController();
 		const errors: Error[] = [];
 
-		const keyFetches = [...remainingKeyServers].map(async (server) => {
+		const keyFetches = remainingKeyServers.map(async (objectId) => {
+			const server = keyServers.get(objectId)!;
 			try {
 				const allKeys = await fetchKeysForAllIds(
 					server.url,
@@ -311,11 +345,11 @@ export class SealClient {
 
 				// Check if all the receivedIds are consistent with the requested fullIds.
 				// If so, consider the key server got all keys and mark as completed.
-				if (fullIds.every((fullIds) => receivedIds.has(fullIds))) {
-					completedServerCount++;
+				if (fullIds.every((fullId) => receivedIds.has(fullId))) {
+					completedWeight += this.#weight(objectId)!;
 
 					// Return early if the completed servers is more than the threshold.
-					if (completedServerCount >= threshold) {
+					if (completedWeight >= threshold) {
 						controller.abort();
 					}
 				}
@@ -323,16 +357,18 @@ export class SealClient {
 				if (!controller.signal.aborted) {
 					errors.push(error as Error);
 				}
+			} finally {
 				// If there are too many errors that the threshold is not attainable, return early with error.
-				if (remainingKeyServers.size - errors.length < threshold - completedServerCount) {
-					controller.abort(error);
+				remainingKeyServersWeight -= this.#weight(objectId)!;
+				if (remainingKeyServersWeight < threshold - completedWeight) {
+					controller.abort(new TooManyFailedFetchKeyRequestsError());
 				}
 			}
 		});
 
 		await Promise.allSettled(keyFetches);
 
-		if (completedServerCount < threshold) {
+		if (completedWeight < threshold) {
 			throw toMajorityError(errors);
 		}
 	}
@@ -362,9 +398,9 @@ export class SealClient {
 		switch (kemType) {
 			case KemType.BonehFranklinBLS12381DemCCA:
 				const keyServers = await this.getKeyServers();
-				if (threshold > this.#serverObjectIds.length) {
+				if (threshold > this.#totalWeight) {
 					throw new InvalidThresholdError(
-						`Invalid threshold ${threshold} for ${this.#serverObjectIds.length} servers`,
+						`Invalid threshold ${threshold} for ${this.#totalWeight} servers`,
 					);
 				}
 				await this.fetchKeys({
@@ -379,14 +415,15 @@ export class SealClient {
 
 				const fullId = createFullId(DST, sessionKey.getPackageId(), id);
 
-				const derivedKeys = new Map<string, DerivedKey>();
-				let servicesAdded = 0;
-				for (const keyServer of keyServers) {
+				const derivedKeys = new Map();
+				let weight = 0;
+				for (const objectId of keyServers.keys()) {
 					// The code below assumes that the KeyServerType is BonehFranklinBLS12381.
-					const cachedKey = this.#cachedKeys.get(`${fullId}:${keyServer.objectId}`);
+					const cachedKey = this.#cachedKeys.get(`${fullId}:${objectId}`);
 					if (cachedKey) {
-						derivedKeys.set(keyServer.objectId, new BonehFranklinBLS12381DerivedKey(cachedKey));
-						if (++servicesAdded === threshold) {
+						derivedKeys.set(objectId, new BonehFranklinBLS12381DerivedKey(cachedKey));
+						weight += this.#weight(objectId)!;
+						if (weight >= threshold) {
 							// We have enough keys, so we can stop.
 							break;
 						}

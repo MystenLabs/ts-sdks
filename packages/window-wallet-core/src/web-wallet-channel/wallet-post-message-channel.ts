@@ -38,7 +38,7 @@ export class WalletPostMessageChannel {
 		return this.#request;
 	}
 
-	async verifyJwtSession(secretKey: Uint8Array) {
+	async verifyJwtSession(secretKey: Parameters<typeof verifyJwtSession>[1]) {
 		if (!('session' in this.#request.payload)) {
 			return null;
 		}
@@ -49,11 +49,9 @@ export class WalletPostMessageChannel {
 			);
 		}
 
-		const openerOrigin = new URL(window.opener.location.href).origin;
-
 		const session = await verifyJwtSession(this.#request.payload.session, secretKey);
 
-		if (session.aud !== new URL(this.#request.appUrl).origin || session.aud !== openerOrigin) {
+		if (session.aud !== new URL(this.#request.appUrl).origin) {
 			throw new Error('App and session origin mismatch');
 		}
 

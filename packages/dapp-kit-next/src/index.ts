@@ -3,7 +3,7 @@
 
 import './components/dapp-kit-connect-modal.js';
 
-export { createDAppKitStore, getDefaultStore } from './store/index.js';
-export type { DAppKitStore } from './store/index.js';
+export { createDAppKit, getDefaultInstance } from './core/index.js';
+export type { DAppKit } from './core/index.js';
 
 export type { StateStorage } from './utils/storage.js';

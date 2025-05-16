@@ -8,8 +8,8 @@ import { html, LitElement } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { storeProperty } from '../utils/lit.js';
 import { WalletList } from './internal/wallet-list.js';
-import { getDefaultStore } from '../store/index.js';
-import type { DAppKitStore } from '../store/index.js';
+import { getDefaultInstance } from '../core/index.js';
+import type { DAppKit } from '../core/index.js';
 
 @customElement('mysten-dapp-kit-connect-modal')
 export class DAppKitConnectModal extends ScopedRegistryHost(LitElement) {
@@ -18,10 +18,10 @@ export class DAppKitConnectModal extends ScopedRegistryHost(LitElement) {
 	};
 
 	@storeProperty()
-	store?: DAppKitStore;
+	store?: DAppKit;
 
-	override willUpdate() {
-		this.store ||= getDefaultStore();
+	override connectedCallback() {
+		this.store ||= getDefaultInstance();
 	}
 
 	override render() {

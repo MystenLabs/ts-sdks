@@ -47,7 +47,7 @@ export function decodeJwtSession(jwt: string) {
 	return v.parse(JwtSessionSchema, decodedJwt);
 }
 
-export async function verifyJwtSession(jwt: string, secretKey: Uint8Array) {
+export async function verifyJwtSession(jwt: string, secretKey: CryptoKey | Uint8Array) {
 	const verified = await jwtVerify(jwt, secretKey, { algorithms: ['HS256'] });
 
 	return v.parse(JwtSessionSchema, verified.payload);
