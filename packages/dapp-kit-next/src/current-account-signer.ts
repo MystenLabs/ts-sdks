@@ -3,16 +3,16 @@
 
 import type { PublicKey, SignatureScheme } from '@mysten/sui/cryptography';
 import { SIGNATURE_FLAG_TO_SCHEME, Signer } from '@mysten/sui/cryptography';
-import type { DAppKitStore } from './store/index.js';
+import type { DAppKit } from './core/index.js';
 import type { Transaction } from '@mysten/sui/transactions';
 import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 import { parseTransactionBcs, parseTransactionEffectsBcs } from '@mysten/sui/experimental';
 import { toBase64, fromBase64 } from '@mysten/sui/utils';
 
 export class CurrentAccountSigner extends Signer {
-	#store: DAppKitStore;
+	#store: DAppKit;
 
-	constructor(store: DAppKitStore) {
+	constructor(store: DAppKit) {
 		super();
 		this.#store = store;
 	}
