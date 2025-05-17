@@ -52,7 +52,7 @@ export class DeepBookAdminContract {
 		const adjustedMinSize = minSize * baseScalar;
 
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::create_pool_admin`,
+			target: `@deepbook/core::pool::create_pool_admin`,
 			arguments: [
 				tx.object(this.#config.REGISTRY_ID), // registry_id
 				tx.pure.u64(adjustedTickSize), // adjusted tick_size
@@ -76,7 +76,7 @@ export class DeepBookAdminContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::unregister_pool_admin`,
+			target: `@deepbook/core::pool::unregister_pool_admin`,
 			arguments: [
 				tx.object(pool.address),
 				tx.object(this.#config.REGISTRY_ID),
@@ -96,7 +96,7 @@ export class DeepBookAdminContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::update_allowed_versions`,
+			target: `@deepbook/core::pool::update_allowed_versions`,
 			arguments: [
 				tx.object(pool.address),
 				tx.object(this.#config.REGISTRY_ID),
@@ -113,7 +113,7 @@ export class DeepBookAdminContract {
 	 */
 	enableVersion = (version: number) => (tx: Transaction) => {
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::enable_version`,
+			target: `@deepbook/core::registry::enable_version`,
 			arguments: [
 				tx.object(this.#config.REGISTRY_ID),
 				tx.pure.u64(version),
@@ -129,7 +129,7 @@ export class DeepBookAdminContract {
 	 */
 	disableVersion = (version: number) => (tx: Transaction) => {
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::disable_version`,
+			target: `@deepbook/core::registry::disable_version`,
 			arguments: [
 				tx.object(this.#config.REGISTRY_ID),
 				tx.pure.u64(version),
@@ -145,7 +145,7 @@ export class DeepBookAdminContract {
 	 */
 	setTreasuryAddress = (treasuryAddress: string) => (tx: Transaction) => {
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::set_treasury_address`,
+			target: `@deepbook/core::registry::set_treasury_address`,
 			arguments: [
 				tx.object(this.#config.REGISTRY_ID),
 				tx.pure.address(treasuryAddress),
@@ -162,7 +162,7 @@ export class DeepBookAdminContract {
 	addStableCoin = (stableCoinKey: string) => (tx: Transaction) => {
 		const stableCoinType = this.#config.getCoin(stableCoinKey).type;
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::add_stablecoin`,
+			target: `@deepbook/core::registry::add_stablecoin`,
 			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
 			typeArguments: [stableCoinType],
 		});
@@ -176,7 +176,7 @@ export class DeepBookAdminContract {
 	removeStableCoin = (stableCoinKey: string) => (tx: Transaction) => {
 		const stableCoinType = this.#config.getCoin(stableCoinKey).type;
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::remove_stablecoin`,
+			target: `@deepbook/core::registry::remove_stablecoin`,
 			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
 			typeArguments: [stableCoinType],
 		});
@@ -200,7 +200,7 @@ export class DeepBookAdminContract {
 		const adjustedTickSize = (newTickSize * FLOAT_SCALAR * quoteScalar) / baseScalar;
 
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::adjust_tick_size_admin`,
+			target: `@deepbook/core::pool::adjust_tick_size_admin`,
 			arguments: [
 				tx.object(pool.address), // pool address
 				tx.pure.u64(adjustedTickSize), // adjusted tick_size
@@ -231,7 +231,7 @@ export class DeepBookAdminContract {
 			const adjustedMinSize = newMinSize * baseScalar;
 
 			tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::adjust_min_lot_size_admin`,
+				target: `@deepbook/core::pool::adjust_min_lot_size_admin`,
 				arguments: [
 					tx.object(pool.address), // pool address
 					tx.pure.u64(adjustedLotSize),

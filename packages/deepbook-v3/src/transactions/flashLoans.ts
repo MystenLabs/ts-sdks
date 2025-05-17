@@ -29,7 +29,7 @@ export class FlashLoanContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const inputQuantity = Math.round(borrowAmount * baseCoin.scalar);
 		const [baseCoinResult, flashLoan] = tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::borrow_flashloan_base`,
+			target: `@deepbook/core::pool::borrow_flashloan_base`,
 			arguments: [tx.object(pool.address), tx.pure.u64(inputQuantity)],
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
@@ -61,7 +61,7 @@ export class FlashLoanContract {
 				tx.pure.u64(Math.round(borrowAmount * borrowScalar)),
 			]);
 			tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::return_flashloan_base`,
+				target: `@deepbook/core::pool::return_flashloan_base`,
 				arguments: [tx.object(pool.address), baseCoinReturn, flashLoan],
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			});
@@ -81,7 +81,7 @@ export class FlashLoanContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const inputQuantity = Math.round(borrowAmount * quoteCoin.scalar);
 		const [quoteCoinResult, flashLoan] = tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::borrow_flashloan_quote`,
+			target: `@deepbook/core::pool::borrow_flashloan_quote`,
 			arguments: [tx.object(pool.address), tx.pure.u64(inputQuantity)],
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
@@ -113,7 +113,7 @@ export class FlashLoanContract {
 				tx.pure.u64(Math.round(borrowAmount * borrowScalar)),
 			]);
 			tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::return_flashloan_quote`,
+				target: `@deepbook/core::pool::return_flashloan_quote`,
 				arguments: [tx.object(pool.address), quoteCoinReturn, flashLoan],
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			});
