@@ -1,5 +1,21 @@
 # @mysten/walrus
 
+## 0.1.0
+
+### Minor Changes
+
+- 2f7d83c: Add `computeBlobMetadata` method to the client which can be used to pre-compute the ID
+  and other metadata given a set of bytes
+
+### Patch Changes
+
+- Updated dependencies [2456052]
+- Updated dependencies [2456052]
+- Updated dependencies [2456052]
+- Updated dependencies [2456052]
+- Updated dependencies [2456052]
+  - @mysten/sui@1.30.0
+
 ## 0.0.21
 
 ### Patch Changes
