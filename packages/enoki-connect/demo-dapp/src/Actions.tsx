@@ -4,6 +4,7 @@ import {
   useCurrentAccount,
   useSignPersonalMessage,
   useSignTransaction,
+  useSuiClientContext,
 } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import {
@@ -17,6 +18,7 @@ export function Actions() {
   const account = useCurrentAccount();
   const signMessage = useSignPersonalMessage();
   const signTransaction = useSignTransaction();
+  const { network, client } = useSuiClientContext();
 
   if (!account) {
     return null;
@@ -30,11 +32,12 @@ export function Actions() {
           const { signature } = await signMessage.mutateAsync({
             message,
             account,
-            chain: "sui:testnet",
+            chain: `sui:${network}`,
           });
           try {
             await verifyPersonalMessageSignature(message, signature, {
               address: account.address,
+              client,
             });
             console.log("Personal message signature verified!");
           } catch (e) {
@@ -56,11 +59,12 @@ export function Actions() {
           const { signature, bytes } = await signTransaction.mutateAsync({
             transaction,
             account,
-            chain: "sui:testnet",
+            chain: `sui:${network}`,
           });
           try {
             await verifyTransactionSignature(fromBase64(bytes), signature, {
               address: account.address,
+              client,
             });
             console.log("Transaction signature verified!");
           } catch (e) {
