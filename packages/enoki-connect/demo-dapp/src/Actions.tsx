@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import {
   useCurrentAccount,
+  useCurrentWallet,
+  useSignAndExecuteTransaction,
   useSignPersonalMessage,
   useSignTransaction,
   useSuiClientContext,
@@ -13,12 +15,40 @@ import {
 } from "@mysten/sui/verify";
 import { Button, Container } from "@radix-ui/themes";
 import { fromBase64 } from "@mysten/sui/utils";
+import type {
+  SuiChain,
+  WalletAccount,
+  WalletWithRequiredFeatures,
+} from "@mysten/wallet-standard";
+import { signAndExecuteTransaction as signAndExecuteTransactionWalletStandard } from "@mysten/wallet-standard";
+import { useMutation } from "@tanstack/react-query";
 
 export function Actions() {
   const account = useCurrentAccount();
   const signMessage = useSignPersonalMessage();
   const signTransaction = useSignTransaction();
+  const signAndExecuteTransaction = useSignAndExecuteTransaction();
   const { network, client } = useSuiClientContext();
+  const { currentWallet } = useCurrentWallet();
+  const signAndExecuteTransactionForceInWallet = useMutation({
+    mutationFn: ({
+      transaction,
+      account,
+      chain,
+      wallet,
+    }: {
+      transaction: Transaction;
+      account: WalletAccount;
+      chain: SuiChain;
+      wallet: WalletWithRequiredFeatures;
+    }) => {
+      return signAndExecuteTransactionWalletStandard(wallet, {
+        transaction,
+        account,
+        chain,
+      });
+    },
+  });
 
   if (!account) {
     return null;
@@ -71,8 +101,51 @@ export function Actions() {
             console.error(e);
           }
         }}
+        mr="2"
       >
         Sign Transaction
+      </Button>
+      <Button
+        onClick={async () => {
+          const transaction = new Transaction();
+          const [coin] = transaction.splitCoins(transaction.gas, [1]);
+
+          transaction.transferObjects([coin], account.address);
+          transaction.setSender(account.address);
+
+          const { digest } = await signAndExecuteTransaction.mutateAsync({
+            transaction,
+            account,
+            chain: `sui:${network}`,
+          });
+          console.log("Transaction digest:", digest);
+        }}
+        mr="2"
+      >
+        Sign & Execute Transaction
+      </Button>
+      <Button
+        onClick={async () => {
+          if (!currentWallet) {
+            throw new Error("No wallet connected");
+          }
+
+          const transaction = new Transaction();
+          const [coin] = transaction.splitCoins(transaction.gas, [1]);
+
+          transaction.transferObjects([coin], account.address);
+          transaction.setSender(account.address);
+          const { digest } =
+            await signAndExecuteTransactionForceInWallet.mutateAsync({
+              transaction,
+              account,
+              chain: `sui:${network}` as SuiChain,
+              wallet: currentWallet,
+            });
+          console.log("Transaction digest:", digest);
+        }}
+      >
+        Sign & force Wallet Execute Transaction
       </Button>
     </Container>
   );
