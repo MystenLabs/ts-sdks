@@ -1,5 +1,22 @@
 # @mysten/slush-wallet
 
+## 0.1.4
+
+### Patch Changes
+
+- 4721f75: Update slush wallet to statically define metadata
+- Updated dependencies [2456052]
+- Updated dependencies [5264038]
+- Updated dependencies [2456052]
+- Updated dependencies [a257600]
+- Updated dependencies [933199c]
+- Updated dependencies [2456052]
+- Updated dependencies [2456052]
+- Updated dependencies [2456052]
+  - @mysten/sui@1.30.0
+  - @mysten/window-wallet-core@0.0.3
+  - @mysten/wallet-standard@0.15.1
+
 ## 0.1.3
 
 ### Patch Changes

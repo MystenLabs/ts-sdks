@@ -1,5 +1,19 @@
 # @mysten/seal
 
+## 0.4.4
+
+### Patch Changes
+
+- ee1bfd8: Better handling of weighted/duplicate key servers.
+- 5264038: expose ZkLoginCompatibleClient, use ZkLoginCompatibleClient for SessionKey constructor
+- Updated dependencies [2456052]
+- Updated dependencies [5264038]
+- Updated dependencies [2456052]
+- Updated dependencies [2456052]
+- Updated dependencies [2456052]
+- Updated dependencies [2456052]
+  - @mysten/sui@1.30.0
+
 ## 0.4.3
 
 ### Patch Changes

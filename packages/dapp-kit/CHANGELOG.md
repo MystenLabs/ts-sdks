@@ -1,5 +1,21 @@
 # @mysten/dapp-kit
 
+## 0.16.4
+
+### Patch Changes
+
+- 4721f75: Update slush wallet to statically define metadata
+- Updated dependencies [2456052]
+- Updated dependencies [5264038]
+- Updated dependencies [2456052]
+- Updated dependencies [4721f75]
+- Updated dependencies [2456052]
+- Updated dependencies [2456052]
+- Updated dependencies [2456052]
+  - @mysten/sui@1.30.0
+  - @mysten/slush-wallet@0.1.4
+  - @mysten/wallet-standard@0.15.1
+
 ## 0.16.3
 
 ### Patch Changes

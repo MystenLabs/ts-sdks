@@ -1,5 +1,21 @@
 # @mysten/enoki-connect
 
+## 0.0.6
+
+### Patch Changes
+
+- Updated dependencies [2456052]
+- Updated dependencies [5264038]
+- Updated dependencies [2456052]
+- Updated dependencies [a257600]
+- Updated dependencies [933199c]
+- Updated dependencies [2456052]
+- Updated dependencies [2456052]
+- Updated dependencies [2456052]
+  - @mysten/sui@1.30.0
+  - @mysten/window-wallet-core@0.0.3
+  - @mysten/wallet-standard@0.15.1
+
 ## 0.0.5
 
 ### Patch Changes

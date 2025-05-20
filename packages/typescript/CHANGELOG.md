@@ -1,5 +1,20 @@
 # @mysten/sui.js
 
+## 1.30.0
+
+### Minor Changes
+
+- 2456052: Add signAndExecuteTransaction to Signer class
+- 2456052: Add `address` option to to publicKeyFromRawBytes that verifies the expected address and
+  disambiguates legacy vs non legacy versions of zklogin public addresses
+- 2456052: Added fromBytes static method to ZkLoginPublicIdentifier
+- 2456052: Use new core API for transaction resolution
+- 2456052: defer objectTypes in core API and add parsed transaction representation
+
+### Patch Changes
+
+- 5264038: expose ZkLoginCompatibleClient, use ZkLoginCompatibleClient for SessionKey constructor
+
 ## 1.29.1
 
 ### Patch Changes
