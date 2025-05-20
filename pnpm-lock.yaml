@@ -400,6 +400,9 @@ importers:
       '@mysten/sui':
         specifier: workspace:*
         version: link:../typescript
+      '@mysten/utils':
+        specifier: workspace:*
+        version: link:../utils
       '@mysten/wallet-standard':
         specifier: workspace:*
         version: link:../wallet-standard

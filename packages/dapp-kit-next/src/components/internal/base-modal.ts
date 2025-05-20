@@ -3,13 +3,12 @@
 
 import { LitElement } from 'lit';
 import { property, query } from 'lit/decorators.js';
+import { promiseWithResolvers } from '@mysten/utils';
 
 export class BaseModal extends LitElement {
 	#isOpen = false;
 	#isOpening = false;
-
-	#resolveIsConnectedPromise = () => {};
-	#isConnectedPromise = this.#getIsConnectedPromise();
+	#isConnected = promiseWithResolvers<void>();
 
 	#returnValue: string | undefined;
 	#nextClickIsFromContent = false;
@@ -56,7 +55,7 @@ export class BaseModal extends LitElement {
 
 		// Dialogs can be opened before being attached to the DOM, so we need to
 		// wait until we're connected before calling `showModal()`.
-		await this.#isConnectedPromise;
+		await this.#isConnected.promise;
 		await this.updateComplete;
 
 		// Check if already opened or if `dialog.close()` was called while awaiting.
@@ -121,12 +120,12 @@ export class BaseModal extends LitElement {
 
 	override connectedCallback() {
 		super.connectedCallback();
-		this.#resolveIsConnectedPromise();
+		this.#isConnected.resolve();
 	}
 
 	override disconnectedCallback() {
 		super.disconnectedCallback();
-		this.#isConnectedPromise = this.#getIsConnectedPromise();
+		this.#isConnected = Promise.withResolvers<void>();
 	}
 
 	protected handleContentClick() {
@@ -146,11 +145,5 @@ export class BaseModal extends LitElement {
 		if (!wasDispatched) return;
 
 		this.close();
-	}
-
-	#getIsConnectedPromise() {
-		return new Promise<void>((resolve) => {
-			this.#resolveIsConnectedPromise = resolve;
-		});
 	}
 }
