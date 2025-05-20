@@ -16,8 +16,9 @@ import { switchNetworkCreator } from './actions/switch-network.js';
 import { connectWalletCreator } from './actions/connect-wallet.js';
 import { disconnectWalletCreator } from './actions/disconnect-wallet.js';
 import { switchAccountCreator } from './actions/switch-account.js';
-import { createSignerActions } from './actions/signer.js';
 import { signPersonalMessageCreator } from './actions/sign-personal-message.js';
+import { signAndExecuteTransactionCreator } from './actions/sign-and-execute-transaction.js';
+import { signTransactionCreator } from './actions/sign-transaction.js';
 
 export type DAppKit<TNetworks extends Networks = Networks> = ReturnType<
 	typeof createDAppKitInstance<TNetworks>
@@ -80,7 +81,8 @@ export function createDAppKitInstance<TNetworks extends Networks>({
 
 	return {
 		getClient,
-		...createSignerActions(),
+		signTransaction: signTransactionCreator(stores),
+		signAndExecuteTransaction: signAndExecuteTransactionCreator(stores),
 		signPersonalMessage: signPersonalMessageCreator(stores),
 		connectWallet: connectWalletCreator(stores, networks),
 		disconnectWallet: disconnectWalletCreator(stores),
