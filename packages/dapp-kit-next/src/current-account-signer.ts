@@ -10,11 +10,11 @@ import { parseTransactionBcs, parseTransactionEffectsBcs } from '@mysten/sui/exp
 import { toBase64, fromBase64 } from '@mysten/sui/utils';
 
 export class CurrentAccountSigner extends Signer {
-	#store: DAppKit;
+	dAppKit: DAppKit;
 
 	constructor(store: DAppKit) {
 		super();
-		this.#store = store;
+		this.dAppKit = store;
 	}
 
 	getKeyScheme(): SignatureScheme {
@@ -24,7 +24,7 @@ export class CurrentAccountSigner extends Signer {
 	}
 
 	getPublicKey(): PublicKey {
-		const publicKey = this.#store.$publicKey.get();
+		const publicKey = this.dAppKit.stores.$publicKey.get();
 
 		if (!publicKey) {
 			throw new Error('DappKit is not currently connected to an account');
@@ -40,13 +40,13 @@ export class CurrentAccountSigner extends Signer {
 	}
 
 	async signTransaction(bytes: Uint8Array) {
-		return this.#store.signTransaction({
+		return this.dAppKit.signTransaction({
 			transaction: toBase64(bytes),
 		});
 	}
 
 	async signPersonalMessage(bytes: Uint8Array) {
-		return this.#store.signPersonalMessage({
+		return this.dAppKit.signPersonalMessage({
 			message: bytes,
 		});
 	}
@@ -56,7 +56,7 @@ export class CurrentAccountSigner extends Signer {
 	}: {
 		transaction: Transaction;
 	}): Promise<Experimental_SuiClientTypes.TransactionResponse> {
-		const { bytes, signature, digest, effects } = await this.#store.signAndExecuteTransaction({
+		const { bytes, signature, digest, effects } = await this.dAppKit.signAndExecuteTransaction({
 			transaction,
 		});
 

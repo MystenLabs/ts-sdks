@@ -19,11 +19,11 @@ export class DAppKitConnectModal extends ScopedRegistryHost(BaseModal) {
 	};
 
 	@storeProperty()
-	store?: DAppKit;
+	instance?: DAppKit;
 
 	override connectedCallback() {
 		super.connectedCallback();
-		this.store ||= getDefaultInstance();
+		this.instance ||= getDefaultInstance();
 	}
 
 	override render() {

@@ -3,26 +3,25 @@
 
 import { getWallets, StandardEvents } from '@mysten/wallet-standard';
 import { onMount } from 'nanostores';
-import type { DAppKitState } from '../state.js';
+import type { DAppKitStores } from '../store.js';
 
-import type { Wallet, WalletWithRequiredFeatures } from '@mysten/wallet-standard';
-import { getSuiWallets, isSuiWallet } from '../../utils/wallets.js';
 import { getOrCreateUiWalletForStandardWallet_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getOrCreateUiWalletForStandardWallet } from '@wallet-standard/ui-registry';
+import type { StandardEventsFeature, Wallet, WalletWithFeatures } from '@mysten/wallet-standard';
 
 /**
  * Handles updating the store in response to wallets being added, removed, and their properties changing.
  */
-export function syncRegisteredWallets({ $state }: DAppKitState) {
-	onMount($state, () => {
+export function syncRegisteredWallets({ $registeredWallets }: DAppKitStores) {
+	onMount($registeredWallets, () => {
 		const walletsApi = getWallets();
 		const unsubscribeCallbacksByWallet = new Map<Wallet, () => void>();
 
 		const onWalletsChanged = () => {
-			const suiWallets = getSuiWallets().map(getOrCreateUiWalletForStandardWallet);
-			$state.setKey('wallets', suiWallets);
+			const wallets = walletsApi.get();
+			$registeredWallets.set(wallets.map(getOrCreateUiWalletForStandardWallet));
 		};
 
-		const subscribeToWalletEvents = (wallet: WalletWithRequiredFeatures) => {
+		const subscribeToWalletEvents = (wallet: WalletWithFeatures<StandardEventsFeature>) => {
 			const unsubscribeFromChange = wallet.features[StandardEvents].on('change', () => {
 				onWalletsChanged();
 			});
@@ -34,12 +33,12 @@ export function syncRegisteredWallets({ $state }: DAppKitState) {
 		};
 
 		const unsubscribeFromRegister = walletsApi.on('register', (...addedWallets) => {
-			addedWallets.filter(isSuiWallet).forEach(subscribeToWalletEvents);
+			addedWallets.filter(hasStandardEvents).forEach(subscribeToWalletEvents);
 			onWalletsChanged();
 		});
 
 		const unsubscribeFromUnregister = walletsApi.on('unregister', (...removedWallets) => {
-			removedWallets.filter(isSuiWallet).forEach((wallet) => {
+			removedWallets.filter(hasStandardEvents).forEach((wallet) => {
 				const unsubscribeFromChange = unsubscribeCallbacksByWallet.get(wallet);
 				if (unsubscribeFromChange) {
 					unsubscribeCallbacksByWallet.delete(wallet);
@@ -50,8 +49,8 @@ export function syncRegisteredWallets({ $state }: DAppKitState) {
 			onWalletsChanged();
 		});
 
-		const suiWallets = getSuiWallets();
-		suiWallets.forEach(subscribeToWalletEvents);
+		const wallets = walletsApi.get();
+		wallets.filter(hasStandardEvents).forEach(subscribeToWalletEvents);
 		onWalletsChanged();
 
 		return () => {
@@ -62,4 +61,8 @@ export function syncRegisteredWallets({ $state }: DAppKitState) {
 			unsubscribeCallbacksByWallet.clear();
 		};
 	});
+}
+
+function hasStandardEvents(wallet: Wallet): wallet is WalletWithFeatures<StandardEventsFeature> {
+	return StandardEvents in wallet.features;
 }

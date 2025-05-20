@@ -1,8 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { listenKeys, onMount } from 'nanostores';
-import type { DAppKitState } from '../state.js';
+import { onMount } from 'nanostores';
+import type { DAppKitStores } from '../store.js';
 
 import type { UiWallet, UiWalletAccount } from '@wallet-standard/ui';
 import { uiWalletAccountBelongsToUiWallet, uiWalletAccountsAreSame } from '@wallet-standard/ui';
@@ -10,9 +10,10 @@ import { uiWalletAccountBelongsToUiWallet, uiWalletAccountsAreSame } from '@wall
 /**
  * Handles updating the connection state in response to wallets and their properties changing.
  */
-export function manageWalletConnection({ $state }: DAppKitState) {
-	onMount($state, () => {
-		return listenKeys($state, ['wallets'], async ({ connection, wallets }) => {
+export function manageWalletConnection({ $compatibleWallets, $baseConnection }: DAppKitStores) {
+	onMount($compatibleWallets, () => {
+		return $compatibleWallets.listen(async (wallets) => {
+			const connection = $baseConnection.get();
 			if (connection.status !== 'connected') return;
 
 			const resolvedAccount = resolveWalletAccount(connection.currentAccount, wallets);
@@ -20,10 +21,10 @@ export function manageWalletConnection({ $state }: DAppKitState) {
 				// Update the current account in response to the account properties changing.
 				// If the current account was deemed incompatible, we'll default to the
 				// first account in the wallet:
-				$state.setKey('connection.currentAccount', resolvedAccount);
+				$baseConnection.setKey('currentAccount', resolvedAccount);
 			} else {
 				// Reset the connection if the underlying wallet was un-registered or deemed incompatible:
-				$state.setKey('connection', {
+				$baseConnection.set({
 					status: 'disconnected',
 					currentAccount: null,
 				});
@@ -32,7 +33,7 @@ export function manageWalletConnection({ $state }: DAppKitState) {
 	});
 }
 
-function resolveWalletAccount(currentAccount: UiWalletAccount, wallets: UiWallet[]) {
+function resolveWalletAccount(currentAccount: UiWalletAccount, wallets: readonly UiWallet[]) {
 	for (const wallet of wallets) {
 		for (const walletAccount of wallet.accounts) {
 			if (uiWalletAccountsAreSame(currentAccount, walletAccount)) {

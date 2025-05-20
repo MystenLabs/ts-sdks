@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { ReactiveElement } from 'lit';
-import { StoreController } from '@nanostores/lit';
+import { MultiStoreController } from '@nanostores/lit';
 import type { DAppKit } from '../core/index.js';
-import type { DAppKitStateValues } from '../core/state.js';
+
+type ValueOf<T> = T[keyof T];
+type StoreValues = ValueOf<DAppKit['stores']>[];
 
 /**
  * Property decorator that creates a property that can be assigned different dApp Kit instances.
@@ -20,7 +22,7 @@ export function storeProperty() {
 		const valueKey = Symbol();
 
 		interface Target extends ReactiveElement {
-			[controllerKey]: StoreController<DAppKitStateValues> | undefined;
+			[controllerKey]: MultiStoreController<StoreValues> | undefined;
 			[valueKey]: DAppKit | undefined;
 		}
 
@@ -43,13 +45,12 @@ export function storeProperty() {
 				}
 
 				const newController = newInstance
-					? new StoreController(this, newInstance.$state)
+					? new MultiStoreController(this, Object.values(newInstance.stores))
 					: undefined;
-
 				this[controllerKey] = newController;
 
 				if (existingController && !newController) {
-					// If the dApp Kit instance is removed, request an update. Otherwise the controller should handle it.
+					// If the instance is removed, request an update. Otherwise the controller should handle it.
 					this.requestUpdate(propertyKey, oldInstance);
 				}
 			},
