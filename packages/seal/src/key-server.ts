@@ -3,7 +3,7 @@
 import { fromBase64, fromHex, toHex } from '@mysten/bcs';
 import { bls12_381 } from '@noble/curves/bls12-381';
 
-import { KeyServerMove } from './bcs.js';
+import { KeyServerMove, KeyServerMoveV1 } from './bcs.js';
 import {
 	InvalidGetObjectError,
 	InvalidKeyServerVersionError,
@@ -16,6 +16,8 @@ import { PACKAGE_VERSION } from './version.js';
 import type { SealCompatibleClient } from './types.js';
 import type { G1Element } from './bls12381.js';
 import { flatten, Version } from './utils.js';
+
+const KEY_SERVER_VERSION = 1;
 
 export type KeyServer = {
 	objectId: string;
@@ -39,8 +41,8 @@ export const SERVER_VERSION_REQUIREMENT = new Version('0.2.0');
 export function getAllowlistedKeyServers(network: 'testnet' | 'mainnet'): string[] {
 	if (network === 'testnet') {
 		return [
-			'0xb35a7228d8cf224ad1e828c0217c95a5153bafc2906d6f9c178197dce26fbcf8',
-			'0x2d6cde8a9d9a65bde3b0a346566945a63b4bfb70e9a06c41bdb70807e2502b06',
+			'0xb337dcbfe68d7ed5d6ea9cea278478aa2a147b1b450927fa19dafde92f1deebe',
+			'0x6e115f0e883cf15164cd6fb315925876986c6481cd631766819e8f7ceb2fc197',
 		];
 	} else {
 		throw new UnsupportedNetworkError(`Unsupported network ${network}`);
@@ -75,16 +77,37 @@ export async function retrieveKeyServers({
 			}
 
 			const ks = KeyServerMove.parse(res.object.content);
-			if (ks.keyType !== 0) {
-				throw new UnsupportedFeatureError(`Unsupported key type ${ks.keyType}`);
+			console.log('ks', ks);
+			if (ks.firstVersion === KEY_SERVER_VERSION) {
+				throw new UnsupportedFeatureError(`KeyServer ${objectId} is not a valid KeyServerMoveV1`);
+			}
+			let resV1;
+			try {
+				resV1 = await client.core.getDynamicFields({
+					parentId: objectId,
+				});
+			} catch (e) {
+				throw new InvalidKeyServerVersionError(`KeyServer ${objectId} is not a valid KeyServerMoveV1`);
+			}
+
+			console.log(resV1.dynamicFields);
+			let ks_v1;
+			let objectIdV0 = resV1.dynamicFields.filter((df) => df.type.endsWith('KeyServerMoveV1'))[0].id;
+			try {
+				ks_v1 = KeyServerMoveV1.parse((await client.core.getObject({ objectId: objectIdV0 })).object.content);
+			} catch (e) {
+				throw new InvalidKeyServerVersionError(`KeyServer ${objectIdV0} is not a valid KeyServerMoveV1`);
+			}
+			if (ks_v1.keyType !== 0) {
+				throw new UnsupportedFeatureError(`Unsupported key type ${ks_v1.keyType}`);
 			}
 
 			return {
 				objectId,
-				name: ks.name,
-				url: ks.url,
+				name: ks_v1.name,
+				url: ks_v1.url,
 				keyType: KeyServerType.BonehFranklinBLS12381,
-				pk: new Uint8Array(ks.pk),
+				pk: new Uint8Array(ks_v1.pk),
 			};
 		}),
 	);

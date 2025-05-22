@@ -42,12 +42,21 @@ export const EncryptedObject = bcs.struct('EncryptedObject', {
 });
 
 /**
- * The Move struct for the KeyServer object.
+ * The Move struct for the KeyServerV1 object.
  */
-export const KeyServerMove = bcs.struct('KeyServer', {
+export const KeyServerMoveV1 = bcs.struct('KeyServerV1', {
 	id: bcs.Address,
 	name: bcs.string(),
 	url: bcs.string(),
 	keyType: bcs.u8(),
 	pk: bcs.vector(bcs.u8()),
+});
+
+/**
+ * The Move struct for the KeyServerV1 object.
+ */
+export const KeyServerMove = bcs.struct('KeyServer', {
+	id: bcs.Address,
+	firstVersion: bcs.u8(),
+	lastVersion: bcs.u8(),
 });

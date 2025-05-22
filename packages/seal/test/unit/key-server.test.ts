@@ -53,8 +53,8 @@ describe('key-server tests', () => {
 	it('test fixed getAllowedlistedKeyServers', async () => {
 		// These should be updated when new key servers are added.
 		expect(getAllowlistedKeyServers('testnet')).toEqual([
-			'0xb35a7228d8cf224ad1e828c0217c95a5153bafc2906d6f9c178197dce26fbcf8',
-			'0x2d6cde8a9d9a65bde3b0a346566945a63b4bfb70e9a06c41bdb70807e2502b06',
+			'0xb337dcbfe68d7ed5d6ea9cea278478aa2a147b1b450927fa19dafde92f1deebe',
+			'0x6e115f0e883cf15164cd6fb315925876986c6481cd631766819e8f7ceb2fc197',
 		]);
 	});
 
