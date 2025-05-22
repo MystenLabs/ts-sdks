@@ -122,8 +122,8 @@ describe('Integration test', () => {
 		TESTNET_PACKAGE_ID = '0x9709d4ee371488c2bc09f508e98e881bd1d5335e0805d7e6a99edd54a7027954';
 		// Object ids pointing to ci key servers' urls
 		objectIds = [
-			['0x5ff11892a21430921fa7b1e3e0eb63d6d25dff2e0c8eeb6b5a79b37c974e355e', 1],
-			['0xe015d62f26a7877de22e6d3c763e97c1aa9a8d064cd79a1bf8fc6b435f7a50b4', 1],
+			['0x16b400d866f44cb975dc4cd46c9a1f83fc0b84eaf3a44f3ea140cc96d6481b12', 1],
+			['0x2f75ff0216e82184e3f828b4cc64d2d19a25702e6322cf11e3a211cfdf5f3494', 1],
 		];
 	});
 
@@ -296,8 +296,8 @@ describe('Integration test', () => {
 		const data = new Uint8Array([1, 2, 3]);
 
 		objectIds = [
-			['0x5ff11892a21430921fa7b1e3e0eb63d6d25dff2e0c8eeb6b5a79b37c974e355e', 2],
-			['0xe015d62f26a7877de22e6d3c763e97c1aa9a8d064cd79a1bf8fc6b435f7a50b4', 1],
+			['0x16b400d866f44cb975dc4cd46c9a1f83fc0b84eaf3a44f3ea140cc96d6481b12', 2],
+			['0x2f75ff0216e82184e3f828b4cc64d2d19a25702e6322cf11e3a211cfdf5f3494', 1],
 		];
 
 		// encrypt using 2 out of 3
@@ -357,8 +357,8 @@ describe('Integration test', () => {
 
 		// client with different weights should fail even though the threshold could be achieved
 		objectIds = [
-			['0x5ff11892a21430921fa7b1e3e0eb63d6d25dff2e0c8eeb6b5a79b37c974e355e', 1],
-			['0xe015d62f26a7877de22e6d3c763e97c1aa9a8d064cd79a1bf8fc6b435f7a50b4', 1],
+			['0x16b400d866f44cb975dc4cd46c9a1f83fc0b84eaf3a44f3ea140cc96d6481b12', 1],
+			['0x2f75ff0216e82184e3f828b4cc64d2d19a25702e6322cf11e3a211cfdf5f3494', 1],
 		];
 		const clientDifferentWeight = new SealClient({
 			suiClient,
@@ -381,6 +381,7 @@ describe('Integration test', () => {
 		const client = new SealClient({
 			suiClient,
 			serverObjectIds: objectIds,
+			verifyKeyServers: false,
 		});
 		const data = new Uint8Array([1, 2, 3]);
 
@@ -480,8 +481,8 @@ describe('Integration test', () => {
 		global.fetch = globalFetch;
 
 		objectIds = [
-			['0x5ff11892a21430921fa7b1e3e0eb63d6d25dff2e0c8eeb6b5a79b37c974e355e', 3],
-			['0xe015d62f26a7877de22e6d3c763e97c1aa9a8d064cd79a1bf8fc6b435f7a50b4', 2],
+			['0x16b400d866f44cb975dc4cd46c9a1f83fc0b84eaf3a44f3ea140cc96d6481b12', 3],
+			['0x2f75ff0216e82184e3f828b4cc64d2d19a25702e6322cf11e3a211cfdf5f3494', 2],
 		];
 		const client = new SealClient({
 			suiClient,
