@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.14.10
+
+### Patch Changes
+
+- 00c526d: Temporary fix for floating point rounding error
+
 ## 0.14.9
 
 ### Patch Changes
