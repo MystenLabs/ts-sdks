@@ -136,7 +136,7 @@ export namespace Experimental_SuiClientTypes {
 			version: string;
 			digest: string;
 			type: string;
-		};
+		} | null;
 	}
 
 	export interface DynamicFieldName {

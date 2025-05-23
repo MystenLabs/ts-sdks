@@ -13,6 +13,18 @@ export class ObjectError extends SuiClientError {
 		this.code = code;
 	}
 
+	static isNotFound(error: Error): boolean {
+		if (!(error instanceof ObjectError)) {
+			return false;
+		}
+
+		return (
+			error.code === 'notExists' ||
+			error.code === 'dynamicFieldNotFound' ||
+			error.code === 'deleted'
+		);
+	}
+
 	static fromResponse(response: ObjectResponseError, objectId?: string): ObjectError {
 		switch (response.code) {
 			case 'notExists':
