@@ -38,6 +38,7 @@ module.exports = {
 		'packages/move-bytecode-template/pkg',
 		'packages/walrus-wasm',
 		'packages/walrus/src/node-api',
+		'generated',
 	],
 	rules: {
 		'prefer-const': 'error',

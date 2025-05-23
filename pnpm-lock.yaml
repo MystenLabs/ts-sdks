@@ -148,6 +148,31 @@ importers:
         specifier: ^5.8.2
         version: 5.8.2
 
+  packages/codegen:
+    dependencies:
+      '@mysten/bcs':
+        specifier: workspace:*
+        version: link:../bcs
+      '@mysten/move-bytecode-template':
+        specifier: workspace:*
+        version: link:../move-bytecode-template
+      '@mysten/sui':
+        specifier: workspace:*
+        version: link:../typescript
+      '@types/node':
+        specifier: ^22.13.17
+        version: 22.13.17
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+    devDependencies:
+      '@mysten/build-scripts':
+        specifier: workspace:*
+        version: link:../build-scripts
+      vitest:
+        specifier: ^3.1.1
+        version: 3.1.1(@types/debug@4.1.12)(@types/node@22.13.17)(happy-dom@16.3.0)(jiti@2.4.2)(jsdom@25.0.1)(lightningcss@1.29.2)(msw@2.7.3(@types/node@22.13.17)(typescript@5.8.2))(tsx@4.19.3)(yaml@2.7.1)
+
   packages/create-dapp:
     dependencies:
       '@mysten/dapp-kit':
