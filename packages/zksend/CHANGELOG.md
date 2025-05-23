@@ -1,5 +1,13 @@
 # @mysten/zksend
 
+## 0.13.5
+
+### Patch Changes
+
+- Updated dependencies [ec519fc]
+  - @mysten/sui@1.30.1
+  - @mysten/wallet-standard@0.15.2
+
 ## 0.13.4
 
 ### Patch Changes

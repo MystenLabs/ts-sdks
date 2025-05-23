@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 1.30.1
+
+### Patch Changes
+
+- ec519fc: Deprecate schema on `ParsedKeypair` returned by `decodeSuiPrivateKey` which should have
+  always been called `scheme`
+
 ## 1.30.0
 
 ### Minor Changes

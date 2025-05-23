@@ -1,5 +1,12 @@
 # @mysten/wallet-standard
 
+## 0.15.2
+
+### Patch Changes
+
+- Updated dependencies [ec519fc]
+  - @mysten/sui@1.30.1
+
 ## 0.15.1
 
 ### Patch Changes

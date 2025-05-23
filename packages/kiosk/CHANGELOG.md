@@ -1,5 +1,12 @@
 # @mysten/kiosk
 
+## 0.12.7
+
+### Patch Changes
+
+- Updated dependencies [ec519fc]
+  - @mysten/sui@1.30.1
+
 ## 0.12.6
 
 ### Patch Changes

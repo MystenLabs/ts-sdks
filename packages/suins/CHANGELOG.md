@@ -1,5 +1,12 @@
 # @mysten/suins
 
+## 0.7.17
+
+### Patch Changes
+
+- Updated dependencies [ec519fc]
+  - @mysten/sui@1.30.1
+
 ## 0.7.16
 
 ### Patch Changes

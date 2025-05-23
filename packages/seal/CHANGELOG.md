@@ -1,5 +1,12 @@
 # @mysten/seal
 
+## 0.4.5
+
+### Patch Changes
+
+- Updated dependencies [ec519fc]
+  - @mysten/sui@1.30.1
+
 ## 0.4.4
 
 ### Patch Changes

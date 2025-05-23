@@ -1,5 +1,13 @@
 # @mysten/deepbook-v3
 
+## 0.14.9
+
+### Patch Changes
+
+- 7b6dbe1: Add XBTC to assets
+- Updated dependencies [ec519fc]
+  - @mysten/sui@1.30.1
+
 ## 0.14.8
 
 ### Patch Changes

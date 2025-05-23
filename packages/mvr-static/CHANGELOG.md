@@ -1,5 +1,12 @@
 # @mysten/mvr-static
 
+## 0.1.12
+
+### Patch Changes
+
+- Updated dependencies [ec519fc]
+  - @mysten/sui@1.30.1
+
 ## 0.1.11
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @mysten/signers
 
+## 0.2.10
+
+### Patch Changes
+
+- Updated dependencies [ec519fc]
+  - @mysten/sui@1.30.1
+
 ## 0.2.9
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @mysten/deepbook
 
+## 0.8.55
+
+### Patch Changes
+
+- Updated dependencies [ec519fc]
+  - @mysten/sui@1.30.1
+
 ## 0.8.54
 
 ### Patch Changes
