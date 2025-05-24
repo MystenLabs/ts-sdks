@@ -36,7 +36,7 @@ export class GovernanceContract {
 			const stakeInput = Math.round(stakeAmount * DEEP_SCALAR);
 
 			tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::stake`,
+				target: `@deepbook/core::pool::stake`,
 				arguments: [
 					tx.object(pool.address),
 					tx.object(balanceManager.address),
@@ -61,7 +61,7 @@ export class GovernanceContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::unstake`,
+			target: `@deepbook/core::pool::unstake`,
 			arguments: [tx.object(pool.address), tx.object(balanceManager.address), tradeProof],
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
@@ -82,7 +82,7 @@ export class GovernanceContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::submit_proposal`,
+			target: `@deepbook/core::pool::submit_proposal`,
 			arguments: [
 				tx.object(pool.address),
 				tx.object(balanceManager.address),
@@ -110,7 +110,7 @@ export class GovernanceContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::vote`,
+			target: `@deepbook/core::pool::vote`,
 			arguments: [
 				tx.object(pool.address),
 				tx.object(balanceManager.address),

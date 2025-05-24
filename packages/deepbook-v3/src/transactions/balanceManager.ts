@@ -24,13 +24,13 @@ export class BalanceManagerContract {
 	 */
 	createAndShareBalanceManager = () => (tx: Transaction) => {
 		const manager = tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new`,
+			target: `@deepbook/core::balance_manager::new`,
 		});
 
 		tx.moveCall({
 			target: '0x2::transfer::public_share_object',
 			arguments: [manager],
-			typeArguments: [`${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::BalanceManager`],
+			typeArguments: [`@deepbook/core::balance_manager::BalanceManager`],
 		});
 	};
 
@@ -40,14 +40,14 @@ export class BalanceManagerContract {
 	 */
 	createAndShareBalanceManagerWithOwner = (ownerAddress: string) => (tx: Transaction) => {
 		const manager = tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new_with_owner`,
+			target: `@deepbook/core::balance_manager::new_with_owner`,
 			arguments: [tx.pure.address(ownerAddress)],
 		});
 
 		tx.moveCall({
 			target: '0x2::transfer::public_share_object',
 			arguments: [manager],
-			typeArguments: [`${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::BalanceManager`],
+			typeArguments: [`@deepbook/core::balance_manager::BalanceManager`],
 		});
 	};
 
@@ -70,7 +70,7 @@ export class BalanceManagerContract {
 			});
 
 			tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::deposit`,
+				target: `@deepbook/core::balance_manager::deposit`,
 				arguments: [tx.object(managerId), deposit],
 				typeArguments: [coin.type],
 			});
@@ -91,7 +91,7 @@ export class BalanceManagerContract {
 			const coin = this.#config.getCoin(coinKey);
 			const withdrawInput = Math.round(amountToWithdraw * coin.scalar);
 			const coinObject = tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::withdraw`,
+				target: `@deepbook/core::balance_manager::withdraw`,
 				arguments: [tx.object(managerId), tx.pure.u64(withdrawInput)],
 				typeArguments: [coin.type],
 			});
@@ -111,7 +111,7 @@ export class BalanceManagerContract {
 			const managerId = this.#config.getBalanceManager(managerKey).address;
 			const coin = this.#config.getCoin(coinKey);
 			const withdrawalCoin = tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::withdraw_all`,
+				target: `@deepbook/core::balance_manager::withdraw_all`,
 				arguments: [tx.object(managerId)],
 				typeArguments: [coin.type],
 			});
@@ -129,7 +129,7 @@ export class BalanceManagerContract {
 		const managerId = this.#config.getBalanceManager(managerKey).address;
 		const coin = this.#config.getCoin(coinKey);
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance`,
+			target: `@deepbook/core::balance_manager::balance`,
 			arguments: [tx.object(managerId)],
 			typeArguments: [coin.type],
 		});
@@ -156,7 +156,7 @@ export class BalanceManagerContract {
 	 */
 	generateProofAsOwner = (managerId: string) => (tx: Transaction) => {
 		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::generate_proof_as_owner`,
+			target: `@deepbook/core::balance_manager::generate_proof_as_owner`,
 			arguments: [tx.object(managerId)],
 		});
 	};
@@ -169,7 +169,7 @@ export class BalanceManagerContract {
 	 */
 	generateProofAsTrader = (managerId: string, tradeCapId: string) => (tx: Transaction) => {
 		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::generate_proof_as_trader`,
+			target: `@deepbook/core::balance_manager::generate_proof_as_trader`,
 			arguments: [tx.object(managerId), tx.object(tradeCapId)],
 		});
 	};
@@ -183,7 +183,7 @@ export class BalanceManagerContract {
 		const manager = this.#config.getBalanceManager(managerKey);
 		const managerId = manager.address;
 		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_trade_cap`,
+			target: `@deepbook/core::balance_manager::mint_trade_cap`,
 			arguments: [tx.object(managerId)],
 		});
 	};
@@ -197,7 +197,7 @@ export class BalanceManagerContract {
 		const manager = this.#config.getBalanceManager(managerKey);
 		const managerId = manager.address;
 		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_deposit_cap`,
+			target: `@deepbook/core::balance_manager::mint_deposit_cap`,
 			arguments: [tx.object(managerId)],
 		});
 	};
@@ -211,7 +211,7 @@ export class BalanceManagerContract {
 		const manager = this.#config.getBalanceManager(managerKey);
 		const managerId = manager.address;
 		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_withdraw_cap`,
+			target: `@deepbook/core::balance_manager::mint_withdraw_cap`,
 			arguments: [tx.object(managerId)],
 		});
 	};
@@ -239,7 +239,7 @@ export class BalanceManagerContract {
 				balance: depositInput,
 			});
 			tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::deposit_with_cap`,
+				target: `@deepbook/core::balance_manager::deposit_with_cap`,
 				arguments: [tx.object(managerId), tx.object(depositCapId), deposit],
 				typeArguments: [coin.type],
 			});
@@ -264,7 +264,7 @@ export class BalanceManagerContract {
 			const coin = this.#config.getCoin(coinKey);
 			const withdrawAmount = Math.round(amountToWithdraw * coin.scalar);
 			return tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::withdraw_with_cap`,
+				target: `@deepbook/core::balance_manager::withdraw_with_cap`,
 				arguments: [tx.object(managerId), tx.object(withdrawCapId), tx.pure.u64(withdrawAmount)],
 				typeArguments: [coin.type],
 			});
@@ -278,7 +278,7 @@ export class BalanceManagerContract {
 	owner = (managerKey: string) => (tx: Transaction) => {
 		const managerId = this.#config.getBalanceManager(managerKey).address;
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::owner`,
+			target: `@deepbook/core::balance_manager::owner`,
 			arguments: [tx.object(managerId)],
 		});
 	};
@@ -291,7 +291,7 @@ export class BalanceManagerContract {
 	id = (managerKey: string) => (tx: Transaction) => {
 		const managerId = this.#config.getBalanceManager(managerKey).address;
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::id`,
+			target: `@deepbook/core::balance_manager::id`,
 			arguments: [tx.object(managerId)],
 		});
 	};
