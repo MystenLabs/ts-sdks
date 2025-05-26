@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { BcsType } from '@mysten/sui/bcs';
 import { bcs } from '@mysten/sui/bcs';
 
 import {
@@ -37,3 +38,32 @@ export const TransferPolicyType = bcs.struct(TRANSFER_POLICY_TYPE, {
 	balance: bcs.u64(),
 	rules: bcs.vector(bcs.string()),
 });
+
+export const Listing = bcs.struct('Listing', {
+	id: bcs.Address,
+	isExclusive: bcs.bool(),
+});
+
+export const Lock = bcs.struct('Lock', {
+	id: bcs.Address,
+});
+
+export const TransferPolicyConfig = bcs.struct('TransferPolicyConfig', {
+	amountBp: bcs.u16(),
+	minAmount: bcs.u64(),
+});
+
+export const TransferPolicyCap = bcs.struct('TransferPolicyCap', {
+	id: bcs.Address,
+	policyId: bcs.Address,
+});
+
+export function Field<Name extends BcsType<any>, Value extends BcsType<any>>(
+	...typeParameters: [Name, Value]
+) {
+	return bcs.struct('Field', {
+		id: bcs.Address,
+		name: typeParameters[0],
+		value: typeParameters[1],
+	});
+}
