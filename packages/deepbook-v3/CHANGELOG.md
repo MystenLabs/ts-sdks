@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.14.11
+
+### Patch Changes
+
+- 093fcc7: XBTC-USDC pool
+
 ## 0.14.10
 
 ### Patch Changes
