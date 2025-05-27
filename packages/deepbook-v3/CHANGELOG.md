@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.14.12
+
+### Patch Changes
+
+- f30ae3c: Testnet upgrade
+
 ## 0.14.11
 
 ### Patch Changes
