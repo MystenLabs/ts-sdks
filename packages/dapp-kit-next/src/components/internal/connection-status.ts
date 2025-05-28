@@ -22,7 +22,7 @@ export class ConnectionStatus extends LitElement {
 		return html`
 			<img src=${this.wallet.icon} alt=${`${this.wallet.name} logo`} />
 			<div>
-				<h2>${this.title}</h2>
+				<h3>${this.title}</h3>
 				<p>${this.copy}</p>
 			</div>
 			<slot name="call-to-action"></slot>

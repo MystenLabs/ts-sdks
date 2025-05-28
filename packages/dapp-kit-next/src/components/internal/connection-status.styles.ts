@@ -28,7 +28,7 @@ export const styles = [
 			gap: 12px;
 		}
 
-		h2 {
+		h3 {
 			font-size: 24px;
 			font-weight: var(--dapp-kit-font-weight-medium);
 		}
