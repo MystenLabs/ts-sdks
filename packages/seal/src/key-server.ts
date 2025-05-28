@@ -5,7 +5,6 @@ import { bls12_381 } from '@noble/curves/bls12-381';
 
 import { KeyServerMove, KeyServerMoveV1 } from './bcs.js';
 import {
-	InvalidGetObjectError,
 	InvalidKeyServerVersionError,
 	SealAPIError,
 	UnsupportedFeatureError,
@@ -67,60 +66,45 @@ export async function retrieveKeyServers({
 	return await Promise.all(
 		objectIds.map(async (objectId) => {
 			// First get the KeyServer object and validate it.
-			let res;
-			try {
-				res = await client.core.getObject({
-					objectId,
-				});
-			} catch (e) {
-				throw new InvalidGetObjectError(`KeyServer ${objectId} not found; ${(e as Error).message}`);
-			}
+			const res = await client.core.getObject({
+				objectId,
+			});
 			const ks = KeyServerMove.parse(res.object.content);
 
-			if (ks.firstVersion !== EXPECTED_SERVER_VERSION.toString()) {
+			if (
+				Number(ks.lastVersion) > EXPECTED_SERVER_VERSION ||
+				Number(ks.firstVersion) > EXPECTED_SERVER_VERSION
+			) {
 				throw new InvalidKeyServerVersionError(
-					`Key server was created with version ${ks.firstVersion}, but SDK expects version ${EXPECTED_SERVER_VERSION}`,
-				);
-			}
-
-			if (Number(ks.lastVersion) > EXPECTED_SERVER_VERSION) {
-				throw new InvalidKeyServerVersionError(
-					`Key server supports versions up to ${ks.lastVersion}, but SDK expects version ${EXPECTED_SERVER_VERSION}`,
+					`Key server ${objectId} supports versions between ${ks.firstVersion} and ${ks.lastVersion}, but SDK expects version ${EXPECTED_SERVER_VERSION}`,
 				);
 			}
 
 			// Then fetch the expected versioned object and parse it.
-			let resVersionedKs;
-			try {
-				resVersionedKs = await client.core.getDynamicField({
-					parentId: objectId,
-					name: {
-						type: 'u64',
-						bcs: bcs.u64().serialize(EXPECTED_SERVER_VERSION).toBytes(),
-					},
-				});
-			} catch (e) {
-				throw new UnsupportedFeatureError(`Cannot get dynamic fields for KeyServer ${objectId}`);
-			}
+			const resVersionedKs = await client.core.getDynamicField({
+				parentId: objectId,
+				name: {
+					type: 'u64',
+					bcs: bcs.u64().serialize(EXPECTED_SERVER_VERSION).toBytes(),
+				},
+			});
 
-			let ksVersioned;
-			try {
-				ksVersioned = KeyServerMoveV1.parse(resVersionedKs.dynamicField.value.bcs);
-			} catch (e) {
-				throw new InvalidKeyServerVersionError(`Dynamic field cannot be parsed as KeyServerMoveV1`);
-			}
+			if (ks.firstVersion === '1') {
+				const ksVersioned = KeyServerMoveV1.parse(resVersionedKs.dynamicField.value.bcs);
+				if (ksVersioned.keyType !== 0) {
+					throw new UnsupportedFeatureError(`Unsupported key type ${ksVersioned.keyType}`);
+				}
 
-			if (ksVersioned.keyType !== 0) {
-				throw new UnsupportedFeatureError(`Unsupported key type ${ksVersioned.keyType}`);
+				return {
+					objectId,
+					name: ksVersioned.name,
+					url: ksVersioned.url,
+					keyType: ksVersioned.keyType,
+					pk: new Uint8Array(ksVersioned.pk),
+				};
+			} else {
+				throw new UnsupportedFeatureError(`Unsupported key server version ${ks.firstVersion}`);
 			}
-
-			return {
-				objectId,
-				name: ksVersioned.name,
-				url: ksVersioned.url,
-				keyType: ksVersioned.keyType,
-				pk: new Uint8Array(ksVersioned.pk),
-			};
 		}),
 	);
 }
