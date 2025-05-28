@@ -67,7 +67,7 @@ export function blobIdToInt(blobId: string): bigint {
 }
 
 export const BlobMetadataWithId = bcs.struct('BlobMetadataWithId', {
-	blob_id: BlobId,
+	blobId: BlobId,
 	metadata: BlobMetadata,
 });
 

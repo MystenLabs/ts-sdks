@@ -10,8 +10,6 @@ export function bls12381_min_pk_aggregate(signatures: any): Uint8Array;
  * Verify an aggregate signature.
  */
 export function bls12381_min_pk_verify_aggregate(public_keys: any, msg: Uint8Array, signature: Uint8Array): boolean;
-export function rs_encode(msg: any): any;
-export function rs_decode(original: any, recovery: any): any;
 export class BlobEncoder {
   free(): void;
   constructor(n_shards: number);
