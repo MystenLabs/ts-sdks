@@ -14,3 +14,7 @@ const meta = {
 export default meta;
 
 export const Default: StoryObj = {};
+
+export const WithCustomLabel: StoryObj = {
+	render: () => html`<mysten-dapp-kit-connect-button>Sign In</mysten-dapp-kit-connect-button>`,
+};

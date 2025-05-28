@@ -1,0 +1,37 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+import type { UiWallet } from '@wallet-standard/ui';
+import { html, LitElement } from 'lit';
+import { property } from 'lit/decorators.js';
+import { styles } from './wallet-list-item.styles.js';
+
+export type WalletClickedEvent = CustomEvent<{ wallet: UiWallet }>;
+
+export class WalletListItem extends LitElement {
+	static override styles = styles;
+
+	@property()
+	wallet!: UiWallet;
+
+	override render() {
+		return html`
+			<li>
+				<button type="button" @click=${this.#walletClicked}>
+					<img src=${this.wallet.icon} alt=${`${this.wallet.name} logo`} />
+					<p>${this.wallet.name}</p>
+				</button>
+			</li>
+		`;
+	}
+
+	#walletClicked() {
+		this.dispatchEvent(
+			new CustomEvent<WalletClickedEvent['detail']>('wallet-clicked', {
+				detail: { wallet: this.wallet },
+				bubbles: true,
+				composed: true,
+			}),
+		);
+	}
+}

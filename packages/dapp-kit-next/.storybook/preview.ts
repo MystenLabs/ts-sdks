@@ -5,6 +5,7 @@ import { createDAppKit } from '../src/core';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import type { Preview } from '@storybook/web-components';
 
+import './global.css';
 import '../src/components/dapp-kit-connect-button.js';
 import '../src/components/dapp-kit-connect-modal.js';
 

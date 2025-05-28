@@ -60,13 +60,13 @@ export function createStores<TNetworks extends Networks>({
 		$registeredWallets,
 		$compatibleWallets,
 		$baseConnection,
-		$publicKey: computed($baseConnection, ({ currentAccount }) =>
-			currentAccount
+		$publicKey: computed($baseConnection, ({ currentAccount }) => {
+			return currentAccount && currentAccount.publicKey.length > 0
 				? publicKeyFromSuiBytes(new Uint8Array(currentAccount.publicKey), {
 						address: currentAccount.address,
 					})
-				: null,
-		),
+				: null;
+		}),
 		$currentClient: computed($currentNetwork, getClient),
 		$connection: computed([$baseConnection, $compatibleWallets], (connection, wallets) => {
 			switch (connection.status) {
