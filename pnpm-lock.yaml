@@ -419,6 +419,9 @@ importers:
 
   packages/dapp-kit-next:
     dependencies:
+      '@lit-labs/motion':
+        specifier: ^1.0.8
+        version: 1.0.8
       '@lit-labs/scoped-registry-mixin':
         specifier: ^1.0.4
         version: 1.0.4
@@ -3378,6 +3381,9 @@ packages:
 
   '@ledgerhq/logs@6.12.0':
     resolution: {integrity: sha512-ExDoj1QV5eC6TEbMdLUMMk9cfvNKhhv5gXol4SmULRVCx/3iyCPhJ74nsb3S0Vb+/f+XujBEj3vQn5+cwS0fNA==}
+
+  '@lit-labs/motion@1.0.8':
+    resolution: {integrity: sha512-sVwbJtkndmxre7RBKH+kWfHmYpqq2PJQ98RXgSxBAVUaKSLXvXTv9X5m4dhks2R50MUbpSygjEB14KO4tOn48A==}
 
   '@lit-labs/scoped-registry-mixin@1.0.4':
     resolution: {integrity: sha512-gYeotwRwluD7RsFgU0eP48WgBMg6fIF5RXzbrjs/gwsPiJiFtal90s+x/LHIHqQ2VkubsyP+m+QAfgmOnsNhUg==}
@@ -12189,6 +12195,10 @@ snapshots:
       events: 3.3.0
 
   '@ledgerhq/logs@6.12.0': {}
+
+  '@lit-labs/motion@1.0.8':
+    dependencies:
+      lit: 3.3.0
 
   '@lit-labs/scoped-registry-mixin@1.0.4':
     dependencies:

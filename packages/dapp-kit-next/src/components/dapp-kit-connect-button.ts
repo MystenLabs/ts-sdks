@@ -4,30 +4,52 @@
 import '@webcomponents/scoped-custom-element-registry';
 
 import { html, LitElement } from 'lit';
-import { customElement, query } from 'lit/decorators.js';
+import { customElement, property, query } from 'lit/decorators.js';
 import { storeProperty } from '../utils/lit.js';
 import { getDefaultInstance } from '../core/index.js';
 import type { DAppKit } from '../core/index.js';
-import type { DAppKitConnectModal } from './dapp-kit-connect-modal.js';
+import type { DAppKitConnectModalOptions } from './dapp-kit-connect-modal.js';
+import { DAppKitConnectModal } from './dapp-kit-connect-modal.js';
+import { ScopedRegistryHost } from '@lit-labs/scoped-registry-mixin';
+import { PrimaryButton } from './internal/button/primary-button.js';
+import { sharedStyles } from './styles/index.js';
 
 @customElement('mysten-dapp-kit-connect-button')
-export class DAppKitConnectButton extends LitElement {
+export class DAppKitConnectButton extends ScopedRegistryHost(LitElement) {
+	static elementDefinitions = {
+		'primary-button': PrimaryButton,
+		'mysten-dapp-kit-connect-modal': DAppKitConnectModal,
+	};
+
+	static override styles = sharedStyles;
+
+	@property({ type: Object })
+	modalOptions?: DAppKitConnectModalOptions;
+
 	@storeProperty()
-	store?: DAppKit;
+	instance?: DAppKit;
 
 	@query('mysten-dapp-kit-connect-modal')
 	private readonly _modal!: DAppKitConnectModal;
 
 	override connectedCallback() {
 		super.connectedCallback();
-		this.store ||= getDefaultInstance();
+		this.instance ||= getDefaultInstance();
 	}
 
 	override render() {
-		return html`
-			<button @click=${this.#openModal}>Connect</button>
-			<mysten-dapp-kit-connect-modal .store=${this.store}></mysten-dapp-kit-connect-modal>
-		`;
+		const connection = this.instance!.stores.$connection.get();
+		console.log(connection);
+		return connection.isConnected
+			? html`<div class="dropdown">TODO</div>`
+			: html`<primary-button @click=${this.#openModal}>
+						<slot>Connect Wallet</slot>
+					</primary-button>
+					<mysten-dapp-kit-connect-modal
+						.instance=${this.instance}
+						.filterFn=${this.modalOptions?.filterFn}
+						.sortFn=${this.modalOptions?.sortFn}
+					></mysten-dapp-kit-connect-modal>`;
 	}
 
 	#openModal() {

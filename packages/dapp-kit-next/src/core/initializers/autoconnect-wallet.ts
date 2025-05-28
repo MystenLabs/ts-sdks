@@ -21,7 +21,7 @@ export function autoConnectWallet({
 }) {
 	onMount($compatibleWallets, () => {
 		return $compatibleWallets.listen(async (wallets, oldWallets) => {
-			if (oldWallets.length > wallets.length) return;
+			if (oldWallets?.length > wallets.length) return;
 
 			const connection = $baseConnection.get();
 			if (connection.status !== 'disconnected') return;
