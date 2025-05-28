@@ -7,6 +7,7 @@ export const resetStyles = css`
 	* {
 		box-sizing: border-box;
 		font-family: var(--dapp-kit-font-sans);
+		color: var(--foreground);
 	}
 
 	button {

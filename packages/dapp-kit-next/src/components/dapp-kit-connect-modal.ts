@@ -24,7 +24,6 @@ import { PrimaryButton } from './internal/button/primary-button.js';
 import { SecondaryButton } from './internal/button/secondary-button.js';
 import { IconButton } from './internal/button/icon-button.js';
 import { styles } from './dapp-kit-connect-modal.styles.js';
-import Task from '@lit/task';
 
 type ModalViewState =
 	| { view: 'wallet-selection' }
@@ -55,7 +54,7 @@ export class DAppKitConnectModal
 	instance?: DAppKit;
 
 	@state()
-	state: ModalViewState = { view: 'wallet-selection' };
+	private _state: ModalViewState = { view: 'wallet-selection' };
 
 	@property({ attribute: false })
 	filterFn: DAppKitConnectModalOptions['filterFn'];
@@ -63,13 +62,15 @@ export class DAppKitConnectModal
 	@property({ attribute: false })
 	sortFn?: DAppKitConnectModalOptions['sortFn'];
 
+	#connectAbortController = new AbortController();
+
 	override connectedCallback() {
 		super.connectedCallback();
 		this.instance ||= getDefaultInstance();
 	}
 
 	override render() {
-		const showBackButton = this.state.view === 'connecting' || this.state.view === 'error';
+		const showBackButton = this._state.view === 'connecting' || this._state.view === 'error';
 
 		return html`<dialog @click=${this.handleDialogClick} @close=${this.#resetSelection}>
 			<div class="content" @click=${this.handleContentClick}>
@@ -94,7 +95,7 @@ export class DAppKitConnectModal
 	}
 
 	#renderModalView() {
-		switch (this.state.view) {
+		switch (this._state.view) {
 			case 'wallet-selection':
 				return html`<wallet-list
 					.wallets=${this.#getWallets()}
@@ -105,15 +106,15 @@ export class DAppKitConnectModal
 			case 'connecting':
 				return html`<connection-status
 					.title=${'Awaiting your approval...'}
-					.copy=${`Accept the request from ${this.state.wallet.name} in order to proceed.`}
-					.wallet=${this.state.wallet}
+					.copy=${`Accept the request from ${this._state.wallet.name} in order to proceed.`}
+					.wallet=${this._state.wallet}
 				>
 					<secondary-button slot="call-to-action" @click=${this.#resetSelection}>
 						Cancel
 					</secondary-button>
 				</connection-status>`;
 			case 'error':
-				const { wallet, error } = this.state;
+				const { wallet, error } = this._state;
 				const wasRequestCancelled = isWalletStandardError(
 					error,
 					WALLET_STANDARD_ERROR__USER__REQUEST_REJECTED,
@@ -121,7 +122,9 @@ export class DAppKitConnectModal
 
 				return html`<connection-status
 					.title=${wasRequestCancelled ? 'Request canceled' : 'Connection failed'}
-					.copy=${wasRequestCancelled ? `You canceled the request.` : 'Something went wrong.'}
+					.copy=${wasRequestCancelled
+						? `You canceled the request.`
+						: 'Something went wrong. Please try again.'}
 					.wallet=${wallet}
 				>
 					<primary-button
@@ -134,35 +137,36 @@ export class DAppKitConnectModal
 					</primary-button>
 				</connection-status>`;
 			default:
-				throw new Error(`Encountered unknown view state: ${this.state}`);
+				throw new Error(`Encountered unknown view state: ${this._state}`);
 		}
 	}
 
 	#getModalTitle() {
-		switch (this.state.view) {
+		switch (this._state.view) {
 			case 'wallet-selection':
 				const wallets = this.#getWallets();
 				return wallets.length > 0 ? 'Connect a wallet' : 'No wallets installed';
 			case 'connecting':
 			case 'error':
-				return this.state.wallet.name;
+				return this._state.wallet.name;
 			default:
-				throw new Error(`Encountered unknown view state: ${this.state}`);
+				throw new Error(`Encountered unknown view state: ${this._state}`);
 		}
 	}
 
 	async #attemptConnect(wallet: UiWallet) {
 		try {
-			this.state = { view: 'connecting', wallet };
+			this._state = { view: 'connecting', wallet };
 			await this.instance!.connectWallet({ wallet });
+
 			this.close('successful-connection');
 		} catch (error) {
-			this.state = { view: 'error', wallet, error };
+			this._state = { view: 'error', wallet, error };
 		}
 	}
 
 	#resetSelection() {
-		this.state = { view: 'wallet-selection' };
+		this._state = { view: 'wallet-selection' };
 	}
 
 	#getWallets() {
