@@ -10,7 +10,7 @@ import { getDefaultInstance } from '../core/index.js';
 import type { DAppKit } from '../core/index.js';
 import type { DAppKitConnectModalOptions } from './dapp-kit-connect-modal.js';
 import { DAppKitConnectModal } from './dapp-kit-connect-modal.js';
-import { resetStyles } from './internal/styles/shared.js';
+import { resetStyles } from './styles/reset.js';
 import { ScopedRegistryHost } from '@lit-labs/scoped-registry-mixin';
 import { PrimaryButton } from './internal/button/primary-button.js';
 

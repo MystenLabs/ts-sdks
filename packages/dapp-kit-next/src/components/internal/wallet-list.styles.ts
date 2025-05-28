@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { css } from 'lit';
-import { resetStyles } from './styles/shared.js';
+import { sharedStyles } from '../styles/index.js';
 
 export const styles = [
-	resetStyles,
+	sharedStyles,
 	css`
 		ul {
 			display: flex;

@@ -4,7 +4,7 @@
 import type { CSSResultGroup } from 'lit';
 import { css, html, LitElement } from 'lit';
 import { property } from 'lit/decorators.js';
-import { resetStyles } from '../styles/shared.js';
+import { resetStyles } from '../../styles/reset.js';
 
 export class BaseButton extends LitElement {
 	static styles: CSSResultGroup = [

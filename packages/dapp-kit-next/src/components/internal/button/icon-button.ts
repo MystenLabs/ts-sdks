@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { css, html, LitElement } from 'lit';
-import { resetStyles } from '../styles/shared.js';
+import { resetStyles } from '../../styles/reset.js';
 
 export class IconButton extends LitElement {
 	static styles = [
