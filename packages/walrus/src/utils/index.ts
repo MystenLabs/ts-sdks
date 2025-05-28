@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { fromBase64, toBase64 } from '@mysten/bcs';
 import type { InferBcsType } from '@mysten/bcs';
 import type { SuiMoveNormalizedType } from '@mysten/sui/client';
 
@@ -173,4 +174,12 @@ export function toTypeString(type: SuiMoveNormalizedType): string {
 	}
 
 	throw new Error(`Unexpected type ${JSON.stringify(type)}`);
+}
+
+export function urlSafeBase64(bytes: Uint8Array): string {
+	return toBase64(bytes).replace(/=*$/, '').replaceAll('+', '-').replaceAll('/', '_');
+}
+
+export function fromUrlSafeBase64(base64: string): Uint8Array {
+	return fromBase64(base64.replaceAll('-', '+').replaceAll('_', '/'));
 }

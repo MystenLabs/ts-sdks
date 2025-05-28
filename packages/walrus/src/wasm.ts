@@ -9,7 +9,7 @@ import init, {
 } from '@mysten/walrus-wasm';
 
 import type { StorageConfirmation } from './storage-node/types.js';
-import type { EncodingType } from './types.js';
+import type { EncodingType, ProtocolMessageCertificate } from './types.js';
 import type { BlobMetadata, BlobMetadataWithId, SliverData, SliverPair } from './utils/bcs.js';
 import { BlobId, blobIdFromBytes } from './utils/bcs.js';
 
@@ -18,12 +18,6 @@ export interface EncodedBlob {
 	blobId: string;
 	metadata: typeof BlobMetadata.$inferInput;
 	rootHash: Uint8Array;
-}
-
-export interface CombinedSignature {
-	signers: number[];
-	serializedMessage: Uint8Array;
-	signature: Uint8Array;
 }
 
 export async function getWasmBindings(url?: string) {
@@ -53,7 +47,7 @@ export async function getWasmBindings(url?: string) {
 	function combineSignatures(
 		confirmations: StorageConfirmation[],
 		signerIndices: number[],
-	): CombinedSignature {
+	): ProtocolMessageCertificate {
 		const signature = bls12381_min_pk_aggregate(
 			confirmations.map((confirmation) => fromBase64(confirmation.signature)),
 		);
@@ -103,9 +97,9 @@ export async function getWasmBindings(url?: string) {
 		nShards: number,
 		bytes: Uint8Array,
 		encodingType: EncodingType = 'RS2',
-	): typeof BlobMetadataWithId.$inferInput & { blob_id: string } {
+	): typeof BlobMetadataWithId.$inferInput & { blobId: string; rootHash: Uint8Array } {
 		const encoder = new BlobEncoder(nShards);
-		const metadata = encoder.compute_metadata(bytes);
+		const [metadata, rootHash] = encoder.compute_metadata(bytes);
 
 		if (encodingType !== 'RS2') {
 			throw new Error(`Unsupported encoding type: ${encodingType}`);
@@ -113,7 +107,8 @@ export async function getWasmBindings(url?: string) {
 
 		return {
 			...metadata,
-			blob_id: blobIdFromBytes(new Uint8Array(metadata.blob_id)),
+			blobId: blobIdFromBytes(new Uint8Array(metadata.blob_id)),
+			rootHash: new Uint8Array(rootHash.Digest),
 		};
 	}
 

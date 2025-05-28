@@ -1,16 +1,14 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const bls12381_min_pk_verify: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
+export const bls12381_min_pk_aggregate: (a: any) => [number, number, number, number];
+export const bls12381_min_pk_verify_aggregate: (a: any, b: number, c: number, d: number, e: number) => [number, number, number];
 export const __wbg_blobencoder_free: (a: number, b: number) => void;
 export const blobencoder_new: (a: number) => [number, number, number];
 export const blobencoder_encode_with_metadata: (a: number, b: number, c: number) => [number, number, number];
 export const blobencoder_compute_metadata: (a: number, b: number, c: number) => [number, number, number];
 export const blobencoder_decode: (a: number, b: any, c: bigint, d: any) => [number, number, number];
-export const bls12381_min_pk_verify: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
-export const bls12381_min_pk_aggregate: (a: any) => [number, number, number, number];
-export const bls12381_min_pk_verify_aggregate: (a: any, b: number, c: number, d: number, e: number) => [number, number, number];
-export const rs_encode: (a: any) => [number, number, number];
-export const rs_decode: (a: any, b: any) => [number, number, number];
 export const rustsecp256k1_v0_8_1_context_create: (a: number) => number;
 export const rustsecp256k1_v0_8_1_context_destroy: (a: number) => void;
 export const rustsecp256k1_v0_8_1_default_illegal_callback_fn: (a: number, b: number) => void;
