@@ -7,6 +7,7 @@ export const themeStyles = css`
 	:host {
 		/** Colors */
 		--dapp-kit-background: var(--background, oklch(1 0 0));
+		--dapp-kit-foreground: var(--foreground, oklch(0.145 0 0));
 		--dapp-kit-primary: var(--primary, oklch(0.216 0.006 56.043));
 		--dapp-kit-primary-foreground: var(--primary-foreground, oklch(0.985 0.001 106.423));
 		--dapp-kit-secondary: var(--secondary, oklch(0.97 0.001 106.424));
@@ -40,7 +41,6 @@ export const themeStyles = css`
 			'Segoe UI Symbol',
 			'Noto Color Emoji'
 		);
-
 		--dapp-kit-font-weight-medium: var(--font-medium, 500);
 		--dapp-kit-font-weight-semibold: var(--font-semibold, 600);
 	}
