@@ -52,7 +52,7 @@ export const KeyServerMoveV1 = bcs.struct('KeyServerV1', {
 });
 
 /**
- * The Move struct for the KeyServerV1 object.
+ * The Move struct for the parent object.
  */
 export const KeyServerMove = bcs.struct('KeyServer', {
 	id: bcs.Address,
