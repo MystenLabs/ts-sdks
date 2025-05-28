@@ -4,4 +4,4 @@
 import { resetStyles } from './reset.js';
 import { themeStyles } from './theme.js';
 
-export const sharedStyles = [resetStyles, themeStyles];
+export const sharedStyles = [themeStyles, resetStyles];

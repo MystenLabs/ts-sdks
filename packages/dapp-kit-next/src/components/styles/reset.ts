@@ -6,7 +6,7 @@ import { css } from 'lit';
 export const resetStyles = css`
 	* {
 		box-sizing: border-box;
-		font-family: var(--typography-font-family);
+		font-family: var(--dapp-kit-font-sans);
 	}
 
 	button {

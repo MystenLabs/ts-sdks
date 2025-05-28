@@ -23,6 +23,24 @@ export const themeStyles = css`
 		--dapp-kit-radius-xl: calc(var(--radius) + 4px);
 
 		/** Typography */
+		--dapp-kit-font-sans: var(
+			--font-sans,
+			ui-sans-serif,
+			system-ui,
+			-apple-system,
+			BlinkMacSystemFont,
+			'Segoe UI',
+			Roboto,
+			'Helvetica Neue',
+			Arial,
+			'Noto Sans',
+			sans-serif,
+			'Apple Color Emoji',
+			'Segoe UI Emoji',
+			'Segoe UI Symbol',
+			'Noto Color Emoji'
+		);
+
 		--dapp-kit-font-weight-medium: var(--font-medium, 500);
 		--dapp-kit-font-weight-semibold: var(--font-semibold, 600);
 	}

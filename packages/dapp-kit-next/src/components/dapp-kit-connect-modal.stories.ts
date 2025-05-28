@@ -24,3 +24,10 @@ export const Default: StoryObj<DAppKitConnectModal> = {
 		open: true,
 	},
 };
+
+export const WithCustomFilter: StoryObj<DAppKitConnectModal> = {
+	args: {
+		open: true,
+		filterFn: (wallet) => wallet.name === 'Slush',
+	},
+};

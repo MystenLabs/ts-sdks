@@ -12,8 +12,8 @@ import { getDefaultInstance } from '../core/index.js';
 import type { DAppKit } from '../core/index.js';
 import { BaseModal } from './internal/base-modal.js';
 import type { UiWallet } from '@wallet-standard/ui';
-import { closeIcon } from './templates/close-icon.js';
-import { backIcon } from './templates/back-icon.js';
+import { closeIcon } from './internal/icons/close-icon.js';
+import { backIcon } from './internal/icons/back-icon.js';
 import type { WalletClickedEvent } from './internal/wallet-list-item.js';
 import { ConnectionStatus } from './internal/connection-status.js';
 import {
@@ -31,7 +31,7 @@ type ModalViewState =
 	| { view: 'error'; wallet: UiWallet; error: unknown };
 
 export type DAppKitConnectModalOptions = {
-	filterFn?: (value: UiWallet, index: number, array: UiWallet[]) => UiWallet;
+	filterFn?: (value: UiWallet, index: number, array: UiWallet[]) => boolean;
 	sortFn?: (a: UiWallet, b: UiWallet) => number;
 };
 
@@ -57,10 +57,10 @@ export class DAppKitConnectModal
 	state: ModalViewState = { view: 'wallet-selection' };
 
 	@property({ attribute: false })
-	filterFn?: (value: UiWallet, index: number, array: UiWallet[]) => UiWallet;
+	filterFn: DAppKitConnectModalOptions['filterFn'];
 
 	@property({ attribute: false })
-	sortFn?: (a: UiWallet, b: UiWallet) => number;
+	sortFn?: DAppKitConnectModalOptions['sortFn'];
 
 	override connectedCallback() {
 		super.connectedCallback();
@@ -96,7 +96,7 @@ export class DAppKitConnectModal
 		switch (this.state.view) {
 			case 'wallet-selection':
 				return html`<wallet-list
-					.wallets=${this.#getWallets}
+					.wallets=${this.#getWallets()}
 					@wallet-clicked=${async (event: WalletClickedEvent) => {
 						this.#attemptConnect(event.detail.wallet);
 					}}
