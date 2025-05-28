@@ -39,6 +39,7 @@ export class DAppKitConnectButton extends ScopedRegistryHost(LitElement) {
 
 	override render() {
 		const connection = this.instance!.stores.$connection.get();
+		console.log(connection);
 		return connection.isConnected
 			? html`<div class="dropdown">TODO</div>`
 			: html`<primary-button @click=${this.#openModal}>

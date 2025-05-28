@@ -24,6 +24,7 @@ import { PrimaryButton } from './internal/button/primary-button.js';
 import { SecondaryButton } from './internal/button/secondary-button.js';
 import { IconButton } from './internal/button/icon-button.js';
 import { styles } from './dapp-kit-connect-modal.styles.js';
+import Task from '@lit/task';
 
 type ModalViewState =
 	| { view: 'wallet-selection' }
