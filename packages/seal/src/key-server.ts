@@ -4,12 +4,7 @@ import { bcs, fromBase64, fromHex, toHex } from '@mysten/bcs';
 import { bls12_381 } from '@noble/curves/bls12-381';
 
 import { KeyServerMove, KeyServerMoveV1 } from './bcs.js';
-import {
-	InvalidKeyServerVersionError,
-	SealAPIError,
-	UnsupportedFeatureError,
-	UnsupportedNetworkError,
-} from './error.js';
+import { InvalidKeyServerVersionError, SealAPIError, UnsupportedNetworkError } from './error.js';
 import { DST_POP } from './ibe.js';
 import { PACKAGE_VERSION } from './version.js';
 import type { SealCompatibleClient } from './types.js';
@@ -73,7 +68,7 @@ export async function retrieveKeyServers({
 
 			if (
 				Number(ks.lastVersion) > EXPECTED_SERVER_VERSION ||
-				Number(ks.firstVersion) > EXPECTED_SERVER_VERSION
+				Number(ks.firstVersion) < EXPECTED_SERVER_VERSION
 			) {
 				throw new InvalidKeyServerVersionError(
 					`Key server ${objectId} supports versions between ${ks.firstVersion} and ${ks.lastVersion}, but SDK expects version ${EXPECTED_SERVER_VERSION}`,
@@ -89,22 +84,15 @@ export async function retrieveKeyServers({
 				},
 			});
 
-			if (ks.firstVersion === '1') {
-				const ksVersioned = KeyServerMoveV1.parse(resVersionedKs.dynamicField.value.bcs);
-				if (ksVersioned.keyType !== 0) {
-					throw new UnsupportedFeatureError(`Unsupported key type ${ksVersioned.keyType}`);
-				}
+			const ksVersioned = KeyServerMoveV1.parse(resVersionedKs.dynamicField.value.bcs);
 
-				return {
-					objectId,
-					name: ksVersioned.name,
-					url: ksVersioned.url,
-					keyType: ksVersioned.keyType,
-					pk: new Uint8Array(ksVersioned.pk),
-				};
-			} else {
-				throw new UnsupportedFeatureError(`Unsupported key server version ${ks.firstVersion}`);
-			}
+			return {
+				objectId,
+				name: ksVersioned.name,
+				url: ksVersioned.url,
+				keyType: ksVersioned.keyType,
+				pk: new Uint8Array(ksVersioned.pk),
+			};
 		}),
 	);
 }
