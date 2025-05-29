@@ -4,7 +4,6 @@
 import { fromBase64, fromHex, toBase64 } from '@mysten/bcs';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { Transaction } from '@mysten/sui/transactions';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -152,7 +151,7 @@ describe('Integration test', () => {
 			whitelistId,
 		]);
 
-		const sessionKey = new SessionKey({
+		const sessionKey = await SessionKey.create({
 			address: suiAddress,
 			packageId: TESTNET_PACKAGE_ID,
 			ttlMin: 10,
@@ -218,7 +217,7 @@ describe('Integration test', () => {
 			whitelistId,
 		]);
 
-		const sessionKey = new SessionKey({
+		const sessionKey = await SessionKey.create({
 			address: suiAddress,
 			packageId: TESTNET_PACKAGE_ID,
 			ttlMin: 10,
@@ -278,7 +277,7 @@ describe('Integration test', () => {
 			whitelistId,
 		]);
 
-		const sessionKey = new SessionKey({
+		const sessionKey = await SessionKey.create({
 			address: suiAddress,
 			packageId: TESTNET_PACKAGE_ID,
 			ttlMin: 10,
@@ -322,7 +321,7 @@ describe('Integration test', () => {
 			whitelistId,
 		]);
 
-		const sessionKey = new SessionKey({
+		const sessionKey = await SessionKey.create({
 			address: suiAddress,
 			packageId: TESTNET_PACKAGE_ID,
 			ttlMin: 10,
@@ -400,11 +399,11 @@ describe('Integration test', () => {
 
 		// Session key with mismatched sui address and personal msg signature fails.
 		const wrongSuiAddress = Ed25519Keypair.generate().getPublicKey().toSuiAddress();
-		const sessionKey = new SessionKey({
+		const sessionKey = await SessionKey.create({
 			address: wrongSuiAddress,
 			packageId: TESTNET_PACKAGE_ID,
 			ttlMin: 10,
-			suiClient: new SuiGraphQLClient({ url: 'https://sui-testnet.mystenlabs.com/graphql' }),
+			suiClient,
 		});
 		const sig = await keypair.signPersonalMessage(sessionKey.getPersonalMessage());
 		await expect(sessionKey.setPersonalMessageSignature(sig.signature)).rejects.toThrow(
@@ -412,12 +411,12 @@ describe('Integration test', () => {
 		);
 
 		// Wrong txBytes fails to verify.
-		const sessionKey2 = new SessionKey({
+		const sessionKey2 = await SessionKey.create({
 			address: suiAddress,
 			packageId: TESTNET_PACKAGE_ID,
 			ttlMin: 10,
 			signer: keypair,
-			suiClient: new SuiGraphQLClient({ url: 'https://sui-testnet.mystenlabs.com/graphql' }),
+			suiClient,
 		});
 
 		const wrongTxBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'whitelist', suiClient, [
@@ -444,12 +443,12 @@ describe('Integration test', () => {
 			verifyKeyServers: false,
 		});
 
-		const sessionKey3 = new SessionKey({
+		const sessionKey3 = await SessionKey.create({
 			address: suiAddress,
 			packageId: TESTNET_PACKAGE_ID,
 			ttlMin: 10,
 			signer: keypair,
-			suiClient: new SuiGraphQLClient({ url: 'https://sui-testnet.mystenlabs.com/graphql' }),
+			suiClient,
 		});
 		await expect(
 			client2.fetchKeys({
@@ -467,11 +466,11 @@ describe('Integration test', () => {
 
 	it('test session key verify personal message signature', async () => {
 		const kp = Ed25519Keypair.generate();
-		const sessionKey = new SessionKey({
+		const sessionKey = await SessionKey.create({
 			address: kp.getPublicKey().toSuiAddress(),
 			packageId: TESTNET_PACKAGE_ID,
 			ttlMin: 10,
-			suiClient: new SuiGraphQLClient({ url: 'https://sui-testnet.mystenlabs.com/graphql' }),
+			suiClient,
 		});
 		// Wrong signature set throws error.
 		const sig = await kp.signPersonalMessage(new TextEncoder().encode('hello'));
@@ -499,6 +498,13 @@ describe('Integration test', () => {
 		});
 		vi.spyOn(client as any, 'getKeyServers').mockResolvedValue(MOCK_KEY_SERVERS);
 
+		// Mock package version check
+		vi.spyOn(suiClient.core, 'getObject').mockResolvedValue({
+			object: {
+				version: '1',
+			},
+		} as any);
+
 		// Mock fetch responses
 		globalFetch
 			.mockRejectedValueOnce(new NoAccessError())
@@ -507,12 +513,12 @@ describe('Integration test', () => {
 			.mockRejectedValueOnce(new Error('Other error'))
 			.mockRejectedValueOnce(new Error('Other error'));
 
-		const sessionKey = new SessionKey({
+		const sessionKey = await SessionKey.create({
 			address: suiAddress,
 			packageId: TESTNET_PACKAGE_ID,
 			ttlMin: 10,
 			signer: keypair,
-			suiClient: new SuiGraphQLClient({ url: 'https://sui-testnet.mystenlabs.com/graphql' }),
+			suiClient,
 		});
 
 		const whitelistId = '0xaae704d2280f2c3d24fc08972bb31f2ef1f1c968784935434c3296be5bfd9d5b';
