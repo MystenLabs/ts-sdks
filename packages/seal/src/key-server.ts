@@ -1,21 +1,17 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { fromBase64, fromHex, toHex } from '@mysten/bcs';
+import { bcs, fromBase64, fromHex, toHex } from '@mysten/bcs';
 import { bls12_381 } from '@noble/curves/bls12-381';
 
-import { KeyServerMove } from './bcs.js';
-import {
-	InvalidGetObjectError,
-	InvalidKeyServerVersionError,
-	SealAPIError,
-	UnsupportedFeatureError,
-	UnsupportedNetworkError,
-} from './error.js';
+import { KeyServerMove, KeyServerMoveV1 } from './bcs.js';
+import { InvalidKeyServerVersionError, SealAPIError, UnsupportedNetworkError } from './error.js';
 import { DST_POP } from './ibe.js';
 import { PACKAGE_VERSION } from './version.js';
 import type { SealCompatibleClient } from './types.js';
 import type { G1Element } from './bls12381.js';
 import { flatten, Version } from './utils.js';
+
+const EXPECTED_SERVER_VERSION = 1;
 
 export type KeyServer = {
 	objectId: string;
@@ -39,8 +35,8 @@ export const SERVER_VERSION_REQUIREMENT = new Version('0.2.0');
 export function getAllowlistedKeyServers(network: 'testnet' | 'mainnet'): string[] {
 	if (network === 'testnet') {
 		return [
-			'0xb35a7228d8cf224ad1e828c0217c95a5153bafc2906d6f9c178197dce26fbcf8',
-			'0x2d6cde8a9d9a65bde3b0a346566945a63b4bfb70e9a06c41bdb70807e2502b06',
+			'0x16b400d866f44cb975dc4cd46c9a1f83fc0b84eaf3a44f3ea140cc96d6481b12',
+			'0x2f75ff0216e82184e3f828b4cc64d2d19a25702e6322cf11e3a211cfdf5f3494',
 		];
 	} else {
 		throw new UnsupportedNetworkError(`Unsupported network ${network}`);
@@ -62,29 +58,40 @@ export async function retrieveKeyServers({
 	objectIds: string[];
 	client: SealCompatibleClient;
 }): Promise<KeyServer[]> {
-	// todo: do not fetch the same object ID if this is fetched before.
 	return await Promise.all(
 		objectIds.map(async (objectId) => {
-			let res;
-			try {
-				res = await client.core.getObject({
-					objectId,
-				});
-			} catch (e) {
-				throw new InvalidGetObjectError(`KeyServer ${objectId} not found; ${(e as Error).message}`);
+			// First get the KeyServer object and validate it.
+			const res = await client.core.getObject({
+				objectId,
+			});
+			const ks = KeyServerMove.parse(res.object.content);
+
+			if (
+				Number(ks.lastVersion) > EXPECTED_SERVER_VERSION ||
+				Number(ks.firstVersion) < EXPECTED_SERVER_VERSION
+			) {
+				throw new InvalidKeyServerVersionError(
+					`Key server ${objectId} supports versions between ${ks.firstVersion} and ${ks.lastVersion}, but SDK expects version ${EXPECTED_SERVER_VERSION}`,
+				);
 			}
 
-			const ks = KeyServerMove.parse(res.object.content);
-			if (ks.keyType !== 0) {
-				throw new UnsupportedFeatureError(`Unsupported key type ${ks.keyType}`);
-			}
+			// Then fetch the expected versioned object and parse it.
+			const resVersionedKs = await client.core.getDynamicField({
+				parentId: objectId,
+				name: {
+					type: 'u64',
+					bcs: bcs.u64().serialize(EXPECTED_SERVER_VERSION).toBytes(),
+				},
+			});
+
+			const ksVersioned = KeyServerMoveV1.parse(resVersionedKs.dynamicField.value.bcs);
 
 			return {
 				objectId,
-				name: ks.name,
-				url: ks.url,
-				keyType: KeyServerType.BonehFranklinBLS12381,
-				pk: new Uint8Array(ks.pk),
+				name: ksVersioned.name,
+				url: ksVersioned.url,
+				keyType: ksVersioned.keyType,
+				pk: new Uint8Array(ksVersioned.pk),
 			};
 		}),
 	);
