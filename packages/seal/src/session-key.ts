@@ -208,7 +208,7 @@ export class SessionKey {
 		suiClient: SuiClient,
 		signer?: Signer,
 	): Promise<SessionKey> {
-		const instance = await SessionKey.create({
+		const instance = new SessionKey({
 			address: data.address,
 			packageId: data.packageId,
 			ttlMin: data.ttlMin,
