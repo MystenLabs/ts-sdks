@@ -1029,4 +1029,247 @@ describe('Transaction.add with async functions', () => {
 			}"
 		`);
 	});
+
+	it('should allow mutation after building', async () => {
+		const transaction = new Transaction();
+		const objAddress = '0x123';
+
+		const result = transaction.add(async (tx) => {
+			return tx.moveCall({
+				target: '0x1::test::get_object',
+				arguments: [tx.object(objAddress)],
+			});
+		});
+
+		await transaction.toJSON();
+
+		transaction.transferObjects([result], '0x0');
+
+		transaction.moveCall({
+			target: '0x1::test::another_call',
+			arguments: [],
+		});
+
+		expect(await transaction.toJSON()).toMatchInlineSnapshot(`
+			"{
+			  "version": 2,
+			  "sender": null,
+			  "expiration": null,
+			  "gasData": {
+			    "budget": null,
+			    "price": null,
+			    "owner": null,
+			    "payment": null
+			  },
+			  "inputs": [
+			    {
+			      "UnresolvedObject": {
+			        "objectId": "0x0000000000000000000000000000000000000000000000000000000000000123"
+			      }
+			    },
+			    {
+			      "Pure": {
+			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+			      }
+			    }
+			  ],
+			  "commands": [
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
+			        "function": "get_object",
+			        "typeArguments": [],
+			        "arguments": [
+			          {
+			            "Input": 0
+			          }
+			        ]
+			      }
+			    },
+			    {
+			      "TransferObjects": {
+			        "objects": [
+			          {
+			            "Result": 1
+			          }
+			        ],
+			        "address": {
+			          "Input": 1
+			        }
+			      }
+			    },
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
+			        "function": "another_call",
+			        "typeArguments": [],
+			        "arguments": []
+			      }
+			    }
+			  ]
+			}"
+		`);
+	});
+
+	it('should allow mutation after restoring with Transaction.from', async () => {
+		const transaction = new Transaction();
+		const objAddress = '0x123';
+
+		const result = transaction.add(async (tx) => {
+			return tx.moveCall({
+				target: '0x1::test::get_object',
+				arguments: [tx.object(objAddress)],
+			});
+		});
+
+		const json = await transaction.toJSON();
+
+		const restoredTransaction = Transaction.from(json);
+
+		restoredTransaction.transferObjects([result], '0x0');
+
+		restoredTransaction.moveCall({
+			target: '0x1::test::another_call',
+			arguments: [],
+		});
+
+		expect(await restoredTransaction.toJSON()).toMatchInlineSnapshot(`
+			"{
+			  "version": 2,
+			  "sender": null,
+			  "expiration": null,
+			  "gasData": {
+			    "budget": null,
+			    "price": null,
+			    "owner": null,
+			    "payment": null
+			  },
+			  "inputs": [
+			    {
+			      "UnresolvedObject": {
+			        "objectId": "0x0000000000000000000000000000000000000000000000000000000000000123"
+			      }
+			    },
+			    {
+			      "Pure": {
+			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+			      }
+			    }
+			  ],
+			  "commands": [
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
+			        "function": "get_object",
+			        "typeArguments": [],
+			        "arguments": [
+			          {
+			            "Input": 0
+			          }
+			        ]
+			      }
+			    },
+			    {
+			      "TransferObjects": {
+			        "objects": [
+			          {
+			            "Result": 1
+			          }
+			        ],
+			        "address": {
+			          "Input": 1
+			        }
+			      }
+			    },
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
+			        "function": "another_call",
+			        "typeArguments": [],
+			        "arguments": []
+			      }
+			    }
+			  ]
+			}"
+		`);
+	});
+
+	it('should allow mutation after restoring with Transaction.fromKind', async () => {
+		const transaction = new Transaction();
+
+		const result = transaction.add(async (tx) => {
+			return tx.moveCall({
+				target: '0x1::test::get_object',
+				arguments: [],
+			});
+		});
+
+		const bytes = await transaction.build({ onlyTransactionKind: true });
+
+		const restoredTransaction = Transaction.fromKind(bytes);
+
+		restoredTransaction.transferObjects([result], '0x0');
+
+		restoredTransaction.moveCall({
+			target: '0x1::test::another_call',
+			arguments: [],
+		});
+
+		expect(await restoredTransaction.toJSON()).toMatchInlineSnapshot(`
+			"{
+			  "version": 2,
+			  "sender": null,
+			  "expiration": null,
+			  "gasData": {
+			    "budget": null,
+			    "price": null,
+			    "owner": null,
+			    "payment": null
+			  },
+			  "inputs": [
+			    {
+			      "Pure": {
+			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+			      }
+			    }
+			  ],
+			  "commands": [
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
+			        "function": "get_object",
+			        "typeArguments": [],
+			        "arguments": []
+			      }
+			    },
+			    {
+			      "TransferObjects": {
+			        "objects": [
+			          {
+			            "Result": 1
+			          }
+			        ],
+			        "address": {
+			          "Input": 0
+			        }
+			      }
+			    },
+			    {
+			      "MoveCall": {
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+			        "module": "test",
+			        "function": "another_call",
+			        "typeArguments": [],
+			        "arguments": []
+			      }
+			    }
+			  ]
+			}"
+		`);
+	});
 });
