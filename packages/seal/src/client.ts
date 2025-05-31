@@ -11,6 +11,7 @@ import {
 	InconsistentKeyServersError,
 	InvalidClientOptionsError,
 	InvalidKeyServerError,
+	InvalidPackageError,
 	InvalidThresholdError,
 	toMajorityError,
 	TooManyFailedFetchKeyRequestsError,
@@ -131,7 +132,11 @@ export class SealClient {
 		data: Uint8Array;
 		aad?: Uint8Array;
 	}) {
-		// TODO: Verify that packageId is first version of its package (else throw error).
+		const packageObj = await this.#suiClient.core.getObject({ objectId: packageId });
+		if (packageObj.object.version !== '1') {
+			throw new InvalidPackageError(`Package ${packageId} is not the first version`);
+		}
+
 		return encrypt({
 			keyServers: await this.#getWeightedKeyServers(),
 			kemType,
