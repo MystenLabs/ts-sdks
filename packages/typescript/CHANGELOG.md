@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.30.2
+
+### Patch Changes
+
+- b265f7e: Fix mutating transactions after building or restoring from Transaction.from
+
 ## 1.30.1
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @mysten/kiosk
 
+## 0.12.8
+
+### Patch Changes
+
+- Updated dependencies [b265f7e]
+  - @mysten/sui@1.30.2
+
 ## 0.12.7
 
 ### Patch Changes

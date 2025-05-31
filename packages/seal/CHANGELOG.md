@@ -1,5 +1,14 @@
 # @mysten/seal
 
+## 0.4.6
+
+### Patch Changes
+
+- 1926114: Require suiClient in SessionKey constructor
+- 83d03f2: Add optional API key to seal client
+- Updated dependencies [b265f7e]
+  - @mysten/sui@1.30.2
+
 ## 0.4.5
 
 ### Patch Changes
