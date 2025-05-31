@@ -164,8 +164,8 @@ export class Transaction {
 			typeof serialized === 'string' ? fromBase64(serialized) : serialized,
 		);
 
-		tx.#inputSection = tx.#data.inputs;
-		tx.#commandSection = tx.#data.commands;
+		tx.#inputSection = tx.#data.inputs.slice();
+		tx.#commandSection = tx.#data.commands.slice();
 
 		return tx;
 	}
@@ -189,8 +189,8 @@ export class Transaction {
 			newTransaction.#data = TransactionDataBuilder.restore(JSON.parse(transaction));
 		}
 
-		newTransaction.#inputSection = newTransaction.#data.inputs;
-		newTransaction.#commandSection = newTransaction.#data.commands;
+		newTransaction.#inputSection = newTransaction.#data.inputs.slice();
+		newTransaction.#commandSection = newTransaction.#data.commands.slice();
 
 		return newTransaction;
 	}
@@ -732,8 +732,8 @@ export class Transaction {
 
 		await createNext(0)();
 
-		this.#inputSection = this.#data.inputs;
-		this.#commandSection = this.#data.commands;
+		this.#inputSection = this.#data.inputs.slice();
+		this.#commandSection = this.#data.commands.slice();
 	}
 
 	async #waitForPendingTasks() {

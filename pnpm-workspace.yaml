@@ -2,6 +2,7 @@ packages:
   - 'packages/**'
   - '!**/dist/**'
   - '!**/.next/**'
+  - '!packages/codegen/tests/move/**'
   - '!packages/create-dapp/templates'
   - '!packages/typescript/scripts'
   - '!packages/typescript/transactions'
