@@ -33,8 +33,14 @@ import { parseTransactionBcs, parseTransactionEffectsBcs } from './utils.js';
 export class GraphQLTransport extends Experimental_CoreClient {
 	#graphqlClient: SuiGraphQLClient;
 
-	constructor(graphqlClient: SuiGraphQLClient) {
-		super({ network: graphqlClient.network });
+	constructor({
+		graphqlClient,
+		mvr,
+	}: {
+		graphqlClient: SuiGraphQLClient;
+		mvr?: Experimental_SuiClientTypes.MvrOptions;
+	}) {
+		super({ network: graphqlClient.network, base: graphqlClient, mvr });
 		this.#graphqlClient = graphqlClient;
 	}
 

@@ -1,23 +1,18 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { SuiClient } from '../../client/index.js';
 import { parseStructTag } from '../../utils/sui-types.js';
 import type { BuildTransactionOptions } from '../resolve.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
 import type { NamedPackagesPluginCache } from './utils.js';
-import {
-	batch,
-	findNamesInTransaction,
-	getFirstLevelNamedTypes,
-	populateNamedTypesFromCache,
-	replaceNames,
-} from './utils.js';
+import { findNamesInTransaction, replaceNames } from './utils.js';
 
 export type NamedPackagesPluginOptions = {
 	/**
 	 * The URL of the MVR API to use for resolving names.
 	 */
-	url: string;
+	url?: string;
 	/**
 	 * The number of names to resolve in each batch request.
 	 * Needs to be calculated based on the GraphQL query limits.
@@ -59,9 +54,9 @@ export type NamedPackagesPluginOptions = {
  */
 export const namedPackagesPlugin = ({
 	url,
-	pageSize = 50,
+	pageSize,
 	overrides = { packages: {}, types: {} },
-}: NamedPackagesPluginOptions) => {
+}: NamedPackagesPluginOptions = {}) => {
 	// validate that types are first-level only.
 	Object.keys(overrides.types).forEach((type) => {
 		if (parseStructTag(type).typeParams.length > 0)
@@ -70,116 +65,50 @@ export const namedPackagesPlugin = ({
 			);
 	});
 
-	const cache = overrides;
-
 	return async (
 		transactionData: TransactionDataBuilder,
-		_buildOptions: BuildTransactionOptions,
+		buildOptions: BuildTransactionOptions,
 		next: () => Promise<void>,
 	) => {
 		const names = findNamesInTransaction(transactionData);
 
-		const [packages, types] = await Promise.all([
-			resolvePackages(
-				names.packages.filter((x) => !cache.packages[x]),
-				url,
-				pageSize,
-			),
-			resolveTypes(
-				[...getFirstLevelNamedTypes(names.types)].filter((x) => !cache.types[x]),
-				url,
-				pageSize,
-			),
-		]);
+		if (names.types.length === 0 && names.packages.length === 0) {
+			return next();
+		}
 
-		// save first-level mappings to cache.
-		Object.assign(cache.packages, packages);
-		Object.assign(cache.types, types);
+		const client = getClient(buildOptions, { url, pageSize });
 
-		const composedTypes = populateNamedTypesFromCache(names.types, cache.types);
+		const resolved = await client.core.resolveMvrNames({
+			types: names.types,
+			packages: names.packages,
+			url,
+			overrides,
+		});
 
 		// when replacing names, we also need to replace the "composed" types collected above.
-		replaceNames(transactionData, {
-			packages: { ...cache.packages },
-			// we include the "composed" type cache too.
-			types: composedTypes,
-		});
+		replaceNames(transactionData, resolved);
 
 		await next();
 	};
-
-	async function resolvePackages(packages: string[], apiUrl: string, pageSize: number) {
-		if (packages.length === 0) return {};
-
-		const batches = batch(packages, pageSize);
-		const results: Record<string, string> = {};
-
-		await Promise.all(
-			batches.map(async (batch) => {
-				const response = await fetch(`${apiUrl}/v1/resolution/bulk`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						names: batch,
-					}),
-				});
-
-				if (!response.ok) {
-					const errorBody = await response.json().catch(() => ({}));
-					throw new Error(`Failed to resolve packages: ${errorBody?.message}`);
-				}
-
-				const data = await response.json();
-
-				if (!data?.resolution) return;
-
-				for (const pkg of Object.keys(data?.resolution)) {
-					const pkgData = data.resolution[pkg]?.package_id;
-
-					if (!pkgData) continue;
-
-					results[pkg] = pkgData;
-				}
-			}),
-		);
-
-		return results;
-	}
-
-	async function resolveTypes(types: string[], apiUrl: string, pageSize: number) {
-		if (types.length === 0) return {};
-
-		const batches = batch(types, pageSize);
-		const results: Record<string, string> = {};
-
-		await Promise.all(
-			batches.map(async (batch) => {
-				const response = await fetch(`${apiUrl}/v1/struct-definition/bulk`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						types: batch,
-					}),
-				});
-
-				if (!response.ok) {
-					const errorBody = await response.json().catch(() => ({}));
-					throw new Error(`Failed to resolve types: ${errorBody?.message}`);
-				}
-
-				const data = await response.json();
-
-				if (!data?.resolution) return;
-
-				for (const type of Object.keys(data?.resolution)) {
-					const typeData = data.resolution[type]?.type_tag;
-					if (!typeData) continue;
-
-					results[type] = typeData;
-				}
-			}),
-		);
-
-		return results;
-	}
 };
+
+function getClient(options: BuildTransactionOptions, pluginOptions: NamedPackagesPluginOptions) {
+	if (!options.client) {
+		if (pluginOptions.url) {
+			// Return a client that can only be used for resolving mvr names
+			// This is a fallback hack for users manually using the mvr plugin rather than configuring mvr through their client
+			return new SuiClient({
+				url: '',
+				mvr: {
+					apiUrl: pluginOptions.url,
+					pageSize: pluginOptions.pageSize,
+				},
+			});
+		}
+		throw new Error(
+			`No sui client passed to Transaction#build, but transaction data was not sufficient to build offline.`,
+		);
+	}
+
+	return options.client;
+}

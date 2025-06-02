@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { isValidNamedPackage, isValidNamedType } from '../../utils/move-registry.js';
-import { normalizeStructTag, parseStructTag } from '../../utils/sui-types.js';
-import type { StructTag } from '../../utils/sui-types.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
 
 export type NamedPackagesPluginCache = {
@@ -60,79 +58,6 @@ export function findNamesInTransaction(builder: TransactionDataBuilder): {
 }
 
 /**
- * Extracts all first-level types from a list of types.
- * E.g. for the input `['@mvr/demo::a::A<@mvr/demo::b::B>']`,
- * the output will be `['@mvr/demo::a::A', '@mvr/demo::b::B']`.
- */
-export function getFirstLevelNamedTypes(types: string[]) {
-	const results: Set<string> = new Set();
-
-	for (const type of types) {
-		findMvrNames(type).forEach((name) => results.add(name));
-	}
-
-	return results;
-}
-
-/**
- * Extracts all named types from a given type.
- */
-function findMvrNames(type: string | StructTag) {
-	const types: Set<string> = new Set();
-
-	if (typeof type === 'string' && !hasMvrName(type)) return types;
-
-	const tag = isStructTag(type) ? type : parseStructTag(type);
-
-	if (hasMvrName(tag.address)) types.add(`${tag.address}::${tag.module}::${tag.name}`);
-
-	for (const param of tag.typeParams) {
-		findMvrNames(param).forEach((name) => types.add(name));
-	}
-
-	return types;
-}
-
-// /**
-//  * Allows partial replacements of known types with their resolved equivalents.
-//  * E.g. `@mvr/demo::a::A<@mvr/demo::b::B>` can be resolved, if we already have
-//  * the address for `@mvr/demo::b::B` and the address for `@mvr/demo::a::A`,
-//  * without the need to have the full type in the cache.
-//  *
-//  * Returns the fully composed resolved types (if any) in a `named-type -> normalized-type` map.
-//  */
-export function populateNamedTypesFromCache(types: string[], typeCache: Record<string, string>) {
-	const composedTypes: Record<string, string> = {};
-
-	types.forEach((type) => {
-		const normalized = normalizeStructTag(findAndReplaceCachedTypes(type, typeCache));
-		composedTypes[type] = normalized;
-	});
-
-	return composedTypes;
-}
-
-/**
- * Traverses a type, and replaces any found names with their resolved equivalents,
- * based on the supplied type cache.
- */
-function findAndReplaceCachedTypes(
-	tag: string | StructTag,
-	typeCache: Record<string, string>,
-): StructTag {
-	const type = isStructTag(tag) ? tag : parseStructTag(tag);
-
-	const typeTag = `${type.address}::${type.module}::${type.name}`;
-	const cacheHit = typeCache[typeTag];
-
-	return {
-		...type,
-		address: cacheHit ? cacheHit.split('::')[0] : type.address,
-		typeParams: type.typeParams.map((param) => findAndReplaceCachedTypes(param, typeCache)),
-	};
-}
-
-/**
  * Replace all names & types in a transaction block
  * with their resolved names/types.
  */
@@ -175,14 +100,6 @@ export function replaceNames(builder: TransactionDataBuilder, cache: NamedPackag
 	}
 }
 
-export function batch<T>(arr: T[], size: number): T[][] {
-	const batches = [];
-	for (let i = 0; i < arr.length; i += size) {
-		batches.push(arr.slice(i, i + size));
-	}
-	return batches;
-}
-
 /**
  * Returns a list of unique types that include a name
  * from the given list. This list is retrieved from the Transaction Data.
@@ -201,15 +118,5 @@ function getNamesFromTypeList(types: string[]) {
 function hasMvrName(nameOrType: string) {
 	return (
 		nameOrType.includes(NAME_SEPARATOR) || nameOrType.includes('@') || nameOrType.includes('.sui')
-	);
-}
-
-function isStructTag(type: string | StructTag): type is StructTag {
-	return (
-		typeof type === 'object' &&
-		'address' in type &&
-		'module' in type &&
-		'name' in type &&
-		'typeParams' in type
 	);
 }

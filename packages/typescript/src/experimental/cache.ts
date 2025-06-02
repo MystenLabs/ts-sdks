@@ -41,6 +41,20 @@ export class ClientCache {
 		return result as T;
 	}
 
+	readSync<T>(key: [string, ...string[]], load: () => T): T {
+		const cacheKey = [this.#prefix, ...key].join(':');
+
+		if (this.#cache.has(cacheKey)) {
+			return this.#cache.get(cacheKey) as T;
+		}
+
+		const result = load();
+
+		this.#cache.set(cacheKey, result);
+
+		return result as T;
+	}
+
 	clear(prefix?: string[]) {
 		const prefixKey = [...this.#prefix, ...(prefix ?? [])].join(':');
 		if (!prefixKey) {

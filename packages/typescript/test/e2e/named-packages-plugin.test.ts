@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest';
 
 import { getFullnodeUrl, SuiClient } from '../../src/client';
 import { namedPackagesPlugin, Transaction } from '../../src/transactions';
-import { getFirstLevelNamedTypes } from '../../src/transactions/plugins/utils';
 import { normalizeSuiAddress } from '../../src/utils';
+import { extractMvrTypes } from '../../src/experimental/suins';
 
 const MAINNET_URL = 'https://mainnet.mvr.mystenlabs.com';
 const TESTNET_URL = 'https://testnet.mvr.mystenlabs.com';
@@ -56,6 +56,18 @@ const localCachePlugin = namedPackagesPlugin({
 	},
 });
 
+const localMvrOverrides = {
+	packages: {
+		'@framework/std': '0x1',
+		'@framework/sui': '0x2',
+	},
+	types: {
+		'@framework/sui::vec_set::VecSet': '0x2::vec_set::VecSet',
+		'@framework/std::string::String': '0x1::string::String',
+		'@framework/sui::sui::SUI': '0x2::sui::SUI',
+	},
+};
+
 describe.concurrent('Name Resolution Plugin', () => {
 	it('Should replace names in a given PTB', async () => {
 		const transaction = new Transaction();
@@ -85,7 +97,9 @@ describe.concurrent('Name Resolution Plugin', () => {
 			elements: [transaction.pure.string('Hello, world!')],
 		});
 
-		const json = JSON.parse(await transaction.toJSON());
+		const json = JSON.parse(
+			await transaction.toJSON({ client: new SuiClient({ url: getFullnodeUrl('testnet') }) }),
+		);
 
 		expect(json.commands[0].MoveCall.package).toBe(normalizeSuiAddress('0x1'));
 		expect(json.commands[1].MoveCall.typeArguments[0]).toBe(`0x1::string::String`);
@@ -116,6 +130,50 @@ describe.concurrent('Name Resolution Plugin (MVR) - Testnet', () => {
 	});
 });
 
+describe.concurrent('Name Resolution Plugin (With client overrides)', () => {
+	it('Should replace composite types in a given PTB', async () => {
+		const transaction = new Transaction();
+
+		const zeroCoin = transaction.moveCall({
+			target: '@framework/sui::coin::zero',
+			typeArguments: ['@framework/sui::sui::SUI'],
+		});
+
+		transaction.transferObjects([zeroCoin], normalizeSuiAddress('0x2'));
+
+		// Types are composed here, without needing any API calls, even if we do not have the
+		// full type in the cache.
+		transaction.moveCall({
+			target: '@framework/std::vector::empty',
+			typeArguments: ['@framework/sui::vec_set::VecSet<@framework/std::string::String>'],
+		});
+
+		const res = await dryRun(transaction, 'testnet', true);
+		expect(res.effects.status.status).toEqual('success');
+	});
+
+	it('Should replace composite types twice, and not have any weird side effects', async () => {
+		const transaction = new Transaction();
+
+		const zeroCoin = transaction.moveCall({
+			target: '@framework/sui::coin::zero',
+			typeArguments: ['@framework/sui::sui::SUI'],
+		});
+
+		transaction.transferObjects([zeroCoin], normalizeSuiAddress('0x2'));
+
+		// Types are composed here, without needing any API calls, even if we do not have the
+		// full type in the cache.
+		transaction.moveCall({
+			target: '@framework/std::vector::empty',
+			typeArguments: ['@framework/sui::vec_set::VecSet<@framework/std::string::String>'],
+		});
+
+		const res = await dryRun(transaction, 'testnet', true);
+		expect(res.effects.status.status).toEqual('success');
+	});
+});
+
 describe.concurrent('Name Resolution Plugin (Local Cache)', () => {
 	it('Should replace composite types in a given PTB', async () => {
 		const transaction = new Transaction();
@@ -139,7 +197,7 @@ describe.concurrent('Name Resolution Plugin (Local Cache)', () => {
 		expect(res.effects.status.status).toEqual('success');
 	});
 
-	it('Should replace compsite types twice, and not have any weird side effects', async () => {
+	it('Should replace composite types twice, and not have any weird side effects', async () => {
 		const transaction = new Transaction();
 		transaction.addSerializationPlugin(localCachePlugin);
 
@@ -196,56 +254,13 @@ describe.concurrent('Utility functions', () => {
 		];
 
 		for (const testSet of testSets) {
-			expect(getFirstLevelNamedTypes(testSet.input)).toEqual(new Set(testSet.output));
+			const extracted = new Set<string>();
+
+			for (const type of testSet.input) {
+				extractMvrTypes(type, extracted);
+			}
+			expect(extracted).toEqual(new Set(testSet.output));
 		}
-	});
-	it('The plugin cache should properly hold a list of types', async () => {
-		const cache = { packages: {}, types: {} };
-		const plugin = namedPackagesPlugin({
-			url: MAINNET_URL,
-			overrides: cache,
-		});
-
-		const transaction = new Transaction();
-
-		transaction.addSerializationPlugin(plugin);
-
-		transaction.makeMoveVec({
-			type: '@pkg/qwer::mvr_a::MvrA<@pkg/qwer::mvr_b::V2>',
-			elements: [],
-		});
-
-		transaction.setSender(normalizeSuiAddress('0x2'));
-		await transaction.build({ client: new SuiClient({ url: getFullnodeUrl('mainnet') }) });
-
-		expect(cache.types).toStrictEqual({
-			'@pkg/qwer::mvr_a::MvrA':
-				'0xc168b8766e69c07b1b5ed194e3dc2b4a2a0e328ae6a06a2cae40e2ec83a3f94f::mvr_a::MvrA',
-			'@pkg/qwer::mvr_b::V2':
-				'0x01dcc0337dfe29d3a20fbaceb28febc424e6b8631e93338ed574b40aadc2a9ea::mvr_b::V2',
-		});
-
-		// Using the above cache in a plugin, and verify it works without network access.
-		// now with the current cache, we can construct the exact same PTB, without any API calls.
-		const plugin2 = namedPackagesPlugin({
-			url: '',
-			overrides: cache,
-		});
-
-		const transaction2 = new Transaction();
-
-		transaction2.addSerializationPlugin(plugin2);
-
-		transaction2.makeMoveVec({
-			type: '@pkg/qwer::mvr_a::MvrA<@pkg/qwer::mvr_b::V2>',
-			elements: [],
-		});
-
-		transaction2.setSender(normalizeSuiAddress('0x2'));
-
-		await transaction2.build({
-			client: new SuiClient({ url: getFullnodeUrl('mainnet') }),
-		});
 	});
 
 	it('Should fail to initialize a plugin with generic type tags', () => {
@@ -326,8 +341,19 @@ const nestedTypeArgsPtb = async (network: 'mainnet' | 'testnet') => {
 	expect(res.effects.status.status).toEqual('success');
 };
 
-const dryRun = async (transaction: Transaction, network: 'mainnet' | 'testnet') => {
-	const client = new SuiClient({ url: getFullnodeUrl(network) });
+const dryRun = async (
+	transaction: Transaction,
+	network: 'mainnet' | 'testnet',
+	withOverrides = false,
+) => {
+	const client = new SuiClient({
+		url: getFullnodeUrl(network),
+		mvr: withOverrides
+			? {
+					overrides: localMvrOverrides,
+				}
+			: undefined,
+	});
 
 	transaction.setSender(normalizeSuiAddress('0x2'));
 

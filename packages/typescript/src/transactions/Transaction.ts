@@ -26,6 +26,7 @@ import { createObjectMethods } from './object.js';
 import { createPure } from './pure.js';
 import { TransactionDataBuilder } from './TransactionData.js';
 import { getIdFromCallArg } from './utils.js';
+import { namedPackagesPlugin } from './plugins/NamedPackagesPlugin.js';
 
 export type TransactionObjectArgument =
 	| Exclude<InferInput<typeof Argument>, { Input: unknown; type?: 'pure' }>
@@ -889,6 +890,10 @@ export class Transaction {
 		}
 
 		const steps = [...this.#serializationPlugins];
+
+		if (options.client) {
+			steps.push(namedPackagesPlugin());
+		}
 
 		for (const intent of intents) {
 			if (options.supportedIntents?.includes(intent)) {

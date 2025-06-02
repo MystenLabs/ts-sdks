@@ -14,9 +14,11 @@ import type {
 export abstract class Experimental_BaseClient {
 	network: Experimental_SuiClientTypes.Network;
 	cache = new ClientCache();
+	base: Experimental_BaseClient;
 
-	constructor({ network }: Experimental_SuiClientTypes.SuiClientOptions) {
+	constructor({ network, base }: Experimental_SuiClientTypes.SuiClientOptions) {
 		this.network = network;
+		this.base = base ?? this;
 	}
 
 	abstract core: Experimental_CoreClient;

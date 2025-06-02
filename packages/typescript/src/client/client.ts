@@ -119,6 +119,7 @@ export interface OrderArguments {
  */
 export type SuiClientOptions = NetworkOrTransport & {
 	network?: Experimental_SuiClientTypes.Network;
+	mvr?: Experimental_SuiClientTypes.MvrOptions;
 };
 
 type NetworkOrTransport =
@@ -140,7 +141,7 @@ export function isSuiClient(client: unknown): client is SuiClient {
 }
 
 export class SuiClient extends Experimental_BaseClient implements SelfRegisteringClientExtension {
-	core: JSONRpcTransport = new JSONRpcTransport(this);
+	core: JSONRpcTransport;
 	jsonRpc = this;
 	protected transport: SuiTransport;
 
@@ -156,6 +157,10 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	constructor(options: SuiClientOptions) {
 		super({ network: options.network ?? 'unknown' });
 		this.transport = options.transport ?? new SuiHTTPTransport({ url: options.url });
+		this.core = new JSONRpcTransport({
+			jsonRpcClient: this,
+			mvr: options.mvr,
+		});
 	}
 
 	async getRpcApiVersion({ signal }: { signal?: AbortSignal } = {}): Promise<string | undefined> {

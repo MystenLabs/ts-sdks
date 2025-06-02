@@ -37,6 +37,16 @@ export namespace Experimental_SuiClientTypes {
 
 	export interface SuiClientOptions {
 		network: Network;
+		base?: Experimental_BaseClient;
+	}
+
+	export interface MvrOptions {
+		apiUrl?: string;
+		pageSize?: number;
+		overrides?: {
+			packages?: Record<string, string>;
+			types?: Record<string, string>;
+		};
 	}
 
 	export interface CoreClientMethodOptions {

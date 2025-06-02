@@ -52,6 +52,7 @@ export interface SuiGraphQLClientOptions<Queries extends Record<string, GraphQLD
 	headers?: Record<string, string>;
 	queries?: Queries;
 	network?: Experimental_SuiClientTypes.Network;
+	mvr?: Experimental_SuiClientTypes.MvrOptions;
 }
 
 export class SuiGraphQLRequestError extends Error {}
@@ -64,7 +65,7 @@ export class SuiGraphQLClient<
 	#queries: Queries;
 	#headers: Record<string, string>;
 	#fetch: typeof fetch;
-	core: GraphQLTransport = new GraphQLTransport(this);
+	core: GraphQLTransport;
 
 	constructor({
 		url,
@@ -72,6 +73,7 @@ export class SuiGraphQLClient<
 		headers = {},
 		queries = {} as Queries,
 		network = 'unknown',
+		mvr,
 	}: SuiGraphQLClientOptions<Queries>) {
 		super({
 			network,
@@ -80,6 +82,10 @@ export class SuiGraphQLClient<
 		this.#queries = queries;
 		this.#headers = headers;
 		this.#fetch = (...args) => fetchFn(...args);
+		this.core = new GraphQLTransport({
+			graphqlClient: this,
+			mvr,
+		});
 	}
 
 	async query<Result = Record<string, unknown>, Variables = Record<string, unknown>>(
