@@ -29,7 +29,7 @@ export enum KeyServerType {
 	BonehFranklinBLS12381 = 0,
 }
 
-export const SERVER_VERSION_REQUIREMENT = new Version('0.2.0');
+export const SERVER_VERSION_REQUIREMENT = new Version('0.4.0');
 
 /**
  * Returns a static list of Seal key server object ids that the dapp can choose to use.
