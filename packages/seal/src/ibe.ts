@@ -153,3 +153,14 @@ function encapBatched(publicKeys: G2Element[], id: Uint8Array): [Scalar, G2Eleme
 function decap(nonce: G2Element, usk: G1Element): GTElement {
 	return usk.pairing(nonce);
 }
+
+export function verifyNonce(nonce: G2Element, randomness: Scalar): boolean {
+	return G2Element.generator().multiply(randomness).equals(nonce);
+}
+
+export function decryptRandomness(
+	encryptedRandomness: Uint8Array,
+	randomnessKey: Uint8Array,
+): Scalar {
+	return Scalar.fromBytes(xor(encryptedRandomness, randomnessKey));
+}

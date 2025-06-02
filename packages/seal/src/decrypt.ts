@@ -9,7 +9,7 @@ import type { G1Element } from './bls12381.js';
 import { G2Element } from './bls12381.js';
 import { AesGcm256, Hmac256Ctr } from './dem.js';
 import { InvalidCiphertextError, UnsupportedFeatureError } from './error.js';
-import { BonehFranklinBLS12381Services } from './ibe.js';
+import { BonehFranklinBLS12381Services, decryptRandomness, verifyNonce } from './ibe.js';
 import { deriveKey, KeyPurpose } from './kdf.js';
 import type { KeyCacheKey } from './types.js';
 import { createFullId, flatten } from './utils.js';
@@ -69,6 +69,27 @@ export async function decrypt({ encryptedObject, keys }: DecryptOptions): Promis
 	// Combine the decrypted shares into the key.
 	const baseKey = await combine(shares);
 
+	// Decrypt randomness and check validity of the nonce
+	const randomnessKey = deriveKey(
+		KeyPurpose.EncryptedRandomness,
+		baseKey,
+		encryptedShares,
+		encryptedObject.threshold,
+		encryptedObject.services.map(([objectIds, _]) => objectIds),
+	);
+	if (
+		!verifyNonce(
+			nonce,
+			decryptRandomness(
+				encryptedObject.encryptedShares.BonehFranklinBLS12381.encryptedRandomness,
+				randomnessKey,
+			),
+		)
+	) {
+		throw new InvalidCiphertextError('Invalid nonce');
+	}
+
+	// Derive the DEM key and decrypt the ciphertext
 	const demKey = deriveKey(
 		KeyPurpose.DEM,
 		baseKey,

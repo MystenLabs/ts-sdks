@@ -85,6 +85,10 @@ export class G2Element {
 			bls12_381.G2.ProjectivePoint.fromAffine(bls12_381.G2.hashToCurve(data).toAffine()),
 		);
 	}
+
+	equals(other: G2Element): boolean {
+		return this.point.equals(other.point);
+	}
 }
 
 export class GTElement {
