@@ -1,7 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { SuiClient } from '../../client/index.js';
+// eslint-disable-next-line import/no-cycle
+import { SuiClient } from '../../client/client.js';
 import { parseStructTag } from '../../utils/sui-types.js';
 import type { BuildTransactionOptions } from '../resolve.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';

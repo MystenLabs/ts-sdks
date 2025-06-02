@@ -162,7 +162,7 @@ export function replaceMvrNames(
 	});
 }
 
-function hasMvrName(nameOrType: string) {
+export function hasMvrName(nameOrType: string) {
 	return (
 		nameOrType.includes(NAME_SEPARATOR) || nameOrType.includes('@') || nameOrType.includes('.sui')
 	);

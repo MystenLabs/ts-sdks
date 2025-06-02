@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '../../bcs/index.js';
-import { TransactionDataBuilder } from '../../transactions/index.js';
+import { TransactionDataBuilder } from '../../transactions/TransactionData.js';
 import type { Experimental_SuiClientTypes } from '../types.js';
 
 export function parseTransactionBcs(

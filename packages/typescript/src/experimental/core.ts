@@ -14,7 +14,7 @@ import {
 	resolvePackages,
 	resolveTypes,
 	validateOverrides,
-} from './suins.js';
+} from './mvr.js';
 
 export type ClientWithCoreApi = ClientWithExtensions<{
 	core: Experimental_CoreClient;

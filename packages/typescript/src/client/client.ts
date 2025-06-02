@@ -4,13 +4,14 @@ import { fromBase58, toBase64, toHex } from '@mysten/bcs';
 
 import type { Signer } from '../cryptography/index.js';
 import { Experimental_BaseClient } from '../experimental/client.js';
+// eslint-disable-next-line import/no-cycle
 import { JSONRpcTransport } from '../experimental/transports/jsonRPC.js';
 import type {
 	Experimental_SuiClientTypes,
 	SelfRegisteringClientExtension,
 } from '../experimental/types.js';
-import type { Transaction } from '../transactions/index.js';
-import { isTransaction } from '../transactions/index.js';
+import type { Transaction } from '../transactions/Transaction.js';
+import { isTransaction } from '../transactions/Transaction.js';
 import {
 	isValidSuiAddress,
 	isValidSuiObjectId,
@@ -101,6 +102,8 @@ import type {
 	VerifyZkLoginSignatureParams,
 	ZkLoginVerifyResult,
 } from './types/index.js';
+import { isValidNamedPackage } from '../utils/move-registry.js';
+import { hasMvrName } from '../experimental/mvr.js';
 
 export interface PaginationArguments<Cursor> {
 	/** Optional paging cursor */
@@ -176,15 +179,27 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	/**
 	 * Get all Coin<`coin_type`> objects owned by an address.
 	 */
-	async getCoins(input: GetCoinsParams): Promise<PaginatedCoins> {
-		if (!input.owner || !isValidSuiAddress(normalizeSuiAddress(input.owner))) {
+	async getCoins({
+		coinType,
+		owner,
+		cursor,
+		limit,
+		signal,
+	}: GetCoinsParams): Promise<PaginatedCoins> {
+		if (!owner || !isValidSuiAddress(normalizeSuiAddress(owner))) {
 			throw new Error('Invalid Sui address');
+		}
+
+		if (coinType && hasMvrName(coinType)) {
+			coinType = await this.core.resolveMvrType({
+				type: coinType,
+			});
 		}
 
 		return await this.transport.request({
 			method: 'suix_getCoins',
-			params: [input.owner, input.coinType, input.cursor, input.limit],
-			signal: input.signal,
+			params: [owner, coinType, cursor, limit],
+			signal: signal,
 		});
 	}
 
@@ -206,14 +221,21 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	/**
 	 * Get the total coin balance for one coin type, owned by the address owner.
 	 */
-	async getBalance(input: GetBalanceParams): Promise<CoinBalance> {
-		if (!input.owner || !isValidSuiAddress(normalizeSuiAddress(input.owner))) {
+	async getBalance({ owner, coinType, signal }: GetBalanceParams): Promise<CoinBalance> {
+		if (!owner || !isValidSuiAddress(normalizeSuiAddress(owner))) {
 			throw new Error('Invalid Sui address');
 		}
+
+		if (coinType && hasMvrName(coinType)) {
+			coinType = await this.core.resolveMvrType({
+				type: coinType,
+			});
+		}
+
 		return await this.transport.request({
 			method: 'suix_getBalance',
-			params: [input.owner, input.coinType],
-			signal: input.signal,
+			params: [owner, coinType],
+			signal: signal,
 		});
 	}
 
@@ -234,22 +256,34 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	/**
 	 * Fetch CoinMetadata for a given coin type
 	 */
-	async getCoinMetadata(input: GetCoinMetadataParams): Promise<CoinMetadata | null> {
+	async getCoinMetadata({ coinType, signal }: GetCoinMetadataParams): Promise<CoinMetadata | null> {
+		if (coinType && hasMvrName(coinType)) {
+			coinType = await this.core.resolveMvrType({
+				type: coinType,
+			});
+		}
+
 		return await this.transport.request({
 			method: 'suix_getCoinMetadata',
-			params: [input.coinType],
-			signal: input.signal,
+			params: [coinType],
+			signal: signal,
 		});
 	}
 
 	/**
 	 *  Fetch total supply for a coin
 	 */
-	async getTotalSupply(input: GetTotalSupplyParams): Promise<CoinSupply> {
+	async getTotalSupply({ coinType, signal }: GetTotalSupplyParams): Promise<CoinSupply> {
+		if (coinType && hasMvrName(coinType)) {
+			coinType = await this.core.resolveMvrType({
+				type: coinType,
+			});
+		}
+
 		return await this.transport.request({
 			method: 'suix_getTotalSupply',
-			params: [input.coinType],
-			signal: input.signal,
+			params: [coinType],
+			signal: signal,
 		});
 	}
 
@@ -269,13 +303,22 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	/**
 	 * Get Move function argument types like read, write and full access
 	 */
-	async getMoveFunctionArgTypes(
-		input: GetMoveFunctionArgTypesParams,
-	): Promise<SuiMoveFunctionArgType[]> {
+	async getMoveFunctionArgTypes({
+		package: pkg,
+		module,
+		function: fn,
+		signal,
+	}: GetMoveFunctionArgTypesParams): Promise<SuiMoveFunctionArgType[]> {
+		if (pkg && isValidNamedPackage(pkg)) {
+			pkg = await this.core.resolveMvrPackage({
+				name: pkg,
+			});
+		}
+
 		return await this.transport.request({
 			method: 'sui_getMoveFunctionArgTypes',
-			params: [input.package, input.module, input.function],
-			signal: input.signal,
+			params: [pkg, module, fn],
+			signal: signal,
 		});
 	}
 
@@ -283,52 +326,85 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	 * Get a map from module name to
 	 * structured representations of Move modules
 	 */
-	async getNormalizedMoveModulesByPackage(
-		input: GetNormalizedMoveModulesByPackageParams,
-	): Promise<SuiMoveNormalizedModules> {
+	async getNormalizedMoveModulesByPackage({
+		package: pkg,
+		signal,
+	}: GetNormalizedMoveModulesByPackageParams): Promise<SuiMoveNormalizedModules> {
+		if (pkg && isValidNamedPackage(pkg)) {
+			pkg = await this.core.resolveMvrPackage({
+				name: pkg,
+			});
+		}
+
 		return await this.transport.request({
 			method: 'sui_getNormalizedMoveModulesByPackage',
-			params: [input.package],
-			signal: input.signal,
+			params: [pkg],
+			signal: signal,
 		});
 	}
 
 	/**
 	 * Get a structured representation of Move module
 	 */
-	async getNormalizedMoveModule(
-		input: GetNormalizedMoveModuleParams,
-	): Promise<SuiMoveNormalizedModule> {
+	async getNormalizedMoveModule({
+		package: pkg,
+		module,
+		signal,
+	}: GetNormalizedMoveModuleParams): Promise<SuiMoveNormalizedModule> {
+		if (pkg && isValidNamedPackage(pkg)) {
+			pkg = await this.core.resolveMvrPackage({
+				name: pkg,
+			});
+		}
+
 		return await this.transport.request({
 			method: 'sui_getNormalizedMoveModule',
-			params: [input.package, input.module],
-			signal: input.signal,
+			params: [pkg, module],
+			signal: signal,
 		});
 	}
 
 	/**
 	 * Get a structured representation of Move function
 	 */
-	async getNormalizedMoveFunction(
-		input: GetNormalizedMoveFunctionParams,
-	): Promise<SuiMoveNormalizedFunction> {
+	async getNormalizedMoveFunction({
+		package: pkg,
+		module,
+		function: fn,
+		signal,
+	}: GetNormalizedMoveFunctionParams): Promise<SuiMoveNormalizedFunction> {
+		if (pkg && isValidNamedPackage(pkg)) {
+			pkg = await this.core.resolveMvrPackage({
+				name: pkg,
+			});
+		}
+
 		return await this.transport.request({
 			method: 'sui_getNormalizedMoveFunction',
-			params: [input.package, input.module, input.function],
-			signal: input.signal,
+			params: [pkg, module, fn],
+			signal: signal,
 		});
 	}
 
 	/**
 	 * Get a structured representation of Move struct
 	 */
-	async getNormalizedMoveStruct(
-		input: GetNormalizedMoveStructParams,
-	): Promise<SuiMoveNormalizedStruct> {
+	async getNormalizedMoveStruct({
+		package: pkg,
+		module,
+		struct,
+		signal,
+	}: GetNormalizedMoveStructParams): Promise<SuiMoveNormalizedStruct> {
+		if (pkg && isValidNamedPackage(pkg)) {
+			pkg = await this.core.resolveMvrPackage({
+				name: pkg,
+			});
+		}
+
 		return await this.transport.request({
 			method: 'sui_getNormalizedMoveStruct',
-			params: [input.package, input.module, input.struct],
-			signal: input.signal,
+			params: [pkg, module, struct],
+			signal: signal,
 		});
 	}
 
@@ -340,12 +416,31 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 			throw new Error('Invalid Sui address');
 		}
 
+		const filter = input.filter
+			? {
+					...input.filter,
+				}
+			: undefined;
+
+		if (filter && 'MoveModule' in filter && isValidNamedPackage(filter.MoveModule.package)) {
+			filter.MoveModule = {
+				module: filter.MoveModule.module,
+				package: await this.core.resolveMvrPackage({
+					name: filter.MoveModule.package,
+				}),
+			};
+		} else if (filter && 'StructType' in filter && hasMvrName(filter.StructType)) {
+			filter.StructType = await this.core.resolveMvrType({
+				type: filter.StructType,
+			});
+		}
+
 		return await this.transport.request({
 			method: 'suix_getOwnedObjects',
 			params: [
 				input.owner,
 				{
-					filter: input.filter,
+					filter,
 					options: input.options,
 				} as SuiObjectResponseQuery,
 				input.cursor,
@@ -401,21 +496,37 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	/**
 	 * Get transaction blocks for a given query criteria
 	 */
-	async queryTransactionBlocks(
-		input: QueryTransactionBlocksParams,
-	): Promise<PaginatedTransactionResponse> {
+	async queryTransactionBlocks({
+		filter,
+		options,
+		cursor,
+		limit,
+		order,
+		signal,
+	}: QueryTransactionBlocksParams): Promise<PaginatedTransactionResponse> {
+		if (filter && 'MoveFunction' in filter && isValidNamedPackage(filter.MoveFunction.package)) {
+			filter = {
+				...filter,
+				MoveFunction: {
+					package: await this.core.resolveMvrPackage({
+						name: filter.MoveFunction.package,
+					}),
+				},
+			};
+		}
+
 		return await this.transport.request({
 			method: 'suix_queryTransactionBlocks',
 			params: [
 				{
-					filter: input.filter,
-					options: input.options,
+					filter,
+					options,
 				} as SuiTransactionBlockResponseQuery,
-				input.cursor,
-				input.limit,
-				(input.order || 'descending') === 'descending',
+				cursor,
+				limit,
+				(order || 'descending') === 'descending',
 			],
-			signal: input.signal,
+			signal,
 		});
 	}
 
@@ -583,16 +694,50 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	/**
 	 * Get events for a given query criteria
 	 */
-	async queryEvents(input: QueryEventsParams): Promise<PaginatedEvents> {
+	async queryEvents({
+		query,
+		cursor,
+		limit,
+		order,
+		signal,
+	}: QueryEventsParams): Promise<PaginatedEvents> {
+		if (query && 'MoveEventType' in query && hasMvrName(query.MoveEventType)) {
+			query = {
+				...query,
+				MoveEventType: await this.core.resolveMvrType({
+					type: query.MoveEventType,
+				}),
+			};
+		}
+
+		if (query && 'MoveEventModule' in query && isValidNamedPackage(query.MoveEventModule.package)) {
+			query = {
+				...query,
+				MoveEventModule: {
+					module: query.MoveEventModule.module,
+					package: await this.core.resolveMvrPackage({
+						name: query.MoveEventModule.package,
+					}),
+				},
+			};
+		}
+
+		if ('MoveModule' in query && isValidNamedPackage(query.MoveModule.package)) {
+			query = {
+				...query,
+				MoveModule: {
+					module: query.MoveModule.module,
+					package: await this.core.resolveMvrPackage({
+						name: query.MoveModule.package,
+					}),
+				},
+			};
+		}
+
 		return await this.transport.request({
 			method: 'suix_queryEvents',
-			params: [
-				input.query,
-				input.cursor,
-				input.limit,
-				(input.order || 'descending') === 'descending',
-			],
-			signal: input.signal,
+			params: [query, cursor, limit, (order || 'descending') === 'descending'],
+			signal,
 		});
 	}
 
