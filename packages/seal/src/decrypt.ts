@@ -12,11 +12,13 @@ import { InvalidCiphertextError, UnsupportedFeatureError } from './error.js';
 import { BonehFranklinBLS12381Services } from './ibe.js';
 import { deriveKey, KeyPurpose } from './kdf.js';
 import type { KeyCacheKey } from './types.js';
-import { createFullId, flatten } from './utils.js';
+import { createFullId, equals, flatten } from './utils.js';
+import { interpolate } from './tss.js';
 
 export interface DecryptOptions {
 	encryptedObject: typeof EncryptedObject.$inferType;
 	keys: Map<KeyCacheKey, G1Element>;
+	publicKeys?: G2Element[];
 }
 
 /**
@@ -24,9 +26,15 @@ export interface DecryptOptions {
  * It's assumed that fetchKeys has been called to fetch the secret keys for enough key servers
  * otherwise, this will throw an error.
  *
+ * If all public keys are provided, the shares are checked for consistency.
+ *
  * @returns - The decrypted plaintext corresponding to ciphertext.
  */
-export async function decrypt({ encryptedObject, keys }: DecryptOptions): Promise<Uint8Array> {
+export async function decrypt({
+	encryptedObject,
+	keys,
+	publicKeys,
+}: DecryptOptions): Promise<Uint8Array> {
 	if (!encryptedObject.encryptedShares.BonehFranklinBLS12381) {
 		throw new UnsupportedFeatureError('Encryption mode not supported');
 	}
@@ -66,8 +74,30 @@ export async function decrypt({ encryptedObject, keys }: DecryptOptions): Promis
 		return { index, share };
 	});
 
-	// Combine the decrypted shares into the key.
-	const baseKey = await combine(shares);
+	let baseKey: Uint8Array;
+
+	// If public keys are provided, check consistency of the shares.
+	if (publicKeys) {
+		const polynomial = interpolate(shares);
+		baseKey = polynomial(0);
+
+		const allShares = BonehFranklinBLS12381Services.decryptAllShares(
+			encryptedObject.encryptedShares.BonehFranklinBLS12381.encryptedRandomness,
+			encryptedShares,
+			encryptedObject.services,
+			baseKey,
+			publicKeys,
+			nonce,
+			encryptedObject.threshold,
+			fromHex(fullId),
+		);
+
+		if (allShares.some(({ index, share }) => !equals(polynomial(index), share))) {
+			throw new InvalidCiphertextError('Invalid shares');
+		}
+	} else {
+		baseKey = await combine(shares);
+	}
 
 	const demKey = deriveKey(
 		KeyPurpose.DEM,
