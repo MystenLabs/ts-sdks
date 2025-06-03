@@ -1,5 +1,11 @@
 # @mysten/seal
 
+## 0.4.7
+
+### Patch Changes
+
+- dc1dd67: Allow MVR names in signed message
+
 ## 0.4.6
 
 ### Patch Changes
