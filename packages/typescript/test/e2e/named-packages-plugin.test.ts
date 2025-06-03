@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { getFullnodeUrl, SuiClient } from '../../src/client';
 import { namedPackagesPlugin, Transaction } from '../../src/transactions';
 import { normalizeSuiAddress } from '../../src/utils';
-import { extractMvrTypes } from '../../src/experimental/suins';
+import { extractMvrTypes } from '../../src/experimental/mvr';
 
 const MAINNET_URL = 'https://mainnet.mvr.mystenlabs.com';
 const TESTNET_URL = 'https://testnet.mvr.mystenlabs.com';

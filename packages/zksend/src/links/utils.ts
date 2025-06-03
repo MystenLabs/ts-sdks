@@ -5,8 +5,6 @@ import type { ObjectOwner, SuiObjectChange, SuiTransactionBlockResponse } from '
 import type { Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, normalizeSuiAddress, parseStructTag } from '@mysten/sui/utils';
 
-// eslint-disable-next-line import/no-cycle
-
 export interface LinkAssets {
 	balances: {
 		coinType: string;

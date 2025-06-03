@@ -4,7 +4,6 @@ import { fromBase58, toBase64, toHex } from '@mysten/bcs';
 
 import type { Signer } from '../cryptography/index.js';
 import { Experimental_BaseClient } from '../experimental/client.js';
-// eslint-disable-next-line import/no-cycle
 import { JSONRpcTransport } from '../experimental/transports/jsonRPC.js';
 import type {
 	Experimental_SuiClientTypes,
@@ -191,7 +190,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		}
 
 		if (coinType && hasMvrName(coinType)) {
-			coinType = await this.core.resolveMvrType({
+			coinType = await this.core.resolveNamedType({
 				type: coinType,
 			});
 		}
@@ -227,7 +226,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		}
 
 		if (coinType && hasMvrName(coinType)) {
-			coinType = await this.core.resolveMvrType({
+			coinType = await this.core.resolveNamedType({
 				type: coinType,
 			});
 		}
@@ -258,7 +257,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	 */
 	async getCoinMetadata({ coinType, signal }: GetCoinMetadataParams): Promise<CoinMetadata | null> {
 		if (coinType && hasMvrName(coinType)) {
-			coinType = await this.core.resolveMvrType({
+			coinType = await this.core.resolveNamedType({
 				type: coinType,
 			});
 		}
@@ -275,7 +274,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	 */
 	async getTotalSupply({ coinType, signal }: GetTotalSupplyParams): Promise<CoinSupply> {
 		if (coinType && hasMvrName(coinType)) {
-			coinType = await this.core.resolveMvrType({
+			coinType = await this.core.resolveNamedType({
 				type: coinType,
 			});
 		}
@@ -310,7 +309,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		signal,
 	}: GetMoveFunctionArgTypesParams): Promise<SuiMoveFunctionArgType[]> {
 		if (pkg && isValidNamedPackage(pkg)) {
-			pkg = await this.core.resolveMvrPackage({
+			pkg = await this.core.resolveNamedPackage({
 				name: pkg,
 			});
 		}
@@ -331,7 +330,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		signal,
 	}: GetNormalizedMoveModulesByPackageParams): Promise<SuiMoveNormalizedModules> {
 		if (pkg && isValidNamedPackage(pkg)) {
-			pkg = await this.core.resolveMvrPackage({
+			pkg = await this.core.resolveNamedPackage({
 				name: pkg,
 			});
 		}
@@ -352,7 +351,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		signal,
 	}: GetNormalizedMoveModuleParams): Promise<SuiMoveNormalizedModule> {
 		if (pkg && isValidNamedPackage(pkg)) {
-			pkg = await this.core.resolveMvrPackage({
+			pkg = await this.core.resolveNamedPackage({
 				name: pkg,
 			});
 		}
@@ -374,7 +373,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		signal,
 	}: GetNormalizedMoveFunctionParams): Promise<SuiMoveNormalizedFunction> {
 		if (pkg && isValidNamedPackage(pkg)) {
-			pkg = await this.core.resolveMvrPackage({
+			pkg = await this.core.resolveNamedPackage({
 				name: pkg,
 			});
 		}
@@ -396,7 +395,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		signal,
 	}: GetNormalizedMoveStructParams): Promise<SuiMoveNormalizedStruct> {
 		if (pkg && isValidNamedPackage(pkg)) {
-			pkg = await this.core.resolveMvrPackage({
+			pkg = await this.core.resolveNamedPackage({
 				name: pkg,
 			});
 		}
@@ -425,12 +424,12 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		if (filter && 'MoveModule' in filter && isValidNamedPackage(filter.MoveModule.package)) {
 			filter.MoveModule = {
 				module: filter.MoveModule.module,
-				package: await this.core.resolveMvrPackage({
+				package: await this.core.resolveNamedPackage({
 					name: filter.MoveModule.package,
 				}),
 			};
 		} else if (filter && 'StructType' in filter && hasMvrName(filter.StructType)) {
-			filter.StructType = await this.core.resolveMvrType({
+			filter.StructType = await this.core.resolveNamedType({
 				type: filter.StructType,
 			});
 		}
@@ -508,7 +507,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 			filter = {
 				...filter,
 				MoveFunction: {
-					package: await this.core.resolveMvrPackage({
+					package: await this.core.resolveNamedPackage({
 						name: filter.MoveFunction.package,
 					}),
 				},
@@ -704,7 +703,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		if (query && 'MoveEventType' in query && hasMvrName(query.MoveEventType)) {
 			query = {
 				...query,
-				MoveEventType: await this.core.resolveMvrType({
+				MoveEventType: await this.core.resolveNamedType({
 					type: query.MoveEventType,
 				}),
 			};
@@ -715,7 +714,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 				...query,
 				MoveEventModule: {
 					module: query.MoveEventModule.module,
-					package: await this.core.resolveMvrPackage({
+					package: await this.core.resolveNamedPackage({
 						name: query.MoveEventModule.package,
 					}),
 				},
@@ -727,7 +726,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 				...query,
 				MoveModule: {
 					module: query.MoveModule.module,
-					package: await this.core.resolveMvrPackage({
+					package: await this.core.resolveNamedPackage({
 						name: query.MoveModule.package,
 					}),
 				},

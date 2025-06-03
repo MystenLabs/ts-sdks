@@ -1,20 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { DataLoader } from '@mysten/utils';
 import { TypeTagSerializer } from '../bcs/type-tag-serializer.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { normalizeStructTag, parseStructTag, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
 import { Experimental_BaseClient } from './client.js';
 import type { ClientWithExtensions, Experimental_SuiClientTypes } from './types.js';
-import {
-	extractMvrTypes,
-	replaceMvrNames,
-	resolvePackages,
-	resolveTypes,
-	validateOverrides,
-} from './mvr.js';
+import { MvrClient } from './mvr.js';
 
 export type ClientWithCoreApi = ClientWithExtensions<{
 	core: Experimental_CoreClient;
@@ -31,66 +24,15 @@ export abstract class Experimental_CoreClient
 	implements Experimental_SuiClientTypes.TransportMethods
 {
 	core = this;
-	#mvrUrl?: string;
-	#mvrPageSize: number;
-	#mvrOverrides?: {
-		packages?: Record<string, string>;
-		types?: Record<string, string>;
-	};
-	#cache = this.base.cache.scope('core');
+	#mvrClient: MvrClient;
 
 	constructor(options: Experimental_CoreClientOptions) {
 		super(options);
-		this.#mvrUrl = options.mvr?.apiUrl;
-		this.#mvrPageSize = options.mvr?.pageSize ?? 50;
-		this.#mvrOverrides = options.mvr?.overrides;
-		validateOverrides(this.#mvrOverrides);
-	}
-
-	#mvrPackageDataLoader(url = this.#mvrUrl) {
-		return this.#cache.readSync(['#mvrPackageDataLoader', url ?? ''], () => {
-			const loader = new DataLoader<string, string>(async (packages) => {
-				if (!url) {
-					throw new Error('MVR Api URL is not set for the current client');
-				}
-				const resolved = await resolvePackages(packages, url, this.#mvrPageSize);
-
-				return packages.map(
-					(pkg) => resolved[pkg] ?? new Error(`Failed to resolve package: ${pkg}`),
-				);
-			});
-			const overrides = this.#mvrOverrides?.packages;
-
-			if (overrides) {
-				for (const [pkg, id] of Object.entries(overrides)) {
-					loader.prime(pkg, id);
-				}
-			}
-
-			return loader;
-		});
-	}
-
-	#mvrTypeDataLoader(url = this.#mvrUrl) {
-		return this.#cache.readSync(['#mvrTypeDataLoader', url ?? ''], () => {
-			const loader = new DataLoader<string, string>(async (types) => {
-				if (!url) {
-					throw new Error('MVR Api URL is not set for the current client');
-				}
-				const resolved = await resolveTypes(types, url, this.#mvrPageSize);
-
-				return types.map((type) => resolved[type] ?? new Error(`Failed to resolve type: ${type}`));
-			});
-
-			const overrides = this.#mvrOverrides?.types;
-
-			if (overrides) {
-				for (const [type, id] of Object.entries(overrides)) {
-					loader.prime(type, id);
-				}
-			}
-
-			return loader;
+		this.#mvrClient = new MvrClient({
+			cache: this.base.cache.scope('core'),
+			url: options.mvr?.apiUrl,
+			pageSize: options.mvr?.pageSize,
+			overrides: options.mvr?.overrides,
 		});
 	}
 
@@ -231,91 +173,18 @@ export abstract class Experimental_CoreClient
 		}
 	}
 
-	resolveMvrPackage({ name, url }: { name: string; url?: string }): Promise<string> {
-		return this.#mvrPackageDataLoader(url).load(name);
+	resolveNamedPackage({ name }: { name: string }): Promise<string> {
+		return this.#mvrClient.resolveNamedPackage({ name });
 	}
 
-	async resolveMvrType({ type, url }: { type: string; url?: string }): Promise<string> {
-		const mvrTypes = [...extractMvrTypes(type)];
-		const resolvedTypes = await this.#mvrTypeDataLoader(url).loadMany(mvrTypes);
-
-		const typeMap: Record<string, string> = {};
-
-		for (let i = 0; i < mvrTypes.length; i++) {
-			const resolvedType = resolvedTypes[i];
-			if (resolvedType instanceof Error) {
-				throw resolvedType;
-			}
-			typeMap[mvrTypes[i]] = resolvedType;
-		}
-
-		return replaceMvrNames(type, typeMap);
+	resolveNamedType({ type }: { type: string }): Promise<string> {
+		return this.#mvrClient.resolveNamedType({ type });
 	}
 
-	async resolveMvrNames({
-		types,
-		packages,
-		url,
-		overrides,
-	}: {
-		types?: string[];
-		packages?: string[];
-		url?: string;
-		/** @deprecated */
-		overrides?: {
-			packages?: Record<string, string>;
-			types?: Record<string, string>;
-		};
-	}): Promise<{ types: Record<string, string>; packages: Record<string, string> }> {
-		const mvrTypes = new Set<string>();
-
-		for (const type of types ?? []) {
-			extractMvrTypes(type, mvrTypes);
-		}
-
-		const filteredTypes = [...mvrTypes].filter((x) => !overrides?.types?.[x]);
-		const filteredPackages = packages?.filter((x) => !overrides?.packages?.[x]) ?? [];
-
-		const [resolvedTypes, resolvedPackages] = await Promise.all([
-			filteredTypes.length > 0 ? this.#mvrTypeDataLoader(url).loadMany(filteredTypes) : [],
-			filteredPackages.length > 0 ? this.#mvrPackageDataLoader(url).loadMany(filteredPackages) : [],
-		]);
-
-		const typeMap: Record<string, string> = {
-			...overrides?.types,
-		};
-
-		for (const [i, type] of filteredTypes.entries()) {
-			const resolvedType = resolvedTypes[i];
-			if (resolvedType instanceof Error) {
-				throw resolvedType;
-			}
-			typeMap[type] = resolvedType;
-		}
-
-		const replacedTypes: Record<string, string> = {};
-
-		for (const type of types ?? []) {
-			const resolvedType = replaceMvrNames(type, typeMap);
-
-			replacedTypes[type] = resolvedType;
-		}
-
-		const replacedPackages: Record<string, string> = {};
-
-		for (const [i, pkg] of (packages ?? []).entries()) {
-			const resolvedPkg = overrides?.packages?.[pkg] ?? resolvedPackages[i];
-
-			if (resolvedPkg instanceof Error) {
-				throw resolvedPkg;
-			}
-
-			replacedPackages[pkg] = resolvedPkg;
-		}
-
-		return {
-			types: replacedTypes,
-			packages: replacedPackages,
-		};
+	resolveMvrNames({ types, packages }: { types?: string[]; packages?: string[] }): Promise<{
+		types: Record<string, string>;
+		packages: Record<string, string>;
+	}> {
+		return this.#mvrClient.resolveMvrNames({ types, packages });
 	}
 }

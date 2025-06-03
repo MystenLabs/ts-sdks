@@ -1,9 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// eslint-disable-next-line import/no-cycle
-import { SuiClient } from '../../client/client.js';
-import { parseStructTag } from '../../utils/sui-types.js';
+import { ClientCache } from '../../experimental/cache.js';
+import { MvrClient } from '../../experimental/mvr.js';
 import type { BuildTransactionOptions } from '../resolve.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
 import type { NamedPackagesPluginCache } from './utils.js';
@@ -13,7 +12,7 @@ export type NamedPackagesPluginOptions = {
 	/**
 	 * The URL of the MVR API to use for resolving names.
 	 */
-	url?: string;
+	url: string;
 	/**
 	 * The number of names to resolve in each batch request.
 	 * Needs to be calculated based on the GraphQL query limits.
@@ -39,6 +38,11 @@ export type NamedPackagesPluginOptions = {
 	overrides?: NamedPackagesPluginCache;
 };
 
+// The original versions of the mvr plugin cached lookups by mutating overrides.
+// We don't want to mutate the options, but we can link our cache to the provided overrides object
+// This preserves the caching across transactions while removing the mutation side effects
+const cacheMap = new WeakMap<object, ClientCache>();
+
 /**
  * @experimental This plugin is in experimental phase and there might be breaking changes in the future
  *
@@ -53,18 +57,26 @@ export type NamedPackagesPluginOptions = {
  *
  * You can also define `overrides` to pre-populate name resolutions locally (removes the GraphQL request).
  */
-export const namedPackagesPlugin = ({
-	url,
-	pageSize,
-	overrides = { packages: {}, types: {} },
-}: NamedPackagesPluginOptions = {}) => {
-	// validate that types are first-level only.
-	Object.keys(overrides.types).forEach((type) => {
-		if (parseStructTag(type).typeParams.length > 0)
-			throw new Error(
-				'Type overrides must be first-level only. If you want to supply generic types, just pass each type individually.',
-			);
-	});
+export const namedPackagesPlugin = (options?: NamedPackagesPluginOptions) => {
+	let mvrClient: MvrClient | undefined;
+
+	if (options) {
+		const overrides = options.overrides ?? {
+			packages: {},
+			types: {},
+		};
+
+		if (!cacheMap.has(overrides)) {
+			cacheMap.set(overrides, new ClientCache());
+		}
+
+		mvrClient = new MvrClient({
+			cache: cacheMap.get(overrides)!,
+			url: options.url,
+			pageSize: options.pageSize,
+			overrides: overrides,
+		});
+	}
 
 	return async (
 		transactionData: TransactionDataBuilder,
@@ -77,35 +89,19 @@ export const namedPackagesPlugin = ({
 			return next();
 		}
 
-		const client = getClient(buildOptions, { url, pageSize });
-
-		const resolved = await client.core.resolveMvrNames({
+		const resolved = await (mvrClient || getClient(buildOptions).core).resolveMvrNames({
 			types: names.types,
 			packages: names.packages,
-			url,
-			overrides,
 		});
 
-		// when replacing names, we also need to replace the "composed" types collected above.
 		replaceNames(transactionData, resolved);
 
 		await next();
 	};
 };
 
-function getClient(options: BuildTransactionOptions, pluginOptions: NamedPackagesPluginOptions) {
+export function getClient(options: BuildTransactionOptions) {
 	if (!options.client) {
-		if (pluginOptions.url) {
-			// Return a client that can only be used for resolving mvr names
-			// This is a fallback hack for users manually using the mvr plugin rather than configuring mvr through their client
-			return new SuiClient({
-				url: '',
-				mvr: {
-					apiUrl: pluginOptions.url,
-					pageSize: pluginOptions.pageSize,
-				},
-			});
-		}
 		throw new Error(
 			`No sui client passed to Transaction#build, but transaction data was not sufficient to build offline.`,
 		);

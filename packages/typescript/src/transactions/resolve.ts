@@ -8,7 +8,6 @@ import type { TransactionDataBuilder } from './TransactionData.js';
 import type { BcsType } from '@mysten/bcs';
 import { Inputs } from './Inputs.js';
 import { bcs } from '../bcs/index.js';
-// eslint-disable-next-line import/no-cycle
 import { namedPackagesPlugin } from './plugins/NamedPackagesPlugin.js';
 
 export interface BuildTransactionOptions {

@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { chunk } from '@mysten/utils';
+import { chunk, DataLoader } from '@mysten/utils';
 import { isValidNamedPackage } from '../utils/move-registry.js';
 import type { StructTag } from '../utils/sui-types.js';
 import {
@@ -10,86 +10,245 @@ import {
 	normalizeSuiAddress,
 	parseStructTag,
 } from '../utils/sui-types.js';
+import type { ClientCache } from './cache.js';
 
 const NAME_SEPARATOR = '/';
 
-export async function resolvePackages(
-	packages: readonly string[],
-	apiUrl: string,
-	pageSize: number,
-) {
-	if (packages.length === 0) return {};
-
-	const batches = chunk(packages, pageSize);
-	const results: Record<string, string> = {};
-
-	await Promise.all(
-		batches.map(async (batch) => {
-			const response = await fetch(`${apiUrl}/v1/resolution/bulk`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					names: batch,
-				}),
-			});
-
-			if (!response.ok) {
-				const errorBody = await response.json().catch(() => ({}));
-				throw new Error(`Failed to resolve packages: ${errorBody?.message}`);
-			}
-
-			const data = await response.json();
-
-			if (!data?.resolution) return;
-
-			for (const pkg of Object.keys(data?.resolution)) {
-				const pkgData = data.resolution[pkg]?.package_id;
-
-				if (!pkgData) continue;
-
-				results[pkg] = pkgData;
-			}
-		}),
-	);
-
-	return results;
+export interface MvrClientOptions {
+	cache: ClientCache;
+	url?: string;
+	pageSize?: number;
+	overrides?: {
+		packages?: Record<string, string>;
+		types?: Record<string, string>;
+	};
 }
 
-export async function resolveTypes(types: readonly string[], apiUrl: string, pageSize: number) {
-	if (types.length === 0) return {};
+export class MvrClient {
+	#cache: ClientCache;
+	#url?: string;
+	#pageSize: number;
+	#overrides: {
+		packages?: Record<string, string>;
+		types?: Record<string, string>;
+	};
 
-	const batches = chunk(types, pageSize);
-	const results: Record<string, string> = {};
+	constructor({ cache, url, pageSize = 50, overrides }: MvrClientOptions) {
+		this.#cache = cache;
+		this.#url = url;
+		this.#pageSize = pageSize;
+		this.#overrides = {
+			packages: overrides?.packages,
+			types: overrides?.types,
+		};
 
-	await Promise.all(
-		batches.map(async (batch) => {
-			const response = await fetch(`${apiUrl}/v1/struct-definition/bulk`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					types: batch,
-				}),
+		validateOverrides(this.#overrides);
+	}
+
+	#mvrPackageDataLoader(url = this.#url) {
+		return this.#cache.readSync(['#mvrPackageDataLoader', url ?? ''], () => {
+			const loader = new DataLoader<string, string>(async (packages) => {
+				if (!url) {
+					throw new Error('MVR Api URL is not set for the current client');
+				}
+				const resolved = await this.#resolvePackages(packages);
+
+				return packages.map(
+					(pkg) => resolved[pkg] ?? new Error(`Failed to resolve package: ${pkg}`),
+				);
+			});
+			const overrides = this.#overrides?.packages;
+
+			if (overrides) {
+				for (const [pkg, id] of Object.entries(overrides)) {
+					loader.prime(pkg, id);
+				}
+			}
+
+			return loader;
+		});
+	}
+
+	#mvrTypeDataLoader(url = this.#url) {
+		return this.#cache.readSync(['#mvrTypeDataLoader', url ?? ''], () => {
+			const loader = new DataLoader<string, string>(async (types) => {
+				if (!url) {
+					throw new Error('MVR Api URL is not set for the current client');
+				}
+				const resolved = await this.#resolveTypes(types);
+
+				return types.map((type) => resolved[type] ?? new Error(`Failed to resolve type: ${type}`));
 			});
 
-			if (!response.ok) {
-				const errorBody = await response.json().catch(() => ({}));
-				throw new Error(`Failed to resolve types: ${errorBody?.message}`);
+			const overrides = this.#overrides?.types;
+
+			if (overrides) {
+				for (const [type, id] of Object.entries(overrides)) {
+					loader.prime(type, id);
+				}
 			}
 
-			const data = await response.json();
+			return loader;
+		});
+	}
 
-			if (!data?.resolution) return;
+	async #resolvePackages(packages: readonly string[]) {
+		if (packages.length === 0) return {};
 
-			for (const type of Object.keys(data?.resolution)) {
-				const typeData = data.resolution[type]?.type_tag;
-				if (!typeData) continue;
+		const batches = chunk(packages, this.#pageSize);
+		const results: Record<string, string> = {};
 
-				results[type] = typeData;
+		await Promise.all(
+			batches.map(async (batch) => {
+				const data = await this.#fetch<{ resolution: Record<string, { package_id: string }> }>(
+					'/v1/resolution/bulk',
+					{
+						names: batch,
+					},
+				);
+
+				if (!data?.resolution) return;
+
+				for (const pkg of Object.keys(data?.resolution)) {
+					const pkgData = data.resolution[pkg]?.package_id;
+
+					if (!pkgData) continue;
+
+					results[pkg] = pkgData;
+				}
+			}),
+		);
+
+		return results;
+	}
+
+	async #resolveTypes(types: readonly string[]) {
+		if (types.length === 0) return {};
+
+		const batches = chunk(types, this.#pageSize);
+		const results: Record<string, string> = {};
+
+		await Promise.all(
+			batches.map(async (batch) => {
+				const data = await this.#fetch<{ resolution: Record<string, { type_tag: string }> }>(
+					'/v1/struct-definition/bulk',
+					{
+						types: batch,
+					},
+				);
+
+				if (!data?.resolution) return;
+
+				for (const type of Object.keys(data?.resolution)) {
+					const typeData = data.resolution[type]?.type_tag;
+					if (!typeData) continue;
+
+					results[type] = typeData;
+				}
+			}),
+		);
+
+		return results;
+	}
+
+	async #fetch<T>(url: string, body: Record<string, unknown>): Promise<T> {
+		if (!this.#url) {
+			throw new Error('MVR Api URL is not set for the current client');
+		}
+
+		const response = await fetch(`${this.#url}${url}`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		});
+
+		if (!response.ok) {
+			const errorBody = await response.json().catch(() => ({}));
+			throw new Error(`Failed to resolve types: ${errorBody?.message}`);
+		}
+
+		return response.json();
+	}
+
+	resolveNamedPackage({ name, url }: { name: string; url?: string }): Promise<string> {
+		return this.#mvrPackageDataLoader(url).load(name);
+	}
+
+	async resolveNamedType({ type, url }: { type: string; url?: string }): Promise<string> {
+		const mvrTypes = [...extractMvrTypes(type)];
+		const resolvedTypes = await this.#mvrTypeDataLoader(url).loadMany(mvrTypes);
+
+		const typeMap: Record<string, string> = {};
+
+		for (let i = 0; i < mvrTypes.length; i++) {
+			const resolvedType = resolvedTypes[i];
+			if (resolvedType instanceof Error) {
+				throw resolvedType;
 			}
-		}),
-	);
+			typeMap[mvrTypes[i]] = resolvedType;
+		}
 
-	return results;
+		return replaceMvrNames(type, typeMap);
+	}
+
+	async resolveMvrNames({
+		types,
+		packages = [],
+		url,
+	}: {
+		types?: string[];
+		packages?: string[];
+		url?: string;
+	}): Promise<{ types: Record<string, string>; packages: Record<string, string> }> {
+		const mvrTypes = new Set<string>();
+
+		for (const type of types ?? []) {
+			extractMvrTypes(type, mvrTypes);
+		}
+
+		const typesArray = [...mvrTypes];
+		const [resolvedTypes, resolvedPackages] = await Promise.all([
+			typesArray.length > 0 ? this.#mvrTypeDataLoader(url).loadMany(typesArray) : [],
+			packages.length > 0 ? this.#mvrPackageDataLoader(url).loadMany(packages) : [],
+		]);
+
+		const typeMap: Record<string, string> = {
+			...this.#overrides?.types,
+		};
+
+		for (const [i, type] of typesArray.entries()) {
+			const resolvedType = resolvedTypes[i];
+			if (resolvedType instanceof Error) {
+				throw resolvedType;
+			}
+			typeMap[type] = resolvedType;
+		}
+
+		const replacedTypes: Record<string, string> = {};
+
+		for (const type of types ?? []) {
+			const resolvedType = replaceMvrNames(type, typeMap);
+
+			replacedTypes[type] = resolvedType;
+		}
+
+		const replacedPackages: Record<string, string> = {};
+
+		for (const [i, pkg] of (packages ?? []).entries()) {
+			const resolvedPkg = this.#overrides?.packages?.[pkg] ?? resolvedPackages[i];
+
+			if (resolvedPkg instanceof Error) {
+				throw resolvedPkg;
+			}
+
+			replacedPackages[pkg] = resolvedPkg;
+		}
+
+		return {
+			types: replacedTypes,
+			packages: replacedPackages,
+		};
+	}
 }
 
 export function validateOverrides(overrides?: {

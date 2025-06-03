@@ -12,7 +12,6 @@ import type {
 	SuiTransactionBlockResponse,
 	TransactionEffects,
 } from '../../client/index.js';
-// eslint-disable-next-line import/no-cycle
 import { Transaction } from '../../transactions/Transaction.js';
 import { Experimental_CoreClient } from '../core.js';
 import { ObjectError } from '../errors.js';
