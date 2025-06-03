@@ -12,8 +12,12 @@ import {
 } from '../utils/sui-types.js';
 import type { ClientCache } from './cache.js';
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
+import { PACKAGE_VERSION } from '../version.js';
 
 const NAME_SEPARATOR = '/';
+const MVR_API_HEADER = {
+	'Mvr-Source': `@mysten/sui@${PACKAGE_VERSION}`,
+};
 
 export interface MvrClientOptions {
 	cache: ClientCache;
@@ -159,7 +163,10 @@ export class MvrClient {
 
 		const response = await fetch(`${this.#url}${url}`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json',
+				...MVR_API_HEADER,
+			},
 			body: JSON.stringify(body),
 		});
 
