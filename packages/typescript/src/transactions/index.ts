@@ -1,6 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { NamedPackagesOverrides } from '../experimental/mvr.js';
+
 export { normalizedTypeToMoveTypeSignature, getPureBcsSchema } from './serializer.js';
 
 export { Inputs } from './Inputs.js';
@@ -53,6 +55,8 @@ export {
 	type NamedPackagesPluginOptions,
 } from './plugins/NamedPackagesPlugin.js';
 
-export { type NamedPackagesPluginCache } from './plugins/utils.js';
+export type { NamedPackagesOverrides };
+/** @deprecated Use NamedPackagesOverrides instead */
+export type NamedPackagesPluginCache = NamedPackagesOverrides;
 
 export { isArgument } from './utils.js';

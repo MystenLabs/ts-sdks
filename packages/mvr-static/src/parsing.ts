@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { dirname, extname, isAbsolute, join } from 'path';
 import { parseArgs } from 'util';
-import type { NamedPackagesPluginCache } from '@mysten/sui/src/transactions';
+import type { NamedPackagesOverrides } from '@mysten/sui/src/transactions';
 import { isValidNamedPackage } from '@mysten/sui/utils';
 import { prompt } from 'enquirer';
 import { glob } from 'glob';
@@ -111,8 +111,8 @@ export async function parser() {
 
 async function writeOutputFile(
 	outDir: string,
-	mainnet: NamedPackagesPluginCache,
-	testnet: NamedPackagesPluginCache,
+	mainnet: NamedPackagesOverrides,
+	testnet: NamedPackagesOverrides,
 ) {
 	const outputFile = `${WARNING_MESSAGE}
 const mainnetResolution = ${JSON.stringify(mainnet, null, 2)}

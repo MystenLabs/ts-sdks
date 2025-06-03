@@ -5,8 +5,8 @@ import { ClientCache } from '../../experimental/cache.js';
 import { MvrClient } from '../../experimental/mvr.js';
 import type { BuildTransactionOptions } from '../resolve.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
-import type { NamedPackagesPluginCache } from './utils.js';
-import { findNamesInTransaction, replaceNames } from './utils.js';
+import { findNamesInTransaction, replaceNames } from '../../experimental/mvr.js';
+import type { NamedPackagesOverrides } from '../../experimental/mvr.js';
 
 export type NamedPackagesPluginOptions = {
 	/**
@@ -35,7 +35,7 @@ export type NamedPackagesPluginOptions = {
 	 * 	}
 	 *
 	 */
-	overrides?: NamedPackagesPluginCache;
+	overrides?: NamedPackagesOverrides;
 };
 
 // The original versions of the mvr plugin cached lookups by mutating overrides.
