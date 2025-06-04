@@ -190,10 +190,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		});
 
 		return {
-			transaction: {
-				...parseTransaction(response.transaction!),
-				bcs: options.transaction,
-			},
+			transaction: parseTransaction(response.transaction!),
 		};
 	}
 	async getReferenceGasPrice(): Promise<Experimental_SuiClientTypes.GetReferenceGasPriceResponse> {
