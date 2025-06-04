@@ -49,8 +49,8 @@
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
 		"@protobuf-ts/plugin": "^2.9.6",
-		"typescript": "^5.8.2",
-		"vitest": "^3.1.1"
+		"typescript": "^5.8.3",
+		"vitest": "^3.2.1"
 	},
 	"dependencies": {
 		"@mysten/sui": "workspace:*",
