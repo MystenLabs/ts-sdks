@@ -52,7 +52,7 @@ export class SessionKey {
 	#signer?: Signer;
 	#suiClient: SuiClient;
 
-	private constructor({
+	constructor({
 		address,
 		packageId,
 		mvrName,
@@ -221,11 +221,7 @@ export class SessionKey {
 	 * Restore a SessionKey instance for the given object.
 	 * @returns A new SessionKey instance with restored state
 	 */
-	static async import(
-		data: SessionKeyType,
-		suiClient: SuiClient,
-		signer?: Signer,
-	): Promise<SessionKey> {
+	static import(data: SessionKeyType, suiClient: SuiClient, signer?: Signer): SessionKey {
 		const instance = new SessionKey({
 			address: data.address,
 			packageId: data.packageId,

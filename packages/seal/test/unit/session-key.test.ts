@@ -31,7 +31,7 @@ describe('Session key tests', () => {
 
 		// invalid signer
 		const kp2 = Ed25519Keypair.generate();
-		await expect(
+		expect(() =>
 			SessionKey.import(
 				{
 					address: kp.getPublicKey().toSuiAddress(),
@@ -44,6 +44,6 @@ describe('Session key tests', () => {
 				suiClient,
 				kp2,
 			),
-		).rejects.toThrow(UserError);
+		).toThrow(UserError);
 	});
 });
