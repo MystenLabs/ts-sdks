@@ -14,7 +14,7 @@ import {
 	InvalidPersonalMessageSignatureError,
 	UserError,
 } from './error.js';
-import type { SuiClient } from '@mysten/sui/client';
+import type { SealCompatibleClient } from './types.js';
 
 export const RequestFormat = bcs.struct('RequestFormat', {
 	ptb: bcs.vector(bcs.U8),
@@ -50,7 +50,7 @@ export class SessionKey {
 	#sessionKey: Ed25519Keypair;
 	#personalMessageSignature?: string;
 	#signer?: Signer;
-	#suiClient: SuiClient;
+	#suiClient: SealCompatibleClient;
 
 	constructor({
 		address,
@@ -65,7 +65,7 @@ export class SessionKey {
 		mvrName?: string;
 		ttlMin: number;
 		signer?: Signer;
-		suiClient: SuiClient;
+		suiClient: SealCompatibleClient;
 	}) {
 		if (mvrName && !isValidNamedPackage(mvrName)) {
 			throw new UserError(`Invalid package name ${mvrName}`);
@@ -101,10 +101,10 @@ export class SessionKey {
 		packageId: string;
 		ttlMin: number;
 		signer?: Signer;
-		suiClient: SuiClient;
+		suiClient: SealCompatibleClient;
 	}): Promise<SessionKey> {
 		const packageObj = await suiClient.core.getObject({ objectId: packageId });
-		if (packageObj.object.version !== '1') {
+		if (String(packageObj.object.version) !== '1') {
 			throw new InvalidPackageError(`Package ${packageId} is not the first version`);
 		}
 
@@ -221,7 +221,11 @@ export class SessionKey {
 	 * Restore a SessionKey instance for the given object.
 	 * @returns A new SessionKey instance with restored state
 	 */
-	static import(data: SessionKeyType, suiClient: SuiClient, signer?: Signer): SessionKey {
+	static import(
+		data: SessionKeyType,
+		suiClient: SealCompatibleClient,
+		signer?: Signer,
+	): SessionKey {
 		const instance = new SessionKey({
 			address: data.address,
 			packageId: data.packageId,

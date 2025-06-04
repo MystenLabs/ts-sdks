@@ -133,7 +133,7 @@ export class SealClient {
 		aad?: Uint8Array;
 	}) {
 		const packageObj = await this.#suiClient.core.getObject({ objectId: packageId });
-		if (packageObj.object.version !== '1') {
+		if (String(packageObj.object.version) !== '1') {
 			throw new InvalidPackageError(`Package ${packageId} is not the first version`);
 		}
 

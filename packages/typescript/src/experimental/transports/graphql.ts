@@ -101,7 +101,7 @@ export class GraphQLTransport extends Experimental_CoreClient {
 						digest: obj.digest!,
 						owner: mapOwner(obj.owner!),
 						type: obj.asMoveObject?.contents?.type?.repr!,
-						content: fromBase64(obj.asMoveObject?.contents?.bcs!),
+						content: obj.asMoveObject ? fromBase64(obj.asMoveObject?.contents?.bcs!) : new Uint8Array()
 					};
 				}),
 		};

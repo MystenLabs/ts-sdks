@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fromBase64, fromHex, toBase64 } from '@mysten/bcs';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
@@ -22,9 +21,10 @@ import {
 import { KeyServerType } from '../../src/key-server';
 import { RequestFormat, SessionKey } from '../../src/session-key';
 import { decrypt } from '../../src/decrypt';
-import { KeyCacheKey } from '../../src/types';
+import { KeyCacheKey, SealCompatibleClient } from '../../src/types';
 import { G1Element } from '../../src/bls12381';
 import { createFullId } from '../../src/utils';
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 /**
  * Helper function
@@ -37,7 +37,7 @@ import { createFullId } from '../../src/utils';
 async function constructTxBytes(
 	packageId: string,
 	moduleName: string,
-	suiClient: SuiClient,
+	suiClient: SealCompatibleClient,
 	innerIds: string[],
 ): Promise<Uint8Array> {
 	const tx = new Transaction();
@@ -110,7 +110,7 @@ const MOCK_KEY_SERVERS = new Map([
 describe('Integration test', () => {
 	let keypair: Ed25519Keypair;
 	let suiAddress: string;
-	let suiClient: SuiClient;
+	let suiClient: SealCompatibleClient;
 	let TESTNET_PACKAGE_ID: string;
 	let objectIds: { objectId: string; weight: number; apiKeyName?: string; apiKey?: string }[];
 	beforeAll(async () => {
