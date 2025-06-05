@@ -1,5 +1,13 @@
 # Change Log
 
+## 1.6.2
+
+### Patch Changes
+
+- bb7c03a: Update dependencies
+- Updated dependencies [bb7c03a]
+  - @mysten/utils@0.0.1
+
 ## 1.6.1
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @mysten/ledgerjs-hw-app-sui
 
+## 0.5.1
+
+### Patch Changes
+
+- bb7c03a: Update dependencies
+
 ## 0.5.0
 
 ### Minor Changes
