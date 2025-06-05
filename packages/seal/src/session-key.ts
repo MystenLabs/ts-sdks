@@ -52,6 +52,9 @@ export class SessionKey {
 	#signer?: Signer;
 	#suiClient: SealCompatibleClient;
 
+	/**
+	 * @deprecated - Use `await SessionKey.create()` instead.
+	 */
 	constructor({
 		address,
 		packageId,
