@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 1.30.4
+
+### Patch Changes
+
+- 5dce590: fix epoch in experimental core api
+- 4a5aef6: Update thunk results after build
+
 ## 1.30.3
 
 ### Patch Changes
