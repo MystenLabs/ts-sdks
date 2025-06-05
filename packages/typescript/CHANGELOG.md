@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.30.5
+
+### Patch Changes
+
+- 5bd6ca3: Fix graphql get object for package
+
 ## 1.30.4
 
 ### Patch Changes

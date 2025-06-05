@@ -1,5 +1,14 @@
 # @mysten/seal
 
+## 0.4.10
+
+### Patch Changes
+
+- 5bd6ca3: Accept SealCompatibleClient for SealClient and SessionKey
+- 5bd6ca3: fix(seal): throw error early if package is not first version
+- Updated dependencies [5bd6ca3]
+  - @mysten/sui@1.30.5
+
 ## 0.4.9
 
 ### Patch Changes
