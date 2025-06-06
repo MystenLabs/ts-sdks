@@ -98,7 +98,13 @@ export function normalizeSuiAddress(value: string, forceAdd0x: boolean = false):
 	if (!forceAdd0x && address.startsWith('0x')) {
 		address = address.slice(2);
 	}
-	return `0x${address.padStart(SUI_ADDRESS_LENGTH * 2, '0')}`;
+	const normalized = `0x${address.padStart(SUI_ADDRESS_LENGTH * 2, '0').toLowerCase()}`;
+
+	if (!isValidSuiAddress(normalized)) {
+		throw new Error(`Invalid Sui address: ${value}`);
+	}
+
+	return normalized;
 }
 
 export function normalizeSuiObjectId(value: string, forceAdd0x: boolean = false): string {
