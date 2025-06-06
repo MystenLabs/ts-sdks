@@ -7,6 +7,7 @@ import util from 'node:util';
 import * as path from 'path';
 import type { BuildOptions } from 'esbuild';
 import { build } from 'esbuild';
+import { findUp } from 'find-up';
 
 interface PackageJSON {
 	name?: string;
@@ -167,6 +168,7 @@ async function buildImportDirectories({ exports, sideEffects }: PackageJSON) {
 		);
 	}
 
+	console.error(ignoredWorkspaces);
 	await addPackageFiles([...exportDirs]);
 	await addIgnoredWorkspaces(ignoredWorkspaces);
 }
@@ -207,7 +209,10 @@ async function addPackageFiles(paths: string[]) {
 }
 
 async function addIgnoredWorkspaces(paths: string[]) {
-	const file = await fs.readFile(path.join(process.cwd(), '../../pnpm-workspace.yaml'), 'utf-8');
+	const path = await findUp('pnpm-workspace.yaml');
+	if (!path) throw new Error('Failed to locate `pnpm-workspace.yaml`.');
+
+	const file = await fs.readFile(path, 'utf-8');
 	const lines = file.split('\n').filter(Boolean);
 	let changed = false;
 
@@ -220,6 +225,6 @@ async function addIgnoredWorkspaces(paths: string[]) {
 
 	if (changed) {
 		lines.push('');
-		await fs.writeFile(path.join(process.cwd(), '../../pnpm-workspace.yaml'), lines.join('\n'));
+		await fs.writeFile(path, lines.join('\n'));
 	}
 }

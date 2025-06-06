@@ -7,20 +7,20 @@ import { html, LitElement } from 'lit';
 import { customElement, query } from 'lit/decorators.js';
 import { storeProperty } from '../utils/lit.js';
 import { getDefaultInstance } from '../core/index.js';
-import type { DAppKit } from '../core/index.js';
 import type { DAppKitConnectModal } from './dapp-kit-connect-modal.js';
+import type { ResolvedRegister } from '../types.js';
 
 @customElement('mysten-dapp-kit-connect-button')
 export class DAppKitConnectButton extends LitElement {
 	@storeProperty()
-	store?: DAppKit;
+	store?: ResolvedRegister['dAppKit'];
 
 	@query('mysten-dapp-kit-connect-modal')
 	private readonly _modal!: DAppKitConnectModal;
 
 	override connectedCallback() {
 		super.connectedCallback();
-		this.store ||= getDefaultInstance();
+		this.store ||= getDefaultInstance() as any;
 	}
 
 	override render() {

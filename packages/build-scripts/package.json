@@ -26,6 +26,7 @@
 		"@vanilla-extract/esbuild-plugin": "^2.3.16",
 		"autoprefixer": "^10.4.21",
 		"esbuild": "^0.25.5",
+		"find-up": "^7.0.0",
 		"postcss": "^8.5.4",
 		"postcss-prefix-selector": "^1.16.1",
 		"typescript": "^5.8.3"

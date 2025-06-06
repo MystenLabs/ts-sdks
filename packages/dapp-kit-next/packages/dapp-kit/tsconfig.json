@@ -1,5 +1,5 @@
 {
-	"extends": "../build-scripts/tsconfig.shared.json",
+	"extends": "../../../build-scripts/tsconfig.shared.json",
 	"include": ["src"],
 	"compilerOptions": {
 		"module": "CommonJS",
@@ -9,10 +9,5 @@
 		"rootDir": "src",
 		"experimentalDecorators": true,
 		"useDefineForClassFields": false
-	},
-	"references": [
-		{ "path": "../typescript" },
-		{ "path": "../wallet-standard" },
-		{ "path": "../zksend" }
-	]
+	}
 }
