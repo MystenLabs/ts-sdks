@@ -62,32 +62,30 @@ export async function retrieveKeyServers({
 	objectIds: string[];
 	client: SealCompatibleClient;
 }): Promise<KeyServer[]> {
-	// todo: do not fetch the same object ID if this is fetched before.
-	return await Promise.all(
-		objectIds.map(async (objectId) => {
-			let res;
-			try {
-				res = await client.core.getObject({
-					objectId,
-				});
-			} catch (e) {
-				throw new InvalidGetObjectError(`KeyServer ${objectId} not found; ${(e as Error).message}`);
-			}
+	const { objects } = await client.core.getObjects({
+		objectIds,
+	});
 
-			const ks = KeyServerMove.parse(res.object.content);
-			if (ks.keyType !== 0) {
-				throw new UnsupportedFeatureError(`Unsupported key type ${ks.keyType}`);
-			}
+	return objects.map((res, i) => {
+		const objectId = objectIds[i];
 
-			return {
-				objectId,
-				name: ks.name,
-				url: ks.url,
-				keyType: KeyServerType.BonehFranklinBLS12381,
-				pk: new Uint8Array(ks.pk),
-			};
-		}),
-	);
+		if (res instanceof Error) {
+			throw new InvalidGetObjectError(`KeyServer ${objectId} not found; ${res.message}`);
+		}
+
+		const ks = KeyServerMove.parse(res.content);
+		if (ks.keyType !== 0) {
+			throw new UnsupportedFeatureError(`Unsupported key type ${ks.keyType}`);
+		}
+
+		return {
+			objectId,
+			name: ks.name,
+			url: ks.url,
+			keyType: KeyServerType.BonehFranklinBLS12381,
+			pk: new Uint8Array(ks.pk),
+		};
+	});
 }
 
 /**
