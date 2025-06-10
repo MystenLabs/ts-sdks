@@ -1,5 +1,16 @@
 # @mysten/slush-wallet
 
+## 0.1.10
+
+### Patch Changes
+
+- d0a406a: Authorize previously saved accounts without needing to call `connect`
+- Updated dependencies [1ff4e57]
+- Updated dependencies [550e2e3]
+- Updated dependencies [550e2e3]
+  - @mysten/sui@1.31.0
+  - @mysten/wallet-standard@0.16.0
+
 ## 0.1.9
 
 ### Patch Changes

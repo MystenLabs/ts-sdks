@@ -1,5 +1,14 @@
 # @mysten/sui.js
 
+## 1.31.0
+
+### Minor Changes
+
+- 1ff4e57: Add `resolveNameServiceNames` to the core client
+- 550e2e3: Add tx.isFullyResolved method that checks if all transaction data has been resolved
+- 550e2e3: Added option digest to TransactionDataV2 for transaction data that has been fully
+  resolved
+
 ## 1.30.5
 
 ### Patch Changes
