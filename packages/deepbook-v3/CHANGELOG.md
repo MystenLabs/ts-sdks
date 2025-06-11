@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.15.1
+
+### Patch Changes
+
+- e24e20c: Testnet package update
+
 ## 0.15.0
 
 ### Minor Changes
