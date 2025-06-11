@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.32.0
+
+### Minor Changes
+
+- 6b7deb8: Defer resolution of object contents in core api methods
+
 ## 1.31.0
 
 ### Minor Changes
