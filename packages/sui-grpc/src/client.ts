@@ -18,6 +18,7 @@ interface SuiGrpcTransportOptions extends GrpcWebOptions {
 
 export type SuiGrpcClientOptions = {
 	network: Experimental_SuiClientTypes.Network;
+	mvr?: Experimental_SuiClientTypes.MvrOptions;
 } & (
 	| {
 			transport: RpcTransport;
@@ -41,6 +42,11 @@ export class SuiGrpcClient extends Experimental_BaseClient {
 		this.ledgerService = new LedgerServiceClient(transport);
 		this.liveDataService = new LiveDataServiceClient(transport);
 		this.subscriptionService = new SubscriptionServiceClient(transport);
-		this.core = new GrpcCoreClient({ client: this });
+		this.core = new GrpcCoreClient({
+			client: this,
+			base: this,
+			network: options.network,
+			mvr: options.mvr,
+		});
 	}
 }

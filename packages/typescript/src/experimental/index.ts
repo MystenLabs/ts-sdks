@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Experimental_BaseClient } from './client.js';
-import type { ClientWithCoreApi } from './core.js';
+import type { ClientWithCoreApi, Experimental_CoreClientOptions } from './core.js';
 import { Experimental_CoreClient } from './core.js';
 import type {
 	ClientWithExtensions,
@@ -14,6 +14,7 @@ export { parseTransactionBcs, parseTransactionEffectsBcs } from './transports/ut
 export {
 	Experimental_BaseClient,
 	Experimental_CoreClient,
+	type Experimental_CoreClientOptions,
 	type ClientWithExtensions,
 	type Experimental_SuiClientTypes,
 	type SuiClientRegistration,

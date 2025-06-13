@@ -1,7 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type {
+	Experimental_CoreClientOptions,
+	Experimental_SuiClientTypes,
+} from '@mysten/sui/experimental';
 import { Experimental_CoreClient } from '@mysten/sui/experimental';
 import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2beta/owner.js';
@@ -17,14 +20,14 @@ import {
 } from './proto/sui/rpc/v2beta/effects.js';
 import { TransactionDataBuilder } from '@mysten/sui/transactions';
 import { bcs } from '@mysten/sui/bcs';
-export interface GrpcCoreClientOptions {
+export interface GrpcCoreClientOptions extends Experimental_CoreClientOptions {
 	client: SuiGrpcClient;
 }
 export class GrpcCoreClient extends Experimental_CoreClient {
 	#client: SuiGrpcClient;
-	constructor(options: GrpcCoreClientOptions) {
-		super({ network: options.client.network });
-		this.#client = options.client;
+	constructor({ client, ...options }: GrpcCoreClientOptions) {
+		super(options);
+		this.#client = client;
 	}
 
 	async getObjects(
