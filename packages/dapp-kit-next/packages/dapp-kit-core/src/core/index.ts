@@ -19,6 +19,9 @@ import { switchAccountCreator } from './actions/switch-account.js';
 import { signPersonalMessageCreator } from './actions/sign-personal-message.js';
 import { signAndExecuteTransactionCreator } from './actions/sign-and-execute-transaction.js';
 import { signTransactionCreator } from './actions/sign-transaction.js';
+import { slushWebWalletInitializer } from '../wallets/slush-web.js';
+import { registerAdditionalWallets } from '../wallets/index.js';
+import { unsafeBurnerWalletInitializer } from '../wallets/unsafe-burner.js';
 
 export type DAppKit<TNetworks extends Networks = Networks> = ReturnType<
 	typeof createDAppKit<TNetworks>
@@ -29,8 +32,11 @@ export function createDAppKit<TNetworks extends Networks>({
 	networks,
 	createClient,
 	defaultNetwork = networks[0],
+	enableBurnerWallet = false,
+	slushWalletConfig,
 	storage = getDefaultStorage(),
 	storageKey = DEFAULT_STORAGE_KEY,
+	walletInitializers = [],
 }: CreateDAppKitOptions<TNetworks>) {
 	if (networks.length === 0) {
 		throw new DAppKitError('You must specify at least one Sui network for your application.');
@@ -48,6 +54,15 @@ export function createDAppKit<TNetworks extends Networks>({
 	if (autoConnect) {
 		autoConnectWallet({ stores, storageKey, storage });
 	}
+
+	registerAdditionalWallets(
+		[
+			...walletInitializers,
+			...(enableBurnerWallet ? [unsafeBurnerWalletInitializer()] : []),
+			...(slushWalletConfig !== null ? [slushWebWalletInitializer(slushWalletConfig)] : []),
+		],
+		{ networks, getClient },
+	);
 
 	return {
 		networkConfig,

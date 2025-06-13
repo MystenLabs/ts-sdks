@@ -5,6 +5,7 @@ import { createDAppKit } from '@mysten/dapp-kit-react';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 export const dAppKit = createDAppKit({
+	enableBurnerWallet: import.meta.env.DEV,
 	networks: ['mainnet', 'testnet'],
 	defaultNetwork: 'testnet',
 	createClient(network) {

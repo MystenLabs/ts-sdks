@@ -54,6 +54,7 @@
 	"dependencies": {
 		"@lit-labs/scoped-registry-mixin": "^1.0.4",
 		"@lit/task": "^1.0.2",
+		"@mysten/slush-wallet": "^0.1.11",
 		"@mysten/sui": "workspace:*",
 		"@mysten/utils": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
