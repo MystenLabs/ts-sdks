@@ -1,5 +1,17 @@
 # @mysten/sui.js
 
+## 1.33.0
+
+### Minor Changes
+
+- a00522b: Add mvr APIs to core client
+
+### Patch Changes
+
+- Updated dependencies [a00522b]
+  - @mysten/utils@0.1.0
+  - @mysten/bcs@1.6.3
+
 ## 1.32.0
 
 ### Minor Changes
