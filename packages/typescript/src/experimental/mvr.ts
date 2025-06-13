@@ -13,6 +13,7 @@ import {
 import type { ClientCache } from './cache.js';
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { PACKAGE_VERSION } from '../version.js';
+import { Experimental_SuiClientTypes } from './types.js';
 
 const NAME_SEPARATOR = '/';
 const MVR_API_HEADER = {
@@ -29,7 +30,7 @@ export interface MvrClientOptions {
 	};
 }
 
-export class MvrClient {
+export class MvrClient implements Experimental_SuiClientTypes.MvrMethods {
 	#cache: ClientCache;
 	#url?: string;
 	#pageSize: number;
@@ -50,10 +51,10 @@ export class MvrClient {
 		validateOverrides(this.#overrides);
 	}
 
-	#mvrPackageDataLoader(url = this.#url) {
-		return this.#cache.readSync(['#mvrPackageDataLoader', url ?? ''], () => {
+	get #mvrPackageDataLoader() {
+		return this.#cache.readSync(['#mvrPackageDataLoader', this.#url ?? ''], () => {
 			const loader = new DataLoader<string, string>(async (packages) => {
-				if (!url) {
+				if (!this.#url) {
 					throw new Error('MVR Api URL is not set for the current client');
 				}
 				const resolved = await this.#resolvePackages(packages);
@@ -74,10 +75,10 @@ export class MvrClient {
 		});
 	}
 
-	#mvrTypeDataLoader(url = this.#url) {
-		return this.#cache.readSync(['#mvrTypeDataLoader', url ?? ''], () => {
+	get #mvrTypeDataLoader() {
+		return this.#cache.readSync(['#mvrTypeDataLoader', this.#url ?? ''], () => {
 			const loader = new DataLoader<string, string>(async (types) => {
-				if (!url) {
+				if (!this.#url) {
 					throw new Error('MVR Api URL is not set for the current client');
 				}
 				const resolved = await this.#resolveTypes(types);
@@ -178,13 +179,20 @@ export class MvrClient {
 		return response.json();
 	}
 
-	resolveNamedPackage({ name, url }: { name: string; url?: string }): Promise<string> {
-		return this.#mvrPackageDataLoader(url).load(name);
+	async resolvePackage({
+		package: name,
+	}: Experimental_SuiClientTypes.MvrResolvePackageOptions): Promise<Experimental_SuiClientTypes.MvrResolvePackageResponse> {
+		const resolved = await this.#mvrPackageDataLoader.load(name);
+		return {
+			package: resolved,
+		};
 	}
 
-	async resolveNamedType({ type, url }: { type: string; url?: string }): Promise<string> {
+	async resolveType({
+		type,
+	}: Experimental_SuiClientTypes.MvrResolveTypeOptions): Promise<Experimental_SuiClientTypes.MvrResolveTypeResponse> {
 		const mvrTypes = [...extractMvrTypes(type)];
-		const resolvedTypes = await this.#mvrTypeDataLoader(url).loadMany(mvrTypes);
+		const resolvedTypes = await this.#mvrTypeDataLoader.loadMany(mvrTypes);
 
 		const typeMap: Record<string, string> = {};
 
@@ -196,18 +204,15 @@ export class MvrClient {
 			typeMap[mvrTypes[i]] = resolvedType;
 		}
 
-		return replaceMvrNames(type, typeMap);
+		return {
+			type: replaceMvrNames(type, typeMap),
+		};
 	}
 
-	async resolveMvrNames({
-		types,
+	async resolve({
+		types = [],
 		packages = [],
-		url,
-	}: {
-		types?: string[];
-		packages?: string[];
-		url?: string;
-	}): Promise<{ types: Record<string, string>; packages: Record<string, string> }> {
+	}: Experimental_SuiClientTypes.MvrResolveOptions): Promise<Experimental_SuiClientTypes.MvrResolveResponse> {
 		const mvrTypes = new Set<string>();
 
 		for (const type of types ?? []) {
@@ -216,8 +221,8 @@ export class MvrClient {
 
 		const typesArray = [...mvrTypes];
 		const [resolvedTypes, resolvedPackages] = await Promise.all([
-			typesArray.length > 0 ? this.#mvrTypeDataLoader(url).loadMany(typesArray) : [],
-			packages.length > 0 ? this.#mvrPackageDataLoader(url).loadMany(packages) : [],
+			typesArray.length > 0 ? this.#mvrTypeDataLoader.loadMany(typesArray) : [],
+			packages.length > 0 ? this.#mvrPackageDataLoader.loadMany(packages) : [],
 		]);
 
 		const typeMap: Record<string, string> = {
@@ -359,26 +364,31 @@ export function findNamesInTransaction(builder: TransactionDataBuilder): {
 	const types: Set<string> = new Set();
 
 	for (const command of builder.commands) {
-		if (command.MakeMoveVec?.type) {
-			getNamesFromTypeList([command.MakeMoveVec.type]).forEach((type) => {
-				types.add(type);
-			});
-			continue;
+		switch (command.$kind) {
+			case 'MakeMoveVec':
+				if (command.MakeMoveVec.type) {
+					getNamesFromTypeList([command.MakeMoveVec.type]).forEach((type) => {
+						types.add(type);
+					});
+				}
+				break;
+			case 'MoveCall':
+				const moveCall = command.MoveCall;
+
+				const pkg = moveCall.package.split('::')[0];
+				if (hasMvrName(pkg)) {
+					if (!isValidNamedPackage(pkg)) throw new Error(`Invalid package name: ${pkg}`);
+					packages.add(pkg);
+				}
+
+				getNamesFromTypeList(moveCall.typeArguments ?? []).forEach((type) => {
+					types.add(type);
+				});
+
+				break;
+			default:
+				break;
 		}
-		if (!('MoveCall' in command)) continue;
-		const tx = command.MoveCall;
-
-		if (!tx) continue;
-
-		const pkg = tx.package.split('::')[0];
-		if (hasMvrName(pkg)) {
-			if (!isValidNamedPackage(pkg)) throw new Error(`Invalid package name: ${pkg}`);
-			packages.add(pkg);
-		}
-
-		getNamesFromTypeList(tx.typeArguments ?? []).forEach((type) => {
-			types.add(type);
-		});
 	}
 
 	return {

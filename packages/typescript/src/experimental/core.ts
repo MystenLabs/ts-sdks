@@ -24,11 +24,11 @@ export abstract class Experimental_CoreClient
 	implements Experimental_SuiClientTypes.TransportMethods
 {
 	core = this;
-	#mvrClient: MvrClient;
+	mvr: Experimental_SuiClientTypes.MvrMethods;
 
 	constructor(options: Experimental_CoreClientOptions) {
 		super(options);
-		this.#mvrClient = new MvrClient({
+		this.mvr = new MvrClient({
 			cache: this.base.cache.scope('core'),
 			url: options.mvr?.apiUrl,
 			pageSize: options.mvr?.pageSize,
@@ -171,20 +171,5 @@ export abstract class Experimental_CoreClient
 				await Promise.race([new Promise((resolve) => setTimeout(resolve, 2_000)), abortPromise]);
 			}
 		}
-	}
-
-	resolveNamedPackage({ name }: { name: string }): Promise<string> {
-		return this.#mvrClient.resolveNamedPackage({ name });
-	}
-
-	resolveNamedType({ type }: { type: string }): Promise<string> {
-		return this.#mvrClient.resolveNamedType({ type });
-	}
-
-	resolveMvrNames({ types, packages }: { types?: string[]; packages?: string[] }): Promise<{
-		types: Record<string, string>;
-		packages: Record<string, string>;
-	}> {
-		return this.#mvrClient.resolveMvrNames({ types, packages });
 	}
 }

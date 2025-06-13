@@ -289,6 +289,44 @@ export namespace Experimental_SuiClientTypes {
 		) => Promise<ResolveNameServiceNamesResponse>;
 	}
 
+	/** MVR methods */
+
+	export interface TransportMethods {
+		mvr: MvrMethods;
+	}
+
+	export interface MvrMethods {
+		resolvePackage: (options: MvrResolvePackageOptions) => Promise<MvrResolvePackageResponse>;
+		resolveType: (options: MvrResolveTypeOptions) => Promise<MvrResolveTypeResponse>;
+		resolve: (options: MvrResolveOptions) => Promise<MvrResolveResponse>;
+	}
+
+	export interface MvrResolvePackageOptions extends CoreClientMethodOptions {
+		package: string;
+	}
+
+	export interface MvrResolveTypeOptions extends CoreClientMethodOptions {
+		type: string;
+	}
+
+	export interface MvrResolveOptions extends CoreClientMethodOptions {
+		packages?: string[];
+		types?: string[];
+	}
+
+	export interface MvrResolvePackageResponse {
+		package: string;
+	}
+
+	export interface MvrResolveTypeResponse {
+		type: string;
+	}
+
+	export interface MvrResolveResponse {
+		packages: Record<string, string>;
+		types: Record<string, string>;
+	}
+
 	/** ObjectOwner types */
 
 	export interface AddressOwner {

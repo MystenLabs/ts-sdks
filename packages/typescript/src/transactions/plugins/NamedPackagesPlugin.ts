@@ -89,7 +89,7 @@ export const namedPackagesPlugin = (options?: NamedPackagesPluginOptions) => {
 			return next();
 		}
 
-		const resolved = await (mvrClient || getClient(buildOptions).core).resolveMvrNames({
+		const resolved = await (mvrClient || getClient(buildOptions).core.mvr).resolve({
 			types: names.types,
 			packages: names.packages,
 		});
