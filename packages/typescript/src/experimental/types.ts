@@ -41,7 +41,7 @@ export namespace Experimental_SuiClientTypes {
 	}
 
 	export interface MvrOptions {
-		apiUrl?: string;
+		url?: string;
 		pageSize?: number;
 		overrides?: {
 			packages?: Record<string, string>;
@@ -323,8 +323,18 @@ export namespace Experimental_SuiClientTypes {
 	}
 
 	export interface MvrResolveResponse {
-		packages: Record<string, string>;
-		types: Record<string, string>;
+		packages: Record<
+			string,
+			{
+				package: string;
+			}
+		>;
+		types: Record<
+			string,
+			{
+				type: string;
+			}
+		>;
 	}
 
 	/** ObjectOwner types */

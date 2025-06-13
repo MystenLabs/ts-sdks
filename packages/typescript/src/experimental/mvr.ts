@@ -13,7 +13,7 @@ import {
 import type { ClientCache } from './cache.js';
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { PACKAGE_VERSION } from '../version.js';
-import { Experimental_SuiClientTypes } from './types.js';
+import type { Experimental_SuiClientTypes } from './types.js';
 
 const NAME_SEPARATOR = '/';
 const MVR_API_HEADER = {
@@ -55,7 +55,9 @@ export class MvrClient implements Experimental_SuiClientTypes.MvrMethods {
 		return this.#cache.readSync(['#mvrPackageDataLoader', this.#url ?? ''], () => {
 			const loader = new DataLoader<string, string>(async (packages) => {
 				if (!this.#url) {
-					throw new Error('MVR Api URL is not set for the current client');
+					throw new Error(
+						`MVR Api URL is not set for the current client (resolving ${packages.join(', ')})`,
+					);
 				}
 				const resolved = await this.#resolvePackages(packages);
 
@@ -79,7 +81,9 @@ export class MvrClient implements Experimental_SuiClientTypes.MvrMethods {
 		return this.#cache.readSync(['#mvrTypeDataLoader', this.#url ?? ''], () => {
 			const loader = new DataLoader<string, string>(async (types) => {
 				if (!this.#url) {
-					throw new Error('MVR Api URL is not set for the current client');
+					throw new Error(
+						`MVR Api URL is not set for the current client (resolving ${types.join(', ')})`,
+					);
 				}
 				const resolved = await this.#resolveTypes(types);
 
@@ -237,15 +241,27 @@ export class MvrClient implements Experimental_SuiClientTypes.MvrMethods {
 			typeMap[type] = resolvedType;
 		}
 
-		const replacedTypes: Record<string, string> = {};
+		const replacedTypes: Record<
+			string,
+			{
+				type: string;
+			}
+		> = {};
 
 		for (const type of types ?? []) {
 			const resolvedType = replaceMvrNames(type, typeMap);
 
-			replacedTypes[type] = resolvedType;
+			replacedTypes[type] = {
+				type: resolvedType,
+			};
 		}
 
-		const replacedPackages: Record<string, string> = {};
+		const replacedPackages: Record<
+			string,
+			{
+				package: string;
+			}
+		> = {};
 
 		for (const [i, pkg] of (packages ?? []).entries()) {
 			const resolvedPkg = this.#overrides?.packages?.[pkg] ?? resolvedPackages[i];
@@ -254,7 +270,9 @@ export class MvrClient implements Experimental_SuiClientTypes.MvrMethods {
 				throw resolvedPkg;
 			}
 
-			replacedPackages[pkg] = resolvedPkg;
+			replacedPackages[pkg] = {
+				package: resolvedPkg,
+			};
 		}
 
 		return {
@@ -401,14 +419,17 @@ export function findNamesInTransaction(builder: TransactionDataBuilder): {
  * Replace all names & types in a transaction block
  * with their resolved names/types.
  */
-export function replaceNames(builder: TransactionDataBuilder, cache: NamedPackagesOverrides) {
+export function replaceNames(
+	builder: TransactionDataBuilder,
+	resolved: Experimental_SuiClientTypes.MvrResolveResponse,
+) {
 	for (const command of builder.commands) {
 		// Replacements for `MakeMoveVec` commands (that can include types)
 		if (command.MakeMoveVec?.type) {
 			if (!hasMvrName(command.MakeMoveVec.type)) continue;
-			if (!cache.types[command.MakeMoveVec.type])
+			if (!resolved.types[command.MakeMoveVec.type])
 				throw new Error(`No resolution found for type: ${command.MakeMoveVec.type}`);
-			command.MakeMoveVec.type = cache.types[command.MakeMoveVec.type];
+			command.MakeMoveVec.type = resolved.types[command.MakeMoveVec.type].type;
 		}
 		// Replacements for `MoveCall` commands (that can include packages & types)
 		const tx = command.MoveCall;
@@ -417,12 +438,12 @@ export function replaceNames(builder: TransactionDataBuilder, cache: NamedPackag
 		const nameParts = tx.package.split('::');
 		const name = nameParts[0];
 
-		if (hasMvrName(name) && !cache.packages[name])
+		if (hasMvrName(name) && !resolved.packages[name])
 			throw new Error(`No address found for package: ${name}`);
 
 		// Replace package name with address.
 		if (hasMvrName(name)) {
-			nameParts[0] = cache.packages[name];
+			nameParts[0] = resolved.packages[name].package;
 			tx.package = nameParts.join('::');
 		}
 
@@ -432,8 +453,8 @@ export function replaceNames(builder: TransactionDataBuilder, cache: NamedPackag
 		for (let i = 0; i < types.length; i++) {
 			if (!hasMvrName(types[i])) continue;
 
-			if (!cache.types[types[i]]) throw new Error(`No resolution found for type: ${types[i]}`);
-			types[i] = cache.types[types[i]];
+			if (!resolved.types[types[i]]) throw new Error(`No resolution found for type: ${types[i]}`);
+			types[i] = resolved.types[types[i]].type;
 		}
 
 		tx.typeArguments = types;

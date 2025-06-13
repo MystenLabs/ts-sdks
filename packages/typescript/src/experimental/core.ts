@@ -30,7 +30,7 @@ export abstract class Experimental_CoreClient
 		super(options);
 		this.mvr = new MvrClient({
 			cache: this.base.cache.scope('core'),
-			url: options.mvr?.apiUrl,
+			url: options.mvr?.url,
 			pageSize: options.mvr?.pageSize,
 			overrides: options.mvr?.overrides,
 		});
