@@ -13,6 +13,10 @@ import {
 	replaceNames,
 } from './utils.js';
 
+const MVR_API_HEADER = {
+	'Mvr-Source': 'ts-sdk-plugin',
+};
+
 export type NamedPackagesPluginOptions = {
 	/**
 	 * The URL of the MVR API to use for resolving names.
@@ -118,7 +122,7 @@ export const namedPackagesPlugin = ({
 			batches.map(async (batch) => {
 				const response = await fetch(`${apiUrl}/v1/resolution/bulk`, {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: { 'Content-Type': 'application/json', ...MVR_API_HEADER },
 					body: JSON.stringify({
 						names: batch,
 					}),
@@ -156,7 +160,7 @@ export const namedPackagesPlugin = ({
 			batches.map(async (batch) => {
 				const response = await fetch(`${apiUrl}/v1/struct-definition/bulk`, {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: { 'Content-Type': 'application/json', ...MVR_API_HEADER },
 					body: JSON.stringify({
 						types: batch,
 					}),
