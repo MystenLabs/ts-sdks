@@ -7,11 +7,11 @@ import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { normalizeStructTag, parseStructTag, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
 import { Experimental_BaseClient } from './client.js';
 import type { ClientWithExtensions, Experimental_SuiClientTypes } from './types.js';
+import { ObjectError } from './errors.js';
 
 export type ClientWithCoreApi = ClientWithExtensions<{
 	core: Experimental_CoreClient;
 }>;
-
 export abstract class Experimental_CoreClient
 	extends Experimental_BaseClient
 	implements Experimental_SuiClientTypes.TransportMethods
@@ -89,6 +89,12 @@ export abstract class Experimental_CoreClient
 		});
 
 		if (fieldObject instanceof Error) {
+			if (ObjectError.isNotFound(fieldObject)) {
+				return {
+					dynamicField: null,
+				};
+			}
+
 			throw fieldObject;
 		}
 

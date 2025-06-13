@@ -1,7 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import type { SuiClient } from '@mysten/sui/client';
 import type { TransactionObjectArgument, TransactionObjectInput } from '@mysten/sui/transactions';
+import type {
+	ClientWithExtensions,
+	Experimental_CoreClient,
+	Experimental_SuiClientTypes,
+} from '@mysten/sui/experimental';
 
 // Interfaces
 // -----------------
@@ -59,8 +63,6 @@ export interface NameRecord {
 // Types
 // -----------------
 
-export type Network = 'mainnet' | 'testnet' | 'custom';
-
 export type VersionedPackageId = {
 	latest: string;
 	v1: string;
@@ -96,12 +98,19 @@ export type ReceiptParams = {
 	priceInfoObjectId?: string | null;
 };
 
-export type SuinsClientConfig = {
-	client: SuiClient;
-	network?: Network;
+export interface SuinsClientConfig extends SuinsClientExtensionConfig {
+	client: SuiNSCompatibleClient;
+}
+
+export interface SuinsClientExtensionConfig {
+	network?: Experimental_SuiClientTypes.Network;
 	config?: Config;
-};
+}
 
 export type SuinsPriceList = Map<[number, number], number>;
 
 export type CoinTypeDiscount = Map<string, number>;
+
+export type SuiNSCompatibleClient = ClientWithExtensions<{
+	core: Experimental_CoreClient;
+}>;
