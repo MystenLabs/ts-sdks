@@ -3,7 +3,7 @@
 
 import { html } from 'lit';
 
-export const disconnectIcon = html`<svg
+export const checkIcon = html`<svg
 	xmlns="http://www.w3.org/2000/svg"
 	width="24"
 	height="24"
@@ -14,7 +14,5 @@ export const disconnectIcon = html`<svg
 	stroke-linecap="round"
 	stroke-linejoin="round"
 >
-	<path d="m16 17 5-5-5-5" />
-	<path d="M21 12H9" />
-	<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+	<path d="M20 6 9 17l-5-5" />
 </svg>`;

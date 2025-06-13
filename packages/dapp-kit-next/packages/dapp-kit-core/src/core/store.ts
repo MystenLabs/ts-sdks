@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { UiWallet, UiWalletAccount } from '@wallet-standard/ui';
+import type { StoreValue } from 'nanostores';
 import { atom, computed, map } from 'nanostores';
 import { getChain } from '../utils/networks.js';
 import type { Networks } from '../utils/networks.js';
@@ -9,7 +10,7 @@ import { getAssociatedWalletOrThrow, requiredWalletFeatures } from '../utils/wal
 import { publicKeyFromSuiBytes } from '@mysten/sui/verify';
 import type { DAppKitCompatibleClient } from './types.js';
 
-type WalletConnection =
+type InternalWalletConnection =
 	| {
 			status: 'disconnected' | 'connecting';
 			currentAccount: null;
@@ -23,6 +24,8 @@ export type DAppKitStores<TNetworks extends Networks = Networks> = ReturnType<
 	typeof createStores<TNetworks>
 >;
 
+export type WalletConnection = StoreValue<DAppKitStores['$connection']>;
+
 export function createStores<TNetworks extends Networks>({
 	defaultNetwork,
 	getClient,
@@ -30,7 +33,7 @@ export function createStores<TNetworks extends Networks>({
 	defaultNetwork: TNetworks[number];
 	getClient: (network: TNetworks[number]) => DAppKitCompatibleClient;
 }) {
-	const $baseConnection = map<WalletConnection>({
+	const $baseConnection = map<InternalWalletConnection>({
 		status: 'disconnected',
 		currentAccount: null,
 	});
