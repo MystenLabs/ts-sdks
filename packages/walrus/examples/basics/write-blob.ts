@@ -23,6 +23,15 @@ const client = new SuiClient({
 		storageNodeClientOptions: {
 			timeout: 60_000,
 		},
+		fanOut: {
+			host: 'http://0.0.0.0:57391',
+			sendTip: {
+				address: '0x588bcc28b11b1c2f1893a43ed07c473f7f9d920e3741dc28045ad586d7d0164a',
+				tip: {
+					const: 105,
+				},
+			},
+		},
 	}),
 );
 
@@ -31,14 +40,14 @@ async function uploadFile() {
 
 	const file = new TextEncoder().encode('Hello from the TS SDK!!!\n');
 
-	const { blobId } = await client.walrus.writeBlob({
+	const { blobId, blobObject } = await client.walrus.writeBlob({
 		blob: file,
 		deletable: false,
 		epochs: 3,
 		signer: keypair,
 	});
 
-	console.log(blobId);
+	console.log(blobId, blobObject);
 }
 
 uploadFile().catch(console.error);
