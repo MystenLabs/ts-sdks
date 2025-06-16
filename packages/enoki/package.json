@@ -61,6 +61,7 @@
 		"@mysten/sui": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
 		"@nanostores/react": "^1.0.0",
+		"@wallet-standard/ui": "^1.0.1",
 		"idb-keyval": "^6.2.2",
 		"mitt": "^3.0.1",
 		"nanostores": "^1.0.1"

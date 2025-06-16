@@ -5,7 +5,6 @@ import type { SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import type {
-	IdentifierArray,
 	IdentifierString,
 	StandardConnectFeature,
 	StandardConnectMethod,
@@ -21,7 +20,16 @@ import type {
 	SuiSignTransactionMethod,
 	Wallet,
 } from '@mysten/wallet-standard';
-import { getWallets, ReadonlyWalletAccount } from '@mysten/wallet-standard';
+import {
+	getWallets,
+	ReadonlyWalletAccount,
+	StandardConnect,
+	StandardDisconnect,
+	StandardEvents,
+	SuiSignAndExecuteTransaction,
+	SuiSignPersonalMessage,
+	SuiSignTransaction,
+} from '@mysten/wallet-standard';
 import type { Emitter } from 'mitt';
 import mitt from 'mitt';
 
@@ -29,6 +37,8 @@ import type { AuthProvider } from '../EnokiClient/type.js';
 import { ENOKI_PROVIDER_WALLETS_INFO } from './providers.js';
 import { INTERNAL_ONLY_EnokiFlow } from './state.js';
 import type { RegisterEnokiWalletsOptions, WalletEventsMap } from './types.js';
+import type { EnokiGetMetadataFeature, EnokiGetMetadataMethod } from './feature.js';
+import { EnokiGetMetadata } from './feature.js';
 
 export class EnokiWallet implements Wallet {
 	#events: Emitter<WalletEventsMap>;
@@ -77,31 +87,36 @@ export class EnokiWallet implements Wallet {
 		StandardEventsFeature &
 		SuiSignTransactionFeature &
 		SuiSignAndExecuteTransactionFeature &
-		SuiSignPersonalMessageFeature {
+		SuiSignPersonalMessageFeature &
+		EnokiGetMetadataFeature {
 		return {
-			'standard:connect': {
+			[StandardConnect]: {
 				version: '1.0.0',
 				connect: this.#connect,
 			},
-			'standard:disconnect': {
+			[StandardDisconnect]: {
 				version: '1.0.0',
 				disconnect: this.#disconnect,
 			},
-			'standard:events': {
+			[StandardEvents]: {
 				version: '1.0.0',
 				on: this.#on,
 			},
-			'sui:signTransaction': {
+			[SuiSignTransaction]: {
 				version: '2.0.0',
 				signTransaction: this.#signTransaction,
 			},
-			'sui:signAndExecuteTransaction': {
+			[SuiSignAndExecuteTransaction]: {
 				version: '2.0.0',
 				signAndExecuteTransaction: this.#signAndExecuteTransaction,
 			},
-			'sui:signPersonalMessage': {
+			[SuiSignPersonalMessage]: {
 				version: '1.1.0',
 				signPersonalMessage: this.#signPersonalMessage,
+			},
+			[EnokiGetMetadata]: {
+				version: '1.0.0',
+				getMetadata: this.#getMetadata,
 			},
 		};
 	}
@@ -210,7 +225,8 @@ export class EnokiWallet implements Wallet {
 				new ReadonlyWalletAccount({
 					address: state.address,
 					chains: this.chains,
-					features: Object.keys(this.features) as IdentifierArray,
+					icon: this.icon,
+					features: [SuiSignPersonalMessage, SuiSignTransaction, SuiSignAndExecuteTransaction],
 					publicKey: fromBase64(state.publicKey),
 				}),
 			];
@@ -277,6 +293,12 @@ export class EnokiWallet implements Wallet {
 		return { accounts: this.accounts };
 	};
 
+	#getMetadata: EnokiGetMetadataMethod = () => {
+		return {
+			provider: this.#provider,
+		};
+	};
+
 	#disconnect: StandardDisconnectMethod = async () => {
 		await this.#flow.logout();
 
@@ -336,10 +358,6 @@ export function registerEnokiWallets({
 			}
 		},
 	};
-}
-
-export function isEnokiWallet(wallet: Wallet): wallet is EnokiWallet {
-	return !!wallet.id?.startsWith('enoki:');
 }
 
 export function defaultWindowFeatures() {

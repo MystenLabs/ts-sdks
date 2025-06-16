@@ -13,7 +13,14 @@ export {
 export { createDefaultEncryption, type Encryption } from './encryption.js';
 export { EnokiKeypair, EnokiPublicKey } from './EnokiKeypair.js';
 
-export { isEnokiWallet, registerEnokiWallets, type EnokiWallet } from './wallet/index.js';
+export { registerEnokiWallets, type EnokiWallet } from './wallet/index.js';
+export {
+	isEnokiWallet,
+	isGoogleWallet,
+	isTwitchWallet,
+	isFacebookWallet,
+	getWalletMetadata,
+} from './wallet/utils.js';
 export { type RegisterEnokiWalletsOptions } from './wallet/types.js';
 
 export { isEnokiNetwork } from './utils.js';
