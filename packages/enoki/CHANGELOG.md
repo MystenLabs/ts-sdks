@@ -1,5 +1,14 @@
 # @mysten/enoki
 
+## 0.7.0
+
+### Minor Changes
+
+- 4117d38: Add methods for filtering and identifying Enoki wallets given `UiWallet` handles
+- 5ef7cad: Return information about the active session from the new `EnokiGetMetadata` feature
+- 81804c7: Revert small change that made `getWalletMetadata` throw an error instead of returning
+  null
+
 ## 0.6.20
 
 ### Patch Changes
