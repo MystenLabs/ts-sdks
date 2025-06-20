@@ -11,8 +11,7 @@ import type {
 } from '@mysten/sui/experimental';
 import { deriveDynamicFieldID } from '@mysten/sui/utils';
 import DataLoader from 'dataloader';
-
-import { Field } from '../contracts/deps/0x0000000000000000000000000000000000000000000000000000000000000002/dynamic_field.js';
+import { Field } from './bcs.js';
 
 export class SuiObjectDataLoader extends DataLoader<
 	string,

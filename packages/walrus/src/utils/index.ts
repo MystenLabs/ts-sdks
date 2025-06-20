@@ -4,7 +4,7 @@
 import type { InferBcsType } from '@mysten/bcs';
 import type { SuiMoveNormalizedType } from '@mysten/sui/client';
 
-import type { Committee } from '../contracts/committee.js';
+import type { Committee } from '../contracts/walrus/committee.js';
 import type { EncodingType } from '../types.js';
 import { BlobId } from './bcs.js';
 
@@ -102,7 +102,7 @@ export function signersToBitmap(signers: number[], committeeSize: number): Uint8
 export function getShardIndicesByNodeId(committee: InferBcsType<ReturnType<typeof Committee>>) {
 	const shardIndicesByNodeId = new Map<string, number[]>();
 
-	for (const node of committee.pos0.contents) {
+	for (const node of committee[0].contents) {
 		if (!shardIndicesByNodeId.has(node.key)) {
 			shardIndicesByNodeId.set(node.key, []);
 		}
@@ -115,7 +115,7 @@ export function getShardIndicesByNodeId(committee: InferBcsType<ReturnType<typeo
 export function nodesByShardIndex(committee: InferBcsType<ReturnType<typeof Committee>>) {
 	const nodesByShardIndex = new Map<number, string>();
 
-	for (const node of committee.pos0.contents) {
+	for (const node of committee[0].contents) {
 		for (const shardIndex of node.value) {
 			nodesByShardIndex.set(shardIndex, node.key);
 		}

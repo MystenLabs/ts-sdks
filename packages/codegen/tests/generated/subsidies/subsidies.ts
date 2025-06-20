@@ -48,8 +48,10 @@ export function Subsidies() {
 }
 export function init(packageAddress: string) {
 	/** Creates a new `Subsidies` object and an `AdminCap`. */
-	function _new(options: { arguments: [] }) {
-		const argumentsTypes = [] satisfies string[];
+	function _new(options: { arguments: [package_id: RawTransactionArgument<string>] }) {
+		const argumentsTypes = [
+			'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
+		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
 				package: packageAddress,
@@ -61,11 +63,18 @@ export function init(packageAddress: string) {
 	/** Creates a new `Subsidies` object with initial rates and funds and an `AdminCap`. */
 	function new_with_initial_rates_and_funds(options: {
 		arguments: [
+			package_id: RawTransactionArgument<string>,
 			initial_buyer_subsidy_rate: RawTransactionArgument<number>,
 			initial_system_subsidy_rate: RawTransactionArgument<number>,
+			initial_funds: RawTransactionArgument<string>,
 		];
 	}) {
-		const argumentsTypes = ['u16', 'u16'] satisfies string[];
+		const argumentsTypes = [
+			'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
+			'u16',
+			'u16',
+			`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
+		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
 				package: packageAddress,
@@ -80,8 +89,13 @@ export function init(packageAddress: string) {
 	 * These funds will be used to provide discounts for buyers and rewards to storage
 	 * nodes.
 	 */
-	function add_funds(options: { arguments: [self: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::subsidies::Subsidies`] satisfies string[];
+	function add_funds(options: {
+		arguments: [self: RawTransactionArgument<string>, funds: RawTransactionArgument<string>];
+	}) {
+		const argumentsTypes = [
+			`${packageAddress}::subsidies::Subsidies`,
+			`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
+		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
 				package: packageAddress,
@@ -152,6 +166,7 @@ export function init(packageAddress: string) {
 			system: RawTransactionArgument<string>,
 			blob: RawTransactionArgument<string>,
 			epochs_ahead: RawTransactionArgument<number>,
+			payment: RawTransactionArgument<string>,
 		];
 	}) {
 		const argumentsTypes = [
@@ -159,6 +174,7 @@ export function init(packageAddress: string) {
 			`${packageAddress}::system::System`,
 			`${packageAddress}::blob::Blob`,
 			'u32',
+			`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
 		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
@@ -180,6 +196,7 @@ export function init(packageAddress: string) {
 			system: RawTransactionArgument<string>,
 			storage_amount: RawTransactionArgument<number | bigint>,
 			epochs_ahead: RawTransactionArgument<number>,
+			payment: RawTransactionArgument<string>,
 		];
 	}) {
 		const argumentsTypes = [
@@ -187,6 +204,7 @@ export function init(packageAddress: string) {
 			`${packageAddress}::system::System`,
 			'u64',
 			'u32',
+			`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
 		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({

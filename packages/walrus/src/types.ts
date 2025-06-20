@@ -6,7 +6,7 @@ import type { Signer } from '@mysten/sui/cryptography';
 import type { ClientWithExtensions } from '@mysten/sui/experimental';
 import type { TransactionObjectArgument } from '@mysten/sui/transactions';
 
-import type { StorageNodeInfo } from './contracts/storage_node.js';
+import type { StorageNodeInfo } from './contracts/walrus/storage_node.js';
 import type { RequestOptions, StorageNodeClientOptions } from './storage-node/client.js';
 import type {
 	StorageConfirmation,

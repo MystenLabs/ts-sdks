@@ -1468,6 +1468,9 @@ importers:
       '@mysten/build-scripts':
         specifier: workspace:*
         version: link:../build-scripts
+      '@mysten/codegen':
+        specifier: workspace:*
+        version: link:../codegen
       '@mysten/dapp-kit':
         specifier: workspace:*
         version: link:../dapp-kit

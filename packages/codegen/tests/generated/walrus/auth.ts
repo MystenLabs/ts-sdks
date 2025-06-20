@@ -63,8 +63,10 @@ export function init(packageAddress: string) {
 			});
 	}
 	/** Returns the `Authorized` as an object. */
-	function authorized_object(options: { arguments: [] }) {
-		const argumentsTypes = [] satisfies string[];
+	function authorized_object(options: { arguments: [id: RawTransactionArgument<string>] }) {
+		const argumentsTypes = [
+			'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
+		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
 				package: packageAddress,

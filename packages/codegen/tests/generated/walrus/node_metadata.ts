@@ -96,8 +96,16 @@ export function init(packageAddress: string) {
 			});
 	}
 	/** Set an extra field of the Validator. */
-	function set_extra_fields(options: { arguments: [metadata: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::node_metadata::NodeMetadata`] satisfies string[];
+	function set_extra_fields(options: {
+		arguments: [
+			metadata: RawTransactionArgument<string>,
+			extra_fields: RawTransactionArgument<string>,
+		];
+	}) {
+		const argumentsTypes = [
+			`${packageAddress}::node_metadata::NodeMetadata`,
+			'0x0000000000000000000000000000000000000000000000000000000000000002::vec_map::VecMap<0x0000000000000000000000000000000000000000000000000000000000000001::string::String, 0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
+		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
 				package: packageAddress,

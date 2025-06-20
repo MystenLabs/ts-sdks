@@ -26,18 +26,22 @@ export function init(packageAddress: string) {
 	function initialize_walrus(options: {
 		arguments: [
 			init_cap: RawTransactionArgument<string>,
+			upgrade_cap: RawTransactionArgument<string>,
 			epoch_zero_duration: RawTransactionArgument<number | bigint>,
 			epoch_duration: RawTransactionArgument<number | bigint>,
 			n_shards: RawTransactionArgument<number>,
 			max_epochs_ahead: RawTransactionArgument<number>,
+			clock: RawTransactionArgument<string>,
 		];
 	}) {
 		const argumentsTypes = [
 			`${packageAddress}::init::InitCap`,
+			'0x0000000000000000000000000000000000000000000000000000000000000002::package::UpgradeCap',
 			'u64',
 			'u64',
 			'u16',
 			'u32',
+			'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({

@@ -448,7 +448,11 @@ export class MoveModuleBuilder extends FileBuilder {
 		}
 
 		if ('Datatype' in type) {
-			return this.#resolveAddress(type.Datatype.module.address) === SUI_FRAMEWORK_ADDRESS;
+			return (
+				this.#resolveAddress(type.Datatype.module.address) === SUI_FRAMEWORK_ADDRESS &&
+				type.Datatype.module.name === 'tx_context' &&
+				type.Datatype.name === 'TxContext'
+			);
 		}
 
 		return false;

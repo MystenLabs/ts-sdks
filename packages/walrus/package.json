@@ -23,6 +23,7 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "build-package",
+		"codegen": "sui-ts-codegen generate -s ../../../walrus/contracts/walrus -s ../../../walrus/contracts/subsidies -s ../../../walrus/contracts/wal -s ../../../walrus/contracts/wal_exchange -o src/contracts && pnpm lint:fix",
 		"prepublishOnly": "pnpm turbo build",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
@@ -42,6 +43,7 @@
 	"devDependencies": {
 		"@hono/node-server": "^1.14.3",
 		"@mysten/build-scripts": "workspace:*",
+		"@mysten/codegen": "workspace:*",
 		"@mysten/dapp-kit": "workspace:*",
 		"@types/node": "^22.15.29",
 		"@types/react": "^18.3.3",

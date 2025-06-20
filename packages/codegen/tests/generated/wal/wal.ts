@@ -36,8 +36,13 @@ export function init(packageAddress: string) {
 			});
 	}
 	/** Burns a `Coin<WAL>` from the sender. */
-	function burn(options: { arguments: [treasury: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::wal::ProtectedTreasury`] satisfies string[];
+	function burn(options: {
+		arguments: [treasury: RawTransactionArgument<string>, coin: RawTransactionArgument<string>];
+	}) {
+		const argumentsTypes = [
+			`${packageAddress}::wal::ProtectedTreasury`,
+			`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
+		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
 				package: packageAddress,

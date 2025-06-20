@@ -15,16 +15,16 @@ import {
 	statusLifecycleRank,
 	TESTNET_WALRUS_PACKAGE_CONFIG,
 } from './constants.js';
-import { Blob, init as initBlobContract } from './contracts/blob.js';
-import type { Committee } from './contracts/committee.js';
-import { init as initMetadataContract, Metadata } from './contracts/metadata.js';
-import { StakingInnerV1 } from './contracts/staking_inner.js';
-import { StakingPool } from './contracts/staking_pool.js';
-import { Staking } from './contracts/staking.js';
-import { Storage } from './contracts/storage_resource.js';
-import { init as initSubsidiesContract, Subsidies } from './contracts/subsidies.js';
-import { SystemStateInnerV1 } from './contracts/system_state_inner.js';
-import { init as initSystemContract, System } from './contracts/system.js';
+import { Blob, init as initBlobContract } from './contracts/walrus/blob.js';
+import type { Committee } from './contracts/walrus/committee.js';
+import { init as initMetadataContract, Metadata } from './contracts/walrus/metadata.js';
+import { StakingInnerV1 } from './contracts/walrus/staking_inner.js';
+import { StakingPool } from './contracts/walrus/staking_pool.js';
+import { Staking } from './contracts/walrus/staking.js';
+import { Storage } from './contracts/walrus/storage_resource.js';
+import { init as initSubsidiesContract, Subsidies } from './contracts/subsidies/subsidies.js';
+import { SystemStateInnerV1 } from './contracts/walrus/system_state_inner.js';
+import { init as initSystemContract, System } from './contracts/walrus/system.js';
 import {
 	BehindCurrentEpochError,
 	BlobBlockedError,
@@ -1724,7 +1724,7 @@ export class WalrusClient {
 	}
 
 	async #stakingPool(committee: InferBcsType<ReturnType<typeof Committee>>) {
-		const nodeIds = committee.pos0.contents.map((node) => node.key);
+		const nodeIds = committee[0].contents.map((node) => node.key);
 		return this.#objectLoader.loadManyOrThrow(nodeIds, StakingPool());
 	}
 

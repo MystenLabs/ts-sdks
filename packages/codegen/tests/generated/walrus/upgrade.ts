@@ -70,6 +70,7 @@ export function init(packageAddress: string) {
 			self: RawTransactionArgument<string>,
 			staking: RawTransactionArgument<string>,
 			auth: RawTransactionArgument<string>,
+			node_id: RawTransactionArgument<string>,
 			digest: RawTransactionArgument<number[]>,
 		];
 	}) {
@@ -77,6 +78,7 @@ export function init(packageAddress: string) {
 			`${packageAddress}::upgrade::UpgradeManager`,
 			`${packageAddress}::staking::Staking`,
 			`${packageAddress}::auth::Authenticated`,
+			'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
 			'vector<u8>',
 		] satisfies string[];
 		return (tx: Transaction) =>
@@ -147,12 +149,14 @@ export function init(packageAddress: string) {
 			upgrade_manager: RawTransactionArgument<string>,
 			staking: RawTransactionArgument<string>,
 			system: RawTransactionArgument<string>,
+			receipt: RawTransactionArgument<string>,
 		];
 	}) {
 		const argumentsTypes = [
 			`${packageAddress}::upgrade::UpgradeManager`,
 			`${packageAddress}::staking::Staking`,
 			`${packageAddress}::system::System`,
+			'0x0000000000000000000000000000000000000000000000000000000000000002::package::UpgradeReceipt',
 		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({

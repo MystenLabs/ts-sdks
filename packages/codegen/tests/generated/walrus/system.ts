@@ -77,9 +77,15 @@ export function init(packageAddress: string) {
 			self: RawTransactionArgument<string>,
 			storage_amount: RawTransactionArgument<number | bigint>,
 			epochs_ahead: RawTransactionArgument<number>,
+			payment: RawTransactionArgument<string>,
 		];
 	}) {
-		const argumentsTypes = [`${packageAddress}::system::System`, 'u64', 'u32'] satisfies string[];
+		const argumentsTypes = [
+			`${packageAddress}::system::System`,
+			'u64',
+			'u32',
+			`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
+		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
 				package: packageAddress,
@@ -101,6 +107,7 @@ export function init(packageAddress: string) {
 			size: RawTransactionArgument<number | bigint>,
 			encoding_type: RawTransactionArgument<number>,
 			deletable: RawTransactionArgument<boolean>,
+			write_payment: RawTransactionArgument<string>,
 		];
 	}) {
 		const argumentsTypes = [
@@ -111,6 +118,7 @@ export function init(packageAddress: string) {
 			'u64',
 			'u8',
 			'bool',
+			`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
 		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
@@ -198,12 +206,14 @@ export function init(packageAddress: string) {
 			self: RawTransactionArgument<string>,
 			blob: RawTransactionArgument<string>,
 			extended_epochs: RawTransactionArgument<number>,
+			payment: RawTransactionArgument<string>,
 		];
 	}) {
 		const argumentsTypes = [
 			`${packageAddress}::system::System`,
 			`${packageAddress}::blob::Blob`,
 			'u32',
+			`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
 		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
@@ -221,10 +231,15 @@ export function init(packageAddress: string) {
 	function add_subsidy(options: {
 		arguments: [
 			system: RawTransactionArgument<string>,
+			subsidy: RawTransactionArgument<string>,
 			epochs_ahead: RawTransactionArgument<number>,
 		];
 	}) {
-		const argumentsTypes = [`${packageAddress}::system::System`, 'u32'] satisfies string[];
+		const argumentsTypes = [
+			`${packageAddress}::system::System`,
+			`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
+			'u32',
+		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
 				package: packageAddress,

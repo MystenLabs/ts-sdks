@@ -87,10 +87,15 @@ export function init(packageAddress: string) {
 	 * `CommissionReceiver` for the `StakingPool`.
 	 */
 	function collect_commission(options: {
-		arguments: [staking: RawTransactionArgument<string>, auth: RawTransactionArgument<string>];
+		arguments: [
+			staking: RawTransactionArgument<string>,
+			node_id: RawTransactionArgument<string>,
+			auth: RawTransactionArgument<string>,
+		];
 	}) {
 		const argumentsTypes = [
 			`${packageAddress}::staking::Staking`,
+			'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
 			`${packageAddress}::auth::Authenticated`,
 		] satisfies string[];
 		return (tx: Transaction) =>
@@ -105,12 +110,14 @@ export function init(packageAddress: string) {
 	function set_commission_receiver(options: {
 		arguments: [
 			staking: RawTransactionArgument<string>,
+			node_id: RawTransactionArgument<string>,
 			auth: RawTransactionArgument<string>,
 			receiver: RawTransactionArgument<string>,
 		];
 	}) {
 		const argumentsTypes = [
 			`${packageAddress}::staking::Staking`,
+			'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
 			`${packageAddress}::auth::Authenticated`,
 			`${packageAddress}::auth::Authorized`,
 		] satisfies string[];
@@ -126,12 +133,14 @@ export function init(packageAddress: string) {
 	function set_governance_authorized(options: {
 		arguments: [
 			staking: RawTransactionArgument<string>,
+			node_id: RawTransactionArgument<string>,
 			auth: RawTransactionArgument<string>,
 			authorized: RawTransactionArgument<string>,
 		];
 	}) {
 		const argumentsTypes = [
 			`${packageAddress}::staking::Staking`,
+			'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
 			`${packageAddress}::auth::Authenticated`,
 			`${packageAddress}::auth::Authorized`,
 		] satisfies string[];
@@ -220,8 +229,13 @@ export function init(packageAddress: string) {
 			});
 	}
 	/** Get `NodeMetadata` for the given node. */
-	function node_metadata(options: { arguments: [self: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::staking::Staking`] satisfies string[];
+	function node_metadata(options: {
+		arguments: [self: RawTransactionArgument<string>, node_id: RawTransactionArgument<string>];
+	}) {
+		const argumentsTypes = [
+			`${packageAddress}::staking::Staking`,
+			'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
+		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
 				package: packageAddress,
@@ -344,8 +358,13 @@ export function init(packageAddress: string) {
 	 * Ends the voting period and runs the apportionment if the current time allows.
 	 * Permissionless, can be called by anyone. Emits: `EpochParametersSelected` event.
 	 */
-	function voting_end(options: { arguments: [staking: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::staking::Staking`] satisfies string[];
+	function voting_end(options: {
+		arguments: [staking: RawTransactionArgument<string>, clock: RawTransactionArgument<string>];
+	}) {
+		const argumentsTypes = [
+			`${packageAddress}::staking::Staking`,
+			'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
+		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
 				package: packageAddress,
@@ -359,11 +378,16 @@ export function init(packageAddress: string) {
 	 * event.
 	 */
 	function initiate_epoch_change(options: {
-		arguments: [staking: RawTransactionArgument<string>, system: RawTransactionArgument<string>];
+		arguments: [
+			staking: RawTransactionArgument<string>,
+			system: RawTransactionArgument<string>,
+			clock: RawTransactionArgument<string>,
+		];
 	}) {
 		const argumentsTypes = [
 			`${packageAddress}::staking::Staking`,
 			`${packageAddress}::system::System`,
+			'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
@@ -382,12 +406,14 @@ export function init(packageAddress: string) {
 			staking: RawTransactionArgument<string>,
 			cap: RawTransactionArgument<string>,
 			epoch: RawTransactionArgument<number>,
+			clock: RawTransactionArgument<string>,
 		];
 	}) {
 		const argumentsTypes = [
 			`${packageAddress}::staking::Staking`,
 			`${packageAddress}::storage_node::StorageNodeCap`,
 			'u32',
+			'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
@@ -398,8 +424,18 @@ export function init(packageAddress: string) {
 			});
 	}
 	/** Stake `Coin` with the staking pool. */
-	function stake_with_pool(options: { arguments: [staking: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::staking::Staking`] satisfies string[];
+	function stake_with_pool(options: {
+		arguments: [
+			staking: RawTransactionArgument<string>,
+			to_stake: RawTransactionArgument<string>,
+			node_id: RawTransactionArgument<string>,
+		];
+	}) {
+		const argumentsTypes = [
+			`${packageAddress}::staking::Staking`,
+			`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
+			'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
+		] satisfies string[];
 		return (tx: Transaction) =>
 			tx.moveCall({
 				package: packageAddress,
@@ -493,6 +529,7 @@ export function init(packageAddress: string) {
 	function calculate_rewards(options: {
 		arguments: [
 			staking: RawTransactionArgument<string>,
+			node_id: RawTransactionArgument<string>,
 			staked_principal: RawTransactionArgument<number | bigint>,
 			activation_epoch: RawTransactionArgument<number>,
 			withdraw_epoch: RawTransactionArgument<number>,
@@ -500,6 +537,7 @@ export function init(packageAddress: string) {
 	}) {
 		const argumentsTypes = [
 			`${packageAddress}::staking::Staking`,
+			'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
 			'u64',
 			'u32',
 			'u32',
