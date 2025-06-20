@@ -12,5 +12,21 @@ export const styles = [
 			flex-direction: column;
 			gap: 12px;
 		}
+
+		.no-wallets-container {
+			display: flex;
+			gap: 16px;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+		}
+
+		.title {
+			font-weight: var(--dapp-kit-font-weight-medium);
+		}
+
+		.copy-text {
+			color: var(--dapp-kit-muted-foreground);
+		}
 	`,
 ];

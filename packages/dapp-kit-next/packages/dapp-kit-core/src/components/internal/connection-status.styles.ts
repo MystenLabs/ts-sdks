@@ -19,6 +19,7 @@ export const styles = [
 		.logo {
 			width: 120px;
 			height: 120px;
+			border-radius: var(--dapp-kit-radius-lg);
 		}
 
 		.container {

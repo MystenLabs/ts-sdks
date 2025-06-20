@@ -49,3 +49,10 @@ export const WithRandomFilter: StoryObj<DAppKitConnectModal> = {
 		filterFn: () => Math.random() > 0.5,
 	},
 };
+
+export const NoDetectedWallets: StoryObj<DAppKitConnectModal> = {
+	args: {
+		open: true,
+		filterFn: () => false,
+	},
+};
