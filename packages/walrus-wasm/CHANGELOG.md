@@ -1,5 +1,11 @@
 # @mysten/walrus-wasm
 
+## 0.1.0
+
+### Minor Changes
+
+- 1e537a8: Add support for fanOut proxy
+
 ## 0.0.6
 
 ### Patch Changes

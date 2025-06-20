@@ -1,5 +1,19 @@
 # @mysten/walrus
 
+## 0.2.0
+
+### Minor Changes
+
+- c0560fe: Use update codegen for move contracts
+- 1e537a8: Add support for fanOut proxy
+
+### Patch Changes
+
+- Updated dependencies [1e537a8]
+- Updated dependencies [3fb7a83]
+  - @mysten/walrus-wasm@0.1.0
+  - @mysten/sui@1.34.0
+
 ## 0.1.8
 
 ### Patch Changes

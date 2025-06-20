@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 1.34.0
+
+### Minor Changes
+
+- 3fb7a83: Fix transaction resolution when transactions are built with clients from older SDK
+  versions
+
 ## 1.33.0
 
 ### Minor Changes

@@ -1,5 +1,15 @@
 # @mysten/enoki
 
+## 0.7.1
+
+### Patch Changes
+
+- 7a91b1e: fix error creating idb for multiple networks
+- Updated dependencies [3fb7a83]
+  - @mysten/sui@1.34.0
+  - @mysten/signers@0.2.18
+  - @mysten/wallet-standard@0.16.3
+
 ## 0.7.0
 
 ### Minor Changes
