@@ -3,66 +3,9 @@
 
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { MoveModuleBuilder } from './move-module-builder.js';
 import { existsSync, statSync } from 'node:fs';
 import { utilsContent } from './generate-utils.js';
-
-export async function generateBuiltPackage({
-	source,
-	destination,
-	name,
-}: {
-	source: string;
-	destination: string;
-	name: string;
-}) {
-	const modules = (await readdir(join(source, 'build', name, 'bytecode_modules')))
-		.map((mod) => join(source, 'build', name, 'bytecode_modules', mod))
-		.filter((mod) => mod.endsWith('.mv'));
-
-	const builders = await Promise.all(modules.map((mod) => MoveModuleBuilder.fromBytecodeFile(mod)));
-
-	await generateUtils({ destination });
-
-	for (const builder of builders) {
-		if (!builder.hasTypesOrFunctions()) {
-			continue;
-		}
-
-		builder.renderBCSTypes();
-		builder.renderFunctions();
-
-		await mkdir(join(destination, name), { recursive: true });
-		await writeFile(
-			join(destination, `${name}/${builder.summary.id.name}.ts`),
-			await builder.toString('./', `./${name}/${builder.summary.id.name}.ts`),
-		);
-	}
-
-	const depsPath = join(source, 'build', name, 'bytecode_modules', 'dependencies');
-	const depDirs = await readdir(depsPath);
-
-	for (const dir of depDirs) {
-		const modules = await readdir(join(depsPath, dir));
-
-		for (const modFile of modules) {
-			const builder = await MoveModuleBuilder.fromBytecodeFile(join(depsPath, dir, modFile));
-
-			if (!builder.hasBcsTypes()) {
-				continue;
-			}
-
-			const moduleAddress = normalizeSuiAddress(builder.summary.id.address);
-			builder.renderBCSTypes();
-			await mkdir(join(destination, 'deps', moduleAddress), { recursive: true });
-			await writeFile(
-				join(destination, 'deps', moduleAddress, `${builder.summary.id.name}.ts`),
-				await builder.toString('./', `./deps/${moduleAddress}/${builder.summary.id.name}.ts`),
-			);
-		}
-	}
-}
 
 export async function generateFromPackageSummary({
 	source,

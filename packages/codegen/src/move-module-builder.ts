@@ -3,12 +3,9 @@
 
 import { FileBuilder } from './file-builder.js';
 import { readFile } from 'node:fs/promises';
-import { deserialize } from '@mysten/move-bytecode-template';
 import { getSafeName, renderTypeSignature, SUI_FRAMEWORK_ADDRESS } from './render-types.js';
 import { formatComment, mapToObject, parseTS, withComment } from './utils.js';
 import type { Fields, ModuleSummary, Type, TypeParameter } from './types/summary.js';
-import { summaryFromDeserializedModule } from './summary.js';
-import type { DeserializedModule } from './types/deserialized.js';
 import { join } from 'node:path';
 
 export class MoveModuleBuilder extends FileBuilder {
@@ -27,17 +24,6 @@ export class MoveModuleBuilder extends FileBuilder {
 		super();
 		this.summary = summary;
 		this.#addressMappings = addressMappings;
-	}
-
-	static async fromBytecodeFile(file: string) {
-		const bytes = await readFile(file);
-		const deserialized: DeserializedModule = deserialize(bytes);
-
-		const builder = new MoveModuleBuilder({
-			summary: summaryFromDeserializedModule(deserialized),
-		});
-
-		return builder;
 	}
 
 	static async fromSummaryFile(file: string, addressMappings: Record<string, string>) {

@@ -156,9 +156,6 @@ importers:
       '@mysten/bcs':
         specifier: workspace:*
         version: link:../bcs
-      '@mysten/move-bytecode-template':
-        specifier: workspace:*
-        version: link:../move-bytecode-template/pkg
       '@mysten/sui':
         specifier: workspace:*
         version: link:../typescript
@@ -178,9 +175,6 @@ importers:
         specifier: ^5.8.3
         version: 5.8.3
     devDependencies:
-      '@mysten/build--move-bytecode-template':
-        specifier: workspace:*
-        version: link:../move-bytecode-template
       '@mysten/build-scripts':
         specifier: workspace:*
         version: link:../build-scripts

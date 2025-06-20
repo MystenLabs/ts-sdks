@@ -12,13 +12,6 @@ export const generateCommand = buildCommand({
 				parse: String,
 				brief: 'Output directory',
 			},
-			built: {
-				kind: 'parsed',
-				parse: String,
-				variadic: true,
-				optional: true,
-				brief: 'path to a built move package',
-			},
 			summary: {
 				kind: 'parsed',
 				parse: String,
@@ -35,7 +28,6 @@ export const generateCommand = buildCommand({
 		},
 		aliases: {
 			o: 'outputDir',
-			b: 'built',
 			s: 'summary',
 		},
 	},

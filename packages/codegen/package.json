@@ -51,13 +51,11 @@
 	},
 	"homepage": "https://github.com/mystenlabs/sui#readme",
 	"devDependencies": {
-		"@mysten/build--move-bytecode-template": "workspace:*",
 		"@mysten/build-scripts": "workspace:*",
 		"vitest": "^3.2.1"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:*",
-		"@mysten/move-bytecode-template": "workspace:*",
 		"@mysten/sui": "workspace:*",
 		"@stricli/auto-complete": "^1.1.2",
 		"@stricli/core": "^1.1.2",
