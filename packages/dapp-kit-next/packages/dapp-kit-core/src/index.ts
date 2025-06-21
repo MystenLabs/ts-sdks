@@ -11,6 +11,7 @@ export { createDAppKit } from './core/index.js';
 export type { DAppKit } from './core/index.js';
 
 export type { DAppKitCompatibleClient } from './core/types.js';
+export type { WalletConnection } from './core/store.js';
 export type { Register, ResolvedRegister, RegisteredDAppKit } from './types.js';
 export type { StateStorage } from './utils/storage.js';
 

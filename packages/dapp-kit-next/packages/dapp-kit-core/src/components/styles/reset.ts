@@ -6,6 +6,7 @@ import { css } from 'lit';
 export const resetStyles = css`
 	* {
 		box-sizing: border-box;
+		-webkit-font-smoothing: antialiased;
 		font-family: var(--dapp-kit-font-sans);
 		outline-color: color-mix(in oklab, var(--dapp-kit-ring) 50%, transparent);
 	}

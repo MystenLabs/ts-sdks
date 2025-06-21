@@ -12,6 +12,8 @@ import { ScopedRegistryHost } from '@lit-labs/scoped-registry-mixin';
 import { Button } from './internal/button.js';
 import { sharedStyles } from './styles/index.js';
 import type { RegisteredDAppKit } from '../types.js';
+import { ConnectedAccountMenu } from './internal/connected-account-menu.js';
+import type { AccountSelectedEvent } from './internal/connected-account-menu-item.js';
 
 /**
  * A button component for connecting to a Sui wallet.
@@ -49,6 +51,7 @@ export class DAppKitConnectButton extends ScopedRegistryHost(LitElement) {
 	static elementDefinitions = {
 		'internal-button': Button,
 		'mysten-dapp-kit-connect-modal': DAppKitConnectModal,
+		'connected-account-menu': ConnectedAccountMenu,
 	};
 
 	static override shadowRootOptions = {
@@ -75,9 +78,22 @@ export class DAppKitConnectButton extends ScopedRegistryHost(LitElement) {
 
 	override render() {
 		const connection = this.instance.stores.$connection.get();
+		const client = this.instance.stores.$currentClient.get();
 
-		return connection.isConnected
-			? html`<div>TODO</div>`
+		return connection.account
+			? html`<connected-account-menu
+					.connection=${connection}
+					.client=${client}
+					@account-selected=${(event: AccountSelectedEvent) => {
+						this.instance!.switchAccount({ account: event.detail.account });
+					}}
+					@disconnect-click=${() => {
+						this.instance!.disconnectWallet();
+					}}
+					@manage-connection-click=${() => {
+						this.instance!.connectWallet({ wallet: connection.wallet });
+					}}
+				></connected-account-menu>`
 			: html`<internal-button @click=${this.#openModal}>
 						<slot>Connect Wallet</slot>
 					</internal-button>

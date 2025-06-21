@@ -19,7 +19,10 @@ export const themeStyles = css`
 		--dapp-kit-muted-foreground: var(--muted-foreground, oklch(0.553 0.013 58.071));
 		--dapp-kit-popover: var(--popover, oklch(1 0 0));
 		--dapp-kit-popover-foreground: var(--popover-foreground, oklch(0.145 0 0));
+		--dapp-kit-destructive: var(--destructive, oklch(0.577 0.245 27.325));
+		--dapp-kit-positive: var(--positive, oklch(0.862 0.127 146.2));
 		--dapp-kit-ring: var(--ring, oklch(0.708 0 0));
+		--dapp-kit-input: var(--input, oklch(0.922 0 0));
 
 		/** Radii */
 		--dapp-kit-radius: var(--radius, 12px);

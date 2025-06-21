@@ -8,7 +8,7 @@ import { createDAppKit } from '../core/index.js';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 const dAppKit = createDAppKit({
-	networks: ['testnet'],
+	networks: ['mainnet'],
 	createClient(network) {
 		return new SuiClient({ network, url: getFullnodeUrl(network) });
 	},

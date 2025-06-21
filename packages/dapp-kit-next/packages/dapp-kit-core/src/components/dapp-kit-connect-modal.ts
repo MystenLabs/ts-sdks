@@ -147,8 +147,8 @@ export class DAppKitConnectModal
 				></wallet-list>`;
 			case 'connecting':
 				return html`<connection-status
-					.title=${'Awaiting your approval...'}
-					.copy=${`Accept the request from ${this._state.wallet.name} in order to proceed.`}
+					.title=${'Awaiting connection...'}
+					.copy=${`Accept the request from ${this._state.wallet.name} in order to proceed`}
 					.wallet=${this._state.wallet}
 				>
 					<internal-button
@@ -169,8 +169,8 @@ export class DAppKitConnectModal
 				return html`<connection-status
 					.title=${wasRequestCancelled ? 'Request canceled' : 'Connection failed'}
 					.copy=${wasRequestCancelled
-						? `You canceled the request.`
-						: 'Something went wrong. Please try again.'}
+						? `You canceled the request`
+						: 'Something went wrong. Please try again'}
 					.wallet=${wallet}
 				>
 					<internal-button
@@ -190,7 +190,7 @@ export class DAppKitConnectModal
 	#getModalTitle(wallets: UiWallet[]) {
 		switch (this._state.view) {
 			case 'wallet-selection':
-				return wallets.length > 0 ? 'Connect a Wallet' : 'No Wallets Installed';
+				return wallets.length > 0 ? 'Connect Wallet' : 'No Wallets Installed';
 			case 'connecting':
 			case 'error':
 				return this._state.wallet.name;

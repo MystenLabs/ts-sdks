@@ -18,10 +18,7 @@ export const styles = [
 			align-items: center;
 			gap: 12px;
 			width: 100%;
-			padding-top: 12px;
-			padding-bottom: 12px;
-			padding-left: 16px;
-			padding-right: 16px;
+			padding: 12px;
 		}
 
 		button:hover {

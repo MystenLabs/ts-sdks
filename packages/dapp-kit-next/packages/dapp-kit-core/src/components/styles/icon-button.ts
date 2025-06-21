@@ -8,7 +8,7 @@ export const iconButtonStyles = css`
 		width: 32px;
 		height: 32px;
 		border-radius: 50%;
-		background: var(--dapp-kit-background);
+		background: inherit;
 		color: var(--dapp-kit-foreground);
 		display: inline-flex;
 		align-items: center;
