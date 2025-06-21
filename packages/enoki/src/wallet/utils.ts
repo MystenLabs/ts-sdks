@@ -4,7 +4,7 @@
 import type { Wallet, WalletWithFeatures } from '@mysten/wallet-standard';
 import type { UiWallet } from '@wallet-standard/ui';
 import { getWalletFeature } from '@wallet-standard/ui';
-import type { EnokiWallet } from './index.js';
+import type { EnokiWallet } from './wallet.js';
 import type { EnokiGetMetadataFeature } from './feature.js';
 import { EnokiGetMetadata } from './feature.js';
 

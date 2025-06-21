@@ -5,7 +5,7 @@ import { useSuiClientContext } from '@mysten/dapp-kit';
 import { useEffect } from 'react';
 
 import { isEnokiNetwork } from '../src/index.js';
-import { registerEnokiWallets } from '../src/wallet/index.js';
+import { registerEnokiWallets } from '../src/wallet/register.js';
 
 export function RegisterEnokiWallets() {
 	const { client, network } = useSuiClientContext();
