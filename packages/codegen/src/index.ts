@@ -81,6 +81,7 @@ export async function generateFromPackageSummary({
 	modules.forEach((mod) => {
 		if (mod.isMainPackage || !prune) {
 			mod.builder.includeAllTypes(moduleBuilders);
+			mod.builder.includeAllFunctions();
 		}
 	});
 
