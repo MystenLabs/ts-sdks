@@ -1,5 +1,12 @@
 # @mysten/codegen
 
+## 0.1.0
+
+### Minor Changes
+
+- f3f2a08: Add support for config files and update cli to use positional args for packages to allow
+  for easier globbing
+
 ## 0.0.1
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @mysten/enoki
 
+## 0.8.0
+
+### Minor Changes
+
+- 4990b4b: Add multi-network support and an initializer plugin for the Enoki wallet standard
+  implementation
+
 ## 0.7.1
 
 ### Patch Changes
