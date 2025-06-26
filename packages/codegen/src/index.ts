@@ -30,6 +30,7 @@ export async function generateFromPackageSummary({
 	}
 
 	let packageName = pkg.packageName!;
+	const mvrNameOrAddress = pkg.package;
 	try {
 		const packageToml = await readFile(join(pkg.path, 'Move.toml'), 'utf-8');
 		packageName = parse(packageToml).package.name.toLowerCase();
@@ -65,6 +66,7 @@ export async function generateFromPackageSummary({
 						builder: await MoveModuleBuilder.fromSummaryFile(
 							join(summaryDir, pkg, mod),
 							addressMappings,
+							pkg === packageName ? mvrNameOrAddress : undefined,
 						),
 					})),
 				);

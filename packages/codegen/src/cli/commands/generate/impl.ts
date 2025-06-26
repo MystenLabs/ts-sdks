@@ -9,6 +9,7 @@ import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
 interface SubdirCommandFlags {
 	outputDir?: string;
 	noPrune?: boolean;
+	network?: 'mainnet' | 'testnet';
 }
 
 export default async function generate(
@@ -24,11 +25,13 @@ export default async function generate(
 					const trimmed = p.trim();
 					if (isValidSuiObjectId(trimmed) || isValidNamedPackage(trimmed)) {
 						return {
+							network: flags.network ?? 'testnet',
 							packageName: isValidSuiObjectId(trimmed) ? trimmed : trimmed.split('/')[1],
 							package: trimmed,
 						};
 					} else {
 						return {
+							package: '@local-pkg/' + trimmed,
 							packageName: trimmed,
 							path: trimmed,
 						};

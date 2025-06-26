@@ -8,6 +8,7 @@ import { TransactionArgument, isArgument } from '@mysten/sui/transactions';
 
 const MOVE_STDLIB_ADDRESS = normalizeSuiAddress('0x1');
 const SUI_FRAMEWORK_ADDRESS = normalizeSuiAddress('0x2');
+const SUI_SYSTEM_ADDRESS = normalizeSuiAddress('0x3');
 
 export type RawTransactionArgument<T> = T | TransactionArgument;
 
@@ -59,14 +60,52 @@ export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null
 	return null;
 }
 
-export function normalizeMoveArguments(args: unknown[], argTypes: string[]) {
-	if (args.length !== argTypes.length) {
-		throw new Error(\`Invalid number of arguments, expected \${argTypes.length}, got \${args.length}\`);
+export function normalizeMoveArguments(args: unknown[] | Record<string, unknown>, argTypes: string[], parameterNames?: string[]) {
+
+	if (parameterNames && argTypes.length !== parameterNames.length) {
+		throw new Error(\`Invalid number of parameterNames, expected \${argTypes.length}, got \${parameterNames.length}\`);
 	}
 
 	const normalizedArgs: TransactionArgument[] = [];
 
-	for (const [i, arg] of args.entries()) {
+	let index = 0;
+	for (const [i, argType] of argTypes.entries()) {
+		if (argType === \`\${SUI_FRAMEWORK_ADDRESS}::deny_list::DenyList\`) {
+			normalizedArgs.push((tx) => tx.object.denyList());
+		}
+
+		if (argType === \`\${SUI_FRAMEWORK_ADDRESS}::random::Random\`) {
+			normalizedArgs.push((tx) => tx.object.random());
+		}
+
+		if (argType === \`\${SUI_FRAMEWORK_ADDRESS}::clock::Clock\`) {
+			normalizedArgs.push((tx) => tx.object.clock());
+		}
+
+		if (argType === \`\${SUI_SYSTEM_ADDRESS}::sui_system::SuiSystemState\`) {
+			normalizedArgs.push((tx) => tx.object.system());
+		}
+
+		index += 1;
+
+		let arg
+		if (Array.isArray(args)) {
+			if (index >= args.length) {
+				throw new Error(\`Invalid number of arguments, expected at least \${index + 1}, got \${args.length}\`);
+			}
+			arg = args[index];
+		} else {
+			if (!parameterNames) {
+				throw new Error(\`Expected arguments to be passed as an array\`);
+			}
+			const name = parameterNames[index];
+			arg = args[name];
+
+			if (!arg) {
+				throw new Error(\`Parameter \${name} is required\`);
+			}
+		}
+
 		if (typeof arg === 'function' || isArgument(arg)) {
 			normalizedArgs.push(arg as TransactionArgument);
 			continue;

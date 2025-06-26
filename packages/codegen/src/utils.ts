@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { format } from 'prettier';
 import ts from 'typescript';
+import type { Type } from './types/summary.js';
+import { SUI_FRAMEWORK_ADDRESS, SUI_SYSTEM_ADDRESS } from './render-types.js';
 
 export function printNodes(...nodes: ts.Node[]) {
 	const printer = ts.createPrinter({
@@ -130,4 +132,54 @@ export async function formatComment(text: string) {
 	if (lines.length === 1) return `* ${lines[0]} `;
 
 	return `*\n${lines.map((line) => ` * ${line}`).join('\n')}\n `;
+}
+
+export function camelCase(str: string) {
+	return str.replace(/(?:_)([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+export function capitalize(str: string) {
+	return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+export function isWellKnownObjectParameter(
+	type: Type,
+	resolveAddress: (address: string) => string,
+) {
+	if (typeof type === 'string') {
+		return false;
+	}
+
+	if ('Reference' in type) {
+		return isWellKnownObjectParameter(type.Reference[1], resolveAddress);
+	}
+
+	if (!('Datatype' in type)) {
+		return false;
+	}
+
+	const { Datatype } = type;
+
+	const address = resolveAddress(Datatype.module.address);
+	if (address === SUI_FRAMEWORK_ADDRESS) {
+		if (Datatype.module.name === 'deny_list') {
+			return Datatype.name === 'DenyList';
+		}
+
+		if (Datatype.module.name === 'random') {
+			return Datatype.name === 'Random';
+		}
+
+		if (Datatype.module.name === 'clock') {
+			return Datatype.name === 'Clock';
+		}
+	}
+
+	if (address === SUI_SYSTEM_ADDRESS) {
+		if (Datatype.module.name === 'sui_system') {
+			return Datatype.name === 'SuiSystemState';
+		}
+	}
+
+	return false;
 }

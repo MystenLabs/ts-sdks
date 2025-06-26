@@ -11,11 +11,12 @@ export const onChainPackageSchema = z.object({
 	}),
 	packageName: z.string(),
 	path: z.never().optional(),
+	network: z.enum(['mainnet', 'testnet']),
 });
 
 export const localPackageSchema = z.object({
 	path: z.string(),
-	package: z.string().optional(),
+	package: z.string(),
 	packageName: z.string().optional(),
 });
 

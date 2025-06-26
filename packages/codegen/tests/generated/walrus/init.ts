@@ -17,61 +17,85 @@ export function InitCap() {
 		publisher: _package.Publisher(),
 	});
 }
-export function init(packageAddress: string) {
-	/**
-	 * Function to initialize walrus and share the system and staking objects. This can
-	 * only be called once, after which the `InitCap` is destroyed. TODO: decide what
-	 * to add as system parameters instead of constants.
-	 */
-	function initialize_walrus(options: {
-		arguments: [
-			init_cap: RawTransactionArgument<string>,
-			upgrade_cap: RawTransactionArgument<string>,
-			epoch_zero_duration: RawTransactionArgument<number | bigint>,
-			epoch_duration: RawTransactionArgument<number | bigint>,
-			n_shards: RawTransactionArgument<number>,
-			max_epochs_ahead: RawTransactionArgument<number>,
-			clock: RawTransactionArgument<string>,
-		];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::init::InitCap`,
-			'0x0000000000000000000000000000000000000000000000000000000000000002::package::UpgradeCap',
-			'u64',
-			'u64',
-			'u16',
-			'u32',
-			'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'init',
-				function: 'initialize_walrus',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/**
-	 * Migrate the staking and system objects to the new package id.
-	 *
-	 * This must be called in the new package after an upgrade is committed to emit an
-	 * event that informs all storage nodes and prevent previous package versions from
-	 * being used.
-	 */
-	function migrate(options: {
-		arguments: [staking: RawTransactionArgument<string>, system: RawTransactionArgument<string>];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::staking::Staking`,
-			`${packageAddress}::system::System`,
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'init',
-				function: 'migrate',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	return { initialize_walrus, migrate };
+/**
+ * Function to initialize walrus and share the system and staking objects. This can
+ * only be called once, after which the `InitCap` is destroyed. TODO: decide what
+ * to add as system parameters instead of constants.
+ */
+export function initialize_walrus(options: {
+	package?: string;
+	arguments:
+		| [
+				initCap: RawTransactionArgument<string>,
+				upgradeCap: RawTransactionArgument<string>,
+				epochZeroDuration: RawTransactionArgument<number | bigint>,
+				epochDuration: RawTransactionArgument<number | bigint>,
+				nShards: RawTransactionArgument<number>,
+				maxEpochsAhead: RawTransactionArgument<number>,
+		  ]
+		| {
+				initCap: RawTransactionArgument<string>;
+				upgradeCap: RawTransactionArgument<string>;
+				epochZeroDuration: RawTransactionArgument<number | bigint>;
+				epochDuration: RawTransactionArgument<number | bigint>;
+				nShards: RawTransactionArgument<number>;
+				maxEpochsAhead: RawTransactionArgument<number>;
+		  };
+}) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [
+		`${packageAddress}::init::InitCap`,
+		'0x0000000000000000000000000000000000000000000000000000000000000002::package::UpgradeCap',
+		'u64',
+		'u64',
+		'u16',
+		'u32',
+		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
+	] satisfies string[];
+	const parameterNames = [
+		'initCap',
+		'upgradeCap',
+		'epochZeroDuration',
+		'epochDuration',
+		'nShards',
+		'maxEpochsAhead',
+		'clock',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'init',
+			function: 'initialize_walrus',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+/**
+ * Migrate the staking and system objects to the new package id.
+ *
+ * This must be called in the new package after an upgrade is committed to emit an
+ * event that informs all storage nodes and prevent previous package versions from
+ * being used.
+ */
+export function migrate(options: {
+	package?: string;
+	arguments:
+		| [staking: RawTransactionArgument<string>, system: RawTransactionArgument<string>]
+		| {
+				staking: RawTransactionArgument<string>;
+				system: RawTransactionArgument<string>;
+		  };
+}) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [
+		`${packageAddress}::staking::Staking`,
+		`${packageAddress}::system::System`,
+	] satisfies string[];
+	const parameterNames = ['staking', 'system'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'init',
+			function: 'migrate',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }

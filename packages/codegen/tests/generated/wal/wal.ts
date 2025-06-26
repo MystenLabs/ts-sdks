@@ -23,33 +23,47 @@ export function TreasuryCapKey() {
 		dummy_field: bcs.bool(),
 	});
 }
-export function init(packageAddress: string) {
-	/** Get the total supply of the WAL token. */
-	function total_supply(options: { arguments: [treasury: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::wal::ProtectedTreasury`] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'wal',
-				function: 'total_supply',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Burns a `Coin<WAL>` from the sender. */
-	function burn(options: {
-		arguments: [treasury: RawTransactionArgument<string>, coin: RawTransactionArgument<string>];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::wal::ProtectedTreasury`,
-			`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'wal',
-				function: 'burn',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	return { total_supply, burn };
+/** Get the total supply of the WAL token. */
+export function total_supply(options: {
+	package?: string;
+	arguments:
+		| [treasury: RawTransactionArgument<string>]
+		| {
+				treasury: RawTransactionArgument<string>;
+		  };
+}) {
+	const packageAddress = options.package ?? '@local-pkg/wal';
+	const argumentsTypes = [`${packageAddress}::wal::ProtectedTreasury`] satisfies string[];
+	const parameterNames = ['treasury'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'wal',
+			function: 'total_supply',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+/** Burns a `Coin<WAL>` from the sender. */
+export function burn(options: {
+	package?: string;
+	arguments:
+		| [treasury: RawTransactionArgument<string>, coin: RawTransactionArgument<string>]
+		| {
+				treasury: RawTransactionArgument<string>;
+				coin: RawTransactionArgument<string>;
+		  };
+}) {
+	const packageAddress = options.package ?? '@local-pkg/wal';
+	const argumentsTypes = [
+		`${packageAddress}::wal::ProtectedTreasury`,
+		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
+	] satisfies string[];
+	const parameterNames = ['treasury', 'coin'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'wal',
+			function: 'burn',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }

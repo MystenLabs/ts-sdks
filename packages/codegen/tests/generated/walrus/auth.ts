@@ -24,56 +24,78 @@ export function Authorized() {
 		ObjectID: bcs.Address,
 	});
 }
-export function init(packageAddress: string) {
-	/** Authenticates the sender as the authorizer. */
-	function authenticate_sender(options: { arguments: [] }) {
-		const argumentsTypes = [] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'auth',
-				function: 'authenticate_sender',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Authenticates an object as the authorizer. */
-	function authenticate_with_object<T extends BcsType<any>>(options: {
-		arguments: [obj: RawTransactionArgument<T>];
-		typeArguments: [string];
-	}) {
-		const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'auth',
-				function: 'authenticate_with_object',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-				typeArguments: options.typeArguments,
-			});
-	}
-	/** Returns the `Authorized` as an address. */
-	function authorized_address(options: { arguments: [addr: RawTransactionArgument<string>] }) {
-		const argumentsTypes = ['address'] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'auth',
-				function: 'authorized_address',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Returns the `Authorized` as an object. */
-	function authorized_object(options: { arguments: [id: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [
-			'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'auth',
-				function: 'authorized_object',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	return { authenticate_sender, authenticate_with_object, authorized_address, authorized_object };
+/** Authenticates the sender as the authorizer. */
+export function authenticate_sender(options: { package?: string; arguments: [] }) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auth',
+			function: 'authenticate_sender',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
+		});
+}
+/** Authenticates an object as the authorizer. */
+export function authenticate_with_object<T extends BcsType<any>>(options: {
+	package?: string;
+	arguments:
+		| [obj: RawTransactionArgument<T>]
+		| {
+				obj: RawTransactionArgument<T>;
+		  };
+	typeArguments: [string];
+}) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const parameterNames = ['obj'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auth',
+			function: 'authenticate_with_object',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+/** Returns the `Authorized` as an address. */
+export function authorized_address(options: {
+	package?: string;
+	arguments:
+		| [addr: RawTransactionArgument<string>]
+		| {
+				addr: RawTransactionArgument<string>;
+		  };
+}) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = ['address'] satisfies string[];
+	const parameterNames = ['addr'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auth',
+			function: 'authorized_address',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+/** Returns the `Authorized` as an object. */
+export function authorized_object(options: {
+	package?: string;
+	arguments:
+		| [id: RawTransactionArgument<string>]
+		| {
+				id: RawTransactionArgument<string>;
+		  };
+}) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [
+		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
+	] satisfies string[];
+	const parameterNames = ['id'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auth',
+			function: 'authorized_object',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }

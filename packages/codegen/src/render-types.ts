@@ -7,6 +7,7 @@ import type { Datatype, ModuleSummary, Type, TypeParameter } from './types/summa
 
 export const MOVE_STDLIB_ADDRESS = normalizeSuiAddress('0x1');
 export const SUI_FRAMEWORK_ADDRESS = normalizeSuiAddress('0x2');
+export const SUI_SYSTEM_ADDRESS = normalizeSuiAddress('0x3');
 
 type TypeSignatureFormat = 'typescriptArg' | 'bcs' | 'typeTag';
 interface RenderTypeSignatureOptions {

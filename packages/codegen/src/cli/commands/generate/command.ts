@@ -26,9 +26,16 @@ export const generateCommand = buildCommand({
 				optional: true,
 				brief: 'generate all types and functions in dependencies',
 			},
+			network: {
+				kind: 'enum',
+				values: ['mainnet', 'testnet'],
+				optional: true,
+				brief: 'Network to generate for (default: testnet)',
+			},
 		},
 		aliases: {
 			o: 'outputDir',
+			n: 'network',
 		},
 	},
 	docs: {

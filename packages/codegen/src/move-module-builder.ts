@@ -4,7 +4,14 @@
 import { FileBuilder } from './file-builder.js';
 import { readFile } from 'node:fs/promises';
 import { getSafeName, renderTypeSignature, SUI_FRAMEWORK_ADDRESS } from './render-types.js';
-import { formatComment, mapToObject, parseTS, withComment } from './utils.js';
+import {
+	camelCase,
+	formatComment,
+	isWellKnownObjectParameter,
+	mapToObject,
+	parseTS,
+	withComment,
+} from './utils.js';
 import type { Fields, ModuleSummary, Type, TypeParameter } from './types/summary.js';
 import { join } from 'node:path';
 
@@ -13,25 +20,34 @@ export class MoveModuleBuilder extends FileBuilder {
 	#depsDir = './deps';
 	#addressMappings: Record<string, string>;
 	#includedTypes: Set<string> = new Set();
+	#mvrNameOrAddress?: string;
 
 	constructor({
+		mvrNameOrAddress,
 		summary,
 		addressMappings = {},
 	}: {
 		summary: ModuleSummary;
 		addressMappings?: Record<string, string>;
+		mvrNameOrAddress?: string;
 	}) {
 		super();
 		this.summary = summary;
 		this.#addressMappings = addressMappings;
+		this.#mvrNameOrAddress = mvrNameOrAddress;
 	}
 
-	static async fromSummaryFile(file: string, addressMappings: Record<string, string>) {
+	static async fromSummaryFile(
+		file: string,
+		addressMappings: Record<string, string>,
+		mvrNameOrAddress?: string,
+	) {
 		const summary = JSON.parse(await readFile(file, 'utf-8'));
 
 		return new MoveModuleBuilder({
 			summary,
 			addressMappings,
+			mvrNameOrAddress,
 		});
 	}
 
@@ -318,7 +334,6 @@ export class MoveModuleBuilder extends FileBuilder {
 	}
 
 	async renderFunctions() {
-		const statements = [];
 		const names = [];
 
 		if (!this.hasFunctions()) {
@@ -332,7 +347,12 @@ export class MoveModuleBuilder extends FileBuilder {
 			}
 
 			const parameters = func.parameters.filter((param) => !this.isContextReference(param.type_));
+			const hasAllParameterNames = parameters.length > 0 && parameters.every((param) => param.name);
 			const fnName = getSafeName(name);
+			const requiredParameters = parameters.filter(
+				(param) =>
+					!isWellKnownObjectParameter(param.type_, (address) => this.#resolveAddress(address)),
+			);
 
 			this.addImport('~root/../utils/index.js', 'normalizeMoveArguments');
 			if (parameters.length > 0) {
@@ -343,7 +363,7 @@ export class MoveModuleBuilder extends FileBuilder {
 
 			const usedTypeParameters = new Set<number | string>();
 
-			const argumentsTypes = parameters
+			const argumentsTypes = requiredParameters
 				.map((param) =>
 					renderTypeSignature(param.type_, {
 						format: 'typescriptArg',
@@ -355,7 +375,7 @@ export class MoveModuleBuilder extends FileBuilder {
 				)
 				.map((type, i) =>
 					parameters[i].name
-						? `${parameters[i].name}: RawTransactionArgument<${type}>`
+						? `${camelCase(parameters[i].name)}: RawTransactionArgument<${type}>`
 						: `RawTransactionArgument<${type}>`,
 				)
 				.join(',\n');
@@ -369,19 +389,19 @@ export class MoveModuleBuilder extends FileBuilder {
 					usedTypeParameters.has(i) || (param.name && usedTypeParameters.has(param.name)),
 			);
 
-			statements.push(
+			this.statements.push(
 				...(await withComment(
 					func,
-					parseTS/* ts */ `function
-					${fnName}${
+					parseTS/* ts */ `export function ${fnName}${
 						filteredTypeParameters.length > 0
 							? `<
 							${filteredTypeParameters.map((param, i) => `${param.name ?? `T${i}`} extends BcsType<any>`)}
 						>`
 							: ''
 					}(options: {
+						package${this.#mvrNameOrAddress ? '?: string' : ': string'}
 						arguments: [
-						${argumentsTypes}],
+						${argumentsTypes}]${hasAllParameterNames ? ` | {${argumentsTypes}}` : ''},
 
 						${
 							func.type_parameters.length
@@ -389,7 +409,10 @@ export class MoveModuleBuilder extends FileBuilder {
 								: ''
 						}
 				}) {
-					const argumentsTypes = [
+					const packageAddress = options.package${this.#mvrNameOrAddress ? ` ?? '${this.#mvrNameOrAddress}'` : ''};
+					${
+						requiredParameters.length > 0
+							? `const argumentsTypes = [
 						${parameters
 							.map((param) =>
 								renderTypeSignature(param.type_, {
@@ -401,27 +424,20 @@ export class MoveModuleBuilder extends FileBuilder {
 							)
 							.map((tag) => (tag.includes('{') ? `\`${tag}\`` : `'${tag}'`))
 							.join(',\n')}
-					] satisfies string[]
+					] satisfies string[]\n`
+							: ''
+					}${hasAllParameterNames ? `const parameterNames = ${JSON.stringify(parameters.map((param) => camelCase(param.name!)))}\n` : ''}
 					return (tx: Transaction) => tx.moveCall({
 						package: packageAddress,
 						module: '${this.summary.id.name}',
 						function: '${name}',
-						arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
+						arguments: normalizeMoveArguments(options.arguments, argumentsTypes${hasAllParameterNames ? `, parameterNames` : ''}),
 						${func.type_parameters.length ? 'typeArguments: options.typeArguments' : ''}
 					})
 				}`,
 				)),
 			);
 		}
-
-		this.statements.push(
-			...parseTS/* ts */ `
-			export function init(packageAddress: string) {
-				${statements}
-
-				return { ${names.join(', ')} }
-			}`,
-		);
 	}
 
 	isContextReference(type: Type): boolean {
