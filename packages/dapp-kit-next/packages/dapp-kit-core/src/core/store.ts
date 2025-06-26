@@ -7,7 +7,6 @@ import { atom, computed, map } from 'nanostores';
 import { getChain } from '../utils/networks.js';
 import type { Networks } from '../utils/networks.js';
 import { getAssociatedWalletOrThrow, requiredWalletFeatures } from '../utils/wallets.js';
-import { publicKeyFromSuiBytes } from '@mysten/sui/verify';
 import type { DAppKitCompatibleClient } from './types.js';
 
 type InternalWalletConnection =
@@ -63,17 +62,6 @@ export function createStores<TNetworks extends Networks>({
 		$registeredWallets,
 		$compatibleWallets,
 		$baseConnection,
-		$publicKey: computed($baseConnection, ({ currentAccount }) => {
-			if (!currentAccount) return null;
-
-			try {
-				return publicKeyFromSuiBytes(new Uint8Array(currentAccount.publicKey), {
-					address: currentAccount.address,
-				});
-			} catch {
-				return null;
-			}
-		}),
 		$currentClient: computed($currentNetwork, getClient),
 		$connection: computed([$baseConnection, $compatibleWallets], (connection, wallets) => {
 			switch (connection.status) {

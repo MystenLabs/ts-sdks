@@ -74,7 +74,6 @@ export function createDAppKit<TNetworks extends Networks>({
 		switchAccount: switchAccountCreator(stores),
 		switchNetwork: switchNetworkCreator(stores),
 		stores: {
-			$publicKey: stores.$publicKey,
 			$wallets: stores.$compatibleWallets,
 			$connection: stores.$connection,
 			$currentNetwork: readonlyType(stores.$currentNetwork),

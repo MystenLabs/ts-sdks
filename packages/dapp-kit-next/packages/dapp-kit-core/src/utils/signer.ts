@@ -3,60 +3,73 @@
 
 import type { PublicKey, SignatureScheme } from '@mysten/sui/cryptography';
 import { SIGNATURE_FLAG_TO_SCHEME, Signer } from '@mysten/sui/cryptography';
-import type { DAppKit } from './core/index.js';
+import type { DAppKit } from '../core/index.js';
 import type { Transaction } from '@mysten/sui/transactions';
 import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 import { parseTransactionBcs, parseTransactionEffectsBcs } from '@mysten/sui/experimental';
 import { toBase64, fromBase64 } from '@mysten/sui/utils';
+import { publicKeyFromSuiBytes } from '@mysten/sui/verify';
 
 export class CurrentAccountSigner extends Signer {
-	dAppKit: DAppKit;
+	#publicKeyCache = new Map<string, PublicKey>();
+	#dAppKit: DAppKit;
 
-	constructor(store: DAppKit) {
+	constructor(dAppKit: DAppKit) {
 		super();
-		this.dAppKit = store;
+		this.#dAppKit = dAppKit;
 	}
 
-	getKeyScheme(): SignatureScheme {
+	override getKeyScheme(): SignatureScheme {
 		return SIGNATURE_FLAG_TO_SCHEME[
 			this.getPublicKey().flag() as keyof typeof SIGNATURE_FLAG_TO_SCHEME
 		];
 	}
 
-	getPublicKey(): PublicKey {
-		const publicKey = this.dAppKit.stores.$publicKey.get();
+	override getPublicKey(): PublicKey {
+		const { account } = this.#dAppKit.stores.$connection.get();
+		const client = this.#dAppKit.stores.$currentClient.get();
 
-		if (!publicKey) {
-			throw new Error('DappKit is not currently connected to an account');
+		if (!account) {
+			throw new Error('No account is connected.');
 		}
 
+		if (this.#publicKeyCache.has(account.address)) {
+			return this.#publicKeyCache.get(account.address)!;
+		}
+
+		const publicKey = publicKeyFromSuiBytes(new Uint8Array(account.publicKey), {
+			address: account.address,
+			client,
+		});
+
+		this.#publicKeyCache.set(account.address, publicKey);
 		return publicKey;
 	}
 
-	sign(_data: Uint8Array): never {
+	override sign(_data: Uint8Array): never {
 		throw new Error(
-			'WalletSigner does not support signing directly. Use signTransaction or signPersonalMessage instead',
+			'CurrentAccountSigner does not support signing directly. Use `signTransaction` or `signPersonalMessage` instead.',
 		);
 	}
 
-	async signTransaction(bytes: Uint8Array) {
-		return this.dAppKit.signTransaction({
+	override async signTransaction(bytes: Uint8Array) {
+		return this.#dAppKit.signTransaction({
 			transaction: toBase64(bytes),
 		});
 	}
 
-	async signPersonalMessage(bytes: Uint8Array) {
-		return this.dAppKit.signPersonalMessage({
+	override async signPersonalMessage(bytes: Uint8Array) {
+		return this.#dAppKit.signPersonalMessage({
 			message: bytes,
 		});
 	}
 
-	async signAndExecuteTransaction({
+	override async signAndExecuteTransaction({
 		transaction,
 	}: {
 		transaction: Transaction;
 	}): Promise<Experimental_SuiClientTypes.TransactionResponse> {
-		const { bytes, signature, digest, effects } = await this.dAppKit.signAndExecuteTransaction({
+		const { bytes, signature, digest, effects } = await this.#dAppKit.signAndExecuteTransaction({
 			transaction,
 		});
 
