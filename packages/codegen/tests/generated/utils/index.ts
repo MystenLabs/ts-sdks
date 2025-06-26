@@ -87,8 +87,6 @@ export function normalizeMoveArguments(
 			normalizedArgs.push((tx) => tx.object.system());
 		}
 
-		index += 1;
-
 		let arg;
 		if (Array.isArray(args)) {
 			if (index >= args.length) {
@@ -109,6 +107,8 @@ export function normalizeMoveArguments(
 			}
 		}
 
+		index += 1;
+
 		if (typeof arg === 'function' || isArgument(arg)) {
 			normalizedArgs.push(arg as TransactionArgument);
 			continue;
@@ -126,8 +126,19 @@ export function normalizeMoveArguments(
 			continue;
 		}
 
-		throw new Error(`Invalid argument ${JSON.stringify(arg)} for type ${type}`);
+		throw new Error(`Invalid argument ${stringify(arg)} for type ${type}`);
 	}
 
 	return normalizedArgs;
+}
+
+function stringify(val: unknown) {
+	if (typeof val === 'object') {
+		return JSON.stringify(val, (val: unknown) => val);
+	}
+	if (typeof val === 'bigint') {
+		return val.toString();
+	}
+
+	return val;
 }
