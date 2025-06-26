@@ -36,9 +36,19 @@ export function CoreConfig() {
 		extra: vec_map.VecMap(bcs.string(), bcs.string()),
 	});
 }
-export function _new(options: {
+export interface NewArguments {
+	publicKey: RawTransactionArgument<number[]>;
+	minLabelLength: RawTransactionArgument<number>;
+	maxLabelLength: RawTransactionArgument<number>;
+	paymentsVersion: RawTransactionArgument<number>;
+	maxYears: RawTransactionArgument<number>;
+	validTlds: RawTransactionArgument<string[]>;
+	extra: RawTransactionArgument<string>;
+}
+export interface NewOptions {
 	package?: string;
 	arguments:
+		| NewArguments
 		| [
 				publicKey: RawTransactionArgument<number[]>,
 				minLabelLength: RawTransactionArgument<number>,
@@ -47,17 +57,9 @@ export function _new(options: {
 				maxYears: RawTransactionArgument<number>,
 				validTlds: RawTransactionArgument<string[]>,
 				extra: RawTransactionArgument<string>,
-		  ]
-		| {
-				publicKey: RawTransactionArgument<number[]>;
-				minLabelLength: RawTransactionArgument<number>;
-				maxLabelLength: RawTransactionArgument<number>;
-				paymentsVersion: RawTransactionArgument<number>;
-				maxYears: RawTransactionArgument<number>;
-				validTlds: RawTransactionArgument<string[]>;
-				extra: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		'vector<u8>',
@@ -85,14 +87,14 @@ export function _new(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function public_key(options: {
+export interface PublicKeyArguments {
+	config: RawTransactionArgument<string>;
+}
+export interface PublicKeyOptions {
 	package?: string;
-	arguments:
-		| [config: RawTransactionArgument<string>]
-		| {
-				config: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: PublicKeyArguments | [config: RawTransactionArgument<string>];
+}
+export function publicKey(options: PublicKeyOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
 	const parameterNames = ['config'];
@@ -104,14 +106,14 @@ export function public_key(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function min_label_length(options: {
+export interface MinLabelLengthArguments {
+	config: RawTransactionArgument<string>;
+}
+export interface MinLabelLengthOptions {
 	package?: string;
-	arguments:
-		| [config: RawTransactionArgument<string>]
-		| {
-				config: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: MinLabelLengthArguments | [config: RawTransactionArgument<string>];
+}
+export function minLabelLength(options: MinLabelLengthOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
 	const parameterNames = ['config'];
@@ -123,14 +125,14 @@ export function min_label_length(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function max_label_length(options: {
+export interface MaxLabelLengthArguments {
+	config: RawTransactionArgument<string>;
+}
+export interface MaxLabelLengthOptions {
 	package?: string;
-	arguments:
-		| [config: RawTransactionArgument<string>]
-		| {
-				config: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: MaxLabelLengthArguments | [config: RawTransactionArgument<string>];
+}
+export function maxLabelLength(options: MaxLabelLengthOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
 	const parameterNames = ['config'];
@@ -142,15 +144,17 @@ export function max_label_length(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function is_valid_tld(options: {
+export interface IsValidTldArguments {
+	config: RawTransactionArgument<string>;
+	tld: RawTransactionArgument<string>;
+}
+export interface IsValidTldOptions {
 	package?: string;
 	arguments:
-		| [config: RawTransactionArgument<string>, tld: RawTransactionArgument<string>]
-		| {
-				config: RawTransactionArgument<string>;
-				tld: RawTransactionArgument<string>;
-		  };
-}) {
+		| IsValidTldArguments
+		| [config: RawTransactionArgument<string>, tld: RawTransactionArgument<string>];
+}
+export function isValidTld(options: IsValidTldOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::core_config::CoreConfig`,
@@ -165,14 +169,14 @@ export function is_valid_tld(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function payments_version(options: {
+export interface PaymentsVersionArguments {
+	config: RawTransactionArgument<string>;
+}
+export interface PaymentsVersionOptions {
 	package?: string;
-	arguments:
-		| [config: RawTransactionArgument<string>]
-		| {
-				config: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: PaymentsVersionArguments | [config: RawTransactionArgument<string>];
+}
+export function paymentsVersion(options: PaymentsVersionOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
 	const parameterNames = ['config'];
@@ -184,14 +188,14 @@ export function payments_version(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function max_years(options: {
+export interface MaxYearsArguments {
+	config: RawTransactionArgument<string>;
+}
+export interface MaxYearsOptions {
 	package?: string;
-	arguments:
-		| [config: RawTransactionArgument<string>]
-		| {
-				config: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: MaxYearsArguments | [config: RawTransactionArgument<string>];
+}
+export function maxYears(options: MaxYearsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
 	const parameterNames = ['config'];

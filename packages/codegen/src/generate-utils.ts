@@ -60,7 +60,7 @@ export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null
 	return null;
 }
 
-export function normalizeMoveArguments(args: unknown[] | Record<string, unknown>, argTypes: string[], parameterNames?: string[]) {
+export function normalizeMoveArguments(args: unknown[] | object, argTypes: string[], parameterNames?: string[]) {
 
 	if (parameterNames && argTypes.length !== parameterNames.length) {
 		throw new Error(\`Invalid number of parameterNames, expected \${argTypes.length}, got \${parameterNames.length}\`);
@@ -99,7 +99,7 @@ export function normalizeMoveArguments(args: unknown[] | Record<string, unknown>
 				throw new Error(\`Expected arguments to be passed as an array\`);
 			}
 			const name = parameterNames[index];
-			arg = args[name];
+			arg = args[name as keyof typeof args];
 
 			if (!arg) {
 				throw new Error(\`Parameter \${name} is required\`);

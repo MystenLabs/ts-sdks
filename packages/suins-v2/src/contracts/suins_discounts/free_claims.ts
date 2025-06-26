@@ -29,24 +29,26 @@ export function FreeClaimsConfig() {
 		used_objects: linked_table.LinkedTable(bcs.Address),
 	});
 }
-/** A function to register a name with a discount using type `T`. */
-export function free_claim<T extends BcsType<any>>(options: {
+export interface FreeClaimArguments<T extends BcsType<any>> {
+	self: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	intent: RawTransactionArgument<string>;
+	object: RawTransactionArgument<T>;
+}
+export interface FreeClaimOptions<T extends BcsType<any>> {
 	package?: string;
 	arguments:
+		| FreeClaimArguments<T>
 		| [
 				self: RawTransactionArgument<string>,
 				suins: RawTransactionArgument<string>,
 				intent: RawTransactionArgument<string>,
 				object: RawTransactionArgument<T>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				suins: RawTransactionArgument<string>;
-				intent: RawTransactionArgument<string>;
-				object: RawTransactionArgument<T>;
-		  };
+		  ];
 	typeArguments: [string];
-}) {
+}
+/** A function to register a name with a discount using type `T`. */
+export function freeClaim<T extends BcsType<any>>(options: FreeClaimOptions<T>) {
 	const packageAddress = options.package ?? '@suins/discounts';
 	const argumentsTypes = [
 		`${packageAddress}::house::DiscountHouse`,
@@ -64,22 +66,24 @@ export function free_claim<T extends BcsType<any>>(options: {
 			typeArguments: options.typeArguments,
 		});
 }
-export function free_claim_with_day_one(options: {
+export interface FreeClaimWithDayOneArguments {
+	self: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	intent: RawTransactionArgument<string>;
+	dayOne: RawTransactionArgument<string>;
+}
+export interface FreeClaimWithDayOneOptions {
 	package?: string;
 	arguments:
+		| FreeClaimWithDayOneArguments
 		| [
 				self: RawTransactionArgument<string>,
 				suins: RawTransactionArgument<string>,
 				intent: RawTransactionArgument<string>,
 				dayOne: RawTransactionArgument<string>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				suins: RawTransactionArgument<string>;
-				intent: RawTransactionArgument<string>;
-				dayOne: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+export function freeClaimWithDayOne(options: FreeClaimWithDayOneOptions) {
 	const packageAddress = options.package ?? '@suins/discounts';
 	const argumentsTypes = [
 		`${packageAddress}::house::DiscountHouse`,
@@ -96,25 +100,27 @@ export function free_claim_with_day_one(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/**
- * An admin action to authorize a type T for free claiming of names by presenting
- * an object of type `T`.
- */
-export function authorize_type(options: {
+export interface AuthorizeTypeArguments {
+	self: RawTransactionArgument<string>;
+	_: RawTransactionArgument<string>;
+	domainLengthRange: RawTransactionArgument<string>;
+}
+export interface AuthorizeTypeOptions {
 	package?: string;
 	arguments:
+		| AuthorizeTypeArguments
 		| [
 				self: RawTransactionArgument<string>,
 				_: RawTransactionArgument<string>,
 				domainLengthRange: RawTransactionArgument<string>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				_: RawTransactionArgument<string>;
-				domainLengthRange: RawTransactionArgument<string>;
-		  };
+		  ];
 	typeArguments: [string];
-}) {
+}
+/**
+ * An admin action to authorize a type T for free claiming of names by presenting
+ * an object of type `T`.
+ */
+export function authorizeType(options: AuthorizeTypeOptions) {
 	const packageAddress = options.package ?? '@suins/discounts';
 	const argumentsTypes = [
 		`${packageAddress}::house::DiscountHouse`,
@@ -131,17 +137,19 @@ export function authorize_type(options: {
 			typeArguments: options.typeArguments,
 		});
 }
-/** Force-deauthorize type T from free claims. Drops the linked_table. */
-export function deauthorize_type(options: {
+export interface DeauthorizeTypeArguments {
+	self: RawTransactionArgument<string>;
+	_: RawTransactionArgument<string>;
+}
+export interface DeauthorizeTypeOptions {
 	package?: string;
 	arguments:
-		| [self: RawTransactionArgument<string>, _: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-				_: RawTransactionArgument<string>;
-		  };
+		| DeauthorizeTypeArguments
+		| [self: RawTransactionArgument<string>, _: RawTransactionArgument<string>];
 	typeArguments: [string];
-}) {
+}
+/** Force-deauthorize type T from free claims. Drops the linked_table. */
+export function deauthorizeType(options: DeauthorizeTypeOptions) {
 	const packageAddress = options.package ?? '@suins/discounts';
 	const argumentsTypes = [
 		`${packageAddress}::house::DiscountHouse`,

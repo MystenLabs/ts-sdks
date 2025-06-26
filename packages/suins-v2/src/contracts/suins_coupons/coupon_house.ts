@@ -36,16 +36,18 @@ export function CouponHouse() {
 		storage: object.UID(),
 	});
 }
-/** Called once to setup the CouponHouse on SuiNS. */
-export function setup(options: {
+export interface SetupArguments {
+	suins: RawTransactionArgument<string>;
+	cap: RawTransactionArgument<string>;
+}
+export interface SetupOptions {
 	package?: string;
 	arguments:
-		| [suins: RawTransactionArgument<string>, cap: RawTransactionArgument<string>]
-		| {
-				suins: RawTransactionArgument<string>;
-				cap: RawTransactionArgument<string>;
-		  };
-}) {
+		| SetupArguments
+		| [suins: RawTransactionArgument<string>, cap: RawTransactionArgument<string>];
+}
+/** Called once to setup the CouponHouse on SuiNS. */
+export function setup(options: SetupOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
@@ -60,20 +62,22 @@ export function setup(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function apply_coupon(options: {
+export interface ApplyCouponArguments {
+	suins: RawTransactionArgument<string>;
+	intent: RawTransactionArgument<string>;
+	couponCode: RawTransactionArgument<string>;
+}
+export interface ApplyCouponOptions {
 	package?: string;
 	arguments:
+		| ApplyCouponArguments
 		| [
 				suins: RawTransactionArgument<string>,
 				intent: RawTransactionArgument<string>,
 				couponCode: RawTransactionArgument<string>,
-		  ]
-		| {
-				suins: RawTransactionArgument<string>;
-				intent: RawTransactionArgument<string>;
-				couponCode: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+export function applyCoupon(options: ApplyCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
@@ -90,24 +94,26 @@ export function apply_coupon(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function register_with_coupon(options: {
+export interface RegisterWithCouponArguments {
+	Suins: RawTransactionArgument<string>;
+	CouponCode: RawTransactionArgument<string>;
+	DomainName: RawTransactionArgument<string>;
+	NoYears: RawTransactionArgument<number>;
+	Payment: RawTransactionArgument<string>;
+}
+export interface RegisterWithCouponOptions {
 	package?: string;
 	arguments:
+		| RegisterWithCouponArguments
 		| [
 				Suins: RawTransactionArgument<string>,
 				CouponCode: RawTransactionArgument<string>,
 				DomainName: RawTransactionArgument<string>,
 				NoYears: RawTransactionArgument<number>,
 				Payment: RawTransactionArgument<string>,
-		  ]
-		| {
-				Suins: RawTransactionArgument<string>;
-				CouponCode: RawTransactionArgument<string>;
-				DomainName: RawTransactionArgument<string>;
-				NoYears: RawTransactionArgument<number>;
-				Payment: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+export function registerWithCoupon(options: RegisterWithCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
@@ -126,20 +132,22 @@ export function register_with_coupon(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function calculate_sale_price(options: {
+export interface CalculateSalePriceArguments {
+	Suins: RawTransactionArgument<string>;
+	Price: RawTransactionArgument<number | bigint>;
+	CouponCode: RawTransactionArgument<string>;
+}
+export interface CalculateSalePriceOptions {
 	package?: string;
 	arguments:
+		| CalculateSalePriceArguments
 		| [
 				Suins: RawTransactionArgument<string>,
 				Price: RawTransactionArgument<number | bigint>,
 				CouponCode: RawTransactionArgument<string>,
-		  ]
-		| {
-				Suins: RawTransactionArgument<string>;
-				Price: RawTransactionArgument<number | bigint>;
-				CouponCode: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+export function calculateSalePrice(options: CalculateSalePriceOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
@@ -155,16 +163,18 @@ export function calculate_sale_price(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function app_data_mut<A extends BcsType<any>>(options: {
+export interface AppDataMutArguments<A extends BcsType<any>> {
+	suins: RawTransactionArgument<string>;
+	_: RawTransactionArgument<A>;
+}
+export interface AppDataMutOptions<A extends BcsType<any>> {
 	package?: string;
 	arguments:
-		| [suins: RawTransactionArgument<string>, _: RawTransactionArgument<A>]
-		| {
-				suins: RawTransactionArgument<string>;
-				_: RawTransactionArgument<A>;
-		  };
+		| AppDataMutArguments<A>
+		| [suins: RawTransactionArgument<string>, _: RawTransactionArgument<A>];
 	typeArguments: [string];
-}) {
+}
+export function appDataMut<A extends BcsType<any>>(options: AppDataMutOptions<A>) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
@@ -180,20 +190,22 @@ export function app_data_mut<A extends BcsType<any>>(options: {
 			typeArguments: options.typeArguments,
 		});
 }
+export interface AuthorizeAppArguments {
+	_: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+}
+export interface AuthorizeAppOptions {
+	package?: string;
+	arguments:
+		| AuthorizeAppArguments
+		| [_: RawTransactionArgument<string>, suins: RawTransactionArgument<string>];
+	typeArguments: [string];
+}
 /**
  * Authorize an app on the coupon house. This allows to a secondary module to
  * add/remove coupons.
  */
-export function authorize_app(options: {
-	package?: string;
-	arguments:
-		| [_: RawTransactionArgument<string>, suins: RawTransactionArgument<string>]
-		| {
-				_: RawTransactionArgument<string>;
-				suins: RawTransactionArgument<string>;
-		  };
-	typeArguments: [string];
-}) {
+export function authorizeApp(options: AuthorizeAppOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::AdminCap',
@@ -209,17 +221,19 @@ export function authorize_app(options: {
 			typeArguments: options.typeArguments,
 		});
 }
-/** De-authorize an app. The app can no longer add or remove */
-export function deauthorize_app(options: {
+export interface DeauthorizeAppArguments {
+	_: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+}
+export interface DeauthorizeAppOptions {
 	package?: string;
 	arguments:
-		| [_: RawTransactionArgument<string>, suins: RawTransactionArgument<string>]
-		| {
-				_: RawTransactionArgument<string>;
-				suins: RawTransactionArgument<string>;
-		  };
+		| DeauthorizeAppArguments
+		| [_: RawTransactionArgument<string>, suins: RawTransactionArgument<string>];
 	typeArguments: [string];
-}) {
+}
+/** De-authorize an app. The app can no longer add or remove */
+export function deauthorizeApp(options: DeauthorizeAppOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::AdminCap',
@@ -235,24 +249,26 @@ export function deauthorize_app(options: {
 			typeArguments: options.typeArguments,
 		});
 }
-/**
- * An admin helper to set the version of the shared object. Registrations are only
- * possible if the latest version is being used.
- */
-export function set_version(options: {
+export interface SetVersionArguments {
+	_: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	version: RawTransactionArgument<number>;
+}
+export interface SetVersionOptions {
 	package?: string;
 	arguments:
+		| SetVersionArguments
 		| [
 				_: RawTransactionArgument<string>,
 				suins: RawTransactionArgument<string>,
 				version: RawTransactionArgument<number>,
-		  ]
-		| {
-				_: RawTransactionArgument<string>;
-				suins: RawTransactionArgument<string>;
-				version: RawTransactionArgument<number>;
-		  };
-}) {
+		  ];
+}
+/**
+ * An admin helper to set the version of the shared object. Registrations are only
+ * possible if the latest version is being used.
+ */
+export function setVersion(options: SetVersionOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::AdminCap',
@@ -268,15 +284,15 @@ export function set_version(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Validate that the version of the app is the latest. */
-export function assert_version_is_valid(options: {
+export interface AssertVersionIsValidArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface AssertVersionIsValidOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: AssertVersionIsValidArguments | [self: RawTransactionArgument<string>];
+}
+/** Validate that the version of the app is the latest. */
+export function assertVersionIsValid(options: AssertVersionIsValidOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [`${packageAddress}::coupon_house::CouponHouse`] satisfies string[];
 	const parameterNames = ['self'];
@@ -288,16 +304,18 @@ export function assert_version_is_valid(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/**
- * To create a coupon, you have to call the PTB in the specific order
- *
- * 1.  (Optional) Call rules::new_domain_length_rule(type, length) // generate a
- *     length specific rule (e.g. only domains of size 5)
- * 2.  Call rules::coupon_rules(...) to create the coupon's ruleset.
- */
-export function admin_add_coupon(options: {
+export interface AdminAddCouponArguments {
+	_: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	kind: RawTransactionArgument<number>;
+	amount: RawTransactionArgument<number | bigint>;
+	rules: RawTransactionArgument<string>;
+}
+export interface AdminAddCouponOptions {
 	package?: string;
 	arguments:
+		| AdminAddCouponArguments
 		| [
 				_: RawTransactionArgument<string>,
 				suins: RawTransactionArgument<string>,
@@ -305,16 +323,16 @@ export function admin_add_coupon(options: {
 				kind: RawTransactionArgument<number>,
 				amount: RawTransactionArgument<number | bigint>,
 				rules: RawTransactionArgument<string>,
-		  ]
-		| {
-				_: RawTransactionArgument<string>;
-				suins: RawTransactionArgument<string>;
-				code: RawTransactionArgument<string>;
-				kind: RawTransactionArgument<number>;
-				amount: RawTransactionArgument<number | bigint>;
-				rules: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+/**
+ * To create a coupon, you have to call the PTB in the specific order
+ *
+ * 1.  (Optional) Call rules::new_domain_length_rule(type, length) // generate a
+ *     length specific rule (e.g. only domains of size 5)
+ * 2.  Call rules::coupon_rules(...) to create the coupon's ruleset.
+ */
+export function adminAddCoupon(options: AdminAddCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::AdminCap',
@@ -333,20 +351,22 @@ export function admin_add_coupon(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function admin_remove_coupon(options: {
+export interface AdminRemoveCouponArguments {
+	_: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+}
+export interface AdminRemoveCouponOptions {
 	package?: string;
 	arguments:
+		| AdminRemoveCouponArguments
 		| [
 				_: RawTransactionArgument<string>,
 				suins: RawTransactionArgument<string>,
 				code: RawTransactionArgument<string>,
-		  ]
-		| {
-				_: RawTransactionArgument<string>;
-				suins: RawTransactionArgument<string>;
-				code: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+export function adminRemoveCoupon(options: AdminRemoveCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::AdminCap',
@@ -362,24 +382,26 @@ export function admin_remove_coupon(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function app_add_coupon(options: {
+export interface AppAddCouponArguments {
+	data: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	kind: RawTransactionArgument<number>;
+	amount: RawTransactionArgument<number | bigint>;
+	rules: RawTransactionArgument<string>;
+}
+export interface AppAddCouponOptions {
 	package?: string;
 	arguments:
+		| AppAddCouponArguments
 		| [
 				data: RawTransactionArgument<string>,
 				code: RawTransactionArgument<string>,
 				kind: RawTransactionArgument<number>,
 				amount: RawTransactionArgument<number | bigint>,
 				rules: RawTransactionArgument<string>,
-		  ]
-		| {
-				data: RawTransactionArgument<string>;
-				code: RawTransactionArgument<string>;
-				kind: RawTransactionArgument<number>;
-				amount: RawTransactionArgument<number | bigint>;
-				rules: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+export function appAddCoupon(options: AppAddCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
 		`${packageAddress}::data::Data`,
@@ -397,15 +419,17 @@ export function app_add_coupon(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function app_remove_coupon(options: {
+export interface AppRemoveCouponArguments {
+	data: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+}
+export interface AppRemoveCouponOptions {
 	package?: string;
 	arguments:
-		| [data: RawTransactionArgument<string>, code: RawTransactionArgument<string>]
-		| {
-				data: RawTransactionArgument<string>;
-				code: RawTransactionArgument<string>;
-		  };
-}) {
+		| AppRemoveCouponArguments
+		| [data: RawTransactionArgument<string>, code: RawTransactionArgument<string>];
+}
+export function appRemoveCoupon(options: AppRemoveCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
 		`${packageAddress}::data::Data`,

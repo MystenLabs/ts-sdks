@@ -23,15 +23,15 @@ export function TreasuryCapKey() {
 		dummy_field: bcs.bool(),
 	});
 }
-/** Get the total supply of the WAL token. */
-export function total_supply(options: {
+export interface TotalSupplyArguments {
+	treasury: RawTransactionArgument<string>;
+}
+export interface TotalSupplyOptions {
 	package?: string;
-	arguments:
-		| [treasury: RawTransactionArgument<string>]
-		| {
-				treasury: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: TotalSupplyArguments | [treasury: RawTransactionArgument<string>];
+}
+/** Get the total supply of the WAL token. */
+export function totalSupply(options: TotalSupplyOptions) {
 	const packageAddress = options.package ?? '@local-pkg/wal';
 	const argumentsTypes = [`${packageAddress}::wal::ProtectedTreasury`] satisfies string[];
 	const parameterNames = ['treasury'];
@@ -43,16 +43,18 @@ export function total_supply(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Burns a `Coin<WAL>` from the sender. */
-export function burn(options: {
+export interface BurnArguments {
+	treasury: RawTransactionArgument<string>;
+	coin: RawTransactionArgument<string>;
+}
+export interface BurnOptions {
 	package?: string;
 	arguments:
-		| [treasury: RawTransactionArgument<string>, coin: RawTransactionArgument<string>]
-		| {
-				treasury: RawTransactionArgument<string>;
-				coin: RawTransactionArgument<string>;
-		  };
-}) {
+		| BurnArguments
+		| [treasury: RawTransactionArgument<string>, coin: RawTransactionArgument<string>];
+}
+/** Burns a `Coin<WAL>` from the sender. */
+export function burn(options: BurnOptions) {
 	const packageAddress = options.package ?? '@local-pkg/wal';
 	const argumentsTypes = [
 		`${packageAddress}::wal::ProtectedTreasury`,

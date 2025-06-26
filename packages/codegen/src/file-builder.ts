@@ -22,15 +22,19 @@ export class FileBuilder {
 	}
 
 	addStarImport(module: string, name: string) {
+		const importName = this.getUnusedName(name);
+		this.starImports.set(importName, module);
+		return importName;
+	}
+
+	getUnusedName(name: string) {
 		let deConflictedName = getSafeName(name);
 
-		let i = 0;
+		let i = 1;
 		while (this.reservedNames.has(deConflictedName)) {
 			deConflictedName = `${name}_${i}`;
 			i++;
 		}
-
-		this.starImports.set(deConflictedName, module);
 
 		return deConflictedName;
 	}

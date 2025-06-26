@@ -17,12 +17,12 @@ import type { Transaction } from '@mysten/sui/transactions';
 import { normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
 import * as object from './deps/sui/object.js';
-import * as domain_0 from './domain.js';
+import * as domain_1 from './domain.js';
 export function SuinsRegistration() {
 	return bcs.struct('SuinsRegistration', {
 		id: object.UID(),
 		/** The parsed domain. */
-		domain: domain_0.Domain(),
+		domain: domain_1.Domain(),
 		/** The domain name that the NFT is for. */
 		domain_name: bcs.string(),
 		/** Timestamp in milliseconds when this NFT expires. */
@@ -31,18 +31,18 @@ export function SuinsRegistration() {
 		image_url: bcs.string(),
 	});
 }
+export interface HasExpiredArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface HasExpiredOptions {
+	package?: string;
+	arguments: HasExpiredArguments | [self: RawTransactionArgument<string>];
+}
 /**
  * Check whether the `SuinsRegistration` has expired by comparing the expiration
  * timeout with the current time.
  */
-export function has_expired(options: {
-	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+export function hasExpired(options: HasExpiredOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::suins_registration::SuinsRegistration`,
@@ -57,19 +57,19 @@ export function has_expired(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface HasExpiredPastGracePeriodArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface HasExpiredPastGracePeriodOptions {
+	package?: string;
+	arguments: HasExpiredPastGracePeriodArguments | [self: RawTransactionArgument<string>];
+}
 /**
  * Check whether the `SuinsRegistration` has expired by comparing the expiration
  * timeout with the current time. This function also takes into account the grace
  * period.
  */
-export function has_expired_past_grace_period(options: {
-	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+export function hasExpiredPastGracePeriod(options: HasExpiredPastGracePeriodOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::suins_registration::SuinsRegistration`,
@@ -84,15 +84,15 @@ export function has_expired_past_grace_period(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Get the `domain` field of the `SuinsRegistration`. */
-export function domain(options: {
+export interface DomainArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface DomainOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: DomainArguments | [self: RawTransactionArgument<string>];
+}
+/** Get the `domain` field of the `SuinsRegistration`. */
+export function domain(options: DomainOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::suins_registration::SuinsRegistration`,
@@ -106,15 +106,15 @@ export function domain(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Get the `domain_name` field of the `SuinsRegistration`. */
-export function domain_name(options: {
+export interface DomainNameArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface DomainNameOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: DomainNameArguments | [self: RawTransactionArgument<string>];
+}
+/** Get the `domain_name` field of the `SuinsRegistration`. */
+export function domainName(options: DomainNameOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::suins_registration::SuinsRegistration`,
@@ -128,15 +128,15 @@ export function domain_name(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Get the `expiration_timestamp_ms` field of the `SuinsRegistration`. */
-export function expiration_timestamp_ms(options: {
+export interface ExpirationTimestampMsArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface ExpirationTimestampMsOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: ExpirationTimestampMsArguments | [self: RawTransactionArgument<string>];
+}
+/** Get the `expiration_timestamp_ms` field of the `SuinsRegistration`. */
+export function expirationTimestampMs(options: ExpirationTimestampMsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::suins_registration::SuinsRegistration`,
@@ -150,15 +150,15 @@ export function expiration_timestamp_ms(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Get the `image_url` field of the `SuinsRegistration`. */
-export function image_url(options: {
+export interface ImageUrlArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface ImageUrlOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: ImageUrlArguments | [self: RawTransactionArgument<string>];
+}
+/** Get the `image_url` field of the `SuinsRegistration`. */
+export function imageUrl(options: ImageUrlOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::suins_registration::SuinsRegistration`,
@@ -172,14 +172,14 @@ export function image_url(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function uid(options: {
+export interface UidArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface UidOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: UidArguments | [self: RawTransactionArgument<string>];
+}
+export function uid(options: UidOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::suins_registration::SuinsRegistration`,
@@ -193,15 +193,15 @@ export function uid(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Get the mutable `id` field of the `SuinsRegistration`. */
-export function uid_mut(options: {
+export interface UidMutArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface UidMutOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: UidMutArguments | [self: RawTransactionArgument<string>];
+}
+/** Get the mutable `id` field of the `SuinsRegistration`. */
+export function uidMut(options: UidMutOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::suins_registration::SuinsRegistration`,

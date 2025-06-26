@@ -3,12 +3,13 @@
 
 import type { ClientWithCoreApi, SuiClientRegistration } from '@mysten/sui/src/experimental';
 import { SuiNsCalls } from './calls.js';
-import type { SuiNsPackageIds } from './calls.js';
+import type { SuiNsObjectIds, SuiNsPackageIds } from './calls.js';
 
 export interface SuiNsCompatibleClient extends ClientWithCoreApi {}
 
 export interface SuiNsClientExtensionOptions {
 	packageIds?: SuiNsPackageIds;
+	objectIds: SuiNsObjectIds;
 }
 
 export interface SuiNsClientOptions extends SuiNsClientExtensionOptions {
@@ -29,6 +30,7 @@ export class SuiNsClient {
 		}
 		this.calls = new SuiNsCalls({
 			packageIds: options.packageIds,
+			objectIds: options.objectIds,
 		});
 	}
 

@@ -17,20 +17,22 @@ export function DiscountHouse() {
 		version: bcs.u8(),
 	});
 }
-export function set_version(options: {
+export interface SetVersionArguments {
+	self: RawTransactionArgument<string>;
+	_: RawTransactionArgument<string>;
+	version: RawTransactionArgument<number>;
+}
+export interface SetVersionOptions {
 	package?: string;
 	arguments:
+		| SetVersionArguments
 		| [
 				self: RawTransactionArgument<string>,
 				_: RawTransactionArgument<string>,
 				version: RawTransactionArgument<number>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				_: RawTransactionArgument<string>;
-				version: RawTransactionArgument<number>;
-		  };
-}) {
+		  ];
+}
+export function setVersion(options: SetVersionOptions) {
 	const packageAddress = options.package ?? '@suins/discounts';
 	const argumentsTypes = [
 		`${packageAddress}::house::DiscountHouse`,

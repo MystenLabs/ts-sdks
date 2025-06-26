@@ -12,16 +12,18 @@ export function Range() {
 		vec: bcs.vector(bcs.u8()),
 	});
 }
-/** a new Range constructor[from, to] */
-export function _new(options: {
+export interface NewArguments {
+	from: RawTransactionArgument<number>;
+	to: RawTransactionArgument<number>;
+}
+export interface NewOptions {
 	package?: string;
 	arguments:
-		| [from: RawTransactionArgument<number>, to: RawTransactionArgument<number>]
-		| {
-				from: RawTransactionArgument<number>;
-				to: RawTransactionArgument<number>;
-		  };
-}) {
+		| NewArguments
+		| [from: RawTransactionArgument<number>, to: RawTransactionArgument<number>];
+}
+/** a new Range constructor[from, to] */
+export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = ['u8', 'u8'] satisfies string[];
 	const parameterNames = ['from', 'to'];
@@ -33,15 +35,17 @@ export function _new(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function is_in_range(options: {
+export interface IsInRangeArguments {
+	range: RawTransactionArgument<string>;
+	number: RawTransactionArgument<number>;
+}
+export interface IsInRangeOptions {
 	package?: string;
 	arguments:
-		| [range: RawTransactionArgument<string>, number: RawTransactionArgument<number>]
-		| {
-				range: RawTransactionArgument<string>;
-				number: RawTransactionArgument<number>;
-		  };
-}) {
+		| IsInRangeArguments
+		| [range: RawTransactionArgument<string>, number: RawTransactionArgument<number>];
+}
+export function isInRange(options: IsInRangeOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [`${packageAddress}::range::Range`, 'u8'] satisfies string[];
 	const parameterNames = ['range', 'number'];
@@ -53,15 +57,15 @@ export function is_in_range(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Get floor limit for the range. */
-export function _from(options: {
+export interface FromArguments {
+	range: RawTransactionArgument<string>;
+}
+export interface FromOptions {
 	package?: string;
-	arguments:
-		| [range: RawTransactionArgument<string>]
-		| {
-				range: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: FromArguments | [range: RawTransactionArgument<string>];
+}
+/** Get floor limit for the range. */
+export function _from(options: FromOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [`${packageAddress}::range::Range`] satisfies string[];
 	const parameterNames = ['range'];
@@ -73,15 +77,15 @@ export function _from(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Get upper limit for the range. */
-export function to(options: {
+export interface ToArguments {
+	range: RawTransactionArgument<string>;
+}
+export interface ToOptions {
 	package?: string;
-	arguments:
-		| [range: RawTransactionArgument<string>]
-		| {
-				range: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: ToArguments | [range: RawTransactionArgument<string>];
+}
+/** Get upper limit for the range. */
+export function to(options: ToOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [`${packageAddress}::range::Range`] satisfies string[];
 	const parameterNames = ['range'];

@@ -25,14 +25,14 @@ export function Domain() {
 		labels: bcs.vector(bcs.string()),
 	});
 }
-export function _new(options: {
+export interface NewArguments {
+	domain: RawTransactionArgument<string>;
+}
+export interface NewOptions {
 	package?: string;
-	arguments:
-		| [domain: RawTransactionArgument<string>]
-		| {
-				domain: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: NewArguments | [domain: RawTransactionArgument<string>];
+}
+export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
@@ -46,15 +46,15 @@ export function _new(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Converts a domain into a fully-qualified string representation. */
-export function to_string(options: {
+export interface ToStringArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface ToStringOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: ToStringArguments | [self: RawTransactionArgument<string>];
+}
+/** Converts a domain into a fully-qualified string representation. */
+export function toString(options: ToStringOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::domain::Domain`] satisfies string[];
 	const parameterNames = ['self'];
@@ -65,6 +65,16 @@ export function to_string(options: {
 			function: 'to_string',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
+}
+export interface LabelArguments {
+	self: RawTransactionArgument<string>;
+	level: RawTransactionArgument<number | bigint>;
+}
+export interface LabelOptions {
+	package?: string;
+	arguments:
+		| LabelArguments
+		| [self: RawTransactionArgument<string>, level: RawTransactionArgument<number | bigint>];
 }
 /**
  * Returns the `label` in a domain specified by `level`.
@@ -77,15 +87,7 @@ export function to_string(options: {
  *
  * This means that the TLD will always be at level `0`.
  */
-export function label(options: {
-	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>, level: RawTransactionArgument<number | bigint>]
-		| {
-				self: RawTransactionArgument<string>;
-				level: RawTransactionArgument<number | bigint>;
-		  };
-}) {
+export function label(options: LabelOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::domain::Domain`, 'u64'] satisfies string[];
 	const parameterNames = ['self', 'level'];
@@ -97,19 +99,19 @@ export function label(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface TldArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface TldOptions {
+	package?: string;
+	arguments: TldArguments | [self: RawTransactionArgument<string>];
+}
 /**
  * Returns the TLD (Top-Level Domain) of a `Domain`.
  *
  * "name.sui" -> "sui"
  */
-export function tld(options: {
-	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+export function tld(options: TldOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::domain::Domain`] satisfies string[];
 	const parameterNames = ['self'];
@@ -121,19 +123,19 @@ export function tld(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface SldArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface SldOptions {
+	package?: string;
+	arguments: SldArguments | [self: RawTransactionArgument<string>];
+}
 /**
  * Returns the SLD (Second-Level Domain) of a `Domain`.
  *
  * "name.sui" -> "sui"
  */
-export function sld(options: {
-	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+export function sld(options: SldOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::domain::Domain`] satisfies string[];
 	const parameterNames = ['self'];
@@ -145,14 +147,14 @@ export function sld(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function number_of_levels(options: {
+export interface NumberOfLevelsArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface NumberOfLevelsOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: NumberOfLevelsArguments | [self: RawTransactionArgument<string>];
+}
+export function numberOfLevels(options: NumberOfLevelsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::domain::Domain`] satisfies string[];
 	const parameterNames = ['self'];
@@ -164,14 +166,14 @@ export function number_of_levels(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function is_subdomain(options: {
+export interface IsSubdomainArguments {
+	domain: RawTransactionArgument<string>;
+}
+export interface IsSubdomainOptions {
 	package?: string;
-	arguments:
-		| [domain: RawTransactionArgument<string>]
-		| {
-				domain: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: IsSubdomainArguments | [domain: RawTransactionArgument<string>];
+}
+export function isSubdomain(options: IsSubdomainOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::domain::Domain`] satisfies string[];
 	const parameterNames = ['domain'];
@@ -183,15 +185,15 @@ export function is_subdomain(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Derive the parent of a subdomain. e.g. `subdomain.example.sui` -> `example.sui` */
-export function parent(options: {
+export interface ParentArguments {
+	domain: RawTransactionArgument<string>;
+}
+export interface ParentOptions {
 	package?: string;
-	arguments:
-		| [domain: RawTransactionArgument<string>]
-		| {
-				domain: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: ParentArguments | [domain: RawTransactionArgument<string>];
+}
+/** Derive the parent of a subdomain. e.g. `subdomain.example.sui` -> `example.sui` */
+export function parent(options: ParentOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::domain::Domain`] satisfies string[];
 	const parameterNames = ['domain'];
@@ -203,16 +205,18 @@ export function parent(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Checks if `parent` domain is a valid parent for `child`. */
-export function is_parent_of(options: {
+export interface IsParentOfArguments {
+	parent: RawTransactionArgument<string>;
+	child: RawTransactionArgument<string>;
+}
+export interface IsParentOfOptions {
 	package?: string;
 	arguments:
-		| [parent: RawTransactionArgument<string>, child: RawTransactionArgument<string>]
-		| {
-				parent: RawTransactionArgument<string>;
-				child: RawTransactionArgument<string>;
-		  };
-}) {
+		| IsParentOfArguments
+		| [parent: RawTransactionArgument<string>, child: RawTransactionArgument<string>];
+}
+/** Checks if `parent` domain is a valid parent for `child`. */
+export function isParentOf(options: IsParentOfOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::domain::Domain`,

@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { getSafeName, renderTypeSignature, SUI_FRAMEWORK_ADDRESS } from './render-types.js';
 import {
 	camelCase,
+	capitalize,
 	formatComment,
 	isWellKnownObjectParameter,
 	mapToObject,
@@ -70,7 +71,9 @@ export class MoveModuleBuilder extends FileBuilder {
 				continue;
 			}
 
-			this.reservedNames.add(name);
+			const safeName = getSafeName(camelCase(name));
+
+			this.reservedNames.add(safeName);
 			this.#includedFunctions.add(name);
 		}
 	}
@@ -380,7 +383,7 @@ export class MoveModuleBuilder extends FileBuilder {
 				parameters.every(
 					(param, i) => param.name && parameters.findIndex((p) => p.name === param.name) === i,
 				);
-			const fnName = getSafeName(name);
+			const fnName = getSafeName(camelCase(name));
 			const requiredParameters = parameters.filter(
 				(param) =>
 					!isWellKnownObjectParameter(param.type_, (address) => this.#resolveAddress(address)),
@@ -421,26 +424,48 @@ export class MoveModuleBuilder extends FileBuilder {
 					usedTypeParameters.has(i) || (param.name && usedTypeParameters.has(param.name)),
 			);
 
+			const genericTypes =
+				filteredTypeParameters.length > 0
+					? `<${filteredTypeParameters.map((param, i) => `${param.name ?? `T${i}`} extends BcsType<any>`).join(', ')}>`
+					: '';
+			const genericTypeArgs =
+				filteredTypeParameters.length > 0
+					? `<${filteredTypeParameters.map((param, i) => `${param.name ?? `T${i}`}`).join(', ')}>`
+					: '';
+
+			const argumentsInterface = this.getUnusedName(
+				`${capitalize(fnName.replace(/^_/, ''))}Arguments`,
+			);
+			if (hasAllParameterNames) {
+				this.statements.push(
+					...parseTS/* ts */ `export interface ${argumentsInterface}${genericTypes} {
+						${argumentsTypes}
+					}`,
+				);
+			}
+
+			const optionsInterface = this.getUnusedName(`${capitalize(fnName.replace(/^_/, ''))}Options`);
+
+			this.statements.push(
+				...parseTS/* ts */ `export interface ${optionsInterface}${genericTypes} {
+					package${this.#mvrNameOrAddress ? '?: string' : ': string'}
+					arguments: ${
+						hasAllParameterNames
+							? `${argumentsInterface}${genericTypeArgs} | [${argumentsTypes}]`
+							: `[${argumentsTypes}]`
+					},
+					${
+						func.type_parameters.length
+							? `typeArguments: [${func.type_parameters.map(() => 'string').join(', ')}]`
+							: ''
+					}
+			}`,
+			);
+
 			this.statements.push(
 				...(await withComment(
 					func,
-					parseTS/* ts */ `export function ${fnName}${
-						filteredTypeParameters.length > 0
-							? `<
-							${filteredTypeParameters.map((param, i) => `${param.name ?? `T${i}`} extends BcsType<any>`)}
-						>`
-							: ''
-					}(options: {
-						package${this.#mvrNameOrAddress ? '?: string' : ': string'}
-						arguments: [
-						${argumentsTypes}]${hasAllParameterNames ? ` | {${argumentsTypes}}` : ''},
-
-						${
-							func.type_parameters.length
-								? `typeArguments: [${func.type_parameters.map(() => 'string').join(', ')}]`
-								: ''
-						}
-				}) {
+					parseTS/* ts */ `export function ${fnName}${genericTypes}(options: ${optionsInterface}${genericTypeArgs}) {
 					const packageAddress = options.package${this.#mvrNameOrAddress ? ` ?? '${this.#mvrNameOrAddress}'` : ''};
 					${
 						parameters.length > 0

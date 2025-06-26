@@ -32,19 +32,21 @@ export function NameRecord() {
 		data: vec_map.VecMap(bcs.string(), bcs.string()),
 	});
 }
-/** Create a new NameRecord. */
-export function _new(options: {
+export interface NewArguments {
+	nftId: RawTransactionArgument<string>;
+	expirationTimestampMs: RawTransactionArgument<number | bigint>;
+}
+export interface NewOptions {
 	package?: string;
 	arguments:
+		| NewArguments
 		| [
 				nftId: RawTransactionArgument<string>,
 				expirationTimestampMs: RawTransactionArgument<number | bigint>,
-		  ]
-		| {
-				nftId: RawTransactionArgument<string>;
-				expirationTimestampMs: RawTransactionArgument<number | bigint>;
-		  };
-}) {
+		  ];
+}
+/** Create a new NameRecord. */
+export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
@@ -59,19 +61,21 @@ export function _new(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Create a `leaf` NameRecord. */
-export function new_leaf(options: {
+export interface NewLeafArguments {
+	parentId: RawTransactionArgument<string>;
+	targetAddress: RawTransactionArgument<string | null>;
+}
+export interface NewLeafOptions {
 	package?: string;
 	arguments:
+		| NewLeafArguments
 		| [
 				parentId: RawTransactionArgument<string>,
 				targetAddress: RawTransactionArgument<string | null>,
-		  ]
-		| {
-				parentId: RawTransactionArgument<string>;
-				targetAddress: RawTransactionArgument<string | null>;
-		  };
-}) {
+		  ];
+}
+/** Create a `leaf` NameRecord. */
+export function newLeaf(options: NewLeafOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
@@ -85,6 +89,16 @@ export function new_leaf(options: {
 			function: 'new_leaf',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
+}
+export interface SetDataArguments {
+	self: RawTransactionArgument<string>;
+	data: RawTransactionArgument<string>;
+}
+export interface SetDataOptions {
+	package?: string;
+	arguments:
+		| SetDataArguments
+		| [self: RawTransactionArgument<string>, data: RawTransactionArgument<string>];
 }
 /**
  * Set data as a vec_map directly overriding the data set in the registration self.
@@ -100,15 +114,7 @@ export function new_leaf(options: {
  * moveCall('set_data', [domain_name, record.data]);
  * ```
  */
-export function set_data(options: {
-	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>, data: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-				data: RawTransactionArgument<string>;
-		  };
-}) {
+export function setData(options: SetDataOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::name_record::NameRecord`,
@@ -123,16 +129,18 @@ export function set_data(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Set the `target_address` field of the `NameRecord`. */
-export function set_target_address(options: {
+export interface SetTargetAddressArguments {
+	self: RawTransactionArgument<string>;
+	newAddress: RawTransactionArgument<string | null>;
+}
+export interface SetTargetAddressOptions {
 	package?: string;
 	arguments:
-		| [self: RawTransactionArgument<string>, newAddress: RawTransactionArgument<string | null>]
-		| {
-				self: RawTransactionArgument<string>;
-				newAddress: RawTransactionArgument<string | null>;
-		  };
-}) {
+		| SetTargetAddressArguments
+		| [self: RawTransactionArgument<string>, newAddress: RawTransactionArgument<string | null>];
+}
+/** Set the `target_address` field of the `NameRecord`. */
+export function setTargetAddress(options: SetTargetAddressOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::name_record::NameRecord`,
@@ -147,18 +155,20 @@ export function set_target_address(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function set_expiration_timestamp_ms(options: {
+export interface SetExpirationTimestampMsArguments {
+	self: RawTransactionArgument<string>;
+	expirationTimestampMs: RawTransactionArgument<number | bigint>;
+}
+export interface SetExpirationTimestampMsOptions {
 	package?: string;
 	arguments:
+		| SetExpirationTimestampMsArguments
 		| [
 				self: RawTransactionArgument<string>,
 				expirationTimestampMs: RawTransactionArgument<number | bigint>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				expirationTimestampMs: RawTransactionArgument<number | bigint>;
-		  };
-}) {
+		  ];
+}
+export function setExpirationTimestampMs(options: SetExpirationTimestampMsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::name_record::NameRecord`, 'u64'] satisfies string[];
 	const parameterNames = ['self', 'expirationTimestampMs'];
@@ -170,15 +180,15 @@ export function set_expiration_timestamp_ms(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Check if the record has expired. */
-export function has_expired(options: {
+export interface HasExpiredArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface HasExpiredOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: HasExpiredArguments | [self: RawTransactionArgument<string>];
+}
+/** Check if the record has expired. */
+export function hasExpired(options: HasExpiredOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::name_record::NameRecord`,
@@ -193,15 +203,15 @@ export function has_expired(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Check if the record has expired, taking into account the grace period. */
-export function has_expired_past_grace_period(options: {
+export interface HasExpiredPastGracePeriodArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface HasExpiredPastGracePeriodOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: HasExpiredPastGracePeriodArguments | [self: RawTransactionArgument<string>];
+}
+/** Check if the record has expired, taking into account the grace period. */
+export function hasExpiredPastGracePeriod(options: HasExpiredPastGracePeriodOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::name_record::NameRecord`,
@@ -216,15 +226,15 @@ export function has_expired_past_grace_period(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Checks whether a name_record is a `leaf` record. */
-export function is_leaf_record(options: {
+export interface IsLeafRecordArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface IsLeafRecordOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: IsLeafRecordArguments | [self: RawTransactionArgument<string>];
+}
+/** Checks whether a name_record is a `leaf` record. */
+export function isLeafRecord(options: IsLeafRecordOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::name_record::NameRecord`] satisfies string[];
 	const parameterNames = ['self'];
@@ -236,15 +246,15 @@ export function is_leaf_record(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Read the `data` field from the `NameRecord`. */
-export function data(options: {
+export interface DataArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface DataOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: DataArguments | [self: RawTransactionArgument<string>];
+}
+/** Read the `data` field from the `NameRecord`. */
+export function data(options: DataOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::name_record::NameRecord`] satisfies string[];
 	const parameterNames = ['self'];
@@ -256,15 +266,15 @@ export function data(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Read the `target_address` field from the `NameRecord`. */
-export function target_address(options: {
+export interface TargetAddressArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface TargetAddressOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: TargetAddressArguments | [self: RawTransactionArgument<string>];
+}
+/** Read the `target_address` field from the `NameRecord`. */
+export function targetAddress(options: TargetAddressOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::name_record::NameRecord`] satisfies string[];
 	const parameterNames = ['self'];
@@ -276,15 +286,15 @@ export function target_address(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Read the `nft_id` field from the `NameRecord`. */
-export function nft_id(options: {
+export interface NftIdArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface NftIdOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: NftIdArguments | [self: RawTransactionArgument<string>];
+}
+/** Read the `nft_id` field from the `NameRecord`. */
+export function nftId(options: NftIdOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::name_record::NameRecord`] satisfies string[];
 	const parameterNames = ['self'];
@@ -296,15 +306,15 @@ export function nft_id(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Read the `expiration_timestamp_ms` field from the `NameRecord`. */
-export function expiration_timestamp_ms(options: {
+export interface ExpirationTimestampMsArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface ExpirationTimestampMsOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: ExpirationTimestampMsArguments | [self: RawTransactionArgument<string>];
+}
+/** Read the `expiration_timestamp_ms` field from the `NameRecord`. */
+export function expirationTimestampMs(options: ExpirationTimestampMsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::name_record::NameRecord`] satisfies string[];
 	const parameterNames = ['self'];

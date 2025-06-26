@@ -1,8 +1,12 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import type { Transaction } from '@mysten/sui/transactions';
+export interface PercentageDiscountTypeOptions {
+	package?: string;
+	arguments: [];
+}
 /** A getter for the percentage discount type. */
-export function percentage_discount_type(options: { package?: string; arguments: [] }) {
+export function percentageDiscountType(options: PercentageDiscountTypeOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -11,8 +15,12 @@ export function percentage_discount_type(options: { package?: string; arguments:
 			function: 'percentage_discount_type',
 		});
 }
+export interface DiscountRuleTypesOptions {
+	package?: string;
+	arguments: [];
+}
 /** A vector with all the discount rule types. */
-export function discount_rule_types(options: { package?: string; arguments: [] }) {
+export function discountRuleTypes(options: DiscountRuleTypesOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -21,7 +29,11 @@ export function discount_rule_types(options: { package?: string; arguments: [] }
 			function: 'discount_rule_types',
 		});
 }
-export function fixed_price_discount_type(options: { package?: string; arguments: [] }) {
+export interface FixedPriceDiscountTypeOptions {
+	package?: string;
+	arguments: [];
+}
+export function fixedPriceDiscountType(options: FixedPriceDiscountTypeOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	return (tx: Transaction) =>
 		tx.moveCall({

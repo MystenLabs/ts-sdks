@@ -12,26 +12,28 @@ export function Config() {
 		five_plus_char_price: bcs.u64(),
 	});
 }
-/**
- * Create a new instance of the configuration object. Define all properties from
- * the start.
- */
-export function _new(options: {
+export interface NewArguments {
+	PublicKey: RawTransactionArgument<number[]>;
+	ThreeCharPrice: RawTransactionArgument<number | bigint>;
+	FourCharPrice: RawTransactionArgument<number | bigint>;
+	FivePlusCharPrice: RawTransactionArgument<number | bigint>;
+}
+export interface NewOptions {
 	package?: string;
 	arguments:
+		| NewArguments
 		| [
 				PublicKey: RawTransactionArgument<number[]>,
 				ThreeCharPrice: RawTransactionArgument<number | bigint>,
 				FourCharPrice: RawTransactionArgument<number | bigint>,
 				FivePlusCharPrice: RawTransactionArgument<number | bigint>,
-		  ]
-		| {
-				PublicKey: RawTransactionArgument<number[]>;
-				ThreeCharPrice: RawTransactionArgument<number | bigint>;
-				FourCharPrice: RawTransactionArgument<number | bigint>;
-				FivePlusCharPrice: RawTransactionArgument<number | bigint>;
-		  };
-}) {
+		  ];
+}
+/**
+ * Create a new instance of the configuration object. Define all properties from
+ * the start.
+ */
+export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = ['vector<u8>', 'u64', 'u64', 'u64'] satisfies string[];
 	const parameterNames = ['PublicKey', 'ThreeCharPrice', 'FourCharPrice', 'FivePlusCharPrice'];
@@ -43,10 +45,11 @@ export function _new(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function set_public_key(options: {
+export interface SetPublicKeyOptions {
 	package?: string;
 	arguments: [_: RawTransactionArgument<string>, _: RawTransactionArgument<number[]>];
-}) {
+}
+export function setPublicKey(options: SetPublicKeyOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::config::Config`, 'vector<u8>'] satisfies string[];
 	return (tx: Transaction) =>
@@ -57,10 +60,11 @@ export function set_public_key(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
 		});
 }
-export function set_three_char_price(options: {
+export interface SetThreeCharPriceOptions {
 	package?: string;
 	arguments: [_: RawTransactionArgument<string>, _: RawTransactionArgument<number | bigint>];
-}) {
+}
+export function setThreeCharPrice(options: SetThreeCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::config::Config`, 'u64'] satisfies string[];
 	return (tx: Transaction) =>
@@ -71,10 +75,11 @@ export function set_three_char_price(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
 		});
 }
-export function set_four_char_price(options: {
+export interface SetFourCharPriceOptions {
 	package?: string;
 	arguments: [_: RawTransactionArgument<string>, _: RawTransactionArgument<number | bigint>];
-}) {
+}
+export function setFourCharPrice(options: SetFourCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::config::Config`, 'u64'] satisfies string[];
 	return (tx: Transaction) =>
@@ -85,10 +90,11 @@ export function set_four_char_price(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
 		});
 }
-export function set_five_plus_char_price(options: {
+export interface SetFivePlusCharPriceOptions {
 	package?: string;
 	arguments: [_: RawTransactionArgument<string>, _: RawTransactionArgument<number | bigint>];
-}) {
+}
+export function setFivePlusCharPrice(options: SetFivePlusCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::config::Config`, 'u64'] satisfies string[];
 	return (tx: Transaction) =>
@@ -99,14 +105,15 @@ export function set_five_plus_char_price(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
 		});
 }
-export function calculate_price(options: {
+export interface CalculatePriceOptions {
 	package?: string;
 	arguments: [
 		_: RawTransactionArgument<string>,
 		_: RawTransactionArgument<number>,
 		_: RawTransactionArgument<number>,
 	];
-}) {
+}
+export function calculatePrice(options: CalculatePriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::config::Config`, 'u8', 'u8'] satisfies string[];
 	return (tx: Transaction) =>
@@ -117,14 +124,14 @@ export function calculate_price(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
 		});
 }
-export function public_key(options: {
+export interface PublicKeyArguments {
+	_: RawTransactionArgument<string>;
+}
+export interface PublicKeyOptions {
 	package?: string;
-	arguments:
-		| [_: RawTransactionArgument<string>]
-		| {
-				_: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: PublicKeyArguments | [_: RawTransactionArgument<string>];
+}
+export function publicKey(options: PublicKeyOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::config::Config`] satisfies string[];
 	const parameterNames = ['_'];
@@ -136,14 +143,14 @@ export function public_key(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function three_char_price(options: {
+export interface ThreeCharPriceArguments {
+	_: RawTransactionArgument<string>;
+}
+export interface ThreeCharPriceOptions {
 	package?: string;
-	arguments:
-		| [_: RawTransactionArgument<string>]
-		| {
-				_: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: ThreeCharPriceArguments | [_: RawTransactionArgument<string>];
+}
+export function threeCharPrice(options: ThreeCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::config::Config`] satisfies string[];
 	const parameterNames = ['_'];
@@ -155,14 +162,14 @@ export function three_char_price(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function four_char_price(options: {
+export interface FourCharPriceArguments {
+	_: RawTransactionArgument<string>;
+}
+export interface FourCharPriceOptions {
 	package?: string;
-	arguments:
-		| [_: RawTransactionArgument<string>]
-		| {
-				_: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: FourCharPriceArguments | [_: RawTransactionArgument<string>];
+}
+export function fourCharPrice(options: FourCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::config::Config`] satisfies string[];
 	const parameterNames = ['_'];
@@ -174,14 +181,14 @@ export function four_char_price(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function five_plus_char_price(options: {
+export interface FivePlusCharPriceArguments {
+	_: RawTransactionArgument<string>;
+}
+export interface FivePlusCharPriceOptions {
 	package?: string;
-	arguments:
-		| [_: RawTransactionArgument<string>]
-		| {
-				_: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: FivePlusCharPriceArguments | [_: RawTransactionArgument<string>];
+}
+export function fivePlusCharPrice(options: FivePlusCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::config::Config`] satisfies string[];
 	const parameterNames = ['_'];
@@ -193,14 +200,16 @@ export function five_plus_char_price(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function assert_valid_user_registerable_domain(options: {
+export interface AssertValidUserRegisterableDomainArguments {
+	_: RawTransactionArgument<string>;
+}
+export interface AssertValidUserRegisterableDomainOptions {
 	package?: string;
-	arguments:
-		| [_: RawTransactionArgument<string>]
-		| {
-				_: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: AssertValidUserRegisterableDomainArguments | [_: RawTransactionArgument<string>];
+}
+export function assertValidUserRegisterableDomain(
+	options: AssertValidUserRegisterableDomainOptions,
+) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::domain::Domain`] satisfies string[];
 	const parameterNames = ['_'];

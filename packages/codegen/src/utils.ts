@@ -135,7 +135,7 @@ export async function formatComment(text: string) {
 }
 
 export function camelCase(str: string) {
-	return str.replace(/(?:_)([a-z])/g, (_, letter) => letter.toUpperCase());
+	return str.replaceAll(/(?:_)([a-z])/g, (_, letter) => letter.toUpperCase());
 }
 
 export function capitalize(str: string) {

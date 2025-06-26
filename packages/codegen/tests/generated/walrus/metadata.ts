@@ -13,36 +13,41 @@ export function Metadata() {
 		metadata: vec_map.VecMap(bcs.string(), bcs.string()),
 	});
 }
+export interface NewOptions {
+	package?: string;
+	arguments: [];
+}
 /** Creates a new instance of Metadata. */
-export function _new(options: { package?: string; arguments: [] }) {
+export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'metadata',
 			function: 'new',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
 		});
+}
+export interface InsertOrUpdateArguments {
+	self: RawTransactionArgument<string>;
+	key: RawTransactionArgument<string>;
+	value: RawTransactionArgument<string>;
+}
+export interface InsertOrUpdateOptions {
+	package?: string;
+	arguments:
+		| InsertOrUpdateArguments
+		| [
+				self: RawTransactionArgument<string>,
+				key: RawTransactionArgument<string>,
+				value: RawTransactionArgument<string>,
+		  ];
 }
 /**
  * Inserts a key-value pair into the metadata.
  *
  * If the key is already present, the value is updated.
  */
-export function insert_or_update(options: {
-	package?: string;
-	arguments:
-		| [
-				self: RawTransactionArgument<string>,
-				key: RawTransactionArgument<string>,
-				value: RawTransactionArgument<string>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				key: RawTransactionArgument<string>;
-				value: RawTransactionArgument<string>;
-		  };
-}) {
+export function insertOrUpdate(options: InsertOrUpdateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::metadata::Metadata`,
@@ -58,16 +63,18 @@ export function insert_or_update(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Removes the metadata associated with the given key. */
-export function remove(options: {
+export interface RemoveArguments {
+	self: RawTransactionArgument<string>;
+	key: RawTransactionArgument<string>;
+}
+export interface RemoveOptions {
 	package?: string;
 	arguments:
-		| [self: RawTransactionArgument<string>, key: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-				key: RawTransactionArgument<string>;
-		  };
-}) {
+		| RemoveArguments
+		| [self: RawTransactionArgument<string>, key: RawTransactionArgument<string>];
+}
+/** Removes the metadata associated with the given key. */
+export function remove(options: RemoveOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::metadata::Metadata`,
@@ -82,20 +89,22 @@ export function remove(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface RemoveIfExistsArguments {
+	self: RawTransactionArgument<string>;
+	key: RawTransactionArgument<string>;
+}
+export interface RemoveIfExistsOptions {
+	package?: string;
+	arguments:
+		| RemoveIfExistsArguments
+		| [self: RawTransactionArgument<string>, key: RawTransactionArgument<string>];
+}
 /**
  * Removes the metadata associated with the given key, if it exists.
  *
  * Optionally returns the previous value associated with the key.
  */
-export function remove_if_exists(options: {
-	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>, key: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-				key: RawTransactionArgument<string>;
-		  };
-}) {
+export function removeIfExists(options: RemoveIfExistsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::metadata::Metadata`,

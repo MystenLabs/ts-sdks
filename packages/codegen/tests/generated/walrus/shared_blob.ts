@@ -14,15 +14,15 @@ export function SharedBlob() {
 		funds: balance.Balance(),
 	});
 }
-/** Shares the provided `blob` as a `SharedBlob` with zero funds. */
-export function _new(options: {
+export interface NewArguments {
+	blob: RawTransactionArgument<string>;
+}
+export interface NewOptions {
 	package?: string;
-	arguments:
-		| [blob: RawTransactionArgument<string>]
-		| {
-				blob: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: NewArguments | [blob: RawTransactionArgument<string>];
+}
+/** Shares the provided `blob` as a `SharedBlob` with zero funds. */
+export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
 	const parameterNames = ['blob'];
@@ -34,16 +34,18 @@ export function _new(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Shares the provided `blob` as a `SharedBlob` with funds. */
-export function new_funded(options: {
+export interface NewFundedArguments {
+	blob: RawTransactionArgument<string>;
+	funds: RawTransactionArgument<string>;
+}
+export interface NewFundedOptions {
 	package?: string;
 	arguments:
-		| [blob: RawTransactionArgument<string>, funds: RawTransactionArgument<string>]
-		| {
-				blob: RawTransactionArgument<string>;
-				funds: RawTransactionArgument<string>;
-		  };
-}) {
+		| NewFundedArguments
+		| [blob: RawTransactionArgument<string>, funds: RawTransactionArgument<string>];
+}
+/** Shares the provided `blob` as a `SharedBlob` with funds. */
+export function newFunded(options: NewFundedOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::blob::Blob`,
@@ -58,16 +60,18 @@ export function new_funded(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Adds the provided `Coin` to the stored funds. */
-export function fund(options: {
+export interface FundArguments {
+	self: RawTransactionArgument<string>;
+	addedFunds: RawTransactionArgument<string>;
+}
+export interface FundOptions {
 	package?: string;
 	arguments:
-		| [self: RawTransactionArgument<string>, addedFunds: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-				addedFunds: RawTransactionArgument<string>;
-		  };
-}) {
+		| FundArguments
+		| [self: RawTransactionArgument<string>, addedFunds: RawTransactionArgument<string>];
+}
+/** Adds the provided `Coin` to the stored funds. */
+export function fund(options: FundOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::shared_blob::SharedBlob`,
@@ -82,25 +86,27 @@ export function fund(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface ExtendArguments {
+	self: RawTransactionArgument<string>;
+	system: RawTransactionArgument<string>;
+	extendedEpochs: RawTransactionArgument<number>;
+}
+export interface ExtendOptions {
+	package?: string;
+	arguments:
+		| ExtendArguments
+		| [
+				self: RawTransactionArgument<string>,
+				system: RawTransactionArgument<string>,
+				extendedEpochs: RawTransactionArgument<number>,
+		  ];
+}
 /**
  * Extends the lifetime of the wrapped `Blob` by `extended_epochs` epochs if the
  * stored funds are sufficient and the new lifetime does not exceed the maximum
  * lifetime.
  */
-export function extend(options: {
-	package?: string;
-	arguments:
-		| [
-				self: RawTransactionArgument<string>,
-				system: RawTransactionArgument<string>,
-				extendedEpochs: RawTransactionArgument<number>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				system: RawTransactionArgument<string>;
-				extendedEpochs: RawTransactionArgument<number>;
-		  };
-}) {
+export function extend(options: ExtendOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::shared_blob::SharedBlob`,

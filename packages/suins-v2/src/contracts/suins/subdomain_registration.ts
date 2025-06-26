@@ -22,14 +22,14 @@ export function SubDomainRegistration() {
 		nft: suins_registration.SuinsRegistration(),
 	});
 }
-export function nft(options: {
+export interface NftArguments {
+	name: RawTransactionArgument<string>;
+}
+export interface NftOptions {
 	package?: string;
-	arguments:
-		| [name: RawTransactionArgument<string>]
-		| {
-				name: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: NftArguments | [name: RawTransactionArgument<string>];
+}
+export function nft(options: NftOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
@@ -43,14 +43,14 @@ export function nft(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function nft_mut(options: {
+export interface NftMutArguments {
+	name: RawTransactionArgument<string>;
+}
+export interface NftMutOptions {
 	package?: string;
-	arguments:
-		| [name: RawTransactionArgument<string>]
-		| {
-				name: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: NftMutArguments | [name: RawTransactionArgument<string>];
+}
+export function nftMut(options: NftMutOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::subdomain_registration::SubDomainRegistration`,

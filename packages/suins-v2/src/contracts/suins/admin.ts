@@ -15,19 +15,21 @@ export function Admin() {
 		dummy_field: bcs.bool(),
 	});
 }
+export interface AuthorizeArguments {
+	cap: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+}
+export interface AuthorizeOptions {
+	package?: string;
+	arguments:
+		| AuthorizeArguments
+		| [cap: RawTransactionArgument<string>, suins: RawTransactionArgument<string>];
+}
 /**
  * Authorize the admin application in the SuiNS to get access to protected
  * functions. Must be called in order to use the rest of the functions.
  */
-export function authorize(options: {
-	package?: string;
-	arguments:
-		| [cap: RawTransactionArgument<string>, suins: RawTransactionArgument<string>]
-		| {
-				cap: RawTransactionArgument<string>;
-				suins: RawTransactionArgument<string>;
-		  };
-}) {
+export function authorize(options: AuthorizeOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::suins::AdminCap`,
@@ -42,23 +44,25 @@ export function authorize(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Reserve a `domain` in the `SuiNS`. */
-export function reserve_domain(options: {
+export interface ReserveDomainArguments {
+	_: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	domainName: RawTransactionArgument<string>;
+	noYears: RawTransactionArgument<number>;
+}
+export interface ReserveDomainOptions {
 	package?: string;
 	arguments:
+		| ReserveDomainArguments
 		| [
 				_: RawTransactionArgument<string>,
 				suins: RawTransactionArgument<string>,
 				domainName: RawTransactionArgument<string>,
 				noYears: RawTransactionArgument<number>,
-		  ]
-		| {
-				_: RawTransactionArgument<string>;
-				suins: RawTransactionArgument<string>;
-				domainName: RawTransactionArgument<string>;
-				noYears: RawTransactionArgument<number>;
-		  };
-}) {
+		  ];
+}
+/** Reserve a `domain` in the `SuiNS`. */
+export function reserveDomain(options: ReserveDomainOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::suins::AdminCap`,

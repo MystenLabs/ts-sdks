@@ -25,26 +25,28 @@ export function CoinTypeData() {
 		type_name: type_name.TypeName(),
 	});
 }
+export interface HandleBasePaymentArguments {
+	suins: RawTransactionArgument<string>;
+	intent: RawTransactionArgument<string>;
+	payment: RawTransactionArgument<string>;
+}
+export interface HandleBasePaymentOptions {
+	package?: string;
+	arguments:
+		| HandleBasePaymentArguments
+		| [
+				suins: RawTransactionArgument<string>,
+				intent: RawTransactionArgument<string>,
+				payment: RawTransactionArgument<string>,
+		  ];
+	typeArguments: [string];
+}
 /**
  * This has to be called with our base payment currency. The payment has to be
  * equal to the base price of the domain. We do not need to check the price feed
  * for the base currency.
  */
-export function handle_base_payment(options: {
-	package?: string;
-	arguments:
-		| [
-				suins: RawTransactionArgument<string>,
-				intent: RawTransactionArgument<string>,
-				payment: RawTransactionArgument<string>,
-		  ]
-		| {
-				suins: RawTransactionArgument<string>;
-				intent: RawTransactionArgument<string>;
-				payment: RawTransactionArgument<string>;
-		  };
-	typeArguments: [string];
-}) {
+export function handleBasePayment(options: HandleBasePaymentOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
 	const argumentsTypes = [
 		`${packageAddress}::suins::SuiNS`,
@@ -61,6 +63,26 @@ export function handle_base_payment(options: {
 			typeArguments: options.typeArguments,
 		});
 }
+export interface HandlePaymentArguments {
+	suins: RawTransactionArgument<string>;
+	intent: RawTransactionArgument<string>;
+	payment: RawTransactionArgument<string>;
+	clock: RawTransactionArgument<string>;
+	priceInfoObject: RawTransactionArgument<number | bigint>;
+}
+export interface HandlePaymentOptions {
+	package?: string;
+	arguments:
+		| HandlePaymentArguments
+		| [
+				suins: RawTransactionArgument<string>,
+				intent: RawTransactionArgument<string>,
+				payment: RawTransactionArgument<string>,
+				clock: RawTransactionArgument<string>,
+				priceInfoObject: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string];
+}
 /**
  * Handles a payment done for a non-base currency payment. E.g. SUI, NS.
  *
@@ -73,25 +95,7 @@ export function handle_base_payment(options: {
  * number should be calculated on the FE based on the price that is being displayed
  * to the user (with a buffer determined by the FE).
  */
-export function handle_payment(options: {
-	package?: string;
-	arguments:
-		| [
-				suins: RawTransactionArgument<string>,
-				intent: RawTransactionArgument<string>,
-				payment: RawTransactionArgument<string>,
-				clock: RawTransactionArgument<string>,
-				priceInfoObject: RawTransactionArgument<number | bigint>,
-		  ]
-		| {
-				suins: RawTransactionArgument<string>;
-				intent: RawTransactionArgument<string>;
-				payment: RawTransactionArgument<string>;
-				clock: RawTransactionArgument<string>;
-				priceInfoObject: RawTransactionArgument<number | bigint>;
-		  };
-	typeArguments: [string];
-}) {
+export function handlePayment(options: HandlePaymentOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
 	const argumentsTypes = [
 		`${packageAddress}::suins::SuiNS`,
@@ -118,6 +122,22 @@ export function handle_payment(options: {
 			typeArguments: options.typeArguments,
 		});
 }
+export interface CalculatePriceArguments {
+	suins: RawTransactionArgument<string>;
+	baseAmount: RawTransactionArgument<number | bigint>;
+	clock: RawTransactionArgument<string>;
+}
+export interface CalculatePriceOptions {
+	package?: string;
+	arguments:
+		| CalculatePriceArguments
+		| [
+				suins: RawTransactionArgument<string>,
+				baseAmount: RawTransactionArgument<number | bigint>,
+				clock: RawTransactionArgument<string>,
+		  ];
+	typeArguments: [string];
+}
 /**
  * Calculates the amount that has to be paid in the target currency.
  *
@@ -128,21 +148,7 @@ export function handle_payment(options: {
  * 3.  const coin = txb.splitCoins(baseCoin, [price])
  * 4.  handle_payment<SUI>(suins, intent, coin, ...);
  */
-export function calculate_price(options: {
-	package?: string;
-	arguments:
-		| [
-				suins: RawTransactionArgument<string>,
-				baseAmount: RawTransactionArgument<number | bigint>,
-				clock: RawTransactionArgument<string>,
-		  ]
-		| {
-				suins: RawTransactionArgument<string>;
-				baseAmount: RawTransactionArgument<number | bigint>;
-				clock: RawTransactionArgument<string>;
-		  };
-	typeArguments: [string];
-}) {
+export function calculatePrice(options: CalculatePriceOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
 	const argumentsTypes = [
 		`${packageAddress}::suins::SuiNS`,
@@ -160,16 +166,18 @@ export function calculate_price(options: {
 			typeArguments: options.typeArguments,
 		});
 }
-export function calculate_price_after_discount(options: {
+export interface CalculatePriceAfterDiscountArguments {
+	suins: RawTransactionArgument<string>;
+	intent: RawTransactionArgument<string>;
+}
+export interface CalculatePriceAfterDiscountOptions {
 	package?: string;
 	arguments:
-		| [suins: RawTransactionArgument<string>, intent: RawTransactionArgument<string>]
-		| {
-				suins: RawTransactionArgument<string>;
-				intent: RawTransactionArgument<string>;
-		  };
+		| CalculatePriceAfterDiscountArguments
+		| [suins: RawTransactionArgument<string>, intent: RawTransactionArgument<string>];
 	typeArguments: [string];
-}) {
+}
+export function calculatePriceAfterDiscount(options: CalculatePriceAfterDiscountOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
 	const argumentsTypes = [
 		`${packageAddress}::suins::SuiNS`,
@@ -185,22 +193,24 @@ export function calculate_price_after_discount(options: {
 			typeArguments: options.typeArguments,
 		});
 }
-/** Creates a new CoinTypeData struct. Leave price_feed_id empty for base currency. */
-export function new_coin_type_data(options: {
+export interface NewCoinTypeDataArguments {
+	coinMetadata: RawTransactionArgument<string>;
+	discountPercentage: RawTransactionArgument<number>;
+	priceFeedId: RawTransactionArgument<number[]>;
+}
+export interface NewCoinTypeDataOptions {
 	package?: string;
 	arguments:
+		| NewCoinTypeDataArguments
 		| [
 				coinMetadata: RawTransactionArgument<string>,
 				discountPercentage: RawTransactionArgument<number>,
 				priceFeedId: RawTransactionArgument<number[]>,
-		  ]
-		| {
-				coinMetadata: RawTransactionArgument<string>;
-				discountPercentage: RawTransactionArgument<number>;
-				priceFeedId: RawTransactionArgument<number[]>;
-		  };
+		  ];
 	typeArguments: [string];
-}) {
+}
+/** Creates a new CoinTypeData struct. Leave price_feed_id empty for base currency. */
+export function newCoinTypeData(options: NewCoinTypeDataOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
 	const argumentsTypes = [
 		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::CoinMetadata<${options.typeArguments[0]}>`,
@@ -217,24 +227,26 @@ export function new_coin_type_data(options: {
 			typeArguments: options.typeArguments,
 		});
 }
-/**
- * Creates a new PaymentsConfig struct. Can be attached by the Admin to SuiNS to
- * allow the payments module to work.
- */
-export function new_payments_config(options: {
+export interface NewPaymentsConfigArguments {
+	setups: RawTransactionArgument<string[]>;
+	baseCurrency: RawTransactionArgument<string>;
+	maxAge: RawTransactionArgument<number | bigint>;
+}
+export interface NewPaymentsConfigOptions {
 	package?: string;
 	arguments:
+		| NewPaymentsConfigArguments
 		| [
 				setups: RawTransactionArgument<string[]>,
 				baseCurrency: RawTransactionArgument<string>,
 				maxAge: RawTransactionArgument<number | bigint>,
-		  ]
-		| {
-				setups: RawTransactionArgument<string[]>;
-				baseCurrency: RawTransactionArgument<string>;
-				maxAge: RawTransactionArgument<number | bigint>;
-		  };
-}) {
+		  ];
+}
+/**
+ * Creates a new PaymentsConfig struct. Can be attached by the Admin to SuiNS to
+ * allow the payments module to work.
+ */
+export function newPaymentsConfig(options: NewPaymentsConfigOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
 	const argumentsTypes = [
 		`vector<${packageAddress}::payments::CoinTypeData>`,

@@ -10,8 +10,12 @@
  */
 
 import type { Transaction } from '@mysten/sui/transactions';
+export interface SuiTldOptions {
+	package?: string;
+	arguments: [];
+}
 /** Top level domain for SUI as a String. */
-export function sui_tld(options: { package?: string; arguments: [] }) {
+export function suiTld(options: SuiTldOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -20,8 +24,12 @@ export function sui_tld(options: { package?: string; arguments: [] }) {
 			function: 'sui_tld',
 		});
 }
+export interface DefaultImageOptions {
+	package?: string;
+	arguments: [];
+}
 /** Default value for the image_url. */
-export function default_image(options: { package?: string; arguments: [] }) {
+export function defaultImage(options: DefaultImageOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -30,8 +38,12 @@ export function default_image(options: { package?: string; arguments: [] }) {
 			function: 'default_image',
 		});
 }
+export interface MistPerSuiOptions {
+	package?: string;
+	arguments: [];
+}
 /** The amount of MIST in 1 SUI. */
-export function mist_per_sui(options: { package?: string; arguments: [] }) {
+export function mistPerSui(options: MistPerSuiOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -40,8 +52,12 @@ export function mist_per_sui(options: { package?: string; arguments: [] }) {
 			function: 'mist_per_sui',
 		});
 }
+export interface MinDomainLengthOptions {
+	package?: string;
+	arguments: [];
+}
 /** The minimum length of a domain name. */
-export function min_domain_length(options: { package?: string; arguments: [] }) {
+export function minDomainLength(options: MinDomainLengthOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -50,8 +66,12 @@ export function min_domain_length(options: { package?: string; arguments: [] }) 
 			function: 'min_domain_length',
 		});
 }
+export interface MaxDomainLengthOptions {
+	package?: string;
+	arguments: [];
+}
 /** The maximum length of a domain name. */
-export function max_domain_length(options: { package?: string; arguments: [] }) {
+export function maxDomainLength(options: MaxDomainLengthOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -60,8 +80,12 @@ export function max_domain_length(options: { package?: string; arguments: [] }) 
 			function: 'max_domain_length',
 		});
 }
+export interface MaxBpsOptions {
+	package?: string;
+	arguments: [];
+}
 /** Maximum value for basis points. */
-export function max_bps(options: { package?: string; arguments: [] }) {
+export function maxBps(options: MaxBpsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -70,8 +94,12 @@ export function max_bps(options: { package?: string; arguments: [] }) {
 			function: 'max_bps',
 		});
 }
+export interface YearMsOptions {
+	package?: string;
+	arguments: [];
+}
 /** The amount of milliseconds in a year. */
-export function year_ms(options: { package?: string; arguments: [] }) {
+export function yearMs(options: YearMsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -80,8 +108,12 @@ export function year_ms(options: { package?: string; arguments: [] }) {
 			function: 'year_ms',
 		});
 }
+export interface GracePeriodMsOptions {
+	package?: string;
+	arguments: [];
+}
 /** Grace period in milliseconds after which the domain expires. */
-export function grace_period_ms(options: { package?: string; arguments: [] }) {
+export function gracePeriodMs(options: GracePeriodMsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -90,8 +122,12 @@ export function grace_period_ms(options: { package?: string; arguments: [] }) {
 			function: 'grace_period_ms',
 		});
 }
+export interface SubdomainAllowCreationKeyOptions {
+	package?: string;
+	arguments: [];
+}
 /** Subdomain constants The NameRecord key that a subdomain can create child names. */
-export function subdomain_allow_creation_key(options: { package?: string; arguments: [] }) {
+export function subdomainAllowCreationKey(options: SubdomainAllowCreationKeyOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -100,8 +136,12 @@ export function subdomain_allow_creation_key(options: { package?: string; argume
 			function: 'subdomain_allow_creation_key',
 		});
 }
+export interface SubdomainAllowExtensionKeyOptions {
+	package?: string;
+	arguments: [];
+}
 /** The NameRecord key that a subdomain can self-renew. */
-export function subdomain_allow_extension_key(options: { package?: string; arguments: [] }) {
+export function subdomainAllowExtensionKey(options: SubdomainAllowExtensionKeyOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -110,8 +150,12 @@ export function subdomain_allow_extension_key(options: { package?: string; argum
 			function: 'subdomain_allow_extension_key',
 		});
 }
+export interface LeafExpirationTimestampOptions {
+	package?: string;
+	arguments: [];
+}
 /** A getter for a leaf name record's expiration timestamp. */
-export function leaf_expiration_timestamp(options: { package?: string; arguments: [] }) {
+export function leafExpirationTimestamp(options: LeafExpirationTimestampOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	return (tx: Transaction) =>
 		tx.moveCall({

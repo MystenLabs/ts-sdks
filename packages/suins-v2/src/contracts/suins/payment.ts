@@ -5,7 +5,7 @@ import type { BcsType } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 import { normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
-import * as domain_0 from './domain.js';
+import * as domain_1 from './domain.js';
 import * as vec_map from './deps/sui/vec_map.js';
 import * as type_name from './deps/std/type_name.js';
 export function RequestData() {
@@ -13,7 +13,7 @@ export function RequestData() {
 		/** The version of the payment module. */
 		version: bcs.u8(),
 		/** The domain for which the payment is being made. */
-		domain: domain_0.Domain(),
+		domain: domain_1.Domain(),
 		/** The years for which the payment is being made. Defaults to 1 for registration. */
 		years: bcs.u8(),
 		/** The amount the user has to pay in base units. */
@@ -33,7 +33,7 @@ export function RequestData() {
 export function TransactionEvent() {
 	return bcs.struct('TransactionEvent', {
 		app: type_name.TypeName(),
-		domain: domain_0.Domain(),
+		domain: domain_1.Domain(),
 		years: bcs.u8(),
 		request_data_version: bcs.u8(),
 		base_amount: bcs.u64(),
@@ -65,25 +65,29 @@ export function PaymentIntent() {
 export function Receipt() {
 	return bcs.enum('Receipt', {
 		Registration: bcs.struct('Receipt.Registration', {
-			domain: domain_0.Domain(),
+			domain: domain_1.Domain(),
 			years: bcs.u8(),
 			version: bcs.u8(),
 		}),
 		Renewal: bcs.struct('Receipt.Renewal', {
-			domain: domain_0.Domain(),
+			domain: domain_1.Domain(),
 			years: bcs.u8(),
 			version: bcs.u8(),
 		}),
 	});
 }
-/**
- * Allow an authorized app to apply a percentage discount to the payment intent.
- * E.g. an NS payment can apply a 10% discount on top of a user's 20% discount if
- * allow_multiple_discounts is true
- */
-export function apply_percentage_discount<A extends BcsType<any>>(options: {
+export interface ApplyPercentageDiscountArguments<A extends BcsType<any>> {
+	intent: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	_: RawTransactionArgument<A>;
+	discountKey: RawTransactionArgument<string>;
+	discount: RawTransactionArgument<number>;
+	allowMultipleDiscounts: RawTransactionArgument<boolean>;
+}
+export interface ApplyPercentageDiscountOptions<A extends BcsType<any>> {
 	package?: string;
 	arguments:
+		| ApplyPercentageDiscountArguments<A>
 		| [
 				intent: RawTransactionArgument<string>,
 				suins: RawTransactionArgument<string>,
@@ -91,17 +95,17 @@ export function apply_percentage_discount<A extends BcsType<any>>(options: {
 				discountKey: RawTransactionArgument<string>,
 				discount: RawTransactionArgument<number>,
 				allowMultipleDiscounts: RawTransactionArgument<boolean>,
-		  ]
-		| {
-				intent: RawTransactionArgument<string>;
-				suins: RawTransactionArgument<string>;
-				_: RawTransactionArgument<A>;
-				discountKey: RawTransactionArgument<string>;
-				discount: RawTransactionArgument<number>;
-				allowMultipleDiscounts: RawTransactionArgument<boolean>;
-		  };
+		  ];
 	typeArguments: [string];
-}) {
+}
+/**
+ * Allow an authorized app to apply a percentage discount to the payment intent.
+ * E.g. an NS payment can apply a 10% discount on top of a user's 20% discount if
+ * allow_multiple_discounts is true
+ */
+export function applyPercentageDiscount<A extends BcsType<any>>(
+	options: ApplyPercentageDiscountOptions<A>,
+) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::payment::PaymentIntent`,
@@ -128,6 +132,24 @@ export function apply_percentage_discount<A extends BcsType<any>>(options: {
 			typeArguments: options.typeArguments,
 		});
 }
+export interface FinalizePaymentArguments<A extends BcsType<any>> {
+	intent: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	app: RawTransactionArgument<A>;
+	coin: RawTransactionArgument<string>;
+}
+export interface FinalizePaymentOptions<A extends BcsType<any>> {
+	package?: string;
+	arguments:
+		| FinalizePaymentArguments<A>
+		| [
+				intent: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string>,
+				app: RawTransactionArgument<A>,
+				coin: RawTransactionArgument<string>,
+		  ];
+	typeArguments: [string, string];
+}
 /**
  * Allow an authorized app to finalize a payment. Returns a receipt that can be
  * used to register or renew a domain.
@@ -135,23 +157,7 @@ export function apply_percentage_discount<A extends BcsType<any>>(options: {
  * SAFETY: Only authorized packages can call this. We do not check the amount of
  * funds in this helper. This is the responsibility of the `payments` app.
  */
-export function finalize_payment<A extends BcsType<any>>(options: {
-	package?: string;
-	arguments:
-		| [
-				intent: RawTransactionArgument<string>,
-				suins: RawTransactionArgument<string>,
-				app: RawTransactionArgument<A>,
-				coin: RawTransactionArgument<string>,
-		  ]
-		| {
-				intent: RawTransactionArgument<string>;
-				suins: RawTransactionArgument<string>;
-				app: RawTransactionArgument<A>;
-				coin: RawTransactionArgument<string>;
-		  };
-	typeArguments: [string, string];
-}) {
+export function finalizePayment<A extends BcsType<any>>(options: FinalizePaymentOptions<A>) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::payment::PaymentIntent`,
@@ -169,19 +175,21 @@ export function finalize_payment<A extends BcsType<any>>(options: {
 			typeArguments: options.typeArguments,
 		});
 }
+export interface InitRegistrationArguments {
+	suins: RawTransactionArgument<string>;
+	domain: RawTransactionArgument<string>;
+}
+export interface InitRegistrationOptions {
+	package?: string;
+	arguments:
+		| InitRegistrationArguments
+		| [suins: RawTransactionArgument<string>, domain: RawTransactionArgument<string>];
+}
 /**
  * Creates a `PaymentIntent` for registering a new domain. This is a hot-potato and
  * can only be consumed in a single transaction.
  */
-export function init_registration(options: {
-	package?: string;
-	arguments:
-		| [suins: RawTransactionArgument<string>, domain: RawTransactionArgument<string>]
-		| {
-				suins: RawTransactionArgument<string>;
-				domain: RawTransactionArgument<string>;
-		  };
-}) {
+export function initRegistration(options: InitRegistrationOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::suins::SuiNS`,
@@ -196,24 +204,26 @@ export function init_registration(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/**
- * Creates a `PaymentIntent` for renewing an existing domain. This is a hot-potato
- * and can only be consumed in a single transaction.
- */
-export function init_renewal(options: {
+export interface InitRenewalArguments {
+	suins: RawTransactionArgument<string>;
+	nft: RawTransactionArgument<string>;
+	years: RawTransactionArgument<number>;
+}
+export interface InitRenewalOptions {
 	package?: string;
 	arguments:
+		| InitRenewalArguments
 		| [
 				suins: RawTransactionArgument<string>,
 				nft: RawTransactionArgument<string>,
 				years: RawTransactionArgument<number>,
-		  ]
-		| {
-				suins: RawTransactionArgument<string>;
-				nft: RawTransactionArgument<string>;
-				years: RawTransactionArgument<number>;
-		  };
-}) {
+		  ];
+}
+/**
+ * Creates a `PaymentIntent` for renewing an existing domain. This is a hot-potato
+ * and can only be consumed in a single transaction.
+ */
+export function initRenewal(options: InitRenewalOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::suins::SuiNS`,
@@ -229,19 +239,21 @@ export function init_renewal(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface RegisterArguments {
+	receipt: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+}
+export interface RegisterOptions {
+	package?: string;
+	arguments:
+		| RegisterArguments
+		| [receipt: RawTransactionArgument<string>, suins: RawTransactionArgument<string>];
+}
 /**
  * Register a domain with the given receipt. This is a hot-potato and can only be
  * consumed in a single transaction.
  */
-export function register(options: {
-	package?: string;
-	arguments:
-		| [receipt: RawTransactionArgument<string>, suins: RawTransactionArgument<string>]
-		| {
-				receipt: RawTransactionArgument<string>;
-				suins: RawTransactionArgument<string>;
-		  };
-}) {
+export function register(options: RegisterOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::payment::Receipt`,
@@ -257,24 +269,26 @@ export function register(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/**
- * Renew a domain with the given receipt. This is a hot-potato and can only be
- * consumed in a single transaction.
- */
-export function renew(options: {
+export interface RenewArguments {
+	receipt: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	nft: RawTransactionArgument<string>;
+}
+export interface RenewOptions {
 	package?: string;
 	arguments:
+		| RenewArguments
 		| [
 				receipt: RawTransactionArgument<string>,
 				suins: RawTransactionArgument<string>,
 				nft: RawTransactionArgument<string>,
-		  ]
-		| {
-				receipt: RawTransactionArgument<string>;
-				suins: RawTransactionArgument<string>;
-				nft: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+/**
+ * Renew a domain with the given receipt. This is a hot-potato and can only be
+ * consumed in a single transaction.
+ */
+export function renew(options: RenewOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
 		`${packageAddress}::payment::Receipt`,
@@ -291,15 +305,15 @@ export function renew(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Getters */
-export function request_data(options: {
+export interface RequestDataArguments {
+	intent: RawTransactionArgument<string>;
+}
+export interface RequestDataOptions {
 	package?: string;
-	arguments:
-		| [intent: RawTransactionArgument<string>]
-		| {
-				intent: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: RequestDataArguments | [intent: RawTransactionArgument<string>];
+}
+/** Getters */
+export function requestData(options: RequestDataOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::payment::PaymentIntent`] satisfies string[];
 	const parameterNames = ['intent'];
@@ -311,14 +325,14 @@ export function request_data(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function years(options: {
+export interface YearsArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface YearsOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: YearsArguments | [self: RawTransactionArgument<string>];
+}
+export function years(options: YearsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::payment::RequestData`] satisfies string[];
 	const parameterNames = ['self'];
@@ -330,14 +344,14 @@ export function years(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function base_amount(options: {
+export interface BaseAmountArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface BaseAmountOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: BaseAmountArguments | [self: RawTransactionArgument<string>];
+}
+export function baseAmount(options: BaseAmountOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::payment::RequestData`] satisfies string[];
 	const parameterNames = ['self'];
@@ -349,14 +363,14 @@ export function base_amount(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function domain(options: {
+export interface DomainArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface DomainOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: DomainArguments | [self: RawTransactionArgument<string>];
+}
+export function domain(options: DomainOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::payment::RequestData`] satisfies string[];
 	const parameterNames = ['self'];
@@ -368,15 +382,15 @@ export function domain(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Returns true if at least one discount has been applied to the payment intent. */
-export function discount_applied(options: {
+export interface DiscountAppliedArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface DiscountAppliedOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: DiscountAppliedArguments | [self: RawTransactionArgument<string>];
+}
+/** Returns true if at least one discount has been applied to the payment intent. */
+export function discountApplied(options: DiscountAppliedOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::payment::RequestData`] satisfies string[];
 	const parameterNames = ['self'];
@@ -388,15 +402,15 @@ export function discount_applied(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** A list of discounts that have been applied to the payment intent. */
-export function discounts_applied(options: {
+export interface DiscountsAppliedArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface DiscountsAppliedOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: DiscountsAppliedArguments | [self: RawTransactionArgument<string>];
+}
+/** A list of discounts that have been applied to the payment intent. */
+export function discountsApplied(options: DiscountsAppliedOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::payment::RequestData`] satisfies string[];
 	const parameterNames = ['self'];
@@ -408,16 +422,18 @@ export function discounts_applied(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Public helper to calculate price after a percentage discount has been applied. */
-export function calculate_total_after_discount(options: {
+export interface CalculateTotalAfterDiscountArguments {
+	data: RawTransactionArgument<string>;
+	discount: RawTransactionArgument<number>;
+}
+export interface CalculateTotalAfterDiscountOptions {
 	package?: string;
 	arguments:
-		| [data: RawTransactionArgument<string>, discount: RawTransactionArgument<number>]
-		| {
-				data: RawTransactionArgument<string>;
-				discount: RawTransactionArgument<number>;
-		  };
-}) {
+		| CalculateTotalAfterDiscountArguments
+		| [data: RawTransactionArgument<string>, discount: RawTransactionArgument<number>];
+}
+/** Public helper to calculate price after a percentage discount has been applied. */
+export function calculateTotalAfterDiscount(options: CalculateTotalAfterDiscountOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [`${packageAddress}::payment::RequestData`, 'u8'] satisfies string[];
 	const parameterNames = ['data', 'discount'];

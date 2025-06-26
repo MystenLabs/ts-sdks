@@ -14,9 +14,18 @@
 import type { Transaction } from '@mysten/sui/transactions';
 import { normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
-export function _new(options: {
+export interface NewArguments {
+	suins: RawTransactionArgument<string>;
+	subdomain: RawTransactionArgument<string>;
+	clock: RawTransactionArgument<string>;
+	subdomainName: RawTransactionArgument<number | bigint>;
+	expirationTimestampMs: RawTransactionArgument<boolean>;
+	allowCreation: RawTransactionArgument<boolean>;
+}
+export interface NewOptions {
 	package?: string;
 	arguments:
+		| NewArguments
 		| [
 				suins: RawTransactionArgument<string>,
 				subdomain: RawTransactionArgument<string>,
@@ -24,16 +33,9 @@ export function _new(options: {
 				subdomainName: RawTransactionArgument<number | bigint>,
 				expirationTimestampMs: RawTransactionArgument<boolean>,
 				allowCreation: RawTransactionArgument<boolean>,
-		  ]
-		| {
-				suins: RawTransactionArgument<string>;
-				subdomain: RawTransactionArgument<string>;
-				clock: RawTransactionArgument<string>;
-				subdomainName: RawTransactionArgument<number | bigint>;
-				expirationTimestampMs: RawTransactionArgument<boolean>;
-				allowCreation: RawTransactionArgument<boolean>;
-		  };
-}) {
+		  ];
+}
+export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
@@ -61,22 +63,24 @@ export function _new(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function new_leaf(options: {
+export interface NewLeafArguments {
+	suins: RawTransactionArgument<string>;
+	subdomain: RawTransactionArgument<string>;
+	clock: RawTransactionArgument<string>;
+	subdomainName: RawTransactionArgument<string>;
+}
+export interface NewLeafOptions {
 	package?: string;
 	arguments:
+		| NewLeafArguments
 		| [
 				suins: RawTransactionArgument<string>,
 				subdomain: RawTransactionArgument<string>,
 				clock: RawTransactionArgument<string>,
 				subdomainName: RawTransactionArgument<string>,
-		  ]
-		| {
-				suins: RawTransactionArgument<string>;
-				subdomain: RawTransactionArgument<string>;
-				clock: RawTransactionArgument<string>;
-				subdomainName: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+export function newLeaf(options: NewLeafOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
@@ -94,20 +98,22 @@ export function new_leaf(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function remove_leaf(options: {
+export interface RemoveLeafArguments {
+	suins: RawTransactionArgument<string>;
+	subdomain: RawTransactionArgument<string>;
+	clock: RawTransactionArgument<string>;
+}
+export interface RemoveLeafOptions {
 	package?: string;
 	arguments:
+		| RemoveLeafArguments
 		| [
 				suins: RawTransactionArgument<string>,
 				subdomain: RawTransactionArgument<string>,
 				clock: RawTransactionArgument<string>,
-		  ]
-		| {
-				suins: RawTransactionArgument<string>;
-				subdomain: RawTransactionArgument<string>;
-				clock: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+export function removeLeaf(options: RemoveLeafOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
@@ -124,24 +130,26 @@ export function remove_leaf(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function edit_setup(options: {
+export interface EditSetupArguments {
+	suins: RawTransactionArgument<string>;
+	parent: RawTransactionArgument<string>;
+	clock: RawTransactionArgument<string>;
+	subdomainName: RawTransactionArgument<boolean>;
+	allowCreation: RawTransactionArgument<boolean>;
+}
+export interface EditSetupOptions {
 	package?: string;
 	arguments:
+		| EditSetupArguments
 		| [
 				suins: RawTransactionArgument<string>,
 				parent: RawTransactionArgument<string>,
 				clock: RawTransactionArgument<string>,
 				subdomainName: RawTransactionArgument<boolean>,
 				allowCreation: RawTransactionArgument<boolean>,
-		  ]
-		| {
-				suins: RawTransactionArgument<string>;
-				parent: RawTransactionArgument<string>;
-				clock: RawTransactionArgument<string>;
-				subdomainName: RawTransactionArgument<boolean>;
-				allowCreation: RawTransactionArgument<boolean>;
-		  };
-}) {
+		  ];
+}
+export function editSetup(options: EditSetupOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
@@ -167,20 +175,22 @@ export function edit_setup(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function set_target_address(options: {
+export interface SetTargetAddressArguments {
+	suins: RawTransactionArgument<string>;
+	subdomain: RawTransactionArgument<string>;
+	newTarget: RawTransactionArgument<string | null>;
+}
+export interface SetTargetAddressOptions {
 	package?: string;
 	arguments:
+		| SetTargetAddressArguments
 		| [
 				suins: RawTransactionArgument<string>,
 				subdomain: RawTransactionArgument<string>,
 				newTarget: RawTransactionArgument<string | null>,
-		  ]
-		| {
-				suins: RawTransactionArgument<string>;
-				subdomain: RawTransactionArgument<string>;
-				newTarget: RawTransactionArgument<string | null>;
-		  };
-}) {
+		  ];
+}
+export function setTargetAddress(options: SetTargetAddressOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
@@ -197,22 +207,24 @@ export function set_target_address(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function set_user_data(options: {
+export interface SetUserDataArguments {
+	suins: RawTransactionArgument<string>;
+	subdomain: RawTransactionArgument<string>;
+	key: RawTransactionArgument<string>;
+	value: RawTransactionArgument<string>;
+}
+export interface SetUserDataOptions {
 	package?: string;
 	arguments:
+		| SetUserDataArguments
 		| [
 				suins: RawTransactionArgument<string>,
 				subdomain: RawTransactionArgument<string>,
 				key: RawTransactionArgument<string>,
 				value: RawTransactionArgument<string>,
-		  ]
-		| {
-				suins: RawTransactionArgument<string>;
-				subdomain: RawTransactionArgument<string>;
-				key: RawTransactionArgument<string>;
-				value: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+export function setUserData(options: SetUserDataOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
@@ -230,20 +242,22 @@ export function set_user_data(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function unset_user_data(options: {
+export interface UnsetUserDataArguments {
+	suins: RawTransactionArgument<string>;
+	subdomain: RawTransactionArgument<string>;
+	key: RawTransactionArgument<string>;
+}
+export interface UnsetUserDataOptions {
 	package?: string;
 	arguments:
+		| UnsetUserDataArguments
 		| [
 				suins: RawTransactionArgument<string>,
 				subdomain: RawTransactionArgument<string>,
 				key: RawTransactionArgument<string>,
-		  ]
-		| {
-				suins: RawTransactionArgument<string>;
-				subdomain: RawTransactionArgument<string>;
-				key: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+export function unsetUserData(options: UnsetUserDataOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
