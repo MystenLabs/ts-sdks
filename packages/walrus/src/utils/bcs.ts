@@ -146,3 +146,54 @@ export function Field<T0 extends BcsType<any>, T1 extends BcsType<any>>(
 		value: typeParameters[1],
 	});
 }
+
+export const QuiltPatchV1 = bcs.struct('QuiltPatchV1', {
+	endIndex: bcs.u16(),
+	identifier: bcs.string(),
+	tags: bcs.map(bcs.string(), bcs.string()).transform({
+		// tags is a BTreeMap, so we need to sort entries before serializing
+		input: (tags: Map<string, string>) =>
+			new Map(
+				[...tags.entries()].sort(([a], [b]) =>
+					compareBcsBytes(bcs.string().serialize(a).toBytes(), bcs.string().serialize(b).toBytes()),
+				),
+			),
+	}),
+});
+
+function compareBcsBytes(a: Uint8Array, b: Uint8Array) {
+	for (let i = 0; i < a.length; i++) {
+		if (i >= b.length) {
+			return 1;
+		}
+
+		if (a[i] !== b[i]) {
+			return a[i] - b[i];
+		}
+	}
+
+	return 0;
+}
+
+export const QuiltIndexV1 = bcs.struct('QuiltIndexV1', {
+	patches: bcs.vector(QuiltPatchV1),
+});
+
+export const QuiltIndex = bcs.enum('QuiltIndex', {
+	V1: QuiltIndexV1,
+});
+
+export const QuiltPatchId = bcs.struct('QuiltPatchId', {
+	quiltId: BlobId,
+	patchId: bcs.struct('InternalQuiltPatchId', {
+		version: bcs.u8(),
+		startIndex: bcs.u16(),
+		endIndex: bcs.u16(),
+	}),
+});
+
+export const QuiltPatchBlobHeader = bcs.struct('QuiltPatchBlobHeader', {
+	version: bcs.u8(),
+	length: bcs.u32(),
+	mask: bcs.u8(),
+});

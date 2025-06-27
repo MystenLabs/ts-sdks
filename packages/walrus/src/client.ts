@@ -63,6 +63,7 @@ import type {
 	FanOutConfig,
 	GetBlobMetadataOptions,
 	GetCertificationEpochOptions,
+	GetSecondarySliverOptions,
 	GetSliversOptions,
 	GetStorageConfirmationOptions,
 	GetVerifiedBlobStatusOptions,
@@ -432,6 +433,30 @@ export class WalrusClient {
 				});
 			});
 		}
+	}
+
+	async getSecondarySliver({ blobId, index, signal }: GetSecondarySliverOptions) {
+		const committee = await this.#getActiveCommittee();
+		const stakingState = await this.stakingState();
+		const numShards = stakingState.n_shards;
+		const sliverPairIndex = numShards - index;
+
+		const shardIndex = toShardIndex(sliverPairIndex, blobId, numShards);
+		const node = await this.#getNodeByShardIndex(committee, shardIndex);
+
+		if (!node) {
+			throw new Error(`No node found for shard index ${shardIndex}`);
+		}
+
+		const sliver = await this.#storageNodeClient.getSliver(
+			{ blobId, sliverPairIndex, sliverType: 'secondary' },
+			{
+				nodeUrl: node.networkUrl,
+				signal,
+			},
+		);
+
+		return sliver;
 	}
 
 	async getSlivers({ blobId, signal }: GetSliversOptions) {
