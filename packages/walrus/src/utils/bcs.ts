@@ -147,18 +147,20 @@ export function Field<T0 extends BcsType<any>, T1 extends BcsType<any>>(
 	});
 }
 
+export const QuiltPatchTags = bcs.map(bcs.string(), bcs.string()).transform({
+	// tags is a BTreeMap, so we need to sort entries before serializing
+	input: (tags: Map<string, string>) =>
+		new Map(
+			[...tags.entries()].sort(([a], [b]) =>
+				compareBcsBytes(bcs.string().serialize(a).toBytes(), bcs.string().serialize(b).toBytes()),
+			),
+		),
+});
+
 export const QuiltPatchV1 = bcs.struct('QuiltPatchV1', {
 	endIndex: bcs.u16(),
 	identifier: bcs.string(),
-	tags: bcs.map(bcs.string(), bcs.string()).transform({
-		// tags is a BTreeMap, so we need to sort entries before serializing
-		input: (tags: Map<string, string>) =>
-			new Map(
-				[...tags.entries()].sort(([a], [b]) =>
-					compareBcsBytes(bcs.string().serialize(a).toBytes(), bcs.string().serialize(b).toBytes()),
-				),
-			),
-	}),
+	tags: QuiltPatchTags,
 });
 
 function compareBcsBytes(a: Uint8Array, b: Uint8Array) {

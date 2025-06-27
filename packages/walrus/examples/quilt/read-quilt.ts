@@ -18,5 +18,7 @@ const client = new SuiClient({
 	});
 	const data = await reader.readPatchById('NqQqVflKKk2ekbO9WsCsMYeOTWUMvOV4cvpvoD7mUKgBAQAOAA');
 
-	console.log(new TextDecoder().decode(data));
+	console.log(data.identifier);
+	console.log(data.tags);
+	console.log(new TextDecoder().decode(data.blobContents));
 })();
