@@ -173,6 +173,11 @@ export type GetBlobMetadataOptions = ReadBlobOptions;
 
 export type GetSliversOptions = ReadBlobOptions;
 
+export interface GetSecondarySliverOptions extends WalrusClientRequestOptions {
+	blobId: string;
+	index: number;
+}
+
 export type GetVerifiedBlobStatusOptions = ReadBlobOptions;
 
 export type ComputeBlobMetadataOptions = {
