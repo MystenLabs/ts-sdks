@@ -13,6 +13,8 @@ import { isValidHardenedPath, mnemonicToSeedHex } from '../../cryptography/mnemo
 import type { SignatureScheme } from '../../cryptography/signature-scheme.js';
 import { derivePath } from './ed25519-hd-key.js';
 import { Ed25519PublicKey } from './publickey.js';
+import type { Redacted } from '../../utils/redacted.js';
+import { redacted, getRedactedOrPlainValue } from '../../utils/redacted.js';
 
 export const DEFAULT_ED25519_DERIVATION_PATH = "m/44'/784'/0'/0'/0'";
 
@@ -23,14 +25,17 @@ export const DEFAULT_ED25519_DERIVATION_PATH = "m/44'/784'/0'/0'/0'";
  */
 export interface Ed25519KeypairData {
 	publicKey: Uint8Array;
-	secretKey: Uint8Array;
+	secretKey: Uint8Array | Redacted<Uint8Array>;
 }
 
 /**
  * An Ed25519 Keypair used for signing transactions.
  */
 export class Ed25519Keypair extends Keypair {
-	private keypair: Ed25519KeypairData;
+	#keypair: {
+		publicKey: Uint8Array;
+		secretKey: Uint8Array;
+	};
 
 	/**
 	 * Create a new Ed25519 keypair instance.
@@ -41,13 +46,13 @@ export class Ed25519Keypair extends Keypair {
 	constructor(keypair?: Ed25519KeypairData) {
 		super();
 		if (keypair) {
-			this.keypair = {
+			this.#keypair = {
 				publicKey: keypair.publicKey,
-				secretKey: keypair.secretKey.slice(0, 32),
+				secretKey: getRedactedOrPlainValue(keypair.secretKey).slice(0, 32),
 			};
 		} else {
 			const privateKey = ed25519.utils.randomPrivateKey();
-			this.keypair = {
+			this.#keypair = {
 				publicKey: ed25519.getPublicKey(privateKey),
 				secretKey: privateKey,
 			};
@@ -122,7 +127,7 @@ export class Ed25519Keypair extends Keypair {
 	 * The public key for this Ed25519 keypair
 	 */
 	getPublicKey(): Ed25519PublicKey {
-		return new Ed25519PublicKey(this.keypair.publicKey);
+		return new Ed25519PublicKey(this.#keypair.publicKey);
 	}
 
 	/**
@@ -130,16 +135,23 @@ export class Ed25519Keypair extends Keypair {
 	 */
 	getSecretKey(): string {
 		return encodeSuiPrivateKey(
-			this.keypair.secretKey.slice(0, PRIVATE_KEY_SIZE),
+			this.#keypair.secretKey.slice(0, PRIVATE_KEY_SIZE),
 			this.getKeyScheme(),
 		);
+	}
+
+	/**
+	 * The Bech32 secret key string for this Ed25519 keypair, with the value redacted so that it cannot be logged.
+	 */
+	getSecretKeyRedacted(): Redacted<string> {
+		return redacted(this.getSecretKey());
 	}
 
 	/**
 	 * Return the signature for the provided data using Ed25519.
 	 */
 	async sign(data: Uint8Array) {
-		return ed25519.sign(data, this.keypair.secretKey);
+		return ed25519.sign(data, this.#keypair.secretKey);
 	}
 
 	/**
