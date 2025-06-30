@@ -18,7 +18,7 @@ import {
 	NoAccessError,
 	toMajorityError,
 } from '../../src/error';
-import { KeyServerType } from '../../src/key-server';
+import { getAllowlistedKeyServers, KeyServerType } from '../../src/key-server';
 import { RequestFormat, SessionKey } from '../../src/session-key';
 import { decrypt } from '../../src/decrypt';
 import { KeyCacheKey, SealCompatibleClient } from '../../src/types';
@@ -139,7 +139,10 @@ describe('Integration test', () => {
 		whitelistId = '0x5809c296d41e0d6177e8cf956010c1d2387299892bb9122ca4ba4ffd165e05cb';
 	});
 
-	it('whitelist example encrypt and decrypt scenarios', { timeout: 12000 }, async () => {
+	// Helper function to run the scenario with different server configs
+	async function runScenario(
+		objectIds: { objectId: string; weight: number; apiKeyName?: string; apiKey?: string }[],
+	) {
 		// Both whitelists contain address 0xb743cafeb5da4914cef0cf0a32400c9adfedc5cdb64209f9e740e56d23065100
 		const whitelistId2 = '0xf770c0cdd00388c31ecfb815dd9cb41d6dcbebb1a6f766c02027c3bdcfdb2a21';
 		const data = new Uint8Array([1, 2, 3]);
@@ -148,7 +151,7 @@ describe('Integration test', () => {
 		const client = new SealClient({
 			suiClient,
 			serverConfigs: objectIds,
-			verifyKeyServers: false,
+			verifyKeyServers: true,
 		});
 
 		const { encryptedObject: encryptedBytes } = await client.encrypt({
@@ -211,7 +214,27 @@ describe('Integration test', () => {
 		});
 
 		expect(decryptedBytes2).toEqual(data2);
-	});
+	}
+
+	it(
+		'[testnet servers] whitelist example encrypt and decrypt scenarios',
+		{ timeout: 12000 },
+		async () => {
+			const testnetObjectIds = getAllowlistedKeyServers('testnet').map((server) => ({
+				objectId: server,
+				weight: 1,
+			}));
+			await runScenario(testnetObjectIds);
+		},
+	);
+
+	it(
+		'[ci servers] whitelist example encrypt and decrypt scenarios',
+		{ timeout: 12000 },
+		async () => {
+			await runScenario(objectIds);
+		},
+	);
 
 	it('test getDerivedKeys', { timeout: 12000 }, async () => {
 		// Both whitelists contain address 0xb743cafeb5da4914cef0cf0a32400c9adfedc5cdb64209f9e740e56d23065100
