@@ -112,31 +112,36 @@ describe('Integration test', () => {
 	let suiAddress: string;
 	let suiClient: SealCompatibleClient;
 	let TESTNET_PACKAGE_ID: string;
+	let serverObjectId: string;
+	let serverObjectId2: string;
 	let objectIds: { objectId: string; weight: number; apiKeyName?: string; apiKey?: string }[];
+	let whitelistId: string;
 	beforeAll(async () => {
 		keypair = Ed25519Keypair.fromSecretKey(
 			'suiprivkey1qqgzvw5zc2zmga0uyp4rzcgk42pzzw6387zqhahr82pp95yz0scscffh2d8',
 		);
 		suiAddress = keypair.getPublicKey().toSuiAddress();
 		suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
-		TESTNET_PACKAGE_ID = '0x9709d4ee371488c2bc09f508e98e881bd1d5335e0805d7e6a99edd54a7027954';
+		TESTNET_PACKAGE_ID = '0x8afa5d31dbaa0a8fb07082692940ca3d56b5e856c5126cb5a3693f0a4de63b82';
 		// Object ids pointing to ci key servers' urls
+		serverObjectId = '0x2304dd255b13eaf5cb471bd5188df946a64f1715ee2b7b02fecf306bd12ceebc';
+		serverObjectId2 = '0x81aeaa8c25d2c912e1dc23b4372305b7a602c4ec4cc3e510963bc635e500aa37';
 		objectIds = [
 			{
-				objectId: '0x2304dd255b13eaf5cb471bd5188df946a64f1715ee2b7b02fecf306bd12ceebc',
+				objectId: serverObjectId,
 				weight: 1,
 			},
 			{
-				objectId: '0x81aeaa8c25d2c912e1dc23b4372305b7a602c4ec4cc3e510963bc635e500aa37',
+				objectId: serverObjectId2,
 				weight: 1,
 			},
 		];
+		whitelistId = '0x5809c296d41e0d6177e8cf956010c1d2387299892bb9122ca4ba4ffd165e05cb';
 	});
 
 	it('whitelist example encrypt and decrypt scenarios', { timeout: 12000 }, async () => {
 		// Both whitelists contain address 0xb743cafeb5da4914cef0cf0a32400c9adfedc5cdb64209f9e740e56d23065100
-		const whitelistId = '0xaae704d2280f2c3d24fc08972bb31f2ef1f1c968784935434c3296be5bfd9d5b';
-		const whitelistId2 = '0xe40f50789c00e9948ae782fc8c510b6cbe79cfde362bcab29675f1fe9c57fb46';
+		const whitelistId2 = '0xf770c0cdd00388c31ecfb815dd9cb41d6dcbebb1a6f766c02027c3bdcfdb2a21';
 		const data = new Uint8Array([1, 2, 3]);
 		const data2 = new Uint8Array([4, 5, 6]);
 
@@ -153,7 +158,7 @@ describe('Integration test', () => {
 			data,
 		});
 
-		const txBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'whitelist', suiClient, [
+		const txBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'allowlist', suiClient, [
 			whitelistId,
 		]);
 
@@ -184,7 +189,7 @@ describe('Integration test', () => {
 
 		// construct a ptb that contains two seal_approve
 		// for whitelist 1 and 2.
-		const txBytes2 = await constructTxBytes(TESTNET_PACKAGE_ID, 'whitelist', suiClient, [
+		const txBytes2 = await constructTxBytes(TESTNET_PACKAGE_ID, 'allowlist', suiClient, [
 			whitelistId,
 			whitelistId2,
 		]);
@@ -210,7 +215,7 @@ describe('Integration test', () => {
 
 	it('test getDerivedKeys', { timeout: 12000 }, async () => {
 		// Both whitelists contain address 0xb743cafeb5da4914cef0cf0a32400c9adfedc5cdb64209f9e740e56d23065100
-		const whitelistId = '0xaae704d2280f2c3d24fc08972bb31f2ef1f1c968784935434c3296be5bfd9d5b';
+		const whitelistId = '0x5809c296d41e0d6177e8cf956010c1d2387299892bb9122ca4ba4ffd165e05cb';
 		const data = new Uint8Array([1, 2, 3]);
 
 		const client = new SealClient({
@@ -219,7 +224,7 @@ describe('Integration test', () => {
 			verifyKeyServers: false,
 		});
 
-		const txBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'whitelist', suiClient, [
+		const txBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'allowlist', suiClient, [
 			whitelistId,
 		]);
 
@@ -316,7 +321,7 @@ describe('Integration test', () => {
 	});
 
 	it('client extension', { timeout: 12000 }, async () => {
-		const whitelistId = '0xaae704d2280f2c3d24fc08972bb31f2ef1f1c968784935434c3296be5bfd9d5b';
+		const whitelistId = '0x5809c296d41e0d6177e8cf956010c1d2387299892bb9122ca4ba4ffd165e05cb';
 		const data = new Uint8Array([1, 2, 3]);
 
 		const client = suiClient.$extend(
@@ -333,7 +338,7 @@ describe('Integration test', () => {
 			data,
 		});
 
-		const txBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'whitelist', suiClient, [
+		const txBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'allowlist', suiClient, [
 			whitelistId,
 		]);
 
@@ -355,7 +360,7 @@ describe('Integration test', () => {
 	});
 
 	it('test different validateEncryptionServices errors', async () => {
-		const whitelistId = '0xaae704d2280f2c3d24fc08972bb31f2ef1f1c968784935434c3296be5bfd9d5b';
+		const whitelistId = '0x5809c296d41e0d6177e8cf956010c1d2387299892bb9122ca4ba4ffd165e05cb';
 		const data = new Uint8Array([1, 2, 3]);
 
 		objectIds = [
@@ -383,7 +388,7 @@ describe('Integration test', () => {
 			data,
 		});
 
-		const txBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'whitelist', suiClient, [
+		const txBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'allowlist', suiClient, [
 			whitelistId,
 		]);
 
@@ -453,7 +458,7 @@ describe('Integration test', () => {
 
 	it('test fetchKeys throws SealAPIError', async () => {
 		// Setup encrypted object.
-		const whitelistId = '0xaae704d2280f2c3d24fc08972bb31f2ef1f1c968784935434c3296be5bfd9d5b';
+		const whitelistId = '0x5809c296d41e0d6177e8cf956010c1d2387299892bb9122ca4ba4ffd165e05cb';
 		const client = new SealClient({
 			suiClient,
 			serverConfigs: objectIds,
@@ -491,7 +496,7 @@ describe('Integration test', () => {
 			suiClient,
 		});
 
-		const wrongTxBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'whitelist', suiClient, [
+		const wrongTxBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'allowlist', suiClient, [
 			'0xd9da0a7307c753e4ee4e358261bd0848f1e98e358b175e1f05ef16ae744f2e29',
 		]);
 		await expect(
@@ -598,7 +603,7 @@ describe('Integration test', () => {
 			suiClient,
 		});
 
-		const whitelistId = '0xaae704d2280f2c3d24fc08972bb31f2ef1f1c968784935434c3296be5bfd9d5b';
+		const whitelistId = '0x5809c296d41e0d6177e8cf956010c1d2387299892bb9122ca4ba4ffd165e05cb';
 		await expect(
 			client.fetchKeys({
 				ids: [whitelistId],
