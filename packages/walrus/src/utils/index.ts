@@ -31,6 +31,8 @@ export function encodedBlobLength(
 	return nShards * metadata + sliversSize;
 }
 
+console.log(encodedBlobLength(400_000_000, 1000));
+
 export function getSourceSymbols(nShards: number, encodingType: EncodingType = 'RS2') {
 	const safetyLimit = decodingSafetyLimit(nShards, encodingType);
 	const maxFaulty = getMaxFaultyNodes(nShards);
@@ -80,6 +82,22 @@ function rotationOffset(bytes: Uint8Array, modulus: number): number {
 export function toShardIndex(sliverPairIndex: number, blobId: string, numShards: number): number {
 	const offset = rotationOffset(BlobId.serialize(blobId).toBytes(), numShards);
 	return (sliverPairIndex + offset) % numShards;
+}
+
+export function sliverPairIndexFromSecondarySliverIndex(
+	sliverIndex: number,
+	numShards: number,
+): number {
+	return numShards - sliverIndex - 1;
+}
+
+export function shardIndexFromSecondarySliverIndex(
+	sliverIndex: number,
+	blobId: string,
+	numShards: number,
+): number {
+	const sliverPairIndex = sliverPairIndexFromSecondarySliverIndex(sliverIndex, numShards);
+	return toShardIndex(sliverPairIndex, blobId, numShards);
 }
 
 export function toPairIndex(shardIndex: number, blobId: string, numShards: number): number {

@@ -93,6 +93,7 @@ import {
 	isAboveValidity,
 	isQuorum,
 	signersToBitmap,
+	sliverPairIndexFromSecondarySliverIndex,
 	storageUnitsFromSize,
 	toPairIndex,
 	toShardIndex,
@@ -439,8 +440,7 @@ export class WalrusClient {
 		const committee = await this.#getActiveCommittee();
 		const stakingState = await this.stakingState();
 		const numShards = stakingState.n_shards;
-		const sliverPairIndex = numShards - index - 1;
-
+		const sliverPairIndex = sliverPairIndexFromSecondarySliverIndex(index, numShards);
 		const shardIndex = toShardIndex(sliverPairIndex, blobId, numShards);
 		const node = await this.#getNodeByShardIndex(committee, shardIndex);
 

@@ -2,51 +2,81 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '@mysten/bcs';
-import type { WalrusClient } from '../client.js';
-import type { SliverData } from '../storage-node/types.js';
 import { QuiltPatchBlobHeader, QuiltPatchTags } from '../utils/bcs.js';
 import { parseQuiltPatchId, QUILT_PATCH_BLOB_HEADER_SIZE } from '../utils/quilts.js';
-
-interface QuiltReaderOptions {
-	client: WalrusClient;
-	blobId: string;
-}
+import type { WalrusClient } from '../client.js';
 
 const HAS_TAGS_FLAG = 1 << 0;
 
-export class QuiltReader {
-	#client: WalrusClient;
-	#blobId: string;
-	#slivers = new Map<number, SliverData>();
+export interface QuiltReaderOptions {
+	client: WalrusClient;
+	blobId: string;
+	numShards: number;
+}
 
-	constructor({ client, blobId }: QuiltReaderOptions) {
+export class QuiltReader {
+	blobId: string;
+	#client: WalrusClient;
+	#secondarySlivers = new Map<number, Uint8Array | Promise<Uint8Array>>();
+	#numShards: number;
+	#blobBytes: Uint8Array | Promise<Uint8Array> | null = null;
+
+	constructor({ client, blobId, numShards }: QuiltReaderOptions) {
 		this.#client = client;
-		this.#blobId = blobId;
+		this.blobId = blobId;
+		this.#numShards = numShards;
 	}
 
-	async #loadSliver(sliverIndex: number) {
-		if (this.#slivers.has(sliverIndex)) {
-			return;
+	// TODO: We should handle retries and epoch changes
+	async #getSecondarySliver({
+		sliverIndex,
+		signal,
+	}: {
+		sliverIndex: number;
+		signal?: AbortSignal;
+	}) {
+		if (this.#secondarySlivers.has(sliverIndex)) {
+			return this.#secondarySlivers.get(sliverIndex)!;
 		}
 
-		const sliver = await this.#client.getSecondarySliver({
-			blobId: this.#blobId,
-			index: sliverIndex,
-		});
+		const sliverPromise = this.#client
+			.getSecondarySliver({
+				blobId: this.blobId,
+				index: sliverIndex,
+				signal,
+			})
+			.then((sliver) => new Uint8Array(sliver.symbols.data));
 
-		this.#slivers.set(sliverIndex, sliver);
+		this.#secondarySlivers.set(sliverIndex, sliverPromise);
+
+		try {
+			const sliver = await sliverPromise;
+			this.#secondarySlivers.set(sliverIndex, sliver);
+			return sliver;
+		} catch (error) {
+			this.#secondarySlivers.delete(sliverIndex);
+			throw error;
+		}
 	}
 
-	#readBlobFromSlivers(sliverIndexes: number[]) {
-		const slivers = sliverIndexes.map((sliverIndex) => {
-			const sliver = this.#slivers.get(sliverIndex);
+	async *#sliverator(startIndex: number) {
+		for (let i = startIndex; i < this.#numShards; i++) {
+			yield this.#getSecondarySliver({ sliverIndex: i });
+		}
+	}
 
-			if (!sliver) {
-				throw new Error(`Sliver ${sliverIndex} has not been loaded`);
-			}
+	async getFullBlob() {
+		if (!this.#blobBytes) {
+			this.#blobBytes = this.#client.readBlob({ blobId: this.blobId });
+		}
 
-			return new Uint8Array(sliver.symbols.data);
-		});
+		return this.#blobBytes;
+	}
+
+	async #readBlobFromSlivers(sliverIndexes: number[]) {
+		const slivers = await Promise.all(
+			sliverIndexes.map((sliverIndex) => this.#getSecondarySliver({ sliverIndex })),
+		);
 
 		const firstSliver = slivers[0];
 
@@ -103,11 +133,11 @@ export class QuiltReader {
 		};
 	}
 
-	async readPatchById(id: string) {
+	async readByPatchId(id: string) {
 		const { quiltId, patchId } = parseQuiltPatchId(id);
 
-		if (quiltId !== this.#blobId) {
-			throw new Error(`The requested patch ${patchId} is not part of the quilt ${this.#blobId}`);
+		if (quiltId !== this.blobId) {
+			throw new Error(`The requested patch ${patchId} is not part of the quilt ${this.blobId}`);
 		}
 
 		const sliverIndexes = [];
@@ -122,8 +152,23 @@ export class QuiltReader {
 			throw new Error(`The requested patch ${patchId} is invalid`);
 		}
 
-		await Promise.all(sliverIndexes.map(async (sliverIndex) => this.#loadSliver(sliverIndex)));
-
 		return this.#readBlobFromSlivers(sliverIndexes);
+	}
+
+	async readQuiltMetadata() {
+		const firstSliver = await this.#getSecondarySliver({
+			sliverIndex: 0,
+		});
+
+		const version = firstSliver[0];
+
+		if (version !== 1) {
+			throw new Error(`Unsupported quilt version ${version}`);
+		}
+
+		const columnSize = firstSliver.length;
+		const indexSize = new DataView(firstSliver.buffer, 1, 4).getUint32(0, true);
+
+		// const metadata = QuiltPatchMetadata.parse(firstSliver);
 	}
 }

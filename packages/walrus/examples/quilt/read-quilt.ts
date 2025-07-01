@@ -4,7 +4,7 @@
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 import { WalrusClient } from '../../src/client.js';
-import { QuiltReader } from '../../src/quilt/reader.js';
+import { QuiltReader } from '../../src/read/quilt.js';
 
 const client = new SuiClient({
 	url: getFullnodeUrl('testnet'),
@@ -15,10 +15,13 @@ const client = new SuiClient({
 	const reader = new QuiltReader({
 		client: client.walrus,
 		blobId: 'NqQqVflKKk2ekbO9WsCsMYeOTWUMvOV4cvpvoD7mUKg',
+		numShards: 1000,
 	});
-	const data = await reader.readPatchById('NqQqVflKKk2ekbO9WsCsMYeOTWUMvOV4cvpvoD7mUKgBAQAOAA');
+	// const data = await reader.readByPatchId('NqQqVflKKk2ekbO9WsCsMYeOTWUMvOV4cvpvoD7mUKgBAQAOAA');
 
-	console.log(data.identifier);
-	console.log(data.tags);
-	console.log(new TextDecoder().decode(data.blobContents));
+	// console.log(data.identifier);
+	// console.log(data.tags);
+	// console.log(new TextDecoder().decode(data.blobContents));
+	const metadata = await reader.readQuiltMetadata();
+	console.log(metadata);
 })();

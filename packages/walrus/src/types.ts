@@ -293,3 +293,51 @@ export interface ProtocolMessageCertificate {
 	serializedMessage: Uint8Array;
 	signature: Uint8Array;
 }
+
+const redacted = {
+	[RedactedType]: true,
+	[Symbol.toStringTag]: 'Redacted',
+	[Symbol.for('nodejs.util.inspect.custom')]: () => '<redacted>',
+
+	toString() {
+		return '<redacted>';
+	},
+	toJSON() {
+		return '<redacted>';
+	},
+};
+
+const utilInspectSymbol = Symbol.for('nodejs.util.inspect.custom');
+class Redacted<T> {
+	static getValue(redacted: Redacted<T>): T {
+		if (redacted && typeof redacted === 'object' && redacted[Symbol.toStringTag] === 'Redacted') {
+			const constructor = Object.getPrototypeOf(redacted).constructor as typeof Redacted;
+
+			if (constructor && 'getValue' in constructor) {
+				return constructor.getValue(redacted);
+			}
+		}
+
+		if (!(redacted instanceof Redacted)) {
+			throw new Error('Invalid redacted value');
+		}
+
+		return redacted.#rawValue;
+	}
+
+	#rawValue: T;
+
+	[Symbol.toStringTag] = 'Redacted';
+	[utilInspectSymbol] = () => '<redacted>';
+
+	constructor(value: T) {
+		this.#rawValue = value;
+	}
+
+	toString() {
+		return '<redacted>';
+	}
+	toJSON() {
+		return '<redacted>';
+	}
+}
