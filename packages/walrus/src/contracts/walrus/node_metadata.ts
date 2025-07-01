@@ -16,157 +16,219 @@ export function NodeMetadata() {
 		extra_fields: vec_map.VecMap(bcs.string(), bcs.string()),
 	});
 }
-export function init(packageAddress: string) {
-	/** Create a new `NodeMetadata` instance */
-	function _new(options: {
-		arguments: [
-			image_url: RawTransactionArgument<string>,
-			project_url: RawTransactionArgument<string>,
-			description: RawTransactionArgument<string>,
-		];
-	}) {
-		const argumentsTypes = [
-			'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-			'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-			'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'node_metadata',
-				function: 'new',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Set the image URL of the Validator. */
-	function set_image_url(options: {
-		arguments: [
-			metadata: RawTransactionArgument<string>,
-			image_url: RawTransactionArgument<string>,
-		];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::node_metadata::NodeMetadata`,
-			'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'node_metadata',
-				function: 'set_image_url',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Set the project URL of the Validator. */
-	function set_project_url(options: {
-		arguments: [
-			metadata: RawTransactionArgument<string>,
-			project_url: RawTransactionArgument<string>,
-		];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::node_metadata::NodeMetadata`,
-			'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'node_metadata',
-				function: 'set_project_url',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Set the description of the Validator. */
-	function set_description(options: {
-		arguments: [
-			metadata: RawTransactionArgument<string>,
-			description: RawTransactionArgument<string>,
-		];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::node_metadata::NodeMetadata`,
-			'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'node_metadata',
-				function: 'set_description',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Set an extra field of the Validator. */
-	function set_extra_fields(options: {
-		arguments: [
-			metadata: RawTransactionArgument<string>,
-			extra_fields: RawTransactionArgument<string>,
-		];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::node_metadata::NodeMetadata`,
-			'0x0000000000000000000000000000000000000000000000000000000000000002::vec_map::VecMap<0x0000000000000000000000000000000000000000000000000000000000000001::string::String, 0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'node_metadata',
-				function: 'set_extra_fields',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Returns the image URL of the Validator. */
-	function image_url(options: { arguments: [metadata: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::node_metadata::NodeMetadata`] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'node_metadata',
-				function: 'image_url',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Returns the project URL of the Validator. */
-	function project_url(options: { arguments: [metadata: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::node_metadata::NodeMetadata`] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'node_metadata',
-				function: 'project_url',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Returns the description of the Validator. */
-	function description(options: { arguments: [metadata: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::node_metadata::NodeMetadata`] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'node_metadata',
-				function: 'description',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Returns the extra fields of the Validator. */
-	function extra_fields(options: { arguments: [metadata: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::node_metadata::NodeMetadata`] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'node_metadata',
-				function: 'extra_fields',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	return {
-		_new,
-		set_image_url,
-		set_project_url,
-		set_description,
-		set_extra_fields,
-		image_url,
-		project_url,
-		description,
-		extra_fields,
-	};
+export interface NewArguments {
+	imageUrl: RawTransactionArgument<string>;
+	projectUrl: RawTransactionArgument<string>;
+	description: RawTransactionArgument<string>;
+}
+export interface NewOptions {
+	package?: string;
+	arguments:
+		| NewArguments
+		| [
+				imageUrl: RawTransactionArgument<string>,
+				projectUrl: RawTransactionArgument<string>,
+				description: RawTransactionArgument<string>,
+		  ];
+}
+/** Create a new `NodeMetadata` instance */
+export function _new(options: NewOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [
+		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+	] satisfies string[];
+	const parameterNames = ['imageUrl', 'projectUrl', 'description'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'node_metadata',
+			function: 'new',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SetImageUrlArguments {
+	metadata: RawTransactionArgument<string>;
+	imageUrl: RawTransactionArgument<string>;
+}
+export interface SetImageUrlOptions {
+	package?: string;
+	arguments:
+		| SetImageUrlArguments
+		| [metadata: RawTransactionArgument<string>, imageUrl: RawTransactionArgument<string>];
+}
+/** Set the image URL of the Validator. */
+export function setImageUrl(options: SetImageUrlOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [
+		`${packageAddress}::node_metadata::NodeMetadata`,
+		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+	] satisfies string[];
+	const parameterNames = ['metadata', 'imageUrl'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'node_metadata',
+			function: 'set_image_url',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SetProjectUrlArguments {
+	metadata: RawTransactionArgument<string>;
+	projectUrl: RawTransactionArgument<string>;
+}
+export interface SetProjectUrlOptions {
+	package?: string;
+	arguments:
+		| SetProjectUrlArguments
+		| [metadata: RawTransactionArgument<string>, projectUrl: RawTransactionArgument<string>];
+}
+/** Set the project URL of the Validator. */
+export function setProjectUrl(options: SetProjectUrlOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [
+		`${packageAddress}::node_metadata::NodeMetadata`,
+		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+	] satisfies string[];
+	const parameterNames = ['metadata', 'projectUrl'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'node_metadata',
+			function: 'set_project_url',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SetDescriptionArguments {
+	metadata: RawTransactionArgument<string>;
+	description: RawTransactionArgument<string>;
+}
+export interface SetDescriptionOptions {
+	package?: string;
+	arguments:
+		| SetDescriptionArguments
+		| [metadata: RawTransactionArgument<string>, description: RawTransactionArgument<string>];
+}
+/** Set the description of the Validator. */
+export function setDescription(options: SetDescriptionOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [
+		`${packageAddress}::node_metadata::NodeMetadata`,
+		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+	] satisfies string[];
+	const parameterNames = ['metadata', 'description'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'node_metadata',
+			function: 'set_description',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SetExtraFieldsArguments {
+	metadata: RawTransactionArgument<string>;
+	extraFields: RawTransactionArgument<string>;
+}
+export interface SetExtraFieldsOptions {
+	package?: string;
+	arguments:
+		| SetExtraFieldsArguments
+		| [metadata: RawTransactionArgument<string>, extraFields: RawTransactionArgument<string>];
+}
+/** Set an extra field of the Validator. */
+export function setExtraFields(options: SetExtraFieldsOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [
+		`${packageAddress}::node_metadata::NodeMetadata`,
+		'0x0000000000000000000000000000000000000000000000000000000000000002::vec_map::VecMap<0x0000000000000000000000000000000000000000000000000000000000000001::string::String, 0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
+	] satisfies string[];
+	const parameterNames = ['metadata', 'extraFields'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'node_metadata',
+			function: 'set_extra_fields',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface ImageUrlArguments {
+	metadata: RawTransactionArgument<string>;
+}
+export interface ImageUrlOptions {
+	package?: string;
+	arguments: ImageUrlArguments | [metadata: RawTransactionArgument<string>];
+}
+/** Returns the image URL of the Validator. */
+export function imageUrl(options: ImageUrlOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [`${packageAddress}::node_metadata::NodeMetadata`] satisfies string[];
+	const parameterNames = ['metadata'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'node_metadata',
+			function: 'image_url',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface ProjectUrlArguments {
+	metadata: RawTransactionArgument<string>;
+}
+export interface ProjectUrlOptions {
+	package?: string;
+	arguments: ProjectUrlArguments | [metadata: RawTransactionArgument<string>];
+}
+/** Returns the project URL of the Validator. */
+export function projectUrl(options: ProjectUrlOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [`${packageAddress}::node_metadata::NodeMetadata`] satisfies string[];
+	const parameterNames = ['metadata'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'node_metadata',
+			function: 'project_url',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface DescriptionArguments {
+	metadata: RawTransactionArgument<string>;
+}
+export interface DescriptionOptions {
+	package?: string;
+	arguments: DescriptionArguments | [metadata: RawTransactionArgument<string>];
+}
+/** Returns the description of the Validator. */
+export function description(options: DescriptionOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [`${packageAddress}::node_metadata::NodeMetadata`] satisfies string[];
+	const parameterNames = ['metadata'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'node_metadata',
+			function: 'description',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface ExtraFieldsArguments {
+	metadata: RawTransactionArgument<string>;
+}
+export interface ExtraFieldsOptions {
+	package?: string;
+	arguments: ExtraFieldsArguments | [metadata: RawTransactionArgument<string>];
+}
+/** Returns the extra fields of the Validator. */
+export function extraFields(options: ExtraFieldsOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [`${packageAddress}::node_metadata::NodeMetadata`] satisfies string[];
+	const parameterNames = ['metadata'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'node_metadata',
+			function: 'extra_fields',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }

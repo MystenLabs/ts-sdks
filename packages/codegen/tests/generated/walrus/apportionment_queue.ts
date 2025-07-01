@@ -30,28 +30,32 @@ export function Entry<T extends BcsType<any>>(...typeParameters: [T]) {
 		value: typeParameters[0],
 	});
 }
+export interface NewOptions {
+	package?: string;
+	arguments: [];
+	typeArguments: [string];
+}
 /** Create a new priority queue. */
-export function _new(options: { package?: string; arguments: []; typeArguments: [string] }) {
+export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'apportionment_queue',
 			function: 'new',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
 			typeArguments: options.typeArguments,
 		});
 }
-/** Pop the entry with the highest priority value. */
-export function pop_max(options: {
+export interface PopMaxArguments {
+	pq: RawTransactionArgument<string>;
+}
+export interface PopMaxOptions {
 	package?: string;
-	arguments:
-		| [pq: RawTransactionArgument<string>]
-		| {
-				pq: RawTransactionArgument<string>;
-		  };
+	arguments: PopMaxArguments | [pq: RawTransactionArgument<string>];
 	typeArguments: [string];
-}) {
+}
+/** Pop the entry with the highest priority value. */
+export function popMax(options: PopMaxOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::apportionment_queue::ApportionmentQueue<${options.typeArguments[0]}>`,
@@ -66,24 +70,26 @@ export function pop_max(options: {
 			typeArguments: options.typeArguments,
 		});
 }
-/** Insert a new entry into the queue. */
-export function insert<T extends BcsType<any>>(options: {
+export interface InsertArguments<T extends BcsType<any>> {
+	pq: RawTransactionArgument<string>;
+	priority: RawTransactionArgument<string>;
+	tieBreaker: RawTransactionArgument<number | bigint>;
+	value: RawTransactionArgument<T>;
+}
+export interface InsertOptions<T extends BcsType<any>> {
 	package?: string;
 	arguments:
+		| InsertArguments<T>
 		| [
 				pq: RawTransactionArgument<string>,
 				priority: RawTransactionArgument<string>,
 				tieBreaker: RawTransactionArgument<number | bigint>,
 				value: RawTransactionArgument<T>,
-		  ]
-		| {
-				pq: RawTransactionArgument<string>;
-				priority: RawTransactionArgument<string>;
-				tieBreaker: RawTransactionArgument<number | bigint>;
-				value: RawTransactionArgument<T>;
-		  };
+		  ];
 	typeArguments: [string];
-}) {
+}
+/** Insert a new entry into the queue. */
+export function insert<T extends BcsType<any>>(options: InsertOptions<T>) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::apportionment_queue::ApportionmentQueue<${options.typeArguments[0]}>`,

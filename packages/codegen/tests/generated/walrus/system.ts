@@ -16,23 +16,25 @@ export function System() {
 		new_package_id: bcs.option(bcs.Address),
 	});
 }
-/** Marks blob as invalid given an invalid blob certificate. */
-export function invalidate_blob_id(options: {
+export interface InvalidateBlobIdArguments {
+	system: RawTransactionArgument<string>;
+	signature: RawTransactionArgument<number[]>;
+	membersBitmap: RawTransactionArgument<number[]>;
+	message: RawTransactionArgument<number[]>;
+}
+export interface InvalidateBlobIdOptions {
 	package?: string;
 	arguments:
+		| InvalidateBlobIdArguments
 		| [
 				system: RawTransactionArgument<string>,
 				signature: RawTransactionArgument<number[]>,
 				membersBitmap: RawTransactionArgument<number[]>,
 				message: RawTransactionArgument<number[]>,
-		  ]
-		| {
-				system: RawTransactionArgument<string>;
-				signature: RawTransactionArgument<number[]>;
-				membersBitmap: RawTransactionArgument<number[]>;
-				message: RawTransactionArgument<number[]>;
-		  };
-}) {
+		  ];
+}
+/** Marks blob as invalid given an invalid blob certificate. */
+export function invalidateBlobId(options: InvalidateBlobIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::system::System`,
@@ -49,10 +51,20 @@ export function invalidate_blob_id(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Certifies a blob containing Walrus events. */
-export function certify_event_blob(options: {
+export interface CertifyEventBlobArguments {
+	system: RawTransactionArgument<string>;
+	cap: RawTransactionArgument<string>;
+	blobId: RawTransactionArgument<number | bigint>;
+	rootHash: RawTransactionArgument<number | bigint>;
+	size: RawTransactionArgument<number | bigint>;
+	encodingType: RawTransactionArgument<number>;
+	endingCheckpointSequenceNum: RawTransactionArgument<number | bigint>;
+	epoch: RawTransactionArgument<number>;
+}
+export interface CertifyEventBlobOptions {
 	package?: string;
 	arguments:
+		| CertifyEventBlobArguments
 		| [
 				system: RawTransactionArgument<string>,
 				cap: RawTransactionArgument<string>,
@@ -62,18 +74,10 @@ export function certify_event_blob(options: {
 				encodingType: RawTransactionArgument<number>,
 				endingCheckpointSequenceNum: RawTransactionArgument<number | bigint>,
 				epoch: RawTransactionArgument<number>,
-		  ]
-		| {
-				system: RawTransactionArgument<string>;
-				cap: RawTransactionArgument<string>;
-				blobId: RawTransactionArgument<number | bigint>;
-				rootHash: RawTransactionArgument<number | bigint>;
-				size: RawTransactionArgument<number | bigint>;
-				encodingType: RawTransactionArgument<number>;
-				endingCheckpointSequenceNum: RawTransactionArgument<number | bigint>;
-				epoch: RawTransactionArgument<number>;
-		  };
-}) {
+		  ];
+}
+/** Certifies a blob containing Walrus events. */
+export function certifyEventBlob(options: CertifyEventBlobOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::system::System`,
@@ -103,23 +107,25 @@ export function certify_event_blob(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Allows buying a storage reservation for a given period of epochs. */
-export function reserve_space(options: {
+export interface ReserveSpaceArguments {
+	self: RawTransactionArgument<string>;
+	storageAmount: RawTransactionArgument<number | bigint>;
+	epochsAhead: RawTransactionArgument<number>;
+	payment: RawTransactionArgument<string>;
+}
+export interface ReserveSpaceOptions {
 	package?: string;
 	arguments:
+		| ReserveSpaceArguments
 		| [
 				self: RawTransactionArgument<string>,
 				storageAmount: RawTransactionArgument<number | bigint>,
 				epochsAhead: RawTransactionArgument<number>,
 				payment: RawTransactionArgument<string>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				storageAmount: RawTransactionArgument<number | bigint>;
-				epochsAhead: RawTransactionArgument<number>;
-				payment: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+/** Allows buying a storage reservation for a given period of epochs. */
+export function reserveSpace(options: ReserveSpaceOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::system::System`,
@@ -136,13 +142,20 @@ export function reserve_space(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/**
- * Registers a new blob in the system. `size` is the size of the unencoded blob.
- * The reserved space in `storage` must be at least the size of the encoded blob.
- */
-export function register_blob(options: {
+export interface RegisterBlobArguments {
+	self: RawTransactionArgument<string>;
+	storage: RawTransactionArgument<string>;
+	blobId: RawTransactionArgument<number | bigint>;
+	rootHash: RawTransactionArgument<number | bigint>;
+	size: RawTransactionArgument<number | bigint>;
+	encodingType: RawTransactionArgument<number>;
+	deletable: RawTransactionArgument<boolean>;
+	writePayment: RawTransactionArgument<string>;
+}
+export interface RegisterBlobOptions {
 	package?: string;
 	arguments:
+		| RegisterBlobArguments
 		| [
 				self: RawTransactionArgument<string>,
 				storage: RawTransactionArgument<string>,
@@ -152,18 +165,13 @@ export function register_blob(options: {
 				encodingType: RawTransactionArgument<number>,
 				deletable: RawTransactionArgument<boolean>,
 				writePayment: RawTransactionArgument<string>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				storage: RawTransactionArgument<string>;
-				blobId: RawTransactionArgument<number | bigint>;
-				rootHash: RawTransactionArgument<number | bigint>;
-				size: RawTransactionArgument<number | bigint>;
-				encodingType: RawTransactionArgument<number>;
-				deletable: RawTransactionArgument<boolean>;
-				writePayment: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+/**
+ * Registers a new blob in the system. `size` is the size of the unencoded blob.
+ * The reserved space in `storage` must be at least the size of the encoded blob.
+ */
+export function registerBlob(options: RegisterBlobOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::system::System`,
@@ -193,28 +201,30 @@ export function register_blob(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/**
- * Certify that a blob will be available in the storage system until the end epoch
- * of the storage associated with it.
- */
-export function certify_blob(options: {
+export interface CertifyBlobArguments {
+	self: RawTransactionArgument<string>;
+	blob: RawTransactionArgument<string>;
+	signature: RawTransactionArgument<number[]>;
+	signersBitmap: RawTransactionArgument<number[]>;
+	message: RawTransactionArgument<number[]>;
+}
+export interface CertifyBlobOptions {
 	package?: string;
 	arguments:
+		| CertifyBlobArguments
 		| [
 				self: RawTransactionArgument<string>,
 				blob: RawTransactionArgument<string>,
 				signature: RawTransactionArgument<number[]>,
 				signersBitmap: RawTransactionArgument<number[]>,
 				message: RawTransactionArgument<number[]>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				blob: RawTransactionArgument<string>;
-				signature: RawTransactionArgument<number[]>;
-				signersBitmap: RawTransactionArgument<number[]>;
-				message: RawTransactionArgument<number[]>;
-		  };
-}) {
+		  ];
+}
+/**
+ * Certify that a blob will be available in the storage system until the end epoch
+ * of the storage associated with it.
+ */
+export function certifyBlob(options: CertifyBlobOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::system::System`,
@@ -232,16 +242,18 @@ export function certify_blob(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Deletes a deletable blob and returns the contained storage resource. */
-export function delete_blob(options: {
+export interface DeleteBlobArguments {
+	self: RawTransactionArgument<string>;
+	blob: RawTransactionArgument<string>;
+}
+export interface DeleteBlobOptions {
 	package?: string;
 	arguments:
-		| [self: RawTransactionArgument<string>, blob: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-				blob: RawTransactionArgument<string>;
-		  };
-}) {
+		| DeleteBlobArguments
+		| [self: RawTransactionArgument<string>, blob: RawTransactionArgument<string>];
+}
+/** Deletes a deletable blob and returns the contained storage resource. */
+export function deleteBlob(options: DeleteBlobOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::system::System`,
@@ -256,25 +268,27 @@ export function delete_blob(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface ExtendBlobWithResourceArguments {
+	self: RawTransactionArgument<string>;
+	blob: RawTransactionArgument<string>;
+	extension: RawTransactionArgument<string>;
+}
+export interface ExtendBlobWithResourceOptions {
+	package?: string;
+	arguments:
+		| ExtendBlobWithResourceArguments
+		| [
+				self: RawTransactionArgument<string>,
+				blob: RawTransactionArgument<string>,
+				extension: RawTransactionArgument<string>,
+		  ];
+}
 /**
  * Extend the period of validity of a blob with a new storage resource. The new
  * storage resource must be the same size as the storage resource used in the blob,
  * and have a longer period of validity.
  */
-export function extend_blob_with_resource(options: {
-	package?: string;
-	arguments:
-		| [
-				self: RawTransactionArgument<string>,
-				blob: RawTransactionArgument<string>,
-				extension: RawTransactionArgument<string>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				blob: RawTransactionArgument<string>;
-				extension: RawTransactionArgument<string>;
-		  };
-}) {
+export function extendBlobWithResource(options: ExtendBlobWithResourceOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::system::System`,
@@ -290,26 +304,28 @@ export function extend_blob_with_resource(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/**
- * Extend the period of validity of a blob by extending its contained storage
- * resource by `extended_epochs` epochs.
- */
-export function extend_blob(options: {
+export interface ExtendBlobArguments {
+	self: RawTransactionArgument<string>;
+	blob: RawTransactionArgument<string>;
+	extendedEpochs: RawTransactionArgument<number>;
+	payment: RawTransactionArgument<string>;
+}
+export interface ExtendBlobOptions {
 	package?: string;
 	arguments:
+		| ExtendBlobArguments
 		| [
 				self: RawTransactionArgument<string>,
 				blob: RawTransactionArgument<string>,
 				extendedEpochs: RawTransactionArgument<number>,
 				payment: RawTransactionArgument<string>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				blob: RawTransactionArgument<string>;
-				extendedEpochs: RawTransactionArgument<number>;
-				payment: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+/**
+ * Extend the period of validity of a blob by extending its contained storage
+ * resource by `extended_epochs` epochs.
+ */
+export function extendBlob(options: ExtendBlobOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::system::System`,
@@ -326,25 +342,27 @@ export function extend_blob(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface AddSubsidyArguments {
+	system: RawTransactionArgument<string>;
+	subsidy: RawTransactionArgument<string>;
+	epochsAhead: RawTransactionArgument<number>;
+}
+export interface AddSubsidyOptions {
+	package?: string;
+	arguments:
+		| AddSubsidyArguments
+		| [
+				system: RawTransactionArgument<string>,
+				subsidy: RawTransactionArgument<string>,
+				epochsAhead: RawTransactionArgument<number>,
+		  ];
+}
 /**
  * Adds rewards to the system for the specified number of epochs ahead. The rewards
  * are split equally across the future accounting ring buffer up to the specified
  * epoch.
  */
-export function add_subsidy(options: {
-	package?: string;
-	arguments:
-		| [
-				system: RawTransactionArgument<string>,
-				subsidy: RawTransactionArgument<string>,
-				epochsAhead: RawTransactionArgument<number>,
-		  ]
-		| {
-				system: RawTransactionArgument<string>;
-				subsidy: RawTransactionArgument<string>;
-				epochsAhead: RawTransactionArgument<number>;
-		  };
-}) {
+export function addSubsidy(options: AddSubsidyOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::system::System`,
@@ -360,23 +378,25 @@ export function add_subsidy(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Register a deny list update. */
-export function register_deny_list_update(options: {
+export interface RegisterDenyListUpdateArguments {
+	self: RawTransactionArgument<string>;
+	cap: RawTransactionArgument<string>;
+	denyListRoot: RawTransactionArgument<number | bigint>;
+	denyListSequence: RawTransactionArgument<number | bigint>;
+}
+export interface RegisterDenyListUpdateOptions {
 	package?: string;
 	arguments:
+		| RegisterDenyListUpdateArguments
 		| [
 				self: RawTransactionArgument<string>,
 				cap: RawTransactionArgument<string>,
 				denyListRoot: RawTransactionArgument<number | bigint>,
 				denyListSequence: RawTransactionArgument<number | bigint>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				cap: RawTransactionArgument<string>;
-				denyListRoot: RawTransactionArgument<number | bigint>;
-				denyListSequence: RawTransactionArgument<number | bigint>;
-		  };
-}) {
+		  ];
+}
+/** Register a deny list update. */
+export function registerDenyListUpdate(options: RegisterDenyListUpdateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::system::System`,
@@ -393,25 +413,27 @@ export function register_deny_list_update(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Perform the update of the deny list. */
-export function update_deny_list(options: {
+export interface UpdateDenyListArguments {
+	self: RawTransactionArgument<string>;
+	cap: RawTransactionArgument<string>;
+	signature: RawTransactionArgument<number[]>;
+	membersBitmap: RawTransactionArgument<number[]>;
+	message: RawTransactionArgument<number[]>;
+}
+export interface UpdateDenyListOptions {
 	package?: string;
 	arguments:
+		| UpdateDenyListArguments
 		| [
 				self: RawTransactionArgument<string>,
 				cap: RawTransactionArgument<string>,
 				signature: RawTransactionArgument<number[]>,
 				membersBitmap: RawTransactionArgument<number[]>,
 				message: RawTransactionArgument<number[]>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				cap: RawTransactionArgument<string>;
-				signature: RawTransactionArgument<number[]>;
-				membersBitmap: RawTransactionArgument<number[]>;
-				message: RawTransactionArgument<number[]>;
-		  };
-}) {
+		  ];
+}
+/** Perform the update of the deny list. */
+export function updateDenyList(options: UpdateDenyListOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::system::System`,
@@ -429,23 +451,25 @@ export function update_deny_list(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Delete a blob that is deny listed by f+1 members. */
-export function delete_deny_listed_blob(options: {
+export interface DeleteDenyListedBlobArguments {
+	self: RawTransactionArgument<string>;
+	signature: RawTransactionArgument<number[]>;
+	membersBitmap: RawTransactionArgument<number[]>;
+	message: RawTransactionArgument<number[]>;
+}
+export interface DeleteDenyListedBlobOptions {
 	package?: string;
 	arguments:
+		| DeleteDenyListedBlobArguments
 		| [
 				self: RawTransactionArgument<string>,
 				signature: RawTransactionArgument<number[]>,
 				membersBitmap: RawTransactionArgument<number[]>,
 				message: RawTransactionArgument<number[]>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				signature: RawTransactionArgument<number[]>;
-				membersBitmap: RawTransactionArgument<number[]>;
-				message: RawTransactionArgument<number[]>;
-		  };
-}) {
+		  ];
+}
+/** Delete a blob that is deny listed by f+1 members. */
+export function deleteDenyListedBlob(options: DeleteDenyListedBlobOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::system::System`,
@@ -462,15 +486,15 @@ export function delete_deny_listed_blob(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Get epoch. Uses the committee to get the epoch. */
-export function epoch(options: {
+export interface EpochArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface EpochOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: EpochArguments | [self: RawTransactionArgument<string>];
+}
+/** Get epoch. Uses the committee to get the epoch. */
+export function epoch(options: EpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::system::System`] satisfies string[];
 	const parameterNames = ['self'];
@@ -482,15 +506,15 @@ export function epoch(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Accessor for total capacity size. */
-export function total_capacity_size(options: {
+export interface TotalCapacitySizeArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface TotalCapacitySizeOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: TotalCapacitySizeArguments | [self: RawTransactionArgument<string>];
+}
+/** Accessor for total capacity size. */
+export function totalCapacitySize(options: TotalCapacitySizeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::system::System`] satisfies string[];
 	const parameterNames = ['self'];
@@ -502,15 +526,15 @@ export function total_capacity_size(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Accessor for used capacity size. */
-export function used_capacity_size(options: {
+export interface UsedCapacitySizeArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface UsedCapacitySizeOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: UsedCapacitySizeArguments | [self: RawTransactionArgument<string>];
+}
+/** Accessor for used capacity size. */
+export function usedCapacitySize(options: UsedCapacitySizeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::system::System`] satisfies string[];
 	const parameterNames = ['self'];
@@ -522,15 +546,15 @@ export function used_capacity_size(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Accessor for the number of shards. */
-export function n_shards(options: {
+export interface NShardsArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface NShardsOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: NShardsArguments | [self: RawTransactionArgument<string>];
+}
+/** Accessor for the number of shards. */
+export function nShards(options: NShardsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::system::System`] satisfies string[];
 	const parameterNames = ['self'];

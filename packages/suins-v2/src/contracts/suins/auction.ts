@@ -66,203 +66,289 @@ export function AuctionExtendedEvent() {
 		end_timestamp_ms: bcs.u64(),
 	});
 }
-export function init(packageAddress: string) {
-	/** Start an auction if it's not started yet; and make the first bid. */
-	function start_auction_and_place_bid(options: {
-		arguments: [
-			self: RawTransactionArgument<string>,
-			suins: RawTransactionArgument<string>,
-			domain_name: RawTransactionArgument<string>,
-		];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::auction::AuctionHouse`,
-			`${packageAddress}::suins::SuiNS`,
-			'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'auction',
-				function: 'start_auction_and_place_bid',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/**
-	 * #### Notice
-	 *
-	 * Bidders use this function to place a new bid.
-	 *
-	 * Panics Panics if `domain` is invalid or there isn't an auction for `domain` or
-	 * `bid` is too low,
-	 */
-	function place_bid(options: {
-		arguments: [self: RawTransactionArgument<string>, domain_name: RawTransactionArgument<string>];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::auction::AuctionHouse`,
-			'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'auction',
-				function: 'place_bid',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/**
-	 * #### Notice
-	 *
-	 * Auction winner can come and claim the NFT
-	 *
-	 * Panics sender is not the winner
-	 */
-	function claim(options: {
-		arguments: [self: RawTransactionArgument<string>, domain_name: RawTransactionArgument<string>];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::auction::AuctionHouse`,
-			'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'auction',
-				function: 'claim',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/**
-	 * #### Notice
-	 *
-	 * Get metadata of an auction
-	 *
-	 * #### Params
-	 *
-	 * The domain name being auctioned.
-	 *
-	 * #### Return
-	 *
-	 * (`start_timestamp_ms`, `end_timestamp_ms`, `winner`, `highest_amount`)
-	 */
-	function get_auction_metadata(options: {
-		arguments: [self: RawTransactionArgument<string>, domain_name: RawTransactionArgument<string>];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::auction::AuctionHouse`,
-			'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'auction',
-				function: 'get_auction_metadata',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	function collect_winning_auction_fund(options: {
-		arguments: [self: RawTransactionArgument<string>, domain_name: RawTransactionArgument<string>];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::auction::AuctionHouse`,
-			'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'auction',
-				function: 'collect_winning_auction_fund',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	function admin_withdraw_funds(options: {
-		arguments: [_: RawTransactionArgument<string>, self: RawTransactionArgument<string>];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::suins::AdminCap`,
-			`${packageAddress}::auction::AuctionHouse`,
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'auction',
-				function: 'admin_withdraw_funds',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/**
-	 * Admin functionality used to finalize a single auction.
-	 *
-	 * An `operation_limit` limit must be provided which controls how many individual
-	 * operations to perform. This allows the admin to be able to make forward progress
-	 * in finalizing auctions even in the presence of thousands of bids.
-	 *
-	 * This will attempt to do as much as possible of the following based on the
-	 * provided `operation_limit`:
-	 *
-	 * - claim the winning bid and place in `AuctionHouse.balance`
-	 * - push the `SuinsRegistration` to the winner
-	 * - push loosing bids back to their respective account owners
-	 *
-	 * Once all of the above has been done the auction is destroyed, freeing on-chain
-	 * storage.
-	 */
-	function admin_finalize_auction(options: {
-		arguments: [
-			admin: RawTransactionArgument<string>,
-			self: RawTransactionArgument<string>,
-			domain: RawTransactionArgument<string>,
-		];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::suins::AdminCap`,
-			`${packageAddress}::auction::AuctionHouse`,
-			'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'auction',
-				function: 'admin_finalize_auction',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/**
-	 * Admin functionality used to finalize an arbitrary number of auctions.
-	 *
-	 * An `operation_limit` limit must be provided which controls how many individual
-	 * operations to perform. This allows the admin to be able to make forward progress
-	 * in finalizing auctions even in the presence of thousands of auctions/bids.
-	 */
-	function admin_try_finalize_auctions(options: {
-		arguments: [
-			admin: RawTransactionArgument<string>,
-			self: RawTransactionArgument<string>,
-			operation_limit: RawTransactionArgument<number | bigint>,
-		];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::suins::AdminCap`,
-			`${packageAddress}::auction::AuctionHouse`,
-			'u64',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'auction',
-				function: 'admin_try_finalize_auctions',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	return {
-		start_auction_and_place_bid,
-		place_bid,
-		claim,
-		get_auction_metadata,
-		collect_winning_auction_fund,
-		admin_withdraw_funds,
-		admin_finalize_auction,
-		admin_try_finalize_auctions,
-	};
+export interface StartAuctionAndPlaceBidArguments {
+	self: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	domainName: RawTransactionArgument<string>;
+	bid: RawTransactionArgument<string>;
+}
+export interface StartAuctionAndPlaceBidOptions {
+	package?: string;
+	arguments:
+		| StartAuctionAndPlaceBidArguments
+		| [
+				self: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string>,
+				domainName: RawTransactionArgument<string>,
+				bid: RawTransactionArgument<string>,
+		  ];
+}
+/** Start an auction if it's not started yet; and make the first bid. */
+export function startAuctionAndPlaceBid(options: StartAuctionAndPlaceBidOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [
+		`${packageAddress}::auction::AuctionHouse`,
+		`${packageAddress}::suins::SuiNS`,
+		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+		'0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>',
+		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
+	] satisfies string[];
+	const parameterNames = ['self', 'suins', 'domainName', 'bid', 'clock'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'start_auction_and_place_bid',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface PlaceBidArguments {
+	self: RawTransactionArgument<string>;
+	domainName: RawTransactionArgument<string>;
+	bid: RawTransactionArgument<string>;
+}
+export interface PlaceBidOptions {
+	package?: string;
+	arguments:
+		| PlaceBidArguments
+		| [
+				self: RawTransactionArgument<string>,
+				domainName: RawTransactionArgument<string>,
+				bid: RawTransactionArgument<string>,
+		  ];
+}
+/**
+ * #### Notice
+ *
+ * Bidders use this function to place a new bid.
+ *
+ * Panics Panics if `domain` is invalid or there isn't an auction for `domain` or
+ * `bid` is too low,
+ */
+export function placeBid(options: PlaceBidOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [
+		`${packageAddress}::auction::AuctionHouse`,
+		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+		'0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>',
+		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
+	] satisfies string[];
+	const parameterNames = ['self', 'domainName', 'bid', 'clock'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'place_bid',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface ClaimArguments {
+	self: RawTransactionArgument<string>;
+	domainName: RawTransactionArgument<string>;
+}
+export interface ClaimOptions {
+	package?: string;
+	arguments:
+		| ClaimArguments
+		| [self: RawTransactionArgument<string>, domainName: RawTransactionArgument<string>];
+}
+/**
+ * #### Notice
+ *
+ * Auction winner can come and claim the NFT
+ *
+ * Panics sender is not the winner
+ */
+export function claim(options: ClaimOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [
+		`${packageAddress}::auction::AuctionHouse`,
+		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
+	] satisfies string[];
+	const parameterNames = ['self', 'domainName', 'clock'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'claim',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface GetAuctionMetadataArguments {
+	self: RawTransactionArgument<string>;
+	domainName: RawTransactionArgument<string>;
+}
+export interface GetAuctionMetadataOptions {
+	package?: string;
+	arguments:
+		| GetAuctionMetadataArguments
+		| [self: RawTransactionArgument<string>, domainName: RawTransactionArgument<string>];
+}
+/**
+ * #### Notice
+ *
+ * Get metadata of an auction
+ *
+ * #### Params
+ *
+ * The domain name being auctioned.
+ *
+ * #### Return
+ *
+ * (`start_timestamp_ms`, `end_timestamp_ms`, `winner`, `highest_amount`)
+ */
+export function getAuctionMetadata(options: GetAuctionMetadataOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [
+		`${packageAddress}::auction::AuctionHouse`,
+		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+	] satisfies string[];
+	const parameterNames = ['self', 'domainName'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'get_auction_metadata',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface CollectWinningAuctionFundArguments {
+	self: RawTransactionArgument<string>;
+	domainName: RawTransactionArgument<string>;
+}
+export interface CollectWinningAuctionFundOptions {
+	package?: string;
+	arguments:
+		| CollectWinningAuctionFundArguments
+		| [self: RawTransactionArgument<string>, domainName: RawTransactionArgument<string>];
+}
+export function collectWinningAuctionFund(options: CollectWinningAuctionFundOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [
+		`${packageAddress}::auction::AuctionHouse`,
+		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
+	] satisfies string[];
+	const parameterNames = ['self', 'domainName', 'clock'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'collect_winning_auction_fund',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface AdminWithdrawFundsArguments {
+	_: RawTransactionArgument<string>;
+	self: RawTransactionArgument<string>;
+}
+export interface AdminWithdrawFundsOptions {
+	package?: string;
+	arguments:
+		| AdminWithdrawFundsArguments
+		| [_: RawTransactionArgument<string>, self: RawTransactionArgument<string>];
+}
+export function adminWithdrawFunds(options: AdminWithdrawFundsOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [
+		`${packageAddress}::suins::AdminCap`,
+		`${packageAddress}::auction::AuctionHouse`,
+	] satisfies string[];
+	const parameterNames = ['_', 'self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'admin_withdraw_funds',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface AdminFinalizeAuctionArguments {
+	admin: RawTransactionArgument<string>;
+	self: RawTransactionArgument<string>;
+	domain: RawTransactionArgument<string>;
+}
+export interface AdminFinalizeAuctionOptions {
+	package?: string;
+	arguments:
+		| AdminFinalizeAuctionArguments
+		| [
+				admin: RawTransactionArgument<string>,
+				self: RawTransactionArgument<string>,
+				domain: RawTransactionArgument<string>,
+		  ];
+}
+/**
+ * Admin functionality used to finalize a single auction.
+ *
+ * An `operation_limit` limit must be provided which controls how many individual
+ * operations to perform. This allows the admin to be able to make forward progress
+ * in finalizing auctions even in the presence of thousands of bids.
+ *
+ * This will attempt to do as much as possible of the following based on the
+ * provided `operation_limit`:
+ *
+ * - claim the winning bid and place in `AuctionHouse.balance`
+ * - push the `SuinsRegistration` to the winner
+ * - push loosing bids back to their respective account owners
+ *
+ * Once all of the above has been done the auction is destroyed, freeing on-chain
+ * storage.
+ */
+export function adminFinalizeAuction(options: AdminFinalizeAuctionOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [
+		`${packageAddress}::suins::AdminCap`,
+		`${packageAddress}::auction::AuctionHouse`,
+		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
+	] satisfies string[];
+	const parameterNames = ['admin', 'self', 'domain', 'clock'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'admin_finalize_auction',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface AdminTryFinalizeAuctionsArguments {
+	admin: RawTransactionArgument<string>;
+	self: RawTransactionArgument<string>;
+	operationLimit: RawTransactionArgument<number | bigint>;
+}
+export interface AdminTryFinalizeAuctionsOptions {
+	package?: string;
+	arguments:
+		| AdminTryFinalizeAuctionsArguments
+		| [
+				admin: RawTransactionArgument<string>,
+				self: RawTransactionArgument<string>,
+				operationLimit: RawTransactionArgument<number | bigint>,
+		  ];
+}
+/**
+ * Admin functionality used to finalize an arbitrary number of auctions.
+ *
+ * An `operation_limit` limit must be provided which controls how many individual
+ * operations to perform. This allows the admin to be able to make forward progress
+ * in finalizing auctions even in the presence of thousands of auctions/bids.
+ */
+export function adminTryFinalizeAuctions(options: AdminTryFinalizeAuctionsOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [
+		`${packageAddress}::suins::AdminCap`,
+		`${packageAddress}::auction::AuctionHouse`,
+		'u64',
+		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
+	] satisfies string[];
+	const parameterNames = ['admin', 'self', 'operationLimit', 'clock'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'admin_try_finalize_auctions',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }

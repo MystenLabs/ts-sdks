@@ -24,27 +24,32 @@ export function Authorized() {
 		ObjectID: bcs.Address,
 	});
 }
+export interface AuthenticateSenderOptions {
+	package?: string;
+	arguments: [];
+}
 /** Authenticates the sender as the authorizer. */
-export function authenticate_sender(options: { package?: string; arguments: [] }) {
+export function authenticateSender(options: AuthenticateSenderOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'auth',
 			function: 'authenticate_sender',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
 		});
 }
-/** Authenticates an object as the authorizer. */
-export function authenticate_with_object<T extends BcsType<any>>(options: {
+export interface AuthenticateWithObjectArguments<T extends BcsType<any>> {
+	obj: RawTransactionArgument<T>;
+}
+export interface AuthenticateWithObjectOptions<T extends BcsType<any>> {
 	package?: string;
-	arguments:
-		| [obj: RawTransactionArgument<T>]
-		| {
-				obj: RawTransactionArgument<T>;
-		  };
+	arguments: AuthenticateWithObjectArguments<T> | [obj: RawTransactionArgument<T>];
 	typeArguments: [string];
-}) {
+}
+/** Authenticates an object as the authorizer. */
+export function authenticateWithObject<T extends BcsType<any>>(
+	options: AuthenticateWithObjectOptions<T>,
+) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
 	const parameterNames = ['obj'];
@@ -57,15 +62,15 @@ export function authenticate_with_object<T extends BcsType<any>>(options: {
 			typeArguments: options.typeArguments,
 		});
 }
-/** Returns the `Authorized` as an address. */
-export function authorized_address(options: {
+export interface AuthorizedAddressArguments {
+	addr: RawTransactionArgument<string>;
+}
+export interface AuthorizedAddressOptions {
 	package?: string;
-	arguments:
-		| [addr: RawTransactionArgument<string>]
-		| {
-				addr: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: AuthorizedAddressArguments | [addr: RawTransactionArgument<string>];
+}
+/** Returns the `Authorized` as an address. */
+export function authorizedAddress(options: AuthorizedAddressOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = ['address'] satisfies string[];
 	const parameterNames = ['addr'];
@@ -77,15 +82,15 @@ export function authorized_address(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Returns the `Authorized` as an object. */
-export function authorized_object(options: {
+export interface AuthorizedObjectArguments {
+	id: RawTransactionArgument<string>;
+}
+export interface AuthorizedObjectOptions {
 	package?: string;
-	arguments:
-		| [id: RawTransactionArgument<string>]
-		| {
-				id: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: AuthorizedObjectArguments | [id: RawTransactionArgument<string>];
+}
+/** Returns the `Authorized` as an object. */
+export function authorizedObject(options: AuthorizedObjectOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',

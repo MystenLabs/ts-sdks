@@ -41,15 +41,15 @@ export function StakedWalState() {
 		}),
 	});
 }
-/** Returns the `node_id` of the staked WAL. */
-export function node_id(options: {
+export interface NodeIdArguments {
+	sw: RawTransactionArgument<string>;
+}
+export interface NodeIdOptions {
 	package?: string;
-	arguments:
-		| [sw: RawTransactionArgument<string>]
-		| {
-				sw: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: NodeIdArguments | [sw: RawTransactionArgument<string>];
+}
+/** Returns the `node_id` of the staked WAL. */
+export function nodeId(options: NodeIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::staked_wal::StakedWal`] satisfies string[];
 	const parameterNames = ['sw'];
@@ -61,18 +61,18 @@ export function node_id(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface ValueArguments {
+	sw: RawTransactionArgument<string>;
+}
+export interface ValueOptions {
+	package?: string;
+	arguments: ValueArguments | [sw: RawTransactionArgument<string>];
+}
 /**
  * Returns the `principal` of the staked WAL. Called `value` to be consistent with
  * `Coin`.
  */
-export function value(options: {
-	package?: string;
-	arguments:
-		| [sw: RawTransactionArgument<string>]
-		| {
-				sw: RawTransactionArgument<string>;
-		  };
-}) {
+export function value(options: ValueOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::staked_wal::StakedWal`] satisfies string[];
 	const parameterNames = ['sw'];
@@ -84,15 +84,15 @@ export function value(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Returns the `activation_epoch` of the staked WAL. */
-export function activation_epoch(options: {
+export interface ActivationEpochArguments {
+	sw: RawTransactionArgument<string>;
+}
+export interface ActivationEpochOptions {
 	package?: string;
-	arguments:
-		| [sw: RawTransactionArgument<string>]
-		| {
-				sw: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: ActivationEpochArguments | [sw: RawTransactionArgument<string>];
+}
+/** Returns the `activation_epoch` of the staked WAL. */
+export function activationEpoch(options: ActivationEpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::staked_wal::StakedWal`] satisfies string[];
 	const parameterNames = ['sw'];
@@ -104,15 +104,15 @@ export function activation_epoch(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Returns true if the staked WAL is in the `Staked` state. */
-export function is_staked(options: {
+export interface IsStakedArguments {
+	sw: RawTransactionArgument<string>;
+}
+export interface IsStakedOptions {
 	package?: string;
-	arguments:
-		| [sw: RawTransactionArgument<string>]
-		| {
-				sw: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: IsStakedArguments | [sw: RawTransactionArgument<string>];
+}
+/** Returns true if the staked WAL is in the `Staked` state. */
+export function isStaked(options: IsStakedOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::staked_wal::StakedWal`] satisfies string[];
 	const parameterNames = ['sw'];
@@ -124,15 +124,15 @@ export function is_staked(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Checks whether the staked WAL is in the `Withdrawing` state. */
-export function is_withdrawing(options: {
+export interface IsWithdrawingArguments {
+	sw: RawTransactionArgument<string>;
+}
+export interface IsWithdrawingOptions {
 	package?: string;
-	arguments:
-		| [sw: RawTransactionArgument<string>]
-		| {
-				sw: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: IsWithdrawingArguments | [sw: RawTransactionArgument<string>];
+}
+/** Checks whether the staked WAL is in the `Withdrawing` state. */
+export function isWithdrawing(options: IsWithdrawingOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::staked_wal::StakedWal`] satisfies string[];
 	const parameterNames = ['sw'];
@@ -144,18 +144,18 @@ export function is_withdrawing(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface WithdrawEpochArguments {
+	sw: RawTransactionArgument<string>;
+}
+export interface WithdrawEpochOptions {
+	package?: string;
+	arguments: WithdrawEpochArguments | [sw: RawTransactionArgument<string>];
+}
 /**
  * Returns the `withdraw_epoch` of the staked WAL if it is in the `Withdrawing`.
  * Aborts otherwise.
  */
-export function withdraw_epoch(options: {
-	package?: string;
-	arguments:
-		| [sw: RawTransactionArgument<string>]
-		| {
-				sw: RawTransactionArgument<string>;
-		  };
-}) {
+export function withdrawEpoch(options: WithdrawEpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::staked_wal::StakedWal`] satisfies string[];
 	const parameterNames = ['sw'];
@@ -167,21 +167,23 @@ export function withdraw_epoch(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface JoinArguments {
+	sw: RawTransactionArgument<string>;
+	other: RawTransactionArgument<string>;
+}
+export interface JoinOptions {
+	package?: string;
+	arguments:
+		| JoinArguments
+		| [sw: RawTransactionArgument<string>, other: RawTransactionArgument<string>];
+}
 /**
  * Joins the staked WAL with another staked WAL, adding the `principal` of the
  * `other` staked WAL to the current staked WAL.
  *
  * Aborts if the `node_id` or `activation_epoch` of the staked WALs do not match.
  */
-export function join(options: {
-	package?: string;
-	arguments:
-		| [sw: RawTransactionArgument<string>, other: RawTransactionArgument<string>]
-		| {
-				sw: RawTransactionArgument<string>;
-				other: RawTransactionArgument<string>;
-		  };
-}) {
+export function join(options: JoinOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::staked_wal::StakedWal`,
@@ -196,6 +198,16 @@ export function join(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface SplitArguments {
+	sw: RawTransactionArgument<string>;
+	amount: RawTransactionArgument<number | bigint>;
+}
+export interface SplitOptions {
+	package?: string;
+	arguments:
+		| SplitArguments
+		| [sw: RawTransactionArgument<string>, amount: RawTransactionArgument<number | bigint>];
+}
 /**
  * Splits the staked WAL into two parts, one with the `amount` and the other with
  * the remaining `principal`. The `node_id`, `activation_epoch` are the same for
@@ -204,15 +216,7 @@ export function join(options: {
  * Aborts if the `amount` is greater than the `principal` of the staked WAL. Aborts
  * if the `amount` is zero.
  */
-export function split(options: {
-	package?: string;
-	arguments:
-		| [sw: RawTransactionArgument<string>, amount: RawTransactionArgument<number | bigint>]
-		| {
-				sw: RawTransactionArgument<string>;
-				amount: RawTransactionArgument<number | bigint>;
-		  };
-}) {
+export function split(options: SplitOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::staked_wal::StakedWal`, 'u64'] satisfies string[];
 	const parameterNames = ['sw', 'amount'];

@@ -33,15 +33,15 @@ export function StorageNodeCap() {
 		deny_list_size: bcs.u64(),
 	});
 }
-/** Return the node ID of the storage node. */
-export function id(options: {
+export interface IdArguments {
+	cap: RawTransactionArgument<string>;
+}
+export interface IdOptions {
 	package?: string;
-	arguments:
-		| [cap: RawTransactionArgument<string>]
-		| {
-				cap: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: IdArguments | [cap: RawTransactionArgument<string>];
+}
+/** Return the node ID of the storage node. */
+export function id(options: IdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeInfo`] satisfies string[];
 	const parameterNames = ['cap'];
@@ -53,15 +53,15 @@ export function id(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Return the pool ID of the storage node. */
-export function node_id(options: {
+export interface NodeIdArguments {
+	cap: RawTransactionArgument<string>;
+}
+export interface NodeIdOptions {
 	package?: string;
-	arguments:
-		| [cap: RawTransactionArgument<string>]
-		| {
-				cap: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: NodeIdArguments | [cap: RawTransactionArgument<string>];
+}
+/** Return the pool ID of the storage node. */
+export function nodeId(options: NodeIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
 	const parameterNames = ['cap'];
@@ -73,18 +73,18 @@ export function node_id(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface LastEpochSyncDoneArguments {
+	cap: RawTransactionArgument<string>;
+}
+export interface LastEpochSyncDoneOptions {
+	package?: string;
+	arguments: LastEpochSyncDoneArguments | [cap: RawTransactionArgument<string>];
+}
 /**
  * Return the last epoch in which the storage node attested that it has finished
  * syncing.
  */
-export function last_epoch_sync_done(options: {
-	package?: string;
-	arguments:
-		| [cap: RawTransactionArgument<string>]
-		| {
-				cap: RawTransactionArgument<string>;
-		  };
-}) {
+export function lastEpochSyncDone(options: LastEpochSyncDoneOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
 	const parameterNames = ['cap'];
@@ -96,15 +96,15 @@ export function last_epoch_sync_done(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Return the latest event blob attestion. */
-export function last_event_blob_attestation(options: {
+export interface LastEventBlobAttestationArguments {
+	cap: RawTransactionArgument<string>;
+}
+export interface LastEventBlobAttestationOptions {
 	package?: string;
-	arguments:
-		| [cap: RawTransactionArgument<string>]
-		| {
-				cap: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: LastEventBlobAttestationArguments | [cap: RawTransactionArgument<string>];
+}
+/** Return the latest event blob attestion. */
+export function lastEventBlobAttestation(options: LastEventBlobAttestationOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
 	const parameterNames = ['cap'];
@@ -116,15 +116,15 @@ export function last_event_blob_attestation(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Return the deny list root of the storage node. */
-export function deny_list_root(options: {
+export interface DenyListRootArguments {
+	cap: RawTransactionArgument<string>;
+}
+export interface DenyListRootOptions {
 	package?: string;
-	arguments:
-		| [cap: RawTransactionArgument<string>]
-		| {
-				cap: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: DenyListRootArguments | [cap: RawTransactionArgument<string>];
+}
+/** Return the deny list root of the storage node. */
+export function denyListRoot(options: DenyListRootOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
 	const parameterNames = ['cap'];
@@ -136,15 +136,15 @@ export function deny_list_root(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Return the deny list sequence number of the storage node. */
-export function deny_list_sequence(options: {
+export interface DenyListSequenceArguments {
+	cap: RawTransactionArgument<string>;
+}
+export interface DenyListSequenceOptions {
 	package?: string;
-	arguments:
-		| [cap: RawTransactionArgument<string>]
-		| {
-				cap: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: DenyListSequenceArguments | [cap: RawTransactionArgument<string>];
+}
+/** Return the deny list sequence number of the storage node. */
+export function denyListSequence(options: DenyListSequenceOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
 	const parameterNames = ['cap'];

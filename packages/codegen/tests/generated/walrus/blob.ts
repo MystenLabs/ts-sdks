@@ -25,14 +25,14 @@ export function BlobIdDerivation() {
 		root_hash: bcs.u256(),
 	});
 }
-export function object_id(options: {
+export interface ObjectIdArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface ObjectIdOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: ObjectIdArguments | [self: RawTransactionArgument<string>];
+}
+export function objectId(options: ObjectIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
 	const parameterNames = ['self'];
@@ -44,14 +44,14 @@ export function object_id(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function registered_epoch(options: {
+export interface RegisteredEpochArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface RegisteredEpochOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: RegisteredEpochArguments | [self: RawTransactionArgument<string>];
+}
+export function registeredEpoch(options: RegisteredEpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
 	const parameterNames = ['self'];
@@ -63,14 +63,14 @@ export function registered_epoch(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function blob_id(options: {
+export interface BlobIdArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface BlobIdOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: BlobIdArguments | [self: RawTransactionArgument<string>];
+}
+export function blobId(options: BlobIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
 	const parameterNames = ['self'];
@@ -82,14 +82,14 @@ export function blob_id(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function size(options: {
+export interface SizeArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface SizeOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: SizeArguments | [self: RawTransactionArgument<string>];
+}
+export function size(options: SizeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
 	const parameterNames = ['self'];
@@ -101,14 +101,14 @@ export function size(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function encoding_type(options: {
+export interface EncodingTypeArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface EncodingTypeOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: EncodingTypeArguments | [self: RawTransactionArgument<string>];
+}
+export function encodingType(options: EncodingTypeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
 	const parameterNames = ['self'];
@@ -120,14 +120,14 @@ export function encoding_type(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function certified_epoch(options: {
+export interface CertifiedEpochArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface CertifiedEpochOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: CertifiedEpochArguments | [self: RawTransactionArgument<string>];
+}
+export function certifiedEpoch(options: CertifiedEpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
 	const parameterNames = ['self'];
@@ -139,14 +139,14 @@ export function certified_epoch(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function storage(options: {
+export interface StorageArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface StorageOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: StorageArguments | [self: RawTransactionArgument<string>];
+}
+export function storage(options: StorageOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
 	const parameterNames = ['self'];
@@ -158,15 +158,17 @@ export function storage(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function encoded_size(options: {
+export interface EncodedSizeArguments {
+	self: RawTransactionArgument<string>;
+	nShards: RawTransactionArgument<number>;
+}
+export interface EncodedSizeOptions {
 	package?: string;
 	arguments:
-		| [self: RawTransactionArgument<string>, nShards: RawTransactionArgument<number>]
-		| {
-				self: RawTransactionArgument<string>;
-				nShards: RawTransactionArgument<number>;
-		  };
-}) {
+		| EncodedSizeArguments
+		| [self: RawTransactionArgument<string>, nShards: RawTransactionArgument<number>];
+}
+export function encodedSize(options: EncodedSizeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::blob::Blob`, 'u16'] satisfies string[];
 	const parameterNames = ['self', 'nShards'];
@@ -178,14 +180,14 @@ export function encoded_size(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function end_epoch(options: {
+export interface EndEpochArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface EndEpochOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: EndEpochArguments | [self: RawTransactionArgument<string>];
+}
+export function endEpoch(options: EndEpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
 	const parameterNames = ['self'];
@@ -197,21 +199,23 @@ export function end_epoch(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Derives the blob_id for a blob given the root_hash, encoding_type and size. */
-export function derive_blob_id(options: {
+export interface DeriveBlobIdArguments {
+	rootHash: RawTransactionArgument<number | bigint>;
+	encodingType: RawTransactionArgument<number>;
+	size: RawTransactionArgument<number | bigint>;
+}
+export interface DeriveBlobIdOptions {
 	package?: string;
 	arguments:
+		| DeriveBlobIdArguments
 		| [
 				rootHash: RawTransactionArgument<number | bigint>,
 				encodingType: RawTransactionArgument<number>,
 				size: RawTransactionArgument<number | bigint>,
-		  ]
-		| {
-				rootHash: RawTransactionArgument<number | bigint>;
-				encodingType: RawTransactionArgument<number>;
-				size: RawTransactionArgument<number | bigint>;
-		  };
-}) {
+		  ];
+}
+/** Derives the blob_id for a blob given the root_hash, encoding_type and size. */
+export function deriveBlobId(options: DeriveBlobIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = ['u256', 'u8', 'u64'] satisfies string[];
 	const parameterNames = ['rootHash', 'encodingType', 'size'];
@@ -223,19 +227,19 @@ export function derive_blob_id(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface BurnArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface BurnOptions {
+	package?: string;
+	arguments: BurnArguments | [self: RawTransactionArgument<string>];
+}
 /**
  * Allow the owner of a blob object to destroy it.
  *
  * This function also burns any [`Metadata`] associated with the blob, if present.
  */
-export function burn(options: {
-	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+export function burn(options: BurnOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
 	const parameterNames = ['self'];
@@ -247,20 +251,22 @@ export function burn(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface AddMetadataArguments {
+	self: RawTransactionArgument<string>;
+	metadata: RawTransactionArgument<string>;
+}
+export interface AddMetadataOptions {
+	package?: string;
+	arguments:
+		| AddMetadataArguments
+		| [self: RawTransactionArgument<string>, metadata: RawTransactionArgument<string>];
+}
 /**
  * Adds the metadata dynamic field to the Blob.
  *
  * Aborts if the metadata is already present.
  */
-export function add_metadata(options: {
-	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>, metadata: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-				metadata: RawTransactionArgument<string>;
-		  };
-}) {
+export function addMetadata(options: AddMetadataOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::blob::Blob`,
@@ -275,21 +281,23 @@ export function add_metadata(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface AddOrReplaceMetadataArguments {
+	self: RawTransactionArgument<string>;
+	metadata: RawTransactionArgument<string>;
+}
+export interface AddOrReplaceMetadataOptions {
+	package?: string;
+	arguments:
+		| AddOrReplaceMetadataArguments
+		| [self: RawTransactionArgument<string>, metadata: RawTransactionArgument<string>];
+}
 /**
  * Adds the metadata dynamic field to the Blob, replacing the existing metadata if
  * present.
  *
  * Returns the replaced metadata if present.
  */
-export function add_or_replace_metadata(options: {
-	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>, metadata: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-				metadata: RawTransactionArgument<string>;
-		  };
-}) {
+export function addOrReplaceMetadata(options: AddOrReplaceMetadataOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::blob::Blob`,
@@ -304,20 +312,20 @@ export function add_or_replace_metadata(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface TakeMetadataArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface TakeMetadataOptions {
+	package?: string;
+	arguments: TakeMetadataArguments | [self: RawTransactionArgument<string>];
+}
 /**
  * Removes the metadata dynamic field from the Blob, returning the contained
  * `Metadata`.
  *
  * Aborts if the metadata does not exist.
  */
-export function take_metadata(options: {
-	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+export function takeMetadata(options: TakeMetadataOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
 	const parameterNames = ['self'];
@@ -329,26 +337,28 @@ export function take_metadata(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface InsertOrUpdateMetadataPairArguments {
+	self: RawTransactionArgument<string>;
+	key: RawTransactionArgument<string>;
+	value: RawTransactionArgument<string>;
+}
+export interface InsertOrUpdateMetadataPairOptions {
+	package?: string;
+	arguments:
+		| InsertOrUpdateMetadataPairArguments
+		| [
+				self: RawTransactionArgument<string>,
+				key: RawTransactionArgument<string>,
+				value: RawTransactionArgument<string>,
+		  ];
+}
 /**
  * Inserts a key-value pair into the metadata.
  *
  * If the key is already present, the value is updated. Creates new metadata on the
  * Blob object if it does not exist already.
  */
-export function insert_or_update_metadata_pair(options: {
-	package?: string;
-	arguments:
-		| [
-				self: RawTransactionArgument<string>,
-				key: RawTransactionArgument<string>,
-				value: RawTransactionArgument<string>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				key: RawTransactionArgument<string>;
-				value: RawTransactionArgument<string>;
-		  };
-}) {
+export function insertOrUpdateMetadataPair(options: InsertOrUpdateMetadataPairOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::blob::Blob`,
@@ -364,20 +374,22 @@ export function insert_or_update_metadata_pair(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface RemoveMetadataPairArguments {
+	self: RawTransactionArgument<string>;
+	key: RawTransactionArgument<string>;
+}
+export interface RemoveMetadataPairOptions {
+	package?: string;
+	arguments:
+		| RemoveMetadataPairArguments
+		| [self: RawTransactionArgument<string>, key: RawTransactionArgument<string>];
+}
 /**
  * Removes the metadata associated with the given key.
  *
  * Aborts if the metadata does not exist.
  */
-export function remove_metadata_pair(options: {
-	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>, key: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-				key: RawTransactionArgument<string>;
-		  };
-}) {
+export function removeMetadataPair(options: RemoveMetadataPairOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::blob::Blob`,
@@ -392,16 +404,18 @@ export function remove_metadata_pair(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Removes and returns the metadata associated with the given key, if it exists. */
-export function remove_metadata_pair_if_exists(options: {
+export interface RemoveMetadataPairIfExistsArguments {
+	self: RawTransactionArgument<string>;
+	key: RawTransactionArgument<string>;
+}
+export interface RemoveMetadataPairIfExistsOptions {
 	package?: string;
 	arguments:
-		| [self: RawTransactionArgument<string>, key: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-				key: RawTransactionArgument<string>;
-		  };
-}) {
+		| RemoveMetadataPairIfExistsArguments
+		| [self: RawTransactionArgument<string>, key: RawTransactionArgument<string>];
+}
+/** Removes and returns the metadata associated with the given key, if it exists. */
+export function removeMetadataPairIfExists(options: RemoveMetadataPairIfExistsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::blob::Blob`,

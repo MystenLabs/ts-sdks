@@ -16,21 +16,23 @@ export function NodeMetadata() {
 		extra_fields: vec_map.VecMap(bcs.string(), bcs.string()),
 	});
 }
-/** Create a new `NodeMetadata` instance */
-export function _new(options: {
+export interface NewArguments {
+	imageUrl: RawTransactionArgument<string>;
+	projectUrl: RawTransactionArgument<string>;
+	description: RawTransactionArgument<string>;
+}
+export interface NewOptions {
 	package?: string;
 	arguments:
+		| NewArguments
 		| [
 				imageUrl: RawTransactionArgument<string>,
 				projectUrl: RawTransactionArgument<string>,
 				description: RawTransactionArgument<string>,
-		  ]
-		| {
-				imageUrl: RawTransactionArgument<string>;
-				projectUrl: RawTransactionArgument<string>;
-				description: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+/** Create a new `NodeMetadata` instance */
+export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
@@ -46,16 +48,18 @@ export function _new(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Set the image URL of the Validator. */
-export function set_image_url(options: {
+export interface SetImageUrlArguments {
+	metadata: RawTransactionArgument<string>;
+	imageUrl: RawTransactionArgument<string>;
+}
+export interface SetImageUrlOptions {
 	package?: string;
 	arguments:
-		| [metadata: RawTransactionArgument<string>, imageUrl: RawTransactionArgument<string>]
-		| {
-				metadata: RawTransactionArgument<string>;
-				imageUrl: RawTransactionArgument<string>;
-		  };
-}) {
+		| SetImageUrlArguments
+		| [metadata: RawTransactionArgument<string>, imageUrl: RawTransactionArgument<string>];
+}
+/** Set the image URL of the Validator. */
+export function setImageUrl(options: SetImageUrlOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::node_metadata::NodeMetadata`,
@@ -70,16 +74,18 @@ export function set_image_url(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Set the project URL of the Validator. */
-export function set_project_url(options: {
+export interface SetProjectUrlArguments {
+	metadata: RawTransactionArgument<string>;
+	projectUrl: RawTransactionArgument<string>;
+}
+export interface SetProjectUrlOptions {
 	package?: string;
 	arguments:
-		| [metadata: RawTransactionArgument<string>, projectUrl: RawTransactionArgument<string>]
-		| {
-				metadata: RawTransactionArgument<string>;
-				projectUrl: RawTransactionArgument<string>;
-		  };
-}) {
+		| SetProjectUrlArguments
+		| [metadata: RawTransactionArgument<string>, projectUrl: RawTransactionArgument<string>];
+}
+/** Set the project URL of the Validator. */
+export function setProjectUrl(options: SetProjectUrlOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::node_metadata::NodeMetadata`,
@@ -94,16 +100,18 @@ export function set_project_url(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Set the description of the Validator. */
-export function set_description(options: {
+export interface SetDescriptionArguments {
+	metadata: RawTransactionArgument<string>;
+	description: RawTransactionArgument<string>;
+}
+export interface SetDescriptionOptions {
 	package?: string;
 	arguments:
-		| [metadata: RawTransactionArgument<string>, description: RawTransactionArgument<string>]
-		| {
-				metadata: RawTransactionArgument<string>;
-				description: RawTransactionArgument<string>;
-		  };
-}) {
+		| SetDescriptionArguments
+		| [metadata: RawTransactionArgument<string>, description: RawTransactionArgument<string>];
+}
+/** Set the description of the Validator. */
+export function setDescription(options: SetDescriptionOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::node_metadata::NodeMetadata`,
@@ -118,16 +126,18 @@ export function set_description(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Set an extra field of the Validator. */
-export function set_extra_fields(options: {
+export interface SetExtraFieldsArguments {
+	metadata: RawTransactionArgument<string>;
+	extraFields: RawTransactionArgument<string>;
+}
+export interface SetExtraFieldsOptions {
 	package?: string;
 	arguments:
-		| [metadata: RawTransactionArgument<string>, extraFields: RawTransactionArgument<string>]
-		| {
-				metadata: RawTransactionArgument<string>;
-				extraFields: RawTransactionArgument<string>;
-		  };
-}) {
+		| SetExtraFieldsArguments
+		| [metadata: RawTransactionArgument<string>, extraFields: RawTransactionArgument<string>];
+}
+/** Set an extra field of the Validator. */
+export function setExtraFields(options: SetExtraFieldsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::node_metadata::NodeMetadata`,
@@ -142,15 +152,15 @@ export function set_extra_fields(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Returns the image URL of the Validator. */
-export function image_url(options: {
+export interface ImageUrlArguments {
+	metadata: RawTransactionArgument<string>;
+}
+export interface ImageUrlOptions {
 	package?: string;
-	arguments:
-		| [metadata: RawTransactionArgument<string>]
-		| {
-				metadata: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: ImageUrlArguments | [metadata: RawTransactionArgument<string>];
+}
+/** Returns the image URL of the Validator. */
+export function imageUrl(options: ImageUrlOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::node_metadata::NodeMetadata`] satisfies string[];
 	const parameterNames = ['metadata'];
@@ -162,15 +172,15 @@ export function image_url(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Returns the project URL of the Validator. */
-export function project_url(options: {
+export interface ProjectUrlArguments {
+	metadata: RawTransactionArgument<string>;
+}
+export interface ProjectUrlOptions {
 	package?: string;
-	arguments:
-		| [metadata: RawTransactionArgument<string>]
-		| {
-				metadata: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: ProjectUrlArguments | [metadata: RawTransactionArgument<string>];
+}
+/** Returns the project URL of the Validator. */
+export function projectUrl(options: ProjectUrlOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::node_metadata::NodeMetadata`] satisfies string[];
 	const parameterNames = ['metadata'];
@@ -182,15 +192,15 @@ export function project_url(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Returns the description of the Validator. */
-export function description(options: {
+export interface DescriptionArguments {
+	metadata: RawTransactionArgument<string>;
+}
+export interface DescriptionOptions {
 	package?: string;
-	arguments:
-		| [metadata: RawTransactionArgument<string>]
-		| {
-				metadata: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: DescriptionArguments | [metadata: RawTransactionArgument<string>];
+}
+/** Returns the description of the Validator. */
+export function description(options: DescriptionOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::node_metadata::NodeMetadata`] satisfies string[];
 	const parameterNames = ['metadata'];
@@ -202,15 +212,15 @@ export function description(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Returns the extra fields of the Validator. */
-export function extra_fields(options: {
+export interface ExtraFieldsArguments {
+	metadata: RawTransactionArgument<string>;
+}
+export interface ExtraFieldsOptions {
 	package?: string;
-	arguments:
-		| [metadata: RawTransactionArgument<string>]
-		| {
-				metadata: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: ExtraFieldsArguments | [metadata: RawTransactionArgument<string>];
+}
+/** Returns the extra fields of the Validator. */
+export function extraFields(options: ExtraFieldsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::node_metadata::NodeMetadata`] satisfies string[];
 	const parameterNames = ['metadata'];

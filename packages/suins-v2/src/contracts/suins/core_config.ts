@@ -36,105 +36,174 @@ export function CoreConfig() {
 		extra: vec_map.VecMap(bcs.string(), bcs.string()),
 	});
 }
-export function init(packageAddress: string) {
-	function _new(options: {
-		arguments: [
-			public_key: RawTransactionArgument<number[]>,
-			min_label_length: RawTransactionArgument<number>,
-			max_label_length: RawTransactionArgument<number>,
-			payments_version: RawTransactionArgument<number>,
-			max_years: RawTransactionArgument<number>,
-			valid_tlds: RawTransactionArgument<string[]>,
-		];
-	}) {
-		const argumentsTypes = [
-			'vector<u8>',
-			'u8',
-			'u8',
-			'u8',
-			'u8',
-			'vector<0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'core_config',
-				function: 'new',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	function public_key(options: { arguments: [config: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'core_config',
-				function: 'public_key',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	function min_label_length(options: { arguments: [config: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'core_config',
-				function: 'min_label_length',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	function max_label_length(options: { arguments: [config: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'core_config',
-				function: 'max_label_length',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	function is_valid_tld(options: {
-		arguments: [config: RawTransactionArgument<string>, tld: RawTransactionArgument<string>];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::core_config::CoreConfig`,
-			'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'core_config',
-				function: 'is_valid_tld',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	function payments_version(options: { arguments: [config: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'core_config',
-				function: 'payments_version',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	function max_years(options: { arguments: [config: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'core_config',
-				function: 'max_years',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	return {
-		_new,
-		public_key,
-		min_label_length,
-		max_label_length,
-		is_valid_tld,
-		payments_version,
-		max_years,
-	};
+export interface NewArguments {
+	publicKey: RawTransactionArgument<number[]>;
+	minLabelLength: RawTransactionArgument<number>;
+	maxLabelLength: RawTransactionArgument<number>;
+	paymentsVersion: RawTransactionArgument<number>;
+	maxYears: RawTransactionArgument<number>;
+	validTlds: RawTransactionArgument<string[]>;
+	extra: RawTransactionArgument<string>;
+}
+export interface NewOptions {
+	package?: string;
+	arguments:
+		| NewArguments
+		| [
+				publicKey: RawTransactionArgument<number[]>,
+				minLabelLength: RawTransactionArgument<number>,
+				maxLabelLength: RawTransactionArgument<number>,
+				paymentsVersion: RawTransactionArgument<number>,
+				maxYears: RawTransactionArgument<number>,
+				validTlds: RawTransactionArgument<string[]>,
+				extra: RawTransactionArgument<string>,
+		  ];
+}
+export function _new(options: NewOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [
+		'vector<u8>',
+		'u8',
+		'u8',
+		'u8',
+		'u8',
+		'vector<0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
+		'0x0000000000000000000000000000000000000000000000000000000000000002::vec_map::VecMap<0x0000000000000000000000000000000000000000000000000000000000000001::string::String, 0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
+	] satisfies string[];
+	const parameterNames = [
+		'publicKey',
+		'minLabelLength',
+		'maxLabelLength',
+		'paymentsVersion',
+		'maxYears',
+		'validTlds',
+		'extra',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'core_config',
+			function: 'new',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface PublicKeyArguments {
+	config: RawTransactionArgument<string>;
+}
+export interface PublicKeyOptions {
+	package?: string;
+	arguments: PublicKeyArguments | [config: RawTransactionArgument<string>];
+}
+export function publicKey(options: PublicKeyOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'core_config',
+			function: 'public_key',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface MinLabelLengthArguments {
+	config: RawTransactionArgument<string>;
+}
+export interface MinLabelLengthOptions {
+	package?: string;
+	arguments: MinLabelLengthArguments | [config: RawTransactionArgument<string>];
+}
+export function minLabelLength(options: MinLabelLengthOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'core_config',
+			function: 'min_label_length',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface MaxLabelLengthArguments {
+	config: RawTransactionArgument<string>;
+}
+export interface MaxLabelLengthOptions {
+	package?: string;
+	arguments: MaxLabelLengthArguments | [config: RawTransactionArgument<string>];
+}
+export function maxLabelLength(options: MaxLabelLengthOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'core_config',
+			function: 'max_label_length',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface IsValidTldArguments {
+	config: RawTransactionArgument<string>;
+	tld: RawTransactionArgument<string>;
+}
+export interface IsValidTldOptions {
+	package?: string;
+	arguments:
+		| IsValidTldArguments
+		| [config: RawTransactionArgument<string>, tld: RawTransactionArgument<string>];
+}
+export function isValidTld(options: IsValidTldOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [
+		`${packageAddress}::core_config::CoreConfig`,
+		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+	] satisfies string[];
+	const parameterNames = ['config', 'tld'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'core_config',
+			function: 'is_valid_tld',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface PaymentsVersionArguments {
+	config: RawTransactionArgument<string>;
+}
+export interface PaymentsVersionOptions {
+	package?: string;
+	arguments: PaymentsVersionArguments | [config: RawTransactionArgument<string>];
+}
+export function paymentsVersion(options: PaymentsVersionOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'core_config',
+			function: 'payments_version',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface MaxYearsArguments {
+	config: RawTransactionArgument<string>;
+}
+export interface MaxYearsOptions {
+	package?: string;
+	arguments: MaxYearsArguments | [config: RawTransactionArgument<string>];
+}
+export function maxYears(options: MaxYearsOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'core_config',
+			function: 'max_years',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }

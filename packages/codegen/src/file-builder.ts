@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type ts from 'typescript';
-import { getSafeName } from './render-types.js';
 import { parseTS, printNodes } from './utils.js';
 import { relative, resolve } from 'path';
+import { getSafeName } from './render-types.js';
 
 export class FileBuilder {
 	statements: ts.Statement[] = [];
 	exports: string[] = [];
 	imports: Map<string, Set<string>> = new Map();
 	starImports: Map<string, string> = new Map();
+	protected reservedNames: Set<string> = new Set();
 
 	addImport(module: string, name: string) {
 		if (!this.imports.has(module)) {
@@ -21,7 +22,21 @@ export class FileBuilder {
 	}
 
 	addStarImport(module: string, name: string) {
-		this.starImports.set(getSafeName(name), module);
+		const importName = this.getUnusedName(name);
+		this.starImports.set(importName, module);
+		return importName;
+	}
+
+	getUnusedName(name: string) {
+		let deConflictedName = getSafeName(name);
+
+		let i = 1;
+		while (this.reservedNames.has(deConflictedName)) {
+			deConflictedName = `${name}_${i}`;
+			i++;
+		}
+
+		return deConflictedName;
 	}
 
 	async getHeader() {

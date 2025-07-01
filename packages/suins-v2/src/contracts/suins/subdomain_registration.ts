@@ -22,30 +22,45 @@ export function SubDomainRegistration() {
 		nft: suins_registration.SuinsRegistration(),
 	});
 }
-export function init(packageAddress: string) {
-	function nft(options: { arguments: [name: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [
-			`${packageAddress}::subdomain_registration::SubDomainRegistration`,
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'subdomain_registration',
-				function: 'nft',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	function nft_mut(options: { arguments: [name: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [
-			`${packageAddress}::subdomain_registration::SubDomainRegistration`,
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'subdomain_registration',
-				function: 'nft_mut',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	return { nft, nft_mut };
+export interface NftArguments {
+	name: RawTransactionArgument<string>;
+}
+export interface NftOptions {
+	package?: string;
+	arguments: NftArguments | [name: RawTransactionArgument<string>];
+}
+export function nft(options: NftOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [
+		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
+	] satisfies string[];
+	const parameterNames = ['name'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'subdomain_registration',
+			function: 'nft',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface NftMutArguments {
+	name: RawTransactionArgument<string>;
+}
+export interface NftMutOptions {
+	package?: string;
+	arguments: NftMutArguments | [name: RawTransactionArgument<string>];
+}
+export function nftMut(options: NftMutOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [
+		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
+	] satisfies string[];
+	const parameterNames = ['name'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'subdomain_registration',
+			function: 'nft_mut',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }

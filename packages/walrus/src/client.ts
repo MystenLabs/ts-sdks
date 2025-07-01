@@ -15,16 +15,28 @@ import {
 	statusLifecycleRank,
 	TESTNET_WALRUS_PACKAGE_CONFIG,
 } from './constants.js';
-import { Blob, init as initBlobContract } from './contracts/walrus/blob.js';
+import {
+	addMetadata,
+	Blob,
+	insertOrUpdateMetadataPair,
+	removeMetadataPair,
+} from './contracts/walrus/blob.js';
 import type { Committee } from './contracts/walrus/committee.js';
-import { init as initMetadataContract, Metadata } from './contracts/walrus/metadata.js';
+import * as metadata from './contracts/walrus/metadata.js';
 import { StakingInnerV1 } from './contracts/walrus/staking_inner.js';
 import { StakingPool } from './contracts/walrus/staking_pool.js';
 import { Staking } from './contracts/walrus/staking.js';
 import { Storage } from './contracts/walrus/storage_resource.js';
-import { init as initSubsidiesContract, Subsidies } from './contracts/subsidies/subsidies.js';
+import * as subsidies from './contracts/subsidies/subsidies.js';
 import { SystemStateInnerV1 } from './contracts/walrus/system_state_inner.js';
-import { init as initSystemContract, System } from './contracts/walrus/system.js';
+import {
+	certifyBlob,
+	deleteBlob,
+	extendBlob,
+	registerBlob,
+	reserveSpace,
+	System,
+} from './contracts/walrus/system.js';
 import {
 	BehindCurrentEpochError,
 	BlobBlockedError,
@@ -217,39 +229,25 @@ export class WalrusClient {
 		});
 	}
 
-	#getSystemContract() {
-		return this.#cache.read(['getSystemContract'], async () => {
+	#getWalrusPackageId() {
+		return this.#cache.read(['getSystemPackageId'], async () => {
 			const { package_id } = await this.systemObject();
-			return initSystemContract(package_id);
+			return package_id;
 		});
 	}
 
-	#getSubsidiesContract() {
+	#getSubsidiesPackageId() {
 		return this.#cache.read(['getSubsidiesContract'], async () => {
 			if (!this.#packageConfig.subsidiesObjectId) {
-				throw new WalrusClientError('Subsidies object ID not defined in package config');
+				return null;
 			}
 
 			const subsidiesObject = await this.#objectLoader.load(
 				this.#packageConfig.subsidiesObjectId,
-				Subsidies(),
+				subsidies.Subsidies(),
 			);
 
-			return initSubsidiesContract(subsidiesObject.package_id);
-		});
-	}
-
-	#getBlobContract() {
-		return this.#cache.read(['getBlobContract'], async () => {
-			const { package_id } = await this.systemObject();
-			return initBlobContract(package_id);
-		});
-	}
-
-	#getMetadataContract() {
-		return this.#cache.read(['getMetadataContract'], async () => {
-			const { package_id } = await this.systemObject();
-			return initMetadataContract(package_id);
+			return subsidiesObject.package_id;
 		});
 	}
 
@@ -708,21 +706,22 @@ export class WalrusClient {
 			const systemState = await this.systemState();
 			const encodedSize = encodedBlobLength(size, systemState.committee.n_shards);
 			const { storageCost } = await this.storageCost(size, epochs);
-			const systemContract = await this.#getSystemContract();
-			const subsidiesContract = this.#packageConfig.subsidiesObjectId
-				? await this.#getSubsidiesContract()
-				: null;
+			const [walrusPackageId, subsidiesPackageId] = await Promise.all([
+				this.#getWalrusPackageId(),
+				this.#getSubsidiesPackageId(),
+			]);
 
 			return tx.add(
 				this.#withWal(
 					storageCost,
 					owner,
 					walCoin ?? null,
-					subsidiesContract !== null,
+					subsidiesPackageId !== null,
 					(coin, tx) => {
 						return tx.add(
-							subsidiesContract
-								? subsidiesContract.reserve_space({
+							subsidiesPackageId
+								? subsidies.reserveSpace({
+										package: subsidiesPackageId,
 										arguments: [
 											this.#packageConfig.subsidiesObjectId!,
 											systemObject.id.id,
@@ -731,7 +730,8 @@ export class WalrusClient {
 											coin,
 										],
 									})
-								: systemContract.reserve_space({
+								: reserveSpace({
+										package: walrusPackageId,
 										arguments: [systemObject.id.id, encodedSize, epochs, coin],
 									}),
 						);
@@ -866,12 +866,13 @@ export class WalrusClient {
 	}: RegisterBlobOptions) {
 		return async (tx: Transaction) => {
 			const { writeCost } = await this.storageCost(size, epochs);
-			const systemContract = await this.#getSystemContract();
+			const walrusPackageId = await this.#getWalrusPackageId();
 
 			return tx.add(
 				this.#withWal(writeCost, owner, walCoin ?? null, false, async (writeCoin, tx) => {
 					const blob = tx.add(
-						systemContract.register_blob({
+						registerBlob({
+							package: walrusPackageId,
 							arguments: [
 								tx.object(this.#packageConfig.systemObjectId),
 								this.createStorage({ size, epochs, walCoin, owner }),
@@ -1154,10 +1155,11 @@ export class WalrusClient {
 					blobObjectId,
 				}));
 
-			const systemContract = await this.#getSystemContract();
+			const walrusPackageId = await this.#getWalrusPackageId();
 
 			tx.add(
-				systemContract.certify_blob({
+				certifyBlob({
+					package: walrusPackageId,
 					arguments: [
 						tx.object(this.#packageConfig.systemObjectId),
 						tx.object(blobObjectId),
@@ -1225,9 +1227,10 @@ export class WalrusClient {
 	 */
 	deleteBlob({ blobObjectId }: DeleteBlobOptions) {
 		return async (tx: Transaction) => {
-			const systemContract = await this.#getSystemContract();
+			const walrusPackageId = await this.#getWalrusPackageId();
 			const storage = tx.add(
-				systemContract.delete_blob({
+				deleteBlob({
+					package: walrusPackageId,
 					arguments: [tx.object(this.#packageConfig.systemObjectId), tx.object(blobObjectId)],
 				}),
 			);
@@ -1299,9 +1302,9 @@ export class WalrusClient {
 			}
 
 			const { storageCost } = await this.storageCost(Number(blob.storage.storage_size), numEpochs);
-			const systemContract = await this.#getSystemContract();
-			const subsidiesContract = this.#packageConfig.subsidiesObjectId
-				? await this.#getSubsidiesContract()
+			const walrusPackageId = await this.#getWalrusPackageId();
+			const subsidiesPackageId = this.#packageConfig.subsidiesObjectId
+				? await this.#getSubsidiesPackageId()
 				: null;
 
 			return tx.add(
@@ -1309,11 +1312,12 @@ export class WalrusClient {
 					storageCost,
 					owner,
 					walCoin ?? null,
-					subsidiesContract !== null,
+					subsidiesPackageId !== null,
 					async (coin, tx) => {
 						tx.add(
-							subsidiesContract
-								? subsidiesContract.extend_blob({
+							subsidiesPackageId
+								? subsidies.extendBlob({
+										package: subsidiesPackageId,
 										arguments: [
 											this.#packageConfig.subsidiesObjectId!,
 											this.#packageConfig.systemObjectId,
@@ -1322,7 +1326,8 @@ export class WalrusClient {
 											coin,
 										],
 									})
-								: systemContract.extend_blob({
+								: extendBlob({
+										package: walrusPackageId,
 										arguments: [this.#packageConfig.systemObjectId, blobObjectId, numEpochs, coin],
 									}),
 						);
@@ -1383,9 +1388,11 @@ export class WalrusClient {
 			},
 		});
 
-		const metadata = Metadata().parse(response.dynamicField.value.bcs);
+		const parsedMetadata = metadata.Metadata().parse(response.dynamicField.value.bcs);
 
-		return Object.fromEntries(metadata.metadata.contents.map(({ key, value }) => [key, value]));
+		return Object.fromEntries(
+			parsedMetadata.metadata.contents.map(({ key, value }) => [key, value]),
+		);
 	}
 
 	#writeBlobAttributesForRef({
@@ -1398,15 +1405,16 @@ export class WalrusClient {
 		blob: TransactionObjectArgument;
 	}) {
 		return async (tx: Transaction) => {
-			const blobContract = await this.#getBlobContract();
-			const metadataContract = await this.#getMetadataContract();
+			const walrusPackageId = await this.#getWalrusPackageId();
 
 			if (!existingAttributes) {
 				tx.add(
-					blobContract.add_metadata({
+					addMetadata({
+						package: walrusPackageId,
 						arguments: [
 							blob,
-							metadataContract._new({
+							metadata._new({
+								package: walrusPackageId,
 								arguments: [],
 							}),
 						],
@@ -1420,14 +1428,16 @@ export class WalrusClient {
 				if (value === null) {
 					if (existingAttributes && key in existingAttributes) {
 						tx.add(
-							blobContract.remove_metadata_pair({
+							removeMetadataPair({
+								package: walrusPackageId,
 								arguments: [blob, key],
 							}),
 						);
 					}
 				} else {
 					tx.add(
-						blobContract.insert_or_update_metadata_pair({
+						insertOrUpdateMetadataPair({
+							package: walrusPackageId,
 							arguments: [blob, key, value],
 						}),
 					);

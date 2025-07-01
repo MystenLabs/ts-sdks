@@ -46,15 +46,15 @@ export function Subsidies() {
 		version: bcs.u64(),
 	});
 }
-/** Creates a new `Subsidies` object and an `AdminCap`. */
-export function _new(options: {
+export interface NewArguments {
+	packageId: RawTransactionArgument<string>;
+}
+export interface NewOptions {
 	package?: string;
-	arguments:
-		| [packageId: RawTransactionArgument<string>]
-		| {
-				packageId: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: NewArguments | [packageId: RawTransactionArgument<string>];
+}
+/** Creates a new `Subsidies` object and an `AdminCap`. */
+export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus_subsidies';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
@@ -68,23 +68,25 @@ export function _new(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Creates a new `Subsidies` object with initial rates and funds and an `AdminCap`. */
-export function new_with_initial_rates_and_funds(options: {
+export interface NewWithInitialRatesAndFundsArguments {
+	packageId: RawTransactionArgument<string>;
+	initialBuyerSubsidyRate: RawTransactionArgument<number>;
+	initialSystemSubsidyRate: RawTransactionArgument<number>;
+	initialFunds: RawTransactionArgument<string>;
+}
+export interface NewWithInitialRatesAndFundsOptions {
 	package?: string;
 	arguments:
+		| NewWithInitialRatesAndFundsArguments
 		| [
 				packageId: RawTransactionArgument<string>,
 				initialBuyerSubsidyRate: RawTransactionArgument<number>,
 				initialSystemSubsidyRate: RawTransactionArgument<number>,
 				initialFunds: RawTransactionArgument<string>,
-		  ]
-		| {
-				packageId: RawTransactionArgument<string>;
-				initialBuyerSubsidyRate: RawTransactionArgument<number>;
-				initialSystemSubsidyRate: RawTransactionArgument<number>;
-				initialFunds: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+/** Creates a new `Subsidies` object with initial rates and funds and an `AdminCap`. */
+export function newWithInitialRatesAndFunds(options: NewWithInitialRatesAndFundsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus_subsidies';
 	const argumentsTypes = [
 		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
@@ -106,21 +108,23 @@ export function new_with_initial_rates_and_funds(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface AddFundsArguments {
+	self: RawTransactionArgument<string>;
+	funds: RawTransactionArgument<string>;
+}
+export interface AddFundsOptions {
+	package?: string;
+	arguments:
+		| AddFundsArguments
+		| [self: RawTransactionArgument<string>, funds: RawTransactionArgument<string>];
+}
 /**
  * Add additional funds to the subsidy pool.
  *
  * These funds will be used to provide discounts for buyers and rewards to storage
  * nodes.
  */
-export function add_funds(options: {
-	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>, funds: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-				funds: RawTransactionArgument<string>;
-		  };
-}) {
+export function addFunds(options: AddFundsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus_subsidies';
 	const argumentsTypes = [
 		`${packageAddress}::subsidies::Subsidies`,
@@ -135,25 +139,27 @@ export function add_funds(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface SetBuyerSubsidyRateArguments {
+	self: RawTransactionArgument<string>;
+	cap: RawTransactionArgument<string>;
+	newRate: RawTransactionArgument<number>;
+}
+export interface SetBuyerSubsidyRateOptions {
+	package?: string;
+	arguments:
+		| SetBuyerSubsidyRateArguments
+		| [
+				self: RawTransactionArgument<string>,
+				cap: RawTransactionArgument<string>,
+				newRate: RawTransactionArgument<number>,
+		  ];
+}
 /**
  * Set the subsidy rate for buyers, in basis points.
  *
  * Aborts if new_rate is greater than the max value.
  */
-export function set_buyer_subsidy_rate(options: {
-	package?: string;
-	arguments:
-		| [
-				self: RawTransactionArgument<string>,
-				cap: RawTransactionArgument<string>,
-				newRate: RawTransactionArgument<number>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				cap: RawTransactionArgument<string>;
-				newRate: RawTransactionArgument<number>;
-		  };
-}) {
+export function setBuyerSubsidyRate(options: SetBuyerSubsidyRateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus_subsidies';
 	const argumentsTypes = [
 		`${packageAddress}::subsidies::Subsidies`,
@@ -169,25 +175,27 @@ export function set_buyer_subsidy_rate(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface SetSystemSubsidyRateArguments {
+	self: RawTransactionArgument<string>;
+	cap: RawTransactionArgument<string>;
+	newRate: RawTransactionArgument<number>;
+}
+export interface SetSystemSubsidyRateOptions {
+	package?: string;
+	arguments:
+		| SetSystemSubsidyRateArguments
+		| [
+				self: RawTransactionArgument<string>,
+				cap: RawTransactionArgument<string>,
+				newRate: RawTransactionArgument<number>,
+		  ];
+}
 /**
  * Set the subsidy rate for storage nodes, in basis points.
  *
  * Aborts if new_rate is greater than the max value.
  */
-export function set_system_subsidy_rate(options: {
-	package?: string;
-	arguments:
-		| [
-				self: RawTransactionArgument<string>,
-				cap: RawTransactionArgument<string>,
-				newRate: RawTransactionArgument<number>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				cap: RawTransactionArgument<string>;
-				newRate: RawTransactionArgument<number>;
-		  };
-}) {
+export function setSystemSubsidyRate(options: SetSystemSubsidyRateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus_subsidies';
 	const argumentsTypes = [
 		`${packageAddress}::subsidies::Subsidies`,
@@ -203,30 +211,32 @@ export function set_system_subsidy_rate(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/**
- * Extends a blob's lifetime and applies the buyer and storage node subsidies.
- *
- * It first extends the blob lifetime using system `extend_blob` method. Then it
- * applies the subsidies and deducts the funds from the subsidy pool.
- */
-export function extend_blob(options: {
+export interface ExtendBlobArguments {
+	self: RawTransactionArgument<string>;
+	system: RawTransactionArgument<string>;
+	blob: RawTransactionArgument<string>;
+	epochsAhead: RawTransactionArgument<number>;
+	payment: RawTransactionArgument<string>;
+}
+export interface ExtendBlobOptions {
 	package?: string;
 	arguments:
+		| ExtendBlobArguments
 		| [
 				self: RawTransactionArgument<string>,
 				system: RawTransactionArgument<string>,
 				blob: RawTransactionArgument<string>,
 				epochsAhead: RawTransactionArgument<number>,
 				payment: RawTransactionArgument<string>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				system: RawTransactionArgument<string>;
-				blob: RawTransactionArgument<string>;
-				epochsAhead: RawTransactionArgument<number>;
-				payment: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+/**
+ * Extends a blob's lifetime and applies the buyer and storage node subsidies.
+ *
+ * It first extends the blob lifetime using system `extend_blob` method. Then it
+ * applies the subsidies and deducts the funds from the subsidy pool.
+ */
+export function extendBlob(options: ExtendBlobOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus_subsidies';
 	const argumentsTypes = [
 		`${packageAddress}::subsidies::Subsidies`,
@@ -244,30 +254,32 @@ export function extend_blob(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/**
- * Reserves storage space and applies the buyer and storage node subsidies.
- *
- * It first reserves the space using system `reserve_space` method. Then it applies
- * the subsidies and deducts the funds from the subsidy pool.
- */
-export function reserve_space(options: {
+export interface ReserveSpaceArguments {
+	self: RawTransactionArgument<string>;
+	system: RawTransactionArgument<string>;
+	storageAmount: RawTransactionArgument<number | bigint>;
+	epochsAhead: RawTransactionArgument<number>;
+	payment: RawTransactionArgument<string>;
+}
+export interface ReserveSpaceOptions {
 	package?: string;
 	arguments:
+		| ReserveSpaceArguments
 		| [
 				self: RawTransactionArgument<string>,
 				system: RawTransactionArgument<string>,
 				storageAmount: RawTransactionArgument<number | bigint>,
 				epochsAhead: RawTransactionArgument<number>,
 				payment: RawTransactionArgument<string>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				system: RawTransactionArgument<string>;
-				storageAmount: RawTransactionArgument<number | bigint>;
-				epochsAhead: RawTransactionArgument<number>;
-				payment: RawTransactionArgument<string>;
-		  };
-}) {
+		  ];
+}
+/**
+ * Reserves storage space and applies the buyer and storage node subsidies.
+ *
+ * It first reserves the space using system `reserve_space` method. Then it applies
+ * the subsidies and deducts the funds from the subsidy pool.
+ */
+export function reserveSpace(options: ReserveSpaceOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus_subsidies';
 	const argumentsTypes = [
 		`${packageAddress}::subsidies::Subsidies`,
@@ -285,14 +297,14 @@ export function reserve_space(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export function admin_cap_subsidies_id(options: {
+export interface AdminCapSubsidiesIdArguments {
+	adminCap: RawTransactionArgument<string>;
+}
+export interface AdminCapSubsidiesIdOptions {
 	package?: string;
-	arguments:
-		| [adminCap: RawTransactionArgument<string>]
-		| {
-				adminCap: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: AdminCapSubsidiesIdArguments | [adminCap: RawTransactionArgument<string>];
+}
+export function adminCapSubsidiesId(options: AdminCapSubsidiesIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus_subsidies';
 	const argumentsTypes = [`${packageAddress}::subsidies::AdminCap`] satisfies string[];
 	const parameterNames = ['adminCap'];
@@ -304,15 +316,15 @@ export function admin_cap_subsidies_id(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Returns the current value of the subsidy pool. */
-export function subsidy_pool_value(options: {
+export interface SubsidyPoolValueArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface SubsidyPoolValueOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: SubsidyPoolValueArguments | [self: RawTransactionArgument<string>];
+}
+/** Returns the current value of the subsidy pool. */
+export function subsidyPoolValue(options: SubsidyPoolValueOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus_subsidies';
 	const argumentsTypes = [`${packageAddress}::subsidies::Subsidies`] satisfies string[];
 	const parameterNames = ['self'];
@@ -324,15 +336,15 @@ export function subsidy_pool_value(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Returns the current rate for buyer subsidies. */
-export function buyer_subsidy_rate(options: {
+export interface BuyerSubsidyRateArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface BuyerSubsidyRateOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: BuyerSubsidyRateArguments | [self: RawTransactionArgument<string>];
+}
+/** Returns the current rate for buyer subsidies. */
+export function buyerSubsidyRate(options: BuyerSubsidyRateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus_subsidies';
 	const argumentsTypes = [`${packageAddress}::subsidies::Subsidies`] satisfies string[];
 	const parameterNames = ['self'];
@@ -344,15 +356,15 @@ export function buyer_subsidy_rate(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Returns the current rate for storage node subsidies. */
-export function system_subsidy_rate(options: {
+export interface SystemSubsidyRateArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface SystemSubsidyRateOptions {
 	package?: string;
-	arguments:
-		| [self: RawTransactionArgument<string>]
-		| {
-				self: RawTransactionArgument<string>;
-		  };
-}) {
+	arguments: SystemSubsidyRateArguments | [self: RawTransactionArgument<string>];
+}
+/** Returns the current rate for storage node subsidies. */
+export function systemSubsidyRate(options: SystemSubsidyRateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus_subsidies';
 	const argumentsTypes = [`${packageAddress}::subsidies::Subsidies`] satisfies string[];
 	const parameterNames = ['self'];

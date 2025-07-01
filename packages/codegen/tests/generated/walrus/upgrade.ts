@@ -59,29 +59,31 @@ export function EmergencyUpgradeCap() {
 		upgrade_manager_id: bcs.Address,
 	});
 }
-/**
- * Vote for an upgrade given the digest of the package to upgrade to.
- *
- * This will create a new upgrade proposal if none exists for the given digest.
- */
-export function vote_for_upgrade(options: {
+export interface VoteForUpgradeArguments {
+	self: RawTransactionArgument<string>;
+	staking: RawTransactionArgument<string>;
+	auth: RawTransactionArgument<string>;
+	nodeId: RawTransactionArgument<string>;
+	digest: RawTransactionArgument<number[]>;
+}
+export interface VoteForUpgradeOptions {
 	package?: string;
 	arguments:
+		| VoteForUpgradeArguments
 		| [
 				self: RawTransactionArgument<string>,
 				staking: RawTransactionArgument<string>,
 				auth: RawTransactionArgument<string>,
 				nodeId: RawTransactionArgument<string>,
 				digest: RawTransactionArgument<number[]>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				staking: RawTransactionArgument<string>;
-				auth: RawTransactionArgument<string>;
-				nodeId: RawTransactionArgument<string>;
-				digest: RawTransactionArgument<number[]>;
-		  };
-}) {
+		  ];
+}
+/**
+ * Vote for an upgrade given the digest of the package to upgrade to.
+ *
+ * This will create a new upgrade proposal if none exists for the given digest.
+ */
+export function voteForUpgrade(options: VoteForUpgradeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::upgrade::UpgradeManager`,
@@ -99,21 +101,23 @@ export function vote_for_upgrade(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-/** Authorizes an upgrade that has reached quorum. */
-export function authorize_upgrade(options: {
+export interface AuthorizeUpgradeArguments {
+	self: RawTransactionArgument<string>;
+	staking: RawTransactionArgument<string>;
+	digest: RawTransactionArgument<number[]>;
+}
+export interface AuthorizeUpgradeOptions {
 	package?: string;
 	arguments:
+		| AuthorizeUpgradeArguments
 		| [
 				self: RawTransactionArgument<string>,
 				staking: RawTransactionArgument<string>,
 				digest: RawTransactionArgument<number[]>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				staking: RawTransactionArgument<string>;
-				digest: RawTransactionArgument<number[]>;
-		  };
-}) {
+		  ];
+}
+/** Authorizes an upgrade that has reached quorum. */
+export function authorizeUpgrade(options: AuthorizeUpgradeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::upgrade::UpgradeManager`,
@@ -129,26 +133,28 @@ export function authorize_upgrade(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface AuthorizeEmergencyUpgradeArguments {
+	upgradeManager: RawTransactionArgument<string>;
+	emergencyUpgradeCap: RawTransactionArgument<string>;
+	digest: RawTransactionArgument<number[]>;
+}
+export interface AuthorizeEmergencyUpgradeOptions {
+	package?: string;
+	arguments:
+		| AuthorizeEmergencyUpgradeArguments
+		| [
+				upgradeManager: RawTransactionArgument<string>,
+				emergencyUpgradeCap: RawTransactionArgument<string>,
+				digest: RawTransactionArgument<number[]>,
+		  ];
+}
 /**
  * Authorizes an upgrade using the emergency upgrade cap.
  *
  * This should be used sparingly and once walrus has a healthy community and
  * governance, the EmergencyUpgradeCap should be burned.
  */
-export function authorize_emergency_upgrade(options: {
-	package?: string;
-	arguments:
-		| [
-				upgradeManager: RawTransactionArgument<string>,
-				emergencyUpgradeCap: RawTransactionArgument<string>,
-				digest: RawTransactionArgument<number[]>,
-		  ]
-		| {
-				upgradeManager: RawTransactionArgument<string>;
-				emergencyUpgradeCap: RawTransactionArgument<string>;
-				digest: RawTransactionArgument<number[]>;
-		  };
-}) {
+export function authorizeEmergencyUpgrade(options: AuthorizeEmergencyUpgradeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::upgrade::UpgradeManager`,
@@ -164,6 +170,23 @@ export function authorize_emergency_upgrade(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface CommitUpgradeArguments {
+	upgradeManager: RawTransactionArgument<string>;
+	staking: RawTransactionArgument<string>;
+	system: RawTransactionArgument<string>;
+	receipt: RawTransactionArgument<string>;
+}
+export interface CommitUpgradeOptions {
+	package?: string;
+	arguments:
+		| CommitUpgradeArguments
+		| [
+				upgradeManager: RawTransactionArgument<string>,
+				staking: RawTransactionArgument<string>,
+				system: RawTransactionArgument<string>,
+				receipt: RawTransactionArgument<string>,
+		  ];
+}
 /**
  * Commits an upgrade and sets the new package id in the staking and system
  * objects.
@@ -172,22 +195,7 @@ export function authorize_emergency_upgrade(options: {
  * using the [`package::migrate`] function to emit an event that informs all
  * storage nodes and prevent previous package versions from being used.
  */
-export function commit_upgrade(options: {
-	package?: string;
-	arguments:
-		| [
-				upgradeManager: RawTransactionArgument<string>,
-				staking: RawTransactionArgument<string>,
-				system: RawTransactionArgument<string>,
-				receipt: RawTransactionArgument<string>,
-		  ]
-		| {
-				upgradeManager: RawTransactionArgument<string>;
-				staking: RawTransactionArgument<string>;
-				system: RawTransactionArgument<string>;
-				receipt: RawTransactionArgument<string>;
-		  };
-}) {
+export function commitUpgrade(options: CommitUpgradeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::upgrade::UpgradeManager`,
@@ -204,26 +212,28 @@ export function commit_upgrade(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface CleanupUpgradeProposalsArguments {
+	self: RawTransactionArgument<string>;
+	staking: RawTransactionArgument<string>;
+	proposals: RawTransactionArgument<number[][]>;
+}
+export interface CleanupUpgradeProposalsOptions {
+	package?: string;
+	arguments:
+		| CleanupUpgradeProposalsArguments
+		| [
+				self: RawTransactionArgument<string>,
+				staking: RawTransactionArgument<string>,
+				proposals: RawTransactionArgument<number[][]>,
+		  ];
+}
 /**
  * Cleans up the upgrade proposals table.
  *
  * Deletes all proposals from past epochs and versions that are lower than the
  * current version.
  */
-export function cleanup_upgrade_proposals(options: {
-	package?: string;
-	arguments:
-		| [
-				self: RawTransactionArgument<string>,
-				staking: RawTransactionArgument<string>,
-				proposals: RawTransactionArgument<number[][]>,
-		  ]
-		| {
-				self: RawTransactionArgument<string>;
-				staking: RawTransactionArgument<string>;
-				proposals: RawTransactionArgument<number[][]>;
-		  };
-}) {
+export function cleanupUpgradeProposals(options: CleanupUpgradeProposalsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::upgrade::UpgradeManager`,
@@ -239,20 +249,22 @@ export function cleanup_upgrade_proposals(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface BurnEmergencyUpgradeCapArguments {
+	emergencyUpgradeCap: RawTransactionArgument<string>;
+}
+export interface BurnEmergencyUpgradeCapOptions {
+	package?: string;
+	arguments:
+		| BurnEmergencyUpgradeCapArguments
+		| [emergencyUpgradeCap: RawTransactionArgument<string>];
+}
 /**
  * Burns the emergency upgrade cap.
  *
  * This will prevent any further upgrades using the `EmergencyUpgradeCap` and will
  * make upgrades fully reliant on quorum-based governance.
  */
-export function burn_emergency_upgrade_cap(options: {
-	package?: string;
-	arguments:
-		| [emergencyUpgradeCap: RawTransactionArgument<string>]
-		| {
-				emergencyUpgradeCap: RawTransactionArgument<string>;
-		  };
-}) {
+export function burnEmergencyUpgradeCap(options: BurnEmergencyUpgradeCapOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${packageAddress}::upgrade::EmergencyUpgradeCap`] satisfies string[];
 	const parameterNames = ['emergencyUpgradeCap'];

@@ -23,77 +23,117 @@ export function FutureAccountingRingBuffer() {
 		ring_buffer: bcs.vector(FutureAccounting()),
 	});
 }
-export function init(packageAddress: string) {
-	/** The maximum number of epochs for which we can use `self`. */
-	function max_epochs_ahead(options: { arguments: [self: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [
-			`${packageAddress}::storage_accounting::FutureAccountingRingBuffer`,
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'storage_accounting',
-				function: 'max_epochs_ahead',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Read-only lookup for an element in the `FutureAccountingRingBuffer` */
-	function ring_lookup(options: {
-		arguments: [
-			self: RawTransactionArgument<string>,
-			epochs_in_future: RawTransactionArgument<number>,
-		];
-	}) {
-		const argumentsTypes = [
-			`${packageAddress}::storage_accounting::FutureAccountingRingBuffer`,
-			'u32',
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'storage_accounting',
-				function: 'ring_lookup',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Accessor for epoch, read-only. */
-	function epoch(options: { arguments: [accounting: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [
-			`${packageAddress}::storage_accounting::FutureAccounting`,
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'storage_accounting',
-				function: 'epoch',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Accessor for used_capacity, read-only. */
-	function used_capacity(options: { arguments: [accounting: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [
-			`${packageAddress}::storage_accounting::FutureAccounting`,
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'storage_accounting',
-				function: 'used_capacity',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	/** Accessor for rewards, read-only. */
-	function rewards(options: { arguments: [accounting: RawTransactionArgument<string>] }) {
-		const argumentsTypes = [
-			`${packageAddress}::storage_accounting::FutureAccounting`,
-		] satisfies string[];
-		return (tx: Transaction) =>
-			tx.moveCall({
-				package: packageAddress,
-				module: 'storage_accounting',
-				function: 'rewards',
-				arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			});
-	}
-	return { max_epochs_ahead, ring_lookup, epoch, used_capacity, rewards };
+export interface MaxEpochsAheadArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface MaxEpochsAheadOptions {
+	package?: string;
+	arguments: MaxEpochsAheadArguments | [self: RawTransactionArgument<string>];
+}
+/** The maximum number of epochs for which we can use `self`. */
+export function maxEpochsAhead(options: MaxEpochsAheadOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [
+		`${packageAddress}::storage_accounting::FutureAccountingRingBuffer`,
+	] satisfies string[];
+	const parameterNames = ['self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'storage_accounting',
+			function: 'max_epochs_ahead',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface RingLookupArguments {
+	self: RawTransactionArgument<string>;
+	epochsInFuture: RawTransactionArgument<number>;
+}
+export interface RingLookupOptions {
+	package?: string;
+	arguments:
+		| RingLookupArguments
+		| [self: RawTransactionArgument<string>, epochsInFuture: RawTransactionArgument<number>];
+}
+/** Read-only lookup for an element in the `FutureAccountingRingBuffer` */
+export function ringLookup(options: RingLookupOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [
+		`${packageAddress}::storage_accounting::FutureAccountingRingBuffer`,
+		'u32',
+	] satisfies string[];
+	const parameterNames = ['self', 'epochsInFuture'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'storage_accounting',
+			function: 'ring_lookup',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface EpochArguments {
+	accounting: RawTransactionArgument<string>;
+}
+export interface EpochOptions {
+	package?: string;
+	arguments: EpochArguments | [accounting: RawTransactionArgument<string>];
+}
+/** Accessor for epoch, read-only. */
+export function epoch(options: EpochOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [
+		`${packageAddress}::storage_accounting::FutureAccounting`,
+	] satisfies string[];
+	const parameterNames = ['accounting'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'storage_accounting',
+			function: 'epoch',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface UsedCapacityArguments {
+	accounting: RawTransactionArgument<string>;
+}
+export interface UsedCapacityOptions {
+	package?: string;
+	arguments: UsedCapacityArguments | [accounting: RawTransactionArgument<string>];
+}
+/** Accessor for used_capacity, read-only. */
+export function usedCapacity(options: UsedCapacityOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [
+		`${packageAddress}::storage_accounting::FutureAccounting`,
+	] satisfies string[];
+	const parameterNames = ['accounting'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'storage_accounting',
+			function: 'used_capacity',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface RewardsArguments {
+	accounting: RawTransactionArgument<string>;
+}
+export interface RewardsOptions {
+	package?: string;
+	arguments: RewardsArguments | [accounting: RawTransactionArgument<string>];
+}
+/** Accessor for rewards, read-only. */
+export function rewards(options: RewardsOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [
+		`${packageAddress}::storage_accounting::FutureAccounting`,
+	] satisfies string[];
+	const parameterNames = ['accounting'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'storage_accounting',
+			function: 'rewards',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }

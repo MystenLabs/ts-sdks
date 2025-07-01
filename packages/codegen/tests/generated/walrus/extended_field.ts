@@ -16,16 +16,16 @@ export function ExtendedField() {
 export function Key() {
 	return bcs.tuple([bcs.bool()], { name: 'Key' });
 }
-/** Creates a new extended field with the given value. */
-export function _new<T extends BcsType<any>>(options: {
+export interface NewArguments<T extends BcsType<any>> {
+	value: RawTransactionArgument<T>;
+}
+export interface NewOptions<T extends BcsType<any>> {
 	package?: string;
-	arguments:
-		| [value: RawTransactionArgument<T>]
-		| {
-				value: RawTransactionArgument<T>;
-		  };
+	arguments: NewArguments<T> | [value: RawTransactionArgument<T>];
 	typeArguments: [string];
-}) {
+}
+/** Creates a new extended field with the given value. */
+export function _new<T extends BcsType<any>>(options: NewOptions<T>) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
 	const parameterNames = ['value'];
@@ -38,16 +38,16 @@ export function _new<T extends BcsType<any>>(options: {
 			typeArguments: options.typeArguments,
 		});
 }
-/** Borrows the value stored in the extended field. */
-export function borrow(options: {
+export interface BorrowArguments {
+	field: RawTransactionArgument<string>;
+}
+export interface BorrowOptions {
 	package?: string;
-	arguments:
-		| [field: RawTransactionArgument<string>]
-		| {
-				field: RawTransactionArgument<string>;
-		  };
+	arguments: BorrowArguments | [field: RawTransactionArgument<string>];
 	typeArguments: [string];
-}) {
+}
+/** Borrows the value stored in the extended field. */
+export function borrow(options: BorrowOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::extended_field::ExtendedField<${options.typeArguments[0]}>`,
@@ -62,16 +62,16 @@ export function borrow(options: {
 			typeArguments: options.typeArguments,
 		});
 }
-/** Borrows the value stored in the extended field mutably. */
-export function borrow_mut(options: {
+export interface BorrowMutArguments {
+	field: RawTransactionArgument<string>;
+}
+export interface BorrowMutOptions {
 	package?: string;
-	arguments:
-		| [field: RawTransactionArgument<string>]
-		| {
-				field: RawTransactionArgument<string>;
-		  };
+	arguments: BorrowMutArguments | [field: RawTransactionArgument<string>];
 	typeArguments: [string];
-}) {
+}
+/** Borrows the value stored in the extended field mutably. */
+export function borrowMut(options: BorrowMutOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::extended_field::ExtendedField<${options.typeArguments[0]}>`,
@@ -86,17 +86,19 @@ export function borrow_mut(options: {
 			typeArguments: options.typeArguments,
 		});
 }
-/** Swaps the value stored in the extended field with the given value. */
-export function swap<T extends BcsType<any>>(options: {
+export interface SwapArguments<T extends BcsType<any>> {
+	field: RawTransactionArgument<string>;
+	value: RawTransactionArgument<T>;
+}
+export interface SwapOptions<T extends BcsType<any>> {
 	package?: string;
 	arguments:
-		| [field: RawTransactionArgument<string>, value: RawTransactionArgument<T>]
-		| {
-				field: RawTransactionArgument<string>;
-				value: RawTransactionArgument<T>;
-		  };
+		| SwapArguments<T>
+		| [field: RawTransactionArgument<string>, value: RawTransactionArgument<T>];
 	typeArguments: [string];
-}) {
+}
+/** Swaps the value stored in the extended field with the given value. */
+export function swap<T extends BcsType<any>>(options: SwapOptions<T>) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::extended_field::ExtendedField<${options.typeArguments[0]}>`,
@@ -112,16 +114,16 @@ export function swap<T extends BcsType<any>>(options: {
 			typeArguments: options.typeArguments,
 		});
 }
-/** Destroys the extended field and returns the value stored in it. */
-export function destroy(options: {
+export interface DestroyArguments {
+	field: RawTransactionArgument<string>;
+}
+export interface DestroyOptions {
 	package?: string;
-	arguments:
-		| [field: RawTransactionArgument<string>]
-		| {
-				field: RawTransactionArgument<string>;
-		  };
+	arguments: DestroyArguments | [field: RawTransactionArgument<string>];
 	typeArguments: [string];
-}) {
+}
+/** Destroys the extended field and returns the value stored in it. */
+export function destroy(options: DestroyOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::extended_field::ExtendedField<${options.typeArguments[0]}>`,

@@ -17,14 +17,18 @@ export function InitCap() {
 		publisher: _package.Publisher(),
 	});
 }
-/**
- * Function to initialize walrus and share the system and staking objects. This can
- * only be called once, after which the `InitCap` is destroyed. TODO: decide what
- * to add as system parameters instead of constants.
- */
-export function initialize_walrus(options: {
+export interface InitializeWalrusArguments {
+	initCap: RawTransactionArgument<string>;
+	upgradeCap: RawTransactionArgument<string>;
+	epochZeroDuration: RawTransactionArgument<number | bigint>;
+	epochDuration: RawTransactionArgument<number | bigint>;
+	nShards: RawTransactionArgument<number>;
+	maxEpochsAhead: RawTransactionArgument<number>;
+}
+export interface InitializeWalrusOptions {
 	package?: string;
 	arguments:
+		| InitializeWalrusArguments
 		| [
 				initCap: RawTransactionArgument<string>,
 				upgradeCap: RawTransactionArgument<string>,
@@ -32,16 +36,14 @@ export function initialize_walrus(options: {
 				epochDuration: RawTransactionArgument<number | bigint>,
 				nShards: RawTransactionArgument<number>,
 				maxEpochsAhead: RawTransactionArgument<number>,
-		  ]
-		| {
-				initCap: RawTransactionArgument<string>;
-				upgradeCap: RawTransactionArgument<string>;
-				epochZeroDuration: RawTransactionArgument<number | bigint>;
-				epochDuration: RawTransactionArgument<number | bigint>;
-				nShards: RawTransactionArgument<number>;
-				maxEpochsAhead: RawTransactionArgument<number>;
-		  };
-}) {
+		  ];
+}
+/**
+ * Function to initialize walrus and share the system and staking objects. This can
+ * only be called once, after which the `InitCap` is destroyed. TODO: decide what
+ * to add as system parameters instead of constants.
+ */
+export function initializeWalrus(options: InitializeWalrusOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::init::InitCap`,
@@ -69,6 +71,16 @@ export function initialize_walrus(options: {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface MigrateArguments {
+	staking: RawTransactionArgument<string>;
+	system: RawTransactionArgument<string>;
+}
+export interface MigrateOptions {
+	package?: string;
+	arguments:
+		| MigrateArguments
+		| [staking: RawTransactionArgument<string>, system: RawTransactionArgument<string>];
+}
 /**
  * Migrate the staking and system objects to the new package id.
  *
@@ -76,15 +88,7 @@ export function initialize_walrus(options: {
  * event that informs all storage nodes and prevent previous package versions from
  * being used.
  */
-export function migrate(options: {
-	package?: string;
-	arguments:
-		| [staking: RawTransactionArgument<string>, system: RawTransactionArgument<string>]
-		| {
-				staking: RawTransactionArgument<string>;
-				system: RawTransactionArgument<string>;
-		  };
-}) {
+export function migrate(options: MigrateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
 		`${packageAddress}::staking::Staking`,
