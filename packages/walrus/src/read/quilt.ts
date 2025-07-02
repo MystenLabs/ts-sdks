@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '@mysten/bcs';
-import { QuiltPatchBlobHeader, QuiltPatchTags } from '../utils/bcs.js';
+import { QuiltIndexV1, QuiltPatchBlobHeader, QuiltPatchTags } from '../utils/bcs.js';
 import { parseQuiltPatchId, QUILT_PATCH_BLOB_HEADER_SIZE } from '../utils/quilts.js';
 import type { WalrusClient } from '../client.js';
 
@@ -65,6 +65,37 @@ export class QuiltReader {
 		}
 	}
 
+	async #readBytes(sliver: number, length: number, offset = 0, columnSize?: number) {
+		if (!length) {
+			return new Uint8Array(0);
+		}
+
+		columnSize = columnSize ?? (await this.#getSecondarySliver({ sliverIndex: sliver })).length;
+		const columnOffset = Math.floor(offset / columnSize);
+		let remainingOffset = offset % columnSize;
+		const slivers = this.#sliverator(sliver + columnOffset);
+		const bytes = new Uint8Array(length);
+
+		let bytesRead = 0;
+
+		for await (const sliver of slivers) {
+			let chunk = remainingOffset > 0 ? sliver.subarray(remainingOffset) : sliver;
+			remainingOffset -= chunk.length;
+			if (chunk.length > length - bytesRead) {
+				chunk = chunk.subarray(0, length - bytesRead);
+			}
+
+			bytes.set(chunk, bytesRead);
+			bytesRead += chunk.length;
+
+			if (bytesRead === length) {
+				break;
+			}
+		}
+
+		return bytes;
+	}
+
 	async getFullBlob() {
 		if (!this.#blobBytes) {
 			this.#blobBytes = this.#client.readBlob({ blobId: this.blobId });
@@ -109,22 +140,12 @@ export class QuiltReader {
 			offset += tagsSize;
 		}
 
-		const remainingSlivers = [new Uint8Array(firstSliver.buffer, offset), ...slivers.slice(1)];
-		const blobContents = new Uint8Array(blobSize);
-
-		let sliverOffset = 0;
-
-		for (let i = 0; i < remainingSlivers.length; i++) {
-			const sliver = remainingSlivers[i];
-
-			if (sliverOffset + sliver.length > blobContents.length) {
-				blobContents.set(sliver.slice(0, blobContents.length - sliverOffset), sliverOffset);
-				break;
-			} else {
-				blobContents.set(sliver, sliverOffset);
-				sliverOffset += sliver.length;
-			}
-		}
+		const blobContents = await this.#readBytes(
+			sliverIndexes[0],
+			blobSize,
+			offset,
+			firstSliver.length,
+		);
 
 		return {
 			identifier,
@@ -146,8 +167,6 @@ export class QuiltReader {
 			sliverIndexes.push(i);
 		}
 
-		console.log(patchId);
-
 		if (sliverIndexes.length === 0) {
 			throw new Error(`The requested patch ${patchId} is invalid`);
 		}
@@ -155,7 +174,7 @@ export class QuiltReader {
 		return this.#readBlobFromSlivers(sliverIndexes);
 	}
 
-	async readQuiltMetadata() {
+	async readQuiltIndex() {
 		const firstSliver = await this.#getSecondarySliver({
 			sliverIndex: 0,
 		});
@@ -166,9 +185,14 @@ export class QuiltReader {
 			throw new Error(`Unsupported quilt version ${version}`);
 		}
 
-		const columnSize = firstSliver.length;
 		const indexSize = new DataView(firstSliver.buffer, 1, 4).getUint32(0, true);
+		const indexBytes = await this.#readBytes(0, indexSize, 5, firstSliver.length);
+		const indexSlivers = Math.ceil(indexSize / firstSliver.length);
+		const index = QuiltIndexV1.parse(indexBytes);
 
-		// const metadata = QuiltPatchMetadata.parse(firstSliver);
+		return index.patches.map((patch, i) => ({
+			startIndex: i === 0 ? indexSlivers : index.patches[i - 1].endIndex,
+			...patch,
+		}));
 	}
 }

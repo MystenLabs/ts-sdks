@@ -17,11 +17,10 @@ const client = new SuiClient({
 		blobId: 'NqQqVflKKk2ekbO9WsCsMYeOTWUMvOV4cvpvoD7mUKg',
 		numShards: 1000,
 	});
-	// const data = await reader.readByPatchId('NqQqVflKKk2ekbO9WsCsMYeOTWUMvOV4cvpvoD7mUKgBAQAOAA');
-
-	// console.log(data.identifier);
-	// console.log(data.tags);
-	// console.log(new TextDecoder().decode(data.blobContents));
-	const metadata = await reader.readQuiltMetadata();
+	const data = await reader.readByPatchId('NqQqVflKKk2ekbO9WsCsMYeOTWUMvOV4cvpvoD7mUKgBAQAOAA');
+	console.log(data.identifier);
+	console.log(data.tags);
+	console.log(new TextDecoder().decode(data.blobContents));
+	const metadata = await reader.readQuiltIndex();
 	console.log(metadata);
 })();

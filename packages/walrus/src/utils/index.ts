@@ -31,8 +31,6 @@ export function encodedBlobLength(
 	return nShards * metadata + sliversSize;
 }
 
-console.log(encodedBlobLength(400_000_000, 1000));
-
 export function getSourceSymbols(nShards: number, encodingType: EncodingType = 'RS2') {
 	const safetyLimit = decodingSafetyLimit(nShards, encodingType);
 	const maxFaulty = getMaxFaultyNodes(nShards);

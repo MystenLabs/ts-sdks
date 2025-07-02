@@ -181,10 +181,6 @@ export const QuiltIndexV1 = bcs.struct('QuiltIndexV1', {
 	patches: bcs.vector(QuiltPatchV1),
 });
 
-export const QuiltIndex = bcs.enum('QuiltIndex', {
-	V1: QuiltIndexV1,
-});
-
 export const QuiltPatchId = bcs.struct('QuiltPatchId', {
 	quiltId: BlobId,
 	patchId: bcs.struct('InternalQuiltPatchId', {
