@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.35.0
+
+### Minor Changes
+
+- 888afe6: Run mvr plugin during serialization instead of build
+
 ## 1.34.0
 
 ### Minor Changes

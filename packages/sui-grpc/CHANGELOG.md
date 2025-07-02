@@ -1,5 +1,12 @@
 # @mysten/sui-grpc
 
+## 0.0.7
+
+### Patch Changes
+
+- Updated dependencies [888afe6]
+  - @mysten/sui@1.35.0
+
 ## 0.0.6
 
 ### Patch Changes

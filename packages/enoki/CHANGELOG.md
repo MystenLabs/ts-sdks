@@ -1,5 +1,18 @@
 # @mysten/enoki
 
+## 0.9.0
+
+### Minor Changes
+
+- eba589c: AuthProviderOptions extraParams can also be a function
+
+### Patch Changes
+
+- Updated dependencies [888afe6]
+  - @mysten/sui@1.35.0
+  - @mysten/signers@0.2.19
+  - @mysten/wallet-standard@0.16.4
+
 ## 0.8.0
 
 ### Minor Changes

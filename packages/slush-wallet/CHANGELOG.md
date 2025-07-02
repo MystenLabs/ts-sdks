@@ -1,5 +1,13 @@
 # @mysten/slush-wallet
 
+## 0.1.14
+
+### Patch Changes
+
+- Updated dependencies [888afe6]
+  - @mysten/sui@1.35.0
+  - @mysten/wallet-standard@0.16.4
+
 ## 0.1.13
 
 ### Patch Changes

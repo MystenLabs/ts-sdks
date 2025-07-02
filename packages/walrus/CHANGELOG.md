@@ -1,5 +1,14 @@
 # @mysten/walrus
 
+## 0.2.1
+
+### Patch Changes
+
+- 888afe6: update codegen
+- 4ee5185: Update codegen
+- Updated dependencies [888afe6]
+  - @mysten/sui@1.35.0
+
 ## 0.2.0
 
 ### Minor Changes
