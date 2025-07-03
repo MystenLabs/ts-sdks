@@ -91,6 +91,10 @@ export abstract class Experimental_CoreClient
 
 	abstract resolveTransactionPlugin(): TransactionPlugin;
 
+	abstract verifyZkLoginSignature(
+		options: Experimental_SuiClientTypes.VerifyZkLoginSignatureOptions,
+	): Promise<Experimental_SuiClientTypes.ZkLoginVerifyResponse>;
+
 	async getDynamicField(
 		options: Experimental_SuiClientTypes.GetDynamicFieldOptions,
 	): Promise<Experimental_SuiClientTypes.GetDynamicFieldResponse> {
