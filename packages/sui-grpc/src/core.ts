@@ -248,12 +248,30 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		};
 	}
 
-	// TODO: GRPC doesn't expose zklogin signature verification yet
-	// async verifyZkLoginSignature(
-	// 	options: Experimental_SuiClientTypes.VerifyZkLoginSignatureOptions,
-	// ): Promise<Experimental_SuiClientTypes.ZkLoginVerifyResponse> {
-	// 	throw new Error('Not implemented');
-	// }
+	async verifyZkLoginSignature(
+		options: Experimental_SuiClientTypes.VerifyZkLoginSignatureOptions,
+	): Promise<Experimental_SuiClientTypes.ZkLoginVerifyResponse> {
+		const { response } = await this.#client.signatureVerificationService.verifySignature({
+			message: {
+				name: options.intentScope,
+				value: fromBase64(options.bytes),
+			},
+			signature: {
+				bcs: {
+					value: fromBase64(options.signature),
+				},
+				signature: {
+					oneofKind: undefined,
+				},
+			},
+			jwks: [],
+		});
+
+		return {
+			success: response.isValid ?? false,
+			errors: response.reason ? [response.reason] : [],
+		};
+	}
 
 	resolveTransactionPlugin(): never {
 		throw new Error('GRPC client does not support transaction resolution yet');
