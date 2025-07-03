@@ -7,17 +7,17 @@ import type {
 } from '@mysten/sui/experimental';
 import { Experimental_CoreClient } from '@mysten/sui/experimental';
 import type { SuiGrpcClient } from './client.js';
-import type { Owner } from './proto/sui/rpc/v2beta/owner.js';
-import { Owner_OwnerKind } from './proto/sui/rpc/v2beta/owner.js';
+import type { Owner } from './proto/sui/rpc/v2beta2/owner.js';
+import { Owner_OwnerKind } from './proto/sui/rpc/v2beta2/owner.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
-import type { ExecutedTransaction } from './proto/sui/rpc/v2beta/executed_transaction.js';
-import type { TransactionEffects } from './proto/sui/rpc/v2beta/effects.js';
+import type { ExecutedTransaction } from './proto/sui/rpc/v2beta2/executed_transaction.js';
+import type { TransactionEffects } from './proto/sui/rpc/v2beta2/effects.js';
 import {
 	ChangedObject_IdOperation,
 	ChangedObject_InputObjectState,
 	ChangedObject_OutputObjectState,
 	UnchangedSharedObject_UnchangedSharedObjectKind,
-} from './proto/sui/rpc/v2beta/effects.js';
+} from './proto/sui/rpc/v2beta2/effects.js';
 import { TransactionDataBuilder } from '@mysten/sui/transactions';
 import { bcs } from '@mysten/sui/bcs';
 export interface GrpcCoreClientOptions extends Experimental_CoreClientOptions {
@@ -46,15 +46,24 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 
 			results.push(
 				...response.response.objects.map(
-					// TODO: GRPC currently errors on missing objects
 					(object): Experimental_SuiClientTypes.ObjectResponse | Error => {
+						if (object.result.oneofKind === 'error') {
+							// TODO: improve error handling
+							return new Error(object.result.error.message);
+						}
+
+						if (object.result.oneofKind !== 'object') {
+							return new Error('Unexpected result type');
+						}
+
 						return {
-							id: object.objectId!,
-							version: object.version?.toString()!,
-							digest: object.digest!,
-							content: Promise.resolve(object.bcs?.value!),
-							owner: mapOwner(object.owner)!,
-							type: object.objectType!,
+							id: object.result.object.objectId!,
+							version: object.result.object.version?.toString()!,
+							digest: object.result.object.digest!,
+							// TODO: bcs content is not returned in all cases
+							content: Promise.resolve(object.result.object.bcs?.value!),
+							owner: mapOwner(object.result.object.owner)!,
+							type: object.result.object.objectType!,
 						};
 					},
 				),
@@ -151,7 +160,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		});
 
 		return {
-			transaction: parseTransaction(response),
+			transaction: parseTransaction(response.transaction!),
 		};
 	}
 	async executeTransaction(
@@ -166,6 +175,9 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 			signatures: options.signatures.map((signature) => ({
 				bcs: {
 					value: fromBase64(signature),
+				},
+				signature: {
+					oneofKind: undefined,
 				},
 			})),
 			readMask: {
@@ -208,7 +220,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		const response = await this.#client.ledgerService.getEpoch({});
 
 		return {
-			referenceGasPrice: response.response.referenceGasPrice?.toString()!,
+			referenceGasPrice: response.response.epoch?.referenceGasPrice?.toString()!,
 		};
 	}
 
@@ -274,12 +286,9 @@ function mapOwner(owner: Owner | null | undefined): Experimental_SuiClientTypes.
 	if (owner.kind === Owner_OwnerKind.SHARED) {
 		if (owner.address) {
 			return {
-				$kind: 'ConsensusV2',
-				ConsensusV2: {
-					authenticator: {
-						$kind: 'SingleOwner',
-						SingleOwner: owner.address,
-					},
+				$kind: 'ConsensusAddressOwner',
+				ConsensusAddressOwner: {
+					owner: owner.address,
 					startVersion: owner.version?.toString()!,
 				},
 			};

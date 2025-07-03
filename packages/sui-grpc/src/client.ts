@@ -3,11 +3,11 @@
 
 import type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
 import { GrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
-import { TransactionExecutionServiceClient } from './proto/sui/rpc/v2beta/transaction_execution_service.client.js';
-import { LedgerServiceClient } from './proto/sui/rpc/v2beta/ledger_service.client.js';
+import { TransactionExecutionServiceClient } from './proto/sui/rpc/v2beta2/transaction_execution_service.client.js';
+import { LedgerServiceClient } from './proto/sui/rpc/v2beta2/ledger_service.client.js';
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
-import { LiveDataServiceClient } from './proto/sui/rpc/v2alpha/live_data_service.client.js';
-import { SubscriptionServiceClient } from './proto/sui/rpc/v2alpha/subscription_service.client.js';
+import { LiveDataServiceClient } from './proto/sui/rpc/v2beta2/live_data_service.client.js';
+import { SubscriptionServiceClient } from './proto/sui/rpc/v2beta2/subscription_service.client.js';
 import { GrpcCoreClient } from './core.js';
 import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 import { Experimental_BaseClient } from '@mysten/sui/experimental';

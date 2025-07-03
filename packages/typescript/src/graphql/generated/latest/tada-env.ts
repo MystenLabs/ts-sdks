@@ -662,16 +662,6 @@ const introspection = {
         ]
       },
       {
-        "kind": "UNION",
-        "name": "Authenticator",
-        "possibleTypes": [
-          {
-            "kind": "OBJECT",
-            "name": "Address"
-          }
-        ]
-      },
-      {
         "kind": "OBJECT",
         "name": "AuthenticatorStateCreateTransaction",
         "fields": [
@@ -2724,6 +2714,34 @@ const introspection = {
       },
       {
         "kind": "OBJECT",
+        "name": "ConsensusAddressOwner",
+        "fields": [
+          {
+            "name": "owner",
+            "type": {
+              "kind": "OBJECT",
+              "name": "Owner"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "startVersion",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "UInt53"
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
         "name": "ConsensusCommitPrologueTransaction",
         "fields": [
           {
@@ -2758,34 +2776,6 @@ const introspection = {
           },
           {
             "name": "round",
-            "type": {
-              "kind": "NON_NULL",
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "UInt53"
-              }
-            },
-            "args": [],
-            "isDeprecated": false
-          }
-        ],
-        "interfaces": []
-      },
-      {
-        "kind": "OBJECT",
-        "name": "ConsensusV2",
-        "fields": [
-          {
-            "name": "authenticator",
-            "type": {
-              "kind": "UNION",
-              "name": "Authenticator"
-            },
-            "args": [],
-            "isDeprecated": false
-          },
-          {
-            "name": "startVersion",
             "type": {
               "kind": "NON_NULL",
               "ofType": {
@@ -8847,7 +8837,7 @@ const introspection = {
           },
           {
             "kind": "OBJECT",
-            "name": "ConsensusV2"
+            "name": "ConsensusAddressOwner"
           },
           {
             "kind": "OBJECT",
@@ -13040,6 +13030,15 @@ const introspection = {
         "kind": "OBJECT",
         "name": "TransactionBlockEffects",
         "fields": [
+          {
+            "name": "abortCode",
+            "type": {
+              "kind": "SCALAR",
+              "name": "BigInt"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
           {
             "name": "balanceChanges",
             "type": {

@@ -361,22 +361,20 @@ export namespace Experimental_SuiClientTypes {
 		Immutable: true;
 	}
 
-	export interface ConsensusV2 {
-		$kind: 'ConsensusV2';
-		ConsensusV2: {
-			authenticator: ConsensusV2Authenticator;
+	export interface ConsensusAddressOwner {
+		$kind: 'ConsensusAddressOwner';
+		ConsensusAddressOwner: {
+			owner: string;
 			startVersion: string;
 		};
 	}
 
-	export interface SingleOwnerAuthenticator {
-		$kind: 'SingleOwner';
-		SingleOwner: string;
-	}
-
-	export type ConsensusV2Authenticator = SingleOwnerAuthenticator;
-
-	export type ObjectOwner = AddressOwner | ParentOwner | SharedOwner | ImmutableOwner | ConsensusV2;
+	export type ObjectOwner =
+		| AddressOwner
+		| ParentOwner
+		| SharedOwner
+		| ImmutableOwner
+		| ConsensusAddressOwner;
 
 	/** Effects */
 

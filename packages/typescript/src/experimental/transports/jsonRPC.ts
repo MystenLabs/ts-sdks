@@ -291,15 +291,12 @@ function parseOwner(owner: ObjectOwner): Experimental_SuiClientTypes.ObjectOwner
 		};
 	}
 
-	if ('ConsensusV2' in owner) {
+	if ('ConsensusAddressOwner' in owner) {
 		return {
-			$kind: 'ConsensusV2',
-			ConsensusV2: {
-				authenticator: {
-					$kind: 'SingleOwner',
-					SingleOwner: owner.ConsensusV2.authenticator.SingleOwner,
-				},
-				startVersion: owner.ConsensusV2.start_version,
+			$kind: 'ConsensusAddressOwner',
+			ConsensusAddressOwner: {
+				owner: owner.ConsensusAddressOwner.owner,
+				startVersion: owner.ConsensusAddressOwner.start_version,
 			},
 		};
 	}

@@ -413,8 +413,14 @@ function mapOwner(owner: Object_Owner_FieldsFragment): Experimental_SuiClientTyp
 	switch (owner.__typename) {
 		case 'AddressOwner':
 			return { $kind: 'AddressOwner', AddressOwner: owner.owner?.asAddress?.address };
-		case 'ConsensusV2':
-			return { $kind: 'ConsensusV2', ConsensusV2: owner.authenticator!.address };
+		case 'ConsensusAddressOwner':
+			return {
+				$kind: 'ConsensusAddressOwner',
+				ConsensusAddressOwner: {
+					owner: owner.owner?.address,
+					startVersion: owner.startVersion,
+				},
+			};
 		case 'Immutable':
 			return { $kind: 'Immutable', Immutable: true };
 		case 'Parent':

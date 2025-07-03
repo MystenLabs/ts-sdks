@@ -71,11 +71,11 @@ export const SuiMoveObject = bcs.struct('SuiMoveObject', {
 				return { Immutable: null };
 			} else if ('Shared' in objectOwner) {
 				return { Shared: { initialSharedVersion: objectOwner.Shared.initial_shared_version } };
-			} else if ('ConsensusV2' in objectOwner) {
+			} else if ('ConsensusAddressOwner' in objectOwner) {
 				return {
-					ConsensusV2: {
-						authenticator: objectOwner.ConsensusV2.authenticator,
-						startVersion: objectOwner.ConsensusV2.start_version,
+					ConsensusAddressOwner: {
+						owner: objectOwner.ConsensusAddressOwner.owner,
+						startVersion: objectOwner.ConsensusAddressOwner.start_version,
 					},
 				};
 			}

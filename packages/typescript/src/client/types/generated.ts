@@ -10,11 +10,6 @@
  * /crates/sui-open-rpc/spec/openrpc.json
  */
 
-export type Authenticator =
-	/** The contained SuiAddress exclusively has all permissions: read, write, delete, transfer */
-	{
-		SingleOwner: string;
-	};
 export interface Balance {
 	coinObjectCount: number;
 	coinType: string;
@@ -680,15 +675,10 @@ export type ObjectOwner =
 				initial_shared_version: string;
 			};
 	  }
-	| 'Immutable' /**
-	 * Object is sequenced via consensus. Ownership is managed by the configured authenticator.
-	 *
-	 * Note: wondering what happened to `V1`? `Shared` above was the V1 of consensus objects.
-	 */
+	| 'Immutable' /** Object is exclusively owned by a single address and sequenced via consensus. */
 	| {
-			ConsensusV2: {
-				/** The authentication mode of the object */
-				authenticator: Authenticator;
+			ConsensusAddressOwner: {
+				owner: string;
 				/**
 				 * The version at which the object most recently became a consensus object. This serves the same
 				 * function as `initial_shared_version`, except it may change if the object's Owner type changes.
@@ -966,6 +956,7 @@ export type SuiEndOfEpochTransactionKind =
 	| 'RandomnessStateCreate'
 	| 'CoinDenyListStateCreate'
 	| 'StoreExecutionTimeObservations'
+	| 'AccumulatorRootCreate'
 	| {
 			ChangeEpoch: SuiChangeEpoch;
 	  }
@@ -998,6 +989,12 @@ export type SuiMoveAbility = 'Copy' | 'Drop' | 'Store' | 'Key';
 export interface SuiMoveAbilitySet {
 	abilities: SuiMoveAbility[];
 }
+export interface SuiMoveAbort {
+	error_code?: string | null;
+	function?: string | null;
+	line?: number | null;
+	module_id?: string | null;
+}
 export interface SuiMoveModuleId {
 	address: string;
 	name: string;
@@ -1005,6 +1002,7 @@ export interface SuiMoveModuleId {
 export interface SuiMoveNormalizedEnum {
 	abilities: SuiMoveAbilitySet;
 	typeParameters: SuiMoveStructTypeParameter[];
+	variantDeclarationOrder?: string[] | null;
 	variants: {
 		[key: string]: SuiMoveNormalizedField[];
 	};
@@ -1365,6 +1363,8 @@ export type TransactionBlockData = {
 export type TransactionEffects =
 	/** The response from processing a transaction or a certified transaction */
 	{
+		/** The abort error populated if the transaction failed with an abort code. */
+		abortError?: SuiMoveAbort | null;
 		/** ObjectRef and owner of new objects created. */
 		created?: OwnedObjectRef[];
 		/** Object Refs of objects now deleted (the old refs). */
@@ -1486,6 +1486,16 @@ export type SuiTransactionBlockKind =
 			kind: 'ConsensusCommitPrologueV4';
 			round: string;
 			sub_dag_index?: string | null;
+	  } /** A series of commands where the results of one command can be used in future commands */
+	| {
+			/** Input objects or primitive values */
+			inputs: SuiCallArg[];
+			kind: 'ProgrammableSystemTransaction';
+			/**
+			 * The transactions to be executed sequentially. A failure in any transaction will result in the
+			 * failure of the entire programmable transaction block.
+			 */
+			transactions: SuiTransaction[];
 	  };
 export interface SuiTransactionBlockResponse {
 	balanceChanges?: BalanceChange[] | null;

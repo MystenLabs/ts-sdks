@@ -79,11 +79,10 @@ fragment OBJECT_OWNER_FIELDS on ObjectOwner {
 	... on Shared {
 		initialSharedVersion
 	}
-	... on ConsensusV2 {
-		authenticator {
-			... on Address {
-				address
-			}
+	... on ConsensusAddressOwner {
+		startVersion
+		owner {
+			address
 		}
 	}
 }
