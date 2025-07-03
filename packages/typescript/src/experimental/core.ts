@@ -19,6 +19,11 @@ export interface Experimental_CoreClientOptions
 	mvr?: Experimental_SuiClientTypes.MvrOptions;
 }
 
+const DEFAULT_MVR_URLS: Record<string, string> = {
+	mainnet: 'https://mainnet.mvr.mystenlabs.com',
+	testnet: 'https://testnet.mvr.mystenlabs.com',
+};
+
 export abstract class Experimental_CoreClient
 	extends Experimental_BaseClient
 	implements Experimental_SuiClientTypes.TransportMethods
@@ -28,9 +33,10 @@ export abstract class Experimental_CoreClient
 
 	constructor(options: Experimental_CoreClientOptions) {
 		super(options);
+
 		this.mvr = new MvrClient({
-			cache: this.base.cache.scope('core'),
-			url: options.mvr?.url,
+			cache: this.base.cache.scope('core.mvr'),
+			url: options.mvr?.url ?? DEFAULT_MVR_URLS[this.base.network],
 			pageSize: options.mvr?.pageSize,
 			overrides: options.mvr?.overrides,
 		});
