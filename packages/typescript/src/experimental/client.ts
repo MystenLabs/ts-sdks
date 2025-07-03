@@ -13,12 +13,17 @@ import type {
 
 export abstract class Experimental_BaseClient {
 	network: Experimental_SuiClientTypes.Network;
-	cache = new ClientCache();
+	cache: ClientCache;
 	base: Experimental_BaseClient;
 
-	constructor({ network, base }: Experimental_SuiClientTypes.SuiClientOptions) {
+	constructor({
+		network,
+		base,
+		cache = base?.cache ?? new ClientCache(),
+	}: Experimental_SuiClientTypes.SuiClientOptions) {
 		this.network = network;
 		this.base = base ?? this;
+		this.cache = cache;
 	}
 
 	abstract core: Experimental_CoreClient;
