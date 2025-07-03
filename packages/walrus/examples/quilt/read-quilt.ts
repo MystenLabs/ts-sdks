@@ -21,6 +21,15 @@ const client = new SuiClient({
 	console.log(data.identifier);
 	console.log(data.tags);
 	console.log(new TextDecoder().decode(data.blobContents));
-	const metadata = await reader.readQuiltIndex();
+	const metadata = await reader.readIndex();
 	console.log(metadata);
+
+	await reader.getFullBlob();
+
+	const index = await reader.readIndex();
+	console.log(index);
+	const data2 = await reader.readByPatchId('NqQqVflKKk2ekbO9WsCsMYeOTWUMvOV4cvpvoD7mUKgBAQAOAA');
+	console.log(data2.identifier);
+	console.log(data2.tags);
+	console.log(new TextDecoder().decode(data2.blobContents));
 })();

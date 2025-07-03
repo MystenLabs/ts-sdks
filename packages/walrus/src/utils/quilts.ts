@@ -94,30 +94,6 @@ function canBlobsFitIntoMatrix(
 	return blobsSizes.reduce((acc, size) => acc + Math.ceil(size / columnSize), 0) <= nColumns;
 }
 
-export function peakQuiltIndex(data: Uint8Array, columnSize: number) {
-	if (data.length < 5) {
-		throw new Error('Quilt index is too small to contain a valid version');
-	}
-
-	const view = new DataView(data.buffer, data.byteOffset);
-	const version = view.getUint8(0);
-	const indexSize = view.getUint32(1, true);
-
-	if (version !== 1) {
-		throw new Error(`Unsupported quilt index version: ${version}`);
-	}
-
-	const totalSize = 5 + indexSize;
-
-	return {
-		version,
-		startOffset: 5,
-		indexSize,
-		totalSize,
-		columnsNeeded: Math.ceil(totalSize / columnSize),
-	};
-}
-
 export function parseQuiltPatchId(id: string) {
 	return QuiltPatchId.parse(fromUrlSafeBase64(id));
 }
