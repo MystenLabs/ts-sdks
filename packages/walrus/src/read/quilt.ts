@@ -65,7 +65,7 @@ export class QuiltReader {
 		}
 	}
 
-	async #readBytes(sliver: number, length: number, offset = 0, columnSize?: number) {
+	async #readBytesFromSlivers(sliver: number, length: number, offset = 0, columnSize?: number) {
 		if (!length) {
 			return new Uint8Array(0);
 		}
@@ -140,7 +140,7 @@ export class QuiltReader {
 			offset += tagsSize;
 		}
 
-		const blobContents = await this.#readBytes(
+		const blobContents = await this.#readBytesFromSlivers(
 			sliverIndexes[0],
 			blobSize,
 			offset,
@@ -174,7 +174,7 @@ export class QuiltReader {
 		return this.#readBlobFromSlivers(sliverIndexes);
 	}
 
-	async readQuiltIndex() {
+	async #readQuiltIndexFromSlivers() {
 		const firstSliver = await this.#getSecondarySliver({
 			sliverIndex: 0,
 		});
@@ -186,7 +186,7 @@ export class QuiltReader {
 		}
 
 		const indexSize = new DataView(firstSliver.buffer, 1, 4).getUint32(0, true);
-		const indexBytes = await this.#readBytes(0, indexSize, 5, firstSliver.length);
+		const indexBytes = await this.#readBytesFromSlivers(0, indexSize, 5, firstSliver.length);
 		const indexSlivers = Math.ceil(indexSize / firstSliver.length);
 		const index = QuiltIndexV1.parse(indexBytes);
 
@@ -194,5 +194,11 @@ export class QuiltReader {
 			startIndex: i === 0 ? indexSlivers : index.patches[i - 1].endIndex,
 			...patch,
 		}));
+	}
+
+	async readQuiltIndex() {
+		const index = await this.#readQuiltIndexFromSlivers();
+
+		return index;
 	}
 }
