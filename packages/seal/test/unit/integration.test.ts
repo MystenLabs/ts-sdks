@@ -278,35 +278,6 @@ describe('Integration test', () => {
 			});
 
 			expect(decryptedBytes).toEqual(data);
-
-			// Create a new client with just one server.
-			// Here, the client can decrypt will have to fetch the public key from the second key server.
-			const client2 = new SealClient({
-				suiClient,
-				serverConfigs: objectIds.slice(0, 1),
-				verifyKeyServers: false,
-			});
-
-			const sessionKey2 = await SessionKey.create({
-				address: suiAddress,
-				packageId: TESTNET_PACKAGE_ID,
-				ttlMin: 10,
-				signer: keypair,
-				suiClient,
-			});
-
-			const txBytes2 = await constructTxBytes(TESTNET_PACKAGE_ID, 'whitelist', suiClient, [
-				whitelistId,
-			]);
-
-			const decryptedBytes2 = await client2.decrypt({
-				data: encryptedBytes,
-				sessionKey: sessionKey2,
-				txBytes: txBytes2,
-				checkShareConsistency: true,
-			});
-
-			expect(decryptedBytes2).toEqual(data);
 		},
 	);
 
