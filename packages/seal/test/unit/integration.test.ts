@@ -236,6 +236,76 @@ describe('Integration test', () => {
 		},
 	);
 
+	it(
+		'whitelist example encrypt and decrypt scenarios with checkShareConsistency',
+		{ timeout: 12000 },
+		async () => {
+			// Both whitelists contain address 0xb743cafeb5da4914cef0cf0a32400c9adfedc5cdb64209f9e740e56d23065100
+			const whitelistId = '0xaae704d2280f2c3d24fc08972bb31f2ef1f1c968784935434c3296be5bfd9d5b';
+			const data = new Uint8Array([1, 2, 3]);
+
+			const client = new SealClient({
+				suiClient,
+				serverConfigs: objectIds,
+				verifyKeyServers: false,
+			});
+
+			const { encryptedObject: encryptedBytes } = await client.encrypt({
+				threshold: 1,
+				packageId: TESTNET_PACKAGE_ID,
+				id: whitelistId,
+				data,
+			});
+
+			const txBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'whitelist', suiClient, [
+				whitelistId,
+			]);
+
+			const sessionKey = await SessionKey.create({
+				address: suiAddress,
+				packageId: TESTNET_PACKAGE_ID,
+				ttlMin: 10,
+				signer: keypair,
+				suiClient,
+			});
+
+			// decrypt the object encrypted to whitelist 1.
+			const decryptedBytes = await client.decrypt({
+				data: encryptedBytes,
+				sessionKey,
+				txBytes,
+				checkShareConsistency: true,
+			});
+
+			expect(decryptedBytes).toEqual(data);
+
+			// Create a new client with just one server.
+			// Here, the client can decrypt will have to fetch the public key from the second key server.
+			const client2 = new SealClient({
+				suiClient,
+				serverConfigs: objectIds.slice(0, 1),
+				verifyKeyServers: false,
+			});
+
+			const sessionKey2 = await SessionKey.create({
+				address: suiAddress,
+				packageId: TESTNET_PACKAGE_ID,
+				ttlMin: 10,
+				signer: keypair,
+				suiClient,
+			});
+
+			const decryptedBytes2 = await client2.decrypt({
+				data: encryptedBytes,
+				sessionKey: sessionKey2,
+				txBytes,
+				checkShareConsistency: true,
+			});
+
+			expect(decryptedBytes2).toEqual(data);
+		},
+	);
+
 	it('test getDerivedKeys', { timeout: 12000 }, async () => {
 		// Both whitelists contain address 0xb743cafeb5da4914cef0cf0a32400c9adfedc5cdb64209f9e740e56d23065100
 		const whitelistId = '0x5809c296d41e0d6177e8cf956010c1d2387299892bb9122ca4ba4ffd165e05cb';

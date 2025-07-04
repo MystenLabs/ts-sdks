@@ -1,7 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { EncryptedObject } from './bcs.js';
+import { bcs } from '@mysten/bcs';
+import { EncryptedObject, KeyServerMoveV1 } from './bcs.js';
 import { G1Element, G2Element } from './bls12381.js';
 import { decrypt } from './decrypt.js';
 import type { EncryptionInput } from './dem.js';
@@ -61,6 +62,7 @@ export class SealClient {
 	#verifyKeyServers: boolean;
 	// A caching map for: fullId:object_id -> partial key.
 	#cachedKeys = new Map<KeyCacheKey, G1Element>();
+	#cachedPublicKeys = new Map<string, G2Element>();
 	#timeout: number;
 	#totalWeight: number;
 
@@ -162,25 +164,25 @@ export class SealClient {
 	 * The function throws an error if the client's key servers are not a subset of
 	 * the encrypted object's key servers or if the threshold cannot be met.
 	 *
-	 * If publicKeys are provided, the decrypted shares are checked for consistency, meaning that
+	 * If checkShareConsistency is true, the decrypted shares are checked for consistency, meaning that
 	 * any combination of at least threshold shares should either succesfully combine to the plaintext or fail.
 	 *
 	 * @param data - The encrypted bytes to decrypt.
 	 * @param sessionKey - The session key to use.
 	 * @param txBytes - The transaction bytes to use (that calls seal_approve* functions).
-	 * @param publicKeys - The public keys of the key servers. These are optional but if provided, the shares are checked for consistency.
+	 * @param checkShareConsistency - If true, the shares are checked for consistency.
 	 * @returns - The decrypted plaintext corresponding to ciphertext.
 	 */
 	async decrypt({
 		data,
 		sessionKey,
 		txBytes,
-		publicKeys,
+		checkShareConsistency = false,
 	}: {
 		data: Uint8Array;
 		sessionKey: SessionKey;
 		txBytes: Uint8Array;
-		publicKeys?: G2Element[];
+		checkShareConsistency?: boolean;
 	}) {
 		const encryptedObject = EncryptedObject.parse(data);
 
@@ -196,7 +198,33 @@ export class SealClient {
 			threshold: encryptedObject.threshold,
 		});
 
-		return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys });
+		if (checkShareConsistency) {
+			const keyServers = await this.getKeyServers();
+			const publicKeys = await Promise.all(
+				encryptedObject.services.map(async ([objectId, _]) => {
+					const keyServer = keyServers.get(objectId);
+					if (keyServer) {
+						return G2Element.fromBytes(keyServer.pk);
+					} else if (this.#cachedPublicKeys.has(objectId)) {
+						return this.#cachedPublicKeys.get(objectId)!;
+					} else {
+						const versionedKeyServer = await this.#suiClient.core.getDynamicField({
+							parentId: objectId,
+							name: {
+								type: 'u64',
+								bcs: bcs.u64().serialize(1).toBytes(),
+							},
+						});
+						const keyServer = KeyServerMoveV1.parse(versionedKeyServer.dynamicField.value.bcs);
+						const pk = G2Element.fromBytes(new Uint8Array(keyServer.pk));
+						this.#cachedPublicKeys.set(objectId, pk);
+						return pk;
+					}
+				}),
+			);
+			return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys });
+		}
+		return decrypt({ encryptedObject, keys: this.#cachedKeys });
 	}
 
 	#weight(objectId: string) {
