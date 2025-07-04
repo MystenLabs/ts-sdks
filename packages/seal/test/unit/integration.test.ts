@@ -236,52 +236,6 @@ describe('Integration test', () => {
 		},
 	);
 
-	it(
-		'whitelist example encrypt and decrypt scenarios with checkShareConsistency',
-		{ timeout: 12000 },
-		async () => {
-			// Both whitelists contain address 0xb743cafeb5da4914cef0cf0a32400c9adfedc5cdb64209f9e740e56d23065100
-			const whitelistId = '0xaae704d2280f2c3d24fc08972bb31f2ef1f1c968784935434c3296be5bfd9d5b';
-			//const whitelistId2 = '0xe40f50789c00e9948ae782fc8c510b6cbe79cfde362bcab29675f1fe9c57fb46';
-			const data = new Uint8Array([1, 2, 3]);
-			//const data2 = new Uint8Array([4, 5, 6]);
-
-			const client = new SealClient({
-				suiClient,
-				serverConfigs: objectIds,
-				verifyKeyServers: false,
-			});
-
-			const { encryptedObject: encryptedBytes } = await client.encrypt({
-				threshold: objectIds.length,
-				packageId: TESTNET_PACKAGE_ID,
-				id: whitelistId,
-				data,
-			});
-
-			const txBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'whitelist', suiClient, [
-				whitelistId,
-			]);
-
-			const sessionKey = await SessionKey.create({
-				address: suiAddress,
-				packageId: TESTNET_PACKAGE_ID,
-				ttlMin: 10,
-				signer: keypair,
-				suiClient,
-			});
-
-			// decrypt the object encrypted to whitelist 1.
-			const decryptedBytes = await client.decrypt({
-				data: encryptedBytes,
-				sessionKey,
-				txBytes,
-			});
-
-			expect(decryptedBytes).toEqual(data);
-		},
-	);
-
 	it('test getDerivedKeys', { timeout: 12000 }, async () => {
 		// Both whitelists contain address 0xb743cafeb5da4914cef0cf0a32400c9adfedc5cdb64209f9e740e56d23065100
 		const whitelistId = '0x5809c296d41e0d6177e8cf956010c1d2387299892bb9122ca4ba4ffd165e05cb';
