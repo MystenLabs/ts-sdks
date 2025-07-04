@@ -1,5 +1,12 @@
 # @mysten/seal
 
+## 0.4.16
+
+### Patch Changes
+
+- Updated dependencies [5cbbb21]
+  - @mysten/sui@1.36.0
+
 ## 0.4.15
 
 ### Patch Changes

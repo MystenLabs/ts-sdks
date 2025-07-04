@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.36.0
+
+### Minor Changes
+
+- 5cbbb21: Add default mvr urls
+
 ## 1.35.0
 
 ### Minor Changes
