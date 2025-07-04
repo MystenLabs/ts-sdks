@@ -25,7 +25,8 @@ export interface DecryptOptions {
  * It's assumed that fetchKeys has been called to fetch the secret keys for enough key servers
  * otherwise, this will throw an error.
  *
- * If all public keys are provided, the shares are checked for consistency.
+ * If publicKeys are provided, the decrypted shares are checked for consistency, meaning that
+ * any combination of at least threshold shares should either succesfully combine to the plaintext or fail.
  *
  * @returns - The decrypted plaintext corresponding to ciphertext.
  */
