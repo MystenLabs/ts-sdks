@@ -295,10 +295,14 @@ describe('Integration test', () => {
 				suiClient,
 			});
 
+			const txBytes2 = await constructTxBytes(TESTNET_PACKAGE_ID, 'whitelist', suiClient, [
+				whitelistId,
+			]);
+
 			const decryptedBytes2 = await client2.decrypt({
 				data: encryptedBytes,
 				sessionKey: sessionKey2,
-				txBytes,
+				txBytes: txBytes2,
 				checkShareConsistency: true,
 			});
 
