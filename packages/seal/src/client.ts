@@ -162,19 +162,25 @@ export class SealClient {
 	 * The function throws an error if the client's key servers are not a subset of
 	 * the encrypted object's key servers or if the threshold cannot be met.
 	 *
+	 * If publicKeys are provided, the decrypted shares are checked for consistency, meaning that
+	 * any combination of at least threshold shares should either succesfully combine to the plaintext or fail.
+	 *
 	 * @param data - The encrypted bytes to decrypt.
 	 * @param sessionKey - The session key to use.
 	 * @param txBytes - The transaction bytes to use (that calls seal_approve* functions).
+	 * @param publicKeys - The public keys of the key servers. These are optional but if provided, the shares are checked for consistency.
 	 * @returns - The decrypted plaintext corresponding to ciphertext.
 	 */
 	async decrypt({
 		data,
 		sessionKey,
 		txBytes,
+		publicKeys,
 	}: {
 		data: Uint8Array;
 		sessionKey: SessionKey;
 		txBytes: Uint8Array;
+		publicKeys?: G2Element[];
 	}) {
 		const encryptedObject = EncryptedObject.parse(data);
 
@@ -190,7 +196,7 @@ export class SealClient {
 			threshold: encryptedObject.threshold,
 		});
 
-		return decrypt({ encryptedObject, keys: this.#cachedKeys });
+		return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys });
 	}
 
 	#weight(objectId: string) {
