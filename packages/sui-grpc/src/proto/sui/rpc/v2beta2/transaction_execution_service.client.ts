@@ -1,0 +1,50 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
+import type { ServiceInfo } from '@protobuf-ts/runtime-rpc';
+import { TransactionExecutionService } from './transaction_execution_service.js';
+import { stackIntercept } from '@protobuf-ts/runtime-rpc';
+import type { ExecuteTransactionResponse } from './transaction_execution_service.js';
+import type { ExecuteTransactionRequest } from './transaction_execution_service.js';
+import type { UnaryCall } from '@protobuf-ts/runtime-rpc';
+import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
+/**
+ * @generated from protobuf service sui.rpc.v2beta2.TransactionExecutionService
+ */
+export interface ITransactionExecutionServiceClient {
+	/**
+	 * @generated from protobuf rpc: ExecuteTransaction(sui.rpc.v2beta2.ExecuteTransactionRequest) returns (sui.rpc.v2beta2.ExecuteTransactionResponse);
+	 */
+	executeTransaction(
+		input: ExecuteTransactionRequest,
+		options?: RpcOptions,
+	): UnaryCall<ExecuteTransactionRequest, ExecuteTransactionResponse>;
+}
+/**
+ * @generated from protobuf service sui.rpc.v2beta2.TransactionExecutionService
+ */
+export class TransactionExecutionServiceClient
+	implements ITransactionExecutionServiceClient, ServiceInfo
+{
+	typeName = TransactionExecutionService.typeName;
+	methods = TransactionExecutionService.methods;
+	options = TransactionExecutionService.options;
+	constructor(private readonly _transport: RpcTransport) {}
+	/**
+	 * @generated from protobuf rpc: ExecuteTransaction(sui.rpc.v2beta2.ExecuteTransactionRequest) returns (sui.rpc.v2beta2.ExecuteTransactionResponse);
+	 */
+	executeTransaction(
+		input: ExecuteTransactionRequest,
+		options?: RpcOptions,
+	): UnaryCall<ExecuteTransactionRequest, ExecuteTransactionResponse> {
+		const method = this.methods[0],
+			opt = this._transport.mergeOptions(options);
+		return stackIntercept<ExecuteTransactionRequest, ExecuteTransactionResponse>(
+			'unary',
+			this._transport,
+			method,
+			opt,
+			input,
+		);
+	}
+}

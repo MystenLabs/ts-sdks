@@ -75,10 +75,8 @@ export const Owner = bcs.enum('Owner', {
 		initialSharedVersion: bcs.u64(),
 	}),
 	Immutable: null,
-	ConsensusV2: bcs.struct('ConsensusV2', {
-		authenticator: bcs.enum('Authenticator', {
-			SingleOwner: Address,
-		}),
+	ConsensusAddressOwner: bcs.struct('ConsensusAddressOwner', {
+		owner: Address,
 		startVersion: bcs.u64(),
 	}),
 });

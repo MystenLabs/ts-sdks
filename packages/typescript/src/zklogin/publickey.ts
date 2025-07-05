@@ -19,9 +19,7 @@ import type { ClientWithExtensions, Experimental_SuiClientTypes } from '../exper
 export interface ZkLoginCompatibleClient
 	extends ClientWithExtensions<{
 		core: {
-			verifyZkLoginSignature: NonNullable<
-				Experimental_SuiClientTypes.TransportMethods['verifyZkLoginSignature']
-			>;
+			verifyZkLoginSignature: Experimental_SuiClientTypes.TransportMethods['verifyZkLoginSignature'];
 		};
 	}> {}
 

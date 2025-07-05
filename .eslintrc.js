@@ -173,6 +173,7 @@ module.exports = {
 				eqeqeq: 'off',
 				'prefer-const': 'off',
 				'@typescript-eslint/no-unused-vars': 'off',
+				'no-prototype-builtins': 'off',
 			},
 		},
 	],

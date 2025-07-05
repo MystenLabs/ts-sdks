@@ -321,9 +321,6 @@ export enum AddressTransactionBlockRelationship {
   Sent = 'SENT'
 }
 
-/** An Authenticator represents the access control rules for a ConsensusV2 object. */
-export type Authenticator = Address;
-
 /** System transaction for creating the on-chain state used by zkLogin. */
 export type AuthenticatorStateCreateTransaction = {
   __typename?: 'AuthenticatorStateCreateTransaction';
@@ -1052,6 +1049,13 @@ export type CoinMetadataSuinsRegistrationsArgs = {
   last?: InputMaybe<Scalars['Int']['input']>;
 };
 
+/** Same as AddressOwner, but the object is versioned by consensus. */
+export type ConsensusAddressOwner = {
+  __typename?: 'ConsensusAddressOwner';
+  owner?: Maybe<Owner>;
+  startVersion: Scalars['UInt53']['output'];
+};
+
 /**
  * System transaction that runs at the beginning of a checkpoint, and is responsible for setting
  * the current value of the clock, based on the timestamp from consensus.
@@ -1069,17 +1073,6 @@ export type ConsensusCommitPrologueTransaction = {
   epoch?: Maybe<Epoch>;
   /** Consensus round of the commit. */
   round: Scalars['UInt53']['output'];
-};
-
-/**
- * A ConsensusV2 object is an object that is automatically versioned by the consensus protocol
- * and allows different authentication modes based on the chosen authenticator.
- * (Initially, only single-owner authentication is supported.)
- */
-export type ConsensusV2 = {
-  __typename?: 'ConsensusV2';
-  authenticator?: Maybe<Authenticator>;
-  startVersion: Scalars['UInt53']['output'];
 };
 
 export type DependencyConnection = {
@@ -3311,8 +3304,8 @@ export enum ObjectKind {
   NotIndexed = 'NOT_INDEXED'
 }
 
-/** The object's owner type: Immutable, Shared, Parent, or Address. */
-export type ObjectOwner = AddressOwner | ConsensusV2 | Immutable | Parent | Shared;
+/** The object's owner type: Immutable, Shared, Parent, Address, or ConsensusAddress. */
+export type ObjectOwner = AddressOwner | ConsensusAddressOwner | Immutable | Parent | Shared;
 
 export type ObjectRef = {
   /** ID of the object. */
@@ -4898,6 +4891,8 @@ export type TransactionBlockEdge = {
 /** The effects representing the result of executing a transaction block. */
 export type TransactionBlockEffects = {
   __typename?: 'TransactionBlockEffects';
+  /** The error code of the Move abort, populated if this transaction failed with a Move abort. */
+  abortCode?: Maybe<Scalars['BigInt']['output']>;
   /**
    * The effect this transaction had on the balances (sum of coin values per coin type) of
    * addresses and objects.
@@ -5352,7 +5347,7 @@ export type GetCoinsQueryVariables = Exact<{
 }>;
 
 
-export type GetCoinsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', address: any, coins: { __typename?: 'CoinConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Coin', coinBalance?: any | null, address: any, version: any, digest?: string | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusV2', authenticator?: { __typename?: 'Address', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null, contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null }> } } | null };
+export type GetCoinsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', address: any, coins: { __typename?: 'CoinConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Coin', coinBalance?: any | null, address: any, version: any, digest?: string | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: any, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null, contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null }> } } | null };
 
 export type GetDynamicFieldsQueryVariables = Exact<{
   parentId: Scalars['SuiAddress']['input'];
@@ -5385,7 +5380,7 @@ export type GetOwnedObjectsQueryVariables = Exact<{
 }>;
 
 
-export type GetOwnedObjectsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', objects: { __typename?: 'MoveObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'MoveObject', address: any, digest?: string | null, version: any, contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusV2', authenticator?: { __typename?: 'Address', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null }> } } | null };
+export type GetOwnedObjectsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', objects: { __typename?: 'MoveObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'MoveObject', address: any, digest?: string | null, version: any, contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: any, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null }> } } | null };
 
 export type MultiGetObjectsQueryVariables = Exact<{
   objectIds: Array<Scalars['SuiAddress']['input']> | Scalars['SuiAddress']['input'];
@@ -5394,15 +5389,15 @@ export type MultiGetObjectsQueryVariables = Exact<{
 }>;
 
 
-export type MultiGetObjectsQuery = { __typename?: 'Query', objects: { __typename?: 'ObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Object', address: any, digest?: string | null, version: any, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusV2', authenticator?: { __typename?: 'Address', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null }> } };
+export type MultiGetObjectsQuery = { __typename?: 'Query', objects: { __typename?: 'ObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Object', address: any, digest?: string | null, version: any, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: any, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null }> } };
 
-export type Object_FieldsFragment = { __typename?: 'Object', address: any, digest?: string | null, version: any, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusV2', authenticator?: { __typename?: 'Address', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null };
+export type Object_FieldsFragment = { __typename?: 'Object', address: any, digest?: string | null, version: any, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: any, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null };
 
-export type Move_Object_FieldsFragment = { __typename?: 'MoveObject', address: any, digest?: string | null, version: any, contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusV2', authenticator?: { __typename?: 'Address', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null };
+export type Move_Object_FieldsFragment = { __typename?: 'MoveObject', address: any, digest?: string | null, version: any, contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: any, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null };
 
 type Object_Owner_Fields_AddressOwner_Fragment = { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null };
 
-type Object_Owner_Fields_ConsensusV2_Fragment = { __typename: 'ConsensusV2', authenticator?: { __typename?: 'Address', address: any } | null };
+type Object_Owner_Fields_ConsensusAddressOwner_Fragment = { __typename: 'ConsensusAddressOwner', startVersion: any, owner?: { __typename?: 'Owner', address: any } | null };
 
 type Object_Owner_Fields_Immutable_Fragment = { __typename: 'Immutable' };
 
@@ -5410,7 +5405,7 @@ type Object_Owner_Fields_Parent_Fragment = { __typename: 'Parent', parent?: { __
 
 type Object_Owner_Fields_Shared_Fragment = { __typename: 'Shared', initialSharedVersion: any };
 
-export type Object_Owner_FieldsFragment = Object_Owner_Fields_AddressOwner_Fragment | Object_Owner_Fields_ConsensusV2_Fragment | Object_Owner_Fields_Immutable_Fragment | Object_Owner_Fields_Parent_Fragment | Object_Owner_Fields_Shared_Fragment;
+export type Object_Owner_FieldsFragment = Object_Owner_Fields_AddressOwner_Fragment | Object_Owner_Fields_ConsensusAddressOwner_Fragment | Object_Owner_Fields_Immutable_Fragment | Object_Owner_Fields_Parent_Fragment | Object_Owner_Fields_Shared_Fragment;
 
 export type DryRunTransactionBlockQueryVariables = Exact<{
   txBytes: Scalars['String']['input'];
@@ -5485,11 +5480,10 @@ export const Object_Owner_FieldsFragmentDoc = new TypedDocumentString(`
   ... on Shared {
     initialSharedVersion
   }
-  ... on ConsensusV2 {
-    authenticator {
-      ... on Address {
-        address
-      }
+  ... on ConsensusAddressOwner {
+    startVersion
+    owner {
+      address
     }
   }
 }
@@ -5531,11 +5525,10 @@ export const Object_FieldsFragmentDoc = new TypedDocumentString(`
   ... on Shared {
     initialSharedVersion
   }
-  ... on ConsensusV2 {
-    authenticator {
-      ... on Address {
-        address
-      }
+  ... on ConsensusAddressOwner {
+    startVersion
+    owner {
+      address
     }
   }
 }`, {"fragmentName":"OBJECT_FIELDS"}) as unknown as TypedDocumentString<Object_FieldsFragment, unknown>;
@@ -5574,11 +5567,10 @@ export const Move_Object_FieldsFragmentDoc = new TypedDocumentString(`
   ... on Shared {
     initialSharedVersion
   }
-  ... on ConsensusV2 {
-    authenticator {
-      ... on Address {
-        address
-      }
+  ... on ConsensusAddressOwner {
+    startVersion
+    owner {
+      address
     }
   }
 }`, {"fragmentName":"MOVE_OBJECT_FIELDS"}) as unknown as TypedDocumentString<Move_Object_FieldsFragment, unknown>;
@@ -5717,11 +5709,10 @@ export const GetCoinsDocument = new TypedDocumentString(`
   ... on Shared {
     initialSharedVersion
   }
-  ... on ConsensusV2 {
-    authenticator {
-      ... on Address {
-        address
-      }
+  ... on ConsensusAddressOwner {
+    startVersion
+    owner {
+      address
     }
   }
 }`) as unknown as TypedDocumentString<GetCoinsQuery, GetCoinsQueryVariables>;
@@ -5830,11 +5821,10 @@ fragment OBJECT_OWNER_FIELDS on ObjectOwner {
   ... on Shared {
     initialSharedVersion
   }
-  ... on ConsensusV2 {
-    authenticator {
-      ... on Address {
-        address
-      }
+  ... on ConsensusAddressOwner {
+    startVersion
+    owner {
+      address
     }
   }
 }`) as unknown as TypedDocumentString<GetOwnedObjectsQuery, GetOwnedObjectsQueryVariables>;
@@ -5886,11 +5876,10 @@ fragment OBJECT_OWNER_FIELDS on ObjectOwner {
   ... on Shared {
     initialSharedVersion
   }
-  ... on ConsensusV2 {
-    authenticator {
-      ... on Address {
-        address
-      }
+  ... on ConsensusAddressOwner {
+    startVersion
+    owner {
+      address
     }
   }
 }`) as unknown as TypedDocumentString<MultiGetObjectsQuery, MultiGetObjectsQueryVariables>;

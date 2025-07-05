@@ -170,8 +170,12 @@ async function resolveObjectReferences(transactionData: TransactionDataBuilder, 
 		}
 		const owner = object.data.owner;
 		const initialSharedVersion =
-			owner && typeof owner === 'object' && 'Shared' in owner
-				? owner.Shared.initial_shared_version
+			owner && typeof owner === 'object'
+				? 'Shared' in owner
+					? owner.Shared.initial_shared_version
+					: 'ConsensusAddressOwner' in owner
+						? owner.ConsensusAddressOwner.start_version
+						: null
 				: null;
 
 		return {

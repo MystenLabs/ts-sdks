@@ -10,9 +10,8 @@
  * /crates/sui-open-rpc/spec/openrpc.json
  */
 
-import type { Transaction } from '../../transactions/index.js';
 import type * as RpcTypes from './generated.js';
-
+import type { Transaction } from '../../transactions/index.js';
 /**
  * Runs the transaction in dev-inspect mode. Which allows for nearly any transaction (or Move call)
  * with any arguments. Detailed results are provided, including both the transaction effects and any

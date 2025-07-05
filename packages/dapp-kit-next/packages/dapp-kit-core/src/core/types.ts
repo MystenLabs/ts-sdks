@@ -9,9 +9,7 @@ import type { WalletInitializer } from '../wallets/index.js';
 export type DAppKitCompatibleClient = ClientWithExtensions<{
 	core: {
 		resolveNameServiceNames: Experimental_SuiClientTypes.TransportMethods['resolveNameServiceNames'];
-		verifyZkLoginSignature: NonNullable<
-			Experimental_SuiClientTypes.TransportMethods['verifyZkLoginSignature']
-		>;
+		verifyZkLoginSignature: Experimental_SuiClientTypes.TransportMethods['verifyZkLoginSignature'];
 	};
 }>;
 
