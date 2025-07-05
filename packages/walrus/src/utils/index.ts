@@ -82,6 +82,22 @@ export function toShardIndex(sliverPairIndex: number, blobId: string, numShards:
 	return (sliverPairIndex + offset) % numShards;
 }
 
+export function sliverPairIndexFromSecondarySliverIndex(
+	sliverIndex: number,
+	numShards: number,
+): number {
+	return numShards - sliverIndex - 1;
+}
+
+export function shardIndexFromSecondarySliverIndex(
+	sliverIndex: number,
+	blobId: string,
+	numShards: number,
+): number {
+	const sliverPairIndex = sliverPairIndexFromSecondarySliverIndex(sliverIndex, numShards);
+	return toShardIndex(sliverPairIndex, blobId, numShards);
+}
+
 export function toPairIndex(shardIndex: number, blobId: string, numShards: number): number {
 	const offset = rotationOffset(BlobId.serialize(blobId).toBytes(), numShards);
 	return (numShards + shardIndex - offset) % numShards;
