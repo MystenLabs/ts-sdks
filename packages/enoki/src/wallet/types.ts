@@ -16,8 +16,8 @@ export type WalletEventsMap = {
 };
 
 export type ZkLoginState = {
-	address?: string;
-	publicKey?: string;
+	address: string;
+	publicKey: string;
 };
 
 export type ZkLoginSession = {
@@ -31,17 +31,35 @@ export type ZkLoginSession = {
 export type EnokiSessionContext = {
 	idbStore: UseStore;
 	client: ClientWithCoreApi;
-	storageKey: string;
 	$zkLoginSession: WritableAtom<{ initialized: boolean; value: ZkLoginSession | null }>;
 };
 
-export type EnokiWalletOptions = {
-	provider: AuthProvider;
-	windowFeatures?: string | (() => string);
+type ClientConfig = {
+	/**
+	 * A list of client instances to use when building and executing transactions.
+	 */
 	clients: ClientWithCoreApi[];
+
+	/**
+	 * A function that returns the current network that the application is acting on.
+	 */
 	getCurrentNetwork: () => Experimental_SuiClientTypes.Network;
+};
+
+export type EnokiWalletOptions = {
+	/**
+	 * The window features to use when opening the authorization popup.
+	 * https://developer.mozilla.org/en-US/docs/Web/API/Window/open#windowfeatures
+	 */
+	windowFeatures?: string | (() => string);
+
+	/**
+	 * The authentication provider to register the wallet for.
+	 */
+	provider: AuthProvider;
 } & AuthProviderOptions &
 	EnokiClientConfig &
+	ClientConfig &
 	Pick<Wallet, 'name' | 'icon'>;
 
 export type AuthProviderOptions = {
@@ -61,27 +79,14 @@ export type AuthProviderOptions = {
 	extraParams?: Record<string, string> | (() => Record<string, string>);
 };
 
-export type RegisterEnokiWalletsOptions = EnokiClientConfig & {
+export type RegisterEnokiWalletsOptions = {
 	/**
 	 * Configuration for each OAuth provider.
 	 */
 	providers: Partial<Record<AuthProvider, AuthProviderOptions>>;
-
-	/**
-	 * The window features to use when opening the authorization popup.
-	 * https://developer.mozilla.org/en-US/docs/Web/API/Window/open#windowfeatures
-	 */
-	windowFeatures?: string | (() => string);
-} & (
-		| {
-				/**
-				 * A list of client instances to use when building and executing transactions.
-				 */
-				clients: ClientWithCoreApi[];
-
-				/** A function that returns the current network that the application is acting on. */
-				getCurrentNetwork: () => Experimental_SuiClientTypes.Network;
-		  }
+} & Pick<EnokiWalletOptions, 'apiKey' | 'apiUrl' | 'windowFeatures'> &
+	(
+		| ClientConfig
 		| {
 				/**
 				 * The SuiClient instance to use when building and executing transactions.

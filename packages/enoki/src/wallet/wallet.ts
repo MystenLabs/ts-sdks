@@ -46,6 +46,7 @@ import type { EnokiNetwork } from '../EnokiClient/type.js';
 import { EnokiKeypair } from '../EnokiKeypair.js';
 
 import { EnokiWalletState } from './state.js';
+import { allTasks } from 'nanostores';
 
 export class EnokiWallet implements Wallet {
 	#events: Emitter<WalletEventsMap>;
@@ -150,7 +151,12 @@ export class EnokiWallet implements Wallet {
 		this.#extraParams = extraParams;
 		this.#windowFeatures = windowFeatures;
 		this.#getCurrentNetwork = getCurrentNetwork;
-		this.#accounts = this.#getAuthorizedAccounts();
+		this.#accounts = [];
+
+		this.#state.zkLoginState.subscribe(() => {
+			this.#accounts = this.#getAuthorizedAccounts();
+			this.#events.emit('change', { accounts: this.#accounts });
+		});
 	}
 
 	#signTransaction: SuiSignTransactionMethod = async ({ transaction, chain, account, signal }) => {
@@ -235,6 +241,12 @@ export class EnokiWallet implements Wallet {
 	};
 
 	#connect: StandardConnectMethod = async (input) => {
+		// NOTE: This is a hackfix for the old version of dApp Kit where auto-connection logic
+		// only fires on initial mount of the WalletProvider component. Since hydrating the
+		// zkLogin state from IndexedDB is an asynchronous process, we need to make sure it
+		// is populated before the connect logic runs.
+		await allTasks();
+
 		if (input?.silent || this.#accounts.length > 0) {
 			return { accounts: this.#accounts };
 		}
@@ -242,29 +254,25 @@ export class EnokiWallet implements Wallet {
 		const currentNetwork = this.#getCurrentNetwork();
 		await this.#createSession({ network: currentNetwork });
 
-		this.#accounts = this.#getAuthorizedAccounts();
-		this.#events.emit('change', { accounts: this.#accounts });
-
 		return { accounts: this.#accounts };
 	};
 
 	#disconnect: StandardDisconnectMethod = async () => {
 		await this.#state.logout();
-
 		this.#accounts = [];
 		this.#events.emit('change', { accounts: this.#accounts });
 	};
 
 	#getAuthorizedAccounts() {
-		const { address, publicKey } = this.#state.zkLoginState.get();
-		if (address && publicKey) {
+		const zkLoginState = this.#state.zkLoginState.get();
+		if (zkLoginState) {
 			return [
 				new ReadonlyWalletAccount({
-					address,
+					address: zkLoginState.address,
 					chains: this.chains,
 					icon: this.icon,
 					features: [SuiSignPersonalMessage, SuiSignTransaction, SuiSignAndExecuteTransaction],
-					publicKey: fromBase64(publicKey),
+					publicKey: fromBase64(zkLoginState.publicKey),
 				}),
 			];
 		}
@@ -313,8 +321,8 @@ export class EnokiWallet implements Wallet {
 
 		const zkp = await this.#state.getSession(sessionContext);
 
-		const { address } = this.#state.zkLoginState.get();
-		if (!address || !zkp || !zkp.proof) {
+		const zkLoginState = this.#state.zkLoginState.get();
+		if (!zkLoginState || !zkp || !zkp.proof) {
 			throw new Error('Missing required data for keypair generation.');
 		}
 
@@ -334,7 +342,7 @@ export class EnokiWallet implements Wallet {
 		const ephemeralKeypair = WebCryptoSigner.import(storedNativeSigner);
 
 		return new EnokiKeypair({
-			address,
+			address: zkLoginState.address,
 			ephemeralKeypair,
 			maxEpoch: zkp.maxEpoch,
 			proof: zkp.proof,
