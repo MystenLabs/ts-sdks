@@ -101,6 +101,7 @@ export class DAppKitConnectButton extends ScopedRegistryHost(LitElement) {
 						.instance=${this.instance}
 						.filterFn=${this.modalOptions?.filterFn}
 						.sortFn=${this.modalOptions?.sortFn}
+						.installableWallets=${this.modalOptions?.installableWallets}
 					></mysten-dapp-kit-connect-modal>`;
 	}
 

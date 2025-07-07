@@ -109,8 +109,11 @@ export class DAppKitConnectModal
 	@property({ attribute: false })
 	sortFn: DAppKitConnectModalOptions['sortFn'];
 
+	/**
+	 * List of preset wallets available for installation, shown alongside registered wallets.
+	 */
 	@property({ attribute: false })
-	installableWallets: InstallableWallet[] = [];
+	installableWallets?: InstallableWallet[] = [];
 
 	#abortController?: AbortController;
 
@@ -243,10 +246,11 @@ export class DAppKitConnectModal
 			data: wallet,
 		}));
 
-		const installableWallets: WalletItem[] = this.installableWallets.map((wallet) => ({
-			type: 'installable',
-			data: wallet,
-		}));
+		const installableWallets: WalletItem[] =
+			this.installableWallets?.map((wallet) => ({
+				type: 'installable',
+				data: wallet,
+			})) ?? [];
 
 		const walletItems = [...detectedWallets, ...installableWallets];
 		const uniqueWalletItems = Array.from(
