@@ -28,13 +28,10 @@ export const styles = [
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
-			position: relative;
+			gap: 8px;
 		}
 
 		.title {
-			position: absolute;
-			left: 50%;
-			transform: translateX(-50%);
 			font-size: 18px;
 			font-weight: var(--dapp-kit-font-weight-semibold);
 			white-space: nowrap;

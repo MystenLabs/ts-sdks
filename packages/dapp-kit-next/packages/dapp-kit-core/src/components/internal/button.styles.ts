@@ -13,6 +13,7 @@ export const styles = [
 			transition-duration: 0.15s;
 			border-radius: var(--dapp-kit-radius-md);
 			font-weight: var(--dapp-kit-font-weight-semibold);
+			text-decoration: none;
 			outline-style: none;
 			display: inline-flex;
 			justify-content: center;

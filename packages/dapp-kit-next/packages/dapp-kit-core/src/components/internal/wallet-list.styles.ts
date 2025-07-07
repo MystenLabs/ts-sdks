@@ -28,5 +28,11 @@ export const styles = [
 		.copy-text {
 			color: var(--dapp-kit-muted-foreground);
 		}
+
+		.wallet-cta {
+			display: flex;
+			flex-direction: column;
+			width: 100%;
+		}
 	`,
 ];

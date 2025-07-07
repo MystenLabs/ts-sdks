@@ -7,11 +7,11 @@ import { sharedStyles } from '../styles/index.js';
 export const styles = [
 	sharedStyles,
 	css`
-		button {
+		.item {
 			transition-property: background-color;
 			transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 			transition-duration: 0.15s;
-
+			text-decoration: none;
 			background-color: var(--dapp-kit-secondary);
 			border-radius: var(--dapp-kit-radius-lg);
 			display: flex;
@@ -21,7 +21,7 @@ export const styles = [
 			padding: 12px;
 		}
 
-		button:hover {
+		.item:hover {
 			background-color: oklab(from var(--dapp-kit-secondary) calc(l - 0.01) a b);
 		}
 

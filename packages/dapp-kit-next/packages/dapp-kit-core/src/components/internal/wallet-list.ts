@@ -23,16 +23,11 @@ export class WalletList extends ScopedRegistryHost(LitElement) {
 	override render() {
 		return this.wallets.length === 0
 			? html`<div class="no-wallets-container">
-					<h2 class="title">Get Started with Sui</h2>
-					<p class="copy-text">
-						Start Exploring Web3 Your wallet is the gateway to all things Ethereum, the magical
-						technology that makes it possible to explore web3.
-					</p>
-					<internal-button
-						variant="secondary"
-						href="https://blog.sui.io/unlock-sui-with-the-right-wallet/"
-						>Choose your first wallet</internal-button
-					>
+					<h2 class="title">No wallets installed</h2>
+					<p class="copy-text">Lorem ipsum TODO</p>
+					<internal-button class="wallet-cta" href="https://sui.io/get-started">
+						Choose a Wallet
+					</internal-button>
 				</div>`
 			: html`<ul class="wallet-list">
 					${this.wallets.map(
