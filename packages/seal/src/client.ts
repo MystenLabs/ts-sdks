@@ -1,8 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { bcs } from '@mysten/bcs';
-import { EncryptedObject, KeyServerMoveV1 } from './bcs.js';
+import { EncryptedObject } from './bcs.js';
 import { G1Element, G2Element } from './bls12381.js';
 import { decrypt } from './decrypt.js';
 import type { EncryptionInput } from './dem.js';
@@ -208,15 +207,12 @@ export class SealClient {
 					} else if (this.#cachedPublicKeys.has(objectId)) {
 						return this.#cachedPublicKeys.get(objectId)!;
 					} else {
-						const versionedKeyServer = await this.#suiClient.core.getDynamicField({
-							parentId: objectId,
-							name: {
-								type: 'u64',
-								bcs: bcs.u64().serialize(1).toBytes(),
-							},
+						// TODO: Get all missing public keys in one call.
+						const keyServer = await retrieveKeyServers({
+							objectIds: [objectId],
+							client: this.#suiClient,
 						});
-						const keyServer = KeyServerMoveV1.parse(versionedKeyServer.dynamicField.value.bcs);
-						const pk = G2Element.fromBytes(new Uint8Array(keyServer.pk));
+						const pk = G2Element.fromBytes(new Uint8Array(keyServer[0].pk));
 						this.#cachedPublicKeys.set(objectId, pk);
 						return pk;
 					}

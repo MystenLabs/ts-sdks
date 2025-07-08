@@ -11,7 +11,7 @@ import type { SealCompatibleClient } from './types.js';
 import type { G1Element } from './bls12381.js';
 import { flatten, Version } from './utils.js';
 
-const EXPECTED_SERVER_VERSION = 1;
+export const EXPECTED_SERVER_VERSION = 1;
 
 export type KeyServer = {
 	objectId: string;
