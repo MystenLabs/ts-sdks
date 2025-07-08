@@ -1,5 +1,17 @@
 # @mysten/seal
 
+## 0.4.16
+
+### Patch Changes
+
+- 1c4a82d: update links in package.json
+- Updated dependencies [1c4a82d]
+- Updated dependencies [783bb9e]
+- Updated dependencies [783bb9e]
+- Updated dependencies [5cbbb21]
+  - @mysten/bcs@1.6.4
+  - @mysten/sui@1.36.0
+
 ## 0.4.15
 
 ### Patch Changes

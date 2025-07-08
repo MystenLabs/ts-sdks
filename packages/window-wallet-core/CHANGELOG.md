@@ -1,5 +1,13 @@
 # @mysten/window-wallet-core
 
+## 0.0.6
+
+### Patch Changes
+
+- 1c4a82d: update links in package.json
+- Updated dependencies [1c4a82d]
+  - @mysten/utils@0.1.1
+
 ## 0.0.5
 
 ### Patch Changes

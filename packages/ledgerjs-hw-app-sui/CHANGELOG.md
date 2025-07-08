@@ -1,5 +1,11 @@
 # @mysten/ledgerjs-hw-app-sui
 
+## 0.5.2
+
+### Patch Changes
+
+- 1c4a82d: update links in package.json
+
 ## 0.5.1
 
 ### Patch Changes

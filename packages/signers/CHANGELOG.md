@@ -1,5 +1,21 @@
 # @mysten/signers
 
+## 0.3.0
+
+### Minor Changes
+
+- 783bb9e: Add ConsensusAddressOwner support
+
+### Patch Changes
+
+- 1c4a82d: update links in package.json
+- Updated dependencies [1c4a82d]
+- Updated dependencies [783bb9e]
+- Updated dependencies [783bb9e]
+- Updated dependencies [5cbbb21]
+  - @mysten/ledgerjs-hw-app-sui@0.5.2
+  - @mysten/sui@1.36.0
+
 ## 0.2.19
 
 ### Patch Changes

@@ -1,5 +1,18 @@
 # @mysten/enoki
 
+## 0.9.1
+
+### Patch Changes
+
+- 1c4a82d: update links in package.json
+- Updated dependencies [1c4a82d]
+- Updated dependencies [783bb9e]
+- Updated dependencies [783bb9e]
+- Updated dependencies [5cbbb21]
+  - @mysten/signers@0.3.0
+  - @mysten/sui@1.36.0
+  - @mysten/wallet-standard@0.16.5
+
 ## 0.9.0
 
 ### Minor Changes

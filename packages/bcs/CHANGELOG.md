@@ -1,5 +1,13 @@
 # Change Log
 
+## 1.6.4
+
+### Patch Changes
+
+- 1c4a82d: update links in package.json
+- Updated dependencies [1c4a82d]
+  - @mysten/utils@0.1.1
+
 ## 1.6.3
 
 ### Patch Changes

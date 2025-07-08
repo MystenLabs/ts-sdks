@@ -1,5 +1,19 @@
 # @mysten/slush-wallet
 
+## 0.1.15
+
+### Patch Changes
+
+- 1c4a82d: update links in package.json
+- Updated dependencies [1c4a82d]
+- Updated dependencies [783bb9e]
+- Updated dependencies [783bb9e]
+- Updated dependencies [5cbbb21]
+  - @mysten/window-wallet-core@0.0.6
+  - @mysten/utils@0.1.1
+  - @mysten/sui@1.36.0
+  - @mysten/wallet-standard@0.16.5
+
 ## 0.1.14
 
 ### Patch Changes

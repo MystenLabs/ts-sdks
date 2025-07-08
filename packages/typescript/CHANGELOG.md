@@ -1,5 +1,19 @@
 # @mysten/sui.js
 
+## 1.36.0
+
+### Minor Changes
+
+- 783bb9e: make verifyZkLoginSignature a required part of the core api
+- 783bb9e: Add ConsensusAddressOwner support
+- 5cbbb21: Add default mvr urls
+
+### Patch Changes
+
+- Updated dependencies [1c4a82d]
+  - @mysten/utils@0.1.1
+  - @mysten/bcs@1.6.4
+
 ## 1.35.0
 
 ### Minor Changes
