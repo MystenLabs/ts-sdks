@@ -8,7 +8,7 @@ import { fromUrlSafeBase64 } from './index.js';
 export const QUILT_INDEX_SIZE_BYTES_LENGTH = 4;
 export const QUILT_VERSION_BYTES_LENGTH = 1;
 export const QUILT_INDEX_PREFIX_SIZE = QUILT_VERSION_BYTES_LENGTH + QUILT_INDEX_SIZE_BYTES_LENGTH;
-export const QUILT_PATCH_BLOB_HEADER_SIZE = 1 + 4 + 1;
+export const QUILT_PATCH_BLOB_HEADER_SIZE = 1 + 4 + 1; // bcs length of QuiltPatchBlobHeader
 
 const REQUIRED_ALIGNMENT_BY_ENCODING_TYPE = {
 	RS2: 2,

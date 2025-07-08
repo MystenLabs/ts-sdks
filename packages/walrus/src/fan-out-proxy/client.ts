@@ -8,7 +8,6 @@ import type {
 	EncodingType,
 	FanOutTipConfig,
 	ProtocolMessageCertificate,
-	TipStrategy,
 	WalrusClientRequestOptions,
 } from '../types.js';
 import { fromUrlSafeBase64, urlSafeBase64 } from '../utils/index.js';
@@ -76,11 +75,35 @@ export class FanOutProxyClient {
 		const data = (await response.json()) as {
 			send_tip: {
 				address: string;
-				kind: TipStrategy;
+				kind:
+					| {
+							const: number;
+					  }
+					| {
+							base: number;
+							encoded_size_mul_per_kb: number;
+					  };
 			};
 		};
 
-		return data.send_tip;
+		if ('const' in data.send_tip.kind) {
+			return {
+				address: data.send_tip.address,
+				kind: {
+					const: data.send_tip.kind.const,
+				},
+			};
+		}
+
+		return {
+			address: data.send_tip.address,
+			kind: {
+				linear: {
+					base: data.send_tip.kind.base,
+					perEncodedKb: data.send_tip.kind.encoded_size_mul_per_kb,
+				},
+			},
+		};
 	}
 
 	async writeBlob({

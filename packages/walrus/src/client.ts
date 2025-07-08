@@ -984,7 +984,8 @@ export class WalrusClient {
 		const amount =
 			'const' in kind
 				? kind.const
-				: BigInt(kind.linear.base) + BigInt(kind.linear.multiplier) * BigInt(encodedSize);
+				: BigInt(kind.linear.base) +
+					BigInt(Math.floor(Number(kind.linear.perEncodedKb) / 1024)) * BigInt(encodedSize);
 
 		if (max != null && amount > max) {
 			throw new WalrusClientError(
