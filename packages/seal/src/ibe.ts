@@ -125,7 +125,7 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 		return xor(ciphertext, kdf(decap(nonce, sk), nonce, id, objectId, index));
 	}
 
-	static decryptDeterministic(
+	static decryptShareDeterministic(
 		randomness: Scalar,
 		ciphertext: Uint8Array,
 		publicKey: G2Element,
@@ -183,7 +183,7 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 		return services.map(([_, index], i) => {
 			return {
 				index,
-				share: BonehFranklinBLS12381Services.decryptDeterministic(
+				share: BonehFranklinBLS12381Services.decryptShareDeterministic(
 					r,
 					encryptedShares[i],
 					publicKeys[i],
