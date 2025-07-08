@@ -77,18 +77,22 @@ export function normalizeMoveArguments(
 	for (const [i, argType] of argTypes.entries()) {
 		if (argType === `${SUI_FRAMEWORK_ADDRESS}::deny_list::DenyList`) {
 			normalizedArgs.push((tx) => tx.object.denyList());
+			continue;
 		}
 
 		if (argType === `${SUI_FRAMEWORK_ADDRESS}::random::Random`) {
 			normalizedArgs.push((tx) => tx.object.random());
+			continue;
 		}
 
 		if (argType === `${SUI_FRAMEWORK_ADDRESS}::clock::Clock`) {
 			normalizedArgs.push((tx) => tx.object.clock());
+			continue;
 		}
 
 		if (argType === `${SUI_SYSTEM_ADDRESS}::sui_system::SuiSystemState`) {
 			normalizedArgs.push((tx) => tx.object.system());
+			continue;
 		}
 
 		let arg;
