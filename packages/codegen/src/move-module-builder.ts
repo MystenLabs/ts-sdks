@@ -101,6 +101,9 @@ export class MoveModuleBuilder extends FileBuilder {
 					format: 'bcs',
 					summary: this.summary,
 					typeParameters: struct.type_parameters,
+					onBcsType: () => {
+						this.addImport('@mysten/sui/bcs', 'bcs');
+					},
 					resolveAddress: (address) => this.#resolveAddress(address),
 					onDependency: (address, mod, name) => {
 						const builder = moduleBuilders[`${address}::${mod}`];
@@ -149,7 +152,11 @@ export class MoveModuleBuilder extends FileBuilder {
 
 	async renderBCSTypes() {
 		if (this.hasBcsTypes()) {
-			this.addImport('@mysten/sui/bcs', 'bcs');
+			this.statements.push(
+				...parseTS /* ts */ `
+				const $moduleName = '${this.#mvrNameOrAddress ?? this.summary.id.address}::${this.summary.id.name}';
+				`,
+			);
 		}
 		await this.renderStructs();
 		await this.renderEnums();
@@ -174,6 +181,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		{ fields }: Fields,
 		typeParameters: TypeParameter[] = [],
 	) {
+		this.addImport('~root/../utils/index.js', 'MoveStruct');
 		const fieldObject = await mapToObject({
 			items: Object.entries(fields),
 			getComment: ([_name, field]) => field.doc,
@@ -181,6 +189,9 @@ export class MoveModuleBuilder extends FileBuilder {
 				name,
 				renderTypeSignature(field.type_, {
 					format: 'bcs',
+					onBcsType: () => {
+						this.addImport('@mysten/sui/bcs', 'bcs');
+					},
 					summary: this.summary,
 					typeParameters,
 					resolveAddress: (address) => this.#resolveAddress(address),
@@ -200,7 +211,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			],
 		});
 
-		return parseTS /* ts */ `bcs.struct('${name}', ${fieldObject})`;
+		return parseTS /* ts */ `new MoveStruct(\`${name}\`, ${fieldObject})`;
 	}
 
 	async #renderFieldsAsTuple(
@@ -208,11 +219,15 @@ export class MoveModuleBuilder extends FileBuilder {
 		{ fields }: Fields,
 		typeParameters: TypeParameter[] = [],
 	) {
+		this.addImport('~root/../utils/index.js', 'MoveTuple');
 		const values = Object.values(fields).map((field) =>
 			renderTypeSignature(field.type_, {
 				format: 'bcs',
 				summary: this.summary,
 				typeParameters,
+				onBcsType: () => {
+					this.addImport('@mysten/sui/bcs', 'bcs');
+				},
 				resolveAddress: (address) => this.#resolveAddress(address),
 				onDependency: (address, mod) => {
 					if (address !== this.summary.id.address || mod !== this.summary.id.name) {
@@ -229,7 +244,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			}),
 		);
 
-		return parseTS /* ts */ `bcs.tuple([${values.join(', ')}], { name: '${name}' })`;
+		return parseTS /* ts */ `new MoveTuple(\`${name}\`, [${values.join(', ')}])`;
 	}
 
 	async renderStructs() {
@@ -241,15 +256,14 @@ export class MoveModuleBuilder extends FileBuilder {
 			this.exports.push(name);
 
 			const params = struct.type_parameters.filter((param) => !param.phantom);
+			const structName = `\${$moduleName}::${name}`;
 
 			if (params.length === 0) {
 				this.statements.push(
-					...parseTS /* ts */ `export function ${name}() {
-						return ${
-							struct.fields.positional_fields
-								? await this.#renderFieldsAsTuple(name, struct.fields, struct.type_parameters)
-								: await this.#renderFieldsAsStruct(name, struct.fields, struct.type_parameters)
-						}
+					...parseTS /* ts */ `export const ${name} = ${
+						struct.fields.positional_fields
+							? await this.#renderFieldsAsTuple(structName, struct.fields, struct.type_parameters)
+							: await this.#renderFieldsAsStruct(structName, struct.fields, struct.type_parameters)
 					}`,
 				);
 			} else {
@@ -257,6 +271,7 @@ export class MoveModuleBuilder extends FileBuilder {
 
 				const typeParams = `...typeParameters: [${params.map((param, i) => param.name ?? `T${i}`).join(', ')}]`;
 				const typeGenerics = `${params.map((param, i) => `${param.name ?? `T${i}`} extends BcsType<any>`).join(', ')}`;
+				const nameGenerics = `${params.map((param, i) => `\${typeParameters[${i}].name as ${param.name ?? `T${i}`}['name']}`).join(', ')}`;
 
 				this.statements.push(
 					...(await withComment(
@@ -264,8 +279,16 @@ export class MoveModuleBuilder extends FileBuilder {
 						parseTS /* ts */ `export function ${name}<${typeGenerics}>(${typeParams}) {
 						return ${
 							struct.fields.positional_fields
-								? await this.#renderFieldsAsTuple(name, struct.fields, struct.type_parameters)
-								: await this.#renderFieldsAsStruct(name, struct.fields, struct.type_parameters)
+								? await this.#renderFieldsAsTuple(
+										`${structName}<${nameGenerics}>`,
+										struct.fields,
+										struct.type_parameters,
+									)
+								: await this.#renderFieldsAsStruct(
+										`${structName}<${nameGenerics}>`,
+										struct.fields,
+										struct.type_parameters,
+									)
 						}
 					}`,
 					)),
@@ -291,7 +314,10 @@ export class MoveModuleBuilder extends FileBuilder {
 			if (!this.#includedTypes.has(name)) {
 				continue;
 			}
+			this.addImport('~root/../utils/index.js', 'MoveEnum');
 			this.exports.push(name);
+
+			const enumName = `\${$moduleName}::${name}`;
 
 			const variantsObject = await mapToObject({
 				items: Object.entries(enumDef.variants),
@@ -306,6 +332,9 @@ export class MoveModuleBuilder extends FileBuilder {
 										format: 'bcs',
 										summary: this.summary,
 										typeParameters: enumDef.type_parameters,
+										onBcsType: () => {
+											this.addImport('@mysten/sui/bcs', 'bcs');
+										},
 										resolveAddress: (address) => this.#resolveAddress(address),
 										onDependency: (address, mod) => {
 											if (address !== this.summary.id.address || mod !== this.summary.id.name) {
@@ -339,10 +368,7 @@ export class MoveModuleBuilder extends FileBuilder {
 				this.statements.push(
 					...(await withComment(
 						enumDef,
-						parseTS /* ts */ `
-					export function ${name}() {
-						return bcs.enum('${name}', ${variantsObject})
-					}`,
+						parseTS /* ts */ `export const ${name} = new MoveEnum(\`${enumName}\`, ${variantsObject})`,
 					)),
 				);
 			} else {
@@ -350,13 +376,14 @@ export class MoveModuleBuilder extends FileBuilder {
 
 				const typeParams = `...typeParameters: [${params.map((param, i) => param.name ?? `T${i}`).join(', ')}]`;
 				const typeGenerics = `${params.map((param, i) => `${param.name ?? `T${i}`} extends BcsType<any>`).join(', ')}`;
+				const nameGenerics = `${params.map((param, i) => `\${typeParameters[${i}].name as ${param.name ?? `T${i}`}['name']}`).join(', ')}`;
 
 				this.statements.push(
 					...(await withComment(
 						enumDef,
 						parseTS /* ts */ `
 					export function ${name}<${typeGenerics}>(${typeParams}) {
-						return bcs.enum('${name}', ${variantsObject})
+						return new MoveEnum(\`${enumName}<${nameGenerics}>\`, ${variantsObject})
 					}`,
 					)),
 				);
