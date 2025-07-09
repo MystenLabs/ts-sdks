@@ -22,6 +22,12 @@ export const VotingParams = new MoveStruct(`${$moduleName}::VotingParams`, {
 	/** Voting: node capacity for the next epoch. */
 	node_capacity: bcs.u64(),
 });
+/** Represents the state of the staking pool. */
+export const PoolState = new MoveEnum(`${$moduleName}::PoolState`, {
+	Active: null,
+	Withdrawing: bcs.u32(),
+	Withdrawn: null,
+});
 export const StakingPool = new MoveStruct(`${$moduleName}::StakingPool`, {
 	id: object.UID,
 	/** The current state of the pool. */
@@ -65,7 +71,7 @@ export const StakingPool = new MoveStruct(`${$moduleName}::StakingPool`, {
 	 * rate was set, and the value is the exchange rate (the ratio of the amount of WAL
 	 * tokens for the pool shares).
 	 */
-	exchange_rates: table.Table(),
+	exchange_rates: table.Table,
 	/**
 	 * The amount of stake that will be added to the `wal_balance`. Can hold up to two
 	 * keys: E+1 and E+2, due to the differences in the activation epoch.
@@ -80,19 +86,13 @@ export const StakingPool = new MoveStruct(`${$moduleName}::StakingPool`, {
 	 */
 	pending_stake: pending_values.PendingValues,
 	/** The rewards that the pool has received from being in the committee. */
-	rewards_pool: balance.Balance(),
+	rewards_pool: balance.Balance,
 	/** The commission that the pool has received from the rewards. */
-	commission: balance.Balance(),
+	commission: balance.Balance,
 	/** An Object or an address which can claim the commission. */
 	commission_receiver: auth.Authorized,
 	/** An Object or address that can authorize governance actions, such as upgrades. */
 	governance_authorized: auth.Authorized,
 	/** Reserved for future use and migrations. */
 	extra_fields: bag.Bag,
-});
-/** Represents the state of the staking pool. */
-export const PoolState = new MoveEnum(`${$moduleName}::PoolState`, {
-	Active: null,
-	Withdrawing: bcs.u32(),
-	Withdrawn: null,
 });

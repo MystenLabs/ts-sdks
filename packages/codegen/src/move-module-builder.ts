@@ -22,6 +22,7 @@ export class MoveModuleBuilder extends FileBuilder {
 	#addressMappings: Record<string, string>;
 	#includedTypes: Set<string> = new Set();
 	#includedFunctions: Set<string> = new Set();
+	#orderedTypes: string[] = [];
 	#mvrNameOrAddress?: string;
 
 	constructor({
@@ -143,6 +144,9 @@ export class MoveModuleBuilder extends FileBuilder {
 				});
 			});
 		}
+
+		// Add after all dependencies are included to avoid declaration order issues
+		this.#orderedTypes.push(name);
 	}
 
 	includeAllTypes(moduleBuilders: Record<string, MoveModuleBuilder>) {
@@ -158,8 +162,13 @@ export class MoveModuleBuilder extends FileBuilder {
 				`,
 			);
 		}
-		await this.renderStructs();
-		await this.renderEnums();
+		for (const name of this.#orderedTypes) {
+			if (this.summary.structs[name]) {
+				await this.renderStruct(name);
+			} else if (this.summary.enums[name]) {
+				await this.renderEnum(name);
+			}
+		}
 	}
 
 	hasBcsTypes() {
@@ -247,36 +256,43 @@ export class MoveModuleBuilder extends FileBuilder {
 		return parseTS /* ts */ `new MoveTuple(\`${name}\`, [${values.join(', ')}])`;
 	}
 
-	async renderStructs() {
-		for (const [name, struct] of Object.entries(this.summary.structs)) {
-			if (!this.#includedTypes.has(name)) {
-				continue;
-			}
+	async renderStruct(name: string) {
+		if (!this.#includedTypes.has(name)) {
+			return;
+		}
 
-			this.exports.push(name);
+		const struct = this.summary.structs[name];
 
-			const params = struct.type_parameters.filter((param) => !param.phantom);
-			const structName = `\${$moduleName}::${name}`;
+		if (!struct) {
+			throw new Error(
+				`Struct ${name} not found in ${this.summary.id.address}::${this.summary.id.name}`,
+			);
+		}
 
-			if (params.length === 0) {
-				this.statements.push(
-					...parseTS /* ts */ `export const ${name} = ${
-						struct.fields.positional_fields
-							? await this.#renderFieldsAsTuple(structName, struct.fields, struct.type_parameters)
-							: await this.#renderFieldsAsStruct(structName, struct.fields, struct.type_parameters)
-					}`,
-				);
-			} else {
-				this.addImport('@mysten/sui/bcs', 'type BcsType');
+		this.exports.push(name);
 
-				const typeParams = `...typeParameters: [${params.map((param, i) => param.name ?? `T${i}`).join(', ')}]`;
-				const typeGenerics = `${params.map((param, i) => `${param.name ?? `T${i}`} extends BcsType<any>`).join(', ')}`;
-				const nameGenerics = `${params.map((param, i) => `\${typeParameters[${i}].name as ${param.name ?? `T${i}`}['name']}`).join(', ')}`;
+		const params = struct.type_parameters.filter((param) => !param.phantom);
+		const structName = `\${$moduleName}::${name}`;
 
-				this.statements.push(
-					...(await withComment(
-						struct,
-						parseTS /* ts */ `export function ${name}<${typeGenerics}>(${typeParams}) {
+		if (params.length === 0) {
+			this.statements.push(
+				...parseTS /* ts */ `export const ${name} = ${
+					struct.fields.positional_fields
+						? await this.#renderFieldsAsTuple(structName, struct.fields, struct.type_parameters)
+						: await this.#renderFieldsAsStruct(structName, struct.fields, struct.type_parameters)
+				}`,
+			);
+		} else {
+			this.addImport('@mysten/sui/bcs', 'type BcsType');
+
+			const typeParams = `...typeParameters: [${params.map((param, i) => param.name ?? `T${i}`).join(', ')}]`;
+			const typeGenerics = `${params.map((param, i) => `${param.name ?? `T${i}`} extends BcsType<any>`).join(', ')}`;
+			const nameGenerics = `${params.map((param, i) => `\${typeParameters[${i}].name as ${param.name ?? `T${i}`}['name']}`).join(', ')}`;
+
+			this.statements.push(
+				...(await withComment(
+					struct,
+					parseTS /* ts */ `export function ${name}<${typeGenerics}>(${typeParams}) {
 						return ${
 							struct.fields.positional_fields
 								? await this.#renderFieldsAsTuple(
@@ -291,103 +307,97 @@ export class MoveModuleBuilder extends FileBuilder {
 									)
 						}
 					}`,
-					)),
-				);
-			}
+				)),
+			);
 		}
 	}
 
-	async renderEnums() {
-		function isPositional(fields: Fields) {
-			if (fields.positional_fields === true) {
-				return true;
-			}
-
-			if (Object.keys(fields.fields).every((field, i) => field === `pos${i}`)) {
-				return true;
-			}
-
-			return false;
+	async renderEnum(name: string) {
+		if (!this.#includedTypes.has(name)) {
+			return;
 		}
 
-		for (const [name, enumDef] of Object.entries(this.summary.enums)) {
-			if (!this.#includedTypes.has(name)) {
-				continue;
-			}
-			this.addImport('~root/../utils/index.js', 'MoveEnum');
-			this.exports.push(name);
+		const enumDef = this.summary.enums[name];
 
-			const enumName = `\${$moduleName}::${name}`;
+		if (!enumDef) {
+			throw new Error(
+				`Enum ${name} not found in ${this.summary.id.address}::${this.summary.id.name}`,
+			);
+		}
 
-			const variantsObject = await mapToObject({
-				items: Object.entries(enumDef.variants),
-				getComment: ([_name, variant]) => variant.doc,
-				mapper: async ([variantName, variant]) => [
-					variantName,
-					Object.keys(variant.fields.fields).length === 0
-						? 'null'
-						: isPositional(variant.fields)
-							? Object.keys(variant.fields.fields).length === 1
-								? renderTypeSignature(Object.values(variant.fields.fields)[0].type_, {
-										format: 'bcs',
-										summary: this.summary,
-										typeParameters: enumDef.type_parameters,
-										onBcsType: () => {
-											this.addImport('@mysten/sui/bcs', 'bcs');
-										},
-										resolveAddress: (address) => this.#resolveAddress(address),
-										onDependency: (address, mod) => {
-											if (address !== this.summary.id.address || mod !== this.summary.id.name) {
-												return this.addStarImport(
-													address === this.summary.id.address
-														? `./${mod}.js`
-														: `~root/deps/${address}/${mod}.js`,
-													mod,
-												);
-											}
+		this.addImport('~root/../utils/index.js', 'MoveEnum');
+		this.exports.push(name);
 
-											return undefined;
-										},
-									})
-								: await this.#renderFieldsAsTuple(
-										`${name}.${variantName}`,
-										variant.fields,
-										enumDef.type_parameters,
-									)
-							: await this.#renderFieldsAsStruct(
+		const enumName = `\${$moduleName}::${name}`;
+
+		const variantsObject = await mapToObject({
+			items: Object.entries(enumDef.variants),
+			getComment: ([_name, variant]) => variant.doc,
+			mapper: async ([variantName, variant]) => [
+				variantName,
+				Object.keys(variant.fields.fields).length === 0
+					? 'null'
+					: isPositional(variant.fields)
+						? Object.keys(variant.fields.fields).length === 1
+							? renderTypeSignature(Object.values(variant.fields.fields)[0].type_, {
+									format: 'bcs',
+									summary: this.summary,
+									typeParameters: enumDef.type_parameters,
+									onBcsType: () => {
+										this.addImport('@mysten/sui/bcs', 'bcs');
+									},
+									resolveAddress: (address) => this.#resolveAddress(address),
+									onDependency: (address, mod) => {
+										if (address !== this.summary.id.address || mod !== this.summary.id.name) {
+											return this.addStarImport(
+												address === this.summary.id.address
+													? `./${mod}.js`
+													: `~root/deps/${address}/${mod}.js`,
+												mod,
+											);
+										}
+
+										return undefined;
+									},
+								})
+							: await this.#renderFieldsAsTuple(
 									`${name}.${variantName}`,
 									variant.fields,
 									enumDef.type_parameters,
-								),
-				],
-			});
+								)
+						: await this.#renderFieldsAsStruct(
+								`${name}.${variantName}`,
+								variant.fields,
+								enumDef.type_parameters,
+							),
+			],
+		});
 
-			const params = enumDef.type_parameters.filter((param) => !param.phantom);
+		const params = enumDef.type_parameters.filter((param) => !param.phantom);
 
-			if (params.length === 0) {
-				this.statements.push(
-					...(await withComment(
-						enumDef,
-						parseTS /* ts */ `export const ${name} = new MoveEnum(\`${enumName}\`, ${variantsObject})`,
-					)),
-				);
-			} else {
-				this.addImport('@mysten/sui/bcs', 'type BcsType');
+		if (params.length === 0) {
+			this.statements.push(
+				...(await withComment(
+					enumDef,
+					parseTS /* ts */ `export const ${name} = new MoveEnum(\`${enumName}\`, ${variantsObject})`,
+				)),
+			);
+		} else {
+			this.addImport('@mysten/sui/bcs', 'type BcsType');
 
-				const typeParams = `...typeParameters: [${params.map((param, i) => param.name ?? `T${i}`).join(', ')}]`;
-				const typeGenerics = `${params.map((param, i) => `${param.name ?? `T${i}`} extends BcsType<any>`).join(', ')}`;
-				const nameGenerics = `${params.map((param, i) => `\${typeParameters[${i}].name as ${param.name ?? `T${i}`}['name']}`).join(', ')}`;
+			const typeParams = `...typeParameters: [${params.map((param, i) => param.name ?? `T${i}`).join(', ')}]`;
+			const typeGenerics = `${params.map((param, i) => `${param.name ?? `T${i}`} extends BcsType<any>`).join(', ')}`;
+			const nameGenerics = `${params.map((param, i) => `\${typeParameters[${i}].name as ${param.name ?? `T${i}`}['name']}`).join(', ')}`;
 
-				this.statements.push(
-					...(await withComment(
-						enumDef,
-						parseTS /* ts */ `
+			this.statements.push(
+				...(await withComment(
+					enumDef,
+					parseTS /* ts */ `
 					export function ${name}<${typeGenerics}>(${typeParams}) {
 						return new MoveEnum(\`${enumName}<${nameGenerics}>\`, ${variantsObject})
 					}`,
-					)),
-				);
-			}
+				)),
+			);
 		}
 	}
 
@@ -547,4 +557,16 @@ export class MoveModuleBuilder extends FileBuilder {
 
 		return false;
 	}
+}
+
+function isPositional(fields: Fields) {
+	if (fields.positional_fields === true) {
+		return true;
+	}
+
+	if (Object.keys(fields.fields).every((field, i) => field === `pos${i}`)) {
+		return true;
+	}
+
+	return false;
 }

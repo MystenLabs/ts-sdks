@@ -13,6 +13,13 @@ import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from 
 import { type Transaction } from '@mysten/sui/transactions';
 import * as uq64_64 from './deps/std/uq64_64.js';
 const $moduleName = '@local-pkg/walrus::apportionment_queue';
+export function Entry<T extends BcsType<any>>(...typeParameters: [T]) {
+	return new MoveStruct(`${$moduleName}::Entry<${typeParameters[0].name as T['name']}>`, {
+		priority: uq64_64.UQ64_64,
+		tie_breaker: bcs.u64(),
+		value: typeParameters[0],
+	});
+}
 /** Struct representing a priority queue. */
 export function ApportionmentQueue<T extends BcsType<any>>(...typeParameters: [T]) {
 	return new MoveStruct(
@@ -26,13 +33,6 @@ export function ApportionmentQueue<T extends BcsType<any>>(...typeParameters: [T
 			entries: bcs.vector(Entry(typeParameters[0])),
 		},
 	);
-}
-export function Entry<T extends BcsType<any>>(...typeParameters: [T]) {
-	return new MoveStruct(`${$moduleName}::Entry<${typeParameters[0].name as T['name']}>`, {
-		priority: uq64_64.UQ64_64,
-		tie_breaker: bcs.u64(),
-		value: typeParameters[0],
-	});
 }
 export interface NewOptions {
 	package?: string;

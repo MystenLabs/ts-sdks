@@ -6,7 +6,7 @@ import { MoveStruct, MoveEnum } from '../utils/index.js';
 import * as group_ops from './deps/sui/group_ops.js';
 const $moduleName = '@local-pkg/walrus::bls_aggregate';
 export const BlsCommitteeMember = new MoveStruct(`${$moduleName}::BlsCommitteeMember`, {
-	public_key: group_ops.Element(),
+	public_key: group_ops.Element,
 	weight: bcs.u16(),
 	node_id: bcs.Address,
 });
@@ -18,7 +18,7 @@ export const BlsCommittee = new MoveStruct(`${$moduleName}::BlsCommittee`, {
 	/** The epoch in which the committee is active. */
 	epoch: bcs.u32(),
 	/** The aggregation of public keys for all members of the committee */
-	total_aggregated_key: group_ops.Element(),
+	total_aggregated_key: group_ops.Element,
 });
 /** The type of weight verification to perform. */
 export const RequiredWeight = new MoveEnum(`${$moduleName}::RequiredWeight`, {

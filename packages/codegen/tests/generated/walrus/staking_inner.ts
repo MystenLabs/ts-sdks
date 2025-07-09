@@ -2,12 +2,18 @@
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
 import { bcs } from '@mysten/sui/bcs';
-import { MoveStruct, MoveEnum } from '../utils/index.js';
+import { MoveEnum, MoveStruct } from '../utils/index.js';
 import * as object_table from './deps/sui/object_table.js';
 import * as extended_field from './extended_field.js';
 import * as committee from './committee.js';
 import * as epoch_parameters from './epoch_parameters.js';
 const $moduleName = '@local-pkg/walrus::staking_inner';
+/** The epoch state. */
+export const EpochState = new MoveEnum(`${$moduleName}::EpochState`, {
+	EpochChangeSync: bcs.u16(),
+	EpochChangeDone: bcs.u64(),
+	NextParamsSelected: bcs.u64(),
+});
 export const StakingInnerV1 = new MoveStruct(`${$moduleName}::StakingInnerV1`, {
 	/** The number of shards in the system. */
 	n_shards: bcs.u16(),
@@ -25,14 +31,14 @@ export const StakingInnerV1 = new MoveStruct(`${$moduleName}::StakingInnerV1`, {
 	 *
 	 * The key is the ID of the staking pool.
 	 */
-	pools: object_table.ObjectTable(),
+	pools: object_table.ObjectTable,
 	/**
 	 * The current epoch of the Walrus system. The epochs are not the same as the Sui
 	 * epochs, not to be mistaken with `ctx.epoch()`.
 	 */
 	epoch: bcs.u32(),
 	/** Stores the active set of storage nodes. Tracks the total amount of staked WAL. */
-	active_set: extended_field.ExtendedField(),
+	active_set: extended_field.ExtendedField,
 	/** The next committee in the system. */
 	next_committee: bcs.option(committee.Committee),
 	/** The current committee in the system. */
@@ -49,11 +55,5 @@ export const StakingInnerV1 = new MoveStruct(`${$moduleName}::StakingInnerV1`, {
 	 * the `select_committee` function and consumed in the `next_bls_committee`
 	 * function.
 	 */
-	next_epoch_public_keys: extended_field.ExtendedField(),
-});
-/** The epoch state. */
-export const EpochState = new MoveEnum(`${$moduleName}::EpochState`, {
-	EpochChangeSync: bcs.u16(),
-	EpochChangeDone: bcs.u64(),
-	NextParamsSelected: bcs.u64(),
+	next_epoch_public_keys: extended_field.ExtendedField,
 });

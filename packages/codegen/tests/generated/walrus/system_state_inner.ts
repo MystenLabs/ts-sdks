@@ -34,5 +34,5 @@ export const SystemStateInnerV1 = new MoveStruct(`${$moduleName}::SystemStateInn
 	 * performance of the map, it can be cleaned up as a side effect of the updates /
 	 * registrations.
 	 */
-	deny_list_sizes: extended_field.ExtendedField(),
+	deny_list_sizes: extended_field.ExtendedField,
 });

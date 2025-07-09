@@ -37,7 +37,7 @@ export const Subsidies = new MoveStruct(`${$moduleName}::Subsidies`, {
 	 */
 	system_subsidy_rate: bcs.u16(),
 	/** The balance of funds available in the subsidy pool. */
-	subsidy_pool: balance.Balance(),
+	subsidy_pool: balance.Balance,
 	/** Package ID of the subsidies contract. */
 	package_id: bcs.Address,
 	/** The version of the subsidies contract. */

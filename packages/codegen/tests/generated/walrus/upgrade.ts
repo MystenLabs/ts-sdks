@@ -51,7 +51,7 @@ export const UpgradeProposal = new MoveStruct(`${$moduleName}::UpgradeProposal`,
 export const UpgradeManager = new MoveStruct(`${$moduleName}::UpgradeManager`, {
 	id: object.UID,
 	cap: _package.UpgradeCap,
-	upgrade_proposals: table.Table(),
+	upgrade_proposals: table.Table,
 });
 export const EmergencyUpgradeCap = new MoveStruct(`${$moduleName}::EmergencyUpgradeCap`, {
 	id: object.UID,

@@ -10,19 +10,19 @@ import { type Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/wal_exchange::wal_exchange';
+export const ExchangeRate = new MoveStruct(`${$moduleName}::ExchangeRate`, {
+	wal: bcs.u64(),
+	sui: bcs.u64(),
+});
 export const Exchange = new MoveStruct(`${$moduleName}::Exchange`, {
 	id: object.UID,
-	wal: balance.Balance(),
-	sui: balance.Balance(),
+	wal: balance.Balance,
+	sui: balance.Balance,
 	rate: ExchangeRate,
 	admin: bcs.Address,
 });
 export const AdminCap = new MoveStruct(`${$moduleName}::AdminCap`, {
 	id: object.UID,
-});
-export const ExchangeRate = new MoveStruct(`${$moduleName}::ExchangeRate`, {
-	wal: bcs.u64(),
-	sui: bcs.u64(),
 });
 export interface NewExchangeRateArguments {
 	wal: RawTransactionArgument<number | bigint>;
