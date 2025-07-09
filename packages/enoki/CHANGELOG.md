@@ -1,5 +1,15 @@
 # @mysten/enoki
 
+## 0.10.0
+
+### Minor Changes
+
+- 7a25d35: Use IndexedDB for persisting zkLogin state and session data
+
+### Patch Changes
+
+- f8f9afc: adds ONE Championship auth provider
+
 ## 0.9.1
 
 ### Patch Changes
