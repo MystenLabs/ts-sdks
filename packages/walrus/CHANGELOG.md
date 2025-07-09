@@ -1,5 +1,11 @@
 # @mysten/walrus
 
+## 0.2.3
+
+### Patch Changes
+
+- 3bbbbf1: Fix linear tip calculation
+
 ## 0.2.2
 
 ### Patch Changes
