@@ -13,7 +13,14 @@
 
 import { toBase58, fromBase58, toBase64, fromBase64, toHex, fromHex } from '@mysten/utils';
 import type { BcsTypeOptions } from './bcs-type.js';
-import { BcsType, isSerializedBcs, SerializedBcs } from './bcs-type.js';
+import {
+	BcsType,
+	BcsStruct,
+	BcsEnum,
+	BcsTuple,
+	isSerializedBcs,
+	SerializedBcs,
+} from './bcs-type.js';
 import { bcs } from './bcs.js';
 import { BcsReader } from './reader.js';
 import type {
@@ -31,6 +38,9 @@ import { BcsWriter } from './writer.js';
 export {
 	bcs,
 	BcsType,
+	BcsStruct,
+	BcsEnum,
+	BcsTuple,
 	type BcsTypeOptions,
 	SerializedBcs,
 	isSerializedBcs,

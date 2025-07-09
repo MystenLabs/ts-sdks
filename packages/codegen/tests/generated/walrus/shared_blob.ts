@@ -1,19 +1,17 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { bcs } from '@mysten/sui/bcs';
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { type Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import * as object from './deps/sui/object.js';
 import * as blob from './blob.js';
 import * as balance from './deps/sui/balance.js';
-export function SharedBlob() {
-	return bcs.struct('SharedBlob', {
-		id: object.UID(),
-		blob: blob.Blob(),
-		funds: balance.Balance(),
-	});
-}
+const $moduleName = '@local-pkg/walrus::shared_blob';
+export const SharedBlob = new MoveStruct(`${$moduleName}::SharedBlob`, {
+	id: object.UID,
+	blob: blob.Blob,
+	funds: balance.Balance(),
+});
 export interface NewArguments {
 	blob: RawTransactionArgument<string>;
 }

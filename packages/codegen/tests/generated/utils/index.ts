@@ -1,4 +1,12 @@
-import { bcs, BcsType, TypeTag, TypeTagSerializer } from '@mysten/sui/bcs';
+import {
+	bcs,
+	BcsType,
+	TypeTag,
+	TypeTagSerializer,
+	BcsStruct,
+	BcsEnum,
+	BcsTuple,
+} from '@mysten/sui/bcs';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { TransactionArgument, isArgument } from '@mysten/sui/transactions';
 
@@ -134,6 +142,35 @@ export function normalizeMoveArguments(
 	}
 
 	return normalizedArgs;
+}
+
+export class MoveStruct<
+	const Name extends string,
+	T extends Record<string, BcsType<any>>,
+> extends BcsStruct<T> {
+	name: Name;
+	constructor(name: Name, fields: T) {
+		super(name, fields);
+		this.name = name;
+	}
+}
+
+export class MoveEnum<
+	T extends Record<string, BcsType<any> | null>,
+	const Name extends string,
+> extends BcsEnum<T, Name> {
+	constructor(name: Name, fields: T) {
+		super(name, fields);
+	}
+}
+
+export class MoveTuple<
+	T extends readonly BcsType<any>[],
+	const Name extends string,
+> extends BcsTuple<T, Name> {
+	constructor(name: Name, fields: T) {
+		super(fields, { name });
+	}
 }
 
 function stringify(val: unknown) {
