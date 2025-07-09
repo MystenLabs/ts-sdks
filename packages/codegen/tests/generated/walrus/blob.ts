@@ -17,6 +17,7 @@ export const Blob = new MoveStruct(`${$moduleName}::Blob`, {
 	storage: storage_resource.Storage,
 	deletable: bcs.bool(),
 });
+const type = Blob.name
 export const BlobIdDerivation = new MoveStruct(`${$moduleName}::BlobIdDerivation`, {
 	encoding_type: bcs.u8(),
 	size: bcs.u64(),

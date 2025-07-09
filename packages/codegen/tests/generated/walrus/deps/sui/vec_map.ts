@@ -4,6 +4,16 @@
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { MoveStruct } from '../../../utils/index.js';
 const $moduleName = 'sui::vec_map';
+/** An entry in the map */
+export function Entry<K extends BcsType<any>, V extends BcsType<any>>(...typeParameters: [K, V]) {
+	return new MoveStruct(
+		`${$moduleName}::Entry<${typeParameters[0].name as K['name']}, ${typeParameters[1].name as V['name']}>`,
+		{
+			key: typeParameters[0],
+			value: typeParameters[1],
+		},
+	);
+}
 /**
  * A map data structure backed by a vector. The map is guaranteed not to contain
  * duplicate keys, but entries are _not_ sorted by key--entries are included in
@@ -22,13 +32,6 @@ export function VecMap<K extends BcsType<any>, V extends BcsType<any>>(...typePa
 	);
 }
 
-/** An entry in the map */
-export function Entry<K extends BcsType<any>, V extends BcsType<any>>(...typeParameters: [K, V]) {
-	return new MoveStruct(
-		`${$moduleName}::Entry<${typeParameters[0].name as K['name']}, ${typeParameters[1].name as V['name']}>`,
-		{
-			key: typeParameters[0],
-			value: typeParameters[1],
-		},
-	);
-}
+
+const test = VecMap(bcs.u64(), bcs.bool());
+const testType = test.name

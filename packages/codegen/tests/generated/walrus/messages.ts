@@ -19,6 +19,13 @@ export const CertifiedMessage = new MoveStruct(`${$moduleName}::CertifiedMessage
 	message: bcs.vector(bcs.u8()),
 	stake_support: bcs.u16(),
 });
+/** The persistence type of a blob. Used for storage confirmation. */
+export const BlobPersistenceType = new MoveEnum(`${$moduleName}::BlobPersistenceType`, {
+	Permanent: null,
+	Deletable: new MoveStruct(`BlobPersistenceType.Deletable`, {
+		object_id: bcs.Address,
+	}),
+});
 export const CertifiedBlobMessage = new MoveStruct(`${$moduleName}::CertifiedBlobMessage`, {
 	blob_id: bcs.u256(),
 	blob_persistence_type: BlobPersistenceType,
@@ -34,11 +41,4 @@ export const DenyListUpdateMessage = new MoveStruct(`${$moduleName}::DenyListUpd
 });
 export const DenyListBlobDeleted = new MoveStruct(`${$moduleName}::DenyListBlobDeleted`, {
 	blob_id: bcs.u256(),
-});
-/** The persistence type of a blob. Used for storage confirmation. */
-export const BlobPersistenceType = new MoveEnum(`${$moduleName}::BlobPersistenceType`, {
-	Permanent: null,
-	Deletable: new MoveStruct(`BlobPersistenceType.Deletable`, {
-		object_id: bcs.Address,
-	}),
 });

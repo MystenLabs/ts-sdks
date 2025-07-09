@@ -13,10 +13,10 @@ export const StorageNodeInfo = new MoveStruct(`${$moduleName}::StorageNodeInfo`,
 	name: bcs.string(),
 	node_id: bcs.Address,
 	network_address: bcs.string(),
-	public_key: group_ops.Element(),
-	next_epoch_public_key: bcs.option(group_ops.Element()),
+	public_key: group_ops.Element,
+	next_epoch_public_key: bcs.option(group_ops.Element),
 	network_public_key: bcs.vector(bcs.u8()),
-	metadata: extended_field.ExtendedField(),
+	metadata: extended_field.ExtendedField,
 });
 export const StorageNodeCap = new MoveStruct(`${$moduleName}::StorageNodeCap`, {
 	id: object.UID,
