@@ -12,7 +12,7 @@ export const FutureAccounting = new MoveStruct(`${$moduleName}::FutureAccounting
 	 * due to package upgrade limitations.
 	 */
 	used_capacity: bcs.u64(),
-	rewards_to_distribute: balance.Balance(),
+	rewards_to_distribute: balance.Balance,
 });
 export const FutureAccountingRingBuffer = new MoveStruct(
 	`${$moduleName}::FutureAccountingRingBuffer`,

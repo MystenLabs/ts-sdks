@@ -10,7 +10,7 @@ const $moduleName = '@local-pkg/walrus::shared_blob';
 export const SharedBlob = new MoveStruct(`${$moduleName}::SharedBlob`, {
 	id: object.UID,
 	blob: blob.Blob,
-	funds: balance.Balance(),
+	funds: balance.Balance,
 });
 export interface NewArguments {
 	blob: RawTransactionArgument<string>;

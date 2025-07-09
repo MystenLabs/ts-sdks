@@ -280,19 +280,18 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 		? type.name
 		: `${importName ?? getSafeName(type.module.name)}.${getSafeName(type.name)}`;
 
+	const filteredTypeArguments = type.type_arguments.filter((arg) => !arg.phantom);
+
 	switch (options.format) {
 		case 'typescriptArg':
 			return 'string';
 		case 'bcs':
-			if (type.type_arguments.length === 0) {
+			if (filteredTypeArguments.length === 0) {
 				return typeNameRef;
 			}
 
 			return `${typeNameRef}(
-                ${type.type_arguments
-									.filter((arg) => !arg.phantom)
-									.map((type) => renderTypeSignature(type.argument, options))
-									.join(', ')})`;
+                ${filteredTypeArguments.map((type) => renderTypeSignature(type.argument, options)).join(', ')})`;
 		default:
 			throw new Error(`Unknown format: ${options.format}`);
 	}
