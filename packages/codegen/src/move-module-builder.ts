@@ -408,8 +408,8 @@ export class MoveModuleBuilder extends FileBuilder {
 					}),
 				)
 				.map((type, i) =>
-					parameters[i].name
-						? `${camelCase(parameters[i].name)}: RawTransactionArgument<${type}>`
+					requiredParameters[i].name
+						? `${camelCase(requiredParameters[i].name)}: RawTransactionArgument<${type}>`
 						: `RawTransactionArgument<${type}>`,
 				)
 				.join(',\n');
