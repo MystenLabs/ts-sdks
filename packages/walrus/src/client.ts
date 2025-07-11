@@ -60,7 +60,7 @@ import type {
 	DeleteBlobOptions,
 	EncodingType,
 	ExtendBlobOptions,
-	FanOutConfig,
+	UploadRelayConfig,
 	GetBlobMetadataOptions,
 	GetCertificationEpochOptions,
 	GetSecondarySliverOptions,
@@ -78,7 +78,7 @@ import type {
 	WalrusPackageConfig,
 	WriteBlobAttributesOptions,
 	WriteBlobOptions,
-	WriteBlobToFanOutProxyOptions,
+	WriteBlobToUploadRelayOptions,
 	WriteEncodedBlobOptions,
 	WriteEncodedBlobToNodesOptions,
 	WriteMetadataOptions,
@@ -103,7 +103,7 @@ import { SuiObjectDataLoader } from './utils/object-loader.js';
 import { shuffle, weightedShuffle } from './utils/randomness.js';
 import { getWasmBindings } from './wasm.js';
 import { chunk } from '@mysten/utils';
-import { FanOutProxyClient } from './fan-out-proxy/client.js';
+import { UploadRelayClient } from './upload-relay/client.js';
 
 export class WalrusClient {
 	#storageNodeClient: StorageNodeClient;
@@ -120,8 +120,8 @@ export class WalrusClient {
 
 	#cache: ClientCache;
 
-	#fanOutConfig: FanOutConfig | null = null;
-	#fanOutClient: FanOutProxyClient | null = null;
+	#uploadRelayConfig: UploadRelayConfig | null = null;
+	#uploadRelayClient: UploadRelayClient | null = null;
 
 	constructor(config: WalrusClientConfig) {
 		if (config.network && !config.packageConfig) {
@@ -141,9 +141,9 @@ export class WalrusClient {
 		}
 
 		this.#wasmUrl = config.wasmUrl;
-		this.#fanOutConfig = config.fanOut ?? null;
-		if (this.#fanOutConfig) {
-			this.#fanOutClient = new FanOutProxyClient(this.#fanOutConfig);
+		this.#uploadRelayConfig = config.uploadRelay ?? null;
+		if (this.#uploadRelayConfig) {
+			this.#uploadRelayClient = new UploadRelayClient(this.#uploadRelayConfig);
 		}
 
 		this.#suiClient =
@@ -952,25 +952,25 @@ export class WalrusClient {
 	}
 
 	#loadTipConfig() {
-		return this.#cache.read(['fanout-tip-config'], async () => {
-			if (!this.#fanOutConfig?.sendTip || !this.#fanOutClient) {
+		return this.#cache.read(['upload-relay-tip-config'], async () => {
+			if (!this.#uploadRelayConfig?.sendTip || !this.#uploadRelayClient) {
 				return null;
 			}
 
-			if ('kind' in this.#fanOutConfig.sendTip) {
-				return this.#fanOutConfig.sendTip;
+			if ('kind' in this.#uploadRelayConfig.sendTip) {
+				return this.#uploadRelayConfig.sendTip;
 			}
 
-			const tipConfig = await this.#fanOutClient.tipConfig();
+			const tipConfig = await this.#uploadRelayClient.tipConfig();
 
 			return {
 				...tipConfig,
-				max: this.#fanOutConfig.sendTip.max,
+				max: this.#uploadRelayConfig.sendTip.max,
 			};
 		});
 	}
 
-	async calculateFanOutTip(options: { size: number }) {
+	async calculateUploadRelayTip(options: { size: number }) {
 		const systemState = await this.systemState();
 		const encodedSize = encodedBlobLength(options.size, systemState.committee.n_shards);
 		const tipConfig = await this.#loadTipConfig();
@@ -996,7 +996,7 @@ export class WalrusClient {
 		return amount;
 	}
 
-	sendFanOutTip({
+	sendUploadRelayTip({
 		size,
 		blobDigest,
 		nonce,
@@ -1010,7 +1010,7 @@ export class WalrusClient {
 
 			if (tipConfig) {
 				transaction.add(this.addAuthPayload({ size, blobDigest, nonce }));
-				const amount = await this.calculateFanOutTip({ size });
+				const amount = await this.calculateUploadRelayTip({ size });
 				const { address } = tipConfig;
 				transaction.transferObjects(
 					[
@@ -1756,24 +1756,24 @@ export class WalrusClient {
 	}
 
 	/**
-	 * Writes a blob to to a fan out proxy
+	 * Writes a blob to to an upload relay
 	 *
 	 * @usage
 	 * ```ts
-	 * await client.writeBlobToFanOutProxy({ blob, deletable, epochs, signer });
+	 * await client.writeBlobToUploadRelay({ blob, deletable, epochs, signer });
 	 * ```
 	 */
-	async writeBlobToFanOutProxy(options: WriteBlobToFanOutProxyOptions): Promise<{
+	async writeBlobToUploadRelay(options: WriteBlobToUploadRelayOptions): Promise<{
 		blobId: string;
 		certificate: ProtocolMessageCertificate;
 	}> {
-		if (!this.#fanOutClient) {
-			throw new WalrusClientError('Fan out proxy not configured');
+		if (!this.#uploadRelayClient) {
+			throw new WalrusClientError('Upload relay not configured');
 		}
 
-		return this.#fanOutClient.writeBlob({
+		return this.#uploadRelayClient.writeBlob({
 			...options,
-			requiresTip: !!this.#fanOutConfig?.sendTip,
+			requiresTip: !!this.#uploadRelayConfig?.sendTip,
 		});
 	}
 
@@ -1826,7 +1826,7 @@ export class WalrusClient {
 		owner,
 		attributes,
 	}: WriteBlobOptions) {
-		if (!this.#fanOutConfig) {
+		if (!this.#uploadRelayConfig) {
 			const encoded = await this.encodeBlob(blob);
 			const blobId = encoded.blobId;
 			const { sliversByNode, metadata, rootHash } = encoded;
@@ -1874,7 +1874,7 @@ export class WalrusClient {
 			const transaction = new Transaction();
 
 			transaction.add(
-				this.sendFanOutTip({
+				this.sendUploadRelayTip({
 					size: blob.length,
 					blobDigest: metadata.blobDigest,
 					nonce: metadata.nonce,
@@ -1897,7 +1897,7 @@ export class WalrusClient {
 				digest: registerResult.digest,
 			});
 
-			const result = await this.writeBlobToFanOutProxy({
+			const result = await this.writeBlobToUploadRelay({
 				blobId,
 				blob,
 				nonce: metadata.nonce,

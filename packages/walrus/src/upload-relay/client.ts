@@ -6,7 +6,7 @@ import { UserAbortError } from '../storage-node/error.js';
 import type { mergeHeaders } from '../storage-node/utils.js';
 import type {
 	EncodingType,
-	FanOutTipConfig,
+	UploadRelayTipConfig,
 	ProtocolMessageCertificate,
 	WalrusClientRequestOptions,
 } from '../types.js';
@@ -14,7 +14,7 @@ import { fromUrlSafeBase64, urlSafeBase64 } from '../utils/index.js';
 
 export type Fetch = (url: RequestInfo, init?: RequestInit) => Promise<Response>;
 
-export type FanOutProxyClientOptions = {
+export type UploadRelayClientOptions = {
 	host: string;
 	/**
 	 * An optional custom fetch function.
@@ -43,7 +43,7 @@ export type RequestOptions = {
 	headers?: ReturnType<typeof mergeHeaders>;
 } & Omit<RequestInit, 'headers'>;
 
-export type WriteBlobToFanOutProxyOptions = {
+export type WriteBlobToUploadRelayOptions = {
 	blobId: string;
 	nonce: Uint8Array;
 	txDigest: string;
@@ -54,19 +54,19 @@ export type WriteBlobToFanOutProxyOptions = {
 	encodingType?: EncodingType;
 } & WalrusClientRequestOptions;
 
-export class FanOutProxyClient {
+export class UploadRelayClient {
 	host: string;
 	#fetch: Fetch;
 	#timeout: number;
 	#onError?: (error: Error) => void;
-	constructor({ host, fetch: overriddenFetch, timeout, onError }: FanOutProxyClientOptions) {
+	constructor({ host, fetch: overriddenFetch, timeout, onError }: UploadRelayClientOptions) {
 		this.host = host;
 		this.#fetch = overriddenFetch ?? globalThis.fetch;
 		this.#timeout = timeout ?? 30_000;
 		this.#onError = onError;
 	}
 
-	async tipConfig(): Promise<FanOutTipConfig> {
+	async tipConfig(): Promise<UploadRelayTipConfig> {
 		const response = await this.#request({
 			method: 'GET',
 			path: '/v1/tip-config',
@@ -116,7 +116,7 @@ export class FanOutProxyClient {
 		requiresTip,
 		encodingType,
 		...options
-	}: WriteBlobToFanOutProxyOptions): Promise<{
+	}: WriteBlobToUploadRelayOptions): Promise<{
 		blobId: string;
 		certificate: ProtocolMessageCertificate;
 	}> {
@@ -139,7 +139,7 @@ export class FanOutProxyClient {
 
 		const response = await this.#request({
 			method: 'POST',
-			path: `/v1/blob-fan-out?${query.toString()}`,
+			path: `/v1/blob-upload-relay?${query.toString()}`,
 			body: blob,
 			...options,
 		});

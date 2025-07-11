@@ -15,7 +15,7 @@ import type {
 	Uploadable,
 } from './storage-node/types.js';
 import type { BlobMetadata, EncodingType } from './utils/bcs.js';
-import type { FanOutProxyClientOptions } from './fan-out-proxy/client.js';
+import type { UploadRelayClientOptions } from './upload-relay/client.js';
 
 /**
  * Configuration for the Walrus package on sui
@@ -64,16 +64,16 @@ export type TipStrategy =
 			};
 	  };
 
-export type FanOutTipConfig = {
+export type UploadRelayTipConfig = {
 	address: string;
 	max?: number;
 	kind: TipStrategy;
 };
 
-export interface FanOutConfig extends FanOutProxyClientOptions {
+export interface UploadRelayConfig extends UploadRelayClientOptions {
 	sendTip?:
 		| null
-		| FanOutTipConfig
+		| UploadRelayTipConfig
 		| {
 				max: number;
 		  };
@@ -82,7 +82,7 @@ export interface FanOutConfig extends FanOutProxyClientOptions {
 interface BaseWalrusClientConfig {
 	storageNodeClientOptions?: StorageNodeClientOptions;
 	wasmUrl?: string;
-	fanOut?: FanOutConfig;
+	uploadRelay?: UploadRelayConfig;
 }
 
 /**
@@ -229,7 +229,7 @@ export type WriteEncodedBlobToNodesOptions = {
 } & DeletableConfirmationOptions &
 	WalrusClientRequestOptions;
 
-export type WriteBlobToFanOutProxyOptions = {
+export type WriteBlobToUploadRelayOptions = {
 	blobId: string;
 	blob: Uint8Array;
 	nonce: Uint8Array;
