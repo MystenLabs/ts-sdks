@@ -1,5 +1,14 @@
 # @mysten/enoki
 
+## 0.11.0
+
+### Minor Changes
+
+- 5d0269c: Split the `enoki:getMetadata` feature into `enoki:getMetadata` and `enoki:getSession`.
+
+  `getWalletMetadata` now only returns the authentication provider, while `getSession` returns the
+  zkLogin session data.
+
 ## 0.10.0
 
 ### Minor Changes
