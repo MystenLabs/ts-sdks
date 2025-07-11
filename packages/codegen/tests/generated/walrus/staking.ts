@@ -5,17 +5,16 @@
 /** Module: staking */
 
 import { bcs } from '@mysten/sui/bcs';
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { type Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import * as object from './deps/sui/object.js';
-export function Staking() {
-	return bcs.struct('Staking', {
-		id: object.UID(),
-		version: bcs.u64(),
-		package_id: bcs.Address,
-		new_package_id: bcs.option(bcs.Address),
-	});
-}
+const $moduleName = '@local-pkg/walrus::staking';
+export const Staking = new MoveStruct(`${$moduleName}::Staking`, {
+	id: object.UID,
+	version: bcs.u64(),
+	package_id: bcs.Address,
+	new_package_id: bcs.option(bcs.Address),
+});
 export interface RegisterCandidateArguments {
 	staking: RawTransactionArgument<string>;
 	name: RawTransactionArgument<string>;
