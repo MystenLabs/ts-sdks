@@ -4,10 +4,10 @@
 import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 
 import {
-	attachFloorPriceRuleTx,
-	attachKioskLockRuleTx,
-	attachPersonalKioskRuleTx,
-	attachRoyaltyRuleTx,
+	floorPriceRule,
+	kioskLockRule,
+	personalKioskRule,
+	royaltyRule,
 } from '../tx/rules/attach.js';
 import {
 	createTransferPolicy,
@@ -34,20 +34,13 @@ export type TransferPolicyTransactionParams = {
 };
 
 export class TransferPolicyTransaction {
-	transaction: Transaction;
 	kioskClient: KioskClient;
 	policy?: ObjectArgument;
 	policyCap?: ObjectArgument;
 	type?: string;
 
-	constructor({
-		kioskClient,
-		transactionBlock,
-		transaction = transactionBlock!,
-		cap,
-	}: TransferPolicyTransactionParams) {
+	constructor({ kioskClient, cap }: TransferPolicyTransactionParams) {
 		this.kioskClient = kioskClient;
-		this.transaction = transaction;
 		if (cap) this.setCap(cap);
 	}
 
@@ -71,12 +64,18 @@ export class TransferPolicyTransaction {
 	}: TransferPolicyBaseParams & {
 		address: string;
 	}) {
-		if (!skipCheck) {
-			const policies = await this.kioskClient.getTransferPolicies({ type });
-			if (policies.length > 0) throw new Error("There's already transfer policy for this Type.");
-		}
-		const cap = createTransferPolicy(this.transaction, type, publisher);
-		this.transaction.transferObjects([cap], this.transaction.pure.address(address));
+		return async (transaction: Transaction) => {
+			if (!skipCheck) {
+				const policies = await this.kioskClient.getTransferPolicies({ type });
+				if (policies.length > 0) throw new Error("There's already transfer policy for this Type.");
+			}
+
+			transaction.transferObjects(
+				// TODO: type or itemType?
+				[createTransferPolicy({ itemType: type, publisher })],
+				transaction.pure.address(address),
+			);
+		};
 	}
 
 	/**
@@ -87,23 +86,18 @@ export class TransferPolicyTransaction {
 	 * @param address Address to save the `TransferPolicyCap` object to.
 	 * @param skipCheck (Optional) skip checking if a transfer policy already exists
 	 */
-	async create({
-		type,
-		publisher,
-		skipCheck,
-	}: TransferPolicyBaseParams): Promise<TransferPolicyTransaction> {
-		if (!skipCheck) {
-			const policies = await this.kioskClient.getTransferPolicies({ type });
-			if (policies.length > 0) throw new Error("There's already transfer policy for this Type.");
-		}
-		const [policy, policyCap] = createTransferPolicyWithoutSharing(
-			this.transaction,
-			type,
-			publisher,
-		);
+	async create({ type, publisher, skipCheck }: TransferPolicyBaseParams) {
+		return async (transaction: Transaction) => {
+			if (!skipCheck) {
+				const policies = await this.kioskClient.getTransferPolicies({ type });
+				if (policies.length > 0) throw new Error("There's already transfer policy for this Type.");
+			}
+			const [policy, policyCap] = transaction.add(
+				createTransferPolicyWithoutSharing({ itemType: type, publisher }),
+			);
 
-		this.#setup(policy, policyCap, type); // sets the client's TP to the newly created one.
-		return this;
+			this.#setup(policy, policyCap, type); // sets the client's TP to the newly created one.
+		};
 	}
 
 	/**
@@ -113,14 +107,22 @@ export class TransferPolicyTransaction {
 	 * @param address The address to transfer the `TransferPolicyCap`
 	 */
 	shareAndTransferCap(address: string) {
-		if (!this.type || !this.policyCap || !this.policy)
-			throw new Error('This function can only be called after `transferPolicyManager.create`');
+		return async (transaction: Transaction) => {
+			if (!this.type || !this.policyCap || !this.policy)
+				throw new Error('This function can only be called after `transferPolicyManager.create`');
 
-		shareTransferPolicy(this.transaction, this.type, this.policy as TransactionObjectArgument);
-		this.transaction.transferObjects(
-			[this.policyCap as TransactionObjectArgument],
-			this.transaction.pure.address(address),
-		);
+			transaction.add(
+				shareTransferPolicy({
+					itemType: this.type,
+					transferPolicy: this.policy as TransactionObjectArgument,
+				}),
+			);
+
+			transaction.transferObjects(
+				[this.policyCap as TransactionObjectArgument],
+				transaction.pure.address(address),
+			);
+		};
 	}
 
 	/**
@@ -138,19 +140,18 @@ export class TransferPolicyTransaction {
 	 * @param amount (Optional) amount parameter. Will withdraw all profits if the amount is not specified.
 	 */
 	withdraw(address: string, amount?: string | bigint) {
-		this.#validateInputs();
-		// Withdraw coin for specified amount (or none)
-		const coin = withdrawFromPolicy(
-			this.transaction,
-			this.type!,
-			this.policy!,
-			this.policyCap!,
-			amount,
-		);
+		return async (transaction: Transaction) => {
+			this.#validateInputs();
+			// Withdraw coin for specified amount (or none)
+			const coin = withdrawFromPolicy({
+				itemType: this.type!,
+				policy: this.policy!,
+				policyCap: this.policyCap!,
+				amount,
+			});
 
-		this.transaction.transferObjects([coin], this.transaction.pure.address(address));
-
-		return this;
+			transaction.transferObjects([coin], transaction.pure.address(address));
+		};
 	}
 
 	/**
@@ -172,16 +173,18 @@ export class TransferPolicyTransaction {
 		// Hard-coding package Ids as these don't change.
 		// Also, it's hard to keep versioning as with network wipes, mainnet
 		// and testnet will conflict.
-		attachRoyaltyRuleTx(
-			this.transaction,
-			this.type!,
-			this.policy!,
-			this.policyCap!,
-			percentageBps,
-			minAmount,
-			this.kioskClient.getRulePackageId('royaltyRulePackageId'),
-		);
-		return this;
+		return (transaction: Transaction) => {
+			transaction.add(
+				royaltyRule({
+					type: this.type!,
+					policy: this.policy!,
+					policyCap: this.policyCap!,
+					percentageBps,
+					minAmount,
+					packageId: this.kioskClient.getRulePackageId('royaltyRulePackageId')!,
+				}),
+			);
+		};
 	}
 
 	/**
@@ -191,14 +194,16 @@ export class TransferPolicyTransaction {
 	addLockRule() {
 		this.#validateInputs();
 
-		attachKioskLockRuleTx(
-			this.transaction,
-			this.type!,
-			this.policy!,
-			this.policyCap!,
-			this.kioskClient.getRulePackageId('kioskLockRulePackageId'),
-		);
-		return this;
+		return (transaction: Transaction) => {
+			transaction.add(
+				kioskLockRule({
+					type: this.type!,
+					policy: this.policy!,
+					policyCap: this.policyCap!,
+					packageId: this.kioskClient.getRulePackageId('kioskLockRulePackageId')!,
+				}),
+			);
+		};
 	}
 
 	/**
@@ -207,14 +212,16 @@ export class TransferPolicyTransaction {
 	addPersonalKioskRule() {
 		this.#validateInputs();
 
-		attachPersonalKioskRuleTx(
-			this.transaction,
-			this.type!,
-			this.policy!,
-			this.policyCap!,
-			this.kioskClient.getRulePackageId('personalKioskRulePackageId'),
-		);
-		return this;
+		return (transaction: Transaction) => {
+			transaction.add(
+				personalKioskRule({
+					type: this.type!,
+					policy: this.policy!,
+					policyCap: this.policyCap!,
+					packageId: this.kioskClient.getRulePackageId('personalKioskRulePackageId')!,
+				}),
+			);
+		};
 	}
 
 	/**
@@ -224,15 +231,17 @@ export class TransferPolicyTransaction {
 	addFloorPriceRule(minPrice: string | bigint) {
 		this.#validateInputs();
 
-		attachFloorPriceRuleTx(
-			this.transaction,
-			this.type!,
-			this.policy!,
-			this.policyCap!,
-			minPrice,
-			this.kioskClient.getRulePackageId('floorPriceRulePackageId'),
-		);
-		return this;
+		return (transaction: Transaction) => {
+			transaction.add(
+				floorPriceRule({
+					type: this.type!,
+					policy: this.policy!,
+					policyCap: this.policyCap!,
+					minPrice,
+					packageId: this.kioskClient.getRulePackageId('floorPriceRulePackageId')!,
+				}),
+			);
+		};
 	}
 
 	/**
@@ -243,14 +252,17 @@ export class TransferPolicyTransaction {
 	removeRule({ ruleType, configType }: { ruleType: string; configType: string }) {
 		this.#validateInputs();
 
-		removeTransferPolicyRule(
-			this.transaction,
-			this.type!,
-			ruleType,
-			configType,
-			this.policy!,
-			this.policyCap!,
-		);
+		return (transaction: Transaction) => {
+			transaction.add(
+				removeTransferPolicyRule({
+					itemType: this.type!,
+					ruleType,
+					configType,
+					policy: this.policy!,
+					policyCap: this.policyCap!,
+				}),
+			);
+		};
 	}
 
 	/**
@@ -261,15 +273,17 @@ export class TransferPolicyTransaction {
 
 		const packageId = this.kioskClient.getRulePackageId('kioskLockRulePackageId');
 
-		removeTransferPolicyRule(
-			this.transaction,
-			this.type!,
-			`${packageId}::kiosk_lock_rule::Rule`,
-			`${packageId}::kiosk_lock_rule::Config`,
-			this.policy!,
-			this.policyCap!,
-		);
-		return this;
+		return (transaction: Transaction) => {
+			transaction.add(
+				removeTransferPolicyRule({
+					itemType: this.type!,
+					ruleType: `${packageId}::kiosk_lock_rule::Rule`,
+					configType: `${packageId}::kiosk_lock_rule::Config`,
+					policy: this.policy!,
+					policyCap: this.policyCap!,
+				}),
+			);
+		};
 	}
 
 	/**
@@ -280,15 +294,17 @@ export class TransferPolicyTransaction {
 
 		const packageId = this.kioskClient.getRulePackageId('royaltyRulePackageId');
 
-		removeTransferPolicyRule(
-			this.transaction,
-			this.type!,
-			`${packageId}::royalty_rule::Rule`,
-			`${packageId}::royalty_rule::Config`,
-			this.policy!,
-			this.policyCap!,
-		);
-		return this;
+		return (transaction: Transaction) => {
+			transaction.add(
+				removeTransferPolicyRule({
+					itemType: this.type!,
+					ruleType: `${packageId}::royalty_rule::Rule`,
+					configType: `${packageId}::royalty_rule::Config`,
+					policy: this.policy!,
+					policyCap: this.policyCap!,
+				}),
+			);
+		};
 	}
 
 	removePersonalKioskRule() {
@@ -296,15 +312,17 @@ export class TransferPolicyTransaction {
 
 		const packageId = this.kioskClient.getRulePackageId('personalKioskRulePackageId');
 
-		removeTransferPolicyRule(
-			this.transaction,
-			this.type!,
-			`${packageId}::personal_kiosk_rule::Rule`,
-			`bool`,
-			this.policy!,
-			this.policyCap!,
-		);
-		return this;
+		return (transaction: Transaction) => {
+			transaction.add(
+				removeTransferPolicyRule({
+					itemType: this.type!,
+					ruleType: `${packageId}::personal_kiosk_rule::Rule`,
+					configType: `bool`,
+					policy: this.policy!,
+					policyCap: this.policyCap!,
+				}),
+			);
+		};
 	}
 
 	removeFloorPriceRule() {
@@ -312,15 +330,17 @@ export class TransferPolicyTransaction {
 
 		const packageId = this.kioskClient.getRulePackageId('floorPriceRulePackageId');
 
-		removeTransferPolicyRule(
-			this.transaction,
-			this.type!,
-			`${packageId}::floor_price_rule::Rule`,
-			`${packageId}::floor_price_rule::Config`,
-			this.policy!,
-			this.policyCap!,
-		);
-		return this;
+		return (transaction: Transaction) => {
+			transaction.add(
+				removeTransferPolicyRule({
+					itemType: this.type!,
+					ruleType: `${packageId}::floor_price_rule::Rule`,
+					configType: `${packageId}::floor_price_rule::Config`,
+					policy: this.policy!,
+					policyCap: this.policyCap!,
+				}),
+			);
+		};
 	}
 
 	getPolicy() {
