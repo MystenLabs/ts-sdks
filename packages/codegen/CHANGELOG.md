@@ -1,5 +1,11 @@
 # @mysten/codegen
 
+## 0.2.2
+
+### Patch Changes
+
+- 319e234: Update arg fields' naming when an std arg is featured
+
 ## 0.2.1
 
 ### Patch Changes
