@@ -3,7 +3,7 @@
 
 import type { EncodingType } from '../types.js';
 import { QuiltPatchId } from './bcs.js';
-import { fromUrlSafeBase64 } from './index.js';
+import { fromUrlSafeBase64, urlSafeBase64 } from './index.js';
 
 export const QUILT_INDEX_SIZE_BYTES_LENGTH = 4;
 export const QUILT_VERSION_BYTES_LENGTH = 1;
@@ -105,4 +105,8 @@ function canBlobsFitIntoMatrix(
 
 export function parseQuiltPatchId(id: string) {
 	return QuiltPatchId.parse(fromUrlSafeBase64(id));
+}
+
+export function encodeQuiltPatchId(id: typeof QuiltPatchId.$inferInput) {
+	return urlSafeBase64(QuiltPatchId.serialize(id).toBytes());
 }

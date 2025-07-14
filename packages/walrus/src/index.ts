@@ -9,4 +9,7 @@ export type * from './types.js';
 export * from './storage-node/error.js';
 export * from './error.js';
 
+export { QuiltReader } from './quilt/reader.js';
+export { encodeQuilt, type EncodeQuiltOptions } from './quilt/write.js';
+
 export { blobIdFromInt, blobIdToInt } from './utils/bcs.js';

@@ -251,6 +251,14 @@ export type WriteBlobOptions = {
 	attributes?: Record<string, string | null>;
 } & WalrusClientRequestOptions;
 
+export interface WriteQuiltOptions extends Omit<WriteBlobOptions, 'blob'> {
+	blobs: {
+		contents: Uint8Array;
+		identifier: string;
+		tags?: Record<string, string>;
+	}[];
+}
+
 export interface DeleteBlobOptions {
 	blobObjectId: string;
 }

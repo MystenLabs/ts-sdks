@@ -82,6 +82,7 @@ import type {
 	WriteEncodedBlobOptions,
 	WriteEncodedBlobToNodesOptions,
 	WriteMetadataOptions,
+	WriteQuiltOptions,
 	WriteSliverOptions,
 	WriteSliversToNodeOptions,
 } from './types.js';
@@ -104,6 +105,8 @@ import { shuffle, weightedShuffle } from './utils/randomness.js';
 import { getWasmBindings } from './wasm.js';
 import { chunk } from '@mysten/utils';
 import { UploadRelayClient } from './upload-relay/client.js';
+import { encodeQuilt } from './quilt/write.js';
+import { encodeQuiltPatchId } from './utils/quilts.js';
 
 export class WalrusClient {
 	#storageNodeClient: StorageNodeClient;
@@ -1924,6 +1927,50 @@ export class WalrusClient {
 				blobObject: await this.#objectLoader.load(blobObjectId, Blob()),
 			};
 		}
+	}
+
+	async writeQuilt({ blobs, ...options }: WriteQuiltOptions) {
+		const encoded = await this.encodeQuilt({ blobs });
+		const result = await this.writeBlob({
+			blob: encoded.quilt,
+			...options,
+		});
+
+		return {
+			...result,
+			index: {
+				...encoded.index,
+				patches: encoded.index.patches.map((patch) => ({
+					...patch,
+					patchId: encodeQuiltPatchId({
+						quiltId: result.blobId,
+						patchId: {
+							version: 1,
+							startIndex: patch.startIndex,
+							endIndex: patch.endIndex,
+						},
+					}),
+				})),
+			},
+		};
+	}
+
+	async encodeQuilt({
+		blobs,
+	}: {
+		blobs: {
+			contents: Uint8Array;
+			identifier: string;
+			tags?: Record<string, string>;
+		}[];
+	}) {
+		const systemState = await this.systemState();
+		const encoded = encodeQuilt({
+			blobs,
+			numShards: systemState.committee.n_shards,
+		});
+
+		return encoded;
 	}
 
 	async #executeTransaction(transaction: Transaction, signer: Signer, action: string) {

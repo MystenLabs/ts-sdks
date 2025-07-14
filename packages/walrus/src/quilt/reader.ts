@@ -4,66 +4,26 @@
 import { bcs } from '@mysten/bcs';
 import { QuiltIndexV1, QuiltPatchBlobHeader, QuiltPatchId, QuiltPatchTags } from '../utils/bcs.js';
 import { HAS_TAGS_FLAG, parseQuiltPatchId, QUILT_PATCH_BLOB_HEADER_SIZE } from '../utils/quilts.js';
-import type { WalrusClient } from '../client.js';
 import { getSourceSymbols, urlSafeBase64 } from '../utils/index.js';
+import { BlobReader } from '../files/reader.js';
+import type { BlobReaderOptions } from '../files/reader.js';
 
-export interface QuiltReaderOptions {
-	client: WalrusClient;
-	blobId: string;
+export interface QuiltReaderOptions extends BlobReaderOptions {
 	numShards: number;
-	fullBlob?: Uint8Array;
 }
 
-export class QuiltReader {
-	blobId: string;
-	#client: WalrusClient;
-	#secondarySlivers = new Map<number, Uint8Array | Promise<Uint8Array>>();
+export class QuiltReader extends BlobReader {
 	#numShards: number;
-	#blobBytes: Uint8Array | Promise<Uint8Array> | null = null;
 	#columnSize: number | Promise<number> | null = null;
 
 	constructor({ client, blobId, numShards, fullBlob }: QuiltReaderOptions) {
-		this.#client = client;
-		this.blobId = blobId;
+		super({ client, blobId, fullBlob });
 		this.#numShards = numShards;
-		this.#blobBytes = fullBlob ?? null;
-	}
-
-	// TODO: We should handle retries and epoch changes
-	async #getSecondarySliver({
-		sliverIndex,
-		signal,
-	}: {
-		sliverIndex: number;
-		signal?: AbortSignal;
-	}) {
-		if (this.#secondarySlivers.has(sliverIndex)) {
-			return this.#secondarySlivers.get(sliverIndex)!;
-		}
-
-		const sliverPromise = this.#client
-			.getSecondarySliver({
-				blobId: this.blobId,
-				index: sliverIndex,
-				signal,
-			})
-			.then((sliver) => new Uint8Array(sliver.symbols.data));
-
-		this.#secondarySlivers.set(sliverIndex, sliverPromise);
-
-		try {
-			const sliver = await sliverPromise;
-			this.#secondarySlivers.set(sliverIndex, sliver);
-			return sliver;
-		} catch (error) {
-			this.#secondarySlivers.delete(sliverIndex);
-			throw error;
-		}
 	}
 
 	async *#sliverator(startIndex: number) {
 		for (let i = startIndex; i < this.#numShards; i++) {
-			yield this.#getSecondarySliver({ sliverIndex: i });
+			yield this.getSecondarySliver({ sliverIndex: i });
 		}
 	}
 
@@ -72,7 +32,7 @@ export class QuiltReader {
 			return new Uint8Array(0);
 		}
 
-		columnSize = columnSize ?? (await this.#getSecondarySliver({ sliverIndex: sliver })).length;
+		columnSize = columnSize ?? (await this.getSecondarySliver({ sliverIndex: sliver })).length;
 		const columnOffset = Math.floor(offset / columnSize);
 		let remainingOffset = offset % columnSize;
 		const slivers = this.#sliverator(sliver + columnOffset);
@@ -146,7 +106,7 @@ export class QuiltReader {
 	}
 
 	async #readBytes(sliver: number, length: number, offset = 0, columnSize?: number) {
-		if (this.#blobBytes) {
+		if (this.blobBytes) {
 			return this.#readBytesFromBlob(sliver, length, offset);
 		}
 
@@ -158,17 +118,9 @@ export class QuiltReader {
 		}
 	}
 
-	async getFullBlob() {
-		if (!this.#blobBytes) {
-			this.#blobBytes = this.#client.readBlob({ blobId: this.blobId });
-		}
-
-		return this.#blobBytes;
-	}
-
 	async #readBlob(sliverIndexes: number[]) {
 		const slivers = await Promise.all(
-			sliverIndexes.map((sliverIndex) => this.#getSecondarySliver({ sliverIndex })),
+			sliverIndexes.map((sliverIndex) => this.getSecondarySliver({ sliverIndex })),
 		);
 
 		const firstSliver = slivers[0];
@@ -239,8 +191,8 @@ export class QuiltReader {
 		}
 
 		this.#columnSize = new Promise<number>((resolve, reject) => {
-			if (this.#blobBytes) {
-				Promise.resolve(this.#blobBytes)
+			if (this.blobBytes) {
+				Promise.resolve(this.blobBytes)
 					.then((bytes) => {
 						const { rowSize, symbolSize } = this.#getSizes(bytes.length);
 
@@ -250,7 +202,7 @@ export class QuiltReader {
 					.catch(reject);
 			}
 
-			return this.#getSecondarySliver({ sliverIndex: 0 })
+			return this.getSecondarySliver({ sliverIndex: 0 })
 				.then((sliver) => resolve(sliver.length))
 				.catch(reject);
 		}).catch((error) => {
