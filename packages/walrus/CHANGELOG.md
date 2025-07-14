@@ -1,5 +1,11 @@
 # @mysten/walrus
 
+## 0.3.0
+
+### Minor Changes
+
+- 0d5cd85: rename fanout proxy to upload relay
+
 ## 0.2.3
 
 ### Patch Changes
