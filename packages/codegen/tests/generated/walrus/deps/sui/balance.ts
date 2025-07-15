@@ -9,8 +9,8 @@
  */
 
 import { bcs } from '@mysten/sui/bcs';
-export function Balance() {
-	return bcs.struct('Balance', {
-		value: bcs.u64(),
-	});
-}
+import { MoveStruct } from '../../../utils/index.js';
+const $moduleName = 'sui::balance';
+export const Balance = new MoveStruct(`${$moduleName}::Balance`, {
+	value: bcs.u64(),
+});
