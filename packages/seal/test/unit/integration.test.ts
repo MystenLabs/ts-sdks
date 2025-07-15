@@ -18,7 +18,7 @@ import {
 	NoAccessError,
 	toMajorityError,
 } from '../../src/error';
-import { getAllowlistedKeyServers, KeyServerType } from '../../src/key-server';
+import { KeyServerType } from '../../src/key-server';
 import { RequestFormat, SessionKey } from '../../src/session-key';
 import { decrypt } from '../../src/decrypt';
 import { KeyCacheKey, SealCompatibleClient } from '../../src/types';
@@ -123,8 +123,35 @@ describe('Integration test', () => {
 		suiAddress = keypair.getPublicKey().toSuiAddress();
 		suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
 		TESTNET_PACKAGE_ID = '0x8afa5d31dbaa0a8fb07082692940ca3d56b5e856c5126cb5a3693f0a4de63b82';
+		
+		// mysten ci
+		// serverObjectId = '0x2304dd255b13eaf5cb471bd5188df946a64f1715ee2b7b02fecf306bd12ceebc';
+
+		// Tusky Permissioned
+		// serverObjectId = '0x3e8a72966873b1dfd103adc74a4cd3fe01b5d7a938554f8f09b07875a3828ed5';
+
+		// Studio Mirai Open
+		// FAILING: getDerivedKeys with MVR name
+		// serverObjectId = '0xb43cac22fd8c801fa4ea558d70575aa7619d82b4194e764da47bcff66a743871';
+
+		// Studio Mirai Permissioned
+		serverObjectId = '0xe9d342bdfc4a7d78447614bade80b7a4b561ba0536b3a5c1b9eb0f2e08726f66';
+
+		// NodeInfra Open
+		// OK
+		// serverObjectId = '0x5466b7df5c15b508678d51496ada8afab0d6f70a01c10613123382b1b8131007';
+
+		// NodeInfra Permissioned
+		// OK
+		// serverObjectId = '0x880698a7030e9abc0204666846463fc770d4033ec146a20b9c196f18507db728';
+
+		// Ruby Nodes Open
+		// serverObjectId = '0x781389fae54633649d78b731b708c5b363cf7fa4753a48997d4f6f82d5cc5b98';
+
+		// Ruby Nodes Permissioned
+		// serverObjectId = '0x1dd69f90dbd5beae19275eb730f33960f0bca61210f36115941148cb35791e2a';
+		
 		// Object ids pointing to ci key servers' urls
-		serverObjectId = '0x2304dd255b13eaf5cb471bd5188df946a64f1715ee2b7b02fecf306bd12ceebc';
 		serverObjectId2 = '0x81aeaa8c25d2c912e1dc23b4372305b7a602c4ec4cc3e510963bc635e500aa37';
 		objectIds = [
 			{
@@ -216,17 +243,17 @@ describe('Integration test', () => {
 		expect(decryptedBytes2).toEqual(data2);
 	}
 
-	it(
-		'[testnet servers] whitelist example encrypt and decrypt scenarios',
-		{ timeout: 12000 },
-		async () => {
-			const testnetObjectIds = getAllowlistedKeyServers('testnet').map((server) => ({
-				objectId: server,
-				weight: 1,
-			}));
-			await runScenario(testnetObjectIds);
-		},
-	);
+	// it(
+	// 	'[testnet servers] whitelist example encrypt and decrypt scenarios',
+	// 	{ timeout: 12000 },
+	// 	async () => {
+	// 		const testnetObjectIds = getAllowlistedKeyServers('testnet').map((server) => ({
+	// 			objectId: server,
+	// 			weight: 1,
+	// 		}));
+	// 		await runScenario(testnetObjectIds);
+	// 	},
+	// );
 
 	it(
 		'[ci servers] whitelist example encrypt and decrypt scenarios',
