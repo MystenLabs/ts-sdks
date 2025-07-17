@@ -12,23 +12,44 @@ import { BlobId } from './bcs.js';
 const DIGEST_LEN = 32;
 const BLOB_ID_LEN = 32;
 
+export const REQUIRED_ALIGNMENT_BY_ENCODING_TYPE = {
+	RS2: 2,
+	RedStuff: 2,
+};
+
+export const MAX_SYMBOL_SIZE_BY_ENCODING_TYPE = {
+	RS2: 2 ** 16 - 1,
+	RedStuff: 2 ** 16 - 1,
+};
+
+// TODO: this name is kinda bad
 export function encodedBlobLength(
+	unencodedLength: number,
+	nShards: number,
+	encodingType: EncodingType = 'RS2',
+): number {
+	const sliverSize = encodedSliverSize(unencodedLength, nShards, encodingType);
+	const metadata = nShards * DIGEST_LEN * 2 + BLOB_ID_LEN;
+	return nShards * metadata + sliverSize;
+}
+
+export function encodedSliverSize(
 	unencodedLength: number,
 	nShards: number,
 	encodingType: EncodingType = 'RS2',
 ): number {
 	const { primarySymbols, secondarySymbols } = getSourceSymbols(nShards, encodingType);
 
-	let size =
+	let symbolSize =
 		Math.floor((Math.max(unencodedLength, 1) - 1) / (primarySymbols * secondarySymbols)) + 1;
 
-	if (encodingType === 'RS2' && size % 2 === 1) {
-		size = size + 1;
+	if (encodingType === 'RS2' && symbolSize % 2 === 1) {
+		symbolSize = symbolSize + 1;
 	}
 
-	const sliversSize = (primarySymbols + secondarySymbols) * size * nShards;
-	const metadata = nShards * DIGEST_LEN * 2 + BLOB_ID_LEN;
-	return nShards * metadata + sliversSize;
+	const singleShardSize = (primarySymbols + secondarySymbols) * symbolSize;
+
+	return singleShardSize * nShards;
 }
 
 export function getSourceSymbols(nShards: number, encodingType: EncodingType = 'RS2') {
@@ -198,4 +219,31 @@ export function urlSafeBase64(bytes: Uint8Array): string {
 
 export function fromUrlSafeBase64(base64: string): Uint8Array {
 	return fromBase64(base64.replaceAll('-', '+').replaceAll('_', '/'));
+}
+
+export function getSizes(blobSize: number, numShards: number) {
+	const encodedBlobSize = encodedSliverSize(blobSize, numShards);
+	const { primarySymbols, secondarySymbols } = getSourceSymbols(numShards);
+	const totalSymbols = primarySymbols * secondarySymbols;
+	const totalSymbols2 = (primarySymbols + secondarySymbols) * numShards;
+
+	if (encodedBlobSize % totalSymbols2 !== 0) {
+		throw new Error('encoded blob size should be divisible by total symbols');
+	}
+
+	const symbolSize = encodedBlobSize / totalSymbols2;
+
+	if (blobSize % totalSymbols !== 0) {
+		throw new Error('blob length should be divisible by total symbols');
+	}
+
+	const rowSize = symbolSize * secondarySymbols;
+	const columnSize = symbolSize * primarySymbols;
+
+	return {
+		symbolSize,
+		rowSize,
+		columnSize,
+		blobSize,
+	};
 }

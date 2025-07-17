@@ -82,8 +82,10 @@ import type {
 	WriteEncodedBlobOptions,
 	WriteEncodedBlobToNodesOptions,
 	WriteMetadataOptions,
+	WriteQuiltOptions,
 	WriteSliverOptions,
 	WriteSliversToNodeOptions,
+	WriteFilesOptions,
 } from './types.js';
 import { blobIdToInt, IntentType, SliverData, StorageConfirmation } from './utils/bcs.js';
 import {
@@ -104,6 +106,12 @@ import { shuffle, weightedShuffle } from './utils/randomness.js';
 import { getWasmBindings } from './wasm.js';
 import { chunk } from '@mysten/utils';
 import { UploadRelayClient } from './upload-relay/client.js';
+import { encodeQuilt, encodeQuiltPatchId, parseWalrusId } from './utils/quilts.js';
+import { BlobReader } from './files/readers/blob.js';
+import { WalrusBlob } from './files/blob.js';
+import { WalrusFile } from './files/file.js';
+import { QuiltFileReader } from './files/readers/quilt-file.js';
+import { QuiltReader } from './files/readers/quilt.js';
 
 export class WalrusClient {
 	#storageNodeClient: StorageNodeClient;
@@ -1926,6 +1934,50 @@ export class WalrusClient {
 		}
 	}
 
+	async writeQuilt({ blobs, ...options }: WriteQuiltOptions) {
+		const encoded = await this.encodeQuilt({ blobs });
+		const result = await this.writeBlob({
+			blob: encoded.quilt,
+			...options,
+		});
+
+		return {
+			...result,
+			index: {
+				...encoded.index,
+				patches: encoded.index.patches.map((patch) => ({
+					...patch,
+					patchId: encodeQuiltPatchId({
+						quiltId: result.blobId,
+						patchId: {
+							version: 1,
+							startIndex: patch.startIndex,
+							endIndex: patch.endIndex,
+						},
+					}),
+				})),
+			},
+		};
+	}
+
+	async encodeQuilt({
+		blobs,
+	}: {
+		blobs: {
+			contents: Uint8Array;
+			identifier: string;
+			tags?: Record<string, string>;
+		}[];
+	}) {
+		const systemState = await this.systemState();
+		const encoded = encodeQuilt({
+			blobs,
+			numShards: systemState.committee.n_shards,
+		});
+
+		return encoded;
+	}
+
 	async #executeTransaction(transaction: Transaction, signer: Signer, action: string) {
 		transaction.setSenderIfNotSet(signer.toSuiAddress());
 
@@ -2018,5 +2070,82 @@ export class WalrusClient {
 				throw error;
 			}
 		}) as T;
+	}
+
+	async getBlob({ blobId }: { blobId: string }) {
+		return new WalrusBlob({
+			reader: new BlobReader({
+				client: this,
+				blobId,
+				numShards: (await this.#getActiveCommittee()).nodes.length,
+			}),
+			client: this,
+		});
+	}
+
+	async getFiles({ ids }: { ids: string[] }) {
+		const readersByBlobId = new Map<string, BlobReader>();
+		const quiltReadersByBlobId = new Map<string, QuiltReader>();
+		const parsedIds = ids.map((id) => parseWalrusId(id));
+		const numShards = (await this.#getActiveCommittee()).nodes.length;
+
+		for (const id of parsedIds) {
+			const blobId = id.kind === 'blob' ? id.id : id.id.quiltId;
+			if (!readersByBlobId.has(blobId)) {
+				readersByBlobId.set(
+					blobId,
+					new BlobReader({
+						client: this,
+						blobId,
+						numShards,
+					}),
+				);
+			}
+
+			if (id.kind === 'quiltPatch') {
+				if (!quiltReadersByBlobId.has(blobId)) {
+					quiltReadersByBlobId.set(
+						blobId,
+						new QuiltReader({
+							blob: readersByBlobId.get(blobId)!,
+						}),
+					);
+				}
+			}
+		}
+
+		return parsedIds.map((id) => {
+			if (id.kind === 'blob') {
+				return new WalrusFile({
+					reader: readersByBlobId.get(id.id)!,
+				});
+			}
+
+			return new WalrusFile({
+				reader: new QuiltFileReader({
+					quilt: quiltReadersByBlobId.get(id.id.quiltId)!,
+					sliverIndex: id.id.patchId.startIndex,
+				}),
+			});
+		});
+	}
+
+	async writeFiles({ files, ...options }: WriteFilesOptions) {
+		const { blobId, index, blobObject } = await this.writeQuilt({
+			...options,
+			blobs: await Promise.all(
+				files.map(async (file, i) => ({
+					contents: await file.bytes(),
+					identifier: (await file.getIdentifier()) ?? `file-${i}`,
+					tags: (await file.getTags()) ?? {},
+				})),
+			),
+		});
+
+		return index.patches.map((patch) => ({
+			id: patch.patchId,
+			blobId,
+			blobObject,
+		}));
 	}
 }
