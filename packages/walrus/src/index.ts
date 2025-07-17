@@ -9,10 +9,8 @@ export type * from './types.js';
 export * from './storage-node/error.js';
 export * from './error.js';
 
-export { QuiltReader, BlobReader, QuiltBlobReader } from './quilt/reader.js';
-export { encodeQuilt, type EncodeQuiltOptions } from './quilt/write.js';
-
+export { encodeQuilt, type EncodeQuiltOptions } from './utils/quilts.js';
 export { blobIdFromInt, blobIdToInt } from './utils/bcs.js';
 
-export { WalrusFile } from './files/file.js';
+export { WalrusFile, type FileReader } from './files/file.js';
 export { WalrusBlob } from './files/blob.js';

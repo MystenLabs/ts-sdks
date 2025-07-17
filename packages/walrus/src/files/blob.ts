@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { WalrusClient } from '../client.js';
-import type { BlobReader } from '../quilt/reader.js';
+import type { BlobReader } from './readers/blob.js';
 import type { BlobStatus } from '../storage-node/types.js';
 import { WalrusFile } from './file.js';
 

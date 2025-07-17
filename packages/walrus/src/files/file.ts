@@ -1,10 +1,26 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { FileReader } from '../quilt/reader.js';
+import { LocalReader } from './readers/local.js';
+
+export interface FileReader {
+	getIdentifier(): Promise<string | null>;
+	getTags(): Promise<Record<string, string> | null>;
+	getBytes(): Promise<Uint8Array>;
+}
 
 export class WalrusFile {
 	#reader: FileReader;
+
+	static from(options: {
+		contents: Uint8Array | Blob;
+		identifier: string;
+		tags?: Record<string, string>;
+	}) {
+		return new WalrusFile({
+			reader: new LocalReader(options),
+		});
+	}
 
 	constructor({ reader }: { reader: FileReader }) {
 		this.#reader = reader;

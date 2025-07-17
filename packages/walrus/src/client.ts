@@ -105,8 +105,12 @@ import { shuffle, weightedShuffle } from './utils/randomness.js';
 import { getWasmBindings } from './wasm.js';
 import { chunk } from '@mysten/utils';
 import { UploadRelayClient } from './upload-relay/client.js';
-import { encodeQuilt } from './quilt/write.js';
-import { encodeQuiltPatchId } from './utils/quilts.js';
+import { encodeQuilt, encodeQuiltPatchId, parseWalrusId } from './utils/quilts.js';
+import { BlobReader } from './files/readers/blob.js';
+import { WalrusBlob } from './files/blob.js';
+import { WalrusFile } from './files/file.js';
+import { QuiltFileReader } from './files/readers/quilt-file.js';
+import { QuiltReader } from './files/readers/quilt.js';
 
 export class WalrusClient {
 	#storageNodeClient: StorageNodeClient;
@@ -2065,5 +2069,63 @@ export class WalrusClient {
 				throw error;
 			}
 		}) as T;
+	}
+
+	async getBlob({ blobId }: { blobId: string }) {
+		return new WalrusBlob({
+			reader: new BlobReader({
+				client: this,
+				blobId,
+				numShards: (await this.#getActiveCommittee()).nodes.length,
+			}),
+			client: this,
+		});
+	}
+
+	async getFiles({ ids }: { ids: string[] }) {
+		const readersByBlobId = new Map<string, BlobReader>();
+		const quiltReadersByBlobId = new Map<string, QuiltReader>();
+		const parsedIds = ids.map((id) => parseWalrusId(id));
+		const numShards = (await this.#getActiveCommittee()).nodes.length;
+
+		for (const id of parsedIds) {
+			const blobId = id.kind === 'blob' ? id.id : id.id.quiltId;
+			if (!readersByBlobId.has(blobId)) {
+				readersByBlobId.set(
+					blobId,
+					new BlobReader({
+						client: this,
+						blobId,
+						numShards,
+					}),
+				);
+			}
+
+			if (id.kind === 'quiltPatch') {
+				if (!quiltReadersByBlobId.has(blobId)) {
+					quiltReadersByBlobId.set(
+						blobId,
+						new QuiltReader({
+							blob: readersByBlobId.get(blobId)!,
+						}),
+					);
+				}
+			}
+		}
+
+		return parsedIds.map((id) => {
+			if (id.kind === 'blob') {
+				return new WalrusFile({
+					reader: readersByBlobId.get(id.id)!,
+				});
+			}
+
+			return new WalrusFile({
+				reader: new QuiltFileReader({
+					quilt: quiltReadersByBlobId.get(id.id.quiltId)!,
+					sliverIndex: id.id.patchId.startIndex,
+				}),
+			});
+		});
 	}
 }
