@@ -3,7 +3,12 @@
 
 import type { EncodingType } from '../types.js';
 import { QuiltPatchId } from './bcs.js';
-import { fromUrlSafeBase64, urlSafeBase64 } from './index.js';
+import {
+	fromUrlSafeBase64,
+	MAX_SYMBOL_SIZE_BY_ENCODING_TYPE,
+	REQUIRED_ALIGNMENT_BY_ENCODING_TYPE,
+	urlSafeBase64,
+} from './index.js';
 
 export const QUILT_INDEX_SIZE_BYTES_LENGTH = 4;
 export const QUILT_VERSION_BYTES_LENGTH = 1;
@@ -16,16 +21,6 @@ export const MAX_BLOB_IDENTIFIER_BYTES_LENGTH = (1 << (8 * BLOB_IDENTIFIER_SIZE_
 export const MAX_NUM_SLIVERS_FOR_QUILT_INDEX = 10;
 
 export const HAS_TAGS_FLAG = 1 << 0;
-
-const REQUIRED_ALIGNMENT_BY_ENCODING_TYPE = {
-	RS2: 2,
-	RedStuff: 2,
-};
-
-const MAX_SYMBOL_SIZE_BY_ENCODING_TYPE = {
-	RS2: 2 ** 16 - 1,
-	RedStuff: 2 ** 16 - 1,
-};
 
 /**
  * Finds the minimum symbol size needed to store blobs in a fixed number of columns.

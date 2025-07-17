@@ -1,18 +1,33 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { WalrusBlob } from './blob.js';
+import type { FileReader } from '../quilt/reader.js';
 
-export abstract class WalrusFile {
-	blob?: WalrusBlob;
-	#bytes?: Promise<Uint8Array> | Uint8Array | null;
-	#identifier?: string | null;
-	#tags?: Record<string, string> | null;
+export class WalrusFile {
+	#reader: FileReader;
 
-	abstract getIdentifier(): Promise<string | null>;
-	abstract getTags(): Promise<Record<string, string> | null>;
+	constructor({ reader }: { reader: FileReader }) {
+		this.#reader = reader;
+	}
 
-	abstract bytes(): Promise<Uint8Array>;
-	abstract text(): Promise<string>;
-	abstract json(): Promise<unknown>;
+	getIdentifier() {
+		return this.#reader.getIdentifier();
+	}
+	getTags() {
+		return this.#reader.getTags();
+	}
+
+	bytes() {
+		return this.#reader.getBytes();
+	}
+
+	async text() {
+		const bytes = await this.bytes();
+
+		return new TextDecoder().decode(bytes);
+	}
+
+	async json() {
+		return JSON.parse(await this.text());
+	}
 }

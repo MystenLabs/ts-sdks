@@ -17,12 +17,14 @@ import {
 	TAGS_SIZE_BYTES_LENGTH,
 } from '../utils/quilts.js';
 
+interface QuiltBlob {
+	contents: Uint8Array;
+	identifier: string;
+	tags?: Record<string, string>;
+}
+
 export interface EncodeQuiltOptions {
-	blobs: {
-		contents: Uint8Array;
-		identifier: string;
-		tags?: Record<string, string>;
-	}[];
+	blobs: QuiltBlob[];
 	numShards: number;
 	encodingType?: EncodingType;
 }
