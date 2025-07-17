@@ -20,23 +20,23 @@ const client = new SuiClient({
 
 	const quiltReader = await blobReader.getQuiltReader();
 
-	const data = await quiltReader.readByPatchId(
+	const patch1 = await quiltReader.readerForPatchId(
 		'nBENQqV1TwBw2BtW3T2h_jHPd49KeVaYGGd84D9JuRkBAQACAA',
 	);
-	console.log(data.identifier);
-	console.log(data.tags);
-	console.log('content:', new TextDecoder().decode(data.blobContents));
+	console.log(await patch1.getIdentifier());
+	console.log(await patch1.getTags());
+	console.log('content:', new TextDecoder().decode(await patch1.getBytes()));
 	const metadata = await quiltReader.readIndex();
 	console.log(metadata);
 
-	await blobReader.getFullBlob();
+	await blobReader.getSize();
 
 	const index = await quiltReader.readIndex();
 	console.log(index);
-	const data2 = await quiltReader.readByPatchId(
+	const patch2 = await quiltReader.readerForPatchId(
 		'nBENQqV1TwBw2BtW3T2h_jHPd49KeVaYGGd84D9JuRkBAgADAA',
 	);
-	console.log(data2.identifier);
-	console.log(data2.tags);
-	console.log('content:', new TextDecoder().decode(data2.blobContents));
+	console.log(await patch2.getIdentifier());
+	console.log(await patch2.getTags());
+	console.log('content:', new TextDecoder().decode(await patch2.getBytes()));
 })();

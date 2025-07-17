@@ -6,6 +6,7 @@ import { QuiltIndexV1, QuiltPatchBlobHeader, QuiltPatchId, QuiltPatchTags } from
 import { HAS_TAGS_FLAG, parseQuiltPatchId, QUILT_PATCH_BLOB_HEADER_SIZE } from '../utils/quilts.js';
 import type { WalrusClient } from '../client.js';
 import { getSizes, getSourceSymbols, urlSafeBase64 } from '../utils/index.js';
+import { ClientCache } from '@mysten/sui/experimental';
 
 export interface BlobReaderOptions {
 	client: WalrusClient;
@@ -35,10 +36,13 @@ export interface FileReader {
 export class BlobReader implements FileReader {
 	blobId: string;
 
+	#cache = new ClientCache();
+
 	#client: WalrusClient;
 	#secondarySlivers = new Map<number, Uint8Array | Promise<Uint8Array>>();
 	#blobBytes: Uint8Array | Promise<Uint8Array> | null = null;
-	#blobSize: number | null = null;
+	// TODO: not sure if/when we can actually set this.  Would be useful for getting the size of quilts
+	#isQuilt?: boolean;
 
 	constructor({ client, blobId, bytes }: BlobReaderOptions) {
 		this.#client = client;
@@ -71,33 +75,40 @@ export class BlobReader implements FileReader {
 		return this.#blobBytes !== null;
 	}
 
-	async getSize(): Promise<number> {
-		if (this.#blobSize !== null) {
-			return this.#blobSize;
-		}
+	getMetadata() {
+		return this.#cache.read(['getMetadata'], () =>
+			this.#client.getBlobMetadata({ blobId: this.blobId }),
+		);
+	}
 
-		if (this.#blobBytes && !('then' in this.#blobBytes)) {
-			this.#blobSize = this.#blobBytes.length;
-			return this.#blobBytes.length;
-		}
-
-		if (this.#secondarySlivers.size > 0) {
-			try {
-				const sliver = await Promise.any(this.#secondarySlivers.values());
-				const columnSize = sliver.length;
-				const { committee } = await this.#client.systemState();
-				const { secondarySymbols } = getSourceSymbols(committee.n_shards);
-				this.#blobSize = columnSize * secondarySymbols;
-				return this.#blobSize;
-			} catch (error) {
-				// fallback to other methods
+	getSize() {
+		return this.#cache.read(['getSize'], async () => {
+			if (this.#blobBytes && !('then' in this.#blobBytes)) {
+				return this.#blobBytes.length;
 			}
-		}
 
-		// TODO: should this fall back to something else before loading the full blob (loading blob metadata, loading a random sliver, etc?)
-		const blob = await this.getBytes();
-		this.#blobSize = blob.length;
-		return this.#blobSize;
+			// This calculation only works for blobs that have a size that is a multiple of primarySymbols * secondarySymbols
+			if (this.#isQuilt && this.#secondarySlivers.size > 0) {
+				try {
+					const sliver = await Promise.any(this.#secondarySlivers.values());
+					const columnSize = sliver.length;
+					const { committee } = await this.#client.systemState();
+					const { secondarySymbols } = getSourceSymbols(committee.n_shards);
+
+					return columnSize * secondarySymbols;
+				} catch (error) {
+					// fallback to other methods
+				}
+			}
+
+			if (this.isLoadingFullBlob) {
+				const blob = await this.getBytes();
+				return blob.length;
+			}
+
+			const metadata = await this.getMetadata();
+			return Number(metadata.metadata.V1.unencoded_length);
+		});
 	}
 
 	async getSizes() {
@@ -134,7 +145,7 @@ export class BlobReader implements FileReader {
 
 export class QuiltReader {
 	#blob: BlobReader;
-	#blobHeaders = new Map<number, Promise<QuiltBlobHeader>>();
+	#cache = new ClientCache();
 
 	constructor({ blob }: QuiltReaderOptions) {
 		this.#blob = blob;
@@ -242,55 +253,45 @@ export class QuiltReader {
 		}
 	}
 
-	async #getBlobHeader(sliverIndex: number) {
-		if (this.#blobHeaders.has(sliverIndex)) {
-			return this.#blobHeaders.get(sliverIndex)!;
-		}
+	async getBlobHeader(sliverIndex: number) {
+		return this.#cache.read(['getBlobHeader', sliverIndex.toString()], async () => {
+			const firstSliver = await this.#blob.getSecondarySliver({ sliverIndex });
+			const blobHeader = QuiltPatchBlobHeader.parse(firstSliver);
 
-		const headerPromise = this.readBlobHeader(sliverIndex);
-		this.#blobHeaders.set(sliverIndex, headerPromise);
-		headerPromise.catch(() => {
-			this.#blobHeaders.delete(sliverIndex);
-		});
-
-		return this.#blobHeaders.get(sliverIndex)!;
-	}
-
-	async readBlobHeader(sliverIndex: number) {
-		const firstSliver = await this.#blob.getSecondarySliver({ sliverIndex });
-		const blobHeader = QuiltPatchBlobHeader.parse(firstSliver);
-
-		let offset = QUILT_PATCH_BLOB_HEADER_SIZE;
-		let blobSize = blobHeader.length;
-		const identifierLength = new DataView(firstSliver.buffer, offset, 2).getUint16(0, true);
-		blobSize -= 2 + identifierLength;
-		offset += 2;
-
-		const identifier = bcs.string().parse(firstSliver.subarray(offset, offset + identifierLength));
-
-		offset += identifierLength;
-
-		let tags: Record<string, string> | null = null;
-		if (blobHeader.mask & HAS_TAGS_FLAG) {
-			const tagsSize = new DataView(firstSliver.buffer, offset, 2).getUint16(0, true);
+			let offset = QUILT_PATCH_BLOB_HEADER_SIZE;
+			let blobSize = blobHeader.length;
+			const identifierLength = new DataView(firstSliver.buffer, offset, 2).getUint16(0, true);
+			blobSize -= 2 + identifierLength;
 			offset += 2;
 
-			tags = QuiltPatchTags.parse(firstSliver.subarray(offset, offset + tagsSize));
-			blobSize -= tagsSize + 2;
-			offset += tagsSize;
-		}
+			const identifier = bcs
+				.string()
+				.parse(firstSliver.subarray(offset, offset + identifierLength));
 
-		return {
-			identifier,
-			tags,
-			blobSize,
-			contentOffset: offset,
-			columnSize: firstSliver.length,
-		};
+			offset += identifierLength;
+
+			let tags: Record<string, string> | null = null;
+			if (blobHeader.mask & HAS_TAGS_FLAG) {
+				const tagsSize = new DataView(firstSliver.buffer, offset, 2).getUint16(0, true);
+				offset += 2;
+
+				tags = QuiltPatchTags.parse(firstSliver.subarray(offset, offset + tagsSize));
+				blobSize -= tagsSize + 2;
+				offset += tagsSize;
+			}
+
+			return {
+				identifier,
+				tags,
+				blobSize,
+				contentOffset: offset,
+				columnSize: firstSliver.length,
+			};
+		});
 	}
 
 	async readBlob(sliverIndex: number) {
-		const blobHeader = await this.#getBlobHeader(sliverIndex);
+		const blobHeader = await this.getBlobHeader(sliverIndex);
 		const { identifier, tags, blobSize, contentOffset, columnSize } = blobHeader;
 
 		const blobContents = await this.#readBytes(sliverIndex, blobSize, contentOffset, columnSize);
@@ -331,9 +332,15 @@ export class QuiltReader {
 
 		return index.patches.map((patch, i) => {
 			const startIndex = i === 0 ? indexSlivers : index.patches[i - 1].endIndex;
+			const reader = new QuiltBlobReader({
+				quilt: this,
+				sliverIndex: startIndex,
+				identifier: patch.identifier,
+				tags: patch.tags,
+			});
 
 			return {
-				startIndex: i === 0 ? indexSlivers : index.patches[i - 1].endIndex,
+				identifier: patch.identifier,
 				patchId: urlSafeBase64(
 					QuiltPatchId.serialize({
 						quiltId: this.#blob.blobId,
@@ -344,7 +351,8 @@ export class QuiltReader {
 						},
 					}).toBytes(),
 				),
-				...patch,
+				tags: patch.tags,
+				reader,
 			};
 		});
 	}
@@ -353,12 +361,24 @@ export class QuiltReader {
 export class QuiltBlobReader implements FileReader {
 	#quilt: QuiltReader;
 	#sliverIndex: number;
-	#identifier: string | null = null;
+	#identifier: string | null;
 	#tags?: Record<string, string> | null;
 
-	constructor({ quilt, sliverIndex }: { quilt: QuiltReader; sliverIndex: number }) {
+	constructor({
+		quilt,
+		sliverIndex,
+		identifier,
+		tags,
+	}: {
+		quilt: QuiltReader;
+		sliverIndex: number;
+		identifier?: string;
+		tags?: Record<string, string>;
+	}) {
 		this.#quilt = quilt;
 		this.#sliverIndex = sliverIndex;
+		this.#identifier = identifier ?? null;
+		this.#tags = tags;
 	}
 
 	async getBytes(): Promise<Uint8Array> {
@@ -373,7 +393,7 @@ export class QuiltBlobReader implements FileReader {
 			return this.#identifier;
 		}
 
-		const header = await this.#quilt.readBlobHeader(this.#sliverIndex);
+		const header = await this.#quilt.getBlobHeader(this.#sliverIndex);
 
 		this.#identifier = header.identifier;
 		return this.#identifier;
@@ -384,7 +404,7 @@ export class QuiltBlobReader implements FileReader {
 			return this.#tags;
 		}
 
-		const header = await this.#quilt.readBlobHeader(this.#sliverIndex);
+		const header = await this.#quilt.getBlobHeader(this.#sliverIndex);
 		this.#tags = header.tags;
 		return header.tags;
 	}
