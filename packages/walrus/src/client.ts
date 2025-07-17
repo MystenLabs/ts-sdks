@@ -2131,7 +2131,7 @@ export class WalrusClient {
 	}
 
 	async writeFiles({ files, ...options }: WriteFilesOptions) {
-		return this.writeQuilt({
+		const { blobId, index, blobObject } = await this.writeQuilt({
 			...options,
 			blobs: await Promise.all(
 				files.map(async (file, i) => ({
@@ -2141,5 +2141,11 @@ export class WalrusClient {
 				})),
 			),
 		});
+
+		return index.patches.map((patch) => ({
+			id: patch.patchId,
+			blobId,
+			blobObject,
+		}));
 	}
 }

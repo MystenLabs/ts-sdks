@@ -6,9 +6,7 @@ import { Agent, setGlobalDispatcher } from 'undici';
 
 import { WalrusClient } from '../../src/client.js';
 import { getFundedKeypair } from '../funded-keypair.js';
-import { encodeQuilt } from '../../src/quilt/write.js';
-import { urlSafeBase64 } from '../../src/utils/index.js';
-import { QuiltPatchId } from '../../src/utils/bcs.js';
+import { WalrusFile } from '../../src/index.js';
 
 // Node connect timeout is 10 seconds, and walrus nodes can be slow to respond
 setGlobalDispatcher(
@@ -32,47 +30,30 @@ const client = new SuiClient({
 async function uploadFile() {
 	const keypair = await getFundedKeypair();
 
-	const encoded = encodeQuilt({
-		blobs: [
-			{
-				contents: new TextEncoder().encode('test 1'),
-				identifier: 'test1',
-				tags: {
-					a: 'a',
-					aa: 'aa',
-					b: 'b',
-				},
+	const files = [
+		WalrusFile.from({
+			contents: new TextEncoder().encode('test 1'),
+			identifier: 'test1',
+			tags: {
+				a: 'a',
+				aa: 'aa',
+				b: 'b',
 			},
-			{
-				contents: new TextEncoder().encode('test 2'),
-				identifier: 'test2',
-			},
-		],
-		numShards: 1000,
-	});
+		}),
+		WalrusFile.from({
+			contents: new TextEncoder().encode('test 2'),
+			identifier: 'test2',
+		}),
+	];
 
-	const { blobId } = await client.walrus.writeBlob({
-		blob: encoded.quilt,
+	const quilt = await client.walrus.writeFiles({
+		files,
 		deletable: true,
 		epochs: 3,
 		signer: keypair,
 	});
 
-	const index = encoded.index.patches.map((patch) => ({
-		...patch,
-		patchId: urlSafeBase64(
-			QuiltPatchId.serialize({
-				quiltId: blobId,
-				patchId: {
-					version: 1,
-					startIndex: patch.startIndex,
-					endIndex: patch.endIndex,
-				},
-			}).toBytes(),
-		),
-	}));
-
-	console.log(blobId, index);
+	console.log(quilt);
 }
 
 uploadFile().catch(console.error);

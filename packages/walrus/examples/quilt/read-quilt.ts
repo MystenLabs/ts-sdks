@@ -4,7 +4,6 @@
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 import { WalrusClient } from '../../src/client.js';
-import { BlobReader } from '../../src/quilt/reader.js';
 
 const client = new SuiClient({
 	url: getFullnodeUrl('testnet'),
@@ -12,31 +11,21 @@ const client = new SuiClient({
 }).$extend(WalrusClient.experimental_asClientExtension());
 
 (async function main() {
-	const blobReader = new BlobReader({
-		client: client.walrus,
-		blobId: 'nBENQqV1TwBw2BtW3T2h_jHPd49KeVaYGGd84D9JuRk',
-		numShards: 1000,
+	const blobId = 'nBENQqV1TwBw2BtW3T2h_jHPd49KeVaYGGd84D9JuRk';
+	const patchId = 'nBENQqV1TwBw2BtW3T2h_jHPd49KeVaYGGd84D9JuRkBAQACAA';
+	const patchId2 = 'nBENQqV1TwBw2BtW3T2h_jHPd49KeVaYGGd84D9JuRkBAgADAA';
+
+	const [blob, patch1, patch2] = await client.walrus.getFiles({
+		ids: [blobId, patchId, patchId2],
 	});
 
-	const quiltReader = await blobReader.getQuiltReader();
-
-	const patch1 = await quiltReader.readerForPatchId(
-		'nBENQqV1TwBw2BtW3T2h_jHPd49KeVaYGGd84D9JuRkBAQACAA',
-	);
 	console.log(await patch1.getIdentifier());
 	console.log(await patch1.getTags());
-	console.log('content:', new TextDecoder().decode(await patch1.getBytes()));
-	const metadata = await quiltReader.readIndex();
-	console.log(metadata);
+	console.log('content:', new TextDecoder().decode(await patch1.bytes()));
 
-	await blobReader.getSize();
+	await blob.bytes();
 
-	const index = await quiltReader.readIndex();
-	console.log(index);
-	const patch2 = await quiltReader.readerForPatchId(
-		'nBENQqV1TwBw2BtW3T2h_jHPd49KeVaYGGd84D9JuRkBAgADAA',
-	);
 	console.log(await patch2.getIdentifier());
 	console.log(await patch2.getTags());
-	console.log('content:', new TextDecoder().decode(await patch2.getBytes()));
+	console.log('content:', new TextDecoder().decode(await patch2.bytes()));
 })();
