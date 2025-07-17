@@ -85,6 +85,7 @@ import type {
 	WriteQuiltOptions,
 	WriteSliverOptions,
 	WriteSliversToNodeOptions,
+	WriteFilesOptions,
 } from './types.js';
 import { blobIdToInt, IntentType, SliverData, StorageConfirmation } from './utils/bcs.js';
 import {
@@ -2126,6 +2127,19 @@ export class WalrusClient {
 					sliverIndex: id.id.patchId.startIndex,
 				}),
 			});
+		});
+	}
+
+	async writeFiles({ files, ...options }: WriteFilesOptions) {
+		return this.writeQuilt({
+			...options,
+			blobs: await Promise.all(
+				files.map(async (file, i) => ({
+					contents: await file.bytes(),
+					identifier: (await file.getIdentifier()) ?? `file-${i}`,
+					tags: (await file.getTags()) ?? {},
+				})),
+			),
 		});
 	}
 }

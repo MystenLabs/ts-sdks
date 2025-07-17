@@ -16,6 +16,7 @@ import type {
 } from './storage-node/types.js';
 import type { BlobMetadata, EncodingType } from './utils/bcs.js';
 import type { UploadRelayClientOptions } from './upload-relay/client.js';
+import type { WalrusFile } from './files/file.js';
 
 /**
  * Configuration for the Walrus package on sui
@@ -257,6 +258,10 @@ export interface WriteQuiltOptions extends Omit<WriteBlobOptions, 'blob'> {
 		identifier: string;
 		tags?: Record<string, string>;
 	}[];
+}
+
+export interface WriteFilesOptions extends Omit<WriteBlobOptions, 'blob'> {
+	files: WalrusFile[];
 }
 
 export interface DeleteBlobOptions {
