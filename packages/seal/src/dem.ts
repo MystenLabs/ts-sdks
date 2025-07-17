@@ -42,10 +42,14 @@ export class AesGcm256 implements EncryptionInput {
 	}
 
 	generateKey(): Promise<Uint8Array> {
+		// generate a random key
 		return generateAesKey();
 	}
 
 	async encrypt(key: Uint8Array): Promise<typeof Ciphertext.$inferInput> {
+		if (key.length !== 32) {
+			throw new Error('Key must be 32 bytes');
+		}
 		const aesCryptoKey = await crypto.subtle.importKey('raw', key, 'AES-GCM', false, ['encrypt']);
 
 		const blob = new Uint8Array(
@@ -75,6 +79,9 @@ export class AesGcm256 implements EncryptionInput {
 		if (!('Aes256Gcm' in ciphertext)) {
 			throw new InvalidCiphertextError(`Invalid ciphertext ${ciphertext}`);
 		}
+		if (key.length !== 32) {
+			throw new Error('Key must be 32 bytes');
+		}
 
 		try {
 			const aesCryptoKey = await crypto.subtle.importKey('raw', key, 'AES-GCM', false, ['decrypt']);
@@ -101,7 +108,7 @@ export class AesGcm256 implements EncryptionInput {
  * 2. Chunk the message into blocks of 32 bytes, <i>m = m<sub>1</sub> || ... || m<sub>n</sub></i>.
  * 3. Let the ciphertext be defined by <i>c = c<sub>1</sub> || ... || c<sub>n</sub></i> where <i>c<sub>i</sub> = m<sub>i</sub> ⊕ <b>hmac</b>(k<sub>1</sub>, i)</i>.
  * 4. Compute a MAC over the AAD and the ciphertext, <i>mac = <b>hmac</b>(k<sub>2</sub>, aad || c) where k<sub>2</sub> = <b>hmac</b>(key, 2)</i>.
- * 5. Return <i>mac || c</i>.
+ * 5. Return <i>mac || aad || c</i>.
  */
 export class Hmac256Ctr implements EncryptionInput {
 	readonly plaintext: Uint8Array;
@@ -113,6 +120,7 @@ export class Hmac256Ctr implements EncryptionInput {
 	}
 
 	generateKey(): Promise<Uint8Array> {
+		// generate a random key
 		return generateAesKey();
 	}
 
@@ -134,6 +142,9 @@ export class Hmac256Ctr implements EncryptionInput {
 	): Promise<Uint8Array> {
 		if (!('Hmac256Ctr' in ciphertext)) {
 			throw new InvalidCiphertextError(`Invalid ciphertext ${ciphertext}`);
+		}
+		if (key.length !== 32) {
+			throw new Error('Key must be 32 bytes');
 		}
 		const aad = new Uint8Array(ciphertext.Hmac256Ctr.aad ?? []);
 		const blob = new Uint8Array(ciphertext.Hmac256Ctr.blob);

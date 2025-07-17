@@ -14,12 +14,12 @@ export const IBEEncryptions = bcs.enum('IBEEncryptions', {
 
 export const Ciphertext = bcs.enum('Ciphertext', {
 	Aes256Gcm: bcs.struct('Aes256Gcm', {
-		blob: bcs.vector(bcs.U8),
-		aad: bcs.option(bcs.vector(bcs.U8)),
+		blob: bcs.vector(bcs.u8()),
+		aad: bcs.option(bcs.vector(bcs.u8())),
 	}),
 	Hmac256Ctr: bcs.struct('Hmac256Ctr', {
-		blob: bcs.vector(bcs.U8),
-		aad: bcs.option(bcs.vector(bcs.U8)),
+		blob: bcs.vector(bcs.u8()),
+		aad: bcs.option(bcs.vector(bcs.u8())),
 		mac: bcs.bytes(32),
 	}),
 	Plain: bcs.struct('Plain', {}),
@@ -29,14 +29,14 @@ export const Ciphertext = bcs.enum('Ciphertext', {
  * The encrypted object format. Should be aligned with the Rust implementation.
  */
 export const EncryptedObject = bcs.struct('EncryptedObject', {
-	version: bcs.U8,
+	version: bcs.u8(),
 	packageId: bcs.Address,
 	id: bcs.vector(bcs.U8).transform({
 		output: (val) => toHex(new Uint8Array(val)),
 		input: (val: string) => fromHex(val),
 	}),
-	services: bcs.vector(bcs.tuple([bcs.Address, bcs.U8])),
-	threshold: bcs.U8,
+	services: bcs.vector(bcs.tuple([bcs.Address, bcs.u8()])),
+	threshold: bcs.u8(),
 	encryptedShares: IBEEncryptions,
 	ciphertext: Ciphertext,
 });

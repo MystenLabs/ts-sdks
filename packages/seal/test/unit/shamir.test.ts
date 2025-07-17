@@ -26,14 +26,40 @@ describe("Shamir's secret sharing", () => {
 		});
 	});
 
+	it('should handle large secrets', () => {
+		const largeSecret = new Uint8Array(1024);
+		crypto.getRandomValues(largeSecret);
+
+		const shares = split(largeSecret, 5, 10);
+		expect(combine(shares)).toEqual(largeSecret);
+		expect(combine(shares.slice(0, 5))).toEqual(largeSecret);
+		expect(combine(shares.slice(0, 4))).not.toEqual(largeSecret);
+	});
+
 	it('test edge cases', () => {
 		expect(combine(split(DEFAULT_SECRET, 1, 1))).toEqual(DEFAULT_SECRET);
 		expect(combine(split(DEFAULT_SECRET, 2, 2))).toEqual(DEFAULT_SECRET);
 		expect(combine(split(DEFAULT_SECRET, 3, 3))).toEqual(DEFAULT_SECRET);
+		expect(combine(split(new Uint8Array(0), 3, 3))).toEqual(new Uint8Array(0));
+		expect(combine(split(new Uint8Array(32), 2, 3))).toEqual(new Uint8Array(32));
 		expect(() => combine(split(DEFAULT_SECRET, 0, 0))).toThrow();
 		expect(() => combine(split(DEFAULT_SECRET, 0, 1))).toThrow();
 		expect(() => combine(split(DEFAULT_SECRET, 1, 0))).toThrow();
 		expect(() => combine(split(DEFAULT_SECRET, 2, 1))).toThrow();
+
+		// 255 shares ok, 256 shares fail
+		const shares2 = split(DEFAULT_SECRET, 10, 255);
+		expect(combine(shares2.slice(0, 10))).toEqual(DEFAULT_SECRET);
+		expect(() => split(DEFAULT_SECRET, 10, 256)).toThrow();
+
+		const shares = split(DEFAULT_SECRET, 3, 5);
+		// Corrupt one share
+		const corruptedShares = [...shares];
+		corruptedShares[0] = { ...corruptedShares[0], share: new Uint8Array(32) };
+		// Works with enough good shares
+		expect(combine(corruptedShares.slice(1, 4))).toEqual(DEFAULT_SECRET);
+		// Wrong secret with corrupted shares included
+		expect(combine(corruptedShares.slice(0, 3))).not.toEqual(DEFAULT_SECRET);
 	});
 
 	it('test polynomial interpolation', () => {
@@ -48,6 +74,18 @@ describe("Shamir's secret sharing", () => {
 		coordinates.forEach(({ x, y }) => {
 			expect(interpolated.evaluate(new GF256(x))).toEqual(new GF256(y));
 		});
+
+		// Single point interpolation
+		const singlePoint = [{ x: new GF256(1), y: new GF256(42) }];
+		const interpolated2 = Polynomial.interpolate(singlePoint);
+		expect(interpolated2.evaluate(new GF256(1))).toEqual(new GF256(42));
+
+		// All same x-coordinates fails
+		const sameX = [
+			{ x: new GF256(1), y: new GF256(10) },
+			{ x: new GF256(1), y: new GF256(20) },
+		];
+		expect(() => Polynomial.interpolate(sameX)).toThrow();
 	});
 
 	it('test vector', () => {
@@ -100,5 +138,10 @@ describe("Shamir's secret sharing", () => {
 		expect(a.sub(b)).toEqual(new GF256(0x99));
 		expect(a.mul(b)).toEqual(new GF256(0x01));
 		expect(a.div(b)).toEqual(new GF256(0xb5));
+
+		const max = new GF256(255);
+		expect(max.add(new GF256(1))).toEqual(new GF256(254));
+		expect(max.add(max)).toEqual(new GF256(0));
+		expect(new GF256(1).add(new GF256(1))).toEqual(new GF256(0));
 	});
 });
