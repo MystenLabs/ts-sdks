@@ -46,7 +46,7 @@ export function kdf(
 	hash.update(nonce.toBytes());
 	hash.update(hashToG1(id).toBytes());
 	hash.update(fromHex(objectId));
-	hash.update(new Uint8Array([index]));
+	hash.update(new Uint8Array([index])); // this is safe because index < 256.
 	return hash.digest();
 }
 

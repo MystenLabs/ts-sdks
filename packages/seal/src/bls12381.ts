@@ -5,7 +5,6 @@ import { toHex } from '@mysten/bcs';
 import type { Fp2, Fp12 } from '@noble/curves/abstract/tower';
 import type { ProjPointType } from '@noble/curves/abstract/weierstrass';
 import { bls12_381 } from '@noble/curves/bls12-381';
-import { flatten } from './utils.js';
 
 export class G1Element {
 	point: ProjPointType<bigint>;
@@ -113,7 +112,16 @@ export class GTElement {
 		const PAIR_SIZE = GTElement.SIZE / P.length;
 
 		const bytes = bls12_381.fields.Fp12.toBytes(this.element);
-		return flatten(P.map((p) => bytes.subarray(p * PAIR_SIZE, (p + 1) * PAIR_SIZE)));
+		const result = new Uint8Array(GTElement.SIZE);
+
+		for (let i = 0; i < P.length; i++) {
+			const sourceStart = P[i] * PAIR_SIZE;
+			const sourceEnd = sourceStart + PAIR_SIZE;
+			const targetStart = i * PAIR_SIZE;
+			result.set(bytes.subarray(sourceStart, sourceEnd), targetStart);
+		}
+
+		return result;
 	}
 
 	equals(other: GTElement): boolean {

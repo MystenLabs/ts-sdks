@@ -17,9 +17,9 @@ import {
 import type { SealCompatibleClient } from './types.js';
 
 export const RequestFormat = bcs.struct('RequestFormat', {
-	ptb: bcs.vector(bcs.U8),
-	encKey: bcs.vector(bcs.U8),
-	encVerificationKey: bcs.vector(bcs.U8),
+	ptb: bcs.vector(bcs.u8()),
+	encKey: bcs.vector(bcs.u8()),
+	encVerificationKey: bcs.vector(bcs.u8()),
 });
 
 export type Certificate = {
@@ -31,7 +31,7 @@ export type Certificate = {
 	mvr_name?: string;
 };
 
-export type SessionKeyType = {
+export type ExportedSessionKey = {
 	address: string;
 	packageId: string;
 	mvrName?: string;
@@ -52,10 +52,7 @@ export class SessionKey {
 	#signer?: Signer;
 	#suiClient: SealCompatibleClient;
 
-	/**
-	 * @deprecated - Use `await SessionKey.create()` instead.
-	 */
-	constructor({
+	private constructor({
 		address,
 		packageId,
 		mvrName,
@@ -93,6 +90,16 @@ export class SessionKey {
 		this.#suiClient = suiClient;
 	}
 
+	/**
+	 * Create a new SessionKey instance.
+	 * @param address - The address of the user.
+	 * @param packageId - The ID of the package.
+	 * @param mvrName - Optional. The name of the MVR, if there is one.
+	 * @param ttlMin - The TTL in minutes.
+	 * @param signer - Optional. The signer instance, e.g. EnokiSigner.
+	 * @param suiClient - The Sui client.
+	 * @returns A new SessionKey instance.
+	 */
 	static async create({
 		address,
 		packageId,
@@ -182,20 +189,34 @@ export class SessionKey {
 		};
 	}
 
-	async createRequestParams(
-		txBytes: Uint8Array,
-	): Promise<{ decryptionKey: Uint8Array; requestSignature: string }> {
+	/**
+	 * Create request params for the given transaction bytes.
+	 * @param txBytes - The transaction bytes.
+	 * @returns The request params containing the ephemeral secret key,
+	 * its public key and its verification key.
+	 */
+	async createRequestParams(txBytes: Uint8Array): Promise<{
+		encKey: Uint8Array;
+		encKeyPk: Uint8Array;
+		encVerificationKey: Uint8Array;
+		requestSignature: string;
+	}> {
 		if (this.isExpired()) {
 			throw new ExpiredSessionKeyError();
 		}
-		const egSk = generateSecretKey();
+		const encKey = generateSecretKey();
+		const encKeyPk = toPublicKey(encKey);
+		const encVerificationKey = toVerificationKey(encKey);
+
 		const msgToSign = RequestFormat.serialize({
 			ptb: txBytes.slice(1),
-			encKey: toPublicKey(egSk),
-			encVerificationKey: toVerificationKey(egSk),
+			encKey: encKeyPk,
+			encVerificationKey,
 		}).toBytes();
 		return {
-			decryptionKey: egSk,
+			encKey,
+			encKeyPk,
+			encVerificationKey,
 			requestSignature: toBase64(await this.#sessionKey.sign(msgToSign)),
 		};
 	}
@@ -203,7 +224,7 @@ export class SessionKey {
 	/**
 	 * Export the Session Key object from the instance. Store the object in IndexedDB to persist.
 	 */
-	export(): SessionKeyType {
+	export(): ExportedSessionKey {
 		const obj = {
 			address: this.#address,
 			packageId: this.#packageId,
@@ -228,7 +249,7 @@ export class SessionKey {
 	 * @returns A new SessionKey instance with restored state
 	 */
 	static import(
-		data: SessionKeyType,
+		data: ExportedSessionKey,
 		suiClient: SealCompatibleClient,
 		signer?: Signer,
 	): SessionKey {

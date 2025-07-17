@@ -22,9 +22,9 @@ import {
 	KeyServerType,
 	retrieveKeyServers,
 	verifyKeyServer,
+	fetchKeysForAllIds,
 } from './key-server.js';
 import type { DerivedKey, KeyServer } from './key-server.js';
-import { fetchKeysForAllIds } from './keys.js';
 import type { SessionKey } from './session-key.js';
 import type { KeyCacheKey, SealCompatibleClient } from './types.js';
 import { createFullId, count } from './utils.js';
@@ -90,7 +90,7 @@ export class SealClient {
 		this.#timeout = options.timeout ?? 10_000;
 	}
 
-	static experimental_asClientExtension(options: SealClientExtensionOptions) {
+	static asClientExtension(options: SealClientExtensionOptions) {
 		return {
 			name: 'seal' as const,
 			register: (client: SealCompatibleClient) => {
@@ -326,7 +326,7 @@ export class SealClient {
 			}
 		}
 
-		const cert = await sessionKey.getCertificate();
+		const certificate = await sessionKey.getCertificate();
 		const signedRequest = await sessionKey.createRequestParams(txBytes);
 
 		const controller = new AbortController();
@@ -336,17 +336,19 @@ export class SealClient {
 			const server = keyServers.get(objectId)!;
 			try {
 				const config = this.#configs.get(objectId);
-				const allKeys = await fetchKeysForAllIds(
-					server.url,
-					signedRequest.requestSignature,
+				const allKeys = await fetchKeysForAllIds({
+					url: server.url,
+					requestSig: signedRequest.requestSignature,
 					txBytes,
-					signedRequest.decryptionKey,
-					cert,
-					this.#timeout,
-					config?.apiKeyName,
-					config?.apiKey,
-					controller.signal,
-				);
+					encKey: signedRequest.encKey,
+					encKeyPk: signedRequest.encKeyPk,
+					encVerificationKey: signedRequest.encVerificationKey,
+					certificate,
+					timeout: this.#timeout,
+					apiKeyName: config?.apiKeyName,
+					apiKey: config?.apiKey,
+					signal: controller.signal,
+				});
 				// Check validity of the keys and add them to the cache.
 				for (const { fullId, key } of allKeys) {
 					const keyElement = G1Element.fromBytes(key);

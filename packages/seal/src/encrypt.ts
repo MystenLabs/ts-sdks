@@ -11,7 +11,12 @@ import { UserError } from './error.js';
 import { BonehFranklinBLS12381Services } from './ibe.js';
 import { deriveKey, KeyPurpose } from './kdf.js';
 import type { KeyServer } from './key-server.js';
+<<<<<<< HEAD
 import { createFullId, MAX_U8 } from './utils.js';
+=======
+import { createFullId } from './utils.js';
+import type { Share } from './shamir.js';
+>>>>>>> 1f917771 (fix(seal): deprecations and improvements)
 import { split } from './shamir.js';
 
 /**
@@ -69,10 +74,7 @@ export async function encrypt({
 		keyServers,
 		kemType,
 		fromHex(fullId),
-		shares.map(({ share, index }) => ({
-			msg: share,
-			index,
-		})),
+		shares,
 		baseKey,
 		threshold,
 	);
@@ -120,7 +122,7 @@ function encryptBatched(
 	keyServers: KeyServer[],
 	kemType: KemType,
 	id: Uint8Array,
-	msgs: { msg: Uint8Array; index: number }[],
+	shares: Share[],
 	baseKey: Uint8Array,
 	threshold: number,
 ): typeof IBEEncryptions.$inferType {
@@ -128,7 +130,7 @@ function encryptBatched(
 		case KemType.BonehFranklinBLS12381DemCCA:
 			return new BonehFranklinBLS12381Services(keyServers).encryptBatched(
 				id,
-				msgs,
+				shares,
 				baseKey,
 				threshold,
 			);
