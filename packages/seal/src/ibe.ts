@@ -9,6 +9,7 @@ import { G2Element, Scalar } from './bls12381.js';
 import { deriveKey, hashToG1, kdf, KeyPurpose } from './kdf.js';
 import type { KeyServer } from './key-server.js';
 import { xor } from './utils.js';
+import type { Share } from './shamir.js';
 
 /**
  * The domain separation tag for the signing proof of possession.
@@ -26,13 +27,6 @@ export abstract class IBEServers {
 	}
 
 	/**
-	 * The number of key servers.
-	 */
-	size(): number {
-		return this.objectIds.length;
-	}
-
-	/**
 	 * Encrypt a batch of messages for the given identity.
 	 *
 	 * @param id The identity.
@@ -41,7 +35,7 @@ export abstract class IBEServers {
 	 */
 	abstract encryptBatched(
 		id: Uint8Array,
-		msgAndIndices: { msg: Uint8Array; index: number }[],
+		shares: Share[],
 		baseKey: Uint8Array,
 		threshold: number,
 	): typeof IBEEncryptions.$inferType;
@@ -63,16 +57,16 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 
 	encryptBatched(
 		id: Uint8Array,
-		msgAndIndices: { msg: Uint8Array; index: number }[],
+		shares: Share[],
 		baseKey: Uint8Array,
 		threshold: number,
 	): typeof IBEEncryptions.$inferType {
-		if (this.publicKeys.length === 0 || this.publicKeys.length !== msgAndIndices.length) {
+		if (this.publicKeys.length === 0 || this.publicKeys.length !== shares.length) {
 			throw new Error('Invalid public keys');
 		}
 		const [r, nonce, keys] = encapBatched(this.publicKeys, id);
-		const encryptedShares = msgAndIndices.map(({ msg, index }, i) =>
-			xor(msg, kdf(keys[i], nonce, id, this.objectIds[i], index)),
+		const encryptedShares = shares.map(({ share, index }, i) =>
+			xor(share, kdf(keys[i], nonce, id, this.objectIds[i], index)),
 		);
 		const randomnessKey = deriveKey(
 			KeyPurpose.EncryptedRandomness,

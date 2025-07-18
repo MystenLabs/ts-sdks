@@ -113,7 +113,7 @@ export class Plain implements EncryptionInput {
  * 2. Chunk the message into blocks of 32 bytes, <i>m = m<sub>1</sub> || ... || m<sub>n</sub></i>.
  * 3. Let the ciphertext be defined by <i>c = c<sub>1</sub> || ... || c<sub>n</sub></i> where <i>c<sub>i</sub> = m<sub>i</sub> ⊕ <b>hmac</b>(k<sub>1</sub>, i)</i>.
  * 4. Compute a MAC over the AAD and the ciphertext, <i>mac = <b>hmac</b>(k<sub>2</sub>, aad || c) where k<sub>2</sub> = <b>hmac</b>(key, 2)</i>.
- * 5. Return <i>mac || c</i>.
+ * 5. Return <i>mac || aad || c</i>.
  */
 export class Hmac256Ctr implements EncryptionInput {
 	readonly plaintext: Uint8Array;

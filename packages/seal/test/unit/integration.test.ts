@@ -304,7 +304,7 @@ describe('Integration test', () => {
 
 		const txBytes = await constructTxBytes(packageId, 'allowlist', suiClient, [whitelistId]);
 
-		const sessionKey = new SessionKey({
+		const sessionKey = await SessionKey.create({
 			address: suiAddress,
 			packageId,
 			ttlMin: 10,
@@ -348,7 +348,7 @@ describe('Integration test', () => {
 		const data = new Uint8Array([1, 2, 3]);
 
 		const client = suiClient.$extend(
-			SealClient.experimental_asClientExtension({
+			SealClient.asClientExtension({
 				serverConfigs: objectIds,
 				verifyKeyServers: false,
 			}),
