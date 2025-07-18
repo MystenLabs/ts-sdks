@@ -19,7 +19,6 @@ import {
 import { BonehFranklinBLS12381Services } from './ibe.js';
 import {
 	BonehFranklinBLS12381DerivedKey,
-	KeyServerType,
 	retrieveKeyServers,
 	verifyKeyServer,
 	fetchKeysForAllIds,
@@ -57,7 +56,7 @@ export interface SealClientOptions extends SealClientExtensionOptions {
 export class SealClient {
 	#suiClient: SealCompatibleClient;
 	#configs: Map<string, KeyServerConfig>;
-	#keyServers: Promise<Map<string, KeyServer>> | null = null;
+	#keyServers: Map<string, KeyServer> | null = null;
 	#verifyKeyServers: boolean;
 	// A caching map for: fullId:object_id -> partial key.
 	#cachedKeys = new Map<KeyCacheKey, G1Element>();
@@ -219,7 +218,7 @@ export class SealClient {
 
 	async getKeyServers(): Promise<Map<string, KeyServer>> {
 		if (!this.#keyServers) {
-			this.#keyServers = this.#loadKeyServers().catch((error) => {
+			this.#keyServers = await this.#loadKeyServers().catch((error) => {
 				this.#keyServers = null;
 				throw error;
 			});
@@ -314,16 +313,6 @@ export class SealClient {
 		// Return early if we have enough keys from cache.
 		if (completedWeight >= threshold) {
 			return;
-		}
-
-		// Check server validities.
-		for (const objectId of remainingKeyServers) {
-			const server = keyServers.get(objectId)!;
-			if (server.keyType !== KeyServerType.BonehFranklinBLS12381) {
-				throw new InvalidKeyServerError(
-					`Server ${server.objectId} has invalid key type: ${server.keyType}`,
-				);
-			}
 		}
 
 		const certificate = await sessionKey.getCertificate();
