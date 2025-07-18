@@ -4,7 +4,12 @@ import { bcs, fromBase64, fromHex, toBase64, toHex } from '@mysten/bcs';
 import { bls12_381 } from '@noble/curves/bls12-381';
 
 import { KeyServerMove, KeyServerMoveV1 } from './bcs.js';
-import { InvalidKeyServerVersionError, SealAPIError, UnsupportedNetworkError } from './error.js';
+import {
+	InvalidKeyServerError,
+	InvalidKeyServerVersionError,
+	SealAPIError,
+	UnsupportedNetworkError,
+} from './error.js';
 import { DST_POP } from './ibe.js';
 import { PACKAGE_VERSION } from './version.js';
 import type { SealCompatibleClient } from './types.js';
@@ -88,6 +93,12 @@ export async function retrieveKeyServers({
 			});
 
 			const ksVersioned = KeyServerMoveV1.parse(resVersionedKs.dynamicField.value.bcs);
+
+			if (ksVersioned.keyType !== KeyServerType.BonehFranklinBLS12381) {
+				throw new InvalidKeyServerError(
+					`Server ${objectId} has invalid key type: ${ksVersioned.keyType}`,
+				);
+			}
 
 			return {
 				objectId,

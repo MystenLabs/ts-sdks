@@ -27,13 +27,6 @@ export abstract class IBEServers {
 	}
 
 	/**
-	 * The number of key servers.
-	 */
-	size(): number {
-		return this.objectIds.length;
-	}
-
-	/**
 	 * Encrypt a batch of messages for the given identity.
 	 *
 	 * @param id The identity.
