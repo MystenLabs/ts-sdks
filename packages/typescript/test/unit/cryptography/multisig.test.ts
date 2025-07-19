@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fromBase64, toBase58, toBase64 } from '@mysten/bcs';
+import { secp256r1 } from '@noble/curves/p256';
 import { beforeAll, describe, expect, it, test } from 'vitest';
 
 import { bcs } from '../../../src/bcs';
@@ -11,10 +12,12 @@ import { PublicKey } from '../../../src/cryptography/publickey';
 import { Ed25519Keypair, Ed25519PublicKey } from '../../../src/keypairs/ed25519';
 import { Secp256k1Keypair } from '../../../src/keypairs/secp256k1';
 import { Secp256r1Keypair } from '../../../src/keypairs/secp256r1';
+import { PasskeyKeypair } from '../../../src/keypairs/passkey';
 import { MultiSigPublicKey, MultiSigSigner, parsePartialSignatures } from '../../../src/multisig';
 import { Transaction } from '../../../src/transactions';
 import { verifyPersonalMessageSignature, verifyTransactionSignature } from '../../../src/verify';
 import { toZkLoginPublicIdentifier } from '../../../src/zklogin/publickey';
+import { MockPasskeySigner } from './test-utils';
 
 describe('Multisig scenarios', () => {
 	it('multisig address creation and combine sigs using Secp256r1Keypair', async () => {
@@ -676,6 +679,21 @@ describe('MultisigKeypair', () => {
 		const k3 = new Secp256r1Keypair();
 		const pk3 = k3.getPublicKey();
 
+		// Create Passkey keypair
+		const sk = secp256r1.utils.randomPrivateKey();
+		const pk = secp256r1.getPublicKey(sk);
+		const authenticatorData = new Uint8Array([
+			88, 14, 103, 167, 58, 122, 146, 250, 216, 102, 207, 153, 185, 74, 182, 103, 89, 162, 151, 100,
+			181, 113, 130, 31, 171, 174, 46, 139, 29, 123, 54, 228, 29, 0, 0, 0, 0,
+		]);
+		const mockProvider = new MockPasskeySigner({
+			sk: sk,
+			pk: pk,
+			authenticatorData: authenticatorData,
+		});
+		const passkeyKeypair = await PasskeyKeypair.getPasskeyInstance(mockProvider);
+		const passkeyPublicKey = passkeyKeypair.getPublicKey();
+
 		const pubkeyWeightPairs = [
 			{
 				publicKey: pk1,
@@ -689,6 +707,10 @@ describe('MultisigKeypair', () => {
 				publicKey: pk3,
 				weight: 3,
 			},
+			{
+				publicKey: passkeyPublicKey,
+				weight: 2,
+			},
 		];
 
 		const bytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -700,9 +722,11 @@ describe('MultisigKeypair', () => {
 
 		const signer = publicKey.getSigner(k3);
 		const signer2 = new MultiSigSigner(publicKey, [k1, k2]);
+		const signer3 = new MultiSigSigner(publicKey, [k1, k2, passkeyKeypair]);
 
 		const multisig = await signer.signPersonalMessage(bytes);
 		const multisig2 = await signer2.signPersonalMessage(bytes);
+		const multisig3 = await signer3.signPersonalMessage(bytes);
 
 		const parsed = parseSerializedSignature(multisig.signature);
 		if (parsed.signatureScheme !== 'MultiSig') {
@@ -715,6 +739,9 @@ describe('MultisigKeypair', () => {
 		const signerPubKey2 = await verifyPersonalMessageSignature(bytes, multisig2.signature);
 		expect(signerPubKey2.toSuiAddress()).toEqual(publicKey.toSuiAddress());
 		expect(await publicKey.verifyPersonalMessage(bytes, multisig2.signature)).toEqual(true);
+		const signerPubKey3 = await verifyPersonalMessageSignature(bytes, multisig3.signature);
+		expect(signerPubKey3.toSuiAddress()).toEqual(publicKey.toSuiAddress());
+		expect(await publicKey.verifyPersonalMessage(bytes, multisig3.signature)).toEqual(true);
 	});
 
 	test('duplicate signers', async () => {

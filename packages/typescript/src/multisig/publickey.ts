@@ -25,13 +25,15 @@ type CompressedSignature =
 	| { ED25519: number[] }
 	| { Secp256k1: number[] }
 	| { Secp256r1: number[] }
-	| { ZkLogin: number[] };
+	| { ZkLogin: number[] }
+	| { Passkey: number[] };
 
 type PublicKeyEnum =
 	| { ED25519: number[] }
 	| { Secp256k1: number[] }
 	| { Secp256r1: number[] }
-	| { ZkLogin: number[] };
+	| { ZkLogin: number[] }
+	| { Passkey: number[] };
 
 type PubkeyEnumWeightPair = {
 	pubKey: PublicKeyEnum;

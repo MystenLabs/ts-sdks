@@ -273,6 +273,7 @@ export const CompressedSignature = bcs.enum('CompressedSignature', {
 	Secp256k1: bcs.fixedArray(64, bcs.u8()),
 	Secp256r1: bcs.fixedArray(64, bcs.u8()),
 	ZkLogin: bcs.vector(bcs.u8()),
+	Passkey: bcs.vector(bcs.u8()),
 });
 
 export const PublicKey = bcs.enum('PublicKey', {
@@ -280,6 +281,7 @@ export const PublicKey = bcs.enum('PublicKey', {
 	Secp256k1: bcs.fixedArray(33, bcs.u8()),
 	Secp256r1: bcs.fixedArray(33, bcs.u8()),
 	ZkLogin: bcs.vector(bcs.u8()),
+	Passkey: bcs.fixedArray(33, bcs.u8()),
 });
 
 export const MultiSigPkMap = bcs.struct('MultiSigPkMap', {

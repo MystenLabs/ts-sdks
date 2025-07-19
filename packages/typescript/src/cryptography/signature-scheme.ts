@@ -14,6 +14,7 @@ export const SIGNATURE_SCHEME_TO_SIZE = {
 	ED25519: 32,
 	Secp256k1: 33,
 	Secp256r1: 33,
+	Passkey: 33,
 };
 
 export const SIGNATURE_FLAG_TO_SCHEME = {
