@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.36.1
+
+### Patch Changes
+
+- c76ddc5: passkey: add it to multisig
+
 ## 1.36.0
 
 ### Minor Changes
