@@ -28,14 +28,18 @@ const keypair = await PasskeyKeypair.getPasskeyInstance(
 		rpName: 'Sui Passkey Example',
 		rpId: window.location.hostname,
 		authenticatorSelection: {
-      		authenticatorAttachment: "cross-platform", // or "platform"
-    	},
+			authenticatorAttachment: 'cross-platform', // or "platform"
+		},
 	} as BrowserPasswordProviderOptions),
 );
 ```
+
 You can optionally specify the `authenticatorSelection` parameter when creating a passkey instance:
-- `cross-platform`: Use this for authenticators that work across devices, such as hardware security keys or mobile phones.
-- `platform`: Use this for authenticators tied to a specific device, such as Touch ID, Face ID, or Windows Hello.
+
+- `cross-platform`: Use this for authenticators that work across devices, such as hardware security
+  keys or mobile phones.
+- `platform`: Use this for authenticators tied to a specific device, such as Touch ID, Face ID, or
+  Windows Hello.
 
 Because a passkey device will only return the public key upon creation, but not upon signing, it is
 recommended for the frontend to always cache the `PasskeyKeypair` instance that contains the public
@@ -101,5 +105,7 @@ An example implemention can be found [here](https://github.com/MystenLabs/passke
 
 ## Supported Platforms
 
-Sui supports passkey wallets on any device that complies with the WebAuthn standard. This includes most modern browsers and operating systems across desktop and mobile.
-To check which platforms and authenticators are compatible, see the [Passkeys.dev device support list](https://passkeys.dev/device-support/).
+Sui supports passkey wallets on any device that complies with the WebAuthn standard. This includes
+most modern browsers and operating systems across desktop and mobile. To check which platforms and
+authenticators are compatible, see the
+[Passkeys.dev device support list](https://passkeys.dev/device-support/).
