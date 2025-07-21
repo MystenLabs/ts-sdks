@@ -11,7 +11,7 @@ import {
 	stringLikeBcsType,
 	uIntBcsType,
 } from './bcs-type.js';
-import type { EnumInputShape, EnumOutputShape } from './types.js';
+import type { EnumInputShape, EnumOutputShape, InferBcsInput, InferBcsType } from './types.js';
 import { ulebEncode } from './uleb.js';
 
 export const bcs = {
@@ -273,14 +273,14 @@ export const bcs = {
 	 * bcs.option(bcs.u8()).serialize(null).toBytes() // Uint8Array [ 0 ]
 	 * bcs.option(bcs.u8()).serialize(1).toBytes() // Uint8Array [ 1, 1 ]
 	 */
-	option<T, Input>(type: BcsType<T, Input>) {
+	option<T extends BcsType<any>>(type: T) {
 		return bcs
 			.enum(`Option<${type.name}>`, {
 				None: null,
 				Some: type,
 			})
 			.transform({
-				input: (value: Input | null | undefined) => {
+				input: (value: InferBcsInput<T> | null | undefined) => {
 					if (value == null) {
 						return { None: true };
 					}
@@ -304,15 +304,15 @@ export const bcs = {
 	 * @example
 	 * bcs.vector(bcs.u8()).toBytes([1, 2, 3]) // Uint8Array [ 3, 1, 2, 3 ]
 	 */
-	vector<T, Input>(
-		type: BcsType<T, Input>,
-		options?: BcsTypeOptions<T[], Iterable<Input> & { length: number }>,
+	vector<T extends BcsType<any>>(
+		type: T,
+		options?: BcsTypeOptions<InferBcsType<T>[], Iterable<InferBcsInput<T>> & { length: number }>,
 	) {
-		return new BcsType<T[], Iterable<Input> & { length: number }>({
+		return new BcsType<InferBcsType<T>[], Iterable<InferBcsInput<T>> & { length: number }>({
 			name: `vector<${type.name}>`,
 			read: (reader) => {
 				const length = reader.readULEB();
-				const result: T[] = new Array(length);
+				const result: InferBcsType<T>[] = new Array(length);
 				for (let i = 0; i < length; i++) {
 					result[i] = type.read(reader);
 				}
@@ -578,14 +578,14 @@ export const bcs = {
 	 * const map = bcs.map(bcs.u8(), bcs.string())
 	 * map.serialize(new Map([[2, 'a']])).toBytes() // Uint8Array [ 1, 2, 1, 97 ]
 	 */
-	map<K, V, InputK = K, InputV = V>(keyType: BcsType<K, InputK>, valueType: BcsType<V, InputV>) {
+	map<K extends BcsType<any>, V extends BcsType<any>>(keyType: K, valueType: V) {
 		return bcs.vector(bcs.tuple([keyType, valueType])).transform({
 			name: `Map<${keyType.name}, ${valueType.name}>`,
-			input: (value: Map<InputK, InputV>) => {
+			input: (value: Map<InferBcsInput<K>, InferBcsInput<V>>) => {
 				return [...value.entries()];
 			},
 			output: (value) => {
-				const result = new Map<K, V>();
+				const result = new Map<InferBcsType<K>, InferBcsType<V>>();
 				for (const [key, val] of value) {
 					result.set(key, val);
 				}
