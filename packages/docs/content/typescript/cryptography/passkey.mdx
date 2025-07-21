@@ -33,7 +33,7 @@ const keypair = await PasskeyKeypair.getPasskeyInstance(
 	} as BrowserPasswordProviderOptions),
 );
 ```
-You can optionally specify the authenticatorSelection parameter when creating a passkey instance:
+You can optionally specify the `authenticatorSelection` parameter when creating a passkey instance:
 - `cross-platform`: Use this for authenticators that work across devices, such as hardware security keys or mobile phones.
 - `platform`: Use this for authenticators tied to a specific device, such as Touch ID, Face ID, or Windows Hello.
 
