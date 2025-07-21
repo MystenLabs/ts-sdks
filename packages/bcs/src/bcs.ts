@@ -14,8 +14,177 @@ import {
 	stringLikeBcsType,
 	uIntBcsType,
 } from './bcs-type.js';
-import type { EnumInputShape, EnumOutputShape, JoinString } from './types.js';
+import type {
+	EnumInputShape,
+	EnumOutputShape,
+	InferBcsInput,
+	InferBcsType,
+	JoinString,
+} from './types.js';
 import { ulebEncode } from './uleb.js';
+
+function fixedArray<T extends BcsType<any>, Name extends string = string>(
+	size: number,
+	type: T,
+	options?: BcsTypeOptions<
+		InferBcsType<T>[],
+		Iterable<InferBcsInput<T>> & { length: number },
+		Name
+	>,
+): BcsType<InferBcsType<T>[], Iterable<InferBcsInput<T>> & { length: number }, Name>;
+function fixedArray<T, Input, Name extends string = string>(
+	size: number,
+	type: BcsType<T, Input>,
+	options?: BcsTypeOptions<T[], Iterable<Input> & { length: number }, Name>,
+): BcsType<T[], Iterable<Input> & { length: number }, Name>;
+function fixedArray<T extends BcsType<any>, Name extends string = `${T['name']}[${number}]`>(
+	size: number,
+	type: T,
+	options?: BcsTypeOptions<
+		InferBcsType<T>[],
+		Iterable<InferBcsInput<T>> & { length: number },
+		Name
+	>,
+): BcsType<InferBcsType<T>[], Iterable<InferBcsInput<T>> & { length: number }, Name> {
+	return new BcsType<InferBcsType<T>[], Iterable<InferBcsInput<T>> & { length: number }, Name>({
+		read: (reader) => {
+			const result: InferBcsType<T>[] = new Array(size);
+			for (let i = 0; i < size; i++) {
+				result[i] = type.read(reader);
+			}
+			return result;
+		},
+		write: (value, writer) => {
+			for (const item of value) {
+				type.write(item, writer);
+			}
+		},
+		...options,
+		name: (options?.name ?? `${type.name}[${size}]`) as Name,
+		validate: (value) => {
+			options?.validate?.(value);
+			if (!value || typeof value !== 'object' || !('length' in value)) {
+				throw new TypeError(`Expected array, found ${typeof value}`);
+			}
+			if (value.length !== size) {
+				throw new TypeError(`Expected array of length ${size}, found ${value.length}`);
+			}
+		},
+	});
+}
+
+function option<T extends BcsType<any>>(
+	type: T,
+): BcsType<InferBcsType<T> | null, InferBcsInput<T> | null | undefined, `Option<T[${T['name']}>`>;
+function option<T, Input, Name extends string = string>(
+	type: BcsType<T, Input, Name>,
+): BcsType<T | null, Input | null | undefined>;
+function option<T extends BcsType<any>>(
+	type: T,
+): BcsType<InferBcsType<T> | null, InferBcsInput<T> | null | undefined, `Option<${T['name']}>`> {
+	return bcs
+		.enum(`Option<${type.name}>`, {
+			None: null,
+			Some: type,
+		})
+		.transform({
+			input: (value: InferBcsInput<T> | null | undefined) => {
+				if (value == null) {
+					return { None: true };
+				}
+
+				return { Some: value };
+			},
+			output: (value) => {
+				if (value.$kind === 'Some') {
+					return value.Some as InferBcsType<T>;
+				}
+
+				return null;
+			},
+		});
+}
+
+function vector<T extends BcsType<any>, Name extends string = `vector<${T['name']}>`>(
+	type: T,
+	options?: BcsTypeOptions<
+		InferBcsType<T>[],
+		Iterable<InferBcsInput<T>> & { length: number },
+		Name
+	>,
+): BcsType<InferBcsType<T>[], Iterable<InferBcsInput<T>> & { length: number }, Name>;
+function vector<T, Input, Name extends string = string>(
+	type: BcsType<T, Input, Name>,
+	options?: BcsTypeOptions<T[], Iterable<Input> & { length: number }, `vector<${Name}>`>,
+): BcsType<T[], Iterable<Input> & { length: number }, `vector<${Name}>`>;
+function vector<T extends BcsType<any>, Name extends string = `vector<${T['name']}>`>(
+	type: T,
+	options?: BcsTypeOptions<
+		InferBcsType<T>[],
+		Iterable<InferBcsInput<T>> & { length: number },
+		Name
+	>,
+): BcsType<InferBcsType<T>[], Iterable<InferBcsInput<T>> & { length: number }, Name> {
+	return new BcsType<InferBcsType<T>[], Iterable<InferBcsInput<T>> & { length: number }, Name>({
+		read: (reader) => {
+			const length = reader.readULEB();
+			const result: InferBcsType<T>[] = new Array(length);
+			for (let i = 0; i < length; i++) {
+				result[i] = type.read(reader);
+			}
+			return result;
+		},
+		write: (value, writer) => {
+			writer.writeULEB(value.length);
+			for (const item of value) {
+				type.write(item, writer);
+			}
+		},
+		...options,
+		name: (options?.name ?? `vector<${type.name}>`) as Name,
+		validate: (value) => {
+			options?.validate?.(value);
+			if (!value || typeof value !== 'object' || !('length' in value)) {
+				throw new TypeError(`Expected array, found ${typeof value}`);
+			}
+		},
+	});
+}
+
+function map<K extends BcsType<any>, V extends BcsType<any>>(
+	keyType: K,
+	valueType: V,
+): BcsType<
+	Map<InferBcsType<K>, InferBcsType<V>>,
+	Map<InferBcsInput<K>, InferBcsInput<V>>,
+	`Map<${K['name']}, ${V['name']}>`
+>;
+function map<K, V, InputK = K, InputV = V>(
+	keyType: BcsType<K, InputK>,
+	valueType: BcsType<V, InputV>,
+): BcsType<Map<K, V>, Map<InputK, InputV>, `Map<${string}, ${string}>`>;
+function map<K extends BcsType<any>, V extends BcsType<any>>(
+	keyType: K,
+	valueType: V,
+): BcsType<
+	Map<InferBcsType<K>, InferBcsType<V>>,
+	Map<InferBcsInput<K>, InferBcsInput<V>>,
+	`Map<${K['name']}, ${V['name']}>`
+> {
+	return bcs.vector(bcs.tuple([keyType, valueType])).transform({
+		name: `Map<${keyType.name}, ${valueType.name}>`,
+		input: (value: Map<InferBcsInput<K>, InferBcsInput<V>>) => {
+			return [...value.entries()];
+		},
+		output: (value) => {
+			const result = new Map<InferBcsType<K>, InferBcsType<V>>();
+			for (const [key, val] of value) {
+				result.set(key, val);
+			}
+			return result;
+		},
+	});
+}
 
 export const bcs = {
 	/**
@@ -229,7 +398,6 @@ export const bcs = {
 			name: (options?.name ?? 'string') as 'string',
 		});
 	},
-
 	/**
 	 * Creates a BcsType that represents a fixed length array of a given type
 	 * @param size The number of elements in the array
@@ -237,39 +405,7 @@ export const bcs = {
 	 * @example
 	 * bcs.fixedArray(3, bcs.u8()).serialize([1, 2, 3]).toBytes() // Uint8Array [ 1, 2, 3 ]
 	 */
-	fixedArray<T, Input, Name extends string = string>(
-		size: number,
-		type: BcsType<T, Input, Name>,
-		options?: BcsTypeOptions<T[], Iterable<Input> & { length: number }>,
-	) {
-		return new BcsType<T[], Iterable<Input> & { length: number }, `${typeof type.name}[${number}]`>(
-			{
-				read: (reader) => {
-					const result: T[] = new Array(size);
-					for (let i = 0; i < size; i++) {
-						result[i] = type.read(reader);
-					}
-					return result;
-				},
-				write: (value, writer) => {
-					for (const item of value) {
-						type.write(item, writer);
-					}
-				},
-				...options,
-				name: (options?.name ?? `${type.name}[${size}]`) as `${typeof type.name}[${number}]`,
-				validate: (value) => {
-					options?.validate?.(value);
-					if (!value || typeof value !== 'object' || !('length' in value)) {
-						throw new TypeError(`Expected array, found ${typeof value}`);
-					}
-					if (value.length !== size) {
-						throw new TypeError(`Expected array of length ${size}, found ${value.length}`);
-					}
-				},
-			},
-		);
-	},
+	fixedArray,
 
 	/**
 	 * Creates a BcsType representing an optional value
@@ -278,29 +414,7 @@ export const bcs = {
 	 * bcs.option(bcs.u8()).serialize(null).toBytes() // Uint8Array [ 0 ]
 	 * bcs.option(bcs.u8()).serialize(1).toBytes() // Uint8Array [ 1, 1 ]
 	 */
-	option<T, Input, Name extends string = string>(type: BcsType<T, Input, Name>) {
-		return bcs
-			.enum(`Option<${type.name}>`, {
-				None: null,
-				Some: type,
-			})
-			.transform({
-				input: (value: Input | null | undefined) => {
-					if (value == null) {
-						return { None: true };
-					}
-
-					return { Some: value };
-				},
-				output: (value) => {
-					if (value.$kind === 'Some') {
-						return value.Some;
-					}
-
-					return null;
-				},
-			});
-	},
+	option,
 
 	/**
 	 * Creates a BcsType representing a variable length vector of a given type
@@ -309,35 +423,7 @@ export const bcs = {
 	 * @example
 	 * bcs.vector(bcs.u8()).toBytes([1, 2, 3]) // Uint8Array [ 3, 1, 2, 3 ]
 	 */
-	vector<T, Input, Name extends string = string>(
-		type: BcsType<T, Input, Name>,
-		options?: BcsTypeOptions<T[], Iterable<Input> & { length: number }>,
-	) {
-		return new BcsType<T[], Iterable<Input> & { length: number }, `vector<${Name}>`>({
-			read: (reader) => {
-				const length = reader.readULEB();
-				const result: T[] = new Array(length);
-				for (let i = 0; i < length; i++) {
-					result[i] = type.read(reader);
-				}
-				return result;
-			},
-			write: (value, writer) => {
-				writer.writeULEB(value.length);
-				for (const item of value) {
-					type.write(item, writer);
-				}
-			},
-			...options,
-			name: (options?.name ?? `vector<${type.name}>`) as `vector<${Name}>`,
-			validate: (value) => {
-				options?.validate?.(value);
-				if (!value || typeof value !== 'object' || !('length' in value)) {
-					throw new TypeError(`Expected array, found ${typeof value}`);
-				}
-			},
-		});
-	},
+	vector,
 
 	/**
 	 * Creates a BcsType representing a tuple of a given set of types
@@ -439,21 +525,7 @@ export const bcs = {
 	 * const map = bcs.map(bcs.u8(), bcs.string())
 	 * map.serialize(new Map([[2, 'a']])).toBytes() // Uint8Array [ 1, 2, 1, 97 ]
 	 */
-	map<K, V, InputK = K, InputV = V>(keyType: BcsType<K, InputK>, valueType: BcsType<V, InputV>) {
-		return bcs.vector(bcs.tuple([keyType, valueType])).transform({
-			name: `Map<${keyType.name}, ${valueType.name}>`,
-			input: (value: Map<InputK, InputV>) => {
-				return [...value.entries()];
-			},
-			output: (value) => {
-				const result = new Map<K, V>();
-				for (const [key, val] of value) {
-					result.set(key, val);
-				}
-				return result;
-			},
-		});
-	},
+	map,
 
 	/**
 	 * Creates a BcsType that wraps another BcsType which is lazily evaluated. This is useful for creating recursive types.
