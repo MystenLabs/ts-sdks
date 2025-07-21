@@ -174,8 +174,7 @@ partial signatures from Alice and Bob.
 
 ## Multisig with Passkey
 
-A `PasskeyKeypair` is a `KeyPair` instance and a `PasskeyPublicKey` is a `PublicKey`. They can be 
-used as part of Multisig address derivation and signing once initialized. 
+You can use a `PasskeyKeypair` (a `Keypair`) and `PasskeyPublicKey` (a `PublicKey`) as components in a Multisig setup. Once initialized, they support both Multisig address derivation and transaction signing.
 
 ```
 const passkeyKeypair = await PasskeyKeypair.getPasskeyInstance(
