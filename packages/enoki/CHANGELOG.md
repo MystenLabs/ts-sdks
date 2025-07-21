@@ -1,5 +1,11 @@
 # @mysten/enoki
 
+## 0.11.2
+
+### Patch Changes
+
+- d016fa8: support playtron provider with pkce oauth flow
+
 ## 0.11.1
 
 ### Patch Changes
