@@ -6,7 +6,7 @@ import { bcs } from './bcs.js';
 import { it, describe, expectTypeOf } from 'vitest';
 
 describe('generic bcs helpers should infer type correctly', () => {
-	it('options is typed properly', () => {
+	it('option is typed properly', () => {
 		function TestStruct<T extends BcsType<any>>(...typeParameters: [T]) {
 			return bcs.struct('TestStruct', {
 				value: bcs.option(typeParameters[0]),
@@ -39,6 +39,18 @@ describe('generic bcs helpers should infer type correctly', () => {
 		const testStruct = TestStruct(bcs.u8(), bcs.u64());
 		expectTypeOf(testStruct.$inferType).toMatchObjectType<{
 			value: Map<number, string>;
+		}>();
+	});
+
+	it('fixedArray is typed properly', () => {
+		function TestStruct<T extends BcsType<any>>(...typeParameters: [T]) {
+			return bcs.struct('TestStruct', {
+				value: bcs.fixedArray(1, typeParameters[0]),
+			});
+		}
+		const testStruct = TestStruct(bcs.u8());
+		expectTypeOf(testStruct.$inferType).toMatchObjectType<{
+			value: number[];
 		}>();
 	});
 });
