@@ -234,15 +234,15 @@ export const bcs = {
 	 * @example
 	 * bcs.fixedArray(3, bcs.u8()).serialize([1, 2, 3]).toBytes() // Uint8Array [ 1, 2, 3 ]
 	 */
-	fixedArray<T, Input>(
+	fixedArray<T extends BcsType<any>>(
 		size: number,
-		type: BcsType<T, Input>,
-		options?: BcsTypeOptions<T[], Iterable<Input> & { length: number }>,
+		type: T,
+		options?: BcsTypeOptions<InferBcsType<T>[], Iterable<InferBcsInput<T>> & { length: number }>,
 	) {
-		return new BcsType<T[], Iterable<Input> & { length: number }>({
+		return new BcsType<InferBcsType<T>[], Iterable<InferBcsInput<T>> & { length: number }>({
 			name: `${type.name}[${size}]`,
 			read: (reader) => {
-				const result: T[] = new Array(size);
+				const result: InferBcsType<T>[] = new Array(size);
 				for (let i = 0; i < size; i++) {
 					result[i] = type.read(reader);
 				}
