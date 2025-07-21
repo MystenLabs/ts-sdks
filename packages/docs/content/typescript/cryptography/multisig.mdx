@@ -171,3 +171,27 @@ are defined as:
 In this case, Charlie can always use their Google account for transactions out of the multisig
 address for the threshold. At the same time, Charlie still has access to his account by combining
 partial signatures from Alice and Bob.
+
+## Multisig with Passkey
+
+A `PasskeyKeypair` is a `KeyPair` instance and a `PasskeyPublicKey` is a `PublicKey`. They can be 
+used as part of Multisig address derivation and signing once initialized. 
+
+```
+const passkeyKeypair = await PasskeyKeypair.getPasskeyInstance(
+	new BrowserPasskeyProvider('Sui Passkey Example', {
+		rpName: 'Sui Passkey Example',
+		rpId: window.location.hostname,
+	} as BrowserPasswordProviderOptions),
+);
+
+const passkeyPublicKey = passkeyKeypair.getPublicKey();
+
+const multiSigPublicKey = MultiSigPublicKey.fromPublicKeys({
+	threshold: 1,
+	publicKeys: [
+		{ publicKey: passkeyPublicKey, weight: 1 },
+		// other keys
+	],
+});
+```

@@ -27,9 +27,15 @@ const keypair = await PasskeyKeypair.getPasskeyInstance(
 	new BrowserPasskeyProvider('Sui Passkey Example', {
 		rpName: 'Sui Passkey Example',
 		rpId: window.location.hostname,
+		authenticatorSelection: {
+      		authenticatorAttachment: "cross-platform", // or "platform"
+    	},
 	} as BrowserPasswordProviderOptions),
 );
 ```
+`authenticatorSelection` can optionally be specified as follows:
+- "cross-platform": For authenticators that work across multiple devices/platforms (like security keys, mobile authenticators)
+- "platform": For device-specific authenticators (like Touch ID, Face ID, Windows Hello)
 
 Because a passkey device will only return the public key upon creation, but not upon signing, it is
 recommended for the frontend to always cache the `PasskeyKeypair` instance that contains the public
@@ -92,3 +98,8 @@ const txSignature = await passkey.signTransaction(txBytes);
 ```
 
 An example implemention can be found [here](https://github.com/MystenLabs/passkey-example).
+
+## Supported Platforms
+
+Passkey devices compliant with the WebAuthn standard support passkey wallets in Sui. 
+For comprehensive device compatibility information, see [here](https://passkeys.dev/device-support/).
