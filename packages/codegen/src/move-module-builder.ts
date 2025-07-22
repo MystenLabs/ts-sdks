@@ -200,7 +200,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			],
 		});
 
-		return parseTS/* ts */ `bcs.struct('${name}', ${fieldObject})`;
+		return parseTS /* ts */ `bcs.struct('${name}', ${fieldObject})`;
 	}
 
 	async #renderFieldsAsTuple(
@@ -229,7 +229,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			}),
 		);
 
-		return parseTS/* ts */ `bcs.tuple([${values.join(', ')}], { name: '${name}' })`;
+		return parseTS /* ts */ `bcs.tuple([${values.join(', ')}], { name: '${name}' })`;
 	}
 
 	async renderStructs() {
@@ -244,7 +244,7 @@ export class MoveModuleBuilder extends FileBuilder {
 
 			if (params.length === 0) {
 				this.statements.push(
-					...parseTS/* ts */ `export function ${name}() {
+					...parseTS /* ts */ `export function ${name}() {
 						return ${
 							struct.fields.positional_fields
 								? await this.#renderFieldsAsTuple(name, struct.fields, struct.type_parameters)
@@ -261,7 +261,7 @@ export class MoveModuleBuilder extends FileBuilder {
 				this.statements.push(
 					...(await withComment(
 						struct,
-						parseTS/* ts */ `export function ${name}<${typeGenerics}>(${typeParams}) {
+						parseTS /* ts */ `export function ${name}<${typeGenerics}>(${typeParams}) {
 						return ${
 							struct.fields.positional_fields
 								? await this.#renderFieldsAsTuple(name, struct.fields, struct.type_parameters)
@@ -339,7 +339,7 @@ export class MoveModuleBuilder extends FileBuilder {
 				this.statements.push(
 					...(await withComment(
 						enumDef,
-						parseTS/* ts */ `
+						parseTS /* ts */ `
 					export function ${name}() {
 						return bcs.enum('${name}', ${variantsObject})
 					}`,
@@ -354,7 +354,7 @@ export class MoveModuleBuilder extends FileBuilder {
 				this.statements.push(
 					...(await withComment(
 						enumDef,
-						parseTS/* ts */ `
+						parseTS /* ts */ `
 					export function ${name}<${typeGenerics}>(${typeParams}) {
 						return bcs.enum('${name}', ${variantsObject})
 					}`,
@@ -441,7 +441,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			);
 			if (hasAllParameterNames) {
 				this.statements.push(
-					...parseTS/* ts */ `export interface ${argumentsInterface}${genericTypes} {
+					...parseTS /* ts */ `export interface ${argumentsInterface}${genericTypes} {
 						${argumentsTypes}
 					}`,
 				);
@@ -451,7 +451,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			const requiresOptions = argumentsTypes.length > 0 || func.type_parameters.length > 0;
 
 			this.statements.push(
-				...parseTS/* ts */ `export interface ${optionsInterface}${genericTypes} {
+				...parseTS /* ts */ `export interface ${optionsInterface}${genericTypes} {
 					package${this.#mvrNameOrAddress ? '?: string' : ': string'}
 					${argumentsTypes.length > 0 ? 'arguments: ' : 'arguments?: '}${
 						hasAllParameterNames
@@ -469,7 +469,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			this.statements.push(
 				...(await withComment(
 					func,
-					parseTS/* ts */ `export function ${fnName}${genericTypes}(options: ${optionsInterface}${genericTypeArgs}${requiresOptions ? '' : ' = {}'}) {
+					parseTS /* ts */ `export function ${fnName}${genericTypes}(options: ${optionsInterface}${genericTypeArgs}${requiresOptions ? '' : ' = {}'}) {
 					const packageAddress = options.package${this.#mvrNameOrAddress ? ` ?? '${this.#mvrNameOrAddress}'` : ''};
 					${
 						parameters.length > 0

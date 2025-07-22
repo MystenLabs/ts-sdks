@@ -69,7 +69,7 @@ export async function mapToObject<T>({
 		)
 			.filter((value) => value !== null)
 			.map(([item, key, value]) => {
-				const [node] = parseTS/* ts */ `({${key}: ${value}})`;
+				const [node] = parseTS /* ts */ `({${key}: ${value}})`;
 
 				if (!ts.isExpressionStatement(node)) {
 					throw new Error('Expected Expression statement');
