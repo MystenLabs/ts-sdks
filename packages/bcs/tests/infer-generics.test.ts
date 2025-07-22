@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import type { BcsType } from './bcs-type.js';
-import { bcs } from './bcs.js';
+import type { BcsType } from '../src/bcs-type.js';
+import { bcs } from '../src/bcs.js';
 
 import { it, describe, expectTypeOf } from 'vitest';
 

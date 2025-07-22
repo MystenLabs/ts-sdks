@@ -75,7 +75,7 @@ function fixedArray<T extends BcsType<any>, Name extends string = `${T['name']}[
 
 function option<T extends BcsType<any>>(
 	type: T,
-): BcsType<InferBcsType<T> | null, InferBcsInput<T> | null | undefined, `Option<T[${T['name']}>`>;
+): BcsType<InferBcsType<T> | null, InferBcsInput<T> | null | undefined, `Option<${T['name']}>`>;
 function option<T, Input, Name extends string = string>(
 	type: BcsType<T, Input, Name>,
 ): BcsType<T | null, Input | null | undefined>;
