@@ -264,6 +264,11 @@ export interface WriteFilesOptions extends Omit<WriteBlobOptions, 'blob'> {
 	files: WalrusFile[];
 }
 
+export interface WriteFilesFlowOptions extends Omit<WriteBlobOptions, 'blob' | 'signer'> {
+	files: WalrusFile[];
+	owner: string;
+}
+
 export interface DeleteBlobOptions {
 	blobObjectId: string;
 }
