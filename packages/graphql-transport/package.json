@@ -42,8 +42,8 @@
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/graphql-transport#readme",
 	"devDependencies": {
 		"@graphql-codegen/add": "^5.0.3",
-		"@graphql-codegen/cli": "^5.0.6",
-		"@graphql-codegen/typed-document-node": "^5.1.1",
+		"@graphql-codegen/cli": "^5.0.7",
+		"@graphql-codegen/typed-document-node": "^5.1.2",
 		"@graphql-codegen/typescript": "4.1.6",
 		"@graphql-codegen/typescript-document-nodes": "4.0.16",
 		"@graphql-codegen/typescript-operations": "^4.6.1",
@@ -52,7 +52,7 @@
 		"@types/node": "^22.15.29",
 		"graphql-config": "^5.1.5",
 		"typescript": "^5.8.3",
-		"vitest": "^3.2.1",
+		"vitest": "^3.2.4",
 		"wait-on": "^8.0.3"
 	},
 	"dependencies": {

@@ -43,7 +43,7 @@
 	},
 	"dependencies": {
 		"@mysten/sui": "workspace:*",
-		"axios": "^1.9.0",
+		"axios": "^1.10.0",
 		"axios-retry": "^4.5.0"
 	},
 	"devDependencies": {
@@ -51,8 +51,8 @@
 		"@types/tmp": "^0.2.6",
 		"ts-retry-promise": "^0.8.1",
 		"typescript": "^5.8.3",
-		"vite": "^6.3.5",
-		"vitest": "^3.2.1"
+		"vite": "^7.0.5",
+		"vitest": "^3.2.4"
 	},
 	"repository": {
 		"type": "git",

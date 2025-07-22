@@ -39,7 +39,7 @@
 		"typescript": "^5.8.3"
 	},
 	"dependencies": {
-		"@lit/react": "^1.0.7",
+		"@lit/react": "^1.0.8",
 		"@mysten/dapp-kit-core": "workspace:*",
 		"@nanostores/react": "^1.0.0",
 		"nanostores": "^1.0.1"

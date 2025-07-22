@@ -61,13 +61,13 @@
 		"@types/node": "^22.15.29",
 		"dotenv": "^16.5.0",
 		"typescript": "^5.8.3",
-		"vitest": "^3.2.1"
+		"vitest": "^3.2.4"
 	},
 	"dependencies": {
 		"@google-cloud/kms": "^4.5.0",
 		"@mysten/ledgerjs-hw-app-sui": "workspace:*",
 		"@mysten/sui": "workspace:*",
-		"@noble/curves": "^1.9.1",
+		"@noble/curves": "^1.9.4",
 		"@noble/hashes": "^1.8.0",
 		"asn1-ts": "^8.0.2"
 	},

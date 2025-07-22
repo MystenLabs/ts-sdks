@@ -44,16 +44,16 @@
 	},
 	"homepage": "https://github.com/MystenLabs/seal#readme",
 	"devDependencies": {
-		"@hey-api/openapi-ts": "^0.69.2",
+		"@hey-api/openapi-ts": "^0.79.2",
 		"@mysten/build-scripts": "workspace:*",
 		"@types/node": "^22.15.29",
 		"typescript": "^5.8.3",
-		"vitest": "^3.2.1"
+		"vitest": "^3.2.4"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:*",
 		"@mysten/sui": "workspace:*",
-		"@noble/curves": "^1.9.1",
+		"@noble/curves": "^1.9.4",
 		"@noble/hashes": "^1.8.0"
 	}
 }

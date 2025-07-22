@@ -57,9 +57,9 @@
 		"typescript": "^5.8.3"
 	},
 	"dependencies": {
-		"@floating-ui/dom": "^1.7.1",
+		"@floating-ui/dom": "^1.7.2",
 		"@lit-labs/scoped-registry-mixin": "^1.0.4",
-		"@lit/task": "^1.0.2",
+		"@lit/task": "^1.0.3",
 		"@mysten/slush-wallet": "workspace:*",
 		"@mysten/sui": "workspace:*",
 		"@mysten/utils": "workspace:*",
@@ -68,7 +68,7 @@
 		"@wallet-standard/ui": "^1.0.1",
 		"@wallet-standard/ui-registry": "^1.0.1",
 		"@webcomponents/scoped-custom-element-registry": "^0.0.10",
-		"lit": "^3.3.0",
+		"lit": "^3.3.1",
 		"nanostores": "^1.0.1"
 	}
 }

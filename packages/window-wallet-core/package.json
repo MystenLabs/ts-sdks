@@ -41,11 +41,11 @@
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
 		"typescript": "^5.8.3",
-		"vitest": "^3.2.1"
+		"vitest": "^3.2.4"
 	},
 	"dependencies": {
 		"@mysten/utils": "workspace:*",
-		"jose": "^6.0.11",
+		"jose": "^6.0.12",
 		"valibot": "^0.36.0"
 	}
 }

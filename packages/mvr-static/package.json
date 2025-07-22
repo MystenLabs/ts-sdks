@@ -37,14 +37,14 @@
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
 		"typescript": "^5.8.3",
-		"vitest": "^3.2.1"
+		"vitest": "^3.2.4"
 	},
 	"dependencies": {
 		"@mysten/sui": "workspace:*",
 		"@types/node": "^22.15.29",
 		"enquirer": "^2.4.1",
-		"glob": "^11.0.2",
-		"prettier": "^3.5.3"
+		"glob": "^11.0.3",
+		"prettier": "^3.6.2"
 	},
 	"sideEffects": false,
 	"bin": "./bin/parser.js"
