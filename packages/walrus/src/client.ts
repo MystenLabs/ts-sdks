@@ -2200,57 +2200,65 @@ export class WalrusClient {
 					})),
 				),
 			});
+			const metadata = this.#uploadRelayClient
+				? await this.computeBlobMetadata({
+						bytes: quilt,
+					})
+				: await this.encodeBlob(quilt);
 
-			return {
-				metadata: this.#uploadRelayClient
-					? await this.computeBlobMetadata({
-							bytes: quilt,
-						})
-					: await this.encodeBlob(quilt),
-				data: this.#uploadRelayClient ? quilt : undefined,
-				size: quilt.length,
-				index,
-			};
-		};
-
-		const register = ({ size, index, metadata, data }: Awaited<ReturnType<typeof encode>>) => {
 			const transaction = new Transaction();
+			transaction.setSenderIfNotSet(owner);
 
 			if (this.#uploadRelayClient) {
 				const meta = metadata as Awaited<ReturnType<typeof this.computeBlobMetadata>>;
 				transaction.add(
 					this.sendUploadRelayTip({
-						size,
+						size: quilt.length,
 						blobDigest: meta.blobDigest,
 						nonce: meta.nonce,
 					}),
 				);
 			}
 
+			transaction.transferObjects(
+				[
+					this.registerBlob({
+						size: quilt.length,
+						epochs,
+						blobId: metadata.blobId,
+						rootHash: metadata.rootHash,
+						deletable,
+						owner,
+						attributes,
+					}),
+				],
+				owner,
+			);
+
+			const digest = await transaction.getDigest({
+				client: this.#suiClient as SuiClient,
+			});
+
 			return {
-				index,
+				registerTransaction: transaction,
 				metadata,
-				data,
-				transaction: this.registerBlobTransaction({
-					transaction,
-					size,
-					epochs,
-					blobId: metadata.blobId,
-					rootHash: metadata.rootHash,
-					deletable,
-					owner,
-					attributes,
-				}),
+				registerDigest: digest,
+				data: this.#uploadRelayClient ? quilt : undefined,
+				index,
 			};
+		};
+
+		const register = (result: Awaited<ReturnType<typeof encode>>) => {
+			return result;
 		};
 
 		const upload = async ({
 			index,
 			data,
-			transaction,
+			registerDigest,
 			metadata,
 		}: Awaited<ReturnType<typeof register>>) => {
-			const blobObject = await this.#getCreatedBlob(await transaction.getDigest());
+			const blobObject = await this.#getCreatedBlob(registerDigest);
 
 			if (this.#uploadRelayClient) {
 				const meta = metadata as Awaited<ReturnType<typeof this.computeBlobMetadata>>;
@@ -2263,7 +2271,7 @@ export class WalrusClient {
 							blobId: metadata.blobId,
 							blob: data!,
 							nonce: meta.nonce,
-							txDigest: await transaction.getDigest(),
+							txDigest: registerDigest,
 							blobObjectId: blobObject.id.id,
 							deletable,
 							encodingType: meta.metadata.encodingType as EncodingType,
@@ -2357,7 +2365,7 @@ export class WalrusClient {
 			},
 			register: () => {
 				stepResults.register = register(getResults('encode', 'register'));
-				return stepResults.register.transaction;
+				return stepResults.register.registerTransaction;
 			},
 			upload: async () => {
 				stepResults.upload = await upload(getResults('register', 'upload'));

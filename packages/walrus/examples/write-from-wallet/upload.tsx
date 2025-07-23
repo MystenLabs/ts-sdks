@@ -85,7 +85,6 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 
 		setState('registering');
 		const registerBlobTransaction = flowRef.current.register();
-		registerBlobTransaction.setSender(currentAccount!.address);
 
 		await signAndExecuteTransaction({ transaction: registerBlobTransaction });
 		setState('uploading');
@@ -99,7 +98,9 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 		if (!flowRef.current) return;
 
 		setState('certifying');
-		await flowRef.current.certify();
+		const certifyTransaction = flowRef.current.certify();
+
+		await signAndExecuteTransaction({ transaction: certifyTransaction });
 
 		const files = await flowRef.current.listFiles();
 		setState('done');

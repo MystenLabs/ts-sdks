@@ -11,9 +11,9 @@ const client = new SuiClient({
 }).$extend(WalrusClient.experimental_asClientExtension());
 
 (async function main() {
-	const blobId = 'nBENQqV1TwBw2BtW3T2h_jHPd49KeVaYGGd84D9JuRk';
-	const patchId = 'nBENQqV1TwBw2BtW3T2h_jHPd49KeVaYGGd84D9JuRkBAQACAA';
-	const patchId2 = 'nBENQqV1TwBw2BtW3T2h_jHPd49KeVaYGGd84D9JuRkBAgADAA';
+	const blobId = 'zaa1LYnJzLNYrm7RA_CwnkDxX4PKArAJVKKaEK_ct14';
+	const patchId = 'zaa1LYnJzLNYrm7RA_CwnkDxX4PKArAJVKKaEK_ct14BAQACAA';
+	const patchId2 = 'zaa1LYnJzLNYrm7RA_CwnkDxX4PKArAJVKKaEK_ct14BAgADAA';
 
 	const [blob, patch1, patch2] = await client.walrus.getFiles({
 		ids: [blobId, patchId, patchId2],

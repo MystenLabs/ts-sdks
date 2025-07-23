@@ -44,6 +44,10 @@ async function uploadFile() {
 			contents: new TextEncoder().encode('test 2'),
 			identifier: 'test2',
 		}),
+		WalrusFile.from({
+			contents: new TextEncoder().encode('a'.repeat(1000)),
+			identifier: 'test3',
+		}),
 	];
 
 	const quilt = await client.walrus.writeFiles({

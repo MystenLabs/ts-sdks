@@ -104,8 +104,11 @@ export class QuiltReader {
 			}
 
 			const size = endIndex - startIndex;
-			const subArray = blob.subarray(startIndex, endIndex);
-			result.set(subArray, bytesRead);
+
+			for (let i = 0; i < size; i++) {
+				result[bytesRead + i] = blob[startIndex + i];
+			}
+
 			bytesRead += size;
 
 			remainingOffset = 0;
