@@ -3,7 +3,7 @@
 
 import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 import { WalrusClient } from '../../src/client.js';
 import type { WriteFilesFlow } from '../../src/index.js';
@@ -24,7 +24,7 @@ const walrusClient = new WalrusClient({
 export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void }) {
 	const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
 	const currentAccount = useCurrentAccount();
-	const [flow, setFlow] = useState<WriteFilesFlow | null>(null);
+	const flowRef = useRef<WriteFilesFlow | null>(null);
 	const [state, setState] = useState<
 		| 'empty'
 		| 'encoding'
@@ -43,7 +43,7 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 	const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0];
 		if (!file) {
-			setFlow(null);
+			flowRef.current = null;
 			setState('empty');
 			return;
 		}
@@ -63,7 +63,7 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 			deletable: true,
 		});
 
-		setFlow(flow);
+		flowRef.current = flow;
 		await flow.encode();
 		setState('encoded');
 	};
@@ -81,27 +81,27 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 	);
 
 	async function registerBlob() {
-		if (!flow) return;
+		if (!flowRef.current) return;
 
 		setState('registering');
-		const registerBlobTransaction = flow.register();
+		const registerBlobTransaction = flowRef.current.register();
 		registerBlobTransaction.setSender(currentAccount!.address);
 
 		await signAndExecuteTransaction({ transaction: registerBlobTransaction });
 		setState('uploading');
 
-		await flow.upload();
+		await flowRef.current.upload();
 
 		setState('uploaded');
 	}
 
 	async function certifyBlob() {
-		if (!flow) return;
+		if (!flowRef.current) return;
 
 		setState('certifying');
-		await flow.certify();
+		await flowRef.current.certify();
 
-		const files = await flow.listFiles();
+		const files = await flowRef.current.listFiles();
 		setState('done');
 
 		onComplete(files.map((file) => file.id));
