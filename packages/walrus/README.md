@@ -69,46 +69,159 @@ The `WalrusClient` exposes high level methods for reading and writing blobs, as 
 methods for the individual steps in the process that can be used to implement more complex flows
 when you want more control to implement more optimized implementations.
 
-### Reading a blob
+## WalrusFiles
 
-The `readBlob` method will read a blob given the `blobId` and return `Uint8Array` containing the
-blobs content:
+The `WalrusFile` API provides a higher level abstraction so that applications don't need to worry
+about how data is stored in walrus. Today it handles data stored directly in blobs, and data stored
+in Quilts, but may be expanded to cover other storage patterns in the future.
+
+### Reading files
+
+To read files, you can use the `getFiles` method. This method accepts both Blob IDs and Quilt IDs,
+and will return a `WalrusFile`.
+
+It is encouraged to always read files in batches when possible, which will allow the client to be
+more efficient when loading multiple files from the same quilt.
 
 ```ts
-const blob = await walrusClient.readBlob({ blobId });
+const [file1, file2] = await walrusClient.getFiles({ ids: [anyBlobId, orQuiltId] });
 ```
 
-### Writing Blobs
-
-Thw `writeBlob` method can be used to write a blob (as a `Uint8Array`) to walrus. You will need to
-specify how long the blob should be stored for, and if the blob should be deletable.
-
-You will also need to provide a `signer` instance that signs and pays for the transaction/storage
-fees. The signer's address will need to have sufficient `SUI` to cover the transactions that
-register the blob, and certify its availability after it's been uploaded. It will also need to own
-sufficient `WAL` to pay to store the blob for the specified number of epochs, as well as the write
-fee for writing the blob.
-
-The exact costs will depend on the size of the blobs, as well as the current gas and storage prices.
+A `WalrusFile` works like a `Response` object from the `fetch` API:
 
 ```ts
-const file = new TextEncoder().encode('Hello from the TS SDK!!!\n');
+// get contents as a Uint8Array
+const bytes = await file1.bytes();
+// Parse the contents as a `utf-8` string
+const text = await file1.text();
+// Parse the contents as JSON
+const json = await file2.json();
+```
 
-const { blobId } = await walrusClient.writeBlob({
-	blob: file,
-	deletable: false,
+A `WalrusFile` may also have and `identifier` and `tags` properties if the file was stored in a
+quilt.
+
+```ts
+const identifier: string | null = await file1.getIdentifier();
+const tags: Record<string, string> = await file1.getTags();
+```
+
+### WalrusBlobs
+
+You can also get a `WalrusBlob` instead of a `WalrusFile` if you have the blobId:
+
+```ts
+const blob = await walrusClient.getBlob({ blobId });
+```
+
+If the blob is a quilt, you can read the files in the quilt:
+
+```ts
+// Get all files:
+const files = await blob.files();
+// Get files by identifier
+const [readme] = await blob.files({ identifiers: ['README.md'] });
+// Get files by tag
+const textFiles: WalrusFile[] = await blob.files({ tags: [{ 'content-type': 'text/plain' }] });
+// Get files by quilt id
+const filesById = await blob.files({ ids: [quiltID] });
+```
+
+### Writing files
+
+You can also construct a `WalrusFile` from a `Uint8Array`, `Blob`, or a `string`:
+
+```ts
+const file1 = WalrusFile.from(new Uint8Array([1, 2, 3]));
+const file2 = WalrusFile.from(new Blob([new Uint8Array([1, 2, 3])]));
+const file3 = WalrusFile.from('Hello from the TS SDK!!!\n', {
+	identifier: 'README.md',
+	tags: {
+		'content-type': 'text/plain',
+	},
+});
+
+const results: {
+	id: string;
+	blobId: string;
+	blobObject: Blob.$inferType;
+}[] = walrusClient.writeFiles({
+	files: [file1, file2, file3],
 	epochs: 3,
 	signer: keypair,
 });
 ```
 
-### Writing blobs with an upload relay
+Currently the provided files will all be written into a single quilt. Future versions of the SDK may
+optimize how files are stored to be more efficient by splitting files into multiple quilts.
+
+### Writing files in browser environments
+
+When the transactions to upload a blob are signed by a wallet in a browser, some wallets will use
+popups to prompt the user for a signature. If the popups are not opened in direct response to a user
+interaction, they may be blocked by the browser.
+
+To avoid this, we need to ensure that we execute the transactions that register and certify the blob
+in separate events handlers by creating separate buttons for the user to click for each step.
+
+The `client.writeFilesFlow` method returns an object with a set of methods that break the write flow
+into several smaller steps:
+
+1. `encode` - Encodes the files and generates a blobId
+2. `register` - returns a transaction that will register the blob on-chain
+3. `upload` - Uploads the data to storage nodes
+4. `certify` - returns a transaction that will certify the blob on-chain
+5. `listFiles` - returns a list of the created files
+
+Here's a simplified example showing the core API usage with separate user interactions:
+
+```tsx
+// Step 1: Create and encode the flow (can be done immediately when file is selected)
+const flow = walrusClient.writeFilesFlow({
+	files: [
+		WalrusFile.from({
+			contents: new Uint8Array(fileData),
+			identifier: 'my-file.txt',
+		}),
+	],
+	epochs: 3,
+	owner: currentAccount.address,
+	deletable: true,
+});
+
+await flow.encode();
+
+// Step 2: Register the blob (triggered by user clicking a register button after the encode step)
+async function handleRegister() {
+	const registerTx = flow.register();
+	await signAndExecuteTransaction({ transaction: registerTx });
+	// Step 3: Upload the data to storage nodes
+	// This can be done immediately after the register step, or as a separate step the user initiates
+	await flow.upload();
+}
+
+// Step 4: Certify the blob (triggered by user clicking a certify button after the blob is uploaded)
+async function handleCertify() {
+	const certifyTx = flow.certify();
+
+	await signAndExecuteTransaction({ transaction: certifyTx });
+
+	// Step 5: Get the new files
+	const files = await flow.listFiles();
+	console.log('Uploaded files', files);
+}
+```
+
+This approach ensures that each transaction signing step is separated into different user
+interactions, allowing wallet popups to work properly without being blocked by the browser.
+
+## Writing blobs with an upload relay
 
 Writing blobs directly from a client requires a lot of requests to write data to all of the storage
 nodes. An upload relay can be used to offload the work of these writes to a server, reducing
 complexity for the client.
 
-To use an upload relay, you can add the `uploadRelay` option when creating your `WalrusClient`:
+To use an upload relay, you can add the `uploadRelay` option when creating your `WalrusClient`.
 
 ```ts
 const client = new SuiClient({
@@ -185,12 +298,12 @@ const client = new SuiClient({
 );
 ```
 
-### Full API
+## Full API
 
 For a complete overview of the available methods on the `WalrusClient` you can reference type
 [TypeDocs](http://sdk.mystenlabs.com/typedoc/classes/_mysten_walrus.WalrusClient.html)
 
-### Examples
+## Examples
 
 There are a number of simple
 [examples you can reference](https://github.com/MystenLabs/ts-sdks/tree/main/packages/walrus/examples)
@@ -281,7 +394,7 @@ const walrusClient = new WalrusClient({
 });
 ```
 
-### Loading the wasm module in vite or client side apps
+## Loading the wasm module in vite or client side apps
 
 The walrus SDK requires wasm bindings to encode and decode blobs. When running in node or bun and
 some bundlers this will work without any additional configuration.
@@ -322,7 +435,7 @@ const nextConfig: NextConfig = {
 };
 ```
 
-### Known fetch limitations you might run into
+## Known fetch limitations you might run into
 
 - Some nodes can be slow to respond. When running in node, the default connectTimeout is 10 seconds
   and can cause request timeouts
