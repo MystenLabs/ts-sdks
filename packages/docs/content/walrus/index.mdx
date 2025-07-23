@@ -171,6 +171,10 @@ const results: {
 Currently the provided files will all be written into a single quilt. Future versions of the SDK may
 optimize how files are stored to be more efficient by splitting files into multiple quilts.
 
+The current quilt encoding is less efficient for single files, so writing multiple files together is
+recommended when possible. Writing raw blobs directly is also possible using the `writeBlob` API
+(described below)
+
 ### Writing files in browser environments
 
 When the transactions to upload a blob are signed by a wallet in a browser, some wallets will use
