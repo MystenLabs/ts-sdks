@@ -129,7 +129,8 @@ const filesById = await blob.files({ ids: [quiltID] });
 
 ### Writing files
 
-You can also construct a `WalrusFile` from a `Uint8Array`, `Blob`, or a `string`:
+You can also construct a `WalrusFile` from a `Uint8Array`, `Blob`, or a `string` which can then be
+stored on walrus:
 
 ```ts
 const file1 = WalrusFile.from(new Uint8Array([1, 2, 3]));
@@ -140,7 +141,19 @@ const file3 = WalrusFile.from('Hello from the TS SDK!!!\n', {
 		'content-type': 'text/plain',
 	},
 });
+```
 
+Once you have your files you can use the `writeFiles` method to write them to walrus.
+
+Along with the files, you will also need to provide a `Signer` instance that signs and pays for the
+transaction/storage fees. The signer's address will need to have sufficient `SUI` to cover the
+transactions that register the blob, and certify its availability after it's been uploaded. The
+Signer must own sufficient `WAL` to pay to store the blob for the specified number of epochs, as
+well as the write fee for writing the blob.
+
+The exact costs will depend on the size of the blobs, as well as the current gas and storage prices.
+
+```ts
 const results: {
 	id: string;
 	blobId: string;
@@ -148,6 +161,7 @@ const results: {
 }[] = walrusClient.writeFiles({
 	files: [file1, file2, file3],
 	epochs: 3,
+	deletable: true,
 	signer: keypair,
 });
 ```
@@ -296,6 +310,36 @@ const client = new SuiClient({
 		},
 	}),
 );
+```
+
+## Interacting with blobs directly
+
+In case you do not want to use the `WalrusFile` abstractions, you can use the `readBlob` and
+`writeBlob` APIs directly
+
+### Reading blobs
+
+The `readBlob` method will read a blob given the blobId and return Uint8Array containing the blobs
+content:
+
+```ts
+const blob = await walrusClient.readBlob({ blobId });
+```
+
+### Writing Blobs
+
+Thw writeBlob method can be used to write a blob (as a `Uint8Array`) to walrus. You will need to
+specify how long the blob should be stored for, and if the blob should be deletable.
+
+```ts
+const file = new TextEncoder().encode('Hello from the TS SDK!!!\n');
+
+const { blobId } = await walrusClient.writeBlob({
+	blob: file,
+	deletable: false,
+	epochs: 3,
+	signer: keypair,
+});
 ```
 
 ## Full API
