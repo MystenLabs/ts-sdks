@@ -241,11 +241,9 @@ export class Polynomial {
 
 	/** Evaluate the polynomial at x. */
 	evaluate(x: GF256): GF256 {
-		let result = GF256.zero();
-		for (let i = this.coefficients.length - 1; i >= 0; i--) {
-			result = result.mul(x).add(this.coefficients[i]);
-		}
-		return result;
+		return this.coefficients
+			.toReversed()
+			.reduce((sum, coefficient) => sum.mul(x).add(coefficient), GF256.zero());
 	}
 
 	equals(other: Polynomial): boolean {
