@@ -157,6 +157,66 @@ const results: {
 Currently the provided files will all be written into a single quilt. Future versions of the SDK may
 optimize how files are stored to be more efficient by splitting files into multiple quilts.
 
+### Writing files in browser environments
+
+When the transactions to upload a blob are signed by a wallet in a browser, some wallets will use
+popups to prompt the user for a signature. If the popups are not opened in direct response to a user
+interaction, they may be blocked by the browser.
+
+To avoid this, we need to ensure that we execute the transactions that register and certify the blob
+in separate events handlers by creating separate buttons for the user to click for each step.
+
+The `client.writeFilesFlow` method returns an object with a set of methods that break the write flow
+into several smaller steps:
+
+1. `encode` - Encodes the files and generates a blobId
+2. `register` - returns a transaction that will register the blob on-chain
+3. `upload` - Uploads the data to storage nodes
+4. `certify` - returns a transaction that will certify the blob on-chain
+5. `listFiles` - returns a list of the created files
+
+Here's a simplified example showing the core API usage with separate user interactions:
+
+```tsx
+// Step 1: Create and encode the flow (can be done immediately when file is selected)
+const flow = walrusClient.writeFilesFlow({
+	files: [
+		WalrusFile.from({
+			contents: new Uint8Array(fileData),
+			identifier: 'my-file.txt',
+		}),
+	],
+	epochs: 3,
+	owner: currentAccount.address,
+	deletable: true,
+});
+
+await flow.encode();
+
+// Step 2: Register the blob (triggered by user clicking a register button after the encode step)
+async function handleRegister() {
+	const registerTx = flow.register();
+	await signAndExecuteTransaction({ transaction: registerTx });
+	// Step 3: Upload the data to storage nodes
+	// This can be done immediately after the register step, or as a separate step the user initiates
+	await flow.upload();
+}
+
+// Step 4: Certify the blob (triggered by user clicking a certify button after the blob is uploaded)
+async function handleCertify() {
+	const certifyTx = flow.certify();
+
+	await signAndExecuteTransaction({ transaction: certifyTx });
+
+	// Step 5: Get the new files
+	const files = await flow.listFiles();
+	console.log('Uploaded files', files);
+}
+```
+
+This approach ensures that each transaction signing step is separated into different user
+interactions, allowing wallet popups to work properly without being blocked by the browser.
+
 ## Writing blobs with an upload relay
 
 Writing blobs directly from a client requires a lot of requests to write data to all of the storage

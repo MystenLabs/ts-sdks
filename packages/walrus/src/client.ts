@@ -87,6 +87,7 @@ import type {
 	WriteSliversToNodeOptions,
 	WriteFilesOptions,
 	WriteFilesFlowOptions,
+	WriteFilesFlow,
 } from './types.js';
 import { blobIdToInt, IntentType, SliverData, StorageConfirmation } from './utils/bcs.js';
 import {
@@ -2181,14 +2182,14 @@ export class WalrusClient {
 		}));
 	}
 
-	async writeFilesFlow({
+	writeFilesFlow({
 		files,
 		epochs,
 		deletable,
 		owner,
 		attributes,
 		signal,
-	}: WriteFilesFlowOptions) {
+	}: WriteFilesFlowOptions): WriteFilesFlow {
 		const encode = async () => {
 			const { quilt, index } = await this.encodeQuilt({
 				blobs: await Promise.all(
@@ -2360,7 +2361,6 @@ export class WalrusClient {
 			},
 			upload: async () => {
 				stepResults.upload = await upload(getResults('register', 'upload'));
-				return stepResults.upload;
 			},
 			certify: () => {
 				stepResults.certify = certify(getResults('upload', 'certify'));

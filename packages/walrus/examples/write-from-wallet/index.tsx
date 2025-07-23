@@ -3,8 +3,11 @@
 
 import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { useState } from 'react';
 
 import { WalrusClient } from '../../src/client.js';
+import type { WriteFilesFlow } from '../../src/index.js';
+import { WalrusFile } from '../../src/index.js';
 
 const suiClient = new SuiClient({
 	url: getFullnodeUrl('testnet'),
@@ -18,81 +21,89 @@ const walrusClient = new WalrusClient({
 	},
 });
 
-export function FileUpload() {
+export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void }) {
 	const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
 	const currentAccount = useCurrentAccount();
+	const [flow, setFlow] = useState<WriteFilesFlow | null>(null);
+	const [state, setState] = useState<
+		| 'empty'
+		| 'encoding'
+		| 'encoded'
+		| 'registering'
+		| 'uploading'
+		| 'uploaded'
+		| 'certifying'
+		| 'done'
+	>('empty');
 
 	if (!currentAccount) {
 		return <div>No account connected</div>;
 	}
 
-	return <button onClick={uploadFile}>Upload File</button>;
+	const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (!file) {
+			setFlow(null);
+			setState('empty');
+			return;
+		}
 
-	async function uploadFile() {
-		const file = new TextEncoder().encode('Hello from the TS SDK!!!\n');
+		setState('encoding');
 
-		const encoded = await walrusClient.encodeBlob(file);
-
-		const registerBlobTransaction = await walrusClient.registerBlobTransaction({
-			blobId: encoded.blobId,
-			rootHash: encoded.rootHash,
-			size: file.length,
-			deletable: true,
+		const arrayBuffer = await file.arrayBuffer();
+		const flow = walrusClient.writeFilesFlow({
+			files: [
+				WalrusFile.from({
+					contents: new Uint8Array(arrayBuffer),
+					identifier: file.name,
+				}),
+			],
 			epochs: 3,
 			owner: currentAccount!.address,
+			deletable: true,
 		});
+
+		setFlow(flow);
+		await flow.encode();
+		setState('encoded');
+	};
+
+	return (
+		<div>
+			<input type="file" onChange={handleFileChange} disabled={state !== 'empty'} />
+			<button onClick={registerBlob} disabled={state !== 'encoded'}>
+				Register blob
+			</button>
+			<button onClick={certifyBlob} disabled={state !== 'uploaded'}>
+				Certify blob
+			</button>
+		</div>
+	);
+
+	async function registerBlob() {
+		if (!flow) return;
+
+		setState('registering');
+		const registerBlobTransaction = flow.register();
 		registerBlobTransaction.setSender(currentAccount!.address);
 
-		const { digest } = await signAndExecuteTransaction({ transaction: registerBlobTransaction });
+		await signAndExecuteTransaction({ transaction: registerBlobTransaction });
+		setState('uploading');
 
-		const { objectChanges, effects } = await suiClient.waitForTransaction({
-			digest,
-			options: { showObjectChanges: true, showEffects: true },
-		});
+		await flow.upload();
 
-		if (effects?.status.status !== 'success') {
-			throw new Error('Failed to register blob');
-		}
+		setState('uploaded');
+	}
 
-		const blobType = await walrusClient.getBlobType();
+	async function certifyBlob() {
+		if (!flow) return;
 
-		const blobObject = objectChanges?.find(
-			(change) => change.type === 'created' && change.objectType === blobType,
-		);
+		setState('certifying');
+		await flow.certify();
 
-		if (!blobObject || blobObject.type !== 'created') {
-			throw new Error('Blob object not found');
-		}
+		const files = await flow.listFiles();
+		setState('done');
 
-		const confirmations = await walrusClient.writeEncodedBlobToNodes({
-			blobId: encoded.blobId,
-			metadata: encoded.metadata,
-			sliversByNode: encoded.sliversByNode,
-			deletable: true,
-			objectId: blobObject.objectId,
-		});
-
-		const certifyBlobTransaction = await walrusClient.certifyBlobTransaction({
-			blobId: encoded.blobId,
-			blobObjectId: blobObject.objectId,
-			confirmations,
-			deletable: true,
-		});
-		certifyBlobTransaction.setSender(currentAccount!.address);
-
-		const { digest: certifyDigest } = await signAndExecuteTransaction({
-			transaction: certifyBlobTransaction,
-		});
-
-		const { effects: certifyEffects } = await suiClient.waitForTransaction({
-			digest: certifyDigest,
-			options: { showEffects: true },
-		});
-
-		if (certifyEffects?.status.status !== 'success') {
-			throw new Error('Failed to certify blob');
-		}
-
-		return encoded.blobId;
+		onComplete(files.map((file) => file.id));
 	}
 }
