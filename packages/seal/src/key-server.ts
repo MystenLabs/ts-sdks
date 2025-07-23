@@ -33,9 +33,9 @@ export enum KeyServerType {
 }
 
 export const SERVER_VERSION_REQUIREMENT = new Version('0.4.1');
-export const MYSTEN_LABS_KEY_SERVER_URL =
+export const MYSTEN_LABS_KEY_SERVER_1 =
 	'0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75';
-export const MYSTEN_LABS_KEY_SERVER_URL_2 =
+export const MYSTEN_LABS_KEY_SERVER_2 =
 	'0xf5d14a81a982144ae441cd7d64b09027f116a468bd36e7eca494f750591623c8';
 
 /**
@@ -45,7 +45,7 @@ export const MYSTEN_LABS_KEY_SERVER_URL_2 =
  */
 export function getAllowlistedKeyServers(network: 'testnet' | 'mainnet'): string[] {
 	if (network === 'testnet') {
-		return [MYSTEN_LABS_KEY_SERVER_URL, MYSTEN_LABS_KEY_SERVER_URL_2];
+		return [MYSTEN_LABS_KEY_SERVER_1, MYSTEN_LABS_KEY_SERVER_2];
 	} else {
 		// TODO: add mainnet key servers
 		throw new UnsupportedNetworkError(`Unsupported network ${network}`);
@@ -193,10 +193,10 @@ export interface FetchKeysOptions {
 	/** The URL of the key server. */
 	url: string;
 	/** The Base64 string of request signature. */
-	requestSig: string;
+	requestSignature: string;
 	/** The transaction bytes. */
-	txBytes: Uint8Array;
-	/** The ephemeral public key. */
+	transactionBytes: Uint8Array;
+	/** The ephemeral secret key. */
 	encKey: Uint8Array;
 	/** The ephemeral public key. */
 	encKeyPk: Uint8Array;
@@ -228,8 +228,8 @@ export interface FetchKeysOptions {
  */
 export async function fetchKeysForAllIds({
 	url,
-	requestSig,
-	txBytes,
+	requestSignature,
+	transactionBytes,
 	encKey,
 	encKeyPk,
 	encVerificationKey,
@@ -240,10 +240,10 @@ export async function fetchKeysForAllIds({
 	signal,
 }: FetchKeysOptions): Promise<{ fullId: string; key: Uint8Array }[]> {
 	const body = {
-		ptb: toBase64(txBytes.slice(1)), // removes the byte of the transaction type version
+		ptb: toBase64(transactionBytes.slice(1)), // removes the byte of the transaction type version
 		enc_key: toBase64(encKeyPk),
 		enc_verification_key: toBase64(encVerificationKey),
-		request_signature: requestSig, // already b64
+		request_signature: requestSignature, // already b64
 		certificate,
 	};
 

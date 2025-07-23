@@ -285,8 +285,8 @@ export class SealClient {
 				const config = this.#configs.get(objectId);
 				const allKeys = await fetchKeysForAllIds({
 					url: server.url,
-					requestSig: signedRequest.requestSignature,
-					txBytes,
+					requestSignature: signedRequest.requestSignature,
+					transactionBytes: txBytes,
 					encKey: signedRequest.encKey,
 					encKeyPk: signedRequest.encKeyPk,
 					encVerificationKey: signedRequest.encVerificationKey,
