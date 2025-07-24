@@ -23,42 +23,42 @@ import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
  */
 export interface ILiveDataServiceClient {
 	/**
-	 * @generated from protobuf rpc: ListDynamicFields(sui.rpc.v2beta2.ListDynamicFieldsRequest) returns (sui.rpc.v2beta2.ListDynamicFieldsResponse);
+	 * @generated from protobuf rpc: ListDynamicFields
 	 */
 	listDynamicFields(
 		input: ListDynamicFieldsRequest,
 		options?: RpcOptions,
 	): UnaryCall<ListDynamicFieldsRequest, ListDynamicFieldsResponse>;
 	/**
-	 * @generated from protobuf rpc: ListOwnedObjects(sui.rpc.v2beta2.ListOwnedObjectsRequest) returns (sui.rpc.v2beta2.ListOwnedObjectsResponse);
+	 * @generated from protobuf rpc: ListOwnedObjects
 	 */
 	listOwnedObjects(
 		input: ListOwnedObjectsRequest,
 		options?: RpcOptions,
 	): UnaryCall<ListOwnedObjectsRequest, ListOwnedObjectsResponse>;
 	/**
-	 * @generated from protobuf rpc: GetCoinInfo(sui.rpc.v2beta2.GetCoinInfoRequest) returns (sui.rpc.v2beta2.GetCoinInfoResponse);
+	 * @generated from protobuf rpc: GetCoinInfo
 	 */
 	getCoinInfo(
 		input: GetCoinInfoRequest,
 		options?: RpcOptions,
 	): UnaryCall<GetCoinInfoRequest, GetCoinInfoResponse>;
 	/**
-	 * @generated from protobuf rpc: GetBalance(sui.rpc.v2beta2.GetBalanceRequest) returns (sui.rpc.v2beta2.GetBalanceResponse);
+	 * @generated from protobuf rpc: GetBalance
 	 */
 	getBalance(
 		input: GetBalanceRequest,
 		options?: RpcOptions,
 	): UnaryCall<GetBalanceRequest, GetBalanceResponse>;
 	/**
-	 * @generated from protobuf rpc: ListBalances(sui.rpc.v2beta2.ListBalancesRequest) returns (sui.rpc.v2beta2.ListBalancesResponse);
+	 * @generated from protobuf rpc: ListBalances
 	 */
 	listBalances(
 		input: ListBalancesRequest,
 		options?: RpcOptions,
 	): UnaryCall<ListBalancesRequest, ListBalancesResponse>;
 	/**
-	 * @generated from protobuf rpc: SimulateTransaction(sui.rpc.v2beta2.SimulateTransactionRequest) returns (sui.rpc.v2beta2.SimulateTransactionResponse);
+	 * @generated from protobuf rpc: SimulateTransaction
 	 */
 	simulateTransaction(
 		input: SimulateTransactionRequest,
@@ -74,7 +74,7 @@ export class LiveDataServiceClient implements ILiveDataServiceClient, ServiceInf
 	options = LiveDataService.options;
 	constructor(private readonly _transport: RpcTransport) {}
 	/**
-	 * @generated from protobuf rpc: ListDynamicFields(sui.rpc.v2beta2.ListDynamicFieldsRequest) returns (sui.rpc.v2beta2.ListDynamicFieldsResponse);
+	 * @generated from protobuf rpc: ListDynamicFields
 	 */
 	listDynamicFields(
 		input: ListDynamicFieldsRequest,
@@ -91,7 +91,7 @@ export class LiveDataServiceClient implements ILiveDataServiceClient, ServiceInf
 		);
 	}
 	/**
-	 * @generated from protobuf rpc: ListOwnedObjects(sui.rpc.v2beta2.ListOwnedObjectsRequest) returns (sui.rpc.v2beta2.ListOwnedObjectsResponse);
+	 * @generated from protobuf rpc: ListOwnedObjects
 	 */
 	listOwnedObjects(
 		input: ListOwnedObjectsRequest,
@@ -108,7 +108,7 @@ export class LiveDataServiceClient implements ILiveDataServiceClient, ServiceInf
 		);
 	}
 	/**
-	 * @generated from protobuf rpc: GetCoinInfo(sui.rpc.v2beta2.GetCoinInfoRequest) returns (sui.rpc.v2beta2.GetCoinInfoResponse);
+	 * @generated from protobuf rpc: GetCoinInfo
 	 */
 	getCoinInfo(
 		input: GetCoinInfoRequest,
@@ -125,7 +125,7 @@ export class LiveDataServiceClient implements ILiveDataServiceClient, ServiceInf
 		);
 	}
 	/**
-	 * @generated from protobuf rpc: GetBalance(sui.rpc.v2beta2.GetBalanceRequest) returns (sui.rpc.v2beta2.GetBalanceResponse);
+	 * @generated from protobuf rpc: GetBalance
 	 */
 	getBalance(
 		input: GetBalanceRequest,
@@ -142,7 +142,7 @@ export class LiveDataServiceClient implements ILiveDataServiceClient, ServiceInf
 		);
 	}
 	/**
-	 * @generated from protobuf rpc: ListBalances(sui.rpc.v2beta2.ListBalancesRequest) returns (sui.rpc.v2beta2.ListBalancesResponse);
+	 * @generated from protobuf rpc: ListBalances
 	 */
 	listBalances(
 		input: ListBalancesRequest,
@@ -159,7 +159,7 @@ export class LiveDataServiceClient implements ILiveDataServiceClient, ServiceInf
 		);
 	}
 	/**
-	 * @generated from protobuf rpc: SimulateTransaction(sui.rpc.v2beta2.SimulateTransactionRequest) returns (sui.rpc.v2beta2.SimulateTransactionResponse);
+	 * @generated from protobuf rpc: SimulateTransaction
 	 */
 	simulateTransaction(
 		input: SimulateTransactionRequest,

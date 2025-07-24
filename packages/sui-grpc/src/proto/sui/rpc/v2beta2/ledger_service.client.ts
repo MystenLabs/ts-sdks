@@ -27,49 +27,49 @@ export interface ILedgerServiceClient {
 	/**
 	 * Query the service for general information about its current state.
 	 *
-	 * @generated from protobuf rpc: GetServiceInfo(sui.rpc.v2beta2.GetServiceInfoRequest) returns (sui.rpc.v2beta2.GetServiceInfoResponse);
+	 * @generated from protobuf rpc: GetServiceInfo
 	 */
 	getServiceInfo(
 		input: GetServiceInfoRequest,
 		options?: RpcOptions,
 	): UnaryCall<GetServiceInfoRequest, GetServiceInfoResponse>;
 	/**
-	 * @generated from protobuf rpc: GetObject(sui.rpc.v2beta2.GetObjectRequest) returns (sui.rpc.v2beta2.GetObjectResponse);
+	 * @generated from protobuf rpc: GetObject
 	 */
 	getObject(
 		input: GetObjectRequest,
 		options?: RpcOptions,
 	): UnaryCall<GetObjectRequest, GetObjectResponse>;
 	/**
-	 * @generated from protobuf rpc: BatchGetObjects(sui.rpc.v2beta2.BatchGetObjectsRequest) returns (sui.rpc.v2beta2.BatchGetObjectsResponse);
+	 * @generated from protobuf rpc: BatchGetObjects
 	 */
 	batchGetObjects(
 		input: BatchGetObjectsRequest,
 		options?: RpcOptions,
 	): UnaryCall<BatchGetObjectsRequest, BatchGetObjectsResponse>;
 	/**
-	 * @generated from protobuf rpc: GetTransaction(sui.rpc.v2beta2.GetTransactionRequest) returns (sui.rpc.v2beta2.GetTransactionResponse);
+	 * @generated from protobuf rpc: GetTransaction
 	 */
 	getTransaction(
 		input: GetTransactionRequest,
 		options?: RpcOptions,
 	): UnaryCall<GetTransactionRequest, GetTransactionResponse>;
 	/**
-	 * @generated from protobuf rpc: BatchGetTransactions(sui.rpc.v2beta2.BatchGetTransactionsRequest) returns (sui.rpc.v2beta2.BatchGetTransactionsResponse);
+	 * @generated from protobuf rpc: BatchGetTransactions
 	 */
 	batchGetTransactions(
 		input: BatchGetTransactionsRequest,
 		options?: RpcOptions,
 	): UnaryCall<BatchGetTransactionsRequest, BatchGetTransactionsResponse>;
 	/**
-	 * @generated from protobuf rpc: GetCheckpoint(sui.rpc.v2beta2.GetCheckpointRequest) returns (sui.rpc.v2beta2.GetCheckpointResponse);
+	 * @generated from protobuf rpc: GetCheckpoint
 	 */
 	getCheckpoint(
 		input: GetCheckpointRequest,
 		options?: RpcOptions,
 	): UnaryCall<GetCheckpointRequest, GetCheckpointResponse>;
 	/**
-	 * @generated from protobuf rpc: GetEpoch(sui.rpc.v2beta2.GetEpochRequest) returns (sui.rpc.v2beta2.GetEpochResponse);
+	 * @generated from protobuf rpc: GetEpoch
 	 */
 	getEpoch(
 		input: GetEpochRequest,
@@ -87,7 +87,7 @@ export class LedgerServiceClient implements ILedgerServiceClient, ServiceInfo {
 	/**
 	 * Query the service for general information about its current state.
 	 *
-	 * @generated from protobuf rpc: GetServiceInfo(sui.rpc.v2beta2.GetServiceInfoRequest) returns (sui.rpc.v2beta2.GetServiceInfoResponse);
+	 * @generated from protobuf rpc: GetServiceInfo
 	 */
 	getServiceInfo(
 		input: GetServiceInfoRequest,
@@ -104,7 +104,7 @@ export class LedgerServiceClient implements ILedgerServiceClient, ServiceInfo {
 		);
 	}
 	/**
-	 * @generated from protobuf rpc: GetObject(sui.rpc.v2beta2.GetObjectRequest) returns (sui.rpc.v2beta2.GetObjectResponse);
+	 * @generated from protobuf rpc: GetObject
 	 */
 	getObject(
 		input: GetObjectRequest,
@@ -121,7 +121,7 @@ export class LedgerServiceClient implements ILedgerServiceClient, ServiceInfo {
 		);
 	}
 	/**
-	 * @generated from protobuf rpc: BatchGetObjects(sui.rpc.v2beta2.BatchGetObjectsRequest) returns (sui.rpc.v2beta2.BatchGetObjectsResponse);
+	 * @generated from protobuf rpc: BatchGetObjects
 	 */
 	batchGetObjects(
 		input: BatchGetObjectsRequest,
@@ -138,7 +138,7 @@ export class LedgerServiceClient implements ILedgerServiceClient, ServiceInfo {
 		);
 	}
 	/**
-	 * @generated from protobuf rpc: GetTransaction(sui.rpc.v2beta2.GetTransactionRequest) returns (sui.rpc.v2beta2.GetTransactionResponse);
+	 * @generated from protobuf rpc: GetTransaction
 	 */
 	getTransaction(
 		input: GetTransactionRequest,
@@ -155,7 +155,7 @@ export class LedgerServiceClient implements ILedgerServiceClient, ServiceInfo {
 		);
 	}
 	/**
-	 * @generated from protobuf rpc: BatchGetTransactions(sui.rpc.v2beta2.BatchGetTransactionsRequest) returns (sui.rpc.v2beta2.BatchGetTransactionsResponse);
+	 * @generated from protobuf rpc: BatchGetTransactions
 	 */
 	batchGetTransactions(
 		input: BatchGetTransactionsRequest,
@@ -172,7 +172,7 @@ export class LedgerServiceClient implements ILedgerServiceClient, ServiceInfo {
 		);
 	}
 	/**
-	 * @generated from protobuf rpc: GetCheckpoint(sui.rpc.v2beta2.GetCheckpointRequest) returns (sui.rpc.v2beta2.GetCheckpointResponse);
+	 * @generated from protobuf rpc: GetCheckpoint
 	 */
 	getCheckpoint(
 		input: GetCheckpointRequest,
@@ -189,7 +189,7 @@ export class LedgerServiceClient implements ILedgerServiceClient, ServiceInfo {
 		);
 	}
 	/**
-	 * @generated from protobuf rpc: GetEpoch(sui.rpc.v2beta2.GetEpochRequest) returns (sui.rpc.v2beta2.GetEpochResponse);
+	 * @generated from protobuf rpc: GetEpoch
 	 */
 	getEpoch(
 		input: GetEpochRequest,

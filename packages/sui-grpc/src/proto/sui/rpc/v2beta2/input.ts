@@ -17,7 +17,7 @@ import { Value } from '../../../google/protobuf/struct.js';
  */
 export interface Input {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Input.InputKind kind = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Input.InputKind kind = 1
 	 */
 	kind?: Input_InputKind;
 	/**
@@ -26,13 +26,13 @@ export interface Input {
 	 * For normal operations this is required to be a move primitive type and not contain structs
 	 * or objects.
 	 *
-	 * @generated from protobuf field: optional bytes pure = 2;
+	 * @generated from protobuf field: optional bytes pure = 2
 	 */
 	pure?: Uint8Array;
 	/**
 	 * `ObjectId` of the object input.
 	 *
-	 * @generated from protobuf field: optional string object_id = 3;
+	 * @generated from protobuf field: optional string object_id = 3
 	 */
 	objectId?: string;
 	/**
@@ -40,20 +40,20 @@ export interface Input {
 	 * or `RECEIVING` or if `kind` is `SHARED` this is the initial version of the
 	 * object when it was shared
 	 *
-	 * @generated from protobuf field: optional uint64 version = 4;
+	 * @generated from protobuf field: optional uint64 version = 4
 	 */
 	version?: bigint;
 	/**
 	 * The digest of this object.
 	 *
-	 * @generated from protobuf field: optional string digest = 5;
+	 * @generated from protobuf field: optional string digest = 5
 	 */
 	digest?: string;
 	/**
 	 * Controls whether the caller asks for a mutable reference to the shared
 	 * object.
 	 *
-	 * @generated from protobuf field: optional bool mutable = 6;
+	 * @generated from protobuf field: optional bool mutable = 6
 	 */
 	mutable?: boolean;
 	/**
@@ -61,7 +61,7 @@ export interface Input {
 	 *
 	 * INPUT ONLY
 	 *
-	 * @generated from protobuf field: optional google.protobuf.Value literal = 1000;
+	 * @generated from protobuf field: optional google.protobuf.Value literal = 1000
 	 */
 	literal?: Value;
 }

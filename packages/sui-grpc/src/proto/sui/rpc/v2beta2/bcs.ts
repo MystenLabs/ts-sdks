@@ -20,13 +20,13 @@ export interface Bcs {
 	/**
 	 * Name that identifies the type of the serialized value.
 	 *
-	 * @generated from protobuf field: optional string name = 1;
+	 * @generated from protobuf field: optional string name = 1
 	 */
 	name?: string;
 	/**
 	 * Bytes of a BCS serialized value.
 	 *
-	 * @generated from protobuf field: optional bytes value = 2;
+	 * @generated from protobuf field: optional bytes value = 2
 	 */
 	value?: Uint8Array;
 }

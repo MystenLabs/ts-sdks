@@ -31,7 +31,7 @@ export interface GetServiceInfoResponse {
 	 * The chain identifier is the digest of the genesis checkpoint, the
 	 * checkpoint with sequence number 0.
 	 *
-	 * @generated from protobuf field: optional string chain_id = 1;
+	 * @generated from protobuf field: optional string chain_id = 1
 	 */
 	chainId?: string;
 	/**
@@ -39,45 +39,45 @@ export interface GetServiceInfoResponse {
 	 *
 	 * This is intended to be a human-readable name like `mainnet`, `testnet`, and so on.
 	 *
-	 * @generated from protobuf field: optional string chain = 2;
+	 * @generated from protobuf field: optional string chain = 2
 	 */
 	chain?: string;
 	/**
 	 * Current epoch of the node based on its highest executed checkpoint.
 	 *
-	 * @generated from protobuf field: optional uint64 epoch = 3;
+	 * @generated from protobuf field: optional uint64 epoch = 3
 	 */
 	epoch?: bigint;
 	/**
 	 * Checkpoint height of the most recently executed checkpoint.
 	 *
-	 * @generated from protobuf field: optional uint64 checkpoint_height = 4;
+	 * @generated from protobuf field: optional uint64 checkpoint_height = 4
 	 */
 	checkpointHeight?: bigint;
 	/**
 	 * Unix timestamp of the most recently executed checkpoint.
 	 *
-	 * @generated from protobuf field: optional google.protobuf.Timestamp timestamp = 5;
+	 * @generated from protobuf field: optional google.protobuf.Timestamp timestamp = 5
 	 */
 	timestamp?: Timestamp;
 	/**
 	 * The lowest checkpoint for which checkpoints and transaction data are available.
 	 *
-	 * @generated from protobuf field: optional uint64 lowest_available_checkpoint = 6;
+	 * @generated from protobuf field: optional uint64 lowest_available_checkpoint = 6
 	 */
 	lowestAvailableCheckpoint?: bigint;
 	/**
 	 * The lowest checkpoint for which object data is available.
 	 *
-	 * @generated from protobuf field: optional uint64 lowest_available_checkpoint_objects = 7;
+	 * @generated from protobuf field: optional uint64 lowest_available_checkpoint_objects = 7
 	 */
 	lowestAvailableCheckpointObjects?: bigint;
 	/**
 	 * Software version of the service. Similar to the `server` http header.
 	 *
-	 * @generated from protobuf field: optional string server_version = 8;
+	 * @generated from protobuf field: optional string server = 8
 	 */
-	serverVersion?: string;
+	server?: string;
 }
 /**
  * @generated from protobuf message sui.rpc.v2beta2.GetObjectRequest
@@ -86,7 +86,7 @@ export interface GetObjectRequest {
 	/**
 	 * Required. The `ObjectId` of the requested object.
 	 *
-	 * @generated from protobuf field: optional string object_id = 1;
+	 * @generated from protobuf field: optional string object_id = 1
 	 */
 	objectId?: string;
 	/**
@@ -94,14 +94,14 @@ export interface GetObjectRequest {
 	 * If no version is specified, and the object is live, then the latest
 	 * version of the object is returned.
 	 *
-	 * @generated from protobuf field: optional uint64 version = 2;
+	 * @generated from protobuf field: optional uint64 version = 2
 	 */
 	version?: bigint;
 	/**
 	 * Mask specifying which fields to read.
 	 * If no mask is specified, defaults to `object_id,version,digest`.
 	 *
-	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 3;
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 3
 	 */
 	readMask?: FieldMask;
 }
@@ -110,7 +110,7 @@ export interface GetObjectRequest {
  */
 export interface GetObjectResponse {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Object object = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Object object = 1
 	 */
 	object?: Object;
 }
@@ -119,14 +119,14 @@ export interface GetObjectResponse {
  */
 export interface BatchGetObjectsRequest {
 	/**
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.GetObjectRequest requests = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.GetObjectRequest requests = 1
 	 */
 	requests: GetObjectRequest[];
 	/**
 	 * Mask specifying which fields to read.
 	 * If no mask is specified, defaults to `object_id,version,digest`.
 	 *
-	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 2;
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 2
 	 */
 	readMask?: FieldMask;
 }
@@ -135,7 +135,7 @@ export interface BatchGetObjectsRequest {
  */
 export interface BatchGetObjectsResponse {
 	/**
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.GetObjectResult objects = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.GetObjectResult objects = 1
 	 */
 	objects: GetObjectResult[];
 }
@@ -150,14 +150,14 @@ export interface GetObjectResult {
 		| {
 				oneofKind: 'object';
 				/**
-				 * @generated from protobuf field: sui.rpc.v2beta2.Object object = 1;
+				 * @generated from protobuf field: sui.rpc.v2beta2.Object object = 1
 				 */
 				object: Object;
 		  }
 		| {
 				oneofKind: 'error';
 				/**
-				 * @generated from protobuf field: google.rpc.Status error = 2;
+				 * @generated from protobuf field: google.rpc.Status error = 2
 				 */
 				error: Status;
 		  }
@@ -172,14 +172,14 @@ export interface GetTransactionRequest {
 	/**
 	 * Required. The digest of the requested transaction.
 	 *
-	 * @generated from protobuf field: optional string digest = 1;
+	 * @generated from protobuf field: optional string digest = 1
 	 */
 	digest?: string;
 	/**
 	 * Mask specifying which fields to read.
 	 * If no mask is specified, defaults to `digest`.
 	 *
-	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 2;
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 2
 	 */
 	readMask?: FieldMask;
 }
@@ -188,7 +188,7 @@ export interface GetTransactionRequest {
  */
 export interface GetTransactionResponse {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ExecutedTransaction transaction = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ExecutedTransaction transaction = 1
 	 */
 	transaction?: ExecutedTransaction;
 }
@@ -199,14 +199,14 @@ export interface BatchGetTransactionsRequest {
 	/**
 	 * Required. The digests of the requested transactions.
 	 *
-	 * @generated from protobuf field: repeated string digests = 1;
+	 * @generated from protobuf field: repeated string digests = 1
 	 */
 	digests: string[];
 	/**
 	 * Mask specifying which fields to read.
 	 * If no mask is specified, defaults to `object_id,version,digest`.
 	 *
-	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 2;
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 2
 	 */
 	readMask?: FieldMask;
 }
@@ -215,7 +215,7 @@ export interface BatchGetTransactionsRequest {
  */
 export interface BatchGetTransactionsResponse {
 	/**
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.GetTransactionResult transactions = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.GetTransactionResult transactions = 1
 	 */
 	transactions: GetTransactionResult[];
 }
@@ -230,14 +230,14 @@ export interface GetTransactionResult {
 		| {
 				oneofKind: 'transaction';
 				/**
-				 * @generated from protobuf field: sui.rpc.v2beta2.ExecutedTransaction transaction = 1;
+				 * @generated from protobuf field: sui.rpc.v2beta2.ExecutedTransaction transaction = 1
 				 */
 				transaction: ExecutedTransaction;
 		  }
 		| {
 				oneofKind: 'error';
 				/**
-				 * @generated from protobuf field: google.rpc.Status error = 2;
+				 * @generated from protobuf field: google.rpc.Status error = 2
 				 */
 				error: Status;
 		  }
@@ -250,6 +250,8 @@ export interface GetTransactionResult {
  */
 export interface GetCheckpointRequest {
 	/**
+	 * If neither is provided, return the latest
+	 *
 	 * @generated from protobuf oneof: checkpoint_id
 	 */
 	checkpointId:
@@ -258,7 +260,7 @@ export interface GetCheckpointRequest {
 				/**
 				 * The sequence number of the requested checkpoint.
 				 *
-				 * @generated from protobuf field: uint64 sequence_number = 1;
+				 * @generated from protobuf field: uint64 sequence_number = 1
 				 */
 				sequenceNumber: bigint;
 		  }
@@ -267,7 +269,7 @@ export interface GetCheckpointRequest {
 				/**
 				 * The digest of the requested checkpoint.
 				 *
-				 * @generated from protobuf field: string digest = 2;
+				 * @generated from protobuf field: string digest = 2
 				 */
 				digest: string;
 		  }
@@ -278,7 +280,7 @@ export interface GetCheckpointRequest {
 	 * Mask specifying which fields to read.
 	 * If no mask is specified, defaults to `object_id,version,digest`.
 	 *
-	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 3;
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 3
 	 */
 	readMask?: FieldMask;
 }
@@ -287,7 +289,7 @@ export interface GetCheckpointRequest {
  */
 export interface GetCheckpointResponse {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Checkpoint checkpoint = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Checkpoint checkpoint = 1
 	 */
 	checkpoint?: Checkpoint;
 }
@@ -299,14 +301,14 @@ export interface GetEpochRequest {
 	 * The requested epoch.
 	 * If no epoch is provided the current epoch will be returned.
 	 *
-	 * @generated from protobuf field: optional uint64 epoch = 1;
+	 * @generated from protobuf field: optional uint64 epoch = 1
 	 */
 	epoch?: bigint;
 	/**
 	 * Mask specifying which fields to read.
 	 * If no mask is specified, defaults to `epoch`.
 	 *
-	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 2;
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 2
 	 */
 	readMask?: FieldMask;
 }
@@ -315,7 +317,7 @@ export interface GetEpochRequest {
  */
 export interface GetEpochResponse {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Epoch epoch = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Epoch epoch = 1
 	 */
 	epoch?: Epoch;
 }
@@ -412,7 +414,7 @@ class GetServiceInfoResponse$Type extends MessageType<GetServiceInfoResponse> {
 				T: 4 /*ScalarType.UINT64*/,
 				L: 0 /*LongType.BIGINT*/,
 			},
-			{ no: 8, name: 'server_version', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 8, name: 'server', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 		]);
 	}
 	create(value?: PartialMessage<GetServiceInfoResponse>): GetServiceInfoResponse {
@@ -457,8 +459,8 @@ class GetServiceInfoResponse$Type extends MessageType<GetServiceInfoResponse> {
 				case /* optional uint64 lowest_available_checkpoint_objects */ 7:
 					message.lowestAvailableCheckpointObjects = reader.uint64().toBigInt();
 					break;
-				case /* optional string server_version */ 8:
-					message.serverVersion = reader.string();
+				case /* optional string server */ 8:
+					message.server = reader.string();
 					break;
 				default:
 					let u = options.readUnknownField;
@@ -507,9 +509,9 @@ class GetServiceInfoResponse$Type extends MessageType<GetServiceInfoResponse> {
 		/* optional uint64 lowest_available_checkpoint_objects = 7; */
 		if (message.lowestAvailableCheckpointObjects !== undefined)
 			writer.tag(7, WireType.Varint).uint64(message.lowestAvailableCheckpointObjects);
-		/* optional string server_version = 8; */
-		if (message.serverVersion !== undefined)
-			writer.tag(8, WireType.LengthDelimited).string(message.serverVersion);
+		/* optional string server = 8; */
+		if (message.server !== undefined)
+			writer.tag(8, WireType.LengthDelimited).string(message.server);
 		let u = options.writeUnknownFields;
 		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
 		return writer;
@@ -689,7 +691,7 @@ class BatchGetObjectsRequest$Type extends MessageType<BatchGetObjectsRequest> {
 				no: 1,
 				name: 'requests',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => GetObjectRequest,
 			},
 			{ no: 2, name: 'read_mask', kind: 'message', T: () => FieldMask },
@@ -780,7 +782,7 @@ class BatchGetObjectsResponse$Type extends MessageType<BatchGetObjectsResponse> 
 				no: 1,
 				name: 'objects',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => GetObjectResult,
 			},
 		]);
@@ -1184,7 +1186,7 @@ class BatchGetTransactionsResponse$Type extends MessageType<BatchGetTransactions
 				no: 1,
 				name: 'transactions',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => GetTransactionResult,
 			},
 		]);

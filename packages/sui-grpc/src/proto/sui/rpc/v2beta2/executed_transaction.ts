@@ -23,26 +23,26 @@ export interface ExecutedTransaction {
 	/**
 	 * The digest of this Transaction.
 	 *
-	 * @generated from protobuf field: optional string digest = 1;
+	 * @generated from protobuf field: optional string digest = 1
 	 */
 	digest?: string;
 	/**
 	 * The transaction itself.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Transaction transaction = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Transaction transaction = 2
 	 */
 	transaction?: Transaction;
 	/**
 	 * List of user signatures that are used to authorize the
 	 * execution of this transaction.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.UserSignature signatures = 3;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.UserSignature signatures = 3
 	 */
 	signatures: UserSignature[];
 	/**
 	 * The `TransactionEffects` for this transaction.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.TransactionEffects effects = 4;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.TransactionEffects effects = 4
 	 */
 	effects?: TransactionEffects;
 	/**
@@ -53,35 +53,35 @@ export interface ExecutedTransaction {
 	 * `sui.types.TransactionEffects.events_digest` is populated if the
 	 * transaction produced any events.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.TransactionEvents events = 5;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.TransactionEvents events = 5
 	 */
 	events?: TransactionEvents;
 	/**
 	 * The sequence number for the checkpoint that includes this transaction.
 	 *
-	 * @generated from protobuf field: optional uint64 checkpoint = 6;
+	 * @generated from protobuf field: optional uint64 checkpoint = 6
 	 */
 	checkpoint?: bigint;
 	/**
 	 * The Unix timestamp of the checkpoint that includes this transaction.
 	 *
-	 * @generated from protobuf field: optional google.protobuf.Timestamp timestamp = 7;
+	 * @generated from protobuf field: optional google.protobuf.Timestamp timestamp = 7
 	 */
 	timestamp?: Timestamp;
 	/**
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.BalanceChange balance_changes = 8;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.BalanceChange balance_changes = 8
 	 */
 	balanceChanges: BalanceChange[];
 	/**
 	 * Set of input objects used during the execution of this transaction.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Object input_objects = 10;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Object input_objects = 10
 	 */
 	inputObjects: Object[];
 	/**
 	 * Set of output objects produced from the execution of this transaction.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Object output_objects = 11;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Object output_objects = 11
 	 */
 	outputObjects: Object[];
 }
@@ -95,7 +95,7 @@ class ExecutedTransaction$Type extends MessageType<ExecutedTransaction> {
 				no: 3,
 				name: 'signatures',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => UserSignature,
 			},
 			{ no: 4, name: 'effects', kind: 'message', T: () => TransactionEffects },
@@ -113,21 +113,21 @@ class ExecutedTransaction$Type extends MessageType<ExecutedTransaction> {
 				no: 8,
 				name: 'balance_changes',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => BalanceChange,
 			},
 			{
 				no: 10,
 				name: 'input_objects',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Object,
 			},
 			{
 				no: 11,
 				name: 'output_objects',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Object,
 			},
 		]);

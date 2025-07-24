@@ -18,19 +18,19 @@ export interface BalanceChange {
 	/**
 	 * The account address that is affected by this balance change event.
 	 *
-	 * @generated from protobuf field: optional string address = 1;
+	 * @generated from protobuf field: optional string address = 1
 	 */
 	address?: string;
 	/**
 	 * The `Coin` type of this balance change event.
 	 *
-	 * @generated from protobuf field: optional string coin_type = 2;
+	 * @generated from protobuf field: optional string coin_type = 2
 	 */
 	coinType?: string;
 	/**
 	 * The amount or change in balance.
 	 *
-	 * @generated from protobuf field: optional string amount = 3;
+	 * @generated from protobuf field: optional string amount = 3
 	 */
 	amount?: string;
 }

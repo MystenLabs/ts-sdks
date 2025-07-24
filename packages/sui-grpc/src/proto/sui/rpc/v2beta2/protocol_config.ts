@@ -14,17 +14,17 @@ import { MessageType } from '@protobuf-ts/runtime';
  */
 export interface ProtocolConfig {
 	/**
-	 * @generated from protobuf field: optional uint64 protocol_version = 1;
+	 * @generated from protobuf field: optional uint64 protocol_version = 1
 	 */
 	protocolVersion?: bigint;
 	/**
-	 * @generated from protobuf field: map<string, bool> feature_flags = 2;
+	 * @generated from protobuf field: map<string, bool> feature_flags = 2
 	 */
 	featureFlags: {
 		[key: string]: boolean;
 	};
 	/**
-	 * @generated from protobuf field: map<string, string> attributes = 3;
+	 * @generated from protobuf field: map<string, string> attributes = 3
 	 */
 	attributes: {
 		[key: string]: string;
@@ -124,7 +124,7 @@ class ProtocolConfig$Type extends MessageType<ProtocolConfig> {
 					break;
 				default:
 					throw new globalThis.Error(
-						'unknown map entry field for field sui.rpc.v2beta2.ProtocolConfig.feature_flags',
+						'unknown map entry field for sui.rpc.v2beta2.ProtocolConfig.feature_flags',
 					);
 			}
 		}
@@ -150,7 +150,7 @@ class ProtocolConfig$Type extends MessageType<ProtocolConfig> {
 					break;
 				default:
 					throw new globalThis.Error(
-						'unknown map entry field for field sui.rpc.v2beta2.ProtocolConfig.attributes',
+						'unknown map entry field for sui.rpc.v2beta2.ProtocolConfig.attributes',
 					);
 			}
 		}

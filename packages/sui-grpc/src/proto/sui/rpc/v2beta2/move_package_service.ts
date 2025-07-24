@@ -20,7 +20,7 @@ export interface GetPackageRequest {
 	/**
 	 * Required. The `storage_id` of the requested package.
 	 *
-	 * @generated from protobuf field: optional string package_id = 1;
+	 * @generated from protobuf field: optional string package_id = 1
 	 */
 	packageId?: string;
 }
@@ -31,7 +31,7 @@ export interface GetPackageResponse {
 	/**
 	 * The package.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Package package = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Package package = 1
 	 */
 	package?: Package;
 }
@@ -42,19 +42,19 @@ export interface GetDatatypeRequest {
 	/**
 	 * Required. The `storage_id` of the requested package.
 	 *
-	 * @generated from protobuf field: optional string package_id = 1;
+	 * @generated from protobuf field: optional string package_id = 1
 	 */
 	packageId?: string;
 	/**
 	 * Required. The name of the requested module.
 	 *
-	 * @generated from protobuf field: optional string module_name = 2;
+	 * @generated from protobuf field: optional string module_name = 2
 	 */
 	moduleName?: string;
 	/**
 	 * Required. The name of the requested datatype.
 	 *
-	 * @generated from protobuf field: optional string name = 3;
+	 * @generated from protobuf field: optional string name = 3
 	 */
 	name?: string;
 }
@@ -65,7 +65,7 @@ export interface GetDatatypeResponse {
 	/**
 	 * The datatype.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.DatatypeDescriptor datatype = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.DatatypeDescriptor datatype = 1
 	 */
 	datatype?: DatatypeDescriptor;
 }
@@ -76,19 +76,19 @@ export interface GetFunctionRequest {
 	/**
 	 * Required. The `storage_id` of the requested package.
 	 *
-	 * @generated from protobuf field: optional string package_id = 1;
+	 * @generated from protobuf field: optional string package_id = 1
 	 */
 	packageId?: string;
 	/**
 	 * Required. The name of the requested module.
 	 *
-	 * @generated from protobuf field: optional string module_name = 2;
+	 * @generated from protobuf field: optional string module_name = 2
 	 */
 	moduleName?: string;
 	/**
 	 * Required. The name of the requested function.
 	 *
-	 * @generated from protobuf field: optional string name = 3;
+	 * @generated from protobuf field: optional string name = 3
 	 */
 	name?: string;
 }
@@ -99,7 +99,7 @@ export interface GetFunctionResponse {
 	/**
 	 * The function.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.FunctionDescriptor function = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.FunctionDescriptor function = 1
 	 */
 	function?: FunctionDescriptor;
 }
@@ -110,7 +110,7 @@ export interface ListPackageVersionsRequest {
 	/**
 	 * Required. The `storage_id` of any version of the package.
 	 *
-	 * @generated from protobuf field: optional string package_id = 1;
+	 * @generated from protobuf field: optional string package_id = 1
 	 */
 	packageId?: string;
 	/**
@@ -118,7 +118,7 @@ export interface ListPackageVersionsRequest {
 	 * If unspecified, at most `1000` entries will be returned.
 	 * The maximum value is `10000`; values above `10000` will be coerced to `10000`.
 	 *
-	 * @generated from protobuf field: optional uint32 page_size = 2;
+	 * @generated from protobuf field: optional uint32 page_size = 2
 	 */
 	pageSize?: number;
 	/**
@@ -128,7 +128,7 @@ export interface ListPackageVersionsRequest {
 	 * When paginating, all other parameters provided to `ListPackageVersions` must
 	 * match the call that provided the page token.
 	 *
-	 * @generated from protobuf field: optional bytes page_token = 3;
+	 * @generated from protobuf field: optional bytes page_token = 3
 	 */
 	pageToken?: Uint8Array;
 }
@@ -139,14 +139,14 @@ export interface ListPackageVersionsResponse {
 	/**
 	 * List of all package versions, ordered by version.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.PackageVersion versions = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.PackageVersion versions = 1
 	 */
 	versions: PackageVersion[];
 	/**
 	 * A token, which can be sent as `page_token` to retrieve the next page.
 	 * If this field is omitted, there are no subsequent pages.
 	 *
-	 * @generated from protobuf field: optional bytes next_page_token = 2;
+	 * @generated from protobuf field: optional bytes next_page_token = 2
 	 */
 	nextPageToken?: Uint8Array;
 }
@@ -159,13 +159,13 @@ export interface PackageVersion {
 	/**
 	 * The storage ID of this package version
 	 *
-	 * @generated from protobuf field: optional string package_id = 1;
+	 * @generated from protobuf field: optional string package_id = 1
 	 */
 	packageId?: string;
 	/**
 	 * The version number
 	 *
-	 * @generated from protobuf field: optional uint64 version = 2;
+	 * @generated from protobuf field: optional uint64 version = 2
 	 */
 	version?: bigint;
 }
@@ -678,7 +678,7 @@ class ListPackageVersionsResponse$Type extends MessageType<ListPackageVersionsRe
 				no: 1,
 				name: 'versions',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => PackageVersion,
 			},
 			{ no: 2, name: 'next_page_token', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },

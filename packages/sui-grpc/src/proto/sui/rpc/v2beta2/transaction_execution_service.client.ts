@@ -13,7 +13,7 @@ import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
  */
 export interface ITransactionExecutionServiceClient {
 	/**
-	 * @generated from protobuf rpc: ExecuteTransaction(sui.rpc.v2beta2.ExecuteTransactionRequest) returns (sui.rpc.v2beta2.ExecuteTransactionResponse);
+	 * @generated from protobuf rpc: ExecuteTransaction
 	 */
 	executeTransaction(
 		input: ExecuteTransactionRequest,
@@ -31,7 +31,7 @@ export class TransactionExecutionServiceClient
 	options = TransactionExecutionService.options;
 	constructor(private readonly _transport: RpcTransport) {}
 	/**
-	 * @generated from protobuf rpc: ExecuteTransaction(sui.rpc.v2beta2.ExecuteTransactionRequest) returns (sui.rpc.v2beta2.ExecuteTransactionResponse);
+	 * @generated from protobuf rpc: ExecuteTransaction
 	 */
 	executeTransaction(
 		input: ExecuteTransactionRequest,

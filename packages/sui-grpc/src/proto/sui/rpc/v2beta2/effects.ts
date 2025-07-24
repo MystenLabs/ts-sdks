@@ -22,43 +22,43 @@ export interface TransactionEffects {
 	/**
 	 * This TransactionEffects serialized as BCS.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Bcs bcs = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Bcs bcs = 1
 	 */
 	bcs?: Bcs;
 	/**
 	 * The digest of this TransactionEffects.
 	 *
-	 * @generated from protobuf field: optional string digest = 2;
+	 * @generated from protobuf field: optional string digest = 2
 	 */
 	digest?: string;
 	/**
 	 * Version of this TransactionEffects.
 	 *
-	 * @generated from protobuf field: optional int32 version = 3;
+	 * @generated from protobuf field: optional int32 version = 3
 	 */
 	version?: number;
 	/**
 	 * The status of the execution.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ExecutionStatus status = 4;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ExecutionStatus status = 4
 	 */
 	status?: ExecutionStatus;
 	/**
 	 * The epoch when this transaction was executed.
 	 *
-	 * @generated from protobuf field: optional uint64 epoch = 5;
+	 * @generated from protobuf field: optional uint64 epoch = 5
 	 */
 	epoch?: bigint;
 	/**
 	 * The gas used by this transaction.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.GasCostSummary gas_used = 6;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.GasCostSummary gas_used = 6
 	 */
 	gasUsed?: GasCostSummary;
 	/**
 	 * The transaction digest.
 	 *
-	 * @generated from protobuf field: optional string transaction_digest = 7;
+	 * @generated from protobuf field: optional string transaction_digest = 7
 	 */
 	transactionDigest?: string;
 	/**
@@ -66,32 +66,32 @@ export interface TransactionEffects {
 	 *
 	 * System transaction that don't require gas will leave this as `None`.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ChangedObject gas_object = 8;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ChangedObject gas_object = 8
 	 */
 	gasObject?: ChangedObject;
 	/**
 	 * The digest of the events emitted during execution,
 	 * can be `None` if the transaction does not emit any event.
 	 *
-	 * @generated from protobuf field: optional string events_digest = 9;
+	 * @generated from protobuf field: optional string events_digest = 9
 	 */
 	eventsDigest?: string;
 	/**
 	 * The set of transaction digests this transaction depends on.
 	 *
-	 * @generated from protobuf field: repeated string dependencies = 10;
+	 * @generated from protobuf field: repeated string dependencies = 10
 	 */
 	dependencies: string[];
 	/**
 	 * The version number of all the written objects (excluding packages) by this transaction.
 	 *
-	 * @generated from protobuf field: optional uint64 lamport_version = 11;
+	 * @generated from protobuf field: optional uint64 lamport_version = 11
 	 */
 	lamportVersion?: bigint;
 	/**
 	 * Objects whose state are changed by this transaction.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ChangedObject changed_objects = 12;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ChangedObject changed_objects = 12
 	 */
 	changedObjects: ChangedObject[];
 	/**
@@ -100,7 +100,7 @@ export interface TransactionEffects {
 	 * and in order for a node to catch up and execute it without consensus sequencing,
 	 * the version needs to be committed in the effects.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.UnchangedSharedObject unchanged_shared_objects = 13;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.UnchangedSharedObject unchanged_shared_objects = 13
 	 */
 	unchangedSharedObjects: UnchangedSharedObject[];
 	/**
@@ -108,7 +108,7 @@ export interface TransactionEffects {
 	 * Storing it separately allows us to avoid bloating the effects with data that are not critical.
 	 * It also provides more flexibility on the format and type of the data.
 	 *
-	 * @generated from protobuf field: optional string auxiliary_data_digest = 14;
+	 * @generated from protobuf field: optional string auxiliary_data_digest = 14
 	 */
 	auxiliaryDataDigest?: string;
 }
@@ -121,64 +121,64 @@ export interface ChangedObject {
 	/**
 	 * ID of the object.
 	 *
-	 * @generated from protobuf field: optional string object_id = 1;
+	 * @generated from protobuf field: optional string object_id = 1
 	 */
 	objectId?: string;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ChangedObject.InputObjectState input_state = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ChangedObject.InputObjectState input_state = 2
 	 */
 	inputState?: ChangedObject_InputObjectState;
 	/**
 	 * Version of the object before this transaction executed.
 	 *
-	 * @generated from protobuf field: optional uint64 input_version = 3;
+	 * @generated from protobuf field: optional uint64 input_version = 3
 	 */
 	inputVersion?: bigint;
 	/**
 	 * Digest of the object before this transaction executed.
 	 *
-	 * @generated from protobuf field: optional string input_digest = 4;
+	 * @generated from protobuf field: optional string input_digest = 4
 	 */
 	inputDigest?: string;
 	/**
 	 * Owner of the object before this transaction executed.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Owner input_owner = 5;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Owner input_owner = 5
 	 */
 	inputOwner?: Owner;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ChangedObject.OutputObjectState output_state = 6;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ChangedObject.OutputObjectState output_state = 6
 	 */
 	outputState?: ChangedObject_OutputObjectState;
 	/**
 	 * Version of the object after this transaction executed.
 	 *
-	 * @generated from protobuf field: optional uint64 output_version = 7;
+	 * @generated from protobuf field: optional uint64 output_version = 7
 	 */
 	outputVersion?: bigint;
 	/**
 	 * Digest of the object after this transaction executed.
 	 *
-	 * @generated from protobuf field: optional string output_digest = 8;
+	 * @generated from protobuf field: optional string output_digest = 8
 	 */
 	outputDigest?: string;
 	/**
 	 * Owner of the object after this transaction executed.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Owner output_owner = 9;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Owner output_owner = 9
 	 */
 	outputOwner?: Owner;
 	/**
 	 * What happened to an `ObjectId` during execution.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ChangedObject.IdOperation id_operation = 10;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ChangedObject.IdOperation id_operation = 10
 	 */
 	idOperation?: ChangedObject_IdOperation;
 	/**
 	 * Type information is not provided by the effects structure but is instead
 	 * provided by an indexing layer
 	 *
-	 * @generated from protobuf field: optional string object_type = 11;
+	 * @generated from protobuf field: optional string object_type = 11
 	 */
 	objectType?: string;
 }
@@ -248,32 +248,32 @@ export enum ChangedObject_IdOperation {
  */
 export interface UnchangedSharedObject {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.UnchangedSharedObject.UnchangedSharedObjectKind kind = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.UnchangedSharedObject.UnchangedSharedObjectKind kind = 1
 	 */
 	kind?: UnchangedSharedObject_UnchangedSharedObjectKind;
 	/**
 	 * ObjectId of the shared object.
 	 *
-	 * @generated from protobuf field: optional string object_id = 2;
+	 * @generated from protobuf field: optional string object_id = 2
 	 */
 	objectId?: string;
 	/**
 	 * Version of the shared object.
 	 *
-	 * @generated from protobuf field: optional uint64 version = 3;
+	 * @generated from protobuf field: optional uint64 version = 3
 	 */
 	version?: bigint;
 	/**
 	 * Digest of the shared object.
 	 *
-	 * @generated from protobuf field: optional string digest = 4;
+	 * @generated from protobuf field: optional string digest = 4
 	 */
 	digest?: string;
 	/**
 	 * Type information is not provided by the effects structure but is instead
 	 * provided by an indexing layer
 	 *
-	 * @generated from protobuf field: optional string object_type = 5;
+	 * @generated from protobuf field: optional string object_type = 5
 	 */
 	objectType?: string;
 }
@@ -292,19 +292,19 @@ export enum UnchangedSharedObject_UnchangedSharedObjectKind {
 	 */
 	READ_ONLY_ROOT = 1,
 	/**
-	 * Deleted shared objects that appear mutably/owned in the input.
+	 * Objects with ended consensus streams that appear mutably/owned in the input.
 	 *
-	 * @generated from protobuf enum value: MUTATE_DELETED = 2;
+	 * @generated from protobuf enum value: MUTATE_CONSENSUS_STREAM_ENDED = 2;
 	 */
-	MUTATE_DELETED = 2,
+	MUTATE_CONSENSUS_STREAM_ENDED = 2,
 	/**
-	 * Deleted shared objects that appear as read-only in the input.
+	 * Objects with ended consensus streams objects that appear as read-only in the input.
 	 *
-	 * @generated from protobuf enum value: READ_DELETED = 3;
+	 * @generated from protobuf enum value: READ_CONSENSUS_STREAM_ENDED = 3;
 	 */
-	READ_DELETED = 3,
+	READ_CONSENSUS_STREAM_ENDED = 3,
 	/**
-	 * Shared objects that was congested and resulted in this transaction being
+	 * Consensus objects that were congested and resulted in this transaction being
 	 * canceled.
 	 *
 	 * @generated from protobuf enum value: CANCELED = 4;
@@ -358,14 +358,14 @@ class TransactionEffects$Type extends MessageType<TransactionEffects> {
 				no: 12,
 				name: 'changed_objects',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ChangedObject,
 			},
 			{
 				no: 13,
 				name: 'unchanged_shared_objects',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => UnchangedSharedObject,
 			},
 			{

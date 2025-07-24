@@ -22,7 +22,7 @@ export interface Package {
 	 * Outside of system packages the `storage_id` for every package version is
 	 * different.
 	 *
-	 * @generated from protobuf field: optional string storage_id = 1;
+	 * @generated from protobuf field: optional string storage_id = 1
 	 */
 	storageId?: string;
 	/**
@@ -33,26 +33,26 @@ export interface Package {
 	 * The `original_id`/`runtime_id` is stable across all versions of the
 	 * package and does not ever change.
 	 *
-	 * @generated from protobuf field: optional string original_id = 2;
+	 * @generated from protobuf field: optional string original_id = 2
 	 */
 	originalId?: string;
 	/**
 	 * The version of this package
 	 *
-	 * @generated from protobuf field: optional uint64 version = 3;
+	 * @generated from protobuf field: optional uint64 version = 3
 	 */
 	version?: bigint;
 	/**
 	 * The modules defined by this package
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Module modules = 4;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Module modules = 4
 	 */
 	modules: Module[];
 	/**
 	 * List of datatype origins for mapping datatypes to a package version where
 	 * it was first defined
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.TypeOrigin type_origins = 5;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.TypeOrigin type_origins = 5
 	 */
 	typeOrigins: TypeOrigin[];
 	/**
@@ -60,7 +60,7 @@ export interface Package {
 	 * runtime Id (the Id it is referred to by in other packages) to its
 	 * storage Id (the Id it is loaded from on chain).
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Linkage linkage = 6;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Linkage linkage = 6
 	 */
 	linkage: Linkage[];
 }
@@ -73,25 +73,25 @@ export interface Module {
 	/**
 	 * Name of this module.
 	 *
-	 * @generated from protobuf field: optional string name = 1;
+	 * @generated from protobuf field: optional string name = 1
 	 */
 	name?: string;
 	/**
 	 * Serialized bytecode of the module.
 	 *
-	 * @generated from protobuf field: optional bytes contents = 2;
+	 * @generated from protobuf field: optional bytes contents = 2
 	 */
 	contents?: Uint8Array;
 	/**
 	 * List of DataTypes defined by this module.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.DatatypeDescriptor datatypes = 3;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.DatatypeDescriptor datatypes = 3
 	 */
 	datatypes: DatatypeDescriptor[];
 	/**
 	 * List of Functions defined by this module.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.FunctionDescriptor functions = 4;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.FunctionDescriptor functions = 4
 	 */
 	functions: FunctionDescriptor[];
 }
@@ -106,7 +106,7 @@ export interface DatatypeDescriptor {
 	 *
 	 * This is `<defining_id>::<module>::<name>`
 	 *
-	 * @generated from protobuf field: optional string type_name = 1;
+	 * @generated from protobuf field: optional string type_name = 1
 	 */
 	typeName?: string;
 	/**
@@ -114,37 +114,37 @@ export interface DatatypeDescriptor {
 	 *
 	 * A type's `defining_id` is the `storage_id` of the package version that first introduced or added that type.
 	 *
-	 * @generated from protobuf field: optional string defining_id = 2;
+	 * @generated from protobuf field: optional string defining_id = 2
 	 */
 	definingId?: string;
 	/**
 	 * Name of the module where this Datatype is defined
 	 *
-	 * @generated from protobuf field: optional string module = 3;
+	 * @generated from protobuf field: optional string module = 3
 	 */
 	module?: string;
 	/**
 	 * Name of this Datatype
 	 *
-	 * @generated from protobuf field: optional string name = 4;
+	 * @generated from protobuf field: optional string name = 4
 	 */
 	name?: string;
 	/**
 	 * This type's abilities
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Ability abilities = 5;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Ability abilities = 5
 	 */
 	abilities: Ability[];
 	/**
 	 * Ability constraints and phantom status for this type's generic type parameters
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.TypeParameter type_parameters = 6;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.TypeParameter type_parameters = 6
 	 */
 	typeParameters: TypeParameter[];
 	/**
 	 * Indicates whether this datatype is a 'STRUCT' or an 'ENUM'
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.DatatypeDescriptor.DatatypeKind kind = 7;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.DatatypeDescriptor.DatatypeKind kind = 7
 	 */
 	kind?: DatatypeDescriptor_DatatypeKind;
 	/**
@@ -152,7 +152,7 @@ export interface DatatypeDescriptor {
 	 *
 	 * The order of the entries is the order of how the fields are defined.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.FieldDescriptor fields = 8;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.FieldDescriptor fields = 8
 	 */
 	fields: FieldDescriptor[];
 	/**
@@ -160,7 +160,7 @@ export interface DatatypeDescriptor {
 	 *
 	 * The order of the entries is the order of how the variants are defined.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.VariantDescriptor variants = 9;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.VariantDescriptor variants = 9
 	 */
 	variants: VariantDescriptor[];
 }
@@ -190,13 +190,13 @@ export interface TypeParameter {
 	/**
 	 * The type parameter constraints
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Ability constraints = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Ability constraints = 1
 	 */
 	constraints: Ability[];
 	/**
 	 * Whether the parameter is declared as phantom
 	 *
-	 * @generated from protobuf field: optional bool is_phantom = 2;
+	 * @generated from protobuf field: optional bool is_phantom = 2
 	 */
 	isPhantom?: boolean;
 }
@@ -209,19 +209,19 @@ export interface FieldDescriptor {
 	/**
 	 * Name of the field
 	 *
-	 * @generated from protobuf field: optional string name = 1;
+	 * @generated from protobuf field: optional string name = 1
 	 */
 	name?: string;
 	/**
 	 * Order or position of the field in the struct or enum variant definition.
 	 *
-	 * @generated from protobuf field: optional uint32 position = 2;
+	 * @generated from protobuf field: optional uint32 position = 2
 	 */
 	position?: number;
 	/**
 	 * The type of the field
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.OpenSignatureBody type = 3;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.OpenSignatureBody type = 3
 	 */
 	type?: OpenSignatureBody;
 }
@@ -234,19 +234,19 @@ export interface VariantDescriptor {
 	/**
 	 * Name of the variant
 	 *
-	 * @generated from protobuf field: optional string name = 1;
+	 * @generated from protobuf field: optional string name = 1
 	 */
 	name?: string;
 	/**
 	 * Order or position of the variant in the enum definition.
 	 *
-	 * @generated from protobuf field: optional uint32 position = 2;
+	 * @generated from protobuf field: optional uint32 position = 2
 	 */
 	position?: number;
 	/**
 	 * Set of fields defined by this variant.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.FieldDescriptor fields = 3;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.FieldDescriptor fields = 3
 	 */
 	fields: FieldDescriptor[];
 }
@@ -259,25 +259,25 @@ export interface OpenSignatureBody {
 	/**
 	 * Type of this signature
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.OpenSignatureBody.Type type = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.OpenSignatureBody.Type type = 1
 	 */
 	type?: OpenSignatureBody_Type;
 	/**
 	 * Fully qualified name of the datatype when `type` is `DATATYPE`
 	 *
-	 * @generated from protobuf field: optional string type_name = 2;
+	 * @generated from protobuf field: optional string type_name = 2
 	 */
 	typeName?: string;
 	/**
 	 * Set when `type` is `VECTOR` or `DATATYPE`
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.OpenSignatureBody type_parameter_instantiation = 3;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.OpenSignatureBody type_parameter_instantiation = 3
 	 */
 	typeParameterInstantiation: OpenSignatureBody[];
 	/**
 	 * Position of the type parameter as defined in the containing data type descriptor when `type` is `TYPE_PARAMETER`
 	 *
-	 * @generated from protobuf field: optional uint32 type_parameter = 4;
+	 * @generated from protobuf field: optional uint32 type_parameter = 4
 	 */
 	typeParameter?: number;
 }
@@ -343,37 +343,37 @@ export interface FunctionDescriptor {
 	/**
 	 * Name of the function
 	 *
-	 * @generated from protobuf field: optional string name = 1;
+	 * @generated from protobuf field: optional string name = 1
 	 */
 	name?: string;
 	/**
 	 * Whether the function is `public`, `private` or `public(friend)`
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.FunctionDescriptor.Visibility visibility = 5;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.FunctionDescriptor.Visibility visibility = 5
 	 */
 	visibility?: FunctionDescriptor_Visibility;
 	/**
 	 * Whether the function is marked `entry` or not.
 	 *
-	 * @generated from protobuf field: optional bool is_entry = 6;
+	 * @generated from protobuf field: optional bool is_entry = 6
 	 */
 	isEntry?: boolean;
 	/**
 	 * Ability constraints for type parameters
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.TypeParameter type_parameters = 7;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.TypeParameter type_parameters = 7
 	 */
 	typeParameters: TypeParameter[];
 	/**
 	 * Formal parameter types.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.OpenSignature parameters = 8;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.OpenSignature parameters = 8
 	 */
 	parameters: OpenSignature[];
 	/**
 	 * Return types.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.OpenSignature returns = 9;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.OpenSignature returns = 9
 	 */
 	returns: OpenSignature[];
 }
@@ -405,11 +405,11 @@ export enum FunctionDescriptor_Visibility {
  */
 export interface OpenSignature {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.OpenSignature.Reference reference = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.OpenSignature.Reference reference = 1
 	 */
 	reference?: OpenSignature_Reference;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.OpenSignatureBody body = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.OpenSignatureBody body = 2
 	 */
 	body?: OpenSignatureBody;
 }
@@ -437,15 +437,15 @@ export enum OpenSignature_Reference {
  */
 export interface TypeOrigin {
 	/**
-	 * @generated from protobuf field: optional string module_name = 1;
+	 * @generated from protobuf field: optional string module_name = 1
 	 */
 	moduleName?: string;
 	/**
-	 * @generated from protobuf field: optional string datatype_name = 2;
+	 * @generated from protobuf field: optional string datatype_name = 2
 	 */
 	datatypeName?: string;
 	/**
-	 * @generated from protobuf field: optional string package_id = 3;
+	 * @generated from protobuf field: optional string package_id = 3
 	 */
 	packageId?: string;
 }
@@ -458,19 +458,19 @@ export interface Linkage {
 	/**
 	 * Id of the original package.
 	 *
-	 * @generated from protobuf field: optional string original_id = 1;
+	 * @generated from protobuf field: optional string original_id = 1
 	 */
 	originalId?: string;
 	/**
 	 * Id of the upgraded package.
 	 *
-	 * @generated from protobuf field: optional string upgraded_id = 2;
+	 * @generated from protobuf field: optional string upgraded_id = 2
 	 */
 	upgradedId?: string;
 	/**
 	 * Version of the upgraded package.
 	 *
-	 * @generated from protobuf field: optional uint64 upgraded_version = 3;
+	 * @generated from protobuf field: optional uint64 upgraded_version = 3
 	 */
 	upgradedVersion?: bigint;
 }
@@ -523,19 +523,25 @@ class Package$Type extends MessageType<Package> {
 				T: 4 /*ScalarType.UINT64*/,
 				L: 0 /*LongType.BIGINT*/,
 			},
-			{ no: 4, name: 'modules', kind: 'message', repeat: 1 /*RepeatType.PACKED*/, T: () => Module },
+			{
+				no: 4,
+				name: 'modules',
+				kind: 'message',
+				repeat: 2 /*RepeatType.UNPACKED*/,
+				T: () => Module,
+			},
 			{
 				no: 5,
 				name: 'type_origins',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => TypeOrigin,
 			},
 			{
 				no: 6,
 				name: 'linkage',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Linkage,
 			},
 		]);
@@ -649,14 +655,14 @@ class Module$Type extends MessageType<Module> {
 				no: 3,
 				name: 'datatypes',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => DatatypeDescriptor,
 			},
 			{
 				no: 4,
 				name: 'functions',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => FunctionDescriptor,
 			},
 		]);
@@ -766,7 +772,7 @@ class DatatypeDescriptor$Type extends MessageType<DatatypeDescriptor> {
 				no: 6,
 				name: 'type_parameters',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => TypeParameter,
 			},
 			{
@@ -783,14 +789,14 @@ class DatatypeDescriptor$Type extends MessageType<DatatypeDescriptor> {
 				no: 8,
 				name: 'fields',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => FieldDescriptor,
 			},
 			{
 				no: 9,
 				name: 'variants',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => VariantDescriptor,
 			},
 		]);
@@ -1096,7 +1102,7 @@ class VariantDescriptor$Type extends MessageType<VariantDescriptor> {
 				no: 3,
 				name: 'fields',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => FieldDescriptor,
 			},
 		]);
@@ -1187,7 +1193,7 @@ class OpenSignatureBody$Type extends MessageType<OpenSignatureBody> {
 				no: 3,
 				name: 'type_parameter_instantiation',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => OpenSignatureBody,
 			},
 			{ no: 4, name: 'type_parameter', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
@@ -1289,21 +1295,21 @@ class FunctionDescriptor$Type extends MessageType<FunctionDescriptor> {
 				no: 7,
 				name: 'type_parameters',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => TypeParameter,
 			},
 			{
 				no: 8,
 				name: 'parameters',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => OpenSignature,
 			},
 			{
 				no: 9,
 				name: 'returns',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => OpenSignature,
 			},
 		]);

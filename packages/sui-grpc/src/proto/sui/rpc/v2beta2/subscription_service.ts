@@ -22,7 +22,7 @@ export interface SubscribeCheckpointsRequest {
 	 * Optional. Mask for specifiying which parts of the
 	 * SubscribeCheckpointsResponse should be returned.
 	 *
-	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 1;
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 1
 	 */
 	readMask?: FieldMask;
 }
@@ -36,13 +36,13 @@ export interface SubscribeCheckpointsResponse {
 	 * Required. The checkpoint sequence number and value of the current cursor
 	 * into the checkpoint stream
 	 *
-	 * @generated from protobuf field: optional uint64 cursor = 1;
+	 * @generated from protobuf field: optional uint64 cursor = 1
 	 */
 	cursor?: bigint;
 	/**
 	 * The requested data for this checkpoint
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Checkpoint checkpoint = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Checkpoint checkpoint = 2
 	 */
 	checkpoint?: Checkpoint;
 }

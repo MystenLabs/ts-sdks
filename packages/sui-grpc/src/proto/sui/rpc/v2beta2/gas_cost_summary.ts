@@ -18,26 +18,26 @@ export interface GasCostSummary {
 	/**
 	 * Cost of computation/execution.
 	 *
-	 * @generated from protobuf field: optional uint64 computation_cost = 1;
+	 * @generated from protobuf field: optional uint64 computation_cost = 1
 	 */
 	computationCost?: bigint;
 	/**
 	 * Storage cost, it's the sum of all storage cost for all objects created or mutated.
 	 *
-	 * @generated from protobuf field: optional uint64 storage_cost = 2;
+	 * @generated from protobuf field: optional uint64 storage_cost = 2
 	 */
 	storageCost?: bigint;
 	/**
 	 * The amount of storage cost refunded to the user for all objects deleted or mutated in the
 	 * transaction.
 	 *
-	 * @generated from protobuf field: optional uint64 storage_rebate = 3;
+	 * @generated from protobuf field: optional uint64 storage_rebate = 3
 	 */
 	storageRebate?: bigint;
 	/**
 	 * The fee for the rebate. The portion of the storage rebate kept by the system.
 	 *
-	 * @generated from protobuf field: optional uint64 non_refundable_storage_fee = 4;
+	 * @generated from protobuf field: optional uint64 non_refundable_storage_fee = 4
 	 */
 	nonRefundableStorageFee?: bigint;
 }

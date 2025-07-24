@@ -20,38 +20,38 @@ export interface Checkpoint {
 	/**
 	 * The height of this checkpoint.
 	 *
-	 * @generated from protobuf field: optional uint64 sequence_number = 1;
+	 * @generated from protobuf field: optional uint64 sequence_number = 1
 	 */
 	sequenceNumber?: bigint;
 	/**
 	 * The digest of this Checkpoint's CheckpointSummary.
 	 *
-	 * @generated from protobuf field: optional string digest = 2;
+	 * @generated from protobuf field: optional string digest = 2
 	 */
 	digest?: string;
 	/**
 	 * The `CheckpointSummary` for this checkpoint.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.CheckpointSummary summary = 3;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.CheckpointSummary summary = 3
 	 */
 	summary?: CheckpointSummary;
 	/**
 	 * An aggregated quorum signature from the validator committee that
 	 * certified this checkpoint.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ValidatorAggregatedSignature signature = 4;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ValidatorAggregatedSignature signature = 4
 	 */
 	signature?: ValidatorAggregatedSignature;
 	/**
 	 * The `CheckpointContents` for this checkpoint.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.CheckpointContents contents = 5;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.CheckpointContents contents = 5
 	 */
 	contents?: CheckpointContents;
 	/**
 	 * List of transactions included in this checkpoint.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ExecutedTransaction transactions = 6;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ExecutedTransaction transactions = 6
 	 */
 	transactions: ExecutedTransaction[];
 }
@@ -75,7 +75,7 @@ class Checkpoint$Type extends MessageType<Checkpoint> {
 				no: 6,
 				name: 'transactions',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ExecutedTransaction,
 			},
 		]);

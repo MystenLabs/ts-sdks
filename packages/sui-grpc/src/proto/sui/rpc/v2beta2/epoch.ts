@@ -18,13 +18,13 @@ import { ValidatorCommittee } from './signature.js';
  */
 export interface Epoch {
 	/**
-	 * @generated from protobuf field: optional uint64 epoch = 1;
+	 * @generated from protobuf field: optional uint64 epoch = 1
 	 */
 	epoch?: bigint;
 	/**
 	 * The committee governing this epoch.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ValidatorCommittee committee = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ValidatorCommittee committee = 2
 	 */
 	committee?: ValidatorCommittee;
 	/**
@@ -32,33 +32,33 @@ export interface Epoch {
 	 * beginning of the epoch, for past epochs, or the current state for the
 	 * current epoch.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.SystemState system_state = 3;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.SystemState system_state = 3
 	 */
 	systemState?: SystemState;
 	/**
-	 * @generated from protobuf field: optional uint64 first_checkpoint = 4;
+	 * @generated from protobuf field: optional uint64 first_checkpoint = 4
 	 */
 	firstCheckpoint?: bigint;
 	/**
-	 * @generated from protobuf field: optional uint64 last_checkpoint = 5;
+	 * @generated from protobuf field: optional uint64 last_checkpoint = 5
 	 */
 	lastCheckpoint?: bigint;
 	/**
-	 * @generated from protobuf field: optional google.protobuf.Timestamp start = 6;
+	 * @generated from protobuf field: optional google.protobuf.Timestamp start = 6
 	 */
 	start?: Timestamp;
 	/**
-	 * @generated from protobuf field: optional google.protobuf.Timestamp end = 7;
+	 * @generated from protobuf field: optional google.protobuf.Timestamp end = 7
 	 */
 	end?: Timestamp;
 	/**
 	 * Reference gas price denominated in MIST
 	 *
-	 * @generated from protobuf field: optional uint64 reference_gas_price = 8;
+	 * @generated from protobuf field: optional uint64 reference_gas_price = 8
 	 */
 	referenceGasPrice?: bigint;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ProtocolConfig protocol_config = 9;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ProtocolConfig protocol_config = 9
 	 */
 	protocolConfig?: ProtocolConfig;
 }

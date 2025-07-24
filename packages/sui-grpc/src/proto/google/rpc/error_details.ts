@@ -50,7 +50,7 @@ export interface ErrorInfo {
 	 * regular expression of `[A-Z][A-Z0-9_]+[A-Z0-9]`, which represents
 	 * UPPER_SNAKE_CASE.
 	 *
-	 * @generated from protobuf field: string reason = 1;
+	 * @generated from protobuf field: string reason = 1
 	 */
 	reason: string;
 	/**
@@ -61,7 +61,7 @@ export interface ErrorInfo {
 	 * globally unique value that identifies the infrastructure. For Google API
 	 * infrastructure, the error domain is "googleapis.com".
 	 *
-	 * @generated from protobuf field: string domain = 2;
+	 * @generated from protobuf field: string domain = 2
 	 */
 	domain: string;
 	/**
@@ -75,7 +75,7 @@ export interface ErrorInfo {
 	 * `{"instanceLimitPerRequest": "100"}`, if the client exceeds the number of
 	 * instances that can be created in a single (batch) request.
 	 *
-	 * @generated from protobuf field: map<string, string> metadata = 3;
+	 * @generated from protobuf field: map<string, string> metadata = 3
 	 */
 	metadata: {
 		[key: string]: string;
@@ -102,7 +102,7 @@ export interface RetryInfo {
 	/**
 	 * Clients should wait at least this long between retrying the same request.
 	 *
-	 * @generated from protobuf field: google.protobuf.Duration retry_delay = 1;
+	 * @generated from protobuf field: google.protobuf.Duration retry_delay = 1
 	 */
 	retryDelay?: Duration;
 }
@@ -115,13 +115,13 @@ export interface DebugInfo {
 	/**
 	 * The stack trace entries indicating where the error occurred.
 	 *
-	 * @generated from protobuf field: repeated string stack_entries = 1;
+	 * @generated from protobuf field: repeated string stack_entries = 1
 	 */
 	stackEntries: string[];
 	/**
 	 * Additional debugging information provided by the server.
 	 *
-	 * @generated from protobuf field: string detail = 2;
+	 * @generated from protobuf field: string detail = 2
 	 */
 	detail: string;
 }
@@ -144,7 +144,7 @@ export interface QuotaFailure {
 	/**
 	 * Describes all quota violations.
 	 *
-	 * @generated from protobuf field: repeated google.rpc.QuotaFailure.Violation violations = 1;
+	 * @generated from protobuf field: repeated google.rpc.QuotaFailure.Violation violations = 1
 	 */
 	violations: QuotaFailure_Violation[];
 }
@@ -160,7 +160,7 @@ export interface QuotaFailure_Violation {
 	 * For example, `clientip:<ip address of client>` or `project:<Google
 	 * developer project id>`.
 	 *
-	 * @generated from protobuf field: string subject = 1;
+	 * @generated from protobuf field: string subject = 1
 	 */
 	subject: string;
 	/**
@@ -172,7 +172,7 @@ export interface QuotaFailure_Violation {
 	 * For example: "Service disabled" or "Daily Limit for read operations
 	 * exceeded".
 	 *
-	 * @generated from protobuf field: string description = 2;
+	 * @generated from protobuf field: string description = 2
 	 */
 	description: string;
 }
@@ -189,7 +189,7 @@ export interface PreconditionFailure {
 	/**
 	 * Describes all precondition violations.
 	 *
-	 * @generated from protobuf field: repeated google.rpc.PreconditionFailure.Violation violations = 1;
+	 * @generated from protobuf field: repeated google.rpc.PreconditionFailure.Violation violations = 1
 	 */
 	violations: PreconditionFailure_Violation[];
 }
@@ -204,7 +204,7 @@ export interface PreconditionFailure_Violation {
 	 * enum type to define the supported precondition violation subjects. For
 	 * example, "TOS" for "Terms of Service violation".
 	 *
-	 * @generated from protobuf field: string type = 1;
+	 * @generated from protobuf field: string type = 1
 	 */
 	type: string;
 	/**
@@ -212,7 +212,7 @@ export interface PreconditionFailure_Violation {
 	 * For example, "google.com/cloud" relative to the "TOS" type would indicate
 	 * which terms of service is being referenced.
 	 *
-	 * @generated from protobuf field: string subject = 2;
+	 * @generated from protobuf field: string subject = 2
 	 */
 	subject: string;
 	/**
@@ -221,7 +221,7 @@ export interface PreconditionFailure_Violation {
 	 *
 	 * For example: "Terms of service not accepted".
 	 *
-	 * @generated from protobuf field: string description = 3;
+	 * @generated from protobuf field: string description = 3
 	 */
 	description: string;
 }
@@ -235,7 +235,7 @@ export interface BadRequest {
 	/**
 	 * Describes all violations in a client request.
 	 *
-	 * @generated from protobuf field: repeated google.rpc.BadRequest.FieldViolation field_violations = 1;
+	 * @generated from protobuf field: repeated google.rpc.BadRequest.FieldViolation field_violations = 1
 	 */
 	fieldViolations: BadRequest_FieldViolation[];
 }
@@ -286,13 +286,13 @@ export interface BadRequest_FieldViolation {
 	 * * `emailAddresses[3].type[2]` for a violation in the second `type`
 	 *   value in the third `emailAddresses` message.
 	 *
-	 * @generated from protobuf field: string field = 1;
+	 * @generated from protobuf field: string field = 1
 	 */
 	field: string;
 	/**
 	 * A description of why the request element is bad.
 	 *
-	 * @generated from protobuf field: string description = 2;
+	 * @generated from protobuf field: string description = 2
 	 */
 	description: string;
 	/**
@@ -303,14 +303,14 @@ export interface BadRequest_FieldViolation {
 	 * characters and match a regular expression of `[A-Z][A-Z0-9_]+[A-Z0-9]`,
 	 * which represents UPPER_SNAKE_CASE.
 	 *
-	 * @generated from protobuf field: string reason = 3;
+	 * @generated from protobuf field: string reason = 3
 	 */
 	reason: string;
 	/**
 	 * Provides a localized error message for field-level errors that is safe to
 	 * return to the API consumer.
 	 *
-	 * @generated from protobuf field: google.rpc.LocalizedMessage localized_message = 4;
+	 * @generated from protobuf field: google.rpc.LocalizedMessage localized_message = 4
 	 */
 	localizedMessage?: LocalizedMessage;
 }
@@ -325,14 +325,14 @@ export interface RequestInfo {
 	 * An opaque string that should only be interpreted by the service generating
 	 * it. For example, it can be used to identify requests in the service's logs.
 	 *
-	 * @generated from protobuf field: string request_id = 1;
+	 * @generated from protobuf field: string request_id = 1
 	 */
 	requestId: string;
 	/**
 	 * Any data that was used to serve this request. For example, an encrypted
 	 * stack trace that can be sent back to the service provider for debugging.
 	 *
-	 * @generated from protobuf field: string serving_data = 2;
+	 * @generated from protobuf field: string serving_data = 2
 	 */
 	servingData: string;
 }
@@ -347,7 +347,7 @@ export interface ResourceInfo {
 	 * "cloud storage bucket", "file", "Google calendar"; or the type URL
 	 * of the resource: e.g. "type.googleapis.com/google.pubsub.v1.Topic".
 	 *
-	 * @generated from protobuf field: string resource_type = 1;
+	 * @generated from protobuf field: string resource_type = 1
 	 */
 	resourceType: string;
 	/**
@@ -356,7 +356,7 @@ export interface ResourceInfo {
 	 * error is
 	 * [google.rpc.Code.PERMISSION_DENIED][google.rpc.Code.PERMISSION_DENIED].
 	 *
-	 * @generated from protobuf field: string resource_name = 2;
+	 * @generated from protobuf field: string resource_name = 2
 	 */
 	resourceName: string;
 	/**
@@ -364,7 +364,7 @@ export interface ResourceInfo {
 	 * For example, `user:<owner email>` or `project:<Google developer project
 	 * id>`.
 	 *
-	 * @generated from protobuf field: string owner = 3;
+	 * @generated from protobuf field: string owner = 3
 	 */
 	owner: string;
 	/**
@@ -372,7 +372,7 @@ export interface ResourceInfo {
 	 * For example, updating a cloud project may require the `writer` permission
 	 * on the developer console project.
 	 *
-	 * @generated from protobuf field: string description = 4;
+	 * @generated from protobuf field: string description = 4
 	 */
 	description: string;
 }
@@ -389,7 +389,7 @@ export interface Help {
 	/**
 	 * URL(s) pointing to additional information on handling the current error.
 	 *
-	 * @generated from protobuf field: repeated google.rpc.Help.Link links = 1;
+	 * @generated from protobuf field: repeated google.rpc.Help.Link links = 1
 	 */
 	links: Help_Link[];
 }
@@ -402,13 +402,13 @@ export interface Help_Link {
 	/**
 	 * Describes what the link offers.
 	 *
-	 * @generated from protobuf field: string description = 1;
+	 * @generated from protobuf field: string description = 1
 	 */
 	description: string;
 	/**
 	 * The URL of the link.
 	 *
-	 * @generated from protobuf field: string url = 2;
+	 * @generated from protobuf field: string url = 2
 	 */
 	url: string;
 }
@@ -424,13 +424,13 @@ export interface LocalizedMessage {
 	 * https://www.rfc-editor.org/rfc/bcp/bcp47.txt.
 	 * Examples are: "en-US", "fr-CH", "es-MX"
 	 *
-	 * @generated from protobuf field: string locale = 1;
+	 * @generated from protobuf field: string locale = 1
 	 */
 	locale: string;
 	/**
 	 * The localized error message in the above locale.
 	 *
-	 * @generated from protobuf field: string message = 2;
+	 * @generated from protobuf field: string message = 2
 	 */
 	message: string;
 }
@@ -515,9 +515,7 @@ class ErrorInfo$Type extends MessageType<ErrorInfo> {
 					val = reader.string();
 					break;
 				default:
-					throw new globalThis.Error(
-						'unknown map entry field for field google.rpc.ErrorInfo.metadata',
-					);
+					throw new globalThis.Error('unknown map entry field for google.rpc.ErrorInfo.metadata');
 			}
 		}
 		map[key ?? ''] = val ?? '';
@@ -705,7 +703,7 @@ class QuotaFailure$Type extends MessageType<QuotaFailure> {
 				no: 1,
 				name: 'violations',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => QuotaFailure_Violation,
 			},
 		]);
@@ -850,7 +848,7 @@ class PreconditionFailure$Type extends MessageType<PreconditionFailure> {
 				no: 1,
 				name: 'violations',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => PreconditionFailure_Violation,
 			},
 		]);
@@ -1003,7 +1001,7 @@ class BadRequest$Type extends MessageType<BadRequest> {
 				no: 1,
 				name: 'field_violations',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => BadRequest_FieldViolation,
 			},
 		]);
@@ -1328,7 +1326,7 @@ class Help$Type extends MessageType<Help> {
 				no: 1,
 				name: 'links',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Help_Link,
 			},
 		]);

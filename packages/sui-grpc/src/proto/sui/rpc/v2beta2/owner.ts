@@ -16,19 +16,19 @@ import { MessageType } from '@protobuf-ts/runtime';
  */
 export interface Owner {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Owner.OwnerKind kind = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Owner.OwnerKind kind = 1
 	 */
 	kind?: Owner_OwnerKind;
 	/**
 	 * Address or ObjectId of the owner
 	 *
-	 * @generated from protobuf field: optional string address = 2;
+	 * @generated from protobuf field: optional string address = 2
 	 */
 	address?: string;
 	/**
 	 * The `initial_shared_version` if kind is `SHARED` or `start_version` if kind `CONSENSUS_ADDRESS`.
 	 *
-	 * @generated from protobuf field: optional uint64 version = 3;
+	 * @generated from protobuf field: optional uint64 version = 3
 	 */
 	version?: bigint;
 }

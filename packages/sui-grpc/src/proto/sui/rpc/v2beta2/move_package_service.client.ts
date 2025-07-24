@@ -19,28 +19,28 @@ import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
  */
 export interface IMovePackageServiceClient {
 	/**
-	 * @generated from protobuf rpc: GetPackage(sui.rpc.v2beta2.GetPackageRequest) returns (sui.rpc.v2beta2.GetPackageResponse);
+	 * @generated from protobuf rpc: GetPackage
 	 */
 	getPackage(
 		input: GetPackageRequest,
 		options?: RpcOptions,
 	): UnaryCall<GetPackageRequest, GetPackageResponse>;
 	/**
-	 * @generated from protobuf rpc: GetDatatype(sui.rpc.v2beta2.GetDatatypeRequest) returns (sui.rpc.v2beta2.GetDatatypeResponse);
+	 * @generated from protobuf rpc: GetDatatype
 	 */
 	getDatatype(
 		input: GetDatatypeRequest,
 		options?: RpcOptions,
 	): UnaryCall<GetDatatypeRequest, GetDatatypeResponse>;
 	/**
-	 * @generated from protobuf rpc: GetFunction(sui.rpc.v2beta2.GetFunctionRequest) returns (sui.rpc.v2beta2.GetFunctionResponse);
+	 * @generated from protobuf rpc: GetFunction
 	 */
 	getFunction(
 		input: GetFunctionRequest,
 		options?: RpcOptions,
 	): UnaryCall<GetFunctionRequest, GetFunctionResponse>;
 	/**
-	 * @generated from protobuf rpc: ListPackageVersions(sui.rpc.v2beta2.ListPackageVersionsRequest) returns (sui.rpc.v2beta2.ListPackageVersionsResponse);
+	 * @generated from protobuf rpc: ListPackageVersions
 	 */
 	listPackageVersions(
 		input: ListPackageVersionsRequest,
@@ -56,7 +56,7 @@ export class MovePackageServiceClient implements IMovePackageServiceClient, Serv
 	options = MovePackageService.options;
 	constructor(private readonly _transport: RpcTransport) {}
 	/**
-	 * @generated from protobuf rpc: GetPackage(sui.rpc.v2beta2.GetPackageRequest) returns (sui.rpc.v2beta2.GetPackageResponse);
+	 * @generated from protobuf rpc: GetPackage
 	 */
 	getPackage(
 		input: GetPackageRequest,
@@ -73,7 +73,7 @@ export class MovePackageServiceClient implements IMovePackageServiceClient, Serv
 		);
 	}
 	/**
-	 * @generated from protobuf rpc: GetDatatype(sui.rpc.v2beta2.GetDatatypeRequest) returns (sui.rpc.v2beta2.GetDatatypeResponse);
+	 * @generated from protobuf rpc: GetDatatype
 	 */
 	getDatatype(
 		input: GetDatatypeRequest,
@@ -90,7 +90,7 @@ export class MovePackageServiceClient implements IMovePackageServiceClient, Serv
 		);
 	}
 	/**
-	 * @generated from protobuf rpc: GetFunction(sui.rpc.v2beta2.GetFunctionRequest) returns (sui.rpc.v2beta2.GetFunctionResponse);
+	 * @generated from protobuf rpc: GetFunction
 	 */
 	getFunction(
 		input: GetFunctionRequest,
@@ -107,7 +107,7 @@ export class MovePackageServiceClient implements IMovePackageServiceClient, Serv
 		);
 	}
 	/**
-	 * @generated from protobuf rpc: ListPackageVersions(sui.rpc.v2beta2.ListPackageVersionsRequest) returns (sui.rpc.v2beta2.ListPackageVersionsResponse);
+	 * @generated from protobuf rpc: ListPackageVersions
 	 */
 	listPackageVersions(
 		input: ListPackageVersionsRequest,

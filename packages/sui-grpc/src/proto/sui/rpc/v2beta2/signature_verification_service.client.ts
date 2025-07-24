@@ -15,7 +15,7 @@ export interface ISignatureVerificationServiceClient {
 	/**
 	 * Perform signature verification of a UserSignature against the provided message.
 	 *
-	 * @generated from protobuf rpc: VerifySignature(sui.rpc.v2beta2.VerifySignatureRequest) returns (sui.rpc.v2beta2.VerifySignatureResponse);
+	 * @generated from protobuf rpc: VerifySignature
 	 */
 	verifySignature(
 		input: VerifySignatureRequest,
@@ -35,7 +35,7 @@ export class SignatureVerificationServiceClient
 	/**
 	 * Perform signature verification of a UserSignature against the provided message.
 	 *
-	 * @generated from protobuf rpc: VerifySignature(sui.rpc.v2beta2.VerifySignatureRequest) returns (sui.rpc.v2beta2.VerifySignatureResponse);
+	 * @generated from protobuf rpc: VerifySignature
 	 */
 	verifySignature(
 		input: VerifySignatureRequest,

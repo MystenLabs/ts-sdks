@@ -40,38 +40,38 @@ export interface CheckpointSummary {
 	/**
 	 * This CheckpointSummary serialized as BCS.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Bcs bcs = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Bcs bcs = 1
 	 */
 	bcs?: Bcs;
 	/**
 	 * The digest of this CheckpointSummary.
 	 *
-	 * @generated from protobuf field: optional string digest = 2;
+	 * @generated from protobuf field: optional string digest = 2
 	 */
 	digest?: string;
 	/**
 	 * Epoch that this checkpoint belongs to.
 	 *
-	 * @generated from protobuf field: optional uint64 epoch = 3;
+	 * @generated from protobuf field: optional uint64 epoch = 3
 	 */
 	epoch?: bigint;
 	/**
 	 * The height of this checkpoint.
 	 *
-	 * @generated from protobuf field: optional uint64 sequence_number = 4;
+	 * @generated from protobuf field: optional uint64 sequence_number = 4
 	 */
 	sequenceNumber?: bigint;
 	/**
 	 * Total number of transactions committed since genesis, including those in this
 	 * checkpoint.
 	 *
-	 * @generated from protobuf field: optional uint64 total_network_transactions = 5;
+	 * @generated from protobuf field: optional uint64 total_network_transactions = 5
 	 */
 	totalNetworkTransactions?: bigint;
 	/**
 	 * The hash of the `CheckpointContents` for this checkpoint.
 	 *
-	 * @generated from protobuf field: optional string content_digest = 6;
+	 * @generated from protobuf field: optional string content_digest = 6
 	 */
 	contentDigest?: string;
 	/**
@@ -79,14 +79,14 @@ export interface CheckpointSummary {
 	 *
 	 * This will be `None` only for the first, or genesis, checkpoint.
 	 *
-	 * @generated from protobuf field: optional string previous_digest = 7;
+	 * @generated from protobuf field: optional string previous_digest = 7
 	 */
 	previousDigest?: string;
 	/**
 	 * The running total gas costs of all transactions included in the current epoch so far
 	 * until this checkpoint.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.GasCostSummary epoch_rolling_gas_cost_summary = 8;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.GasCostSummary epoch_rolling_gas_cost_summary = 8
 	 */
 	epochRollingGasCostSummary?: GasCostSummary;
 	/**
@@ -94,19 +94,19 @@ export interface CheckpointSummary {
 	 * Checkpoint timestamps are monotonic, but not strongly monotonic - subsequent
 	 * checkpoints can have the same timestamp if they originate from the same underlining consensus commit.
 	 *
-	 * @generated from protobuf field: optional google.protobuf.Timestamp timestamp = 9;
+	 * @generated from protobuf field: optional google.protobuf.Timestamp timestamp = 9
 	 */
 	timestamp?: Timestamp;
 	/**
 	 * Commitments to checkpoint-specific state.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.CheckpointCommitment commitments = 10;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.CheckpointCommitment commitments = 10
 	 */
 	commitments: CheckpointCommitment[];
 	/**
 	 * Extra data only present in the final checkpoint of an epoch.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.EndOfEpochData end_of_epoch_data = 11;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.EndOfEpochData end_of_epoch_data = 11
 	 */
 	endOfEpochData?: EndOfEpochData;
 	/**
@@ -115,7 +115,7 @@ export interface CheckpointSummary {
 	 * opaque data can be added to checkpoints, which can be deserialized based on the current
 	 * protocol version.
 	 *
-	 * @generated from protobuf field: optional bytes version_specific_data = 12;
+	 * @generated from protobuf field: optional bytes version_specific_data = 12
 	 */
 	versionSpecificData?: Uint8Array;
 }
@@ -128,19 +128,19 @@ export interface EndOfEpochData {
 	/**
 	 * The set of validators that will be in the `ValidatorCommittee` for the next epoch.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ValidatorCommitteeMember next_epoch_committee = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ValidatorCommitteeMember next_epoch_committee = 1
 	 */
 	nextEpochCommittee: ValidatorCommitteeMember[];
 	/**
 	 * The protocol version that is in effect during the next epoch.
 	 *
-	 * @generated from protobuf field: optional uint64 next_epoch_protocol_version = 2;
+	 * @generated from protobuf field: optional uint64 next_epoch_protocol_version = 2
 	 */
 	nextEpochProtocolVersion?: bigint;
 	/**
 	 * Commitments to epoch specific state (live object set)
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.CheckpointCommitment epoch_commitments = 3;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.CheckpointCommitment epoch_commitments = 3
 	 */
 	epochCommitments: CheckpointCommitment[];
 }
@@ -151,11 +151,11 @@ export interface EndOfEpochData {
  */
 export interface CheckpointCommitment {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.CheckpointCommitment.CheckpointCommitmentKind kind = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.CheckpointCommitment.CheckpointCommitmentKind kind = 1
 	 */
 	kind?: CheckpointCommitment_CheckpointCommitmentKind;
 	/**
-	 * @generated from protobuf field: optional string digest = 2;
+	 * @generated from protobuf field: optional string digest = 2
 	 */
 	digest?: string;
 }
@@ -213,7 +213,7 @@ class CheckpointSummary$Type extends MessageType<CheckpointSummary> {
 				no: 10,
 				name: 'commitments',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => CheckpointCommitment,
 			},
 			{ no: 11, name: 'end_of_epoch_data', kind: 'message', T: () => EndOfEpochData },
@@ -392,7 +392,7 @@ class EndOfEpochData$Type extends MessageType<EndOfEpochData> {
 				no: 1,
 				name: 'next_epoch_committee',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ValidatorCommitteeMember,
 			},
 			{
@@ -407,7 +407,7 @@ class EndOfEpochData$Type extends MessageType<EndOfEpochData> {
 				no: 3,
 				name: 'epoch_commitments',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => CheckpointCommitment,
 			},
 		]);

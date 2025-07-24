@@ -23,13 +23,13 @@ export interface UserSignature {
 	 * When provided as input this will support both the form that is length
 	 * prefixed as well as not length prefixed.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Bcs bcs = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Bcs bcs = 1
 	 */
 	bcs?: Bcs;
 	/**
 	 * The signature scheme of this signature.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.SignatureScheme scheme = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.SignatureScheme scheme = 2
 	 */
 	scheme?: SignatureScheme;
 	/**
@@ -41,7 +41,7 @@ export interface UserSignature {
 				/**
 				 * Simple signature if scheme is ed25519 | secp256k1 | secp256r1.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.SimpleSignature simple = 3;
+				 * @generated from protobuf field: sui.rpc.v2beta2.SimpleSignature simple = 3
 				 */
 				simple: SimpleSignature;
 		  }
@@ -50,7 +50,7 @@ export interface UserSignature {
 				/**
 				 * The multisig aggregated signature if scheme is `MULTISIG`.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.MultisigAggregatedSignature multisig = 4;
+				 * @generated from protobuf field: sui.rpc.v2beta2.MultisigAggregatedSignature multisig = 4
 				 */
 				multisig: MultisigAggregatedSignature;
 		  }
@@ -59,7 +59,7 @@ export interface UserSignature {
 				/**
 				 * The zklogin authenticator if scheme is `ZKLOGIN`.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.ZkLoginAuthenticator zklogin = 5;
+				 * @generated from protobuf field: sui.rpc.v2beta2.ZkLoginAuthenticator zklogin = 5
 				 */
 				zklogin: ZkLoginAuthenticator;
 		  }
@@ -68,7 +68,7 @@ export interface UserSignature {
 				/**
 				 * The passkey authenticator if scheme is `PASSKEY`.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.PasskeyAuthenticator passkey = 6;
+				 * @generated from protobuf field: sui.rpc.v2beta2.PasskeyAuthenticator passkey = 6
 				 */
 				passkey: PasskeyAuthenticator;
 		  }
@@ -85,19 +85,19 @@ export interface SimpleSignature {
 	/**
 	 * The signature scheme of this signature.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.SignatureScheme scheme = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.SignatureScheme scheme = 1
 	 */
 	scheme?: SignatureScheme;
 	/**
 	 * Signature bytes
 	 *
-	 * @generated from protobuf field: optional bytes signature = 2;
+	 * @generated from protobuf field: optional bytes signature = 2
 	 */
 	signature?: Uint8Array;
 	/**
 	 * Public key bytes
 	 *
-	 * @generated from protobuf field: optional bytes public_key = 3;
+	 * @generated from protobuf field: optional bytes public_key = 3
 	 */
 	publicKey?: Uint8Array;
 }
@@ -108,13 +108,13 @@ export interface SimpleSignature {
  */
 export interface ZkLoginPublicIdentifier {
 	/**
-	 * @generated from protobuf field: optional string iss = 1;
+	 * @generated from protobuf field: optional string iss = 1
 	 */
 	iss?: string;
 	/**
 	 * base10 encoded Bn254FieldElement
 	 *
-	 * @generated from protobuf field: optional string address_seed = 2;
+	 * @generated from protobuf field: optional string address_seed = 2
 	 */
 	addressSeed?: string;
 }
@@ -127,19 +127,19 @@ export interface MultisigMemberPublicKey {
 	/**
 	 * The signature scheme of this public key.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.SignatureScheme scheme = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.SignatureScheme scheme = 1
 	 */
 	scheme?: SignatureScheme;
 	/**
 	 * Public key bytes if scheme is ed25519 | secp256k1 | secp256r1 | passkey.
 	 *
-	 * @generated from protobuf field: optional bytes public_key = 2;
+	 * @generated from protobuf field: optional bytes public_key = 2
 	 */
 	publicKey?: Uint8Array;
 	/**
 	 * A zklogin public identifier if scheme is zklogin.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ZkLoginPublicIdentifier zklogin = 3;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ZkLoginPublicIdentifier zklogin = 3
 	 */
 	zklogin?: ZkLoginPublicIdentifier;
 }
@@ -152,13 +152,13 @@ export interface MultisigMember {
 	/**
 	 * The public key of the committee member.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.MultisigMemberPublicKey public_key = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.MultisigMemberPublicKey public_key = 1
 	 */
 	publicKey?: MultisigMemberPublicKey;
 	/**
 	 * The weight of this member's signature.
 	 *
-	 * @generated from protobuf field: optional uint32 weight = 2;
+	 * @generated from protobuf field: optional uint32 weight = 2
 	 */
 	weight?: number;
 }
@@ -171,14 +171,14 @@ export interface MultisigCommittee {
 	/**
 	 * A list of committee members and their corresponding weight.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.MultisigMember members = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.MultisigMember members = 1
 	 */
 	members: MultisigMember[];
 	/**
 	 * The threshold of signatures needed to validate a signature from
 	 * this committee.
 	 *
-	 * @generated from protobuf field: optional uint32 threshold = 2;
+	 * @generated from protobuf field: optional uint32 threshold = 2
 	 */
 	threshold?: number;
 }
@@ -193,27 +193,27 @@ export interface MultisigAggregatedSignature {
 	 *
 	 * The signatures must be in the same order as they are listed in the committee.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.MultisigMemberSignature signatures = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.MultisigMemberSignature signatures = 1
 	 */
 	signatures: MultisigMemberSignature[];
 	/**
 	 * Bitmap indicating which committee members contributed to the
 	 * signature.
 	 *
-	 * @generated from protobuf field: optional uint32 bitmap = 2;
+	 * @generated from protobuf field: optional uint32 bitmap = 2
 	 */
 	bitmap?: number;
 	/**
 	 * If present, means this signature's on-chain format uses the old
 	 * legacy multisig format.
 	 *
-	 * @generated from protobuf field: repeated uint32 legacy_bitmap = 3;
+	 * @generated from protobuf field: repeated uint32 legacy_bitmap = 3
 	 */
 	legacyBitmap: number[];
 	/**
 	 * The committee to use to validate this signature.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.MultisigCommittee committee = 4;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.MultisigCommittee committee = 4
 	 */
 	committee?: MultisigCommittee;
 }
@@ -226,25 +226,25 @@ export interface MultisigMemberSignature {
 	/**
 	 * The signature scheme of this signature.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.SignatureScheme scheme = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.SignatureScheme scheme = 1
 	 */
 	scheme?: SignatureScheme;
 	/**
 	 * Signature bytes if scheme is ed25519 | secp256k1 | secp256r1.
 	 *
-	 * @generated from protobuf field: optional bytes signature = 2;
+	 * @generated from protobuf field: optional bytes signature = 2
 	 */
 	signature?: Uint8Array;
 	/**
 	 * The zklogin authenticator if scheme is `ZKLOGIN`.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ZkLoginAuthenticator zklogin = 3;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ZkLoginAuthenticator zklogin = 3
 	 */
 	zklogin?: ZkLoginAuthenticator;
 	/**
 	 * The passkey authenticator if scheme is `PASSKEY`.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.PasskeyAuthenticator passkey = 4;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.PasskeyAuthenticator passkey = 4
 	 */
 	passkey?: PasskeyAuthenticator;
 }
@@ -257,19 +257,19 @@ export interface ZkLoginAuthenticator {
 	/**
 	 * Zklogin proof and inputs required to perform proof verification.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ZkLoginInputs inputs = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ZkLoginInputs inputs = 1
 	 */
 	inputs?: ZkLoginInputs;
 	/**
 	 * Maximum epoch for which the proof is valid.
 	 *
-	 * @generated from protobuf field: optional uint64 max_epoch = 2;
+	 * @generated from protobuf field: optional uint64 max_epoch = 2
 	 */
 	maxEpoch?: bigint;
 	/**
 	 * User signature with the public key attested to by the provided proof.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.SimpleSignature signature = 3;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.SimpleSignature signature = 3
 	 */
 	signature?: SimpleSignature;
 }
@@ -280,21 +280,21 @@ export interface ZkLoginAuthenticator {
  */
 export interface ZkLoginInputs {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ZkLoginProof proof_points = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ZkLoginProof proof_points = 1
 	 */
 	proofPoints?: ZkLoginProof;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ZkLoginClaim iss_base64_details = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ZkLoginClaim iss_base64_details = 2
 	 */
 	issBase64Details?: ZkLoginClaim;
 	/**
-	 * @generated from protobuf field: optional string header_base64 = 3;
+	 * @generated from protobuf field: optional string header_base64 = 3
 	 */
 	headerBase64?: string;
 	/**
 	 * base10 encoded Bn254FieldElement
 	 *
-	 * @generated from protobuf field: optional string address_seed = 4;
+	 * @generated from protobuf field: optional string address_seed = 4
 	 */
 	addressSeed?: string;
 }
@@ -305,15 +305,15 @@ export interface ZkLoginInputs {
  */
 export interface ZkLoginProof {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.CircomG1 a = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.CircomG1 a = 1
 	 */
 	a?: CircomG1;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.CircomG2 b = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.CircomG2 b = 2
 	 */
 	b?: CircomG2;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.CircomG1 c = 3;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.CircomG1 c = 3
 	 */
 	c?: CircomG1;
 }
@@ -324,11 +324,11 @@ export interface ZkLoginProof {
  */
 export interface ZkLoginClaim {
 	/**
-	 * @generated from protobuf field: optional string value = 1;
+	 * @generated from protobuf field: optional string value = 1
 	 */
 	value?: string;
 	/**
-	 * @generated from protobuf field: optional uint32 index_mod_4 = 2;
+	 * @generated from protobuf field: optional uint32 index_mod_4 = 2
 	 */
 	indexMod4?: number;
 }
@@ -341,19 +341,19 @@ export interface CircomG1 {
 	/**
 	 * base10 encoded Bn254FieldElement
 	 *
-	 * @generated from protobuf field: optional string e0 = 1;
+	 * @generated from protobuf field: optional string e0 = 1
 	 */
 	e0?: string;
 	/**
 	 * base10 encoded Bn254FieldElement
 	 *
-	 * @generated from protobuf field: optional string e1 = 2;
+	 * @generated from protobuf field: optional string e1 = 2
 	 */
 	e1?: string;
 	/**
 	 * base10 encoded Bn254FieldElement
 	 *
-	 * @generated from protobuf field: optional string e2 = 3;
+	 * @generated from protobuf field: optional string e2 = 3
 	 */
 	e2?: string;
 }
@@ -366,37 +366,37 @@ export interface CircomG2 {
 	/**
 	 * base10 encoded Bn254FieldElement
 	 *
-	 * @generated from protobuf field: optional string e00 = 1;
+	 * @generated from protobuf field: optional string e00 = 1
 	 */
 	e00?: string;
 	/**
 	 * base10 encoded Bn254FieldElement
 	 *
-	 * @generated from protobuf field: optional string e01 = 2;
+	 * @generated from protobuf field: optional string e01 = 2
 	 */
 	e01?: string;
 	/**
 	 * base10 encoded Bn254FieldElement
 	 *
-	 * @generated from protobuf field: optional string e10 = 3;
+	 * @generated from protobuf field: optional string e10 = 3
 	 */
 	e10?: string;
 	/**
 	 * base10 encoded Bn254FieldElement
 	 *
-	 * @generated from protobuf field: optional string e11 = 4;
+	 * @generated from protobuf field: optional string e11 = 4
 	 */
 	e11?: string;
 	/**
 	 * base10 encoded Bn254FieldElement
 	 *
-	 * @generated from protobuf field: optional string e20 = 5;
+	 * @generated from protobuf field: optional string e20 = 5
 	 */
 	e20?: string;
 	/**
 	 * base10 encoded Bn254FieldElement
 	 *
-	 * @generated from protobuf field: optional string e21 = 6;
+	 * @generated from protobuf field: optional string e21 = 6
 	 */
 	e21?: string;
 }
@@ -417,7 +417,7 @@ export interface PasskeyAuthenticator {
 	 * See [Authenticator Data](https://www.w3.org/TR/webauthn-2/#sctn-authenticator-data) for
 	 * more information on this field.
 	 *
-	 * @generated from protobuf field: optional bytes authenticator_data = 1;
+	 * @generated from protobuf field: optional bytes authenticator_data = 1
 	 */
 	authenticatorData?: Uint8Array;
 	/**
@@ -426,13 +426,13 @@ export interface PasskeyAuthenticator {
 	 * See [CollectedClientData](https://www.w3.org/TR/webauthn-2/#dictdef-collectedclientdata)
 	 * for more information on this field.
 	 *
-	 * @generated from protobuf field: optional string client_data_json = 2;
+	 * @generated from protobuf field: optional string client_data_json = 2
 	 */
 	clientDataJson?: string;
 	/**
 	 * A secp256r1 signature.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.SimpleSignature signature = 3;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.SimpleSignature signature = 3
 	 */
 	signature?: SimpleSignature;
 }
@@ -445,13 +445,13 @@ export interface ValidatorCommittee {
 	/**
 	 * The epoch where this committee governs.
 	 *
-	 * @generated from protobuf field: optional uint64 epoch = 1;
+	 * @generated from protobuf field: optional uint64 epoch = 1
 	 */
 	epoch?: bigint;
 	/**
 	 * The committee members.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ValidatorCommitteeMember members = 2;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ValidatorCommitteeMember members = 2
 	 */
 	members: ValidatorCommitteeMember[];
 }
@@ -464,13 +464,13 @@ export interface ValidatorCommitteeMember {
 	/**
 	 * The 96-byte Bls12381 public key for this validator.
 	 *
-	 * @generated from protobuf field: optional bytes public_key = 1;
+	 * @generated from protobuf field: optional bytes public_key = 1
 	 */
 	publicKey?: Uint8Array;
 	/**
 	 * voting weight this validator possesses.
 	 *
-	 * @generated from protobuf field: optional uint64 weight = 2;
+	 * @generated from protobuf field: optional uint64 weight = 2
 	 */
 	weight?: bigint;
 }
@@ -486,20 +486,20 @@ export interface ValidatorAggregatedSignature {
 	 * This can be used to lookup the `ValidatorCommittee` from this epoch
 	 * to verify this signature.
 	 *
-	 * @generated from protobuf field: optional uint64 epoch = 1;
+	 * @generated from protobuf field: optional uint64 epoch = 1
 	 */
 	epoch?: bigint;
 	/**
 	 * The 48-byte Bls12381 aggregated signature.
 	 *
-	 * @generated from protobuf field: optional bytes signature = 2;
+	 * @generated from protobuf field: optional bytes signature = 2
 	 */
 	signature?: Uint8Array;
 	/**
 	 * Bitmap indicating which members of the committee contributed to
 	 * this signature.
 	 *
-	 * @generated from protobuf field: repeated uint32 bitmap = 3;
+	 * @generated from protobuf field: repeated uint32 bitmap = 3
 	 */
 	bitmap: number[];
 }
@@ -1000,7 +1000,7 @@ class MultisigCommittee$Type extends MessageType<MultisigCommittee> {
 				no: 1,
 				name: 'members',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => MultisigMember,
 			},
 			{ no: 2, name: 'threshold', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
@@ -1079,7 +1079,7 @@ class MultisigAggregatedSignature$Type extends MessageType<MultisigAggregatedSig
 				no: 1,
 				name: 'signatures',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => MultisigMemberSignature,
 			},
 			{ no: 2, name: 'bitmap', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
@@ -1916,7 +1916,7 @@ class ValidatorCommittee$Type extends MessageType<ValidatorCommittee> {
 				no: 2,
 				name: 'members',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ValidatorCommitteeMember,
 			},
 		]);

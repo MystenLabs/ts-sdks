@@ -10,13 +10,13 @@ import { UnknownFieldHandler } from '@protobuf-ts/runtime';
 import type { PartialMessage } from '@protobuf-ts/runtime';
 import { reflectionMergePartial } from '@protobuf-ts/runtime';
 import { MessageType } from '@protobuf-ts/runtime';
-import { Owner } from './owner.js';
 import { Value } from '../../../google/protobuf/struct.js';
 import { Bcs } from './bcs.js';
 import { Argument } from './argument.js';
 import { ExecutedTransaction } from './executed_transaction.js';
-import { FieldMask } from '../../../google/protobuf/field_mask.js';
 import { Transaction } from './transaction.js';
+import { Object } from './object.js';
+import { FieldMask } from '../../../google/protobuf/field_mask.js';
 /**
  * Request message for `NodeService.GetCoinInfo`.
  *
@@ -26,7 +26,7 @@ export interface GetCoinInfoRequest {
 	/**
 	 * The coin type to request information about
 	 *
-	 * @generated from protobuf field: optional string coin_type = 1;
+	 * @generated from protobuf field: optional string coin_type = 1
 	 */
 	coinType?: string;
 }
@@ -39,21 +39,21 @@ export interface GetCoinInfoResponse {
 	/**
 	 * Required. The coin type.
 	 *
-	 * @generated from protobuf field: optional string coin_type = 1;
+	 * @generated from protobuf field: optional string coin_type = 1
 	 */
 	coinType?: string;
 	/**
 	 * This field will be populated with information about this coin
 	 * type's `0x2::coin::CoinMetadata` if it exists and has not been wrapped.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.CoinMetadata metadata = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.CoinMetadata metadata = 2
 	 */
 	metadata?: CoinMetadata;
 	/**
 	 * This field will be populated with information about this coin
 	 * type's `0x2::coin::TreasuryCap` if it exists and has not been wrapped.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.CoinTreasury treasury = 3;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.CoinTreasury treasury = 3
 	 */
 	treasury?: CoinTreasury;
 	/**
@@ -61,7 +61,7 @@ export interface GetCoinInfoResponse {
 	 * populated with information about its `0x2::coin::RegulatedCoinMetadata`
 	 * object.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.RegulatedCoinMetadata regulated_metadata = 4;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.RegulatedCoinMetadata regulated_metadata = 4
 	 */
 	regulatedMetadata?: RegulatedCoinMetadata;
 }
@@ -72,41 +72,50 @@ export interface GetCoinInfoResponse {
  */
 export interface CoinMetadata {
 	/**
-	 * ObjectId of the `0x2::coin::CoinMetadata` object.
+	 * ObjectId of the `0x2::coin::CoinMetadata` object or
+	 * 0x2::sui::coin_registry::CoinData object (when registered with CoinRegistry).
 	 *
-	 * @generated from protobuf field: optional string id = 1;
+	 * @generated from protobuf field: optional string id = 1
 	 */
 	id?: string;
 	/**
 	 * Number of decimal places to coin uses.
 	 *
-	 * @generated from protobuf field: optional uint32 decimals = 2;
+	 * @generated from protobuf field: optional uint32 decimals = 2
 	 */
 	decimals?: number;
 	/**
 	 * Name for the token
 	 *
-	 * @generated from protobuf field: optional string name = 3;
+	 * @generated from protobuf field: optional string name = 3
 	 */
 	name?: string;
 	/**
 	 * Symbol for the token
 	 *
-	 * @generated from protobuf field: optional string symbol = 4;
+	 * @generated from protobuf field: optional string symbol = 4
 	 */
 	symbol?: string;
 	/**
 	 * Description of the token
 	 *
-	 * @generated from protobuf field: optional string description = 5;
+	 * @generated from protobuf field: optional string description = 5
 	 */
 	description?: string;
 	/**
 	 * URL for the token logo
 	 *
-	 * @generated from protobuf field: optional string icon_url = 6;
+	 * @generated from protobuf field: optional string icon_url = 6
 	 */
 	iconUrl?: string;
+	/**
+	 * The MetadataCap ID if it has been claimed for this coin type.
+	 * This capability allows updating the coin's metadata fields.
+	 * Only populated when metadata is from CoinRegistry.
+	 *
+	 * @generated from protobuf field: optional string metadata_cap_id = 7
+	 */
+	metadataCapId?: string;
 }
 /**
  * Information about a coin type's `0x2::coin::TreasuryCap` and its total available supply
@@ -117,15 +126,40 @@ export interface CoinTreasury {
 	/**
 	 * ObjectId of the `0x2::coin::TreasuryCap` object.
 	 *
-	 * @generated from protobuf field: optional string id = 1;
+	 * @generated from protobuf field: optional string id = 1
 	 */
 	id?: string;
 	/**
 	 * Total available supply for this coin type.
 	 *
-	 * @generated from protobuf field: optional uint64 total_supply = 2;
+	 * @generated from protobuf field: optional uint64 total_supply = 2
 	 */
 	totalSupply?: bigint;
+	/**
+	 * Supply state indicating if the supply is fixed or can still be minted
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.CoinTreasury.SupplyState supply_state = 3
+	 */
+	supplyState?: CoinTreasury_SupplyState;
+}
+/**
+ * Supply state of a coin, matching the Move SupplyState enum
+ *
+ * @generated from protobuf enum sui.rpc.v2beta2.CoinTreasury.SupplyState
+ */
+export enum CoinTreasury_SupplyState {
+	/**
+	 * Supply is unknown or TreasuryCap still exists (minting still possible)
+	 *
+	 * @generated from protobuf enum value: SUPPLY_STATE_UNKNOWN = 0;
+	 */
+	SUPPLY_STATE_UNKNOWN = 0,
+	/**
+	 * Supply is fixed (TreasuryCap consumed, no more minting possible)
+	 *
+	 * @generated from protobuf enum value: FIXED = 1;
+	 */
+	FIXED = 1,
 }
 /**
  * Information about a regulated coin, which indicates that it makes use of the transfer deny list.
@@ -136,19 +170,19 @@ export interface RegulatedCoinMetadata {
 	/**
 	 * ObjectId of the `0x2::coin::RegulatedCoinMetadata` object.
 	 *
-	 * @generated from protobuf field: optional string id = 1;
+	 * @generated from protobuf field: optional string id = 1
 	 */
 	id?: string;
 	/**
-	 * The ID of the coin's `CoinMetadata` object.
+	 * The ID of the coin's `CoinMetadata` or `CoinData` object.
 	 *
-	 * @generated from protobuf field: optional string coin_metadata_object = 2;
+	 * @generated from protobuf field: optional string coin_metadata_object = 2
 	 */
 	coinMetadataObject?: string;
 	/**
 	 * The ID of the coin's `DenyCap` object.
 	 *
-	 * @generated from protobuf field: optional string deny_cap_object = 3;
+	 * @generated from protobuf field: optional string deny_cap_object = 3
 	 */
 	denyCapObject?: string;
 }
@@ -161,13 +195,13 @@ export interface GetBalanceRequest {
 	/**
 	 * Required. The owner's Sui address.
 	 *
-	 * @generated from protobuf field: optional string owner = 1;
+	 * @generated from protobuf field: optional string owner = 1
 	 */
 	owner?: string;
 	/**
 	 * Required. The type names for the coin (e.g., 0x2::sui::SUI).
 	 *
-	 * @generated from protobuf field: optional string coin_type = 2;
+	 * @generated from protobuf field: optional string coin_type = 2
 	 */
 	coinType?: string;
 }
@@ -181,7 +215,7 @@ export interface GetBalanceResponse {
 	/**
 	 * The balance information for the requested coin type.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Balance balance = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Balance balance = 1
 	 */
 	balance?: Balance;
 }
@@ -194,7 +228,7 @@ export interface ListBalancesRequest {
 	/**
 	 * Required. The owner's Sui address.
 	 *
-	 * @generated from protobuf field: optional string owner = 1;
+	 * @generated from protobuf field: optional string owner = 1
 	 */
 	owner?: string;
 	/**
@@ -202,7 +236,7 @@ export interface ListBalancesRequest {
 	 * If unspecified, at most `50` entries will be returned.
 	 * The maximum value is `1000`; values above `1000` will be coerced to `1000`.
 	 *
-	 * @generated from protobuf field: optional uint32 page_size = 2;
+	 * @generated from protobuf field: optional uint32 page_size = 2
 	 */
 	pageSize?: number;
 	/**
@@ -212,7 +246,7 @@ export interface ListBalancesRequest {
 	 * When paginating, all other parameters provided to `ListBalances` must
 	 * match the call that provided the page token.
 	 *
-	 * @generated from protobuf field: optional bytes page_token = 3;
+	 * @generated from protobuf field: optional bytes page_token = 3
 	 */
 	pageToken?: Uint8Array;
 }
@@ -226,14 +260,14 @@ export interface ListBalancesResponse {
 	/**
 	 * The list of coin types and their respective balances.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Balance balances = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Balance balances = 1
 	 */
 	balances: Balance[];
 	/**
 	 * A token, which can be sent as `page_token` to retrieve the next page.
 	 * If this field is omitted, there are no subsequent pages.
 	 *
-	 * @generated from protobuf field: optional bytes next_page_token = 2;
+	 * @generated from protobuf field: optional bytes next_page_token = 2
 	 */
 	nextPageToken?: Uint8Array;
 }
@@ -246,13 +280,13 @@ export interface Balance {
 	/**
 	 * The type of the coin (e.g., 0x2::sui::SUI).
 	 *
-	 * @generated from protobuf field: optional string coin_type = 1;
+	 * @generated from protobuf field: optional string coin_type = 1
 	 */
 	coinType?: string;
 	/**
 	 * Shows the total balance of the coin in its smallest unit.
 	 *
-	 * @generated from protobuf field: optional uint64 balance = 3;
+	 * @generated from protobuf field: optional uint64 balance = 3
 	 */
 	balance?: bigint;
 }
@@ -265,7 +299,7 @@ export interface ListDynamicFieldsRequest {
 	/**
 	 * Required. The `UID` of the parent, which owns the collections of dynamic fields.
 	 *
-	 * @generated from protobuf field: optional string parent = 1;
+	 * @generated from protobuf field: optional string parent = 1
 	 */
 	parent?: string;
 	/**
@@ -273,7 +307,7 @@ export interface ListDynamicFieldsRequest {
 	 * If unspecified, at most `50` entries will be returned.
 	 * The maximum value is `1000`; values above `1000` will be coerced to `1000`.
 	 *
-	 * @generated from protobuf field: optional uint32 page_size = 2;
+	 * @generated from protobuf field: optional uint32 page_size = 2
 	 */
 	pageSize?: number;
 	/**
@@ -283,9 +317,13 @@ export interface ListDynamicFieldsRequest {
 	 * When paginating, all other parameters provided to `ListDynamicFields` must
 	 * match the call that provided the page token.
 	 *
-	 * @generated from protobuf field: optional bytes page_token = 3;
+	 * @generated from protobuf field: optional bytes page_token = 3
 	 */
 	pageToken?: Uint8Array;
+	/**
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 4
+	 */
+	readMask?: FieldMask;
 }
 /**
  * Response message for `NodeService.ListDynamicFields`
@@ -296,14 +334,14 @@ export interface ListDynamicFieldsResponse {
 	/**
 	 * Page of dynamic fields owned by the specified parent.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.DynamicField dynamic_fields = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.DynamicField dynamic_fields = 1
 	 */
 	dynamicFields: DynamicField[];
 	/**
 	 * A token, which can be sent as `page_token` to retrieve the next page.
 	 * If this field is omitted, there are no subsequent pages.
 	 *
-	 * @generated from protobuf field: optional bytes next_page_token = 2;
+	 * @generated from protobuf field: optional bytes next_page_token = 2
 	 */
 	nextPageToken?: Uint8Array;
 }
@@ -312,31 +350,31 @@ export interface ListDynamicFieldsResponse {
  */
 export interface DynamicField {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.DynamicField.DynamicFieldKind kind = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.DynamicField.DynamicFieldKind kind = 1
 	 */
 	kind?: DynamicField_DynamicFieldKind;
 	/**
 	 * ObjectId of this dynamic field's parent.
 	 *
-	 * @generated from protobuf field: optional string parent = 2;
+	 * @generated from protobuf field: optional string parent = 2
 	 */
 	parent?: string;
 	/**
 	 * ObjectId of this dynamic field.
 	 *
-	 * @generated from protobuf field: optional string field_id = 3;
+	 * @generated from protobuf field: optional string field_id = 3
 	 */
 	fieldId?: string;
 	/**
 	 * The type of the dynamic field "name"
 	 *
-	 * @generated from protobuf field: optional string name_type = 4;
+	 * @generated from protobuf field: optional string name_type = 4
 	 */
 	nameType?: string;
 	/**
 	 * The serialized move value of "name"
 	 *
-	 * @generated from protobuf field: optional bytes name_value = 5;
+	 * @generated from protobuf field: optional bytes name_value = 5
 	 */
 	nameValue?: Uint8Array;
 	/**
@@ -346,7 +384,7 @@ export interface DynamicField {
 	 * itself (which is a child of this field), otherwise this is the type of the
 	 * value of this field.
 	 *
-	 * @generated from protobuf field: optional string value_type = 6;
+	 * @generated from protobuf field: optional string value_type = 6
 	 */
 	valueType?: string;
 	/**
@@ -356,9 +394,15 @@ export interface DynamicField {
 	 * The presence or absence of this field can be used to determine if a child
 	 * is a dynamic field or a dynamic child object
 	 *
-	 * @generated from protobuf field: optional string dynamic_object_id = 7;
+	 * @generated from protobuf field: optional string dynamic_object_id = 7
 	 */
 	dynamicObjectId?: string;
+	/**
+	 * The object itself when a child is a dynamic object field.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Object object = 8
+	 */
+	object?: Object;
 }
 /**
  * @generated from protobuf enum sui.rpc.v2beta2.DynamicField.DynamicFieldKind
@@ -382,17 +426,17 @@ export enum DynamicField_DynamicFieldKind {
  */
 export interface SimulateTransactionRequest {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Transaction transaction = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Transaction transaction = 1
 	 */
 	transaction?: Transaction;
 	/**
-	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 2;
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 2
 	 */
 	readMask?: FieldMask;
 	/**
 	 * Specify whether checks should be ENABLED (default) or DISABLED while executing the transaction
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.SimulateTransactionRequest.TransactionChecks checks = 3;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.SimulateTransactionRequest.TransactionChecks checks = 3
 	 */
 	checks?: SimulateTransactionRequest_TransactionChecks;
 	/**
@@ -401,7 +445,7 @@ export interface SimulateTransactionRequest {
 	 *
 	 * This option will be ignored if `checks` is `DISABLED`.
 	 *
-	 * @generated from protobuf field: optional bool do_gas_selection = 4;
+	 * @generated from protobuf field: optional bool do_gas_selection = 4
 	 */
 	doGasSelection?: boolean;
 }
@@ -425,11 +469,11 @@ export enum SimulateTransactionRequest_TransactionChecks {
  */
 export interface SimulateTransactionResponse {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ExecutedTransaction transaction = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ExecutedTransaction transaction = 1
 	 */
 	transaction?: ExecutedTransaction;
 	/**
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.CommandResult outputs = 2;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.CommandResult outputs = 2
 	 */
 	outputs: CommandResult[];
 }
@@ -440,11 +484,11 @@ export interface SimulateTransactionResponse {
  */
 export interface CommandResult {
 	/**
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.CommandOutput return_values = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.CommandOutput return_values = 1
 	 */
 	returnValues: CommandOutput[];
 	/**
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.CommandOutput mutated_by_ref = 2;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.CommandOutput mutated_by_ref = 2
 	 */
 	mutatedByRef: CommandOutput[];
 }
@@ -453,17 +497,17 @@ export interface CommandResult {
  */
 export interface CommandOutput {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Argument argument = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Argument argument = 1
 	 */
 	argument?: Argument;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Bcs value = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Bcs value = 2
 	 */
 	value?: Bcs;
 	/**
 	 * JSON rendering of the output.
 	 *
-	 * @generated from protobuf field: optional google.protobuf.Value json = 3;
+	 * @generated from protobuf field: optional google.protobuf.Value json = 3
 	 */
 	json?: Value;
 }
@@ -474,9 +518,31 @@ export interface ListOwnedObjectsRequest {
 	/**
 	 * Required. The address of the account that owns the objects.
 	 *
-	 * @generated from protobuf field: optional string owner = 1;
+	 * @generated from protobuf field: optional string owner = 1
 	 */
 	owner?: string;
+	/**
+	 * The maximum number of entries return. The service may return fewer than this value.
+	 * If unspecified, at most `50` entries will be returned.
+	 * The maximum value is `1000`; values above `1000` will be coerced to `1000`.
+	 *
+	 * @generated from protobuf field: optional uint32 page_size = 2
+	 */
+	pageSize?: number;
+	/**
+	 * A page token, received from a previous `ListOwnedObjects` call.
+	 * Provide this to retrieve the subsequent page.
+	 *
+	 * When paginating, all other parameters provided to `ListOwnedObjects` must
+	 * match the call that provided the page token.
+	 *
+	 * @generated from protobuf field: optional bytes page_token = 3
+	 */
+	pageToken?: Uint8Array;
+	/**
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 4
+	 */
+	readMask?: FieldMask;
 	/**
 	 * Optional type filter to limit the types of objects listed.
 	 *
@@ -487,27 +553,9 @@ export interface ListOwnedObjectsRequest {
 	 * that match the provided type parameters, e.g.
 	 * `0x2::coin::Coin<0x2::sui::SUI>` will only return `Coin<SUI>` objects.
 	 *
-	 * @generated from protobuf field: optional string object_type = 4;
+	 * @generated from protobuf field: optional string object_type = 5
 	 */
 	objectType?: string;
-	/**
-	 * The maximum number of entries return. The service may return fewer than this value.
-	 * If unspecified, at most `50` entries will be returned.
-	 * The maximum value is `1000`; values above `1000` will be coerced to `1000`.
-	 *
-	 * @generated from protobuf field: optional uint32 page_size = 2;
-	 */
-	pageSize?: number;
-	/**
-	 * A page token, received from a previous `ListOwnedObjects` call.
-	 * Provide this to retrieve the subsequent page.
-	 *
-	 * When paginating, all other parameters provided to `ListOwnedObjects` must
-	 * match the call that provided the page token.
-	 *
-	 * @generated from protobuf field: optional bytes page_token = 3;
-	 */
-	pageToken?: Uint8Array;
 }
 /**
  * @generated from protobuf message sui.rpc.v2beta2.ListOwnedObjectsResponse
@@ -516,47 +564,16 @@ export interface ListOwnedObjectsResponse {
 	/**
 	 * Page of dynamic fields owned by the specified parent.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.OwnedObject objects = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Object objects = 1
 	 */
-	objects: OwnedObject[];
+	objects: Object[];
 	/**
 	 * A token, which can be sent as `page_token` to retrieve the next page.
 	 * If this field is omitted, there are no subsequent pages.
 	 *
-	 * @generated from protobuf field: optional bytes next_page_token = 2;
+	 * @generated from protobuf field: optional bytes next_page_token = 2
 	 */
 	nextPageToken?: Uint8Array;
-}
-/**
- * @generated from protobuf message sui.rpc.v2beta2.OwnedObject
- */
-export interface OwnedObject {
-	/**
-	 * @generated from protobuf field: optional string object_id = 2;
-	 */
-	objectId?: string;
-	/**
-	 * @generated from protobuf field: optional uint64 version = 3;
-	 */
-	version?: bigint;
-	/**
-	 * @generated from protobuf field: optional string digest = 4;
-	 */
-	digest?: string;
-	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Owner owner = 5;
-	 */
-	owner?: Owner;
-	/**
-	 * @generated from protobuf field: optional string object_type = 6;
-	 */
-	objectType?: string;
-	/**
-	 * Current balance if this object is a `0x2::coin::Coin<T>`
-	 *
-	 * @generated from protobuf field: optional uint64 balance = 200;
-	 */
-	balance?: bigint;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class GetCoinInfoRequest$Type extends MessageType<GetCoinInfoRequest> {
@@ -740,6 +757,7 @@ class CoinMetadata$Type extends MessageType<CoinMetadata> {
 			{ no: 4, name: 'symbol', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 			{ no: 5, name: 'description', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 			{ no: 6, name: 'icon_url', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 7, name: 'metadata_cap_id', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 		]);
 	}
 	create(value?: PartialMessage<CoinMetadata>): CoinMetadata {
@@ -775,6 +793,9 @@ class CoinMetadata$Type extends MessageType<CoinMetadata> {
 					break;
 				case /* optional string icon_url */ 6:
 					message.iconUrl = reader.string();
+					break;
+				case /* optional string metadata_cap_id */ 7:
+					message.metadataCapId = reader.string();
 					break;
 				default:
 					let u = options.readUnknownField;
@@ -815,6 +836,9 @@ class CoinMetadata$Type extends MessageType<CoinMetadata> {
 		/* optional string icon_url = 6; */
 		if (message.iconUrl !== undefined)
 			writer.tag(6, WireType.LengthDelimited).string(message.iconUrl);
+		/* optional string metadata_cap_id = 7; */
+		if (message.metadataCapId !== undefined)
+			writer.tag(7, WireType.LengthDelimited).string(message.metadataCapId);
 		let u = options.writeUnknownFields;
 		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
 		return writer;
@@ -836,6 +860,13 @@ class CoinTreasury$Type extends MessageType<CoinTreasury> {
 				opt: true,
 				T: 4 /*ScalarType.UINT64*/,
 				L: 0 /*LongType.BIGINT*/,
+			},
+			{
+				no: 3,
+				name: 'supply_state',
+				kind: 'enum',
+				opt: true,
+				T: () => ['sui.rpc.v2beta2.CoinTreasury.SupplyState', CoinTreasury_SupplyState],
 			},
 		]);
 	}
@@ -860,6 +891,9 @@ class CoinTreasury$Type extends MessageType<CoinTreasury> {
 					break;
 				case /* optional uint64 total_supply */ 2:
 					message.totalSupply = reader.uint64().toBigInt();
+					break;
+				case /* optional sui.rpc.v2beta2.CoinTreasury.SupplyState supply_state */ 3:
+					message.supplyState = reader.int32();
 					break;
 				default:
 					let u = options.readUnknownField;
@@ -890,6 +924,9 @@ class CoinTreasury$Type extends MessageType<CoinTreasury> {
 		/* optional uint64 total_supply = 2; */
 		if (message.totalSupply !== undefined)
 			writer.tag(2, WireType.Varint).uint64(message.totalSupply);
+		/* optional sui.rpc.v2beta2.CoinTreasury.SupplyState supply_state = 3; */
+		if (message.supplyState !== undefined)
+			writer.tag(3, WireType.Varint).int32(message.supplyState);
 		let u = options.writeUnknownFields;
 		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
 		return writer;
@@ -1201,7 +1238,7 @@ class ListBalancesResponse$Type extends MessageType<ListBalancesResponse> {
 				no: 1,
 				name: 'balances',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Balance,
 			},
 			{ no: 2, name: 'next_page_token', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },
@@ -1355,6 +1392,7 @@ class ListDynamicFieldsRequest$Type extends MessageType<ListDynamicFieldsRequest
 			{ no: 1, name: 'parent', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 			{ no: 2, name: 'page_size', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
 			{ no: 3, name: 'page_token', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },
+			{ no: 4, name: 'read_mask', kind: 'message', T: () => FieldMask },
 		]);
 	}
 	create(value?: PartialMessage<ListDynamicFieldsRequest>): ListDynamicFieldsRequest {
@@ -1381,6 +1419,14 @@ class ListDynamicFieldsRequest$Type extends MessageType<ListDynamicFieldsRequest
 					break;
 				case /* optional bytes page_token */ 3:
 					message.pageToken = reader.bytes();
+					break;
+				case /* optional google.protobuf.FieldMask read_mask */ 4:
+					message.readMask = FieldMask.internalBinaryRead(
+						reader,
+						reader.uint32(),
+						options,
+						message.readMask,
+					);
 					break;
 				default:
 					let u = options.readUnknownField;
@@ -1414,6 +1460,13 @@ class ListDynamicFieldsRequest$Type extends MessageType<ListDynamicFieldsRequest
 		/* optional bytes page_token = 3; */
 		if (message.pageToken !== undefined)
 			writer.tag(3, WireType.LengthDelimited).bytes(message.pageToken);
+		/* optional google.protobuf.FieldMask read_mask = 4; */
+		if (message.readMask)
+			FieldMask.internalBinaryWrite(
+				message.readMask,
+				writer.tag(4, WireType.LengthDelimited).fork(),
+				options,
+			).join();
 		let u = options.writeUnknownFields;
 		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
 		return writer;
@@ -1431,7 +1484,7 @@ class ListDynamicFieldsResponse$Type extends MessageType<ListDynamicFieldsRespon
 				no: 1,
 				name: 'dynamic_fields',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => DynamicField,
 			},
 			{ no: 2, name: 'next_page_token', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },
@@ -1523,6 +1576,7 @@ class DynamicField$Type extends MessageType<DynamicField> {
 			{ no: 5, name: 'name_value', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },
 			{ no: 6, name: 'value_type', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 			{ no: 7, name: 'dynamic_object_id', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 8, name: 'object', kind: 'message', T: () => Object },
 		]);
 	}
 	create(value?: PartialMessage<DynamicField>): DynamicField {
@@ -1561,6 +1615,14 @@ class DynamicField$Type extends MessageType<DynamicField> {
 					break;
 				case /* optional string dynamic_object_id */ 7:
 					message.dynamicObjectId = reader.string();
+					break;
+				case /* optional sui.rpc.v2beta2.Object object */ 8:
+					message.object = Object.internalBinaryRead(
+						reader,
+						reader.uint32(),
+						options,
+						message.object,
+					);
 					break;
 				default:
 					let u = options.readUnknownField;
@@ -1606,6 +1668,13 @@ class DynamicField$Type extends MessageType<DynamicField> {
 		/* optional string dynamic_object_id = 7; */
 		if (message.dynamicObjectId !== undefined)
 			writer.tag(7, WireType.LengthDelimited).string(message.dynamicObjectId);
+		/* optional sui.rpc.v2beta2.Object object = 8; */
+		if (message.object)
+			Object.internalBinaryWrite(
+				message.object,
+				writer.tag(8, WireType.LengthDelimited).fork(),
+				options,
+			).join();
 		let u = options.writeUnknownFields;
 		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
 		return writer;
@@ -1734,7 +1803,7 @@ class SimulateTransactionResponse$Type extends MessageType<SimulateTransactionRe
 				no: 2,
 				name: 'outputs',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => CommandResult,
 			},
 		]);
@@ -1823,14 +1892,14 @@ class CommandResult$Type extends MessageType<CommandResult> {
 				no: 1,
 				name: 'return_values',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => CommandOutput,
 			},
 			{
 				no: 2,
 				name: 'mutated_by_ref',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => CommandOutput,
 			},
 		]);
@@ -2008,9 +2077,10 @@ class ListOwnedObjectsRequest$Type extends MessageType<ListOwnedObjectsRequest> 
 	constructor() {
 		super('sui.rpc.v2beta2.ListOwnedObjectsRequest', [
 			{ no: 1, name: 'owner', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
-			{ no: 4, name: 'object_type', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 			{ no: 2, name: 'page_size', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
 			{ no: 3, name: 'page_token', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },
+			{ no: 4, name: 'read_mask', kind: 'message', T: () => FieldMask },
+			{ no: 5, name: 'object_type', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 		]);
 	}
 	create(value?: PartialMessage<ListOwnedObjectsRequest>): ListOwnedObjectsRequest {
@@ -2032,14 +2102,22 @@ class ListOwnedObjectsRequest$Type extends MessageType<ListOwnedObjectsRequest> 
 				case /* optional string owner */ 1:
 					message.owner = reader.string();
 					break;
-				case /* optional string object_type */ 4:
-					message.objectType = reader.string();
-					break;
 				case /* optional uint32 page_size */ 2:
 					message.pageSize = reader.uint32();
 					break;
 				case /* optional bytes page_token */ 3:
 					message.pageToken = reader.bytes();
+					break;
+				case /* optional google.protobuf.FieldMask read_mask */ 4:
+					message.readMask = FieldMask.internalBinaryRead(
+						reader,
+						reader.uint32(),
+						options,
+						message.readMask,
+					);
+					break;
+				case /* optional string object_type */ 5:
+					message.objectType = reader.string();
 					break;
 				default:
 					let u = options.readUnknownField;
@@ -2067,14 +2145,21 @@ class ListOwnedObjectsRequest$Type extends MessageType<ListOwnedObjectsRequest> 
 	): IBinaryWriter {
 		/* optional string owner = 1; */
 		if (message.owner !== undefined) writer.tag(1, WireType.LengthDelimited).string(message.owner);
-		/* optional string object_type = 4; */
-		if (message.objectType !== undefined)
-			writer.tag(4, WireType.LengthDelimited).string(message.objectType);
 		/* optional uint32 page_size = 2; */
 		if (message.pageSize !== undefined) writer.tag(2, WireType.Varint).uint32(message.pageSize);
 		/* optional bytes page_token = 3; */
 		if (message.pageToken !== undefined)
 			writer.tag(3, WireType.LengthDelimited).bytes(message.pageToken);
+		/* optional google.protobuf.FieldMask read_mask = 4; */
+		if (message.readMask)
+			FieldMask.internalBinaryWrite(
+				message.readMask,
+				writer.tag(4, WireType.LengthDelimited).fork(),
+				options,
+			).join();
+		/* optional string object_type = 5; */
+		if (message.objectType !== undefined)
+			writer.tag(5, WireType.LengthDelimited).string(message.objectType);
 		let u = options.writeUnknownFields;
 		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
 		return writer;
@@ -2092,8 +2177,8 @@ class ListOwnedObjectsResponse$Type extends MessageType<ListOwnedObjectsResponse
 				no: 1,
 				name: 'objects',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
-				T: () => OwnedObject,
+				repeat: 2 /*RepeatType.UNPACKED*/,
+				T: () => Object,
 			},
 			{ no: 2, name: 'next_page_token', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },
 		]);
@@ -2115,8 +2200,8 @@ class ListOwnedObjectsResponse$Type extends MessageType<ListOwnedObjectsResponse
 		while (reader.pos < end) {
 			let [fieldNo, wireType] = reader.tag();
 			switch (fieldNo) {
-				case /* repeated sui.rpc.v2beta2.OwnedObject objects */ 1:
-					message.objects.push(OwnedObject.internalBinaryRead(reader, reader.uint32(), options));
+				case /* repeated sui.rpc.v2beta2.Object objects */ 1:
+					message.objects.push(Object.internalBinaryRead(reader, reader.uint32(), options));
 					break;
 				case /* optional bytes next_page_token */ 2:
 					message.nextPageToken = reader.bytes();
@@ -2145,9 +2230,9 @@ class ListOwnedObjectsResponse$Type extends MessageType<ListOwnedObjectsResponse
 		writer: IBinaryWriter,
 		options: BinaryWriteOptions,
 	): IBinaryWriter {
-		/* repeated sui.rpc.v2beta2.OwnedObject objects = 1; */
+		/* repeated sui.rpc.v2beta2.Object objects = 1; */
 		for (let i = 0; i < message.objects.length; i++)
-			OwnedObject.internalBinaryWrite(
+			Object.internalBinaryWrite(
 				message.objects[i],
 				writer.tag(1, WireType.LengthDelimited).fork(),
 				options,
@@ -2164,119 +2249,6 @@ class ListOwnedObjectsResponse$Type extends MessageType<ListOwnedObjectsResponse
  * @generated MessageType for protobuf message sui.rpc.v2beta2.ListOwnedObjectsResponse
  */
 export const ListOwnedObjectsResponse = new ListOwnedObjectsResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class OwnedObject$Type extends MessageType<OwnedObject> {
-	constructor() {
-		super('sui.rpc.v2beta2.OwnedObject', [
-			{ no: 2, name: 'object_id', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
-			{
-				no: 3,
-				name: 'version',
-				kind: 'scalar',
-				opt: true,
-				T: 4 /*ScalarType.UINT64*/,
-				L: 0 /*LongType.BIGINT*/,
-			},
-			{ no: 4, name: 'digest', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
-			{ no: 5, name: 'owner', kind: 'message', T: () => Owner },
-			{ no: 6, name: 'object_type', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
-			{
-				no: 200,
-				name: 'balance',
-				kind: 'scalar',
-				opt: true,
-				T: 4 /*ScalarType.UINT64*/,
-				L: 0 /*LongType.BIGINT*/,
-			},
-		]);
-	}
-	create(value?: PartialMessage<OwnedObject>): OwnedObject {
-		const message = globalThis.Object.create(this.messagePrototype!);
-		if (value !== undefined) reflectionMergePartial<OwnedObject>(this, message, value);
-		return message;
-	}
-	internalBinaryRead(
-		reader: IBinaryReader,
-		length: number,
-		options: BinaryReadOptions,
-		target?: OwnedObject,
-	): OwnedObject {
-		let message = target ?? this.create(),
-			end = reader.pos + length;
-		while (reader.pos < end) {
-			let [fieldNo, wireType] = reader.tag();
-			switch (fieldNo) {
-				case /* optional string object_id */ 2:
-					message.objectId = reader.string();
-					break;
-				case /* optional uint64 version */ 3:
-					message.version = reader.uint64().toBigInt();
-					break;
-				case /* optional string digest */ 4:
-					message.digest = reader.string();
-					break;
-				case /* optional sui.rpc.v2beta2.Owner owner */ 5:
-					message.owner = Owner.internalBinaryRead(reader, reader.uint32(), options, message.owner);
-					break;
-				case /* optional string object_type */ 6:
-					message.objectType = reader.string();
-					break;
-				case /* optional uint64 balance */ 200:
-					message.balance = reader.uint64().toBigInt();
-					break;
-				default:
-					let u = options.readUnknownField;
-					if (u === 'throw')
-						throw new globalThis.Error(
-							`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`,
-						);
-					let d = reader.skip(wireType);
-					if (u !== false)
-						(u === true ? UnknownFieldHandler.onRead : u)(
-							this.typeName,
-							message,
-							fieldNo,
-							wireType,
-							d,
-						);
-			}
-		}
-		return message;
-	}
-	internalBinaryWrite(
-		message: OwnedObject,
-		writer: IBinaryWriter,
-		options: BinaryWriteOptions,
-	): IBinaryWriter {
-		/* optional string object_id = 2; */
-		if (message.objectId !== undefined)
-			writer.tag(2, WireType.LengthDelimited).string(message.objectId);
-		/* optional uint64 version = 3; */
-		if (message.version !== undefined) writer.tag(3, WireType.Varint).uint64(message.version);
-		/* optional string digest = 4; */
-		if (message.digest !== undefined)
-			writer.tag(4, WireType.LengthDelimited).string(message.digest);
-		/* optional sui.rpc.v2beta2.Owner owner = 5; */
-		if (message.owner)
-			Owner.internalBinaryWrite(
-				message.owner,
-				writer.tag(5, WireType.LengthDelimited).fork(),
-				options,
-			).join();
-		/* optional string object_type = 6; */
-		if (message.objectType !== undefined)
-			writer.tag(6, WireType.LengthDelimited).string(message.objectType);
-		/* optional uint64 balance = 200; */
-		if (message.balance !== undefined) writer.tag(200, WireType.Varint).uint64(message.balance);
-		let u = options.writeUnknownFields;
-		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-		return writer;
-	}
-}
-/**
- * @generated MessageType for protobuf message sui.rpc.v2beta2.OwnedObject
- */
-export const OwnedObject = new OwnedObject$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2beta2.LiveDataService
  */

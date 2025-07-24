@@ -400,9 +400,9 @@ function mapUnchangedSharedObjectKind(
 			return 'Unknown';
 		case UnchangedSharedObject_UnchangedSharedObjectKind.READ_ONLY_ROOT:
 			return 'ReadOnlyRoot';
-		case UnchangedSharedObject_UnchangedSharedObjectKind.MUTATE_DELETED:
+		case UnchangedSharedObject_UnchangedSharedObjectKind.MUTATE_CONSENSUS_STREAM_ENDED:
 			return 'MutateDeleted';
-		case UnchangedSharedObject_UnchangedSharedObjectKind.READ_DELETED:
+		case UnchangedSharedObject_UnchangedSharedObjectKind.READ_CONSENSUS_STREAM_ENDED:
 			return 'ReadDeleted';
 		case UnchangedSharedObject_UnchangedSharedObjectKind.CANCELED:
 			return 'Cancelled';

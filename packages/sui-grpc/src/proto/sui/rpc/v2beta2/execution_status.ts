@@ -18,13 +18,13 @@ export interface ExecutionStatus {
 	/**
 	 * Indicates if the transaction was successful or not.
 	 *
-	 * @generated from protobuf field: optional bool success = 1;
+	 * @generated from protobuf field: optional bool success = 1
 	 */
 	success?: boolean;
 	/**
 	 * The error if `success` is false.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ExecutionError error = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ExecutionError error = 2
 	 */
 	error?: ExecutionError;
 }
@@ -37,17 +37,17 @@ export interface ExecutionError {
 	/**
 	 * A human readable description of the error
 	 *
-	 * @generated from protobuf field: optional string description = 1;
+	 * @generated from protobuf field: optional string description = 1
 	 */
 	description?: string;
 	/**
 	 * The command, if any, during which the error occurred.
 	 *
-	 * @generated from protobuf field: optional uint64 command = 2;
+	 * @generated from protobuf field: optional uint64 command = 2
 	 */
 	command?: bigint;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ExecutionError.ExecutionErrorKind kind = 3;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ExecutionError.ExecutionErrorKind kind = 3
 	 */
 	kind?: ExecutionError_ExecutionErrorKind;
 	/**
@@ -57,56 +57,56 @@ export interface ExecutionError {
 		| {
 				oneofKind: 'abort';
 				/**
-				 * @generated from protobuf field: sui.rpc.v2beta2.MoveAbort abort = 4;
+				 * @generated from protobuf field: sui.rpc.v2beta2.MoveAbort abort = 4
 				 */
 				abort: MoveAbort;
 		  }
 		| {
 				oneofKind: 'sizeError';
 				/**
-				 * @generated from protobuf field: sui.rpc.v2beta2.SizeError size_error = 5;
+				 * @generated from protobuf field: sui.rpc.v2beta2.SizeError size_error = 5
 				 */
 				sizeError: SizeError;
 		  }
 		| {
 				oneofKind: 'commandArgumentError';
 				/**
-				 * @generated from protobuf field: sui.rpc.v2beta2.CommandArgumentError command_argument_error = 6;
+				 * @generated from protobuf field: sui.rpc.v2beta2.CommandArgumentError command_argument_error = 6
 				 */
 				commandArgumentError: CommandArgumentError;
 		  }
 		| {
 				oneofKind: 'typeArgumentError';
 				/**
-				 * @generated from protobuf field: sui.rpc.v2beta2.TypeArgumentError type_argument_error = 7;
+				 * @generated from protobuf field: sui.rpc.v2beta2.TypeArgumentError type_argument_error = 7
 				 */
 				typeArgumentError: TypeArgumentError;
 		  }
 		| {
 				oneofKind: 'packageUpgradeError';
 				/**
-				 * @generated from protobuf field: sui.rpc.v2beta2.PackageUpgradeError package_upgrade_error = 8;
+				 * @generated from protobuf field: sui.rpc.v2beta2.PackageUpgradeError package_upgrade_error = 8
 				 */
 				packageUpgradeError: PackageUpgradeError;
 		  }
 		| {
 				oneofKind: 'indexError';
 				/**
-				 * @generated from protobuf field: sui.rpc.v2beta2.IndexError index_error = 9;
+				 * @generated from protobuf field: sui.rpc.v2beta2.IndexError index_error = 9
 				 */
 				indexError: IndexError;
 		  }
 		| {
 				oneofKind: 'objectId';
 				/**
-				 * @generated from protobuf field: string object_id = 10;
+				 * @generated from protobuf field: string object_id = 10
 				 */
 				objectId: string;
 		  }
 		| {
 				oneofKind: 'coinDenyListError';
 				/**
-				 * @generated from protobuf field: sui.rpc.v2beta2.CoinDenyListError coin_deny_list_error = 11;
+				 * @generated from protobuf field: sui.rpc.v2beta2.CoinDenyListError coin_deny_list_error = 11
 				 */
 				coinDenyListError: CoinDenyListError;
 		  }
@@ -115,7 +115,7 @@ export interface ExecutionError {
 				/**
 				 * Set of objects that were congested, leading to the transaction's cancellation.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.CongestedObjects congested_objects = 12;
+				 * @generated from protobuf field: sui.rpc.v2beta2.CongestedObjects congested_objects = 12
 				 */
 				congestedObjects: CongestedObjects;
 		  }
@@ -381,19 +381,19 @@ export enum ExecutionError_ExecutionErrorKind {
  */
 export interface MoveAbort {
 	/**
-	 * @generated from protobuf field: optional uint64 abort_code = 1;
+	 * @generated from protobuf field: optional uint64 abort_code = 1
 	 */
 	abortCode?: bigint;
 	/**
 	 * Location in Move where the error occurred.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.MoveLocation location = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.MoveLocation location = 2
 	 */
 	location?: MoveLocation;
 	/**
 	 * Extra error information if abort code is a "Clever Error"
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.CleverError clever_error = 3;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.CleverError clever_error = 3
 	 */
 	cleverError?: CleverError;
 }
@@ -406,31 +406,31 @@ export interface MoveLocation {
 	/**
 	 * The package ID.
 	 *
-	 * @generated from protobuf field: optional string package = 1;
+	 * @generated from protobuf field: optional string package = 1
 	 */
 	package?: string;
 	/**
 	 * The module name.
 	 *
-	 * @generated from protobuf field: optional string module = 2;
+	 * @generated from protobuf field: optional string module = 2
 	 */
 	module?: string;
 	/**
 	 * The function index.
 	 *
-	 * @generated from protobuf field: optional uint32 function = 3;
+	 * @generated from protobuf field: optional uint32 function = 3
 	 */
 	function?: number;
 	/**
 	 * Offset of the instruction where the error occurred.
 	 *
-	 * @generated from protobuf field: optional uint32 instruction = 4;
+	 * @generated from protobuf field: optional uint32 instruction = 4
 	 */
 	instruction?: number;
 	/**
 	 * The name of the function, if available.
 	 *
-	 * @generated from protobuf field: optional string function_name = 5;
+	 * @generated from protobuf field: optional string function_name = 5
 	 */
 	functionName?: string;
 }
@@ -439,19 +439,19 @@ export interface MoveLocation {
  */
 export interface CleverError {
 	/**
-	 * @generated from protobuf field: optional uint64 error_code = 1;
+	 * @generated from protobuf field: optional uint64 error_code = 1
 	 */
 	errorCode?: bigint;
 	/**
-	 * @generated from protobuf field: optional uint64 line_number = 2;
+	 * @generated from protobuf field: optional uint64 line_number = 2
 	 */
 	lineNumber?: bigint;
 	/**
-	 * @generated from protobuf field: optional string constant_name = 3;
+	 * @generated from protobuf field: optional string constant_name = 3
 	 */
 	constantName?: string;
 	/**
-	 * @generated from protobuf field: optional string constant_type = 4;
+	 * @generated from protobuf field: optional string constant_type = 4
 	 */
 	constantType?: string;
 	/**
@@ -461,14 +461,14 @@ export interface CleverError {
 		| {
 				oneofKind: 'rendered';
 				/**
-				 * @generated from protobuf field: string rendered = 5;
+				 * @generated from protobuf field: string rendered = 5
 				 */
 				rendered: string;
 		  }
 		| {
 				oneofKind: 'raw';
 				/**
-				 * @generated from protobuf field: bytes raw = 6;
+				 * @generated from protobuf field: bytes raw = 6
 				 */
 				raw: Uint8Array;
 		  }
@@ -485,13 +485,13 @@ export interface SizeError {
 	/**
 	 * The offending size.
 	 *
-	 * @generated from protobuf field: optional uint64 size = 1;
+	 * @generated from protobuf field: optional uint64 size = 1
 	 */
 	size?: bigint;
 	/**
 	 * The maximum allowable size.
 	 *
-	 * @generated from protobuf field: optional uint64 max_size = 2;
+	 * @generated from protobuf field: optional uint64 max_size = 2
 	 */
 	maxSize?: bigint;
 }
@@ -502,13 +502,13 @@ export interface IndexError {
 	/**
 	 * Index of an input or result.
 	 *
-	 * @generated from protobuf field: optional uint32 index = 1;
+	 * @generated from protobuf field: optional uint32 index = 1
 	 */
 	index?: number;
 	/**
 	 * Index of a subresult.
 	 *
-	 * @generated from protobuf field: optional uint32 subresult = 2;
+	 * @generated from protobuf field: optional uint32 subresult = 2
 	 */
 	subresult?: number;
 }
@@ -519,13 +519,13 @@ export interface CoinDenyListError {
 	/**
 	 * Denied address.
 	 *
-	 * @generated from protobuf field: optional string address = 1;
+	 * @generated from protobuf field: optional string address = 1
 	 */
 	address?: string;
 	/**
 	 * Coin type.
 	 *
-	 * @generated from protobuf field: optional string coin_type = 2;
+	 * @generated from protobuf field: optional string coin_type = 2
 	 */
 	coinType?: string;
 }
@@ -536,7 +536,7 @@ export interface CoinDenyListError {
  */
 export interface CongestedObjects {
 	/**
-	 * @generated from protobuf field: repeated string objects = 1;
+	 * @generated from protobuf field: repeated string objects = 1
 	 */
 	objects: string[];
 }
@@ -549,15 +549,15 @@ export interface CommandArgumentError {
 	/**
 	 * Position of the problematic argument.
 	 *
-	 * @generated from protobuf field: optional uint32 argument = 1;
+	 * @generated from protobuf field: optional uint32 argument = 1
 	 */
 	argument?: number;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.CommandArgumentError.CommandArgumentErrorKind kind = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.CommandArgumentError.CommandArgumentErrorKind kind = 2
 	 */
 	kind?: CommandArgumentError_CommandArgumentErrorKind;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.IndexError index_error = 3;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.IndexError index_error = 3
 	 */
 	indexError?: IndexError;
 }
@@ -668,31 +668,31 @@ export enum CommandArgumentError_CommandArgumentErrorKind {
  */
 export interface PackageUpgradeError {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.PackageUpgradeError.PackageUpgradeErrorKind kind = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.PackageUpgradeError.PackageUpgradeErrorKind kind = 1
 	 */
 	kind?: PackageUpgradeError_PackageUpgradeErrorKind;
 	/**
 	 * The Package Id.
 	 *
-	 * @generated from protobuf field: optional string package_id = 2;
+	 * @generated from protobuf field: optional string package_id = 2
 	 */
 	packageId?: string;
 	/**
 	 * A digest.
 	 *
-	 * @generated from protobuf field: optional string digest = 3;
+	 * @generated from protobuf field: optional string digest = 3
 	 */
 	digest?: string;
 	/**
 	 * The policy.
 	 *
-	 * @generated from protobuf field: optional uint32 policy = 4;
+	 * @generated from protobuf field: optional uint32 policy = 4
 	 */
 	policy?: number;
 	/**
 	 * The ticket Id.
 	 *
-	 * @generated from protobuf field: optional string ticket_id = 5;
+	 * @generated from protobuf field: optional string ticket_id = 5
 	 */
 	ticketId?: string;
 }
@@ -725,9 +725,9 @@ export enum PackageUpgradeError_PackageUpgradeErrorKind {
 	/**
 	 * Digest in upgrade ticket and computed digest differ.
 	 *
-	 * @generated from protobuf enum value: DIGETS_DOES_NOT_MATCH = 4;
+	 * @generated from protobuf enum value: DIGEST_DOES_NOT_MATCH = 4;
 	 */
-	DIGETS_DOES_NOT_MATCH = 4,
+	DIGEST_DOES_NOT_MATCH = 4,
 	/**
 	 * Upgrade policy is not valid.
 	 *
@@ -750,11 +750,11 @@ export interface TypeArgumentError {
 	/**
 	 * Index of the problematic type argument.
 	 *
-	 * @generated from protobuf field: optional uint32 type_argument = 1;
+	 * @generated from protobuf field: optional uint32 type_argument = 1
 	 */
 	typeArgument?: number;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.TypeArgumentError.TypeArgumentErrorKind kind = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.TypeArgumentError.TypeArgumentErrorKind kind = 2
 	 */
 	kind?: TypeArgumentError_TypeArgumentErrorKind;
 }

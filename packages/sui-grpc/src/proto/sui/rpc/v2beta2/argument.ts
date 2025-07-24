@@ -16,25 +16,25 @@ import { MessageType } from '@protobuf-ts/runtime';
  */
 export interface Argument {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Argument.ArgumentKind kind = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Argument.ArgumentKind kind = 1
 	 */
 	kind?: Argument_ArgumentKind;
 	/**
 	 * Index of an input when `kind` is `INPUT`.
 	 *
-	 * @generated from protobuf field: optional uint32 input = 2;
+	 * @generated from protobuf field: optional uint32 input = 2
 	 */
 	input?: number;
 	/**
 	 * Index of a result when `kind` is `RESULT`.
 	 *
-	 * @generated from protobuf field: optional uint32 result = 3;
+	 * @generated from protobuf field: optional uint32 result = 3
 	 */
 	result?: number;
 	/**
 	 * Used to access a nested result when `kind` is `RESULT`.
 	 *
-	 * @generated from protobuf field: optional uint32 subresult = 4;
+	 * @generated from protobuf field: optional uint32 subresult = 4
 	 */
 	subresult?: number;
 }

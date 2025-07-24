@@ -26,35 +26,35 @@ export interface Transaction {
 	/**
 	 * This Transaction serialized as BCS.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Bcs bcs = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Bcs bcs = 1
 	 */
 	bcs?: Bcs;
 	/**
 	 * The digest of this Transaction.
 	 *
-	 * @generated from protobuf field: optional string digest = 2;
+	 * @generated from protobuf field: optional string digest = 2
 	 */
 	digest?: string;
 	/**
 	 * Version of this Transaction.
 	 *
-	 * @generated from protobuf field: optional int32 version = 3;
+	 * @generated from protobuf field: optional int32 version = 3
 	 */
 	version?: number;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.TransactionKind kind = 4;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.TransactionKind kind = 4
 	 */
 	kind?: TransactionKind;
 	/**
-	 * @generated from protobuf field: optional string sender = 5;
+	 * @generated from protobuf field: optional string sender = 5
 	 */
 	sender?: string;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.GasPayment gas_payment = 6;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.GasPayment gas_payment = 6
 	 */
 	gasPayment?: GasPayment;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.TransactionExpiration expiration = 7;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.TransactionExpiration expiration = 7
 	 */
 	expiration?: TransactionExpiration;
 }
@@ -67,13 +67,13 @@ export interface GasPayment {
 	/**
 	 * Set of gas objects to use for payment.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ObjectReference objects = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ObjectReference objects = 1
 	 */
 	objects: ObjectReference[];
 	/**
 	 * Owner of the gas objects, either the transaction sender or a sponsor.
 	 *
-	 * @generated from protobuf field: optional string owner = 2;
+	 * @generated from protobuf field: optional string owner = 2
 	 */
 	owner?: string;
 	/**
@@ -81,13 +81,13 @@ export interface GasPayment {
 	 *
 	 * Must be greater than or equal to the network's current RGP (reference gas price).
 	 *
-	 * @generated from protobuf field: optional uint64 price = 3;
+	 * @generated from protobuf field: optional uint64 price = 3
 	 */
 	price?: bigint;
 	/**
 	 * Total budget willing to spend for the execution of a transaction.
 	 *
-	 * @generated from protobuf field: optional uint64 budget = 4;
+	 * @generated from protobuf field: optional uint64 budget = 4
 	 */
 	budget?: bigint;
 }
@@ -98,11 +98,11 @@ export interface GasPayment {
  */
 export interface TransactionExpiration {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.TransactionExpiration.TransactionExpirationKind kind = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.TransactionExpiration.TransactionExpirationKind kind = 1
 	 */
 	kind?: TransactionExpiration_TransactionExpirationKind;
 	/**
-	 * @generated from protobuf field: optional uint64 epoch = 2;
+	 * @generated from protobuf field: optional uint64 epoch = 2
 	 */
 	epoch?: bigint;
 }
@@ -143,21 +143,30 @@ export interface TransactionKind {
 				/**
 				 * A user transaction comprised of a list of native commands and Move calls.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.ProgrammableTransaction programmable_transaction = 2;
+				 * @generated from protobuf field: sui.rpc.v2beta2.ProgrammableTransaction programmable_transaction = 2
 				 */
 				programmableTransaction: ProgrammableTransaction;
 		  }
 		| {
-				oneofKind: 'changeEpoch';
+				oneofKind: 'programmableSystemTransaction';
 				// System Transactions
 
+				/**
+				 * A system transaction comprised of a list of native commands and Move calls.
+				 *
+				 * @generated from protobuf field: sui.rpc.v2beta2.ProgrammableTransaction programmable_system_transaction = 3
+				 */
+				programmableSystemTransaction: ProgrammableTransaction;
+		  }
+		| {
+				oneofKind: 'changeEpoch';
 				/**
 				 * System transaction used to end an epoch.
 				 *
 				 * The `ChangeEpoch` variant is now deprecated (but the `ChangeEpoch` struct is still used by
 				 * `EndOfEpochTransaction`).
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.ChangeEpoch change_epoch = 100;
+				 * @generated from protobuf field: sui.rpc.v2beta2.ChangeEpoch change_epoch = 100
 				 */
 				changeEpoch: ChangeEpoch;
 		  }
@@ -169,7 +178,7 @@ export interface TransactionKind {
 				 * Only valid if in the genesis checkpoint (0) and if this is the very first transaction ever
 				 * executed on the chain.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.GenesisTransaction genesis = 101;
+				 * @generated from protobuf field: sui.rpc.v2beta2.GenesisTransaction genesis = 101
 				 */
 				genesis: GenesisTransaction;
 		  }
@@ -178,7 +187,7 @@ export interface TransactionKind {
 				/**
 				 * V1 consensus commit update.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.ConsensusCommitPrologue consensus_commit_prologue_v1 = 102;
+				 * @generated from protobuf field: sui.rpc.v2beta2.ConsensusCommitPrologue consensus_commit_prologue_v1 = 102
 				 */
 				consensusCommitPrologueV1: ConsensusCommitPrologue;
 		  }
@@ -187,7 +196,7 @@ export interface TransactionKind {
 				/**
 				 * Update set of valid JWKs used for zklogin.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.AuthenticatorStateUpdate authenticator_state_update = 103;
+				 * @generated from protobuf field: sui.rpc.v2beta2.AuthenticatorStateUpdate authenticator_state_update = 103
 				 */
 				authenticatorStateUpdate: AuthenticatorStateUpdate;
 		  }
@@ -197,7 +206,7 @@ export interface TransactionKind {
 				 * Set of operations to run at the end of the epoch to close out the current epoch and start
 				 * the next one.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.EndOfEpochTransaction end_of_epoch = 104;
+				 * @generated from protobuf field: sui.rpc.v2beta2.EndOfEpochTransaction end_of_epoch = 104
 				 */
 				endOfEpoch: EndOfEpochTransaction;
 		  }
@@ -206,7 +215,7 @@ export interface TransactionKind {
 				/**
 				 * Randomness update.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.RandomnessStateUpdate randomness_state_update = 105;
+				 * @generated from protobuf field: sui.rpc.v2beta2.RandomnessStateUpdate randomness_state_update = 105
 				 */
 				randomnessStateUpdate: RandomnessStateUpdate;
 		  }
@@ -215,7 +224,7 @@ export interface TransactionKind {
 				/**
 				 * V2 consensus commit update.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.ConsensusCommitPrologue consensus_commit_prologue_v2 = 106;
+				 * @generated from protobuf field: sui.rpc.v2beta2.ConsensusCommitPrologue consensus_commit_prologue_v2 = 106
 				 */
 				consensusCommitPrologueV2: ConsensusCommitPrologue;
 		  }
@@ -224,7 +233,7 @@ export interface TransactionKind {
 				/**
 				 * V3 consensus commit update.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.ConsensusCommitPrologue consensus_commit_prologue_v3 = 107;
+				 * @generated from protobuf field: sui.rpc.v2beta2.ConsensusCommitPrologue consensus_commit_prologue_v3 = 107
 				 */
 				consensusCommitPrologueV3: ConsensusCommitPrologue;
 		  }
@@ -233,7 +242,7 @@ export interface TransactionKind {
 				/**
 				 * V4 consensus commit update.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.ConsensusCommitPrologue consensus_commit_prologue_v4 = 108;
+				 * @generated from protobuf field: sui.rpc.v2beta2.ConsensusCommitPrologue consensus_commit_prologue_v4 = 108
 				 */
 				consensusCommitPrologueV4: ConsensusCommitPrologue;
 		  }
@@ -253,14 +262,14 @@ export interface ProgrammableTransaction {
 	/**
 	 * Input objects or primitive values.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Input inputs = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Input inputs = 1
 	 */
 	inputs: Input[];
 	/**
 	 * The commands to be executed sequentially. A failure in any command
 	 * results in the failure of the entire transaction.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Command commands = 2;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Command commands = 2
 	 */
 	commands: Command[];
 }
@@ -279,7 +288,7 @@ export interface Command {
 				/**
 				 * A call to either an entry or a public Move function.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.MoveCall move_call = 1;
+				 * @generated from protobuf field: sui.rpc.v2beta2.MoveCall move_call = 1
 				 */
 				moveCall: MoveCall;
 		  }
@@ -291,7 +300,7 @@ export interface Command {
 				 * (public transfer) and either the previous owner must be an address or the object must
 				 * be newly created.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.TransferObjects transfer_objects = 2;
+				 * @generated from protobuf field: sui.rpc.v2beta2.TransferObjects transfer_objects = 2
 				 */
 				transferObjects: TransferObjects;
 		  }
@@ -301,7 +310,7 @@ export interface Command {
 				 * `(&mut Coin<T>, Vec<u64>)` -> `Vec<Coin<T>>`
 				 * It splits off some amounts into new coins with those amounts.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.SplitCoins split_coins = 3;
+				 * @generated from protobuf field: sui.rpc.v2beta2.SplitCoins split_coins = 3
 				 */
 				splitCoins: SplitCoins;
 		  }
@@ -311,7 +320,7 @@ export interface Command {
 				 * `(&mut Coin<T>, Vec<Coin<T>>)`
 				 * It merges n-coins into the first coin.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.MergeCoins merge_coins = 4;
+				 * @generated from protobuf field: sui.rpc.v2beta2.MergeCoins merge_coins = 4
 				 */
 				mergeCoins: MergeCoins;
 		  }
@@ -321,7 +330,7 @@ export interface Command {
 				 * Publishes a Move package. It takes the package bytes and a list of the package's transitive
 				 * dependencies to link against on chain.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.Publish publish = 5;
+				 * @generated from protobuf field: sui.rpc.v2beta2.Publish publish = 5
 				 */
 				publish: Publish;
 		  }
@@ -332,7 +341,7 @@ export interface Command {
 				 * Given n-values of the same type, it constructs a vector. For non-objects or an empty vector,
 				 * the type tag must be specified.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.MakeMoveVector make_move_vector = 6;
+				 * @generated from protobuf field: sui.rpc.v2beta2.MakeMoveVector make_move_vector = 6
 				 */
 				makeMoveVector: MakeMoveVector;
 		  }
@@ -347,7 +356,7 @@ export interface Command {
 				 * 4. An argument holding the `UpgradeTicket` that must have been produced from an earlier command in the same
 				 *    programmable transaction.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.Upgrade upgrade = 7;
+				 * @generated from protobuf field: sui.rpc.v2beta2.Upgrade upgrade = 7
 				 */
 				upgrade: Upgrade;
 		  }
@@ -367,31 +376,31 @@ export interface MoveCall {
 	/**
 	 * The package containing the module and function.
 	 *
-	 * @generated from protobuf field: optional string package = 1;
+	 * @generated from protobuf field: optional string package = 1
 	 */
 	package?: string;
 	/**
 	 * The specific module in the package containing the function.
 	 *
-	 * @generated from protobuf field: optional string module = 2;
+	 * @generated from protobuf field: optional string module = 2
 	 */
 	module?: string;
 	/**
 	 * The function to be called.
 	 *
-	 * @generated from protobuf field: optional string function = 3;
+	 * @generated from protobuf field: optional string function = 3
 	 */
 	function?: string;
 	/**
 	 * The type arguments to the function.
 	 *
-	 * @generated from protobuf field: repeated string type_arguments = 4;
+	 * @generated from protobuf field: repeated string type_arguments = 4
 	 */
 	typeArguments: string[];
 	/**
 	 * The arguments to the function.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Argument arguments = 5;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Argument arguments = 5
 	 */
 	arguments: Argument[];
 }
@@ -404,13 +413,13 @@ export interface TransferObjects {
 	/**
 	 * Set of objects to transfer.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Argument objects = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Argument objects = 1
 	 */
 	objects: Argument[];
 	/**
 	 * The address to transfer ownership to.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Argument address = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Argument address = 2
 	 */
 	address?: Argument;
 }
@@ -423,13 +432,13 @@ export interface SplitCoins {
 	/**
 	 * The coin to split.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Argument coin = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Argument coin = 1
 	 */
 	coin?: Argument;
 	/**
 	 * The amounts to split off.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Argument amounts = 2;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Argument amounts = 2
 	 */
 	amounts: Argument[];
 }
@@ -442,7 +451,7 @@ export interface MergeCoins {
 	/**
 	 * Coin to merge coins into.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Argument coin = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Argument coin = 1
 	 */
 	coin?: Argument;
 	/**
@@ -450,7 +459,7 @@ export interface MergeCoins {
 	 *
 	 * All listed coins must be of the same type and be the same type as `coin`
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Argument coins_to_merge = 2;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Argument coins_to_merge = 2
 	 */
 	coinsToMerge: Argument[];
 }
@@ -463,13 +472,13 @@ export interface Publish {
 	/**
 	 * The serialized Move modules.
 	 *
-	 * @generated from protobuf field: repeated bytes modules = 1;
+	 * @generated from protobuf field: repeated bytes modules = 1
 	 */
 	modules: Uint8Array[];
 	/**
 	 * Set of packages that the to-be published package depends on.
 	 *
-	 * @generated from protobuf field: repeated string dependencies = 2;
+	 * @generated from protobuf field: repeated string dependencies = 2
 	 */
 	dependencies: string[];
 }
@@ -485,13 +494,13 @@ export interface MakeMoveVector {
 	 * This is required to be set when the type can't be inferred, for example when the set of
 	 * provided arguments are all pure input values.
 	 *
-	 * @generated from protobuf field: optional string element_type = 1;
+	 * @generated from protobuf field: optional string element_type = 1
 	 */
 	elementType?: string;
 	/**
 	 * The set individual elements to build the vector with.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Argument elements = 2;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Argument elements = 2
 	 */
 	elements: Argument[];
 }
@@ -504,25 +513,25 @@ export interface Upgrade {
 	/**
 	 * The serialized Move modules.
 	 *
-	 * @generated from protobuf field: repeated bytes modules = 1;
+	 * @generated from protobuf field: repeated bytes modules = 1
 	 */
 	modules: Uint8Array[];
 	/**
 	 * Set of packages that the to-be published package depends on.
 	 *
-	 * @generated from protobuf field: repeated string dependencies = 2;
+	 * @generated from protobuf field: repeated string dependencies = 2
 	 */
 	dependencies: string[];
 	/**
 	 * Package ID of the package to upgrade.
 	 *
-	 * @generated from protobuf field: optional string package = 3;
+	 * @generated from protobuf field: optional string package = 3
 	 */
 	package?: string;
 	/**
 	 * Ticket authorizing the upgrade.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Argument ticket = 4;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Argument ticket = 4
 	 */
 	ticket?: Argument;
 }
@@ -535,25 +544,25 @@ export interface RandomnessStateUpdate {
 	/**
 	 * Epoch of the randomness state update transaction.
 	 *
-	 * @generated from protobuf field: optional uint64 epoch = 1;
+	 * @generated from protobuf field: optional uint64 epoch = 1
 	 */
 	epoch?: bigint;
 	/**
 	 * Randomness round of the update.
 	 *
-	 * @generated from protobuf field: optional uint64 randomness_round = 2;
+	 * @generated from protobuf field: optional uint64 randomness_round = 2
 	 */
 	randomnessRound?: bigint;
 	/**
 	 * Updated random bytes.
 	 *
-	 * @generated from protobuf field: optional bytes random_bytes = 3;
+	 * @generated from protobuf field: optional bytes random_bytes = 3
 	 */
 	randomBytes?: Uint8Array;
 	/**
 	 * The initial version of the randomness object that it was shared at.
 	 *
-	 * @generated from protobuf field: optional uint64 randomness_object_initial_shared_version = 4;
+	 * @generated from protobuf field: optional uint64 randomness_object_initial_shared_version = 4
 	 */
 	randomnessObjectInitialSharedVersion?: bigint;
 }
@@ -566,43 +575,43 @@ export interface ChangeEpoch {
 	/**
 	 * The next (to become) epoch ID.
 	 *
-	 * @generated from protobuf field: optional uint64 epoch = 1;
+	 * @generated from protobuf field: optional uint64 epoch = 1
 	 */
 	epoch?: bigint;
 	/**
 	 * The protocol version in effect in the new epoch.
 	 *
-	 * @generated from protobuf field: optional uint64 protocol_version = 2;
+	 * @generated from protobuf field: optional uint64 protocol_version = 2
 	 */
 	protocolVersion?: bigint;
 	/**
 	 * The total amount of gas charged for storage during the epoch.
 	 *
-	 * @generated from protobuf field: optional uint64 storage_charge = 3;
+	 * @generated from protobuf field: optional uint64 storage_charge = 3
 	 */
 	storageCharge?: bigint;
 	/**
 	 * The total amount of gas charged for computation during the epoch.
 	 *
-	 * @generated from protobuf field: optional uint64 computation_charge = 4;
+	 * @generated from protobuf field: optional uint64 computation_charge = 4
 	 */
 	computationCharge?: bigint;
 	/**
 	 * The amount of storage rebate refunded to the txn senders.
 	 *
-	 * @generated from protobuf field: optional uint64 storage_rebate = 5;
+	 * @generated from protobuf field: optional uint64 storage_rebate = 5
 	 */
 	storageRebate?: bigint;
 	/**
 	 * The non-refundable storage fee.
 	 *
-	 * @generated from protobuf field: optional uint64 non_refundable_storage_fee = 6;
+	 * @generated from protobuf field: optional uint64 non_refundable_storage_fee = 6
 	 */
 	nonRefundableStorageFee?: bigint;
 	/**
 	 * Unix timestamp when epoch started.
 	 *
-	 * @generated from protobuf field: optional google.protobuf.Timestamp epoch_start_timestamp = 7;
+	 * @generated from protobuf field: optional google.protobuf.Timestamp epoch_start_timestamp = 7
 	 */
 	epochStartTimestamp?: Timestamp;
 	/**
@@ -612,7 +621,7 @@ export interface ChangeEpoch {
 	 * will be upgraded to, their modules in serialized form (which include their package ID), and
 	 * a list of their transitive dependencies.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.SystemPackage system_packages = 8;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.SystemPackage system_packages = 8
 	 */
 	systemPackages: SystemPackage[];
 }
@@ -625,19 +634,19 @@ export interface SystemPackage {
 	/**
 	 * Version of the package.
 	 *
-	 * @generated from protobuf field: optional uint64 version = 1;
+	 * @generated from protobuf field: optional uint64 version = 1
 	 */
 	version?: bigint;
 	/**
 	 * Move modules.
 	 *
-	 * @generated from protobuf field: repeated bytes modules = 2;
+	 * @generated from protobuf field: repeated bytes modules = 2
 	 */
 	modules: Uint8Array[];
 	/**
 	 * Package dependencies.
 	 *
-	 * @generated from protobuf field: repeated string dependencies = 3;
+	 * @generated from protobuf field: repeated string dependencies = 3
 	 */
 	dependencies: string[];
 }
@@ -650,7 +659,7 @@ export interface GenesisTransaction {
 	/**
 	 * Set of genesis objects.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Object objects = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.Object objects = 1
 	 */
 	objects: Object[];
 }
@@ -667,7 +676,7 @@ export interface ConsensusCommitPrologue {
 	 *
 	 * Present in V1, V2, V3, V4.
 	 *
-	 * @generated from protobuf field: optional uint64 epoch = 1;
+	 * @generated from protobuf field: optional uint64 epoch = 1
 	 */
 	epoch?: bigint;
 	/**
@@ -675,7 +684,7 @@ export interface ConsensusCommitPrologue {
 	 *
 	 * Present in V1, V2, V3, V4.
 	 *
-	 * @generated from protobuf field: optional uint64 round = 2;
+	 * @generated from protobuf field: optional uint64 round = 2
 	 */
 	round?: bigint;
 	/**
@@ -683,7 +692,7 @@ export interface ConsensusCommitPrologue {
 	 *
 	 * Present in V1, V2, V3, V4.
 	 *
-	 * @generated from protobuf field: optional google.protobuf.Timestamp commit_timestamp = 3;
+	 * @generated from protobuf field: optional google.protobuf.Timestamp commit_timestamp = 3
 	 */
 	commitTimestamp?: Timestamp;
 	/**
@@ -691,7 +700,7 @@ export interface ConsensusCommitPrologue {
 	 *
 	 * Present in V2, V3, V4.
 	 *
-	 * @generated from protobuf field: optional string consensus_commit_digest = 4;
+	 * @generated from protobuf field: optional string consensus_commit_digest = 4
 	 */
 	consensusCommitDigest?: string;
 	/**
@@ -700,7 +709,7 @@ export interface ConsensusCommitPrologue {
 	 *
 	 * Present in V3, V4.
 	 *
-	 * @generated from protobuf field: optional uint64 sub_dag_index = 5;
+	 * @generated from protobuf field: optional uint64 sub_dag_index = 5
 	 */
 	subDagIndex?: bigint;
 	/**
@@ -708,7 +717,7 @@ export interface ConsensusCommitPrologue {
 	 *
 	 * Present in V3, V4.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ConsensusDeterminedVersionAssignments consensus_determined_version_assignments = 6;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ConsensusDeterminedVersionAssignments consensus_determined_version_assignments = 6
 	 */
 	consensusDeterminedVersionAssignments?: ConsensusDeterminedVersionAssignments;
 	/**
@@ -717,7 +726,7 @@ export interface ConsensusCommitPrologue {
 	 *
 	 * Present in V4.
 	 *
-	 * @generated from protobuf field: optional string additional_state_digest = 7;
+	 * @generated from protobuf field: optional string additional_state_digest = 7
 	 */
 	additionalStateDigest?: string;
 }
@@ -730,19 +739,19 @@ export interface VersionAssignment {
 	/**
 	 * `ObjectId` of the object.
 	 *
-	 * @generated from protobuf field: optional string object_id = 1;
+	 * @generated from protobuf field: optional string object_id = 1
 	 */
 	objectId?: string;
 	/**
 	 * start version of the consensus stream for this object
 	 *
-	 * @generated from protobuf field: optional uint64 start_version = 2;
+	 * @generated from protobuf field: optional uint64 start_version = 2
 	 */
 	startVersion?: bigint;
 	/**
 	 * Assigned version.
 	 *
-	 * @generated from protobuf field: optional uint64 version = 3;
+	 * @generated from protobuf field: optional uint64 version = 3
 	 */
 	version?: bigint;
 }
@@ -755,13 +764,13 @@ export interface CanceledTransaction {
 	/**
 	 * Digest of the canceled transaction.
 	 *
-	 * @generated from protobuf field: optional string digest = 1;
+	 * @generated from protobuf field: optional string digest = 1
 	 */
 	digest?: string;
 	/**
 	 * List of object version assignments.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.VersionAssignment version_assignments = 2;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.VersionAssignment version_assignments = 2
 	 */
 	versionAssignments: VersionAssignment[];
 }
@@ -774,13 +783,13 @@ export interface ConsensusDeterminedVersionAssignments {
 	/**
 	 * Version of this message
 	 *
-	 * @generated from protobuf field: optional int32 version = 1;
+	 * @generated from protobuf field: optional int32 version = 1
 	 */
 	version?: number;
 	/**
 	 * Canceled transaction version assignment.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.CanceledTransaction canceled_transactions = 3;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.CanceledTransaction canceled_transactions = 3
 	 */
 	canceledTransactions: CanceledTransaction[];
 }
@@ -793,25 +802,25 @@ export interface AuthenticatorStateUpdate {
 	/**
 	 * Epoch of the authenticator state update transaction.
 	 *
-	 * @generated from protobuf field: optional uint64 epoch = 1;
+	 * @generated from protobuf field: optional uint64 epoch = 1
 	 */
 	epoch?: bigint;
 	/**
 	 * Consensus round of the authenticator state update.
 	 *
-	 * @generated from protobuf field: optional uint64 round = 2;
+	 * @generated from protobuf field: optional uint64 round = 2
 	 */
 	round?: bigint;
 	/**
 	 * Newly active JWKs.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ActiveJwk new_active_jwks = 3;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ActiveJwk new_active_jwks = 3
 	 */
 	newActiveJwks: ActiveJwk[];
 	/**
 	 * The initial version of the authenticator object that it was shared at.
 	 *
-	 * @generated from protobuf field: optional uint64 authenticator_object_initial_shared_version = 4;
+	 * @generated from protobuf field: optional uint64 authenticator_object_initial_shared_version = 4
 	 */
 	authenticatorObjectInitialSharedVersion?: bigint;
 }
@@ -824,19 +833,19 @@ export interface ActiveJwk {
 	/**
 	 * Identifier used to uniquely identify a JWK.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.JwkId id = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.JwkId id = 1
 	 */
 	id?: JwkId;
 	/**
 	 * The JWK.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Jwk jwk = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Jwk jwk = 2
 	 */
 	jwk?: Jwk;
 	/**
 	 * Most recent epoch in which the JWK was validated.
 	 *
-	 * @generated from protobuf field: optional uint64 epoch = 3;
+	 * @generated from protobuf field: optional uint64 epoch = 3
 	 */
 	epoch?: bigint;
 }
@@ -849,13 +858,13 @@ export interface JwkId {
 	/**
 	 * The issuer or identity of the OIDC provider.
 	 *
-	 * @generated from protobuf field: optional string iss = 1;
+	 * @generated from protobuf field: optional string iss = 1
 	 */
 	iss?: string;
 	/**
 	 * A key ID used to uniquely identify a key from an OIDC provider.
 	 *
-	 * @generated from protobuf field: optional string kid = 2;
+	 * @generated from protobuf field: optional string kid = 2
 	 */
 	kid?: string;
 }
@@ -872,25 +881,25 @@ export interface Jwk {
 	/**
 	 * Key type parameter, https://datatracker.ietf.org/doc/html/rfc7517#section-4.1.
 	 *
-	 * @generated from protobuf field: optional string kty = 1;
+	 * @generated from protobuf field: optional string kty = 1
 	 */
 	kty?: string;
 	/**
 	 * RSA public exponent, https://datatracker.ietf.org/doc/html/rfc7517#section-9.3.
 	 *
-	 * @generated from protobuf field: optional string e = 2;
+	 * @generated from protobuf field: optional string e = 2
 	 */
 	e?: string;
 	/**
 	 * RSA modulus, https://datatracker.ietf.org/doc/html/rfc7517#section-9.3.
 	 *
-	 * @generated from protobuf field: optional string n = 3;
+	 * @generated from protobuf field: optional string n = 3
 	 */
 	n?: string;
 	/**
 	 * Algorithm parameter, https://datatracker.ietf.org/doc/html/rfc7517#section-4.4.
 	 *
-	 * @generated from protobuf field: optional string alg = 4;
+	 * @generated from protobuf field: optional string alg = 4
 	 */
 	alg?: string;
 }
@@ -902,7 +911,7 @@ export interface Jwk {
  */
 export interface EndOfEpochTransaction {
 	/**
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.EndOfEpochTransactionKind transactions = 1;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.EndOfEpochTransactionKind transactions = 1
 	 */
 	transactions: EndOfEpochTransactionKind[];
 }
@@ -921,7 +930,7 @@ export interface EndOfEpochTransactionKind {
 				/**
 				 * End the epoch and start the next one.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.ChangeEpoch change_epoch = 2;
+				 * @generated from protobuf field: sui.rpc.v2beta2.ChangeEpoch change_epoch = 2
 				 */
 				changeEpoch: ChangeEpoch;
 		  }
@@ -930,7 +939,7 @@ export interface EndOfEpochTransactionKind {
 				/**
 				 * Expire JWKs used for zklogin.
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.AuthenticatorStateExpire authenticator_state_expire = 3;
+				 * @generated from protobuf field: sui.rpc.v2beta2.AuthenticatorStateExpire authenticator_state_expire = 3
 				 */
 				authenticatorStateExpire: AuthenticatorStateExpire;
 		  }
@@ -939,7 +948,7 @@ export interface EndOfEpochTransactionKind {
 				/**
 				 * Execution time observations from the committee to preserve cross epoch
 				 *
-				 * @generated from protobuf field: sui.rpc.v2beta2.ExecutionTimeObservations execution_time_observations = 4;
+				 * @generated from protobuf field: sui.rpc.v2beta2.ExecutionTimeObservations execution_time_observations = 4
 				 */
 				executionTimeObservations: ExecutionTimeObservations;
 		  }
@@ -950,7 +959,7 @@ export interface EndOfEpochTransactionKind {
 				/**
 				 * Create and initialize the authenticator object used for zklogin.
 				 *
-				 * @generated from protobuf field: google.protobuf.Empty authenticator_state_create = 200;
+				 * @generated from protobuf field: google.protobuf.Empty authenticator_state_create = 200
 				 */
 				authenticatorStateCreate: Empty;
 		  }
@@ -959,7 +968,7 @@ export interface EndOfEpochTransactionKind {
 				/**
 				 * Create and initialize the randomness object.
 				 *
-				 * @generated from protobuf field: google.protobuf.Empty randomness_state_create = 201;
+				 * @generated from protobuf field: google.protobuf.Empty randomness_state_create = 201
 				 */
 				randomnessStateCreate: Empty;
 		  }
@@ -968,7 +977,7 @@ export interface EndOfEpochTransactionKind {
 				/**
 				 * Create and initialize the deny list object.
 				 *
-				 * @generated from protobuf field: google.protobuf.Empty deny_list_state_create = 202;
+				 * @generated from protobuf field: google.protobuf.Empty deny_list_state_create = 202
 				 */
 				denyListStateCreate: Empty;
 		  }
@@ -977,7 +986,7 @@ export interface EndOfEpochTransactionKind {
 				/**
 				 * Create and initialize the bridge object.
 				 *
-				 * @generated from protobuf field: string bridge_state_create = 203;
+				 * @generated from protobuf field: string bridge_state_create = 203
 				 */
 				bridgeStateCreate: string;
 		  }
@@ -986,7 +995,7 @@ export interface EndOfEpochTransactionKind {
 				/**
 				 * Initialize the bridge committee.
 				 *
-				 * @generated from protobuf field: uint64 bridge_committee_init = 204;
+				 * @generated from protobuf field: uint64 bridge_committee_init = 204
 				 */
 				bridgeCommitteeInit: bigint;
 		  }
@@ -995,9 +1004,18 @@ export interface EndOfEpochTransactionKind {
 				/**
 				 * Create the accumulator root object.
 				 *
-				 * @generated from protobuf field: google.protobuf.Empty accumulator_root_create = 205;
+				 * @generated from protobuf field: google.protobuf.Empty accumulator_root_create = 205
 				 */
 				accumulatorRootCreate: Empty;
+		  }
+		| {
+				oneofKind: 'coinRegistryCreate';
+				/**
+				 * Create and initialize the Coin Registry object.
+				 *
+				 * @generated from protobuf field: google.protobuf.Empty coin_registry_create = 206
+				 */
+				coinRegistryCreate: Empty;
 		  }
 		| {
 				oneofKind: undefined;
@@ -1012,13 +1030,13 @@ export interface AuthenticatorStateExpire {
 	/**
 	 * Expire JWKs that have a lower epoch than this.
 	 *
-	 * @generated from protobuf field: optional uint64 min_epoch = 1;
+	 * @generated from protobuf field: optional uint64 min_epoch = 1
 	 */
 	minEpoch?: bigint;
 	/**
 	 * The initial version of the authenticator object that it was shared at.
 	 *
-	 * @generated from protobuf field: optional uint64 authenticator_object_initial_shared_version = 2;
+	 * @generated from protobuf field: optional uint64 authenticator_object_initial_shared_version = 2
 	 */
 	authenticatorObjectInitialSharedVersion?: bigint;
 }
@@ -1029,11 +1047,11 @@ export interface ExecutionTimeObservations {
 	/**
 	 * Version of this ExecutionTimeObservations
 	 *
-	 * @generated from protobuf field: optional int32 version = 1;
+	 * @generated from protobuf field: optional int32 version = 1
 	 */
 	version?: number;
 	/**
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ExecutionTimeObservation observations = 2;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ExecutionTimeObservation observations = 2
 	 */
 	observations: ExecutionTimeObservation[];
 }
@@ -1042,15 +1060,15 @@ export interface ExecutionTimeObservations {
  */
 export interface ExecutionTimeObservation {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.ExecutionTimeObservation.ExecutionTimeObservationKind kind = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.ExecutionTimeObservation.ExecutionTimeObservationKind kind = 1
 	 */
 	kind?: ExecutionTimeObservation_ExecutionTimeObservationKind;
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.MoveCall move_entry_point = 2;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.MoveCall move_entry_point = 2
 	 */
 	moveEntryPoint?: MoveCall;
 	/**
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ValidatorExecutionTimeObservation validator_observations = 3;
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.ValidatorExecutionTimeObservation validator_observations = 3
 	 */
 	validatorObservations: ValidatorExecutionTimeObservation[];
 }
@@ -1098,13 +1116,13 @@ export interface ValidatorExecutionTimeObservation {
 	/**
 	 * Bls12381 public key of the validator
 	 *
-	 * @generated from protobuf field: optional bytes validator = 1;
+	 * @generated from protobuf field: optional bytes validator = 1
 	 */
 	validator?: Uint8Array;
 	/**
 	 * Duration of an execution observation
 	 *
-	 * @generated from protobuf field: optional google.protobuf.Duration duration = 2;
+	 * @generated from protobuf field: optional google.protobuf.Duration duration = 2
 	 */
 	duration?: Duration;
 }
@@ -1250,7 +1268,7 @@ class GasPayment$Type extends MessageType<GasPayment> {
 				no: 1,
 				name: 'objects',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ObjectReference,
 			},
 			{ no: 2, name: 'owner', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -1443,6 +1461,13 @@ class TransactionKind$Type extends MessageType<TransactionKind> {
 				oneof: 'kind',
 				T: () => ProgrammableTransaction,
 			},
+			{
+				no: 3,
+				name: 'programmable_system_transaction',
+				kind: 'message',
+				oneof: 'kind',
+				T: () => ProgrammableTransaction,
+			},
 			{ no: 100, name: 'change_epoch', kind: 'message', oneof: 'kind', T: () => ChangeEpoch },
 			{ no: 101, name: 'genesis', kind: 'message', oneof: 'kind', T: () => GenesisTransaction },
 			{
@@ -1521,6 +1546,17 @@ class TransactionKind$Type extends MessageType<TransactionKind> {
 							reader.uint32(),
 							options,
 							(message.kind as any).programmableTransaction,
+						),
+					};
+					break;
+				case /* sui.rpc.v2beta2.ProgrammableTransaction programmable_system_transaction */ 3:
+					message.kind = {
+						oneofKind: 'programmableSystemTransaction',
+						programmableSystemTransaction: ProgrammableTransaction.internalBinaryRead(
+							reader,
+							reader.uint32(),
+							options,
+							(message.kind as any).programmableSystemTransaction,
 						),
 					};
 					break;
@@ -1654,6 +1690,13 @@ class TransactionKind$Type extends MessageType<TransactionKind> {
 				writer.tag(2, WireType.LengthDelimited).fork(),
 				options,
 			).join();
+		/* sui.rpc.v2beta2.ProgrammableTransaction programmable_system_transaction = 3; */
+		if (message.kind.oneofKind === 'programmableSystemTransaction')
+			ProgrammableTransaction.internalBinaryWrite(
+				message.kind.programmableSystemTransaction,
+				writer.tag(3, WireType.LengthDelimited).fork(),
+				options,
+			).join();
 		/* sui.rpc.v2beta2.ChangeEpoch change_epoch = 100; */
 		if (message.kind.oneofKind === 'changeEpoch')
 			ChangeEpoch.internalBinaryWrite(
@@ -1730,12 +1773,12 @@ export const TransactionKind = new TransactionKind$Type();
 class ProgrammableTransaction$Type extends MessageType<ProgrammableTransaction> {
 	constructor() {
 		super('sui.rpc.v2beta2.ProgrammableTransaction', [
-			{ no: 1, name: 'inputs', kind: 'message', repeat: 1 /*RepeatType.PACKED*/, T: () => Input },
+			{ no: 1, name: 'inputs', kind: 'message', repeat: 2 /*RepeatType.UNPACKED*/, T: () => Input },
 			{
 				no: 2,
 				name: 'commands',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Command,
 			},
 		]);
@@ -2030,7 +2073,7 @@ class MoveCall$Type extends MessageType<MoveCall> {
 				no: 5,
 				name: 'arguments',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Argument,
 			},
 		]);
@@ -2128,7 +2171,7 @@ class TransferObjects$Type extends MessageType<TransferObjects> {
 				no: 1,
 				name: 'objects',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Argument,
 			},
 			{ no: 2, name: 'address', kind: 'message', T: () => Argument },
@@ -2218,7 +2261,7 @@ class SplitCoins$Type extends MessageType<SplitCoins> {
 				no: 2,
 				name: 'amounts',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Argument,
 			},
 		]);
@@ -2307,7 +2350,7 @@ class MergeCoins$Type extends MessageType<MergeCoins> {
 				no: 2,
 				name: 'coins_to_merge',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Argument,
 			},
 		]);
@@ -2479,7 +2522,7 @@ class MakeMoveVector$Type extends MessageType<MakeMoveVector> {
 				no: 2,
 				name: 'elements',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Argument,
 			},
 		]);
@@ -2816,7 +2859,7 @@ class ChangeEpoch$Type extends MessageType<ChangeEpoch> {
 				no: 8,
 				name: 'system_packages',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => SystemPackage,
 			},
 		]);
@@ -3033,7 +3076,13 @@ export const SystemPackage = new SystemPackage$Type();
 class GenesisTransaction$Type extends MessageType<GenesisTransaction> {
 	constructor() {
 		super('sui.rpc.v2beta2.GenesisTransaction', [
-			{ no: 1, name: 'objects', kind: 'message', repeat: 1 /*RepeatType.PACKED*/, T: () => Object },
+			{
+				no: 1,
+				name: 'objects',
+				kind: 'message',
+				repeat: 2 /*RepeatType.UNPACKED*/,
+				T: () => Object,
+			},
 		]);
 	}
 	create(value?: PartialMessage<GenesisTransaction>): GenesisTransaction {
@@ -3353,7 +3402,7 @@ class CanceledTransaction$Type extends MessageType<CanceledTransaction> {
 				no: 2,
 				name: 'version_assignments',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => VersionAssignment,
 			},
 		]);
@@ -3435,7 +3484,7 @@ class ConsensusDeterminedVersionAssignments$Type extends MessageType<ConsensusDe
 				no: 3,
 				name: 'canceled_transactions',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => CanceledTransaction,
 			},
 		]);
@@ -3535,7 +3584,7 @@ class AuthenticatorStateUpdate$Type extends MessageType<AuthenticatorStateUpdate
 				no: 3,
 				name: 'new_active_jwks',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ActiveJwk,
 			},
 			{
@@ -3870,7 +3919,7 @@ class EndOfEpochTransaction$Type extends MessageType<EndOfEpochTransaction> {
 				no: 1,
 				name: 'transactions',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => EndOfEpochTransactionKind,
 			},
 		]);
@@ -3981,6 +4030,7 @@ class EndOfEpochTransactionKind$Type extends MessageType<EndOfEpochTransactionKi
 				L: 0 /*LongType.BIGINT*/,
 			},
 			{ no: 205, name: 'accumulator_root_create', kind: 'message', oneof: 'kind', T: () => Empty },
+			{ no: 206, name: 'coin_registry_create', kind: 'message', oneof: 'kind', T: () => Empty },
 		]);
 	}
 	create(value?: PartialMessage<EndOfEpochTransactionKind>): EndOfEpochTransactionKind {
@@ -4090,6 +4140,17 @@ class EndOfEpochTransactionKind$Type extends MessageType<EndOfEpochTransactionKi
 						),
 					};
 					break;
+				case /* google.protobuf.Empty coin_registry_create */ 206:
+					message.kind = {
+						oneofKind: 'coinRegistryCreate',
+						coinRegistryCreate: Empty.internalBinaryRead(
+							reader,
+							reader.uint32(),
+							options,
+							(message.kind as any).coinRegistryCreate,
+						),
+					};
+					break;
 				default:
 					let u = options.readUnknownField;
 					if (u === 'throw')
@@ -4167,6 +4228,13 @@ class EndOfEpochTransactionKind$Type extends MessageType<EndOfEpochTransactionKi
 			Empty.internalBinaryWrite(
 				message.kind.accumulatorRootCreate,
 				writer.tag(205, WireType.LengthDelimited).fork(),
+				options,
+			).join();
+		/* google.protobuf.Empty coin_registry_create = 206; */
+		if (message.kind.oneofKind === 'coinRegistryCreate')
+			Empty.internalBinaryWrite(
+				message.kind.coinRegistryCreate,
+				writer.tag(206, WireType.LengthDelimited).fork(),
 				options,
 			).join();
 		let u = options.writeUnknownFields;
@@ -4269,7 +4337,7 @@ class ExecutionTimeObservations$Type extends MessageType<ExecutionTimeObservatio
 				no: 2,
 				name: 'observations',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ExecutionTimeObservation,
 			},
 		]);
@@ -4361,7 +4429,7 @@ class ExecutionTimeObservation$Type extends MessageType<ExecutionTimeObservation
 				no: 3,
 				name: 'validator_observations',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ValidatorExecutionTimeObservation,
 			},
 		]);

@@ -18,19 +18,19 @@ export interface ObjectReference {
 	/**
 	 * The object id of this object.
 	 *
-	 * @generated from protobuf field: optional string object_id = 1;
+	 * @generated from protobuf field: optional string object_id = 1
 	 */
 	objectId?: string;
 	/**
 	 * The version of this object.
 	 *
-	 * @generated from protobuf field: optional uint64 version = 2;
+	 * @generated from protobuf field: optional uint64 version = 2
 	 */
 	version?: bigint;
 	/**
 	 * The digest of this object.
 	 *
-	 * @generated from protobuf field: optional string digest = 3;
+	 * @generated from protobuf field: optional string digest = 3
 	 */
 	digest?: string;
 }

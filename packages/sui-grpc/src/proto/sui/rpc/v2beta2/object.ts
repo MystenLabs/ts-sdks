@@ -22,31 +22,31 @@ export interface Object {
 	/**
 	 * This Object serialized as BCS.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Bcs bcs = 1;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Bcs bcs = 1
 	 */
 	bcs?: Bcs;
 	/**
 	 * `ObjectId` for this object.
 	 *
-	 * @generated from protobuf field: optional string object_id = 2;
+	 * @generated from protobuf field: optional string object_id = 2
 	 */
 	objectId?: string;
 	/**
 	 * Version of the object.
 	 *
-	 * @generated from protobuf field: optional uint64 version = 3;
+	 * @generated from protobuf field: optional uint64 version = 3
 	 */
 	version?: bigint;
 	/**
 	 * The digest of this Object.
 	 *
-	 * @generated from protobuf field: optional string digest = 4;
+	 * @generated from protobuf field: optional string digest = 4
 	 */
 	digest?: string;
 	/**
 	 * Owner of the object.
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Owner owner = 5;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Owner owner = 5
 	 */
 	owner?: Owner;
 	/**
@@ -54,7 +54,7 @@ export interface Object {
 	 *
 	 * This will be 'package' for packages and a StructTag for move structs.
 	 *
-	 * @generated from protobuf field: optional string object_type = 6;
+	 * @generated from protobuf field: optional string object_type = 6
 	 */
 	objectType?: string;
 	/**
@@ -63,7 +63,7 @@ export interface Object {
 	 *
 	 * Only set for Move structs
 	 *
-	 * @generated from protobuf field: optional bool has_public_transfer = 7;
+	 * @generated from protobuf field: optional bool has_public_transfer = 7
 	 */
 	hasPublicTransfer?: boolean;
 	/**
@@ -71,19 +71,19 @@ export interface Object {
 	 *
 	 * Only set for Move structs
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Bcs contents = 8;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Bcs contents = 8
 	 */
 	contents?: Bcs;
 	/**
 	 * Package information for Move Packages
 	 *
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.Package package = 9;
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.Package package = 9
 	 */
 	package?: Package;
 	/**
 	 * The digest of the transaction that created or last mutated this object
 	 *
-	 * @generated from protobuf field: optional string previous_transaction = 10;
+	 * @generated from protobuf field: optional string previous_transaction = 10
 	 */
 	previousTransaction?: string;
 	/**
@@ -91,15 +91,21 @@ export interface Object {
 	 * This number is re-calculated each time the object is mutated based on
 	 * the present storage gas price.
 	 *
-	 * @generated from protobuf field: optional uint64 storage_rebate = 11;
+	 * @generated from protobuf field: optional uint64 storage_rebate = 11
 	 */
 	storageRebate?: bigint;
 	/**
 	 * JSON rendering of the object.
 	 *
-	 * @generated from protobuf field: optional google.protobuf.Value json = 100;
+	 * @generated from protobuf field: optional google.protobuf.Value json = 100
 	 */
 	json?: Value;
+	/**
+	 * Current balance if this object is a `0x2::coin::Coin<T>`
+	 *
+	 * @generated from protobuf field: optional uint64 balance = 101
+	 */
+	balance?: bigint;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class Object$Type extends MessageType<Object> {
@@ -137,6 +143,14 @@ class Object$Type extends MessageType<Object> {
 				L: 0 /*LongType.BIGINT*/,
 			},
 			{ no: 100, name: 'json', kind: 'message', T: () => Value },
+			{
+				no: 101,
+				name: 'balance',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
 		]);
 	}
 	create(value?: PartialMessage<Object>): Object {
@@ -200,6 +214,9 @@ class Object$Type extends MessageType<Object> {
 					break;
 				case /* optional google.protobuf.Value json */ 100:
 					message.json = Value.internalBinaryRead(reader, reader.uint32(), options, message.json);
+					break;
+				case /* optional uint64 balance */ 101:
+					message.balance = reader.uint64().toBigInt();
 					break;
 				default:
 					let u = options.readUnknownField;
@@ -280,6 +297,8 @@ class Object$Type extends MessageType<Object> {
 				writer.tag(100, WireType.LengthDelimited).fork(),
 				options,
 			).join();
+		/* optional uint64 balance = 101; */
+		if (message.balance !== undefined) writer.tag(101, WireType.Varint).uint64(message.balance);
 		let u = options.writeUnknownFields;
 		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
 		return writer;

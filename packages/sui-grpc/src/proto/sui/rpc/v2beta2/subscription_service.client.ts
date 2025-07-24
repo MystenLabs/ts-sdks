@@ -18,14 +18,14 @@ export interface ISubscriptionServiceClient {
 	 * This API provides a subscription to the checkpoint stream for the Sui
 	 * blockchain. When a subscription is initialized the stream will begin with
 	 * the latest executed checkpoint as seen by the server. Responses are
-	 * gaurenteed to return checkpoints in-order and without gaps. This enables
+	 * guaranteed to return checkpoints in-order and without gaps. This enables
 	 * clients to know exactly the last checkpoint they have processed and in the
 	 * event the subscription terminates (either by the client/server or by the
 	 * connection breaking), clients will be able to reinitailize a subscription
 	 * and then leverage other APIs in order to request data for the checkpoints
 	 * they missed.
 	 *
-	 * @generated from protobuf rpc: SubscribeCheckpoints(sui.rpc.v2beta2.SubscribeCheckpointsRequest) returns (stream sui.rpc.v2beta2.SubscribeCheckpointsResponse);
+	 * @generated from protobuf rpc: SubscribeCheckpoints
 	 */
 	subscribeCheckpoints(
 		input: SubscribeCheckpointsRequest,
@@ -46,14 +46,14 @@ export class SubscriptionServiceClient implements ISubscriptionServiceClient, Se
 	 * This API provides a subscription to the checkpoint stream for the Sui
 	 * blockchain. When a subscription is initialized the stream will begin with
 	 * the latest executed checkpoint as seen by the server. Responses are
-	 * gaurenteed to return checkpoints in-order and without gaps. This enables
+	 * guaranteed to return checkpoints in-order and without gaps. This enables
 	 * clients to know exactly the last checkpoint they have processed and in the
 	 * event the subscription terminates (either by the client/server or by the
 	 * connection breaking), clients will be able to reinitailize a subscription
 	 * and then leverage other APIs in order to request data for the checkpoints
 	 * they missed.
 	 *
-	 * @generated from protobuf rpc: SubscribeCheckpoints(sui.rpc.v2beta2.SubscribeCheckpointsRequest) returns (stream sui.rpc.v2beta2.SubscribeCheckpointsResponse);
+	 * @generated from protobuf rpc: SubscribeCheckpoints
 	 */
 	subscribeCheckpoints(
 		input: SubscribeCheckpointsRequest,
