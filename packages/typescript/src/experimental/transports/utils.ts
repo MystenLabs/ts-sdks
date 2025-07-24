@@ -97,7 +97,12 @@ function parseTransactionEffectsV2({
 		unchangedSharedObjects: effects.unchangedSharedObjects.map(
 			([objectId, object]): Experimental_SuiClientTypes.UnchangedSharedObject => {
 				return {
-					kind: object.$kind,
+					kind:
+						object.$kind === 'MutateDeleted'
+							? 'MutateConsensusStreamEnded'
+							: object.$kind === 'ReadDeleted'
+								? 'ReadConsensusStreamEnded'
+								: object.$kind,
 					objectId: objectId,
 					version:
 						object.$kind === 'ReadOnlyRoot'

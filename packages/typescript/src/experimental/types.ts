@@ -431,8 +431,8 @@ export namespace Experimental_SuiClientTypes {
 		kind:
 			| 'Unknown'
 			| 'ReadOnlyRoot'
-			| 'MutateDeleted'
-			| 'ReadDeleted'
+			| 'MutateConsensusStreamEnded'
+			| 'ReadConsensusStreamEnded'
 			| 'Cancelled'
 			| 'PerEpochConfig';
 		objectId: string;

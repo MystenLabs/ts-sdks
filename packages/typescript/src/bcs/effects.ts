@@ -179,6 +179,7 @@ const EffectsObjectChange = bcs.struct('EffectsObjectChange', {
 
 const UnchangedSharedKind = bcs.enum('UnchangedSharedKind', {
 	ReadOnlyRoot: VersionDigest,
+	// TODO: these have been renamed to MutateConsensusStreamEnded and ReadConsensusStreamEnded
 	MutateDeleted: bcs.u64(),
 	ReadDeleted: bcs.u64(),
 	Cancelled: bcs.u64(),
