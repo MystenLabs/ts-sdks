@@ -21,13 +21,13 @@
  * ```
  */
 
+import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as object from './object.js';
-export function Table() {
-	return bcs.struct('Table', {
-		/** the ID of this table */
-		id: object.UID(),
-		/** the number of key-value pairs in the table */
-		size: bcs.u64(),
-	});
-}
+const $moduleName = 'sui::table';
+export const Table = new MoveStruct(`${$moduleName}::Table`, {
+	/** the ID of this table */
+	id: object.UID,
+	/** the number of key-value pairs in the table */
+	size: bcs.u64(),
+});

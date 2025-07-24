@@ -1,19 +1,18 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
 import * as range from './range.js';
-export function CouponRules() {
-	return bcs.struct('CouponRules', {
-		length: bcs.option(range.Range()),
-		available_claims: bcs.option(bcs.u64()),
-		user: bcs.option(bcs.Address),
-		expiration: bcs.option(bcs.u64()),
-		years: bcs.option(range.Range()),
-	});
-}
+const $moduleName = '@suins/coupons::rules';
+export const CouponRules = new MoveStruct(`${$moduleName}::CouponRules`, {
+	length: bcs.option(range.Range),
+	available_claims: bcs.option(bcs.u64()),
+	user: bcs.option(bcs.Address),
+	expiration: bcs.option(bcs.u64()),
+	years: bcs.option(range.Range),
+});
 export interface NewCouponRulesArguments {
 	length: RawTransactionArgument<string | null>;
 	availableClaims: RawTransactionArgument<number | bigint | null>;

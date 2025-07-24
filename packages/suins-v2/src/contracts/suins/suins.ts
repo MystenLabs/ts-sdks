@@ -26,53 +26,40 @@
  *   registry and the balance.
  */
 
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { BcsType } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
 import * as object from './deps/sui/object.js';
 import * as balance from './deps/sui/balance.js';
-export function AdminCap() {
-	return bcs.struct('AdminCap', {
-		id: object.UID(),
-	});
-}
-export function SuiNS() {
-	return bcs.struct('SuiNS', {
-		id: object.UID(),
-		/**
-		 * The total balance of the SuiNS. Can be added to by authorized apps. Can be
-		 * withdrawn only by the application Admin.
-		 */
-		balance: balance.Balance(),
-	});
-}
-export function SUINS() {
-	return bcs.struct('SUINS', {
-		dummy_field: bcs.bool(),
-	});
-}
-export function ConfigKey() {
-	return bcs.struct('ConfigKey', {
-		dummy_field: bcs.bool(),
-	});
-}
-export function RegistryKey() {
-	return bcs.struct('RegistryKey', {
-		dummy_field: bcs.bool(),
-	});
-}
-export function BalanceKey() {
-	return bcs.struct('BalanceKey', {
-		dummy_field: bcs.bool(),
-	});
-}
-export function AppKey() {
-	return bcs.struct('AppKey', {
-		dummy_field: bcs.bool(),
-	});
-}
+const $moduleName = '@suins/core::suins';
+export const AdminCap = new MoveStruct(`${$moduleName}::AdminCap`, {
+	id: object.UID,
+});
+export const SuiNS = new MoveStruct(`${$moduleName}::SuiNS`, {
+	id: object.UID,
+	/**
+	 * The total balance of the SuiNS. Can be added to by authorized apps. Can be
+	 * withdrawn only by the application Admin.
+	 */
+	balance: balance.Balance,
+});
+export const SUINS = new MoveStruct(`${$moduleName}::SUINS`, {
+	dummy_field: bcs.bool(),
+});
+export const ConfigKey = new MoveStruct(`${$moduleName}::ConfigKey`, {
+	dummy_field: bcs.bool(),
+});
+export const RegistryKey = new MoveStruct(`${$moduleName}::RegistryKey`, {
+	dummy_field: bcs.bool(),
+});
+export const BalanceKey = new MoveStruct(`${$moduleName}::BalanceKey`, {
+	dummy_field: bcs.bool(),
+});
+export const AppKey = new MoveStruct(`${$moduleName}::AppKey`, {
+	dummy_field: bcs.bool(),
+});
 export interface WithdrawArguments {
 	_: RawTransactionArgument<string>;
 	self: RawTransactionArgument<string>;

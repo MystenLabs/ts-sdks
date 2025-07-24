@@ -4,8 +4,8 @@
 /** Sui object identifiers */
 
 import { bcs } from '@mysten/sui/bcs';
-export function UID() {
-	return bcs.struct('UID', {
-		id: bcs.Address,
-	});
-}
+import { MoveStruct } from '../../../utils/index.js';
+const $moduleName = 'sui::object';
+export const UID = new MoveStruct(`${$moduleName}::UID`, {
+	id: bcs.Address,
+});

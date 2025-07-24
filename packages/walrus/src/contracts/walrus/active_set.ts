@@ -9,27 +9,25 @@
  */
 
 import { bcs } from '@mysten/sui/bcs';
-export function ActiveSetEntry() {
-	return bcs.struct('ActiveSetEntry', {
-		node_id: bcs.Address,
-		staked_amount: bcs.u64(),
-	});
-}
-export function ActiveSet() {
-	return bcs.struct('ActiveSet', {
-		/**
-		 * The maximum number of storage nodes in the active set. Potentially remove this
-		 * field.
-		 */
-		max_size: bcs.u16(),
-		/**
-		 * The minimum amount of staked WAL needed to enter the active set. This is used to
-		 * determine if a storage node can be added to the active set.
-		 */
-		threshold_stake: bcs.u64(),
-		/** The list of storage nodes in the active set and their stake. */
-		nodes: bcs.vector(ActiveSetEntry()),
-		/** The total amount of staked WAL in the active set. */
-		total_stake: bcs.u64(),
-	});
-}
+import { MoveStruct } from '../utils/index.js';
+const $moduleName = '@local-pkg/walrus::active_set';
+export const ActiveSetEntry = new MoveStruct(`${$moduleName}::ActiveSetEntry`, {
+	node_id: bcs.Address,
+	staked_amount: bcs.u64(),
+});
+export const ActiveSet = new MoveStruct(`${$moduleName}::ActiveSet`, {
+	/**
+	 * The maximum number of storage nodes in the active set. Potentially remove this
+	 * field.
+	 */
+	max_size: bcs.u16(),
+	/**
+	 * The minimum amount of staked WAL needed to enter the active set. This is used to
+	 * determine if a storage node can be added to the active set.
+	 */
+	threshold_stake: bcs.u64(),
+	/** The list of storage nodes in the active set and their stake. */
+	nodes: bcs.vector(ActiveSetEntry),
+	/** The total amount of staked WAL in the active set. */
+	total_stake: bcs.u64(),
+});

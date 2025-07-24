@@ -13,52 +13,45 @@
  */
 
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
+import { MoveTuple, MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
+import type { Transaction } from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as object from './deps/sui/object.js';
 import * as _package from './deps/sui/package.js';
 import * as table from './deps/sui/table.js';
-export function PackageDigest() {
-	return bcs.tuple([bcs.vector(bcs.u8())], { name: 'PackageDigest' });
-}
-export function UpgradeProposal() {
-	return bcs.struct('UpgradeProposal', {
-		/**
-		 * The epoch in which the proposal was created. The upgrade must be performed in
-		 * the same epoch.
-		 */
-		epoch: bcs.u32(),
-		/** The digest of the package to upgrade to. */
-		digest: PackageDigest(),
-		/**
-		 * The version of the package to upgrade to. This allows to easily clean up old
-		 * proposals.
-		 */
-		version: bcs.u64(),
-		/** The voting weight of the proposal. */
-		voting_weight: bcs.u16(),
-		/**
-		 * The node IDs that have voted for this proposal. Note: the number of nodes in the
-		 * committee is capped, so we can use a VecSet.
-		 */
-		voters: vec_set.VecSet(bcs.Address),
-	});
-}
-export function UpgradeManager() {
-	return bcs.struct('UpgradeManager', {
-		id: object.UID(),
-		cap: _package.UpgradeCap(),
-		upgrade_proposals: table.Table(),
-	});
-}
-export function EmergencyUpgradeCap() {
-	return bcs.struct('EmergencyUpgradeCap', {
-		id: object.UID(),
-		upgrade_manager_id: bcs.Address,
-	});
-}
+const $moduleName = '@local-pkg/walrus::upgrade';
+export const PackageDigest = new MoveTuple(`${$moduleName}::PackageDigest`, [bcs.vector(bcs.u8())]);
+export const UpgradeProposal = new MoveStruct(`${$moduleName}::UpgradeProposal`, {
+	/**
+	 * The epoch in which the proposal was created. The upgrade must be performed in
+	 * the same epoch.
+	 */
+	epoch: bcs.u32(),
+	/** The digest of the package to upgrade to. */
+	digest: PackageDigest,
+	/**
+	 * The version of the package to upgrade to. This allows to easily clean up old
+	 * proposals.
+	 */
+	version: bcs.u64(),
+	/** The voting weight of the proposal. */
+	voting_weight: bcs.u16(),
+	/**
+	 * The node IDs that have voted for this proposal. Note: the number of nodes in the
+	 * committee is capped, so we can use a VecSet.
+	 */
+	voters: vec_set.VecSet(bcs.Address),
+});
+export const UpgradeManager = new MoveStruct(`${$moduleName}::UpgradeManager`, {
+	id: object.UID,
+	cap: _package.UpgradeCap,
+	upgrade_proposals: table.Table,
+});
+export const EmergencyUpgradeCap = new MoveStruct(`${$moduleName}::EmergencyUpgradeCap`, {
+	id: object.UID,
+	upgrade_manager_id: bcs.Address,
+});
 export interface VoteForUpgradeArguments {
 	self: RawTransactionArgument<string>;
 	staking: RawTransactionArgument<string>;

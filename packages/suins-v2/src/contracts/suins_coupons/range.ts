@@ -3,15 +3,14 @@
 
 /** A module to introduce `range` checks for the rules. */
 
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
-export function Range() {
-	return bcs.struct('Range', {
-		vec: bcs.vector(bcs.u8()),
-	});
-}
+const $moduleName = '@suins/coupons::range';
+export const Range = new MoveStruct(`${$moduleName}::Range`, {
+	vec: bcs.vector(bcs.u8()),
+});
 export interface NewArguments {
 	from: RawTransactionArgument<number>;
 	to: RawTransactionArgument<number>;

@@ -1,30 +1,27 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+import { MoveEnum, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { BcsType } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+const $moduleName = '@local-pkg/walrus::auth';
 /**
  * Authentication for either a sender or an object. Unlike the `Authorized` type,
  * it cannot be stored and must be used or ignored in the same transaction.
  */
-export function Authenticated() {
-	return bcs.enum('Authenticated', {
-		Sender: bcs.Address,
-		Object: bcs.Address,
-	});
-}
+export const Authenticated = new MoveEnum(`${$moduleName}::Authenticated`, {
+	Sender: bcs.Address,
+	Object: bcs.Address,
+});
 /**
  * Defines the ways to authorize an action. It can be either an address - checked
  * with `ctx.sender()`, - or an object - checked with `object::id(..)`.
  */
-export function Authorized() {
-	return bcs.enum('Authorized', {
-		Address: bcs.Address,
-		ObjectID: bcs.Address,
-	});
-}
+export const Authorized = new MoveEnum(`${$moduleName}::Authorized`, {
+	Address: bcs.Address,
+	ObjectID: bcs.Address,
+});
 export interface AuthenticateSenderOptions {
 	package?: string;
 	arguments?: [];

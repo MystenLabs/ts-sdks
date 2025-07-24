@@ -1,9 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { bcs } from '@mysten/sui/bcs';
+import { MoveStruct } from '../utils/index.js';
 import * as bag from './deps/sui/bag.js';
-export function Data() {
-	return bcs.struct('Data', {
-		coupons: bag.Bag(),
-	});
-}
+const $moduleName = '@suins/coupons::data';
+export const Data = new MoveStruct(`${$moduleName}::Data`, {
+	coupons: bag.Bag,
+});

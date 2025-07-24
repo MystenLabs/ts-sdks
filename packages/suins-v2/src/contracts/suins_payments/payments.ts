@@ -1,30 +1,25 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+import { MoveTuple, MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
-import * as vec_map from './deps/sui/vec_map.js';
 import * as type_name from './deps/std/type_name.js';
-export function PaymentsApp() {
-	return bcs.tuple([bcs.bool()], { name: 'PaymentsApp' });
-}
-export function PaymentsConfig() {
-	return bcs.struct('PaymentsConfig', {
-		currencies: vec_map.VecMap(type_name.TypeName(), CoinTypeData()),
-		base_currency: type_name.TypeName(),
-		max_age: bcs.u64(),
-	});
-}
-export function CoinTypeData() {
-	return bcs.struct('CoinTypeData', {
-		/** The coin's decimals. */
-		decimals: bcs.u8(),
-		discount_percentage: bcs.u8(),
-		price_feed_id: bcs.vector(bcs.u8()),
-		type_name: type_name.TypeName(),
-	});
-}
+import * as vec_map from './deps/sui/vec_map.js';
+const $moduleName = '@suins/payments::payments';
+export const PaymentsApp = new MoveTuple(`${$moduleName}::PaymentsApp`, [bcs.bool()]);
+export const CoinTypeData = new MoveStruct(`${$moduleName}::CoinTypeData`, {
+	/** The coin's decimals. */
+	decimals: bcs.u8(),
+	discount_percentage: bcs.u8(),
+	price_feed_id: bcs.vector(bcs.u8()),
+	type_name: type_name.TypeName,
+});
+export const PaymentsConfig = new MoveStruct(`${$moduleName}::PaymentsConfig`, {
+	currencies: vec_map.VecMap(type_name.TypeName, CoinTypeData),
+	base_currency: type_name.TypeName,
+	max_age: bcs.u64(),
+});
 export interface HandleBasePaymentArguments {
 	suins: RawTransactionArgument<string>;
 	intent: RawTransactionArgument<string>;
@@ -67,8 +62,8 @@ export interface HandlePaymentArguments {
 	suins: RawTransactionArgument<string>;
 	intent: RawTransactionArgument<string>;
 	payment: RawTransactionArgument<string>;
-	clock: RawTransactionArgument<string>;
-	priceInfoObject: RawTransactionArgument<number | bigint>;
+	priceInfoObject: RawTransactionArgument<string>;
+	userPriceGuard: RawTransactionArgument<number | bigint>;
 }
 export interface HandlePaymentOptions {
 	package?: string;
@@ -78,8 +73,8 @@ export interface HandlePaymentOptions {
 				suins: RawTransactionArgument<string>,
 				intent: RawTransactionArgument<string>,
 				payment: RawTransactionArgument<string>,
-				clock: RawTransactionArgument<string>,
-				priceInfoObject: RawTransactionArgument<number | bigint>,
+				priceInfoObject: RawTransactionArgument<string>,
+				userPriceGuard: RawTransactionArgument<number | bigint>,
 		  ];
 	typeArguments: [string];
 }
@@ -125,7 +120,7 @@ export function handlePayment(options: HandlePaymentOptions) {
 export interface CalculatePriceArguments {
 	suins: RawTransactionArgument<string>;
 	baseAmount: RawTransactionArgument<number | bigint>;
-	clock: RawTransactionArgument<string>;
+	priceInfoObject: RawTransactionArgument<string>;
 }
 export interface CalculatePriceOptions {
 	package?: string;
@@ -134,7 +129,7 @@ export interface CalculatePriceOptions {
 		| [
 				suins: RawTransactionArgument<string>,
 				baseAmount: RawTransactionArgument<number | bigint>,
-				clock: RawTransactionArgument<string>,
+				priceInfoObject: RawTransactionArgument<string>,
 		  ];
 	typeArguments: [string];
 }

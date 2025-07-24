@@ -17,10 +17,10 @@ import type { RawTransactionArgument } from '../utils/index.js';
 export interface NewArguments {
 	suins: RawTransactionArgument<string>;
 	subdomain: RawTransactionArgument<string>;
-	clock: RawTransactionArgument<string>;
-	subdomainName: RawTransactionArgument<number | bigint>;
-	expirationTimestampMs: RawTransactionArgument<boolean>;
+	subdomainName: RawTransactionArgument<string>;
+	expirationTimestampMs: RawTransactionArgument<number | bigint>;
 	allowCreation: RawTransactionArgument<boolean>;
+	allowTimeExtension: RawTransactionArgument<boolean>;
 }
 export interface NewOptions {
 	package?: string;
@@ -29,10 +29,10 @@ export interface NewOptions {
 		| [
 				suins: RawTransactionArgument<string>,
 				subdomain: RawTransactionArgument<string>,
-				clock: RawTransactionArgument<string>,
-				subdomainName: RawTransactionArgument<number | bigint>,
-				expirationTimestampMs: RawTransactionArgument<boolean>,
+				subdomainName: RawTransactionArgument<string>,
+				expirationTimestampMs: RawTransactionArgument<number | bigint>,
 				allowCreation: RawTransactionArgument<boolean>,
+				allowTimeExtension: RawTransactionArgument<boolean>,
 		  ];
 }
 export function _new(options: NewOptions) {
@@ -66,8 +66,8 @@ export function _new(options: NewOptions) {
 export interface NewLeafArguments {
 	suins: RawTransactionArgument<string>;
 	subdomain: RawTransactionArgument<string>;
-	clock: RawTransactionArgument<string>;
 	subdomainName: RawTransactionArgument<string>;
+	target: RawTransactionArgument<string>;
 }
 export interface NewLeafOptions {
 	package?: string;
@@ -76,8 +76,8 @@ export interface NewLeafOptions {
 		| [
 				suins: RawTransactionArgument<string>,
 				subdomain: RawTransactionArgument<string>,
-				clock: RawTransactionArgument<string>,
 				subdomainName: RawTransactionArgument<string>,
+				target: RawTransactionArgument<string>,
 		  ];
 }
 export function newLeaf(options: NewLeafOptions) {
@@ -101,7 +101,7 @@ export function newLeaf(options: NewLeafOptions) {
 export interface RemoveLeafArguments {
 	suins: RawTransactionArgument<string>;
 	subdomain: RawTransactionArgument<string>;
-	clock: RawTransactionArgument<string>;
+	subdomainName: RawTransactionArgument<string>;
 }
 export interface RemoveLeafOptions {
 	package?: string;
@@ -110,7 +110,7 @@ export interface RemoveLeafOptions {
 		| [
 				suins: RawTransactionArgument<string>,
 				subdomain: RawTransactionArgument<string>,
-				clock: RawTransactionArgument<string>,
+				subdomainName: RawTransactionArgument<string>,
 		  ];
 }
 export function removeLeaf(options: RemoveLeafOptions) {
@@ -133,9 +133,9 @@ export function removeLeaf(options: RemoveLeafOptions) {
 export interface EditSetupArguments {
 	suins: RawTransactionArgument<string>;
 	parent: RawTransactionArgument<string>;
-	clock: RawTransactionArgument<string>;
-	subdomainName: RawTransactionArgument<boolean>;
+	subdomainName: RawTransactionArgument<string>;
 	allowCreation: RawTransactionArgument<boolean>;
+	allowTimeExtension: RawTransactionArgument<boolean>;
 }
 export interface EditSetupOptions {
 	package?: string;
@@ -144,9 +144,9 @@ export interface EditSetupOptions {
 		| [
 				suins: RawTransactionArgument<string>,
 				parent: RawTransactionArgument<string>,
-				clock: RawTransactionArgument<string>,
-				subdomainName: RawTransactionArgument<boolean>,
+				subdomainName: RawTransactionArgument<string>,
 				allowCreation: RawTransactionArgument<boolean>,
+				allowTimeExtension: RawTransactionArgument<boolean>,
 		  ];
 }
 export function editSetup(options: EditSetupOptions) {

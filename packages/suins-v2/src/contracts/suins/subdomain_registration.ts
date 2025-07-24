@@ -10,18 +10,16 @@
  * We maintain all core functionality unchanged for registry, expiration etc.
  */
 
-import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
+import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 import * as suins_registration from './suins_registration.js';
-export function SubDomainRegistration() {
-	return bcs.struct('SubDomainRegistration', {
-		id: object.UID(),
-		nft: suins_registration.SuinsRegistration(),
-	});
-}
+const $moduleName = '@suins/core::subdomain_registration';
+export const SubDomainRegistration = new MoveStruct(`${$moduleName}::SubDomainRegistration`, {
+	id: object.UID,
+	nft: suins_registration.SuinsRegistration,
+});
 export interface NftArguments {
 	name: RawTransactionArgument<string>;
 }

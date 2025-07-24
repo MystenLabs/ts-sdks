@@ -12,30 +12,25 @@
  * to claim names and add earnings to the registry.
  */
 
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { BcsType } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
 import * as data from './data.js';
 import * as object from './deps/sui/object.js';
-export function CouponsApp() {
-	return bcs.struct('CouponsApp', {
-		dummy_field: bcs.bool(),
-	});
-}
-export function AppKey() {
-	return bcs.struct('AppKey', {
-		dummy_field: bcs.bool(),
-	});
-}
-export function CouponHouse() {
-	return bcs.struct('CouponHouse', {
-		data: data.Data(),
-		version: bcs.u8(),
-		storage: object.UID(),
-	});
-}
+const $moduleName = '@suins/coupons::coupon_house';
+export const CouponsApp = new MoveStruct(`${$moduleName}::CouponsApp`, {
+	dummy_field: bcs.bool(),
+});
+export const AppKey = new MoveStruct(`${$moduleName}::AppKey`, {
+	dummy_field: bcs.bool(),
+});
+export const CouponHouse = new MoveStruct(`${$moduleName}::CouponHouse`, {
+	data: data.Data,
+	version: bcs.u8(),
+	storage: object.UID,
+});
 export interface SetupArguments {
 	suins: RawTransactionArgument<string>;
 	cap: RawTransactionArgument<string>;

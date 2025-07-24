@@ -1,19 +1,17 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
+import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 import * as blob_1 from './blob.js';
 import * as balance from './deps/sui/balance.js';
-export function SharedBlob() {
-	return bcs.struct('SharedBlob', {
-		id: object.UID(),
-		blob: blob_1.Blob(),
-		funds: balance.Balance(),
-	});
-}
+const $moduleName = '@local-pkg/walrus::shared_blob';
+export const SharedBlob = new MoveStruct(`${$moduleName}::SharedBlob`, {
+	id: object.UID,
+	blob: blob_1.Blob,
+	funds: balance.Balance,
+});
 export interface NewArguments {
 	blob: RawTransactionArgument<string>;
 }

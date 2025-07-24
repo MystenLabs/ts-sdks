@@ -31,7 +31,3 @@ export function VecMap<K extends BcsType<any>, V extends BcsType<any>>(...typePa
 		},
 	);
 }
-
-
-const test = VecMap(bcs.u64(), bcs.bool());
-const testType = test.name

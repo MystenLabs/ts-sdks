@@ -1,30 +1,27 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
+import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 import * as storage_resource from './storage_resource.js';
-export function Blob() {
-	return bcs.struct('Blob', {
-		id: object.UID(),
-		registered_epoch: bcs.u32(),
-		blob_id: bcs.u256(),
-		size: bcs.u64(),
-		encoding_type: bcs.u8(),
-		certified_epoch: bcs.option(bcs.u32()),
-		storage: storage_resource.Storage(),
-		deletable: bcs.bool(),
-	});
-}
-export function BlobIdDerivation() {
-	return bcs.struct('BlobIdDerivation', {
-		encoding_type: bcs.u8(),
-		size: bcs.u64(),
-		root_hash: bcs.u256(),
-	});
-}
+const $moduleName = '@local-pkg/walrus::blob';
+export const Blob = new MoveStruct(`${$moduleName}::Blob`, {
+	id: object.UID,
+	registered_epoch: bcs.u32(),
+	blob_id: bcs.u256(),
+	size: bcs.u64(),
+	encoding_type: bcs.u8(),
+	certified_epoch: bcs.option(bcs.u32()),
+	storage: storage_resource.Storage,
+	deletable: bcs.bool(),
+});
+export const BlobIdDerivation = new MoveStruct(`${$moduleName}::BlobIdDerivation`, {
+	encoding_type: bcs.u8(),
+	size: bcs.u64(),
+	root_hash: bcs.u256(),
+});
 export interface ObjectIdArguments {
 	self: RawTransactionArgument<string>;
 }

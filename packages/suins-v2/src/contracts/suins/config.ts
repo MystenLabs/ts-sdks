@@ -1,17 +1,16 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
-export function Config() {
-	return bcs.struct('Config', {
-		public_key: bcs.vector(bcs.u8()),
-		three_char_price: bcs.u64(),
-		four_char_price: bcs.u64(),
-		five_plus_char_price: bcs.u64(),
-	});
-}
+const $moduleName = '@suins/core::config';
+export const Config = new MoveStruct(`${$moduleName}::Config`, {
+	public_key: bcs.vector(bcs.u8()),
+	three_char_price: bcs.u64(),
+	four_char_price: bcs.u64(),
+	five_plus_char_price: bcs.u64(),
+});
 export interface NewArguments {
 	PublicKey: RawTransactionArgument<number[]>;
 	ThreeCharPrice: RawTransactionArgument<number | bigint>;
