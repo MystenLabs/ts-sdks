@@ -19,6 +19,13 @@ const walrusClient = new WalrusClient({
 	storageNodeClientOptions: {
 		timeout: 60_000,
 	},
+	uploadRelay: {
+		host: 'https://upload-relay.testnet.walrus.space',
+		sendTip: {
+			max: 1_000,
+		},
+		timeout: 360_000,
+	},
 });
 
 export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void }) {
