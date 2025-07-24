@@ -2,3 +2,4 @@ packages/sui-grpc/src/proto/** linguist-generated=true
 packages/typescript/src/graphql/generated/** linguist-generated=true
 packages/graphql-transport/src/generated/** linguist-generated=true
 packages/suins-v2/src/contracts/** linguist-generated=true
+packages/codegen/tests/generated/** linguist-generated=true
