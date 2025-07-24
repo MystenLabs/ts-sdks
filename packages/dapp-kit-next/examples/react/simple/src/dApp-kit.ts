@@ -6,6 +6,7 @@ import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 export const dAppKit = createDAppKit({
 	enableBurnerWallet: import.meta.env.DEV,
+	walletConnectProjectId: '702e2d45d9debca66795614cddb5c1ca',
 	networks: ['mainnet', 'testnet'],
 	defaultNetwork: 'testnet',
 	createClient(network) {
