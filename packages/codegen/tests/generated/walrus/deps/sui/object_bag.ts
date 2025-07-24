@@ -10,8 +10,8 @@
  * from within Move.
  */
 
-import { bcs } from '@mysten/sui/bcs';
 import { MoveStruct } from '../../../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 import * as object from './object.js';
 const $moduleName = 'sui::object_bag';
 export const ObjectBag = new MoveStruct(`${$moduleName}::ObjectBag`, {

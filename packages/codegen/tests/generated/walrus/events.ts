@@ -7,8 +7,8 @@
  * work-around for the lack of composable event filters).
  */
 
-import { bcs } from '@mysten/sui/bcs';
 import { MoveStruct } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '@local-pkg/walrus::events';
 export const BlobRegistered = new MoveStruct(`${$moduleName}::BlobRegistered`, {
 	epoch: bcs.u32(),

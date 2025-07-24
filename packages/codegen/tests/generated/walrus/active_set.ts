@@ -15,8 +15,8 @@
  *   total_staked (#715)
  */
 
-import { bcs } from '@mysten/sui/bcs';
 import { MoveStruct } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '@local-pkg/walrus::active_set';
 export const ActiveSetEntry = new MoveStruct(`${$moduleName}::ActiveSetEntry`, {
 	node_id: bcs.Address,

@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { bcs } from '@mysten/sui/bcs';
 import { MoveStruct, MoveEnum } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 import * as group_ops from './deps/sui/group_ops.js';
 const $moduleName = '@local-pkg/walrus::bls_aggregate';
 export const BlsCommitteeMember = new MoveStruct(`${$moduleName}::BlsCommitteeMember`, {

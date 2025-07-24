@@ -8,8 +8,8 @@
  * and `Balance`s.
  */
 
-import { bcs } from '@mysten/sui/bcs';
 import { MoveStruct } from '../../../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 const $moduleName = 'sui::balance';
 export const Balance = new MoveStruct(`${$moduleName}::Balance`, {
 	value: bcs.u64(),

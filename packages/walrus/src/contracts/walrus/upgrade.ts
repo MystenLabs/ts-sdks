@@ -12,9 +12,9 @@
  * cannot be blocked solely by byzantine nodes.
  */
 
-import { bcs } from '@mysten/sui/bcs';
 import { MoveTuple, MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as object from './deps/sui/object.js';

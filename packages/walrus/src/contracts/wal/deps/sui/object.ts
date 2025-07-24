@@ -3,8 +3,8 @@
 
 /** Sui object identifiers */
 
-import { bcs } from '@mysten/sui/bcs';
 import { MoveStruct } from '../../../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 const $moduleName = 'sui::object';
 export const UID = new MoveStruct(`${$moduleName}::UID`, {
 	id: bcs.Address,
