@@ -88,6 +88,8 @@ import type {
 	WriteFilesOptions,
 	WriteFilesFlowOptions,
 	WriteFilesFlow,
+	WriteFilesFlowRegisterOptions,
+	WriteFilesFlowUploadOptions,
 } from './types.js';
 import { blobIdToInt, IntentType, SliverData, StorageConfirmation } from './utils/bcs.js';
 import {
@@ -2182,14 +2184,7 @@ export class WalrusClient {
 		}));
 	}
 
-	writeFilesFlow({
-		files,
-		epochs,
-		deletable,
-		owner,
-		attributes,
-		signal,
-	}: WriteFilesFlowOptions): WriteFilesFlow {
+	writeFilesFlow({ files }: WriteFilesFlowOptions): WriteFilesFlow {
 		const encode = async () => {
 			const { quilt, index } = await this.encodeQuilt({
 				blobs: await Promise.all(
@@ -2206,6 +2201,18 @@ export class WalrusClient {
 					})
 				: await this.encodeBlob(quilt);
 
+			return {
+				metadata,
+				size: quilt.length,
+				data: this.#uploadRelayClient ? quilt : undefined,
+				index,
+			};
+		};
+
+		const register = (
+			{ data, metadata, index, size }: Awaited<ReturnType<typeof encode>>,
+			{ epochs, deletable, owner, attributes }: WriteFilesFlowRegisterOptions,
+		) => {
 			const transaction = new Transaction();
 			transaction.setSenderIfNotSet(owner);
 
@@ -2213,7 +2220,7 @@ export class WalrusClient {
 				const meta = metadata as Awaited<ReturnType<typeof this.computeBlobMetadata>>;
 				transaction.add(
 					this.sendUploadRelayTip({
-						size: quilt.length,
+						size,
 						blobDigest: meta.blobDigest,
 						nonce: meta.nonce,
 					}),
@@ -2223,7 +2230,7 @@ export class WalrusClient {
 			transaction.transferObjects(
 				[
 					this.registerBlob({
-						size: quilt.length,
+						size,
 						epochs,
 						blobId: metadata.blobId,
 						rootHash: metadata.rootHash,
@@ -2235,30 +2242,20 @@ export class WalrusClient {
 				owner,
 			);
 
-			const digest = await transaction.getDigest({
-				client: this.#suiClient as SuiClient,
-			});
-
 			return {
 				registerTransaction: transaction,
-				metadata,
-				registerDigest: digest,
-				data: this.#uploadRelayClient ? quilt : undefined,
 				index,
+				data,
+				metadata,
+				deletable,
 			};
 		};
 
-		const register = (result: Awaited<ReturnType<typeof encode>>) => {
-			return result;
-		};
-
-		const upload = async ({
-			index,
-			data,
-			registerDigest,
-			metadata,
-		}: Awaited<ReturnType<typeof register>>) => {
-			const blobObject = await this.#getCreatedBlob(registerDigest);
+		const upload = async (
+			{ index, data, metadata, deletable }: Awaited<ReturnType<typeof register>>,
+			{ digest }: WriteFilesFlowUploadOptions,
+		) => {
+			const blobObject = await this.#getCreatedBlob(digest);
 
 			if (this.#uploadRelayClient) {
 				const meta = metadata as Awaited<ReturnType<typeof this.computeBlobMetadata>>;
@@ -2266,12 +2263,13 @@ export class WalrusClient {
 					index,
 					blobObject,
 					metadata,
+					deletable,
 					certificate: (
 						await this.writeBlobToUploadRelay({
 							blobId: metadata.blobId,
 							blob: data!,
 							nonce: meta.nonce,
-							txDigest: registerDigest,
+							txDigest: digest,
 							blobObjectId: blobObject.id.id,
 							deletable,
 							encodingType: meta.metadata.encodingType as EncodingType,
@@ -2286,13 +2284,13 @@ export class WalrusClient {
 				index,
 				blobObject,
 				metadata,
+				deletable,
 				confirmations: await this.writeEncodedBlobToNodes({
 					blobId: metadata.blobId,
 					objectId: blobObject.id.id,
 					metadata: meta.metadata,
 					sliversByNode: meta.sliversByNode,
 					deletable,
-					signal,
 				}),
 			};
 		};
@@ -2303,6 +2301,7 @@ export class WalrusClient {
 			confirmations,
 			certificate,
 			blobObject,
+			deletable,
 		}: Awaited<ReturnType<typeof upload>>) => {
 			return {
 				index,
@@ -2313,13 +2312,13 @@ export class WalrusClient {
 							blobId: metadata.blobId,
 							blobObjectId: blobObject.id.id,
 							confirmations,
-							deletable: true,
+							deletable,
 						})
 					: this.certifyBlobTransaction({
 							certificate,
 							blobId: metadata.blobId,
 							blobObjectId: blobObject.id.id,
-							deletable: true,
+							deletable,
 						}),
 			};
 		};
@@ -2363,12 +2362,12 @@ export class WalrusClient {
 					stepResults.encode = await encode();
 				}
 			},
-			register: () => {
-				stepResults.register = register(getResults('encode', 'register'));
+			register: (options: WriteFilesFlowRegisterOptions) => {
+				stepResults.register = register(getResults('encode', 'register'), options);
 				return stepResults.register.registerTransaction;
 			},
-			upload: async () => {
-				stepResults.upload = await upload(getResults('register', 'upload'));
+			upload: async (options: WriteFilesFlowUploadOptions) => {
+				stepResults.upload = await upload(getResults('register', 'upload'), options);
 			},
 			certify: () => {
 				stepResults.certify = certify(getResults('upload', 'certify'));

@@ -54,19 +54,20 @@ async function uploadFile() {
 
 	const flow = await client.walrus.writeFilesFlow({
 		files,
-		deletable: true,
-		epochs: 3,
-		owner: keypair.toSuiAddress(),
 	});
 
 	await flow.encode();
 
-	await client.signAndExecuteTransaction({
-		transaction: flow.register(),
+	const { digest } = await client.signAndExecuteTransaction({
+		transaction: flow.register({
+			deletable: true,
+			epochs: 3,
+			owner: keypair.toSuiAddress(),
+		}),
 		signer: keypair,
 	});
 
-	await flow.upload();
+	await flow.upload({ digest });
 
 	await client.signAndExecuteTransaction({
 		transaction: flow.certify(),
@@ -78,4 +79,4 @@ async function uploadFile() {
 	console.log(result);
 }
 
-uploadFile().catch(console.error);
+uploadFile().catch((error) => console.error(error));

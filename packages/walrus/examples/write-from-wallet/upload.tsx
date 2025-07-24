@@ -65,9 +65,6 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 					identifier: file.name,
 				}),
 			],
-			epochs: 3,
-			owner: currentAccount!.address,
-			deletable: true,
 		});
 
 		flowRef.current = flow;
@@ -91,12 +88,16 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 		if (!flowRef.current) return;
 
 		setState('registering');
-		const registerBlobTransaction = flowRef.current.register();
+		const registerBlobTransaction = flowRef.current.register({
+			epochs: 3,
+			owner: currentAccount!.address,
+			deletable: true,
+		});
 
-		await signAndExecuteTransaction({ transaction: registerBlobTransaction });
+		const { digest } = await signAndExecuteTransaction({ transaction: registerBlobTransaction });
 		setState('uploading');
 
-		await flowRef.current.upload();
+		await flowRef.current.upload({ digest });
 
 		setState('uploaded');
 	}

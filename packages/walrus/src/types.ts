@@ -265,15 +265,22 @@ export interface WriteFilesOptions extends Omit<WriteBlobOptions, 'blob'> {
 	files: WalrusFile[];
 }
 
-export interface WriteFilesFlowOptions extends Omit<WriteBlobOptions, 'blob' | 'signer'> {
+export interface WriteFilesFlowOptions {
 	files: WalrusFile[];
+}
+
+export interface WriteFilesFlowRegisterOptions extends Omit<WriteBlobOptions, 'blob' | 'signer'> {
 	owner: string;
+}
+
+export interface WriteFilesFlowUploadOptions {
+	digest: string;
 }
 
 export interface WriteFilesFlow {
 	encode: () => Promise<void>;
-	register: () => Transaction;
-	upload: () => Promise<void>;
+	register: (options: WriteFilesFlowRegisterOptions) => Transaction;
+	upload: (options: WriteFilesFlowUploadOptions) => Promise<void>;
 	certify: () => Transaction;
 	listFiles: () => Promise<
 		{
