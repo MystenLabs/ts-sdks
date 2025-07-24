@@ -5,7 +5,7 @@
 
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-const $moduleName = 'sui::object';
+const $moduleName = '0x2::object';
 export const UID = new MoveStruct(`${$moduleName}::UID`, {
 	id: bcs.Address,
 });

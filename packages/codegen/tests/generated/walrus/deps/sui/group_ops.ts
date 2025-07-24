@@ -6,7 +6,7 @@
 
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-const $moduleName = 'sui::group_ops';
+const $moduleName = '0x2::group_ops';
 export const Element = new MoveStruct(`${$moduleName}::Element`, {
 	bytes: bcs.vector(bcs.u8()),
 });

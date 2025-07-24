@@ -10,7 +10,7 @@
 
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-const $moduleName = 'sui::balance';
+const $moduleName = '0x2::balance';
 export const Balance = new MoveStruct(`${$moduleName}::Balance`, {
 	value: bcs.u64(),
 });

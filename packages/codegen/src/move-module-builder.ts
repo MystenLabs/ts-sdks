@@ -3,7 +3,12 @@
 
 import { FileBuilder } from './file-builder.js';
 import { readFile } from 'node:fs/promises';
-import { getSafeName, renderTypeSignature, SUI_FRAMEWORK_ADDRESS } from './render-types.js';
+import {
+	getSafeName,
+	renderTypeSignature,
+	SUI_FRAMEWORK_ADDRESS,
+	SUI_SYSTEM_ADDRESS,
+} from './render-types.js';
 import {
 	camelCase,
 	capitalize,
@@ -56,6 +61,17 @@ export class MoveModuleBuilder extends FileBuilder {
 
 	#resolveAddress(address: string) {
 		return this.#addressMappings[address] ?? address;
+	}
+
+	#getModuleTypeName() {
+		const resolvedAddress = this.#resolveAddress(this.summary.id.address);
+		if (resolvedAddress === SUI_FRAMEWORK_ADDRESS) {
+			return '0x2';
+		} else if (resolvedAddress === SUI_SYSTEM_ADDRESS) {
+			return '0x3';
+		} else {
+			return this.#mvrNameOrAddress ?? this.summary.id.address;
+		}
 	}
 
 	override async getHeader() {
@@ -155,7 +171,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		if (this.hasBcsTypes()) {
 			this.statements.push(
 				...parseTS /* ts */ `
-				const $moduleName = '${this.#mvrNameOrAddress ?? this.summary.id.address}::${this.summary.id.name}';
+				const $moduleName = '${this.#getModuleTypeName()}::${this.summary.id.name}';
 				`,
 			);
 		}
