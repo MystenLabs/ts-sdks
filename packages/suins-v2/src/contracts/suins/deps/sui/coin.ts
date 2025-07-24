@@ -9,7 +9,7 @@
 import { MoveStruct } from '../../../utils/index.js';
 import * as object from './object.js';
 import * as balance from './balance.js';
-const $moduleName = 'sui::coin';
+const $moduleName = '0x2::coin';
 export const Coin = new MoveStruct(`${$moduleName}::Coin`, {
 	id: object.UID,
 	balance: balance.Balance,

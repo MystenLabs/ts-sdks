@@ -3,7 +3,7 @@
  **************************************************************/
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct } from '../../../utils/index.js';
-const $moduleName = 'sui::vec_set';
+const $moduleName = '0x2::vec_set';
 /**
  * A set data structure backed by a vector. The set is guaranteed not to contain
  * duplicate keys. All operations are O(N) in the size of the set

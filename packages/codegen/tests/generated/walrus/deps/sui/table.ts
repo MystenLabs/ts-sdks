@@ -25,7 +25,7 @@
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as object from './object.js';
-const $moduleName = 'sui::table';
+const $moduleName = '0x2::table';
 export const Table = new MoveStruct(`${$moduleName}::Table`, {
 	/** the ID of this table */
 	id: object.UID,
