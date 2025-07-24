@@ -1,5 +1,11 @@
 # @mysten/walrus
 
+## 0.5.0
+
+### Minor Changes
+
+- 3fd7e41: Move delete, epochs and owner options from writeFilesFlow to flow.register
+
 ## 0.4.0
 
 ### Minor Changes
