@@ -119,7 +119,9 @@ describe('useSignAndExecuteTransaction', () => {
 
 		expect(call[0].account).toStrictEqual(mockWallet.accounts[0]);
 		expect(call[0].chain).toBe('sui:testnet');
-		expect(await call[0].transaction.toJSON()).toEqual(await new Transaction().toJSON());
+		const expectedTransaction = new Transaction();
+		expectedTransaction.setSenderIfNotSet(mockWallet.accounts[0].address);
+		expect(await call[0].transaction.toJSON()).toEqual(await expectedTransaction.toJSON());
 
 		act(() => unregister());
 	});
@@ -280,7 +282,9 @@ describe('useSignAndExecuteTransaction', () => {
 
 		expect(call[0].account).toStrictEqual(mockWallet.accounts[0]);
 		expect(call[0].chain).toBe('sui:testnet');
-		expect(await call[0].transaction.toJSON()).toEqual(await new Transaction().toJSON());
+		const expectedTransaction = new Transaction();
+		expectedTransaction.setSenderIfNotSet(mockWallet.accounts[0].address);
+		expect(await call[0].transaction.toJSON()).toEqual(await expectedTransaction.toJSON());
 
 		act(() => unregister());
 	});
