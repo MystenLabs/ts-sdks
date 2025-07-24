@@ -4,18 +4,17 @@
 /** Module: system */
 
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
+import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
-export function System() {
-	return bcs.struct('System', {
-		id: object.UID(),
-		version: bcs.u64(),
-		package_id: bcs.Address,
-		new_package_id: bcs.option(bcs.Address),
-	});
-}
+const $moduleName = '@local-pkg/walrus::system';
+export const System = new MoveStruct(`${$moduleName}::System`, {
+	id: object.UID,
+	version: bcs.u64(),
+	package_id: bcs.Address,
+	new_package_id: bcs.option(bcs.Address),
+});
 export interface InvalidateBlobIdArguments {
 	system: RawTransactionArgument<string>;
 	signature: RawTransactionArgument<number[]>;

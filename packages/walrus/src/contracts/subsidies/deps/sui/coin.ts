@@ -6,12 +6,11 @@
  * coins. `Coin` can be described as a secure wrapper around `Balance` type.
  */
 
-import { bcs } from '@mysten/sui/bcs';
+import { MoveStruct } from '../../../utils/index.js';
 import * as object from './object.js';
 import * as balance from './balance.js';
-export function Coin() {
-	return bcs.struct('Coin', {
-		id: object.UID(),
-		balance: balance.Balance(),
-	});
-}
+const $moduleName = 'sui::coin';
+export const Coin = new MoveStruct(`${$moduleName}::Coin`, {
+	id: object.UID,
+	balance: balance.Balance,
+});

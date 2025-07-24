@@ -105,7 +105,7 @@ export type WalrusClientRequestOptions = Pick<RequestOptions, 'signal'>;
 
 export interface StorageNode {
 	networkUrl: string;
-	info: ReturnType<typeof StorageNodeInfo>['$inferType'];
+	info: (typeof StorageNodeInfo)['$inferType'];
 	shardIndices: number[];
 	nodeIndex: number;
 	id: string;
@@ -279,7 +279,7 @@ export interface WriteFilesFlow {
 		{
 			id: string;
 			blobId: string;
-			blobObject: ReturnType<typeof Blob>['$inferType'];
+			blobObject: (typeof Blob)['$inferType'];
 		}[]
 	>;
 }

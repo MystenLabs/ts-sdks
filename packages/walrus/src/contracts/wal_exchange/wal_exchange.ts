@@ -4,31 +4,26 @@
 /** Module: wal_exchange */
 
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
+import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 import * as balance from './deps/sui/balance.js';
-export function Exchange() {
-	return bcs.struct('Exchange', {
-		id: object.UID(),
-		wal: balance.Balance(),
-		sui: balance.Balance(),
-		rate: ExchangeRate(),
-		admin: bcs.Address,
-	});
-}
-export function AdminCap() {
-	return bcs.struct('AdminCap', {
-		id: object.UID(),
-	});
-}
-export function ExchangeRate() {
-	return bcs.struct('ExchangeRate', {
-		wal: bcs.u64(),
-		sui: bcs.u64(),
-	});
-}
+const $moduleName = '@local-pkg/wal_exchange::wal_exchange';
+export const ExchangeRate = new MoveStruct(`${$moduleName}::ExchangeRate`, {
+	wal: bcs.u64(),
+	sui: bcs.u64(),
+});
+export const Exchange = new MoveStruct(`${$moduleName}::Exchange`, {
+	id: object.UID,
+	wal: balance.Balance,
+	sui: balance.Balance,
+	rate: ExchangeRate,
+	admin: bcs.Address,
+});
+export const AdminCap = new MoveStruct(`${$moduleName}::AdminCap`, {
+	id: object.UID,
+});
 export interface NewExchangeRateArguments {
 	wal: RawTransactionArgument<number | bigint>;
 	sui: RawTransactionArgument<number | bigint>;

@@ -4,18 +4,17 @@
 /** Metadata that describes a Storage Node. Attached to the `StakingPool` */
 
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
+import type { Transaction } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
-export function NodeMetadata() {
-	return bcs.struct('NodeMetadata', {
-		image_url: bcs.string(),
-		project_url: bcs.string(),
-		description: bcs.string(),
-		extra_fields: vec_map.VecMap(bcs.string(), bcs.string()),
-	});
-}
+const $moduleName = '@local-pkg/walrus::node_metadata';
+export const NodeMetadata = new MoveStruct(`${$moduleName}::NodeMetadata`, {
+	image_url: bcs.string(),
+	project_url: bcs.string(),
+	description: bcs.string(),
+	extra_fields: vec_map.VecMap(bcs.string(), bcs.string()),
+});
 export interface NewArguments {
 	imageUrl: RawTransactionArgument<string>;
 	projectUrl: RawTransactionArgument<string>;

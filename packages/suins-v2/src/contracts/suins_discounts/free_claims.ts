@@ -10,25 +10,20 @@
  * / deactivation happens through PTBs.
  */
 
+import { MoveTuple, MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { BcsType } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
 import * as pricing_config from './deps/suins/pricing_config.js';
 import * as linked_table from './deps/sui/linked_table.js';
-export function FreeClaimsApp() {
-	return bcs.tuple([bcs.bool()], { name: 'FreeClaimsApp' });
-}
-export function FreeClaimsKey() {
-	return bcs.tuple([bcs.bool()], { name: 'FreeClaimsKey' });
-}
-export function FreeClaimsConfig() {
-	return bcs.struct('FreeClaimsConfig', {
-		domain_length_range: pricing_config.Range(),
-		used_objects: linked_table.LinkedTable(bcs.Address),
-	});
-}
+const $moduleName = '@suins/discounts::free_claims';
+export const FreeClaimsApp = new MoveTuple(`${$moduleName}::FreeClaimsApp`, [bcs.bool()]);
+export const FreeClaimsKey = new MoveTuple(`${$moduleName}::FreeClaimsKey`, [bcs.bool()]);
+export const FreeClaimsConfig = new MoveStruct(`${$moduleName}::FreeClaimsConfig`, {
+	domain_length_range: pricing_config.Range,
+	used_objects: linked_table.LinkedTable(bcs.Address),
+});
 export interface FreeClaimArguments<T extends BcsType<any>> {
 	self: RawTransactionArgument<string>;
 	suins: RawTransactionArgument<string>;

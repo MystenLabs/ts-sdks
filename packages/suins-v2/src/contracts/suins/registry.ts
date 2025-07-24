@@ -1,24 +1,23 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
 import * as table from './deps/sui/table.js';
-export function Registry() {
-	return bcs.struct('Registry', {
-		/**
-		 * The `registry` table maps `Domain` to `NameRecord`. Added / replaced in the
-		 * `add_record` function.
-		 */
-		registry: table.Table(),
-		/**
-		 * The `reverse_registry` table maps `address` to `domain_name`. Updated in the
-		 * `set_reverse_lookup` function.
-		 */
-		reverse_registry: table.Table(),
-	});
-}
+const $moduleName = '@suins/core::registry';
+export const Registry = new MoveStruct(`${$moduleName}::Registry`, {
+	/**
+	 * The `registry` table maps `Domain` to `NameRecord`. Added / replaced in the
+	 * `add_record` function.
+	 */
+	registry: table.Table,
+	/**
+	 * The `reverse_registry` table maps `address` to `domain_name`. Updated in the
+	 * `set_reverse_lookup` function.
+	 */
+	reverse_registry: table.Table,
+});
 export interface NewArguments {
 	_: RawTransactionArgument<string>;
 }
@@ -202,7 +201,7 @@ export function burnSubdomainObject(options: BurnSubdomainObjectOptions) {
 export interface AddLeafRecordArguments {
 	self: RawTransactionArgument<string>;
 	domain: RawTransactionArgument<string>;
-	clock: RawTransactionArgument<string>;
+	target: RawTransactionArgument<string>;
 }
 export interface AddLeafRecordOptions {
 	package?: string;
@@ -211,7 +210,7 @@ export interface AddLeafRecordOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				domain: RawTransactionArgument<string>,
-				clock: RawTransactionArgument<string>,
+				target: RawTransactionArgument<string>,
 		  ];
 }
 /**

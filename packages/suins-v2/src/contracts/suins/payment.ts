@@ -1,81 +1,74 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+import { MoveStruct, MoveEnum, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { BcsType } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
 import * as domain_1 from './domain.js';
 import * as vec_map from './deps/sui/vec_map.js';
 import * as type_name from './deps/std/type_name.js';
-export function RequestData() {
-	return bcs.struct('RequestData', {
-		/** The version of the payment module. */
-		version: bcs.u8(),
-		/** The domain for which the payment is being made. */
-		domain: domain_1.Domain(),
-		/** The years for which the payment is being made. Defaults to 1 for registration. */
-		years: bcs.u8(),
-		/** The amount the user has to pay in base units. */
-		base_amount: bcs.u64(),
-		/**
-		 * The discounts (each app can add a key for its discount) to avoid multiple
-		 * additions of the same discount.
-		 */
-		discounts_applied: vec_map.VecMap(bcs.string(), bcs.u64()),
-		/**
-		 * a metadata field for future-proofness. No use-cases are enabled in the current
-		 * release.
-		 */
-		metadata: vec_map.VecMap(bcs.string(), bcs.string()),
-	});
-}
-export function TransactionEvent() {
-	return bcs.struct('TransactionEvent', {
-		app: type_name.TypeName(),
-		domain: domain_1.Domain(),
-		years: bcs.u8(),
-		request_data_version: bcs.u8(),
-		base_amount: bcs.u64(),
-		discounts_applied: vec_map.VecMap(bcs.string(), bcs.u64()),
-		metadata: vec_map.VecMap(bcs.string(), bcs.string()),
-		is_renewal: bcs.bool(),
-		currency: type_name.TypeName(),
-		currency_amount: bcs.u64(),
-	});
-}
+const $moduleName = '@suins/core::payment';
+export const RequestData = new MoveStruct(`${$moduleName}::RequestData`, {
+	/** The version of the payment module. */
+	version: bcs.u8(),
+	/** The domain for which the payment is being made. */
+	domain: domain_1.Domain,
+	/** The years for which the payment is being made. Defaults to 1 for registration. */
+	years: bcs.u8(),
+	/** The amount the user has to pay in base units. */
+	base_amount: bcs.u64(),
+	/**
+	 * The discounts (each app can add a key for its discount) to avoid multiple
+	 * additions of the same discount.
+	 */
+	discounts_applied: vec_map.VecMap(bcs.string(), bcs.u64()),
+	/**
+	 * a metadata field for future-proofness. No use-cases are enabled in the current
+	 * release.
+	 */
+	metadata: vec_map.VecMap(bcs.string(), bcs.string()),
+});
+export const TransactionEvent = new MoveStruct(`${$moduleName}::TransactionEvent`, {
+	app: type_name.TypeName,
+	domain: domain_1.Domain,
+	years: bcs.u8(),
+	request_data_version: bcs.u8(),
+	base_amount: bcs.u64(),
+	discounts_applied: vec_map.VecMap(bcs.string(), bcs.u64()),
+	metadata: vec_map.VecMap(bcs.string(), bcs.string()),
+	is_renewal: bcs.bool(),
+	currency: type_name.TypeName,
+	currency_amount: bcs.u64(),
+});
 /**
  * The payment intent for a given domain
  *
  * - Registration: The user is registering a new domain.
  * - Renewal: The user is renewing an existing domain.
  */
-export function PaymentIntent() {
-	return bcs.enum('PaymentIntent', {
-		Registration: RequestData(),
-		Renewal: RequestData(),
-	});
-}
+export const PaymentIntent = new MoveEnum(`${$moduleName}::PaymentIntent`, {
+	Registration: RequestData,
+	Renewal: RequestData,
+});
 /**
  * A receipt that is generated after a successful payment. Can be used to:
  *
  * - Prove that the payment was successful.
  * - Register a new name, or renew an existing one.
  */
-export function Receipt() {
-	return bcs.enum('Receipt', {
-		Registration: bcs.struct('Receipt.Registration', {
-			domain: domain_1.Domain(),
-			years: bcs.u8(),
-			version: bcs.u8(),
-		}),
-		Renewal: bcs.struct('Receipt.Renewal', {
-			domain: domain_1.Domain(),
-			years: bcs.u8(),
-			version: bcs.u8(),
-		}),
-	});
-}
+export const Receipt = new MoveEnum(`${$moduleName}::Receipt`, {
+	Registration: new MoveStruct(`Receipt.Registration`, {
+		domain: domain_1.Domain,
+		years: bcs.u8(),
+		version: bcs.u8(),
+	}),
+	Renewal: new MoveStruct(`Receipt.Renewal`, {
+		domain: domain_1.Domain,
+		years: bcs.u8(),
+		version: bcs.u8(),
+	}),
+});
 export interface ApplyPercentageDiscountArguments<A extends BcsType<any>> {
 	intent: RawTransactionArgument<string>;
 	suins: RawTransactionArgument<string>;

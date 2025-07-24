@@ -12,14 +12,14 @@
  */
 
 import { bcs } from '@mysten/sui/bcs';
+import { MoveStruct } from '../utils/index.js';
 import * as vec_map from './deps/sui/vec_map.js';
-export function WalrusContext() {
-	return bcs.struct('WalrusContext', {
-		/** Current Walrus epoch */
-		epoch: bcs.u32(),
-		/** Whether the committee has been selected for the next epoch. */
-		committee_selected: bcs.bool(),
-		/** The current committee in the system. */
-		committee: vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16())),
-	});
-}
+const $moduleName = '@local-pkg/walrus::walrus_context';
+export const WalrusContext = new MoveStruct(`${$moduleName}::WalrusContext`, {
+	/** Current Walrus epoch */
+	epoch: bcs.u32(),
+	/** Whether the committee has been selected for the next epoch. */
+	committee_selected: bcs.bool(),
+	/** The current committee in the system. */
+	committee: vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16())),
+});

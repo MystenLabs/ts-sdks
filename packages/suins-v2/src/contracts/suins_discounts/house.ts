@@ -6,17 +6,16 @@
  * and exports some package utilities for the 2 systems to use.
  */
 
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
 import * as object from './deps/sui/object.js';
-export function DiscountHouse() {
-	return bcs.struct('DiscountHouse', {
-		id: object.UID(),
-		version: bcs.u8(),
-	});
-}
+const $moduleName = '@suins/discounts::house';
+export const DiscountHouse = new MoveStruct(`${$moduleName}::DiscountHouse`, {
+	id: object.UID,
+	version: bcs.u8(),
+});
 export interface SetVersionArguments {
 	self: RawTransactionArgument<string>;
 	_: RawTransactionArgument<string>;

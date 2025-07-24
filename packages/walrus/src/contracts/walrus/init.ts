@@ -1,22 +1,19 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
+import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 import * as _package from './deps/sui/package.js';
-export function INIT() {
-	return bcs.struct('INIT', {
-		dummy_field: bcs.bool(),
-	});
-}
-export function InitCap() {
-	return bcs.struct('InitCap', {
-		id: object.UID(),
-		publisher: _package.Publisher(),
-	});
-}
+const $moduleName = '@local-pkg/walrus::init';
+export const INIT = new MoveStruct(`${$moduleName}::INIT`, {
+	dummy_field: bcs.bool(),
+});
+export const InitCap = new MoveStruct(`${$moduleName}::InitCap`, {
+	id: object.UID,
+	publisher: _package.Publisher,
+});
 export interface InitializeWalrusArguments {
 	initCap: RawTransactionArgument<string>;
 	upgradeCap: RawTransactionArgument<string>;

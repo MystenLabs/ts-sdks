@@ -8,11 +8,13 @@
 
 import { bcs } from '@mysten/sui/bcs';
 import type { BcsType } from '@mysten/sui/bcs';
+import { MoveStruct } from '../../../utils/index.js';
 import * as object from './object.js';
+const $moduleName = 'sui::linked_table';
 export function LinkedTable<K extends BcsType<any>>(...typeParameters: [K]) {
-	return bcs.struct('LinkedTable', {
+	return new MoveStruct(`${$moduleName}::LinkedTable<${typeParameters[0].name as K['name']}>`, {
 		/** the ID of this table */
-		id: object.UID(),
+		id: object.UID,
 		/** the number of key-value pairs in the table */
 		size: bcs.u64(),
 		/** the front of the table, i.e. the key of the first entry */

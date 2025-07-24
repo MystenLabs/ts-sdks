@@ -10,17 +10,16 @@
  * / deactivation happens through PTBs.
  */
 
+import { MoveTuple, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { BcsType } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
-export function RegularDiscountsApp() {
-	return bcs.tuple([bcs.bool()], { name: 'RegularDiscountsApp' });
-}
-export function DiscountKey() {
-	return bcs.tuple([bcs.bool()], { name: 'DiscountKey' });
-}
+const $moduleName = '@suins/discounts::discounts';
+export const RegularDiscountsApp = new MoveTuple(`${$moduleName}::RegularDiscountsApp`, [
+	bcs.bool(),
+]);
+export const DiscountKey = new MoveTuple(`${$moduleName}::DiscountKey`, [bcs.bool()]);
 export interface ApplyPercentageDiscountArguments<T extends BcsType<any>> {
 	self: RawTransactionArgument<string>;
 	intent: RawTransactionArgument<string>;

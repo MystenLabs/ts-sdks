@@ -1,28 +1,28 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
+import type { Transaction } from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
-export function FutureAccounting() {
-	return bcs.struct('FutureAccounting', {
-		epoch: bcs.u32(),
-		/**
-		 * This field stores `used_capacity` for the epoch. Currently, impossible to rename
-		 * due to package upgrade limitations.
-		 */
-		used_capacity: bcs.u64(),
-		rewards_to_distribute: balance.Balance(),
-	});
-}
-export function FutureAccountingRingBuffer() {
-	return bcs.struct('FutureAccountingRingBuffer', {
+const $moduleName = '@local-pkg/walrus::storage_accounting';
+export const FutureAccounting = new MoveStruct(`${$moduleName}::FutureAccounting`, {
+	epoch: bcs.u32(),
+	/**
+	 * This field stores `used_capacity` for the epoch. Currently, impossible to rename
+	 * due to package upgrade limitations.
+	 */
+	used_capacity: bcs.u64(),
+	rewards_to_distribute: balance.Balance,
+});
+export const FutureAccountingRingBuffer = new MoveStruct(
+	`${$moduleName}::FutureAccountingRingBuffer`,
+	{
 		current_index: bcs.u32(),
 		length: bcs.u32(),
-		ring_buffer: bcs.vector(FutureAccounting()),
-	});
-}
+		ring_buffer: bcs.vector(FutureAccounting),
+	},
+);
 export interface MaxEpochsAheadArguments {
 	self: RawTransactionArgument<string>;
 }

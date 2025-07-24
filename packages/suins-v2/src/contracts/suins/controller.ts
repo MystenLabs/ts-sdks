@@ -1,17 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+import { MoveTuple, MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
-export function ControllerV2() {
-	return bcs.tuple([bcs.bool()], { name: 'ControllerV2' });
-}
-export function Controller() {
-	return bcs.struct('Controller', {
-		dummy_field: bcs.bool(),
-	});
-}
+const $moduleName = '@suins/core::controller';
+export const ControllerV2 = new MoveTuple(`${$moduleName}::ControllerV2`, [bcs.bool()]);
+export const Controller = new MoveStruct(`${$moduleName}::Controller`, {
+	dummy_field: bcs.bool(),
+});
 export interface SetTargetAddressArguments {
 	suins: RawTransactionArgument<string>;
 	nft: RawTransactionArgument<string>;

@@ -102,9 +102,6 @@ export class MoveModuleBuilder extends FileBuilder {
 					format: 'bcs',
 					summary: this.summary,
 					typeParameters: struct.type_parameters,
-					onBcsType: () => {
-						this.addImport('@mysten/sui/bcs', 'bcs');
-					},
 					resolveAddress: (address) => this.#resolveAddress(address),
 					onDependency: (address, mod, name) => {
 						const builder = moduleBuilders[`${address}::${mod}`];

@@ -1,23 +1,18 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+import { MoveTuple, MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
 import * as vec_map from './deps/sui/vec_map.js';
-export function Range() {
-	return bcs.tuple([bcs.u64(), bcs.u64()], { name: 'Range' });
-}
-export function PricingConfig() {
-	return bcs.struct('PricingConfig', {
-		pricing: vec_map.VecMap(Range(), bcs.u64()),
-	});
-}
-export function RenewalConfig() {
-	return bcs.struct('RenewalConfig', {
-		config: PricingConfig(),
-	});
-}
+const $moduleName = '@suins/core::pricing_config';
+export const Range = new MoveTuple(`${$moduleName}::Range`, [bcs.u64(), bcs.u64()]);
+export const PricingConfig = new MoveStruct(`${$moduleName}::PricingConfig`, {
+	pricing: vec_map.VecMap(Range, bcs.u64()),
+});
+export const RenewalConfig = new MoveStruct(`${$moduleName}::RenewalConfig`, {
+	config: PricingConfig,
+});
 export interface CalculateBasePriceArguments {
 	config: RawTransactionArgument<string>;
 	length: RawTransactionArgument<number | bigint>;

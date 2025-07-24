@@ -1,18 +1,17 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
+import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
-export function Storage() {
-	return bcs.struct('Storage', {
-		id: object.UID(),
-		start_epoch: bcs.u32(),
-		end_epoch: bcs.u32(),
-		storage_size: bcs.u64(),
-	});
-}
+const $moduleName = '@local-pkg/walrus::storage_resource';
+export const Storage = new MoveStruct(`${$moduleName}::Storage`, {
+	id: object.UID,
+	start_epoch: bcs.u32(),
+	end_epoch: bcs.u32(),
+	storage_size: bcs.u64(),
+});
 export interface StartEpochArguments {
 	self: RawTransactionArgument<string>;
 }
