@@ -1,8 +1,8 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { bcs } from '@mysten/sui/bcs';
 import { MoveEnum, MoveStruct } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 import * as object_table from './deps/sui/object_table.js';
 import * as extended_field from './extended_field.js';
 import * as committee from './committee.js';

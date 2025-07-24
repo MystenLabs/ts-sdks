@@ -1,8 +1,8 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { bcs } from '@mysten/sui/bcs';
 import { MoveStruct } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/walrus::storage_accounting';
 export const FutureAccounting = new MoveStruct(`${$moduleName}::FutureAccounting`, {

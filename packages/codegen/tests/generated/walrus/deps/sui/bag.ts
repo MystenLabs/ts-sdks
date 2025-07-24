@@ -27,8 +27,8 @@
  * bag, on the other hand, must be empty to be destroyed.
  */
 
-import { bcs } from '@mysten/sui/bcs';
 import { MoveStruct } from '../../../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 import * as object from './object.js';
 const $moduleName = 'sui::bag';
 export const Bag = new MoveStruct(`${$moduleName}::Bag`, {

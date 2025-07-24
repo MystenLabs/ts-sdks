@@ -22,8 +22,8 @@
  * ```
  */
 
-import { bcs } from '@mysten/sui/bcs';
 import { MoveStruct } from '../../../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 import * as object from './object.js';
 const $moduleName = 'sui::table';
 export const Table = new MoveStruct(`${$moduleName}::Table`, {

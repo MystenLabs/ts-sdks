@@ -13,9 +13,9 @@
  * - Apply subsidies when reserving storage or extending blob lifetimes.
  */
 
-import { bcs } from '@mysten/sui/bcs';
 import { MoveTuple, MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 import * as balance from './deps/sui/balance.js';

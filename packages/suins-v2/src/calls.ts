@@ -254,8 +254,8 @@ export class SuiNsCalls {
 				suins: this.#objectIds.suins,
 				intent: options.arguments.intent,
 				payment: options.arguments.payment,
-				clock: options.arguments.clock,
 				priceInfoObject: options.arguments.priceInfoObject,
+				userPriceGuard: options.arguments.userPriceGuard,
 			},
 			typeArguments: options.typeArguments,
 		});

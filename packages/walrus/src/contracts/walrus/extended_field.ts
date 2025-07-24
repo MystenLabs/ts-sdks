@@ -3,10 +3,10 @@
 
 /** Module: extended_field */
 
-import { bcs } from '@mysten/sui/bcs';
-import type { BcsType } from '@mysten/sui/bcs';
 import { MoveStruct, MoveTuple, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
+import type { BcsType } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 const $moduleName = '@local-pkg/walrus::extended_field';

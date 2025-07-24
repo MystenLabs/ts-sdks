@@ -4,13 +4,13 @@
 
 /** Module: extended_field */
 
-import { bcs, type BcsType } from '@mysten/sui/bcs';
 import {
 	MoveStruct,
 	MoveTuple,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
 } from '../utils/index.js';
+import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 const $moduleName = '@local-pkg/walrus::extended_field';

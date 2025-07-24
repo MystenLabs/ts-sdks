@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { bcs } from '@mysten/sui/bcs';
 import { MoveStruct } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 import * as bls_aggregate from './bls_aggregate.js';
 import * as storage_accounting from './storage_accounting.js';
 import * as event_blob from './event_blob.js';

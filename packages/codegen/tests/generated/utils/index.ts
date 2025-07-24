@@ -158,11 +158,7 @@ export class MoveStruct<
 export class MoveEnum<
 	T extends Record<string, BcsType<any> | null>,
 	const Name extends string,
-> extends BcsEnum<T, Name> {
-	constructor(name: Name, fields: T) {
-		super(name, fields);
-	}
-}
+> extends BcsEnum<T, Name> {}
 
 export class MoveTuple<
 	T extends readonly BcsType<any>[],

@@ -35,10 +35,11 @@ module.exports = {
 		'storybook-static',
 		'.next',
 		'packages/docs/public/typedoc',
-		'packages/move-bytecode-template/pkg',
+		'packages/move-bytecode-template',
 		'packages/walrus-wasm',
 		'packages/walrus/src/node-api',
 		'generated',
+		'vite-env.d.ts',
 	],
 	rules: {
 		'prefer-const': 'error',

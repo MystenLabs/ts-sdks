@@ -1,8 +1,8 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { bcs } from '@mysten/sui/bcs';
 import { MoveStruct } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '@local-pkg/walrus::epoch_parameters';
 export const EpochParams = new MoveStruct(`${$moduleName}::EpochParams`, {
 	/** The storage capacity of the system. */

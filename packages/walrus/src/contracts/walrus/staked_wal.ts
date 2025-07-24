@@ -10,9 +10,9 @@
  * performed via the `withdraw_stake` method in the `staking_pool`.
  */
 
-import { bcs } from '@mysten/sui/bcs';
 import { MoveEnum, MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 import * as balance from './deps/sui/balance.js';

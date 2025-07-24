@@ -8,8 +8,8 @@
  * shards between committees with the least amount of changes.
  */
 
-import { bcs } from '@mysten/sui/bcs';
 import { MoveTuple } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::committee';
 export const Committee = new MoveTuple(`${$moduleName}::Committee`, [

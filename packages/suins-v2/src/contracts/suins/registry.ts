@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import type { RawTransactionArgument } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@suins/core::registry';

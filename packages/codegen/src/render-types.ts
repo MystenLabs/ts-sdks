@@ -151,11 +151,7 @@ export function usesBcs(type: Type, options: RenderTypeSignatureOptions): boolea
 	}
 
 	if ('Datatype' in type) {
-		if (isPureDataType(type.Datatype, options)) {
-			return true;
-		}
-
-		return type.Datatype.type_arguments.some((arg) => usesBcs(arg.argument, options));
+		return isPureDataType(type.Datatype, options);
 	}
 
 	if ('vector' in type) {

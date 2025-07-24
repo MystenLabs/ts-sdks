@@ -1,8 +1,8 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { bcs } from '@mysten/sui/bcs';
 import { MoveStruct, MoveEnum } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '@local-pkg/walrus::messages';
 export const ProofOfPossessionMessage = new MoveStruct(`${$moduleName}::ProofOfPossessionMessage`, {
 	intent_type: bcs.u8(),

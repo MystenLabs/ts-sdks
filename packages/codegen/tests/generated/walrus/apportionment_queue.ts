@@ -8,7 +8,7 @@
  * ties when priorities are equal.
  */
 
-import { bcs, type BcsType } from '@mysten/sui/bcs';
+import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as uq64_64 from './deps/std/uq64_64.js';
