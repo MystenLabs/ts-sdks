@@ -10,12 +10,8 @@ import { UserError } from './error.js';
 import { BonehFranklinBLS12381Services } from './ibe.js';
 import { deriveKey, KeyPurpose } from './kdf.js';
 import type { KeyServer } from './key-server.js';
-<<<<<<< HEAD
 import { createFullId, MAX_U8 } from './utils.js';
-=======
-import { createFullId } from './utils.js';
 import type { Share } from './shamir.js';
->>>>>>> 1f917771 (fix(seal): deprecations and improvements)
 import { split } from './shamir.js';
 
 /**
