@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fromHex } from '@mysten/bcs';
-import { isValidSuiObjectId } from '@mysten/sui/utils';
 
 import type { IBEEncryptions } from './bcs.js';
 import { EncryptedObject } from './bcs.js';
@@ -12,6 +11,7 @@ import { BonehFranklinBLS12381Services } from './ibe.js';
 import { deriveKey, KeyPurpose } from './kdf.js';
 import type { KeyServer } from './key-server.js';
 import { createFullId, MAX_U8 } from './utils.js';
+import type { Share } from './shamir.js';
 import { split } from './shamir.js';
 
 /**
@@ -49,8 +49,7 @@ export async function encrypt({
 		threshold <= 0 ||
 		threshold > MAX_U8 ||
 		keyServers.length < threshold ||
-		keyServers.length > MAX_U8 ||
-		!isValidSuiObjectId(packageId)
+		keyServers.length > MAX_U8
 	) {
 		throw new UserError(
 			`Invalid key servers or threshold ${threshold} for ${keyServers.length} key servers for package ${packageId}`,
@@ -69,10 +68,7 @@ export async function encrypt({
 		keyServers,
 		kemType,
 		fromHex(fullId),
-		shares.map(({ share, index }) => ({
-			msg: share,
-			index,
-		})),
+		shares,
 		baseKey,
 		threshold,
 	);
@@ -120,7 +116,7 @@ function encryptBatched(
 	keyServers: KeyServer[],
 	kemType: KemType,
 	id: Uint8Array,
-	msgs: { msg: Uint8Array; index: number }[],
+	shares: Share[],
 	baseKey: Uint8Array,
 	threshold: number,
 ): typeof IBEEncryptions.$inferType {
@@ -128,7 +124,7 @@ function encryptBatched(
 		case KemType.BonehFranklinBLS12381DemCCA:
 			return new BonehFranklinBLS12381Services(keyServers).encryptBatched(
 				id,
-				msgs,
+				shares,
 				baseKey,
 				threshold,
 			);

@@ -19,40 +19,23 @@ import {
 import { BonehFranklinBLS12381Services } from './ibe.js';
 import {
 	BonehFranklinBLS12381DerivedKey,
-	KeyServerType,
 	retrieveKeyServers,
 	verifyKeyServer,
+	fetchKeysForAllIds,
 } from './key-server.js';
 import type { DerivedKey, KeyServer } from './key-server.js';
-import { fetchKeysForAllIds } from './keys.js';
-import type { SessionKey } from './session-key.js';
-import type { KeyCacheKey, SealCompatibleClient } from './types.js';
+import type {
+	DecryptOptions,
+	EncryptOptions,
+	FetchKeysOptions,
+	GetDerivedKeysOptions,
+	KeyCacheKey,
+	KeyServerConfig,
+	SealClientExtensionOptions,
+	SealClientOptions,
+	SealCompatibleClient,
+} from './types.js';
 import { createFullId, count } from './utils.js';
-
-/**
- * Configuration options for initializing a SealClient
- * @property serverConfigs: Array of key server configs consisting of objectId, weight, optional API key name and API key.
- * @property verifyKeyServers: Whether to verify the key servers' authenticity.
- * 	 Should be false if servers are pre-verified (e.g., getAllowlistedKeyServers).
- * 	 Defaults to true.
- * @property timeout: Timeout in milliseconds for network requests. Defaults to 10 seconds.
- */
-export interface SealClientExtensionOptions {
-	serverConfigs: KeyServerConfig[];
-	verifyKeyServers?: boolean;
-	timeout?: number;
-}
-
-export interface KeyServerConfig {
-	objectId: string;
-	weight: number;
-	apiKeyName?: string;
-	apiKey?: string;
-}
-
-export interface SealClientOptions extends SealClientExtensionOptions {
-	suiClient: SealCompatibleClient;
-}
 
 export class SealClient {
 	#suiClient: SealCompatibleClient;
@@ -90,7 +73,7 @@ export class SealClient {
 		this.#timeout = options.timeout ?? 10_000;
 	}
 
-	static experimental_asClientExtension(options: SealClientExtensionOptions) {
+	static asClientExtension(options: SealClientExtensionOptions) {
 		return {
 			name: 'seal' as const,
 			register: (client: SealCompatibleClient) => {
@@ -123,15 +106,7 @@ export class SealClient {
 		id,
 		data,
 		aad = new Uint8Array(),
-	}: {
-		kemType?: KemType;
-		demType?: DemType;
-		threshold: number;
-		packageId: string;
-		id: string;
-		data: Uint8Array;
-		aad?: Uint8Array;
-	}) {
+	}: EncryptOptions) {
 		const packageObj = await this.#suiClient.core.getObject({ objectId: packageId });
 		if (String(packageObj.object.version) !== '1') {
 			throw new InvalidPackageError(`Package ${packageId} is not the first version`);
@@ -167,15 +142,7 @@ export class SealClient {
 	 * @param txBytes - The transaction bytes to use (that calls seal_approve* functions).
 	 * @returns - The decrypted plaintext corresponding to ciphertext.
 	 */
-	async decrypt({
-		data,
-		sessionKey,
-		txBytes,
-	}: {
-		data: Uint8Array;
-		sessionKey: SessionKey;
-		txBytes: Uint8Array;
-	}) {
+	async decrypt({ data, sessionKey, txBytes }: DecryptOptions) {
 		const encryptedObject = EncryptedObject.parse(data);
 
 		this.#validateEncryptionServices(
@@ -278,17 +245,7 @@ export class SealClient {
 	 * @param sessionKey - The session key to use.
 	 * @param threshold - The threshold for the TSS encryptions. The function returns when a threshold of key servers had returned keys for all ids.
 	 */
-	async fetchKeys({
-		ids,
-		txBytes,
-		sessionKey,
-		threshold,
-	}: {
-		ids: string[];
-		txBytes: Uint8Array;
-		sessionKey: SessionKey;
-		threshold: number;
-	}) {
+	async fetchKeys({ ids, txBytes, sessionKey, threshold }: FetchKeysOptions) {
 		if (threshold > this.#totalWeight || threshold < 1) {
 			throw new InvalidThresholdError(
 				`Invalid threshold ${threshold} servers with weights ${this.#configs}`,
@@ -316,17 +273,7 @@ export class SealClient {
 			return;
 		}
 
-		// Check server validities.
-		for (const objectId of remainingKeyServers) {
-			const server = keyServers.get(objectId)!;
-			if (server.keyType !== KeyServerType.BonehFranklinBLS12381) {
-				throw new InvalidKeyServerError(
-					`Server ${server.objectId} has invalid key type: ${server.keyType}`,
-				);
-			}
-		}
-
-		const cert = await sessionKey.getCertificate();
+		const certificate = await sessionKey.getCertificate();
 		const signedRequest = await sessionKey.createRequestParams(txBytes);
 
 		const controller = new AbortController();
@@ -336,17 +283,19 @@ export class SealClient {
 			const server = keyServers.get(objectId)!;
 			try {
 				const config = this.#configs.get(objectId);
-				const allKeys = await fetchKeysForAllIds(
-					server.url,
-					signedRequest.requestSignature,
-					txBytes,
-					signedRequest.decryptionKey,
-					cert,
-					this.#timeout,
-					config?.apiKeyName,
-					config?.apiKey,
-					controller.signal,
-				);
+				const allKeys = await fetchKeysForAllIds({
+					url: server.url,
+					requestSignature: signedRequest.requestSignature,
+					transactionBytes: txBytes,
+					encKey: signedRequest.encKey,
+					encKeyPk: signedRequest.encKeyPk,
+					encVerificationKey: signedRequest.encVerificationKey,
+					certificate,
+					timeout: this.#timeout,
+					apiKeyName: config?.apiKeyName,
+					apiKey: config?.apiKey,
+					signal: controller.signal,
+				});
 				// Check validity of the keys and add them to the cache.
 				for (const { fullId, key } of allKeys) {
 					const keyElement = G1Element.fromBytes(key);
@@ -408,13 +357,7 @@ export class SealClient {
 		txBytes,
 		sessionKey,
 		threshold,
-	}: {
-		kemType?: KemType;
-		id: string;
-		txBytes: Uint8Array;
-		sessionKey: SessionKey;
-		threshold: number;
-	}): Promise<Map<string, DerivedKey>> {
+	}: GetDerivedKeysOptions): Promise<Map<string, DerivedKey>> {
 		switch (kemType) {
 			case KemType.BonehFranklinBLS12381DemCCA:
 				const keyServers = await this.getKeyServers();
