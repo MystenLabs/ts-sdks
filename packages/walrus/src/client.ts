@@ -258,7 +258,7 @@ export class WalrusClient {
 
 			const subsidiesObject = await this.#objectLoader.load(
 				this.#packageConfig.subsidiesObjectId,
-				subsidies.Subsidies(),
+				subsidies.Subsidies,
 			);
 
 			return subsidiesObject.package_id;
@@ -273,12 +273,12 @@ export class WalrusClient {
 
 	/** The cached system object for the walrus package */
 	systemObject() {
-		return this.#objectLoader.load(this.#packageConfig.systemObjectId, System());
+		return this.#objectLoader.load(this.#packageConfig.systemObjectId, System);
 	}
 
 	/** The cached staking pool object for the walrus package */
 	stakingObject() {
-		return this.#objectLoader.load(this.#packageConfig.stakingPoolId, Staking());
+		return this.#objectLoader.load(this.#packageConfig.stakingPoolId, Staking);
 	}
 
 	/** The system state for the current version of walrus contract  */
@@ -286,7 +286,7 @@ export class WalrusClient {
 		const systemState = await this.#objectLoader.loadFieldObject(
 			this.#packageConfig.systemObjectId,
 			{ type: 'u64', value: (await this.systemObject()).version },
-			SystemStateInnerV1(),
+			SystemStateInnerV1,
 		);
 
 		return systemState;
@@ -300,7 +300,7 @@ export class WalrusClient {
 				type: 'u64',
 				value: (await this.stakingObject()).version,
 			},
-			StakingInnerV1(),
+			StakingInnerV1,
 		);
 	}
 
@@ -881,7 +881,7 @@ export class WalrusClient {
 
 		return {
 			digest,
-			storage: Storage().parse(await suiBlobObject.content),
+			storage: Storage.parse(await suiBlobObject.content),
 		};
 	}
 
@@ -1069,7 +1069,7 @@ export class WalrusClient {
 		signer,
 		...options
 	}: RegisterBlobOptions & { transaction?: Transaction; signer: Signer }): Promise<{
-		blob: ReturnType<typeof Blob>['$inferType'];
+		blob: (typeof Blob)['$inferType'];
 		digest: string;
 	}> {
 		const transaction = this.registerBlobTransaction({
@@ -1103,7 +1103,7 @@ export class WalrusClient {
 
 		return {
 			digest,
-			blob: Blob().parse(await suiBlobObject.content),
+			blob: Blob.parse(await suiBlobObject.content),
 		};
 	}
 
@@ -1133,7 +1133,7 @@ export class WalrusClient {
 			);
 		}
 
-		return Blob().parse(await suiBlobObject.content);
+		return Blob.parse(await suiBlobObject.content);
 	}
 
 	async certificateFromConfirmations({
@@ -1363,7 +1363,7 @@ export class WalrusClient {
 	 */
 	extendBlob({ blobObjectId, epochs, endEpoch, walCoin, owner }: ExtendBlobOptions) {
 		return async (tx: Transaction) => {
-			const blob = await this.#objectLoader.load(blobObjectId, Blob());
+			const blob = await this.#objectLoader.load(blobObjectId, Blob);
 			const numEpochs = typeof epochs === 'number' ? epochs : endEpoch - blob.storage.end_epoch;
 
 			if (numEpochs <= 0) {
@@ -1457,7 +1457,7 @@ export class WalrusClient {
 			},
 		});
 
-		const parsedMetadata = metadata.Metadata().parse(response.dynamicField.value.bcs);
+		const parsedMetadata = metadata.Metadata.parse(response.dynamicField.value.bcs);
 
 		return Object.fromEntries(
 			parsedMetadata.metadata.contents.map(({ key, value }) => [key, value]),
@@ -1906,7 +1906,7 @@ export class WalrusClient {
 
 			return {
 				blobId,
-				blobObject: await this.#objectLoader.load(blobObjectId, Blob()),
+				blobObject: await this.#objectLoader.load(blobObjectId, Blob),
 			};
 		} else {
 			const metadata = await this.computeBlobMetadata({
@@ -1964,7 +1964,7 @@ export class WalrusClient {
 
 			return {
 				blobId,
-				blobObject: await this.#objectLoader.load(blobObjectId, Blob()),
+				blobObject: await this.#objectLoader.load(blobObjectId, Blob),
 			};
 		}
 	}
@@ -2032,7 +2032,7 @@ export class WalrusClient {
 		return { digest, effects };
 	}
 
-	async #getCommittee(committee: InferBcsType<ReturnType<typeof Committee>>) {
+	async #getCommittee(committee: InferBcsType<typeof Committee>) {
 		const stakingPool = await this.#stakingPool(committee);
 		const shardIndicesByNodeId = getShardIndicesByNodeId(committee);
 
@@ -2067,9 +2067,9 @@ export class WalrusClient {
 		});
 	}
 
-	async #stakingPool(committee: InferBcsType<ReturnType<typeof Committee>>) {
+	async #stakingPool(committee: InferBcsType<typeof Committee>) {
 		const nodeIds = committee[0].contents.map((node) => node.key);
-		return this.#objectLoader.loadManyOrThrow(nodeIds, StakingPool());
+		return this.#objectLoader.loadManyOrThrow(nodeIds, StakingPool);
 	}
 
 	async #getNodeByShardIndex(committeeInfo: CommitteeInfo, index: number) {

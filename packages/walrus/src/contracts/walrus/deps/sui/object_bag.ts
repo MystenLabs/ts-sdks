@@ -9,13 +9,13 @@
  * from within Move.
  */
 
+import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as object from './object.js';
-export function ObjectBag() {
-	return bcs.struct('ObjectBag', {
-		/** the ID of this bag */
-		id: object.UID(),
-		/** the number of key-value pairs in the bag */
-		size: bcs.u64(),
-	});
-}
+const $moduleName = '0x2::object_bag';
+export const ObjectBag = new MoveStruct(`${$moduleName}::ObjectBag`, {
+	/** the ID of this bag */
+	id: object.UID,
+	/** the number of key-value pairs in the bag */
+	size: bcs.u64(),
+});

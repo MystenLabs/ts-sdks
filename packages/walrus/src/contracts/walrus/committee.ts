@@ -7,14 +7,15 @@
  * shards between committees with the least amount of changes.
  */
 
+import { MoveTuple, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
 import * as vec_map from './deps/sui/vec_map.js';
-export function Committee() {
-	return bcs.tuple([vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16()))], { name: 'Committee' });
-}
+const $moduleName = '@local-pkg/walrus::committee';
+export const Committee = new MoveTuple(`${$moduleName}::Committee`, [
+	vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16())),
+]);
 export interface ShardsArguments {
 	cmt: RawTransactionArgument<string>;
 	nodeId: RawTransactionArgument<string>;

@@ -3,16 +3,15 @@
 
 /** Contains the metadata for Blobs on Walrus. */
 
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
 import * as vec_map from './deps/sui/vec_map.js';
-export function Metadata() {
-	return bcs.struct('Metadata', {
-		metadata: vec_map.VecMap(bcs.string(), bcs.string()),
-	});
-}
+const $moduleName = '@local-pkg/walrus::metadata';
+export const Metadata = new MoveStruct(`${$moduleName}::Metadata`, {
+	metadata: vec_map.VecMap(bcs.string(), bcs.string()),
+});
 export interface NewOptions {
 	package?: string;
 	arguments?: [];

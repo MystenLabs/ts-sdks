@@ -11,7 +11,7 @@
  * part--in this case 64 bits for each.
  */
 
+import { MoveTuple } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-export function UQ64_64() {
-	return bcs.tuple([bcs.u128()], { name: 'UQ64_64' });
-}
+const $moduleName = 'std::uq64_64';
+export const UQ64_64 = new MoveTuple(`${$moduleName}::UQ64_64`, [bcs.u128()]);

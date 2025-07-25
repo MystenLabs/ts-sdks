@@ -4,9 +4,9 @@
 
 /** Sui object identifiers */
 
+import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-export function UID() {
-	return bcs.struct('UID', {
-		id: bcs.Address,
-	});
-}
+const $moduleName = '0x2::object';
+export const UID = new MoveStruct(`${$moduleName}::UID`, {
+	id: bcs.Address,
+});

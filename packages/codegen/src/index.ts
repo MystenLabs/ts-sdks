@@ -60,7 +60,6 @@ export async function generateFromPackageSummary({
 	const modules = (
 		await Promise.all(
 			packages.map(async (pkg) => {
-				console.log(packageName, pkg);
 				const modules = await readdir(join(summaryDir, pkg));
 				return Promise.all(
 					modules.map(async (mod) => ({

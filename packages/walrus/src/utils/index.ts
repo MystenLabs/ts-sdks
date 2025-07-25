@@ -137,7 +137,7 @@ export function signersToBitmap(signers: number[], committeeSize: number): Uint8
 	return bitmap;
 }
 
-export function getShardIndicesByNodeId(committee: InferBcsType<ReturnType<typeof Committee>>) {
+export function getShardIndicesByNodeId(committee: InferBcsType<typeof Committee>) {
 	const shardIndicesByNodeId = new Map<string, number[]>();
 
 	for (const node of committee[0].contents) {
@@ -150,7 +150,7 @@ export function getShardIndicesByNodeId(committee: InferBcsType<ReturnType<typeo
 	return shardIndicesByNodeId;
 }
 
-export function nodesByShardIndex(committee: InferBcsType<ReturnType<typeof Committee>>) {
+export function nodesByShardIndex(committee: InferBcsType<typeof Committee>) {
 	const nodesByShardIndex = new Map<number, string>();
 
 	for (const node of committee[0].contents) {

@@ -15,11 +15,18 @@ interface RenderTypeSignatureOptions {
 	summary: ModuleSummary;
 	typeParameters?: TypeParameter[];
 	onDependency?: (address: string, module: string, type: string) => string | undefined;
+	onBcsType?: () => void;
 	onTypeParameter?: (typeParameter: number | string) => void;
 	resolveAddress: (address: string) => string;
 }
 
 export function renderTypeSignature(type: Type, options: RenderTypeSignatureOptions): string {
+	if (options.onBcsType) {
+		if (usesBcs(type, options)) {
+			options.onBcsType();
+		}
+	}
+
 	switch (type) {
 		case 'address':
 			switch (options.format) {
@@ -132,6 +139,26 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 	}
 
 	throw new Error(`Unknown type signature: ${JSON.stringify(type, null, 2)}`);
+}
+
+export function usesBcs(type: Type, options: RenderTypeSignatureOptions): boolean {
+	if (typeof type === 'string') {
+		return true;
+	}
+
+	if ('Reference' in type) {
+		return usesBcs(type.Reference[1], options);
+	}
+
+	if ('Datatype' in type) {
+		return isPureDataType(type.Datatype, options);
+	}
+
+	if ('vector' in type) {
+		return true;
+	}
+
+	return false;
 }
 
 export function isPureSignature(type: Type, options: RenderTypeSignatureOptions): boolean {
@@ -249,15 +276,18 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 		? type.name
 		: `${importName ?? getSafeName(type.module.name)}.${getSafeName(type.name)}`;
 
+	const filteredTypeArguments = type.type_arguments.filter((arg) => !arg.phantom);
+
 	switch (options.format) {
 		case 'typescriptArg':
 			return 'string';
 		case 'bcs':
+			if (filteredTypeArguments.length === 0) {
+				return typeNameRef;
+			}
+
 			return `${typeNameRef}(
-                ${type.type_arguments
-									.filter((arg) => !arg.phantom)
-									.map((type) => renderTypeSignature(type.argument, options))
-									.join(', ')})`;
+                ${filteredTypeArguments.map((type) => renderTypeSignature(type.argument, options)).join(', ')})`;
 		default:
 			throw new Error(`Unknown format: ${options.format}`);
 	}

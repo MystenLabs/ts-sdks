@@ -10,13 +10,13 @@
  * from within Move.
  */
 
+import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as object from './object.js';
-export function ObjectTable() {
-	return bcs.struct('ObjectTable', {
-		/** the ID of this table */
-		id: object.UID(),
-		/** the number of key-value pairs in the table */
-		size: bcs.u64(),
-	});
-}
+const $moduleName = '0x2::object_table';
+export const ObjectTable = new MoveStruct(`${$moduleName}::ObjectTable`, {
+	/** the ID of this table */
+	id: object.UID,
+	/** the number of key-value pairs in the table */
+	size: bcs.u64(),
+});
