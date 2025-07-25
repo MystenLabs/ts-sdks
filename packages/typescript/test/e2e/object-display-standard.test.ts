@@ -50,8 +50,11 @@ describe('Test Object Display Standard', () => {
 			'RPC call failed: Field value idd cannot be found in struct; RPC call failed: Field value namee cannot be found in struct';
 		const errorMessage2 =
 			'Field value idd cannot be found in struct; Field value namee cannot be found in struct';
+		const errorMessage3 = "'namee' not found in object; 'idd' not found in object";
 
-		expect([errorMessage1, errorMessage2]).toContain((display.error as { error: string })?.error);
+		expect([errorMessage1, errorMessage2, errorMessage3]).toContain(
+			(display.error as { error: string })?.error,
+		);
 	});
 
 	it('Test getting Display fields for object that has no display object', async () => {
