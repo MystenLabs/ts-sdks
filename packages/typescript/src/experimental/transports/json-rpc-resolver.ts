@@ -374,7 +374,12 @@ function isUsedAsMutable(transactionData: TransactionDataBuilder, index: number)
 			usedAsMutable = tx.MoveCall._argumentTypes[argIndex].ref !== '&' || usedAsMutable;
 		}
 
-		if (tx.$kind === 'MakeMoveVec' || tx.$kind === 'MergeCoins' || tx.$kind === 'SplitCoins') {
+		if (
+			tx.$kind === 'MakeMoveVec' ||
+			tx.$kind === 'MergeCoins' ||
+			tx.$kind === 'SplitCoins' ||
+			tx.$kind === 'TransferObjects'
+		) {
 			usedAsMutable = true;
 		}
 	});
