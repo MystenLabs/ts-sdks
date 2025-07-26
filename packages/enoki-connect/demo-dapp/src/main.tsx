@@ -16,8 +16,6 @@ const queryClient = new QueryClient();
 
 registerEnokiConnectWallets({
   publicAppSlugs: ["dev-app", "dev-app-not-exists"],
-  enokiApiUrl: "http://localhost:3084",
-  network: "testnet",
   dappName: "Test Dapp",
 }).catch(() => {});
 

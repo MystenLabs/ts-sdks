@@ -338,6 +338,30 @@ async function getEnokiConnectMetadata(publicAppSlugs: string[], enokiApiUrl: st
 	return data as EnokiConnectMetadata[];
 }
 
+/**
+ * Registers Enoki Connect wallets for your dApp.
+ *
+ * This function fetches wallet metadata for the provided public app slugs and registers
+ * them with the wallet standard. It returns the registered wallet instances and an
+ * `unregister` function to remove them if needed.
+ *
+ * @param publicAppSlugs - An array of public app slugs to register. You can obtain these slugs from the wallet developer.
+ * @param dappName - The display name of your dApp. This will be shown to users in wallet UIs.
+ * @param network - (Optional) The default Sui network to use for wallet operations (when chain is not specified in the wallet method). Accepts 'mainnet', 'testnet', or 'devnet'. Defaults to 'mainnet' if not specified.
+ * @param enokiApiUrl - (Optional) The Enoki API endpoint to use for fetching wallet metadata. Defaults to the public Enoki API at 'https://api.enoki.mystenlabs.com'. (Override this if you are running a local or custom Enoki API instance.)
+ *
+ * @returns An object containing:
+ *   - `wallets`: The array of registered EnokiConnectWallet instances.
+ *   - `unregister`: A function to unregister all registered wallets.
+ *
+ * @example
+ * ```ts
+ * const { wallets, unregister } = await registerEnokiConnectWallets({
+ *   publicAppSlugs: ['an-app-slug'],
+ *   dappName: 'My Dapp',
+ * });
+ * ```
+ */
 export async function registerEnokiConnectWallets({
 	publicAppSlugs,
 	dappName,
