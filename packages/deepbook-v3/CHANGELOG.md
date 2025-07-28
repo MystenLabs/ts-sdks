@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.15.9
+
+### Patch Changes
+
+- ee08639: IKA token on mainnet added
+
 ## 0.15.8
 
 ### Patch Changes
