@@ -761,17 +761,22 @@ export class WalrusClient {
 							subsidiesPackageId
 								? subsidies.reserveSpace({
 										package: subsidiesPackageId,
-										arguments: [
-											this.#packageConfig.subsidiesObjectId!,
-											systemObject.id.id,
-											encodedSize,
-											epochs,
-											coin,
-										],
+										arguments: {
+											self: this.#packageConfig.subsidiesObjectId!,
+											system: systemObject.id.id,
+											storageAmount: encodedSize,
+											epochsAhead: epochs,
+											payment: coin,
+										},
 									})
 								: reserveSpace({
 										package: walrusPackageId,
-										arguments: [systemObject.id.id, encodedSize, epochs, coin],
+										arguments: {
+											self: systemObject.id.id,
+											storageAmount: encodedSize,
+											epochsAhead: epochs,
+											payment: coin,
+										},
 									}),
 						);
 					},
@@ -912,16 +917,16 @@ export class WalrusClient {
 					const blob = tx.add(
 						registerBlob({
 							package: walrusPackageId,
-							arguments: [
-								tx.object(this.#packageConfig.systemObjectId),
-								this.createStorage({ size, epochs, walCoin, owner }),
-								blobIdToInt(blobId),
-								BigInt(bcs.u256().parse(rootHash)),
+							arguments: {
+								self: tx.object(this.#packageConfig.systemObjectId),
+								storage: this.createStorage({ size, epochs, walCoin, owner }),
+								blobId: blobIdToInt(blobId),
+								rootHash: BigInt(bcs.u256().parse(rootHash)),
 								size,
-								1,
+								encodingType: 1,
 								deletable,
-								writeCoin,
-							],
+								writePayment: writeCoin,
+							},
 						}),
 					);
 
@@ -1233,16 +1238,16 @@ export class WalrusClient {
 			tx.add(
 				certifyBlob({
 					package: walrusPackageId,
-					arguments: [
-						tx.object(this.#packageConfig.systemObjectId),
-						tx.object(blobObjectId),
-						tx.pure.vector('u8', combinedSignature.signature),
-						tx.pure.vector(
+					arguments: {
+						self: this.#packageConfig.systemObjectId,
+						blob: blobObjectId,
+						signature: tx.pure.vector('u8', combinedSignature.signature),
+						signersBitmap: tx.pure.vector(
 							'u8',
 							signersToBitmap(combinedSignature.signers, systemState.committee.members.length),
 						),
-						tx.pure.vector('u8', combinedSignature.serializedMessage),
-					],
+						message: tx.pure.vector('u8', combinedSignature.serializedMessage),
+					},
 				}),
 			);
 		};
@@ -1304,7 +1309,10 @@ export class WalrusClient {
 			const storage = tx.add(
 				deleteBlob({
 					package: walrusPackageId,
-					arguments: [tx.object(this.#packageConfig.systemObjectId), tx.object(blobObjectId)],
+					arguments: {
+						self: this.#packageConfig.systemObjectId,
+						blob: blobObjectId,
+					},
 				}),
 			);
 
@@ -1391,17 +1399,22 @@ export class WalrusClient {
 							subsidiesPackageId
 								? subsidies.extendBlob({
 										package: subsidiesPackageId,
-										arguments: [
-											this.#packageConfig.subsidiesObjectId!,
-											this.#packageConfig.systemObjectId,
-											blobObjectId,
-											numEpochs,
-											coin,
-										],
+										arguments: {
+											self: this.#packageConfig.subsidiesObjectId!,
+											system: this.#packageConfig.systemObjectId,
+											blob: blobObjectId,
+											epochsAhead: numEpochs,
+											payment: coin,
+										},
 									})
 								: extendBlob({
 										package: walrusPackageId,
-										arguments: [this.#packageConfig.systemObjectId, blobObjectId, numEpochs, coin],
+										arguments: {
+											self: this.#packageConfig.systemObjectId,
+											blob: blobObjectId,
+											extendedEpochs: numEpochs,
+											payment: coin,
+										},
 									}),
 						);
 					},
@@ -1484,13 +1497,12 @@ export class WalrusClient {
 				tx.add(
 					addMetadata({
 						package: walrusPackageId,
-						arguments: [
-							blob,
-							metadata._new({
+						arguments: {
+							self: blob,
+							metadata: metadata._new({
 								package: walrusPackageId,
-								arguments: [],
 							}),
-						],
+						},
 					}),
 				);
 			}
@@ -1503,7 +1515,10 @@ export class WalrusClient {
 						tx.add(
 							removeMetadataPair({
 								package: walrusPackageId,
-								arguments: [blob, key],
+								arguments: {
+									self: blob,
+									key,
+								},
 							}),
 						);
 					}
@@ -1511,7 +1526,11 @@ export class WalrusClient {
 					tx.add(
 						insertOrUpdateMetadataPair({
 							package: walrusPackageId,
-							arguments: [blob, key, value],
+							arguments: {
+								self: blob,
+								key,
+								value,
+							},
 						}),
 					);
 				}
