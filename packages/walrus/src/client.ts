@@ -977,6 +977,10 @@ export class WalrusClient {
 
 			const tipConfig = await this.#uploadRelayClient.tipConfig();
 
+			if (!tipConfig) {
+				return null;
+			}
+
 			return {
 				...tipConfig,
 				max: this.#uploadRelayConfig.sendTip.max,

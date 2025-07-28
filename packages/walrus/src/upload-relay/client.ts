@@ -66,25 +66,31 @@ export class UploadRelayClient {
 		this.#onError = onError;
 	}
 
-	async tipConfig(): Promise<UploadRelayTipConfig> {
+	async tipConfig(): Promise<UploadRelayTipConfig | null> {
 		const response = await this.#request({
 			method: 'GET',
 			path: '/v1/tip-config',
 		});
 
-		const data = (await response.json()) as {
-			send_tip: {
-				address: string;
-				kind:
-					| {
-							const: number;
-					  }
-					| {
-							base: number;
-							encoded_size_mul_per_kib: number;
-					  };
-			};
-		};
+		const data = (await response.json()) as
+			| {
+					send_tip: {
+						address: string;
+						kind:
+							| {
+									const: number;
+							  }
+							| {
+									base: number;
+									encoded_size_mul_per_kib: number;
+							  };
+					};
+			  }
+			| 'no_tip';
+
+		if (typeof data === 'string') {
+			return null;
+		}
 
 		if ('const' in data.send_tip.kind) {
 			return {
