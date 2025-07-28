@@ -254,4 +254,9 @@ export const mainnetPools: PoolMap = {
 		baseCoin: 'XBTC',
 		quoteCoin: 'USDC',
 	},
+	IKA_USDC: {
+		address: `0xfa732993af2b60d04d7049511f801e79426b2b6a5103e22769c0cead982b0f47`,
+		baseCoin: 'IKA',
+		quoteCoin: 'USDC',
+	},
 };
