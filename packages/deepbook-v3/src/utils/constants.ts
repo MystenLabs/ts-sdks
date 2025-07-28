@@ -127,6 +127,11 @@ export const mainnetCoins: CoinMap = {
 		type: `0x876a4b7bce8aeaef60464c11f4026903e9afacab79b9b142686158aa86560b50::xbtc::XBTC`,
 		scalar: 100000000,
 	},
+	IKA: {
+		address: `0x7262fb2f7a3a14c888c438a3cd9b912469a58cf60f367352c46584262e8299aa`,
+		type: `0x7262fb2f7a3a14c888c438a3cd9b912469a58cf60f367352c46584262e8299aa::ika::IKA`,
+		scalar: 1000000000,
+	},
 	// This coin is experimental
 	WGIGA: {
 		address: `0xec32640add6d02a1d5f0425d72705eb76d9de7edfd4f34e0dba68e62ecceb05b`,
