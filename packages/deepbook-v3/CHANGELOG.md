@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.15.10
+
+### Patch Changes
+
+- 6988956: IKA/USDC pool added
+
 ## 0.15.9
 
 ### Patch Changes
