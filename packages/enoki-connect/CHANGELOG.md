@@ -1,5 +1,14 @@
 # @mysten/enoki-connect
 
+## 0.0.20
+
+### Patch Changes
+
+- b21eed2: add docs for enoki-connect registerEnokiConnectWallets function
+- Updated dependencies [72168f0]
+  - @mysten/sui@1.37.0
+  - @mysten/wallet-standard@0.16.8
+
 ## 0.0.19
 
 ### Patch Changes

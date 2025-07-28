@@ -1,5 +1,13 @@
 # @mysten/walrus
 
+## 0.5.1
+
+### Patch Changes
+
+- e4650d6: Fix handling of upload relays that do not require a tip
+- Updated dependencies [72168f0]
+  - @mysten/sui@1.37.0
+
 ## 0.5.0
 
 ### Minor Changes

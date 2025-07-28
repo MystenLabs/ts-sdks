@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.37.0
+
+### Minor Changes
+
+- 72168f0: handle transfer of party objects through ptb command
+
 ## 1.36.2
 
 ### Patch Changes

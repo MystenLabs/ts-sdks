@@ -1,5 +1,13 @@
 # @mysten/sui-grpc
 
+## 0.0.11
+
+### Patch Changes
+
+- 03feb8d: update proto definitions for beta release
+- Updated dependencies [72168f0]
+  - @mysten/sui@1.37.0
+
 ## 0.0.10
 
 ### Patch Changes
