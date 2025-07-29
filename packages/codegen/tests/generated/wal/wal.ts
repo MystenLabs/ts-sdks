@@ -9,14 +9,23 @@ import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 const $moduleName = '@local-pkg/wal::wal';
-export const WAL = new MoveStruct(`${$moduleName}::WAL`, {
-	dummy_field: bcs.bool(),
+export const WAL = new MoveStruct({
+	name: `${$moduleName}::WAL`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
 });
-export const ProtectedTreasury = new MoveStruct(`${$moduleName}::ProtectedTreasury`, {
-	id: object.UID,
+export const ProtectedTreasury = new MoveStruct({
+	name: `${$moduleName}::ProtectedTreasury`,
+	fields: {
+		id: object.UID,
+	},
 });
-export const TreasuryCapKey = new MoveStruct(`${$moduleName}::TreasuryCapKey`, {
-	dummy_field: bcs.bool(),
+export const TreasuryCapKey = new MoveStruct({
+	name: `${$moduleName}::TreasuryCapKey`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
 });
 export interface TotalSupplyArguments {
 	treasury: RawTransactionArgument<string>;

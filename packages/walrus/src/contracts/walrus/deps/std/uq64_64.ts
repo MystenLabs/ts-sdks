@@ -14,4 +14,4 @@
 import { MoveTuple } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = 'std::uq64_64';
-export const UQ64_64 = new MoveTuple(`${$moduleName}::UQ64_64`, [bcs.u128()]);
+export const UQ64_64 = new MoveTuple({ name: `${$moduleName}::UQ64_64`, fields: [bcs.u128()] });

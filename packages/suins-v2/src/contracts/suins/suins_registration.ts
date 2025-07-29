@@ -19,16 +19,19 @@ import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 import * as domain_1 from './domain.js';
 const $moduleName = '@suins/core::suins_registration';
-export const SuinsRegistration = new MoveStruct(`${$moduleName}::SuinsRegistration`, {
-	id: object.UID,
-	/** The parsed domain. */
-	domain: domain_1.Domain,
-	/** The domain name that the NFT is for. */
-	domain_name: bcs.string(),
-	/** Timestamp in milliseconds when this NFT expires. */
-	expiration_timestamp_ms: bcs.u64(),
-	/** Short IPFS hash of the image to be displayed for the NFT. */
-	image_url: bcs.string(),
+export const SuinsRegistration = new MoveStruct({
+	name: `${$moduleName}::SuinsRegistration`,
+	fields: {
+		id: object.UID,
+		/** The parsed domain. */
+		domain: domain_1.Domain,
+		/** The domain name that the NFT is for. */
+		domain_name: bcs.string(),
+		/** Timestamp in milliseconds when this NFT expires. */
+		expiration_timestamp_ms: bcs.u64(),
+		/** Short IPFS hash of the image to be displayed for the NFT. */
+		image_url: bcs.string(),
+	},
 });
 export interface HasExpiredArguments {
 	self: RawTransactionArgument<string>;

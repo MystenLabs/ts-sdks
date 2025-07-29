@@ -14,15 +14,18 @@ import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@suins/core::domain';
-export const Domain = new MoveStruct(`${$moduleName}::Domain`, {
-	/**
-	 * Vector of labels that make up a domain.
-	 *
-	 * Labels are stored in reverse order such that the TLD is always in position `0`.
-	 * e.g. domain "pay.name.sui" will be stored in the vector as ["sui", "name",
-	 * "pay"].
-	 */
-	labels: bcs.vector(bcs.string()),
+export const Domain = new MoveStruct({
+	name: `${$moduleName}::Domain`,
+	fields: {
+		/**
+		 * Vector of labels that make up a domain.
+		 *
+		 * Labels are stored in reverse order such that the TLD is always in position `0`.
+		 * e.g. domain "pay.name.sui" will be stored in the vector as ["sui", "name",
+		 * "pay"].
+		 */
+		labels: bcs.vector(bcs.string()),
+	},
 });
 export interface NewArguments {
 	domain: RawTransactionArgument<string>;

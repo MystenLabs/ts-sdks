@@ -9,17 +9,23 @@ const $moduleName = '@local-pkg/walrus::auth';
  * Authentication for either a sender or an object. Unlike the `Authorized` type,
  * it cannot be stored and must be used or ignored in the same transaction.
  */
-export const Authenticated = new MoveEnum(`${$moduleName}::Authenticated`, {
-	Sender: bcs.Address,
-	Object: bcs.Address,
+export const Authenticated = new MoveEnum({
+	name: `${$moduleName}::Authenticated`,
+	fields: {
+		Sender: bcs.Address,
+		Object: bcs.Address,
+	},
 });
 /**
  * Defines the ways to authorize an action. It can be either an address - checked
  * with `ctx.sender()`, - or an object - checked with `object::id(..)`.
  */
-export const Authorized = new MoveEnum(`${$moduleName}::Authorized`, {
-	Address: bcs.Address,
-	ObjectID: bcs.Address,
+export const Authorized = new MoveEnum({
+	name: `${$moduleName}::Authorized`,
+	fields: {
+		Address: bcs.Address,
+		ObjectID: bcs.Address,
+	},
 });
 export interface AuthenticateSenderOptions {
 	package?: string;

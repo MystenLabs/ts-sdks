@@ -20,16 +20,25 @@ import type { Transaction } from '@mysten/sui/transactions';
 import * as data from './data.js';
 import * as object from './deps/sui/object.js';
 const $moduleName = '@suins/coupons::coupon_house';
-export const CouponsApp = new MoveStruct(`${$moduleName}::CouponsApp`, {
-	dummy_field: bcs.bool(),
+export const CouponsApp = new MoveStruct({
+	name: `${$moduleName}::CouponsApp`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
 });
-export const AppKey = new MoveStruct(`${$moduleName}::AppKey`, {
-	dummy_field: bcs.bool(),
+export const AppKey = new MoveStruct({
+	name: `${$moduleName}::AppKey`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
 });
-export const CouponHouse = new MoveStruct(`${$moduleName}::CouponHouse`, {
-	data: data.Data,
-	version: bcs.u8(),
-	storage: object.UID,
+export const CouponHouse = new MoveStruct({
+	name: `${$moduleName}::CouponHouse`,
+	fields: {
+		data: data.Data,
+		version: bcs.u8(),
+		storage: object.UID,
+	},
 });
 export interface SetupArguments {
 	suins: RawTransactionArgument<string>;

@@ -17,23 +17,26 @@ import type { Transaction } from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@suins/core::core_config';
-export const CoreConfig = new MoveStruct(`${$moduleName}::CoreConfig`, {
-	/** Public key of the API server. Currently only used for direct setup. */
-	public_key: bcs.vector(bcs.u8()),
-	/**
-	 * Minimum length of the label part of the domain. This is different from the base
-	 * `domain` checks. This is our minimum acceptable length (for sales).
-	 */
-	min_label_length: bcs.u8(),
-	/** Maximum length of the label part of the domain. */
-	max_label_length: bcs.u8(),
-	/** List of valid TLDs for registration / renewals. */
-	valid_tlds: vec_set.VecSet(bcs.string()),
-	/** The `PaymentIntent` version that can be used for handling sales. */
-	payments_version: bcs.u8(),
-	/** Maximum number of years available for a domain. */
-	max_years: bcs.u8(),
-	extra: vec_map.VecMap(bcs.string(), bcs.string()),
+export const CoreConfig = new MoveStruct({
+	name: `${$moduleName}::CoreConfig`,
+	fields: {
+		/** Public key of the API server. Currently only used for direct setup. */
+		public_key: bcs.vector(bcs.u8()),
+		/**
+		 * Minimum length of the label part of the domain. This is different from the base
+		 * `domain` checks. This is our minimum acceptable length (for sales).
+		 */
+		min_label_length: bcs.u8(),
+		/** Maximum length of the label part of the domain. */
+		max_label_length: bcs.u8(),
+		/** List of valid TLDs for registration / renewals. */
+		valid_tlds: vec_set.VecSet(bcs.string()),
+		/** The `PaymentIntent` version that can be used for handling sales. */
+		payments_version: bcs.u8(),
+		/** Maximum number of years available for a domain. */
+		max_years: bcs.u8(),
+		extra: vec_map.VecMap(bcs.string(), bcs.string()),
+	},
 });
 export interface NewArguments {
 	publicKey: RawTransactionArgument<number[]>;

@@ -15,17 +15,20 @@ import type { Transaction } from '@mysten/sui/transactions';
 import * as uq64_64 from './deps/std/uq64_64.js';
 const $moduleName = '@local-pkg/walrus::apportionment_queue';
 export function Entry<T extends BcsType<any>>(...typeParameters: [T]) {
-	return new MoveStruct(`${$moduleName}::Entry<${typeParameters[0].name as T['name']}>`, {
-		priority: uq64_64.UQ64_64,
-		tie_breaker: bcs.u64(),
-		value: typeParameters[0],
+	return new MoveStruct({
+		name: `${$moduleName}::Entry<${typeParameters[0].name as T['name']}>`,
+		fields: {
+			priority: uq64_64.UQ64_64,
+			tie_breaker: bcs.u64(),
+			value: typeParameters[0],
+		},
 	});
 }
 /** Struct representing a priority queue. */
 export function ApportionmentQueue<T extends BcsType<any>>(...typeParameters: [T]) {
-	return new MoveStruct(
-		`${$moduleName}::ApportionmentQueue<${typeParameters[0].name as T['name']}>`,
-		{
+	return new MoveStruct({
+		name: `${$moduleName}::ApportionmentQueue<${typeParameters[0].name as T['name']}>`,
+		fields: {
 			/**
 			 * The `entries` vector contains a max heap, where the children of the node at
 			 * index `i` are at indices `2 * i + 1` and `2 * i + 2`. INV: The parent node's
@@ -33,7 +36,7 @@ export function ApportionmentQueue<T extends BcsType<any>>(...typeParameters: [T
 			 */
 			entries: bcs.vector(Entry(typeParameters[0])),
 		},
-	);
+	});
 }
 export interface NewOptions {
 	package?: string;

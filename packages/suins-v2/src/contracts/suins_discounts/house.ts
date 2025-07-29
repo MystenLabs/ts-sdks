@@ -12,9 +12,12 @@ import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 const $moduleName = '@suins/discounts::house';
-export const DiscountHouse = new MoveStruct(`${$moduleName}::DiscountHouse`, {
-	id: object.UID,
-	version: bcs.u8(),
+export const DiscountHouse = new MoveStruct({
+	name: `${$moduleName}::DiscountHouse`,
+	fields: {
+		id: object.UID,
+		version: bcs.u8(),
+	},
 });
 export interface SetVersionArguments {
 	self: RawTransactionArgument<string>;

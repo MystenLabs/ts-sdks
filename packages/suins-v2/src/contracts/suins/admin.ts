@@ -11,8 +11,11 @@ import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@suins/core::admin';
-export const Admin = new MoveStruct(`${$moduleName}::Admin`, {
-	dummy_field: bcs.bool(),
+export const Admin = new MoveStruct({
+	name: `${$moduleName}::Admin`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
 });
 export interface AuthorizeArguments {
 	cap: RawTransactionArgument<string>;

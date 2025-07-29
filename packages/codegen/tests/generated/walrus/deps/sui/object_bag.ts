@@ -14,9 +14,12 @@ import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as object from './object.js';
 const $moduleName = '0x2::object_bag';
-export const ObjectBag = new MoveStruct(`${$moduleName}::ObjectBag`, {
-	/** the ID of this bag */
-	id: object.UID,
-	/** the number of key-value pairs in the bag */
-	size: bcs.u64(),
+export const ObjectBag = new MoveStruct({
+	name: `${$moduleName}::ObjectBag`,
+	fields: {
+		/** the ID of this bag */
+		id: object.UID,
+		/** the number of key-value pairs in the bag */
+		size: bcs.u64(),
+	},
 });

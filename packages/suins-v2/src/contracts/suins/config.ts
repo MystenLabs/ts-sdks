@@ -5,11 +5,14 @@ import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@suins/core::config';
-export const Config = new MoveStruct(`${$moduleName}::Config`, {
-	public_key: bcs.vector(bcs.u8()),
-	three_char_price: bcs.u64(),
-	four_char_price: bcs.u64(),
-	five_plus_char_price: bcs.u64(),
+export const Config = new MoveStruct({
+	name: `${$moduleName}::Config`,
+	fields: {
+		public_key: bcs.vector(bcs.u8()),
+		three_char_price: bcs.u64(),
+		four_char_price: bcs.u64(),
+		five_plus_char_price: bcs.u64(),
+	},
 });
 export interface NewArguments {
 	PublicKey: RawTransactionArgument<number[]>;

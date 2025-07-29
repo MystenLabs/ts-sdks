@@ -14,10 +14,13 @@ import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 const $moduleName = '@local-pkg/walrus::extended_field';
-export const ExtendedField = new MoveStruct(`${$moduleName}::ExtendedField`, {
-	id: object.UID,
+export const ExtendedField = new MoveStruct({
+	name: `${$moduleName}::ExtendedField`,
+	fields: {
+		id: object.UID,
+	},
 });
-export const Key = new MoveTuple(`${$moduleName}::Key`, [bcs.bool()]);
+export const Key = new MoveTuple({ name: `${$moduleName}::Key`, fields: [bcs.bool()] });
 export interface NewArguments<T extends BcsType<any>> {
 	value: RawTransactionArgument<T>;
 }

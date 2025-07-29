@@ -14,44 +14,65 @@ import * as domain from './domain.js';
 import * as coin from './deps/sui/coin.js';
 import * as suins_registration from './suins_registration.js';
 const $moduleName = '@suins/core::auction';
-export const App = new MoveStruct(`${$moduleName}::App`, {
-	dummy_field: bcs.bool(),
+export const App = new MoveStruct({
+	name: `${$moduleName}::App`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
 });
-export const AuctionHouse = new MoveStruct(`${$moduleName}::AuctionHouse`, {
-	id: object.UID,
-	balance: balance.Balance,
-	auctions: linked_table.LinkedTable(domain.Domain),
+export const AuctionHouse = new MoveStruct({
+	name: `${$moduleName}::AuctionHouse`,
+	fields: {
+		id: object.UID,
+		balance: balance.Balance,
+		auctions: linked_table.LinkedTable(domain.Domain),
+	},
 });
-export const Auction = new MoveStruct(`${$moduleName}::Auction`, {
-	domain: domain.Domain,
-	start_timestamp_ms: bcs.u64(),
-	end_timestamp_ms: bcs.u64(),
-	winner: bcs.Address,
-	current_bid: coin.Coin,
-	nft: suins_registration.SuinsRegistration,
+export const Auction = new MoveStruct({
+	name: `${$moduleName}::Auction`,
+	fields: {
+		domain: domain.Domain,
+		start_timestamp_ms: bcs.u64(),
+		end_timestamp_ms: bcs.u64(),
+		winner: bcs.Address,
+		current_bid: coin.Coin,
+		nft: suins_registration.SuinsRegistration,
+	},
 });
-export const AuctionStartedEvent = new MoveStruct(`${$moduleName}::AuctionStartedEvent`, {
-	domain: domain.Domain,
-	start_timestamp_ms: bcs.u64(),
-	end_timestamp_ms: bcs.u64(),
-	starting_bid: bcs.u64(),
-	bidder: bcs.Address,
+export const AuctionStartedEvent = new MoveStruct({
+	name: `${$moduleName}::AuctionStartedEvent`,
+	fields: {
+		domain: domain.Domain,
+		start_timestamp_ms: bcs.u64(),
+		end_timestamp_ms: bcs.u64(),
+		starting_bid: bcs.u64(),
+		bidder: bcs.Address,
+	},
 });
-export const AuctionFinalizedEvent = new MoveStruct(`${$moduleName}::AuctionFinalizedEvent`, {
-	domain: domain.Domain,
-	start_timestamp_ms: bcs.u64(),
-	end_timestamp_ms: bcs.u64(),
-	winning_bid: bcs.u64(),
-	winner: bcs.Address,
+export const AuctionFinalizedEvent = new MoveStruct({
+	name: `${$moduleName}::AuctionFinalizedEvent`,
+	fields: {
+		domain: domain.Domain,
+		start_timestamp_ms: bcs.u64(),
+		end_timestamp_ms: bcs.u64(),
+		winning_bid: bcs.u64(),
+		winner: bcs.Address,
+	},
 });
-export const BidEvent = new MoveStruct(`${$moduleName}::BidEvent`, {
-	domain: domain.Domain,
-	bid: bcs.u64(),
-	bidder: bcs.Address,
+export const BidEvent = new MoveStruct({
+	name: `${$moduleName}::BidEvent`,
+	fields: {
+		domain: domain.Domain,
+		bid: bcs.u64(),
+		bidder: bcs.Address,
+	},
 });
-export const AuctionExtendedEvent = new MoveStruct(`${$moduleName}::AuctionExtendedEvent`, {
-	domain: domain.Domain,
-	end_timestamp_ms: bcs.u64(),
+export const AuctionExtendedEvent = new MoveStruct({
+	name: `${$moduleName}::AuctionExtendedEvent`,
+	fields: {
+		domain: domain.Domain,
+		end_timestamp_ms: bcs.u64(),
+	},
 });
 export interface StartAuctionAndPlaceBidArguments {
 	self: RawTransactionArgument<string>;

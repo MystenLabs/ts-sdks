@@ -9,8 +9,11 @@ import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::metadata';
-export const Metadata = new MoveStruct(`${$moduleName}::Metadata`, {
-	metadata: vec_map.VecMap(bcs.string(), bcs.string()),
+export const Metadata = new MoveStruct({
+	name: `${$moduleName}::Metadata`,
+	fields: {
+		metadata: vec_map.VecMap(bcs.string(), bcs.string()),
+	},
 });
 export interface NewOptions {
 	package?: string;

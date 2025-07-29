@@ -5,17 +5,20 @@ import type { RawTransactionArgument } from '../utils/index.js';
 import type { Transaction } from '@mysten/sui/transactions';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@suins/core::registry';
-export const Registry = new MoveStruct(`${$moduleName}::Registry`, {
-	/**
-	 * The `registry` table maps `Domain` to `NameRecord`. Added / replaced in the
-	 * `add_record` function.
-	 */
-	registry: table.Table,
-	/**
-	 * The `reverse_registry` table maps `address` to `domain_name`. Updated in the
-	 * `set_reverse_lookup` function.
-	 */
-	reverse_registry: table.Table,
+export const Registry = new MoveStruct({
+	name: `${$moduleName}::Registry`,
+	fields: {
+		/**
+		 * The `registry` table maps `Domain` to `NameRecord`. Added / replaced in the
+		 * `add_record` function.
+		 */
+		registry: table.Table,
+		/**
+		 * The `reverse_registry` table maps `address` to `domain_name`. Updated in the
+		 * `set_reverse_lookup` function.
+		 */
+		reverse_registry: table.Table,
+	},
 });
 export interface NewArguments {
 	_: RawTransactionArgument<string>;

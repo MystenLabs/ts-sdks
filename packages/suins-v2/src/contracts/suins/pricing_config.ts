@@ -6,12 +6,21 @@ import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@suins/core::pricing_config';
-export const Range = new MoveTuple(`${$moduleName}::Range`, [bcs.u64(), bcs.u64()]);
-export const PricingConfig = new MoveStruct(`${$moduleName}::PricingConfig`, {
-	pricing: vec_map.VecMap(Range, bcs.u64()),
+export const Range = new MoveTuple({
+	name: `${$moduleName}::Range`,
+	fields: [bcs.u64(), bcs.u64()],
 });
-export const RenewalConfig = new MoveStruct(`${$moduleName}::RenewalConfig`, {
-	config: PricingConfig,
+export const PricingConfig = new MoveStruct({
+	name: `${$moduleName}::PricingConfig`,
+	fields: {
+		pricing: vec_map.VecMap(Range, bcs.u64()),
+	},
+});
+export const RenewalConfig = new MoveStruct({
+	name: `${$moduleName}::RenewalConfig`,
+	fields: {
+		config: PricingConfig,
+	},
 });
 export interface CalculateBasePriceArguments {
 	config: RawTransactionArgument<string>;

@@ -34,31 +34,52 @@ import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@suins/core::suins';
-export const AdminCap = new MoveStruct(`${$moduleName}::AdminCap`, {
-	id: object.UID,
+export const AdminCap = new MoveStruct({
+	name: `${$moduleName}::AdminCap`,
+	fields: {
+		id: object.UID,
+	},
 });
-export const SuiNS = new MoveStruct(`${$moduleName}::SuiNS`, {
-	id: object.UID,
-	/**
-	 * The total balance of the SuiNS. Can be added to by authorized apps. Can be
-	 * withdrawn only by the application Admin.
-	 */
-	balance: balance.Balance,
+export const SuiNS = new MoveStruct({
+	name: `${$moduleName}::SuiNS`,
+	fields: {
+		id: object.UID,
+		/**
+		 * The total balance of the SuiNS. Can be added to by authorized apps. Can be
+		 * withdrawn only by the application Admin.
+		 */
+		balance: balance.Balance,
+	},
 });
-export const SUINS = new MoveStruct(`${$moduleName}::SUINS`, {
-	dummy_field: bcs.bool(),
+export const SUINS = new MoveStruct({
+	name: `${$moduleName}::SUINS`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
 });
-export const ConfigKey = new MoveStruct(`${$moduleName}::ConfigKey`, {
-	dummy_field: bcs.bool(),
+export const ConfigKey = new MoveStruct({
+	name: `${$moduleName}::ConfigKey`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
 });
-export const RegistryKey = new MoveStruct(`${$moduleName}::RegistryKey`, {
-	dummy_field: bcs.bool(),
+export const RegistryKey = new MoveStruct({
+	name: `${$moduleName}::RegistryKey`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
 });
-export const BalanceKey = new MoveStruct(`${$moduleName}::BalanceKey`, {
-	dummy_field: bcs.bool(),
+export const BalanceKey = new MoveStruct({
+	name: `${$moduleName}::BalanceKey`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
 });
-export const AppKey = new MoveStruct(`${$moduleName}::AppKey`, {
-	dummy_field: bcs.bool(),
+export const AppKey = new MoveStruct({
+	name: `${$moduleName}::AppKey`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
 });
 export interface WithdrawArguments {
 	_: RawTransactionArgument<string>;

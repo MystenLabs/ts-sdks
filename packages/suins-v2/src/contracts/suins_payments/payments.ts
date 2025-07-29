@@ -7,18 +7,27 @@ import type { Transaction } from '@mysten/sui/transactions';
 import * as type_name from './deps/std/type_name.js';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@suins/payments::payments';
-export const PaymentsApp = new MoveTuple(`${$moduleName}::PaymentsApp`, [bcs.bool()]);
-export const CoinTypeData = new MoveStruct(`${$moduleName}::CoinTypeData`, {
-	/** The coin's decimals. */
-	decimals: bcs.u8(),
-	discount_percentage: bcs.u8(),
-	price_feed_id: bcs.vector(bcs.u8()),
-	type_name: type_name.TypeName,
+export const PaymentsApp = new MoveTuple({
+	name: `${$moduleName}::PaymentsApp`,
+	fields: [bcs.bool()],
 });
-export const PaymentsConfig = new MoveStruct(`${$moduleName}::PaymentsConfig`, {
-	currencies: vec_map.VecMap(type_name.TypeName, CoinTypeData),
-	base_currency: type_name.TypeName,
-	max_age: bcs.u64(),
+export const CoinTypeData = new MoveStruct({
+	name: `${$moduleName}::CoinTypeData`,
+	fields: {
+		/** The coin's decimals. */
+		decimals: bcs.u8(),
+		discount_percentage: bcs.u8(),
+		price_feed_id: bcs.vector(bcs.u8()),
+		type_name: type_name.TypeName,
+	},
+});
+export const PaymentsConfig = new MoveStruct({
+	name: `${$moduleName}::PaymentsConfig`,
+	fields: {
+		currencies: vec_map.VecMap(type_name.TypeName, CoinTypeData),
+		base_currency: type_name.TypeName,
+		max_age: bcs.u64(),
+	},
 });
 export interface HandleBasePaymentArguments {
 	suins: RawTransactionArgument<string>;

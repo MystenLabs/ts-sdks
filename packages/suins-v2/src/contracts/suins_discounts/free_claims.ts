@@ -18,11 +18,20 @@ import type { Transaction } from '@mysten/sui/transactions';
 import * as pricing_config from './deps/suins/pricing_config.js';
 import * as linked_table from './deps/sui/linked_table.js';
 const $moduleName = '@suins/discounts::free_claims';
-export const FreeClaimsApp = new MoveTuple(`${$moduleName}::FreeClaimsApp`, [bcs.bool()]);
-export const FreeClaimsKey = new MoveTuple(`${$moduleName}::FreeClaimsKey`, [bcs.bool()]);
-export const FreeClaimsConfig = new MoveStruct(`${$moduleName}::FreeClaimsConfig`, {
-	domain_length_range: pricing_config.Range,
-	used_objects: linked_table.LinkedTable(bcs.Address),
+export const FreeClaimsApp = new MoveTuple({
+	name: `${$moduleName}::FreeClaimsApp`,
+	fields: [bcs.bool()],
+});
+export const FreeClaimsKey = new MoveTuple({
+	name: `${$moduleName}::FreeClaimsKey`,
+	fields: [bcs.bool()],
+});
+export const FreeClaimsConfig = new MoveStruct({
+	name: `${$moduleName}::FreeClaimsConfig`,
+	fields: {
+		domain_length_range: pricing_config.Range,
+		used_objects: linked_table.LinkedTable(bcs.Address),
+	},
 });
 export interface FreeClaimArguments<T extends BcsType<any>> {
 	self: RawTransactionArgument<string>;

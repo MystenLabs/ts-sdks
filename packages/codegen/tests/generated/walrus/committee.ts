@@ -12,6 +12,7 @@ import { MoveTuple } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::committee';
-export const Committee = new MoveTuple(`${$moduleName}::Committee`, [
-	vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16())),
-]);
+export const Committee = new MoveTuple({
+	name: `${$moduleName}::Committee`,
+	fields: [vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16()))],
+});

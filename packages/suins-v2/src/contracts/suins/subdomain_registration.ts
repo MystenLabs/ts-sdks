@@ -16,9 +16,12 @@ import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 import * as suins_registration from './suins_registration.js';
 const $moduleName = '@suins/core::subdomain_registration';
-export const SubDomainRegistration = new MoveStruct(`${$moduleName}::SubDomainRegistration`, {
-	id: object.UID,
-	nft: suins_registration.SuinsRegistration,
+export const SubDomainRegistration = new MoveStruct({
+	name: `${$moduleName}::SubDomainRegistration`,
+	fields: {
+		id: object.UID,
+		nft: suins_registration.SuinsRegistration,
+	},
 });
 export interface NftArguments {
 	name: RawTransactionArgument<string>;

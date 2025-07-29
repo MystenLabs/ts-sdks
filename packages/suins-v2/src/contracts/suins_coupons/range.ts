@@ -8,8 +8,11 @@ import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@suins/coupons::range';
-export const Range = new MoveStruct(`${$moduleName}::Range`, {
-	vec: bcs.vector(bcs.u8()),
+export const Range = new MoveStruct({
+	name: `${$moduleName}::Range`,
+	fields: {
+		vec: bcs.vector(bcs.u8()),
+	},
 });
 export interface NewArguments {
 	from: RawTransactionArgument<number>;

@@ -6,12 +6,15 @@ import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 import * as range from './range.js';
 const $moduleName = '@suins/coupons::rules';
-export const CouponRules = new MoveStruct(`${$moduleName}::CouponRules`, {
-	length: bcs.option(range.Range),
-	available_claims: bcs.option(bcs.u64()),
-	user: bcs.option(bcs.Address),
-	expiration: bcs.option(bcs.u64()),
-	years: bcs.option(range.Range),
+export const CouponRules = new MoveStruct({
+	name: `${$moduleName}::CouponRules`,
+	fields: {
+		length: bcs.option(range.Range),
+		available_claims: bcs.option(bcs.u64()),
+		user: bcs.option(bcs.Address),
+		expiration: bcs.option(bcs.u64()),
+		years: bcs.option(range.Range),
+	},
 });
 export interface NewCouponRulesArguments {
 	length: RawTransactionArgument<string | null>;

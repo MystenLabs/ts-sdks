@@ -5,9 +5,15 @@ import type { RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@suins/core::controller';
-export const ControllerV2 = new MoveTuple(`${$moduleName}::ControllerV2`, [bcs.bool()]);
-export const Controller = new MoveStruct(`${$moduleName}::Controller`, {
-	dummy_field: bcs.bool(),
+export const ControllerV2 = new MoveTuple({
+	name: `${$moduleName}::ControllerV2`,
+	fields: [bcs.bool()],
+});
+export const Controller = new MoveStruct({
+	name: `${$moduleName}::Controller`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
 });
 export interface SetTargetAddressArguments {
 	suins: RawTransactionArgument<string>;

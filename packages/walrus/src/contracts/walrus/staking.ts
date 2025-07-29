@@ -9,11 +9,14 @@ import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 const $moduleName = '@local-pkg/walrus::staking';
-export const Staking = new MoveStruct(`${$moduleName}::Staking`, {
-	id: object.UID,
-	version: bcs.u64(),
-	package_id: bcs.Address,
-	new_package_id: bcs.option(bcs.Address),
+export const Staking = new MoveStruct({
+	name: `${$moduleName}::Staking`,
+	fields: {
+		id: object.UID,
+		version: bcs.u64(),
+		package_id: bcs.Address,
+		new_package_id: bcs.option(bcs.Address),
+	},
 });
 export interface RegisterCandidateArguments {
 	staking: RawTransactionArgument<string>;

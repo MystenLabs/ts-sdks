@@ -13,7 +13,10 @@ const $moduleName = '0x2::vec_set';
  *   insertion order iteration should be handwritten.
  */
 export function VecSet<K extends BcsType<any>>(...typeParameters: [K]) {
-	return new MoveStruct(`${$moduleName}::VecSet<${typeParameters[0].name as K['name']}>`, {
-		contents: bcs.vector(typeParameters[0]),
+	return new MoveStruct({
+		name: `${$moduleName}::VecSet<${typeParameters[0].name as K['name']}>`,
+		fields: {
+			contents: bcs.vector(typeParameters[0]),
+		},
 	});
 }

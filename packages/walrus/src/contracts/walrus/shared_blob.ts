@@ -7,10 +7,13 @@ import * as object from './deps/sui/object.js';
 import * as blob_1 from './blob.js';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/walrus::shared_blob';
-export const SharedBlob = new MoveStruct(`${$moduleName}::SharedBlob`, {
-	id: object.UID,
-	blob: blob_1.Blob,
-	funds: balance.Balance,
+export const SharedBlob = new MoveStruct({
+	name: `${$moduleName}::SharedBlob`,
+	fields: {
+		id: object.UID,
+		blob: blob_1.Blob,
+		funds: balance.Balance,
+	},
 });
 export interface NewArguments {
 	blob: RawTransactionArgument<string>;

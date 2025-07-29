@@ -16,10 +16,14 @@ import { bcs } from '@mysten/sui/bcs';
 import type { BcsType } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@suins/discounts::discounts';
-export const RegularDiscountsApp = new MoveTuple(`${$moduleName}::RegularDiscountsApp`, [
-	bcs.bool(),
-]);
-export const DiscountKey = new MoveTuple(`${$moduleName}::DiscountKey`, [bcs.bool()]);
+export const RegularDiscountsApp = new MoveTuple({
+	name: `${$moduleName}::RegularDiscountsApp`,
+	fields: [bcs.bool()],
+});
+export const DiscountKey = new MoveTuple({
+	name: `${$moduleName}::DiscountKey`,
+	fields: [bcs.bool()],
+});
 export interface ApplyPercentageDiscountArguments<T extends BcsType<any>> {
 	self: RawTransactionArgument<string>;
 	intent: RawTransactionArgument<string>;

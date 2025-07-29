@@ -9,26 +9,32 @@ import * as extended_field from './extended_field.js';
 import * as object from './deps/sui/object.js';
 import * as event_blob from './event_blob.js';
 const $moduleName = '@local-pkg/walrus::storage_node';
-export const StorageNodeInfo = new MoveStruct(`${$moduleName}::StorageNodeInfo`, {
-	name: bcs.string(),
-	node_id: bcs.Address,
-	network_address: bcs.string(),
-	public_key: group_ops.Element,
-	next_epoch_public_key: bcs.option(group_ops.Element),
-	network_public_key: bcs.vector(bcs.u8()),
-	metadata: extended_field.ExtendedField,
+export const StorageNodeInfo = new MoveStruct({
+	name: `${$moduleName}::StorageNodeInfo`,
+	fields: {
+		name: bcs.string(),
+		node_id: bcs.Address,
+		network_address: bcs.string(),
+		public_key: group_ops.Element,
+		next_epoch_public_key: bcs.option(group_ops.Element),
+		network_public_key: bcs.vector(bcs.u8()),
+		metadata: extended_field.ExtendedField,
+	},
 });
-export const StorageNodeCap = new MoveStruct(`${$moduleName}::StorageNodeCap`, {
-	id: object.UID,
-	node_id: bcs.Address,
-	last_epoch_sync_done: bcs.u32(),
-	last_event_blob_attestation: bcs.option(event_blob.EventBlobAttestation),
-	/** Stores the Merkle root of the deny list for the storage node. */
-	deny_list_root: bcs.u256(),
-	/** Stores the sequence number of the deny list for the storage node. */
-	deny_list_sequence: bcs.u64(),
-	/** Stores the size of the deny list for the storage node. */
-	deny_list_size: bcs.u64(),
+export const StorageNodeCap = new MoveStruct({
+	name: `${$moduleName}::StorageNodeCap`,
+	fields: {
+		id: object.UID,
+		node_id: bcs.Address,
+		last_epoch_sync_done: bcs.u32(),
+		last_event_blob_attestation: bcs.option(event_blob.EventBlobAttestation),
+		/** Stores the Merkle root of the deny list for the storage node. */
+		deny_list_root: bcs.u256(),
+		/** Stores the sequence number of the deny list for the storage node. */
+		deny_list_sequence: bcs.u64(),
+		/** Stores the size of the deny list for the storage node. */
+		deny_list_size: bcs.u64(),
+	},
 });
 export interface IdArguments {
 	cap: RawTransactionArgument<string>;

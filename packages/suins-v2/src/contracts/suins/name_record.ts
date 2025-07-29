@@ -13,23 +13,26 @@ import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@suins/core::name_record';
-export const NameRecord = new MoveStruct(`${$moduleName}::NameRecord`, {
-	/**
-	 * The ID of the `SuinsRegistration` assigned to this record.
-	 *
-	 * The owner of the corresponding `SuinsRegistration` has the rights to be able to
-	 * change and adjust the `target_address` of this domain.
-	 *
-	 * It is possible that the ID changes if the record expires and is purchased by
-	 * someone else.
-	 */
-	nft_id: bcs.Address,
-	/** Timestamp in milliseconds when the record expires. */
-	expiration_timestamp_ms: bcs.u64(),
-	/** The target address that this domain points to */
-	target_address: bcs.option(bcs.Address),
-	/** Additional data which may be stored in a record */
-	data: vec_map.VecMap(bcs.string(), bcs.string()),
+export const NameRecord = new MoveStruct({
+	name: `${$moduleName}::NameRecord`,
+	fields: {
+		/**
+		 * The ID of the `SuinsRegistration` assigned to this record.
+		 *
+		 * The owner of the corresponding `SuinsRegistration` has the rights to be able to
+		 * change and adjust the `target_address` of this domain.
+		 *
+		 * It is possible that the ID changes if the record expires and is purchased by
+		 * someone else.
+		 */
+		nft_id: bcs.Address,
+		/** Timestamp in milliseconds when the record expires. */
+		expiration_timestamp_ms: bcs.u64(),
+		/** The target address that this domain points to */
+		target_address: bcs.option(bcs.Address),
+		/** Additional data which may be stored in a record */
+		data: vec_map.VecMap(bcs.string(), bcs.string()),
+	},
 });
 export interface NewArguments {
 	nftId: RawTransactionArgument<string>;

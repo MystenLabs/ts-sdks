@@ -9,11 +9,14 @@ import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 const $moduleName = '@local-pkg/walrus::system';
-export const System = new MoveStruct(`${$moduleName}::System`, {
-	id: object.UID,
-	version: bcs.u64(),
-	package_id: bcs.Address,
-	new_package_id: bcs.option(bcs.Address),
+export const System = new MoveStruct({
+	name: `${$moduleName}::System`,
+	fields: {
+		id: object.UID,
+		version: bcs.u64(),
+		package_id: bcs.Address,
+		new_package_id: bcs.option(bcs.Address),
+	},
 });
 export interface InvalidateBlobIdArguments {
 	system: RawTransactionArgument<string>;

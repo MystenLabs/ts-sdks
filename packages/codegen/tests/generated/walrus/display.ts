@@ -24,8 +24,14 @@ import { bcs } from '@mysten/sui/bcs';
 import * as object from './deps/sui/object.js';
 import * as object_bag from './deps/sui/object_bag.js';
 const $moduleName = '@local-pkg/walrus::display';
-export const ObjectDisplay = new MoveStruct(`${$moduleName}::ObjectDisplay`, {
-	id: object.UID,
-	inner: object_bag.ObjectBag,
+export const ObjectDisplay = new MoveStruct({
+	name: `${$moduleName}::ObjectDisplay`,
+	fields: {
+		id: object.UID,
+		inner: object_bag.ObjectBag,
+	},
 });
-export const PublisherKey = new MoveTuple(`${$moduleName}::PublisherKey`, [bcs.bool()]);
+export const PublisherKey = new MoveTuple({
+	name: `${$moduleName}::PublisherKey`,
+	fields: [bcs.bool()],
+});

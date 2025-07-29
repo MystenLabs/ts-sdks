@@ -141,15 +141,9 @@ export function normalizeMoveArguments(
 }
 
 export class MoveStruct<
-	const Name extends string,
 	T extends Record<string, BcsType<any>>,
-> extends BcsStruct<T> {
-	name: Name;
-	constructor(name: Name, fields: T) {
-		super(name, fields);
-		this.name = name;
-	}
-}
+	const Name extends string = string,
+> extends BcsStruct<T, Name> {}
 
 export class MoveEnum<
 	T extends Record<string, BcsType<any> | null>,
@@ -159,11 +153,7 @@ export class MoveEnum<
 export class MoveTuple<
 	T extends readonly BcsType<any>[],
 	const Name extends string,
-> extends BcsTuple<T, Name> {
-	constructor(name: Name, fields: T) {
-		super(fields, { name });
-	}
-}
+> extends BcsTuple<T, Name> {}
 
 function stringify(val: unknown) {
 	if (typeof val === 'object') {

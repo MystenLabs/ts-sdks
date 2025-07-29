@@ -6,11 +6,14 @@ import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 const $moduleName = '@local-pkg/walrus::storage_resource';
-export const Storage = new MoveStruct(`${$moduleName}::Storage`, {
-	id: object.UID,
-	start_epoch: bcs.u32(),
-	end_epoch: bcs.u32(),
-	storage_size: bcs.u64(),
+export const Storage = new MoveStruct({
+	name: `${$moduleName}::Storage`,
+	fields: {
+		id: object.UID,
+		start_epoch: bcs.u32(),
+		end_epoch: bcs.u32(),
+		storage_size: bcs.u64(),
+	},
 });
 export interface StartEpochArguments {
 	self: RawTransactionArgument<string>;

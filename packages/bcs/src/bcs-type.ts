@@ -293,6 +293,25 @@ export function lazyBcsType<T, Input>(cb: () => BcsType<T, Input>) {
 	});
 }
 
+export interface BcsStructOptions<
+	T extends Record<string, BcsType<any>>,
+	Name extends string = string,
+> extends Omit<
+		BcsTypeOptions<
+			{
+				[K in keyof T]: T[K] extends BcsType<infer U, any> ? U : never;
+			},
+			{
+				[K in keyof T]: T[K] extends BcsType<any, infer U> ? U : never;
+			},
+			Name
+		>,
+		'name'
+	> {
+	name: Name;
+	fields: T;
+}
+
 export class BcsStruct<
 	T extends Record<string, BcsType<any>>,
 	const Name extends string = string,
@@ -305,21 +324,7 @@ export class BcsStruct<
 	},
 	Name
 > {
-	constructor(
-		name: Name,
-		fields: T,
-		options?: Omit<
-			BcsTypeOptions<
-				{
-					[K in keyof T]: T[K] extends BcsType<infer U, any> ? U : never;
-				},
-				{
-					[K in keyof T]: T[K] extends BcsType<any, infer U> ? U : never;
-				}
-			>,
-			'name'
-		>,
-	) {
+	constructor({ name, fields, ...options }: BcsStructOptions<T, Name>) {
 		const canonicalOrder = Object.entries(fields);
 
 		super({
@@ -361,6 +366,25 @@ export class BcsStruct<
 	}
 }
 
+export interface BcsEnumOptions<
+	T extends Record<string, BcsType<any> | null>,
+	Name extends string = string,
+> extends Omit<
+		BcsTypeOptions<
+			EnumOutputShape<{
+				[K in keyof T]: T[K] extends BcsType<infer U, any, any> ? U : true;
+			}>,
+			EnumInputShape<{
+				[K in keyof T]: T[K] extends BcsType<any, infer U, any> ? U : boolean | object | null;
+			}>,
+			Name
+		>,
+		'name'
+	> {
+	name: Name;
+	fields: T;
+}
+
 export class BcsEnum<
 	T extends Record<string, BcsType<any> | null>,
 	const Name extends string = string,
@@ -373,25 +397,9 @@ export class BcsEnum<
 	}>,
 	Name
 > {
-	constructor(
-		name: Name,
-		values: T,
-		options?: Omit<
-			BcsTypeOptions<
-				EnumOutputShape<{
-					[K in keyof T]: T[K] extends BcsType<infer U, any, any> ? U : true;
-				}>,
-				EnumInputShape<{
-					[K in keyof T]: T[K] extends BcsType<any, infer U, any> ? U : boolean | object | null;
-				}>,
-				Name
-			>,
-			'name'
-		>,
-	) {
-		const canonicalOrder = Object.entries(values as object);
+	constructor({ fields, ...options }: BcsEnumOptions<T, Name>) {
+		const canonicalOrder = Object.entries(fields as object);
 		super({
-			name,
 			read: (reader) => {
 				const index = reader.readULEB();
 
@@ -409,7 +417,7 @@ export class BcsEnum<
 			},
 			write: (value, writer) => {
 				const [name, val] = Object.entries(value).filter(([name]) =>
-					Object.hasOwn(values, name),
+					Object.hasOwn(fields, name),
 				)[0];
 
 				for (let i = 0; i < canonicalOrder.length; i++) {
@@ -429,7 +437,7 @@ export class BcsEnum<
 				}
 
 				const keys = Object.keys(value).filter(
-					(k) => value[k] !== undefined && Object.hasOwn(values, k),
+					(k) => value[k] !== undefined && Object.hasOwn(fields, k),
 				);
 
 				if (keys.length !== 1) {
@@ -440,7 +448,7 @@ export class BcsEnum<
 
 				const [variant] = keys;
 
-				if (!Object.hasOwn(values, variant)) {
+				if (!Object.hasOwn(fields, variant)) {
 					throw new TypeError(`Invalid enum variant ${variant}`);
 				}
 			},
@@ -448,37 +456,43 @@ export class BcsEnum<
 	}
 }
 
-export class BcsTuple<
-	const Types extends readonly BcsType<any>[],
-	const Name extends
-		string = `(${JoinString<{ [K in keyof Types]: Types[K] extends BcsType<any, any, infer T> ? T : never }, ', '>})`,
-> extends BcsType<
-	{
-		-readonly [K in keyof Types]: Types[K] extends BcsType<infer T, any> ? T : never;
-	},
-	{
-		[K in keyof Types]: Types[K] extends BcsType<any, infer T> ? T : never;
-	},
-	Name
-> {
-	constructor(
-		types: Types,
-		options?: BcsTypeOptions<
+export interface BcsTupleOptions<T extends readonly BcsType<any>[], Name extends string>
+	extends Omit<
+		BcsTypeOptions<
 			{
-				-readonly [K in keyof Types]: Types[K] extends BcsType<infer T, any> ? T : never;
+				-readonly [K in keyof T]: T[K] extends BcsType<infer T, any> ? T : never;
 			},
 			{
-				[K in keyof Types]: Types[K] extends BcsType<any, infer T> ? T : never;
+				[K in keyof T]: T[K] extends BcsType<any, infer T> ? T : never;
 			},
 			Name
 		>,
-	) {
+		'name'
+	> {
+	name?: Name;
+	fields: T;
+}
+
+export class BcsTuple<
+	const T extends readonly BcsType<any>[],
+	const Name extends
+		string = `(${JoinString<{ [K in keyof T]: T[K] extends BcsType<any, any, infer T> ? T : never }, ', '>})`,
+> extends BcsType<
+	{
+		-readonly [K in keyof T]: T[K] extends BcsType<infer T, any> ? T : never;
+	},
+	{
+		[K in keyof T]: T[K] extends BcsType<any, infer T> ? T : never;
+	},
+	Name
+> {
+	constructor({ fields, name, ...options }: BcsTupleOptions<T, Name>) {
 		super({
-			name: `(${types.map((t) => t.name).join(', ')})` as never,
+			name: name ?? (`(${fields.map((t) => t.name).join(', ')})` as never),
 			serializedSize: (values) => {
 				let total = 0;
-				for (let i = 0; i < types.length; i++) {
-					const size = types[i].serializedSize(values[i]);
+				for (let i = 0; i < fields.length; i++) {
+					const size = fields[i].serializedSize(values[i]);
 					if (size == null) {
 						return null;
 					}
@@ -490,14 +504,14 @@ export class BcsTuple<
 			},
 			read: (reader) => {
 				const result: unknown[] = [];
-				for (const type of types) {
-					result.push(type.read(reader));
+				for (const field of fields) {
+					result.push(field.read(reader));
 				}
 				return result as never;
 			},
 			write: (value, writer) => {
-				for (let i = 0; i < types.length; i++) {
-					types[i].write(value[i], writer);
+				for (let i = 0; i < fields.length; i++) {
+					fields[i].write(value[i], writer);
 				}
 			},
 			...options,
@@ -506,8 +520,8 @@ export class BcsTuple<
 				if (!Array.isArray(value)) {
 					throw new TypeError(`Expected array, found ${typeof value}`);
 				}
-				if (value.length !== types.length) {
-					throw new TypeError(`Expected array of length ${types.length}, found ${value.length}`);
+				if (value.length !== fields.length) {
+					throw new TypeError(`Expected array of length ${fields.length}, found ${value.length}`);
 				}
 			},
 		});

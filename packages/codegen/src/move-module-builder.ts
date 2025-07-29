@@ -233,7 +233,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			],
 		});
 
-		return parseTS /* ts */ `new MoveStruct(\`${name}\`, ${fieldObject})`;
+		return parseTS /* ts */ `new MoveStruct({ name: \`${name}\`, fields: ${fieldObject} })`;
 	}
 
 	async #renderFieldsAsTuple(
@@ -266,7 +266,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			}),
 		);
 
-		return parseTS /* ts */ `new MoveTuple(\`${name}\`, [${values.join(', ')}])`;
+		return parseTS /* ts */ `new MoveTuple({ name: \`${name}\`, fields: [${values.join(', ')}] })`;
 	}
 
 	async renderStruct(name: string) {
@@ -392,7 +392,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			this.statements.push(
 				...(await withComment(
 					enumDef,
-					parseTS /* ts */ `export const ${name} = new MoveEnum(\`${enumName}\`, ${variantsObject})`,
+					parseTS /* ts */ `export const ${name} = new MoveEnum({ name: \`${enumName}\`, fields: ${variantsObject} })`,
 				)),
 			);
 		} else {
@@ -407,7 +407,7 @@ export class MoveModuleBuilder extends FileBuilder {
 					enumDef,
 					parseTS /* ts */ `
 					export function ${name}<${typeGenerics}>(${typeParams}) {
-						return new MoveEnum(\`${enumName}<${nameGenerics}>\`, ${variantsObject})
+						return new MoveEnum({ name: \`${enumName}<${nameGenerics}>\`, fields: ${variantsObject} })
 					}`,
 				)),
 			);

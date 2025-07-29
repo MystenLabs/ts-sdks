@@ -21,34 +21,43 @@ import * as object from './deps/sui/object.js';
 import * as balance from './deps/sui/balance.js';
 import * as coin from './deps/sui/coin.js';
 const $moduleName = '@local-pkg/walrus_subsidies::subsidies';
-export const V3 = new MoveTuple(`${$moduleName}::V3`, [bcs.bool()]);
-export const AdminCap = new MoveStruct(`${$moduleName}::AdminCap`, {
-	id: object.UID,
-	subsidies_id: bcs.Address,
+export const V3 = new MoveTuple({ name: `${$moduleName}::V3`, fields: [bcs.bool()] });
+export const AdminCap = new MoveStruct({
+	name: `${$moduleName}::AdminCap`,
+	fields: {
+		id: object.UID,
+		subsidies_id: bcs.Address,
+	},
 });
-export const Subsidies = new MoveStruct(`${$moduleName}::Subsidies`, {
-	id: object.UID,
-	/**
-	 * The subsidy rate applied to the buyer at the moment of storage purchase in basis
-	 * points.
-	 */
-	buyer_subsidy_rate: bcs.u16(),
-	/**
-	 * The subsidy rate applied to the storage node when buying storage in basis
-	 * points.
-	 */
-	system_subsidy_rate: bcs.u16(),
-	/** The balance of funds available in the subsidy pool. */
-	subsidy_pool: balance.Balance,
-	/** Package ID of the subsidies contract. */
-	package_id: bcs.Address,
-	/** The version of the subsidies contract. */
-	version: bcs.u64(),
+export const Subsidies = new MoveStruct({
+	name: `${$moduleName}::Subsidies`,
+	fields: {
+		id: object.UID,
+		/**
+		 * The subsidy rate applied to the buyer at the moment of storage purchase in basis
+		 * points.
+		 */
+		buyer_subsidy_rate: bcs.u16(),
+		/**
+		 * The subsidy rate applied to the storage node when buying storage in basis
+		 * points.
+		 */
+		system_subsidy_rate: bcs.u16(),
+		/** The balance of funds available in the subsidy pool. */
+		subsidy_pool: balance.Balance,
+		/** Package ID of the subsidies contract. */
+		package_id: bcs.Address,
+		/** The version of the subsidies contract. */
+		version: bcs.u64(),
+	},
 });
-export const CombinedPayment = new MoveStruct(`${$moduleName}::CombinedPayment`, {
-	payment: coin.Coin,
-	initial_payment_value: bcs.u64(),
-	initial_pool_value: bcs.u64(),
+export const CombinedPayment = new MoveStruct({
+	name: `${$moduleName}::CombinedPayment`,
+	fields: {
+		payment: coin.Coin,
+		initial_payment_value: bcs.u64(),
+		initial_pool_value: bcs.u64(),
+	},
 });
 export interface NewArguments {
 	packageId: RawTransactionArgument<string>;

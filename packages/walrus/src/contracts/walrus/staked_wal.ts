@@ -21,22 +21,31 @@ const $moduleName = '@local-pkg/walrus::staked_wal';
  * The state of the staked WAL. It can be either `Staked` or `Withdrawing`. The
  * `Withdrawing` state contains the epoch when the staked WAL can be withdrawn.
  */
-export const StakedWalState = new MoveEnum(`${$moduleName}::StakedWalState`, {
-	Staked: null,
-	Withdrawing: new MoveStruct(`StakedWalState.Withdrawing`, {
-		withdraw_epoch: bcs.u32(),
-	}),
+export const StakedWalState = new MoveEnum({
+	name: `${$moduleName}::StakedWalState`,
+	fields: {
+		Staked: null,
+		Withdrawing: new MoveStruct({
+			name: `StakedWalState.Withdrawing`,
+			fields: {
+				withdraw_epoch: bcs.u32(),
+			},
+		}),
+	},
 });
-export const StakedWal = new MoveStruct(`${$moduleName}::StakedWal`, {
-	id: object.UID,
-	/** Whether the staked WAL is active or withdrawing. */
-	state: StakedWalState,
-	/** ID of the staking pool. */
-	node_id: bcs.Address,
-	/** The staked amount. */
-	principal: balance.Balance,
-	/** The Walrus epoch when the staked WAL was activated. */
-	activation_epoch: bcs.u32(),
+export const StakedWal = new MoveStruct({
+	name: `${$moduleName}::StakedWal`,
+	fields: {
+		id: object.UID,
+		/** Whether the staked WAL is active or withdrawing. */
+		state: StakedWalState,
+		/** ID of the staking pool. */
+		node_id: bcs.Address,
+		/** The staked amount. */
+		principal: balance.Balance,
+		/** The Walrus epoch when the staked WAL was activated. */
+		activation_epoch: bcs.u32(),
+	},
 });
 export interface NodeIdArguments {
 	sw: RawTransactionArgument<string>;

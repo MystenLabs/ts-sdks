@@ -15,11 +15,14 @@ import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::walrus_context';
-export const WalrusContext = new MoveStruct(`${$moduleName}::WalrusContext`, {
-	/** Current Walrus epoch */
-	epoch: bcs.u32(),
-	/** Whether the committee has been selected for the next epoch. */
-	committee_selected: bcs.bool(),
-	/** The current committee in the system. */
-	committee: vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16())),
+export const WalrusContext = new MoveStruct({
+	name: `${$moduleName}::WalrusContext`,
+	fields: {
+		/** Current Walrus epoch */
+		epoch: bcs.u32(),
+		/** Whether the committee has been selected for the next epoch. */
+		committee_selected: bcs.bool(),
+		/** The current committee in the system. */
+		committee: vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16())),
+	},
 });

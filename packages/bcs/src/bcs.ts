@@ -434,22 +434,25 @@ export const bcs = {
 	 * tuple.serialize([1, 'a', true]).toBytes() // Uint8Array [ 1, 1, 97, 1 ]
 	 */
 	tuple<
-		const Types extends readonly BcsType<any, any>[],
+		const T extends readonly BcsType<any, any>[],
 		const Name extends
-			string = `(${JoinString<{ [K in keyof Types]: Types[K] extends BcsType<any, any, infer T> ? T : never }, ', '>})`,
+			string = `(${JoinString<{ [K in keyof T]: T[K] extends BcsType<any, any, infer T> ? T : never }, ', '>})`,
 	>(
-		types: Types,
+		fields: T,
 		options?: BcsTypeOptions<
 			{
-				-readonly [K in keyof Types]: Types[K] extends BcsType<infer T, any> ? T : never;
+				-readonly [K in keyof T]: T[K] extends BcsType<infer T, any> ? T : never;
 			},
 			{
-				[K in keyof Types]: Types[K] extends BcsType<any, infer T> ? T : never;
+				[K in keyof T]: T[K] extends BcsType<any, infer T> ? T : never;
 			},
 			Name
 		>,
 	) {
-		return new BcsTuple<Types, Name>(types, options);
+		return new BcsTuple<T, Name>({
+			fields,
+			...options,
+		});
 	},
 
 	/**
@@ -479,7 +482,11 @@ export const bcs = {
 			'name'
 		>,
 	) {
-		return new BcsStruct<T>(name, fields, options);
+		return new BcsStruct<T>({
+			name,
+			fields,
+			...options,
+		});
 	},
 
 	/**
@@ -500,7 +507,7 @@ export const bcs = {
 	 */
 	enum<T extends Record<string, BcsType<any> | null>, const Name extends string = string>(
 		name: Name,
-		values: T,
+		fields: T,
 		options?: Omit<
 			BcsTypeOptions<
 				EnumOutputShape<{
@@ -514,7 +521,11 @@ export const bcs = {
 			'name'
 		>,
 	) {
-		return new BcsEnum<T, Name>(name, values, options);
+		return new BcsEnum<T, Name>({
+			name,
+			fields,
+			...options,
+		});
 	},
 
 	/**
