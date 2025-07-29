@@ -1,5 +1,11 @@
 # @mysten/walrus
 
+## 0.5.2
+
+### Patch Changes
+
+- fa1c76a: fix parsing of linear tip config
+
 ## 0.5.1
 
 ### Patch Changes
