@@ -1,5 +1,11 @@
 # @mysten/sui-grpc
 
+## 0.0.12
+
+### Patch Changes
+
+- @mysten/sui@1.37.1
+
 ## 0.0.11
 
 ### Patch Changes

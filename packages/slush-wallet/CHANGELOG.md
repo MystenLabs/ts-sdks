@@ -1,5 +1,12 @@
 # @mysten/slush-wallet
 
+## 0.1.19
+
+### Patch Changes
+
+- @mysten/sui@1.37.1
+- @mysten/wallet-standard@0.16.9
+
 ## 0.1.18
 
 ### Patch Changes

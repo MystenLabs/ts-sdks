@@ -1,5 +1,21 @@
 # @mysten/codegen
 
+## 0.3.0
+
+### Minor Changes
+
+- 33230ed: Add typenames to exported bcs types
+- 33230ed: Export non-generic BCS types directly rather than wrapping with a function
+- 33230ed: Use new MoveStruct, MoveEnum, and MoveTuple classes for bcs types
+
+### Patch Changes
+
+- Updated dependencies [33230ed]
+- Updated dependencies [33230ed]
+- Updated dependencies [33230ed]
+  - @mysten/bcs@1.7.0
+  - @mysten/sui@1.37.1
+
 ## 0.2.5
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @mysten/walrus
 
+## 0.5.3
+
+### Patch Changes
+
+- 33230ed: update walrus contract calls to use named arguments
+- Updated dependencies [33230ed]
+- Updated dependencies [33230ed]
+- Updated dependencies [33230ed]
+  - @mysten/bcs@1.7.0
+  - @mysten/sui@1.37.1
+
 ## 0.5.2
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @mysten/suins
 
+## 0.7.31
+
+### Patch Changes
+
+- @mysten/sui@1.37.1
+
 ## 0.7.30
 
 ### Patch Changes

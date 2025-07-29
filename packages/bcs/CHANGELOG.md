@@ -1,5 +1,14 @@
 # Change Log
 
+## 1.7.0
+
+### Minor Changes
+
+- 33230ed: Add generic inference for bcs type names
+- 33230ed: Update generics for vector, option, fixedArray, and map to prefer bcs types over input
+  and output values
+- 33230ed: Export new BcsStruct, BcsEnum and BcsTuple classes
+
 ## 1.6.4
 
 ### Patch Changes
@@ -83,7 +92,6 @@
 
   All existing methods will continue to work, but the following methods have been deprecated and
   replaced with methods with improved names:
-
   - `toHEX` -> `toHEX`
   - `fromHEX` -> `fromHex`
   - `toB64` -> `toBase64`
@@ -214,7 +222,6 @@
 - 3d9a04648: Adds `deactivation_epoch` to staking pool object, and adds `inactive_pools` to the
   validator set object.
 - a8049d159: Fixes the issue with deep nested generics by introducing array type names
-
   - all of the methods (except for aliasing) now allow passing in arrays instead of strings to allow
     for easier composition of generics and avoid using template strings
 

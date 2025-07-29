@@ -1,5 +1,15 @@
 # @mysten/seal
 
+## 0.4.20
+
+### Patch Changes
+
+- Updated dependencies [33230ed]
+- Updated dependencies [33230ed]
+- Updated dependencies [33230ed]
+  - @mysten/bcs@1.7.0
+  - @mysten/sui@1.37.1
+
 ## 0.4.19
 
 ### Patch Changes
