@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.15.12
+
+### Patch Changes
+
+- a02e75d: Patch permissionless pool creation rounding error
+
 ## 0.15.11
 
 ### Patch Changes
