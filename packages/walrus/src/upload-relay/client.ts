@@ -81,8 +81,10 @@ export class UploadRelayClient {
 									const: number;
 							  }
 							| {
-									base: number;
-									encoded_size_mul_per_kib: number;
+									linear: {
+										base: number;
+										encoded_size_mul_per_kib: number;
+									};
 							  };
 					};
 			  }
@@ -105,8 +107,8 @@ export class UploadRelayClient {
 			address: data.send_tip.address,
 			kind: {
 				linear: {
-					base: data.send_tip.kind.base,
-					perEncodedKib: data.send_tip.kind.encoded_size_mul_per_kib,
+					base: data.send_tip.kind.linear.base,
+					perEncodedKib: data.send_tip.kind.linear.encoded_size_mul_per_kib,
 				},
 			},
 		};
