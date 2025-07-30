@@ -1,0 +1,28 @@
+{
+	"name": "vue-simple-example",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "pnpm run type-check && pnpm run build-only",
+		"preview": "vite preview",
+		"build-only": "vite build",
+		"type-check": "vue-tsc --build"
+	},
+	"dependencies": {
+		"@mysten/dapp-kit-core": "workspace:*",
+		"@mysten/sui": "workspace:*",
+		"vue": "^3.5.18"
+	},
+	"devDependencies": {
+		"@tsconfig/node22": "^22.0.2",
+		"@types/node": "^22.15.29",
+		"@vitejs/plugin-vue": "^6.0.0",
+		"@vitejs/plugin-vue-jsx": "^5.0.0",
+		"@vue/tsconfig": "^0.7.0",
+		"typescript": "^5.8.3",
+		"vite": "^7.0.5",
+		"vue-tsc": "^2.2.10"
+	}
+}
