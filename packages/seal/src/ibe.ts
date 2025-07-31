@@ -119,19 +119,6 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 		return xor(ciphertext, kdf(decap(nonce, sk), nonce, id, objectId, index));
 	}
 
-	static decryptShareDeterministic(
-		randomness: Scalar,
-		ciphertext: Uint8Array,
-		publicKey: G2Element,
-		id: Uint8Array,
-		[objectId, index]: [string, number],
-	): Uint8Array {
-		const gid = hashToG1(id);
-		const gid_r = gid.multiply(randomness);
-		const nonce = G2Element.generator().multiply(randomness);
-		return xor(ciphertext, kdf(gid_r.pairing(publicKey), nonce, id, objectId, index));
-	}
-
 	/**
 	 * Decrypt all shares and verify that the randomness was used to create the given nonce.
 	 *
@@ -174,15 +161,14 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 			throw new Error('Invalid randomness');
 		}
 
-		return services.map(([_, index], i) => {
+		const gid = hashToG1(id);
+		const gid_r = gid.multiply(r);
+		return services.map(([objectId, index], i) => {
 			return {
 				index,
-				share: BonehFranklinBLS12381Services.decryptShareDeterministic(
-					r,
+				share: xor(
 					encryptedShares[i],
-					publicKeys[i],
-					id,
-					services[i],
+					kdf(gid_r.pairing(publicKeys[i]), nonce, id, objectId, index),
 				),
 			};
 		});
