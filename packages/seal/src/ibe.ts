@@ -118,6 +118,61 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 	): Uint8Array {
 		return xor(ciphertext, kdf(decap(nonce, sk), nonce, id, objectId, index));
 	}
+
+	/**
+	 * Decrypt all shares and verify that the randomness was used to create the given nonce.
+	 *
+	 * @param encryptedRandomness - The encrypted randomness.
+	 * @param encryptedShares - The encrypted shares.
+	 * @param services - The services.
+	 * @param baseKey - The base key.
+	 * @param publicKeys - The public keys.
+	 * @param nonce - The nonce.
+	 * @param threshold - The threshold.
+	 * @param id - The id.
+	 * @returns All decrypted shares.
+	 */
+	static decryptAllShares(
+		encryptedRandomness: Uint8Array,
+		encryptedShares: Uint8Array[],
+		services: [string, number][],
+		baseKey: Uint8Array,
+		publicKeys: G2Element[],
+		nonce: G2Element,
+		threshold: number,
+		id: Uint8Array,
+	): { index: number; share: Uint8Array }[] {
+		if (publicKeys.length !== encryptedShares.length || publicKeys.length !== services.length) {
+			throw new Error('The number of public keys, encrypted shares and services must be the same');
+		}
+
+		const r = decryptRandomness(
+			encryptedRandomness,
+			deriveKey(
+				KeyPurpose.EncryptedRandomness,
+				baseKey,
+				encryptedShares,
+				threshold,
+				services.map(([objectId, _]) => objectId),
+			),
+		);
+
+		if (!verifyNonce(nonce, r)) {
+			throw new Error('Invalid randomness');
+		}
+
+		const gid = hashToG1(id);
+		const gid_r = gid.multiply(r);
+		return services.map(([objectId, index], i) => {
+			return {
+				index,
+				share: xor(
+					encryptedShares[i],
+					kdf(gid_r.pairing(publicKeys[i]), nonce, id, objectId, index),
+				),
+			};
+		});
+	}
 }
 
 /**
@@ -148,10 +203,24 @@ function decap(nonce: G2Element, usk: G1Element): GTElement {
 	return usk.pairing(nonce);
 }
 
+/**
+ * Verify that the given randomness was used to crate the nonce.
+ *
+ * @param randomness - The randomness.
+ * @param nonce - The nonce.
+ * @returns True if the randomness was used to create the nonce, false otherwise.
+ */
 export function verifyNonce(nonce: G2Element, randomness: Scalar): boolean {
 	return G2Element.generator().multiply(randomness).equals(nonce);
 }
 
+/**
+ * Decrypt the randomness using a key.
+ *
+ * @param encrypted_randomness - The encrypted randomness.
+ * @param derived_key - The derived key.
+ * @returns The randomness.
+ */
 export function decryptRandomness(
 	encryptedRandomness: Uint8Array,
 	randomnessKey: Uint8Array,
