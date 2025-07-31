@@ -44,6 +44,7 @@ export class SealClient {
 	#verifyKeyServers: boolean;
 	// A caching map for: fullId:object_id -> partial key.
 	#cachedKeys = new Map<KeyCacheKey, G1Element>();
+	#cachedPublicKeys = new Map<string, G2Element>();
 	#timeout: number;
 	#totalWeight: number;
 
@@ -137,12 +138,18 @@ export class SealClient {
 	 * The function throws an error if the client's key servers are not a subset of
 	 * the encrypted object's key servers or if the threshold cannot be met.
 	 *
+	 * If checkShareConsistency is true, the decrypted shares are checked for consistency, meaning that
+	 * any combination of at least threshold shares should either succesfully combine to the plaintext or fail.
+	 * This is useful in case the encryptor is not trusted and the decryptor wants to ensure all decryptors
+	 * receive the same output (e.g., for onchain encrypted voting).
+	 *
 	 * @param data - The encrypted bytes to decrypt.
 	 * @param sessionKey - The session key to use.
 	 * @param txBytes - The transaction bytes to use (that calls seal_approve* functions).
+	 * @param checkShareConsistency - If true, the shares are checked for consistency.
 	 * @returns - The decrypted plaintext corresponding to ciphertext.
 	 */
-	async decrypt({ data, sessionKey, txBytes }: DecryptOptions) {
+	async decrypt({ data, sessionKey, txBytes, checkShareConsistency }: DecryptOptions) {
 		const encryptedObject = EncryptedObject.parse(data);
 
 		this.#validateEncryptionServices(
@@ -157,6 +164,29 @@ export class SealClient {
 			threshold: encryptedObject.threshold,
 		});
 
+		if (checkShareConsistency) {
+			const keyServers = await this.getKeyServers();
+			const publicKeys = await Promise.all(
+				encryptedObject.services.map(async ([objectId, _]) => {
+					const keyServer = keyServers.get(objectId);
+					if (keyServer) {
+						return G2Element.fromBytes(keyServer.pk);
+					} else if (this.#cachedPublicKeys.has(objectId)) {
+						return this.#cachedPublicKeys.get(objectId)!;
+					} else {
+						// TODO: Get all missing public keys in one call.
+						const keyServer = await retrieveKeyServers({
+							objectIds: [objectId],
+							client: this.#suiClient,
+						});
+						const pk = G2Element.fromBytes(new Uint8Array(keyServer[0].pk));
+						this.#cachedPublicKeys.set(objectId, pk);
+						return pk;
+					}
+				}),
+			);
+			return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys });
+		}
 		return decrypt({ encryptedObject, keys: this.#cachedKeys });
 	}
 

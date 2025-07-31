@@ -214,6 +214,28 @@ describe('Integration test', () => {
 		});
 
 		expect(decryptedBytes2).toEqual(data2);
+
+		// Encrypt with threshold 1.
+		const { encryptedObject: encryptedBytes3 } = await client.encrypt({
+			threshold: 1,
+			packageId: TESTNET_PACKAGE_ID,
+			id: whitelistId,
+			data,
+		});
+		// Create a new client with just one server.
+		// Decryption of encryptedObject3 will work but since checkShareConsistency is true, the client will have to fetch the public key from the second key server.
+		const client2 = new SealClient({
+			suiClient,
+			serverConfigs: objectIds.slice(0, 1),
+			verifyKeyServers: false,
+		});
+		const decryptedBytes3 = await client2.decrypt({
+			data: encryptedBytes3,
+			sessionKey,
+			txBytes: txBytes2,
+			checkShareConsistency: true,
+		});
+		expect(decryptedBytes3).toEqual(data);
 	}
 
 	it(

@@ -69,6 +69,19 @@ export function allEqual(array: number[]): boolean {
 }
 
 /**
+ * Check if two Uint8Arrays are equal.
+ * @param a - The first Uint8Array.
+ * @param b - The second Uint8Array.
+ * @returns True if the two Uint8Arrays are equal, false otherwise.
+ */
+export function equals(a: Uint8Array, b: Uint8Array): boolean {
+	if (a.length !== b.length) {
+		return false;
+	}
+	return a.every((ai, i) => ai === b[i]);
+}
+
+/**
  * A simple class to represent a version number of the form x.y.z.
  */
 export class Version {

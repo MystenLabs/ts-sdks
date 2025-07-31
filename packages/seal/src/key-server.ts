@@ -18,7 +18,7 @@ import { flatten, Version } from './utils.js';
 import { elgamalDecrypt } from './elgamal.js';
 import type { Certificate } from './session-key.js';
 
-const EXPECTED_SERVER_VERSION = 1;
+export const EXPECTED_SERVER_VERSION = 1;
 
 export type KeyServer = {
 	objectId: string;

@@ -55,6 +55,8 @@ export interface DecryptOptions {
 	sessionKey: SessionKey;
 	/** The transaction bytes to use (that calls seal_approve* functions). */
 	txBytes: Uint8Array;
+	/** Whether to check share consistency. */
+	checkShareConsistency?: boolean;
 }
 
 export interface FetchKeysOptions {
