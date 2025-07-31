@@ -19,9 +19,9 @@ export default defineConfig({
 		alias: {
 			'@mysten/bcs': new URL('../bcs/src', import.meta.url).pathname,
 			'@mysten/utils': new URL('../utils/src', import.meta.url).pathname,
-			'@mysten/sui/transactions': new URL('../typescript/src/transactions', import.meta.url)
+			'@mysten/sui/transactions': new URL('../sui/src/transactions', import.meta.url)
 				.pathname,
-			'@mysten/sui': new URL('../typescript/src', import.meta.url).pathname,
+			'@mysten/sui': new URL('../sui/src', import.meta.url).pathname,
 		},
 	},
 });

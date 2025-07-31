@@ -13,7 +13,7 @@
 		"../slush-wallet",
 		"../suins",
 		"../sui-grpc",
-		"../typescript",
+		"../sui",
 		"../utils",
 		"../wallet-standard",
 		"../walrus",

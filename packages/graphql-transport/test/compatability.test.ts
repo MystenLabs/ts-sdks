@@ -7,9 +7,9 @@ import {
 	SuiClient,
 	SuiObjectData,
 	SuiTransactionBlockResponse,
-} from '../../typescript/src/client/index.js';
-import { Transaction } from '../../typescript/src/transactions/index.js';
-import { publishPackage, setup, TestToolbox } from '../../typescript/test/e2e/utils/setup';
+} from '../../sui/src/client/index.js';
+import { Transaction } from '../../sui/src/transactions/index.js';
+import { publishPackage, setup, TestToolbox } from '../../sui/test/e2e/utils/setup';
 import { SuiClientGraphQLTransport } from '../src/transport';
 
 const DEFAULT_GRAPHQL_URL = import.meta.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125';
