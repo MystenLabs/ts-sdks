@@ -166,22 +166,27 @@ export class SealClient {
 
 		if (checkShareConsistency) {
 			const keyServers = await this.getKeyServers();
+			const missingKeyServers = encryptedObject.services
+				.filter(([objectId]) => !keyServers.has(objectId) && !this.#cachedPublicKeys.has(objectId))
+				.map(([objectId]) => objectId);
+			const missingPublicKeys = new Map(
+				(
+					await retrieveKeyServers({
+						objectIds: missingKeyServers,
+						client: this.#suiClient,
+					})
+				).map((keyServer) => [keyServer.objectId, G2Element.fromBytes(keyServer.pk)]),
+			);
+
 			const publicKeys = await Promise.all(
-				encryptedObject.services.map(async ([objectId, _]) => {
+				encryptedObject.services.map(async ([objectId]) => {
 					const keyServer = keyServers.get(objectId);
 					if (keyServer) {
 						return G2Element.fromBytes(keyServer.pk);
 					} else if (this.#cachedPublicKeys.has(objectId)) {
 						return this.#cachedPublicKeys.get(objectId)!;
 					} else {
-						// TODO: Get all missing public keys in one call.
-						const keyServer = await retrieveKeyServers({
-							objectIds: [objectId],
-							client: this.#suiClient,
-						});
-						const pk = G2Element.fromBytes(new Uint8Array(keyServer[0].pk));
-						this.#cachedPublicKeys.set(objectId, pk);
-						return pk;
+						return missingPublicKeys.get(objectId)!;
 					}
 				}),
 			);
