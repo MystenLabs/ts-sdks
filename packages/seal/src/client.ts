@@ -166,9 +166,11 @@ export class SealClient {
 
 		if (checkShareConsistency) {
 			const keyServers = await this.getKeyServers();
+
+			// Retrive the key servers not already in store or cache.
 			const missingKeyServers = encryptedObject.services
-				.filter(([objectId]) => !keyServers.has(objectId) && !this.#cachedPublicKeys.has(objectId))
-				.map(([objectId]) => objectId);
+				.filter(([objectId]) => !(keyServers.has(objectId) || this.#cachedPublicKeys.has(objectId)))
+				.map(([objectId, _]) => objectId);
 			const missingPublicKeys = new Map(
 				(
 					await retrieveKeyServers({
@@ -183,11 +185,15 @@ export class SealClient {
 					const keyServer = keyServers.get(objectId);
 					if (keyServer) {
 						return G2Element.fromBytes(keyServer.pk);
-					} else if (this.#cachedPublicKeys.has(objectId)) {
-						return this.#cachedPublicKeys.get(objectId)!;
-					} else {
-						return missingPublicKeys.get(objectId)!;
 					}
+
+					const cachedPublicKey = this.#cachedPublicKeys.get(objectId);
+					if (cachedPublicKey) {
+						return cachedPublicKey;
+					}
+
+					// Must exist at this point
+					return missingPublicKeys.get(objectId)!;
 				}),
 			);
 			return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys });
