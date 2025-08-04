@@ -449,29 +449,25 @@ describe('Seal encryption tests', () => {
 	});
 
 	it('check share consistency', async () => {
-		// const pks = [
-		// 	'8528086b8cebb4ebd1fabb75393a4d77b91d4b3d77295c4d3997871cd40ffd3129ee51f0baf4976a3476897bad6b527b12f4ba6942c192d154bfd966e35329d0c6d1eec2b78adb29a5ef00501a89d41751b24121a284b8dfe8ffa96d86f366d2',
-		// 	'8a93ff79be2c8a127b70506c9124d15db2361c52305f68f6c566b1c15ed23b36f27b627b928109376f9ec593fb14a83d0a3d21dcb6dc52f27ed88e83d2e2f47fa8720aa7b06945cfd36f7e34a49e060598e09637173deb0bc6c5b0c306c7a64e',
-		// 	'a4940de9e0125302ce243a2fe0bae7ef8a5197a55e4038eb5a78256ed020512f527da02ab712f12f947bed1fef03334e129695636762efb81de28e7a0202a8995a7548bc977fdf135f3e6b176e5f3eaad79885891470564f78dd011ad4c8f1b4',
-		// ];
 		const usks = [
-			'8192785624ee74fadee6ca300b30dace6cab708c2b88454b7b52bd9e3a2bbc9f49e25e008e236727322686e3641d2746',
-			'b6a2eefef7e234f6d860444f17d0fe82fc3969649e1e045c1cb9d316efd0864e33863f121b97fb0a151389b944fadf43',
-			'a6289692cc0d43a586c9278af85fd5815f32f8968ea964f4f783a8abd330064f0bba0a4d57a6e460dd0cd642346d4b66',
+			'8f7dbef2f6d0b80d3ab36f732b35d8afce136cd302ca1ab165ceee8672c19a9e50a2144f9ebceb2cf17ed10261291d13',
+			'adf809b14b17975cfa5b9359ef9fd697a9d04222ab3b6f7dbe40e5977ee451a6f2cf85849bda0b1cae1d879f5cd2bcfa',
+			'81a88dee8731f8ff8fa88f7ca205fe60c2846446c32495f40fe6795f1c29997ac8755a58722b857e60581b6adb22a327',
 		];
 
 		const msg = new TextEncoder().encode('Hello, World!');
 
+		// Test vector with inconsistent shares: Using the two last shares should succeed, but it fails if all shares are provided or if the consistency is checked.
 		const encryptedObject = EncryptedObject.parse(
 			fromHex(
-				'00360696bfe7a780c536ce8c33f42c3941fa5481d3ee2912610ea0c0255ee0d316040102030403e0305eb7e2d100058cd88a6b8e81e719efde2053cd734864d90ec193c388920d015682316a5397cdd693a009286602be5062376c4519fedf7ca6fdc987dea9aedb02cc082f4bcb35196ccc30c3a2ee7c226f01229f3009beeafdfb468a8df6074e82030200a3cf293ba2052b955cc89e18ee60fce0c3a40e4eec0efa2abadc6ba49b401bfcb1224dfd8717cdadc276ef76a5e9312e06c791dee49a38aad2119e81fb2f408d84b4a063f029512f5be3ffac338de4c603d3f374151a66fe1824c4163780c16b0324725da6d2a1e7a2c01f155b7419d30317b93bae1870ea9523412ce928935e1c0c77e28fde8108192222aafae59214ac6c8386738de829a763f09e70527c65efe3f95afe3b809f4f0699c6d19cd99101c61e86ecd3100db0ad54bf99c4f310060966a5633baaf87c48b8bf1752be280425b902b91777b57ba21486bffc48708f010d030adba5d54fa3d9fc819eac550109736f6d657468696e6761ebc588673c257fb70c39c3694ce2053a564113f1d8eb633d3c045ae1d9662c',
+				'0063583d1c8cdcba3f77ecb865abf9ba6f15c0b0ea9b3c64a68d2eb7148e93f5b7040102030403a666b51aa8e0bfc007dbeffb209235fba72a0d842fee1d34d3ae92b77f7abac401d5a88eed8e4284a0249a1fb5e2ddf74cb2abe7626cf6bec85cf2610166a7d2e902b75f15765eef4e1979749b31ec2c687a63fcf72125babc61a0de2181be2a236a030200b33413ae30e25016257f17dc95cea8cfd6b07fcc90625bb0d0056c4743599e53d68f20a3f616e7246d66f3529a4aa12e0133559cdcb961506c24874aebfd2dc2361464f4ce29fd4353d0f612a19364c40c2ef532cebace91339d1dd7eb685c4f035c38df0a2ce80ae34505da3b56e765a2be97f0a21a91bbfa4362dee6baeb2ed5ae8e3655be0bc0993ff9feb479127232bf4de6e7153d10057297b9241d388d734bfec5dad0d9cb56508aa6d76c1acf3bc198d128d7ed3cc28bfb8ecb9e0b911a28063b9bc6b2f379e96957c17cda4ce3c6ed10bb24bdd5b1e7ad36392bedcb12010df33e1c157c227d498ada367fbf0109736f6d657468696e67276ac2d6c05a7c36152deb200070788d203f4e7413dbb8f14f437e021838d93a',
 			),
 		);
 		const id = createFullId(encryptedObject.packageId, encryptedObject.id);
+		// Giving the two last shares succeeds
 		const keys = new Map<KeyCacheKey, G1Element>([
-			[`${id}:${encryptedObject.services[0]}`, G1Element.fromBytes(fromHex(usks[0]))],
-			[`${id}:${encryptedObject.services[1]}`, G1Element.fromBytes(fromHex(usks[1]))],
-			[`${id}:${encryptedObject.services[2]}`, G1Element.fromBytes(fromHex(usks[2]))],
+			[`${id}:${encryptedObject.services[1][0]}`, G1Element.fromBytes(fromHex(usks[1]))],
+			[`${id}:${encryptedObject.services[2][0]}`, G1Element.fromBytes(fromHex(usks[2]))],
 		]);
 
 		await expect(
@@ -480,5 +476,20 @@ describe('Seal encryption tests', () => {
 				keys,
 			}),
 		).resolves.toEqual(msg);
+
+		// ...but if we give the public keys, the share consistency is checked and the decryption fails
+		const publicKeys = [
+			'8528086b8cebb4ebd1fabb75393a4d77b91d4b3d77295c4d3997871cd40ffd3129ee51f0baf4976a3476897bad6b527b12f4ba6942c192d154bfd966e35329d0c6d1eec2b78adb29a5ef00501a89d41751b24121a284b8dfe8ffa96d86f366d2',
+			'8a93ff79be2c8a127b70506c9124d15db2361c52305f68f6c566b1c15ed23b36f27b627b928109376f9ec593fb14a83d0a3d21dcb6dc52f27ed88e83d2e2f47fa8720aa7b06945cfd36f7e34a49e060598e09637173deb0bc6c5b0c306c7a64e',
+			'a4940de9e0125302ce243a2fe0bae7ef8a5197a55e4038eb5a78256ed020512f527da02ab712f12f947bed1fef03334e129695636762efb81de28e7a0202a8995a7548bc977fdf135f3e6b176e5f3eaad79885891470564f78dd011ad4c8f1b4',
+		].map((pk) => G2Element.fromBytes(fromHex(pk)));
+
+		await expect(
+			decrypt({
+				encryptedObject,
+				keys,
+				publicKeys,
+			}),
+		).rejects.toThrow();
 	});
 });
