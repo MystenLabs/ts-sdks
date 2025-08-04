@@ -165,36 +165,8 @@ export class SealClient {
 		});
 
 		if (checkShareConsistency) {
-			const keyServers = await this.getKeyServers();
-
-			// Retrive the key servers not already in store or cache.
-			const missingKeyServers = encryptedObject.services
-				.filter(([objectId]) => !(keyServers.has(objectId) || this.#cachedPublicKeys.has(objectId)))
-				.map(([objectId, _]) => objectId);
-			const missingPublicKeys = new Map(
-				(
-					await retrieveKeyServers({
-						objectIds: missingKeyServers,
-						client: this.#suiClient,
-					})
-				).map((keyServer) => [keyServer.objectId, G2Element.fromBytes(keyServer.pk)]),
-			);
-
-			const publicKeys = await Promise.all(
-				encryptedObject.services.map(async ([objectId]) => {
-					const keyServer = keyServers.get(objectId);
-					if (keyServer) {
-						return G2Element.fromBytes(keyServer.pk);
-					}
-
-					const cachedPublicKey = this.#cachedPublicKeys.get(objectId);
-					if (cachedPublicKey) {
-						return cachedPublicKey;
-					}
-
-					// Must exist at this point
-					return missingPublicKeys.get(objectId)!;
-				}),
+			const publicKeys = await this.getPublicKeys(
+				encryptedObject.services.map(([objectId, _]) => objectId),
 			);
 			return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys });
 		}
@@ -233,6 +205,42 @@ export class SealClient {
 			});
 		}
 		return this.#keyServers;
+	}
+
+	/**
+	 * Get the public keys for the given services.
+	 * If all public keys are not in the cache, they are retrieved.
+	 *
+	 * @param services - The services to get the public keys for.
+	 * @returns The public keys for the given services in the same order as the given services.
+	 */
+	async getPublicKeys(services: string[]): Promise<G2Element[]> {
+		const keyServers = await this.getKeyServers();
+
+		// Collect the key servers not already in store or cache.
+		const missingKeyServers = services.filter(
+			([objectId]) => !(keyServers.has(objectId) || this.#cachedPublicKeys.has(objectId)),
+		);
+
+		// If there are missing key servers, retrieve them and update the cache.
+		if (missingKeyServers.length > 0) {
+			(
+				await retrieveKeyServers({
+					objectIds: missingKeyServers,
+					client: this.#suiClient,
+				})
+			).forEach((keyServer) =>
+				this.#cachedPublicKeys.set(keyServer.objectId, G2Element.fromBytes(keyServer.pk)),
+			);
+		}
+
+		return services.map(([objectId]) => {
+			const keyServer = keyServers.get(objectId);
+			if (keyServer) {
+				return G2Element.fromBytes(keyServer.pk);
+			}
+			return this.#cachedPublicKeys.get(objectId)!;
+		});
 	}
 
 	/**
