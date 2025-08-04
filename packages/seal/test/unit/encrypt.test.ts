@@ -447,4 +447,38 @@ describe('Seal encryption tests', () => {
 			}),
 		).rejects.toThrow();
 	});
+
+	it('check share consistency', async () => {
+		// const pks = [
+		// 	'8528086b8cebb4ebd1fabb75393a4d77b91d4b3d77295c4d3997871cd40ffd3129ee51f0baf4976a3476897bad6b527b12f4ba6942c192d154bfd966e35329d0c6d1eec2b78adb29a5ef00501a89d41751b24121a284b8dfe8ffa96d86f366d2',
+		// 	'8a93ff79be2c8a127b70506c9124d15db2361c52305f68f6c566b1c15ed23b36f27b627b928109376f9ec593fb14a83d0a3d21dcb6dc52f27ed88e83d2e2f47fa8720aa7b06945cfd36f7e34a49e060598e09637173deb0bc6c5b0c306c7a64e',
+		// 	'a4940de9e0125302ce243a2fe0bae7ef8a5197a55e4038eb5a78256ed020512f527da02ab712f12f947bed1fef03334e129695636762efb81de28e7a0202a8995a7548bc977fdf135f3e6b176e5f3eaad79885891470564f78dd011ad4c8f1b4',
+		// ];
+		const usks = [
+			'8192785624ee74fadee6ca300b30dace6cab708c2b88454b7b52bd9e3a2bbc9f49e25e008e236727322686e3641d2746',
+			'b6a2eefef7e234f6d860444f17d0fe82fc3969649e1e045c1cb9d316efd0864e33863f121b97fb0a151389b944fadf43',
+			'a6289692cc0d43a586c9278af85fd5815f32f8968ea964f4f783a8abd330064f0bba0a4d57a6e460dd0cd642346d4b66',
+		];
+
+		const msg = new TextEncoder().encode('Hello, World!');
+
+		const encryptedObject = EncryptedObject.parse(
+			fromHex(
+				'00360696bfe7a780c536ce8c33f42c3941fa5481d3ee2912610ea0c0255ee0d316040102030403e0305eb7e2d100058cd88a6b8e81e719efde2053cd734864d90ec193c388920d015682316a5397cdd693a009286602be5062376c4519fedf7ca6fdc987dea9aedb02cc082f4bcb35196ccc30c3a2ee7c226f01229f3009beeafdfb468a8df6074e82030200a3cf293ba2052b955cc89e18ee60fce0c3a40e4eec0efa2abadc6ba49b401bfcb1224dfd8717cdadc276ef76a5e9312e06c791dee49a38aad2119e81fb2f408d84b4a063f029512f5be3ffac338de4c603d3f374151a66fe1824c4163780c16b0324725da6d2a1e7a2c01f155b7419d30317b93bae1870ea9523412ce928935e1c0c77e28fde8108192222aafae59214ac6c8386738de829a763f09e70527c65efe3f95afe3b809f4f0699c6d19cd99101c61e86ecd3100db0ad54bf99c4f310060966a5633baaf87c48b8bf1752be280425b902b91777b57ba21486bffc48708f010d030adba5d54fa3d9fc819eac550109736f6d657468696e6761ebc588673c257fb70c39c3694ce2053a564113f1d8eb633d3c045ae1d9662c',
+			),
+		);
+		const id = createFullId(encryptedObject.packageId, encryptedObject.id);
+		const keys = new Map<KeyCacheKey, G1Element>([
+			[`${id}:${encryptedObject.services[0]}`, G1Element.fromBytes(fromHex(usks[0]))],
+			[`${id}:${encryptedObject.services[1]}`, G1Element.fromBytes(fromHex(usks[1]))],
+			[`${id}:${encryptedObject.services[2]}`, G1Element.fromBytes(fromHex(usks[2]))],
+		]);
+
+		await expect(
+			decrypt({
+				encryptedObject,
+				keys,
+			}),
+		).resolves.toEqual(msg);
+	});
 });
