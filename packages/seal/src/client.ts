@@ -219,8 +219,9 @@ export class SealClient {
 
 		// Collect the key servers not already in store or cache.
 		const missingKeyServers = services.filter(
-			(objectId) => !(keyServers.has(objectId) || this.#cachedPublicKeys.has(objectId)),
+			(objectId) => !keyServers.has(objectId) && !this.#cachedPublicKeys.has(objectId),
 		);
+
 		// If there are missing key servers, retrieve them and update the cache.
 		if (missingKeyServers.length > 0) {
 			(
