@@ -221,7 +221,6 @@ export class SealClient {
 		const missingKeyServers = services.filter(
 			([objectId]) => !(keyServers.has(objectId) || this.#cachedPublicKeys.has(objectId)),
 		);
-
 		// If there are missing key servers, retrieve them and update the cache.
 		if (missingKeyServers.length > 0) {
 			(
@@ -234,7 +233,7 @@ export class SealClient {
 			);
 		}
 
-		return services.map(([objectId]) => {
+		return services.map((objectId) => {
 			const keyServer = keyServers.get(objectId);
 			if (keyServer) {
 				return G2Element.fromBytes(keyServer.pk);
