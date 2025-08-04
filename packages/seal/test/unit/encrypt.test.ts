@@ -449,14 +449,6 @@ describe('Seal encryption tests', () => {
 	});
 
 	it('check share consistency', async () => {
-		const usks = [
-			'8f7dbef2f6d0b80d3ab36f732b35d8afce136cd302ca1ab165ceee8672c19a9e50a2144f9ebceb2cf17ed10261291d13',
-			'adf809b14b17975cfa5b9359ef9fd697a9d04222ab3b6f7dbe40e5977ee451a6f2cf85849bda0b1cae1d879f5cd2bcfa',
-			'81a88dee8731f8ff8fa88f7ca205fe60c2846446c32495f40fe6795f1c29997ac8755a58722b857e60581b6adb22a327',
-		];
-
-		const msg = new TextEncoder().encode('Hello, World!');
-
 		// Test vector with inconsistent shares: Using the two last shares should succeed, but it fails if all shares are provided or if the consistency is checked.
 		// Generated using this unit test:https://github.com/MystenLabs/seal/blob/828e0e90ea0282c59836c4d9cb7ec9e9f47d5d3a/crates/crypto/src/lib.rs#L668-L725
 		const encryptedObject = EncryptedObject.parse(
@@ -464,13 +456,34 @@ describe('Seal encryption tests', () => {
 				'0063583d1c8cdcba3f77ecb865abf9ba6f15c0b0ea9b3c64a68d2eb7148e93f5b7040102030403a666b51aa8e0bfc007dbeffb209235fba72a0d842fee1d34d3ae92b77f7abac401d5a88eed8e4284a0249a1fb5e2ddf74cb2abe7626cf6bec85cf2610166a7d2e902b75f15765eef4e1979749b31ec2c687a63fcf72125babc61a0de2181be2a236a030200b33413ae30e25016257f17dc95cea8cfd6b07fcc90625bb0d0056c4743599e53d68f20a3f616e7246d66f3529a4aa12e0133559cdcb961506c24874aebfd2dc2361464f4ce29fd4353d0f612a19364c40c2ef532cebace91339d1dd7eb685c4f035c38df0a2ce80ae34505da3b56e765a2be97f0a21a91bbfa4362dee6baeb2ed5ae8e3655be0bc0993ff9feb479127232bf4de6e7153d10057297b9241d388d734bfec5dad0d9cb56508aa6d76c1acf3bc198d128d7ed3cc28bfb8ecb9e0b911a28063b9bc6b2f379e96957c17cda4ce3c6ed10bb24bdd5b1e7ad36392bedcb12010df33e1c157c227d498ada367fbf0109736f6d657468696e67276ac2d6c05a7c36152deb200070788d203f4e7413dbb8f14f437e021838d93a',
 			),
 		);
+		const msg = new TextEncoder().encode('Hello, World!');
 		const id = createFullId(encryptedObject.packageId, encryptedObject.id);
-		// Giving the two last shares succeeds
+
+		// Derived keys
+		const usks = [
+			'8f7dbef2f6d0b80d3ab36f732b35d8afce136cd302ca1ab165ceee8672c19a9e50a2144f9ebceb2cf17ed10261291d13',
+			'adf809b14b17975cfa5b9359ef9fd697a9d04222ab3b6f7dbe40e5977ee451a6f2cf85849bda0b1cae1d879f5cd2bcfa',
+			'81a88dee8731f8ff8fa88f7ca205fe60c2846446c32495f40fe6795f1c29997ac8755a58722b857e60581b6adb22a327',
+		];
+
+		// Giving all shares, decryption fails
+		const allKeys = new Map<KeyCacheKey, G1Element>([
+			[`${id}:${encryptedObject.services[0][0]}`, G1Element.fromBytes(fromHex(usks[0]))],
+			[`${id}:${encryptedObject.services[1][0]}`, G1Element.fromBytes(fromHex(usks[1]))],
+			[`${id}:${encryptedObject.services[2][0]}`, G1Element.fromBytes(fromHex(usks[2]))],
+		]);
+		await expect(
+			decrypt({
+				encryptedObject,
+				keys: allKeys,
+			}),
+		).rejects.toThrow();
+
+		// But giving only the two last shares, decryption succeeds
 		const keys = new Map<KeyCacheKey, G1Element>([
 			[`${id}:${encryptedObject.services[1][0]}`, G1Element.fromBytes(fromHex(usks[1]))],
 			[`${id}:${encryptedObject.services[2][0]}`, G1Element.fromBytes(fromHex(usks[2]))],
 		]);
-
 		await expect(
 			decrypt({
 				encryptedObject,
@@ -484,7 +497,6 @@ describe('Seal encryption tests', () => {
 			'8a93ff79be2c8a127b70506c9124d15db2361c52305f68f6c566b1c15ed23b36f27b627b928109376f9ec593fb14a83d0a3d21dcb6dc52f27ed88e83d2e2f47fa8720aa7b06945cfd36f7e34a49e060598e09637173deb0bc6c5b0c306c7a64e',
 			'a4940de9e0125302ce243a2fe0bae7ef8a5197a55e4038eb5a78256ed020512f527da02ab712f12f947bed1fef03334e129695636762efb81de28e7a0202a8995a7548bc977fdf135f3e6b176e5f3eaad79885891470564f78dd011ad4c8f1b4',
 		].map((pk) => G2Element.fromBytes(fromHex(pk)));
-
 		await expect(
 			decrypt({
 				encryptedObject,
