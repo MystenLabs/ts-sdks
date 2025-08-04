@@ -27,7 +27,6 @@ import { StakingInnerV1 } from './contracts/walrus/staking_inner.js';
 import { StakingPool } from './contracts/walrus/staking_pool.js';
 import { Staking } from './contracts/walrus/staking.js';
 import { Storage } from './contracts/walrus/storage_resource.js';
-import * as subsidies from './contracts/subsidies/subsidies.js';
 import { SystemStateInnerV1 } from './contracts/walrus/system_state_inner.js';
 import {
 	certifyBlob,
@@ -247,21 +246,6 @@ export class WalrusClient {
 		return this.#cache.read(['getSystemPackageId'], async () => {
 			const { package_id } = await this.systemObject();
 			return package_id;
-		});
-	}
-
-	#getSubsidiesPackageId() {
-		return this.#cache.read(['getSubsidiesContract'], async () => {
-			if (!this.#packageConfig.subsidiesObjectId) {
-				return null;
-			}
-
-			const subsidiesObject = await this.#objectLoader.load(
-				this.#packageConfig.subsidiesObjectId,
-				subsidies.Subsidies,
-			);
-
-			return subsidiesObject.package_id;
 		});
 	}
 
@@ -739,57 +723,37 @@ export class WalrusClient {
 	 * tx.transferObjects([client.createStorage({ size: 1000, epochs: 3 })], owner);
 	 * ```
 	 */
-	createStorage({ size, epochs, walCoin, owner }: StorageWithSizeOptions) {
+	createStorage({ size, epochs, walCoin }: StorageWithSizeOptions) {
 		return async (tx: Transaction) => {
 			const systemObject = await this.systemObject();
 			const systemState = await this.systemState();
 			const encodedSize = encodedBlobLength(size, systemState.committee.n_shards);
-			const { storageCost } = await this.storageCost(size, epochs);
-			const [walrusPackageId, subsidiesPackageId] = await Promise.all([
+			const [{ storageCost }, walrusPackageId] = await Promise.all([
+				this.storageCost(size, epochs),
 				this.#getWalrusPackageId(),
-				this.#getSubsidiesPackageId(),
 			]);
 
 			return tx.add(
-				this.#withWal(
-					storageCost,
-					owner,
-					walCoin ?? null,
-					subsidiesPackageId !== null,
-					(coin, tx) => {
-						return tx.add(
-							subsidiesPackageId
-								? subsidies.reserveSpace({
-										package: subsidiesPackageId,
-										arguments: {
-											self: this.#packageConfig.subsidiesObjectId!,
-											system: systemObject.id.id,
-											storageAmount: encodedSize,
-											epochsAhead: epochs,
-											payment: coin,
-										},
-									})
-								: reserveSpace({
-										package: walrusPackageId,
-										arguments: {
-											self: systemObject.id.id,
-											storageAmount: encodedSize,
-											epochsAhead: epochs,
-											payment: coin,
-										},
-									}),
-						);
-					},
-				),
+				this.#withWal(storageCost, walCoin ?? null, (coin, tx) => {
+					return tx.add(
+						reserveSpace({
+							package: walrusPackageId,
+							arguments: {
+								self: systemObject.id.id,
+								storageAmount: encodedSize,
+								epochsAhead: epochs,
+								payment: coin,
+							},
+						}),
+					);
+				}),
 			);
 		};
 	}
 
 	#withWal<T extends TransactionResult | void>(
 		amount: bigint,
-		owner: string,
 		source: TransactionObjectArgument | null,
-		withSubsidies: boolean,
 		fn: (coin: TransactionObjectArgument, tx: Transaction) => T | Promise<T>,
 	) {
 		return async (tx: Transaction): Promise<T> => {
@@ -805,19 +769,11 @@ export class WalrusClient {
 
 			const result = await fn(coin, tx);
 
-			if (withSubsidies) {
-				if (source) {
-					tx.mergeCoins(source, [coin]);
-				} else {
-					tx.transferObjects([coin], owner);
-				}
-			} else {
-				tx.moveCall({
-					target: '0x2::coin::destroy_zero',
-					typeArguments: [walType],
-					arguments: [coin],
-				});
-			}
+			tx.moveCall({
+				target: '0x2::coin::destroy_zero',
+				typeArguments: [walType],
+				arguments: [coin],
+			});
 
 			return result;
 		};
@@ -836,8 +792,12 @@ export class WalrusClient {
 		size,
 		epochs,
 		owner,
-	}: StorageWithSizeOptions & { transaction?: Transaction }) {
-		transaction.transferObjects([this.createStorage({ size, epochs, owner })], owner);
+	}: StorageWithSizeOptions & {
+		transaction?: Transaction;
+		/** Address the storage resource should be transferred to */
+		owner: string;
+	}) {
+		transaction.transferObjects([this.createStorage({ size, epochs })], owner);
 
 		return transaction;
 	}
@@ -905,7 +865,6 @@ export class WalrusClient {
 		rootHash,
 		deletable,
 		walCoin,
-		owner,
 		attributes,
 	}: RegisterBlobOptions) {
 		return async (tx: Transaction) => {
@@ -913,13 +872,13 @@ export class WalrusClient {
 			const walrusPackageId = await this.#getWalrusPackageId();
 
 			return tx.add(
-				this.#withWal(writeCost, owner, walCoin ?? null, false, async (writeCoin, tx) => {
+				this.#withWal(writeCost, walCoin ?? null, async (writeCoin, tx) => {
 					const blob = tx.add(
 						registerBlob({
 							package: walrusPackageId,
 							arguments: {
 								self: tx.object(this.#packageConfig.systemObjectId),
-								storage: this.createStorage({ size, epochs, walCoin, owner }),
+								storage: this.createStorage({ size, epochs, walCoin }),
 								blobId: blobIdToInt(blobId),
 								rootHash: BigInt(bcs.u256().parse(rootHash)),
 								size,
@@ -1058,7 +1017,11 @@ export class WalrusClient {
 	registerBlobTransaction({
 		transaction = new Transaction(),
 		...options
-	}: RegisterBlobOptions & { transaction?: Transaction }) {
+	}: RegisterBlobOptions & {
+		transaction?: Transaction;
+		/** Address the blob should be transferred to */
+		owner: string;
+	}) {
 		const registration = transaction.add(this.registerBlob(options));
 
 		transaction.transferObjects([registration], options.owner);
@@ -1077,7 +1040,12 @@ export class WalrusClient {
 	async executeRegisterBlobTransaction({
 		signer,
 		...options
-	}: RegisterBlobOptions & { transaction?: Transaction; signer: Signer }): Promise<{
+	}: RegisterBlobOptions & {
+		transaction?: Transaction;
+		signer: Signer;
+		/** Address the blob should be transferred to */
+		owner?: string;
+	}): Promise<{
 		blob: (typeof Blob)['$inferType'];
 		digest: string;
 	}> {
@@ -1332,7 +1300,11 @@ export class WalrusClient {
 		owner,
 		blobObjectId,
 		transaction = new Transaction(),
-	}: DeleteBlobOptions & { transaction?: Transaction; owner: string }) {
+	}: DeleteBlobOptions & {
+		transaction?: Transaction;
+		/** Address the storage resource should be returned to */
+		owner: string;
+	}) {
 		const storage = transaction.add(this.deleteBlob({ blobObjectId }));
 		transaction.transferObjects([storage], owner);
 
@@ -1373,7 +1345,7 @@ export class WalrusClient {
 	 * const tx = client.extendBlobTransaction({ blobObjectId, epochs });
 	 * ```
 	 */
-	extendBlob({ blobObjectId, epochs, endEpoch, walCoin, owner }: ExtendBlobOptions) {
+	extendBlob({ blobObjectId, epochs, endEpoch, walCoin }: ExtendBlobOptions) {
 		return async (tx: Transaction) => {
 			const blob = await this.#objectLoader.load(blobObjectId, Blob);
 			const numEpochs = typeof epochs === 'number' ? epochs : endEpoch - blob.storage.end_epoch;
@@ -1384,41 +1356,21 @@ export class WalrusClient {
 
 			const { storageCost } = await this.storageCost(Number(blob.storage.storage_size), numEpochs);
 			const walrusPackageId = await this.#getWalrusPackageId();
-			const subsidiesPackageId = this.#packageConfig.subsidiesObjectId
-				? await this.#getSubsidiesPackageId()
-				: null;
 
 			return tx.add(
-				this.#withWal(
-					storageCost,
-					owner,
-					walCoin ?? null,
-					subsidiesPackageId !== null,
-					async (coin, tx) => {
-						tx.add(
-							subsidiesPackageId
-								? subsidies.extendBlob({
-										package: subsidiesPackageId,
-										arguments: {
-											self: this.#packageConfig.subsidiesObjectId!,
-											system: this.#packageConfig.systemObjectId,
-											blob: blobObjectId,
-											epochsAhead: numEpochs,
-											payment: coin,
-										},
-									})
-								: extendBlob({
-										package: walrusPackageId,
-										arguments: {
-											self: this.#packageConfig.systemObjectId,
-											blob: blobObjectId,
-											extendedEpochs: numEpochs,
-											payment: coin,
-										},
-									}),
-						);
-					},
-				),
+				this.#withWal(storageCost, walCoin ?? null, async (coin, tx) => {
+					tx.add(
+						extendBlob({
+							package: walrusPackageId,
+							arguments: {
+								self: this.#packageConfig.systemObjectId,
+								blob: blobObjectId,
+								extendedEpochs: numEpochs,
+								payment: coin,
+							},
+						}),
+					);
+				}),
 			);
 		};
 	}
@@ -2258,7 +2210,6 @@ export class WalrusClient {
 						blobId: metadata.blobId,
 						rootHash: metadata.rootHash,
 						deletable,
-						owner,
 						attributes,
 					}),
 				],

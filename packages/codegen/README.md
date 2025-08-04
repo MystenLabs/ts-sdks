@@ -17,6 +17,8 @@ import type { SuiCodegenConfig } from './src/config.js';
 
 const config: SuiCodegenConfig = {
 	output: './src/generated',
+	generateSummaries: true,
+	prune: true,
 	packages: [
 		{
 			package: '@your-scope/your-package',

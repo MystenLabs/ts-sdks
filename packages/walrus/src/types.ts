@@ -29,7 +29,6 @@ export interface WalrusPackageConfig {
 	systemObjectId: string;
 	/** The staking pool ID of the Walrus package */
 	stakingPoolId: string;
-	subsidiesObjectId?: string;
 	exchangeIds?: string[];
 }
 
@@ -121,8 +120,6 @@ export interface StorageWithSizeOptions {
 	size: number;
 	/** The number of epoch the storage will be reserved for. */
 	epochs: number;
-	/** Owner of the storage object. */
-	owner: string;
 	/** optionally specify a WAL coin pay for the registration.  This will consume WAL from the signer by default. */
 	walCoin?: TransactionObjectArgument;
 }
@@ -297,7 +294,6 @@ export interface DeleteBlobOptions {
 
 export type ExtendBlobOptions = {
 	blobObjectId: string;
-	owner: string;
 	/** optionally specify a WAL coin pay for the registration.  This will consume WAL from the signer by default. */
 	walCoin?: TransactionObjectArgument;
 } & (

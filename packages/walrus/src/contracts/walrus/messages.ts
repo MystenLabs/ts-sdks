@@ -50,6 +50,13 @@ export const CertifiedInvalidBlobId = new MoveStruct({
 		blob_id: bcs.u256(),
 	},
 });
+export const ProtocolVersionMessage = new MoveStruct({
+	name: `${$moduleName}::ProtocolVersionMessage`,
+	fields: {
+		start_epoch: bcs.u32(),
+		protocol_version: bcs.u64(),
+	},
+});
 export const DenyListUpdateMessage = new MoveStruct({
 	name: `${$moduleName}::DenyListUpdateMessage`,
 	fields: {

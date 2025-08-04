@@ -7,14 +7,6 @@ const config: SuiCodegenConfig = {
 	output: './src/contracts',
 	packages: [
 		{
-			package: '@local-pkg/walrus_subsidies',
-			path: '../../../walrus/contracts/subsidies',
-		},
-		{
-			package: '@local-pkg/wal',
-			path: '../../../walrus/contracts/wal',
-		},
-		{
 			package: '@local-pkg/wal_exchange',
 			path: '../../../walrus/contracts/wal_exchange',
 		},

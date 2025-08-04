@@ -26,6 +26,12 @@ export const generateCommand = buildCommand({
 				optional: true,
 				brief: 'generate all types and functions in dependencies',
 			},
+			noSummaries: {
+				kind: 'parsed',
+				parse: Boolean,
+				optional: true,
+				brief: 'Do not generate summaries for packages',
+			},
 			network: {
 				kind: 'enum',
 				values: ['mainnet', 'testnet'],

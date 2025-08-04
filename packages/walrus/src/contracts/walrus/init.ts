@@ -90,6 +90,9 @@ export interface MigrateOptions {
  * This must be called in the new package after an upgrade is committed to emit an
  * event that informs all storage nodes and prevent previous package versions from
  * being used.
+ *
+ * Requires the migration epoch to be set first on the staking object, which then
+ * enables the migration at the start of the next epoch.
  */
 export function migrate(options: MigrateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';

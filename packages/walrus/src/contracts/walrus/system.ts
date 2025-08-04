@@ -456,6 +456,44 @@ export function addPerEpochSubsidies(options: AddPerEpochSubsidiesOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface UpdateProtocolVersionArguments {
+	self: RawTransactionArgument<string>;
+	cap: RawTransactionArgument<string>;
+	signature: RawTransactionArgument<number[]>;
+	membersBitmap: RawTransactionArgument<number[]>;
+	message: RawTransactionArgument<number[]>;
+}
+export interface UpdateProtocolVersionOptions {
+	package?: string;
+	arguments:
+		| UpdateProtocolVersionArguments
+		| [
+				self: RawTransactionArgument<string>,
+				cap: RawTransactionArgument<string>,
+				signature: RawTransactionArgument<number[]>,
+				membersBitmap: RawTransactionArgument<number[]>,
+				message: RawTransactionArgument<number[]>,
+		  ];
+}
+/** Node collects signatures on the protocol version event and emits it. */
+export function updateProtocolVersion(options: UpdateProtocolVersionOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [
+		`${packageAddress}::system::System`,
+		`${packageAddress}::storage_node::StorageNodeCap`,
+		'vector<u8>',
+		'vector<u8>',
+		'vector<u8>',
+	] satisfies string[];
+	const parameterNames = ['self', 'cap', 'signature', 'membersBitmap', 'message'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'system',
+			function: 'update_protocol_version',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface RegisterDenyListUpdateArguments {
 	self: RawTransactionArgument<string>;
 	cap: RawTransactionArgument<string>;
@@ -661,6 +699,25 @@ export function futureAccounting(options: FutureAccountingOptions) {
 			package: packageAddress,
 			module: 'system',
 			function: 'future_accounting',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface VersionArguments {
+	system: RawTransactionArgument<string>;
+}
+export interface VersionOptions {
+	package?: string;
+	arguments: VersionArguments | [system: RawTransactionArgument<string>];
+}
+export function version(options: VersionOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [`${packageAddress}::system::System`] satisfies string[];
+	const parameterNames = ['system'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'system',
+			function: 'version',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

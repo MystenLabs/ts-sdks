@@ -128,3 +128,11 @@ export const ContractUpgradeQuorumReached = new MoveStruct({
 		package_digest: bcs.vector(bcs.u8()),
 	},
 });
+export const ProtocolVersionUpdated = new MoveStruct({
+	name: `${$moduleName}::ProtocolVersionUpdated`,
+	fields: {
+		epoch: bcs.u32(),
+		start_epoch: bcs.u32(),
+		protocol_version: bcs.u64(),
+	},
+});

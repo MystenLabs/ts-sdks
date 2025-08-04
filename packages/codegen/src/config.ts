@@ -25,6 +25,7 @@ export const packageConfigSchema = z.union([onChainPackageSchema, localPackageSc
 export const configSchema = z.object({
 	output: z.string(),
 	prune: z.boolean().optional().default(true),
+	generateSummaries: z.boolean().optional().default(true),
 	packages: z.array(packageConfigSchema),
 });
 
@@ -40,6 +41,7 @@ export async function loadConfig(): Promise<ParsedSuiCodegenConfig> {
 			output: './generated',
 			packages: [],
 			prune: true,
+			generateSummaries: true,
 		};
 	}
 

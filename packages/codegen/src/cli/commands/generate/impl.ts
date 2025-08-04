@@ -5,10 +5,13 @@ import type { LocalContext } from '../../context.js';
 import { generateFromPackageSummary } from '../../../index.js';
 import { loadConfig } from '../../../config.js';
 import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
+import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 
-interface SubdirCommandFlags {
+export interface SubdirCommandFlags {
 	outputDir?: string;
 	noPrune?: boolean;
+	noSummaries?: boolean;
 	network?: 'mainnet' | 'testnet';
 }
 
@@ -39,10 +42,23 @@ export default async function generate(
 				})
 			: config.packages;
 
+	const generateSummaries =
+		flags.noSummaries === undefined ? config.generateSummaries : !flags.noSummaries;
+
 	for (const pkg of normalizedPackages) {
+		if (generateSummaries && pkg.path) {
+			if (!existsSync(pkg.path)) {
+				throw new Error(`Package path does not exist: ${pkg.path}`);
+			}
+
+			await execSync('sui move summary', {
+				cwd: pkg.path,
+				stdio: 'inherit',
+			});
+		}
 		await generateFromPackageSummary({
 			package: pkg,
-			prune: !flags.noPrune,
+			prune: flags.noPrune === undefined ? config.prune : !flags.noPrune,
 			outputDir: flags.outputDir ?? config.output,
 		});
 	}
