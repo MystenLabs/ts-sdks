@@ -161,8 +161,7 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 			throw new Error('Invalid randomness');
 		}
 
-		const gid = hashToG1(id);
-		const gid_r = gid.multiply(r);
+		const gid_r = hashToG1(id).multiply(r);
 		return services.map(([objectId, index], i) => {
 			return {
 				index,
