@@ -458,6 +458,7 @@ describe('Seal encryption tests', () => {
 		const msg = new TextEncoder().encode('Hello, World!');
 
 		// Test vector with inconsistent shares: Using the two last shares should succeed, but it fails if all shares are provided or if the consistency is checked.
+		// Generated using this unit test:https://github.com/MystenLabs/seal/blob/828e0e90ea0282c59836c4d9cb7ec9e9f47d5d3a/crates/crypto/src/lib.rs#L668-L725
 		const encryptedObject = EncryptedObject.parse(
 			fromHex(
 				'0063583d1c8cdcba3f77ecb865abf9ba6f15c0b0ea9b3c64a68d2eb7148e93f5b7040102030403a666b51aa8e0bfc007dbeffb209235fba72a0d842fee1d34d3ae92b77f7abac401d5a88eed8e4284a0249a1fb5e2ddf74cb2abe7626cf6bec85cf2610166a7d2e902b75f15765eef4e1979749b31ec2c687a63fcf72125babc61a0de2181be2a236a030200b33413ae30e25016257f17dc95cea8cfd6b07fcc90625bb0d0056c4743599e53d68f20a3f616e7246d66f3529a4aa12e0133559cdcb961506c24874aebfd2dc2361464f4ce29fd4353d0f612a19364c40c2ef532cebace91339d1dd7eb685c4f035c38df0a2ce80ae34505da3b56e765a2be97f0a21a91bbfa4362dee6baeb2ed5ae8e3655be0bc0993ff9feb479127232bf4de6e7153d10057297b9241d388d734bfec5dad0d9cb56508aa6d76c1acf3bc198d128d7ed3cc28bfb8ecb9e0b911a28063b9bc6b2f379e96957c17cda4ce3c6ed10bb24bdd5b1e7ad36392bedcb12010df33e1c157c227d498ada367fbf0109736f6d657468696e67276ac2d6c05a7c36152deb200070788d203f4e7413dbb8f14f437e021838d93a',
