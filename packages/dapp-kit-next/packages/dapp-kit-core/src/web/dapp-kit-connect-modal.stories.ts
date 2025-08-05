@@ -9,7 +9,7 @@ import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 const dAppKit = createDAppKit({
 	networks: ['testnet'],
-	walletConnectProjectId: '702e2d45d9debca66795614cddb5c1ca',
+	walletConnectProjectId: 'your_project_id',
 	createClient(network) {
 		return new SuiClient({ network, url: getFullnodeUrl(network) });
 	},
