@@ -82,7 +82,7 @@ export async function decrypt({
 	const randomnessKey = deriveKey(
 		KeyPurpose.EncryptedRandomness,
 		baseKey,
-		encryptedObject.encryptedShares.BonehFranklinBLS12381.encryptedShares,
+		encryptedShares,
 		encryptedObject.threshold,
 		encryptedObject.services.map(([objectIds, _]) => objectIds),
 	);
