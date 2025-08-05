@@ -304,7 +304,7 @@ function samplePolynomial(constant: GF256, degree: number): Polynomial {
  * @returns The shares.
  */
 export function split(secret: Uint8Array, threshold: number, total: number): Share[] {
-	if (threshold > total || threshold < 1 || total > GF256_SIZE) {
+	if (threshold > total || threshold < 1 || total >= GF256_SIZE) {
 		throw new Error(`Invalid threshold ${threshold} or total ${total}`);
 	}
 
