@@ -71,7 +71,6 @@ export async function decrypt({
 			fromHex(fullId),
 			[objectId, index],
 		);
-		// The Shamir secret sharing library expects the index/x-coordinate to be at the end of the share.
 		return { index, share };
 	});
 

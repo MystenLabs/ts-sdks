@@ -167,8 +167,8 @@ function encapBatched(publicKeys: G2Element[], id: Uint8Array): [Scalar, G2Eleme
 	}
 	const r = Scalar.random();
 	const nonce = G2Element.generator().multiply(r);
-	const gid = hashToG1(id).multiply(r);
-	return [r, nonce, publicKeys.map((public_key) => gid.pairing(public_key))];
+	const gid_r = hashToG1(id).multiply(r);
+	return [r, nonce, publicKeys.map((public_key) => gid_r.pairing(public_key))];
 }
 
 /**
