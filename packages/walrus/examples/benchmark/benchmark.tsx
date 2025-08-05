@@ -47,7 +47,7 @@ export function BenchmarkPage() {
 			setSettings(newSettings);
 			localStorage.setItem('walrus-benchmark-settings', JSON.stringify(newSettings));
 		}
-	}, []);
+	}, [settings]);
 
 	// Save settings to localStorage whenever they change
 	useEffect(() => {
