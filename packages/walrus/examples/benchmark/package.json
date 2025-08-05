@@ -1,0 +1,8 @@
+{
+	"name": "@mysten/walrus-benchmark-example",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"benchmark": "tsx index.ts"
+	}
+}

@@ -46,6 +46,7 @@
 		"@mysten/build-scripts": "workspace:*",
 		"@mysten/codegen": "workspace:*",
 		"@mysten/dapp-kit": "workspace:*",
+		"@mysten/dapp-kit-core": "workspace:*",
 		"@tanstack/react-query": "^5.83.0",
 		"@types/node": "^22.15.29",
 		"@types/react": "^18.3.3",

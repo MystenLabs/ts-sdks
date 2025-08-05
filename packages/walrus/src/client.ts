@@ -50,7 +50,12 @@ import {
 	WalrusClientError,
 } from './error.js';
 import { StorageNodeClient } from './storage-node/client.js';
-import { LegallyUnavailableError, NotFoundError, UserAbortError } from './storage-node/error.js';
+import {
+	BlobNotRegisteredError,
+	LegallyUnavailableError,
+	NotFoundError,
+	UserAbortError,
+} from './storage-node/error.js';
 import type { BlobMetadataWithId, BlobStatus, GetSliverResponse } from './storage-node/types.js';
 import type {
 	CertifyBlobOptions,
@@ -89,6 +94,10 @@ import type {
 	WriteFilesFlow,
 	WriteFilesFlowRegisterOptions,
 	WriteFilesFlowUploadOptions,
+	WriteBlobFlow,
+	WriteBlobFlowOptions,
+	WriteBlobFlowRegisterOptions,
+	WriteBlobFlowUploadOptions,
 } from './types.js';
 import { blobIdToInt, IntentType, SliverData, StorageConfirmation } from './utils/bcs.js';
 import {
@@ -115,6 +124,7 @@ import { WalrusBlob } from './files/blob.js';
 import { WalrusFile } from './files/file.js';
 import { QuiltFileReader } from './files/readers/quilt-file.js';
 import { QuiltReader } from './files/readers/quilt.js';
+import { retry } from './utils/retry.js';
 
 export class WalrusClient {
 	#storageNodeClient: StorageNodeClient;
@@ -1575,7 +1585,7 @@ export class WalrusClient {
 		const shardIndex = toShardIndex(sliverPairIndex, blobId, systemState.committee.n_shards);
 		const node = await this.#getNodeByShardIndex(committee, shardIndex);
 
-		return await this.#storageNodeClient.storeSliver(
+		return this.#storageNodeClient.storeSliver(
 			{ blobId, sliverPairIndex, sliverType, sliver },
 			{ nodeUrl: node.networkUrl, signal },
 		);
@@ -1593,9 +1603,17 @@ export class WalrusClient {
 		const committee = await this.#getActiveCommittee();
 		const node = committee.nodes[nodeIndex];
 
-		return await this.#storageNodeClient.storeBlobMetadata(
-			{ blobId, metadata },
-			{ nodeUrl: node.networkUrl, signal },
+		return retry(
+			() =>
+				this.#storageNodeClient.storeBlobMetadata(
+					{ blobId, metadata },
+					{ nodeUrl: node.networkUrl, signal },
+				),
+			{
+				count: 3,
+				delay: 1000,
+				condition: (error) => error instanceof BlobNotRegisteredError,
+			},
 		);
 	}
 
@@ -1758,11 +1776,11 @@ export class WalrusClient {
 					failures += committee.nodes[nodeIndex].shardIndices.length;
 
 					if (isAboveValidity(failures, systemState.committee.n_shards)) {
-						controller.abort();
-
-						throw new NotEnoughBlobConfirmationsError(
+						const error = new NotEnoughBlobConfirmationsError(
 							`Too many failures while writing blob ${blobId} to nodes`,
 						);
+						controller.abort(error);
+						throw error;
 					}
 
 					return null;
@@ -2349,6 +2367,177 @@ export class WalrusClient {
 			},
 			listFiles: async () => {
 				return listFiles(getResults('certify', 'listFiles'));
+			},
+		};
+	}
+
+	writeBlobFlow({ blob }: WriteBlobFlowOptions): WriteBlobFlow {
+		const encode = async () => {
+			const metadata = this.#uploadRelayClient
+				? await this.computeBlobMetadata({
+						bytes: blob,
+					})
+				: await this.encodeBlob(blob);
+
+			return {
+				metadata,
+				size: blob.length,
+				data: this.#uploadRelayClient ? blob : undefined,
+			};
+		};
+
+		const register = (
+			{ data, metadata, size }: Awaited<ReturnType<typeof encode>>,
+			{ epochs, deletable, owner, attributes }: WriteBlobFlowRegisterOptions,
+		) => {
+			const transaction = new Transaction();
+			transaction.setSenderIfNotSet(owner);
+
+			if (this.#uploadRelayClient) {
+				const meta = metadata as Awaited<ReturnType<typeof this.computeBlobMetadata>>;
+				transaction.add(
+					this.sendUploadRelayTip({
+						size,
+						blobDigest: meta.blobDigest,
+						nonce: meta.nonce,
+					}),
+				);
+			}
+
+			transaction.transferObjects(
+				[
+					this.registerBlob({
+						size,
+						epochs,
+						blobId: metadata.blobId,
+						rootHash: metadata.rootHash,
+						deletable,
+						attributes,
+					}),
+				],
+				owner,
+			);
+
+			return {
+				registerTransaction: transaction,
+				data,
+				metadata,
+				deletable,
+			};
+		};
+
+		const upload = async (
+			{ data, metadata, deletable }: Awaited<ReturnType<typeof register>>,
+			{ digest }: WriteBlobFlowUploadOptions,
+		) => {
+			const blobObject = await this.#getCreatedBlob(digest);
+
+			if (this.#uploadRelayClient) {
+				const meta = metadata as Awaited<ReturnType<typeof this.computeBlobMetadata>>;
+				return {
+					blobObject,
+					metadata,
+					deletable,
+					certificate: (
+						await this.writeBlobToUploadRelay({
+							blobId: metadata.blobId,
+							blob: data!,
+							nonce: meta.nonce,
+							txDigest: digest,
+							blobObjectId: blobObject.id.id,
+							deletable,
+							encodingType: meta.metadata.encodingType as EncodingType,
+						})
+					).certificate,
+				};
+			}
+
+			const meta = metadata as Awaited<ReturnType<typeof this.encodeBlob>>;
+
+			return {
+				blobObject,
+				metadata,
+				deletable,
+				confirmations: await this.writeEncodedBlobToNodes({
+					blobId: metadata.blobId,
+					objectId: blobObject.id.id,
+					metadata: meta.metadata,
+					sliversByNode: meta.sliversByNode,
+					deletable,
+				}),
+			};
+		};
+
+		const certify = ({
+			metadata,
+			confirmations,
+			certificate,
+			blobObject,
+			deletable,
+		}: Awaited<ReturnType<typeof upload>>) => {
+			return {
+				blobObject,
+				metadata,
+				transaction: confirmations
+					? this.certifyBlobTransaction({
+							blobId: metadata.blobId,
+							blobObjectId: blobObject.id.id,
+							confirmations,
+							deletable,
+						})
+					: this.certifyBlobTransaction({
+							certificate,
+							blobId: metadata.blobId,
+							blobObjectId: blobObject.id.id,
+							deletable,
+						}),
+			};
+		};
+
+		async function getBlob({ blobObject, metadata }: Awaited<ReturnType<typeof certify>>) {
+			return {
+				blobId: metadata.blobId,
+				blobObject,
+			};
+		}
+
+		const stepResults: {
+			encode?: Awaited<ReturnType<typeof encode>>;
+			register?: Awaited<ReturnType<typeof register>>;
+			upload?: Awaited<ReturnType<typeof upload>>;
+			certify?: Awaited<ReturnType<typeof certify>>;
+			getBlob?: never;
+		} = {};
+
+		function getResults<T extends keyof typeof stepResults>(
+			step: T,
+			current: keyof typeof stepResults,
+		): NonNullable<(typeof stepResults)[T]> {
+			if (!stepResults[step]) {
+				throw new Error(`${step} must be executed before calling ${current}`);
+			}
+			return stepResults[step];
+		}
+
+		return {
+			encode: async () => {
+				if (!stepResults.encode) {
+					stepResults.encode = await encode();
+				}
+			},
+			register: (options: WriteBlobFlowRegisterOptions) => {
+				stepResults.register = register(getResults('encode', 'register'), options);
+				return stepResults.register.registerTransaction;
+			},
+			upload: async (options: WriteBlobFlowUploadOptions) => {
+				stepResults.upload = await upload(getResults('register', 'upload'), options);
+			},
+			certify: () => {
+				stepResults.certify = certify(getResults('upload', 'certify'));
+				return stepResults.certify.transaction;
+			},
+			getBlob: async () => {
+				return getBlob(getResults('certify', 'getBlob'));
 			},
 		};
 	}

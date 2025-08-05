@@ -1,36 +1,18 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { useCurrentAccount, useDAppKit, useSuiClient } from '@mysten/dapp-kit-react';
 import { useState, useRef } from 'react';
 
 import { WalrusClient } from '../../src/client.js';
 import type { WriteFilesFlow } from '../../src/index.js';
 import { WalrusFile } from '../../src/index.js';
-
-const suiClient = new SuiClient({
-	url: getFullnodeUrl('testnet'),
-});
-
-const walrusClient = new WalrusClient({
-	network: 'testnet',
-	suiClient,
-	storageNodeClientOptions: {
-		timeout: 60_000,
-	},
-	uploadRelay: {
-		host: 'https://upload-relay.testnet.walrus.space',
-		sendTip: {
-			max: 1_000,
-		},
-		timeout: 360_000,
-	},
-});
+import type { SuiClient } from '@mysten/sui/client';
 
 export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void }) {
-	const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+	const dAppKit = useDAppKit();
 	const currentAccount = useCurrentAccount();
+	const suiClient = useSuiClient();
 	const flowRef = useRef<WriteFilesFlow | null>(null);
 	const [state, setState] = useState<
 		| 'empty'
@@ -42,6 +24,21 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 		| 'certifying'
 		| 'done'
 	>('empty');
+
+	const walrusClient = new WalrusClient({
+		network: 'testnet',
+		suiClient: suiClient as SuiClient,
+		storageNodeClientOptions: {
+			timeout: 60_000,
+		},
+		uploadRelay: {
+			host: 'https://upload-relay.testnet.walrus.space',
+			sendTip: {
+				max: 1_000,
+			},
+			timeout: 360_000,
+		},
+	});
 
 	if (!currentAccount) {
 		return <div>No account connected</div>;
@@ -94,7 +91,9 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 			deletable: true,
 		});
 
-		const { digest } = await signAndExecuteTransaction({ transaction: registerBlobTransaction });
+		const { digest } = await dAppKit.signAndExecuteTransaction({
+			transaction: registerBlobTransaction,
+		});
 		setState('uploading');
 
 		await flowRef.current.upload({ digest });
@@ -108,7 +107,7 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 		setState('certifying');
 		const certifyTransaction = flowRef.current.certify();
 
-		await signAndExecuteTransaction({ transaction: certifyTransaction });
+		await dAppKit.signAndExecuteTransaction({ transaction: certifyTransaction });
 
 		const files = await flowRef.current.listFiles();
 		setState('done');
