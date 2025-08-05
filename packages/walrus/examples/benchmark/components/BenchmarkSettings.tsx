@@ -3,6 +3,8 @@
 
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { WalletBalances } from './WalletBalances.js';
+import { useMemo } from 'react';
+import type { Signer } from '@mysten/sui/cryptography';
 
 export interface BenchmarkSettings {
 	size: string;
@@ -44,15 +46,17 @@ export function BenchmarkSettingsForm({
 		onSettingsChange({ ...settings, secretKey: secretKeyString });
 	};
 
-	const getKeypairAddress = () => {
-		if (!settings.secretKey) return '';
+	const [keypair, address] = useMemo((): [Signer | null, string | null] => {
+		if (!settings.secretKey) {
+			return [null, null];
+		}
 		try {
 			const keypair = Ed25519Keypair.fromSecretKey(settings.secretKey);
-			return keypair.toSuiAddress();
+			return [keypair, keypair.toSuiAddress()] as const;
 		} catch {
-			return 'Invalid secret key';
+			return [null, null];
 		}
-	};
+	}, [settings.secretKey]);
 
 	return (
 		<form
@@ -166,7 +170,7 @@ export function BenchmarkSettingsForm({
 				</div>
 				{settings.secretKey && (
 					<div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
-						Address: {getKeypairAddress()}
+						Address: {address}
 					</div>
 				)}
 			</div>
@@ -175,8 +179,7 @@ export function BenchmarkSettingsForm({
 				onError={onError}
 				onTransaction={onTransaction}
 				isDisabled={isRunning}
-				keypairAddress={getKeypairAddress()}
-				secretKey={settings.secretKey}
+				signer={keypair}
 				refreshTrigger={refreshTrigger}
 			/>
 
