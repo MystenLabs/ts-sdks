@@ -96,9 +96,10 @@ export async function decrypt({
 	}
 
 	// If public keys are provided, check consistency of the shares.
-	if (publicKeys) {
+	const checkShareConsistency = publicKeys !== undefined;
+	if (checkShareConsistency) {
 		const polynomial = interpolate(shares);
-		const allShares = BonehFranklinBLS12381Services.decryptAllShares(
+		const allShares = BonehFranklinBLS12381Services.decryptAllSharesUsingRandomness(
 			randomness,
 			encryptedShares,
 			encryptedObject.services,

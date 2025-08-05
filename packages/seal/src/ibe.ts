@@ -130,7 +130,7 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 	 * @param id - The id.
 	 * @returns All decrypted shares.
 	 */
-	static decryptAllShares(
+	static decryptAllSharesUsingRandomness(
 		randomness: Scalar,
 		encryptedShares: Uint8Array[],
 		services: [string, number][],
