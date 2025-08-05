@@ -12,7 +12,7 @@ import type { SuiClient } from '@mysten/sui/client';
 export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void }) {
 	const dAppKit = useDAppKit();
 	const currentAccount = useCurrentAccount();
-	const suiClient = useSuiClient();
+	const suiClient = useSuiClient() as SuiClient & { walrus: WalrusClient };
 	const flowRef = useRef<WriteFilesFlow | null>(null);
 	const [state, setState] = useState<
 		| 'empty'
@@ -72,6 +72,9 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 	return (
 		<div>
 			<input type="file" onChange={handleFileChange} disabled={state !== 'empty'} />
+			<div>
+				<p>State: {state}</p>
+			</div>
 			<button onClick={registerBlob} disabled={state !== 'encoded'}>
 				Register blob
 			</button>

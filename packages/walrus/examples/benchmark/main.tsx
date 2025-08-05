@@ -5,8 +5,8 @@ import { createRoot } from 'react-dom/client';
 import { DAppKitProvider, ConnectButton } from '@mysten/dapp-kit-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-import { FileUpload } from './upload.js';
-import { dAppKit } from '../benchmark/dapp-kit.js';
+import { dAppKit } from './dapp-kit.js';
+import { BenchmarkPage } from './benchmark.js';
 
 const queryClient = new QueryClient();
 
@@ -20,12 +20,7 @@ function App() {
 						<ConnectButton />
 					</div>
 
-					<FileUpload
-						onComplete={(ids) => {
-							console.log('Upload completed! File IDs:', ids);
-							alert(`Upload completed! File IDs: ${ids.join(', ')}`);
-						}}
-					/>
+					<BenchmarkPage />
 				</div>
 			</DAppKitProvider>
 		</QueryClientProvider>
