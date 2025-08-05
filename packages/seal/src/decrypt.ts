@@ -115,7 +115,7 @@ export async function decrypt({
 	const demKey = deriveKey(
 		KeyPurpose.DEM,
 		baseKey,
-		encryptedObject.encryptedShares.BonehFranklinBLS12381.encryptedShares,
+		encryptedShares,
 		encryptedObject.threshold,
 		encryptedObject.services.map(([objectId, _]) => objectId),
 	);
