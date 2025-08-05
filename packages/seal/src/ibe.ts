@@ -133,35 +133,17 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 	 * @returns All decrypted shares.
 	 */
 	static decryptAllShares(
-		encryptedRandomness: Uint8Array,
+		randomness: Scalar,
 		encryptedShares: Uint8Array[],
 		services: [string, number][],
-		baseKey: Uint8Array,
 		publicKeys: G2Element[],
 		nonce: G2Element,
-		threshold: number,
 		id: Uint8Array,
 	): { index: number; share: Uint8Array }[] {
 		if (publicKeys.length !== encryptedShares.length || publicKeys.length !== services.length) {
 			throw new Error('The number of public keys, encrypted shares and services must be the same');
 		}
-
-		const r = decryptRandomness(
-			encryptedRandomness,
-			deriveKey(
-				KeyPurpose.EncryptedRandomness,
-				baseKey,
-				encryptedShares,
-				threshold,
-				services.map(([objectId, _]) => objectId),
-			),
-		);
-
-		if (!verifyNonce(nonce, r)) {
-			throw new Error('Invalid randomness');
-		}
-
-		const gid_r = hashToG1(id).multiply(r);
+		const gid_r = hashToG1(id).multiply(randomness);
 		return services.map(([objectId, index], i) => {
 			return {
 				index,

@@ -75,53 +75,44 @@ export async function decrypt({
 		return { index, share };
 	});
 
-	// Combine the decrypted shares into the key.
-	let baseKey: Uint8Array;
+	// Combine the decrypted shares into the key
+	const baseKey = combine(shares);
+
+	// Decrypt randomness
+	const randomnessKey = deriveKey(
+		KeyPurpose.EncryptedRandomness,
+		baseKey,
+		encryptedObject.encryptedShares.BonehFranklinBLS12381.encryptedShares,
+		encryptedObject.threshold,
+		encryptedObject.services.map(([objectIds, _]) => objectIds),
+	);
+	const randomness = decryptRandomness(
+		encryptedObject.encryptedShares.BonehFranklinBLS12381.encryptedRandomness,
+		randomnessKey,
+	);
+
+	// Verify that the nonce was created with the randomness.
+	if (!verifyNonce(nonce, randomness)) {
+		throw new InvalidCiphertextError('Invalid nonce');
+	}
 
 	// If public keys are provided, check consistency of the shares.
 	if (publicKeys) {
 		const polynomial = interpolate(shares);
-		baseKey = polynomial(0);
-
 		const allShares = BonehFranklinBLS12381Services.decryptAllShares(
-			encryptedObject.encryptedShares.BonehFranklinBLS12381.encryptedRandomness,
+			randomness,
 			encryptedShares,
 			encryptedObject.services,
-			baseKey,
 			publicKeys,
 			nonce,
-			encryptedObject.threshold,
 			fromHex(fullId),
 		);
-
 		if (allShares.some(({ index, share }) => !equals(polynomial(index), share))) {
 			throw new InvalidCiphertextError('Invalid shares');
 		}
-	} else {
-		baseKey = await combine(shares);
 	}
 
-	// Decrypt randomness and check validity of the nonce
-	const randomnessKey = deriveKey(
-		KeyPurpose.EncryptedRandomness,
-		baseKey,
-		encryptedShares,
-		encryptedObject.threshold,
-		encryptedObject.services.map(([objectIds, _]) => objectIds),
-	);
-	if (
-		!verifyNonce(
-			nonce,
-			decryptRandomness(
-				encryptedObject.encryptedShares.BonehFranklinBLS12381.encryptedRandomness,
-				randomnessKey,
-			),
-		)
-	) {
-		throw new InvalidCiphertextError('Invalid nonce');
-	}
-
-	// Derive the DEM key and decrypt the ciphertext
+	// Derive the DEM key
 	const demKey = deriveKey(
 		KeyPurpose.DEM,
 		baseKey,
@@ -130,6 +121,7 @@ export async function decrypt({
 		encryptedObject.services.map(([objectId, _]) => objectId),
 	);
 
+	// Decrypt the ciphertext
 	if (encryptedObject.ciphertext.Aes256Gcm) {
 		return AesGcm256.decrypt(demKey, encryptedObject.ciphertext);
 	} else if (encryptedObject.ciphertext.Hmac256Ctr) {
