@@ -232,7 +232,7 @@ export function getSizes(blobSize: number, numShards: number) {
 
 	const symbolSize = encodedBlobSize / totalSymbols;
 
-	if (blobSize % totalSymbols !== 0) {
+	if (encodedBlobSize % totalSymbols !== 0) {
 		throw new Error('blob length should be divisible by total symbols');
 	}
 

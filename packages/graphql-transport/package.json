@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/graphql-transport",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"description": "A GraphQL transport to allow SuiClient to work with RPC 2.0",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -53,7 +53,7 @@
 		"graphql-config": "^5.1.5",
 		"typescript": "^5.8.3",
 		"vitest": "^3.2.4",
-		"wait-on": "^8.0.3"
+		"wait-on": "^8.0.4"
 	},
 	"dependencies": {
 		"@graphql-typed-document-node/core": "^3.2.0",

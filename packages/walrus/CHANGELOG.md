@@ -1,5 +1,22 @@
 # @mysten/walrus
 
+## 0.5.0
+
+### Minor Changes
+
+- 3fd7e41: Move delete, epochs and owner options from writeFilesFlow to flow.register
+
+## 0.4.0
+
+### Minor Changes
+
+- 2473630: Add writeFilesFlow method to client
+
+### Patch Changes
+
+- Updated dependencies [44354ab]
+  - @mysten/sui@1.36.2
+
 ## 0.3.1
 
 ### Patch Changes

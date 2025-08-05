@@ -271,7 +271,7 @@ function writeBlobToQuilt(
 	startColumn: number,
 	prefix?: Uint8Array,
 ) {
-	const nRows = rowSize / symbolSize;
+	const nRows = columnSize / symbolSize;
 	let bytesWritten = 0;
 
 	if (rowSize % symbolSize !== 0) {
@@ -303,8 +303,9 @@ function writeBlobToQuilt(
 			const startIndex = baseIndex + remainingOffset;
 			const len = Math.min(symbolSize - remainingOffset, bytes.length - index);
 
-			const subarray = bytes.subarray(index, index + len);
-			quilt.set(subarray, startIndex);
+			for (let i = 0; i < len; i++) {
+				quilt[startIndex + i] = bytes[index + i];
+			}
 			index += len;
 			remainingOffset = 0;
 			currentRow = (currentRow + 1) % nRows;

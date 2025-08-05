@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { EncryptedObject } from '../../src/bcs';
 import { G1Element, G2Element, Scalar } from '../../src/bls12381';
 import { decrypt } from '../../src/decrypt';
-import { AesGcm256, Hmac256Ctr, Plain } from '../../src/dem';
+import { AesGcm256, Hmac256Ctr } from '../../src/dem';
 import { encrypt, KemType } from '../../src/encrypt';
 import { BonehFranklinBLS12381Services } from '../../src/ibe';
 import { hashToG1, kdf } from '../../src/kdf';
@@ -255,84 +255,6 @@ describe('Seal encryption tests', () => {
 				]),
 			}),
 		).resolves.toEqual(msg);
-
-		await expect(
-			decrypt({
-				encryptedObject: parsed,
-				keys: new Map<KeyCacheKey, G1Element>([[`${id}:${objectId1}`, usk1]]),
-			}),
-		).rejects.toThrow();
-	});
-
-	it('test encryption round-trip with Plain-mode', async () => {
-		const [sk1, pk1] = generateKeyPair();
-		const [sk2, pk2] = generateKeyPair();
-		const [sk3, pk3] = generateKeyPair();
-
-		const objectId1 = '0x0000000000000000000000000000000000000000000000000000000000000001';
-		const objectId2 = '0x0000000000000000000000000000000000000000000000000000000000000002';
-		const objectId3 = '0x0000000000000000000000000000000000000000000000000000000000000003';
-
-		const { encryptedObject, key } = await encrypt({
-			keyServers: [
-				{
-					objectId: objectId1,
-					pk: pk1.toBytes(),
-					name: 'test',
-					url: 'https://test.com',
-					keyType: 0,
-				},
-				{
-					objectId: objectId2,
-					pk: pk2.toBytes(),
-					name: 'test2',
-					url: 'https://test2.com',
-					keyType: 0,
-				},
-				{
-					objectId: objectId3,
-					pk: pk3.toBytes(),
-					name: 'test3',
-					url: 'https://test3.com',
-					keyType: 0,
-				},
-			],
-			kemType: KemType.BonehFranklinBLS12381DemCCA,
-			threshold: 2,
-			packageId: '0x0000000000000000000000000000000000000000000000000000000000000000',
-			id: '01020304',
-			encryptionInput: new Plain(),
-		});
-
-		const parsed = EncryptedObject.parse(encryptedObject);
-
-		const id = createFullId(parsed.packageId, parsed.id);
-		const idBytes = fromHex(id);
-
-		const usk1 = extractUserSecretKey(sk1, idBytes);
-		const usk2 = extractUserSecretKey(sk2, idBytes);
-		const usk3 = extractUserSecretKey(sk3, idBytes);
-
-		await expect(
-			decrypt({
-				encryptedObject: parsed,
-				keys: new Map<KeyCacheKey, G1Element>([
-					[`${id}:${objectId1}`, usk1],
-					[`${id}:${objectId2}`, usk2],
-					[`${id}:${objectId3}`, usk3],
-				]),
-			}),
-		).resolves.toEqual(key);
-
-		await expect(
-			decrypt({
-				encryptedObject: parsed,
-				keys: new Map<KeyCacheKey, G1Element>([
-					[`${id}:${objectId2}`, usk2],
-					[`${id}:${objectId3}`, usk3],
-				]),
-			}),
-		).resolves.toEqual(key);
 
 		await expect(
 			decrypt({

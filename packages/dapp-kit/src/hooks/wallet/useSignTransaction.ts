@@ -86,6 +86,10 @@ export function useSignTransaction({
 				);
 			}
 
+			if (typeof transaction !== 'string' && 'setSenderIfNotSet' in transaction) {
+				transaction.setSenderIfNotSet(signerAccount.address);
+			}
+
 			const chain = signTransactionArgs.chain ?? `sui:${network}`;
 			const { bytes, signature } = await signTransaction(currentWallet, {
 				...signTransactionArgs,

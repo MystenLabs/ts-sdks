@@ -129,6 +129,10 @@ export function useSignAndExecuteTransaction<
 				);
 			}
 
+			if (typeof transaction !== 'string' && 'setSenderIfNotSet' in transaction) {
+				transaction.setSenderIfNotSet(signerAccount.address);
+			}
+
 			const chain = signTransactionArgs.chain ?? `sui:${network}`;
 			const { signature, bytes } = await signTransaction(currentWallet, {
 				...signTransactionArgs,

@@ -6,7 +6,7 @@ import { sha3_256 } from '@noble/hashes/sha3';
 
 import { G1Element } from './bls12381.js';
 import type { G2Element, GTElement } from './bls12381.js';
-import { flatten } from './utils.js';
+import { flatten, MAX_U8 } from './utils.js';
 
 /**
  * The domain separation tag for the hash-to-group function.
@@ -37,6 +37,9 @@ export function kdf(
 	objectId: string,
 	index: number,
 ): Uint8Array {
+	if (index < 0 || index > MAX_U8) {
+		throw new Error(`Invalid index ${index}`);
+	}
 	const hash = sha3_256.create();
 	hash.update(KDF_DST);
 	hash.update(element.toBytes());
@@ -58,6 +61,8 @@ function tag(purpose: KeyPurpose): Uint8Array {
 			return new Uint8Array([0]);
 		case KeyPurpose.DEM:
 			return new Uint8Array([1]);
+		default:
+			throw new Error(`Invalid key purpose ${purpose}`);
 	}
 }
 
@@ -78,6 +83,9 @@ export function deriveKey(
 	threshold: number,
 	keyServers: string[],
 ): Uint8Array {
+	if (threshold <= 0 || threshold > MAX_U8) {
+		throw new Error(`Invalid threshold ${threshold}`);
+	}
 	const hash = sha3_256.create();
 	hash.update(DERIVE_KEY_DST);
 	hash.update(baseKey);

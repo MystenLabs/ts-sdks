@@ -23,6 +23,7 @@ export interface DecryptOptions {
  * Decrypt the given encrypted bytes with the given cached secret keys for the full ID.
  * It's assumed that fetchKeys has been called to fetch the secret keys for enough key servers
  * otherwise, this will throw an error.
+ * Also, it's assumed that the keys were verified by the caller.
  *
  * @returns - The decrypted plaintext corresponding to ciphertext.
  */

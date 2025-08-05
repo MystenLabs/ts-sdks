@@ -1,5 +1,13 @@
 # @mysten/enoki-connect
 
+## 0.0.19
+
+### Patch Changes
+
+- Updated dependencies [44354ab]
+  - @mysten/sui@1.36.2
+  - @mysten/wallet-standard@0.16.7
+
 ## 0.0.18
 
 ### Patch Changes
@@ -138,7 +146,6 @@
 ### Patch Changes
 
 - ff4193f: allow registering multiple enoki-connect wallets
-
   - removes `registerEnokiConnectWallet`
   - adds `registerEnokiConnectWallets`
 

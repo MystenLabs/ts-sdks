@@ -80,7 +80,7 @@ export class G2Element {
 		return new G2Element(this.point.add(other.point));
 	}
 
-	hashToCurve(data: Uint8Array): G2Element {
+	static hashToCurve(data: Uint8Array): G2Element {
 		return new G2Element(
 			bls12_381.G2.ProjectivePoint.fromAffine(bls12_381.G2.hashToCurve(data).toAffine()),
 		);

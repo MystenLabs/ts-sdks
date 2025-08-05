@@ -4,7 +4,7 @@
 import type { SuiClient } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
 import type { ClientWithExtensions } from '@mysten/sui/experimental';
-import type { TransactionObjectArgument } from '@mysten/sui/transactions';
+import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 
 import type { StorageNodeInfo } from './contracts/walrus/storage_node.js';
 import type { RequestOptions, StorageNodeClientOptions } from './storage-node/client.js';
@@ -17,6 +17,7 @@ import type {
 import type { BlobMetadata, EncodingType } from './utils/bcs.js';
 import type { UploadRelayClientOptions } from './upload-relay/client.js';
 import type { WalrusFile } from './files/file.js';
+import type { Blob } from './contracts/walrus/blob.js';
 
 /**
  * Configuration for the Walrus package on sui
@@ -262,6 +263,32 @@ export interface WriteQuiltOptions extends Omit<WriteBlobOptions, 'blob'> {
 
 export interface WriteFilesOptions extends Omit<WriteBlobOptions, 'blob'> {
 	files: WalrusFile[];
+}
+
+export interface WriteFilesFlowOptions {
+	files: WalrusFile[];
+}
+
+export interface WriteFilesFlowRegisterOptions extends Omit<WriteBlobOptions, 'blob' | 'signer'> {
+	owner: string;
+}
+
+export interface WriteFilesFlowUploadOptions {
+	digest: string;
+}
+
+export interface WriteFilesFlow {
+	encode: () => Promise<void>;
+	register: (options: WriteFilesFlowRegisterOptions) => Transaction;
+	upload: (options: WriteFilesFlowUploadOptions) => Promise<void>;
+	certify: () => Transaction;
+	listFiles: () => Promise<
+		{
+			id: string;
+			blobId: string;
+			blobObject: ReturnType<typeof Blob>['$inferType'];
+		}[]
+	>;
 }
 
 export interface DeleteBlobOptions {

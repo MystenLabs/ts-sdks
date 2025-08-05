@@ -1,5 +1,18 @@
 # @mysten/dapp-kit
 
+## 0.17.0
+
+### Minor Changes
+
+- 2473630: Set transaction sender if not set when signing or executing a transaction
+
+### Patch Changes
+
+- Updated dependencies [44354ab]
+  - @mysten/sui@1.36.2
+  - @mysten/slush-wallet@0.1.17
+  - @mysten/wallet-standard@0.16.7
+
 ## 0.16.16
 
 ### Patch Changes

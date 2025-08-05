@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.36.2
+
+### Patch Changes
+
+- 44354ab: Fix tx.pure return type when used with a typename
+
 ## 1.36.1
 
 ### Patch Changes
@@ -390,7 +396,6 @@
 
   All existing methods will continue to work, but the following methods have been deprecated and
   replaced with methods with improved names:
-
   - `toHEX` -> `toHEX`
   - `fromHEX` -> `fromHex`
   - `toB64` -> `toBase64`
@@ -429,7 +434,6 @@
 ### Minor Changes
 
 - 143cd9d: Add new tx.object methods for defining inputs for well known object ids:
-
   - `tx.object.system()`: `0x5`
   - `tx.object.clock()`: `0x6`
   - `tx.object.random()`: `0x8`
@@ -789,7 +793,6 @@
 
 - 781d073d9: Update getFaucetRequestStatus to GET request
 - e4484852b: Improve APIs for building transaction inputs
-
   - txb.splitCoins now accepts `amounts`` as raw JavaScript number
   - txb.transferObjects now accepts `address` as JavaScript string
   - All single objects, or lists of objects, now also accepts object IDs as JavaScript strings
@@ -805,7 +808,6 @@
 - 3764c464f: - add support for basic parsing of zkLogin signatures
   - new zklogin package
 - 71e0a3197: zklogin improvements
-
   - use new bcs api
   - rename `toBufferBE` to `toBigEndianBytes`
   - stop exporting `ZkLoginSignatureInputs` and `extractClaimValue`
@@ -873,7 +875,6 @@
 - 6d41059c7: Deprecate imports from the root path which can be imported from a modular export
 - cc6441f46: The Sui TS SDK has been broken up into a set of modular exports, and all exports from
   the root of the package have been deprecated. The following export paths have been added:
-
   - `@mysten/sui.js/client` - A client for interacting with Sui RPC nodes.
   - `@mysten/sui.js/bcs` - A BCS builder with pre-defined types for Sui.
   - `@mysten/sui.js/transaction` - Utilities for building and interacting with transactions.
@@ -885,7 +886,6 @@
   - `@mysten/sui.js/faucet`- Methods for requesting sui from a faucet.
 
   As part of this refactor we are deprecating a number of existing APIs:
-
   - `JsonRPCProvider` - This Provider pattern is being replaced by a new `SuiClient`
   - `SignerWithProver` and `RawSigner` - The Concept of Signers is being removed from the SDK.
     Signing in verifying has been moved to the KeyPair classes, and the

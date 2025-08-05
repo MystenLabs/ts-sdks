@@ -86,6 +86,10 @@ import type {
 	WriteSliverOptions,
 	WriteSliversToNodeOptions,
 	WriteFilesOptions,
+	WriteFilesFlowOptions,
+	WriteFilesFlow,
+	WriteFilesFlowRegisterOptions,
+	WriteFilesFlowUploadOptions,
 } from './types.js';
 import { blobIdToInt, IntentType, SliverData, StorageConfirmation } from './utils/bcs.js';
 import {
@@ -1101,6 +1105,35 @@ export class WalrusClient {
 			digest,
 			blob: Blob().parse(await suiBlobObject.content),
 		};
+	}
+
+	async #getCreatedBlob(digest: string) {
+		const blobType = await this.getBlobType();
+		const {
+			transaction: { effects },
+		} = await this.#suiClient.core.waitForTransaction({
+			digest,
+		});
+
+		const createdObjectIds = effects?.changedObjects
+			.filter((object) => object.idOperation === 'Created')
+			.map((object) => object.id);
+
+		const createdObjects = await this.#suiClient.core.getObjects({
+			objectIds: createdObjectIds,
+		});
+
+		const suiBlobObject = createdObjects.objects.find(
+			(object) => !(object instanceof Error) && object.type === blobType,
+		);
+
+		if (suiBlobObject instanceof Error || !suiBlobObject) {
+			throw new WalrusClientError(
+				`Blob object not found in transaction effects for transaction (${digest})`,
+			);
+		}
+
+		return Blob().parse(await suiBlobObject.content);
 	}
 
 	async certificateFromConfirmations({
@@ -2149,5 +2182,200 @@ export class WalrusClient {
 			blobId,
 			blobObject,
 		}));
+	}
+
+	writeFilesFlow({ files }: WriteFilesFlowOptions): WriteFilesFlow {
+		const encode = async () => {
+			const { quilt, index } = await this.encodeQuilt({
+				blobs: await Promise.all(
+					files.map(async (file, i) => ({
+						contents: await file.bytes(),
+						identifier: (await file.getIdentifier()) ?? `file-${i}`,
+						tags: (await file.getTags()) ?? {},
+					})),
+				),
+			});
+			const metadata = this.#uploadRelayClient
+				? await this.computeBlobMetadata({
+						bytes: quilt,
+					})
+				: await this.encodeBlob(quilt);
+
+			return {
+				metadata,
+				size: quilt.length,
+				data: this.#uploadRelayClient ? quilt : undefined,
+				index,
+			};
+		};
+
+		const register = (
+			{ data, metadata, index, size }: Awaited<ReturnType<typeof encode>>,
+			{ epochs, deletable, owner, attributes }: WriteFilesFlowRegisterOptions,
+		) => {
+			const transaction = new Transaction();
+			transaction.setSenderIfNotSet(owner);
+
+			if (this.#uploadRelayClient) {
+				const meta = metadata as Awaited<ReturnType<typeof this.computeBlobMetadata>>;
+				transaction.add(
+					this.sendUploadRelayTip({
+						size,
+						blobDigest: meta.blobDigest,
+						nonce: meta.nonce,
+					}),
+				);
+			}
+
+			transaction.transferObjects(
+				[
+					this.registerBlob({
+						size,
+						epochs,
+						blobId: metadata.blobId,
+						rootHash: metadata.rootHash,
+						deletable,
+						owner,
+						attributes,
+					}),
+				],
+				owner,
+			);
+
+			return {
+				registerTransaction: transaction,
+				index,
+				data,
+				metadata,
+				deletable,
+			};
+		};
+
+		const upload = async (
+			{ index, data, metadata, deletable }: Awaited<ReturnType<typeof register>>,
+			{ digest }: WriteFilesFlowUploadOptions,
+		) => {
+			const blobObject = await this.#getCreatedBlob(digest);
+
+			if (this.#uploadRelayClient) {
+				const meta = metadata as Awaited<ReturnType<typeof this.computeBlobMetadata>>;
+				return {
+					index,
+					blobObject,
+					metadata,
+					deletable,
+					certificate: (
+						await this.writeBlobToUploadRelay({
+							blobId: metadata.blobId,
+							blob: data!,
+							nonce: meta.nonce,
+							txDigest: digest,
+							blobObjectId: blobObject.id.id,
+							deletable,
+							encodingType: meta.metadata.encodingType as EncodingType,
+						})
+					).certificate,
+				};
+			}
+
+			const meta = metadata as Awaited<ReturnType<typeof this.encodeBlob>>;
+
+			return {
+				index,
+				blobObject,
+				metadata,
+				deletable,
+				confirmations: await this.writeEncodedBlobToNodes({
+					blobId: metadata.blobId,
+					objectId: blobObject.id.id,
+					metadata: meta.metadata,
+					sliversByNode: meta.sliversByNode,
+					deletable,
+				}),
+			};
+		};
+
+		const certify = ({
+			index,
+			metadata,
+			confirmations,
+			certificate,
+			blobObject,
+			deletable,
+		}: Awaited<ReturnType<typeof upload>>) => {
+			return {
+				index,
+				blobObject,
+				metadata,
+				transaction: confirmations
+					? this.certifyBlobTransaction({
+							blobId: metadata.blobId,
+							blobObjectId: blobObject.id.id,
+							confirmations,
+							deletable,
+						})
+					: this.certifyBlobTransaction({
+							certificate,
+							blobId: metadata.blobId,
+							blobObjectId: blobObject.id.id,
+							deletable,
+						}),
+			};
+		};
+
+		async function listFiles({ index, blobObject, metadata }: Awaited<ReturnType<typeof certify>>) {
+			return index.patches.map((patch) => ({
+				id: encodeQuiltPatchId({
+					quiltId: metadata.blobId,
+					patchId: {
+						version: 1,
+						startIndex: patch.startIndex,
+						endIndex: patch.endIndex,
+					},
+				}),
+				blobId: metadata.blobId,
+				blobObject,
+			}));
+		}
+
+		const stepResults: {
+			encode?: Awaited<ReturnType<typeof encode>>;
+			register?: Awaited<ReturnType<typeof register>>;
+			upload?: Awaited<ReturnType<typeof upload>>;
+			certify?: Awaited<ReturnType<typeof certify>>;
+			listFiles?: never;
+		} = {};
+
+		function getResults<T extends keyof typeof stepResults>(
+			step: T,
+			current: keyof typeof stepResults,
+		): NonNullable<(typeof stepResults)[T]> {
+			if (!stepResults[step]) {
+				throw new Error(`${step} must be executed before calling ${current}`);
+			}
+			return stepResults[step];
+		}
+
+		return {
+			encode: async () => {
+				if (!stepResults.encode) {
+					stepResults.encode = await encode();
+				}
+			},
+			register: (options: WriteFilesFlowRegisterOptions) => {
+				stepResults.register = register(getResults('encode', 'register'), options);
+				return stepResults.register.registerTransaction;
+			},
+			upload: async (options: WriteFilesFlowUploadOptions) => {
+				stepResults.upload = await upload(getResults('register', 'upload'), options);
+			},
+			certify: () => {
+				stepResults.certify = certify(getResults('upload', 'certify'));
+				return stepResults.certify.transaction;
+			},
+			listFiles: async () => {
+				return listFiles(getResults('certify', 'listFiles'));
+			},
+		};
 	}
 }

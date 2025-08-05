@@ -24,6 +24,12 @@ const client = new SuiClient({
 		storageNodeClientOptions: {
 			timeout: 60_000,
 		},
+		uploadRelay: {
+			host: 'https://upload-relay.testnet.walrus.space',
+			sendTip: {
+				max: 1_000,
+			},
+		},
 	}),
 );
 
@@ -44,20 +50,33 @@ async function uploadFile() {
 			contents: new TextEncoder().encode('test 2'),
 			identifier: 'test2',
 		}),
-		WalrusFile.from({
-			contents: new TextEncoder().encode('a'.repeat(1000)),
-			identifier: 'test3',
-		}),
 	];
 
-	const quilt = await client.walrus.writeFiles({
+	const flow = await client.walrus.writeFilesFlow({
 		files,
-		deletable: true,
-		epochs: 3,
+	});
+
+	await flow.encode();
+
+	const { digest } = await client.signAndExecuteTransaction({
+		transaction: flow.register({
+			deletable: true,
+			epochs: 3,
+			owner: keypair.toSuiAddress(),
+		}),
 		signer: keypair,
 	});
 
-	console.log(quilt);
+	await flow.upload({ digest });
+
+	await client.signAndExecuteTransaction({
+		transaction: flow.certify(),
+		signer: keypair,
+	});
+
+	const result = await flow.listFiles();
+
+	console.log(result);
 }
 
-uploadFile().catch(console.error);
+uploadFile().catch((error) => console.error(error));

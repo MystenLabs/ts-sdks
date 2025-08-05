@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/walrus",
-	"version": "0.3.1",
+	"version": "0.5.0",
 	"private": false,
 	"description": "Walrus SDK",
 	"license": "Apache-2.0",
@@ -30,7 +30,8 @@
 		"eslint:check": "eslint --max-warnings=0 .",
 		"eslint:fix": "pnpm run eslint:check --fix",
 		"lint": "pnpm run eslint:check && pnpm run prettier:check",
-		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
+		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix",
+		"dev:write-from-wallet": "vite examples/write-from-wallet"
 	},
 	"repository": {
 		"type": "git",
@@ -45,14 +46,17 @@
 		"@mysten/build-scripts": "workspace:*",
 		"@mysten/codegen": "workspace:*",
 		"@mysten/dapp-kit": "workspace:*",
+		"@tanstack/react-query": "^5.83.0",
 		"@types/node": "^22.15.29",
 		"@types/react": "^18.3.3",
 		"@types/react-dom": "^18.3.0",
+		"@vitejs/plugin-react": "^4.7.0",
 		"hono": "^4.8.5",
 		"react": "^18.3.1",
 		"react-dom": "^18.3.1",
 		"typescript": "^5.8.3",
 		"undici": "^7.12.0",
+		"vite": "^7.0.5",
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {

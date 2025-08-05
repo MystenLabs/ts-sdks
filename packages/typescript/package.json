@@ -3,7 +3,7 @@
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "Sui TypeScript API",
 	"homepage": "https://sdk.mystenlabs.com",
-	"version": "1.36.1",
+	"version": "1.36.2",
 	"license": "Apache-2.0",
 	"sideEffects": false,
 	"files": [
@@ -156,7 +156,7 @@
 		"vite": "^7.0.5",
 		"vite-tsconfig-paths": "^5.1.4",
 		"vitest": "^3.2.4",
-		"wait-on": "^8.0.3",
+		"wait-on": "^8.0.4",
 		"ws": "^8.18.3"
 	},
 	"dependencies": {

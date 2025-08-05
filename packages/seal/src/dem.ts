@@ -95,18 +95,6 @@ export class AesGcm256 implements EncryptionInput {
 	}
 }
 
-export class Plain implements EncryptionInput {
-	async encrypt(_key: Uint8Array): Promise<typeof Ciphertext.$inferInput> {
-		return {
-			Plain: {},
-		};
-	}
-
-	generateKey(): Promise<Uint8Array> {
-		return generateAesKey();
-	}
-}
-
 /**
  * Authenticated encryption using CTR mode with HMAC-SHA3-256 as a PRF.
  * 1. Derive an encryption key, <i>k<sub>1</sub> = <b>hmac</b>(key, 1)</i>.

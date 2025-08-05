@@ -11,10 +11,8 @@ import { UserError } from './error.js';
 import { BonehFranklinBLS12381Services } from './ibe.js';
 import { deriveKey, KeyPurpose } from './kdf.js';
 import type { KeyServer } from './key-server.js';
-import { createFullId } from './utils.js';
+import { createFullId, MAX_U8 } from './utils.js';
 import { split } from './shamir.js';
-
-export const MAX_U8 = 255;
 
 /**
  * Given full ID and what key servers to use, return the encrypted message under the identity and return the bcs bytes of the encrypted object.
@@ -48,10 +46,10 @@ export async function encrypt({
 }> {
 	// Check inputs
 	if (
-		keyServers.length < threshold ||
-		threshold === 0 ||
-		keyServers.length > MAX_U8 ||
+		threshold <= 0 ||
 		threshold > MAX_U8 ||
+		keyServers.length < threshold ||
+		keyServers.length > MAX_U8 ||
 		!isValidSuiObjectId(packageId)
 	) {
 		throw new UserError(
@@ -134,5 +132,7 @@ function encryptBatched(
 				baseKey,
 				threshold,
 			);
+		default:
+			throw new Error(`Invalid KEM type ${kemType}`);
 	}
 }

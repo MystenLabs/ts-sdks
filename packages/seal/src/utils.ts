@@ -6,6 +6,9 @@ import { isValidSuiObjectId } from '@mysten/sui/utils';
 
 import { UserError } from './error.js';
 
+/** Maximum value for a u8 (unsigned 8-bit integer). */
+export const MAX_U8 = 255;
+
 export function xor(a: Uint8Array, b: Uint8Array): Uint8Array {
 	if (a.length !== b.length) {
 		throw new Error('Invalid input');

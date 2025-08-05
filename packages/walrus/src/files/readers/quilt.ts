@@ -34,6 +34,7 @@ export class QuiltReader {
 
 		// start loading the first sliver, but don't wait for it (may improve columnSize lookup)
 		this.#blob.getSecondarySliver({ sliverIndex: sliver }).catch(() => {});
+
 		columnSize = columnSize ?? (await this.#blob.getColumnSize());
 		const columnOffset = Math.floor(offset / columnSize);
 		let remainingOffset = offset % columnSize;
@@ -49,7 +50,8 @@ export class QuiltReader {
 		// ignore errors from slivers that are not consumed below
 		slivers.forEach((p) => p.catch(() => {}));
 
-		for await (const sliver of slivers) {
+		for (const sliverPromise of slivers) {
+			const sliver = await sliverPromise;
 			let chunk = remainingOffset > 0 ? sliver.subarray(remainingOffset) : sliver;
 			remainingOffset -= chunk.length;
 			if (chunk.length > length - bytesRead) {
@@ -102,8 +104,11 @@ export class QuiltReader {
 			}
 
 			const size = endIndex - startIndex;
-			const subArray = blob.subarray(startIndex, endIndex);
-			result.set(subArray, bytesRead);
+
+			for (let i = 0; i < size; i++) {
+				result[bytesRead + i] = blob[startIndex + i];
+			}
+
 			bytesRead += size;
 
 			remainingOffset = 0;
@@ -123,7 +128,9 @@ export class QuiltReader {
 		}
 
 		try {
-			return await this.#readBytesFromSlivers(sliver, length, offset, columnSize);
+			const bytes = await this.#readBytesFromSlivers(sliver, length, offset, columnSize);
+
+			return bytes;
 		} catch (_error) {
 			// fallback to reading the full blob
 			return this.#readBytesFromBlob(sliver, length, offset);
@@ -132,27 +139,33 @@ export class QuiltReader {
 
 	async getBlobHeader(sliverIndex: number) {
 		return this.#cache.read(['getBlobHeader', sliverIndex.toString()], async () => {
-			const firstSliver = await this.#blob.getSecondarySliver({ sliverIndex });
-			const blobHeader = QuiltPatchBlobHeader.parse(firstSliver);
+			const blobHeader = QuiltPatchBlobHeader.parse(
+				await this.#readBytes(sliverIndex, QUILT_PATCH_BLOB_HEADER_SIZE),
+			);
 
 			let offset = QUILT_PATCH_BLOB_HEADER_SIZE;
 			let blobSize = blobHeader.length;
-			const identifierLength = new DataView(firstSliver.buffer, offset, 2).getUint16(0, true);
+
+			const identifierLength = new DataView(
+				(await this.#readBytes(sliverIndex, 2, offset)).buffer,
+			).getUint16(0, true);
 			blobSize -= 2 + identifierLength;
 			offset += 2;
 
 			const identifier = bcs
 				.string()
-				.parse(firstSliver.subarray(offset, offset + identifierLength));
+				.parse(await this.#readBytes(sliverIndex, identifierLength, offset));
 
 			offset += identifierLength;
 
 			let tags: Record<string, string> | null = null;
 			if (blobHeader.mask & HAS_TAGS_FLAG) {
-				const tagsSize = new DataView(firstSliver.buffer, offset, 2).getUint16(0, true);
+				const tagsSize = new DataView(
+					(await this.#readBytes(sliverIndex, 2, offset)).buffer,
+				).getUint16(0, true);
 				offset += 2;
 
-				tags = QuiltPatchTags.parse(firstSliver.subarray(offset, offset + tagsSize));
+				tags = QuiltPatchTags.parse(await this.#readBytes(sliverIndex, tagsSize, offset));
 				blobSize -= tagsSize + 2;
 				offset += tagsSize;
 			}
@@ -162,16 +175,14 @@ export class QuiltReader {
 				tags,
 				blobSize,
 				contentOffset: offset,
-				columnSize: firstSliver.length,
 			};
 		});
 	}
 
 	async readBlob(sliverIndex: number) {
-		const blobHeader = await this.getBlobHeader(sliverIndex);
-		const { identifier, tags, blobSize, contentOffset, columnSize } = blobHeader;
+		const { identifier, tags, blobSize, contentOffset } = await this.getBlobHeader(sliverIndex);
 
-		const blobContents = await this.#readBytes(sliverIndex, blobSize, contentOffset, columnSize);
+		const blobContents = await this.#readBytes(sliverIndex, blobSize, contentOffset);
 
 		return {
 			identifier,
