@@ -122,13 +122,11 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 	/**
 	 * Decrypt all shares and verify that the randomness was used to create the given nonce.
 	 *
-	 * @param encryptedRandomness - The encrypted randomness.
+	 * @param randomness - The randomness.
 	 * @param encryptedShares - The encrypted shares.
 	 * @param services - The services.
-	 * @param baseKey - The base key.
 	 * @param publicKeys - The public keys.
 	 * @param nonce - The nonce.
-	 * @param threshold - The threshold.
 	 * @param id - The id.
 	 * @returns All decrypted shares.
 	 */
