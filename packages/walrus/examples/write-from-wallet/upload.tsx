@@ -4,8 +4,7 @@
 import { useCurrentAccount, useDAppKit, useSuiClient } from '@mysten/dapp-kit-react';
 import { useState, useRef } from 'react';
 
-import { WalrusClient } from '../../src/client.js';
-import type { WriteFilesFlow } from '../../src/index.js';
+import type { WalrusClient, WriteFilesFlow } from '../../src/index.js';
 import { WalrusFile } from '../../src/index.js';
 import type { SuiClient } from '@mysten/sui/client';
 
@@ -25,21 +24,6 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 		| 'done'
 	>('empty');
 
-	const walrusClient = new WalrusClient({
-		network: 'testnet',
-		suiClient: suiClient as SuiClient,
-		storageNodeClientOptions: {
-			timeout: 60_000,
-		},
-		uploadRelay: {
-			host: 'https://upload-relay.testnet.walrus.space',
-			sendTip: {
-				max: 1_000,
-			},
-			timeout: 360_000,
-		},
-	});
-
 	if (!currentAccount) {
 		return <div>No account connected</div>;
 	}
@@ -55,7 +39,7 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 		setState('encoding');
 
 		const arrayBuffer = await file.arrayBuffer();
-		const flow = walrusClient.writeFilesFlow({
+		const flow = suiClient.walrus.writeFilesFlow({
 			files: [
 				WalrusFile.from({
 					contents: new Uint8Array(arrayBuffer),

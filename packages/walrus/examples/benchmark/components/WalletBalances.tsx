@@ -3,7 +3,7 @@
 
 import { useDAppKit, useSuiClient } from '@mysten/dapp-kit-react';
 import { useState, useEffect, useCallback } from 'react';
-import { fromBase64, MIST_PER_SUI, parseStructTag } from '@mysten/sui/utils';
+import { MIST_PER_SUI, parseStructTag } from '@mysten/sui/utils';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
 import { TESTNET_WALRUS_PACKAGE_CONFIG } from '../../../src/index.js';
 import type { Signer } from '@mysten/sui/cryptography';
@@ -15,6 +15,9 @@ interface WalletBalancesProps {
 	signer: Signer | null;
 	refreshTrigger?: number;
 }
+
+const TESTNET_WAL_COIN_TYPE =
+	'0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL';
 
 export function WalletBalances({
 	onError,
@@ -45,7 +48,7 @@ export function WalletBalances({
 				suiClient.core.getBalance({ address: addressToCheck, coinType: '0x2::sui::SUI' }),
 				suiClient.core.getBalance({
 					address: addressToCheck,
-					coinType: `0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL`,
+					coinType: TESTNET_WAL_COIN_TYPE,
 				}),
 			]);
 
@@ -60,7 +63,6 @@ export function WalletBalances({
 		if (!signer) return;
 
 		setIsFunding(true);
-		onError('');
 
 		try {
 			// Create a transaction to send 1 SUI to the keypair
@@ -69,20 +71,16 @@ export function WalletBalances({
 			tx.transferObjects([coin], signer.toSuiAddress());
 
 			// Sign and execute the transaction
-			const signedTx = await dAppKit.signTransaction({ transaction: tx });
-			const result = await suiClient.core.executeTransaction({
-				transaction: fromBase64(signedTx.bytes),
-				signatures: [signedTx.signature],
-			});
+			const { digest } = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 
-			onTransaction(result.transaction.digest);
+			onTransaction(digest);
 		} catch (error) {
 			const errorMessage = `Failed to fund keypair: ${error instanceof Error ? error.message : 'Unknown error'}`;
 			onError(errorMessage);
 		} finally {
 			setIsFunding(false);
 		}
-	}, [signer, dAppKit, suiClient, onError, onTransaction]);
+	}, [signer, dAppKit, onError, onTransaction]);
 
 	const returnFunds = useCallback(async () => {
 		if (!signer) return;
@@ -94,14 +92,12 @@ export function WalletBalances({
 			const tx = new Transaction();
 			tx.setSender(address);
 
-			// Get all coins and transfer them back to the connected wallet
 			const coins = await suiClient.core.getCoins({
 				address: signer.toSuiAddress(),
-				coinType: '0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL',
+				coinType: TESTNET_WAL_COIN_TYPE,
 			});
 
 			if (coins.objects.length > 0) {
-				// Merge coins of the same type if there are multiple
 				if (coins.objects.length > 1) {
 					tx.mergeCoins(
 						coins.objects[0].id,
@@ -123,8 +119,9 @@ export function WalletBalances({
 
 			onTransaction(digest);
 		} catch (error) {
-			const errorMessage = `Failed to return funds: ${error instanceof Error ? error.message : 'Unknown error'}`;
-			onError(errorMessage);
+			onError(
+				`Failed to return funds: ${error instanceof Error ? error.message : 'Unknown error'}`,
+			);
 		} finally {
 			setIsReturning(false);
 		}
