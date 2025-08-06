@@ -1,5 +1,13 @@
 # @mysten/walrus
 
+## 0.6.0
+
+### Minor Changes
+
+- b2ee297: Add retries for BlobNotRegistered errors
+- 22d727d: Update contracts and remove subsidy contract (which has been integrated into the main
+  contract)
+
 ## 0.5.3
 
 ### Patch Changes

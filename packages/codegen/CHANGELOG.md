@@ -1,5 +1,11 @@
 # @mysten/codegen
 
+## 0.4.0
+
+### Minor Changes
+
+- 22d727d: Execute `sui move summary` when generating code
+
 ## 0.3.0
 
 ### Minor Changes
