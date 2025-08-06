@@ -21,6 +21,7 @@ import { signTransactionCreator } from './actions/sign-transaction.js';
 import { slushWebWalletInitializer } from '../wallets/slush-web.js';
 import { registerAdditionalWallets } from '../wallets/index.js';
 import { unsafeBurnerWalletInitializer } from '../wallets/unsafe-burner.js';
+import { walletConnectWalletInitializer } from '../wallets/walletconnect.js';
 
 export type DAppKit<TNetworks extends Networks = Networks> = ReturnType<
 	typeof createDAppKit<TNetworks>
@@ -36,6 +37,7 @@ export function createDAppKit<TNetworks extends Networks>({
 	storage = getDefaultStorage(),
 	storageKey = DEFAULT_STORAGE_KEY,
 	walletInitializers = [],
+	walletConnectProjectId,
 }: CreateDAppKitOptions<TNetworks>) {
 	const networkConfig = createNetworkConfig(networks, createClient);
 	const stores = createStores({ defaultNetwork, getClient: networkConfig.getClient });
@@ -59,6 +61,9 @@ export function createDAppKit<TNetworks extends Networks>({
 			...walletInitializers,
 			...(enableBurnerWallet ? [unsafeBurnerWalletInitializer()] : []),
 			...(slushWalletConfig !== null ? [slushWebWalletInitializer(slushWalletConfig)] : []),
+			...(walletConnectProjectId !== undefined
+				? [walletConnectWalletInitializer(walletConnectProjectId)]
+				: []),
 		],
 		{ networks, getClient },
 	);
