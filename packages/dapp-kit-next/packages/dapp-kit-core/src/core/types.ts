@@ -86,4 +86,9 @@ export type CreateDAppKitOptions<TNetworks extends Networks> = {
 	 * A list of wallet initializers used for registering additional wallet standard wallets.
 	 */
 	walletInitializers?: WalletInitializer[];
+
+	/**
+	 * The project id to use for the WalletConnect wallet.
+	 */
+	walletConnectProjectId?: string;
 };

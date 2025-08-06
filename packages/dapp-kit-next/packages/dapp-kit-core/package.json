@@ -61,6 +61,7 @@
 		"@lit-labs/scoped-registry-mixin": "^1.0.4",
 		"@lit/task": "^1.0.3",
 		"@mysten/slush-wallet": "workspace:*",
+		"@mysten/walletconnect-wallet": "workspace:*",
 		"@mysten/sui": "workspace:*",
 		"@mysten/utils": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
