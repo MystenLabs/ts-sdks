@@ -172,10 +172,15 @@ export class WalletConnectWallet implements Wallet {
 						'sui_signAndExecuteTransaction',
 						'sui_getAccounts',
 					],
-					events: [],
+					events: ['chainChanged', 'accountsChanged'],
 					chains: SUICaipNetworks,
 				},
 			],
+			modalConfig: {
+				themeVariables: {
+					'--w3m-z-index': 2147483647,
+				},
+			},
 		});
 
 		this.#accounts = await this.#getPreviouslyAuthorizedAccounts();
@@ -259,7 +264,6 @@ export class WalletConnectWallet implements Wallet {
 	}
 
 	#getAccounts = async () => {
-		console.log('>> Getting Accounts');
 		let accounts: { address: string; pubkey: string }[] | undefined = JSON.parse(
 			this.#connector?.provider?.session?.sessionProperties?.['sui_getAccounts'] ?? '[]',
 		);
@@ -282,7 +286,6 @@ export class WalletConnectWallet implements Wallet {
 	};
 
 	#connect: StandardConnectMethod = async (input) => {
-		console.log('>> Connect', input);
 		if (input?.silent) {
 			const accounts = await this.#getPreviouslyAuthorizedAccounts();
 			if (accounts.length > 0) {
@@ -296,8 +299,6 @@ export class WalletConnectWallet implements Wallet {
 		}
 
 		const accounts = await this.#getAccounts();
-		console.log('>> Accounts', accounts);
-		console.log('>> Provider', this.#connector?.provider);
 		this.#setAccounts(accounts);
 
 		return { accounts: this.accounts };

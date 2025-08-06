@@ -14,7 +14,7 @@ import { registerWalletConnectWallet } from "@mysten/walletconnect-wallet";
 
 const queryClient = new QueryClient();
 
-registerWalletConnectWallet("702e2d45d9debca66795614cddb5c1ca");
+registerWalletConnectWallet("your_project_id");
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

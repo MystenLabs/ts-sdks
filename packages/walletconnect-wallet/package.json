@@ -50,7 +50,7 @@
 		"@mysten/utils": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
 		"@mysten/window-wallet-core": "workspace:*",
-		"@reown/appkit-universal-connector": "1.7.17-4fb4bfbc15749d335e05dd52f9c5fb8032a383db.0",
+		"@reown/appkit-universal-connector": "1.7.19-uc-config.1.0",
 		"mitt": "^3.0.1",
 		"valibot": "^0.36.0"
 	}
