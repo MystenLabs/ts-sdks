@@ -8,7 +8,7 @@ import ReactDOM from 'react-dom/client';
 
 import '@mysten/dapp-kit/dist/index.css';
 
-import { getFullnodeUrl } from '../../typescript/src/client/network.ts';
+import { getFullnodeUrl } from '../../sui/src/client/network.ts';
 import { App } from './App.tsx';
 import { RegisterEnokiWallets } from './RegisterEnokiWallets.tsx';
 

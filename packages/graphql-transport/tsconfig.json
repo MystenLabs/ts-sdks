@@ -8,8 +8,8 @@
 		"rootDir": "src",
 		"paths": {
 			"@mysten/sui/client": ["../../typescrupt/src/client"],
-			"@mysten/sui/transactions": ["../../typescript/src/transactions"]
+			"@mysten/sui/transactions": ["../../sui/src/transactions"]
 		}
 	},
-	"references": [{ "path": "../wallet-standard" }, { "path": "../typescript" }]
+	"references": [{ "path": "../wallet-standard" }, { "path": "../sui" }]
 }
