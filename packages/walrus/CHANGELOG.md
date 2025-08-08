@@ -1,5 +1,12 @@
 # @mysten/walrus
 
+## 0.6.1
+
+### Patch Changes
+
+- Updated dependencies [b456936]
+  - @mysten/walrus-wasm@0.1.1
+
 ## 0.6.0
 
 ### Minor Changes

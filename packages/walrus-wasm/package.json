@@ -3,7 +3,7 @@
   "collaborators": [
     "jonaslindstrom"
   ],
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "main": "index.js",
   "types": "./web/walrus_wasm.d.ts",

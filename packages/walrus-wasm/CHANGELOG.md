@@ -1,5 +1,11 @@
 # @mysten/walrus-wasm
 
+## 0.1.1
+
+### Patch Changes
+
+- b456936: add type export to exports in package.json
+
 ## 0.1.0
 
 ### Minor Changes
