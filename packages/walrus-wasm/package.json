@@ -11,7 +11,8 @@
     ".": {
       "browser": "./web/walrus_wasm.js",
       "import": "./index.mjs",
-      "require": "./index.js"
+      "require": "./index.js",
+      "types": "./web/walrus_wasm.d.ts"
     },
     "./web/walrus_wasm_bg.wasm": {
       "browser": "./web/walrus_wasm_bg.wasm",

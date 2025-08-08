@@ -139,7 +139,7 @@ can be loaded correctly. You can add something like this to your vite config:
 ```ts
 export default defineConfig({
 	optimizeDeps: {
-		exclude: ['@mysten/walrus-wasm'],
+		exclude: ["@mysten/move-bytecode-template"],
 	},
 });
 ```

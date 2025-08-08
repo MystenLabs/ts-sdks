@@ -3,7 +3,7 @@
 	"version": "0.2.0",
 	"description": "Move Binary Format implementation in WASM",
 	"main": "index.js",
-	"types": "./web/walrus_wasm.d.ts",
+	"types": "./web/move_bytecode_template.d.ts",
 	"files": [
 		"nodejs",
 		"web",
@@ -12,14 +12,15 @@
 	],
 	"exports": {
 		".": {
-			"browser": "./web/walrus_wasm.js",
+			"browser": "./web/move_bytecode_template.js",
 			"import": "./index.mjs",
-			"require": "./index.js"
+			"require": "./index.js",
+			"types": "./web/move_bytecode_template.d.ts"
 		},
-		"./web/walrus_wasm_bg.wasm": {
-			"browser": "./web/walrus_wasm_bg.wasm",
-			"import": "./web/walrus_wasm_bg.wasm",
-			"require": "./web/walrus_wasm_bg.wasm"
+		"./web/move_bytecode_template_bg.wasm": {
+			"browser": "./web/move_bytecode_template_bg.wasm",
+			"import": "./web/move_bytecode_template_bg.wasm",
+			"require": "./web/move_bytecode_template_bg.wasm"
 		}
 	},
 	"scripts": {
