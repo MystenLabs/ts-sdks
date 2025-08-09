@@ -84,6 +84,7 @@ export abstract class Signer {
 		transaction,
 		client,
 	}: SignAndExecuteOptions): Promise<Experimental_SuiClientTypes.TransactionResponse> {
+		transaction.setSenderIfNotSet(this.toSuiAddress());
 		const bytes = await transaction.build({ client });
 		const { signature } = await this.signTransaction(bytes);
 		const response = await client.core.executeTransaction({
@@ -107,6 +108,42 @@ export abstract class Signer {
 	 * The public key for this keypair
 	 */
 	abstract getPublicKey(): PublicKey;
+}
+
+export class ExecutingSigner extends Signer {
+	#client: ClientWithCoreApi;
+	#signer: Signer;
+
+	constructor({ signer, client }: { signer: Signer; client: ClientWithCoreApi }) {
+		super();
+
+		this.#client = client;
+		this.#signer = signer;
+	}
+
+	sign(bytes: Uint8Array) {
+		return this.#signer.sign(bytes);
+	}
+
+	getKeyScheme() {
+		return this.#signer.getKeyScheme();
+	}
+
+	getPublicKey() {
+		return this.#signer.getPublicKey();
+	}
+
+	async signAndExecuteTransaction({
+		transaction,
+	}: Omit<
+		SignAndExecuteOptions,
+		'client'
+	>): Promise<Experimental_SuiClientTypes.TransactionResponse> {
+		return super.signAndExecuteTransaction({
+			transaction,
+			client: this.#client,
+		});
+	}
 }
 
 export abstract class Keypair extends Signer {
