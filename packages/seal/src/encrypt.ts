@@ -47,9 +47,9 @@ export async function encrypt({
 	// Check inputs
 	if (
 		threshold <= 0 ||
-		threshold > MAX_U8 ||
+		threshold >= MAX_U8 ||
 		keyServers.length < threshold ||
-		keyServers.length > MAX_U8
+		keyServers.length >= MAX_U8
 	) {
 		throw new UserError(
 			`Invalid key servers or threshold ${threshold} for ${keyServers.length} key servers for package ${packageId}`,

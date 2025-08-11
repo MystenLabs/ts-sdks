@@ -131,7 +131,7 @@ export class Polynomial {
 
 	/**
 	 * Construct a polynomial from the given bytes.
-	 * Each byte is a coefficient of the polynomial starting from the constant term. 
+	 * Each byte is a coefficient of the polynomial starting from the constant term.
 	 */
 	static fromBytes(bytes: Uint8Array): Polynomial {
 		return new Polynomial(Array.from(bytes, (b) => new GF256(b)));
