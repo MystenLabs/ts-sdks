@@ -9,6 +9,15 @@ import { UserError } from './error.js';
 /** Maximum value for a u8 (unsigned 8-bit integer). */
 export const MAX_U8 = 255;
 
+/** Length of a Sui address. */
+export const SUI_ADDRESS_LENGTH = 32;
+
+/** Length of an encrypted share. */
+export const ENCRYPTED_SHARE_LENGTH = 32;
+
+/** Length of a key. */
+export const KEY_LENGTH = 32;
+
 export function xor(a: Uint8Array, b: Uint8Array): Uint8Array {
 	if (a.length !== b.length) {
 		throw new Error('Invalid input');

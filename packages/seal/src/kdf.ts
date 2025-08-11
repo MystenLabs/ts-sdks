@@ -6,7 +6,13 @@ import { sha3_256 } from '@noble/hashes/sha3';
 
 import { G1Element } from './bls12381.js';
 import type { G2Element, GTElement } from './bls12381.js';
-import { flatten, MAX_U8 } from './utils.js';
+import {
+	ENCRYPTED_SHARE_LENGTH,
+	flatten,
+	KEY_LENGTH,
+	MAX_U8,
+	SUI_ADDRESS_LENGTH,
+} from './utils.js';
 
 /**
  * The domain separation tag for the hash-to-group function.
@@ -37,15 +43,19 @@ export function kdf(
 	objectId: string,
 	index: number,
 ): Uint8Array {
-	if (index < 0 || index > MAX_U8) {
+	if (!Number.isInteger(index) || index < 0 || index > MAX_U8) {
 		throw new Error(`Invalid index ${index}`);
+	}
+	const objectIdBytes = fromHex(objectId);
+	if (objectIdBytes.length !== SUI_ADDRESS_LENGTH) {
+		throw new Error(`Invalid object id ${objectId}`);
 	}
 	const hash = sha3_256.create();
 	hash.update(KDF_DST);
 	hash.update(element.toBytes());
 	hash.update(nonce.toBytes());
 	hash.update(hashToG1(id).toBytes());
-	hash.update(fromHex(objectId));
+	hash.update(objectIdBytes);
 	hash.update(new Uint8Array([index])); // this is safe because index < 256.
 	return hash.digest();
 }
@@ -82,16 +92,34 @@ export function deriveKey(
 	encryptedShares: Uint8Array[],
 	threshold: number,
 	keyServers: string[],
-): Uint8Array<ArrayBuffer> {
-	if (threshold <= 0 || threshold > MAX_U8) {
+): Uint8Array {
+	if (!Number.isInteger(threshold) || threshold <= 0 || threshold > MAX_U8) {
 		throw new Error(`Invalid threshold ${threshold}`);
 	}
+
+	if (encryptedShares.length !== keyServers.length) {
+		throw new Error(
+			`Mismatched shares ${encryptedShares.length} and key servers ${keyServers.length}`,
+		);
+	}
+	const keyServerBytes = keyServers.map((keyServer) => fromHex(keyServer));
+	if (keyServerBytes.some((keyServer) => keyServer.length !== SUI_ADDRESS_LENGTH)) {
+		throw new Error(`Invalid key servers ${keyServers}`);
+	}
+	if (encryptedShares.some((share) => share.length !== ENCRYPTED_SHARE_LENGTH)) {
+		throw new Error(`Invalid encrypted shares ${encryptedShares}`);
+	}
+
+	if (baseKey.length !== KEY_LENGTH) {
+		throw new Error(`Invalid base key ${baseKey}`);
+	}
+
 	const hash = sha3_256.create();
 	hash.update(DERIVE_KEY_DST);
 	hash.update(baseKey);
 	hash.update(tag(purpose));
 	hash.update(new Uint8Array([threshold]));
 	encryptedShares.forEach((share) => hash.update(share));
-	keyServers.forEach((keyServer) => hash.update(fromHex(keyServer)));
-	return hash.digest() as Uint8Array<ArrayBuffer>;
+	keyServerBytes.forEach((keyServer) => hash.update(keyServer));
+	return hash.digest();
 }

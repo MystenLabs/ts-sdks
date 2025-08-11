@@ -133,9 +133,6 @@ export async function decrypt({
 		return AesGcm256.decrypt(demKey, encryptedObject.ciphertext);
 	} else if (encryptedObject.ciphertext.Hmac256Ctr) {
 		return Hmac256Ctr.decrypt(demKey, encryptedObject.ciphertext);
-	} else if (encryptedObject.ciphertext.Plain) {
-		// In case `Plain` mode is used, return the key.
-		return demKey;
 	} else {
 		throw new InvalidCiphertextError('Invalid ciphertext type');
 	}
