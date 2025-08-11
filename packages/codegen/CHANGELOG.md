@@ -1,5 +1,12 @@
 # @mysten/codegen
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [660377c]
+  - @mysten/sui@1.37.2
+
 ## 0.4.0
 
 ### Minor Changes

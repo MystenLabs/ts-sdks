@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 1.37.2
+
+### Patch Changes
+
+- 660377c: Mark type-only exports as being type-only so that bundlers do not attempt to bundle empty
+  files.
+
 ## 1.37.1
 
 ### Patch Changes
