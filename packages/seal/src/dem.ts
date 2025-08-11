@@ -27,11 +27,17 @@ async function generateAesKey(): Promise<Uint8Array<ArrayBuffer>> {
 	return await crypto.subtle.exportKey('raw', key).then((keyData) => new Uint8Array(keyData));
 }
 
+/**
+ * An interface for supported DEMs.
+ */
 export interface EncryptionInput {
 	encrypt(key: Uint8Array): Promise<typeof Ciphertext.$inferInput>;
 	generateKey(): Promise<Uint8Array<ArrayBuffer>>;
 }
 
+/**
+ * AES-GCM encryption.
+ */
 export class AesGcm256 implements EncryptionInput {
 	readonly plaintext: Uint8Array<ArrayBuffer>;
 	readonly aad: Uint8Array<ArrayBuffer>;

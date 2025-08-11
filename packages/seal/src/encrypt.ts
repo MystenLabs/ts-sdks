@@ -21,7 +21,7 @@ import { split } from './shamir.js';
  * @param kemType - The type of KEM to use.
  * @param packageId - packageId
  * @param id - id
- * @param encryptionInput - Input to the encryption. Should be one of the EncryptionInput types, AesGcmEncryptionInput or Plain.
+ * @param encryptionInput - Input to the encryption. Should be one of the EncryptionInput types, AesGcmEncryptionInput or Hmac256CtrEncryptionInput.
  * @param threshold - The threshold for the TSS encryption.
  * @returns The bcs bytes of the encrypted object containing all metadata and the 256-bit symmetric key that was used to encrypt the object.
  * Since the key can be used to decrypt, it should not be shared but can be used eg. for backup.

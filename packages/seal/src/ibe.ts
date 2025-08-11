@@ -107,7 +107,8 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 	 * @param nonce The encryption nonce.
 	 * @param sk The user secret key.
 	 * @param ciphertext The encrypted message.
-	 * @param info An info parameter also included in the KDF.
+	 * @param id The identity.
+	 * @param [objectId, index] The object id and index of the share.
 	 * @returns The decrypted message.
 	 */
 	static decrypt(
@@ -166,7 +167,7 @@ export class BonehFranklinBLS12381Services extends IBEServers {
  *
  * @param publicKeys Public keys for a set of key servers.
  * @param id The identity used to encapsulate the keys.
- * @returns A common nonce of the keys and a list of keys, 32 bytes each.
+ * @returns The randomness, a common nonce of the keys and a list of keys.
  */
 function encapBatched(publicKeys: G2Element[], id: Uint8Array): [Scalar, G2Element, GTElement[]] {
 	if (publicKeys.length === 0) {

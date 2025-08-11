@@ -107,6 +107,9 @@ const LOG: number[] = [
 	0x4a, 0xed, 0xde, 0xc5, 0x31, 0xfe, 0x18, 0x0d, 0x63, 0x8c, 0x80, 0xc0, 0xf7, 0x70, 0x07,
 ];
 
+/**
+ * A polynomial over the field GF(2⁸).
+ */
 export class Polynomial {
 	coefficients: GF256[];
 
@@ -126,6 +129,10 @@ export class Polynomial {
 		}
 	}
 
+	/**
+	 * Construct a polynomial from the given bytes.
+	 * Each byte is a coefficient of the polynomial starting from the constant term. 
+	 */
 	static fromBytes(bytes: Uint8Array): Polynomial {
 		return new Polynomial(Array.from(bytes, (b) => new GF256(b)));
 	}
@@ -137,6 +144,7 @@ export class Polynomial {
 		return this.coefficients.length - 1;
 	}
 
+	/** Get the coefficient of the polynomial at the given index. */
 	getCoefficient(index: number): GF256 {
 		if (index >= this.coefficients.length) {
 			return GF256.zero();
@@ -144,6 +152,7 @@ export class Polynomial {
 		return this.coefficients[index];
 	}
 
+	/** Add two polynomials. */
 	add(other: Polynomial): Polynomial {
 		const degree = Math.max(this.degree(), other.degree());
 		return new Polynomial(
@@ -153,6 +162,7 @@ export class Polynomial {
 		);
 	}
 
+	/** Multiply two polynomials. */
 	mul(other: Polynomial): Polynomial {
 		const degree = this.degree() + other.degree();
 		return new Polynomial(
@@ -173,6 +183,7 @@ export class Polynomial {
 		return new Polynomial(this.coefficients.map((c) => c.mul(s)));
 	}
 
+	/** The polynomial (1 / s) * this. */
 	div(s: GF256): Polynomial {
 		return this.scale(new GF256(1).div(s));
 	}
@@ -182,10 +193,12 @@ export class Polynomial {
 		return new Polynomial([c, GF256.one()]);
 	}
 
+	/** The zero polynomial. */
 	static zero(): Polynomial {
 		return new Polynomial([]);
 	}
 
+	/** The polynomial 1. */
 	static one(): Polynomial {
 		return new Polynomial([GF256.one()]);
 	}
@@ -246,6 +259,7 @@ export class Polynomial {
 			.reduce((sum, coefficient) => sum.mul(x).add(coefficient), GF256.zero());
 	}
 
+	/** Check if two polynomials are equal. */
 	equals(other: Polynomial): boolean {
 		if (this.coefficients.length !== other.coefficients.length) {
 			return false;
