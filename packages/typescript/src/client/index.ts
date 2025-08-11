@@ -10,7 +10,7 @@ export {
 	SuiHTTPTransport,
 } from './http-transport.js';
 export { getFullnodeUrl } from './network.js';
-export * from './types/index.js';
+export type * from './types/index.js';
 export {
 	type SuiClientOptions,
 	type PaginationArguments,
