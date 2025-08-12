@@ -12,6 +12,8 @@ import { isValidBIP32Path, mnemonicToSeed } from '../../cryptography/mnemonics.j
 import type { PublicKey } from '../../cryptography/publickey.js';
 import type { SignatureScheme } from '../../cryptography/signature-scheme.js';
 import { Secp256r1PublicKey } from './publickey.js';
+import type { Redacted } from '../../utils/redacted.js';
+import { getRedactedOrPlainValue, redacted } from '../../utils/redacted.js';
 
 export const DEFAULT_SECP256R1_DERIVATION_PATH = "m/74'/784'/0'/0/0";
 
@@ -20,14 +22,17 @@ export const DEFAULT_SECP256R1_DERIVATION_PATH = "m/74'/784'/0'/0/0";
  */
 export interface Secp256r1KeypairData {
 	publicKey: Uint8Array;
-	secretKey: Uint8Array;
+	secretKey: Uint8Array | Redacted<Uint8Array>;
 }
 
 /**
  * An Secp256r1 Keypair used for signing transactions.
  */
 export class Secp256r1Keypair extends Keypair {
-	private keypair: Secp256r1KeypairData;
+	#keypair: {
+		publicKey: Uint8Array;
+		secretKey: Uint8Array;
+	};
 
 	/**
 	 * Create a new keypair instance.
@@ -38,12 +43,15 @@ export class Secp256r1Keypair extends Keypair {
 	constructor(keypair?: Secp256r1KeypairData) {
 		super();
 		if (keypair) {
-			this.keypair = keypair;
+			this.#keypair = {
+				publicKey: keypair.publicKey,
+				secretKey: getRedactedOrPlainValue(keypair.secretKey),
+			};
 		} else {
 			const secretKey: Uint8Array = secp256r1.utils.randomPrivateKey();
 			const publicKey: Uint8Array = secp256r1.getPublicKey(secretKey, true);
 
-			this.keypair = { publicKey, secretKey };
+			this.#keypair = { publicKey, secretKey };
 		}
 	}
 
@@ -115,14 +123,21 @@ export class Secp256r1Keypair extends Keypair {
 	 * The public key for this keypair
 	 */
 	getPublicKey(): PublicKey {
-		return new Secp256r1PublicKey(this.keypair.publicKey);
+		return new Secp256r1PublicKey(this.#keypair.publicKey);
 	}
 
 	/**
 	 * The Bech32 secret key string for this Secp256r1 keypair
 	 */
 	getSecretKey(): string {
-		return encodeSuiPrivateKey(this.keypair.secretKey, this.getKeyScheme());
+		return encodeSuiPrivateKey(this.#keypair.secretKey, this.getKeyScheme());
+	}
+
+	/**
+	 * The Bech32 secret key string for this Secp256r1 keypair, with the value redacted so that it cannot be logged.
+	 */
+	getSecretKeyRedacted(): Redacted<string> {
+		return redacted(this.getSecretKey());
 	}
 
 	/**
@@ -130,7 +145,7 @@ export class Secp256r1Keypair extends Keypair {
 	 */
 	async sign(data: Uint8Array) {
 		const msgHash = sha256(data);
-		const sig = secp256r1.sign(msgHash, this.keypair.secretKey, {
+		const sig = secp256r1.sign(msgHash, this.#keypair.secretKey, {
 			lowS: true,
 		});
 		return sig.toCompactRawBytes();
