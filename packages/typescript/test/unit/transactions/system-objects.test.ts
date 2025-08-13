@@ -18,6 +18,7 @@ describe('System objects with mutable parameter', () => {
 			$kind: 'UnresolvedObject',
 			UnresolvedObject: {
 				objectId: '0x0000000000000000000000000000000000000000000000000000000000000005',
+				initialSharedVersion: 1,
 			},
 		});
 	});
@@ -79,6 +80,7 @@ describe('System objects with mutable parameter', () => {
 			$kind: 'UnresolvedObject',
 			UnresolvedObject: {
 				objectId: '0x0000000000000000000000000000000000000000000000000000000000000403',
+				initialSharedVersion: 1,
 			},
 		});
 	});
