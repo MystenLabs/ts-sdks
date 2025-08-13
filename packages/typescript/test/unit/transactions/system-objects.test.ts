@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { Transaction } from '../../../src/transactions';
 
 describe('System objects with mutable parameter', () => {
-	it('system object without options returns UnresolvedObject with initialSharedVersion', () => {
+	it('system object without options returns UnresolvedObject', () => {
 		const tx = new Transaction();
 		tx.moveCall({
 			target: '0x2::example::use_system',
@@ -18,7 +18,6 @@ describe('System objects with mutable parameter', () => {
 			$kind: 'UnresolvedObject',
 			UnresolvedObject: {
 				objectId: '0x0000000000000000000000000000000000000000000000000000000000000005',
-				initialSharedVersion: 1,
 			},
 		});
 	});
@@ -67,7 +66,7 @@ describe('System objects with mutable parameter', () => {
 		});
 	});
 
-	it('denyList object without options returns UnresolvedObject with initialSharedVersion', () => {
+	it('denyList object without options returns UnresolvedObject', () => {
 		const tx = new Transaction();
 		tx.moveCall({
 			target: '0x2::example::use_denylist',
@@ -80,7 +79,6 @@ describe('System objects with mutable parameter', () => {
 			$kind: 'UnresolvedObject',
 			UnresolvedObject: {
 				objectId: '0x0000000000000000000000000000000000000000000000000000000000000403',
-				initialSharedVersion: 1,
 			},
 		});
 	});

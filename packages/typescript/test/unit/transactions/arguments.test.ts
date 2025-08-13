@@ -227,7 +227,6 @@ describe('Arguments helpers', () => {
 			    {
 			      "$kind": "UnresolvedObject",
 			      "UnresolvedObject": {
-			        "initialSharedVersion": 1,
 			        "objectId": "0x0000000000000000000000000000000000000000000000000000000000000005",
 			      },
 			    },
@@ -256,7 +255,6 @@ describe('Arguments helpers', () => {
 			    {
 			      "$kind": "UnresolvedObject",
 			      "UnresolvedObject": {
-			        "initialSharedVersion": 1,
 			        "objectId": "0x0000000000000000000000000000000000000000000000000000000000000403",
 			      },
 			    },

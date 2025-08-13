@@ -25,7 +25,6 @@ export function createObjectMethods<T>(makeObject: (value: TransactionObjectInpu
 		return object({
 			UnresolvedObject: {
 				objectId: '0x5',
-				initialSharedVersion: 1,
 			},
 		} as TransactionObjectInput);
 	};
@@ -61,7 +60,6 @@ export function createObjectMethods<T>(makeObject: (value: TransactionObjectInpu
 		return object({
 			UnresolvedObject: {
 				objectId: '0x403',
-				initialSharedVersion: 1,
 			},
 		} as TransactionObjectInput);
 	};
