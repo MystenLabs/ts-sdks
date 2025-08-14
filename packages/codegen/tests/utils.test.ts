@@ -37,8 +37,12 @@ describe('normalizeMoveArguments', () => {
 			      }
 			    },
 			    {
-			      "UnresolvedObject": {
-			        "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006"
+			      "Object": {
+			        "SharedObject": {
+			          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+			          "initialSharedVersion": 1,
+			          "mutable": false
+			        }
 			      }
 			    }
 			  ],
@@ -93,8 +97,12 @@ describe('normalizeMoveArguments', () => {
 			      }
 			    },
 			    {
-			      "UnresolvedObject": {
-			        "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006"
+			      "Object": {
+			        "SharedObject": {
+			          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+			          "initialSharedVersion": 1,
+			          "mutable": false
+			        }
 			      }
 			    }
 			  ],
@@ -150,8 +158,12 @@ describe('normalizeMoveArguments', () => {
 			      }
 			    },
 			    {
-			      "UnresolvedObject": {
-			        "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006"
+			      "Object": {
+			        "SharedObject": {
+			          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+			          "initialSharedVersion": 1,
+			          "mutable": false
+			        }
 			      }
 			    },
 			    {
