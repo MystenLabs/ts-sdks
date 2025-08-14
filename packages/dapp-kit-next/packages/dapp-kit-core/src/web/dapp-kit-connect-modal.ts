@@ -186,7 +186,7 @@ export class DAppKitConnectModal
 	}
 
 	async #attemptConnect(wallet: UiWallet) {
-		let delayTimeout: number | undefined;
+		let delayTimeout: ReturnType<typeof setTimeout> | undefined;
 
 		try {
 			const abortPromise = new Promise((_, reject) => {
