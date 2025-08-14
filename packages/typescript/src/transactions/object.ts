@@ -23,11 +23,12 @@ export function createObjectMethods<T>(makeObject: (value: TransactionObjectInpu
 		}
 
 		return object({
+			$kind: 'UnresolvedObject',
 			UnresolvedObject: {
 				objectId: '0x5',
 				initialSharedVersion: 1,
 			},
-		} as TransactionObjectInput);
+		});
 	};
 	object.clock = () =>
 		object(
@@ -59,11 +60,12 @@ export function createObjectMethods<T>(makeObject: (value: TransactionObjectInpu
 		}
 
 		return object({
+			$kind: 'UnresolvedObject',
 			UnresolvedObject: {
 				objectId: '0x403',
 				initialSharedVersion: 1,
 			},
-		} as TransactionObjectInput);
+		});
 	};
 	object.option =
 		({ type, value }: { type: string; value: TransactionObjectInput | null }) =>
