@@ -38,6 +38,9 @@
 		"eslint:fix": "pnpm run eslint:check --fix",
 		"lint": "pnpm run eslint:check && pnpm run prettier:check",
 		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix",
+		"test": "pnpm test:typecheck && pnpm vitest run",
+		"test:typecheck": "tsc -b ./test",
+		"test:no-typecheck": "pnpm vitest run",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build"
 	},
@@ -54,7 +57,8 @@
 		"@storybook/web-components": "^8.6.12",
 		"@storybook/web-components-vite": "^8.6.12",
 		"storybook": "^8.6.12",
-		"typescript": "^5.8.3"
+		"typescript": "^5.8.3",
+		"vitest": "^3.2.4"
 	},
 	"dependencies": {
 		"@floating-ui/dom": "^1.7.2",

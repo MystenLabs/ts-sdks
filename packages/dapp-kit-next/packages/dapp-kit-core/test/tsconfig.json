@@ -1,0 +1,13 @@
+{
+	"extends": "../tsconfig.esm.json",
+	"include": ["../src", "./**/*"],
+	"compilerOptions": {
+		"rootDir": "..",
+		"noEmit": true,
+		"module": "Preserve",
+		"moduleResolution": "bundler",
+		"emitDeclarationOnly": false,
+		"resolveJsonModule": true,
+		"types": ["vitest/globals"]
+	}
+}
