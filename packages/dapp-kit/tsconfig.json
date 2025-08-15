@@ -6,7 +6,9 @@
 		"outDir": "dist/cjs",
 		"isolatedModules": true,
 		"jsx": "react-jsx",
-		"rootDir": "src"
+		"rootDir": "src",
+		"types": ["react"],
+		"lib": ["dom", "esnext"]
 	},
 	"references": [
 		{ "path": "../typescript" },
