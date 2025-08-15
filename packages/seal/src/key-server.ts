@@ -7,8 +7,7 @@ import { KeyServerMove, KeyServerMoveV1 } from './bcs.js';
 import {
 	InvalidKeyServerError,
 	InvalidKeyServerVersionError,
-	SealAPIError,
-	UnsupportedNetworkError,
+	SealAPIError
 } from './error.js';
 import { DST_POP } from './ibe.js';
 import { PACKAGE_VERSION } from './version.js';
@@ -37,7 +36,8 @@ export const MYSTEN_LABS_KEY_SERVER_1 =
 	'0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75';
 export const MYSTEN_LABS_KEY_SERVER_2 =
 	'0xf5d14a81a982144ae441cd7d64b09027f116a468bd36e7eca494f750591623c8';
-
+export const MYSTEN_LABS_MAINNET_KEY_SERVER =
+	'0xfabd2fb03a16ba9a8f2f961876675aa7ac2359b863627d7e3b948dc2cb3077ba';
 /**
  * Returns a static list of Seal key server object ids, corresponding to Mysten ran Seal servers.
  * @param network - The network to use.
@@ -47,8 +47,7 @@ export function getAllowlistedKeyServers(network: 'testnet' | 'mainnet'): string
 	if (network === 'testnet') {
 		return [MYSTEN_LABS_KEY_SERVER_1, MYSTEN_LABS_KEY_SERVER_2];
 	} else {
-		// TODO: add mainnet key servers
-		throw new UnsupportedNetworkError(`Unsupported network ${network}`);
+		return [MYSTEN_LABS_MAINNET_KEY_SERVER];
 	}
 }
 
