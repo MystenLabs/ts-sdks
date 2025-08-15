@@ -18,7 +18,7 @@ import {
 	NoAccessError,
 	toMajorityError,
 } from '../../src/error';
-import { getAllowlistedKeyServers, KeyServerType } from '../../src/key-server';
+import { KeyServerType } from '../../src/key-server';
 import { RequestFormat, SessionKey } from '../../src/session-key';
 import { decrypt } from '../../src/decrypt';
 import { KeyCacheKey, SealCompatibleClient } from '../../src/types';
@@ -242,7 +242,12 @@ describe('Integration test', () => {
 		'[testnet servers] whitelist example encrypt and decrypt scenarios',
 		{ timeout: 12000 },
 		async () => {
-			const testnetObjectIds = getAllowlistedKeyServers('testnet').map((server) => ({
+			const TESTNET_URLS = [
+				'0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75',
+				'0xf5d14a81a982144ae441cd7d64b09027f116a468bd36e7eca494f750591623c8',
+			];
+
+			const testnetObjectIds = TESTNET_URLS.map((server) => ({
 				objectId: server,
 				weight: 1,
 			}));

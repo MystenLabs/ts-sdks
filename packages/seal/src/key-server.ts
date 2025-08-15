@@ -4,12 +4,7 @@ import { bcs, fromBase64, fromHex, toBase64, toHex } from '@mysten/bcs';
 import { bls12_381 } from '@noble/curves/bls12-381';
 
 import { KeyServerMove, KeyServerMoveV1 } from './bcs.js';
-import {
-	InvalidKeyServerError,
-	InvalidKeyServerVersionError,
-	SealAPIError,
-	UnsupportedNetworkError,
-} from './error.js';
+import { InvalidKeyServerError, InvalidKeyServerVersionError, SealAPIError } from './error.js';
 import { DST_POP } from './ibe.js';
 import { PACKAGE_VERSION } from './version.js';
 import type { SealCompatibleClient } from './types.js';
@@ -33,24 +28,6 @@ export enum KeyServerType {
 }
 
 export const SERVER_VERSION_REQUIREMENT = new Version('0.4.1');
-export const MYSTEN_LABS_KEY_SERVER_1 =
-	'0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75';
-export const MYSTEN_LABS_KEY_SERVER_2 =
-	'0xf5d14a81a982144ae441cd7d64b09027f116a468bd36e7eca494f750591623c8';
-
-/**
- * Returns a static list of Seal key server object ids, corresponding to Mysten ran Seal servers.
- * @param network - The network to use.
- * @returns The object id's of the key servers.
- */
-export function getAllowlistedKeyServers(network: 'testnet' | 'mainnet'): string[] {
-	if (network === 'testnet') {
-		return [MYSTEN_LABS_KEY_SERVER_1, MYSTEN_LABS_KEY_SERVER_2];
-	} else {
-		// TODO: add mainnet key servers
-		throw new UnsupportedNetworkError(`Unsupported network ${network}`);
-	}
-}
 
 /**
  * Given a list of key server object IDs, returns a list of SealKeyServer

@@ -8,7 +8,6 @@ import { bcs } from '@mysten/sui/bcs';
 
 import { GeneralError } from '../../src/error.js';
 import {
-	getAllowlistedKeyServers,
 	retrieveKeyServers,
 	SERVER_VERSION_REQUIREMENT,
 	verifyKeyServer,
@@ -27,14 +26,6 @@ const name = 'mysten-testnet-v1-1';
 describe('key-server tests', () => {
 	afterEach(() => {
 		vi.clearAllMocks();
-	});
-
-	it('test fixed getAllowedlistedKeyServers', async () => {
-		// These should be updated when new key servers are added.
-		expect(getAllowlistedKeyServers('testnet')).toEqual([
-			'0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75',
-			'0xf5d14a81a982144ae441cd7d64b09027f116a468bd36e7eca494f750591623c8',
-		]);
 	});
 
 	it('test retrieveKeyServers with invalid version', async () => {
