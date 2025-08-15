@@ -1,5 +1,12 @@
 # @mysten/suins
 
+## 0.7.33
+
+### Patch Changes
+
+- Updated dependencies [8ff1471]
+  - @mysten/sui@1.37.3
+
 ## 0.7.32
 
 ### Patch Changes
