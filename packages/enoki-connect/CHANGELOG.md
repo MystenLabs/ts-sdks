@@ -1,5 +1,13 @@
 # @mysten/enoki-connect
 
+## 0.0.23
+
+### Patch Changes
+
+- Updated dependencies [8ff1471]
+  - @mysten/sui@1.37.3
+  - @mysten/wallet-standard@0.16.11
+
 ## 0.0.22
 
 ### Patch Changes
