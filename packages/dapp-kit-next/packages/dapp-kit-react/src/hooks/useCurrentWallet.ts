@@ -8,7 +8,7 @@ export type UseCurrentWalletOptions<TDAppKit extends DAppKit> = {
 	dAppKit?: TDAppKit;
 };
 
-export function useCurrentWallet<TDAppKit extends DAppKit = RegisteredDAppKit>({
+export function useCurrentWallet<TDAppKit extends DAppKit<any> = RegisteredDAppKit>({
 	dAppKit,
 }: UseCurrentWalletOptions<TDAppKit> = {}) {
 	const connection = useConnection({ dAppKit });

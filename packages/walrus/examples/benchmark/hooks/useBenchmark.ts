@@ -1,20 +1,16 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { DAppKitCompatibleClient } from '@mysten/dapp-kit-react';
 import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit-react';
 import { useState, useEffect, useCallback } from 'react';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import type { BenchmarkSettings } from '../components/BenchmarkSettings.js';
 import type { BenchmarkResult } from '../components/BenchmarkResults.js';
-import type { WalrusClient } from '../../../src/client.js';
+import '../dapp-kit.js';
 
 export function useBenchmark() {
 	const currentAccount = useCurrentAccount();
-	const suiClient = useSuiClient() as DAppKitCompatibleClient & {
-		walrusWithRelay: WalrusClient;
-		walrusWithoutRelay: WalrusClient;
-	};
+	const suiClient = useSuiClient();
 	const [isRunning, setIsRunning] = useState(false);
 	const [results, setResults] = useState<BenchmarkResult[]>([]);
 	const [currentStatus, setCurrentStatus] = useState('');

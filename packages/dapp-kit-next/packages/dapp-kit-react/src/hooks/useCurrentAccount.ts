@@ -8,7 +8,7 @@ export type UseCurrentAccountOptions<TDAppKit extends DAppKit> = {
 	dAppKit?: TDAppKit;
 };
 
-export function useCurrentAccount<TDAppKit extends DAppKit = RegisteredDAppKit>({
+export function useCurrentAccount<TDAppKit extends DAppKit<any> = RegisteredDAppKit>({
 	dAppKit,
 }: UseCurrentAccountOptions<TDAppKit> = {}) {
 	const connection = useConnection({ dAppKit });

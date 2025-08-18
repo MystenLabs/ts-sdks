@@ -9,7 +9,7 @@ import { DAppKitConnectModal } from './dapp-kit-connect-modal.js';
 import { ScopedRegistryHost } from '@lit-labs/scoped-registry-mixin';
 import { Button } from './internal/button.js';
 import { sharedStyles } from './styles/index.js';
-import type { RegisteredDAppKit } from '../types.js';
+import type { DefaultExpectedDppKit } from '../types.js';
 import { ConnectedAccountMenu } from './internal/connected-account-menu.js';
 import type { AccountSelectedEvent } from './internal/connected-account-menu-item.js';
 
@@ -69,7 +69,7 @@ export class DAppKitConnectButton extends ScopedRegistryHost(LitElement) {
 	 * The dApp Kit instance used for state management.
 	 */
 	@storeProperty()
-	instance!: RegisteredDAppKit;
+	instance!: DefaultExpectedDppKit;
 
 	@query('mysten-dapp-kit-connect-modal')
 	private readonly _modal!: DAppKitConnectModal;

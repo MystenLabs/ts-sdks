@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createDAppKit } from '@mysten/dapp-kit-react';
-import type { DAppKit } from '@mysten/dapp-kit-core';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { WalrusClient } from '../../src/index.js';
 
-export const dAppKit: DAppKit<['testnet']> = createDAppKit({
+export const dAppKit = createDAppKit({
 	networks: ['testnet'],
 	defaultNetwork: 'testnet',
 	autoConnect: true,

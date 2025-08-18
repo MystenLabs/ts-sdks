@@ -33,7 +33,10 @@ export type SlushWalletConfig = {
 	metadataApiUrl?: string;
 };
 
-export type CreateDAppKitOptions<TNetworks extends Networks> = {
+export type CreateDAppKitOptions<
+	TNetworks extends Networks,
+	Client extends DAppKitCompatibleClient,
+> = {
 	/**
 	 * Enables automatically connecting to the most recently used wallet account.
 	 * @defaultValue `true`
@@ -51,7 +54,7 @@ export type CreateDAppKitOptions<TNetworks extends Networks> = {
 	 * @param network - A supported network identifier as defined by the `networks` field.
 	 * @returns A `DAppKitCompatibleClient` that’s pre-configured to interact with the specified network.
 	 */
-	createClient: (network: TNetworks[number]) => DAppKitCompatibleClient;
+	createClient: (network: TNetworks[number]) => Client;
 
 	/**
 	 * The name of the network to use by default.

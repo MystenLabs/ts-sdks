@@ -9,7 +9,7 @@ export type UseWalletsOptions<TDAppKit extends DAppKit> = {
 	dAppKit?: TDAppKit;
 };
 
-export function useWallets<TDAppKit extends DAppKit = RegisteredDAppKit>({
+export function useWallets<TDAppKit extends DAppKit<any> = RegisteredDAppKit>({
 	dAppKit,
 }: UseWalletsOptions<TDAppKit> = {}) {
 	const instance = useDAppKit(dAppKit);

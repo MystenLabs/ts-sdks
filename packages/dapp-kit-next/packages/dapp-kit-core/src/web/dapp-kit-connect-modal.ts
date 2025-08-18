@@ -19,7 +19,7 @@ import {
 import { styles } from './dapp-kit-connect-modal.styles.js';
 import { Button } from './internal/button.js';
 import { iconButtonStyles } from './styles/icon-button.js';
-import type { RegisteredDAppKit } from '../types.js';
+import type { DefaultExpectedDppKit } from '../types.js';
 
 type ModalViewState =
 	| { view: 'wallet-selection' }
@@ -85,7 +85,7 @@ export class DAppKitConnectModal
 	 * The dApp Kit instance used for state management.
 	 */
 	@storeProperty()
-	instance!: RegisteredDAppKit;
+	instance!: DefaultExpectedDppKit;
 
 	@state()
 	private _state: ModalViewState = { view: 'wallet-selection' };
