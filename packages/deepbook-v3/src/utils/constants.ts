@@ -132,6 +132,11 @@ export const mainnetCoins: CoinMap = {
 		type: `0x7262fb2f7a3a14c888c438a3cd9b912469a58cf60f367352c46584262e8299aa::ika::IKA`,
 		scalar: 1000000000,
 	},
+	ALKIMI: {
+		address: `0x1a8f4bc33f8ef7fbc851f156857aa65d397a6a6fd27a7ac2ca717b51f2fd9489`,
+		type: `0x1a8f4bc33f8ef7fbc851f156857aa65d397a6a6fd27a7ac2ca717b51f2fd9489::alkimi::ALKIMI`,
+		scalar: 1000000000,
+	},
 	// This coin is experimental
 	WGIGA: {
 		address: `0xec32640add6d02a1d5f0425d72705eb76d9de7edfd4f34e0dba68e62ecceb05b`,
@@ -258,5 +263,10 @@ export const mainnetPools: PoolMap = {
 		address: `0xfa732993af2b60d04d7049511f801e79426b2b6a5103e22769c0cead982b0f47`,
 		baseCoin: 'IKA',
 		quoteCoin: 'USDC',
+	},
+	ALKIMI_SUI: {
+		address: `0x84752993c6dc6fce70e25ddeb4daddb6592d6b9b0912a0a91c07cfff5a721d89`,
+		baseCoin: 'ALKIMI',
+		quoteCoin: 'SUI',
 	},
 };
