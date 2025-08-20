@@ -32,7 +32,7 @@ import type { Emitter } from 'mitt';
 import mitt from 'mitt';
 
 import type { AuthProvider } from '../EnokiClient/type.js';
-import type { EnokiWalletOptions, WalletEventsMap, EnokiSessionContext } from './types.js';
+import type { EnokiWalletOptions, WalletEventsMap, EnokiSessionContext, EnokiWalletCustomAuthorization } from './types.js';
 import type {
 	EnokiGetMetadataFeature,
 	EnokiGetMetadataMethod,
@@ -74,6 +74,7 @@ export class EnokiWallet implements Wallet {
 	#extraParams: Record<string, string> | (() => Record<string, string>) | undefined;
 	#getCurrentNetwork: () => Experimental_SuiClientTypes.Network;
 	#windowFeatures?: string | (() => string);
+	#customAuthorization?: EnokiWalletCustomAuthorization;
 
 	get name() {
 		return this.#name;
@@ -157,6 +158,7 @@ export class EnokiWallet implements Wallet {
 		apiKey,
 		apiUrl,
 		clients,
+		customAuthorization,
 	}: EnokiWalletOptions) {
 		this.#events = mitt();
 		this.#name = name;
@@ -168,6 +170,7 @@ export class EnokiWallet implements Wallet {
 		this.#redirectUrl = redirectUrl || window.location.href.split('#')[0];
 		this.#extraParams = extraParams;
 		this.#windowFeatures = windowFeatures;
+		this.#customAuthorization = customAuthorization;
 		this.#getCurrentNetwork = getCurrentNetwork;
 		this.#accounts = [];
 
@@ -351,6 +354,29 @@ export class EnokiWallet implements Wallet {
 	}
 
 	async #createSession({ network }: { network: Experimental_SuiClientTypes.Network }) {
+
+		const sessionContext = this.#state.getSessionContext(network);
+		const pkceContext = await this.#getPKCEFlowContext();
+		const oauthUrl = await this.createAuthorizationURL(sessionContext, pkceContext);
+
+		if (this.#customAuthorization) {
+
+			const { hash, search } = await this.#customAuthorization({
+				oauthUrl
+			});
+
+			return await new Promise<void>((resolve, reject) => {
+
+				this.handleAuthCallback({
+					hash,
+					sessionContext,
+					search,
+					pkceContext,
+				}).then(() => resolve(), reject);
+
+			});
+		}
+
 		const popup = window.open(
 			undefined,
 			'_blank',
@@ -361,10 +387,7 @@ export class EnokiWallet implements Wallet {
 			throw new Error('Failed to open popup');
 		}
 
-		const sessionContext = this.#state.getSessionContext(network);
-		const pkceContext = await this.#getPKCEFlowContext();
-
-		popup.location = await this.#createAuthorizationURL(sessionContext, pkceContext);
+		popup.location = oauthUrl
 
 		return await new Promise<void>((resolve, reject) => {
 			const interval = setInterval(() => {

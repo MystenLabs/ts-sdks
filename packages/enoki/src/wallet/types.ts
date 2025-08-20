@@ -46,12 +46,19 @@ type ClientConfig = {
 	getCurrentNetwork: () => Experimental_SuiClientTypes.Network;
 };
 
+export type EnokiWalletCustomAuthorization = ({ oauthUrl }: { oauthUrl: string }) => Promise<{ hash: string; search: string }>;
+
 export type EnokiWalletOptions = {
 	/**
 	 * The window features to use when opening the authorization popup.
 	 * https://developer.mozilla.org/en-US/docs/Web/API/Window/open#windowfeatures
 	 */
 	windowFeatures?: string | (() => string);
+
+	/**
+	 * A function that returns the URL to use when opening the authorization popup.
+	 */
+	customAuthorization?: EnokiWalletCustomAuthorization;
 
 	/**
 	 * The authentication provider to register the wallet for.
