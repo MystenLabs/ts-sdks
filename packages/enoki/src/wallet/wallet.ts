@@ -357,7 +357,7 @@ export class EnokiWallet implements Wallet {
 
 		const sessionContext = this.#state.getSessionContext(network);
 		const pkceContext = await this.#getPKCEFlowContext();
-		const oauthUrl = await this.createAuthorizationURL(sessionContext, pkceContext);
+		const oauthUrl = await this.#createAuthorizationURL(sessionContext, pkceContext);
 
 		if (this.#customAuthorization) {
 
@@ -367,7 +367,7 @@ export class EnokiWallet implements Wallet {
 
 			return await new Promise<void>((resolve, reject) => {
 
-				this.handleAuthCallback({
+				this.#handleAuthCallback({
 					hash,
 					sessionContext,
 					search,
