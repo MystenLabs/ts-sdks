@@ -46,7 +46,8 @@ type ClientConfig = {
 	getCurrentNetwork: () => Experimental_SuiClientTypes.Network;
 };
 
-export type EnokiWalletCustomAuthorization = ({ oauthUrl }: { oauthUrl: string }) => Promise<{ hash: string; search: string }>;
+export type EnokiWalletCustomAuthorization = ({ oauthUrl, network, provider }:
+	{ oauthUrl: string; provider: AuthProvider; network?: Experimental_SuiClientTypes.Network; }) => Promise<{ hash: string; search: string }>;
 
 export type EnokiWalletOptions = {
 	/**

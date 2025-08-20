@@ -362,7 +362,9 @@ export class EnokiWallet implements Wallet {
 		if (this.#customAuthorization) {
 
 			const { hash, search } = await this.#customAuthorization({
-				oauthUrl
+				oauthUrl,
+				network,
+				provider: this.#provider,
 			});
 
 			return await new Promise<void>((resolve, reject) => {

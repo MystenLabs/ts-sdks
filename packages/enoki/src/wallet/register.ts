@@ -39,6 +39,7 @@ export function registerEnokiWallets({
 				icon,
 				provider,
 				windowFeatures,
+				customAuthorization: config.customAuthorization,
 				getCurrentNetwork,
 				apiKey: config.apiKey,
 				apiUrl: config.apiUrl,
