@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.37.4
+
+### Patch Changes
+
+- 6b03e57: Fix remaining balance check in ParallelExecutor
+
 ## 1.37.3
 
 ### Patch Changes
