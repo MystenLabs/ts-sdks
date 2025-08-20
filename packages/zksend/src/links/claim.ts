@@ -589,7 +589,7 @@ export class ZkSendLink {
 		});
 
 		if (!res.ok) {
-			console.error(path, await res.text());
+			console.error(`${this.#claimApi}/v1/${path}`, await res.text());
 			throw new Error(`Request to claim API failed with status code ${res.status}`);
 		}
 
