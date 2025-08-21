@@ -933,15 +933,24 @@ importers:
 
   packages/enoki-connect:
     dependencies:
+      '@fontsource/poppins':
+        specifier: ^5.2.6
+        version: 5.2.6
       '@mysten/sui':
         specifier: workspace:*
         version: link:../typescript
+      '@mysten/utils':
+        specifier: workspace:*
+        version: link:../utils
       '@mysten/wallet-standard':
         specifier: workspace:*
         version: link:../wallet-standard
       '@mysten/window-wallet-core':
         specifier: workspace:^
         version: link:../window-wallet-core
+      lit:
+        specifier: ^3.3.1
+        version: 3.3.1
       mitt:
         specifier: ^3.0.1
         version: 3.0.1
@@ -2809,6 +2818,9 @@ packages:
 
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
+
+  '@fontsource/poppins@5.2.6':
+    resolution: {integrity: sha512-NFr0121+vWCfzLDVvSZOzwAjRUaNj6QHA9gtUh/KHHoWf1Qn23EkwVFs63XZ6UtF5K1b3UNmCx77YEMGgV7BOQ==}
 
   '@formatjs/intl-localematcher@0.6.1':
     resolution: {integrity: sha512-ePEgLgVCqi2BBFnTMWPfIghu6FkbZnnBVhO2sSxvLfrdFw7wCHAHiDoM2h4NRgjbaY7+B7HgOLZGkK187pZTZg==}
@@ -12639,6 +12651,8 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
 
   '@floating-ui/utils@0.2.10': {}
+
+  '@fontsource/poppins@5.2.6': {}
 
   '@formatjs/intl-localematcher@0.6.1':
     dependencies:

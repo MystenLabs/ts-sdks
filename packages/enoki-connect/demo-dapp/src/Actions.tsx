@@ -80,6 +80,29 @@ export function Actions() {
       </Button>
       <Button
         onClick={async () => {
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+          const message = new TextEncoder().encode("Hello, world!");
+          const { signature } = await signMessage.mutateAsync({
+            message,
+            account,
+            chain: `sui:${network}`,
+          });
+          try {
+            await verifyPersonalMessageSignature(message, signature, {
+              address: account.address,
+              client,
+            });
+            console.log("Personal message signature verified!");
+          } catch (e) {
+            console.error(e);
+          }
+        }}
+        mr="2"
+      >
+        Simulate async work and Sign Message
+      </Button>
+      <Button
+        onClick={async () => {
           const transaction = new Transaction();
           const [coin] = transaction.splitCoins(transaction.gas, [1]);
 

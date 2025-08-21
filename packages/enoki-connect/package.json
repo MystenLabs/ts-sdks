@@ -14,7 +14,7 @@
 			"require": "./dist/cjs/index.js"
 		}
 	},
-	"sideEffects": false,
+	"sideEffects": true,
 	"files": [
 		"CHANGELOG.md",
 		"dist"
@@ -45,9 +45,12 @@
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {
+		"@fontsource/poppins": "^5.2.6",
 		"@mysten/sui": "workspace:*",
+		"@mysten/utils": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
 		"@mysten/window-wallet-core": "workspace:^",
+		"lit": "^3.3.1",
 		"mitt": "^3.0.1"
 	}
 }
