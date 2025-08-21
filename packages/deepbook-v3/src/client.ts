@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
+import { Account, ID, Order, OrderDeepPrice, VecSet } from './types/bcs.js';
 import type { SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
@@ -228,9 +229,6 @@ export class DeepBookClient {
 		});
 
 		const order_ids = res.results![0].returnValues![0][0];
-		const VecSet = bcs.struct('VecSet', {
-			constants: bcs.vector(bcs.U128),
-		});
 
 		return VecSet.parse(new Uint8Array(order_ids)).constants;
 	}
@@ -248,26 +246,6 @@ export class DeepBookClient {
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
 			transactionBlock: tx,
-		});
-
-		const ID = bcs.struct('ID', {
-			bytes: bcs.Address,
-		});
-		const OrderDeepPrice = bcs.struct('OrderDeepPrice', {
-			asset_is_base: bcs.bool(),
-			deep_per_asset: bcs.u64(),
-		});
-		const Order = bcs.struct('Order', {
-			balance_manager_id: ID,
-			order_id: bcs.u128(),
-			client_order_id: bcs.u64(),
-			quantity: bcs.u64(),
-			filled_quantity: bcs.u64(),
-			fee_is_deep: bcs.bool(),
-			order_deep_price: OrderDeepPrice,
-			epoch: bcs.u64(),
-			status: bcs.u8(),
-			expire_timestamp: bcs.u64(),
 		});
 
 		try {
@@ -290,26 +268,6 @@ export class DeepBookClient {
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
 			transactionBlock: tx,
-		});
-
-		const ID = bcs.struct('ID', {
-			bytes: bcs.Address,
-		});
-		const OrderDeepPrice = bcs.struct('OrderDeepPrice', {
-			asset_is_base: bcs.bool(),
-			deep_per_asset: bcs.u64(),
-		});
-		const Order = bcs.struct('Order', {
-			balance_manager_id: ID,
-			order_id: bcs.u128(),
-			client_order_id: bcs.u64(),
-			quantity: bcs.u64(),
-			filled_quantity: bcs.u64(),
-			fee_is_deep: bcs.bool(),
-			order_deep_price: OrderDeepPrice,
-			epoch: bcs.u64(),
-			status: bcs.u8(),
-			expire_timestamp: bcs.u64(),
 		});
 
 		try {
@@ -358,26 +316,6 @@ export class DeepBookClient {
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
 			transactionBlock: tx,
-		});
-
-		const ID = bcs.struct('ID', {
-			bytes: bcs.Address,
-		});
-		const OrderDeepPrice = bcs.struct('OrderDeepPrice', {
-			asset_is_base: bcs.bool(),
-			deep_per_asset: bcs.u64(),
-		});
-		const Order = bcs.struct('Order', {
-			balance_manager_id: ID,
-			order_id: bcs.u128(),
-			client_order_id: bcs.u64(),
-			quantity: bcs.u64(),
-			filled_quantity: bcs.u64(),
-			fee_is_deep: bcs.bool(),
-			order_deep_price: OrderDeepPrice,
-			epoch: bcs.u64(),
-			status: bcs.u8(),
-			expire_timestamp: bcs.u64(),
 		});
 
 		try {
@@ -513,9 +451,6 @@ export class DeepBookClient {
 			transactionBlock: tx,
 		});
 
-		const ID = bcs.struct('ID', {
-			bytes: bcs.Address,
-		});
 		const address = ID.parse(new Uint8Array(res.results![0].returnValues![0][0]))['bytes'];
 
 		return address;
@@ -620,34 +555,6 @@ export class DeepBookClient {
 			transactionBlock: tx,
 		});
 
-		const ID = bcs.struct('ID', {
-			bytes: bcs.Address,
-		});
-
-		const Balances = bcs.struct('Balances', {
-			base: bcs.u64(),
-			quote: bcs.u64(),
-			deep: bcs.u64(),
-		});
-
-		const VecSet = bcs.struct('VecSet', {
-			constants: bcs.vector(bcs.U128),
-		});
-
-		const Account = bcs.struct('Account', {
-			epoch: bcs.u64(),
-			open_orders: VecSet,
-			taker_volume: bcs.u128(),
-			maker_volume: bcs.u128(),
-			active_stake: bcs.u64(),
-			inactive_stake: bcs.u64(),
-			created_proposal: bcs.bool(),
-			voted_proposal: bcs.option(ID),
-			unclaimed_rebates: Balances,
-			settled_balances: Balances,
-			owed_balances: Balances,
-		});
-
 		const accountInformation = res.results![0].returnValues![0][0];
 		const accountInfo = Account.parse(new Uint8Array(accountInformation));
 
@@ -725,11 +632,6 @@ export class DeepBookClient {
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
 			transactionBlock: tx,
-		});
-
-		const OrderDeepPrice = bcs.struct('OrderDeepPrice', {
-			asset_is_base: bcs.bool(),
-			deep_per_asset: bcs.u64(),
 		});
 
 		const poolDeepPriceBytes = res.results![0].returnValues![0][0];
