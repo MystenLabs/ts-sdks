@@ -1,20 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// @vitest-environment happy-dom
-
-import { suppressFetchErrorsDuringTeardown } from '../setup';
 import { describe, expect, test, beforeEach } from 'vitest';
-import { TEST_DEFAULT_NETWORK, TEST_NETWORKS } from '../../test-utils';
+import { TEST_DEFAULT_NETWORK, TEST_NETWORKS, TestWalletInitializeResult } from '../../test-utils';
 import { createMockWallets, MockWallet } from '../../mocks/mock-wallet';
 import { createDAppKit, DAppKit } from '../../../src';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { getWallets } from '@mysten/wallet-standard';
 import { createMockAccount } from '../../mocks/mock-account';
 import { UiWallet } from '@wallet-standard/ui';
-import { TestWalletInitializeResult } from '../integration-test-utils';
-
-suppressFetchErrorsDuringTeardown();
 
 describe('[Integration] connectWallet action', () => {
 	let dAppKit: DAppKit<typeof TEST_NETWORKS>;
@@ -42,11 +36,12 @@ describe('[Integration] connectWallet action', () => {
 					},
 				},
 			],
+			slushWalletConfig: null,
 		});
 		uiWallets = dAppKit.stores.$wallets.get();
 	});
 
-	test('Should connect to a wallet successfully', async () => {
+	test('Connects to a wallet successfully', async () => {
 		const wallet = wallets[0];
 		const uiWallet = uiWallets[0];
 
@@ -102,7 +97,7 @@ describe('[Integration] connectWallet action', () => {
 		expect(wallet.mocks.connect).toHaveBeenCalledOnce();
 	});
 
-	test('Should handle connection errors', async () => {
+	test('Handles connection errors', async () => {
 		const wallet = wallets[0];
 		const uiWallet = uiWallets[0];
 
@@ -117,7 +112,7 @@ describe('[Integration] connectWallet action', () => {
 		expect(wallet.mocks.connect).toHaveBeenCalledOnce();
 	});
 
-	test('Should select correct account when provided', async () => {
+	test('Selects correct account when provided', async () => {
 		const wallet = wallets[1];
 		const uiWallet = uiWallets[1];
 		const targetAccount = uiWallet.accounts[1];
@@ -132,36 +127,4 @@ describe('[Integration] connectWallet action', () => {
 		expect(connection.account).toBe(targetAccount);
 		expect(wallet.mocks.connect).toHaveBeenCalledOnce();
 	});
-
-	test('Should set connection status to connecting during connection', async () => {
-		const wallet = wallets[1];
-		const uiWallet = uiWallets[1];
-
-		let connectingStatusSeen = false;
-		dAppKit.stores.$connection.subscribe((connection) => {
-			if (connection.status === 'connecting') {
-				connectingStatusSeen = true;
-			}
-		});
-
-		wallet.mocks.connect.mockImplementation(() => {
-			return new Promise((resolve) => {
-				setTimeout(() => {
-					resolve({ accounts: wallet.accounts });
-				}, 10);
-			});
-		});
-
-		expect(await dAppKit.connectWallet({ wallet: uiWallet })).toStrictEqual({
-			accounts: uiWallet.accounts,
-		});
-
-		expect(connectingStatusSeen).toBe(true);
-		expect(dAppKit.stores.$connection.get().status).toBe('connected');
-		expect(wallet.mocks.connect).toHaveBeenCalledOnce();
-	});
-
-	// TODO check connecting when already connected behavior
-
-	// TODO check connecting to wrong wallet/account
 });

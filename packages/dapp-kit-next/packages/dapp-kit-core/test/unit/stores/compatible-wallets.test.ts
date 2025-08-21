@@ -88,7 +88,7 @@ describe('[Unit] $compatibleWallets', () => {
 		expect(compatibleWallets).toStrictEqual([]);
 	});
 
-	test('Should notify subscribers when registered wallets change', () => {
+	test('Notifies subscribers when registered wallets change', () => {
 		const { stores, uiWallets } = setDefaultUnitTestEnvWithUnmockedStores();
 		let notificationCount = 0;
 

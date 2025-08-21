@@ -40,7 +40,6 @@
 		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix",
 		"test": "pnpm test:typecheck && pnpm vitest run",
 		"test:typecheck": "tsc -b ./test",
-		"test:no-typecheck": "pnpm vitest run",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build"
 	},

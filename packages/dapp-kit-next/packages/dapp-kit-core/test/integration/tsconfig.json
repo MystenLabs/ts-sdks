@@ -4,10 +4,5 @@
 		"lib": ["ES2022", "DOM", "DOM.Iterable"],
 		"types": ["vitest/globals"]
 	},
-	"include": [
-		"./**/*",
-		"../../src/**/*",
-		"../mocks/**/*",
-		"../*.ts"
-	]
+	"include": ["./**/*", "../../src/**/*", "../mocks/**/*", "../*.ts"]
 }

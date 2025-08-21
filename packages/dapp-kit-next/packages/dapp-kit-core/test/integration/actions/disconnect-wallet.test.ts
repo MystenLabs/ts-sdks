@@ -1,20 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// @vitest-environment happy-dom
-
-import { suppressFetchErrorsDuringTeardown } from '../setup';
 import { describe, expect, test, beforeEach, vi, MockInstance } from 'vitest';
-import { TEST_DEFAULT_NETWORK, TEST_NETWORKS } from '../../test-utils';
+import { TEST_DEFAULT_NETWORK, TEST_NETWORKS, TestWalletInitializeResult } from '../../test-utils';
 import { createMockWallets, MockWallet } from '../../mocks/mock-wallet';
 import { createDAppKit, DAppKit } from '../../../src';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { getWallets } from '@mysten/wallet-standard';
 import { createMockAccount } from '../../mocks/mock-account';
 import { UiWallet } from '@wallet-standard/ui';
-import { TestWalletInitializeResult } from '../integration-test-utils';
-
-suppressFetchErrorsDuringTeardown();
 
 describe('[Integration] disconnectWallet action', () => {
 	let consoleWarnSpy: MockInstance<(typeof console)['warn']> | undefined;
@@ -45,11 +39,12 @@ describe('[Integration] disconnectWallet action', () => {
 					},
 				},
 			],
+			slushWalletConfig: null,
 		});
 		uiWallets = dAppKit.stores.$wallets.get();
 	});
 
-	test('Should disconnect from a connected state successfully', async () => {
+	test('Disconnects from a connected state successfully', async () => {
 		const wallet = wallets[0];
 		const uiWallet = uiWallets[0];
 
@@ -89,7 +84,7 @@ describe('[Integration] disconnectWallet action', () => {
 		]);
 	});
 
-	test('Should handle disconnect errors', async () => {
+	test('Handles disconnect errors', async () => {
 		consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
 		const wallet = wallets[0];
@@ -114,7 +109,7 @@ describe('[Integration] disconnectWallet action', () => {
 		expect(consoleWarnSpy.mock.calls[0][1]).toBe(disconnectError);
 	});
 
-	test('Should throw error when disconnecting while already disconnected', async () => {
+	test('Throws error when disconnecting while already disconnected', async () => {
 		await expect(dAppKit.disconnectWallet()).rejects.toThrow('No wallet is connected.');
 
 		const connection = dAppKit.stores.$connection.get();

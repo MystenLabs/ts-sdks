@@ -107,7 +107,7 @@ describe('[Unit] $connection', () => {
 		});
 	});
 
-	test('Should notify subscribers when registered wallets change', () => {
+	test('Notifies subscribers when registered wallets change', () => {
 		const { stores, uiWallets } = setDefaultUnitTestEnvWithUnmockedStores();
 
 		let notificationCount = 0;
@@ -128,7 +128,7 @@ describe('[Unit] $connection', () => {
 		expect(notificationCount).toBe(3);
 	});
 
-	test('Should notify subscribers when base connection changes', () => {
+	test('Notifies subscribers when base connection changes', () => {
 		const { stores, uiWallets } = setDefaultUnitTestEnvWithUnmockedStores();
 		stores.$registeredWallets.set(uiWallets);
 		const uiWalletAccount = uiWallets[0].accounts[0];
