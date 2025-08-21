@@ -7,12 +7,15 @@ import type { DAppKitStores } from '../src/core/store.js';
 import type { UiWallet } from '@wallet-standard/ui';
 import type { Wallet } from '@mysten/wallet-standard';
 
-export const TEST_DEFAULT_NETWORK = 'localnet' as const;
-export const TEST_NETWORKS = ['devnet', 'testnet', 'localnet', 'mainnet'] as const;
+export const TEST_DEFAULT_NETWORK = 'localnet';
+const TEST_NETWORKS_CONST = ['devnet', 'testnet', 'localnet', 'mainnet'] as const;
+export const TEST_NETWORKS = TEST_NETWORKS_CONST as Mutable<typeof TEST_NETWORKS_CONST>;
 
 export type TestWalletInitializeResult = {
 	unregister: () => void;
 };
+
+type Mutable<T> = { -readonly [P in keyof T]: T[P] };
 
 export function createTestUiWallets(wallets: Wallet[]): UiWallet[] {
 	return wallets.map((wallet) => getOrCreateUiWalletForStandardWallet(wallet));

@@ -13,23 +13,22 @@ import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import type { MockWalletOptions } from '../mocks/mock-wallet.js';
 import { createMockWallets } from '../mocks/mock-wallet.js';
 import { createMockAccount } from '../mocks/mock-account.js';
-import type { Networks } from '../../src/utils/networks.js';
 
 export function createTestStores({
 	currentNetwork = TEST_DEFAULT_NETWORK,
 }: {
-	currentNetwork?: Networks[number];
-} = {}): ReturnType<typeof createStores> {
+	currentNetwork?: (typeof TEST_NETWORKS)[number];
+} = {}) {
 	const clients = Object.fromEntries(
-		TEST_NETWORKS.map((network) => [
+		[...TEST_NETWORKS].map((network) => [
 			network,
 			new SuiClient({ network, url: getFullnodeUrl(network) }),
 		]),
 	);
 
-	return createStores({
+	return createStores<typeof TEST_NETWORKS, SuiClient>({
 		defaultNetwork: currentNetwork,
-		getClient: (network) => clients[network],
+		getClient: (network) => clients[network as keyof typeof clients],
 	});
 }
 
