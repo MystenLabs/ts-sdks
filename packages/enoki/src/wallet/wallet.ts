@@ -5,8 +5,6 @@ import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import type {
 	IdentifierString,
-	StandardConnectFeature,
-	StandardConnectMethod,
 	StandardDisconnectFeature,
 	StandardDisconnectMethod,
 	StandardEventsFeature,
@@ -32,14 +30,22 @@ import type { Emitter } from 'mitt';
 import mitt from 'mitt';
 
 import type { AuthProvider } from '../EnokiClient/type.js';
-import type { EnokiWalletOptions, WalletEventsMap, EnokiSessionContext } from './types.js';
+import type { EnokiWalletOptions, WalletEventsMap, EnokiSessionContext, PKCEContext } from './types.js';
 import type {
 	EnokiGetMetadataFeature,
 	EnokiGetMetadataMethod,
 	EnokiGetSessionFeature,
 	EnokiGetSessionMethod,
+	EnokiHandleAuthCallbackFeature,
+	EnokiConnectMethod,
+	EnokiHandleAuthCallbackInput,
+	EnokiConnectFeature,
 } from './features.js';
-import { EnokiGetMetadata, EnokiGetSession } from './features.js';
+import {
+	EnokiGetMetadata,
+	EnokiGetSession,
+	EnokiHandleAuthCallback,
+} from './features.js';
 import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 import { decodeJwt } from '@mysten/sui/zklogin';
 import type { ExportedWebCryptoKeypair } from '@mysten/signers/webcrypto';
@@ -58,8 +64,6 @@ const pkceFlowProviders: Partial<Record<AuthProvider, { tokenEndpoint: string }>
 		tokenEndpoint: 'https://oauth2.playtron.one/oauth2/token',
 	},
 };
-
-type PKCEContext = { codeChallenge: string; codeVerifier: string };
 
 export class EnokiWallet implements Wallet {
 	#events: Emitter<WalletEventsMap>;
@@ -101,14 +105,15 @@ export class EnokiWallet implements Wallet {
 		return this.#accounts;
 	}
 
-	get features(): StandardConnectFeature &
+	get features(): EnokiConnectFeature &
 		StandardDisconnectFeature &
 		StandardEventsFeature &
 		SuiSignTransactionFeature &
 		SuiSignAndExecuteTransactionFeature &
 		SuiSignPersonalMessageFeature &
 		EnokiGetMetadataFeature &
-		EnokiGetSessionFeature {
+		EnokiGetSessionFeature &
+		EnokiHandleAuthCallbackFeature {
 		return {
 			[StandardConnect]: {
 				version: '1.0.0',
@@ -141,6 +146,10 @@ export class EnokiWallet implements Wallet {
 			[EnokiGetSession]: {
 				version: '1.0.0',
 				getSession: this.#getSession,
+			},
+			[EnokiHandleAuthCallback]: {
+				version: '1.0.0',
+				handleAuthCallback: this.#handleAuthCallback,
 			},
 		};
 	}
@@ -260,7 +269,7 @@ export class EnokiWallet implements Wallet {
 		return () => this.#events.off(event, listener);
 	};
 
-	#connect: StandardConnectMethod = async (input) => {
+	#connect: EnokiConnectMethod = async (input) => {
 		// NOTE: This is a hackfix for the old version of dApp Kit where auto-connection logic
 		// only fires on initial mount of the WalletProvider component. Since hydrating the
 		// zkLogin state from IndexedDB is an asynchronous process, we need to make sure it
@@ -272,9 +281,9 @@ export class EnokiWallet implements Wallet {
 		}
 
 		const currentNetwork = this.#getCurrentNetwork();
-		await this.#createSession({ network: currentNetwork });
+		const session = await this.#createSession({ network: currentNetwork, disablePopup: input?.disablePopup });
 
-		return { accounts: this.#accounts };
+		return { accounts: this.#accounts, ...session };
 	};
 
 	#disconnect: StandardDisconnectMethod = async () => {
@@ -302,7 +311,7 @@ export class EnokiWallet implements Wallet {
 	async #getKeypair(sessionContext: EnokiSessionContext) {
 		const session = await this.#state.getSession(sessionContext);
 		if (!session?.jwt || (session.proof && Date.now() > session.expiresAt)) {
-			await this.#createSession({ network: sessionContext.client.network });
+			await this.#createSession({ network: sessionContext.client.network, disablePopup: false });
 		}
 
 		const storedNativeSigner = await get<ExportedWebCryptoKeypair>(
@@ -350,7 +359,19 @@ export class EnokiWallet implements Wallet {
 		return { client: sessionContext.client, keypair };
 	}
 
-	async #createSession({ network }: { network: Experimental_SuiClientTypes.Network }) {
+	async #createSession({ network, disablePopup = false }: { network: Experimental_SuiClientTypes.Network; disablePopup?: boolean }) {
+		const sessionContext = this.#state.getSessionContext(network);
+		const pkceContext = await this.#getPKCEFlowContext();
+		const authorizationUrl = await this.#createAuthorizationURL(sessionContext, pkceContext);
+
+		if (disablePopup) {
+			return {
+				authorizationUrl,
+				pkceContext,
+				sessionContext,
+			};
+		}
+
 		const popup = window.open(
 			undefined,
 			'_blank',
@@ -361,10 +382,7 @@ export class EnokiWallet implements Wallet {
 			throw new Error('Failed to open popup');
 		}
 
-		const sessionContext = this.#state.getSessionContext(network);
-		const pkceContext = await this.#getPKCEFlowContext();
-
-		popup.location = await this.#createAuthorizationURL(sessionContext, pkceContext);
+		popup.location = authorizationUrl;
 
 		return await new Promise<void>((resolve, reject) => {
 			const interval = setInterval(() => {
@@ -438,10 +456,10 @@ export class EnokiWallet implements Wallet {
 				.join(' '),
 			...(pkceContext
 				? {
-						response_type: 'code',
-						code_challenge_method: 'S256',
-						code_challenge: pkceContext.codeChallenge,
-					}
+					response_type: 'code',
+					code_challenge_method: 'S256',
+					code_challenge: pkceContext.codeChallenge,
+				}
 				: undefined),
 		});
 
@@ -482,12 +500,7 @@ export class EnokiWallet implements Wallet {
 		sessionContext,
 		pkceContext,
 		search,
-	}: {
-		hash: string;
-		sessionContext: EnokiSessionContext;
-		pkceContext?: PKCEContext;
-		search: string;
-	}) {
+	}: EnokiHandleAuthCallbackInput) {
 		const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
 		const zkp = await this.#state.getSession(sessionContext);
 
