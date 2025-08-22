@@ -30,7 +30,8 @@
 	},
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "tsdown",
+		"build": "pnpm typecheck && tsdown",
+		"typecheck": "tsc --noEmit",
 		"dev": "tsdown --watch",
 		"prepublishOnly": "pnpm turbo build",
 		"prettier:check": "prettier -c --ignore-unknown .",

@@ -9,5 +9,5 @@ export default defineConfig({
 	dts: true,
 	sourcemap: true,
 	// Nanostores only ships with ESM, so we need to pre-bundle it in the CJS build
-	noExternal: ['nanostores'],
+	noExternal: ['nanostores', '@nanostores/react'],
 });

@@ -7,5 +7,6 @@
 		"isolatedModules": true,
 		"jsx": "react-jsx",
 		"rootDir": "src"
-	}
+	},
+	"references": [{ "path": "../dapp-kit-core" }]
 }

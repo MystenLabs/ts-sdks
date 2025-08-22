@@ -605,9 +605,6 @@ importers:
         specifier: ^1.0.1
         version: 1.0.1
     devDependencies:
-      '@mysten/build-scripts':
-        specifier: workspace:*
-        version: link:../../../build-scripts
       '@types/react':
         specifier: ^18.3.3
         version: 18.3.18
