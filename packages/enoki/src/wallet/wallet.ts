@@ -37,7 +37,6 @@ import type {
 	EnokiGetSessionFeature,
 	EnokiGetSessionMethod,
 	EnokiHandleAuthCallbackFeature,
-	EnokiHandleAuthCallbackMethod,
 	EnokiConnectMethod,
 	EnokiHandleAuthCallbackInput,
 	EnokiConnectFeature,
@@ -150,7 +149,9 @@ export class EnokiWallet implements Wallet {
 			},
 			[EnokiHandleAuthCallback]: {
 				version: '1.0.0',
-				handleAuthCallback: this.#handleAuthCallbackWrapper,
+				handleAuthCallback: async (input) => {
+					return this.#handleAuthCallback(input);
+				}
 			},
 		};
 	}
@@ -268,10 +269,6 @@ export class EnokiWallet implements Wallet {
 	#on: StandardEventsOnMethod = (event, listener) => {
 		this.#events.on(event, listener);
 		return () => this.#events.off(event, listener);
-	};
-
-	#handleAuthCallbackWrapper: EnokiHandleAuthCallbackMethod = async (input) => {
-		return this.#handleAuthCallback(input);
 	};
 
 	#connect: EnokiConnectMethod = async (input) => {
