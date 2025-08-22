@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
-import { Account, ID, Order, OrderDeepPrice, VecSet } from './types/bcs.js';
+import { Account, Order, OrderDeepPrice, VecSet } from './types/bcs.js';
 import type { SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
@@ -230,7 +230,7 @@ export class DeepBookClient {
 
 		const order_ids = res.results![0].returnValues![0][0];
 
-		return VecSet.parse(new Uint8Array(order_ids)).constants;
+		return VecSet(bcs.u64()).parse(new Uint8Array(order_ids)).contents;
 	}
 
 	/**
@@ -451,7 +451,7 @@ export class DeepBookClient {
 			transactionBlock: tx,
 		});
 
-		const address = ID.parse(new Uint8Array(res.results![0].returnValues![0][0]))['bytes'];
+		const address = bcs.Address.parse(new Uint8Array(res.results![0].returnValues![0][0]));
 
 		return address;
 	}

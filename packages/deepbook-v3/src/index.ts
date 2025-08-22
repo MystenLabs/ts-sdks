@@ -8,6 +8,6 @@ export { DeepBookAdminContract } from './transactions/deepbookAdmin.js';
 export { FlashLoanContract } from './transactions/flashLoans.js';
 export { GovernanceContract } from './transactions/governance.js';
 export { DeepBookConfig } from './utils/config.js';
-export { Account, Balances, ID, Order, OrderDeepPrice, VecSet } from './types/bcs.js';
+export { Account, Balances, Order, OrderDeepPrice, VecSet } from './types/bcs.js';
 export type { BalanceManager, Coin, Pool } from './types/index.js';
 export type { CoinMap, PoolMap } from './utils/constants.js';
