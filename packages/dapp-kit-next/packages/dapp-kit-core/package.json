@@ -15,22 +15,23 @@
 		"web"
 	],
 	"type": "module",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.js"
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
 		},
 		"./web": {
-			"import": "./dist/esm/web/index.js",
-			"require": "./dist/cjs/web/index.js"
+			"import": "./dist/web/index.js",
+			"require": "./dist/web/index.cjs"
 		}
 	},
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "build-package",
+		"build": "tsdown",
+		"dev": "tsdown --watch",
 		"prepublishOnly": "pnpm turbo build",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
@@ -50,12 +51,12 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"@mysten/build-scripts": "workspace:*",
 		"@storybook/addon-essentials": "^8.6.14",
 		"@storybook/blocks": "^8.6.14",
 		"@storybook/web-components": "^8.6.12",
 		"@storybook/web-components-vite": "^8.6.12",
 		"storybook": "^8.6.12",
+		"tsdown": "^0.14.1",
 		"typescript": "^5.8.3",
 		"vitest": "^3.2.4"
 	},
