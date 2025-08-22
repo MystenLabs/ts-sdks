@@ -230,7 +230,7 @@ export class DeepBookClient {
 
 		const order_ids = res.results![0].returnValues![0][0];
 
-		return VecSet(bcs.u64()).parse(new Uint8Array(order_ids)).contents;
+		return VecSet(bcs.u128()).parse(new Uint8Array(order_ids)).contents;
 	}
 
 	/**
