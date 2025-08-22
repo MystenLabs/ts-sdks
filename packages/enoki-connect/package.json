@@ -45,7 +45,6 @@
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {
-		"@fontsource/poppins": "^5.2.6",
 		"@mysten/sui": "workspace:*",
 		"@mysten/utils": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",

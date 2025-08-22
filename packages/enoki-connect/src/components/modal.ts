@@ -7,7 +7,6 @@ import { customElement, property, state } from 'lit/decorators.js';
 export class EnokiConnectModal extends LitElement {
 	static styles = css`
 		:host {
-			font-family: Poppins, sans-serif;
 			position: fixed;
 			inset: 0;
 			z-index: 99999;
