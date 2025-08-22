@@ -25,6 +25,7 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "build-package",
+		"codegen": "pnpm sui-ts-codegen generate && pnpm lint:fix",
 		"prepublishOnly": "pnpm turbo build",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
@@ -39,6 +40,7 @@
 	"devDependencies": {
 		"@iarna/toml": "^2.2.5",
 		"@mysten/build-scripts": "workspace:*",
+		"@mysten/codegen": "workspace:*",
 		"@types/node": "^22.15.29",
 		"tmp": "^0.2.3",
 		"ts-node": "^10.9.2",
