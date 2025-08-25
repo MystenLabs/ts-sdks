@@ -124,7 +124,7 @@ describe('Integration test', () => {
 		suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
 		TESTNET_PACKAGE_ID = '0x8afa5d31dbaa0a8fb07082692940ca3d56b5e856c5126cb5a3693f0a4de63b82';
 		// Object ids pointing to ci key servers' urls
-		serverObjectId = '0x2304dd255b13eaf5cb471bd5188df946a64f1715ee2b7b02fecf306bd12ceebc';
+		serverObjectId = '0x3cf2a38f061ede3239c1629cb80a9be0e0676b1c15d34c94d104d4ba9d99076f';
 		serverObjectId2 = '0x81aeaa8c25d2c912e1dc23b4372305b7a602c4ec4cc3e510963bc635e500aa37';
 		objectIds = [
 			{
@@ -415,11 +415,11 @@ describe('Integration test', () => {
 
 		objectIds = [
 			{
-				objectId: '0x2304dd255b13eaf5cb471bd5188df946a64f1715ee2b7b02fecf306bd12ceebc',
+				objectId: serverObjectId,
 				weight: 2,
 			},
 			{
-				objectId: '0x81aeaa8c25d2c912e1dc23b4372305b7a602c4ec4cc3e510963bc635e500aa37',
+				objectId: serverObjectId2,
 				weight: 1,
 			},
 		];
@@ -483,11 +483,11 @@ describe('Integration test', () => {
 		// client with different weights should fail even though the threshold could be achieved
 		objectIds = [
 			{
-				objectId: '0x2304dd255b13eaf5cb471bd5188df946a64f1715ee2b7b02fecf306bd12ceebc',
+				objectId: serverObjectId,
 				weight: 1,
 			},
 			{
-				objectId: '0x81aeaa8c25d2c912e1dc23b4372305b7a602c4ec4cc3e510963bc635e500aa37',
+				objectId: serverObjectId2,
 				weight: 1,
 			},
 		];
@@ -615,11 +615,11 @@ describe('Integration test', () => {
 		global.fetch = globalFetch;
 		objectIds = [
 			{
-				objectId: '0x2304dd255b13eaf5cb471bd5188df946a64f1715ee2b7b02fecf306bd12ceebc',
+				objectId: serverObjectId,
 				weight: 3,
 			},
 			{
-				objectId: '0x81aeaa8c25d2c912e1dc23b4372305b7a602c4ec4cc3e510963bc635e500aa37',
+				objectId: serverObjectId2,
 				weight: 2,
 			},
 		];
