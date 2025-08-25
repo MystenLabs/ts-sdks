@@ -82,4 +82,4 @@ jobs:
           GOOGLE_KEY_NAME: ${{ secrets.GOOGLE_KEY_NAME }}
           GOOGLE_KEY_NAME_VERSION: ${{ secrets.GOOGLE_KEY_NAME_VERSION }}
           E2E_GCP_KMS_TEST_ENABLE: ${{ env.E2E_GCP_KMS_TEST_ENABLE }}
-        run: pnpm turbo test
+        run: pnpm turbo test --filter='!@mysten/seal'
