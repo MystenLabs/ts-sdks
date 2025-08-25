@@ -6,7 +6,7 @@ import type { DAppKitCompatibleClient } from '../core/types.js';
 
 export type UnregisterCallback = () => void;
 
-type InitilizeArgs = {
+type InitializeArgs = {
 	networks: Networks;
 	getClient: (network?: Networks[number]) => DAppKitCompatibleClient;
 };
@@ -17,7 +17,7 @@ type InitializeResult = {
 
 export type WalletInitializer = {
 	id: string;
-	initialize(input: InitilizeArgs): InitializeResult | Promise<InitializeResult>;
+	initialize(input: InitializeArgs): InitializeResult | Promise<InitializeResult>;
 };
 
 // The wallet standard registers wallets globally and uses object references
@@ -33,7 +33,7 @@ const initializerMap = new Map<string, UnregisterCallback>();
 
 export async function registerAdditionalWallets(
 	initializers: WalletInitializer[],
-	args: InitilizeArgs,
+	args: InitializeArgs,
 ) {
 	initializerMap.forEach((unregister) => unregister());
 	initializerMap.clear();
