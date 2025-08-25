@@ -35,8 +35,8 @@
 		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
 	},
 	"dependencies": {
-		"@mysten/sui": "workspace:*",
-		"@mysten/bcs": "workspace:*"
+		"@mysten/bcs": "workspace:*",
+		"@mysten/sui": "workspace:*"
 	},
 	"devDependencies": {
 		"@iarna/toml": "^2.2.5",
