@@ -26,15 +26,15 @@ import type { InferOutput } from 'valibot';
 import { boolean, object, string } from 'valibot';
 import type { CustomCaipNetwork } from '@reown/appkit-universal-connector';
 import { UniversalConnector } from '@reown/appkit-universal-connector';
-import type { SuiClient } from '@mysten/sui/client';
-import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { Experimental_BaseClient } from '@mysten/sui/experimental';
 
 // -- Types --
+type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 type WalletEventsMap = {
 	[E in keyof StandardEventsListeners]: Parameters<StandardEventsListeners[E]>[0];
 };
 
-export type GetClient = (chain: Experimental_SuiClientTypes.Network) => SuiClient;
+export type GetClient = (chain: Network) => Experimental_BaseClient;
 type WalletMetadata = InferOutput<typeof WalletMetadataSchema>;
 
 // -- Constants --
@@ -225,21 +225,19 @@ export class WalletConnectWallet implements Wallet {
 		)) as { digest: string };
 
 		const [_, chainId] = chain.split(':');
-		const client = this.#getClient(chainId as Experimental_SuiClientTypes.Network);
-		const tx = await client.getTransactionBlock({
+		const client = this.#getClient(chainId as Network);
+		const tx = await client.core.getTransaction({
 			digest: response.digest,
-			options: {
-				showInput: true,
-				showEffects: true,
-				showEvents: true,
-			},
 		});
 
 		return {
 			digest: response.digest,
-			effects: tx.effects?.toString() ?? '',
-			signature: tx.transaction?.txSignatures[0] ?? '',
-			bytes: tx.rawTransaction ?? '',
+			effects: tx.transaction.effects?.toString() ?? '',
+			rawEffects: tx.transaction.effects?.toString() ?? '',
+			transaction: tx.transaction.toString() ?? '',
+			rawTransaction: tx.transaction.toString() ?? '',
+			signature: tx.transaction.signatures[0] ?? '',
+			bytes: tx.transaction.toString() ?? '',
 		};
 	};
 

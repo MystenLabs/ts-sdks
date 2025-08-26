@@ -1,14 +1,15 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { registerWalletConnectWallet, type GetClient } from '@mysten/walletconnect-wallet';
+import { registerWalletConnectWallet } from '@mysten/walletconnect-wallet';
+import type { GetClient } from '@mysten/walletconnect-wallet';
 import { useLayoutEffect } from 'react';
 
 export interface WalletConnectWalletConfig {
 	projectId?: string;
 }
 
-export function useWalletConnectWallet(projectId?: string, getClient: GetClient) {
+export function useWalletConnectWallet(projectId?: string, getClient?: GetClient) {
 	useLayoutEffect(() => {
 		if (!projectId) {
 			return;

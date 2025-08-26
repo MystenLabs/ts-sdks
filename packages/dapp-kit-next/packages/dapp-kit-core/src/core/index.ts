@@ -62,7 +62,7 @@ export function createDAppKit<TNetworks extends Networks>({
 			...(enableBurnerWallet ? [unsafeBurnerWalletInitializer()] : []),
 			...(slushWalletConfig !== null ? [slushWebWalletInitializer(slushWalletConfig)] : []),
 			...(walletConnectProjectId !== undefined
-				? [walletConnectWalletInitializer(walletConnectProjectId)]
+				? [walletConnectWalletInitializer(walletConnectProjectId, getClient)]
 				: []),
 		],
 		{ networks, getClient },
