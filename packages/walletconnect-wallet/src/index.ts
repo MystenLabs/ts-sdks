@@ -5,4 +5,5 @@ export {
 	registerWalletConnectWallet,
 	WalletConnectWallet,
 	WALLETCONNECT_WALLET_NAME,
+	type GetClient,
 } from './wallet/index.js';

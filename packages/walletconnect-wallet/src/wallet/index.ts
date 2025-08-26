@@ -26,23 +26,26 @@ import type { InferOutput } from 'valibot';
 import { boolean, object, string } from 'valibot';
 import type { CustomCaipNetwork } from '@reown/appkit-universal-connector';
 import { UniversalConnector } from '@reown/appkit-universal-connector';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import type { SuiClient } from '@mysten/sui/client';
+import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+
+// -- Types --
+type WalletEventsMap = {
+	[E in keyof StandardEventsListeners]: Parameters<StandardEventsListeners[E]>[0];
+};
+
+export type GetClient = (chain: Experimental_SuiClientTypes.Network) => SuiClient;
+type WalletMetadata = InferOutput<typeof WalletMetadataSchema>;
+
+// -- Constants --
 const icon =
 	'data:image/svg+xml;base64,PHN2ZyBmaWxsPSJub25lIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDQwMCA0MDAiIHdpZHRoPSI0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiPjxjbGlwUGF0aCBpZD0iYSI+PHBhdGggZD0ibTAgMGg0MDB2NDAwaC00MDB6Ii8+PC9jbGlwUGF0aD48ZyBjbGlwLXBhdGg9InVybCgjYSkiPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjIwMCIgZmlsbD0iIzE0MTQxNCIgcj0iMTk5LjUiIHN0cm9rZT0iIzNiNDA0MCIvPjxwYXRoIGQ9Im0xMjIuNTE5IDE0OC45NjVjNDIuNzkxLTQxLjcyOSAxMTIuMTcxLTQxLjcyOSAxNTQuOTYyIDBsNS4xNSA1LjAyMmMyLjE0IDIuMDg2IDIuMTQgNS40NjkgMCA3LjU1NWwtMTcuNjE3IDE3LjE4Yy0xLjA3IDEuMDQzLTIuODA0IDEuMDQzLTMuODc0IDBsLTcuMDg3LTYuOTExYy0yOS44NTMtMjkuMTExLTc4LjI1My0yOS4xMTEtMTA4LjEwNiAwbC03LjU5IDcuNDAxYy0xLjA3IDEuMDQzLTIuODA0IDEuMDQzLTMuODc0IDBsLTE3LjYxNy0xNy4xOGMtMi4xNC0yLjA4Ni0yLjE0LTUuNDY5IDAtNy41NTV6bTE5MS4zOTcgMzUuNTI5IDE1LjY3OSAxNS4yOWMyLjE0IDIuMDg2IDIuMTQgNS40NjkgMCA3LjU1NWwtNzAuNyA2OC45NDRjLTIuMTM5IDIuMDg3LTUuNjA4IDIuMDg3LTcuNzQ4IDBsLTUwLjE3OC00OC45MzFjLS41MzUtLjUyMi0xLjQwMi0uNTIyLTEuOTM3IDBsLTUwLjE3OCA0OC45MzFjLTIuMTM5IDIuMDg3LTUuNjA4IDIuMDg3LTcuNzQ4IDBsLTcwLjcwMTUtNjguOTQ1Yy0yLjEzOTYtMi4wODYtMi4xMzk2LTUuNDY5IDAtNy41NTVsMTUuNjc5NS0xNS4yOWMyLjEzOTYtMi4wODcgNS42MDg1LTIuMDg3IDcuNzQ4MSAwbDUwLjE3ODkgNDguOTMyYy41MzUuNTIyIDEuNDAyLjUyMiAxLjkzNyAwbDUwLjE3Ny00OC45MzJjMi4xMzktMi4wODcgNS42MDgtMi4wODcgNy43NDggMGw1MC4xNzkgNDguOTMyYy41MzUuNTIyIDEuNDAyLjUyMiAxLjkzNyAwbDUwLjE3OS00OC45MzFjMi4xMzktMi4wODcgNS42MDgtMi4wODcgNy43NDggMHoiIGZpbGw9IiNmZmYiLz48L2c+PC9zdmc+';
-
-async function getTransaction(digest: string, chain: 'mainnet' | 'testnet' | 'devnet') {
-	const client = new SuiClient({ url: getFullnodeUrl(chain) });
-	const response = await client.getTransactionBlock({
-		digest: digest,
-		options: {
-			showInput: true,
-			showEffects: true,
-			showEvents: true,
-		},
-	});
-
-	return response;
-}
+export const WALLETCONNECT_WALLET_NAME = 'WalletConnect' as const;
+const walletAccountFeatures = [
+	'sui:signTransaction',
+	'sui:signAndExecuteTransaction',
+	'sui:signPersonalMessage',
+] as const;
 
 const SUICaipNetworks: CustomCaipNetwork<'sui'>[] = SUI_CHAINS.map((chain) => {
 	const [_, chainId] = chain.split(':');
@@ -56,12 +59,6 @@ const SUICaipNetworks: CustomCaipNetwork<'sui'>[] = SUI_CHAINS.map((chain) => {
 	};
 });
 
-type WalletEventsMap = {
-	[E in keyof StandardEventsListeners]: Parameters<StandardEventsListeners[E]>[0];
-};
-
-export const WALLETCONNECT_WALLET_NAME = 'WalletConnect' as const;
-
 const WalletMetadataSchema = object({
 	id: string('Wallet ID is required'),
 	walletName: string('Wallet name is required'),
@@ -69,13 +66,7 @@ const WalletMetadataSchema = object({
 	enabled: boolean('Enabled is required'),
 });
 
-const walletAccountFeatures = [
-	'sui:signTransaction',
-	'sui:signAndExecuteTransaction',
-	'sui:signPersonalMessage',
-] as const;
-
-type WalletMetadata = InferOutput<typeof WalletMetadataSchema>;
+// -- Wallet --
 export class WalletConnectWallet implements Wallet {
 	#id: string;
 	#events: Emitter<WalletEventsMap>;
@@ -84,6 +75,7 @@ export class WalletConnectWallet implements Wallet {
 	#icon: WalletIcon;
 	#connector?: UniversalConnector;
 	#projectId: string;
+	#getClient: GetClient;
 
 	get name() {
 		return this.#walletName;
@@ -143,13 +135,22 @@ export class WalletConnectWallet implements Wallet {
 		};
 	}
 
-	constructor({ metadata, projectId }: { metadata: WalletMetadata; projectId: string }) {
+	constructor({
+		metadata,
+		projectId,
+		getClient,
+	}: {
+		metadata: WalletMetadata;
+		projectId: string;
+		getClient: GetClient;
+	}) {
 		this.#id = metadata.id;
 		this.#accounts = [];
 		this.#events = mitt();
 		this.#walletName = metadata.walletName;
 		this.#icon = icon;
 		this.#projectId = projectId;
+		this.#getClient = getClient;
 		this.init();
 	}
 
@@ -182,7 +183,6 @@ export class WalletConnectWallet implements Wallet {
 				},
 			},
 		});
-
 		this.#accounts = await this.#getPreviouslyAuthorizedAccounts();
 	}
 
@@ -225,7 +225,15 @@ export class WalletConnectWallet implements Wallet {
 		)) as { digest: string };
 
 		const [_, chainId] = chain.split(':');
-		const tx = await getTransaction(response.digest, chainId as 'mainnet' | 'testnet' | 'devnet');
+		const client = this.#getClient(chainId as Experimental_SuiClientTypes.Network);
+		const tx = await client.getTransactionBlock({
+			digest: response.digest,
+			options: {
+				showInput: true,
+				showEffects: true,
+				showEvents: true,
+			},
+		});
 
 		return {
 			digest: response.digest,
@@ -339,7 +347,7 @@ export class WalletConnectWallet implements Wallet {
 	}
 }
 
-export function registerWalletConnectWallet(projectId: string) {
+export function registerWalletConnectWallet(projectId: string, getClient: GetClient) {
 	const wallets = getWallets();
 
 	let unregister: (() => void) | null = null;
@@ -364,6 +372,7 @@ export function registerWalletConnectWallet(projectId: string) {
 			enabled: true,
 		},
 		projectId,
+		getClient,
 	});
 	unregister = wallets.register(walletConnectWalletInstance);
 
