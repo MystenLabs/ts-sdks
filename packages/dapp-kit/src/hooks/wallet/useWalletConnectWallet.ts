@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { registerWalletConnectWallet } from '@mysten/walletconnect-wallet';
-import type { GetClient } from '@mysten/walletconnect-wallet';
+
 import { useLayoutEffect } from 'react';
+import { useSuiClientContext } from '../useSuiClient.js';
 
 export interface WalletConnectWalletConfig {
 	projectId?: string;
 }
 
-export function useWalletConnectWallet(projectId?: string, getClient?: GetClient) {
+export function useWalletConnectWallet({ projectId }: WalletConnectWalletConfig) {
+	const { client } = useSuiClientContext();
 	useLayoutEffect(() => {
 		if (!projectId) {
 			return;
@@ -18,7 +20,7 @@ export function useWalletConnectWallet(projectId?: string, getClient?: GetClient
 		let cleanup: (() => void) | undefined;
 
 		try {
-			const result = registerWalletConnectWallet(projectId, getClient);
+			const result = registerWalletConnectWallet(projectId, () => client);
 
 			if (result) {
 				cleanup = result.unregister;
@@ -30,5 +32,5 @@ export function useWalletConnectWallet(projectId?: string, getClient?: GetClient
 		return () => {
 			if (cleanup) cleanup();
 		};
-	}, [projectId, getClient]);
+	}, [projectId, client]);
 }

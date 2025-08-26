@@ -69,6 +69,7 @@ export function WalletProvider({
 	autoConnect = false,
 	slushWallet,
 	theme = lightTheme,
+	walletConnectProjectId,
 	children,
 }: WalletProviderProps) {
 	const storeRef = useRef(
@@ -87,6 +88,7 @@ export function WalletProvider({
 				walletFilter={walletFilter}
 				enableUnsafeBurner={enableUnsafeBurner}
 				slushWallet={slushWallet}
+				walletConnectProjectId={walletConnectProjectId}
 			>
 				{/* TODO: We ideally don't want to inject styles if people aren't using the UI components */}
 				{theme ? <InjectedThemeStyles theme={theme} /> : null}
@@ -117,7 +119,7 @@ function WalletConnectionManager({
 	useWalletsChanged(preferredWallets, walletFilter);
 	useWalletPropertiesChanged();
 	useSlushWallet(slushWallet);
-	useWalletConnectWallet(walletConnectProjectId);
+	useWalletConnectWallet({ projectId: walletConnectProjectId });
 	useUnsafeBurnerWallet(enableUnsafeBurner);
 	useAutoConnectWallet();
 

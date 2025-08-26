@@ -11,10 +11,14 @@ import { Theme } from "@radix-ui/themes";
 import App from "./App.tsx";
 import { networkConfig } from "./networkConfig.ts";
 import { registerWalletConnectWallet } from "@mysten/walletconnect-wallet";
+import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 
 const queryClient = new QueryClient();
 
-registerWalletConnectWallet("your_project_id");
+registerWalletConnectWallet(
+  "your_project_id",
+  (chain) => new SuiClient({ network: chain, url: getFullnodeUrl(chain) }),
+);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
