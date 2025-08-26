@@ -34,7 +34,7 @@ type WalletEventsMap = {
 	[E in keyof StandardEventsListeners]: Parameters<StandardEventsListeners[E]>[0];
 };
 
-export type GetClient = (chain: Network) => Experimental_BaseClient;
+export type GetClient = (network: Network) => Experimental_BaseClient;
 type WalletMetadata = InferOutput<typeof WalletMetadataSchema>;
 
 // -- Constants --
@@ -224,8 +224,8 @@ export class WalletConnectWallet implements Wallet {
 			chain,
 		)) as { digest: string };
 
-		const [_, chainId] = chain.split(':');
-		const client = this.#getClient(chainId as Network);
+		const [_, network] = chain.split(':');
+		const client = this.#getClient(network as Network);
 		const tx = await client.core.getTransaction({
 			digest: response.digest,
 		});
