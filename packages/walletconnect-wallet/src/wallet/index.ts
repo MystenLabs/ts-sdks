@@ -3,6 +3,7 @@
 
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import type {
+	IdentifierArray,
 	StandardConnectFeature,
 	StandardConnectMethod,
 	StandardDisconnectFeature,
@@ -76,6 +77,20 @@ const WalletMetadataSchema = object({
 	icon: string('Icon must be a valid wallet icon format'),
 	enabled: boolean('Enabled is required'),
 });
+
+const toStandardAccounts = (
+	accounts: { address: string; pubkey: string }[],
+	chains: IdentifierArray,
+) => {
+	return accounts.map((account) => {
+		return new ReadonlyWalletAccount({
+			address: account.address,
+			chains,
+			features: walletAccountFeatures,
+			publicKey: fromBase64(account.pubkey),
+		});
+	});
+};
 
 // -- Wallet --
 export class WalletConnectWallet implements Wallet {
@@ -290,14 +305,7 @@ export class WalletConnectWallet implements Wallet {
 			}[];
 		}
 
-		return accounts.map((account) => {
-			return new ReadonlyWalletAccount({
-				address: account.address,
-				chains: this.chains,
-				features: walletAccountFeatures,
-				publicKey: fromBase64(account.pubkey),
-			});
-		});
+		return toStandardAccounts(accounts, this.chains);
 	};
 
 	#connect: StandardConnectMethod = async (input) => {
@@ -330,16 +338,7 @@ export class WalletConnectWallet implements Wallet {
 			pubkey: string;
 		}[];
 
-		return (
-			accounts?.map((account) => {
-				return new ReadonlyWalletAccount({
-					address: account.address,
-					publicKey: fromBase64(account.pubkey),
-					chains: SUI_CHAINS,
-					features: walletAccountFeatures,
-				});
-			}) ?? []
-		);
+		return toStandardAccounts(accounts, SUI_CHAINS);
 	};
 
 	#disconnect: StandardDisconnectMethod = async () => {
