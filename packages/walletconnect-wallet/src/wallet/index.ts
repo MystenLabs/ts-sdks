@@ -37,6 +37,7 @@ import { boolean, object, string } from 'valibot';
 import type { CustomCaipNetwork } from '@reown/appkit-universal-connector';
 import { UniversalConnector } from '@reown/appkit-universal-connector';
 import type { Experimental_BaseClient } from '@mysten/sui/experimental';
+import { Transaction } from '@mysten/sui/dist/cjs/transactions/Transaction';
 
 // -- Types --
 type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
@@ -221,8 +222,11 @@ export class WalletConnectWallet implements Wallet {
 		account,
 		chain,
 	}) => {
+		const [, network] = chain.split(':');
+		const client = this.#getClient(network as Network);
 		const data = await transaction.toJSON();
-
+		const parsedTransaction = Transaction.from(data);
+		const bytes = await parsedTransaction.build({ client });
 		const response = (await this.#connector?.request(
 			{
 				method: 'sui_signAndExecuteTransaction',
@@ -234,20 +238,15 @@ export class WalletConnectWallet implements Wallet {
 			chain,
 		)) as { digest: string };
 
-		const [_, network] = chain.split(':');
-		const client = this.#getClient(network as Network);
-		const tx = await client.core.getTransaction({
+		const tx = await client.core.waitForTransaction({
 			digest: response.digest,
 		});
 
 		return {
 			digest: response.digest,
-			effects: tx.transaction.effects?.toString() ?? '',
-			rawEffects: tx.transaction.effects?.toString() ?? '',
-			transaction: tx.transaction.toString() ?? '',
-			rawTransaction: tx.transaction.toString() ?? '',
 			signature: tx.transaction.signatures[0] ?? '',
-			bytes: tx.transaction.toString() ?? '',
+			bytes: toBase64(bytes),
+			effects: tx.transaction.effects.bcs ? toBase64(tx.transaction.effects.bcs) : '',
 		};
 	};
 
