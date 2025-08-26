@@ -331,8 +331,6 @@ export class WalletConnectWallet implements Wallet {
 			pubkey: string;
 		}[];
 
-		this.#events.emit('change', { accounts: this.accounts });
-
 		return (
 			accounts?.map((account) => {
 				return new ReadonlyWalletAccount({
