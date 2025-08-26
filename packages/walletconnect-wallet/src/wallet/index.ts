@@ -19,7 +19,17 @@ import type {
 	Wallet,
 	WalletIcon,
 } from '@mysten/wallet-standard';
-import { getWallets, ReadonlyWalletAccount, SUI_CHAINS } from '@mysten/wallet-standard';
+import {
+	getWallets,
+	ReadonlyWalletAccount,
+	StandardConnect,
+	StandardDisconnect,
+	StandardEvents,
+	SUI_CHAINS,
+	SuiSignAndExecuteTransaction,
+	SuiSignPersonalMessage,
+	SuiSignTransaction,
+} from '@mysten/wallet-standard';
 import type { Emitter } from 'mitt';
 import mitt from 'mitt';
 import type { InferOutput } from 'valibot';
@@ -108,27 +118,27 @@ export class WalletConnectWallet implements Wallet {
 		SuiSignPersonalMessageFeature &
 		SuiSignAndExecuteTransactionFeature {
 		return {
-			'standard:connect': {
+			[StandardConnect]: {
 				version: '1.0.0',
 				connect: this.#connect,
 			},
-			'standard:disconnect': {
+			[StandardDisconnect]: {
 				version: '1.0.0',
 				disconnect: this.#disconnect,
 			},
-			'standard:events': {
+			[StandardEvents]: {
 				version: '1.0.0',
 				on: this.#on,
 			},
-			'sui:signTransaction': {
+			[SuiSignTransaction]: {
 				version: '2.0.0',
 				signTransaction: this.#signTransaction,
 			},
-			'sui:signPersonalMessage': {
+			[SuiSignPersonalMessage]: {
 				version: '1.1.0',
 				signPersonalMessage: this.#signPersonalMessage,
 			},
-			'sui:signAndExecuteTransaction': {
+			[SuiSignAndExecuteTransaction]: {
 				version: '2.0.0',
 				signAndExecuteTransaction: this.#signAndExecuteTransaction,
 			},
@@ -284,7 +294,7 @@ export class WalletConnectWallet implements Wallet {
 		return accounts.map((account) => {
 			return new ReadonlyWalletAccount({
 				address: account.address,
-				chains: SUI_CHAINS,
+				chains: this.chains,
 				features: walletAccountFeatures,
 				publicKey: fromBase64(account.pubkey),
 			});
@@ -344,8 +354,17 @@ export class WalletConnectWallet implements Wallet {
 		this.#icon = metadata.icon as WalletIcon;
 	}
 }
+type RegisterWalletConnectWallet = {
+	projectId: string;
+	getClient: GetClient;
+	metadata?: WalletMetadata;
+};
 
-export function registerWalletConnectWallet(projectId: string, getClient: GetClient) {
+export function registerWalletConnectWallet({
+	projectId,
+	getClient,
+	metadata,
+}: RegisterWalletConnectWallet) {
 	const wallets = getWallets();
 
 	let unregister: (() => void) | null = null;
@@ -362,22 +381,23 @@ export function registerWalletConnectWallet(projectId: string, getClient: GetCli
 		return;
 	}
 
+	const fullMetadata = {
+		id: 'walletconnect',
+		walletName: 'Wallet Connect',
+		icon,
+		enabled: true,
+		...(metadata ?? {}),
+	};
+
 	const walletConnectWalletInstance = new WalletConnectWallet({
-		metadata: {
-			id: 'walletconnect',
-			walletName: 'Wallet Connect',
-			icon,
-			enabled: true,
-		},
+		metadata: fullMetadata,
 		projectId,
 		getClient,
 	});
 	unregister = wallets.register(walletConnectWalletInstance);
 
 	walletConnectWalletInstance.updateMetadata({
-		id: 'walletconnect',
-		walletName: 'Wallet Connect',
-		icon,
+		...fullMetadata,
 		enabled: true,
 	});
 
