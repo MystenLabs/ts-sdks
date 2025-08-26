@@ -48,7 +48,7 @@
 		"@mysten/sui": "workspace:*",
 		"@mysten/utils": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
-		"@reown/appkit-universal-connector": "1.7.19-uc-config.1.0",
+		"@reown/appkit-universal-connector": "1.7.20",
 		"mitt": "^3.0.1",
 		"valibot": "^0.36.0"
 	}
