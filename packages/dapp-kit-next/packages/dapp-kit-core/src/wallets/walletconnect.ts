@@ -6,7 +6,7 @@ import type { WalletInitializer } from './index.js';
 
 export function walletConnectWalletInitializer(projectId: string): WalletInitializer {
 	return {
-		id: 'walletconnect-wallet-initializer',
+		id: `walletconnect-wallet-initializer-${projectId}`,
 		async initialize() {
 			const result = await registerWalletConnectWallet(projectId);
 
