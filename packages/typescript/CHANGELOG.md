@@ -1,5 +1,32 @@
 # @mysten/sui.js
 
+## 1.37.4
+
+### Patch Changes
+
+- 6b03e57: Fix remaining balance check in ParallelExecutor
+
+## 1.37.3
+
+### Patch Changes
+
+- 8ff1471: Fix system objects to avoid unnecessary network calls
+  - Clock (0x6) and Random (0x8) now return fully resolved SharedObject references with mutable:
+    false
+  - System (0x5) and DenyList (0x403) now accept optional `mutable` parameter:
+    - When undefined, returns UnresolvedObject with initialSharedVersion for backward compatibility
+    - When explicitly set, returns SharedObjectRef with the specified mutability
+  - Improves transaction building performance by avoiding unnecessary network lookups
+
+  Fixes #424
+
+## 1.37.2
+
+### Patch Changes
+
+- 660377c: Mark type-only exports as being type-only so that bundlers do not attempt to bundle empty
+  files.
+
 ## 1.37.1
 
 ### Patch Changes

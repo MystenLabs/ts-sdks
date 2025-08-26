@@ -1,5 +1,32 @@
 # @mysten/seal
 
+## 0.4.24
+
+### Patch Changes
+
+- Updated dependencies [6b03e57]
+  - @mysten/sui@1.37.4
+
+## 0.4.23
+
+### Patch Changes
+
+- b14e58e: Remove getAllowlistedKeyServers, see seal docs for available key server ids
+
+## 0.4.22
+
+### Patch Changes
+
+- Updated dependencies [8ff1471]
+  - @mysten/sui@1.37.3
+
+## 0.4.21
+
+### Patch Changes
+
+- Updated dependencies [660377c]
+  - @mysten/sui@1.37.2
+
 ## 0.4.20
 
 ### Patch Changes

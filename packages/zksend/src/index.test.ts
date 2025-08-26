@@ -1,14 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe } from 'node:test';
 import { getFullnodeUrl, SuiClient, SuiObjectChange } from '@mysten/sui/client';
 import { decodeSuiPrivateKey, Keypair } from '@mysten/sui/cryptography';
 import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { MIST_PER_SUI, toBase64 } from '@mysten/sui/utils';
-import { beforeAll, expect, test } from 'vitest';
+import { beforeAll, describe, expect, test } from 'vitest';
 
 import {
 	getSentTransactionsWithLinks,
@@ -76,8 +75,8 @@ describe('Contract links', () => {
 
 		const claimLink = await ZkSendLink.fromUrl(linkUrl, {
 			network: 'testnet',
-
 			client,
+			claimApi: `https://api.slush.app/api`,
 		});
 
 		const claimableAssets = claimLink.assets!;
@@ -111,6 +110,7 @@ describe('Contract links', () => {
 
 		const link2 = await ZkSendLink.fromUrl(linkUrl, {
 			network: 'testnet',
+			claimApi: `https://api.slush.app/api`,
 		});
 		expect(link2.assets?.balances).toEqual(claimLink.assets?.balances);
 		expect(link2.assets?.nfts.map((nft) => nft.objectId)).toEqual(
@@ -170,6 +170,7 @@ describe('Contract links', () => {
 
 		const claimLink = await ZkSendLink.fromUrl(url, {
 			network: 'testnet',
+			claimApi: `https://api.slush.app/api`,
 		});
 
 		expect(claimLink.assets?.nfts.length).toEqual(3);
@@ -199,6 +200,7 @@ describe('Contract links', () => {
 		);
 		const link2 = await ZkSendLink.fromUrl(url, {
 			network: 'testnet',
+			claimApi: `https://api.slush.app/api`,
 		});
 		expect(link2.assets?.balances).toEqual(claimLink.assets?.balances);
 		expect(link2.assets?.nfts.map((nft) => nft.objectId)).toEqual(
@@ -296,6 +298,7 @@ describe('Contract links', () => {
 
 			const claimLink = await ZkSendLink.fromUrl(linkUrl, {
 				network: 'testnet',
+				claimApi: `https://api.slush.app/api`,
 			});
 
 			const claimableAssets = claimLink.assets!;
@@ -349,16 +352,17 @@ describe('Non contract links', () => {
 
 		const linkUrl = link.getLink();
 
-		// await link.create({
-		// 	signer: keypair,
-		// 	waitForTransaction: true,
-		// });
+		await link.create({
+			signer: keypair,
+			waitForTransaction: true,
+		});
 
 		// Balances sometimes not updated even though we wait for the transaction to be indexed
 		await new Promise((resolve) => setTimeout(resolve, 3000));
 
 		const claimLink = await ZkSendLink.fromUrl(linkUrl, {
 			network: 'testnet',
+			claimApi: `https://api.slush.app/api`,
 		});
 
 		expect(claimLink.assets?.nfts.length).toEqual(3);
@@ -388,6 +392,7 @@ describe('Non contract links', () => {
 
 		const link2 = await ZkSendLink.fromUrl(linkUrl, {
 			network: 'testnet',
+			claimApi: `https://api.slush.app/api`,
 		});
 		expect(link2.assets?.balances).toEqual(claimLink.assets?.balances);
 		expect(link2.assets?.nfts.map((nft) => nft.objectId)).toEqual(
@@ -439,6 +444,7 @@ describe('Non contract links', () => {
 			`https://zksend.con/claim#${toBase64(decodeSuiPrivateKey(linkKp.getSecretKey()).secretKey)}`,
 			{
 				network: 'testnet',
+				claimApi: `https://api.slush.app/api`,
 			},
 		);
 		expect(link2.assets?.balances).toEqual(claimLink.assets?.balances);
@@ -516,6 +522,7 @@ describe('Non contract links', () => {
 
 		const claimLink = await ZkSendLink.fromUrl(linkUrl, {
 			network: 'testnet',
+			claimApi: `https://api.slush.app/api`,
 		});
 
 		const claimableAssets = claimLink.assets!;
@@ -549,6 +556,7 @@ describe('Non contract links', () => {
 
 		const link2 = await ZkSendLink.fromUrl(linkUrl, {
 			network: 'testnet',
+			claimApi: `https://api.slush.app/api`,
 		});
 		expect(link2.assets?.balances).toEqual(claimLink.assets?.balances);
 		expect(link2.assets?.nfts.map((nft) => nft.objectId).sort()).toEqual(
@@ -574,10 +582,10 @@ describe('Non contract links', () => {
 
 		const linkUrl = link.getLink();
 
-		// await link.create({
-		// 	signer: keypair,
-		// 	waitForTransaction: true,
-		// });
+		await link.create({
+			signer: keypair,
+			waitForTransaction: true,
+		});
 
 		// wait for graphql indexing
 		await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -602,7 +610,7 @@ describe('Non contract links', () => {
 
 		const claimLink = await ZkSendLink.fromUrl(linkUrl, {
 			network: 'testnet',
-
+			claimApi: `https://api.slush.app/api`,
 			client,
 		});
 
@@ -637,6 +645,7 @@ describe('Non contract links', () => {
 
 		const link2 = await ZkSendLink.fromUrl(linkUrl, {
 			network: 'testnet',
+			claimApi: `https://api.slush.app/api`,
 		});
 		expect(link2.assets?.balances).toEqual(claimLink.assets?.balances);
 		expect(link2.assets?.nfts.map((nft) => nft.objectId)).toEqual(

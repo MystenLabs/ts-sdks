@@ -1,5 +1,11 @@
 # @mysten/move-bytecode-template
 
+## 0.2.1
+
+### Patch Changes
+
+- b456936: Fix package exports
+
 ## 0.2.0
 
 ### Minor Changes

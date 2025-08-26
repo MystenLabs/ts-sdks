@@ -47,7 +47,7 @@ export class StorageNodeAPIError<
 		}
 
 		if (status === 400) {
-			return new BadRequestError(status, errorResponse, message);
+			return BadRequestError.generate(status, errorResponse, message);
 		}
 
 		if (status === 401) {
@@ -104,7 +104,34 @@ export class ConnectionTimeoutError extends StorageNodeAPIError<undefined, undef
 	}
 }
 
-export class BadRequestError extends StorageNodeAPIError<400> {}
+export class BadRequestError extends StorageNodeAPIError<400> {
+	static generate(
+		status: 400,
+		errorResponse: object | undefined,
+		message: string | undefined,
+	): StorageNodeAPIError {
+		if (errorResponse && typeof errorResponse === 'object' && 'error' in errorResponse) {
+			const error = errorResponse.error as {
+				details?: [
+					{
+						reason?: string;
+					},
+				];
+			};
+			if (error.details?.[0]?.reason === 'NOT_REGISTERED') {
+				return new BlobNotRegisteredError(errorResponse, message);
+			}
+		}
+
+		return new BadRequestError(status, errorResponse, message);
+	}
+}
+
+export class BlobNotRegisteredError extends StorageNodeAPIError<400> {
+	constructor(error: object | undefined, message: string | undefined) {
+		super(400, error, message);
+	}
+}
 
 export class AuthenticationError extends StorageNodeAPIError<401> {}
 

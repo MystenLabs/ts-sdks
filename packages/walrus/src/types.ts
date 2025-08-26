@@ -288,6 +288,29 @@ export interface WriteFilesFlow {
 	>;
 }
 
+export interface WriteBlobFlowOptions {
+	blob: Uint8Array;
+}
+
+export interface WriteBlobFlowRegisterOptions extends Omit<WriteBlobOptions, 'blob' | 'signer'> {
+	owner: string;
+}
+
+export interface WriteBlobFlowUploadOptions {
+	digest: string;
+}
+
+export interface WriteBlobFlow {
+	encode: () => Promise<void>;
+	register: (options: WriteBlobFlowRegisterOptions) => Transaction;
+	upload: (options: WriteBlobFlowUploadOptions) => Promise<void>;
+	certify: () => Transaction;
+	getBlob: () => Promise<{
+		blobId: string;
+		blobObject: (typeof Blob)['$inferType'];
+	}>;
+}
+
 export interface DeleteBlobOptions {
 	blobObjectId: string;
 }

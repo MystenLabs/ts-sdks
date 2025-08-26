@@ -9,7 +9,7 @@ export type UseCurrentNetworkOptions<TDAppKit extends DAppKit> = {
 	dAppKit?: TDAppKit;
 };
 
-export function useCurrentNetwork<TDAppKit extends DAppKit = RegisteredDAppKit>({
+export function useCurrentNetwork<TDAppKit extends DAppKit<any> = RegisteredDAppKit>({
 	dAppKit,
 }: UseCurrentNetworkOptions<TDAppKit> = {}) {
 	const instance = useDAppKit(dAppKit);

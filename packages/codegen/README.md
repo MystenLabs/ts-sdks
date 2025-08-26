@@ -190,6 +190,6 @@ async await function readCounter(id: string) {
 	  throw new Error('Expected a move object')
 	}
 
-	return counter.Counter().fromBase64(data.data.bcs.bcsBytes)
+	return counter.Counter.fromBase64(data.data.bcs.bcsBytes)
 }
 ```

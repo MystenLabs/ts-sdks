@@ -5,7 +5,7 @@ import type { DAppKit, RegisteredDAppKit } from '@mysten/dapp-kit-core';
 import { useStore } from '@nanostores/react';
 import { useDAppKit } from './useDAppKit.js';
 
-export type UseConnectionOptions<TDAppKit extends DAppKit> = {
+export type UseConnectionOptions<TDAppKit extends DAppKit<any>> = {
 	dAppKit?: TDAppKit;
 };
 

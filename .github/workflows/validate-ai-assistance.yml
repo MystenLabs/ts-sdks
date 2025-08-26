@@ -1,0 +1,52 @@
+name: Validate AI Assistance Notice
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+  contents: read
+
+jobs:
+  validate:
+    name: Check AI Assistance Notice in PR body
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR description
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              core.setFailed('Not a pull_request event.');
+              return;
+            }
+
+            const body = pr.body || '';
+
+            const headingPattern = /###\s+AI Assistance Notice/i;
+            if (!headingPattern.test(body)) {
+              core.setFailed('Missing "AI Assistance Notice" section in PR description.');
+              return;
+            }
+
+            // Extract section starting from the heading until the next heading (## or ###) or end of body
+            const startIndex = body.search(headingPattern);
+            const tail = body.slice(startIndex);
+            const nextHeadingIndex = tail.search(/\n##+\s+/);
+            const section = nextHeadingIndex === -1 ? tail : tail.slice(0, nextHeadingIndex);
+
+            const checkedMatches = section.match(/-\s*\[\s*[xX]\s*\]/g) || [];
+
+            if (checkedMatches.length === 0) {
+              core.setFailed('Please check exactly one option in the AI Assistance Notice.');
+              return;
+            }
+
+            if (checkedMatches.length > 1) {
+              core.setFailed('Only one AI Assistance option should be checked.');
+              return;
+            }
+
+            core.info('AI Assistance Notice present with exactly one selection.');

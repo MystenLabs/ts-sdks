@@ -7,7 +7,8 @@ import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import '@mysten/dapp-kit-core/web';
 
 const connectButton = document.querySelector('mysten-dapp-kit-connect-button');
-connectButton!.instance = createDAppKit({
+
+const dAppKit = createDAppKit({
 	enableBurnerWallet: import.meta.env.DEV,
 	networks: ['mainnet', 'testnet'],
 	defaultNetwork: 'testnet',
@@ -15,3 +16,5 @@ connectButton!.instance = createDAppKit({
 		return new SuiClient({ network, url: getFullnodeUrl(network) });
 	},
 });
+
+connectButton!.instance = dAppKit;

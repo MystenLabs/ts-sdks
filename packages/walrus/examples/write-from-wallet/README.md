@@ -25,6 +25,6 @@ This example demonstrates how to use the Walrus SDK to upload files from a walle
 - Allows you to select a file from your device
 - Encodes the file using Walrus
 - Registers the blob on-chain
-- Uploads the file to storage nodes
+- Uploads the file to storage nodes or upload relay
 - Certifies the upload
 - Displays the file IDs when complete

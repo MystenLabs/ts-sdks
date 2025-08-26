@@ -1,5 +1,32 @@
 # @mysten/codegen
 
+## 0.4.3
+
+### Patch Changes
+
+- Updated dependencies [6b03e57]
+  - @mysten/sui@1.37.4
+
+## 0.4.2
+
+### Patch Changes
+
+- Updated dependencies [8ff1471]
+  - @mysten/sui@1.37.3
+
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [660377c]
+  - @mysten/sui@1.37.2
+
+## 0.4.0
+
+### Minor Changes
+
+- 22d727d: Execute `sui move summary` when generating code
+
 ## 0.3.0
 
 ### Minor Changes

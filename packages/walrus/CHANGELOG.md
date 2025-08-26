@@ -1,5 +1,41 @@
 # @mysten/walrus
 
+## 0.6.4
+
+### Patch Changes
+
+- Updated dependencies [6b03e57]
+  - @mysten/sui@1.37.4
+
+## 0.6.3
+
+### Patch Changes
+
+- Updated dependencies [8ff1471]
+  - @mysten/sui@1.37.3
+
+## 0.6.2
+
+### Patch Changes
+
+- Updated dependencies [660377c]
+  - @mysten/sui@1.37.2
+
+## 0.6.1
+
+### Patch Changes
+
+- Updated dependencies [b456936]
+  - @mysten/walrus-wasm@0.1.1
+
+## 0.6.0
+
+### Minor Changes
+
+- b2ee297: Add retries for BlobNotRegistered errors
+- 22d727d: Update contracts and remove subsidy contract (which has been integrated into the main
+  contract)
+
 ## 0.5.3
 
 ### Patch Changes

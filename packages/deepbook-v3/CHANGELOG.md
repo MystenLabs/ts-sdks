@@ -1,5 +1,32 @@
 # @mysten/deepbook-v3
 
+## 0.15.16
+
+### Patch Changes
+
+- Updated dependencies [6b03e57]
+  - @mysten/sui@1.37.4
+
+## 0.15.15
+
+### Patch Changes
+
+- 05b56d5: ALKIMI/SUI pool
+
+## 0.15.14
+
+### Patch Changes
+
+- Updated dependencies [8ff1471]
+  - @mysten/sui@1.37.3
+
+## 0.15.13
+
+### Patch Changes
+
+- Updated dependencies [660377c]
+  - @mysten/sui@1.37.2
+
 ## 0.15.12
 
 ### Patch Changes

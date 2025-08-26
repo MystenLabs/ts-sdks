@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/walrus",
-	"version": "0.5.3",
+	"version": "0.6.4",
 	"private": false,
 	"description": "Walrus SDK",
 	"license": "Apache-2.0",
@@ -31,7 +31,8 @@
 		"eslint:fix": "pnpm run eslint:check --fix",
 		"lint": "pnpm run eslint:check && pnpm run prettier:check",
 		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix",
-		"dev:write-from-wallet": "vite examples/write-from-wallet"
+		"dev:write-from-wallet": "vite examples/write-from-wallet",
+		"dev:benchmark": "vite examples/benchmark"
 	},
 	"repository": {
 		"type": "git",
@@ -45,7 +46,8 @@
 		"@hono/node-server": "^1.17.1",
 		"@mysten/build-scripts": "workspace:*",
 		"@mysten/codegen": "workspace:*",
-		"@mysten/dapp-kit": "workspace:*",
+		"@mysten/dapp-kit-core": "workspace:*",
+		"@mysten/dapp-kit-react": "workspace:*",
 		"@tanstack/react-query": "^5.83.0",
 		"@types/node": "^22.15.29",
 		"@types/react": "^18.3.3",

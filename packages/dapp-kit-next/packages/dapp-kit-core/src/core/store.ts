@@ -23,18 +23,22 @@ type InternalWalletConnection =
 			currentAccount: UiWalletAccount;
 	  };
 
-export type DAppKitStores<TNetworks extends Networks = Networks> = ReturnType<
-	typeof createStores<TNetworks>
->;
+export type DAppKitStores<
+	TNetworks extends Networks = Networks,
+	Client extends DAppKitCompatibleClient = DAppKitCompatibleClient,
+> = ReturnType<typeof createStores<TNetworks, Client>>;
 
 export type WalletConnection = StoreValue<DAppKitStores['$connection']>;
 
-export function createStores<TNetworks extends Networks>({
+export function createStores<
+	TNetworks extends Networks = [],
+	Client extends DAppKitCompatibleClient = DAppKitCompatibleClient,
+>({
 	defaultNetwork,
 	getClient,
 }: {
 	defaultNetwork: TNetworks[number];
-	getClient: (network: TNetworks[number]) => DAppKitCompatibleClient;
+	getClient: (network: TNetworks[number]) => Client;
 }) {
 	const $baseConnection = map<InternalWalletConnection>({
 		status: 'disconnected',
