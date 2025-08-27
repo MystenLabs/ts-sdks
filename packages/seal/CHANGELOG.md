@@ -1,5 +1,16 @@
 # @mysten/seal
 
+## 0.5.0
+
+### Minor Changes
+
+- d1a7a5f: [seal] Mainnet release cut
+
+### Patch Changes
+
+- Updated dependencies [3980d04]
+  - @mysten/sui@1.37.5
+
 ## 0.4.24
 
 ### Patch Changes

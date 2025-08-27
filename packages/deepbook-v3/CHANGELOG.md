@@ -1,5 +1,16 @@
 # @mysten/deepbook-v3
 
+## 0.16.0
+
+### Minor Changes
+
+- 216a53a: Export bcs types
+
+### Patch Changes
+
+- Updated dependencies [3980d04]
+  - @mysten/sui@1.37.5
+
 ## 0.15.16
 
 ### Patch Changes

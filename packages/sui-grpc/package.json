@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/sui-grpc",
-	"version": "0.0.15",
+	"version": "0.0.16",
 	"description": "A typescript GRPC client for sui",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
