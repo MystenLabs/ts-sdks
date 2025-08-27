@@ -12,6 +12,8 @@ import App from "./App.tsx";
 import { networkConfig } from "./networkConfig.ts";
 import { registerEnokiConnectWallets } from "@mysten/enoki-connect";
 
+import "./styles.css";
+
 const queryClient = new QueryClient();
 
 registerEnokiConnectWallets({

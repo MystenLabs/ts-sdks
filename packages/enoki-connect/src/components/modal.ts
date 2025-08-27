@@ -4,6 +4,35 @@ import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { BaseModal } from './base-modal.js';
 
+/**
+ * A modal component for displaying wallet operation request fallback UI.
+ *
+ * @element enoki-connect-modal
+ *
+ * @prop {string} walletName - The name of the wallet.
+ * @prop {string} dappName - The name of the dapp.
+ * @prop {boolean} disabled - Whether the modal is disabled.
+ * @prop {boolean} open - Whether the modal is open.
+ *
+ * @cssprop --enoki-connect-modal-font-family - The font family of the modal.
+ * @cssprop --enoki-connect-modal-backdrop-background - The background color of the backdrop.
+ * @cssprop --enoki-connect-modal-background - The background color of the modal.
+ * @cssprop --enoki-connect-modal-box-shadow - The shadow of the modal.
+ * @cssprop --enoki-connect-modal-title-foreground - The color of the title.
+ * @cssprop --enoki-connect-modal-description-foreground - The color of the description.
+ * @cssprop --enoki-connect-modal-primary-background - The background color of the primary button.
+ * @cssprop --enoki-connect-modal-primary-foreground - The color of the primary button.
+ * @cssprop --enoki-connect-modal-primary-background-hover - The background color of the primary button on hover.
+ * @cssprop --enoki-connect-modal-primary-foreground-hover - The color of the primary button on hover.
+ * @cssprop --enoki-connect-modal-secondary-background - The background color of the secondary button.
+ * @cssprop --enoki-connect-modal-secondary-foreground - The color of the secondary button.
+ * @cssprop --enoki-connect-modal-secondary-background-hover - The background color of the secondary button on hover.
+ * @cssprop --enoki-connect-modal-secondary-foreground-hover - The color of the secondary button on hover.
+ * @cssprop --enoki-connect-modal-close-background - The background color of the close button.
+ * @cssprop --enoki-connect-modal-close-foreground - The color of the close button.
+ * @cssprop --enoki-connect-modal-close-background-hover - The background color of the close button on hover.
+ * @cssprop --enoki-connect-modal-close-foreground-hover - The color of the close button on hover.
+ */
 @customElement('enoki-connect-modal')
 export class EnokiConnectModal extends BaseModal {
 	static styles = css`
@@ -12,13 +41,27 @@ export class EnokiConnectModal extends BaseModal {
 			border: none;
 			animation: fadeIn 250ms ease-in-out forwards;
 			max-width: 320px;
-			background-color: #e6e6e6;
+			background-color: var(--enoki-connect-modal-background, #e6e6e6);
 			border-radius: 12px;
-			box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+			box-shadow: var(--enoki-connect-modal-box-shadow, 0 12px 32px rgba(0, 0, 0, 0.6));
 			padding: 0;
+			font-family: var(
+				--enoki-connect-modal-font-family,
+				ui-sans-serif,
+				system-ui,
+				-apple-system,
+				'Segoe UI',
+				Roboto,
+				Helvetica,
+				Arial,
+				'Apple Color Emoji',
+				'Segoe UI Emoji',
+				'Noto Color Emoji',
+				sans-serif
+			);
 		}
 		.modal::backdrop {
-			background-color: rgba(0, 0, 0, 0.5);
+			background-color: var(--enoki-connect-modal-backdrop-background, rgba(0, 0, 0, 0.5));
 		}
 		.content {
 			padding: 20px;
@@ -36,13 +79,13 @@ export class EnokiConnectModal extends BaseModal {
 			font-size: 16px;
 			font-weight: 600;
 			line-height: 1.5;
-			color: #222222;
+			color: var(--enoki-connect-modal-title-foreground, #222222);
 			margin: 0;
 		}
 		.description {
 			font-size: 14px;
 			line-height: 1.5;
-			color: #666666;
+			color: var(--enoki-connect-modal-description-foreground, #666666);
 			margin: 0;
 		}
 		.footer {
@@ -61,22 +104,24 @@ export class EnokiConnectModal extends BaseModal {
 			font-weight: 600;
 		}
 		.btn.primary {
-			background: rgba(142, 148, 142, 0.4);
-			color: #111;
+			background: var(--enoki-connect-modal-primary-background, rgba(142, 148, 142, 0.4));
+			color: var(--enoki-connect-modal-primary-foreground, #111);
 		}
 		.btn.primary:hover,
 		.btn.primary:focus,
 		.btn.primary:active {
-			background: rgba(142, 148, 142, 0.55);
+			background: var(--enoki-connect-modal-primary-background-hover, rgba(142, 148, 142, 0.55));
+			color: var(--enoki-connect-modal-primary-foreground-hover, #111);
 		}
 		.btn.secondary {
-			background: transparent;
-			color: #222;
+			background: var(--enoki-connect-modal-secondary-background, transparent);
+			color: var(--enoki-connect-modal-secondary-foreground, #222222);
 		}
 		.btn.secondary:hover,
 		.btn.secondary:focus,
 		.btn.secondary:active {
-			background: #dddddd;
+			background: var(--enoki-connect-modal-secondary-background-hover, #dddddd);
+			color: var(--enoki-connect-modal-secondary-foreground-hover, #222222);
 		}
 		button:disabled {
 			opacity: 0.5;
@@ -87,7 +132,8 @@ export class EnokiConnectModal extends BaseModal {
 			position: absolute;
 			top: 10px;
 			right: 10px;
-			background: transparent;
+			background: var(--enoki-connect-modal-close-background, transparent);
+			color: var(--enoki-connect-modal-close-foreground, #222222);
 			border: none;
 			cursor: pointer;
 			width: 20px;
@@ -99,7 +145,8 @@ export class EnokiConnectModal extends BaseModal {
 		.close:hover,
 		.close:focus,
 		.close:active {
-			background: #dddddd;
+			background: var(--enoki-connect-modal-close-background-hover, #dddddd);
+			color: var(--enoki-connect-modal-close-foreground-hover, #222222);
 		}
 		.modal.closing {
 			animation: fadeOut 250ms ease-in-out forwards;
