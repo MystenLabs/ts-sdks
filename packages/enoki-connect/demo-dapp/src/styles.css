@@ -1,0 +1,12 @@
+:root {
+  --enoki-connect-modal-font-family: sans-serif;
+  --enoki-connect-modal-background: #111;
+  --enoki-connect-modal-title-foreground: #fff;
+  --enoki-connect-modal-description-foreground: #ccc;
+  --enoki-connect-modal-primary-background: #007bff;
+  --enoki-connect-modal-primary-foreground: #fff;
+  --enoki-connect-modal-primary-background-hover: #0056b3;
+  --enoki-connect-modal-primary-foreground-hover: #fff;
+  --enoki-connect-modal-secondary-background: #6c757d;
+  --enoki-connect-modal-secondary-foreground: #fff;
+}
