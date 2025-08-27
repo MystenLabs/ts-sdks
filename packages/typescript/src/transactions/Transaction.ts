@@ -752,43 +752,45 @@ export class Transaction {
 	}
 
 	async #runPlugins(plugins: TransactionPlugin[], options: SerializeTransactionOptions) {
-		const createNext = (i: number) => {
-			if (i >= plugins.length) {
-				return () => {};
-			}
-			const plugin = plugins[i];
+		try {
+			const createNext = (i: number) => {
+				if (i >= plugins.length) {
+					return () => {};
+				}
+				const plugin = plugins[i];
 
-			return async () => {
-				const next = createNext(i + 1);
-				let calledNext = false;
-				let nextResolved = false;
+				return async () => {
+					const next = createNext(i + 1);
+					let calledNext = false;
+					let nextResolved = false;
 
-				await plugin(this.#data, options, async () => {
-					if (calledNext) {
-						throw new Error(`next() was call multiple times in TransactionPlugin ${i}`);
+					await plugin(this.#data, options, async () => {
+						if (calledNext) {
+							throw new Error(`next() was call multiple times in TransactionPlugin ${i}`);
+						}
+
+						calledNext = true;
+
+						await next();
+
+						nextResolved = true;
+					});
+
+					if (!calledNext) {
+						throw new Error(`next() was not called in TransactionPlugin ${i}`);
 					}
 
-					calledNext = true;
-
-					await next();
-
-					nextResolved = true;
-				});
-
-				if (!calledNext) {
-					throw new Error(`next() was not called in TransactionPlugin ${i}`);
-				}
-
-				if (!nextResolved) {
-					throw new Error(`next() was not awaited in TransactionPlugin ${i}`);
-				}
+					if (!nextResolved) {
+						throw new Error(`next() was not awaited in TransactionPlugin ${i}`);
+					}
+				};
 			};
-		};
 
-		await createNext(0)();
-
-		this.#inputSection = this.#data.inputs.slice();
-		this.#commandSection = this.#data.commands.slice();
+			await createNext(0)();
+		} finally {
+			this.#inputSection = this.#data.inputs.slice();
+			this.#commandSection = this.#data.commands.slice();
+		}
 	}
 
 	async #waitForPendingTasks() {
