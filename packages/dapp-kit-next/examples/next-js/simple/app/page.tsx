@@ -5,7 +5,7 @@
 
 import dynamic from 'next/dynamic';
 
-const ClientApp = dynamic(() => import('././ClientOnlyConnectButton'), {
+const ClientApp = dynamic(() => import('./ClientOnlyConnectButton'), {
 	ssr: false,
 	loading: () => <div>ClientOnlyConnectButton is not rendered on server</div>,
 });
