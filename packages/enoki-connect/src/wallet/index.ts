@@ -335,14 +335,17 @@ function addClickToOpenPopupWindow({
 
 	modal.walletName = walletName;
 	modal.dappName = dappName;
+	modal.open = true;
 
-	modal.addEventListener('canceled', () => {
+	modal.addEventListener('cancel', () => {
 		reject(new Error('Popup was blocked from browser and user rejected click to review request'));
-		modal.remove();
+		modal.open = false;
 	});
 
 	modal.addEventListener('approved', () => {
 		modal.disabled = true;
+		modal.open = false;
+
 		const popup = window.open('about:blank', '_blank');
 
 		if (popup) {
@@ -350,7 +353,9 @@ function addClickToOpenPopupWindow({
 		} else {
 			reject(new Error('Failed to open popup'));
 		}
+	});
 
+	modal.addEventListener('closed', () => {
 		modal.remove();
 	});
 

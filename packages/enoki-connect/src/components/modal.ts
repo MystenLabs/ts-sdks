@@ -1,43 +1,30 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { LitElement, css, html } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { css, html } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
+import { BaseModal } from './base-modal';
 
 @customElement('enoki-connect-modal')
-export class EnokiConnectModal extends LitElement {
+export class EnokiConnectModal extends BaseModal {
 	static styles = css`
-		:host {
-			position: fixed;
-			inset: 0;
-			z-index: 99999;
-			color: #222222;
-		}
 		.modal {
+			color: #222222;
 			border: none;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			width: 100%;
-			height: 100%;
-			animation: fadeIn 0.2s ease-in-out forwards;
+			animation: fadeIn 250ms ease-in-out forwards;
+			max-width: 320px;
+			background-color: #e6e6e6;
+			border-radius: 12px;
+			box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+			padding: 0;
 		}
-		.backdrop {
+		.modal::backdrop {
 			background-color: rgba(0, 0, 0, 0.5);
-			position: absolute;
-			inset: 0;
-			z-index: 0;
 		}
 		.content {
-			background-color: #e6e6e6;
 			padding: 20px;
-			border-radius: 12px;
-			z-index: 1;
-			max-width: 320px;
 			display: flex;
 			flex-direction: column;
 			gap: 10px;
-			box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
-			position: relative;
 		}
 		.capitalize {
 			text-transform: capitalize;
@@ -114,25 +101,25 @@ export class EnokiConnectModal extends LitElement {
 		.close:active {
 			background: #dddddd;
 		}
-
 		.modal.closing {
-			animation: fadeOut 0.2s ease-in-out forwards;
+			animation: fadeOut 250ms ease-in-out forwards;
 		}
 
 		@keyframes fadeIn {
 			from {
+				transform: translateY(-20px) scale(0.8);
 				opacity: 0;
 			}
 			to {
 				opacity: 1;
 			}
 		}
-
 		@keyframes fadeOut {
 			from {
 				opacity: 1;
 			}
 			to {
+				transform: translateY(20px) scale(0.8);
 				opacity: 0;
 			}
 		}
@@ -142,48 +129,62 @@ export class EnokiConnectModal extends LitElement {
 	walletName: string = '';
 	@property()
 	dappName: string = '';
-	@property()
-	disabled: boolean = false;
-
-	@state()
-	private _closing = false;
-
-	#handleCancel() {
-		if (this._closing) {
-			return;
-		}
-		this._closing = true;
-	}
 
 	#handleContinue() {
 		this.dispatchEvent(new CustomEvent('approved'));
 	}
 
-	#handleAnimationEnd() {
-		if (this._closing) {
-			this.dispatchEvent(new CustomEvent('canceled'));
-		}
-	}
-
 	override render() {
-		return html`
-			<div class="modal${this._closing ? ' closing' : ''}" role="dialog" aria-label="${this.walletName} Operation Request" @animationend=${this.#handleAnimationEnd}>
-				<div class="backdrop"></div>
-				<div class="content">
-					<button class="close" @click=${this.#handleCancel} ?disabled=${this._closing || this.disabled}>
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+		return html`<dialog
+			@click=${this.handleDialogClick}
+			@cancel=${this.handleCancel}
+			class="modal${this._isClosing ? ' closing' : ''}"
+			@animationend=${this.handleAnimationEnd}
+		>
+			<div class="content" @click=${this.handleContentClick}>
+				<button
+					class="close"
+					@click=${this.handleCancel}
+					?disabled=${this.disabled || this._isClosing}
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="lucide lucide-x"
+					>
+						<path d="M18 6 6 18" />
+						<path d="m6 6 12 12" />
+					</svg>
+				</button>
+				<h1 class="title capitalize">${this.walletName} Operation Request</h1>
+				<p class="description">
+					<span class="capitalize bold">${this.dappName}</span> requested a wallet operation. Click
+					continue to open <span class="wallet-name bold">${this.walletName}</span> (in a new tab)
+					and review the request.
+				</p>
+				<div class="footer">
+					<button
+						class="btn secondary"
+						@click=${this.handleCancel}
+						?disabled=${this.disabled || this._isClosing}
+					>
+						Cancel
 					</button>
-					<h1 class="title capitalize">${this.walletName} Operation Request</h1>
-					<p class="description">
-						<span class="capitalize bold">${this.dappName}</span> requested a wallet operation. Click continue to open <span class="wallet-name bold">${this.walletName}</span> (in a new tab) and review the request.
-					</p>
-					<div class="footer">
-						<button class="btn secondary" @click=${this.#handleCancel} ?disabled=${this._closing || this.disabled}>Cancel</button>
-						<button class="btn primary" @click=${this.#handleContinue} ?disabled=${this._closing || this.disabled}>Continue</button>
-					</div>
+					<button
+						class="btn primary"
+						@click=${this.#handleContinue}
+						?disabled=${this.disabled || this._isClosing}
+					>
+						Continue
+					</button>
 				</div>
-			</dialog>
-		`;
+			</div>
+		</dialog>`;
 	}
 }
 
