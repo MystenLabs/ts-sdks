@@ -42,3 +42,5 @@ export {
 export { isValidNamedPackage, isValidNamedType } from './move-registry.js';
 
 export { deriveDynamicFieldID } from './dynamic-fields.js';
+
+export { redacted, isRedacted, getRedactedValue } from './redacted.js';

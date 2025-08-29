@@ -13,6 +13,7 @@ import type { SignatureScheme } from './signature-scheme.js';
 import { toSerializedSignature } from './signature.js';
 import type { Transaction } from '../transactions/Transaction.js';
 import type { ClientWithCoreApi, Experimental_SuiClientTypes } from '../experimental/index.js';
+import { Redacted } from '../utils/redacted.js';
 
 export const PRIVATE_KEY_SIZE = 32;
 export const LEGACY_PRIVATE_KEY_SIZE = 64;
@@ -112,8 +113,15 @@ export abstract class Signer {
 export abstract class Keypair extends Signer {
 	/**
 	 * This returns the Bech32 secret key string for this keypair.
+	 *
+	 * We recommend using `getSecretKeyRedacted()` instead, to ensure the secret key is not logged.
 	 */
 	abstract getSecretKey(): string;
+
+	/**
+	 * Get the secret key for this keypair, with the value redacted so that it cannot be logged.
+	 */
+	abstract getSecretKeyRedacted(): Redacted<string>;
 }
 
 /**
