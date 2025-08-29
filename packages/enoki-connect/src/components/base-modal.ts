@@ -1,9 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { LitElement, PropertyValues } from 'lit';
+import { LitElement } from 'lit';
+import type { PropertyValues } from 'lit';
 import { property, query, state } from 'lit/decorators.js';
-import { promiseWithResolvers, type PromiseWithResolvers } from '@mysten/utils';
+import { promiseWithResolvers } from '@mysten/utils';
+import type { PromiseWithResolvers } from '@mysten/utils';
 
 export class BaseModal extends LitElement {
 	#isOpen = false;
