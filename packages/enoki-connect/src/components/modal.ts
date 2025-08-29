@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { BaseModal } from './base-modal';
+import { BaseModal } from './base-modal.js';
 
 @customElement('enoki-connect-modal')
 export class EnokiConnectModal extends BaseModal {
