@@ -37,16 +37,18 @@ import type { InferOutput } from 'valibot';
 import { boolean, object, string } from 'valibot';
 import type { CustomCaipNetwork } from '@reown/appkit-universal-connector';
 import { UniversalConnector } from '@reown/appkit-universal-connector';
-import type { Experimental_BaseClient } from '@mysten/sui/experimental';
+import type {
+	Experimental_BaseClient,
+	Experimental_SuiClientTypes,
+} from '@mysten/sui/experimental';
 import { Transaction } from '@mysten/sui/dist/cjs/transactions/Transaction';
 
 // -- Types --
-type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 type WalletEventsMap = {
 	[E in keyof StandardEventsListeners]: Parameters<StandardEventsListeners[E]>[0];
 };
 
-export type GetClient = (network: Network) => Experimental_BaseClient;
+export type GetClient = (network: Experimental_SuiClientTypes.Network) => Experimental_BaseClient;
 type WalletMetadata = InferOutput<typeof WalletMetadataSchema>;
 
 // -- Constants --
@@ -238,7 +240,7 @@ export class WalletConnectWallet implements Wallet {
 		chain,
 	}) => {
 		const [, network] = chain.split(':');
-		const client = this.#getClient(network as Network);
+		const client = this.#getClient(network as Experimental_SuiClientTypes.Network);
 		const data = await transaction.toJSON();
 		const parsedTransaction = Transaction.from(data);
 		const bytes = await parsedTransaction.build({ client });

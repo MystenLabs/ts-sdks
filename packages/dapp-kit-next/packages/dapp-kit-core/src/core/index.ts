@@ -28,7 +28,6 @@ import { signTransactionCreator } from './actions/sign-transaction.js';
 import { slushWebWalletInitializer } from '../wallets/slush-web.js';
 import { registerAdditionalWallets } from '../wallets/index.js';
 import { unsafeBurnerWalletInitializer } from '../wallets/unsafe-burner.js';
-import { walletConnectWalletInitializer } from '../wallets/walletconnect.js';
 import type {
 	SignedPersonalMessage,
 	SignedTransaction,
@@ -74,7 +73,6 @@ export function createDAppKit<
 	storage = getDefaultStorage(),
 	storageKey = DEFAULT_STORAGE_KEY,
 	walletInitializers = [],
-	walletConnectProjectId,
 }: CreateDAppKitOptions<TNetworks, Client>): DAppKit<TNetworks, Client> {
 	const networkConfig = createNetworkConfig(networks, createClient);
 	const stores = createStores({ defaultNetwork, getClient: networkConfig.getClient });
@@ -98,9 +96,6 @@ export function createDAppKit<
 			...walletInitializers,
 			...(enableBurnerWallet ? [unsafeBurnerWalletInitializer()] : []),
 			...(slushWalletConfig !== null ? [slushWebWalletInitializer(slushWalletConfig)] : []),
-			...(walletConnectProjectId !== undefined
-				? [walletConnectWalletInitializer(walletConnectProjectId, getClient)]
-				: []),
 		],
 		{ networks, getClient },
 	);
