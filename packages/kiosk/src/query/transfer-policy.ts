@@ -1,8 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SuiClient } from '@mysten/sui/client';
-import { fromBase64, isValidSuiAddress } from '@mysten/sui/utils';
+import { isValidSuiAddress } from '@mysten/sui/utils';
 
 import '../bcs.js';
 
@@ -14,9 +13,11 @@ import {
 	TRANSFER_POLICY_TYPE,
 } from '../types/index.js';
 import { getAllOwnedObjects, parseTransferPolicyCapObject } from '../utils.js';
+import type { ClientWithCoreApi, Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { SuiClient } from '@mysten/sui/client';
 
 /**
- * Searches the `TransferPolicy`-s for the given type. The seach is performed via
+ * Searches the `TransferPolicy`-s for the given type. The search is performed via
  * the `TransferPolicyCreated` event. The policy can either be owned or shared,
  * and the caller needs to filter the results accordingly (ie single owner can not
  * be accessed by anyone but the owner).
@@ -25,35 +26,31 @@ import { getAllOwnedObjects, parseTransferPolicyCapObject } from '../utils.js';
  * @param type
  */
 export async function queryTransferPolicy(
-	client: SuiClient,
+	client: ClientWithCoreApi,
 	type: string,
 ): Promise<TransferPolicy[]> {
 	// console.log('event type: %s', `${TRANSFER_POLICY_CREATED_EVENT}<${type}>`);
-	const { data } = await client.queryEvents({
+	// TOD0: implement queryEvents
+	const { data } = await (client as SuiClient).queryEvents({
 		query: {
 			MoveEventType: `${TRANSFER_POLICY_CREATED_EVENT}<${type}>`,
 		},
 	});
 
 	const search = data.map((event) => event.parsedJson as { id: string });
-	const policies = await client.multiGetObjects({
-		ids: search.map((policy) => policy.id),
-		options: { showBcs: true, showOwner: true },
+	const policies = await client.core.getObjects({
+		objectIds: search.map((policy) => policy.id),
 	});
 
-	return policies
-		.filter((policy) => !!policy && 'data' in policy)
-		.map(({ data: policy }) => {
-			// should never happen; policies are objects and fetched via an event.
-			// policies are filtered for null and undefined above.
-			if (!policy || !policy.bcs || !('bcsBytes' in policy.bcs)) {
-				throw new Error(`Invalid policy: ${policy?.objectId}, expected object, got package`);
-			}
-
-			const parsed = TransferPolicyType.parse(fromBase64(policy.bcs.bcsBytes));
+	return policies.objects
+		.filter(
+			(result): result is Experimental_SuiClientTypes.ObjectResponse => !(result instanceof Error),
+		)
+		.map((policy) => {
+			const parsed = TransferPolicyType.parse(policy.content);
 
 			return {
-				id: policy?.objectId,
+				id: policy?.id,
 				type: `${TRANSFER_POLICY_TYPE}<${type}>`,
 				owner: policy?.owner!,
 				rules: parsed.rules,
@@ -70,24 +67,16 @@ export async function queryTransferPolicy(
  * @returns TransferPolicyCap Object ID | undefined if not found.
  */
 export async function queryTransferPolicyCapsByType(
-	client: SuiClient,
+	client: ClientWithCoreApi,
 	address: string,
 	type: string,
 ): Promise<TransferPolicyCap[]> {
 	if (!isValidSuiAddress(address)) return [];
 
-	const filter = {
-		MatchAll: [
-			{
-				StructType: `${TRANSFER_POLICY_CAP_TYPE}<${type}>`,
-			},
-		],
-	};
-
 	// fetch owned kiosk caps, paginated.
 	const data = await getAllOwnedObjects({
 		client,
-		filter,
+		type: `${TRANSFER_POLICY_CAP_TYPE}<${type}>`,
 		owner: address,
 	});
 
@@ -104,24 +93,18 @@ export async function queryTransferPolicyCapsByType(
  * @returns TransferPolicyCap Object ID | undefined if not found.
  */
 export async function queryOwnedTransferPolicies(
-	client: SuiClient,
+	client: ClientWithCoreApi,
 	address: string,
 ): Promise<TransferPolicyCap[] | undefined> {
 	if (!isValidSuiAddress(address)) return;
 
-	const filter = {
-		MatchAll: [
-			{
-				MoveModule: {
-					module: 'transfer_policy',
-					package: '0x2',
-				},
-			},
-		],
-	};
-
 	// fetch all owned kiosk caps, paginated.
-	const data = await getAllOwnedObjects({ client, owner: address, filter });
+	const data = await getAllOwnedObjects({
+		client,
+		owner: address,
+		// TODO: ensure this works across APIs without a fully resolved type?
+		type: '0x2::transfer_policy',
+	});
 
 	const policies: TransferPolicyCap[] = [];
 

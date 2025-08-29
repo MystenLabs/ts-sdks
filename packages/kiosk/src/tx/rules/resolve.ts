@@ -1,53 +1,44 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { bcs } from '@mysten/sui/bcs';
 import type { TransactionArgument } from '@mysten/sui/transactions';
-import { Transaction } from '@mysten/sui/transactions';
-import { normalizeSuiAddress } from '@mysten/sui/utils';
 
 import type { RuleResolvingParams } from '../../types/index.js';
 import { lock } from '../kiosk.js';
+import { TransferPolicyConfig } from '../../bcs.js';
 
 /**
  * A helper to resolve the royalty rule.
  */
 export async function resolveRoyaltyRule(params: RuleResolvingParams) {
-	const {
-		kioskClient,
-		transaction: tx,
-		itemType,
-		price,
-		packageId,
-		transferRequest,
-		policyId,
-	} = params;
+	const { client, transaction: tx, itemType, price, packageId, transferRequest, policyId } = params;
 
 	// We attempt to resolve the fee amount outside of the PTB so that the split amount is known before the transaction is sent.
 	// This improves the display of the transaction within the wallet.
 
-	const feeTx = new Transaction();
-
-	// calculates the amount
-	feeTx.moveCall({
-		target: `${packageId}::royalty_rule::fee_amount`,
-		typeArguments: [itemType],
-		arguments: [feeTx.object(policyId), feeTx.pure.u64(price || '0')],
-	});
-
+	let amount: TransactionArgument | bigint | null = null;
 	const policyObj = tx.object(policyId);
 
-	const { results } = await kioskClient.client.devInspectTransactionBlock({
-		sender: tx.getData().sender || normalizeSuiAddress('0x0'),
-		transactionBlock: feeTx,
-	});
+	try {
+		const ruleConfigField = await client.core.getDynamicField({
+			parentId: policyId,
+			name: {
+				type: '0x2::transfer_policy::RuleKey',
+				bcs: new Uint8Array(),
+			},
+		});
 
-	let amount: TransactionArgument | bigint | null = null;
-	if (results) {
-		const returnedAmount = results?.[0].returnValues?.[0]?.[0];
-		if (returnedAmount) {
-			amount = BigInt(bcs.U64.parse(new Uint8Array(returnedAmount as number[])));
+		const ruleConfig = TransferPolicyConfig.parse(ruleConfigField.dynamicField.value.bcs);
+
+		const paymentAmount = BigInt(price);
+
+		if (paymentAmount < BigInt(ruleConfig.minAmount)) {
+			amount = tx.pure.u64(ruleConfig.minAmount);
+		} else {
+			amount = tx.pure.u64((paymentAmount * BigInt(ruleConfig.amountBp)) / BigInt(10_000));
 		}
+	} catch (_error) {
+		/** ignore error */
 	}
 
 	// We were not able to calculate the amount outside of the transaction, so fall back to resolving it within the PTB
@@ -84,7 +75,7 @@ export function resolveKioskLockRule(params: RuleResolvingParams) {
 
 	if (!kiosk || !kioskCap) throw new Error('Missing Owned Kiosk or Owned Kiosk Cap');
 
-	lock(tx, itemType, kiosk, kioskCap, policyId, purchasedItem);
+	tx.add(lock({ itemType, kiosk, kioskCap, policy: policyId, item: purchasedItem }));
 
 	// proves that the item is locked in the kiosk to the TP.
 	tx.moveCall({

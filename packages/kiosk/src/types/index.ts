@@ -1,10 +1,15 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SuiClient } from '@mysten/sui/client';
 import type { TransactionObjectArgument } from '@mysten/sui/transactions';
 
 import type { BaseRulePackageIds } from '../constants.js';
+import type {
+	ClientWithExtensions,
+	Experimental_CoreClient,
+	Experimental_SuiClientTypes,
+} from '@mysten/sui/experimental';
+import type { KioskClient } from '../client/kiosk-client.js';
 
 export * from './kiosk.js';
 export * from './transfer-policy.js';
@@ -15,21 +20,19 @@ export * from './transfer-policy.js';
 export type ObjectArgument = string | TransactionObjectArgument;
 
 /**
- * A Network selector.
- * Kiosk SDK supports mainnet & testnet.
- * Pass `custom` for any other network (devnet, localnet).
- */
-export enum Network {
-	MAINNET = 'mainnet',
-	TESTNET = 'testnet',
-	CUSTOM = 'custom',
-}
-
-/**
  * The Client Options for Both KioskClient & TransferPolicyManager.
  */
 export type KioskClientOptions = {
-	client: SuiClient;
-	network: Network;
+	client: CoreSuiClient;
+	network?: Experimental_SuiClientTypes.Network;
 	packageIds?: BaseRulePackageIds;
 };
+
+export type CoreSuiClient = ClientWithExtensions<{
+	core: Experimental_CoreClient;
+}>;
+
+export type ClientWithKioskExtension = ClientWithExtensions<{
+	core: Experimental_CoreClient;
+	kiosk: KioskClient;
+}>;

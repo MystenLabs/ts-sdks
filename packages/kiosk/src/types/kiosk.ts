@@ -1,14 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type {
-	PaginatedObjectsResponse,
-	SuiObjectData,
-	SuiObjectDataOptions,
-} from '@mysten/sui/client';
+import type { PaginatedObjectsResponse, SuiObjectDataOptions } from '@mysten/sui/client';
 import type { TransactionArgument } from '@mysten/sui/transactions';
 
 import type { ObjectArgument } from './index.js';
+import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 
 /** The Kiosk module. */
 export const KIOSK_MODULE = '0x2::kiosk';
@@ -106,7 +103,7 @@ export type KioskItem = {
 	/** The ID of the kiosk the item is placed in */
 	kioskId: string;
 	/** Optional Kiosk Data */
-	data?: SuiObjectData;
+	data?: Experimental_SuiClientTypes.ObjectResponse;
 };
 
 /** The overview type returned from `getKiosk` */

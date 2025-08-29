@@ -5,30 +5,36 @@ import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transac
 
 import type { ObjectArgument } from '../types/index.js';
 
-export function convertToPersonalTx(
-	tx: Transaction,
-	kiosk: ObjectArgument,
-	kioskOwnerCap: ObjectArgument,
-	packageId: string,
-): TransactionObjectArgument {
-	const personalKioskCap = tx.moveCall({
-		target: `${packageId}::personal_kiosk::new`,
-		arguments: [tx.object(kiosk), tx.object(kioskOwnerCap)],
-	});
+export interface ConvertToPersonalKioskParams {
+	kiosk: ObjectArgument;
+	kioskOwnerCap: ObjectArgument;
+	packageId: string;
+}
 
-	return personalKioskCap;
+export function convertToPersonal(params: ConvertToPersonalKioskParams) {
+	return (tx: Transaction) => {
+		const personalKioskCap = tx.moveCall({
+			target: `${params.packageId}::personal_kiosk::new`,
+			arguments: [tx.object(params.kiosk), tx.object(params.kioskOwnerCap)],
+		});
+
+		return personalKioskCap;
+	};
+}
+
+export interface TransferPersonalCapParams {
+	personalKioskCap: TransactionObjectArgument;
+	packageId: string;
 }
 
 /**
  * Transfers the personal kiosk Cap to the sender.
  */
-export function transferPersonalCapTx(
-	tx: Transaction,
-	personalKioskCap: TransactionObjectArgument,
-	packageId: string,
-) {
-	tx.moveCall({
-		target: `${packageId}::personal_kiosk::transfer_to_sender`,
-		arguments: [personalKioskCap],
-	});
+export function transferPersonalCap(params: TransferPersonalCapParams) {
+	return (tx: Transaction) => {
+		tx.moveCall({
+			target: `${params.packageId}::personal_kiosk::transfer_to_sender`,
+			arguments: [tx.object(params.personalKioskCap)],
+		});
+	};
 }

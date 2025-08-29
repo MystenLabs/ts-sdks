@@ -8,7 +8,6 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import {
 	KioskClient,
 	KioskTransaction,
-	Network,
 	percentageToBasisPoints,
 	TransferPolicyTransaction,
 } from '../../src';
@@ -55,7 +54,7 @@ describe('Testing Kiosk SDK transaction building & querying e2e', () => {
 
 		kioskClient = new KioskClient({
 			client: toolbox.client,
-			network: Network.CUSTOM,
+			network: 'localnet',
 			packageIds: {
 				kioskLockRulePackageId: extensionsPackageId,
 				royaltyRulePackageId: extensionsPackageId,

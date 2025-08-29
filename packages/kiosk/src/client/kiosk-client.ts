@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { PaginationArguments, SuiClient } from '@mysten/sui/client';
+import type { PaginationArguments } from '@mysten/sui/client';
 
 import {
 	FLOOR_PRICE_RULE_ADDRESS,
@@ -18,13 +18,14 @@ import {
 	queryTransferPolicy,
 	queryTransferPolicyCapsByType,
 } from '../query/transfer-policy.js';
-import { Network } from '../types/index.js';
 import type {
+	CoreSuiClient,
 	FetchKioskOptions,
 	KioskClientOptions,
 	KioskData,
 	OwnedKiosks,
 } from '../types/index.js';
+import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 
 /**
  * A Client that allows you to interact with kiosk.
@@ -33,20 +34,26 @@ import type {
  * If you pass packageIds, all functionality will be managed using these packages.
  */
 export class KioskClient {
-	client: SuiClient;
-	network: Network;
-	rules: TransferPolicyRule[];
-	packageIds?: BaseRulePackageIds;
+	#client: CoreSuiClient;
+	#network: Experimental_SuiClientTypes.Network;
+	#rules: TransferPolicyRule[];
+	#packageIds: BaseRulePackageIds;
 
 	constructor(options: KioskClientOptions) {
-		this.client = options.client;
-		this.network = options.network;
-		this.rules = rules; // add all the default rules.
-		this.packageIds = options.packageIds;
+		this.#client = options.client;
+		this.#rules = rules; // add all the default rules.
+		this.#network = options.network ?? this.#client.network;
+		this.#packageIds = {
+			royaltyRulePackageId: ROYALTY_RULE_ADDRESS[this.#network],
+			kioskLockRulePackageId: KIOSK_LOCK_RULE_ADDRESS[this.#network],
+			personalKioskRulePackageId: PERSONAL_KIOSK_RULE_ADDRESS[this.#network],
+			floorPriceRulePackageId: FLOOR_PRICE_RULE_ADDRESS[this.#network],
+			...options.packageIds,
+		};
 
 		// Add the custom Package Ids too on the rule list.
 		// Only adds the rules that are passed in the packageId object.
-		if (options.packageIds) this.rules.push(...getBaseRules(options.packageIds));
+		if (options.packageIds) this.#rules.push(...getBaseRules(options.packageIds));
 	}
 
 	/// Querying
@@ -65,9 +72,10 @@ export class KioskClient {
 		pagination?: PaginationArguments<string>;
 	}): Promise<OwnedKiosks> {
 		const personalPackageId =
-			this.packageIds?.personalKioskRulePackageId || PERSONAL_KIOSK_RULE_ADDRESS[this.network];
+			this.#packageIds?.personalKioskRulePackageId ||
+			PERSONAL_KIOSK_RULE_ADDRESS[this.#client.network];
 
-		return getOwnedKiosks(this.client, address, {
+		return getOwnedKiosks(this.#client, address, {
 			pagination,
 			personalKioskType: personalPackageId
 				? `${personalPackageId}::personal_kiosk::PersonalKioskCap`
@@ -82,7 +90,7 @@ export class KioskClient {
 	 * @returns
 	 */
 	async getKiosk({ id, options }: { id: string; options?: FetchKioskOptions }): Promise<KioskData> {
-		return (await fetchKiosk(this.client, id, {}, options || {})).data;
+		return (await fetchKiosk(this.#client, id, {}, options || {})).data;
 	}
 
 	/**
@@ -91,7 +99,7 @@ export class KioskClient {
 	 * @param extensionType The Type of the extension (can be used from by using the type returned by `getKiosk()`)
 	 */
 	async getKioskExtension({ kioskId, type }: { kioskId: string; type: string }) {
-		return fetchKioskExtension(this.client, kioskId, type);
+		return fetchKioskExtension(this.#client, kioskId, type);
 	}
 
 	/**
@@ -99,7 +107,7 @@ export class KioskClient {
 	 * @param type The Type we're querying for (E.g `0xMyAddress::hero::Hero`)
 	 */
 	async getTransferPolicies({ type }: { type: string }) {
-		return queryTransferPolicy(this.client, type);
+		return queryTransferPolicy(this.#client, type);
 	}
 
 	/**
@@ -108,7 +116,7 @@ export class KioskClient {
 	 * @param address The address we're searching the owned transfer policies for.
 	 */
 	async getOwnedTransferPolicies({ address }: { address: string }) {
-		return queryOwnedTransferPolicies(this.client, address);
+		return queryOwnedTransferPolicies(this.#client, address);
 	}
 
 	/**
@@ -117,16 +125,16 @@ export class KioskClient {
 	 * @param address The address that owns the cap.
 	 */
 	async getOwnedTransferPoliciesByType({ type, address }: { type: string; address: string }) {
-		return queryTransferPolicyCapsByType(this.client, address, type);
+		return queryTransferPolicyCapsByType(this.#client, address, type);
 	}
 
 	// Someone would just have to create a `kiosk-client.ts` file in their project, initialize a KioskClient
 	// and call the `addRuleResolver` function. Each rule has a `resolve` function.
 	// The resolve function is automatically called on `purchaseAndResolve` function call.
 	addRuleResolver(rule: TransferPolicyRule) {
-		if (this.rules.find((x) => x.rule === rule.rule))
+		if (this.#rules.find((x) => x.rule === rule.rule))
 			throw new Error(`Rule ${rule.rule} resolver already exists.`);
-		this.rules.push(rule);
+		this.#rules.push(rule);
 	}
 
 	/**
@@ -140,12 +148,12 @@ export class KioskClient {
 			| 'personalKioskRulePackageId'
 			| 'floorPriceRulePackageId',
 	) {
-		const rules = this.packageIds || {};
-		const network = this.network;
+		const rules = this.#packageIds || {};
+		const network = this.#network;
 
 		/// Check existence of rule based on network and throw an error if it's not found.
 		/// We always have a fallback for testnet or mainnet.
-		if (!rules[rule] && network !== Network.MAINNET && network !== Network.TESTNET) {
+		if (!rules[rule] && network !== 'mainnet' && network !== 'testnet') {
 			throw new Error(`Missing packageId for rule ${rule}`);
 		}
 
