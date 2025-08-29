@@ -67,29 +67,35 @@ describe('key-server tests', () => {
 		);
 	});
 
-	it('test verifyKeyServerInfo (mocked)', async () => {
-		// Mock fetch with exact response from the real service
-		const keyServers = await retrieveKeyServers({
-			objectIds: [id],
-			client: new SuiClient({ url: getFullnodeUrl('testnet') }),
-		});
-		vi.clearAllMocks();
-		const headers = new Headers();
-		headers.set('x-keyserver-version', '0.4.1');
-		global.fetch = vi.fn().mockImplementation(() => {
-			return Promise.resolve({
-				ok: true,
-				status: 200,
-				headers,
-				json: () =>
-					Promise.resolve({
-						service_id: id, // Note: the actual response uses the hex string format
-						pop: 'iDsj79BrG4PplI8oxRR3OUS6STJkC1ffoljGwSlk2BWib4ovohsk2/irjkqdOEkF',
-					}),
+	it(
+		'test verifyKeyServerInfo (mocked)',
+		{
+			timeout: 12000,
+		},
+		async () => {
+			// Mock fetch with exact response from the real service
+			const keyServers = await retrieveKeyServers({
+				objectIds: [id],
+				client: new SuiClient({ url: getFullnodeUrl('testnet') }),
 			});
-		});
-		expect(verifyKeyServer(keyServers[0], 10_000)).toBeTruthy();
-	});
+			vi.clearAllMocks();
+			const headers = new Headers();
+			headers.set('x-keyserver-version', '0.4.1');
+			global.fetch = vi.fn().mockImplementation(() => {
+				return Promise.resolve({
+					ok: true,
+					status: 200,
+					headers,
+					json: () =>
+						Promise.resolve({
+							service_id: id, // Note: the actual response uses the hex string format
+							pop: 'iDsj79BrG4PplI8oxRR3OUS6STJkC1ffoljGwSlk2BWib4ovohsk2/irjkqdOEkF',
+						}),
+				});
+			});
+			expect(verifyKeyServer(keyServers[0], 10_000)).toBeTruthy();
+		},
+	);
 
 	it('test verifyKeyServer throws SealAPIError on 503', async () => {
 		const keyServers = [

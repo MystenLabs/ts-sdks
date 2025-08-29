@@ -353,9 +353,6 @@ importers:
       '@mysten/wallet-standard':
         specifier: workspace:*
         version: link:../wallet-standard
-      '@mysten/walletconnect-wallet':
-        specifier: workspace:*
-        version: link:../walletconnect-wallet
       '@radix-ui/react-dialog':
         specifier: ^1.1.14
         version: 1.1.14(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -549,9 +546,6 @@ importers:
       '@mysten/wallet-standard':
         specifier: workspace:*
         version: link:../../../wallet-standard
-      '@mysten/walletconnect-wallet':
-        specifier: workspace:*
-        version: link:../../../walletconnect-wallet
       '@nanostores/lit':
         specifier: ^0.2.2
         version: 0.2.2(lit@3.3.1)(nanostores@1.0.1)
@@ -587,7 +581,7 @@ importers:
         specifier: ^8.6.12
         version: 8.6.14(prettier@3.6.2)
       tsdown:
-        specifier: ^0.14.1
+        specifier: ^0.14.2
         version: 0.14.2(typescript@5.9.2)
       typescript:
         specifier: ^5.8.3
@@ -618,7 +612,7 @@ importers:
         specifier: ^18.3.1
         version: 18.3.1
       tsdown:
-        specifier: ^0.14.1
+        specifier: ^0.14.2
         version: 0.14.2(typescript@5.9.2)
       typescript:
         specifier: ^5.8.3
@@ -9482,8 +9476,8 @@ packages:
     deprecated: Rimraf versions prior to v4 are no longer supported
     hasBin: true
 
-  rolldown-plugin-dts@0.15.9:
-    resolution: {integrity: sha512-S2pPcC8h0C8a0ZLDdUTqqtTR9jlryThF3SmH8eZw97FQwgY+hd0x07Zm5algBkmj25S4nvvOusliR1YpImK3LA==}
+  rolldown-plugin-dts@0.15.10:
+    resolution: {integrity: sha512-8cPVAVQUo9tYAoEpc3jFV9RxSil13hrRRg8cHC9gLXxRMNtWPc1LNMSDXzjyD+5Vny49sDZH77JlXp/vlc4I3g==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       '@typescript/native-preview': '>=7.0.0-dev.20250601.1'
@@ -20494,7 +20488,7 @@ snapshots:
     dependencies:
       glob: 7.2.3
 
-  rolldown-plugin-dts@0.15.9(rolldown@1.0.0-beta.34)(typescript@5.9.2):
+  rolldown-plugin-dts@0.15.10(rolldown@1.0.0-beta.34)(typescript@5.9.2):
     dependencies:
       '@babel/generator': 7.28.3
       '@babel/parser': 7.28.3
@@ -21247,7 +21241,7 @@ snapshots:
       empathic: 2.0.0
       hookable: 5.5.3
       rolldown: 1.0.0-beta.34
-      rolldown-plugin-dts: 0.15.9(rolldown@1.0.0-beta.34)(typescript@5.9.2)
+      rolldown-plugin-dts: 0.15.10(rolldown@1.0.0-beta.34)(typescript@5.9.2)
       semver: 7.7.2
       tinyexec: 1.0.1
       tinyglobby: 0.2.14

@@ -1,3 +1,3 @@
 # `@mysten/seal`
 
-This is a beta version of Seal. See https://github.com/MystenLabs/seal for more details.
+See https://seal-docs.wal.app/ for information on how to use the SDK to encrypt and decrypt sensitive data by interacting with Seal key servers.

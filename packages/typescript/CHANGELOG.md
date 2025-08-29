@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.37.5
+
+### Patch Changes
+
+- 3980d04: Fix bad transaction state after transaction building fails
+
 ## 1.37.4
 
 ### Patch Changes
