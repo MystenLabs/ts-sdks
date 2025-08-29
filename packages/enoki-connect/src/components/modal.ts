@@ -4,21 +4,66 @@ import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { BaseModal } from './base-modal.js';
 
+/**
+ * A modal component for displaying wallet operation request fallback UI.
+ *
+ * @element enoki-connect-modal
+ *
+ * @prop {string} walletName - The name of the wallet.
+ * @prop {string} dappName - The name of the dapp.
+ * @prop {boolean} disabled - Whether the modal is disabled.
+ * @prop {boolean} open - Whether the modal is open.
+ *
+ */
 @customElement('enoki-connect-modal')
 export class EnokiConnectModal extends BaseModal {
 	static styles = css`
+		:host {
+			--modal-font-family: var(
+				--font-family,
+				ui-sans-serif,
+				system-ui,
+				-apple-system,
+				BlinkMacSystemFont,
+				'Segoe UI',
+				Roboto,
+				'Helvetica Neue',
+				Arial,
+				'Noto Sans',
+				sans-serif,
+				'Apple Color Emoji',
+				'Segoe UI Emoji',
+				'Segoe UI Symbol',
+				'Noto Color Emoji'
+			);
+			--modal-radius: var(--radius, 0.625rem);
+			--modal-background: var(--popover, oklch(1 0 0));
+			--modal-foreground: var(--popover-foreground, oklch(0.145 0 0));
+			--modal-backdrop: oklch(from var(--modal-background) l c h / 0.4);
+			--modal-box-shadow: 0 1px 10px oklch(from var(--modal-foreground) l c h / 0.01);
+			--modal-primary: var(--primary, oklch(0.205 0 0));
+			--modal-primary-foreground: var(--primary-foreground, oklch(0.985 0 0));
+			--modal-primary-hover: color-mix(in oklch, var(--modal-primary) 85%, white);
+			--modal-secondary: var(--secondary, oklch(0.97 0 0));
+			--modal-secondary-foreground: var(--secondary-foreground, oklch(0.205 0 0));
+			--modal-secondary-hover: color-mix(in oklch, var(--modal-secondary) 85%, white);
+			--modal-muted-foreground: var(--muted-foreground, oklch(0.556 0 0));
+			--modal-accent: var(--accent, oklch(0.97 0 0));
+			--modal-accent-foreground: var(--accent-foreground, oklch(0.205 0 0));
+		}
 		.modal {
-			color: #222222;
+			color: var(--modal-foreground);
 			border: none;
 			animation: fadeIn 250ms ease-in-out forwards;
 			max-width: 320px;
-			background-color: #e6e6e6;
-			border-radius: 12px;
-			box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+			background-color: var(--modal-background);
+			border-radius: var(--modal-radius);
+			box-shadow: var(--modal-box-shadow);
 			padding: 0;
+			font-family: var(--modal-font-family);
 		}
 		.modal::backdrop {
-			background-color: rgba(0, 0, 0, 0.5);
+			background-color: var(--modal-backdrop);
 		}
 		.content {
 			padding: 20px;
@@ -36,13 +81,13 @@ export class EnokiConnectModal extends BaseModal {
 			font-size: 16px;
 			font-weight: 600;
 			line-height: 1.5;
-			color: #222222;
+			color: var(--modal-foreground);
 			margin: 0;
 		}
 		.description {
 			font-size: 14px;
 			line-height: 1.5;
-			color: #666666;
+			color: var(--modal-muted-foreground);
 			margin: 0;
 		}
 		.footer {
@@ -61,22 +106,22 @@ export class EnokiConnectModal extends BaseModal {
 			font-weight: 600;
 		}
 		.btn.primary {
-			background: rgba(142, 148, 142, 0.4);
-			color: #111;
+			background: var(--modal-primary);
+			color: var(--modal-primary-foreground);
 		}
 		.btn.primary:hover,
 		.btn.primary:focus,
 		.btn.primary:active {
-			background: rgba(142, 148, 142, 0.55);
+			background: var(--modal-primary-hover);
 		}
 		.btn.secondary {
-			background: transparent;
-			color: #222;
+			background: var(--modal-secondary);
+			color: var(--modal-secondary-foreground);
 		}
 		.btn.secondary:hover,
 		.btn.secondary:focus,
 		.btn.secondary:active {
-			background: #dddddd;
+			background: var(--modal-secondary-hover);
 		}
 		button:disabled {
 			opacity: 0.5;
@@ -85,21 +130,23 @@ export class EnokiConnectModal extends BaseModal {
 		.close {
 			all: unset;
 			position: absolute;
-			top: 10px;
-			right: 10px;
+			top: 5px;
+			right: 5px;
 			background: transparent;
+			color: var(--modal-muted-foreground);
 			border: none;
 			cursor: pointer;
-			width: 20px;
-			height: 20px;
-			border-radius: 6px;
-			padding: 2px;
+			width: 18px;
+			height: 18px;
+			border-radius: var(--modal-radius);
+			padding: 3px;
 			transition: background 0.2s;
 		}
 		.close:hover,
 		.close:focus,
 		.close:active {
-			background: #dddddd;
+			background: var(--modal-accent);
+			color: var(--modal-accent-foreground);
 		}
 		.modal.closing {
 			animation: fadeOut 250ms ease-in-out forwards;
