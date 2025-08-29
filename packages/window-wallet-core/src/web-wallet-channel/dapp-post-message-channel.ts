@@ -13,6 +13,7 @@ type DappPostMessageChannelOptions = {
 	hostOrigin: string;
 	hostPathname?: string;
 	extraRequestOptions?: Record<string, JsonData>;
+	popupWindow?: Window;
 };
 
 export class DappPostMessageChannel {
@@ -34,8 +35,9 @@ export class DappPostMessageChannel {
 		hostOrigin,
 		hostPathname = 'dapp-request',
 		extraRequestOptions,
+		popupWindow,
 	}: DappPostMessageChannelOptions) {
-		const popup = window.open('about:blank', '_blank');
+		const popup = popupWindow ?? window.open('about:blank', '_blank');
 
 		if (!popup) {
 			throw new Error('Failed to open new window');
