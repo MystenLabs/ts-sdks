@@ -14,54 +14,56 @@ import { BaseModal } from './base-modal.js';
  * @prop {boolean} disabled - Whether the modal is disabled.
  * @prop {boolean} open - Whether the modal is open.
  *
- * @cssprop --enoki-connect-modal-font-family - The font family of the modal.
- * @cssprop --enoki-connect-modal-backdrop-background - The background color of the backdrop.
- * @cssprop --enoki-connect-modal-background - The background color of the modal.
- * @cssprop --enoki-connect-modal-box-shadow - The shadow of the modal.
- * @cssprop --enoki-connect-modal-title-foreground - The color of the title.
- * @cssprop --enoki-connect-modal-description-foreground - The color of the description.
- * @cssprop --enoki-connect-modal-primary-background - The background color of the primary button.
- * @cssprop --enoki-connect-modal-primary-foreground - The color of the primary button.
- * @cssprop --enoki-connect-modal-primary-background-hover - The background color of the primary button on hover.
- * @cssprop --enoki-connect-modal-primary-foreground-hover - The color of the primary button on hover.
- * @cssprop --enoki-connect-modal-secondary-background - The background color of the secondary button.
- * @cssprop --enoki-connect-modal-secondary-foreground - The color of the secondary button.
- * @cssprop --enoki-connect-modal-secondary-background-hover - The background color of the secondary button on hover.
- * @cssprop --enoki-connect-modal-secondary-foreground-hover - The color of the secondary button on hover.
- * @cssprop --enoki-connect-modal-close-background - The background color of the close button.
- * @cssprop --enoki-connect-modal-close-foreground - The color of the close button.
- * @cssprop --enoki-connect-modal-close-background-hover - The background color of the close button on hover.
- * @cssprop --enoki-connect-modal-close-foreground-hover - The color of the close button on hover.
  */
 @customElement('enoki-connect-modal')
 export class EnokiConnectModal extends BaseModal {
 	static styles = css`
-		.modal {
-			color: #222222;
-			border: none;
-			animation: fadeIn 250ms ease-in-out forwards;
-			max-width: 320px;
-			background-color: var(--enoki-connect-modal-background, #e6e6e6);
-			border-radius: 12px;
-			box-shadow: var(--enoki-connect-modal-box-shadow, 0 12px 32px rgba(0, 0, 0, 0.6));
-			padding: 0;
-			font-family: var(
-				--enoki-connect-modal-font-family,
+		:host {
+			--modal-font-family: var(
+				--font-family,
 				ui-sans-serif,
 				system-ui,
 				-apple-system,
+				BlinkMacSystemFont,
 				'Segoe UI',
 				Roboto,
-				Helvetica,
+				'Helvetica Neue',
 				Arial,
+				'Noto Sans',
+				sans-serif,
 				'Apple Color Emoji',
 				'Segoe UI Emoji',
-				'Noto Color Emoji',
-				sans-serif
+				'Segoe UI Symbol',
+				'Noto Color Emoji'
 			);
+			--modal-radius: var(--radius, 0.625rem);
+			--modal-background: var(--popover, oklch(1 0 0));
+			--modal-foreground: var(--popover-foreground, oklch(0.145 0 0));
+			--modal-backdrop: oklch(from var(--modal-background) l c h / 0.4);
+			--modal-box-shadow: 0 1px 10px oklch(from var(--modal-foreground) l c h / 0.01);
+			--modal-primary: var(--primary, oklch(0.205 0 0));
+			--modal-primary-foreground: var(--primary-foreground, oklch(0.985 0 0));
+			--modal-primary-hover: color-mix(in oklch, var(--modal-primary) 85%, white);
+			--modal-secondary: var(--secondary, oklch(0.97 0 0));
+			--modal-secondary-foreground: var(--secondary-foreground, oklch(0.205 0 0));
+			--modal-secondary-hover: color-mix(in oklch, var(--modal-secondary) 85%, white);
+			--modal-muted-foreground: var(--muted-foreground, oklch(0.556 0 0));
+			--modal-accent: var(--accent, oklch(0.97 0 0));
+			--modal-accent-foreground: var(--accent-foreground, oklch(0.205 0 0));
+		}
+		.modal {
+			color: var(--modal-foreground);
+			border: none;
+			animation: fadeIn 250ms ease-in-out forwards;
+			max-width: 320px;
+			background-color: var(--modal-background);
+			border-radius: var(--modal-radius);
+			box-shadow: var(--modal-box-shadow);
+			padding: 0;
+			font-family: var(--modal-font-family);
 		}
 		.modal::backdrop {
-			background-color: var(--enoki-connect-modal-backdrop-background, rgba(0, 0, 0, 0.5));
+			background-color: var(--modal-backdrop);
 		}
 		.content {
 			padding: 20px;
@@ -79,13 +81,13 @@ export class EnokiConnectModal extends BaseModal {
 			font-size: 16px;
 			font-weight: 600;
 			line-height: 1.5;
-			color: var(--enoki-connect-modal-title-foreground, #222222);
+			color: var(--modal-foreground);
 			margin: 0;
 		}
 		.description {
 			font-size: 14px;
 			line-height: 1.5;
-			color: var(--enoki-connect-modal-description-foreground, #666666);
+			color: var(--modal-muted-foreground);
 			margin: 0;
 		}
 		.footer {
@@ -104,24 +106,22 @@ export class EnokiConnectModal extends BaseModal {
 			font-weight: 600;
 		}
 		.btn.primary {
-			background: var(--enoki-connect-modal-primary-background, rgba(142, 148, 142, 0.4));
-			color: var(--enoki-connect-modal-primary-foreground, #111);
+			background: var(--modal-primary);
+			color: var(--modal-primary-foreground);
 		}
 		.btn.primary:hover,
 		.btn.primary:focus,
 		.btn.primary:active {
-			background: var(--enoki-connect-modal-primary-background-hover, rgba(142, 148, 142, 0.55));
-			color: var(--enoki-connect-modal-primary-foreground-hover, #111);
+			background: var(--modal-primary-hover);
 		}
 		.btn.secondary {
-			background: var(--enoki-connect-modal-secondary-background, transparent);
-			color: var(--enoki-connect-modal-secondary-foreground, #222222);
+			background: var(--modal-secondary);
+			color: var(--modal-secondary-foreground);
 		}
 		.btn.secondary:hover,
 		.btn.secondary:focus,
 		.btn.secondary:active {
-			background: var(--enoki-connect-modal-secondary-background-hover, #dddddd);
-			color: var(--enoki-connect-modal-secondary-foreground-hover, #222222);
+			background: var(--modal-secondary-hover);
 		}
 		button:disabled {
 			opacity: 0.5;
@@ -130,23 +130,23 @@ export class EnokiConnectModal extends BaseModal {
 		.close {
 			all: unset;
 			position: absolute;
-			top: 10px;
-			right: 10px;
-			background: var(--enoki-connect-modal-close-background, transparent);
-			color: var(--enoki-connect-modal-close-foreground, #222222);
+			top: 5px;
+			right: 5px;
+			background: transparent;
+			color: var(--modal-muted-foreground);
 			border: none;
 			cursor: pointer;
-			width: 20px;
-			height: 20px;
-			border-radius: 6px;
-			padding: 2px;
+			width: 18px;
+			height: 18px;
+			border-radius: var(--modal-radius);
+			padding: 3px;
 			transition: background 0.2s;
 		}
 		.close:hover,
 		.close:focus,
 		.close:active {
-			background: var(--enoki-connect-modal-close-background-hover, #dddddd);
-			color: var(--enoki-connect-modal-close-foreground-hover, #222222);
+			background: var(--modal-accent);
+			color: var(--modal-accent-foreground);
 		}
 		.modal.closing {
 			animation: fadeOut 250ms ease-in-out forwards;
