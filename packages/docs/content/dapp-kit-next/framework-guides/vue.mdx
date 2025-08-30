@@ -1,0 +1,112 @@
+---
+title: Vue
+---
+
+dApp Kit Next works seamlessly with Vue through Web Components and direct store access.
+
+## Installation
+
+```sh npm2yarn
+npm i --save @mysten/dapp-kit-core @mysten/sui
+```
+
+## Setup
+
+### 1. Create dApp Kit Instance
+
+```ts
+// src/dapp-kit.ts
+import { createDAppKit } from '@mysten/dapp-kit-core';
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+
+export const dAppKit = createDAppKit({
+  networks: ['mainnet', 'testnet'],
+  defaultNetwork: 'testnet',
+  createClient(network) {
+    return new SuiClient({ url: getFullnodeUrl(network) });
+  }
+});
+```
+
+### 2. Import Web Components
+
+```ts
+// src/main.ts
+import '@mysten/dapp-kit-core/web';
+import { createApp } from 'vue';
+import App from './App.vue';
+
+createApp(App).mount('#app');
+```
+
+### 3. Use in Components
+
+```vue
+<script setup lang="ts">
+import { dAppKit } from './dapp-kit';
+</script>
+
+<template>
+  <mysten-dapp-kit-connect-button :instance="dAppKit" />
+</template>
+```
+
+## Key Integration Points
+
+### Property Binding
+Use Vue's `:prop` syntax to bind dAppKit instance to Web Components:
+
+```vue
+<mysten-dapp-kit-connect-button :instance="dAppKit" />
+```
+
+### Store Subscriptions
+Subscribe to stores in `onMounted` and cleanup in `onUnmounted`:
+
+```vue
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue';
+import { dAppKit } from './dapp-kit';
+
+const connection = ref(dAppKit.stores.$connection.get());
+
+let unsubscribe: (() => void) | undefined;
+
+onMounted(() => {
+  unsubscribe = dAppKit.stores.$connection.subscribe(conn => {
+    connection.value = conn;
+  });
+});
+
+onUnmounted(() => {
+  unsubscribe?.();
+});
+</script>
+```
+
+### Actions
+Call actions directly through dAppKit:
+
+```vue
+<script setup lang="ts">
+import { dAppKit } from './dapp-kit';
+import { Transaction } from '@mysten/sui/transactions';
+
+async function sendTransaction() {
+  const tx = new Transaction();
+  // Build your transaction
+  
+  const result = await dAppKit.signAndExecuteTransaction({
+    transaction: tx
+  });
+}
+</script>
+
+<template>
+  <button @click="sendTransaction">Send</button>
+</template>
+```
+
+## Example Application
+
+See the [Vue example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/dapp-kit-next/examples/vue/simple).

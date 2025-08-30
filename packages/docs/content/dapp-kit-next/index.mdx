@@ -1,0 +1,56 @@
+---
+title: Sui dApp Kit Next
+---
+
+The Sui dApp Kit Next is a framework-agnostic toolkit for building dApps on the Sui blockchain. It provides a core library with actions for wallet connection and transaction signing, along with optional framework bindings for React applications. The kit includes Web Components for UI elements that work across all frameworks.
+
+### Core Features
+
+The dApp Kit Next includes:
+
+- **Framework-agnostic core** - Use with React, Vue, Vanilla JS, or any framework
+- **Action-based API** - Direct, imperative API for all wallet operations
+- **Web Components** - Pre-built UI components that work everywhere
+- **Automatic wallet state management** - Powered by lightweight nanostores
+- **Support for all Sui wallets** - Connect to any wallet following the Sui wallet standard
+- **Network switching** - Built-in support for multiple networks
+- **Direct store access** - Subscribe to state changes from any framework
+- **Smaller bundle size** - Optimized dependencies for better performance
+
+## Install
+
+Choose the installation method based on your framework:
+
+### For React Applications
+
+```sh npm2yarn
+npm i --save @mysten/dapp-kit-core @mysten/dapp-kit-react
+```
+
+### Vanilla JavaScript and other frameworks
+
+```sh npm2yarn
+npm i --save @mysten/dapp-kit-core
+```
+
+## Getting Started
+
+Get started with the Sui dApp Kit Next by following the framework-specific guides:
+
+- [React Guide](./framework-guides/react/getting-started)
+- [Vue Guide](./framework-guides/vue)
+- [Vanilla JavaScript Guide](./getting-started)
+
+For a quick overview of the setup process and core concepts, see the [Getting Started](./getting-started) guide.
+
+## Using Web Components for UI
+
+The dApp Kit Next provides Web Components that work with any framework. These components are built with Lit Element and can be used directly in your HTML:
+
+```html
+<!-- Connect Button Component -->
+<mysten-dapp-kit-connect-button></mysten-dapp-kit-connect-button>
+
+<!-- Connect Modal Component -->
+<mysten-dapp-kit-connect-modal></mysten-dapp-kit-connect-modal>
+```

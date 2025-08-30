@@ -1,0 +1,43 @@
+---
+title: Getting Started
+---
+
+This guide will help you quickly integrate the dApp Kit into your application.
+
+
+## Installation
+
+```sh npm2yarn
+npm i --save @mysten/dapp-kit-core @mysten/sui
+```
+
+<Callout>
+	For **React**, you might prefer to install React bindings [install React bindings](./framework-guides/react#installation).
+</Callout>
+
+## Core Concepts
+
+
+### Framework-Agnostic Core
+
+The `@mysten/dapp-kit-core` package contains all the business logic and state management, as well as pre-built
+[Web Components](./web-components/connect-button) that work across all frameworks.
+
+
+### Reactive State with nanostores
+
+State is managed using nanostores, which are lightweight reactive state containers:
+
+```typescript
+// Subscribe to connection changes
+dAppKit.stores.$connection.subscribe((connection) => {
+  console.log('Connection state:', connection);
+});
+
+// Get current value
+const currentNetwork = dAppKit.stores.$currentNetwork.get();
+```
+
+## Basic Usage
+
+Start with [creating a dApp Kit instance](./create-dapp-kit). You might also want to check our [Web Components](./web-components/connect-button) or [React bindings](./framework-guides/react#installation).

@@ -1,0 +1,31 @@
+---
+title: useCurrentNetwork
+---
+
+The `useCurrentNetwork` hook provides access to the currently selected network.
+
+<Callout type="warn">
+    All dApp Kit hooks must be used within components that are descendants of [DAppKitProvider](./dapp-kit-provider). Using them outside will result in an error.
+</Callout>
+
+## Usage
+
+```tsx
+import { useCurrentNetwork } from '@mysten/dapp-kit-react';
+
+function MyComponent() {
+  const network = useCurrentNetwork();
+  
+  return (
+    <div>
+      <p>Current network: {network}</p>
+    </div>
+  );
+}
+```
+
+## Return Value
+
+```tsx
+string
+```

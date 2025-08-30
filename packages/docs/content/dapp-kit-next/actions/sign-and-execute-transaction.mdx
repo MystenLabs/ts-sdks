@@ -1,0 +1,142 @@
+---
+title: Sign and Execute Transaction
+---
+
+The `signAndExecuteTransaction` action prompts the connected wallet to sign and immediately execute a transaction on the Sui network. This is the most common way to execute transactions in your dApp.
+
+## Usage
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-core';
+import { Transaction } from '@mysten/sui/transactions';
+
+const dAppKit = createDAppKit({ /* config */ });
+
+// Create a transaction
+const tx = new Transaction();
+tx.moveCall({
+  target: '0x2::coin::transfer',
+  typeArguments: ['0x2::sui::SUI'],
+  arguments: [tx.object(coinObjectId), tx.pure.address(recipientAddress)]
+});
+
+// Sign and execute the transaction
+const result = await dAppKit.signAndExecuteTransaction({
+  transaction: tx
+});
+
+console.log('Transaction digest:', result.digest);
+```
+
+## Parameters
+
+- **`transaction`** - `Transaction | string` - The transaction to sign and execute. Can be either a Transaction instance or a base64-encoded transaction string.
+- **`signal`** (optional) - `AbortSignal` - An abort signal to cancel the transaction request.
+
+## Return Value
+
+Returns a `Promise` that resolves to an object containing:
+- **`digest`** - `string` - The transaction digest (unique identifier for the executed transaction)
+- **`signature`** - `string` - The signature as a base64-encoded string
+- **`bytes`** - `string` - The transaction as a base64-encoded BCS string
+- **`effects`** - `string` - Transaction effects as base64-encoded BCS
+
+```typescript
+const result = await dAppKit.signAndExecuteTransaction({ transaction });
+
+// Access the transaction results
+console.log('Digest:', result.digest);
+console.log('Signature:', result.signature);
+console.log('Transaction bytes:', result.bytes);
+console.log('Effects:', result.effects);
+
+// Use the digest to query transaction details
+const txDetails = await suiClient.getTransactionBlock({
+  digest: result.digest,
+  options: { showEffects: true }
+});
+```
+
+## Error Handling
+
+The action may throw:
+- `WalletNotConnectedError` - If no wallet is connected
+- `FeatureNotSupportedError` - If the wallet doesn't support transaction execution
+- Other wallet-specific errors during the signing/execution process (including user rejection)
+
+```typescript
+import { WalletNotConnectedError, FeatureNotSupportedError } from '@mysten/dapp-kit-core';
+
+try {
+  const result = await dAppKit.signAndExecuteTransaction({ 
+    transaction: tx 
+  });
+  console.log('Transaction successful:', result.digest);
+} catch (error) {
+  if (error instanceof WalletNotConnectedError) {
+    console.error('Please connect a wallet first');
+  } else if (error instanceof FeatureNotSupportedError) {
+    console.error('This wallet does not support transaction execution');
+  } else {
+    console.error('Transaction failed:', error);
+  }
+}
+```
+
+## Transaction Building
+
+When passing a Transaction instance, the action automatically:
+1. Sets the sender address if not already set
+2. Builds the transaction using the current network's client
+3. Converts it to the appropriate format for the wallet
+4. Submits the transaction to the network
+
+```typescript
+const tx = new Transaction();
+// No need to manually set sender - it's done automatically
+tx.moveCall({
+  target: '0x2::coin::transfer',  
+  typeArguments: ['0x2::sui::SUI'],
+  arguments: [tx.object(coinId), tx.pure.address(recipient)]
+});
+
+// The transaction is built, signed, and executed in one call
+const result = await dAppKit.signAndExecuteTransaction({
+  transaction: tx
+});
+```
+
+## Transaction Effects
+
+The returned `effects` field contains detailed information about the transaction execution:
+
+```typescript
+import { bcs } from '@mysten/sui/bcs';
+import { fromBase64 } from '@mysten/utils';
+
+const result = await dAppKit.signAndExecuteTransaction({ transaction });
+
+// Decode effects to inspect transaction results
+const effects = bcs.TransactionEffects.parse(
+  fromBase64(result.effects)
+);
+
+console.log('Status:', effects.V2?.executedEpoch);
+console.log('Gas used:', effects.V2?.gasUsed);
+```
+
+## Wallet Compatibility
+
+Transaction execution support varies by wallet:
+- Most wallets support the modern `sui:signAndExecuteTransaction` feature
+- Legacy wallets may use `sui:signAndExecuteTransactionBlock` (handled automatically)
+- The action transparently handles both protocols
+- The wallet handles network submission and response
+
+```typescript
+// The action automatically detects and uses the appropriate execution method
+// No special configuration needed
+const result = await dAppKit.signAndExecuteTransaction({
+  transaction: tx
+});
+```

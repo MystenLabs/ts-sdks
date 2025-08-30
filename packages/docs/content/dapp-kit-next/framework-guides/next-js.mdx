@@ -1,0 +1,100 @@
+---
+title: Next.js
+---
+
+DApp Kit Next works seamlessly with Next.js through the React bindings.
+
+## Installation
+
+```sh npm2yarn
+npm i --save @mysten/dapp-kit-react @mysten/dapp-kit-core
+```
+
+## Setup
+
+### 1. Create dApp Kit Instance
+
+```ts
+// app/dapp-kit.ts
+import { createDAppKit } from '@mysten/dapp-kit-react';
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+
+export const dAppKit = createDAppKit({
+  enableBurnerWallet: process.env.NODE_ENV === 'development',
+  networks: ['mainnet', 'testnet'],
+  defaultNetwork: 'testnet',
+  createClient(network) {
+    return new SuiClient({ network, url: getFullnodeUrl(network) });
+  },
+});
+
+declare module '@mysten/dapp-kit-react' {
+  interface Register {
+    dAppKit: typeof dAppKit;
+  }
+}
+```
+
+### 2. Handle SSR with Dynamic Imports
+
+```tsx
+// app/ClientOnlyConnectButton.tsx
+import { DAppKitProvider, ConnectButton } from '@mysten/dapp-kit-react';
+import { dAppKit } from './dapp-kit';
+
+export default function ClientOnlyConnectButton() {
+  return (
+    <DAppKitProvider dAppKit={dAppKit}>
+      <ConnectButton />
+    </DAppKitProvider>
+  );
+}
+```
+
+```tsx
+// app/page.tsx
+'use client';
+
+import dynamic from 'next/dynamic';
+
+const ClientApp = dynamic(() => import('./ClientOnlyConnectButton'), {
+  ssr: false,
+  loading: () => <div>ClientOnlyConnectButton is not rendered on server</div>,
+});
+
+export default function Home() {
+  return <ClientApp />;
+}
+```
+
+## Key Integration Points
+
+### Actions
+
+Call actions directly through dAppKit:
+
+```tsx
+'use client';
+
+import { useDAppKit } from '@mysten/dapp-kit-react';
+import { Transaction } from '@mysten/sui/transactions';
+
+export function TransactionButton() {
+  const dAppKit = useDAppKit();
+  
+  async function sendTransaction() {
+    const tx = new Transaction();
+    // Build your transaction
+    
+    const result = await dAppKit.signAndExecuteTransaction({
+      transaction: tx
+    });
+  }
+  
+  return <button onClick={sendTransaction}>Send</button>;
+}
+```
+
+## Example Application
+
+See the [Next.js example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/dapp-kit-next/examples/next-js/simple).
