@@ -1,0 +1,215 @@
+---
+title: Migration Guide
+---
+
+This guide helps you migrate from the original `@mysten/dapp-kit` to the new `@mysten/dapp-kit-react` package.
+
+## Overview
+
+The new dapp-kit-next represents a complete rewrite with these key changes:
+
+- **Framework agnostic**: Split into `@mysten/dapp-kit-core` (framework-agnostic) and `@mysten/dapp-kit-react` (React bindings)
+- **No React Query dependency**: Direct promise-based API instead of mutation hooks
+- **Web Components**: UI components built with Lit Elements for cross-framework compatibility
+- **Smaller bundle size**: No React Query dependency, lighter state management with nanostores
+- **Better SSR support**: Compatible with SSR frameworks like Next.js
+- **Cross-framework compatibility**: Core functionality can be used in vanilla JS, Vue, React, and other frameworks
+
+
+## Step-by-Step Migration
+
+### 1. Update Dependencies
+
+Remove old packages and install the new one:
+
+```bash
+# Remove old packages
+npm uninstall @mysten/dapp-kit @tanstack/react-query
+
+# Install new package
+npm install @mysten/dapp-kit-react
+```
+
+### 2. Replace Provider Setup
+
+Replace multiple nested providers with a single unified provider.
+
+**Before:**
+```tsx
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
+
+const queryClient = new QueryClient();
+const networkConfig = {
+  mainnet: { url: 'https://mainnet.sui.io:443' },
+  testnet: { url: 'https://testnet.sui.io:443' },
+};
+
+<QueryClientProvider client={queryClient}>
+  <SuiClientProvider networks={networkConfig} defaultNetwork="mainnet">
+    <WalletProvider>
+      <App />
+    </WalletProvider>
+  </SuiClientProvider>
+</QueryClientProvider>
+```
+
+**After:**
+```tsx
+import { DAppKitProvider, createDAppKit } from '@mysten/dapp-kit-react';
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+
+const dAppKit = createDAppKit({
+  networks: ['mainnet', 'testnet'],
+  defaultNetwork: 'testnet',
+  createClient: (network) => new SuiClient({ 
+    url: getFullnodeUrl(network) 
+  }),
+});
+
+<DAppKitProvider dAppKit={dAppKit}>
+  <App />
+</DAppKitProvider>
+```
+
+### 3. Update Hook Usage
+
+Most existing hooks continue to work with no changes needed:
+
+**No changes required:**
+- `useCurrentAccount`
+- `useSuiClient` 
+- `useCurrentWallet`
+
+**New hooks available:**
+- `useDAppKit` - Access the main dAppKit instance
+- `useConnection` - Get current wallet connection
+- `useCurrentNetwork` - Get current network
+
+### 4. Replace Mutation Patterns
+
+The new version uses direct promise-based calls instead of React Query mutations.
+
+**Before (React Query mutations):**
+```tsx
+import { useConnectWallet, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+
+// Wallet connection
+const { mutate: connect, isLoading } = useConnectWallet();
+connect({ wallet });
+
+// Transaction signing
+const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+signAndExecute(
+  { transaction },
+  {
+    onSuccess: (result) => console.log(result),
+    onError: (error) => console.error(error),
+  }
+);
+```
+
+**After (Direct promises):**
+```tsx
+import { useDAppKit } from '@mysten/dapp-kit-react';
+
+const dAppKit = useDAppKit();
+
+// Wallet connection
+await dAppKit.connectWallet({ wallet });
+
+// Transaction signing
+try {
+  const result = await dAppKit.signAndExecuteTransaction({ transaction });
+  console.log(result);
+} catch (error) {
+  console.error(error);
+}
+```
+
+### 5. Replace Data Fetching Patterns
+
+React Query hooks are no longer available. Use standard React patterns for data fetching.
+
+**Before (React Query hooks):**
+```tsx
+import { useSuiClientQuery } from '@mysten/dapp-kit';
+
+const { data, isLoading, error } = useSuiClientQuery('getObject', {
+  id: objectId,
+});
+```
+
+**After (Standard React patterns):**
+```tsx
+import { useSuiClient } from '@mysten/dapp-kit-react';
+import { useState, useEffect } from 'react';
+
+const client = useSuiClient();
+const [data, setData] = useState(null);
+const [isLoading, setIsLoading] = useState(true);
+const [error, setError] = useState(null);
+
+useEffect(() => {
+  client.getObject({ id: objectId })
+    .then(setData)
+    .catch(setError)
+    .finally(() => setIsLoading(false));
+}, [objectId]);
+```
+
+### 6. Update The Remaining Code
+
+The following hooks from the original dapp-kit are not available in dapp-kit-next:
+
+- `useSuiClientQuery`
+- `useSuiClientMutation` 
+- `useSuiClientInfiniteQuery`
+
+**Migration:** Use `useSuiClient()` directly with standard React patterns or integrate your preferred data fetching solution.
+
+#### Transaction Effects Reporting
+- `useReportTransactionEffects`
+
+This feature has been completely removed in dapp-kit-next with no direct replacement. The hook was used to report transaction effects back to wallets via the `sui:reportTransactionEffects` wallet feature.
+
+**Options:**
+1. **Handle effects locally** - Use the transaction effects returned by `signAndExecuteTransaction` for your own analytics/tracking
+2. **Implement manually** using wallet-standard APIs directly if you need to communicate with wallets:
+
+```tsx
+// Before (dapp-kit)
+const { mutate: reportEffects } = useReportTransactionEffects();
+reportEffects({ effects: transactionEffects });
+
+// After (dapp-kit-next) - Manual implementation if needed
+const { currentWallet } = useCurrentWallet();
+const connection = useConnection();
+
+if (currentWallet?.features['sui:reportTransactionEffects'] && connection?.account) {
+  await currentWallet.features['sui:reportTransactionEffects'].reportTransactionEffects({
+    effects: transactionEffects,
+    account: connection.account,
+    chain: currentWallet.chains[0],
+  });
+}
+```
+
+#### SuiNS Integration
+- `useResolveSuiNSNames`
+
+Migration: Implement SuiNS resolution directly using the Sui client if needed:
+
+```tsx
+import { resolveNameServiceName, useSuiClient } from '@mysten/dapp-kit-react';
+import { useState, useEffect } from 'react';
+
+const client = useSuiClient();
+const [domain, setDomain] = useState(null);
+
+useEffect(() => {
+  if (address) {
+    resolveNameServiceName(client, address).then(setDomain);
+  }
+}, [address]);
+```

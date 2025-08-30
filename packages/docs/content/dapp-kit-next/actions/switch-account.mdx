@@ -1,0 +1,51 @@
+---
+title: Switch Account
+---
+
+The `switchAccount` action changes the currently selected account to a different account from the connected wallet.
+
+<Callout>
+    Account switching is integrated into the [Connect Button](../web-components/connect-button) Web Component. When a wallet is connected with multiple accounts, the button provides an account selector.
+</Callout>
+
+## Usage
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-core';
+
+const dAppKit = createDAppKit({ /* config */ });
+
+// Switch to a different account
+dAppKit.switchAccount({
+  account: anotherAccount // UiWalletAccount from the connected wallet
+});
+```
+
+## Parameters
+
+- **`account`** - `UiWalletAccount` - The account to switch to. Must be an account that belongs to the currently connected wallet.
+
+## Return Value
+
+Returns `void`. The action completes synchronously and updates the connection state immediately.
+
+## Error Handling
+
+The action may throw:
+- `WalletNotConnectedError` - If no wallet is currently connected
+- `WalletAccountNotFoundError` - If the specified account doesn't belong to the connected wallet
+
+```typescript
+import { WalletNotConnectedError, WalletAccountNotFoundError } from '@mysten/dapp-kit-core';
+
+try {
+  dAppKit.switchAccount({ account });
+  console.log('Account switched successfully');
+} catch (error) {
+  if (error instanceof WalletNotConnectedError) {
+    console.error('No wallet is connected');
+  } else if (error instanceof WalletAccountNotFoundError) {
+    console.error('Account not found in connected wallet');
+  }
+}
+```

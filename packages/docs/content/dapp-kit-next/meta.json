@@ -1,0 +1,15 @@
+{
+	"root": true,
+	"title": "dApp Kit Next",
+	"description": "Build Sui dApps",
+	"pages": [
+		"index",
+		"migration",
+		"getting-started",
+		"create-dapp-kit",
+		"state",
+		"web-components",
+		"actions",
+		"framework-guides"
+	]
+}

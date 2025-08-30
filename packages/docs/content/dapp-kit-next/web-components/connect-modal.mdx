@@ -1,0 +1,163 @@
+---
+title: Connect Modal
+---
+
+The `<mysten-dapp-kit-connect-modal>` Web Component provides a modal dialog for wallet connection.
+While most apps should use the [`Connect Button`](/dapp-kit-next/web-components/connect-button) which includes an
+integrated modal, the standalone modal is useful for advanced scenarios requiring custom trigger mechanisms.
+
+## When to Use
+
+Use the standalone modal when you need:
+
+- **Custom trigger elements** - Menu items, keyboard shortcuts, or other non-button triggers
+- **Complex UI flows** - Integration into existing navigation or custom wallet management interfaces  
+- **Programmatic control** - Opening the modal based on application logic or user actions
+- **Multiple triggers** - Different parts of your UI that can open the same modal
+
+For standard wallet connection with a button, use the [Connect Button](/dapp-kit-next/web-components/connect-button) component instead.
+
+## Basic Usage
+
+### Vanilla
+
+```html
+<!-- Custom trigger button -->
+<button id="custom-trigger">Open Wallet Selector</button>
+
+<!-- Modal component -->
+<mysten-dapp-kit-connect-modal id="wallet-modal"></mysten-dapp-kit-connect-modal>
+
+<script>
+  const modal = document.getElementById('wallet-modal');
+  modal.instance = dAppKit;
+  
+  document.getElementById('custom-trigger').addEventListener('click', () => {
+    modal.show();
+  });
+</script>
+```
+
+### Vue
+
+```vue
+<template>
+  <!-- Custom trigger -->
+  <button @click="openModal">Select Wallet</button>
+
+  <!-- Modal component -->
+  <mysten-dapp-kit-connect-modal
+    ref="modalRef"
+    :instance="dAppKit"
+    :open="isModalOpen"
+    @closed="isModalOpen = false"
+  />
+</template>
+
+<script setup>
+import { ref } from 'vue';
+import { dAppKit } from './dapp-kit';
+
+const modalRef = ref();
+const isModalOpen = ref(false);
+
+const openModal = () => {
+  // Using property binding
+  isModalOpen.value = true;
+  // Or using method
+  modalRef.value.show();
+};
+</script>
+```
+
+### React
+
+DApp Kit React bindings provide a [React wrapper](../framework-guides/react/components/connect-modal) for the modal.
+
+## Properties
+
+- **instance** - The dApp Kit instance
+- **open** - Boolean to control modal visibility programmatically
+- **filterFn** (optional) - Function to filter available wallets
+  - Type: `(wallet: UiWallet, index: number, array: UiWallet[]) => boolean`
+- **sortFn** (optional) - Function to sort available wallets
+  - Type: `(a: UiWallet, b: UiWallet) => number`
+
+## Methods
+
+### show()
+
+Opens the modal programmatically:
+
+```js
+const modal = document.querySelector('mysten-dapp-kit-connect-modal');
+await modal.show();
+```
+
+### close(returnValue: string)
+
+Closes the modal with an optional return value:
+
+```js
+const modal = document.querySelector('mysten-dapp-kit-connect-modal');
+await modal.close('user-cancelled');
+```
+
+## Events
+
+The modal fires several events during its lifecycle:
+
+- **open** - Fired before the modal opens (cancelable)
+- **opened** - Fired after the modal has fully opened
+- **close** - Fired before the modal closes (cancelable)
+- **closed** - Fired after the modal has fully closed
+- **cancel** - Fired when clicking backdrop or pressing Escape (cancelable)
+
+```js
+const modal = document.querySelector('mysten-dapp-kit-connect-modal');
+
+modal.addEventListener('open', (event) => {
+  console.log('Modal is about to open');
+  // Prevent opening if needed
+  // event.preventDefault();
+});
+
+modal.addEventListener('opened', () => {
+  console.log('Modal is now open');
+});
+
+modal.addEventListener('closed', () => {
+  console.log('Modal has closed');
+});
+
+modal.addEventListener('cancel', (event) => {
+  console.log('User clicked backdrop or pressed Escape');
+});
+```
+
+## Examples
+
+### Programmatic Control
+
+```js
+const modal = document.querySelector('mysten-dapp-kit-connect-modal');
+modal.instance = dAppKit;
+
+// Open modal when user tries to perform an action that requires connection
+async function performAction() {
+  const connection = dAppKit.stores.$connection.get();
+  
+  if (!connection.account) {
+    // Open modal if not connected
+    await modal.show();
+    // Wait for connection or cancellation
+    return;
+  }
+  
+  // Proceed with action...
+}
+```
+
+## Server-Side Rendering (SSR)
+
+The `<mysten-dapp-kit-connect-modal>` Web Component can be only client-side rendered, as wallets are detected in the browser. For Next.js guide see [here](../framework-guides/next-js).
