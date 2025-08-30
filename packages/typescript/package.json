@@ -170,7 +170,7 @@
 		"@scure/bip39": "^1.6.0",
 		"gql.tada": "^1.8.12",
 		"graphql": "^16.11.0",
-		"poseidon-lite": "^0.2.0",
+		"poseidon-lite": "0.2.1",
 		"valibot": "^0.36.0"
 	}
 }
