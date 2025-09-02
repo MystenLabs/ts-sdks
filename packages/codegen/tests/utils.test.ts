@@ -36,14 +36,14 @@ describe('normalizeMoveArguments', () => {
       }
     },
     {
-			"Object": {
-				"SharedObject": {
-					"objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
-					"initialSharedVersion": 1,
-					"mutable": false
-				}
-			}
-		}
+      "Object": {
+        "SharedObject": {
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+          "initialSharedVersion": 1,
+          "mutable": false
+        }
+      }
+    }
   ],
   "commands": [
     {
@@ -94,14 +94,14 @@ describe('normalizeMoveArguments', () => {
       }
     },
     {
-			"Object": {
-				"SharedObject": {
-					"objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
-					"initialSharedVersion": 1,
-					"mutable": false
-				}
-			}
-		},
+      "Object": {
+        "SharedObject": {
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+          "initialSharedVersion": 1,
+          "mutable": false
+        }
+      }
+    },
     {
       "Pure": {
         "bytes": "5wMAAA=="
@@ -160,14 +160,14 @@ describe('normalizeMoveArguments', () => {
       }
     },
     {
-			"Object": {
-				"SharedObject": {
-					"objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
-					"initialSharedVersion": 1,
-					"mutable": false
-				}
-			}
-		}
+      "Object": {
+        "SharedObject": {
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+          "initialSharedVersion": 1,
+          "mutable": false
+        }
+      }
+    }
   ],
   "commands": [
     {
@@ -219,14 +219,14 @@ describe('normalizeMoveArguments', () => {
       }
     },
     {
-			"Object": {
-				"SharedObject": {
-					"objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
-					"initialSharedVersion": 1,
-					"mutable": false
-				}
-			}
-		},
+      "Object": {
+        "SharedObject": {
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+          "initialSharedVersion": 1,
+          "mutable": false
+        }
+      }
+    },
     {
       "Pure": {
         "bytes": "5wMAAA=="
