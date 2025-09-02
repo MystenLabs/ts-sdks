@@ -100,7 +100,7 @@ export function normalizeMoveArguments(args: unknown[] | object, argTypes: strin
 			if (!parameterNames) {
 				throw new Error(\`Expected arguments to be passed as an array\`);
 			}
-			const name = parameterNames[index];
+			const name = parameterNames[i];
 			arg = args[name as keyof typeof args];
 
 			if (arg == null) {
