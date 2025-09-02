@@ -68,7 +68,7 @@ export function normalizeMoveArguments(
 	const argLen = Array.isArray(args) ? args.length : Object.keys(args).length;
 	if (parameterNames && argLen !== parameterNames.length) {
 		throw new Error(
-			`Invalid number of parameterNames, expected ${argLen}, got ${parameterNames.length}`,
+			`Invalid number of arguments, expected ${parameterNames.length}, got ${argLen}`,
 		);
 	}
 
