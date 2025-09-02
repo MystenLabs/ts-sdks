@@ -5,7 +5,8 @@ title: useSuiClient
 The `useSuiClient` hook provides access to the SuiClient instance for the current network.
 
 <Callout type="warn">
-    All dApp Kit hooks must be used within components that are descendants of [DAppKitProvider](../dapp-kit-provider). Using them outside will result in an error.
+	All dApp Kit hooks must be used within components that are descendants of
+	[DAppKitProvider](../dapp-kit-provider). Using them outside will result in an error.
 </Callout>
 
 ## Usage
@@ -14,21 +15,21 @@ The `useSuiClient` hook provides access to the SuiClient instance for the curren
 import { useSuiClient } from '@mysten/dapp-kit-react';
 
 function MyComponent() {
-  const client = useSuiClient();
-  
-  const handleQuery = async () => {
-    const balance = await client.getBalance({
-      owner: '0x...',
-    });
-    console.log(balance);
-  };
-  
-  return <button onClick={handleQuery}>Check Balance</button>;
+	const client = useSuiClient();
+
+	const handleQuery = async () => {
+		const balance = await client.getBalance({
+			owner: '0x...',
+		});
+		console.log(balance);
+	};
+
+	return <button onClick={handleQuery}>Check Balance</button>;
 }
 ```
 
 ## Return Value
 
 ```tsx
-SuiClient
+SuiClient;
 ```

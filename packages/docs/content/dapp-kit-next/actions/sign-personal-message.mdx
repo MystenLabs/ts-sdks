@@ -2,19 +2,23 @@
 title: Sign Personal Message
 ---
 
-The `signPersonalMessage` action prompts the connected wallet to sign a personal message. This is useful for authentication, proof of ownership, or other scenarios where you need cryptographic proof that a user controls a specific account.
+The `signPersonalMessage` action prompts the connected wallet to sign a personal message. This is
+useful for authentication, proof of ownership, or other scenarios where you need cryptographic proof
+that a user controls a specific account.
 
 ## Usage
 
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
 
-const dAppKit = createDAppKit({ /* config */ });
+const dAppKit = createDAppKit({
+	/* config */
+});
 
 // Sign a message
 const message = new TextEncoder().encode('Please sign this message');
 const result = await dAppKit.signPersonalMessage({
-  message
+	message,
 });
 
 console.log('Message bytes:', result.bytes);
@@ -28,6 +32,7 @@ console.log('Signature:', result.signature);
 ## Return Value
 
 Returns a `Promise` that resolves to an object containing:
+
 - **`bytes`** - `string` - Base64 encoded message bytes
 - **`signature`** - `string` - Base64 encoded signature
 
@@ -42,6 +47,7 @@ console.log('Signature (base64):', result.signature);
 ## Error Handling
 
 The action may throw:
+
 - `WalletNotConnectedError` - If no wallet is connected
 - `FeatureNotSupportedError` - If the wallet doesn't support personal message signing
 - Other wallet-specific errors during the signing process (including user rejection)
@@ -50,18 +56,18 @@ The action may throw:
 import { WalletNotConnectedError, FeatureNotSupportedError } from '@mysten/dapp-kit-core';
 
 try {
-  const result = await dAppKit.signPersonalMessage({ 
-    message 
-  });
-  console.log('Message signed successfully');
+	const result = await dAppKit.signPersonalMessage({
+		message,
+	});
+	console.log('Message signed successfully');
 } catch (error) {
-  if (error instanceof WalletNotConnectedError) {
-    console.error('Please connect a wallet first');
-  } else if (error instanceof FeatureNotSupportedError) {
-    console.error('This wallet does not support message signing');
-  } else {
-    console.error('Signing failed:', error);
-  }
+	if (error instanceof WalletNotConnectedError) {
+		console.error('Please connect a wallet first');
+	} else if (error instanceof FeatureNotSupportedError) {
+		console.error('This wallet does not support message signing');
+	} else {
+		console.error('Signing failed:', error);
+	}
 }
 ```
 
@@ -75,7 +81,7 @@ const textMessage = new TextEncoder().encode('Hello, Sui!');
 
 // From JSON
 const jsonMessage = new TextEncoder().encode(
-  JSON.stringify({ action: 'sign', timestamp: Date.now() })
+	JSON.stringify({ action: 'sign', timestamp: Date.now() }),
 );
 ```
 
@@ -87,4 +93,3 @@ const jsonMessage = new TextEncoder().encode(
 - Avoid signing opaque or encoded data that users cannot understand
 - Include human-readable prefixes for different message types
 - Consider adding timestamps to prevent replay attacks
-

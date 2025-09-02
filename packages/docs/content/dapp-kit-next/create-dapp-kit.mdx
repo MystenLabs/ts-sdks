@@ -2,24 +2,27 @@
 title: Create dApp Kit Instance
 ---
 
-The `createDAppKit` function is the foundation of your Sui dApp. It creates an instance that manages wallet connections, network configuration, and provides access to the Sui client.
+The `createDAppKit` function is the foundation of your Sui dApp. It creates an instance that manages
+wallet connections, network configuration, and provides access to the Sui client.
 
 ## Creating a dApp Kit Instance
 
-The core of dApp Kit Next is the `createDAppKit` function, which creates an instance that manages all dApp functionality:
+The core of dApp Kit Next is the `createDAppKit` function, which creates an instance that manages
+all dApp functionality:
 
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 
 const dAppKit = createDAppKit({
-  networks: ['mainnet', 'testnet'],
-  defaultNetwork: 'mainnet',
-  createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) })
+	networks: ['mainnet', 'testnet'],
+	defaultNetwork: 'mainnet',
+	createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
 });
 ```
 
 This instance provides:
+
 - Wallet connection management
 - Network switching capabilities
 - Client access for blockchain interactions
@@ -32,8 +35,10 @@ This instance provides:
 - **defaultNetwork** (optional) - Initial network to use (default: first network in the array)
 - **autoConnect** (optional) - Automatically reconnect to previous wallet (default: `true`)
 - **enableBurnerWallet** (optional) - Enable development-only burner wallet (default: `false`)
-- **storage** (optional) - Storage for connection persistence (default: `localStorage`, set to `null` to disable)
-- **storageKey** (optional) - Key prefix for storage (default: `'mysten-dapp-kit:selected-wallet-and-address'`)
+- **storage** (optional) - Storage for connection persistence (default: `localStorage`, set to
+  `null` to disable)
+- **storageKey** (optional) - Key prefix for storage (default:
+  `'mysten-dapp-kit:selected-wallet-and-address'`)
 - **walletInitializers** (optional) - Array of custom wallet integrations
 - **slushWalletConfig** (optional) - Configuration for Slush wallet (set to `null` to disable)
 
@@ -46,15 +51,15 @@ import { createDAppKit } from '@mysten/dapp-kit-core';
 import { SuiClient } from '@mysten/sui/client';
 
 const dAppKit = createDAppKit({
-  networks: ['mainnet', 'testnet'],
-  defaultNetwork: 'mainnet',
-  createClient: (network) => {
-    const connections = {
-      mainnet: { url: 'https://mainnet.sui.io:443' },
-      testnet: { url: 'https://testnet.sui.io:443' },
-    };
-    return new SuiClient(connections[network]);
-  },
+	networks: ['mainnet', 'testnet'],
+	defaultNetwork: 'mainnet',
+	createClient: (network) => {
+		const connections = {
+			mainnet: { url: 'https://mainnet.sui.io:443' },
+			testnet: { url: 'https://testnet.sui.io:443' },
+		};
+		return new SuiClient(connections[network]);
+	},
 });
 
 // Use the dAppKit instance
@@ -71,27 +76,24 @@ import { createDAppKit, DAppKitProvider } from '@mysten/dapp-kit-react';
 import { SuiClient } from '@mysten/sui/client';
 
 const dAppKit = createDAppKit({
-  networks: ['mainnet', 'testnet'],
-  defaultNetwork: 'mainnet',
-  createClient: (network) => {
-    const connections = {
-      mainnet: { url: 'https://mainnet.sui.io:443' },
-      testnet: { url: 'https://testnet.sui.io:443' },
-    };
-    return new SuiClient(connections[network]);
-  },
+	networks: ['mainnet', 'testnet'],
+	defaultNetwork: 'mainnet',
+	createClient: (network) => {
+		const connections = {
+			mainnet: { url: 'https://mainnet.sui.io:443' },
+			testnet: { url: 'https://testnet.sui.io:443' },
+		};
+		return new SuiClient(connections[network]);
+	},
 });
 
 export default function App() {
-  return (
-    <DAppKitProvider dAppKit={dAppKit}>
-      {/* Your app components */}
-    </DAppKitProvider>
-  );
+	return <DAppKitProvider dAppKit={dAppKit}>{/* Your app components */}</DAppKitProvider>;
 }
 ```
 
-See [DAppKitProvider documentation](./framework-guides/react/dapp-kit-provider) for more provider configuration options.
+See [DAppKitProvider documentation](./framework-guides/react/dapp-kit-provider) for more provider
+configuration options.
 
 ## Development Configuration
 
@@ -102,10 +104,10 @@ import { createDAppKit } from '@mysten/dapp-kit-core';
 import { SuiClient } from '@mysten/sui/client';
 
 const dAppKit = createDAppKit({
-  networks: ['localnet'],
-  defaultNetwork: 'localnet',
-  createClient: () => new SuiClient({ url: 'http://localhost:9000' }),
-  enableBurnerWallet: true,  // Dev-only feature
+	networks: ['localnet'],
+	defaultNetwork: 'localnet',
+	createClient: () => new SuiClient({ url: 'http://localhost:9000' }),
+	enableBurnerWallet: true, // Dev-only feature
 });
 ```
 
@@ -120,9 +122,9 @@ import { createDAppKit } from '@mysten/dapp-kit-core';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 
 const dAppKit = createDAppKit({
-  networks: ['mainnet'],
-  createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
-  autoConnect: false,
+	networks: ['mainnet'],
+	createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
+	autoConnect: false,
 });
 ```
 
@@ -136,8 +138,8 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { customWalletInitializer } from './custom-wallet';
 
 const dAppKit = createDAppKit({
-  networks: ['mainnet'],
-  createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
-  walletInitializers: [customWalletInitializer],
+	networks: ['mainnet'],
+	createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
+	walletInitializers: [customWalletInitializer],
 });
 ```

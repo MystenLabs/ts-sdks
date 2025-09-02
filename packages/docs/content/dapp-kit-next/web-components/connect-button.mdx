@@ -2,11 +2,14 @@
 title: Connect Button
 ---
 
-The `<mysten-dapp-kit-connect-button>` Web Component provides a complete wallet connection UI. It displays a "Connect Wallet" button when no wallet is connected, and shows the connected account with a menu when a wallet is active.
-
+The `<mysten-dapp-kit-connect-button>` Web Component provides a complete wallet connection UI. It
+displays a "Connect Wallet" button when no wallet is connected, and shows the connected account with
+a menu when a wallet is active.
 
 <Callout>
-	Auto-connect is enabled by default and will attempt to restore the previous wallet connection on page reload. This provides a seamless user experience but can be [disabled](../create-dapp-kit#disabling-auto-connect) if needed.
+	Auto-connect is enabled by default and will attempt to restore the previous wallet connection on
+	page reload. This provides a seamless user experience but can be
+	[disabled](../create-dapp-kit#disabling-auto-connect) if needed.
 </Callout>
 
 ## Basic Usage
@@ -17,8 +20,8 @@ The `<mysten-dapp-kit-connect-button>` Web Component provides a complete wallet 
 <mysten-dapp-kit-connect-button></mysten-dapp-kit-connect-button>
 
 <script>
-  const button = document.querySelector('mysten-dapp-kit-connect-button');
-  button.instance = dAppKit;
+	const button = document.querySelector('mysten-dapp-kit-connect-button');
+	button.instance = dAppKit;
 </script>
 ```
 
@@ -36,8 +39,8 @@ import { dAppKit } from './dapp-kit';
 
 ### React
 
-DApp Kit React bindings provide a [React wrapper](../framework-guides/react/components/connect-button) for the button.
-
+DApp Kit React bindings provide a
+[React wrapper](../framework-guides/react/components/connect-button) for the button.
 
 ## Features
 
@@ -63,13 +66,14 @@ Use the default slot to customize the button text when not connected:
 
 ```html
 <mysten-dapp-kit-connect-button>
-  <span>Sign In</span>
+	<span>Sign In</span>
 </mysten-dapp-kit-connect-button>
 ```
 
 ## Modal Integration
 
-The connect button automatically manages its own modal. You don't need to add a separate `<mysten-dapp-kit-connect-modal>` component when using the connect button.
+The connect button automatically manages its own modal. You don't need to add a separate
+`<mysten-dapp-kit-connect-modal>` component when using the connect button.
 
 ## Connected State
 
@@ -85,4 +89,5 @@ When a wallet is connected, the button transforms into an account menu that disp
 
 ## Server-Side Rendering (SSR)
 
-The `<mysten-dapp-kit-connect-button>` Web Component can be only client-side rendered, as wallets are detected in the browser. For Next.js guide see [here](../framework-guides/next-js).
+The `<mysten-dapp-kit-connect-button>` Web Component can be only client-side rendered, as wallets
+are detected in the browser. For Next.js guide see [here](../framework-guides/next-js).

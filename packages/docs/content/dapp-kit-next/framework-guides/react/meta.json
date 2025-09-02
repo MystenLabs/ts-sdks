@@ -1,10 +1,4 @@
 {
 	"title": "React",
-	"pages": [
-		"getting-started",
-		"dapp-kit-provider",
-		"use-dapp-kit",
-		"components",
-		"hooks"
-	]
+	"pages": ["getting-started", "dapp-kit-provider", "use-dapp-kit", "components", "hooks"]
 }

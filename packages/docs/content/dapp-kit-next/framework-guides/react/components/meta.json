@@ -1,6 +1,3 @@
 {
-	"pages": [
-		"connect-button",
-		"connect-modal"
-	]
+	"pages": ["connect-button", "connect-modal"]
 }

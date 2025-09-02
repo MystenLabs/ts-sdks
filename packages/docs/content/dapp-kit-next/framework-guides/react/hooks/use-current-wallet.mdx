@@ -5,7 +5,8 @@ title: useCurrentWallet
 The `useCurrentWallet` hook provides access to the currently connected wallet.
 
 <Callout type="warn">
-    All dApp Kit hooks must be used within components that are descendants of [DAppKitProvider](../dapp-kit-provider). Using them outside will result in an error.
+	All dApp Kit hooks must be used within components that are descendants of
+	[DAppKitProvider](../dapp-kit-provider). Using them outside will result in an error.
 </Callout>
 
 ## Usage
@@ -14,24 +15,26 @@ The `useCurrentWallet` hook provides access to the currently connected wallet.
 import { useCurrentWallet } from '@mysten/dapp-kit-react';
 
 function MyComponent() {
-  const wallet = useCurrentWallet();
-  
-  if (!wallet) {
-    return <div>No wallet connected</div>;
-  }
-  
-  return (
-    <div>
-      <p>Wallet: {wallet.name}</p>
-      <p>Icon: <img src={wallet.icon} alt={wallet.name} /></p>
-      <p>Accounts: {wallet.accounts.length}</p>
-    </div>
-  );
+	const wallet = useCurrentWallet();
+
+	if (!wallet) {
+		return <div>No wallet connected</div>;
+	}
+
+	return (
+		<div>
+			<p>Wallet: {wallet.name}</p>
+			<p>
+				Icon: <img src={wallet.icon} alt={wallet.name} />
+			</p>
+			<p>Accounts: {wallet.accounts.length}</p>
+		</div>
+	);
 }
 ```
 
 ## Return Value
 
 ```tsx
-UiWallet | null
+UiWallet | null;
 ```

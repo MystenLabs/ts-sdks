@@ -20,18 +20,18 @@ import { createDAppKit } from '@mysten/dapp-kit-react';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 export const dAppKit = createDAppKit({
-  enableBurnerWallet: process.env.NODE_ENV === 'development',
-  networks: ['mainnet', 'testnet'],
-  defaultNetwork: 'testnet',
-  createClient(network) {
-    return new SuiClient({ network, url: getFullnodeUrl(network) });
-  },
+	enableBurnerWallet: process.env.NODE_ENV === 'development',
+	networks: ['mainnet', 'testnet'],
+	defaultNetwork: 'testnet',
+	createClient(network) {
+		return new SuiClient({ network, url: getFullnodeUrl(network) });
+	},
 });
 
 declare module '@mysten/dapp-kit-react' {
-  interface Register {
-    dAppKit: typeof dAppKit;
-  }
+	interface Register {
+		dAppKit: typeof dAppKit;
+	}
 }
 ```
 
@@ -43,11 +43,11 @@ import { DAppKitProvider, ConnectButton } from '@mysten/dapp-kit-react';
 import { dAppKit } from './dapp-kit';
 
 export default function ClientOnlyConnectButton() {
-  return (
-    <DAppKitProvider dAppKit={dAppKit}>
-      <ConnectButton />
-    </DAppKitProvider>
-  );
+	return (
+		<DAppKitProvider dAppKit={dAppKit}>
+			<ConnectButton />
+		</DAppKitProvider>
+	);
 }
 ```
 
@@ -58,12 +58,12 @@ export default function ClientOnlyConnectButton() {
 import dynamic from 'next/dynamic';
 
 const ClientApp = dynamic(() => import('./ClientOnlyConnectButton'), {
-  ssr: false,
-  loading: () => <div>ClientOnlyConnectButton is not rendered on server</div>,
+	ssr: false,
+	loading: () => <div>ClientOnlyConnectButton is not rendered on server</div>,
 });
 
 export default function Home() {
-  return <ClientApp />;
+	return <ClientApp />;
 }
 ```
 
@@ -80,21 +80,22 @@ import { useDAppKit } from '@mysten/dapp-kit-react';
 import { Transaction } from '@mysten/sui/transactions';
 
 export function TransactionButton() {
-  const dAppKit = useDAppKit();
-  
-  async function sendTransaction() {
-    const tx = new Transaction();
-    // Build your transaction
-    
-    const result = await dAppKit.signAndExecuteTransaction({
-      transaction: tx
-    });
-  }
-  
-  return <button onClick={sendTransaction}>Send</button>;
+	const dAppKit = useDAppKit();
+
+	async function sendTransaction() {
+		const tx = new Transaction();
+		// Build your transaction
+
+		const result = await dAppKit.signAndExecuteTransaction({
+			transaction: tx,
+		});
+	}
+
+	return <button onClick={sendTransaction}>Send</button>;
 }
 ```
 
 ## Example Application
 
-See the [Next.js example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/dapp-kit-next/examples/next-js/simple).
+See the
+[Next.js example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/dapp-kit-next/examples/next-js/simple).

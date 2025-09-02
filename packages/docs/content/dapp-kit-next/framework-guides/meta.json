@@ -1,8 +1,4 @@
 {
 	"title": "Framework Guides",
-	"pages": [
-		"react",
-		"next-js",
-		"vue"
-	]
+	"pages": ["react", "next-js", "vue"]
 }

@@ -5,19 +5,24 @@ title: Disconnect Wallet
 The `disconnectWallet` action terminates the connection with the currently connected wallet.
 
 <Callout>
-	The [Connect Button](../web-components/connect-button) Web Component provides a complete wallet connection UI.
+	The [Connect Button](../web-components/connect-button) Web Component provides a complete wallet
+	connection UI.
 </Callout>
 
 ## Usage
 
 <Callout>
-	The disconnect action clears the connection state locally and attempts to notify the wallet. Even if the wallet notification fails, the local state is always cleared to ensure a clean disconnection.
+	The disconnect action clears the connection state locally and attempts to notify the wallet. Even
+	if the wallet notification fails, the local state is always cleared to ensure a clean
+	disconnection.
 </Callout>
 
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
 
-const dAppKit = createDAppKit({ /* config */ });
+const dAppKit = createDAppKit({
+	/* config */
+});
 
 await dAppKit.disconnectWallet();
 ```
@@ -38,31 +43,33 @@ The `disconnectWallet` action handles errors gracefully:
 import { WalletNotConnectedError } from '@mysten/dapp-kit-core';
 
 try {
-  await dAppKit.disconnectWallet();
-  console.log('Wallet disconnected successfully');
+	await dAppKit.disconnectWallet();
+	console.log('Wallet disconnected successfully');
 } catch (error) {
-  if (error instanceof WalletNotConnectedError) {
-    console.log('No wallet was connected');
-  }
+	if (error instanceof WalletNotConnectedError) {
+		console.log('No wallet was connected');
+	}
 }
 ```
 
 <Callout>
-	The action may throw `WalletNotConnectedError` if no wallet is connected. However, wallet-specific disconnect failures are logged but don't prevent the local connection state from being cleared.
+	The action may throw `WalletNotConnectedError` if no wallet is connected. However, wallet-specific
+	disconnect failures are logged but don't prevent the local connection state from being cleared.
 </Callout>
 
 ## Web Components
 
-The disconnect functionality is integrated into the `<mysten-dapp-kit-connect-button>` component. When a wallet is connected, the button displays the connected account and provides a disconnect option:
+The disconnect functionality is integrated into the `<mysten-dapp-kit-connect-button>` component.
+When a wallet is connected, the button displays the connected account and provides a disconnect
+option:
 
 ```html
 <mysten-dapp-kit-connect-button></mysten-dapp-kit-connect-button>
 
 <script>
-  const button = document.querySelector('mysten-dapp-kit-connect-button');
-  button.instance = dAppKit;
+	const button = document.querySelector('mysten-dapp-kit-connect-button');
+	button.instance = dAppKit;
 </script>
 ```
 
 The connect button automatically handles both connection and disconnection states.
-

@@ -5,7 +5,8 @@ title: useWallets
 The `useWallets` hook provides access to all available wallets.
 
 <Callout type="warn">
-    All dApp Kit hooks must be used within components that are descendants of [DAppKitProvider](../dapp-kit-provider). Using them outside will result in an error.
+	All dApp Kit hooks must be used within components that are descendants of
+	[DAppKitProvider](../dapp-kit-provider). Using them outside will result in an error.
 </Callout>
 
 ## Usage
@@ -14,18 +15,18 @@ The `useWallets` hook provides access to all available wallets.
 import { useWallets } from '@mysten/dapp-kit-react';
 
 function MyComponent() {
-  const wallets = useWallets();
-  
-  return (
-    <div>
-      {wallets.map(wallet => (
-        <div key={wallet.name}>
-          <img src={wallet.icon} alt={wallet.name} />
-          <span>{wallet.name}</span>
-        </div>
-      ))}
-    </div>
-  );
+	const wallets = useWallets();
+
+	return (
+		<div>
+			{wallets.map((wallet) => (
+				<div key={wallet.name}>
+					<img src={wallet.icon} alt={wallet.name} />
+					<span>{wallet.name}</span>
+				</div>
+			))}
+		</div>
+	);
 }
 ```
 

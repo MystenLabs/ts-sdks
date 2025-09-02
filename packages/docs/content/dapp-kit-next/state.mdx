@@ -2,7 +2,9 @@
 title: State
 ---
 
-The Sui dApp Kit Next uses [nanostores](https://github.com/nanostores/nanostores) for state management, providing a lightweight, framework-agnostic solution that works across React, Vue, Vanilla JavaScript, and other frameworks.
+The Sui dApp Kit Next uses [nanostores](https://github.com/nanostores/nanostores) for state
+management, providing a lightweight, framework-agnostic solution that works across React, Vue,
+Vanilla JavaScript, and other frameworks.
 
 ## Available Stores
 
@@ -20,7 +22,9 @@ All stores are available through the `dAppKit.stores` property:
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
 
-const dAppKit = createDAppKit({ /* config */ });
+const dAppKit = createDAppKit({
+	/* config */
+});
 
 // Access stores
 const connection = dAppKit.stores.$connection.get();
@@ -36,12 +40,12 @@ Subscribe to any store to react to state changes:
 ```typescript
 // Subscribe to connection changes
 const unsubscribe = dAppKit.stores.$connection.subscribe((connection) => {
-  if (connection.isConnected && connection.wallet && connection.account) {
-    console.log('Connected to:', connection.wallet.name);
-    console.log('Account:', connection.account.address);
-  } else {
-    console.log('Not connected');
-  }
+	if (connection.isConnected && connection.wallet && connection.account) {
+		console.log('Connected to:', connection.wallet.name);
+		console.log('Account:', connection.account.address);
+	} else {
+		console.log('Not connected');
+	}
 });
 
 // Clean up subscription when done
@@ -59,7 +63,7 @@ const connection = dAppKit.stores.$connection.get();
 
 // Connection has these properties:
 // - wallet: UiWallet | null
-// - account: UiWalletAccount | null  
+// - account: UiWalletAccount | null
 // - status: 'connected' | 'connecting' | 'reconnecting' | 'disconnected'
 // - isConnected: boolean
 // - isConnecting: boolean
@@ -73,9 +77,9 @@ Example usage:
 const connection = dAppKit.stores.$connection.get();
 
 if (connection.isConnected && connection.wallet && connection.account) {
-  console.log('Address:', connection.account.address);
-  console.log('Wallet:', connection.wallet.name);
-  console.log('Available accounts:', connection.wallet.accounts);
+	console.log('Address:', connection.account.address);
+	console.log('Wallet:', connection.wallet.name);
+	console.log('Available accounts:', connection.wallet.accounts);
 }
 ```
 
@@ -88,7 +92,7 @@ const currentNetwork = dAppKit.stores.$currentNetwork.get(); // 'mainnet' | 'tes
 
 // Subscribe to network changes
 dAppKit.stores.$currentNetwork.subscribe((network) => {
-  console.log('Switched to network:', network);
+	console.log('Switched to network:', network);
 });
 ```
 
@@ -103,7 +107,7 @@ const client = dAppKit.stores.$currentClient.get();
 
 // Use the client to query the blockchain
 const balance = await client.getBalance({
-  owner: '0x...'
+	owner: '0x...',
 });
 ```
 
@@ -116,10 +120,10 @@ Contains the list of available wallets:
 ```typescript
 const wallets = dAppKit.stores.$wallets.get();
 
-wallets.forEach(wallet => {
-  console.log('Wallet:', wallet.name);
-  console.log('Icon:', wallet.icon);
-  console.log('Installed:', wallet.isInstalled);
+wallets.forEach((wallet) => {
+	console.log('Wallet:', wallet.name);
+	console.log('Icon:', wallet.icon);
+	console.log('Installed:', wallet.isInstalled);
 });
 ```
 
@@ -130,18 +134,18 @@ In vanilla JavaScript, subscribe directly to stores:
 ```typescript
 // Subscribe to connection changes
 dAppKit.stores.$connection.subscribe((connection) => {
-  const statusElement = document.getElementById('connection-status');
-  if (connection.isConnected && connection.account) {
-    statusElement.textContent = `Connected: ${connection.account.address}`;
-  } else {
-    statusElement.textContent = 'Not connected';
-  }
+	const statusElement = document.getElementById('connection-status');
+	if (connection.isConnected && connection.account) {
+		statusElement.textContent = `Connected: ${connection.account.address}`;
+	} else {
+		statusElement.textContent = 'Not connected';
+	}
 });
 
 // Subscribe to network changes
 dAppKit.stores.$currentNetwork.subscribe((network) => {
-  const networkElement = document.getElementById('current-network');
-  networkElement.textContent = `Network: ${network}`;
+	const networkElement = document.getElementById('current-network');
+	networkElement.textContent = `Network: ${network}`;
 });
 ```
 
@@ -153,12 +157,12 @@ React users can use the provided hooks instead of direct store access:
 import { useCurrentAccount, useCurrentNetwork, useWallets } from '@mysten/dapp-kit-react';
 
 function MyComponent() {
-  const currentAccount = useCurrentAccount();
-  const currentNetwork = useCurrentNetwork();
-  const wallets = useWallets();
-  
-  // These hooks automatically subscribe and update
-  return <div>{currentAccount?.address}</div>;
+	const currentAccount = useCurrentAccount();
+	const currentNetwork = useCurrentNetwork();
+	const wallets = useWallets();
+
+	// These hooks automatically subscribe and update
+	return <div>{currentAccount?.address}</div>;
 }
 ```
 

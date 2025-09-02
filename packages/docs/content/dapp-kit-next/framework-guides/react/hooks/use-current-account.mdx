@@ -5,7 +5,8 @@ title: useCurrentAccount
 The `useCurrentAccount` hook provides access to the currently selected account.
 
 <Callout type="warn">
-    All dApp Kit hooks must be used within components that are descendants of [DAppKitProvider](../dapp-kit-provider). Using them outside will result in an error.
+	All dApp Kit hooks must be used within components that are descendants of
+	[DAppKitProvider](../dapp-kit-provider). Using them outside will result in an error.
 </Callout>
 
 ## Usage
@@ -14,23 +15,23 @@ The `useCurrentAccount` hook provides access to the currently selected account.
 import { useCurrentAccount } from '@mysten/dapp-kit-react';
 
 function MyComponent() {
-  const account = useCurrentAccount();
-  
-  if (!account) {
-    return <div>No account selected</div>;
-  }
-  
-  return (
-    <div>
-      <p>Address: {account.address}</p>
-      <p>Label: {account.label}</p>
-    </div>
-  );
+	const account = useCurrentAccount();
+
+	if (!account) {
+		return <div>No account selected</div>;
+	}
+
+	return (
+		<div>
+			<p>Address: {account.address}</p>
+			<p>Label: {account.label}</p>
+		</div>
+	);
 }
 ```
 
 ## Return Value
 
 ```tsx
-UiWalletAccount | null
+UiWalletAccount | null;
 ```

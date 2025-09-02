@@ -2,7 +2,9 @@
 title: Sign Transaction
 ---
 
-The `signTransaction` action prompts the connected wallet to sign a transaction without executing it. This is useful when you need a signed transaction for later execution or for multi-signature scenarios.
+The `signTransaction` action prompts the connected wallet to sign a transaction without executing
+it. This is useful when you need a signed transaction for later execution or for multi-signature
+scenarios.
 
 ## Usage
 
@@ -10,30 +12,34 @@ The `signTransaction` action prompts the connected wallet to sign a transaction 
 import { createDAppKit } from '@mysten/dapp-kit-core';
 import { Transaction } from '@mysten/sui/transactions';
 
-const dAppKit = createDAppKit({ /* config */ });
+const dAppKit = createDAppKit({
+	/* config */
+});
 
 // Create a transaction
 const tx = new Transaction();
 tx.moveCall({
-  target: '0x2::coin::transfer',
-  typeArguments: ['0x2::sui::SUI'],
-  arguments: [tx.object(coinObjectId), tx.pure.address(recipientAddress)]
+	target: '0x2::coin::transfer',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.object(coinObjectId), tx.pure.address(recipientAddress)],
 });
 
 // Sign the transaction without executing it
 const { bytes, signature } = await dAppKit.signTransaction({
-  transaction: tx
+	transaction: tx,
 });
 ```
 
 ## Parameters
 
-- **`transaction`** - `Transaction | string` - The transaction to sign. Can be either a Transaction instance or a base64-encoded transaction string.
+- **`transaction`** - `Transaction | string` - The transaction to sign. Can be either a Transaction
+  instance or a base64-encoded transaction string.
 - **`signal`** (optional) - `AbortSignal` - An abort signal to cancel the signing request.
 
 ## Return Value
 
 Returns a `Promise` that resolves to an object containing:
+
 - **`bytes`** - `string` - The signed transaction as a base64-encoded BCS string
 - **`signature`** - `string` - The signature as a base64-encoded string
 
@@ -46,6 +52,7 @@ console.log('Signature:', result.signature);
 ## Error Handling
 
 The action may throw:
+
 - `WalletNotConnectedError` - If no wallet is connected
 - `FeatureNotSupportedError` - If the wallet doesn't support transaction signing
 - Other wallet-specific errors during the signing process (including user rejection)
@@ -54,18 +61,18 @@ The action may throw:
 import { WalletNotConnectedError, FeatureNotSupportedError } from '@mysten/dapp-kit-core';
 
 try {
-  const { bytes, signature } = await dAppKit.signTransaction({ 
-    transaction: tx 
-  });
-  console.log('Transaction signed successfully');
+	const { bytes, signature } = await dAppKit.signTransaction({
+		transaction: tx,
+	});
+	console.log('Transaction signed successfully');
 } catch (error) {
-  if (error instanceof WalletNotConnectedError) {
-    console.error('Please connect a wallet first');
-  } else if (error instanceof FeatureNotSupportedError) {
-    console.error('This wallet does not support transaction signing');
-  } else {
-    console.error('Transaction signing failed:', error);
-  }
+	if (error instanceof WalletNotConnectedError) {
+		console.error('Please connect a wallet first');
+	} else if (error instanceof FeatureNotSupportedError) {
+		console.error('This wallet does not support transaction signing');
+	} else {
+		console.error('Transaction signing failed:', error);
+	}
 }
 ```
 
@@ -78,13 +85,14 @@ You can sign pre-built transaction strings received from external sources:
 const encodedTransaction = 'AAACAAjQ...'; // Base64-encoded transaction
 
 const { bytes, signature } = await dAppKit.signTransaction({
-  transaction: encodedTransaction
+	transaction: encodedTransaction,
 });
 ```
 
 ## Transaction Building
 
 When passing a Transaction instance, the action automatically:
+
 1. Sets the sender address if not already set
 2. Builds the transaction using the current network's client
 3. Converts it to the appropriate format for the wallet
@@ -93,19 +101,20 @@ When passing a Transaction instance, the action automatically:
 const tx = new Transaction();
 // No need to manually set sender - it's done automatically
 tx.moveCall({
-  target: '0x2::coin::transfer',
-  typeArguments: ['0x2::sui::SUI'],
-  arguments: [tx.object(coinId), tx.pure.address(recipient)]
+	target: '0x2::coin::transfer',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.object(coinId), tx.pure.address(recipient)],
 });
 
 const { bytes, signature } = await dAppKit.signTransaction({
-  transaction: tx
+	transaction: tx,
 });
 ```
 
 ## Wallet Compatibility
 
 Transaction signing support varies by wallet:
+
 - Most wallets support the modern `sui:signTransaction` feature
 - Legacy wallets may use `sui:signTransactionBlock` (handled automatically)
 - The action transparently handles both protocols

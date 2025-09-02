@@ -10,7 +10,6 @@ This guide shows you how to integrate dApp Kit Next into React applications.
 npm i --save @mysten/dapp-kit-react @mysten/dapp-kit-core @mysten/sui
 ```
 
-
 Create a dApp Kit instance and wrap your app with the provider:
 
 ```tsx
@@ -18,25 +17,26 @@ import { createDAppKit, DAppKitProvider } from '@mysten/dapp-kit-react';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 const dAppKit = createDAppKit({
-  networks: ['mainnet', 'testnet', 'localnet'],
-  defaultNetwork: 'mainnet',
-  createClient(network) {
-    return new SuiClient({ 
-      url: getFullnodeUrl(network) 
-    });
-  },
+	networks: ['mainnet', 'testnet', 'localnet'],
+	defaultNetwork: 'mainnet',
+	createClient(network) {
+		return new SuiClient({
+			url: getFullnodeUrl(network),
+		});
+	},
 });
 
 function App() {
-  return (
-    <DAppKitProvider dAppKit={dAppKit}>
-      <YourApp />
-    </DAppKitProvider>
-  );
+	return (
+		<DAppKitProvider dAppKit={dAppKit}>
+			<YourApp />
+		</DAppKitProvider>
+	);
 }
 ```
 
-For more details on configuring the provider, see the [DAppKitProvider documentation](./dapp-kit-provider).
+For more details on configuring the provider, see the
+[DAppKitProvider documentation](./dapp-kit-provider).
 
 ## Using Components
 
@@ -46,11 +46,11 @@ The React package provides React components that wrap the Web Components:
 import { ConnectButton } from '@mysten/dapp-kit-react';
 
 function WalletConnect() {
-  return (
-    <>
-      <ConnectButton />
-    </>
-  );
+	return (
+		<>
+			<ConnectButton />
+		</>
+	);
 }
 ```
 
@@ -59,31 +59,28 @@ function WalletConnect() {
 Access dApp Kit functionality through hooks:
 
 ```tsx
-import { 
-  useCurrentAccount,
-  useCurrentWallet,
-  useCurrentNetwork,
-} from '@mysten/dapp-kit-react';
+import { useCurrentAccount, useCurrentWallet, useCurrentNetwork } from '@mysten/dapp-kit-react';
 
 function WalletStatus() {
-  const currentAccount = useCurrentAccount();
-  const currentWallet = useCurrentWallet();
-  const currentNetwork = useCurrentNetwork();
-  
-  if (!currentAccount) {
-    return <div>Not connected</div>;
-  }
-  
-  return (
-    <div>
-      <p>Wallet: {currentWallet?.name}</p>
-      <p>Address: {currentAccount.address}</p>
-      <p>Network: {currentNetwork}</p>
-    </div>
-  );
+	const currentAccount = useCurrentAccount();
+	const currentWallet = useCurrentWallet();
+	const currentNetwork = useCurrentNetwork();
+
+	if (!currentAccount) {
+		return <div>Not connected</div>;
+	}
+
+	return (
+		<div>
+			<p>Wallet: {currentWallet?.name}</p>
+			<p>Address: {currentAccount.address}</p>
+			<p>Network: {currentNetwork}</p>
+		</div>
+	);
 }
 ```
 
 ## Example Application
 
-See the [React example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/dapp-kit-next/examples/react/simple).
+See the
+[React example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/dapp-kit-next/examples/react/simple).

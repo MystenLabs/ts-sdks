@@ -2,7 +2,8 @@
 title: Switch Network
 ---
 
-The `switchNetwork` action changes the currently selected network that the dApp Kit client is configured to use.
+The `switchNetwork` action changes the currently selected network that the dApp Kit client is
+configured to use.
 
 ## Usage
 
@@ -10,10 +11,10 @@ The `switchNetwork` action changes the currently selected network that the dApp 
 import { createDAppKit } from '@mysten/dapp-kit-core';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 
-const dAppKit = createDAppKit({ 
-  networks: ['mainnet', 'testnet'],
-  defaultNetwork: 'mainnet',
-  createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) })
+const dAppKit = createDAppKit({
+	networks: ['mainnet', 'testnet'],
+	defaultNetwork: 'mainnet',
+	createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
 });
 
 // Switch to a different network
@@ -22,7 +23,8 @@ dAppKit.switchNetwork('testnet');
 
 ## Parameters
 
-- **`network`** - `TNetworks[number]` - The network to switch to. Must be one of the networks configured when creating the dApp Kit instance.
+- **`network`** - `TNetworks[number]` - The network to switch to. Must be one of the networks
+  configured when creating the dApp Kit instance.
 
 ## Return Value
 

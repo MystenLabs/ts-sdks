@@ -9,22 +9,17 @@ import { useState } from 'react';
 import { ConnectModal } from '@mysten/dapp-kit-react';
 
 function App() {
-  const [open, setOpen] = useState(false);
+	const [open, setOpen] = useState(false);
 
-  return (
-    <>
-      {/* Custom trigger */}
-      <button onClick={() => setOpen(true)}>
-        Connect Wallet
-      </button>
+	return (
+		<>
+			{/* Custom trigger */}
+			<button onClick={() => setOpen(true)}>Connect Wallet</button>
 
-      {/* Modal component */}
-      <ConnectModal
-        open={open}
-        onClosed={() => setOpen(false)}
-      />
-    </>
-  );
+			{/* Modal component */}
+			<ConnectModal open={open} onClosed={() => setOpen(false)} />
+		</>
+	);
 }
 ```
 
@@ -38,12 +33,13 @@ function App() {
   - Type: `(a: UiWallet, b: UiWallet) => number`
 
 ### Example
+
 ```tsx
 <ConnectModal
-  open={open}
-  onClosed={() => setOpen(false)}
-  filterFn={(wallet) => wallet.name !== 'ExcludedWallet'}
-  sortFn={(a, b) => a.name.localeCompare(b.name)}
+	open={open}
+	onClosed={() => setOpen(false)}
+	filterFn={(wallet) => wallet.name !== 'ExcludedWallet'}
+	sortFn={(a, b) => a.name.localeCompare(b.name)}
 />
 ```
 
@@ -53,12 +49,12 @@ The modal emits several events for lifecycle management:
 
 ```tsx
 <ConnectModal
-  open={open}
-  onOpen={() => console.log('Opening')}
-  onOpened={() => console.log('Opened')}
-  onClose={() => console.log('Closing')}
-  onClosed={() => setOpen(false)}
-  onCancel={() => console.log('Cancelled')}
+	open={open}
+	onOpen={() => console.log('Opening')}
+	onOpened={() => console.log('Opened')}
+	onClose={() => console.log('Closing')}
+	onClosed={() => setOpen(false)}
+	onCancel={() => console.log('Cancelled')}
 />
 ```
 
@@ -73,4 +69,5 @@ The modal displays different views based on connection status:
 
 ## Server-Side Rendering (SSR)
 
-The `<ConnectModal />` component can be only client-side rendered, as wallets are detected in the browser. For Next.js guide see [here](../../next-js).
+The `<ConnectModal />` component can be only client-side rendered, as wallets are detected in the
+browser. For Next.js guide see [here](../../next-js).

@@ -2,10 +2,12 @@
 title: useDAppKit
 ---
 
-The `useDAppKit` hook provides direct access to the dApp Kit instance within React components, enabling you to call actions and access the underlying functionality.
+The `useDAppKit` hook provides direct access to the dApp Kit instance within React components,
+enabling you to call actions and access the underlying functionality.
 
 <Callout type="warn">
-    All dApp Kit hooks must be used within components that are descendants of [DAppKitProvider](../dapp-kit-provider). Using them outside will result in an error.
+	All dApp Kit hooks must be used within components that are descendants of
+	[DAppKitProvider](../dapp-kit-provider). Using them outside will result in an error.
 </Callout>
 
 ## Usage
@@ -14,22 +16,18 @@ The `useDAppKit` hook provides direct access to the dApp Kit instance within Rea
 import { useDAppKit } from '@mysten/dapp-kit-react';
 
 function MyComponent() {
-  const dAppKit = useDAppKit();
-  
-  async function handleConnect() {
-    try {
-      await dAppKit.connectWallet({ wallet: selectedWallet });
-      console.log('Connected successfully');
-    } catch (error) {
-      console.error('Connection failed:', error);
-    }
-  }
-  
-  return (
-    <button onClick={handleConnect}>
-      Connect Wallet
-    </button>
-  );
+	const dAppKit = useDAppKit();
+
+	async function handleConnect() {
+		try {
+			await dAppKit.connectWallet({ wallet: selectedWallet });
+			console.log('Connected successfully');
+		} catch (error) {
+			console.error('Connection failed:', error);
+		}
+	}
+
+	return <button onClick={handleConnect}>Connect Wallet</button>;
 }
 ```
 
@@ -45,7 +43,7 @@ function MyComponent() {
   signTransaction: (options: SignTransactionOptions) => Promise<SignedTransaction>;
   signAndExecuteTransaction: (options: SignAndExecuteOptions) => Promise<SuiTransactionResponse>;
   signPersonalMessage: (options: SignMessageOptions) => Promise<SignedMessage>;
-  
+
   // Properties
   networks: string[];
   stores: DAppKitStores;
@@ -62,26 +60,23 @@ import { useDAppKit } from '@mysten/dapp-kit-react';
 import { Transaction } from '@mysten/sui/transactions';
 
 function TransferButton() {
-  const dAppKit = useDAppKit();
-  
-  async function handleTransfer() {
-    const tx = new Transaction();
-    tx.transferObjects(
-      [tx.object('0x123...')],
-      '0xrecipient...'
-    );
-    
-    try {
-      const result = await dAppKit.signAndExecuteTransaction({
-        transaction: tx,
-      });
-      console.log('Transaction digest:', result.digest);
-    } catch (error) {
-      console.error('Transaction failed:', error);
-    }
-  }
-  
-  return <button onClick={handleTransfer}>Transfer</button>;
+	const dAppKit = useDAppKit();
+
+	async function handleTransfer() {
+		const tx = new Transaction();
+		tx.transferObjects([tx.object('0x123...')], '0xrecipient...');
+
+		try {
+			const result = await dAppKit.signAndExecuteTransaction({
+				transaction: tx,
+			});
+			console.log('Transaction digest:', result.digest);
+		} catch (error) {
+			console.error('Transaction failed:', error);
+		}
+	}
+
+	return <button onClick={handleTransfer}>Transfer</button>;
 }
 ```
 
@@ -91,21 +86,18 @@ function TransferButton() {
 import { useDAppKit, useCurrentNetwork } from '@mysten/dapp-kit-react';
 
 function NetworkSelector() {
-  const dAppKit = useDAppKit();
-  const currentNetwork = useCurrentNetwork();
-  
-  return (
-    <select 
-      value={currentNetwork}
-      onChange={(e) => dAppKit.switchNetwork(e.target.value)}
-    >
-      {dAppKit.networks.map((network) => (
-        <option key={network} value={network}>
-          {network}
-        </option>
-      ))}
-    </select>
-  );
+	const dAppKit = useDAppKit();
+	const currentNetwork = useCurrentNetwork();
+
+	return (
+		<select value={currentNetwork} onChange={(e) => dAppKit.switchNetwork(e.target.value)}>
+			{dAppKit.networks.map((network) => (
+				<option key={network} value={network}>
+					{network}
+				</option>
+			))}
+		</select>
+	);
 }
 ```
 
@@ -116,18 +108,17 @@ import { useDAppKit } from '@mysten/dapp-kit-react';
 import { useEffect } from 'react';
 
 function ConnectionMonitor() {
-  const dAppKit = useDAppKit();
-  
-  useEffect(() => {
-    // Subscribe directly to connection store changes
-    const unsubscribe = dAppKit.stores.$connection.subscribe((connection) => {
-      console.log('Connection status:', connection.status);
-    });
-    
-    return unsubscribe;
-  }, [dAppKit]);
-  
-  return null;
+	const dAppKit = useDAppKit();
+
+	useEffect(() => {
+		// Subscribe directly to connection store changes
+		const unsubscribe = dAppKit.stores.$connection.subscribe((connection) => {
+			console.log('Connection status:', connection.status);
+		});
+
+		return unsubscribe;
+	}, [dAppKit]);
+
+	return null;
 }
 ```
-

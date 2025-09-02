@@ -2,16 +2,20 @@
 title: Connect Wallet
 ---
 
-The dApp Kit Next provides an action for wallet connection, allowing users to connect, disconnect, and switch between wallets and accounts.
+The dApp Kit Next provides an action for wallet connection, allowing users to connect, disconnect,
+and switch between wallets and accounts.
 
 <Callout>
-	The [Connect Button](../web-components/connect-button) Web Component provides a complete wallet connection UI.
+	The [Connect Button](../web-components/connect-button) Web Component provides a complete wallet
+	connection UI.
 </Callout>
 
 ## Usage
 
 <Callout>
-	Auto-connect is enabled by default and will attempt to restore the previous wallet connection on page reload. This provides a seamless user experience but can be [disabled](../create-dapp-kit#disabling-auto-connect) if needed.
+	Auto-connect is enabled by default and will attempt to restore the previous wallet connection on
+	page reload. This provides a seamless user experience but can be
+	[disabled](../create-dapp-kit#disabling-auto-connect) if needed.
 </Callout>
 
 The `connectWallet` action prompts a wallet to connect and authorize accounts for your application:
@@ -19,12 +23,14 @@ The `connectWallet` action prompts a wallet to connect and authorize accounts fo
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
 
-const dAppKit = createDAppKit({ /* config */ });
+const dAppKit = createDAppKit({
+	/* config */
+});
 
 // Connect to a specific wallet
 const result = await dAppKit.connectWallet({
-  wallet: myWallet, // UiWallet instance
-  account: myAccount // Optional: specific account to select
+	wallet: myWallet, // UiWallet instance
+	account: myAccount, // Optional: specific account to select
 });
 
 console.log('Connected accounts:', result.accounts);
@@ -33,11 +39,13 @@ console.log('Connected accounts:', result.accounts);
 ## Parameters
 
 - **`wallet`** - The `UiWallet` instance to connect to
-- **`account`** (optional) - A specific `UiWalletAccount` to set as the selected account. Defaults to the first authorized account
+- **`account`** (optional) - A specific `UiWalletAccount` to set as the selected account. Defaults
+  to the first authorized account
 
 ## Return Value
 
 Returns a `Promise` that resolves to an object containing:
+
 - **`accounts`** - Array of authorized `UiWalletAccount` instances
 
 ## Error Handling
@@ -46,16 +54,16 @@ Returns a `Promise` that resolves to an object containing:
 import { WalletNoAccountsConnectedError, WalletAccountNotFoundError } from '@mysten/dapp-kit-core';
 
 try {
-  const result = await dAppKit.connectWallet({ wallet });
-  console.log('Connected:', result.accounts);
+	const result = await dAppKit.connectWallet({ wallet });
+	console.log('Connected:', result.accounts);
 } catch (error) {
-  if (error instanceof WalletNoAccountsConnectedError) {
-    console.error('No accounts were authorized');
-  } else if (error instanceof WalletAccountNotFoundError) {
-    console.error('Specified account not found in wallet');
-  } else {
-    console.error('Connection failed:', error);
-  }
+	if (error instanceof WalletNoAccountsConnectedError) {
+		console.error('No accounts were authorized');
+	} else if (error instanceof WalletAccountNotFoundError) {
+		console.error('Specified account not found in wallet');
+	} else {
+		console.error('Connection failed:', error);
+	}
 }
 ```
 
@@ -67,24 +75,24 @@ const wallets = dAppKit.stores.$wallets.get();
 
 // Connect to the first available wallet
 if (wallets.length > 0) {
-  try {
-    const { accounts } = await dAppKit.connectWallet({ 
-      wallet: wallets[0] 
-    });
-    console.log('Connected accounts:', accounts);
-  } catch (error) {
-    console.error('Connection failed:', error);
-  }
+	try {
+		const { accounts } = await dAppKit.connectWallet({
+			wallet: wallets[0],
+		});
+		console.log('Connected accounts:', accounts);
+	} catch (error) {
+		console.error('Connection failed:', error);
+	}
 }
 
 // Subscribe to connection changes
 const unsubscribe = dAppKit.stores.$connection.subscribe((connection) => {
-  const statusElement = document.getElementById('connection-status');
-  
-  if (connection.isConnected && connection.account && connection.wallet) {
-    statusElement.textContent = `Connected: ${connection.account.address}`;
-  } else {
-    statusElement.textContent = 'Not connected';
-  }
+	const statusElement = document.getElementById('connection-status');
+
+	if (connection.isConnected && connection.account && connection.wallet) {
+		statusElement.textContent = `Connected: ${connection.account.address}`;
+	} else {
+		statusElement.textContent = 'Not connected';
+	}
 });
 ```
