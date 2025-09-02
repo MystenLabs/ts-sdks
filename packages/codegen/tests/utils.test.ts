@@ -15,7 +15,7 @@ describe('normalizeMoveArguments', () => {
 			arguments: normalizeMoveArguments(
 				{ arbitraryValue: 42 }, // args
 				['u32', CLOCK_TYPE_ARG], // arg types
-				['arbitraryValue', 'clock'], // parameters' names
+				['arbitraryValue'], // parameters' names
 			),
 		});
 
@@ -73,7 +73,7 @@ describe('normalizeMoveArguments', () => {
 			arguments: normalizeMoveArguments(
 				{ arbitraryValue: 42, anotherArbitraryValue: 999 }, // args
 				['u32', CLOCK_TYPE_ARG, 'u32'], // arg types
-				['arbitraryValue', 'clock', 'anotherArbitraryValue'], // parameters' names
+				['arbitraryValue', 'anotherArbitraryValue'], // parameters' names
 			),
 		});
 
@@ -139,7 +139,7 @@ describe('normalizeMoveArguments', () => {
 			arguments: normalizeMoveArguments(
 				[42], // args
 				['u32', CLOCK_TYPE_ARG], // arg types
-				['arbitraryValue', 'clock'], // parameters' names
+				['arbitraryValue'], // parameters' names
 			),
 		});
 
@@ -198,7 +198,7 @@ describe('normalizeMoveArguments', () => {
 			arguments: normalizeMoveArguments(
 				[42, 999], // args
 				['u32', CLOCK_TYPE_ARG, 'u32'], // arg types
-				['arbitraryValue', 'clock', 'anotherArbitraryValue'], // parameters' names
+				['arbitraryValue', 'anotherArbitraryValue'], // parameters' names
 			),
 		});
 
