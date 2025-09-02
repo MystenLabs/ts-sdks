@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 1.37.6
+
+### Patch Changes
+
+- c689b98: Fix tx.object.random and tx.object.denyList helpers
+- 5b9ff1a: Lock version of poseidon-lite used
+
 ## 1.37.5
 
 ### Patch Changes

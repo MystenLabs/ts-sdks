@@ -1,5 +1,14 @@
 # @mysten/walrus
 
+## 0.6.6
+
+### Patch Changes
+
+- 78bd0e9: Update codegen arg normalization for object args
+- Updated dependencies [c689b98]
+- Updated dependencies [5b9ff1a]
+  - @mysten/sui@1.37.6
+
 ## 0.6.5
 
 ### Patch Changes
