@@ -51,7 +51,7 @@ export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null
 			}
 
 			if (structTag.module === 'option' && structTag.name === 'Option') {
-				const type = getPureBcsSchema(structTag.typeParams[0]);
+				const type = getPureBcsSchema(structTag.typeParams[0]!);
 				return type ? bcs.vector(type) : null;
 			}
 		}
@@ -127,7 +127,7 @@ export function normalizeMoveArguments(
 			continue;
 		}
 
-		const type = argTypes[i];
+		const type = argTypes[i]!;
 		const bcsType = getPureBcsSchema(type);
 
 		if (bcsType) {
