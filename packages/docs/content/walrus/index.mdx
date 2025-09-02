@@ -139,9 +139,16 @@ You can also construct a `WalrusFile` from a `Uint8Array`, `Blob`, or a `string`
 stored on walrus:
 
 ```ts
-const file1 = WalrusFile.from(new Uint8Array([1, 2, 3]));
-const file2 = WalrusFile.from(new Blob([new Uint8Array([1, 2, 3])]));
-const file3 = WalrusFile.from('Hello from the TS SDK!!!\n', {
+const file1 = WalrusFile.from({
+	contents: new Uint8Array([1, 2, 3]),
+	identifier: 'file1.bin',
+});
+const file2 = WalrusFile.from({
+	contents: new Blob([new Uint8Array([1, 2, 3])]),
+	identifier: 'file2.bin',
+});
+const file3 = WalrusFile.from({
+	contents: new TextEncoder().encode('Hello from the TS SDK!!!\n'),
 	identifier: 'README.md',
 	tags: {
 		'content-type': 'text/plain',
