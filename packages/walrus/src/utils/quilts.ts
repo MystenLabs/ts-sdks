@@ -253,8 +253,9 @@ export function encodeQuilt({ blobs, numShards, encodingType }: EncodeQuiltOptio
 
 	const indexBytes = QuiltIndexV1.serialize(index).toBytes();
 	const quiltIndex = new Uint8Array(QUILT_INDEX_PREFIX_SIZE + indexBytes.length);
-	quiltIndex.set([1], 0); // version
-	quiltIndex.set(new Uint32Array([indexBytes.length]), 1);
+	const view = new DataView(quiltIndex.buffer);
+	view.setUint8(0, 1);
+	view.setUint32(1, indexBytes.length, true);
 	quiltIndex.set(indexBytes, QUILT_INDEX_PREFIX_SIZE);
 
 	writeBlobToQuilt(quilt, quiltIndex, rowSize, columnSize, symbolSize, 0);
