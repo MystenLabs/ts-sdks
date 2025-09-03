@@ -1,5 +1,14 @@
 # @mysten/wallet-standard
 
+## 0.16.14
+
+### Patch Changes
+
+- c689b98: Add optional mutable field to UnresolveObject shape
+- Updated dependencies [c689b98]
+- Updated dependencies [5b9ff1a]
+  - @mysten/sui@1.37.6
+
 ## 0.16.13
 
 ### Patch Changes

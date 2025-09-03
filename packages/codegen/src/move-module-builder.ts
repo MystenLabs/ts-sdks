@@ -537,7 +537,7 @@ export class MoveModuleBuilder extends FileBuilder {
 							.join(',\n')}
 					] satisfies string[]\n`
 							: ''
-					}${hasAllParameterNames ? `const parameterNames = ${JSON.stringify(parameters.map((param) => camelCase(param.name!)))}\n` : ''}
+					}${hasAllParameterNames ? `const parameterNames = ${JSON.stringify(requiredParameters.map((param) => camelCase(param.name!)))}\n` : ''}
 					return (tx: Transaction) => tx.moveCall({
 						package: packageAddress,
 						module: '${this.summary.id.name}',

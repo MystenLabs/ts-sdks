@@ -296,6 +296,7 @@ const CallArg = safeEnum({
 		version: optional(nullable(JsonU64)),
 		digest: optional(nullable(string())),
 		initialSharedVersion: optional(nullable(JsonU64)),
+		mutable: optional(nullable(boolean())),
 	}),
 });
 export type CallArg = InferOutput<typeof CallArg>;

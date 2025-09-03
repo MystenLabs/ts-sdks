@@ -61,9 +61,11 @@ export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null
 }
 
 export function normalizeMoveArguments(args: unknown[] | object, argTypes: string[], parameterNames?: string[]) {
-
-	if (parameterNames && argTypes.length !== parameterNames.length) {
-		throw new Error(\`Invalid number of parameterNames, expected \${argTypes.length}, got \${parameterNames.length}\`);
+	const argLen = Array.isArray(args) ? args.length : Object.keys(args).length;
+	if (parameterNames && argLen !== parameterNames.length) {
+		throw new Error(
+			\`Invalid number of arguments, expected \${parameterNames.length}, got \${argLen}\`,
+		);
 	}
 
 	const normalizedArgs: TransactionArgument[] = [];

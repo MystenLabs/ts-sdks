@@ -64,7 +64,6 @@ export function initializeWalrus(options: InitializeWalrusOptions) {
 		'epochDuration',
 		'nShards',
 		'maxEpochsAhead',
-		'clock',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({

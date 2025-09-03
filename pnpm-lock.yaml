@@ -433,6 +433,40 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@22.17.0)(happy-dom@18.0.1)(jiti@2.5.1)(jsdom@26.1.0)(lightningcss@1.30.1)(msw@2.10.4(@types/node@22.17.0)(typescript@5.9.2))(tsx@4.20.3)(yaml@2.8.1)
 
+  packages/dapp-kit-next/examples/next-js/simple:
+    dependencies:
+      '@mysten/dapp-kit-react':
+        specifier: workspace:*
+        version: link:../../../packages/dapp-kit-react
+      '@mysten/sui':
+        specifier: workspace:*
+        version: link:../../../../typescript
+      next:
+        specifier: 15.4.2
+        version: 15.4.2(@babel/core@7.28.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@eslint/eslintrc':
+        specifier: ^3.3.1
+        version: 3.3.1
+      '@types/node':
+        specifier: ^22.15.29
+        version: 22.17.0
+      '@types/react':
+        specifier: ^18.3.3
+        version: 18.3.23
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.23)
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.2
+
   packages/dapp-kit-next/examples/react/simple:
     dependencies:
       '@mysten/dapp-kit-react':
@@ -1381,7 +1415,7 @@ importers:
         specifier: ^16.11.0
         version: 16.11.0
       poseidon-lite:
-        specifier: ^0.2.0
+        specifier: 0.2.1
         version: 0.2.1
       valibot:
         specifier: ^0.36.0
@@ -16701,7 +16735,7 @@ snapshots:
   constant-case@3.0.4:
     dependencies:
       no-case: 3.0.4
-      tslib: 2.6.3
+      tslib: 2.8.1
       upper-case: 2.0.2
 
   convert-source-map@2.0.0: {}
