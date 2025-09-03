@@ -1,5 +1,11 @@
 # @mysten/walrus
 
+## 0.6.7
+
+### Patch Changes
+
+- ab94098: Fix bug that resulted in invalid blobs for quilts with large indexes
+
 ## 0.6.6
 
 ### Patch Changes
