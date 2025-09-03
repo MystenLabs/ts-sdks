@@ -1,5 +1,11 @@
 # @mysten/seal
 
+## 0.5.2
+
+### Patch Changes
+
+- cb66a10: [seal] fix apiKeyName variable
+
 ## 0.5.1
 
 ### Patch Changes
