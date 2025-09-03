@@ -13,6 +13,7 @@ export const dAppKit = createDAppKit({
 	},
 });
 
+// global type registration necessary for the hooks to work correctly
 declare module '@mysten/dapp-kit-react' {
 	interface Register {
 		dAppKit: typeof dAppKit;
