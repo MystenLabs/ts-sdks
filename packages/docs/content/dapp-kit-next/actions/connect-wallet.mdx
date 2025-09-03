@@ -2,7 +2,7 @@
 title: Connect Wallet
 ---
 
-The dApp Kit Next provides an action for wallet connection, allowing users to connect, disconnect,
+The dApp Kit SDK provides an action for wallet connection, allowing users to connect, disconnect,
 and switch between wallets and accounts.
 
 <Callout>
@@ -54,7 +54,7 @@ Returns a `Promise` that resolves to an object containing:
 const wallets = dAppKit.stores.$wallets.get();
 
 const unsubscribe = dAppKit.stores.$connection.subscribe((connection) => {
-	if (connection.isConnected && connection.account && connection.wallet) {
+	if (connection.isConnected) {
 		console.log(`Connected account address: ${connection.account.address}`);
 	} else {
 		console.log({ connection });
