@@ -8,7 +8,7 @@ throughout your React application. It must wrap any components that use dApp Kit
 ## Basic Usage
 
 ```tsx
-import { dAppKit } from './dapp-kit';
+import { dAppKit } from './dapp-kit.ts';
 
 export default function App() {
 	return (
@@ -47,6 +47,7 @@ const dAppKit = createDAppKit({
 	storageKey: 'myapp_dappkit',
 });
 
+// global type registration necessary for the hooks to work correctly
 declare module '@mysten/dapp-kit-react' {
 	interface Register {
 		dAppKit: typeof dAppKit;

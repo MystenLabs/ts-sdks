@@ -21,6 +21,12 @@ export const dAppKit = createDAppKit({
 });
 ```
 
+<Callout type="warn">
+	If you use the React bindings, it's necessary that you [register global dAppKit
+	type](./framework-guides/react/getting-started#create-a-dapp-kit-instance) for hooks to work
+	properly.
+</Callout>
+
 This instance provides:
 
 - Wallet connection management
@@ -30,35 +36,43 @@ This instance provides:
 
 ## Parameters
 
-- **networks** - Array of network names your dApp supports (e.g., `['mainnet', 'testnet']`)
-- **createClient** - Function that creates a SuiClient for each network
+- **autoConnect** (optional) - Enables automatically connecting to the most recently used wallet
+  account (default: `true`)
+- **networks** - A list of networks supported by the application (e.g. `['mainnet', 'testnet']`)
 - **defaultNetwork** (optional) - Initial network to use (default: first network in the array)
-- **autoConnect** (optional) - Automatically reconnect to previous wallet (default: `true`)
+- **createClient** - Creates a new client instance for the given network
 - **enableBurnerWallet** (optional) - Enable development-only burner wallet (default: `false`)
-- **storage** (optional) - Storage for connection persistence (default: `localStorage`, set to
-  `null` to disable)
-- **storageKey** (optional) - Key prefix for storage (default:
-  `'mysten-dapp-kit:selected-wallet-and-address'`)
-- **walletInitializers** (optional) - Array of custom wallet integrations
-- **slushWalletConfig** (optional) - Configuration for Slush wallet (set to `null` to disable)
+- **storage** (optional) - Configures how the most recently connected to wallet account is stored
+  (default: `localStorage`, set to s `null` to disable)
+- **storageKey** (optional) - The key to use to store the most recently connected wallet account
+  (default: `'mysten-dapp-kit:selected-wallet-and-address'`)
+- **walletInitializers** (optional) - A list of wallet initializers used for registering additional
+  wallet standard wallets.
+- **slushWalletConfig** (optional) - Configuration for Slush wallet (set to `null` to disable the
+  wallet)
 
 ## Return Value
 
 ```ts
 {
     // Actions
-    connectWallet: (options: ConnectWalletOptions) => Promise<void>;
+    connectWallet: (args: { wallet: UiWallet; account?: UiWalletAccount }) => Promise<{ accounts: UiWalletAccount[]; }>;
     disconnectWallet: () => Promise<void>;
-    switchAccount: (account: UiWalletAccount) => Promise<void>;
+    switchAccount: (args: { account: UiWalletAccount }) => Promise<void>;
     switchNetwork: (network: string) => void;
-    signTransaction: (options: SignTransactionOptions) => Promise<SignedTransaction>;
-    signAndExecuteTransaction: (options: SignAndExecuteOptions) => Promise<SuiTransactionResponse>;
-    signPersonalMessage: (options: SignMessageOptions) => Promise<SignedMessage>;
+    signTransaction: (args: { transaction: Transaction | string; signal?: AbortSignal }) => Promise<SignedTransaction>;
+    signAndExecuteTransaction: (args: { transaction: Transaction | string; signal?: AbortSignal }) => Promise<SuiSignAndExecuteTransactionOutput>;
+    signPersonalMessage: (args: { message: Uint8Array }) => Promise<SignedPersonalMessage>;
 
     // Properties
     networks: string[];
-    stores: DAppKitStores;
-    getClient: (network?: string) => SuiClient;
+    stores:  {
+        $wallets: DAppKitStores['$compatibleWallets'];
+        $connection: DAppKitStores['$connection'];
+        $currentNetwork: ReadableAtom<TNetworks[number]>;
+        $currentClient: ReadableAtom<Client>;
+    };
+    getClient: (network?: string) => Client;
 }
 ```
 
@@ -69,31 +83,24 @@ Read more about [actions](./actions/connect-wallet) and [stores](./state).
 ```ts
 // dapp-kit.ts
 import { createDAppKit } from '@mysten/dapp-kit-core';
-import { SuiClient } from '@mysten/sui/client';
+import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 
 export const dAppKit = createDAppKit({
 	networks: ['mainnet', 'testnet'],
 	defaultNetwork: 'mainnet',
-	createClient: (network) => {
-		const connections = {
-			mainnet: { url: 'https://mainnet.sui.io:443' },
-			testnet: { url: 'https://testnet.sui.io:443' },
-		};
-		return new SuiClient(connections[network]);
-	},
+	createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
 });
 ```
 
 ```ts
 // connect-wallet-and-log.ts
-import type { DAppKit, UiWallet, UiWalletAccount } from '@mysten/dapp-kit-core';
+import type { UiWallet, UiWalletAccount } from '@mysten/dapp-kit-core';
+import { dAppKit } from './dapp-kit.ts';
 
 export async function connectWalletAndLog({
-	dAppKit,
 	wallet,
 	account,
 }: {
-	dAppKit: DAppKit;
 	wallet: UiWallet;
 	account: UiWalletAccount;
 }) {
@@ -101,13 +108,14 @@ export async function connectWalletAndLog({
 		wallet,
 		account,
 	});
-
 	console.log('Connected accounts:', result.accounts);
 }
 ```
 
 <Callout>
-	If you use React, see [DAppKitProvider documentation](./framework-guides/react/dapp-kit-provider).
+	If you use the React bindings, see [Getting Started in
+	React](./framework-guides/react/getting-started) and
+	[DAppKitProvider](./framework-guides/react/dapp-kit-provider).
 </Callout>
 
 ## Development Configuration

@@ -28,6 +28,7 @@ export const dAppKit = createDAppKit({
 	},
 });
 
+// global type registration necessary for the hooks to work correctly
 declare module '@mysten/dapp-kit-react' {
 	interface Register {
 		dAppKit: typeof dAppKit;
@@ -40,7 +41,7 @@ declare module '@mysten/dapp-kit-react' {
 ```tsx
 // app/ClientOnlyConnectButton.tsx
 import { DAppKitProvider, ConnectButton } from '@mysten/dapp-kit-react';
-import { dAppKit } from './dapp-kit';
+import { dAppKit } from './dapp-kit.ts';
 
 export default function ClientOnlyConnectButton() {
 	return (

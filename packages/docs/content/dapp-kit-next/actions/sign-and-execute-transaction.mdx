@@ -74,7 +74,7 @@ The returned `effects` field contains detailed information about the transaction
 import { bcs } from '@mysten/sui/bcs';
 import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
 import { fromBase64 } from '@mysten/sui/utils';
-import { dAppKit } from './dapp-kit.js';
+import { dAppKit } from './dapp-kit.ts';
 
 const transaction = new Transaction();
 transaction.transferObjects([coinWithBalance({ balance: 123 })], 'recipientAddress');

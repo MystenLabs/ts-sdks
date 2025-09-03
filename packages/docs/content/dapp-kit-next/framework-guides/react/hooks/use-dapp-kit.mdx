@@ -34,21 +34,26 @@ export function MyComponent({ wallet }: { wallet: UiWallet }) {
 
 ## Return Value
 
-```tsx
+```ts
 {
     // Actions
-    connectWallet: (options: ConnectWalletOptions) => Promise<void>;
+    connectWallet: (args: { wallet: UiWallet; account?: UiWalletAccount }) => Promise<{ accounts: UiWalletAccount[]; }>;
     disconnectWallet: () => Promise<void>;
-    switchAccount: (account: UiWalletAccount) => Promise<void>;
+    switchAccount: (args: { account: UiWalletAccount }) => Promise<void>;
     switchNetwork: (network: string) => void;
-    signTransaction: (options: SignTransactionOptions) => Promise<SignedTransaction>;
-    signAndExecuteTransaction: (options: SignAndExecuteOptions) => Promise<SuiTransactionResponse>;
-    signPersonalMessage: (options: SignMessageOptions) => Promise<SignedMessage>;
+    signTransaction: (args: { transaction: Transaction | string; signal?: AbortSignal }) => Promise<SignedTransaction>;
+    signAndExecuteTransaction: (args: { transaction: Transaction | string; signal?: AbortSignal }) => Promise<SuiSignAndExecuteTransactionOutput>;
+    signPersonalMessage: (args: { message: Uint8Array }) => Promise<SignedPersonalMessage>;
 
     // Properties
     networks: string[];
-    stores: DAppKitStores;
-    getClient: (network?: string) => SuiClient;
+    stores:  {
+        $wallets: DAppKitStores['$compatibleWallets'];
+        $connection: DAppKitStores['$connection'];
+        $currentNetwork: ReadableAtom<TNetworks[number]>;
+        $currentClient: ReadableAtom<Client>;
+    };
+    getClient: (network?: string) => Client;
 }
 ```
 

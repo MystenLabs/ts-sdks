@@ -10,6 +10,8 @@ This guide shows you how to integrate dApp Kit Next into React applications.
 npm i @mysten/dapp-kit-react @mysten/dapp-kit-core @mysten/sui
 ```
 
+## Create a dApp Kit Instance
+
 Create a dApp Kit instance and wrap your app with the provider:
 
 ```tsx
@@ -25,6 +27,7 @@ export const dAppKit = createDAppKit({
 	},
 });
 
+// global type registration necessary for the hooks to work correctly
 declare module '@mysten/dapp-kit-react' {
 	interface Register {
 		dAppKit: typeof dAppKit;
@@ -34,7 +37,7 @@ declare module '@mysten/dapp-kit-react' {
 
 ```tsx
 // App.tsx
-import { dAppKit } from './dapp-kit';
+import { dAppKit } from './dapp-kit.ts';
 
 export default function App() {
 	return (
@@ -45,7 +48,8 @@ export default function App() {
 }
 ```
 
-For more details on the provider, see the [DAppKitProvider documentation](./dapp-kit-provider).
+For more details, see also [dApp Kit Instance](../../dapp-kit-instance) and
+[DAppKitProvider](./dapp-kit-provider).
 
 ## Using Components
 
