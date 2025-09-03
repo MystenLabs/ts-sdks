@@ -9,7 +9,7 @@ a transaction on the Sui network. This is the most common way to execute transac
 
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
-import { Transaction } from '@mysten/sui/transactions';
+import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
 
 const dAppKit = createDAppKit({
 	/* config */
@@ -17,11 +17,7 @@ const dAppKit = createDAppKit({
 
 const tx = new Transaction();
 // No need to manually set sender - it's done automatically
-tx.moveCall({
-	target: '0x2::coin::transfer',
-	typeArguments: ['0x2::sui::SUI'],
-	arguments: [tx.object(coinObjectId), tx.pure.address(recipientAddress)],
-});
+tx.transferObjects([coinWithBalance({ balance: 123 })], '0xrecipient...');
 
 const result = await dAppKit.signAndExecuteTransaction({
 	transaction: tx,
@@ -33,7 +29,7 @@ console.log('Transaction digest:', result.digest);
 ## Parameters
 
 - **`transaction`** - `Transaction | string` - The transaction to sign and execute. Can be either a
-  Transaction instance or a base64-encoded transaction string.
+  Transaction instance or base64-encoded bcs bytes for the transaction.
 - **`signal`** (optional) - `AbortSignal` - An abort signal to cancel the transaction request.
 
 ## Return Value
@@ -76,24 +72,26 @@ The returned `effects` field contains detailed information about the transaction
 
 ```typescript
 import { bcs } from '@mysten/sui/bcs';
-import { fromBase64 } from '@mysten/utils';
+import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
+import { fromBase64 } from '@mysten/sui/utils';
+import { dAppKit } from './dapp-kit.js';
+
+const transaction = new Transaction();
+transaction.transferObjects([coinWithBalance({ balance: 123 })], 'recipientAddress');
 
 const result = await dAppKit.signAndExecuteTransaction({ transaction });
 
 // Decode effects to inspect transaction results
 const effects = bcs.TransactionEffects.parse(fromBase64(result.effects));
 
-console.log('Status:', effects.V2?.executedEpoch);
+console.log('Executed in epoch:', effects.V2?.executedEpoch);
 console.log('Gas used:', effects.V2?.gasUsed);
 ```
 
 ## Wallet Compatibility
 
-Transaction execution support varies by wallet:
-
-- Most wallets support the modern `sui:signAndExecuteTransaction` feature
-- Legacy wallets may use `sui:signAndExecuteTransactionBlock`
-- The action transparently handles both protocols
+- The action transparently handles both `sui:signAndExecuteTransaction` and
+  `sui:signAndExecuteTransactionBlock` protocols
 - The wallet handles network submission and response
 
 ```typescript

@@ -32,17 +32,44 @@ npm uninstall @mysten/dapp-kit @tanstack/react-query
 npm i @mysten/dapp-kit-react @mysten/dapp-kit-core @mysten/sui
 ```
 
-### 2. Replace Provider Setup
+### 2. Create dApp Kit Instance
+
+Create a new instance of the dApp Kit using the `createDAppKit` function and register the global
+type.
+
+```tsx
+// dapp-kit.ts
+import { createDAppKit } from '@mysten/dapp-kit-react';
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+
+export const dAppKit = createDAppKit({
+	enableBurnerWallet: import.meta.env.DEV,
+	networks: ['mainnet', 'testnet'],
+	defaultNetwork: 'testnet',
+	createClient(network) {
+		return new SuiClient({ network, url: getFullnodeUrl(network) });
+	},
+});
+
+declare module '@mysten/dapp-kit-react' {
+	interface Register {
+		dAppKit: typeof dAppKit;
+	}
+}
+```
+
+### 3. Replace Provider Setup
 
 Replace multiple nested providers with a single unified provider.
 
 **Before:**
 
 ```tsx
+// App.tsx
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
 
-export function ExampleComponent() {
+export function App() {
 	const queryClient = new QueryClient();
 	const networkConfig = {
 		mainnet: { url: 'https://mainnet.sui.io:443' },
@@ -64,19 +91,11 @@ export function ExampleComponent() {
 **After:**
 
 ```tsx
-import { DAppKitProvider, createDAppKit } from '@mysten/dapp-kit-react';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+// App.tsx
+import { DAppKitProvider } from '@mysten/dapp-kit-react';
+import { dAppKit } from './dapp-kit.ts';
 
-export function ExampleComponent() {
-	const dAppKit = createDAppKit({
-		networks: ['mainnet', 'testnet'],
-		defaultNetwork: 'testnet',
-		createClient: (network) =>
-			new SuiClient({
-				url: getFullnodeUrl(network),
-			}),
-	});
-
+export function App() {
 	return (
 		<DAppKitProvider dAppKit={dAppKit}>
 			<App />
@@ -85,7 +104,7 @@ export function ExampleComponent() {
 }
 ```
 
-### 3. Update Hook Usage
+### 4. Update Hook Usage
 
 Most existing hooks continue to work with no changes needed:
 
@@ -101,7 +120,7 @@ Most existing hooks continue to work with no changes needed:
 - `useConnection` - Get current wallet connection
 - `useCurrentNetwork` - Get current network
 
-### 4. Replace Mutation Patterns
+### 5. Replace Mutation Patterns
 
 The new version uses direct promise-based calls instead of React Query mutations.
 
@@ -158,7 +177,7 @@ export function ExampleComponent({ transaction }: { transaction: Transaction }) 
 }
 ```
 
-### 5. Replace Data Fetching Patterns
+### 6. Replace Data Fetching Patterns
 
 React Query hooks are no longer available. Use standard React patterns for data fetching.
 
@@ -204,7 +223,7 @@ export function ExampleComponent({ objectId }: { objectId: string }) {
 }
 ```
 
-### 6. Update The Remaining Code
+### 7. Update The Remaining Code
 
 The following hooks from the original dapp-kit are not available in dapp-kit-next:
 

@@ -94,12 +94,12 @@ Call actions directly through dAppKit:
 
 ```vue
 <script setup lang="ts">
-import { Transaction } from '@mysten/sui/transactions';
+import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
 import { dAppKit } from './dapp-kit';
 
 async function sendTransaction() {
 	const tx = new Transaction();
-	// Build your transaction
+	tx.transferObjects([coinWithBalance({ balance: 123 })], '0xrecipient...');
 
 	const result = await dAppKit.signAndExecuteTransaction({
 		transaction: tx,

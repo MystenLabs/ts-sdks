@@ -10,7 +10,7 @@ scenarios.
 
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
-import { Transaction } from '@mysten/sui/transactions';
+import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
 
 const dAppKit = createDAppKit({
 	/* config */
@@ -18,11 +18,7 @@ const dAppKit = createDAppKit({
 
 const tx = new Transaction();
 // No need to manually set sender - it's done automatically
-tx.moveCall({
-	target: '0x2::coin::transfer',
-	typeArguments: ['0x2::sui::SUI'],
-	arguments: [tx.object(coinObjectId), tx.pure.address(recipientAddress)],
-});
+tx.transferObjects([coinWithBalance({ balance: 123 })], '0xrecipient...');
 
 // Sign the transaction without executing it
 const { bytes, signature } = await dAppKit.signTransaction({
@@ -33,7 +29,7 @@ const { bytes, signature } = await dAppKit.signTransaction({
 ## Parameters
 
 - **`transaction`** - `Transaction | string` - The transaction to sign. Can be either a Transaction
-  instance or a base64-encoded transaction string.
+  instance or base64-encoded bcs bytes for the transaction.
 - **`signal`** (optional) - `AbortSignal` - An abort signal to cancel the signing request.
 
 ## Return Value
@@ -59,11 +55,8 @@ When passing a Transaction instance, the action automatically:
 
 ## Wallet Compatibility
 
-Transaction signing support varies by wallet:
-
-- Most wallets support the modern `sui:signTransaction` feature
-- Legacy wallets may use `sui:signTransactionBlock`
-- The action transparently handles both protocols
+- The action transparently handles both `sui:signAndExecuteTransaction` and
+  `sui:signAndExecuteTransactionBlock` protocols
 
 ```typescript
 // The action automatically detects and uses the appropriate method
