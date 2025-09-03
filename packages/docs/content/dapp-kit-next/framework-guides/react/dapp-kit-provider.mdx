@@ -8,19 +8,14 @@ throughout your React application. It must wrap any components that use dApp Kit
 ## Basic Usage
 
 ```tsx
-import { createDAppKit, DAppKitProvider } from '@mysten/dapp-kit-react';
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
-
-const dAppKit = createDAppKit({
-	networks: ['mainnet', 'testnet'],
-	defaultNetwork: 'mainnet',
-	createClient: (network) => {
-		return new SuiClient({ url: getFullnodeUrl(network) });
-	},
-});
+import { dAppKit } from './dapp-kit';
 
 export default function App() {
-	return <DAppKitProvider dAppKit={dAppKit}>{/* Your app components */}</DAppKitProvider>;
+	return (
+		<DAppKitProvider dAppKit={dAppKit}>
+			<YourApp />
+		</DAppKitProvider>
+	);
 }
 ```
 
@@ -52,7 +47,13 @@ const dAppKit = createDAppKit({
 	storageKey: 'myapp_dappkit',
 });
 
-function App() {
+declare module '@mysten/dapp-kit-react' {
+	interface Register {
+		dAppKit: typeof dAppKit;
+	}
+}
+
+export function App() {
 	return (
 		<DAppKitProvider dAppKit={dAppKit}>
 			<YourApp />
@@ -66,17 +67,16 @@ function App() {
 Once your app is wrapped with `DAppKitProvider`, you can use any dApp Kit hooks in child components:
 
 ```tsx
+import type { UiWallet } from '@mysten/dapp-kit-react';
 import { useDAppKit, useCurrentAccount, useCurrentNetwork } from '@mysten/dapp-kit-react';
 
-function MyComponent() {
+export function MyComponent({ wallet }: { wallet: UiWallet }) {
 	const dAppKit = useDAppKit();
 	const account = useCurrentAccount();
 	const network = useCurrentNetwork();
-
 	const handleConnect = async () => {
 		await dAppKit.connectWallet({ wallet });
 	};
-
 	return (
 		<div>
 			<p>Network: {network}</p>

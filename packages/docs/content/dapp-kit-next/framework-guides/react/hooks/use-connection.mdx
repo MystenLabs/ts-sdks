@@ -14,7 +14,7 @@ The `useConnection` hook provides access to the current wallet connection status
 ```tsx
 import { useConnection } from '@mysten/dapp-kit-react';
 
-function MyComponent() {
+export function MyComponent() {
 	const connection = useConnection();
 
 	if (connection.status === 'disconnected') {

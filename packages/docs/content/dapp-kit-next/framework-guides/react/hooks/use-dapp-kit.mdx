@@ -13,14 +13,15 @@ enabling you to call actions and access the underlying functionality.
 ## Usage
 
 ```tsx
+import type { UiWallet } from '@mysten/dapp-kit-react';
 import { useDAppKit } from '@mysten/dapp-kit-react';
 
-function MyComponent() {
+export function MyComponent({ wallet }: { wallet: UiWallet }) {
 	const dAppKit = useDAppKit();
 
 	async function handleConnect() {
 		try {
-			await dAppKit.connectWallet({ wallet: selectedWallet });
+			await dAppKit.connectWallet({ wallet });
 			console.log('Connected successfully');
 		} catch (error) {
 			console.error('Connection failed:', error);
@@ -35,19 +36,19 @@ function MyComponent() {
 
 ```tsx
 {
-  // Actions
-  connectWallet: (options: ConnectWalletOptions) => Promise<void>;
-  disconnectWallet: () => Promise<void>;
-  switchAccount: (account: UiWalletAccount) => Promise<void>;
-  switchNetwork: (network: string) => void;
-  signTransaction: (options: SignTransactionOptions) => Promise<SignedTransaction>;
-  signAndExecuteTransaction: (options: SignAndExecuteOptions) => Promise<SuiTransactionResponse>;
-  signPersonalMessage: (options: SignMessageOptions) => Promise<SignedMessage>;
+    // Actions
+    connectWallet: (options: ConnectWalletOptions) => Promise<void>;
+    disconnectWallet: () => Promise<void>;
+    switchAccount: (account: UiWalletAccount) => Promise<void>;
+    switchNetwork: (network: string) => void;
+    signTransaction: (options: SignTransactionOptions) => Promise<SignedTransaction>;
+    signAndExecuteTransaction: (options: SignAndExecuteOptions) => Promise<SuiTransactionResponse>;
+    signPersonalMessage: (options: SignMessageOptions) => Promise<SignedMessage>;
 
-  // Properties
-  networks: string[];
-  stores: DAppKitStores;
-  getClient: (network?: string) => SuiClient;
+    // Properties
+    networks: string[];
+    stores: DAppKitStores;
+    getClient: (network?: string) => SuiClient;
 }
 ```
 
@@ -59,7 +60,7 @@ function MyComponent() {
 import { useDAppKit } from '@mysten/dapp-kit-react';
 import { Transaction } from '@mysten/sui/transactions';
 
-function TransferButton() {
+export function TransferButton() {
 	const dAppKit = useDAppKit();
 
 	async function handleTransfer() {
@@ -80,45 +81,21 @@ function TransferButton() {
 }
 ```
 
-### Network Switching
+### Subscribing to State Changes
 
 ```tsx
-import { useDAppKit, useCurrentNetwork } from '@mysten/dapp-kit-react';
-
-function NetworkSelector() {
-	const dAppKit = useDAppKit();
-	const currentNetwork = useCurrentNetwork();
-
-	return (
-		<select value={currentNetwork} onChange={(e) => dAppKit.switchNetwork(e.target.value)}>
-			{dAppKit.networks.map((network) => (
-				<option key={network} value={network}>
-					{network}
-				</option>
-			))}
-		</select>
-	);
-}
-```
-
-### Direct Store Access
-
-```tsx
-import { useDAppKit } from '@mysten/dapp-kit-react';
 import { useEffect } from 'react';
+import { useDAppKit } from '@mysten/dapp-kit-react';
 
-function ConnectionMonitor() {
+export function ConnectionMonitor() {
 	const dAppKit = useDAppKit();
-
 	useEffect(() => {
 		// Subscribe directly to connection store changes
 		const unsubscribe = dAppKit.stores.$connection.subscribe((connection) => {
 			console.log('Connection status:', connection.status);
 		});
-
 		return unsubscribe;
 	}, [dAppKit]);
-
 	return null;
 }
 ```

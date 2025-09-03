@@ -35,23 +35,6 @@ None.
 
 Returns a `Promise` that resolves to `void` when the disconnection is complete.
 
-## Error Handling
-
-The `disconnectWallet` action handles errors gracefully:
-
-```typescript
-import { WalletNotConnectedError } from '@mysten/dapp-kit-core';
-
-try {
-	await dAppKit.disconnectWallet();
-	console.log('Wallet disconnected successfully');
-} catch (error) {
-	if (error instanceof WalletNotConnectedError) {
-		console.log('No wallet was connected');
-	}
-}
-```
-
 <Callout>
 	The action may throw `WalletNotConnectedError` if no wallet is connected. However, wallet-specific
 	disconnect failures are logged but don't prevent the local connection state from being cleared.
@@ -68,7 +51,7 @@ option:
 
 <script>
 	const button = document.querySelector('mysten-dapp-kit-connect-button');
-	button.instance = dAppKit;
+	   button!.instance = dAppKit;
 </script>
 ```
 

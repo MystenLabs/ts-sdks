@@ -123,18 +123,18 @@ const wallets = dAppKit.stores.$wallets.get();
 wallets.forEach((wallet) => {
 	console.log('Wallet:', wallet.name);
 	console.log('Icon:', wallet.icon);
-	console.log('Installed:', wallet.isInstalled);
 });
 ```
 
-## Framework Integration
+## Subscribing to State Changes
 
-In vanilla JavaScript, subscribe directly to stores:
+You can subscribe directly to stores:
 
 ```typescript
 // Subscribe to connection changes
 dAppKit.stores.$connection.subscribe((connection) => {
 	const statusElement = document.getElementById('connection-status');
+	if (statusElement === null) return;
 	if (connection.isConnected && connection.account) {
 		statusElement.textContent = `Connected: ${connection.account.address}`;
 	} else {
@@ -145,28 +145,17 @@ dAppKit.stores.$connection.subscribe((connection) => {
 // Subscribe to network changes
 dAppKit.stores.$currentNetwork.subscribe((network) => {
 	const networkElement = document.getElementById('current-network');
+	if (networkElement === null) return;
 	networkElement.textContent = `Network: ${network}`;
 });
 ```
 
-### React
+## React
 
-React users can use the provided hooks instead of direct store access:
+React users can use the [provided hooks](./framework-guides/react/hooks/use-connection) instead of
+direct store access.
 
-```tsx
-import { useCurrentAccount, useCurrentNetwork, useWallets } from '@mysten/dapp-kit-react';
-
-function MyComponent() {
-	const currentAccount = useCurrentAccount();
-	const currentNetwork = useCurrentNetwork();
-	const wallets = useWallets();
-
-	// These hooks automatically subscribe and update
-	return <div>{currentAccount?.address}</div>;
-}
-```
-
-## Direct Property Access
+## Properties
 
 Besides stores, some values are available as direct properties:
 

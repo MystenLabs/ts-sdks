@@ -15,7 +15,7 @@ and switch between wallets and accounts.
 <Callout>
 	Auto-connect is enabled by default and will attempt to restore the previous wallet connection on
 	page reload. This provides a seamless user experience but can be
-	[disabled](../create-dapp-kit#disabling-auto-connect) if needed.
+	[disabled](../dapp-kit-instance#disabling-auto-connect) if needed.
 </Callout>
 
 The `connectWallet` action prompts a wallet to connect and authorize accounts for your application:
@@ -48,51 +48,27 @@ Returns a `Promise` that resolves to an object containing:
 
 - **`accounts`** - Array of authorized `UiWalletAccount` instances
 
-## Error Handling
-
-```typescript
-import { WalletNoAccountsConnectedError, WalletAccountNotFoundError } from '@mysten/dapp-kit-core';
-
-try {
-	const result = await dAppKit.connectWallet({ wallet });
-	console.log('Connected:', result.accounts);
-} catch (error) {
-	if (error instanceof WalletNoAccountsConnectedError) {
-		console.error('No accounts were authorized');
-	} else if (error instanceof WalletAccountNotFoundError) {
-		console.error('Specified account not found in wallet');
-	} else {
-		console.error('Connection failed:', error);
-	}
-}
-```
-
 ## Example
 
 ```typescript
-// Get available wallets
 const wallets = dAppKit.stores.$wallets.get();
 
-// Connect to the first available wallet
+const unsubscribe = dAppKit.stores.$connection.subscribe((connection) => {
+	if (connection.isConnected && connection.account && connection.wallet) {
+		console.log(`Connected account address: ${connection.account.address}`);
+	} else {
+		console.log({ connection });
+	}
+});
+
 if (wallets.length > 0) {
 	try {
 		const { accounts } = await dAppKit.connectWallet({
 			wallet: wallets[0],
 		});
-		console.log('Connected accounts:', accounts);
+		console.log('Available accounts:', accounts);
 	} catch (error) {
 		console.error('Connection failed:', error);
 	}
 }
-
-// Subscribe to connection changes
-const unsubscribe = dAppKit.stores.$connection.subscribe((connection) => {
-	const statusElement = document.getElementById('connection-status');
-
-	if (connection.isConnected && connection.account && connection.wallet) {
-		statusElement.textContent = `Connected: ${connection.account.address}`;
-	} else {
-		statusElement.textContent = 'Not connected';
-	}
-});
 ```

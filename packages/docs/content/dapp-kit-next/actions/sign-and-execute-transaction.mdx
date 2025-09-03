@@ -15,15 +15,14 @@ const dAppKit = createDAppKit({
 	/* config */
 });
 
-// Create a transaction
 const tx = new Transaction();
+// No need to manually set sender - it's done automatically
 tx.moveCall({
 	target: '0x2::coin::transfer',
 	typeArguments: ['0x2::sui::SUI'],
 	arguments: [tx.object(coinObjectId), tx.pure.address(recipientAddress)],
 });
 
-// Sign and execute the transaction
 const result = await dAppKit.signAndExecuteTransaction({
 	transaction: tx,
 });
@@ -62,33 +61,6 @@ const txDetails = await suiClient.getTransactionBlock({
 });
 ```
 
-## Error Handling
-
-The action may throw:
-
-- `WalletNotConnectedError` - If no wallet is connected
-- `FeatureNotSupportedError` - If the wallet doesn't support transaction execution
-- Other wallet-specific errors during the signing/execution process (including user rejection)
-
-```typescript
-import { WalletNotConnectedError, FeatureNotSupportedError } from '@mysten/dapp-kit-core';
-
-try {
-	const result = await dAppKit.signAndExecuteTransaction({
-		transaction: tx,
-	});
-	console.log('Transaction successful:', result.digest);
-} catch (error) {
-	if (error instanceof WalletNotConnectedError) {
-		console.error('Please connect a wallet first');
-	} else if (error instanceof FeatureNotSupportedError) {
-		console.error('This wallet does not support transaction execution');
-	} else {
-		console.error('Transaction failed:', error);
-	}
-}
-```
-
 ## Transaction Building
 
 When passing a Transaction instance, the action automatically:
@@ -97,21 +69,6 @@ When passing a Transaction instance, the action automatically:
 2. Builds the transaction using the current network's client
 3. Converts it to the appropriate format for the wallet
 4. Submits the transaction to the network
-
-```typescript
-const tx = new Transaction();
-// No need to manually set sender - it's done automatically
-tx.moveCall({
-	target: '0x2::coin::transfer',
-	typeArguments: ['0x2::sui::SUI'],
-	arguments: [tx.object(coinId), tx.pure.address(recipient)],
-});
-
-// The transaction is built, signed, and executed in one call
-const result = await dAppKit.signAndExecuteTransaction({
-	transaction: tx,
-});
-```
 
 ## Transaction Effects
 
@@ -135,12 +92,12 @@ console.log('Gas used:', effects.V2?.gasUsed);
 Transaction execution support varies by wallet:
 
 - Most wallets support the modern `sui:signAndExecuteTransaction` feature
-- Legacy wallets may use `sui:signAndExecuteTransactionBlock` (handled automatically)
+- Legacy wallets may use `sui:signAndExecuteTransactionBlock`
 - The action transparently handles both protocols
 - The wallet handles network submission and response
 
 ```typescript
-// The action automatically detects and uses the appropriate execution method
+// The action automatically detects and uses the appropriate method
 // No special configuration needed
 const result = await dAppKit.signAndExecuteTransaction({
 	transaction: tx,

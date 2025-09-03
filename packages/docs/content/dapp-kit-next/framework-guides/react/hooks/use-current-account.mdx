@@ -14,7 +14,7 @@ The `useCurrentAccount` hook provides access to the currently selected account.
 ```tsx
 import { useCurrentAccount } from '@mysten/dapp-kit-react';
 
-function MyComponent() {
+export function MyComponent() {
 	const account = useCurrentAccount();
 
 	if (!account) {

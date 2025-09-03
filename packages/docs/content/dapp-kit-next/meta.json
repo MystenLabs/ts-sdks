@@ -5,7 +5,7 @@
 	"pages": [
 		"index",
 		"getting-started",
-		"create-dapp-kit",
+		"dapp-kit-instance",
 		"state",
 		"web-components",
 		"actions",

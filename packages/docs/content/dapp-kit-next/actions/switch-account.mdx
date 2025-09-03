@@ -34,25 +34,3 @@ dAppKit.switchAccount({
 ## Return Value
 
 Returns `void`. The action completes synchronously and updates the connection state immediately.
-
-## Error Handling
-
-The action may throw:
-
-- `WalletNotConnectedError` - If no wallet is currently connected
-- `WalletAccountNotFoundError` - If the specified account doesn't belong to the connected wallet
-
-```typescript
-import { WalletNotConnectedError, WalletAccountNotFoundError } from '@mysten/dapp-kit-core';
-
-try {
-	dAppKit.switchAccount({ account });
-	console.log('Account switched successfully');
-} catch (error) {
-	if (error instanceof WalletNotConnectedError) {
-		console.error('No wallet is connected');
-	} else if (error instanceof WalletAccountNotFoundError) {
-		console.error('Account not found in connected wallet');
-	}
-}
-```

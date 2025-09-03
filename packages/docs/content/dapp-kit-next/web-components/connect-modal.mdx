@@ -24,18 +24,25 @@ For standard wallet connection with a button, use the
 ### Vanilla
 
 ```html
-<!-- Custom trigger button -->
 <button id="custom-trigger">Open Wallet Selector</button>
-
-<!-- Modal component -->
-<mysten-dapp-kit-connect-modal id="wallet-modal"></mysten-dapp-kit-connect-modal>
+<mysten-dapp-kit-connect-modal></mysten-dapp-kit-connect-modal>
 
 <script>
-	const modal = document.getElementById('wallet-modal');
-	modal.instance = dAppKit;
+	const dAppKit = createDAppKit({
+	    enableBurnerWallet: import.meta.env.DEV,
+	    networks: ['mainnet', 'testnet'],
+	    defaultNetwork: 'testnet',
+	    createClient(network) {
+	        return new SuiClient({ network, url: getFullnodeUrl(network) });
+	    },
+	});
 
-	document.getElementById('custom-trigger').addEventListener('click', () => {
-		modal.show();
+	const modal = document.querySelector('mysten-dapp-kit-connect-modal');
+	modal!.instance = dAppKit;
+
+	const trigger = document.getElementById('custom-trigger');
+	trigger?.addEventListener('click', () => {
+	    modal!.show();
 	});
 </script>
 ```
@@ -43,20 +50,7 @@ For standard wallet connection with a button, use the
 ### Vue
 
 ```vue
-<template>
-	<!-- Custom trigger -->
-	<button @click="openModal">Select Wallet</button>
-
-	<!-- Modal component -->
-	<mysten-dapp-kit-connect-modal
-		ref="modalRef"
-		:instance="dAppKit"
-		:open="isModalOpen"
-		@closed="isModalOpen = false"
-	/>
-</template>
-
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import { dAppKit } from './dapp-kit';
 
@@ -70,6 +64,19 @@ const openModal = () => {
 	modalRef.value.show();
 };
 </script>
+
+<template>
+	<!-- Custom trigger -->
+	<button @click="openModal">Select Wallet</button>
+
+	<!-- Modal component -->
+	<mysten-dapp-kit-connect-modal
+		ref="modalRef"
+		:instance="dAppKit"
+		:open="isModalOpen"
+		@closed="isModalOpen = false"
+	/>
+</template>
 ```
 
 ### React
@@ -94,7 +101,7 @@ Opens the modal programmatically:
 
 ```js
 const modal = document.querySelector('mysten-dapp-kit-connect-modal');
-await modal.show();
+await modal?.show();
 ```
 
 ### close(returnValue: string)
@@ -103,7 +110,7 @@ Closes the modal with an optional return value:
 
 ```js
 const modal = document.querySelector('mysten-dapp-kit-connect-modal');
-await modal.close('user-cancelled');
+await modal?.close('user-cancelled');
 ```
 
 ## Events
@@ -119,21 +126,21 @@ The modal fires several events during its lifecycle:
 ```js
 const modal = document.querySelector('mysten-dapp-kit-connect-modal');
 
-modal.addEventListener('open', (event) => {
+modal?.addEventListener('open', (event) => {
 	console.log('Modal is about to open');
 	// Prevent opening if needed
 	// event.preventDefault();
 });
 
-modal.addEventListener('opened', () => {
+modal?.addEventListener('opened', () => {
 	console.log('Modal is now open');
 });
 
-modal.addEventListener('closed', () => {
+modal?.addEventListener('closed', () => {
 	console.log('Modal has closed');
 });
 
-modal.addEventListener('cancel', (event) => {
+modal?.addEventListener('cancel', (event) => {
 	console.log('User clicked backdrop or pressed Escape');
 });
 ```
@@ -151,7 +158,6 @@ async function performAction() {
 	const connection = dAppKit.stores.$connection.get();
 
 	if (!connection.account) {
-		// Open modal if not connected
 		await modal.show();
 		// Wait for connection or cancellation
 		return;

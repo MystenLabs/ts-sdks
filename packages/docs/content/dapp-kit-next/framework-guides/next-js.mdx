@@ -67,33 +67,9 @@ export default function Home() {
 }
 ```
 
-## Key Integration Points
+## React Guide
 
-### Actions
-
-Call actions directly through dAppKit:
-
-```tsx
-'use client';
-
-import { useDAppKit } from '@mysten/dapp-kit-react';
-import { Transaction } from '@mysten/sui/transactions';
-
-export function TransactionButton() {
-	const dAppKit = useDAppKit();
-
-	async function sendTransaction() {
-		const tx = new Transaction();
-		// Build your transaction
-
-		const result = await dAppKit.signAndExecuteTransaction({
-			transaction: tx,
-		});
-	}
-
-	return <button onClick={sendTransaction}>Send</button>;
-}
-```
+Look for more information in the [React Guide](./react/getting-started).
 
 ## Example Application
 

@@ -1,5 +1,5 @@
 ---
-title: Create dApp Kit Instance
+title: DApp Kit Instance
 ---
 
 The `createDAppKit` function is the foundation of your Sui dApp. It creates an instance that manages
@@ -14,7 +14,7 @@ all dApp functionality:
 import { createDAppKit } from '@mysten/dapp-kit-core';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 
-const dAppKit = createDAppKit({
+export const dAppKit = createDAppKit({
 	networks: ['mainnet', 'testnet'],
 	defaultNetwork: 'mainnet',
 	createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
@@ -28,7 +28,7 @@ This instance provides:
 - Client access for blockchain interactions
 - State stores for reactive updates
 
-## Configuration Options
+## Parameters
 
 - **networks** - Array of network names your dApp supports (e.g., `['mainnet', 'testnet']`)
 - **createClient** - Function that creates a SuiClient for each network
@@ -42,58 +42,73 @@ This instance provides:
 - **walletInitializers** (optional) - Array of custom wallet integrations
 - **slushWalletConfig** (optional) - Configuration for Slush wallet (set to `null` to disable)
 
-## Basic Setup
+## Return Value
 
-### Core Setup
+```ts
+{
+    // Actions
+    connectWallet: (options: ConnectWalletOptions) => Promise<void>;
+    disconnectWallet: () => Promise<void>;
+    switchAccount: (account: UiWalletAccount) => Promise<void>;
+    switchNetwork: (network: string) => void;
+    signTransaction: (options: SignTransactionOptions) => Promise<SignedTransaction>;
+    signAndExecuteTransaction: (options: SignAndExecuteOptions) => Promise<SuiTransactionResponse>;
+    signPersonalMessage: (options: SignMessageOptions) => Promise<SignedMessage>;
 
-```typescript
-import { createDAppKit } from '@mysten/dapp-kit-core';
-import { SuiClient } from '@mysten/sui/client';
-
-const dAppKit = createDAppKit({
-	networks: ['mainnet', 'testnet'],
-	defaultNetwork: 'mainnet',
-	createClient: (network) => {
-		const connections = {
-			mainnet: { url: 'https://mainnet.sui.io:443' },
-			testnet: { url: 'https://testnet.sui.io:443' },
-		};
-		return new SuiClient(connections[network]);
-	},
-});
-
-// Use the dAppKit instance
-await dAppKit.connectWallet({ wallet });
-dAppKit.switchNetwork('testnet');
-```
-
-### React Setup
-
-In React applications, wrap your app with the `DAppKitProvider`:
-
-```tsx
-import { createDAppKit, DAppKitProvider } from '@mysten/dapp-kit-react';
-import { SuiClient } from '@mysten/sui/client';
-
-const dAppKit = createDAppKit({
-	networks: ['mainnet', 'testnet'],
-	defaultNetwork: 'mainnet',
-	createClient: (network) => {
-		const connections = {
-			mainnet: { url: 'https://mainnet.sui.io:443' },
-			testnet: { url: 'https://testnet.sui.io:443' },
-		};
-		return new SuiClient(connections[network]);
-	},
-});
-
-export default function App() {
-	return <DAppKitProvider dAppKit={dAppKit}>{/* Your app components */}</DAppKitProvider>;
+    // Properties
+    networks: string[];
+    stores: DAppKitStores;
+    getClient: (network?: string) => SuiClient;
 }
 ```
 
-See [DAppKitProvider documentation](./framework-guides/react/dapp-kit-provider) for more provider
-configuration options.
+Read more about [actions](./actions/connect-wallet) and [stores](./state).
+
+## Basic Usage
+
+```ts
+// dapp-kit.ts
+import { createDAppKit } from '@mysten/dapp-kit-core';
+import { SuiClient } from '@mysten/sui/client';
+
+export const dAppKit = createDAppKit({
+	networks: ['mainnet', 'testnet'],
+	defaultNetwork: 'mainnet',
+	createClient: (network) => {
+		const connections = {
+			mainnet: { url: 'https://mainnet.sui.io:443' },
+			testnet: { url: 'https://testnet.sui.io:443' },
+		};
+		return new SuiClient(connections[network]);
+	},
+});
+```
+
+```ts
+// connect-wallet-and-log.ts
+import type { DAppKit, UiWallet, UiWalletAccount } from '@mysten/dapp-kit-core';
+
+export async function connectWalletAndLog({
+	dAppKit,
+	wallet,
+	account,
+}: {
+	dAppKit: DAppKit;
+	wallet: UiWallet;
+	account: UiWalletAccount;
+}) {
+	const result = await dAppKit.connectWallet({
+		wallet,
+		account,
+	});
+
+	console.log('Connected accounts:', result.accounts);
+}
+```
+
+<Callout>
+	If you use React, see [DAppKitProvider documentation](./framework-guides/react/dapp-kit-provider).
+</Callout>
 
 ## Development Configuration
 
@@ -103,7 +118,7 @@ For development environments, enable the burner wallet:
 import { createDAppKit } from '@mysten/dapp-kit-core';
 import { SuiClient } from '@mysten/sui/client';
 
-const dAppKit = createDAppKit({
+export const dAppKit = createDAppKit({
 	networks: ['localnet'],
 	defaultNetwork: 'localnet',
 	createClient: () => new SuiClient({ url: 'http://localhost:9000' }),
@@ -121,7 +136,7 @@ By default, dApp Kit automatically reconnects to the previously connected wallet
 import { createDAppKit } from '@mysten/dapp-kit-core';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 
-const dAppKit = createDAppKit({
+export const dAppKit = createDAppKit({
 	networks: ['mainnet'],
 	createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
 	autoConnect: false,
@@ -135,11 +150,21 @@ Add support for custom wallets using wallet initializers:
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
-import { customWalletInitializer } from './custom-wallet';
+import { getWallets } from '@mysten/wallet-standard';
+import { CustomWallet } from './custom-wallet.js'; // import your custom wallet class
 
-const dAppKit = createDAppKit({
+export const dAppKit = createDAppKit({
 	networks: ['mainnet'],
 	createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
-	walletInitializers: [customWalletInitializer],
+	walletInitializers: [
+		{
+			id: 'Custom Wallets',
+			initialize() {
+				const wallets = [new CustomWallet()];
+				const walletsApi = getWallets();
+				return { unregister: walletsApi.register(...wallets) };
+			},
+		},
+	],
 });
 ```

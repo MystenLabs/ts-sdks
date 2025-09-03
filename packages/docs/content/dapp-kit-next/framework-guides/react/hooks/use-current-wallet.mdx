@@ -14,7 +14,7 @@ The `useCurrentWallet` hook provides access to the currently connected wallet.
 ```tsx
 import { useCurrentWallet } from '@mysten/dapp-kit-react';
 
-function MyComponent() {
+export function MyComponent() {
 	const wallet = useCurrentWallet();
 
 	if (!wallet) {

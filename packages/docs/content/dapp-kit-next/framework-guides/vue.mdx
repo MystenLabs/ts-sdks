@@ -2,7 +2,7 @@
 title: Vue
 ---
 
-dApp Kit Next works seamlessly with Vue through Web Components and direct store access.
+DApp Kit Next works seamlessly with Vue through Web Components and direct store access.
 
 ## Installation
 
@@ -71,19 +71,21 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { dAppKit } from './dapp-kit';
 
 const connection = ref(dAppKit.stores.$connection.get());
-
 let unsubscribe: (() => void) | undefined;
-
 onMounted(() => {
 	unsubscribe = dAppKit.stores.$connection.subscribe((conn) => {
+		console.log('connection changed', conn);
 		connection.value = conn;
 	});
 });
-
 onUnmounted(() => {
 	unsubscribe?.();
 });
 </script>
+
+<template>
+	<mysten-dapp-kit-connect-button :instance="dAppKit" />
+</template>
 ```
 
 ### Actions
@@ -92,8 +94,8 @@ Call actions directly through dAppKit:
 
 ```vue
 <script setup lang="ts">
-import { dAppKit } from './dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
+import { dAppKit } from './dapp-kit';
 
 async function sendTransaction() {
 	const tx = new Transaction();

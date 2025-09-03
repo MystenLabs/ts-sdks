@@ -8,16 +8,12 @@ title: Connect Modal
 import { useState } from 'react';
 import { ConnectModal } from '@mysten/dapp-kit-react';
 
-function App() {
+export function App() {
 	const [open, setOpen] = useState(false);
-
 	return (
 		<>
-			{/* Custom trigger */}
 			<button onClick={() => setOpen(true)}>Connect Wallet</button>
-
-			{/* Modal component */}
-			<ConnectModal open={open} onClosed={() => setOpen(false)} />
+			<ConnectModal open={open} />
 		</>
 	);
 }
@@ -37,24 +33,8 @@ function App() {
 ```tsx
 <ConnectModal
 	open={open}
-	onClosed={() => setOpen(false)}
 	filterFn={(wallet) => wallet.name !== 'ExcludedWallet'}
 	sortFn={(a, b) => a.name.localeCompare(b.name)}
-/>
-```
-
-## Events
-
-The modal emits several events for lifecycle management:
-
-```tsx
-<ConnectModal
-	open={open}
-	onOpen={() => console.log('Opening')}
-	onOpened={() => console.log('Opened')}
-	onClose={() => console.log('Closing')}
-	onClosed={() => setOpen(false)}
-	onCancel={() => console.log('Cancelled')}
 />
 ```
 

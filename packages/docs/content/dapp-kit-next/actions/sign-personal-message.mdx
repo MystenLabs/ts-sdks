@@ -15,7 +15,6 @@ const dAppKit = createDAppKit({
 	/* config */
 });
 
-// Sign a message
 const message = new TextEncoder().encode('Please sign this message');
 const result = await dAppKit.signPersonalMessage({
 	message,
@@ -36,53 +35,18 @@ Returns a `Promise` that resolves to an object containing:
 - **`bytes`** - `string` - Base64 encoded message bytes
 - **`signature`** - `string` - Base64 encoded signature
 
-```typescript
-const result = await dAppKit.signPersonalMessage({ message });
-
-// Access the signing results
-console.log('Message (base64):', result.bytes);
-console.log('Signature (base64):', result.signature);
-```
-
-## Error Handling
-
-The action may throw:
-
-- `WalletNotConnectedError` - If no wallet is connected
-- `FeatureNotSupportedError` - If the wallet doesn't support personal message signing
-- Other wallet-specific errors during the signing process (including user rejection)
-
-```typescript
-import { WalletNotConnectedError, FeatureNotSupportedError } from '@mysten/dapp-kit-core';
-
-try {
-	const result = await dAppKit.signPersonalMessage({
-		message,
-	});
-	console.log('Message signed successfully');
-} catch (error) {
-	if (error instanceof WalletNotConnectedError) {
-		console.error('Please connect a wallet first');
-	} else if (error instanceof FeatureNotSupportedError) {
-		console.error('This wallet does not support message signing');
-	} else {
-		console.error('Signing failed:', error);
-	}
-}
-```
-
 ## Message Format
 
 The message parameter must be a `Uint8Array`. Common patterns for creating byte arrays:
 
 ```typescript
-// From string
 const textMessage = new TextEncoder().encode('Hello, Sui!');
+await dAppKit.signPersonalMessage({ message: textMessage });
 
-// From JSON
 const jsonMessage = new TextEncoder().encode(
 	JSON.stringify({ action: 'sign', timestamp: Date.now() }),
 );
+await dAppKit.signPersonalMessage({ message: jsonMessage });
 ```
 
 ## Security Considerations
