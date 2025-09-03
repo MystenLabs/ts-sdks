@@ -110,7 +110,7 @@ export async function verifyKeyServer(
 			'Request-Id': requestId,
 			'Client-Sdk-Type': 'typescript',
 			'Client-Sdk-Version': PACKAGE_VERSION,
-			...(apiKeyName && apiKey ? { apiKeyName: apiKey } : {}),
+			...(apiKeyName && apiKey ? { [apiKeyName]: apiKey } : {}),
 		},
 		signal: AbortSignal.timeout(timeout),
 	});
@@ -235,7 +235,7 @@ export async function fetchKeysForAllIds({
 			'Request-Id': requestId,
 			'Client-Sdk-Type': 'typescript',
 			'Client-Sdk-Version': PACKAGE_VERSION,
-			...(apiKeyName && apiKey ? { apiKeyName: apiKey } : {}),
+			...(apiKeyName && apiKey ? { [apiKeyName]: apiKey } : {}),
 		},
 		body: JSON.stringify(body),
 		signal: combinedSignal,
