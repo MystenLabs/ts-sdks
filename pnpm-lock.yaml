@@ -934,12 +934,18 @@ importers:
       '@mysten/sui':
         specifier: workspace:*
         version: link:../typescript
+      '@mysten/utils':
+        specifier: workspace:*
+        version: link:../utils
       '@mysten/wallet-standard':
         specifier: workspace:*
         version: link:../wallet-standard
       '@mysten/window-wallet-core':
         specifier: workspace:^
         version: link:../window-wallet-core
+      lit:
+        specifier: ^3.3.1
+        version: 3.3.1
       mitt:
         specifier: ^3.0.1
         version: 3.0.1
