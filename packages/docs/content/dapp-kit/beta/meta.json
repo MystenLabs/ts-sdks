@@ -1,6 +1,5 @@
 {
-	"root": true,
-	"title": "dApp Kit Next",
+	"title": "dApp Kit (Beta)",
 	"description": "Build Sui dApps",
 	"pages": [
 		"index",

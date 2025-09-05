@@ -7,7 +7,7 @@ This guide helps you migrate from the original `@mysten/dapp-kit` to the new
 
 ## Overview
 
-The new dapp-kit-next represents a complete rewrite with these key changes:
+The new dApp Kit SDK represents a complete rewrite with these key changes:
 
 - **Framework agnostic**: Split into `@mysten/dapp-kit-core` (framework-agnostic) and
   `@mysten/dapp-kit-react` (React bindings)
@@ -226,7 +226,7 @@ export function ExampleComponent({ objectId }: { objectId: string }) {
 
 ### 7. Update The Remaining Code
 
-The following hooks from the original dapp-kit are not available in dapp-kit-next:
+The following hooks from the original dApp Kit are not available anymore:
 
 - `useSuiClientQuery`
 - `useSuiClientMutation`
@@ -238,6 +238,6 @@ preferred data fetching solution.
 
 <Callout type="warning">
 	The `reportTransactionEffects` feature is planned for deprecation in the [Wallet
-	Standard](https://docs.sui.io/standards/wallet-standard) and so `dapp-kit-next` provides no
+	Standard](https://docs.sui.io/standards/wallet-standard) and so the dApp Kit provides no
 	replacement.
 </Callout>

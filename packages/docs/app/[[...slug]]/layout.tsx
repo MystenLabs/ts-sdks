@@ -25,13 +25,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 					},
 					{
 						title: 'dApp Kit',
-						description: 'Build Sui dApps in React',
-						url: '/dapp-kit',
-					},
-					{
-						title: 'dApp Kit Next',
 						description: 'Build Sui dApps',
-						url: '/dapp-kit-next',
+						url: '/dapp-kit',
 					},
 					{
 						title: 'Kiosk',

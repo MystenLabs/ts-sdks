@@ -2,92 +2,27 @@
 title: Sui dApp Kit
 ---
 
-The Sui dApp Kit is a set of React components, hooks, and utilities to help you build a dApp for the
-Sui ecosystem. Its hooks and components provide an interface for querying data from the Sui
-blockchain and connecting to Sui wallets.
+The Sui dApp Kit provides tools and components for building decentralized applications on the Sui blockchain.
+It offers components, utilities, and React hooks to connect to wallets, query blockchain data, and manage application state.
 
-### Core Features
+## Available Versions
 
-Some of the core features of the dApp Kit include:
+Two versions of the dApp Kit are available:
 
-- Query hooks to get the information your dApp needs
-- Automatic wallet state management
-- Support for all Sui wallets
-- Pre-built React components
-- Lower level hooks for custom components
+### [Current Version](./dapp-kit/current)
+The stable, production-ready version of the dApp Kit. This React-focused toolkit provides:
+- React hooks for wallet connection and blockchain queries
+- Pre-built UI components with Radix UI
+- Integration with TanStack React Query
+- Comprehensive wallet state management
 
-## Install
+### [Beta Version](./dapp-kit/beta)
+The next-generation, framework-agnostic version currently in beta. This enhanced toolkit offers:
+- Framework-agnostic core that works with vanilla JS, React, Vue, or any framework
+- Action-based API for direct wallet operations
+- Web Components for universal UI elements
+- Automatic state management with nanostores
+- Smaller bundle size and improved performance
+- Separate React bindings
 
-To use the Sui dApp Kit in your project, run the following command in your project root:
-
-```sh npm2yarn
-npm i --save @mysten/dapp-kit @mysten/sui @tanstack/react-query
-```
-
-## Setting up providers
-
-To use the hooks and components in the dApp Kit, wrap your app with the providers shown in the
-following example. The props available on the providers are covered in more detail in their
-respective pages.
-
-```tsx
-import { createNetworkConfig, SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
-import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-// Config options for the networks you want to connect to
-const { networkConfig } = createNetworkConfig({
-	localnet: { url: getJsonRpcFullnodeUrl('localnet') },
-	mainnet: { url: getJsonRpcFullnodeUrl('mainnet') },
-});
-const queryClient = new QueryClient();
-
-function App() {
-	return (
-		<QueryClientProvider client={queryClient}>
-			<SuiClientProvider networks={networkConfig} defaultNetwork="localnet">
-				<WalletProvider>
-					<YourApp />
-				</WalletProvider>
-			</SuiClientProvider>
-		</QueryClientProvider>
-	);
-}
-```
-
-## Using UI components to connect to a wallet
-
-The dApp Kit provides a set of flexible UI components that you can use to connect and manage wallet
-accounts from your dApp. The components are built on top of
-[Radix UI](https://www.radix-ui.com/primitives) and are customizable.
-
-To use the provided UI components, import the dApp Kit CSS stylesheet into your dApp. For more
-information regarding customization options, check out the respective documentation pages for the
-components and [themes](https://sdk.mystenlabs.com/dapp-kit/themes).
-
-```tsx
-import '@mysten/dapp-kit/dist/index.css';
-```
-
-## Using hooks to make RPC calls
-
-The dApp Kit provides a set of hooks for making RPC calls to the Sui blockchain. The hooks are thin
-wrappers around `useQuery` from `@tanstack/react-query`. For more comprehensive documentation on how
-to use these query hooks, check out the
-[react-query documentation](https://tanstack.com/query/latest/docs/react/overview).
-
-```tsx
-import { useSuiClientQuery } from '@mysten/dapp-kit';
-
-function MyComponent() {
-	const { data, isPending, error, refetch } = useSuiClientQuery('getOwnedObjects', {
-		owner: '0x123',
-	});
-
-	if (isPending) {
-		return <div>Loading...</div>;
-	}
-
-	return <pre>{JSON.stringify(data, null, 2)}</pre>;
-}
-```
+The current version is stable and production-ready, while the beta version introduces new architecture and expanded framework support.
