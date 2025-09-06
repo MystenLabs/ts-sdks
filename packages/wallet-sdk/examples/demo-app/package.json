@@ -1,0 +1,36 @@
+{
+	"name": "@mysten/wallet-sdk-demo-app",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc && vite build",
+		"preview": "vite preview",
+		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
+		"prettier:check": "prettier -c --ignore-unknown .",
+		"prettier:fix": "prettier -w --ignore-unknown .",
+		"eslint:check": "eslint --max-warnings=0 .",
+		"eslint:fix": "pnpm run eslint:check --fix",
+		"lint": "pnpm run eslint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
+	},
+	"dependencies": {
+		"@mysten/dapp-kit-react": "workspace:*",
+		"@mysten/sui": "workspace:*",
+		"@mysten/wallet-sdk": "workspace:*",
+		"@mysten/wallet-standard": "workspace:*",
+		"@mysten/walrus": "workspace:*",
+		"@radix-ui/themes": "^3.1.6",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1"
+	},
+	"devDependencies": {
+		"@mysten/codegen": "workspace:*",
+		"@types/react": "^18.3.3",
+		"@types/react-dom": "^18.3.0",
+		"@vitejs/plugin-react-swc": "^3.11.0",
+		"typescript": "^5.9.2",
+		"vite": "^7.1.5"
+	}
+}

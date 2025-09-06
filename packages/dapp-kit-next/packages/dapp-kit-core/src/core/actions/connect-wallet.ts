@@ -73,6 +73,7 @@ export function connectWalletCreator(
 				$baseConnection.set({
 					status: 'connected',
 					currentAccount: account ?? suiAccounts[0],
+					supportedIntents: result.supportedIntents ?? [],
 				});
 
 				return { accounts: suiAccounts };

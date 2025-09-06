@@ -27,6 +27,7 @@ export function manageWalletConnection({ $compatibleWallets, $baseConnection }: 
 				$baseConnection.set({
 					status: 'disconnected',
 					currentAccount: null,
+					supportedIntents: [],
 				});
 			}
 		});

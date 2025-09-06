@@ -36,6 +36,7 @@ export function disconnectWalletCreator({ $baseConnection, $connection }: DAppKi
 				$baseConnection.set({
 					status: 'disconnected',
 					currentAccount: null,
+					supportedIntents: [],
 				});
 			}
 		});

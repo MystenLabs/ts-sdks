@@ -22,7 +22,11 @@ export function syncStateToStorage({
 	onMount($connection, () => {
 		return $connection.listen((connection) => {
 			if (connection.account) {
-				storage.setItem(storageKey, getSavedAccountStorageKey(connection.account));
+				const savedData = {
+					accountKey: getSavedAccountStorageKey(connection.account),
+					supportedIntents: connection.supportedIntents,
+				};
+				storage.setItem(storageKey, JSON.stringify(savedData));
 			} else {
 				storage.removeItem(storageKey);
 			}

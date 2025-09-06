@@ -38,9 +38,12 @@ export function signTransactionCreator({ $connection, $currentClient }: DAppKitS
 					return transaction;
 				}
 
-				// TODO: Fix passing through the supported intents for plugins.
+				const { supportedIntents } = $connection.get();
 				transaction.setSenderIfNotSet(account.address);
-				return await transaction.toJSON({ client: suiClient });
+				return await transaction.toJSON({
+					client: suiClient,
+					supportedIntents,
+				});
 			},
 		};
 

@@ -27,18 +27,19 @@ export function autoConnectWallet({
 				const connection = $baseConnection.get();
 				if (connection.status !== 'disconnected') return;
 
-				const savedWalletAccount = await task(() => {
-					return getSavedWalletAccount({
+				const savedWalletData = await task(() => {
+					return getSavedWalletData({
 						storage,
 						storageKey,
 						wallets,
 					});
 				});
 
-				if (savedWalletAccount) {
+				if (savedWalletData) {
 					$baseConnection.set({
 						status: 'connected',
-						currentAccount: savedWalletAccount,
+						currentAccount: savedWalletData.account,
+						supportedIntents: savedWalletData.supportedIntents,
 					});
 				}
 			},
@@ -46,7 +47,7 @@ export function autoConnectWallet({
 	});
 }
 
-async function getSavedWalletAccount({
+async function getSavedWalletData({
 	storage,
 	storageKey,
 	wallets,
@@ -55,12 +56,30 @@ async function getSavedWalletAccount({
 	storageKey: string;
 	wallets: readonly UiWallet[];
 }) {
-	const savedWalletIdAndAddress = await storage.getItem(storageKey);
-	if (!savedWalletIdAndAddress) {
+	const savedData = await storage.getItem(storageKey);
+	if (!savedData) {
 		return null;
 	}
 
-	const [savedWalletId, savedAccountAddress] = savedWalletIdAndAddress.split(':');
+	let accountKey: string;
+	let supportedIntents: string[] = [];
+
+	// Handle both new JSON format and legacy simple string format
+	try {
+		const parsedData = JSON.parse(savedData);
+		if (parsedData.accountKey && Array.isArray(parsedData.supportedIntents)) {
+			accountKey = parsedData.accountKey;
+			supportedIntents = parsedData.supportedIntents;
+		} else {
+			// Fall back to legacy format
+			accountKey = savedData;
+		}
+	} catch {
+		// Legacy format (simple string)
+		accountKey = savedData;
+	}
+
+	const [savedWalletId, savedAccountAddress] = accountKey.split(':');
 	if (!savedWalletId || !savedAccountAddress) {
 		return null;
 	}
@@ -69,7 +88,10 @@ async function getSavedWalletAccount({
 		if (getWalletUniqueIdentifier(wallet) === savedWalletId) {
 			for (const account of wallet.accounts) {
 				if (account.address === savedAccountAddress) {
-					return account;
+					return {
+						account,
+						supportedIntents,
+					};
 				}
 			}
 		}
