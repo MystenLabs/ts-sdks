@@ -779,11 +779,7 @@ export class WalrusClient {
 
 			const result = await fn(coin, tx);
 
-			tx.moveCall({
-				target: '0x2::coin::destroy_zero',
-				typeArguments: [walType],
-				arguments: [coin],
-			});
+			tx.transferObjects([coin], tx.getData().sender);
 
 			return result;
 		};
