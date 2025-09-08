@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { TypeTag } from '../bcs/bcs.js';
+import { TypeTagSerializer } from '../bcs/type-tag-serializer.js';
 import { deriveDynamicFieldID } from './dynamic-fields.js';
 
 /**
@@ -12,9 +13,10 @@ export function deriveObjectID(
 	typeTag: typeof TypeTag.$inferInput,
 	key: Uint8Array,
 ) {
+	const typeTagStr = typeof typeTag === 'string' ? typeTag : TypeTagSerializer.tagToString(typeTag);
 	return deriveDynamicFieldID(
 		parentId,
-		`0x2::derived_object::DerivedObjectKey<${typeTag.toString()}>`,
+		`0x2::derived_object::DerivedObjectKey<${typeTagStr}>`,
 		key,
 	);
 }
