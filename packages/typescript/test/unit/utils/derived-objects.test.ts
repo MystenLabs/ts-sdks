@@ -7,6 +7,8 @@ import { bcs } from '../../../src/bcs';
 import { deriveObjectID } from '../../../src/utils/derived-objects';
 import { normalizeSuiAddress } from '../../../src/utils';
 
+// Snapshots are recreated from `derived_object_tests.move` file,
+// as well as `sui-types/derived-object.rs` file.
 describe('derived object test utils', () => {
 	test('deriveObjectID with primitive type', () => {
 		const key = bcs.vector(bcs.u8()).serialize(new TextEncoder().encode('foo')).toBytes();
