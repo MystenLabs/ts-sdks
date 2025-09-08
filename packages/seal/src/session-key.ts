@@ -196,9 +196,9 @@ export class SessionKey {
 	 * its public key and its verification key.
 	 */
 	async createRequestParams(txBytes: Uint8Array): Promise<{
-		encKey: Uint8Array;
-		encKeyPk: Uint8Array;
-		encVerificationKey: Uint8Array;
+		encKey: Uint8Array<ArrayBuffer>;
+		encKeyPk: Uint8Array<ArrayBuffer>;
+		encVerificationKey: Uint8Array<ArrayBuffer>;
 		requestSignature: string;
 	}> {
 		if (this.isExpired()) {

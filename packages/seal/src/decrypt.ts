@@ -70,7 +70,7 @@ export async function decrypt({
 			encryptedShares[i],
 			fromHex(fullId),
 			[objectId, index],
-		);
+		) as Uint8Array<ArrayBuffer>;
 		return { index, share };
 	});
 

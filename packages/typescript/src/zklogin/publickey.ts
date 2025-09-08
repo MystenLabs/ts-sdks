@@ -27,7 +27,7 @@ export interface ZkLoginCompatibleClient
  * A zkLogin public identifier
  */
 export class ZkLoginPublicIdentifier extends PublicKey {
-	#data: Uint8Array;
+	#data: Uint8Array<ArrayBuffer>;
 	#client?: ZkLoginCompatibleClient;
 	#legacyAddress: boolean;
 
@@ -43,7 +43,7 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 		if (typeof value === 'string') {
 			this.#data = fromBase64(value);
 		} else if (value instanceof Uint8Array) {
-			this.#data = value;
+			this.#data = value as Uint8Array<ArrayBuffer>;
 		} else {
 			this.#data = Uint8Array.from(value);
 		}
@@ -146,7 +146,7 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 	/**
 	 * Return the byte array representation of the zkLogin public identifier
 	 */
-	toRawBytes(): Uint8Array {
+	toRawBytes(): Uint8Array<ArrayBuffer> {
 		return this.#data;
 	}
 

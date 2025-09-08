@@ -358,7 +358,9 @@ export class WalrusClient {
 			nonce,
 			blobDigest: () => {
 				if (!sha256Hash) {
-					sha256Hash = crypto.subtle.digest('SHA-256', bytes).then((hash) => new Uint8Array(hash));
+					sha256Hash = crypto.subtle
+						.digest('SHA-256', bytes as BufferSource)
+						.then((hash) => new Uint8Array(hash));
 				}
 
 				return sha256Hash;
@@ -925,7 +927,7 @@ export class WalrusClient {
 		nonce: Uint8Array;
 	}) {
 		return async (transaction: Transaction) => {
-			const nonceDigest = await crypto.subtle.digest('SHA-256', nonce);
+			const nonceDigest = await crypto.subtle.digest('SHA-256', nonce as BufferSource);
 			const lengthBytes = bcs.u64().serialize(size).toBytes();
 			const digest = typeof blobDigest === 'function' ? await blobDigest() : blobDigest;
 			const authPayload = new Uint8Array(

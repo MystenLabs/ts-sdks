@@ -39,7 +39,7 @@ export interface SignAndExecuteOptions {
  * TODO: Document
  */
 export abstract class Signer {
-	abstract sign(bytes: Uint8Array): Promise<Uint8Array>;
+	abstract sign(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>>;
 	/**
 	 * Sign messages with a specific intent. By combining the message bytes with the intent before hashing and signing,
 	 * it ensures that a signed message is tied to a specific purpose and domain separator is provided

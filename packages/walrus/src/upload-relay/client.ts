@@ -148,7 +148,7 @@ export class UploadRelayClient {
 		const response = await this.#request({
 			method: 'POST',
 			path: `/v1/blob-upload-relay?${query.toString()}`,
-			body: blob,
+			body: blob as Uint8Array<ArrayBuffer>,
 			...options,
 		});
 

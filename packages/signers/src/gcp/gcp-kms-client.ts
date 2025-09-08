@@ -73,7 +73,7 @@ export class GcpKmsSigner extends Signer {
 	 * @returns A promise that resolves to the signature as a Uint8Array.
 	 * @throws Will throw an error if the public key is not initialized or if signing fails.
 	 */
-	async sign(bytes: Uint8Array): Promise<Uint8Array> {
+	async sign(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
 		const [signResponse] = await this.#client.asymmetricSign({
 			name: this.#versionName,
 			data: bytes,

@@ -132,7 +132,7 @@ export class Secp256k1Keypair extends Keypair {
 		const sig = secp256k1.sign(msgHash, this.keypair.secretKey, {
 			lowS: true,
 		});
-		return sig.toCompactRawBytes();
+		return sig.toCompactRawBytes() as Uint8Array<ArrayBuffer>;
 	}
 
 	/**

@@ -11,10 +11,15 @@ import type { SignatureWithBytes, Signer } from '../cryptography/index.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 import type { TransactionArgument } from './Commands.js';
 import { Commands } from './Commands.js';
-import type { CallArg, Command } from './data/internal.js';
-import { Argument, NormalizedCallArg, ObjectRef, TransactionExpiration } from './data/internal.js';
+import type { CallArg, Command, Argument, ObjectRef } from './data/internal.js';
+import {
+	ArgumentSchema,
+	NormalizedCallArg,
+	ObjectRefSchema,
+	TransactionExpiration,
+} from './data/internal.js';
 import { serializeV1TransactionData } from './data/v1.js';
-import { SerializedTransactionDataV2 } from './data/v2.js';
+import { SerializedTransactionDataV2Schema } from './data/v2.js';
 import { Inputs } from './Inputs.js';
 import { needsTransactionResolution, resolveTransactionPlugin } from './resolve.js';
 import type {
@@ -29,8 +34,10 @@ import { getIdFromCallArg } from './utils.js';
 import { namedPackagesPlugin } from './plugins/NamedPackagesPlugin.js';
 
 export type TransactionObjectArgument =
-	| Exclude<InferInput<typeof Argument>, { Input: unknown; type?: 'pure' }>
-	| ((tx: Transaction) => Exclude<InferInput<typeof Argument>, { Input: unknown; type?: 'pure' }>)
+	| Exclude<InferInput<typeof ArgumentSchema>, { Input: unknown; type?: 'pure' }>
+	| ((
+			tx: Transaction,
+	  ) => Exclude<InferInput<typeof ArgumentSchema>, { Input: unknown; type?: 'pure' }>)
 	| AsyncTransactionThunk<TransactionResultArgument>;
 
 export type TransactionResult = Extract<Argument, { Result: unknown }> &
@@ -290,7 +297,7 @@ export class Transaction {
 		this.#data.gasConfig.owner = owner;
 	}
 	setGasPayment(payments: ObjectRef[]) {
-		this.#data.gasConfig.payment = payments.map((payment) => parse(ObjectRef, payment));
+		this.#data.gasConfig.payment = payments.map((payment) => parse(ObjectRefSchema, payment));
 	}
 
 	#data: TransactionDataBuilder;
@@ -363,7 +370,7 @@ export class Transaction {
 				return this.object(this.add(value as (tx: Transaction) => TransactionObjectArgument));
 			}
 
-			if (typeof value === 'object' && is(Argument, value)) {
+			if (typeof value === 'object' && is(ArgumentSchema, value)) {
 				return value as { $kind: 'Input'; Input: number; type?: 'object' };
 			}
 
@@ -538,10 +545,10 @@ export class Transaction {
 				return this.#resolveArgument(resolved);
 			}
 
-			return parse(Argument, resolved);
+			return parse(ArgumentSchema, resolved);
 		}
 
-		return parse(Argument, arg);
+		return parse(ArgumentSchema, arg);
 	}
 
 	// Method shorthands:
@@ -668,7 +675,7 @@ export class Transaction {
 		const fullyResolved = this.isFullyResolved();
 		return JSON.stringify(
 			parse(
-				SerializedTransactionDataV2,
+				SerializedTransactionDataV2Schema,
 				fullyResolved
 					? {
 							...this.#data.snapshot(),
@@ -720,7 +727,7 @@ export class Transaction {
 	}
 
 	/** Build the transaction to BCS bytes. */
-	async build(options: BuildTransactionOptions = {}): Promise<Uint8Array> {
+	async build(options: BuildTransactionOptions = {}): Promise<Uint8Array<ArrayBuffer>> {
 		await this.prepareForSerialization(options);
 		await this.#prepareBuild(options);
 		return this.#data.build({

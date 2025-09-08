@@ -21,14 +21,14 @@ export class BcsType<T, Input = T, const Name extends string = string> {
 	serializedSize: (value: Input, options?: BcsWriterOptions) => number | null;
 	validate: (value: Input) => void;
 	#write: (value: Input, writer: BcsWriter) => void;
-	#serialize: (value: Input, options?: BcsWriterOptions) => Uint8Array;
+	#serialize: (value: Input, options?: BcsWriterOptions) => Uint8Array<ArrayBuffer>;
 
 	constructor(
 		options: {
 			name: Name;
 			read: (reader: BcsReader) => T;
 			write: (value: Input, writer: BcsWriter) => void;
-			serialize?: (value: Input, options?: BcsWriterOptions) => Uint8Array;
+			serialize?: (value: Input, options?: BcsWriterOptions) => Uint8Array<ArrayBuffer>;
 			serializedSize?: (value: Input) => number | null;
 			validate?: (value: Input) => void;
 		} & BcsTypeOptions<T, Input, Name>,
@@ -109,7 +109,7 @@ export function isSerializedBcs(obj: unknown): obj is SerializedBcs<unknown> {
 
 export class SerializedBcs<T, Input = T> {
 	#schema: BcsType<T, Input>;
-	#bytes: Uint8Array;
+	#bytes: Uint8Array<ArrayBuffer>;
 
 	// Used to brand SerializedBcs so that they can be identified, even between multiple copies
 	// of the @mysten/bcs package are installed
@@ -117,9 +117,9 @@ export class SerializedBcs<T, Input = T> {
 		return true;
 	}
 
-	constructor(type: BcsType<T, Input>, schema: Uint8Array) {
-		this.#schema = type;
-		this.#bytes = schema;
+	constructor(schema: BcsType<T, Input>, bytes: Uint8Array<ArrayBuffer>) {
+		this.#schema = schema;
+		this.#bytes = bytes;
 	}
 
 	toBytes() {
@@ -217,7 +217,7 @@ export function dynamicSizeBcsType<T, Input = T, const Name extends string = str
 }: {
 	name: Name;
 	read: (reader: BcsReader) => T;
-	serialize: (value: Input, options?: BcsWriterOptions) => Uint8Array;
+	serialize: (value: Input, options?: BcsWriterOptions) => Uint8Array<ArrayBuffer>;
 } & BcsTypeOptions<T, Input>) {
 	const type = new BcsType<T, Input>({
 		...options,

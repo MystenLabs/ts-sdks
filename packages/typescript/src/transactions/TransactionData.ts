@@ -13,11 +13,12 @@ import type {
 	Command,
 	GasData,
 	TransactionExpiration,
+	TransactionData,
 } from './data/internal.js';
-import { TransactionData } from './data/internal.js';
+import { TransactionDataSchema } from './data/internal.js';
 import { transactionDataFromV1 } from './data/v1.js';
 import type { SerializedTransactionDataV1 } from './data/v1.js';
-import type { SerializedTransactionDataV2 } from './data/v2.js';
+import type { SerializedTransactionDataV2Schema } from './data/v2.js';
 import { hashTypedData } from './hash.js';
 
 function prepareSuiAddress(address: string) {
@@ -69,13 +70,13 @@ export class TransactionDataBuilder implements TransactionData {
 
 	static restore(
 		data:
-			| InferInput<typeof SerializedTransactionDataV2>
+			| InferInput<typeof SerializedTransactionDataV2Schema>
 			| InferInput<typeof SerializedTransactionDataV1>,
 	) {
 		if (data.version === 2) {
-			return new TransactionDataBuilder(parse(TransactionData, data));
+			return new TransactionDataBuilder(parse(TransactionDataSchema, data));
 		} else {
-			return new TransactionDataBuilder(parse(TransactionData, transactionDataFromV1(data)));
+			return new TransactionDataBuilder(parse(TransactionDataSchema, transactionDataFromV1(data)));
 		}
 	}
 
@@ -320,7 +321,7 @@ export class TransactionDataBuilder implements TransactionData {
 	}
 
 	snapshot(): TransactionData {
-		return parse(TransactionData, this);
+		return parse(TransactionDataSchema, this);
 	}
 
 	shallowClone() {

@@ -5,8 +5,8 @@ import { is } from 'valibot';
 
 import type { SuiMoveNormalizedType } from '../client/index.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
-import { Argument } from './data/internal.js';
-import type { CallArg } from './data/internal.js';
+import { ArgumentSchema } from './data/internal.js';
+import type { Argument, CallArg } from './data/internal.js';
 
 export function extractMutableReference(
 	normalizedType: SuiMoveNormalizedType,
@@ -69,5 +69,5 @@ export function getIdFromCallArg(arg: string | CallArg) {
 }
 
 export function isArgument(value: unknown): value is Argument {
-	return is(Argument, value);
+	return is(ArgumentSchema, value);
 }

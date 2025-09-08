@@ -65,7 +65,7 @@ export const SECP256R1_SPKI_HEADER = new Uint8Array([
  */
 export class PasskeyPublicKey extends PublicKey {
 	static SIZE = PASSKEY_PUBLIC_KEY_SIZE;
-	private data: Uint8Array;
+	private data: Uint8Array<ArrayBuffer>;
 
 	/**
 	 * Create a new PasskeyPublicKey object
@@ -77,7 +77,7 @@ export class PasskeyPublicKey extends PublicKey {
 		if (typeof value === 'string') {
 			this.data = fromBase64(value);
 		} else if (value instanceof Uint8Array) {
-			this.data = value;
+			this.data = value as Uint8Array<ArrayBuffer>;
 		} else {
 			this.data = Uint8Array.from(value);
 		}
@@ -99,7 +99,7 @@ export class PasskeyPublicKey extends PublicKey {
 	/**
 	 * Return the byte array representation of the Secp256r1 public key
 	 */
-	toRawBytes(): Uint8Array {
+	toRawBytes(): Uint8Array<ArrayBuffer> {
 		return this.data;
 	}
 
