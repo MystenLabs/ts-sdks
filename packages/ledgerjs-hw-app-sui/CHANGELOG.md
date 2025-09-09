@@ -1,5 +1,11 @@
 # @mysten/ledgerjs-hw-app-sui
 
+## 0.6.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
 ## 0.5.2
 
 ### Patch Changes

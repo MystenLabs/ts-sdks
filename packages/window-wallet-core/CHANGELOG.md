@@ -1,5 +1,17 @@
 # @mysten/window-wallet-core
 
+## 0.1.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
+### Patch Changes
+
+- 45efc26: add config option to use an existing window instead of opening a new one
+- Updated dependencies [ea1ac70]
+  - @mysten/utils@0.2.0
+
 ## 0.0.6
 
 ### Patch Changes
@@ -28,7 +40,6 @@
 ### Patch Changes
 
 - a257600: improve verifyJwtSession
-
   - remove opener origin check as it's not possible to access it
   - add extra CryptoKey type to verifyJwtSession secretKey
 

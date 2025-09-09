@@ -1,5 +1,11 @@
 # @mysten/move-bytecode-template
 
+## 0.3.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
 ## 0.2.1
 
 ### Patch Changes

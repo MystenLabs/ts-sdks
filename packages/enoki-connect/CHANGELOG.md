@@ -1,5 +1,24 @@
 # @mysten/enoki-connect
 
+## 0.1.0
+
+### Minor Changes
+
+- 45efc26: show fallback modal to click to open a popup when opening a new tab is blocked
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
+### Patch Changes
+
+- 45efc26: enhance wallet operation request popup fallback modal to support custom CSS variables for
+  improved styling flexibility
+- Updated dependencies [45efc26]
+- Updated dependencies [3c1741f]
+- Updated dependencies [ea1ac70]
+  - @mysten/window-wallet-core@0.1.0
+  - @mysten/sui@1.38.0
+  - @mysten/wallet-standard@0.17.0
+  - @mysten/utils@0.2.0
+
 ## 0.0.26
 
 ### Patch Changes
