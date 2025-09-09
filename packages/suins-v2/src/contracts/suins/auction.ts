@@ -101,7 +101,7 @@ export function startAuctionAndPlaceBid(options: StartAuctionAndPlaceBidOptions)
 		'0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['self', 'suins', 'domainName', 'bid', 'clock'];
+	const parameterNames = ['self', 'suins', 'domainName', 'bid'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -141,7 +141,7 @@ export function placeBid(options: PlaceBidOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['self', 'domainName', 'bid', 'clock'];
+	const parameterNames = ['self', 'domainName', 'bid'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -174,7 +174,7 @@ export function claim(options: ClaimOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['self', 'domainName', 'clock'];
+	const parameterNames = ['self', 'domainName'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -238,7 +238,7 @@ export function collectWinningAuctionFund(options: CollectWinningAuctionFundOpti
 		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['self', 'domainName', 'clock'];
+	const parameterNames = ['self', 'domainName'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -312,7 +312,7 @@ export function adminFinalizeAuction(options: AdminFinalizeAuctionOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['admin', 'self', 'domain', 'clock'];
+	const parameterNames = ['admin', 'self', 'domain'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -351,7 +351,7 @@ export function adminTryFinalizeAuctions(options: AdminTryFinalizeAuctionsOption
 		'u64',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['admin', 'self', 'operationLimit', 'clock'];
+	const parameterNames = ['admin', 'self', 'operationLimit'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

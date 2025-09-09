@@ -67,7 +67,7 @@ export function addRecordIgnoringGracePeriod(options: AddRecordIgnoringGracePeri
 		'u8',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['self', 'domain', 'noYears', 'clock'];
+	const parameterNames = ['self', 'domain', 'noYears'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -104,7 +104,7 @@ export function addRecord(options: AddRecordOptions) {
 		'u8',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['self', 'domain', 'noYears', 'clock'];
+	const parameterNames = ['self', 'domain', 'noYears'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -134,7 +134,7 @@ export function burnRegistrationObject(options: BurnRegistrationObjectOptions) {
 		`${packageAddress}::suins_registration::SuinsRegistration`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['self', 'nft', 'clock'];
+	const parameterNames = ['self', 'nft'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -161,7 +161,7 @@ export function wrapSubdomain(options: WrapSubdomainOptions) {
 		`${packageAddress}::suins_registration::SuinsRegistration`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['_', 'nft', 'clock'];
+	const parameterNames = ['_', 'nft'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -191,7 +191,7 @@ export function burnSubdomainObject(options: BurnSubdomainObjectOptions) {
 		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['self', 'nft', 'clock'];
+	const parameterNames = ['self', 'nft'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -239,7 +239,7 @@ export function addLeafRecord(options: AddLeafRecordOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 		'address',
 	] satisfies string[];
-	const parameterNames = ['self', 'domain', 'clock', 'target'];
+	const parameterNames = ['self', 'domain', 'target'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -537,7 +537,7 @@ export function assertNftIsAuthorized(options: AssertNftIsAuthorizedOptions) {
 		`${packageAddress}::suins_registration::SuinsRegistration`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['self', 'nft', 'clock'];
+	const parameterNames = ['self', 'nft'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

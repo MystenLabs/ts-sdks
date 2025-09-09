@@ -577,7 +577,7 @@ export function votingEnd(options: VotingEndOptions) {
 		`${packageAddress}::staking::Staking`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['staking', 'clock'];
+	const parameterNames = ['staking'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -608,7 +608,7 @@ export function initiateEpochChange(options: InitiateEpochChangeOptions) {
 		`${packageAddress}::system::System`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['staking', 'system', 'clock'];
+	const parameterNames = ['staking', 'system'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -644,7 +644,7 @@ export function epochSyncDone(options: EpochSyncDoneOptions) {
 		'u32',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['staking', 'cap', 'epoch', 'clock'];
+	const parameterNames = ['staking', 'cap', 'epoch'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -905,6 +905,29 @@ export function canWithdrawStakedWalEarly(options: CanWithdrawStakedWalEarlyOpti
 			package: packageAddress,
 			module: 'staking',
 			function: 'can_withdraw_staked_wal_early',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SetMigrationEpochArguments {
+	staking: RawTransactionArgument<string>;
+}
+export interface SetMigrationEpochOptions {
+	package?: string;
+	arguments: SetMigrationEpochArguments | [staking: RawTransactionArgument<string>];
+}
+/**
+ * Sets the epoch in which the staking and system objects can be migrated after an
+ * upgrade.
+ */
+export function setMigrationEpoch(options: SetMigrationEpochOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [`${packageAddress}::staking::Staking`] satisfies string[];
+	const parameterNames = ['staking'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'staking',
+			function: 'set_migration_epoch',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

@@ -300,6 +300,37 @@ export function reserveSpace(options: ReserveSpaceOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface MigrateArguments {
+	subsidies: RawTransactionArgument<string>;
+	adminCap: RawTransactionArgument<string>;
+	packageId: RawTransactionArgument<string>;
+}
+export interface MigrateOptions {
+	package?: string;
+	arguments:
+		| MigrateArguments
+		| [
+				subsidies: RawTransactionArgument<string>,
+				adminCap: RawTransactionArgument<string>,
+				packageId: RawTransactionArgument<string>,
+		  ];
+}
+export function migrate(options: MigrateOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus_subsidies';
+	const argumentsTypes = [
+		`${packageAddress}::subsidies::Subsidies`,
+		`${packageAddress}::subsidies::AdminCap`,
+		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
+	] satisfies string[];
+	const parameterNames = ['subsidies', 'adminCap', 'packageId'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'subsidies',
+			function: 'migrate',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface AdminCapSubsidiesIdArguments {
 	adminCap: RawTransactionArgument<string>;
 }

@@ -271,7 +271,7 @@ export function register(options: RegisterOptions) {
 		`${packageAddress}::suins::SuiNS`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['receipt', 'suins', 'clock'];
+	const parameterNames = ['receipt', 'suins'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -307,7 +307,7 @@ export function renew(options: RenewOptions) {
 		`${packageAddress}::suins_registration::SuinsRegistration`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['receipt', 'suins', 'nft', 'clock'];
+	const parameterNames = ['receipt', 'suins', 'nft'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

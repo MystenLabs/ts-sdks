@@ -39,7 +39,7 @@ export function setTargetAddress(options: SetTargetAddressOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<address>',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['suins', 'nft', 'newTarget', 'clock'];
+	const parameterNames = ['suins', 'nft', 'newTarget'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -185,7 +185,7 @@ export function setUserData(options: SetUserDataOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['suins', 'nft', 'key', 'value', 'clock'];
+	const parameterNames = ['suins', 'nft', 'key', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -218,7 +218,7 @@ export function unsetUserData(options: UnsetUserDataOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['suins', 'nft', 'key', 'clock'];
+	const parameterNames = ['suins', 'nft', 'key'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -244,7 +244,7 @@ export function burnExpired(options: BurnExpiredOptions) {
 		`${packageAddress}::suins_registration::SuinsRegistration`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['suins', 'nft', 'clock'];
+	const parameterNames = ['suins', 'nft'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -270,7 +270,7 @@ export function burnExpiredSubname(options: BurnExpiredSubnameOptions) {
 		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['suins', 'nft', 'clock'];
+	const parameterNames = ['suins', 'nft'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

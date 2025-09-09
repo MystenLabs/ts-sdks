@@ -82,10 +82,26 @@ export class MoveModuleBuilder extends FileBuilder {
 		return `${await super.getHeader()}\n\n/*${await formatComment(this.summary.doc)}*/\n\n`;
 	}
 
-	includeAllFunctions() {
+	includeAllFunctions({ privateMethods = 'entry' }: { privateMethods?: 'none' | 'entry' | 'all' }) {
 		for (const [name, func] of Object.entries(this.summary.functions)) {
-			if (func.visibility !== 'Public' || func.macro_) {
+			if (func.macro_) {
 				continue;
+			}
+
+			if (func.visibility !== 'Public') {
+				switch (privateMethods) {
+					case 'none':
+						continue;
+					case 'entry':
+						if (!func.entry) {
+							continue;
+						}
+						break;
+					case 'all':
+						break;
+					default:
+						throw new Error(`Unknown privateMethods option: ${privateMethods}`);
+				}
 			}
 
 			const safeName = getSafeName(camelCase(name));
@@ -423,7 +439,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		this.addImport('@mysten/sui/transactions', 'type Transaction');
 
 		for (const [name, func] of Object.entries(this.summary.functions)) {
-			if (func.visibility !== 'Public' || func.macro_ || !this.#includedFunctions.has(name)) {
+			if (func.macro_ || !this.#includedFunctions.has(name)) {
 				continue;
 			}
 
