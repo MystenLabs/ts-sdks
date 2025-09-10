@@ -7,7 +7,7 @@ import {
 	resolveKioskLockRule,
 	resolvePersonalKioskRule,
 	resolveRoyaltyRule,
-} from './tx/rules//resolve.js';
+} from './tx/rules/resolve.js';
 import { Network } from './types/index.js';
 import type { ObjectArgument, RuleResolvingParams } from './types/index.js';
 
