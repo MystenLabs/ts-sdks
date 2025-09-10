@@ -23,8 +23,8 @@ export class G1Element {
 		return new G1Element(bls12_381.G1.ProjectivePoint.fromHex(toHex(bytes)));
 	}
 
-	toBytes(): Uint8Array {
-		return this.point.toRawBytes();
+	toBytes(): Uint8Array<ArrayBuffer> {
+		return this.point.toBytes() as Uint8Array<ArrayBuffer>;
 	}
 
 	multiply(scalar: Scalar): G1Element {
@@ -67,8 +67,8 @@ export class G2Element {
 		return new G2Element(bls12_381.G2.ProjectivePoint.fromHex(toHex(bytes)));
 	}
 
-	toBytes(): Uint8Array {
-		return this.point.toRawBytes();
+	toBytes(): Uint8Array<ArrayBuffer> {
+		return this.point.toBytes() as Uint8Array<ArrayBuffer>;
 	}
 
 	multiply(scalar: Scalar): G2Element {
@@ -99,7 +99,7 @@ export class GTElement {
 		this.element = element;
 	}
 
-	toBytes(): Uint8Array {
+	toBytes(): Uint8Array<ArrayBuffer> {
 		// This permutation reorders the 6 pairs of coefficients of the GT element for compatability with the Rust and Move implementations.
 		//
 		// The permutation P may be computed as:
@@ -142,8 +142,8 @@ export class Scalar {
 		return Scalar.fromBytes(bls12_381.utils.randomPrivateKey());
 	}
 
-	toBytes(): Uint8Array {
-		return new Uint8Array(bls12_381.fields.Fr.toBytes(this.scalar));
+	toBytes(): Uint8Array<ArrayBuffer> {
+		return new Uint8Array(bls12_381.fields.Fr.toBytes(this.scalar)) as Uint8Array<ArrayBuffer>;
 	}
 
 	static fromBytes(bytes: Uint8Array): Scalar {

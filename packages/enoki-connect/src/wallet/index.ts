@@ -32,6 +32,9 @@ import {
 import type { Emitter } from 'mitt';
 import mitt from 'mitt';
 import { DappPostMessageChannel, decodeJwtSession } from '@mysten/window-wallet-core';
+import { promiseWithResolvers } from '@mysten/utils';
+
+import '../components/modal.js';
 
 export type SupportedNetwork = 'mainnet' | 'testnet' | 'devnet';
 
@@ -149,7 +152,7 @@ export class EnokiConnectWallet implements Wallet {
 		account,
 		chain,
 	}) => {
-		const popup = this.#getNewPopupChannel();
+		const popup = await this.#getNewPopupChannel();
 		const response = await popup.send({
 			type: 'sign-transaction',
 			chain,
@@ -165,7 +168,7 @@ export class EnokiConnectWallet implements Wallet {
 	};
 
 	#signTransaction: SuiSignTransactionMethod = async ({ transaction, account, chain }) => {
-		const popup = this.#getNewPopupChannel();
+		const popup = await this.#getNewPopupChannel();
 		const response = await popup.send({
 			type: 'sign-transaction',
 			chain,
@@ -185,7 +188,7 @@ export class EnokiConnectWallet implements Wallet {
 		account,
 		chain,
 	}) => {
-		const popup = this.#getNewPopupChannel();
+		const popup = await this.#getNewPopupChannel();
 		const response = await popup.send({
 			type: 'sign-and-execute-transaction',
 			transaction: await transaction.toJSON(),
@@ -203,7 +206,7 @@ export class EnokiConnectWallet implements Wallet {
 	};
 
 	#signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message, account, chain }) => {
-		const popup = this.#getNewPopupChannel();
+		const popup = await this.#getNewPopupChannel();
 		const response = await popup.send({
 			type: 'sign-personal-message',
 			chain: chain ?? this.#defaultChain,
@@ -250,7 +253,7 @@ export class EnokiConnectWallet implements Wallet {
 			return { accounts: this.accounts };
 		}
 
-		const popup = this.#getNewPopupChannel();
+		const popup = await this.#getNewPopupChannel();
 		const response = await popup.send({
 			type: 'connect',
 		});
@@ -279,13 +282,23 @@ export class EnokiConnectWallet implements Wallet {
 		return session;
 	}
 
-	#getNewPopupChannel() {
+	async #getNewPopupChannel() {
+		let popupWindow: Window | undefined | null = window.open('about:blank', '_blank');
+
+		if (!popupWindow) {
+			popupWindow = await addClickToOpenPopupWindow({
+				walletName: this.#walletName,
+				dappName: this.#dappName,
+			});
+		}
+
 		return new DappPostMessageChannel({
 			appName: this.#dappName,
 			hostOrigin: this.#hostOrigin,
 			extraRequestOptions: {
 				publicAppSlug: this.#publicAppSlug,
 			},
+			popupWindow,
 		});
 	}
 
@@ -308,6 +321,47 @@ export class EnokiConnectWallet implements Wallet {
 			return [];
 		}
 	}
+}
+
+function addClickToOpenPopupWindow({
+	walletName,
+	dappName,
+}: {
+	walletName: string;
+	dappName: string;
+}) {
+	const { promise, resolve, reject } = promiseWithResolvers<Window>();
+	const modal = document.createElement('enoki-connect-modal');
+
+	modal.walletName = walletName;
+	modal.dappName = dappName;
+	modal.open = true;
+
+	modal.addEventListener('cancel', () => {
+		reject(new Error('Popup was blocked from browser and user rejected click to review request'));
+		modal.open = false;
+	});
+
+	modal.addEventListener('approved', () => {
+		modal.disabled = true;
+		modal.open = false;
+
+		const popup = window.open('about:blank', '_blank');
+
+		if (popup) {
+			resolve(popup);
+		} else {
+			reject(new Error('Failed to open popup'));
+		}
+	});
+
+	modal.addEventListener('closed', () => {
+		modal.remove();
+	});
+
+	document.body.appendChild(modal);
+
+	return promise;
 }
 
 type EnokiConnectMetadata = {

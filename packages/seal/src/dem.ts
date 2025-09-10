@@ -15,7 +15,7 @@ export const iv = Uint8Array.from([
 	138, 55, 153, 253, 198, 46, 121, 219, 160, 128, 89, 7, 214, 156, 148, 220,
 ]);
 
-async function generateAesKey(): Promise<Uint8Array> {
+async function generateAesKey(): Promise<Uint8Array<ArrayBuffer>> {
 	const key = await crypto.subtle.generateKey(
 		{
 			name: 'AES-GCM',
@@ -29,19 +29,19 @@ async function generateAesKey(): Promise<Uint8Array> {
 
 export interface EncryptionInput {
 	encrypt(key: Uint8Array): Promise<typeof Ciphertext.$inferInput>;
-	generateKey(): Promise<Uint8Array>;
+	generateKey(): Promise<Uint8Array<ArrayBuffer>>;
 }
 
 export class AesGcm256 implements EncryptionInput {
-	readonly plaintext: Uint8Array;
-	readonly aad: Uint8Array;
+	readonly plaintext: Uint8Array<ArrayBuffer>;
+	readonly aad: Uint8Array<ArrayBuffer>;
 
-	constructor(msg: Uint8Array, aad: Uint8Array) {
+	constructor(msg: Uint8Array<ArrayBuffer>, aad: Uint8Array<ArrayBuffer>) {
 		this.plaintext = msg;
 		this.aad = aad;
 	}
 
-	generateKey(): Promise<Uint8Array> {
+	generateKey(): Promise<Uint8Array<ArrayBuffer>> {
 		// generate a random key
 		return generateAesKey();
 	}
@@ -50,17 +50,23 @@ export class AesGcm256 implements EncryptionInput {
 		if (key.length !== 32) {
 			throw new Error('Key must be 32 bytes');
 		}
-		const aesCryptoKey = await crypto.subtle.importKey('raw', key, 'AES-GCM', false, ['encrypt']);
+		const aesCryptoKey = await crypto.subtle.importKey(
+			'raw',
+			key as BufferSource,
+			'AES-GCM',
+			false,
+			['encrypt'],
+		);
 
 		const blob = new Uint8Array(
 			await crypto.subtle.encrypt(
 				{
 					name: 'AES-GCM',
 					iv,
-					additionalData: this.aad,
+					additionalData: this.aad as BufferSource,
 				},
 				aesCryptoKey,
-				this.plaintext,
+				this.plaintext as BufferSource,
 			),
 		);
 
@@ -84,7 +90,13 @@ export class AesGcm256 implements EncryptionInput {
 		}
 
 		try {
-			const aesCryptoKey = await crypto.subtle.importKey('raw', key, 'AES-GCM', false, ['decrypt']);
+			const aesCryptoKey = await crypto.subtle.importKey(
+				'raw',
+				key as BufferSource,
+				'AES-GCM',
+				false,
+				['decrypt'],
+			);
 			return new Uint8Array(
 				await crypto.subtle.decrypt(
 					{
@@ -111,15 +123,15 @@ export class AesGcm256 implements EncryptionInput {
  * 5. Return <i>mac || aad || c</i>.
  */
 export class Hmac256Ctr implements EncryptionInput {
-	readonly plaintext: Uint8Array;
-	readonly aad: Uint8Array;
+	readonly plaintext: Uint8Array<ArrayBuffer>;
+	readonly aad: Uint8Array<ArrayBuffer>;
 
-	constructor(msg: Uint8Array, aad: Uint8Array) {
+	constructor(msg: Uint8Array<ArrayBuffer>, aad: Uint8Array<ArrayBuffer>) {
 		this.plaintext = msg;
 		this.aad = aad;
 	}
 
-	generateKey(): Promise<Uint8Array> {
+	generateKey(): Promise<Uint8Array<ArrayBuffer>> {
 		// generate a random key
 		return generateAesKey();
 	}

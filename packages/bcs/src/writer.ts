@@ -33,7 +33,7 @@ export interface BcsWriterOptions {
  * BCS value or a part of a composed structure/vector.
  */
 export class BcsWriter {
-	private dataView: DataView;
+	private dataView: DataView<ArrayBuffer>;
 	private bytePosition: number = 0;
 	private size: number;
 	private maxSize: number;
@@ -178,7 +178,7 @@ export class BcsWriter {
 	 * Get underlying buffer taking only value bytes (in case initial buffer size was bigger).
 	 * @returns {Uint8Array} Resulting bcs.
 	 */
-	toBytes(): Uint8Array {
+	toBytes(): Uint8Array<ArrayBuffer> {
 		return new Uint8Array(this.dataView.buffer.slice(0, this.bytePosition));
 	}
 

@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/sui-grpc",
-	"version": "0.0.17",
+	"version": "0.1.0",
 	"description": "A typescript GRPC client for sui",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -49,7 +49,7 @@
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
 		"@protobuf-ts/plugin": "^2.11.1",
-		"typescript": "^5.8.3",
+		"typescript": "^5.9.2",
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {

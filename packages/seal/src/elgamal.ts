@@ -23,16 +23,16 @@ function decrypt(sk: Scalar, [c0, c1]: [G1Element, G1Element]): G1Element {
 }
 
 /** Generate a random secret key. */
-export function generateSecretKey(): Uint8Array {
-	return Scalar.random().toBytes();
+export function generateSecretKey(): Uint8Array<ArrayBuffer> {
+	return Scalar.random().toBytes() as Uint8Array<ArrayBuffer>;
 }
 
 /** Derive the BLS public key for a given secret key. */
-export function toPublicKey(sk: Uint8Array): Uint8Array {
+export function toPublicKey(sk: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
 	return G1Element.generator().multiply(Scalar.fromBytes(sk)).toBytes();
 }
 
 /** Derive the BLS verification key for a given secret key. */
-export function toVerificationKey(sk: Uint8Array): Uint8Array {
+export function toVerificationKey(sk: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
 	return G2Element.generator().multiply(Scalar.fromBytes(sk)).toBytes();
 }

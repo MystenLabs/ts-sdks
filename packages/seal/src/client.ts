@@ -119,11 +119,19 @@ export class SealClient {
 			threshold,
 			packageId,
 			id,
-			encryptionInput: this.#createEncryptionInput(demType, data, aad),
+			encryptionInput: this.#createEncryptionInput(
+				demType,
+				data as Uint8Array<ArrayBuffer>,
+				aad as Uint8Array<ArrayBuffer>,
+			),
 		});
 	}
 
-	#createEncryptionInput(type: DemType, data: Uint8Array, aad: Uint8Array): EncryptionInput {
+	#createEncryptionInput(
+		type: DemType,
+		data: Uint8Array<ArrayBuffer>,
+		aad: Uint8Array<ArrayBuffer>,
+	): EncryptionInput {
 		switch (type) {
 			case DemType.AesGcm256:
 				return new AesGcm256(data, aad);

@@ -1,5 +1,20 @@
 # @mysten/enoki
 
+## 0.12.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
+### Patch Changes
+
+- 1fb857c: reuse existing proof when available
+- Updated dependencies [3c1741f]
+- Updated dependencies [ea1ac70]
+  - @mysten/sui@1.38.0
+  - @mysten/wallet-standard@0.17.0
+  - @mysten/signers@0.4.0
+
 ## 0.11.10
 
 ### Patch Changes

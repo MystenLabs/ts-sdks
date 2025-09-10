@@ -49,7 +49,6 @@ export function _new(options: NewOptions) {
 	const parameterNames = [
 		'suins',
 		'subdomain',
-		'clock',
 		'subdomainName',
 		'expirationTimestampMs',
 		'allowCreation',
@@ -89,7 +88,7 @@ export function newLeaf(options: NewLeafOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
 		'address',
 	] satisfies string[];
-	const parameterNames = ['suins', 'subdomain', 'clock', 'subdomainName', 'target'];
+	const parameterNames = ['suins', 'subdomain', 'subdomainName', 'target'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -121,7 +120,7 @@ export function removeLeaf(options: RemoveLeafOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
 	] satisfies string[];
-	const parameterNames = ['suins', 'subdomain', 'clock', 'subdomainName'];
+	const parameterNames = ['suins', 'subdomain', 'subdomainName'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -162,7 +161,6 @@ export function editSetup(options: EditSetupOptions) {
 	const parameterNames = [
 		'suins',
 		'parent',
-		'clock',
 		'subdomainName',
 		'allowCreation',
 		'allowTimeExtension',
@@ -198,7 +196,7 @@ export function setTargetAddress(options: SetTargetAddressOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<address>',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['suins', 'subdomain', 'newTarget', 'clock'];
+	const parameterNames = ['suins', 'subdomain', 'newTarget'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -233,7 +231,7 @@ export function setUserData(options: SetUserDataOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['suins', 'subdomain', 'key', 'value', 'clock'];
+	const parameterNames = ['suins', 'subdomain', 'key', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -265,7 +263,7 @@ export function unsetUserData(options: UnsetUserDataOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['suins', 'subdomain', 'key', 'clock'];
+	const parameterNames = ['suins', 'subdomain', 'key'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

@@ -60,6 +60,7 @@ export default async function generate(
 			package: pkg,
 			prune: flags.noPrune === undefined ? config.prune : !flags.noPrune,
 			outputDir: flags.outputDir ?? config.output,
+			privateMethods: config.privateMethods,
 		});
 	}
 }

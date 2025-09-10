@@ -19,7 +19,7 @@ const PUBLIC_KEY_SIZE = 32;
  */
 export class Ed25519PublicKey extends PublicKey {
 	static SIZE = PUBLIC_KEY_SIZE;
-	private data: Uint8Array;
+	private data: Uint8Array<ArrayBuffer>;
 
 	/**
 	 * Create a new Ed25519PublicKey object
@@ -31,7 +31,7 @@ export class Ed25519PublicKey extends PublicKey {
 		if (typeof value === 'string') {
 			this.data = fromBase64(value);
 		} else if (value instanceof Uint8Array) {
-			this.data = value;
+			this.data = value as Uint8Array<ArrayBuffer>;
 		} else {
 			this.data = Uint8Array.from(value);
 		}
@@ -53,7 +53,7 @@ export class Ed25519PublicKey extends PublicKey {
 	/**
 	 * Return the byte array representation of the Ed25519 public key
 	 */
-	toRawBytes(): Uint8Array {
+	toRawBytes(): Uint8Array<ArrayBuffer> {
 		return this.data;
 	}
 

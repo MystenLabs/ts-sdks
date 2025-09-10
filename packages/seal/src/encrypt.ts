@@ -41,8 +41,8 @@ export async function encrypt({
 	id: string;
 	encryptionInput: EncryptionInput;
 }): Promise<{
-	encryptedObject: Uint8Array;
-	key: Uint8Array;
+	encryptedObject: Uint8Array<ArrayBuffer>;
+	key: Uint8Array<ArrayBuffer>;
 }> {
 	// Check inputs
 	if (

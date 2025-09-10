@@ -1,5 +1,16 @@
 # Change Log
 
+## 1.8.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
+### Patch Changes
+
+- Updated dependencies [ea1ac70]
+  - @mysten/utils@0.2.0
+
 ## 1.7.0
 
 ### Minor Changes

@@ -314,7 +314,7 @@ export function assertCouponIsNotExpired(options: AssertCouponIsNotExpiredOption
 		`${packageAddress}::rules::CouponRules`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['rules', 'clock'];
+	const parameterNames = ['rules'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -337,7 +337,7 @@ export function isCouponExpired(options: IsCouponExpiredOptions) {
 		`${packageAddress}::rules::CouponRules`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['rules', 'clock'];
+	const parameterNames = ['rules'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

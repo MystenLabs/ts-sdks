@@ -105,7 +105,7 @@ export abstract class PublicKey {
 	 * Returns the bytes representation of the public key
 	 * prefixed with the signature scheme flag
 	 */
-	toSuiBytes(): Uint8Array {
+	toSuiBytes(): Uint8Array<ArrayBuffer> {
 		const rawBytes = this.toRawBytes();
 		const suiBytes = new Uint8Array(rawBytes.length + 1);
 		suiBytes.set([this.flag()]);
@@ -127,7 +127,7 @@ export abstract class PublicKey {
 	/**
 	 * Return the byte array representation of the public key
 	 */
-	abstract toRawBytes(): Uint8Array;
+	abstract toRawBytes(): Uint8Array<ArrayBuffer>;
 
 	/**
 	 * Return signature scheme flag of the public key

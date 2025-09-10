@@ -109,14 +109,7 @@ export function handlePayment(options: HandlePaymentOptions) {
 		'0x8d97f1cd6ac663735be08d1d2b6d02a159e711586461306ce60a2b7a6a565a9e::price_info::PriceInfoObject',
 		'u64',
 	] satisfies string[];
-	const parameterNames = [
-		'suins',
-		'intent',
-		'payment',
-		'clock',
-		'priceInfoObject',
-		'userPriceGuard',
-	];
+	const parameterNames = ['suins', 'intent', 'payment', 'priceInfoObject', 'userPriceGuard'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -160,7 +153,7 @@ export function calculatePrice(options: CalculatePriceOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 		'0x8d97f1cd6ac663735be08d1d2b6d02a159e711586461306ce60a2b7a6a565a9e::price_info::PriceInfoObject',
 	] satisfies string[];
-	const parameterNames = ['suins', 'baseAmount', 'clock', 'priceInfoObject'];
+	const parameterNames = ['suins', 'baseAmount', 'priceInfoObject'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

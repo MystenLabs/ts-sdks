@@ -23,7 +23,7 @@ function getCompressedPublicKey(publicKey: Uint8Array) {
 
 export interface ExportedWebCryptoKeypair {
 	privateKey: CryptoKey;
-	publicKey: Uint8Array;
+	publicKey: Uint8Array<ArrayBuffer>;
 }
 
 export class WebCryptoSigner extends Signer {
@@ -91,18 +91,18 @@ export class WebCryptoSigner extends Signer {
 		return this.#publicKey;
 	}
 
-	async sign(bytes: Uint8Array): Promise<Uint8Array> {
+	async sign(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
 		const rawSignature = await globalThis.crypto.subtle.sign(
 			{
 				name: 'ECDSA',
 				hash: 'SHA-256',
 			},
 			this.privateKey,
-			bytes,
+			bytes as BufferSource,
 		);
 
 		const signature = secp256r1.Signature.fromCompact(new Uint8Array(rawSignature));
 
-		return signature.normalizeS().toCompactRawBytes();
+		return signature.normalizeS().toCompactRawBytes() as Uint8Array<ArrayBuffer>;
 	}
 }

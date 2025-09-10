@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/signers",
-	"version": "0.3.9",
+	"version": "0.4.0",
 	"description": "A collection of signers for various providers",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -59,8 +59,8 @@
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
 		"@types/node": "^22.15.29",
-		"dotenv": "^16.5.0",
-		"typescript": "^5.8.3",
+		"dotenv": "^17.2.2",
+		"typescript": "^5.9.2",
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {

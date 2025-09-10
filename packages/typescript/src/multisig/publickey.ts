@@ -64,7 +64,7 @@ export const MIN_SIGNER_IN_MULTISIG = 1;
  * A MultiSig public key
  */
 export class MultiSigPublicKey extends PublicKey {
-	private rawBytes: Uint8Array;
+	private rawBytes: Uint8Array<ArrayBuffer>;
 	private multisigPublicKey: MultiSigPublicKeyStruct;
 	private publicKeys: {
 		weight: number;
@@ -87,7 +87,7 @@ export class MultiSigPublicKey extends PublicKey {
 
 			this.multisigPublicKey = bcs.MultiSigPublicKey.parse(this.rawBytes);
 		} else if (value instanceof Uint8Array) {
-			this.rawBytes = value;
+			this.rawBytes = value as Uint8Array<ArrayBuffer>;
 			this.multisigPublicKey = bcs.MultiSigPublicKey.parse(this.rawBytes);
 		} else {
 			this.multisigPublicKey = value;
@@ -169,7 +169,7 @@ export class MultiSigPublicKey extends PublicKey {
 	/**
 	 * Return the byte array representation of the MultiSig public key
 	 */
-	toRawBytes(): Uint8Array {
+	toRawBytes(): Uint8Array<ArrayBuffer> {
 		return this.rawBytes;
 	}
 

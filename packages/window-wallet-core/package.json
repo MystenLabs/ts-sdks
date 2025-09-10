@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/window-wallet-core",
-	"version": "0.0.6",
+	"version": "0.1.0",
 	"description": "Window wallet core functionality",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -40,12 +40,12 @@
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/window-wallet-core#readme",
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"typescript": "^5.8.3",
+		"typescript": "^5.9.2",
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {
 		"@mysten/utils": "workspace:*",
-		"jose": "^6.0.12",
+		"jose": "^6.1.0",
 		"valibot": "^0.36.0"
 	}
 }

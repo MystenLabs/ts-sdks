@@ -65,7 +65,7 @@ export class BrowserPasskeyProvider implements PasskeyProvider {
 					name: this.#name,
 					displayName: this.#name,
 					...this.#options.user,
-					id: randomBytes(10),
+					id: randomBytes(10) as BufferSource,
 				},
 				challenge: new TextEncoder().encode('Create passkey wallet on Sui'),
 				pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
@@ -83,7 +83,7 @@ export class BrowserPasskeyProvider implements PasskeyProvider {
 	async get(challenge: Uint8Array): Promise<AuthenticationCredential> {
 		return (await navigator.credentials.get({
 			publicKey: {
-				challenge,
+				challenge: challenge as BufferSource,
 				userVerification: this.#options.authenticatorSelection?.userVerification || 'required',
 				timeout: this.#options.timeout ?? 60000,
 			},

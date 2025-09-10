@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/codegen",
-	"version": "0.4.5",
+	"version": "0.5.0",
 	"description": "typescript codegen for sui move",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -65,7 +65,7 @@
 		"cosmiconfig": "^9.0.0",
 		"prettier": "^3.6.2",
 		"toml": "^3.0.0",
-		"typescript": "^5.8.3",
+		"typescript": "^5.9.2",
 		"zod": "^3.25.67"
 	}
 }

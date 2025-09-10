@@ -21,7 +21,7 @@ import {
 	unknown,
 } from 'valibot';
 
-import { BCSBytes, JsonU64, ObjectID, ObjectRef, SuiAddress } from './internal.js';
+import { BCSBytes, JsonU64, ObjectID, ObjectRefSchema, SuiAddress } from './internal.js';
 import type { Simplify } from '@mysten/utils';
 
 function enumUnion<T extends Record<string, GenericSchema<any>>>(options: T) {
@@ -49,7 +49,7 @@ const GasData = object({
 	budget: nullable(JsonU64),
 	price: nullable(JsonU64),
 	owner: nullable(SuiAddress),
-	payment: nullable(array(ObjectRef)),
+	payment: nullable(array(ObjectRefSchema)),
 });
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L707-L718
@@ -102,14 +102,14 @@ const Command = enumUnion({
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L102-L114
 const ObjectArg = enumUnion({
-	ImmOrOwnedObject: ObjectRef,
+	ImmOrOwnedObject: ObjectRefSchema,
 	SharedObject: object({
 		objectId: ObjectID,
 		// snake case in rust
 		initialSharedVersion: JsonU64,
 		mutable: boolean(),
 	}),
-	Receiving: ObjectRef,
+	Receiving: ObjectRefSchema,
 });
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L75-L80
@@ -135,7 +135,7 @@ const TransactionExpiration = enumUnion({
 	Epoch: JsonU64,
 });
 
-export const SerializedTransactionDataV2 = object({
+export const SerializedTransactionDataV2Schema = object({
 	version: literal(2),
 	sender: nullish(SuiAddress),
 	expiration: nullish(TransactionExpiration),
@@ -145,4 +145,4 @@ export const SerializedTransactionDataV2 = object({
 	digest: optional(nullable(string())),
 });
 
-export type SerializedTransactionDataV2 = InferOutput<typeof SerializedTransactionDataV2>;
+export type SerializedTransactionDataV2 = InferOutput<typeof SerializedTransactionDataV2Schema>;

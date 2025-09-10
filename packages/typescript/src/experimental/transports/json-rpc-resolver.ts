@@ -4,7 +4,7 @@
 import { parse } from 'valibot';
 
 import { normalizeSuiAddress, normalizeSuiObjectId, SUI_TYPE_ARG } from '../../utils/index.js';
-import { ObjectRef } from '../../transactions/data/internal.js';
+import { ObjectRefSchema } from '../../transactions/data/internal.js';
 import type { CallArg, Command, OpenMoveTypeSignature } from '../../transactions/data/internal.js';
 import { Inputs } from '../../transactions/Inputs.js';
 import {
@@ -118,7 +118,9 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Su
 			throw new Error('No valid gas coins found for the transaction.');
 		}
 
-		transactionData.gasConfig.payment = paymentCoins.map((payment) => parse(ObjectRef, payment));
+		transactionData.gasConfig.payment = paymentCoins.map((payment) =>
+			parse(ObjectRefSchema, payment),
+		);
 	}
 }
 

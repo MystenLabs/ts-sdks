@@ -73,15 +73,15 @@ export const JsonU64 = pipe(
 );
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/base_types.rs#L138
 // Implemented as a tuple in rust
-export const ObjectRef = object({
+export const ObjectRefSchema = object({
 	objectId: SuiAddress,
 	version: JsonU64,
 	digest: string(),
 });
-export type ObjectRef = InferOutput<typeof ObjectRef>;
+export type ObjectRef = InferOutput<typeof ObjectRefSchema>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L690-L702
-export const Argument = pipe(
+export const ArgumentSchema = pipe(
 	union([
 		object({ GasCoin: literal(true) }),
 		object({ Input: pipe(number(), integer()), type: optional(literal('pure')) }),
@@ -108,26 +108,26 @@ export const Argument = pipe(
 	| { $kind: 'NestedResult'; NestedResult: [number, number] }
 >;
 
-export type Argument = InferOutput<typeof Argument>;
+export type Argument = InferOutput<typeof ArgumentSchema>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L1387-L1392
-export const GasData = object({
+export const GasDataSchema = object({
 	budget: nullable(JsonU64),
 	price: nullable(JsonU64),
 	owner: nullable(SuiAddress),
-	payment: nullable(array(ObjectRef)),
+	payment: nullable(array(ObjectRefSchema)),
 });
-export type GasData = InferOutput<typeof GasData>;
+export type GasData = InferOutput<typeof GasDataSchema>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/external-crates/move/crates/move-core-types/src/language_storage.rs#L140-L147
-export const StructTag = object({
+export const StructTagSchema = object({
 	address: string(),
 	module: string(),
 	name: string(),
 	// type_params in rust, should be updated to use camelCase
 	typeParams: array(string()),
 });
-export type StructTag = InferOutput<typeof StructTag>;
+export type StructTag = InferOutput<typeof StructTagSchema>;
 
 // https://github.com/MystenLabs/sui/blob/cea8742e810142a8145fd83c4c142d61e561004a/crates/sui-graphql-rpc/schema/current_progress_schema.graphql#L1614-L1627
 export type OpenMoveTypeSignatureBody =
@@ -150,7 +150,7 @@ export type OpenMoveTypeSignatureBody =
 	  }
 	| { typeParameter: number };
 
-export const OpenMoveTypeSignatureBody: GenericSchema<OpenMoveTypeSignatureBody> = union([
+export const OpenMoveTypeSignatureBodySchema: GenericSchema<OpenMoveTypeSignatureBody> = union([
 	literal('address'),
 	literal('bool'),
 	literal('u8'),
@@ -159,57 +159,57 @@ export const OpenMoveTypeSignatureBody: GenericSchema<OpenMoveTypeSignatureBody>
 	literal('u64'),
 	literal('u128'),
 	literal('u256'),
-	object({ vector: lazy(() => OpenMoveTypeSignatureBody) }),
+	object({ vector: lazy(() => OpenMoveTypeSignatureBodySchema) }),
 	object({
 		datatype: object({
 			package: string(),
 			module: string(),
 			type: string(),
-			typeParameters: array(lazy(() => OpenMoveTypeSignatureBody)),
+			typeParameters: array(lazy(() => OpenMoveTypeSignatureBodySchema)),
 		}),
 	}),
 	object({ typeParameter: pipe(number(), integer()) }),
 ]);
 
 // https://github.com/MystenLabs/sui/blob/cea8742e810142a8145fd83c4c142d61e561004a/crates/sui-graphql-rpc/schema/current_progress_schema.graphql#L1609-L1612
-export const OpenMoveTypeSignature = object({
+export const OpenMoveTypeSignatureSchema = object({
 	ref: nullable(union([literal('&'), literal('&mut')])),
-	body: OpenMoveTypeSignatureBody,
+	body: OpenMoveTypeSignatureBodySchema,
 });
-export type OpenMoveTypeSignature = InferOutput<typeof OpenMoveTypeSignature>;
+export type OpenMoveTypeSignature = InferOutput<typeof OpenMoveTypeSignatureSchema>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L707-L718
-const ProgrammableMoveCall = object({
+const ProgrammableMoveCallSchema = object({
 	package: ObjectID,
 	module: string(),
 	function: string(),
 	// snake case in rust
 	typeArguments: array(string()),
-	arguments: array(Argument),
-	_argumentTypes: optional(nullable(array(OpenMoveTypeSignature))),
+	arguments: array(ArgumentSchema),
+	_argumentTypes: optional(nullable(array(OpenMoveTypeSignatureSchema))),
 });
-export type ProgrammableMoveCall = InferOutput<typeof ProgrammableMoveCall>;
+export type ProgrammableMoveCall = InferOutput<typeof ProgrammableMoveCallSchema>;
 
 export const $Intent = object({
 	name: string(),
-	inputs: record(string(), union([Argument, array(Argument)])),
+	inputs: record(string(), union([ArgumentSchema, array(ArgumentSchema)])),
 	data: record(string(), unknown()),
 });
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L657-L685
-export const Command = safeEnum({
-	MoveCall: ProgrammableMoveCall,
+export const CommandSchema = safeEnum({
+	MoveCall: ProgrammableMoveCallSchema,
 	TransferObjects: object({
-		objects: array(Argument),
-		address: Argument,
+		objects: array(ArgumentSchema),
+		address: ArgumentSchema,
 	}),
 	SplitCoins: object({
-		coin: Argument,
-		amounts: array(Argument),
+		coin: ArgumentSchema,
+		amounts: array(ArgumentSchema),
 	}),
 	MergeCoins: object({
-		destination: Argument,
-		sources: array(Argument),
+		destination: ArgumentSchema,
+		sources: array(ArgumentSchema),
 	}),
 	Publish: object({
 		modules: array(BCSBytes),
@@ -217,13 +217,13 @@ export const Command = safeEnum({
 	}),
 	MakeMoveVec: object({
 		type: nullable(string()),
-		elements: array(Argument),
+		elements: array(ArgumentSchema),
 	}),
 	Upgrade: object({
 		modules: array(BCSBytes),
 		dependencies: array(ObjectID),
 		package: ObjectID,
-		ticket: Argument,
+		ticket: ArgumentSchema,
 	}),
 	$Intent,
 });
@@ -271,20 +271,20 @@ export type Command<Arg = Argument> = EnumOutputShape<{
 }>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L102-L114
-export const ObjectArg = safeEnum({
-	ImmOrOwnedObject: ObjectRef,
+export const ObjectArgSchema = safeEnum({
+	ImmOrOwnedObject: ObjectRefSchema,
 	SharedObject: object({
 		objectId: ObjectID,
 		// snake case in rust
 		initialSharedVersion: JsonU64,
 		mutable: boolean(),
 	}),
-	Receiving: ObjectRef,
+	Receiving: ObjectRefSchema,
 });
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L75-L80
-const CallArg = safeEnum({
-	Object: ObjectArg,
+const CallArgSchema = safeEnum({
+	Object: ObjectArgSchema,
 	Pure: object({
 		bytes: BCSBytes,
 	}),
@@ -299,10 +299,10 @@ const CallArg = safeEnum({
 		mutable: optional(nullable(boolean())),
 	}),
 });
-export type CallArg = InferOutput<typeof CallArg>;
+export type CallArg = InferOutput<typeof CallArgSchema>;
 
 export const NormalizedCallArg = safeEnum({
-	Object: ObjectArg,
+	Object: ObjectArgSchema,
 	Pure: object({
 		bytes: BCSBytes,
 	}),
@@ -315,12 +315,13 @@ export const TransactionExpiration = safeEnum({
 
 export type TransactionExpiration = InferOutput<typeof TransactionExpiration>;
 
-export const TransactionData = object({
+export const TransactionDataSchema = object({
 	version: literal(2),
 	sender: nullish(SuiAddress),
 	expiration: nullish(TransactionExpiration),
-	gasData: GasData,
-	inputs: array(CallArg),
-	commands: array(Command),
+	gasData: GasDataSchema,
+	inputs: array(CallArgSchema),
+	commands: array(CommandSchema),
 });
-export type TransactionData = InferOutput<typeof TransactionData>;
+
+export type TransactionData = InferOutput<typeof TransactionDataSchema>;

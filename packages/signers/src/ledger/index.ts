@@ -181,7 +181,7 @@ export class LedgerSigner extends Signer {
 					storageRebate: object.data.storageRebate!,
 				}).toBytes();
 			})
-			.filter((bcsBytes): bcsBytes is Uint8Array => !!bcsBytes);
+			.filter((bcsBytes): bcsBytes is Uint8Array<ArrayBuffer> => !!bcsBytes);
 
 		return { bcsObjects };
 	}

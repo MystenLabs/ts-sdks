@@ -2,7 +2,7 @@
 	"name": "@mysten/suins",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "SuiNS SDK",
-	"version": "0.7.36",
+	"version": "0.8.0",
 	"license": "Apache-2.0",
 	"private": false,
 	"type": "commonjs",
@@ -50,8 +50,8 @@
 		"@mysten/build-scripts": "workspace:*",
 		"@types/tmp": "^0.2.6",
 		"ts-retry-promise": "^0.8.1",
-		"typescript": "^5.8.3",
-		"vite": "^7.0.5",
+		"typescript": "^5.9.2",
+		"vite": "^7.1.5",
 		"vitest": "^3.2.4"
 	},
 	"repository": {

@@ -6,13 +6,13 @@ import type { InferInput } from 'valibot';
 import { parse } from 'valibot';
 
 import { normalizeSuiObjectId } from '../utils/sui-types.js';
-import { Argument } from './data/internal.js';
-import type { CallArg, Command } from './data/internal.js';
+import type { Argument, CallArg, Command } from './data/internal.js';
+import { ArgumentSchema } from './data/internal.js';
 import type { AsyncTransactionThunk, Transaction } from './Transaction.js';
 
 export type TransactionArgument =
-	| InferInput<typeof Argument>
-	| ((tx: Transaction) => InferInput<typeof Argument>)
+	| InferInput<typeof ArgumentSchema>
+	| ((tx: Transaction) => InferInput<typeof ArgumentSchema>)
 	| AsyncTransactionThunk;
 export type TransactionInput = CallArg;
 
@@ -63,38 +63,38 @@ export const Commands = {
 	},
 
 	TransferObjects(
-		objects: InferInput<typeof Argument>[],
-		address: InferInput<typeof Argument>,
+		objects: InferInput<typeof ArgumentSchema>[],
+		address: InferInput<typeof ArgumentSchema>,
 	): TransactionShape<'TransferObjects'> {
 		return {
 			$kind: 'TransferObjects',
 			TransferObjects: {
-				objects: objects.map((o) => parse(Argument, o)),
-				address: parse(Argument, address),
+				objects: objects.map((o) => parse(ArgumentSchema, o)),
+				address: parse(ArgumentSchema, address),
 			},
 		};
 	},
 	SplitCoins(
-		coin: InferInput<typeof Argument>,
-		amounts: InferInput<typeof Argument>[],
+		coin: InferInput<typeof ArgumentSchema>,
+		amounts: InferInput<typeof ArgumentSchema>[],
 	): TransactionShape<'SplitCoins'> {
 		return {
 			$kind: 'SplitCoins',
 			SplitCoins: {
-				coin: parse(Argument, coin),
-				amounts: amounts.map((o) => parse(Argument, o)),
+				coin: parse(ArgumentSchema, coin),
+				amounts: amounts.map((o) => parse(ArgumentSchema, o)),
 			},
 		};
 	},
 	MergeCoins(
-		destination: InferInput<typeof Argument>,
-		sources: InferInput<typeof Argument>[],
+		destination: InferInput<typeof ArgumentSchema>,
+		sources: InferInput<typeof ArgumentSchema>[],
 	): TransactionShape<'MergeCoins'> {
 		return {
 			$kind: 'MergeCoins',
 			MergeCoins: {
-				destination: parse(Argument, destination),
-				sources: sources.map((o) => parse(Argument, o)),
+				destination: parse(ArgumentSchema, destination),
+				sources: sources.map((o) => parse(ArgumentSchema, o)),
 			},
 		};
 	},
@@ -124,7 +124,7 @@ export const Commands = {
 		modules: number[][] | string[];
 		dependencies: string[];
 		package: string;
-		ticket: InferInput<typeof Argument>;
+		ticket: InferInput<typeof ArgumentSchema>;
 	}): TransactionShape<'Upgrade'> {
 		return {
 			$kind: 'Upgrade',
@@ -134,7 +134,7 @@ export const Commands = {
 				),
 				dependencies: dependencies.map((dep) => normalizeSuiObjectId(dep)),
 				package: packageId,
-				ticket: parse(Argument, ticket),
+				ticket: parse(ArgumentSchema, ticket),
 			},
 		};
 	},
@@ -143,13 +143,13 @@ export const Commands = {
 		elements,
 	}: {
 		type?: string;
-		elements: InferInput<typeof Argument>[];
+		elements: InferInput<typeof ArgumentSchema>[];
 	}): TransactionShape<'MakeMoveVec'> {
 		return {
 			$kind: 'MakeMoveVec',
 			MakeMoveVec: {
 				type: type ?? null,
-				elements: elements.map((o) => parse(Argument, o)),
+				elements: elements.map((o) => parse(ArgumentSchema, o)),
 			},
 		};
 	},
@@ -159,7 +159,10 @@ export const Commands = {
 		data = {},
 	}: {
 		name: string;
-		inputs?: Record<string, InferInput<typeof Argument> | InferInput<typeof Argument>[]>;
+		inputs?: Record<
+			string,
+			InferInput<typeof ArgumentSchema> | InferInput<typeof ArgumentSchema>[]
+		>;
 		data?: Record<string, unknown>;
 	}): TransactionShape<'$Intent'> {
 		return {
@@ -169,7 +172,9 @@ export const Commands = {
 				inputs: Object.fromEntries(
 					Object.entries(inputs).map(([key, value]) => [
 						key,
-						Array.isArray(value) ? value.map((o) => parse(Argument, o)) : parse(Argument, value),
+						Array.isArray(value)
+							? value.map((o) => parse(ArgumentSchema, o))
+							: parse(ArgumentSchema, value),
 					]),
 				),
 				data,

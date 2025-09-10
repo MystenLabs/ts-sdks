@@ -82,7 +82,7 @@ export function deriveKey(
 	encryptedShares: Uint8Array[],
 	threshold: number,
 	keyServers: string[],
-): Uint8Array {
+): Uint8Array<ArrayBuffer> {
 	if (threshold <= 0 || threshold > MAX_U8) {
 		throw new Error(`Invalid threshold ${threshold}`);
 	}
@@ -93,5 +93,5 @@ export function deriveKey(
 	hash.update(new Uint8Array([threshold]));
 	encryptedShares.forEach((share) => hash.update(share));
 	keyServers.forEach((keyServer) => hash.update(fromHex(keyServer)));
-	return hash.digest();
+	return hash.digest() as Uint8Array<ArrayBuffer>;
 }

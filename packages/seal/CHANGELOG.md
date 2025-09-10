@@ -1,5 +1,24 @@
 # @mysten/seal
 
+## 0.6.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
+### Patch Changes
+
+- Updated dependencies [3c1741f]
+- Updated dependencies [ea1ac70]
+  - @mysten/sui@1.38.0
+  - @mysten/bcs@1.8.0
+
+## 0.5.2
+
+### Patch Changes
+
+- cb66a10: [seal] fix apiKeyName variable
+
 ## 0.5.1
 
 ### Patch Changes

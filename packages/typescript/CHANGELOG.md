@@ -1,5 +1,18 @@
 # @mysten/sui.js
 
+## 1.38.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
+### Patch Changes
+
+- 3c1741f: Adds `deriveObjectID` helper to calculate `derived_object` addresses.
+- Updated dependencies [ea1ac70]
+  - @mysten/utils@0.2.0
+  - @mysten/bcs@1.8.0
+
 ## 1.37.6
 
 ### Patch Changes

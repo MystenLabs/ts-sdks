@@ -3,7 +3,7 @@
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "Sui TypeScript API",
 	"homepage": "https://sdk.mystenlabs.com",
-	"version": "1.37.6",
+	"version": "1.38.0",
 	"license": "Apache-2.0",
 	"sideEffects": false,
 	"files": [
@@ -134,7 +134,7 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"@0no-co/graphqlsp": "^1.14.0",
+		"@0no-co/graphqlsp": "^1.15.0",
 		"@graphql-codegen/add": "^5.0.3",
 		"@graphql-codegen/cli": "^5.0.7",
 		"@graphql-codegen/typed-document-node": "^5.1.2",
@@ -149,11 +149,11 @@
 		"@types/ws": "^8.18.1",
 		"cross-env": "^7.0.3",
 		"graphql-config": "^5.1.5",
-		"msw": "^2.10.4",
-		"tmp": "^0.2.3",
+		"msw": "^2.11.1",
+		"tmp": "^0.2.5",
 		"ts-retry-promise": "^0.8.1",
-		"typescript": "^5.8.3",
-		"vite": "^7.0.5",
+		"typescript": "^5.9.2",
+		"vite": "^7.1.5",
 		"vite-tsconfig-paths": "^5.1.4",
 		"vitest": "^3.2.4",
 		"wait-on": "^8.0.4",
@@ -168,7 +168,7 @@
 		"@scure/base": "^1.2.6",
 		"@scure/bip32": "^1.7.0",
 		"@scure/bip39": "^1.6.0",
-		"gql.tada": "^1.8.12",
+		"gql.tada": "^1.8.13",
 		"graphql": "^16.11.0",
 		"poseidon-lite": "0.2.1",
 		"valibot": "^0.36.0"
