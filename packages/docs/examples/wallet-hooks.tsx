@@ -316,7 +316,7 @@ function withProviders(
 		return (
 			<QueryClientProvider client={queryClient}>
 				<SuiClientProvider networks={networks}>
-					<WalletProvider {...walletProviderProps}>
+					<WalletProvider cliWallet {...walletProviderProps}>
 						<Component />
 					</WalletProvider>
 				</SuiClientProvider>

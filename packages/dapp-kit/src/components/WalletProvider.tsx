@@ -16,6 +16,7 @@ import { WalletContext } from '../contexts/walletContext.js';
 import { useAutoConnectWallet } from '../hooks/wallet/useAutoConnectWallet.js';
 import type { SlushWalletConfig } from '../hooks/wallet/useSlushWallet.js';
 import { useSlushWallet } from '../hooks/wallet/useSlushWallet.js';
+import { useCliWallet } from '../hooks/wallet/useCliWallet.js';
 import { useUnsafeBurnerWallet } from '../hooks/wallet/useUnsafeBurnerWallet.js';
 import { useWalletPropertiesChanged } from '../hooks/wallet/useWalletPropertiesChanged.js';
 import { useWalletsChanged } from '../hooks/wallet/useWalletsChanged.js';
@@ -35,6 +36,9 @@ export type WalletProviderProps = {
 
 	/** Enables the development-only unsafe burner wallet, which can be useful for testing. */
 	enableUnsafeBurner?: boolean;
+
+	/** Enables the Sui CLI wallet for local development. */
+	cliWallet?: boolean;
 
 	/** Enables automatically reconnecting to the most recently used wallet account upon mounting. */
 	autoConnect?: boolean;
@@ -62,6 +66,7 @@ export function WalletProvider({
 	storage = DEFAULT_STORAGE,
 	storageKey = DEFAULT_STORAGE_KEY,
 	enableUnsafeBurner = false,
+	cliWallet = false,
 	autoConnect = false,
 	slushWallet,
 	theme = lightTheme,
@@ -82,6 +87,7 @@ export function WalletProvider({
 				preferredWallets={preferredWallets}
 				walletFilter={walletFilter}
 				enableUnsafeBurner={enableUnsafeBurner}
+				cliWallet={cliWallet}
 				slushWallet={slushWallet}
 			>
 				{/* TODO: We ideally don't want to inject styles if people aren't using the UI components */}
@@ -94,19 +100,26 @@ export function WalletProvider({
 
 type WalletConnectionManagerProps = Pick<
 	WalletProviderProps,
-	'preferredWallets' | 'walletFilter' | 'enableUnsafeBurner' | 'slushWallet' | 'children'
+	| 'preferredWallets'
+	| 'walletFilter'
+	| 'enableUnsafeBurner'
+	| 'cliWallet'
+	| 'slushWallet'
+	| 'children'
 >;
 
 function WalletConnectionManager({
 	preferredWallets = DEFAULT_PREFERRED_WALLETS,
 	walletFilter = DEFAULT_WALLET_FILTER,
 	enableUnsafeBurner = false,
+	cliWallet,
 	slushWallet,
 	children,
 }: WalletConnectionManagerProps) {
 	useWalletsChanged(preferredWallets, walletFilter);
 	useWalletPropertiesChanged();
 	useSlushWallet(slushWallet);
+	useCliWallet(cliWallet);
 	useUnsafeBurnerWallet(enableUnsafeBurner);
 	useAutoConnectWallet();
 

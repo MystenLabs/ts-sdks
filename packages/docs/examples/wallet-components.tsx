@@ -58,6 +58,7 @@ function withProviders(Component: React.FunctionComponent<object>) {
 			<QueryClientProvider client={queryClient}>
 				<SuiClientProvider networks={networks}>
 					<WalletProvider
+						cliWallet
 						slushWallet={{
 							name: 'dApp Kit Docs',
 						}}
