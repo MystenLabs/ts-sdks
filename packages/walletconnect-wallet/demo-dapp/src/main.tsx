@@ -15,10 +15,16 @@ import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 
 const queryClient = new QueryClient();
 
-registerWalletConnectWallet(
-  "your_project_id",
-  (chain) => new SuiClient({ network: chain, url: getFullnodeUrl(chain) }),
-);
+registerWalletConnectWallet({ 
+  projectId: "your_project_id",
+  getClient: (chain) => new SuiClient({ network: chain, url: getFullnodeUrl(chain) }),
+  metadata: {
+    walletName: "Wallet Connect",
+    icon: "https://walletconnect.org/walletconnect-logo.png",
+    enabled: true,
+    id: "walletconnect",
+  }
+});
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
