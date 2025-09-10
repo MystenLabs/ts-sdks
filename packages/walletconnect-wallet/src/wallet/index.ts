@@ -41,7 +41,7 @@ import type {
 	Experimental_BaseClient,
 	Experimental_SuiClientTypes,
 } from '@mysten/sui/experimental';
-import { Transaction } from '@mysten/sui/dist/cjs/transactions/Transaction';
+import { Transaction } from '@mysten/transactions';
 
 // -- Types --
 type WalletEventsMap = {
