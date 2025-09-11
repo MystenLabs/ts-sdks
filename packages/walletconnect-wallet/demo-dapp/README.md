@@ -1,8 +1,8 @@
 # Demo DApp
 
-This demo dApp provides a basic example of integrating WalletConnect wallet connector
-into your Sui application. It demonstrates key wallet integration features
-including:
+This demo dApp provides a basic example of integrating WalletConnect wallet
+connector into your Sui application. It demonstrates key wallet integration
+features including:
 
 - Setting up the WalletProvider to use WalletConnect compatible wallets
 - Connecting to multiple supported wallet providers
