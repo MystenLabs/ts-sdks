@@ -1,5 +1,11 @@
 # @mysten/kiosk
 
+## 0.13.1
+
+### Patch Changes
+
+- 0fb5271: Fix double-slash in Kiosk imports.
+
 ## 0.13.0
 
 ### Minor Changes
