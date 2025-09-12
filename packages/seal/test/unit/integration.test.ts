@@ -25,6 +25,7 @@ import { KeyCacheKey, SealCompatibleClient } from '../../src/types';
 import { G1Element } from '../../src/bls12381';
 import { createFullId } from '../../src/utils';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { DemType } from '../../src/encrypt';
 
 /**
  * Helper function
@@ -110,7 +111,7 @@ const MOCK_KEY_SERVERS = new Map([
 describe('Integration test', () => {
 	let keypair: Ed25519Keypair;
 	let suiAddress: string;
-	let suiClient: SealCompatibleClient;
+	let suiClient: SuiClient;
 	let TESTNET_PACKAGE_ID: string;
 	let serverObjectId: string;
 	let serverObjectId2: string;
@@ -314,6 +315,124 @@ describe('Integration test', () => {
 			keys,
 		});
 		expect(decryptedData).toEqual(data);
+	});
+
+	it('test on-chain decryption', { timeout: 12000 }, async () => {
+		// Both whitelists contain address 0xb743cafeb5da4914cef0cf0a32400c9adfedc5cdb64209f9e740e56d23065100
+		const whitelistId = '0x5809c296d41e0d6177e8cf956010c1d2387299892bb9122ca4ba4ffd165e05cb';
+		const data = new Uint8Array([1, 2, 3]);
+
+		const client = new SealClient({
+			suiClient,
+			serverConfigs: objectIds,
+			verifyKeyServers: false,
+		});
+
+		const sessionKey = await SessionKey.create({
+			address: suiAddress,
+			packageId: TESTNET_PACKAGE_ID,
+			ttlMin: 10,
+			signer: keypair,
+			suiClient,
+		});
+
+		const { encryptedObject: encryptedBytes } = await client.encrypt({
+			threshold: 2,
+			packageId: TESTNET_PACKAGE_ID,
+			id: whitelistId,
+			data,
+			demType: DemType.Hmac256Ctr,
+		});
+		const encryptedObject = EncryptedObject.parse(encryptedBytes);
+
+		const txBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'allowlist', suiClient, [
+			whitelistId,
+		]);
+		const derivedKeys = await client.getDerivedKeys({
+			id: whitelistId,
+			txBytes,
+			sessionKey,
+			threshold: 2,
+		});
+		expect(derivedKeys).toHaveLength(2);
+
+		// Seal package id on testnet, contains bf_hmac_encryption module
+		const seal_package_id = '0x927a54e9ae803f82ebf480136a9bcff45101ccbe28b13f433c89f5181069d682'
+
+		  // Get public keys from key servers
+  		const publicKeys = await client.getPublicKeys(encryptedObject.services.map((service) => service[0]));
+		const tx = new Transaction();
+		tx.setGasBudget(100000000);
+		const parsedEncryptedObject = tx.moveCall({
+			target: `${seal_package_id}::bf_hmac_encryption::parse_encrypted_object`,
+			arguments: [tx.pure.vector("u8", encryptedBytes)],
+		});
+
+		const allPublicKeys = publicKeys.map((publicKey, i) => tx.moveCall({
+			target: `${seal_package_id}::bf_hmac_encryption::new_public_key`,
+			arguments: [
+			tx.pure.address(encryptedObject.services[i][0]),
+			tx.pure.vector("u8", publicKey.toBytes())
+			],
+		}));
+
+		// We need all public keys for this. TODO: Make mapping from derived keys to corresponding public keys
+		const correspondingPublicKeys = publicKeys.map((publicKey, i) => tx.moveCall({
+			target: `${seal_package_id}::bf_hmac_encryption::new_public_key`,
+			arguments: [
+			    tx.pure.address(encryptedObject.services[i][0]),
+    			tx.pure.vector("u8", publicKey.toBytes())
+    		],
+  		}));
+
+    	// Convert the derived keys to G1 elements
+  		const derivedKeysAsG1Elements = Array.from(derivedKeys).map(([_, value]) =>
+			tx.moveCall({
+				target: `0x2::bls12381::g1_from_bytes`,
+				arguments: [tx.pure.vector("u8", fromHex(value.toString()))],
+			})
+		);
+
+		// Verify the derived keys. This should be cached if decryption for the same ID is done again
+  		const verifiedDerivedKeys = tx.moveCall({
+    		target: `${seal_package_id}::bf_hmac_encryption::verify_derived_keys`,
+    		arguments: [
+				tx.makeMoveVec({ elements: derivedKeysAsG1Elements, type: '0x2::group_ops::Element<0x2::bls12381::G1>' }),
+				tx.pure.address(encryptedObject.packageId),
+				tx.pure.vector("u8", fromHex(encryptedObject.id)),
+			    tx.makeMoveVec({ elements: correspondingPublicKeys, type: `${seal_package_id}::bf_hmac_encryption::PublicKey` }),
+    		],
+  		});
+
+		// Decrypt the data
+		const decrypted = tx.moveCall({
+			target: `${seal_package_id}::bf_hmac_encryption::decrypt`,
+			arguments: [
+			parsedEncryptedObject,
+			verifiedDerivedKeys,
+			tx.makeMoveVec({ elements: allPublicKeys, type: `${seal_package_id}::bf_hmac_encryption::PublicKey` }),
+			],
+		});
+
+		// Do something with the decrypted data -- in this was we just wrap the decrypted object in a `Plaintext` and send it to the user calling decrypt.
+		const plaintext = tx.moveCall({
+			target: `0x09f582a87efae04c0bb9df47c1469619d738e3032b1477127fa59cb450a8abc9::dummy::plaintext`,
+			arguments: [
+			decrypted,
+			],
+		});
+		tx.transferObjects([plaintext], suiAddress);
+
+		const result = await suiClient.signAndExecuteTransaction({
+			signer: keypair,
+			transaction: tx,
+			options: {
+			showEffects: true,
+			showEvents: true,
+			showObjectChanges: true,
+			},
+		});
+		console.log(result);
 	});
 
 	it('test getDerivedKeys with MVR name', { timeout: 12000 }, async () => {
