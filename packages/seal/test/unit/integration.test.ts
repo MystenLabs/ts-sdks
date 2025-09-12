@@ -359,8 +359,6 @@ describe('Integration test', () => {
 		// Seal package id on testnet, contains bf_hmac_encryption module
 		const seal_package_id = '0x927a54e9ae803f82ebf480136a9bcff45101ccbe28b13f433c89f5181069d682'
 
-		  // Get public keys from key servers
-  		const publicKeys = await client.getPublicKeys(encryptedObject.services.map((service) => service[0]));
 		const tx = new Transaction();
 		tx.setGasBudget(100000000);
 		const parsedEncryptedObject = tx.moveCall({
@@ -368,28 +366,26 @@ describe('Integration test', () => {
 			arguments: [tx.pure.vector("u8", encryptedBytes)],
 		});
 
-		const allPublicKeys = publicKeys.map((publicKey, i) => tx.moveCall({
-			target: `${seal_package_id}::bf_hmac_encryption::new_public_key`,
-			arguments: [
-			tx.pure.address(encryptedObject.services[i][0]),
-			tx.pure.vector("u8", publicKey.toBytes())
-			],
-		}));
+		// Get all public keys from key servers ordered as in the encrypted object
+		const publicKeys = await client.getPublicKeys(encryptedObject.services.map(([service, _]) => service));
 
-		// We need all public keys for this. TODO: Make mapping from derived keys to corresponding public keys
-		const correspondingPublicKeys = publicKeys.map((publicKey, i) => tx.moveCall({
-			target: `${seal_package_id}::bf_hmac_encryption::new_public_key`,
-			arguments: [
-			    tx.pure.address(encryptedObject.services[i][0]),
-    			tx.pure.vector("u8", publicKey.toBytes())
-    		],
-  		}));
+		// Find the public keys corresponding to the derived keys
+		const correspondingPublicKeys = derivedKeys.keys().map((objectId) => {
+			const index = encryptedObject.services.findIndex(([s, _]) => s === objectId);
+			return tx.moveCall({
+				target: `${seal_package_id}::bf_hmac_encryption::new_public_key`,
+				arguments: [
+					tx.pure.address(objectId),
+					tx.pure.vector("u8", publicKeys[index].toBytes())
+				],
+			});
+		}).toArray();
 
     	// Convert the derived keys to G1 elements
   		const derivedKeysAsG1Elements = Array.from(derivedKeys).map(([_, value]) =>
 			tx.moveCall({
 				target: `0x2::bls12381::g1_from_bytes`,
-				arguments: [tx.pure.vector("u8", fromHex(value.toString()))],
+				arguments: [ tx.pure.vector("u8", fromHex(value.toString())) ],
 			})
 		);
 
@@ -404,22 +400,29 @@ describe('Integration test', () => {
     		],
   		});
 
+		// Get all public keys from key servers
+		const allPublicKeys = publicKeys.map((publicKey, i) => tx.moveCall({
+			target: `${seal_package_id}::bf_hmac_encryption::new_public_key`,
+			arguments: [
+				tx.pure.address(encryptedObject.services[i][0]),
+				tx.pure.vector("u8", publicKey.toBytes())
+			],
+		}));
+
 		// Decrypt the data
 		const decrypted = tx.moveCall({
 			target: `${seal_package_id}::bf_hmac_encryption::decrypt`,
 			arguments: [
-			parsedEncryptedObject,
-			verifiedDerivedKeys,
-			tx.makeMoveVec({ elements: allPublicKeys, type: `${seal_package_id}::bf_hmac_encryption::PublicKey` }),
+				parsedEncryptedObject,
+				verifiedDerivedKeys,
+				tx.makeMoveVec({ elements: allPublicKeys, type: `${seal_package_id}::bf_hmac_encryption::PublicKey` }),
 			],
 		});
 
 		// Do something with the decrypted data -- in this was we just wrap the decrypted object in a `Plaintext` and send it to the user calling decrypt.
 		const plaintext = tx.moveCall({
 			target: `0x09f582a87efae04c0bb9df47c1469619d738e3032b1477127fa59cb450a8abc9::dummy::plaintext`,
-			arguments: [
-			decrypted,
-			],
+			arguments: [ decrypted ],
 		});
 		tx.transferObjects([plaintext], suiAddress);
 
