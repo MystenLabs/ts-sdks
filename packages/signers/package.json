@@ -18,10 +18,6 @@
 			"import": "./dist/esm/ledger/index.js",
 			"require": "./dist/cjs/ledger/index.js"
 		},
-		"./ledger/*": {
-			"import": "./dist/esm/ledger/*.js",
-			"require": "./dist/cjs/ledger/*.js"
-		},
 		"./webcrypto": {
 			"import": "./dist/esm/webcrypto/index.js",
 			"require": "./dist/cjs/webcrypto/index.js"
