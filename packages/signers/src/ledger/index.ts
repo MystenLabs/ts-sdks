@@ -12,6 +12,9 @@ import { toBase64 } from '@mysten/sui/utils';
 import { bcs } from '@mysten/sui/bcs';
 import { getInputObjects } from './objects.js';
 
+export * from './bcs.js';
+export * from './objects.js';
+
 /**
  * Configuration options for initializing the LedgerSigner.
  */
