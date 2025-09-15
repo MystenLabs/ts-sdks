@@ -351,7 +351,6 @@ export class WalletConnectWallet implements Wallet {
 	updateMetadata(metadata: WalletMetadata) {
 		this.#id = metadata.id;
 		this.#walletName = metadata.walletName;
-		this.#icon = metadata.icon as WalletIcon;
 	}
 }
 type RegisterWalletConnectWallet = {
