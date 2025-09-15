@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { DAppKitProvider, ConnectButton } from '@mysten/dapp-kit-react';
-import { dAppKit } from './dApp-kit';
+import { dAppKit } from './dApp-kit.ts';
 
 export default function ClientOnlyConnectButton() {
 	return (
