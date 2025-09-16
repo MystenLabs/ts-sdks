@@ -35,7 +35,6 @@ deriveObjectID(parentAddress, 'vector<u8>', bcs.vector(bcs.u8()).serialize([0, 1
 deriveObjectID(parentAddress, 'address', bcs.Address.serialize('0x111').toBytes());
 
 // Example 3: On-chain derivation for `0xc0ffee + non-ascii string ("foo")`
-// TODO: finish once connected to the network.
 deriveObjectID(parentAddress, '0x1::string::String', bcs.String.serialize('foo').toBytes());
 ```
 
