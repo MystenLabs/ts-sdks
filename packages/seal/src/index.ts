@@ -15,3 +15,4 @@ export type {
 	FetchKeysOptions,
 	GetDerivedKeysOptions,
 } from './types.js';
+export { DemType } from "./encrypt.js";
