@@ -17,7 +17,6 @@
 		"executors",
 		"plugins",
 		"owned-object-pool",
-		"derived_objects",
 		"migrations"
 	]
 }
