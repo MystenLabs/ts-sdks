@@ -1,5 +1,12 @@
 # @mysten/enoki
 
+## 0.12.1
+
+### Patch Changes
+
+- Updated dependencies [0faabdc]
+  - @mysten/signers@0.5.0
+
 ## 0.12.0
 
 ### Minor Changes
