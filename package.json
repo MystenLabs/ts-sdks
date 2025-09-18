@@ -15,6 +15,7 @@
 		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix",
 		"build": "turbo run build"
 	},
+	"packageManager": "pnpm@10.17.0",
 	"pnpm": {
 		"overrides": {
 			"node-notifier": "10.0.0",
@@ -30,7 +31,7 @@
 		}
 	},
 	"engines": {
-		"pnpm": ">=9.0.0"
+		"pnpm": ">=10.17.0"
 	},
 	"manypkg": {
 		"ignoredRules": [
@@ -64,6 +65,5 @@
 		"tsx": "^4.20.5",
 		"turbo": "^2.5.6",
 		"typescript": "^5.9.2"
-	},
-	"packageManager": "pnpm@9.1.1+sha512.14e915759c11f77eac07faba4d019c193ec8637229e62ec99eefb7cf3c3b75c64447882b7c485142451ee3a6b408059cdfb7b7fa0341b975f12d0f7629c71195"
+	}
 }

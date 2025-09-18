@@ -1,3 +1,11 @@
+autoInstallPeers: false
+publicHoistPattern:
+  - '*storybook*'
+
+# Enforce that packages must be at least 2 days old before they're installed
+# This reduces the risk of supply chain attacks from newly published packages
+minimumReleaseAge: 2880
+
 packages:
   - 'packages/**'
   - '!**/dist/**'
@@ -8,7 +16,6 @@ packages:
   - '!packages/typescript/transactions'
   - '!packages/typescript/cryptography'
   - '!packages/typescript/faucet'
-  - '!packages/typescript/transactions'
   - '!packages/typescript/client'
   - '!packages/typescript/verify'
   - '!packages/typescript/multisig'
