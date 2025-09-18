@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Transaction } from '@mysten/sui/dist/cjs/transactions';
+import type { Transaction } from '@mysten/sui/transactions';
 import type { SuiClient } from '@mysten/sui/client';
 import { SuiMoveObject } from './bcs.js';
 
