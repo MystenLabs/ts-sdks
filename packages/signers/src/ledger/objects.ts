@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Transaction } from '@mysten/sui/dist/cjs/transactions';
-import type { SuiClient } from '@mysten/sui/dist/cjs/client';
+import type { SuiClient } from '@mysten/sui/client';
 import { SuiMoveObject } from './bcs.js';
 
 export const getInputObjects = async (transaction: Transaction, client: SuiClient) => {
