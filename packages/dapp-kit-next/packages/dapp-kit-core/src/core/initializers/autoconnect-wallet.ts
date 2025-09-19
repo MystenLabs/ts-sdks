@@ -8,15 +8,18 @@ import { type UiWallet } from '@wallet-standard/ui';
 import { getWalletUniqueIdentifier } from '../../utils/wallets.js';
 
 import { internalConnectWallet } from '../actions/connect-wallet.js';
+import { Networks } from '../../utils/networks.js';
 
 /**
  * Attempts to connect to a previously authorized wallet account on mount and when new wallets are registered.
  */
 export function autoConnectWallet({
+	networks,
 	stores: { $baseConnection, $compatibleWallets },
 	storage,
 	storageKey,
 }: {
+	networks: Networks;
 	stores: DAppKitStores;
 	storage: StateStorage;
 	storageKey: string;
@@ -31,6 +34,7 @@ export function autoConnectWallet({
 
 				const savedWalletAccount = await task(() => {
 					return getSavedWalletAccount({
+						networks,
 						storage,
 						storageKey,
 						wallets,
@@ -49,10 +53,12 @@ export function autoConnectWallet({
 }
 
 async function getSavedWalletAccount({
+	networks,
 	storage,
 	storageKey,
 	wallets,
 }: {
+	networks: Networks;
 	storage: StateStorage;
 	storageKey: string;
 	wallets: readonly UiWallet[];
@@ -85,7 +91,7 @@ async function getSavedWalletAccount({
 
 	// For wallets that don't pre-populate the accounts array on page load,
 	// we need to silently request authorization and get the account directly.
-	const alreadyAuthorizedAccounts = await internalConnectWallet(targetWallet, [], {
+	const alreadyAuthorizedAccounts = await internalConnectWallet(targetWallet, networks, {
 		silent: true,
 	});
 
