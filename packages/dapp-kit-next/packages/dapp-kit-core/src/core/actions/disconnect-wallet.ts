@@ -18,7 +18,7 @@ export function disconnectWalletCreator({ $baseConnection, $connection }: DAppKi
 	 */
 	return async function disconnectWallet(...standardDisconnectArgs: DisconnectWalletArgs) {
 		return await task(async () => {
-			const { wallet } = $connection.get();
+			const { wallet, account } = $connection.get();
 			if (!wallet) {
 				throw new WalletNotConnectedError('No wallet is connected.');
 			}

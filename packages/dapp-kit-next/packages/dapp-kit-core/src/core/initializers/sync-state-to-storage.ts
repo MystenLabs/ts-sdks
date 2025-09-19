@@ -20,7 +20,9 @@ export function syncStateToStorage({
 	storageKey: string;
 }) {
 	onMount($connection, () => {
-		return $connection.listen((connection) => {
+		return $connection.listen((connection, oldConnection) => {
+			if (!oldConnection || oldConnection.status === connection.status) return;
+
 			if (connection.account) {
 				storage.setItem(storageKey, getSavedAccountStorageKey(connection.account));
 			} else {

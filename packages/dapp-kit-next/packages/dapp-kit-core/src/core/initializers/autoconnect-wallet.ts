@@ -4,8 +4,10 @@
 import { onMount, task } from 'nanostores';
 import type { DAppKitStores } from '../store.js';
 import type { StateStorage } from '../../utils/storage.js';
-import type { UiWallet } from '@wallet-standard/ui';
+import { type UiWallet } from '@wallet-standard/ui';
 import { getWalletUniqueIdentifier } from '../../utils/wallets.js';
+
+import { internalConnectWallet } from '../actions/connect-wallet.js';
 
 /**
  * Attempts to connect to a previously authorized wallet account on mount and when new wallets are registered.
@@ -65,15 +67,29 @@ async function getSavedWalletAccount({
 		return null;
 	}
 
-	for (const wallet of wallets) {
-		if (getWalletUniqueIdentifier(wallet) === savedWalletId) {
-			for (const account of wallet.accounts) {
-				if (account.address === savedAccountAddress) {
-					return account;
-				}
-			}
-		}
+	const targetWallet = wallets.find(
+		(wallet) => getWalletUniqueIdentifier(wallet) === savedWalletId,
+	);
+
+	if (!targetWallet) {
+		return null;
 	}
 
-	return null;
+	const existingAccount = targetWallet.accounts.find(
+		(account) => account.address === savedAccountAddress,
+	);
+
+	if (existingAccount) {
+		return existingAccount;
+	}
+
+	// For wallets that don't pre-populate the accounts array on page load,
+	// we need to silently request authorization and get the account directly.
+	const alreadyAuthorizedAccounts = await internalConnectWallet(targetWallet, [], {
+		silent: true,
+	});
+
+	return (
+		alreadyAuthorizedAccounts.find((account) => account.address === savedAccountAddress) ?? null
+	);
 }

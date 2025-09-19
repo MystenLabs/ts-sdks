@@ -13,8 +13,7 @@ import {
 	getWalletForHandle_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getWalletForHandle,
 } from '@wallet-standard/ui-registry';
 import { WalletAccountNotFoundError, WalletNoAccountsConnectedError } from '../../utils/errors.js';
-import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
-import { getChain } from '../../utils/networks.js';
+import { getChain, Networks } from '../../utils/networks.js';
 
 export type ConnectWalletArgs = {
 	/** The wallet to connect to. */
@@ -29,7 +28,7 @@ export type ConnectWalletArgs = {
 
 export function connectWalletCreator(
 	{ $baseConnection }: DAppKitStores,
-	supportedNetworks: readonly Experimental_SuiClientTypes.Network[],
+	supportedNetworks: Networks,
 ) {
 	/**
 	 * Prompts the specified wallet to connect and authorize new accounts for the current domain.
@@ -46,19 +45,11 @@ export function connectWalletCreator(
 			try {
 				$baseConnection.setKey('status', isAlreadyConnected ? 'reconnecting' : 'connecting');
 
-				const { connect } = getWalletFeature(
+				const suiAccounts = await internalConnectWallet(
 					wallet,
-					StandardConnect,
-				) as StandardConnectFeature[typeof StandardConnect];
-
-				const result = await connect(standardConnectArgs);
-
-				const underlyingWallet = getWalletForHandle(wallet);
-				const supportedChains = supportedNetworks.map(getChain);
-
-				const suiAccounts = result.accounts
-					.filter((account) => account.chains.some((chain) => supportedChains.includes(chain)))
-					.map(getOrCreateUiWalletAccountForStandardWalletAccount.bind(null, underlyingWallet));
+					supportedNetworks,
+					standardConnectArgs,
+				);
 
 				if (!isAlreadyConnected && suiAccounts.length === 0) {
 					throw new WalletNoAccountsConnectedError('No accounts were authorized.');
@@ -82,4 +73,24 @@ export function connectWalletCreator(
 			}
 		});
 	};
+}
+
+export async function internalConnectWallet(
+	wallet: UiWallet,
+	supportedNetworks: Networks,
+	args: StandardConnectInput,
+) {
+	const { connect } = getWalletFeature(
+		wallet,
+		StandardConnect,
+	) as StandardConnectFeature[typeof StandardConnect];
+
+	const result = await connect(args);
+
+	const underlyingWallet = getWalletForHandle(wallet);
+	const supportedChains = supportedNetworks.map(getChain);
+
+	return result.accounts
+		.filter((account) => account.chains.some((chain) => supportedChains.includes(chain)))
+		.map(getOrCreateUiWalletAccountForStandardWalletAccount.bind(null, underlyingWallet));
 }
