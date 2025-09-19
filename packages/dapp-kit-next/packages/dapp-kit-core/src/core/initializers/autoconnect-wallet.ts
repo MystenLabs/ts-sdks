@@ -4,11 +4,11 @@
 import { onMount, task } from 'nanostores';
 import type { DAppKitStores } from '../store.js';
 import type { StateStorage } from '../../utils/storage.js';
-import { type UiWallet } from '@wallet-standard/ui';
+import type { UiWallet } from '@wallet-standard/ui';
 import { getWalletUniqueIdentifier } from '../../utils/wallets.js';
 
 import { internalConnectWallet } from '../actions/connect-wallet.js';
-import { Networks } from '../../utils/networks.js';
+import type { Networks } from '../../utils/networks.js';
 
 /**
  * Attempts to connect to a previously authorized wallet account on mount and when new wallets are registered.

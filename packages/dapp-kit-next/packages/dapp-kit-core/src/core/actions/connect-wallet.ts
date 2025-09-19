@@ -13,7 +13,8 @@ import {
 	getWalletForHandle_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getWalletForHandle,
 } from '@wallet-standard/ui-registry';
 import { WalletAccountNotFoundError, WalletNoAccountsConnectedError } from '../../utils/errors.js';
-import { getChain, Networks } from '../../utils/networks.js';
+import { getChain } from '../../utils/networks.js';
+import type { Networks } from '../../utils/networks.js';
 
 export type ConnectWalletArgs = {
 	/** The wallet to connect to. */
