@@ -1,5 +1,11 @@
 # @mysten/seal
 
+## 0.7.0
+
+### Minor Changes
+
+- 7c623e5: [seal] export DemType
+
 ## 0.6.0
 
 ### Minor Changes
