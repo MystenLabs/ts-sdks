@@ -156,7 +156,7 @@
 		"vite": "^7.1.5",
 		"vite-tsconfig-paths": "^5.1.4",
 		"vitest": "^3.2.4",
-		"wait-on": "^8.0.4",
+		"wait-on": "^9.0.1",
 		"ws": "^8.18.3"
 	},
 	"dependencies": {
