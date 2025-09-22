@@ -204,7 +204,7 @@ export interface BatchGetTransactionsRequest {
 	digests: string[];
 	/**
 	 * Mask specifying which fields to read.
-	 * If no mask is specified, defaults to `object_id,version,digest`.
+	 * If no mask is specified, defaults to `digest`.
 	 *
 	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 2
 	 */
@@ -278,7 +278,7 @@ export interface GetCheckpointRequest {
 		  };
 	/**
 	 * Mask specifying which fields to read.
-	 * If no mask is specified, defaults to `object_id,version,digest`.
+	 * If no mask is specified, defaults to `sequence_number,digest`.
 	 *
 	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 3
 	 */

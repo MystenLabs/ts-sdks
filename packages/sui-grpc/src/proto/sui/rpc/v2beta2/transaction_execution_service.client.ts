@@ -13,6 +13,9 @@ import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
  */
 export interface ITransactionExecutionServiceClient {
 	/**
+	 * TODO move simulate transaction here for GA release
+	 * rpc SimulateTransaction(SimulateTransactionRequest) returns (SimulateTransactionResponse);
+	 *
 	 * @generated from protobuf rpc: ExecuteTransaction
 	 */
 	executeTransaction(
@@ -31,6 +34,9 @@ export class TransactionExecutionServiceClient
 	options = TransactionExecutionService.options;
 	constructor(private readonly _transport: RpcTransport) {}
 	/**
+	 * TODO move simulate transaction here for GA release
+	 * rpc SimulateTransaction(SimulateTransactionRequest) returns (SimulateTransactionResponse);
+	 *
 	 * @generated from protobuf rpc: ExecuteTransaction
 	 */
 	executeTransaction(

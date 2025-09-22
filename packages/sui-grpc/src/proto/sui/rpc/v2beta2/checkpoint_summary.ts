@@ -174,6 +174,12 @@ export enum CheckpointCommitment_CheckpointCommitmentKind {
 	 * @generated from protobuf enum value: ECMH_LIVE_OBJECT_SET = 1;
 	 */
 	ECMH_LIVE_OBJECT_SET = 1,
+	/**
+	 * Digest of the checkpoint artifacts.
+	 *
+	 * @generated from protobuf enum value: CHECKPOINT_ARTIFACTS = 2;
+	 */
+	CHECKPOINT_ARTIFACTS = 2,
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class CheckpointSummary$Type extends MessageType<CheckpointSummary> {
