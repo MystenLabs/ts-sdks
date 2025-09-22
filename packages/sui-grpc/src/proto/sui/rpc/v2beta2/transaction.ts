@@ -713,7 +713,7 @@ export interface ConsensusCommitPrologue {
 	 */
 	subDagIndex?: bigint;
 	/**
-	 * Stores consensus handler determined shared object version assignments.
+	 * Stores consensus handler determined consensus object version assignments.
 	 *
 	 * Present in V3, V4.
 	 *

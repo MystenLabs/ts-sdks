@@ -328,23 +328,23 @@ export enum ExecutionError_ExecutionErrorKind {
 	 */
 	SUI_MOVE_VERIFICATION_TIMEDOUT = 31,
 	/**
-	 * The requested shared object operation is not allowed.
+	 * The requested consensus object operation is not allowed.
 	 *
-	 * @generated from protobuf enum value: SHARED_OBJECT_OPERATION_NOT_ALLOWED = 32;
+	 * @generated from protobuf enum value: CONSENSUS_OBJECT_OPERATION_NOT_ALLOWED = 32;
 	 */
-	SHARED_OBJECT_OPERATION_NOT_ALLOWED = 32,
+	CONSENSUS_OBJECT_OPERATION_NOT_ALLOWED = 32,
 	/**
-	 * Requested shared object has been deleted.
+	 * Requested consensus object has been deleted.
 	 *
 	 * @generated from protobuf enum value: INPUT_OBJECT_DELETED = 33;
 	 */
 	INPUT_OBJECT_DELETED = 33,
 	/**
-	 * Certificate is canceled due to congestion on shared objects.
+	 * Certificate is canceled due to congestion on consensus objects.
 	 *
-	 * @generated from protobuf enum value: EXECUTION_CANCELED_DUE_TO_SHARED_OBJECT_CONGESTION = 34;
+	 * @generated from protobuf enum value: EXECUTION_CANCELED_DUE_TO_CONSENSUS_OBJECT_CONGESTION = 34;
 	 */
-	EXECUTION_CANCELED_DUE_TO_SHARED_OBJECT_CONGESTION = 34,
+	EXECUTION_CANCELED_DUE_TO_CONSENSUS_OBJECT_CONGESTION = 34,
 	/**
 	 * Address is denied for this coin type.
 	 *
@@ -647,12 +647,12 @@ export enum CommandArgumentError_CommandArgumentErrorKind {
 	 */
 	INVALID_OBJECT_BY_MUT_REF = 11,
 	/**
-	 * Shared object operations such as wrapping, freezing, or converting to owned are not
+	 * Consensus object operations such as wrapping, freezing, or converting to owned are not
 	 * allowed.
 	 *
-	 * @generated from protobuf enum value: SHARED_OBJECT_OPERATION_NOT_ALLOWED = 12;
+	 * @generated from protobuf enum value: CONSENSUS_OBJECT_OPERATION_NOT_ALLOWED = 12;
 	 */
-	SHARED_OBJECT_OPERATION_NOT_ALLOWED = 12,
+	CONSENSUS_OBJECT_OPERATION_NOT_ALLOWED = 12,
 	/**
 	 * Invalid argument arity. Expected a single argument but found a result that expanded to
 	 * multiple arguments.

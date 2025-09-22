@@ -101,6 +101,10 @@ export abstract class Experimental_CoreClient
 		options: Experimental_SuiClientTypes.VerifyZkLoginSignatureOptions,
 	): Promise<Experimental_SuiClientTypes.ZkLoginVerifyResponse>;
 
+	abstract getMoveFunction(
+		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
+	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse>;
+
 	async getDynamicField(
 		options: Experimental_SuiClientTypes.GetDynamicFieldOptions,
 	): Promise<Experimental_SuiClientTypes.GetDynamicFieldResponse> {

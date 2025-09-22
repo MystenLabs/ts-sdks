@@ -1,0 +1,20 @@
+query getMoveFunction($package: SuiAddress!, $module: String!, $function: String!) {
+	package(address: $package) {
+		module(name: $module) {
+			function(name: $function) {
+				name
+				visibility
+				isEntry
+				typeParameters {
+					constraints
+				}
+				parameters {
+					signature
+				}
+				return {
+					signature
+				}
+			}
+		}
+	}
+}
