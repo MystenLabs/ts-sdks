@@ -58,8 +58,12 @@ export interface GetCoinInfoResponse {
 	treasury?: CoinTreasury;
 	/**
 	 * If this coin type is a regulated coin, this field will be
-	 * populated with information about its `0x2::coin::RegulatedCoinMetadata`
-	 * object.
+	 * populated with information either from its Currency object
+	 * in the CoinRegistry, or from its `0x2::coin::RegulatedCoinMetadata`
+	 * object for coins that have not been migrated to the CoinRegistry
+	 *
+	 * If this coin is not known to be regulated, only the
+	 * coin_regulated_state field will be populated.
 	 *
 	 * @generated from protobuf field: optional sui.rpc.v2beta2.RegulatedCoinMetadata regulated_metadata = 4
 	 */
@@ -73,7 +77,7 @@ export interface GetCoinInfoResponse {
 export interface CoinMetadata {
 	/**
 	 * ObjectId of the `0x2::coin::CoinMetadata` object or
-	 * 0x2::sui::coin_registry::CoinData object (when registered with CoinRegistry).
+	 * 0x2::sui::coin_registry::Currency object (when registered with CoinRegistry).
 	 *
 	 * @generated from protobuf field: optional string id = 1
 	 */
@@ -116,6 +120,44 @@ export interface CoinMetadata {
 	 * @generated from protobuf field: optional string metadata_cap_id = 7
 	 */
 	metadataCapId?: string;
+	/**
+	 * State of the MetadataCap for this coin type.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.CoinMetadata.MetadataCapState metadata_cap_state = 8
+	 */
+	metadataCapState?: CoinMetadata_MetadataCapState;
+}
+/**
+ * Information about the state of the coin's MetadataCap
+ *
+ * @generated from protobuf enum sui.rpc.v2beta2.CoinMetadata.MetadataCapState
+ */
+export enum CoinMetadata_MetadataCapState {
+	/**
+	 * Indicates the state of the MetadataCap is unknown.
+	 * Set when the coin has not been migrated to the CoinRegistry.
+	 *
+	 * @generated from protobuf enum value: METADATA_CAP_STATE_UNKNOWN = 0;
+	 */
+	METADATA_CAP_STATE_UNKNOWN = 0,
+	/**
+	 * Indicates the MetadataCap has been claimed.
+	 *
+	 * @generated from protobuf enum value: CLAIMED = 1;
+	 */
+	CLAIMED = 1,
+	/**
+	 * Indicates the MetadataCap has not been claimed.
+	 *
+	 * @generated from protobuf enum value: UNCLAIMED = 2;
+	 */
+	UNCLAIMED = 2,
+	/**
+	 * Indicates the MetadataCap has been deleted.
+	 *
+	 * @generated from protobuf enum value: DELETED = 3;
+	 */
+	DELETED = 3,
 }
 /**
  * Information about a coin type's `0x2::coin::TreasuryCap` and its total available supply
@@ -160,6 +202,12 @@ export enum CoinTreasury_SupplyState {
 	 * @generated from protobuf enum value: FIXED = 1;
 	 */
 	FIXED = 1,
+	/**
+	 * Supply can only decrease (burning allowed, minting not allowed)
+	 *
+	 * @generated from protobuf enum value: BURN_ONLY = 2;
+	 */
+	BURN_ONLY = 2,
 }
 /**
  * Information about a regulated coin, which indicates that it makes use of the transfer deny list.
@@ -169,6 +217,7 @@ export enum CoinTreasury_SupplyState {
 export interface RegulatedCoinMetadata {
 	/**
 	 * ObjectId of the `0x2::coin::RegulatedCoinMetadata` object.
+	 * Only present for coins that have not been migrated to CoinRegistry.
 	 *
 	 * @generated from protobuf field: optional string id = 1
 	 */
@@ -185,6 +234,52 @@ export interface RegulatedCoinMetadata {
 	 * @generated from protobuf field: optional string deny_cap_object = 3
 	 */
 	denyCapObject?: string;
+	/**
+	 * Whether the coin can be globally paused
+	 *
+	 * @generated from protobuf field: optional bool allow_global_pause = 4
+	 */
+	allowGlobalPause?: boolean;
+	/**
+	 * Variant of the regulated coin metadata
+	 *
+	 * @generated from protobuf field: optional uint32 variant = 5
+	 */
+	variant?: number;
+	/**
+	 * Indicates the coin's regulated state.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.RegulatedCoinMetadata.CoinRegulatedState coin_regulated_state = 6
+	 */
+	coinRegulatedState?: RegulatedCoinMetadata_CoinRegulatedState;
+}
+/**
+ * Indicates the state of the regulation of the coin.
+ *
+ * @generated from protobuf enum sui.rpc.v2beta2.RegulatedCoinMetadata.CoinRegulatedState
+ */
+export enum RegulatedCoinMetadata_CoinRegulatedState {
+	/**
+	 * Indicates the regulation state of the coin is unknown.
+	 * This is set when a coin has not been migrated to the
+	 * coin registry and has no `0x2::coin::RegulatedCoinMetadata`
+	 * object.
+	 *
+	 * @generated from protobuf enum value: COIN_REGULATED_STATE_UNKNOWN = 0;
+	 */
+	COIN_REGULATED_STATE_UNKNOWN = 0,
+	/**
+	 * Indicates a coin is regulated. RegulatedCoinMetadata will be populated.
+	 *
+	 * @generated from protobuf enum value: REGULATED = 1;
+	 */
+	REGULATED = 1,
+	/**
+	 * Indicates a coin is unregulated.
+	 *
+	 * @generated from protobuf enum value: UNREGULATED = 2;
+	 */
+	UNREGULATED = 2,
 }
 /**
  * Request message for `LiveDataService.GetBalance`.
@@ -321,6 +416,9 @@ export interface ListDynamicFieldsRequest {
 	 */
 	pageToken?: Uint8Array;
 	/**
+	 * Mask specifying which fields to read.
+	 * If no mask is specified, defaults to `parent,field_id`.
+	 *
 	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 4
 	 */
 	readMask?: FieldMask;
@@ -430,6 +528,8 @@ export interface SimulateTransactionRequest {
 	 */
 	transaction?: Transaction;
 	/**
+	 * Mask specifying which fields to read.
+	 *
 	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 2
 	 */
 	readMask?: FieldMask;
@@ -540,6 +640,9 @@ export interface ListOwnedObjectsRequest {
 	 */
 	pageToken?: Uint8Array;
 	/**
+	 * Mask specifying which fields to read.
+	 * If no mask is specified, defaults to `object_id,version,object_type`.
+	 *
 	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 4
 	 */
 	readMask?: FieldMask;
@@ -758,6 +861,13 @@ class CoinMetadata$Type extends MessageType<CoinMetadata> {
 			{ no: 5, name: 'description', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 			{ no: 6, name: 'icon_url', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 			{ no: 7, name: 'metadata_cap_id', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{
+				no: 8,
+				name: 'metadata_cap_state',
+				kind: 'enum',
+				opt: true,
+				T: () => ['sui.rpc.v2beta2.CoinMetadata.MetadataCapState', CoinMetadata_MetadataCapState],
+			},
 		]);
 	}
 	create(value?: PartialMessage<CoinMetadata>): CoinMetadata {
@@ -796,6 +906,9 @@ class CoinMetadata$Type extends MessageType<CoinMetadata> {
 					break;
 				case /* optional string metadata_cap_id */ 7:
 					message.metadataCapId = reader.string();
+					break;
+				case /* optional sui.rpc.v2beta2.CoinMetadata.MetadataCapState metadata_cap_state */ 8:
+					message.metadataCapState = reader.int32();
 					break;
 				default:
 					let u = options.readUnknownField;
@@ -839,6 +952,9 @@ class CoinMetadata$Type extends MessageType<CoinMetadata> {
 		/* optional string metadata_cap_id = 7; */
 		if (message.metadataCapId !== undefined)
 			writer.tag(7, WireType.LengthDelimited).string(message.metadataCapId);
+		/* optional sui.rpc.v2beta2.CoinMetadata.MetadataCapState metadata_cap_state = 8; */
+		if (message.metadataCapState !== undefined)
+			writer.tag(8, WireType.Varint).int32(message.metadataCapState);
 		let u = options.writeUnknownFields;
 		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
 		return writer;
@@ -949,6 +1065,18 @@ class RegulatedCoinMetadata$Type extends MessageType<RegulatedCoinMetadata> {
 				T: 9 /*ScalarType.STRING*/,
 			},
 			{ no: 3, name: 'deny_cap_object', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 4, name: 'allow_global_pause', kind: 'scalar', opt: true, T: 8 /*ScalarType.BOOL*/ },
+			{ no: 5, name: 'variant', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
+			{
+				no: 6,
+				name: 'coin_regulated_state',
+				kind: 'enum',
+				opt: true,
+				T: () => [
+					'sui.rpc.v2beta2.RegulatedCoinMetadata.CoinRegulatedState',
+					RegulatedCoinMetadata_CoinRegulatedState,
+				],
+			},
 		]);
 	}
 	create(value?: PartialMessage<RegulatedCoinMetadata>): RegulatedCoinMetadata {
@@ -975,6 +1103,15 @@ class RegulatedCoinMetadata$Type extends MessageType<RegulatedCoinMetadata> {
 					break;
 				case /* optional string deny_cap_object */ 3:
 					message.denyCapObject = reader.string();
+					break;
+				case /* optional bool allow_global_pause */ 4:
+					message.allowGlobalPause = reader.bool();
+					break;
+				case /* optional uint32 variant */ 5:
+					message.variant = reader.uint32();
+					break;
+				case /* optional sui.rpc.v2beta2.RegulatedCoinMetadata.CoinRegulatedState coin_regulated_state */ 6:
+					message.coinRegulatedState = reader.int32();
 					break;
 				default:
 					let u = options.readUnknownField;
@@ -1008,6 +1145,14 @@ class RegulatedCoinMetadata$Type extends MessageType<RegulatedCoinMetadata> {
 		/* optional string deny_cap_object = 3; */
 		if (message.denyCapObject !== undefined)
 			writer.tag(3, WireType.LengthDelimited).string(message.denyCapObject);
+		/* optional bool allow_global_pause = 4; */
+		if (message.allowGlobalPause !== undefined)
+			writer.tag(4, WireType.Varint).bool(message.allowGlobalPause);
+		/* optional uint32 variant = 5; */
+		if (message.variant !== undefined) writer.tag(5, WireType.Varint).uint32(message.variant);
+		/* optional sui.rpc.v2beta2.RegulatedCoinMetadata.CoinRegulatedState coin_regulated_state = 6; */
+		if (message.coinRegulatedState !== undefined)
+			writer.tag(6, WireType.Varint).int32(message.coinRegulatedState);
 		let u = options.writeUnknownFields;
 		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
 		return writer;

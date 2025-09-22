@@ -36,10 +36,10 @@ fragment TRANSACTION_FIELDS on TransactionBlock {
 		epoch {
 			epochId
 		}
-		unchangedSharedObjects {
+		unchangedConsensusObjects {
 			nodes {
 				__typename
-				... on SharedObjectRead {
+				... on ConsensusObjectRead {
 					object {
 						asMoveObject {
 							address

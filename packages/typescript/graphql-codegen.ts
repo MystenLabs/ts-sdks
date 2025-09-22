@@ -17,6 +17,21 @@ const config: CodegenConfig = {
 	ignoreNoDocuments: true,
 	generates: {
 		'src/graphql/generated/queries.ts': {
+			config: {
+				scalars: {
+					BigInt: 'string',
+					Base64: 'string',
+					DateTime: 'string',
+					ObjectID: 'string',
+					Address: 'string',
+					JSON: 'unknown',
+					UInt53: 'number',
+					MoveData: '../types.js#MoveData',
+					MoveTypeLayout: '../types.js#MoveTypeLayout',
+					MoveTypeSignature: '../types.js#MoveTypeSignature',
+					OpenMoveTypeSignature: '../types.js#OpenMoveTypeSignature',
+				},
+			},
 			plugins: [
 				{
 					add: {

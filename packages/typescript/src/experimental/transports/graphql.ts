@@ -16,6 +16,7 @@ import {
 	GetBalanceDocument,
 	GetCoinsDocument,
 	GetDynamicFieldsDocument,
+	GetMoveFunctionDocument,
 	GetOwnedObjectsDocument,
 	GetReferenceGasPriceDocument,
 	GetTransactionBlockDocument,
@@ -29,6 +30,7 @@ import { fromBase64, toBase64 } from '@mysten/utils';
 import { normalizeStructTag, normalizeSuiAddress } from '../../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../../utils/dynamic-fields.js';
 import { parseTransactionBcs, parseTransactionEffectsBcs } from './utils.js';
+import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from '../../graphql/types.js';
 
 export class GraphQLTransport extends Experimental_CoreClient {
 	#graphqlClient: SuiGraphQLClient;
@@ -173,7 +175,7 @@ export class GraphQLTransport extends Experimental_CoreClient {
 				digest: coin.digest!,
 				owner: mapOwner(coin.owner!),
 				type: coin.contents?.type?.repr!,
-				balance: coin.coinBalance,
+				balance: coin.coinBalance!,
 				content: Promise.resolve(
 					coin.contents?.bcs ? fromBase64(coin.contents.bcs) : new Uint8Array(),
 				),
@@ -195,7 +197,7 @@ export class GraphQLTransport extends Experimental_CoreClient {
 		return {
 			balance: {
 				coinType: result.coinType.repr,
-				balance: result.totalBalance,
+				balance: result.totalBalance!,
 			},
 		};
 	}
@@ -215,7 +217,7 @@ export class GraphQLTransport extends Experimental_CoreClient {
 			hasNextPage: balances.pageInfo.hasNextPage,
 			balances: balances.nodes.map((balance) => ({
 				coinType: balance.coinType.repr,
-				balance: balance.totalBalance,
+				balance: balance.totalBalance!,
 			})),
 		};
 	}
@@ -284,7 +286,7 @@ export class GraphQLTransport extends Experimental_CoreClient {
 		);
 
 		return {
-			referenceGasPrice: result.referenceGasPrice,
+			referenceGasPrice: result,
 		};
 	}
 
@@ -309,7 +311,7 @@ export class GraphQLTransport extends Experimental_CoreClient {
 					id: deriveDynamicFieldID(
 						options.parentId,
 						dynamicField.name?.type.repr!,
-						dynamicField.name?.bcs!,
+						fromBase64(dynamicField.name?.bcs!),
 					),
 					type: normalizeStructTag(
 						dynamicField.value?.__typename === 'MoveObject'
@@ -378,6 +380,68 @@ export class GraphQLTransport extends Experimental_CoreClient {
 		};
 	}
 
+	async getMoveFunction(
+		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
+	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse> {
+		const moveFunction = await this.#graphqlQuery(
+			{
+				query: GetMoveFunctionDocument,
+				variables: {
+					package: options.packageId,
+					module: options.moduleName,
+					function: options.name,
+				},
+			},
+			(result) => result.package?.module?.function,
+		);
+
+		let visibility: 'public' | 'private' | 'friend' | 'unknown' = 'unknown';
+
+		switch (moveFunction.visibility) {
+			case 'PUBLIC':
+				visibility = 'public';
+				break;
+			case 'PRIVATE':
+				visibility = 'private';
+				break;
+			case 'FRIEND':
+				visibility = 'friend';
+				break;
+		}
+
+		return {
+			function: {
+				name: moveFunction.name,
+				visibility,
+				isEntry: moveFunction.isEntry ?? false,
+				typeParameters:
+					moveFunction.typeParameters?.map(({ constraints }) => ({
+						isPhantom: false,
+						constraints:
+							constraints.map((constraint) => {
+								switch (constraint) {
+									case 'COPY':
+										return 'copy';
+									case 'DROP':
+										return 'drop';
+									case 'STORE':
+										return 'store';
+									case 'KEY':
+										return 'key';
+									default:
+										return 'unknown';
+								}
+							}) ?? [],
+					})) ?? [],
+				parameters:
+					moveFunction.parameters?.map((param) => parseNormalizedSuiMoveType(param.signature)) ??
+					[],
+				returns:
+					moveFunction.return?.map(({ signature }) => parseNormalizedSuiMoveType(signature)) ?? [],
+			},
+		};
+	}
+
 	resolveTransactionPlugin(): never {
 		throw new Error('GraphQL client does not support transaction resolution yet');
 	}
@@ -418,7 +482,7 @@ function mapOwner(owner: Object_Owner_FieldsFragment): Experimental_SuiClientTyp
 				$kind: 'ConsensusAddressOwner',
 				ConsensusAddressOwner: {
 					owner: owner.owner?.address,
-					startVersion: owner.startVersion,
+					startVersion: String(owner.startVersion),
 				},
 			};
 		case 'Immutable':
@@ -426,7 +490,10 @@ function mapOwner(owner: Object_Owner_FieldsFragment): Experimental_SuiClientTyp
 		case 'Parent':
 			return { $kind: 'ObjectOwner', ObjectOwner: owner.parent?.address };
 		case 'Shared':
-			return { $kind: 'Shared', Shared: owner.initialSharedVersion };
+			return {
+				$kind: 'Shared',
+				Shared: { initialSharedVersion: String(owner.initialSharedVersion) },
+			};
 	}
 }
 
@@ -435,8 +502,8 @@ function parseTransaction(
 ): Experimental_SuiClientTypes.TransactionResponse {
 	const objectTypes: Record<string, string> = {};
 
-	transaction.effects?.unchangedSharedObjects.nodes.forEach((node) => {
-		if (node.__typename === 'SharedObjectRead') {
+	transaction.effects?.unchangedConsensusObjects.nodes.forEach((node) => {
+		if (node.__typename === 'ConsensusObjectRead') {
 			const type = node.object?.asMoveObject?.contents?.type.repr;
 			const address = node.object?.asMoveObject?.address;
 
@@ -459,10 +526,80 @@ function parseTransaction(
 
 	return {
 		digest: transaction.digest!,
-		effects: parseTransactionEffectsBcs(new Uint8Array(transaction.effects?.bcs!)),
-		epoch: transaction.effects?.epoch?.epochId ?? null,
+		effects: parseTransactionEffectsBcs(fromBase64(transaction.effects?.bcs!)),
+		epoch: transaction.effects?.epoch?.epochId?.toString() ?? null,
 		objectTypes: Promise.resolve(objectTypes),
-		transaction: parseTransactionBcs(transaction.bcs!),
+		transaction: parseTransactionBcs(fromBase64(transaction.bcs!)),
 		signatures: transaction.signatures!,
 	};
+}
+
+function parseNormalizedSuiMoveType(
+	type: OpenMoveTypeSignature,
+): Experimental_SuiClientTypes.OpenSignature {
+	let reference: 'mutable' | 'immutable' | null = null;
+
+	if (type.ref === '&') {
+		reference = 'immutable';
+	} else if (type.ref === '&mut') {
+		reference = 'mutable';
+	}
+
+	return {
+		reference,
+		body: parseNormalizedSuiMoveTypeBody(type.body),
+	};
+}
+
+function parseNormalizedSuiMoveTypeBody(
+	type: OpenMoveTypeSignatureBody,
+): Experimental_SuiClientTypes.OpenSignatureBody {
+	switch (type) {
+		case 'address':
+			return { $kind: 'address' };
+		case 'bool':
+			return { $kind: 'bool' };
+		case 'u8':
+			return { $kind: 'u8' };
+		case 'u16':
+			return { $kind: 'u16' };
+		case 'u32':
+			return { $kind: 'u32' };
+		case 'u64':
+			return { $kind: 'u64' };
+		case 'u128':
+			return { $kind: 'u128' };
+		case 'u256':
+			return { $kind: 'u256' };
+	}
+
+	if (typeof type === 'string') {
+		throw new Error(`Unknown type: ${type}`);
+	}
+
+	if ('vector' in type) {
+		return {
+			$kind: 'vector',
+			vector: parseNormalizedSuiMoveTypeBody(type.vector),
+		};
+	}
+
+	if ('datatype' in type) {
+		return {
+			$kind: 'datatype',
+			datatype: {
+				typeName: `${normalizeSuiAddress(type.datatype.package)}::${type.datatype.module}::${type.datatype.type}`,
+				typeParameters: type.datatype.typeParameters.map((t) => parseNormalizedSuiMoveTypeBody(t)),
+			},
+		};
+	}
+
+	if ('typeParameter' in type) {
+		return {
+			$kind: 'typeParameter',
+			index: type.typeParameter,
+		};
+	}
+
+	throw new Error(`Unknown type: ${JSON.stringify(type)}`);
 }

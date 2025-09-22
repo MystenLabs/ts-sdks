@@ -339,6 +339,132 @@ export namespace Experimental_SuiClientTypes {
 		>;
 	}
 
+	/** Move package methods */
+
+	export interface TransportMethods {
+		getMoveFunction: (options: GetMoveFunctionOptions) => Promise<GetMoveFunctionResponse>;
+	}
+
+	export interface GetMovePackageOptions extends CoreClientMethodOptions {
+		packageId: string;
+	}
+
+	export interface GetMovePackageResponse {
+		package: PackageResponse;
+	}
+
+	export interface PackageResponse {
+		storageId: string;
+		originalId: string;
+		version: string;
+		modules: ModuleResponse[];
+	}
+
+	export interface ModuleResponse {
+		name: string;
+		datatypes: DatatypeResponse[];
+		functions: FunctionResponse[];
+	}
+
+	export type DatatypeResponse =
+		| {
+				$kind: 'struct';
+				typeName: string;
+				definingId: string;
+				moduleName: string;
+				name: string;
+				abilities: Ability[];
+				typeParameters: TypeParameter[];
+				fields: FieldDescriptor[];
+		  }
+		| {
+				$kind: 'enum';
+				typeName: string;
+				definingId: string;
+				moduleName: string;
+				name: string;
+				abilities: Ability[];
+				typeParameters: TypeParameter[];
+				variants: VariantDescriptor[];
+		  };
+
+	export type Ability = 'copy' | 'drop' | 'store' | 'key' | 'unknown';
+	export type DatatypeKind = 'struct' | 'enum' | 'unknown';
+
+	export interface TypeParameter {
+		constraints: Ability[];
+		isPhantom: boolean;
+	}
+
+	export interface FieldDescriptor {
+		name: string;
+		position: number;
+		type: OpenSignatureBody;
+	}
+
+	export interface VariantDescriptor {
+		name: string;
+		position: number;
+		fields: FieldDescriptor[];
+	}
+
+	export interface GetMoveFunctionOptions extends CoreClientMethodOptions {
+		packageId: string;
+		moduleName: string;
+		name: string;
+	}
+
+	export interface GetMoveFunctionResponse {
+		function: FunctionResponse;
+	}
+
+	export interface GetMoveDatatypeOptions extends CoreClientMethodOptions {
+		packageId: string;
+		moduleName: string;
+		name: string;
+	}
+
+	export interface GetMoveDatatypeResponse {
+		datatype: DatatypeResponse;
+	}
+
+	export type Visibility = 'public' | 'friend' | 'private' | 'unknown';
+
+	export interface FunctionResponse {
+		name: string;
+		visibility: Visibility;
+		isEntry: boolean;
+		typeParameters: TypeParameter[];
+		parameters: OpenSignature[];
+		returns: OpenSignature[];
+	}
+
+	export type ReferenceType = 'mutable' | 'immutable' | 'unknown';
+	export type OpenSignature = {
+		reference: ReferenceType | null;
+		body: OpenSignatureBody;
+	};
+
+	export type OpenSignatureBody =
+		| {
+				$kind: 'u8' | 'u16' | 'u32' | 'u64' | 'u128' | 'u256' | 'bool' | 'address' | 'unknown';
+		  }
+		| {
+				$kind: 'vector';
+				vector: OpenSignatureBody;
+		  }
+		| {
+				$kind: 'datatype';
+				datatype: {
+					typeName: string;
+					typeParameters: OpenSignatureBody[];
+				};
+		  }
+		| {
+				$kind: 'typeParameter';
+				index: number;
+		  };
+
 	/** ObjectOwner types */
 
 	export interface AddressOwner {
@@ -371,12 +497,17 @@ export namespace Experimental_SuiClientTypes {
 		};
 	}
 
+	export interface UnknownOwner {
+		$kind: 'Unknown';
+	}
+
 	export type ObjectOwner =
 		| AddressOwner
 		| ParentOwner
 		| SharedOwner
 		| ImmutableOwner
-		| ConsensusAddressOwner;
+		| ConsensusAddressOwner
+		| UnknownOwner;
 
 	/** Effects */
 
@@ -392,7 +523,7 @@ export namespace Experimental_SuiClientTypes {
 		dependencies: string[];
 		lamportVersion: string | null;
 		changedObjects: ChangedObject[];
-		unchangedSharedObjects: UnchangedSharedObject[];
+		unchangedConsensusObjects: UnchangedConsensusObject[];
 		auxiliaryDataDigest: string | null;
 	}
 
@@ -427,7 +558,7 @@ export namespace Experimental_SuiClientTypes {
 				error: string;
 		  };
 
-	export interface UnchangedSharedObject {
+	export interface UnchangedConsensusObject {
 		kind:
 			| 'Unknown'
 			| 'ReadOnlyRoot'
