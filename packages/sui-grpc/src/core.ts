@@ -162,7 +162,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		const { response } = await this.#client.ledgerService.getTransaction({
 			digest: options.digest,
 			readMask: {
-				paths: ['digest', 'transaction', 'effects', 'signatures'],
+				paths: ['digest', 'transaction', 'effects', 'signatures', 'balance_changes'],
 			},
 		});
 
@@ -193,6 +193,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 					'transaction.transaction',
 					'transaction.effects',
 					'transaction.signatures',
+					'transaction.balance_changes',
 				],
 			},
 		});
@@ -215,6 +216,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 					'transaction.transaction',
 					'transaction.effects',
 					'transaction.signatures',
+					'transaction.balance_changes',
 				],
 			},
 		});
@@ -305,6 +307,8 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 
 		return {
 			function: {
+				packageId: options.packageId,
+				moduleName: options.moduleName,
 				name: response.function?.name!,
 				visibility,
 				isEntry: response.function?.isEntry ?? false,
@@ -587,6 +591,12 @@ function parseTransaction(
 			bcs: bytes,
 		},
 		signatures: parsedTx.txSignatures,
+		balanceChanges:
+			transaction.balanceChanges?.map((change) => ({
+				coinType: change.coinType!,
+				address: change.address!,
+				amount: change.amount!,
+			})) ?? [],
 	};
 }
 

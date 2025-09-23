@@ -79,5 +79,19 @@ fragment TRANSACTION_FIELDS on TransactionBlock {
 				}
 			}
 		}
+		balanceChanges(first: 50) {
+			pageInfo {
+				hasNextPage
+			}
+			nodes {
+				owner {
+					address
+				}
+				coinType {
+					repr
+				}
+				amount
+			}
+		}
 	}
 }

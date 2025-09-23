@@ -411,6 +411,8 @@ export class GraphQLTransport extends Experimental_CoreClient {
 
 		return {
 			function: {
+				packageId: normalizeSuiAddress(options.packageId),
+				moduleName: options.moduleName,
 				name: moveFunction.name,
 				visibility,
 				isEntry: moveFunction.isEntry ?? false,
@@ -524,6 +526,10 @@ function parseTransaction(
 		}
 	});
 
+	if (transaction.effects?.balanceChanges.pageInfo.hasNextPage) {
+		throw new Error('Pagination for balance changes is not supported');
+	}
+
 	return {
 		digest: transaction.digest!,
 		effects: parseTransactionEffectsBcs(fromBase64(transaction.effects?.bcs!)),
@@ -531,6 +537,13 @@ function parseTransaction(
 		objectTypes: Promise.resolve(objectTypes),
 		transaction: parseTransactionBcs(fromBase64(transaction.bcs!)),
 		signatures: transaction.signatures!,
+		balanceChanges:
+			transaction.effects?.balanceChanges.nodes.map((change) => ({
+				coinType: change?.coinType?.repr!,
+				address: change.owner?.address!,
+				amount: change.amount!,
+			})) ?? [],
+		// events: transaction.events?.pageInfo.hasNextPage
 	};
 }
 

@@ -208,8 +208,15 @@ export namespace Experimental_SuiClientTypes {
 		effects: TransactionEffects;
 		objectTypes: PromiseLike<Record<string, string>>;
 		transaction: TransactionData;
+		balanceChanges: BalanceChange[];
 		// TODO: add events
 		// events?: Uint8Array;
+	}
+
+	export interface BalanceChange {
+		coinType: string;
+		address: string;
+		amount: string;
 	}
 
 	export interface TransactionData extends SerializedTransactionDataV2 {
@@ -431,6 +438,8 @@ export namespace Experimental_SuiClientTypes {
 	export type Visibility = 'public' | 'friend' | 'private' | 'unknown';
 
 	export interface FunctionResponse {
+		packageId: string;
+		moduleName: string;
 		name: string;
 		visibility: Visibility;
 		isEntry: boolean;
