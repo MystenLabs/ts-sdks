@@ -4,7 +4,7 @@
 import { createDAppKit } from '@mysten/dapp-kit-react';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { WalrusClient } from '@mysten/walrus';
-import { getNetworkConfig } from './constants/networks.js';
+import { getNetworkConfig } from './app/constants/networks.js';
 
 export const dAppKit = createDAppKit({
 	enableBurnerWallet: import.meta.env.DEV,

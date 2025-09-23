@@ -8,6 +8,9 @@
 		"build": "tsc && vite build",
 		"preview": "vite preview",
 		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
+		"analyze-unused": "bun run scripts/analyze-unused-code.ts",
+		"cleanup-unused": "bun run scripts/analyze-unused-code.ts --cleanup",
+		"cleanup-unused-files": "bun run scripts/analyze-unused-code.ts --files-only",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"eslint:check": "eslint --max-warnings=0 .",
@@ -27,9 +30,11 @@
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:*",
+		"@tailwindcss/vite": "^4.1.13",
 		"@types/react": "^18.3.3",
 		"@types/react-dom": "^18.3.0",
 		"@vitejs/plugin-react-swc": "^3.11.0",
+		"tailwindcss": "^4.1.11",
 		"typescript": "^5.9.2",
 		"vite": "^7.1.5"
 	}

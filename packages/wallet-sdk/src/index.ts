@@ -1,33 +1,25 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+export * from './transaction-analyzer/index.js';
+
+export { autoApproval, resolveAutoApproval, AUTO_APPROVAL_INTENT } from './intents/AutoApproval.js';
+
+// Auto-approval system exports
+export { AutoApprovalManager } from './auto-approvals/manager.js';
+export { TransactionAnalyzer } from './auto-approvals/transaction-analyzer.js';
 export {
-	lintTransaction,
-	extractCoinFlows,
-	CoinStruct,
-	type TransactionLintResult,
-	type CoinFlow,
-	type CoinFlows,
-} from './transaction-linter.js';
+	type AutoApprovalPolicy,
+	type AutoApprovalRuleSet,
+	type AutoApprovalObjectTypeRule,
+	type CoinBalanceRule,
+	type AllBalancesRule,
+	type AutoApprovalPolicySettings,
+	type ObjectPermissions,
+} from './auto-approvals/types/index.js';
 
 export {
-	autoApprovalPolicy,
-	resolveAutoApprovalPolicy,
-	AUTO_APPROVAL_POLICY_INTENT,
-	type PolicyCallback,
-} from './intents/AutoApprovalPolicy.js';
-
-export { PolicyManager } from './policy/PolicyManager.js';
-
-export {
-	type AutoApprovalPolicyData,
-	type AutoApprovalPolicySchema,
-	type PolicyState,
-	type PolicyStorage,
-	type PolicyUsage,
-	type PolicyValidationResult,
 	type TransactionAnalysis,
-	type PolicyBudget,
-	type PolicyConstraints,
-	TransactionType,
-} from './policy/types.js';
+	type CoinOutflow,
+	type UsedObject,
+} from './auto-approvals/types/analysis.js';

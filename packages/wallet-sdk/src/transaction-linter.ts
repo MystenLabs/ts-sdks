@@ -2,11 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '@mysten/sui/bcs';
-import type {
-	SuiClient,
-	SuiObjectResponse,
-	DryRunTransactionBlockResponse,
-} from '@mysten/sui/client';
+import type { SuiClient, DryRunTransactionBlockResponse } from '@mysten/sui/client';
+import type { ClientWithCoreApi, Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 import type { Transaction } from '@mysten/sui/transactions';
 import type { Argument } from '@mysten/sui/transactions';
 import {
@@ -61,16 +58,12 @@ function getNodeId(arg: Argument) {
 	}
 }
 
-function parseCoin(object: SuiObjectResponse) {
-	if (
-		!object.data ||
-		!object.data.type?.startsWith('0x2::coin::Coin') ||
-		object.data.bcs?.dataType !== 'moveObject'
-	) {
+async function parseCoin(object: Experimental_SuiClientTypes.ObjectResponse) {
+	if (!object.type.startsWith('0x2::coin::Coin')) {
 		return null;
 	}
 
-	return CoinStruct.parse(fromBase64(object.data.bcs.bcsBytes));
+	return CoinStruct.parse(await object.content);
 }
 
 export interface TransactionLintResult {
@@ -80,7 +73,7 @@ export interface TransactionLintResult {
 
 export async function lintTransaction(
 	tx: Transaction,
-	suiClient: SuiClient,
+	suiClient: ClientWithCoreApi,
 ): Promise<TransactionLintResult> {
 	const data = tx.getData();
 	const coins = new Map<string, MaybeCoin>();
@@ -88,42 +81,50 @@ export async function lintTransaction(
 	const gasObject = new MaybeCoin('0x2::coin::Coin<0x2::sui::SUI>', 0);
 	coins.set(getNodeId({ $kind: 'GasCoin', GasCoin: true }), gasObject);
 
-	// Load gas objects
-	const loadGasObjects = (data.gasData.payment || []).map(async (object) => {
-		const objectData = await suiClient.getObject({
-			id: object.objectId,
-			options: { showBcs: true, showType: true },
-		});
-		const parsedCoin = parseCoin(objectData);
+	const objectIds = [
+		...(data.gasData.payment || []).map((obj) => obj.objectId),
+		...data.inputs
+			.map((input) => input.Object?.ImmOrOwnedObject?.objectId ?? null)
+			.filter((id): id is string => id !== null),
+	];
+
+	const { objects: loadedObjects } = await suiClient.core.getObjects({
+		objectIds: objectIds,
+	});
+
+	const gasPaymentCount = data.gasData.payment?.length || 0;
+
+	// Process gas payment objects
+	for (let i = 0; i < gasPaymentCount; i++) {
+		const gasObject_response = loadedObjects[i];
+		if (gasObject_response instanceof Error) {
+			throw gasObject_response;
+		}
+		const parsedCoin = await parseCoin(gasObject_response);
 		if (parsedCoin) {
 			gasObject.balance = gasObject.balance + BigInt(parsedCoin.balance.value);
 		}
-	});
+	}
 
-	// Load object inputs
-	const loadObjectInputs = data.inputs.map(async (input, index) => {
-		if (input.$kind !== 'Object' || input.Object.$kind !== 'ImmOrOwnedObject') {
-			return null;
+	// Process regular input objects
+	let objectInputIndex = 0;
+	for (let inputIndex = 0; inputIndex < data.inputs.length; inputIndex++) {
+		const input = data.inputs[inputIndex];
+		if (input.$kind === 'Object' && input.Object?.$kind === 'ImmOrOwnedObject') {
+			const objectResponse = loadedObjects[gasPaymentCount + objectInputIndex];
+			if (objectResponse instanceof Error) {
+				throw objectResponse;
+			}
+			const parsedCoin = await parseCoin(objectResponse);
+			if (parsedCoin) {
+				coins.set(
+					getNodeId({ $kind: 'Input', Input: inputIndex }),
+					new MaybeCoin(objectResponse.type, BigInt(parsedCoin.balance.value)),
+				);
+			}
+			objectInputIndex++;
 		}
-
-		const objectData = await suiClient.getObject({
-			id: input.Object.ImmOrOwnedObject.objectId,
-			options: { showBcs: true, showType: true },
-		});
-
-		const parsedCoin = parseCoin(objectData);
-
-		if (parsedCoin) {
-			coins.set(
-				getNodeId({ $kind: 'Input', Input: index }),
-				new MaybeCoin(objectData.data?.type!, BigInt(parsedCoin.balance.value)),
-			);
-		}
-
-		return null;
-	});
-
-	await Promise.all([...loadGasObjects, ...loadObjectInputs]);
+	}
 
 	data.commands.forEach((command, index) => {
 		switch (command.$kind) {
@@ -285,7 +286,7 @@ export interface CoinFlows {
 /**
  * Fetch coin metadata for a given coin type
  */
-async function getCoinMetadata(coinType: string, suiClient: SuiClient) {
+async function getCoinMetadata(coinType: string, suiClient: ClientWithCoreApi) {
 	// SUI is special case - we know its metadata (handle both normalized and short form)
 	if (
 		coinType === '0x2::sui::SUI' ||
@@ -300,7 +301,8 @@ async function getCoinMetadata(coinType: string, suiClient: SuiClient) {
 
 	try {
 		// Try to fetch coin metadata object
-		const metadata = await suiClient.getCoinMetadata({ coinType });
+		// TODO: get this through the core api
+		const metadata = await (suiClient as SuiClient).getCoinMetadata({ coinType });
 
 		if (metadata && metadata.decimals !== null && metadata.decimals !== undefined) {
 			return {
@@ -329,7 +331,7 @@ async function getCoinMetadata(coinType: string, suiClient: SuiClient) {
  */
 export async function extractCoinFlows(
 	tx: Transaction,
-	suiClient: SuiClient,
+	suiClient: ClientWithCoreApi,
 	dryRun?: DryRunTransactionBlockResponse,
 ): Promise<CoinFlows> {
 	const lintResult = await lintTransaction(tx, suiClient);

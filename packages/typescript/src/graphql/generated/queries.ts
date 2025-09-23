@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 /* eslint-disable */
 
+import { MoveData } from '../types.js';
+import { MoveTypeLayout } from '../types.js';
+import { MoveTypeSignature } from '../types.js';
+import { OpenMoveTypeSignature } from '../types.js';
 import { DocumentTypeDecoration } from '@graphql-typed-document-node/core';
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
@@ -18,13 +22,13 @@ export type Scalars = {
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
   /** String containing Base64-encoded binary data. */
-  Base64: { input: any; output: any; }
+  Base64: { input: string; output: string; }
   /** String representation of an arbitrary width, possibly signed integer. */
-  BigInt: { input: any; output: any; }
+  BigInt: { input: string; output: string; }
   /** ISO-8601 Date and Time: RFC3339 in UTC with format: YYYY-MM-DDTHH:MM:SS.mmmZ. Note that the milliseconds part is optional, and it may be omitted if its value is 0. */
-  DateTime: { input: any; output: any; }
+  DateTime: { input: string; output: string; }
   /** Arbitrary JSON data. */
-  JSON: { input: any; output: any; }
+  JSON: { input: unknown; output: unknown; }
   /**
    * The contents of a Move Value, corresponding to the following recursive type:
    *
@@ -43,7 +47,7 @@ export type Scalars = {
    *       fields: [{ name: string, value: MoveData }],
    *   }
    */
-  MoveData: { input: any; output: any; }
+  MoveData: { input: MoveData; output: MoveData; }
   /**
    * The shape of a concrete Move Type (a type with all its type parameters instantiated with concrete types), corresponding to the following recursive type:
    *
@@ -67,7 +71,7 @@ export type Scalars = {
    *       }]
    *   }
    */
-  MoveTypeLayout: { input: any; output: any; }
+  MoveTypeLayout: { input: MoveTypeLayout; output: MoveTypeLayout; }
   /**
    * The signature of a concrete Move Type (a type with all its type parameters instantiated with concrete types, that contains no references), corresponding to the following recursive type:
    *
@@ -85,7 +89,7 @@ export type Scalars = {
    *       }
    *     }
    */
-  MoveTypeSignature: { input: any; output: any; }
+  MoveTypeSignature: { input: MoveTypeSignature; output: MoveTypeSignature; }
   /**
    * The shape of an abstract Move Type (a type that can contain free type parameters, and can optionally be taken by reference), corresponding to the following recursive type:
    *
@@ -109,14 +113,20 @@ export type Scalars = {
    *     }
    *   | { typeParameter: number }
    */
-  OpenMoveTypeSignature: { input: any; output: any; }
+  OpenMoveTypeSignature: { input: OpenMoveTypeSignature; output: OpenMoveTypeSignature; }
   /** String containing 32B hex-encoded address, with a leading "0x". Leading zeroes can be omitted on input but will always appear in outputs (SuiAddress in output is guaranteed to be 66 characters long). */
   SuiAddress: { input: any; output: any; }
   /**
    * An unsigned integer that can hold values up to 2^53 - 1. This can be treated similarly to `Int`,
    * but it is guaranteed to be non-negative, and it may be larger than 2^32 - 1.
    */
-  UInt53: { input: any; output: any; }
+  UInt53: { input: number; output: number; }
+};
+
+export type AccumulatorRootCreateTransaction = {
+  __typename?: 'AccumulatorRootCreateTransaction';
+  /** A workaround to define an empty variant of a GraphQL union. */
+  _?: Maybe<Scalars['Boolean']['output']>;
 };
 
 export type ActiveJwk = {
@@ -490,6 +500,11 @@ export type ChangeEpochTransactionSystemPackagesArgs = {
  */
 export type Checkpoint = {
   __typename?: 'Checkpoint';
+  /**
+   * A commitment by the committee on the artifacts of the checkpoint.
+   * e.g., object checkpoint states
+   */
+  artifactsDigest?: Maybe<Scalars['String']['output']>;
   /** The Base64 serialized BCS bytes of CheckpointSummary for this checkpoint. */
   bcs?: Maybe<Scalars['Base64']['output']>;
   /**
@@ -1075,6 +1090,52 @@ export type ConsensusCommitPrologueTransaction = {
   round: Scalars['UInt53']['output'];
 };
 
+/** The transaction accpeted a consensus object as input, but its execution was cancelled. */
+export type ConsensusObjectCancelled = {
+  __typename?: 'ConsensusObjectCancelled';
+  /** ID of the consensus object. */
+  address: Scalars['SuiAddress']['output'];
+  /** The assigned consensus object version. It is a special version indicating transaction cancellation reason. */
+  version: Scalars['UInt53']['output'];
+};
+
+/** The transaction accepted a consensus object as input, but only to read it. */
+export type ConsensusObjectRead = {
+  __typename?: 'ConsensusObjectRead';
+  /** ID of the object being read. */
+  address: Scalars['SuiAddress']['output'];
+  /**
+   * 32-byte hash that identifies the object's contents at this version, encoded as a Base58
+   * string.
+   */
+  digest: Scalars['String']['output'];
+  /** The object at this version.  May not be available due to pruning. */
+  object?: Maybe<Object>;
+  /** Version of the object being read. */
+  version: Scalars['UInt53']['output'];
+};
+
+/**
+ * The transaction accepted a consensus object as input, but its consensus stream ended before the
+ * transaction executed. This can happen for ConsensusAddressOwner objects where the stream ends
+ * but the object itself is not deleted.
+ */
+export type ConsensusObjectStreamEnded = {
+  __typename?: 'ConsensusObjectStreamEnded';
+  /** ID of the consensus object. */
+  address: Scalars['SuiAddress']['output'];
+  /**
+   * Whether this transaction intended to use this consensus object mutably or not. See
+   * `SharedInput.mutable` for further details.
+   */
+  mutable: Scalars['Boolean']['output'];
+  /**
+   * The version of the consensus object that was assigned to this transaction during by consensus,
+   * during sequencing.
+   */
+  version: Scalars['UInt53']['output'];
+};
+
 export type DependencyConnection = {
   __typename?: 'DependencyConnection';
   /** A list of edges. */
@@ -1231,7 +1292,7 @@ export type EndOfEpochTransactionTransactionsArgs = {
   last?: InputMaybe<Scalars['Int']['input']>;
 };
 
-export type EndOfEpochTransactionKind = AuthenticatorStateCreateTransaction | AuthenticatorStateExpireTransaction | BridgeCommitteeInitTransaction | BridgeStateCreateTransaction | ChangeEpochTransaction | CoinDenyListStateCreateTransaction | RandomnessStateCreateTransaction | StoreExecutionTimeObservationsTransaction;
+export type EndOfEpochTransactionKind = AccumulatorRootCreateTransaction | AuthenticatorStateCreateTransaction | AuthenticatorStateExpireTransaction | BridgeCommitteeInitTransaction | BridgeStateCreateTransaction | ChangeEpochTransaction | CoinDenyListStateCreateTransaction | RandomnessStateCreateTransaction | StoreExecutionTimeObservationsTransaction;
 
 export type EndOfEpochTransactionKindConnection = {
   __typename?: 'EndOfEpochTransactionKindConnection';
@@ -3548,6 +3609,42 @@ export type Parent = {
   parent?: Maybe<Owner>;
 };
 
+/**
+ * ProgrammableSystemTransactionBlock is identical to ProgrammableTransactionBlock, but graphql
+ * does not allow multiple variants with the same type.
+ */
+export type ProgrammableSystemTransactionBlock = {
+  __typename?: 'ProgrammableSystemTransactionBlock';
+  /** Input objects or primitive values. */
+  inputs: TransactionInputConnection;
+  /** The transaction commands, executed sequentially. */
+  transactions: ProgrammableTransactionConnection;
+};
+
+
+/**
+ * ProgrammableSystemTransactionBlock is identical to ProgrammableTransactionBlock, but graphql
+ * does not allow multiple variants with the same type.
+ */
+export type ProgrammableSystemTransactionBlockInputsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/**
+ * ProgrammableSystemTransactionBlock is identical to ProgrammableTransactionBlock, but graphql
+ * does not allow multiple variants with the same type.
+ */
+export type ProgrammableSystemTransactionBlockTransactionsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
 /** A single transaction, or command, in the programmable transaction block. */
 export type ProgrammableTransaction = MakeMoveVecTransaction | MergeCoinsTransaction | MoveCallTransaction | PublishTransaction | SplitCoinsTransaction | TransferObjectsTransaction | UpgradeTransaction;
 
@@ -4204,51 +4301,6 @@ export type SharedInput = {
   mutable: Scalars['Boolean']['output'];
 };
 
-/** The transaction accpeted a shared object as input, but its execution was cancelled. */
-export type SharedObjectCancelled = {
-  __typename?: 'SharedObjectCancelled';
-  /** ID of the shared object. */
-  address: Scalars['SuiAddress']['output'];
-  /** The assigned shared object version. It is a special version indicating transaction cancellation reason. */
-  version: Scalars['UInt53']['output'];
-};
-
-/**
- * The transaction accepted a shared object as input, but it was deleted before the transaction
- * executed.
- */
-export type SharedObjectDelete = {
-  __typename?: 'SharedObjectDelete';
-  /** ID of the shared object. */
-  address: Scalars['SuiAddress']['output'];
-  /**
-   * Whether this transaction intended to use this shared object mutably or not. See
-   * `SharedInput.mutable` for further details.
-   */
-  mutable: Scalars['Boolean']['output'];
-  /**
-   * The version of the shared object that was assigned to this transaction during by consensus,
-   * during sequencing.
-   */
-  version: Scalars['UInt53']['output'];
-};
-
-/** The transaction accepted a shared object as input, but only to read it. */
-export type SharedObjectRead = {
-  __typename?: 'SharedObjectRead';
-  /** ID of the object being read. */
-  address: Scalars['SuiAddress']['output'];
-  /**
-   * 32-byte hash that identifies the object's contents at this version, encoded as a Base58
-   * string.
-   */
-  digest: Scalars['String']['output'];
-  /** The object at this version.  May not be available due to pruning. */
-  object?: Maybe<Object>;
-  /** Version of the object being read. */
-  version: Scalars['UInt53']['output'];
-};
-
 /**
  * Splits off coins with denominations in `amounts` from `coin`, returning multiple results (as
  * many as there are amounts.)
@@ -4559,7 +4611,7 @@ export type StorageFund = {
    * The portion of the storage fund that will never be refunded through storage rebates.
    *
    * The system maintains an invariant that the sum of all storage fees into the storage fund is
-   * equal to the sum of of all storage rebates out, the total storage rebates remaining, and the
+   * equal to the sum of all storage rebates out, the total storage rebates remaining, and the
    * non-refundable balance.
    */
   nonRefundableBalance?: Maybe<Scalars['BigInt']['output']>;
@@ -4929,8 +4981,8 @@ export type TransactionBlockEffects = {
   timestamp?: Maybe<Scalars['DateTime']['output']>;
   /** The transaction that ran to produce these effects. */
   transactionBlock?: Maybe<TransactionBlock>;
-  /** Shared objects that are referenced by but not changed by this transaction. */
-  unchangedSharedObjects: UnchangedSharedObjectConnection;
+  /** Consensus objects that are referenced by but not changed by this transaction. */
+  unchangedConsensusObjects: UnchangedConsensusObjectConnection;
 };
 
 
@@ -4971,7 +5023,7 @@ export type TransactionBlockEffectsObjectChangesArgs = {
 
 
 /** The effects representing the result of executing a transaction block. */
-export type TransactionBlockEffectsUnchangedSharedObjectsArgs = {
+export type TransactionBlockEffectsUnchangedConsensusObjectsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -5020,7 +5072,7 @@ export type TransactionBlockFilter = {
 };
 
 /** The kind of transaction block, either a programmable transaction or a system transaction. */
-export type TransactionBlockKind = AuthenticatorStateUpdateTransaction | ChangeEpochTransaction | ConsensusCommitPrologueTransaction | EndOfEpochTransaction | GenesisTransaction | ProgrammableTransactionBlock | RandomnessStateUpdateTransaction;
+export type TransactionBlockKind = AuthenticatorStateUpdateTransaction | ChangeEpochTransaction | ConsensusCommitPrologueTransaction | EndOfEpochTransaction | GenesisTransaction | ProgrammableSystemTransactionBlock | ProgrammableTransactionBlock | RandomnessStateUpdateTransaction;
 
 /** An input filter selecting for either system or programmable transactions. */
 export enum TransactionBlockKindInput {
@@ -5093,30 +5145,30 @@ export type TypeOrigin = {
 };
 
 /**
- * Details pertaining to shared objects that are referenced by but not changed by a transaction.
+ * Details pertaining to consensus objects that are referenced by but not changed by a transaction.
  * This information is considered part of the effects, because although the transaction specifies
- * the shared object as input, consensus must schedule it and pick the version that is actually
+ * the consensus object as input, consensus must schedule it and pick the version that is actually
  * used.
  */
-export type UnchangedSharedObject = SharedObjectCancelled | SharedObjectDelete | SharedObjectRead;
+export type UnchangedConsensusObject = ConsensusObjectCancelled | ConsensusObjectRead | ConsensusObjectStreamEnded;
 
-export type UnchangedSharedObjectConnection = {
-  __typename?: 'UnchangedSharedObjectConnection';
+export type UnchangedConsensusObjectConnection = {
+  __typename?: 'UnchangedConsensusObjectConnection';
   /** A list of edges. */
-  edges: Array<UnchangedSharedObjectEdge>;
+  edges: Array<UnchangedConsensusObjectEdge>;
   /** A list of nodes. */
-  nodes: Array<UnchangedSharedObject>;
+  nodes: Array<UnchangedConsensusObject>;
   /** Information to aid in pagination. */
   pageInfo: PageInfo;
 };
 
 /** An edge in a connection. */
-export type UnchangedSharedObjectEdge = {
-  __typename?: 'UnchangedSharedObjectEdge';
+export type UnchangedConsensusObjectEdge = {
+  __typename?: 'UnchangedConsensusObjectEdge';
   /** A cursor for use in pagination */
   cursor: Scalars['String']['output'];
   /** The item at the end of the edge */
-  node: UnchangedSharedObject;
+  node: UnchangedConsensusObject;
 };
 
 /** Upgrades a Move Package. */
@@ -5329,7 +5381,7 @@ export type GetAllBalancesQueryVariables = Exact<{
 }>;
 
 
-export type GetAllBalancesQuery = { __typename?: 'Query', address?: { __typename?: 'Address', balances: { __typename?: 'BalanceConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Balance', coinObjectCount?: any | null, totalBalance?: any | null, coinType: { __typename?: 'MoveType', repr: string } }> } } | null };
+export type GetAllBalancesQuery = { __typename?: 'Query', address?: { __typename?: 'Address', balances: { __typename?: 'BalanceConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Balance', coinObjectCount?: number | null, totalBalance?: string | null, coinType: { __typename?: 'MoveType', repr: string } }> } } | null };
 
 export type GetBalanceQueryVariables = Exact<{
   owner: Scalars['SuiAddress']['input'];
@@ -5337,7 +5389,7 @@ export type GetBalanceQueryVariables = Exact<{
 }>;
 
 
-export type GetBalanceQuery = { __typename?: 'Query', address?: { __typename?: 'Address', balance?: { __typename?: 'Balance', coinObjectCount?: any | null, totalBalance?: any | null, coinType: { __typename?: 'MoveType', repr: string } } | null } | null };
+export type GetBalanceQuery = { __typename?: 'Query', address?: { __typename?: 'Address', balance?: { __typename?: 'Balance', coinObjectCount?: number | null, totalBalance?: string | null, coinType: { __typename?: 'MoveType', repr: string } } | null } | null };
 
 export type GetCoinsQueryVariables = Exact<{
   owner: Scalars['SuiAddress']['input'];
@@ -5347,7 +5399,7 @@ export type GetCoinsQueryVariables = Exact<{
 }>;
 
 
-export type GetCoinsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', address: any, coins: { __typename?: 'CoinConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Coin', coinBalance?: any | null, address: any, version: any, digest?: string | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: any, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null, contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null }> } } | null };
+export type GetCoinsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', address: any, coins: { __typename?: 'CoinConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Coin', coinBalance?: string | null, address: any, version: number, digest?: string | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null, contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null }> } } | null };
 
 export type GetDynamicFieldsQueryVariables = Exact<{
   parentId: Scalars['SuiAddress']['input'];
@@ -5356,12 +5408,21 @@ export type GetDynamicFieldsQueryVariables = Exact<{
 }>;
 
 
-export type GetDynamicFieldsQuery = { __typename?: 'Query', owner?: { __typename?: 'Owner', dynamicFields: { __typename?: 'DynamicFieldConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'DynamicField', name?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null, value?: { __typename: 'MoveObject', contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | { __typename: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null }> } } | null };
+export type GetDynamicFieldsQuery = { __typename?: 'Query', owner?: { __typename?: 'Owner', dynamicFields: { __typename?: 'DynamicFieldConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'DynamicField', name?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null, value?: { __typename: 'MoveObject', contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | { __typename: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null }> } } | null };
+
+export type GetMoveFunctionQueryVariables = Exact<{
+  package: Scalars['SuiAddress']['input'];
+  module: Scalars['String']['input'];
+  function: Scalars['String']['input'];
+}>;
+
+
+export type GetMoveFunctionQuery = { __typename?: 'Query', package?: { __typename?: 'MovePackage', module?: { __typename?: 'MoveModule', function?: { __typename?: 'MoveFunction', name: string, visibility?: MoveVisibility | null, isEntry?: boolean | null, typeParameters?: Array<{ __typename?: 'MoveFunctionTypeParameter', constraints: Array<MoveAbility> }> | null, parameters?: Array<{ __typename?: 'OpenMoveType', signature: OpenMoveTypeSignature }> | null, return?: Array<{ __typename?: 'OpenMoveType', signature: OpenMoveTypeSignature }> | null } | null } | null } | null };
 
 export type GetReferenceGasPriceQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetReferenceGasPriceQuery = { __typename?: 'Query', epoch?: { __typename?: 'Epoch', referenceGasPrice?: any | null } | null };
+export type GetReferenceGasPriceQuery = { __typename?: 'Query', epoch?: { __typename?: 'Epoch', referenceGasPrice?: string | null } | null };
 
 export type ResolveNameServiceNamesQueryVariables = Exact<{
   address: Scalars['SuiAddress']['input'];
@@ -5380,7 +5441,7 @@ export type GetOwnedObjectsQueryVariables = Exact<{
 }>;
 
 
-export type GetOwnedObjectsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', objects: { __typename?: 'MoveObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'MoveObject', address: any, digest?: string | null, version: any, contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: any, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null }> } } | null };
+export type GetOwnedObjectsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', objects: { __typename?: 'MoveObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'MoveObject', address: any, digest?: string | null, version: number, contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null }> } } | null };
 
 export type MultiGetObjectsQueryVariables = Exact<{
   objectIds: Array<Scalars['SuiAddress']['input']> | Scalars['SuiAddress']['input'];
@@ -5389,21 +5450,21 @@ export type MultiGetObjectsQueryVariables = Exact<{
 }>;
 
 
-export type MultiGetObjectsQuery = { __typename?: 'Query', objects: { __typename?: 'ObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Object', address: any, digest?: string | null, version: any, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: any, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null }> } };
+export type MultiGetObjectsQuery = { __typename?: 'Query', objects: { __typename?: 'ObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Object', address: any, digest?: string | null, version: number, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null }> } };
 
-export type Object_FieldsFragment = { __typename?: 'Object', address: any, digest?: string | null, version: any, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: any, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null };
+export type Object_FieldsFragment = { __typename?: 'Object', address: any, digest?: string | null, version: number, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null };
 
-export type Move_Object_FieldsFragment = { __typename?: 'MoveObject', address: any, digest?: string | null, version: any, contents?: { __typename?: 'MoveValue', bcs: any, type: { __typename?: 'MoveType', repr: string } } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: any, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: any } | null };
+export type Move_Object_FieldsFragment = { __typename?: 'MoveObject', address: any, digest?: string | null, version: number, contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null };
 
 type Object_Owner_Fields_AddressOwner_Fragment = { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null };
 
-type Object_Owner_Fields_ConsensusAddressOwner_Fragment = { __typename: 'ConsensusAddressOwner', startVersion: any, owner?: { __typename?: 'Owner', address: any } | null };
+type Object_Owner_Fields_ConsensusAddressOwner_Fragment = { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null };
 
 type Object_Owner_Fields_Immutable_Fragment = { __typename: 'Immutable' };
 
 type Object_Owner_Fields_Parent_Fragment = { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null };
 
-type Object_Owner_Fields_Shared_Fragment = { __typename: 'Shared', initialSharedVersion: any };
+type Object_Owner_Fields_Shared_Fragment = { __typename: 'Shared', initialSharedVersion: number };
 
 export type Object_Owner_FieldsFragment = Object_Owner_Fields_AddressOwner_Fragment | Object_Owner_Fields_ConsensusAddressOwner_Fragment | Object_Owner_Fields_Immutable_Fragment | Object_Owner_Fields_Parent_Fragment | Object_Owner_Fields_Shared_Fragment;
 
@@ -5412,7 +5473,7 @@ export type DryRunTransactionBlockQueryVariables = Exact<{
 }>;
 
 
-export type DryRunTransactionBlockQuery = { __typename?: 'Query', dryRunTransactionBlock: { __typename?: 'DryRunResult', error?: string | null, transaction?: { __typename?: 'TransactionBlock', digest?: string | null, bcs?: any | null, signatures?: Array<any> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: any, epoch?: { __typename?: 'Epoch', epochId: any } | null, unchangedSharedObjects: { __typename?: 'UnchangedSharedObjectConnection', nodes: Array<{ __typename: 'SharedObjectCancelled' } | { __typename: 'SharedObjectDelete' } | { __typename: 'SharedObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: any, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> } } | null } | null } };
+export type DryRunTransactionBlockQuery = { __typename?: 'Query', dryRunTransactionBlock: { __typename?: 'DryRunResult', error?: string | null, transaction?: { __typename?: 'TransactionBlock', digest?: string | null, bcs?: string | null, signatures?: Array<string> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: string, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<{ __typename: 'ConsensusObjectCancelled' } | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null } | { __typename: 'ConsensusObjectStreamEnded' }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: number, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, balanceChanges: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Owner', address: any } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } } | null } | null } };
 
 export type ExecuteTransactionBlockMutationVariables = Exact<{
   txBytes: Scalars['String']['input'];
@@ -5420,16 +5481,16 @@ export type ExecuteTransactionBlockMutationVariables = Exact<{
 }>;
 
 
-export type ExecuteTransactionBlockMutation = { __typename?: 'Mutation', executeTransactionBlock: { __typename?: 'ExecutionResult', errors?: Array<string> | null, effects: { __typename?: 'TransactionBlockEffects', transactionBlock?: { __typename?: 'TransactionBlock', digest?: string | null, bcs?: any | null, signatures?: Array<any> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: any, epoch?: { __typename?: 'Epoch', epochId: any } | null, unchangedSharedObjects: { __typename?: 'UnchangedSharedObjectConnection', nodes: Array<{ __typename: 'SharedObjectCancelled' } | { __typename: 'SharedObjectDelete' } | { __typename: 'SharedObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: any, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> } } | null } | null } } };
+export type ExecuteTransactionBlockMutation = { __typename?: 'Mutation', executeTransactionBlock: { __typename?: 'ExecutionResult', errors?: Array<string> | null, effects: { __typename?: 'TransactionBlockEffects', transactionBlock?: { __typename?: 'TransactionBlock', digest?: string | null, bcs?: string | null, signatures?: Array<string> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: string, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<{ __typename: 'ConsensusObjectCancelled' } | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null } | { __typename: 'ConsensusObjectStreamEnded' }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: number, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, balanceChanges: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Owner', address: any } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } } | null } | null } } };
 
 export type GetTransactionBlockQueryVariables = Exact<{
   digest: Scalars['String']['input'];
 }>;
 
 
-export type GetTransactionBlockQuery = { __typename?: 'Query', transactionBlock?: { __typename?: 'TransactionBlock', digest?: string | null, bcs?: any | null, signatures?: Array<any> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: any, epoch?: { __typename?: 'Epoch', epochId: any } | null, unchangedSharedObjects: { __typename?: 'UnchangedSharedObjectConnection', nodes: Array<{ __typename: 'SharedObjectCancelled' } | { __typename: 'SharedObjectDelete' } | { __typename: 'SharedObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: any, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> } } | null } | null };
+export type GetTransactionBlockQuery = { __typename?: 'Query', transactionBlock?: { __typename?: 'TransactionBlock', digest?: string | null, bcs?: string | null, signatures?: Array<string> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: string, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<{ __typename: 'ConsensusObjectCancelled' } | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null } | { __typename: 'ConsensusObjectStreamEnded' }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: number, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, balanceChanges: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Owner', address: any } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } } | null } | null };
 
-export type Transaction_FieldsFragment = { __typename?: 'TransactionBlock', digest?: string | null, bcs?: any | null, signatures?: Array<any> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: any, epoch?: { __typename?: 'Epoch', epochId: any } | null, unchangedSharedObjects: { __typename?: 'UnchangedSharedObjectConnection', nodes: Array<{ __typename: 'SharedObjectCancelled' } | { __typename: 'SharedObjectDelete' } | { __typename: 'SharedObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: any, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> } } | null };
+export type Transaction_FieldsFragment = { __typename?: 'TransactionBlock', digest?: string | null, bcs?: string | null, signatures?: Array<string> | null, effects?: { __typename?: 'TransactionBlockEffects', bcs: string, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<{ __typename: 'ConsensusObjectCancelled' } | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null } | { __typename: 'ConsensusObjectStreamEnded' }> }, objectChanges: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: any, inputState?: { __typename?: 'Object', version: number, asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: any, contents?: { __typename?: 'MoveValue', type: { __typename?: 'MoveType', repr: string } } | null } | null } | null }> }, balanceChanges: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Owner', address: any } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } } | null };
 
 export type VerifyZkLoginSignatureQueryVariables = Exact<{
   bytes: Scalars['Base64']['input'];
@@ -5445,7 +5506,7 @@ export class TypedDocumentString<TResult, TVariables>
   extends String
   implements DocumentTypeDecoration<TResult, TVariables>
 {
-  __apiType?: DocumentTypeDecoration<TResult, TVariables>['__apiType'];
+  __apiType?: NonNullable<DocumentTypeDecoration<TResult, TVariables>['__apiType']>;
   private value: string;
   public __meta__?: Record<string, any> | undefined;
 
@@ -5455,7 +5516,7 @@ export class TypedDocumentString<TResult, TVariables>
     this.__meta__ = __meta__;
   }
 
-  toString(): string & DocumentTypeDecoration<TResult, TVariables> {
+  override toString(): string & DocumentTypeDecoration<TResult, TVariables> {
     return this.value;
   }
 }
@@ -5584,10 +5645,10 @@ export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
     epoch {
       epochId
     }
-    unchangedSharedObjects {
+    unchangedConsensusObjects {
       nodes {
         __typename
-        ... on SharedObjectRead {
+        ... on ConsensusObjectRead {
           object {
             asMoveObject {
               address
@@ -5625,6 +5686,20 @@ export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
             }
           }
         }
+      }
+    }
+    balanceChanges(first: 50) {
+      pageInfo {
+        hasNextPage
+      }
+      nodes {
+        owner {
+          address
+        }
+        coinType {
+          repr
+        }
+        amount
       }
     }
   }
@@ -5751,6 +5826,28 @@ export const GetDynamicFieldsDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<GetDynamicFieldsQuery, GetDynamicFieldsQueryVariables>;
+export const GetMoveFunctionDocument = new TypedDocumentString(`
+    query getMoveFunction($package: SuiAddress!, $module: String!, $function: String!) {
+  package(address: $package) {
+    module(name: $module) {
+      function(name: $function) {
+        name
+        visibility
+        isEntry
+        typeParameters {
+          constraints
+        }
+        parameters {
+          signature
+        }
+        return {
+          signature
+        }
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<GetMoveFunctionQuery, GetMoveFunctionQueryVariables>;
 export const GetReferenceGasPriceDocument = new TypedDocumentString(`
     query getReferenceGasPrice {
   epoch {
@@ -5901,10 +5998,10 @@ export const DryRunTransactionBlockDocument = new TypedDocumentString(`
     epoch {
       epochId
     }
-    unchangedSharedObjects {
+    unchangedConsensusObjects {
       nodes {
         __typename
-        ... on SharedObjectRead {
+        ... on ConsensusObjectRead {
           object {
             asMoveObject {
               address
@@ -5942,6 +6039,20 @@ export const DryRunTransactionBlockDocument = new TypedDocumentString(`
             }
           }
         }
+      }
+    }
+    balanceChanges(first: 50) {
+      pageInfo {
+        hasNextPage
+      }
+      nodes {
+        owner {
+          address
+        }
+        coinType {
+          repr
+        }
+        amount
       }
     }
   }
@@ -5966,10 +6077,10 @@ export const ExecuteTransactionBlockDocument = new TypedDocumentString(`
     epoch {
       epochId
     }
-    unchangedSharedObjects {
+    unchangedConsensusObjects {
       nodes {
         __typename
-        ... on SharedObjectRead {
+        ... on ConsensusObjectRead {
           object {
             asMoveObject {
               address
@@ -6007,6 +6118,20 @@ export const ExecuteTransactionBlockDocument = new TypedDocumentString(`
             }
           }
         }
+      }
+    }
+    balanceChanges(first: 50) {
+      pageInfo {
+        hasNextPage
+      }
+      nodes {
+        owner {
+          address
+        }
+        coinType {
+          repr
+        }
+        amount
       }
     }
   }
@@ -6026,10 +6151,10 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
     epoch {
       epochId
     }
-    unchangedSharedObjects {
+    unchangedConsensusObjects {
       nodes {
         __typename
-        ... on SharedObjectRead {
+        ... on ConsensusObjectRead {
           object {
             asMoveObject {
               address
@@ -6067,6 +6192,20 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
             }
           }
         }
+      }
+    }
+    balanceChanges(first: 50) {
+      pageInfo {
+        hasNextPage
+      }
+      nodes {
+        owner {
+          address
+        }
+        coinType {
+          repr
+        }
+        amount
       }
     }
   }

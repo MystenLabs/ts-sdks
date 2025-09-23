@@ -7,6 +7,9 @@ import { bcs } from '../../bcs/index.js';
 import type {
 	ObjectOwner,
 	SuiClient,
+	SuiMoveAbilitySet,
+	SuiMoveNormalizedType,
+	SuiMoveVisibility,
 	SuiObjectChange,
 	SuiObjectData,
 	SuiTransactionBlockResponse,
@@ -20,6 +23,7 @@ import { parseTransactionBcs, parseTransactionEffectsBcs } from './utils.js';
 import { suiClientResolveTransactionPlugin } from './json-rpc-resolver.js';
 import { TransactionDataBuilder } from '../../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
+import { normalizeSuiAddress } from '../../utils/sui-types.js';
 
 export class JSONRpcTransport extends Experimental_CoreClient {
 	#jsonRpcClient: SuiClient;
@@ -164,6 +168,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 				showRawEffects: true,
 				showEvents: true,
 				showEffects: true,
+				showBalanceChanges: true,
 			},
 			signal: options.signal,
 		});
@@ -182,6 +187,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 				showObjectChanges: true,
 				showRawInput: true,
 				showEffects: true,
+				showBalanceChanges: true,
 			},
 			signal: options.signal,
 		});
@@ -210,6 +216,11 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 				objectTypes: Promise.resolve(objectTypes),
 				signatures: [],
 				transaction: parseTransactionBcs(options.transaction),
+				balanceChanges: result.balanceChanges.map((change) => ({
+					coinType: change.coinType,
+					address: parseOwnerAddress(change.owner)!,
+					amount: change.amount,
+				})),
 			},
 		};
 	}
@@ -267,6 +278,32 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 
 	resolveTransactionPlugin() {
 		return suiClientResolveTransactionPlugin(this.#jsonRpcClient);
+	}
+
+	async getMoveFunction(
+		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
+	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse> {
+		const result = await this.#jsonRpcClient.getNormalizedMoveFunction({
+			package: options.packageId,
+			module: options.moduleName,
+			function: options.name,
+		});
+
+		return {
+			function: {
+				packageId: normalizeSuiAddress(options.packageId),
+				moduleName: options.moduleName,
+				name: options.name,
+				visibility: parseVisibility(result.visibility),
+				isEntry: result.isEntry,
+				typeParameters: result.typeParameters.map((abilities) => ({
+					isPhantom: false,
+					constraints: parseAbilities(abilities),
+				})),
+				parameters: result.parameters.map((param) => parseNormalizedSuiMoveType(param)),
+				returns: result.return.map((ret) => parseNormalizedSuiMoveType(ret)),
+			},
+		};
 	}
 }
 
@@ -327,6 +364,30 @@ function parseOwner(owner: ObjectOwner): Experimental_SuiClientTypes.ObjectOwner
 	throw new Error(`Unknown owner type: ${JSON.stringify(owner)}`);
 }
 
+function parseOwnerAddress(owner: ObjectOwner): string | null {
+	if (owner === 'Immutable') {
+		return null;
+	}
+
+	if ('ConsensusAddressOwner' in owner) {
+		return owner.ConsensusAddressOwner.owner;
+	}
+
+	if ('AddressOwner' in owner) {
+		return owner.AddressOwner;
+	}
+
+	if ('ObjectOwner' in owner) {
+		return owner.ObjectOwner;
+	}
+
+	if ('Shared' in owner) {
+		return null;
+	}
+
+	throw new Error(`Unknown owner type: ${JSON.stringify(owner)}`);
+}
+
 function parseTransaction(
 	transaction: SuiTransactionBlockResponse,
 ): Experimental_SuiClientTypes.TransactionResponse {
@@ -360,6 +421,12 @@ function parseTransaction(
 			bcs: bytes,
 		},
 		signatures: parsedTx.txSignatures,
+		balanceChanges:
+			transaction.balanceChanges?.map((change) => ({
+				coinType: change.coinType,
+				address: parseOwnerAddress(change.owner)!,
+				amount: change.amount,
+			})) ?? [],
 	};
 }
 
@@ -376,7 +443,7 @@ function parseTransactionEffectsJson({
 	objectTypes: Record<string, string>;
 } {
 	const changedObjects: Experimental_SuiClientTypes.ChangedObject[] = [];
-	const unchangedSharedObjects: Experimental_SuiClientTypes.UnchangedSharedObject[] = [];
+	const unchangedConsensusObjects: Experimental_SuiClientTypes.UnchangedConsensusObject[] = [];
 	const objectTypes: Record<string, string> = {};
 
 	objectChanges?.forEach((change) => {
@@ -511,7 +578,7 @@ function parseTransactionEffectsJson({
 			dependencies: effects.dependencies ?? [],
 			lamportVersion: effects.gasObject.reference.version,
 			changedObjects,
-			unchangedSharedObjects,
+			unchangedConsensusObjects,
 			auxiliaryDataDigest: null,
 		},
 	};
@@ -525,3 +592,111 @@ const Coin = bcs.struct('Coin', {
 	id: bcs.Address,
 	balance: Balance,
 });
+
+function parseNormalizedSuiMoveType(
+	type: SuiMoveNormalizedType,
+): Experimental_SuiClientTypes.OpenSignature {
+	if (typeof type !== 'string') {
+		if ('Reference' in type) {
+			return {
+				reference: 'immutable',
+				body: parseNormalizedSuiMoveTypeBody(type.Reference),
+			};
+		}
+
+		if ('MutableReference' in type) {
+			return {
+				reference: 'mutable',
+				body: parseNormalizedSuiMoveTypeBody(type.MutableReference),
+			};
+		}
+	}
+
+	return {
+		reference: null,
+		body: parseNormalizedSuiMoveTypeBody(type),
+	};
+}
+
+function parseNormalizedSuiMoveTypeBody(
+	type: SuiMoveNormalizedType,
+): Experimental_SuiClientTypes.OpenSignatureBody {
+	switch (type) {
+		case 'Address':
+			return { $kind: 'address' };
+		case 'Bool':
+			return { $kind: 'bool' };
+		case 'U8':
+			return { $kind: 'u8' };
+		case 'U16':
+			return { $kind: 'u16' };
+		case 'U32':
+			return { $kind: 'u32' };
+		case 'U64':
+			return { $kind: 'u64' };
+		case 'U128':
+			return { $kind: 'u128' };
+		case 'U256':
+			return { $kind: 'u256' };
+	}
+
+	if (typeof type === 'string') {
+		throw new Error(`Unknown type: ${type}`);
+	}
+
+	if ('Vector' in type) {
+		return {
+			$kind: 'vector',
+			vector: parseNormalizedSuiMoveTypeBody(type.Vector),
+		};
+	}
+
+	if ('Struct' in type) {
+		return {
+			$kind: 'datatype',
+			datatype: {
+				typeName: `${normalizeSuiAddress(type.Struct.address)}::${type.Struct.module}::${type.Struct.name}`,
+				typeParameters: type.Struct.typeArguments.map((t) => parseNormalizedSuiMoveTypeBody(t)),
+			},
+		};
+	}
+
+	if ('TypeParameter' in type) {
+		return {
+			$kind: 'typeParameter',
+			index: type.TypeParameter,
+		};
+	}
+
+	throw new Error(`Unknown type: ${JSON.stringify(type)}`);
+}
+
+function parseAbilities(abilitySet: SuiMoveAbilitySet): Experimental_SuiClientTypes.Ability[] {
+	return abilitySet.abilities.map((ability) => {
+		switch (ability) {
+			case 'Copy':
+				return 'copy';
+			case 'Drop':
+				return 'drop';
+			case 'Store':
+				return 'store';
+			case 'Key':
+				return 'key';
+			default:
+				return 'unknown';
+		}
+	});
+}
+
+function parseVisibility(visibility: SuiMoveVisibility): Experimental_SuiClientTypes.Visibility {
+	switch (visibility) {
+		case 'Public':
+			return 'public';
+		case 'Private':
+			return 'private';
+		case 'Friend':
+			return 'friend';
+		default:
+			return 'unknown';
+	}
+}

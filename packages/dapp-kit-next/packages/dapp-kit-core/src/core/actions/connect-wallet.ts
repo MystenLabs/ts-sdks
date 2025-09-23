@@ -6,7 +6,8 @@ import { task } from 'nanostores';
 import type { UiWallet, UiWalletAccount } from '@wallet-standard/ui';
 import type { StandardConnectInput } from '@mysten/wallet-standard';
 import type { StandardConnectFeature } from '@mysten/wallet-standard';
-import { StandardConnect } from '@mysten/wallet-standard';
+import { StandardConnect, SuiGetSupportedIntents } from '@mysten/wallet-standard';
+import type { SuiGetSupportedIntentsFeature } from '@mysten/wallet-standard';
 import { getWalletFeature, uiWalletAccountBelongsToUiWallet } from '@wallet-standard/ui';
 import {
 	getOrCreateUiWalletAccountForStandardWalletAccount_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getOrCreateUiWalletAccountForStandardWalletAccount,
@@ -70,10 +71,31 @@ export function connectWalletCreator(
 					);
 				}
 
+				// Get supported intents - first from connection result, then try to update with getSupportedIntents feature
+				let supportedIntents = result.supportedIntents ?? [];
+				
+				// Try to call getSupportedIntents feature if wallet supports it
+				try {
+					const getSupportedIntentsFeature = wallet.features.includes(SuiGetSupportedIntents)
+						? (getWalletFeature(
+								wallet,
+								SuiGetSupportedIntents,
+						  ) as SuiGetSupportedIntentsFeature[typeof SuiGetSupportedIntents])
+						: null;
+					
+					if (getSupportedIntentsFeature) {
+						const dynamicIntentsResult = await getSupportedIntentsFeature.getSupportedIntents();
+						supportedIntents = dynamicIntentsResult.supportedIntents;
+					}
+				} catch (error) {
+					console.warn('Failed to get dynamic supported intents:', error);
+					// Fall back to connection result intents
+				}
+
 				$baseConnection.set({
 					status: 'connected',
 					currentAccount: account ?? suiAccounts[0],
-					supportedIntents: result.supportedIntents ?? [],
+					supportedIntents,
 				});
 
 				return { accounts: suiAccounts };
