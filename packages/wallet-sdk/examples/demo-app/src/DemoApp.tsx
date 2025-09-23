@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 import { ConnectButton } from '@mysten/dapp-kit-react';
 import { useState, useEffect } from 'react';
-import { CounterDemo } from './demos/CounterDemo.js';
-import { TransferDemo } from './demos/TransferDemo.js';
-import { WalletDemo } from './demos/WalletDemo.js';
-import { NFTMintDemo } from './demos/NFTMintDemo.js';
-import { WalrusDemo } from './demos/WalrusDemo.js';
-import { NetworkSwitcher } from './components/NetworkSwitcher.js';
+import { CounterDemo } from './app/demos/counter/CounterDemo.js';
+import { TransferDemo } from './app/demos/transfer/TransferDemo.js';
+import { WalletDemo } from './app/demos/wallet/WalletDemo.js';
+import { NFTMintDemo } from './app/demos/nft/NFTMintDemo.js';
+import { WalrusDemo } from './app/demos/walrus/WalrusDemo.js';
+import { NetworkSwitcher } from './app/components/layout/NetworkSwitcher.js';
 
 type DemoTab = 'counter' | 'transfer' | 'wallet' | 'nft-mint' | 'walrus';
 
@@ -79,41 +79,17 @@ export function DemoApp() {
 	const ActiveComponent = activeDemo.component;
 
 	return (
-		<div
-			style={{
-				backgroundColor: '#ffffff',
-				height: '100%',
-				display: 'flex',
-				flexDirection: 'column',
-				overflow: 'hidden',
-			}}
-		>
+		<div className="h-screen flex flex-col overflow-hidden">
 			{/* Header */}
-			<div
-				style={{
-					padding: '20px 32px',
-					borderBottom: '1px solid #e0e0e0',
-					backgroundColor: '#fafafa',
-					flexShrink: 0,
-				}}
-			>
-				<div
-					style={{
-						display: 'flex',
-						justifyContent: 'space-between',
-						alignItems: 'center',
-						marginBottom: '16px',
-					}}
-				>
+			<div className="px-8 py-5 border-b border-gray-200 bg-gray-50 shrink-0">
+				<div className="flex items-center justify-between">
 					<div>
-						<h1 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#333' }}>
-							Sui Demo Suite
-						</h1>
-						<p style={{ margin: '4px 0 0', fontSize: '14px', color: '#666' }}>
+						<h1 className="m-0 text-gray-800 text-2xl font-semibold">Sui Demo Suite</h1>
+						<p className="mt-2 mb-0 text-gray-600 text-sm">
 							Interactive demos showcasing Sui blockchain capabilities
 						</p>
 					</div>
-					<div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+					<div className="flex gap-3">
 						<NetworkSwitcher />
 						<ConnectButton />
 					</div>
@@ -121,88 +97,36 @@ export function DemoApp() {
 			</div>
 
 			{/* Tab Navigation */}
-			<div
-				style={{
-					padding: '0 32px',
-					backgroundColor: '#fff',
-					borderBottom: '1px solid #e0e0e0',
-					display: 'flex',
-					gap: '4px',
-					overflowX: 'auto',
-					flexShrink: 0,
-				}}
-			>
+			<div className="flex border-b border-gray-200 bg-white shrink-0">
 				{DEMOS.map((demo) => (
 					<button
 						key={demo.id}
 						onClick={() => handleTabChange(demo.id)}
-						style={{
-							padding: '12px 20px',
-							border: 'none',
-							backgroundColor: 'transparent',
-							cursor: 'pointer',
-							fontSize: '14px',
-							fontWeight: '500',
-							color: activeTab === demo.id ? '#1976d2' : '#666',
-							borderBottom: activeTab === demo.id ? '2px solid #1976d2' : '2px solid transparent',
-							transition: 'all 0.2s ease',
-							display: 'flex',
-							alignItems: 'center',
-							gap: '8px',
-							whiteSpace: 'nowrap',
-						}}
-						onMouseEnter={(e) => {
-							if (activeTab !== demo.id) {
-								e.currentTarget.style.backgroundColor = '#f5f5f5';
-							}
-						}}
-						onMouseLeave={(e) => {
-							e.currentTarget.style.backgroundColor = 'transparent';
-						}}
+						className={`px-5 py-3 border-0 cursor-pointer transition-all duration-200 flex items-center gap-2 text-sm border-b-2 ${
+							activeTab === demo.id
+								? 'bg-gray-100 text-gray-800 font-semibold border-blue-500'
+								: 'bg-transparent text-gray-600 font-normal border-transparent hover:bg-gray-50'
+						}`}
 					>
-						<span style={{ fontSize: '16px' }}>{demo.icon}</span>
+						<span className="text-base">{demo.icon}</span>
 						{demo.name}
 					</button>
 				))}
 			</div>
 
 			{/* Demo Content */}
-			<div
-				style={{
-					flex: 1,
-					display: 'flex',
-					flexDirection: 'column',
-					overflow: 'hidden',
-				}}
-			>
-				<div
-					style={{
-						padding: '24px 32px',
-						borderBottom: '1px solid #e0e0e0',
-						backgroundColor: '#fff',
-						flexShrink: 0,
-					}}
-				>
-					<h2 style={{ margin: '0 0 8px', fontSize: '20px', fontWeight: '600', color: '#333' }}>
+			<div className="flex-1 flex flex-col overflow-hidden">
+				{/* Demo Header */}
+				<div className="px-8 py-6 border-b border-gray-200 bg-white shrink-0">
+					<h2 className="m-0 text-gray-800 text-xl font-semibold">
 						{activeDemo.icon} {activeDemo.name}
 					</h2>
-					<p style={{ margin: 0, fontSize: '14px', color: '#666' }}>{activeDemo.description}</p>
+					<p className="mt-2 mb-0 text-gray-600 text-sm">{activeDemo.description}</p>
 				</div>
 
-				<div
-					style={{
-						flex: 1,
-						padding: '32px',
-						backgroundColor: '#fafafa',
-						overflow: 'auto',
-					}}
-				>
-					<div
-						style={{
-							maxWidth: '800px',
-							margin: '0 auto',
-						}}
-					>
+				{/* Demo Component */}
+				<div className="flex-1 overflow-auto">
+					<div className="max-w-4xl mx-auto p-8">
 						<ActiveComponent />
 					</div>
 				</div>

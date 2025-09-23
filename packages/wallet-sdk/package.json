@@ -53,6 +53,7 @@
 		"@mysten/bcs": "workspace:*",
 		"@mysten/dapp-kit-react": "workspace:*",
 		"@mysten/sui": "workspace:*",
-		"@mysten/wallet-standard": "workspace:*"
+		"@mysten/wallet-standard": "workspace:*",
+		"valibot": "^0.36.0"
 	}
 }

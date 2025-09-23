@@ -1,0 +1,89 @@
+{
+	"version": "1.0.0",
+	"policyId": "demo-app-v1.1-20240911",
+	"name": "Wallet SDK Demo App",
+	"description": "Auto-approval policies for the Wallet SDK Demo Application",
+	"ruleSets": {
+		"basic-transfers": {
+			"name": "Basic Transfers",
+			"description": "Allow basic SUI and coin transfers to any address",
+			"rules": {
+				"balances": [
+					{
+						"$kind": "CoinBalanceRule",
+						"description": "Allow SUI transfers to any address",
+						"coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+					}
+				]
+			}
+		},
+		"counter-operations": {
+			"name": "Counter Operations",
+			"description": "Allow interactions with demo counter smart contracts",
+			"rules": {
+				"balances": [
+					{
+						"$kind": "CoinBalanceRule",
+						"description": "Allow SUI for gas fees",
+						"coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+					}
+				],
+				"ownedObjects": [
+					{
+						"$kind": "ObjectTypeRule",
+						"description": "Allow counter object interactions",
+						"objectType": "0x58a6d7dccd124b7e0bb9756dc309f5d5b9e2bc38a05261177970e96d0d3911f1::counter::Counter",
+						"accessLevel": "mutate"
+					}
+				]
+			}
+		},
+		"nft-operations": {
+			"name": "NFT Operations",
+			"description": "Allow NFT minting, transfers, and marketplace interactions",
+			"rules": {
+				"balances": [
+					{
+						"$kind": "CoinBalanceRule",
+						"description": "Allow SUI for gas fees",
+						"coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+					}
+				],
+				"ownedObjects": [
+					{
+						"$kind": "ObjectTypeRule",
+						"description": "Allow demo NFT interactions",
+						"objectType": "0x1ae7832d6ad190aa4c8d6a36dd014d8383246428fb27590262b8648fcec62ca0::nft::DemoNFT",
+						"accessLevel": "transfer"
+					}
+				]
+			}
+		},
+		"walrus-operations": {
+			"name": "Walrus Storage",
+			"description": "Allow interactions with Walrus decentralized storage",
+			"rules": {
+				"balances": [
+					{
+						"$kind": "CoinBalanceRule",
+						"description": "Allow SUI payments for storage fees",
+						"coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+					}
+				]
+			}
+		}
+	},
+	"defaultSettings": {
+		"maxUsdBudget": "100.00",
+		"maxCoinBudget": {
+			"0x2::sui::SUI": "10000000000"
+		},
+		"remainingTransactions": 50,
+		"expiryHours": 24
+	},
+	"contact": {
+		"name": "Mysten Labs",
+		"url": "https://mystenlabs.com",
+		"email": "build@mystenlabs.com"
+	}
+}

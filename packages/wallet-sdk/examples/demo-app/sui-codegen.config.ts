@@ -4,7 +4,7 @@
 import type { SuiCodegenConfig } from '@mysten/codegen';
 
 const config: SuiCodegenConfig = {
-	output: './src/contracts',
+	output: './src/app/contracts',
 	packages: [
 		{
 			package: 'demo.sui/nft',

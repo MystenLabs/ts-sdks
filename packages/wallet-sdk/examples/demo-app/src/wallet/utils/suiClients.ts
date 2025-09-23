@@ -3,9 +3,9 @@
 import { SuiClient } from '@mysten/sui/client';
 
 // Create dedicated SuiClient instances for each network
-export const testnetClient = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
-export const mainnetClient = new SuiClient({ url: 'https://fullnode.mainnet.sui.io' });
-export const devnetClient = new SuiClient({ url: 'https://fullnode.devnet.sui.io' });
+const testnetClient = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
+const mainnetClient = new SuiClient({ url: 'https://fullnode.mainnet.sui.io' });
+const devnetClient = new SuiClient({ url: 'https://fullnode.devnet.sui.io' });
 
 export function getClientForNetwork(chainId: string): SuiClient {
 	switch (chainId) {

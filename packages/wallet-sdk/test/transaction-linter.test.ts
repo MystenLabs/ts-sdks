@@ -63,6 +63,9 @@ export const handlers = [
 							version: Math.floor(Math.random() * 100000),
 							digest: '',
 							type,
+							owner: {
+								AddressOwner: '0x0000000000000000000000000000000000000000000000000000000000000000',
+							},
 							bcs: {
 								dataType: 'moveObject',
 								type,
@@ -103,6 +106,9 @@ export const handlers = [
 						version: Math.floor(Math.random() * 100000),
 						digest: '',
 						type,
+						owner: {
+							AddressOwner: '0x0000000000000000000000000000000000000000000000000000000000000000',
+						},
 						bcs: {
 							dataType: 'moveObject',
 							type,
