@@ -11,7 +11,7 @@ import {
 	TEST_COIN_2_ID,
 	TEST_PACKAGE_ID,
 	DEFI_PACKAGE_ID,
-	NFT_PACKAGE_ID
+	NFT_PACKAGE_ID,
 } from '../mocks/mockData';
 
 describe('TransactionAnalyzer - Functions Rule', () => {
@@ -251,18 +251,20 @@ describe('TransactionAnalyzer - Functions Rule', () => {
 		`);
 
 		// Verify specific function details
-		const transferFunc = results.moveFunctions.find(f => f.name === 'transfer');
+		const transferFunc = results.moveFunctions.find((f) => f.name === 'transfer');
 		expect(transferFunc?.isEntry).toBe(true);
 		expect(transferFunc?.visibility).toBe('public');
 		expect(transferFunc?.parameters).toHaveLength(4);
 
-		const batchTransferFunc = results.moveFunctions.find(f => f.name === 'batch_transfer');
+		const batchTransferFunc = results.moveFunctions.find((f) => f.name === 'batch_transfer');
 		expect(batchTransferFunc?.parameters[0]?.body?.$kind).toBe('vector');
 
-		const swapFunc = results.moveFunctions.find(f => f.name === 'swap');
-		expect(swapFunc?.packageId).toBe('0x0000000000000000000000000000000000000000000000000000000000000abc');
+		const swapFunc = results.moveFunctions.find((f) => f.name === 'swap');
+		expect(swapFunc?.packageId).toBe(
+			'0x0000000000000000000000000000000000000000000000000000000000000abc',
+		);
 
-		const mintFunc = results.moveFunctions.find(f => f.name === 'mint');
+		const mintFunc = results.moveFunctions.find((f) => f.name === 'mint');
 		expect(mintFunc?.isEntry).toBe(false);
 		expect(mintFunc?.returns).toHaveLength(1);
 		expect(mintFunc?.parameters).toHaveLength(2);

@@ -1,0 +1,59 @@
+{
+	"name": "@mysten/wallet-sdk",
+	"version": "0.0.0",
+	"description": "Utilities for building Sui wallets",
+	"license": "Apache-2.0",
+	"author": "Mysten Labs <build@mystenlabs.com>",
+	"type": "commonjs",
+	"main": "./dist/cjs/index.js",
+	"module": "./dist/esm/index.js",
+	"types": "./dist/cjs/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/esm/index.js",
+			"require": "./dist/cjs/index.js"
+		}
+	},
+	"sideEffects": false,
+	"files": [
+		"CHANGELOG.md",
+		"dist"
+	],
+	"scripts": {
+		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+		"build": "build-package",
+		"vitest": "vitest",
+		"test": "pnpm test:typecheck && pnpm test:unit",
+		"test:typecheck": "tsc -p ./test",
+		"test:unit": "vitest run",
+		"prepublishOnly": "pnpm turbo build",
+		"prettier:check": "prettier -c --ignore-unknown .",
+		"prettier:fix": "prettier -w --ignore-unknown .",
+		"eslint:check": "eslint --max-warnings=0 .",
+		"eslint:fix": "pnpm run eslint:check --fix",
+		"lint": "pnpm run eslint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/mystenlabs/ts-sdks.git"
+	},
+	"bugs": {
+		"url": "https://github.com/mystenlabs/ts-sdks/issues"
+	},
+	"homepage": "https://github.com/MystenLabs/ts-sdks/packages/wallet-sdk#readme",
+	"devDependencies": {
+		"@mysten/build-scripts": "workspace:*",
+		"@types/node": "^22.15.29",
+		"msw": "^2.11.1",
+		"typescript": "^5.9.2",
+		"vitest": "^3.2.4"
+	},
+	"dependencies": {
+		"@mysten/bcs": "workspace:*",
+		"@mysten/dapp-kit-react": "workspace:*",
+		"@mysten/sui": "workspace:*",
+		"@mysten/wallet-standard": "workspace:*",
+		"valibot": "^0.36.0"
+	}
+}
