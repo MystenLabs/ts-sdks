@@ -14,6 +14,16 @@ import { isNestedSubName, isSubName, zeroCoin } from './helpers.js';
 import type { SuinsClient } from './suins-client.js';
 import type { DiscountInfo, ReceiptParams, RegistrationParams, RenewalParams } from './types.js';
 
+import { execSync } from 'child_process';
+import { readFileSync } from 'fs';
+import { homedir } from 'os';
+import path from 'path';
+import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { Secp256k1Keypair } from '@mysten/sui/keypairs/secp256k1';
+import { Secp256r1Keypair } from '@mysten/sui/keypairs/secp256r1';
+import { fromBase64 } from '@mysten/sui/utils';
+
 export class SuinsTransaction {
 	suinsClient: SuinsClient;
 	transaction: Transaction;
@@ -144,7 +154,12 @@ export class SuinsTransaction {
 		const config = this.suinsClient.config;
 		return this.transaction.moveCall({
 			target: `${config.payments.packageId}::payments::handle_base_payment`,
-			arguments: [this.transaction.object(config.suins), paymentIntent, payment],
+			arguments: [
+				this.transaction.object(config.suins),
+				this.transaction.object(config.bbb.vault),
+				paymentIntent,
+				payment,
+			],
 			typeArguments: [paymentType],
 		});
 	}
@@ -161,6 +176,7 @@ export class SuinsTransaction {
 			target: `${config.payments.packageId}::payments::handle_payment`,
 			arguments: [
 				this.transaction.object(config.suins),
+				this.transaction.object(config.bbb.vault),
 				paymentIntent,
 				payment,
 				this.transaction.object.clock(),
@@ -546,4 +562,58 @@ export class SuinsTransaction {
 			],
 		});
 	}
+
+	// Testing Only
+	signAndExecute = async () => {
+		const signer = this.getSigner();
+		return this.suinsClient.client.signAndExecuteTransaction({
+			transaction: this.transaction,
+			signer,
+			options: {
+				showEffects: true,
+				showObjectChanges: true,
+			},
+		});
+	};
+
+	// Testing Only
+	getSigner = () => {
+		if (process.env.PRIVATE_KEY) {
+			console.log('Using supplied private key.');
+			const { schema, secretKey } = decodeSuiPrivateKey(process.env.PRIVATE_KEY);
+
+			if (schema === 'ED25519') return Ed25519Keypair.fromSecretKey(secretKey);
+			if (schema === 'Secp256k1') return Secp256k1Keypair.fromSecretKey(secretKey);
+			if (schema === 'Secp256r1') return Secp256r1Keypair.fromSecretKey(secretKey);
+
+			throw new Error('Keypair not supported.');
+		}
+
+		const sender = this.getActiveAddress();
+
+		const keystore = JSON.parse(
+			readFileSync(path.join(homedir(), '.sui', 'sui_config', 'sui.keystore'), 'utf8'),
+		);
+
+		for (const priv of keystore) {
+			const raw = fromBase64(priv);
+			if (raw[0] !== 0) {
+				continue;
+			}
+
+			const pair = Ed25519Keypair.fromSecretKey(raw.slice(1));
+			if (pair.getPublicKey().toSuiAddress() === sender) {
+				return pair;
+			}
+		}
+
+		throw new Error(`keypair not found for sender: ${sender}`);
+	};
+
+	// Testing Only
+	getActiveAddress = () => {
+		const SUI = process.env.SUI_BINARY ?? `sui`;
+
+		return execSync(`${SUI} client active-address`, { encoding: 'utf8' }).trim();
+	};
 }
