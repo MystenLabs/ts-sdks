@@ -16,12 +16,13 @@ export interface CoinValueAnalyzerOptions {
 
 export interface CoinValueAnalysis {
 	coinTypesWithoutPrice: string[];
-	total: number | null;
+	total: number;
 	coinTypes: {
 		coinType: string;
-		total: number;
 		decimals: number;
 		price: number;
+		amount: bigint;
+		convertedAmount: number;
 	}[];
 }
 
@@ -40,13 +41,14 @@ export function createCoinValueAnalyzer({ getCoinPrices }: CoinValueAnalyzerOpti
 
 		const coinTypes: {
 			coinType: string;
-			total: number;
 			decimals: number;
 			price: number;
+			amount: bigint;
+			convertedAmount: number;
 		}[] = [];
 
 		for (const flow of coinFlows) {
-			if (flow.amount < 0n) {
+			if (flow.amount > 0n) {
 				const result = prices.find((p) => p.coinType === flow.coinType);
 
 				if (result?.price != null) {
@@ -54,9 +56,10 @@ export function createCoinValueAnalyzer({ getCoinPrices }: CoinValueAnalyzerOpti
 					total += amount;
 					coinTypes.push({
 						coinType: flow.coinType,
-						total: amount,
 						decimals: result.decimals,
 						price: result.price,
+						amount: flow.amount,
+						convertedAmount: amount,
 					});
 				} else {
 					coinTypesWithoutPrice.push(flow.coinType);
@@ -65,7 +68,7 @@ export function createCoinValueAnalyzer({ getCoinPrices }: CoinValueAnalyzerOpti
 		}
 
 		return {
-			total: total || null,
+			total: total,
 			coinTypesWithoutPrice,
 			coinTypes: coinTypes,
 		};

@@ -10,7 +10,9 @@ import type { BaseAnalysis } from './base.js';
 export type Analyzer<Result, Analysis = object> = (
 	tx: Transaction,
 	client: ClientWithCoreApi,
-) => (analyzer: TransactionAnalyzer<Analysis & BaseAnalysis>) => Result | PromiseLike<Result>;
+) => (
+	analyzer: Omit<TransactionAnalyzer<Analysis & BaseAnalysis>, '#analyzers' | 'analyze'>,
+) => Result | PromiseLike<Result>;
 
 export interface TransactionAnalysisIssue {
 	message: string;
@@ -47,33 +49,49 @@ export class TransactionAnalyzer<
 				key,
 				(fn as (tx: Transaction, client: Client) => unknown)(this.#transaction, this.#client),
 			]),
-		) as { [k in keyof T]: () => Promise<T[k]> };
+		) as { [k in keyof T]: (analyzer: this) => Promise<T[k]> };
 	}
 
-	static create<T, Client extends ClientWithCoreApi = ClientWithCoreApi>(
+	static create<T = object, Client extends ClientWithCoreApi = ClientWithCoreApi>(
 		client: Client,
 		transaction: string,
 		analyzers: {
 			[k in keyof T]: Analyzer<T[k], T>;
 		},
-	) {
-		return new TransactionAnalyzer(client, transaction, {
+	): TransactionAnalyzer<T & BaseAnalysis, Client> {
+		return new TransactionAnalyzer<T & BaseAnalysis, Client>(client, transaction, {
 			...baseAnalyzers,
 			...analyzers,
-		}) as TransactionAnalyzer<T, Client>;
+		} as never);
 	}
 
-	get<K extends keyof T>(key: K & string): Promise<T[K]> {
+	get = <K extends keyof T>(key: K & string): Promise<T[K]> => {
 		return this.#cache.read([key], () => this.#analyzers[key](this)) as Promise<T[K]>;
-	}
+	};
 
-	getAll<const K extends (keyof T & string)[]>(...keys: K) {
+	getAll = <const K extends (keyof T & string)[]>(...keys: K) => {
 		return Promise.all(keys.map((key) => this.get(key))) as Promise<{
 			[K2 in keyof K]: T[K[K2]];
 		}>;
-	}
+	};
 
-	addIssue(issue: TransactionAnalysisIssue) {
+	addIssue = (issue: TransactionAnalysisIssue) => {
 		this.#issues.push(issue);
-	}
+	};
+
+	analyze = async () => {
+		const results = Object.fromEntries(
+			await Promise.all(
+				Object.keys(this.#analyzers).map(async (key) => [
+					key,
+					await this.get(key as keyof T & string),
+				]),
+			),
+		) as T;
+
+		return {
+			results,
+			issues: this.#issues,
+		};
+	};
 }

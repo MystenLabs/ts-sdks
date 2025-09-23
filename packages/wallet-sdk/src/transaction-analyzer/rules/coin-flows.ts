@@ -31,6 +31,12 @@ export const coinFlowAnalyzer: Analyzer<CoinFlow[]> = () => async (analyzer) => 
 		),
 	);
 
+	if (data.gasData.budget) {
+		trackedCoins.get('gas')!.remainingBalance -= BigInt(data.gasData.budget);
+	} else {
+		analyzer.addIssue({ message: 'Gas budget not set in Transaction' });
+	}
+
 	for (const input of inputs) {
 		if (input.$kind === 'Object' && coins[input.object.id]) {
 			const coin = coins[input.object.id];
@@ -114,7 +120,7 @@ export const coinFlowAnalyzer: Analyzer<CoinFlow[]> = () => async (analyzer) => 
 			if (a.$kind !== 'Pure') {
 				throw new Error('Expected pure value');
 			}
-			return BigInt(bcs.u64().parse(a.bytes));
+			return BigInt(bcs.u64().fromBase64(a.bytes));
 		});
 
 		coin.remainingBalance -= amounts.reduce((a, b) => a + b, 0n);
@@ -145,7 +151,7 @@ export const coinFlowAnalyzer: Analyzer<CoinFlow[]> = () => async (analyzer) => 
 
 	function transferObjects(command: Extract<AnalyzedCommand, { $kind: 'TransferObjects' }>) {
 		const address =
-			command.address.$kind === 'Pure' ? bcs.Address.parse(command.address.bytes) : null;
+			command.address.$kind === 'Pure' ? bcs.Address.fromBase64(command.address.bytes) : null;
 
 		for (const obj of command.objects) {
 			const tracked = getTrackedCoin(obj);

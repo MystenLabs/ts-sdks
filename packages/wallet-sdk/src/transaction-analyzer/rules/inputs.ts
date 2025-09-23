@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
-import { fromBase64 } from '@mysten/sui/utils';
 import type { Analyzer } from '../analyzer.js';
 
 export type AnalyzedCommandInput =
 	| {
 			$kind: 'Pure';
 			index: number;
-			bytes: Uint8Array;
+			bytes: string; // base64 encoded
 			// TODO: add parsed value and type
 	  }
 	| {
@@ -26,7 +25,7 @@ export const inputAnalyzer: Analyzer<AnalyzedCommandInput[]> =
 		return data.inputs.map((input, index): AnalyzedCommandInput => {
 			switch (input.$kind) {
 				case 'Pure':
-					return { $kind: 'Pure', index, bytes: fromBase64(input.Pure.bytes!) };
+					return { $kind: 'Pure', index, bytes: input.Pure.bytes! };
 				case 'Object':
 					const objectId =
 						input.Object.ImmOrOwnedObject?.objectId ??
