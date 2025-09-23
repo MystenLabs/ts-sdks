@@ -6,7 +6,7 @@ import type { Analyzer } from '../analyzer.js';
 
 export const moveFunctionAnalyzer: Analyzer<Experimental_SuiClientTypes.FunctionResponse[]> =
 	(_tx, client) =>
-	async ({ get }) => {
+	async ({ get, addIssue }) => {
 		const data = await get('data');
 		const functions = new Set(
 			data.commands
@@ -14,20 +14,18 @@ export const moveFunctionAnalyzer: Analyzer<Experimental_SuiClientTypes.Function
 				.map((cmd) => `${cmd.MoveCall.package}::${cmd.MoveCall.module}::${cmd.MoveCall.function}`),
 		);
 
-		const results = await Promise.allSettled(
+		const results = await Promise.all(
 			Array.from(functions).map(async (functionId) => {
 				const [packageId, moduleName, name] = functionId.split('::');
 				try {
 					const res = await client.core.getMoveFunction({ packageId, moduleName, name });
 					return res.function;
 				} catch {
-					// Return null for functions that don't exist
+					addIssue({ message: `Failed to fetch Move function: ${functionId}` });
 					return null;
 				}
 			}),
 		);
 
-		return results
-			.map((result) => (result.status === 'fulfilled' ? result.value : null))
-			.filter((fn): fn is Experimental_SuiClientTypes.FunctionResponse => fn !== null);
+		return results.filter((fn): fn is Experimental_SuiClientTypes.FunctionResponse => fn !== null);
 	};
