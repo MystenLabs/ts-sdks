@@ -56,6 +56,6 @@ export interface AutoApprovalPolicySettings {
 	usdBudget: null | number;
 	approvedRuleSets: string[];
 	coinBudgets: {
-		[coinType: string]: number;
+		[coinType: string]: string;
 	};
 }

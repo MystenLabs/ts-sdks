@@ -7,73 +7,220 @@ import type {
 	AutoApprovalPolicySettings,
 	AutoApprovalState,
 } from './types/index.js';
-import type { TransactionAnalysis } from '../policy/types.js';
-import type {
-	Experimental_SuiClientTypes,
-	Experimental_CoreClient,
-} from '@mysten/sui/experimental';
-import type { UsedObject } from './types/analysis.js';
+import type { TransactionAnalysis } from './types/analysis.js';
+import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import { parse, safeParse } from 'valibot';
+import {
+	AutoApprovalStateSchema,
+	AutoApprovalPolicySchema,
+	AutoApprovalPolicySettingsSchema,
+} from './schemas.js';
+import { AUTO_APPROVAL_INTENT } from '../intents/AutoApproval.js';
 
 export interface AutoApprovalManagerOptions {
-	client: Experimental_CoreClient;
 	state: string | null;
 	network: string;
 	origin: string;
-	getCoinPrices?: (coinTypes: string[]) => Promise<Record<string, string>>;
-	approveObjects?: (objects: UsedObject[]) => Promise<boolean[]>;
 }
 
 export class AutoApprovalManager {
 	#state: AutoApprovalState;
-	#client: Experimental_CoreClient;
-	#getCoinPrices: (coinTypes: string[]) => Promise<Record<string, string>>;
-	#approveObjects: (objects: UsedObject[]) => Promise<boolean[]>;
 
 	constructor(options: AutoApprovalManagerOptions) {
-		this.#client = {} as Experimental_CoreClient;
-		this.#getCoinPrices = async () => ({});
-		this.#approveObjects = async () => [];
-		this.#state = options.state
-			? JSON.parse(options.state)
-			: {
-					version: '1.0.0',
-					origin: options.origin,
-					network: options.network,
-					approvedAt: null,
-					policy: null,
-					settings: null,
-					balanceChanges: {},
-					createdObjects: {},
-					approvedDigests: [],
-					pendingDigests: [],
-				};
+		// Initialize or parse existing state with validation
+		if (options.state) {
+			const parseResult = safeParse(AutoApprovalStateSchema, JSON.parse(options.state));
+			if (!parseResult.success) {
+				throw new Error(
+					`Invalid state: ${parseResult.issues.map((i: any) => i.message).join(', ')}`,
+				);
+			}
+			this.#state = parseResult.output;
+		} else {
+			this.#state = parse(AutoApprovalStateSchema, {
+				version: '1.0.0',
+				origin: options.origin,
+				network: options.network,
+				approvedAt: null,
+				policy: null,
+				settings: null,
+				balanceChanges: {},
+				createdObjects: {},
+				approvedDigests: [],
+				pendingDigests: [],
+			});
+		}
 
 		if (this.#state.network !== options.network) {
 			throw new Error(`Network mismatch: expected ${options.network}, got ${this.#state.network}`);
 		}
 
-		if (this.#state.origin !== origin) {
-			throw new Error(`Origin mismatch: expected ${origin}, got ${this.#state.origin}`);
+		if (this.#state.origin !== options.origin) {
+			throw new Error(`Origin mismatch: expected ${options.origin}, got ${this.#state.origin}`);
 		}
 	}
 
-	analyzeTransaction(_tx: Transaction): Promise<TransactionAnalysis> {
-		void [this.#client, this.#getCoinPrices, this.#approveObjects];
-		throw new Error('Not implemented');
+	/**
+	 * Check if a transaction analysis can be auto-approved based on policy settings
+	 * This is a fast synchronous operation
+	 *
+	 * @param analysis - The transaction analysis result
+	 * @param policy - Policy to check against (defaults to current state)
+	 * @param settings - Settings to check against (defaults to current state)
+	 * @param ruleSetId - Specific ruleset to check (extracted from analysis if not provided)
+	 */
+	canAutoApprove(
+		analysis: TransactionAnalysis,
+		policy?: AutoApprovalPolicy | null,
+		settings?: AutoApprovalPolicySettings | null,
+		ruleSetId?: string | null,
+	): boolean {
+		const effectivePolicy = policy ?? this.#state.policy;
+		const effectiveSettings = settings ?? this.#state.settings;
+		const effectiveRuleSetId = ruleSetId ?? analysis.ruleSetId;
+
+		// Must have a policy and settings
+		if (!effectivePolicy || !effectiveSettings) {
+			return false;
+		}
+
+		// Must have policy enabled (approved)
+		if (!this.#state.approvedAt && !settings) {
+			return false;
+		}
+
+		// Must not be expired
+		if (new Date() > new Date(effectiveSettings.expiration)) {
+			return false;
+		}
+
+		// Must have remaining transactions
+		if (
+			effectiveSettings.remainingTransactions !== null &&
+			effectiveSettings.remainingTransactions <= 0
+		) {
+			return false;
+		}
+
+		// Must have a ruleSetId and it must be approved
+		if (!effectiveRuleSetId || !effectiveSettings.approvedRuleSets.includes(effectiveRuleSetId)) {
+			return false;
+		}
+
+		// Transaction must match policy rules (this comes from the analysis)
+		if (!analysis.autoApproved) {
+			return false;
+		}
+
+		// All checks passed
+		return true;
 	}
 
-	commitTransaction(_analysis: TransactionAnalysis): void {}
+	/**
+	 * Extract ruleSetId from AutoApproval intent in transaction
+	 */
+	extractRuleSetId(tx: Transaction): string | null {
+		try {
+			const transactionData = tx.getData();
 
-	applyTransactionEffects(_effects: Experimental_SuiClientTypes.TransactionEffects): void {}
+			const autoApprovalCommand = transactionData.commands.find(
+				(command: any) =>
+					command.$kind === '$Intent' && command.$Intent?.name === AUTO_APPROVAL_INTENT,
+			);
 
-	detectChange(_newPolicy: AutoApprovalPolicy): boolean {
-		throw new Error('Not implemented');
+			if (autoApprovalCommand) {
+				const ruleSetId = autoApprovalCommand.$Intent?.data?.ruleSetId;
+				return typeof ruleSetId === 'string' ? ruleSetId : null;
+			}
+
+			return null;
+		} catch (error) {
+			console.error('Failed to extract ruleSetId:', error);
+			return null;
+		}
+	}
+
+	commitTransaction(analysis: TransactionAnalysis): void {
+		if (!analysis.autoApproved) {
+			return;
+		}
+
+		// Update remaining transactions
+		if (this.#state.settings?.remainingTransactions !== null && this.#state.settings) {
+			this.#state.settings.remainingTransactions = Math.max(
+				0,
+				this.#state.settings.remainingTransactions - 1,
+			);
+		}
+
+		// Track balance changes
+		for (const outflow of analysis.coinOutflows) {
+			const existing = this.#state.balanceChanges[outflow.coinType];
+			const currentBalance = existing ? BigInt(existing.balanceChange) : 0n;
+			const newBalance = currentBalance - BigInt(outflow.balance);
+
+			this.#state.balanceChanges[outflow.coinType] = {
+				balanceChange: newBalance.toString(),
+				lastUpdated: new Date().toISOString(),
+			};
+		}
+
+		// Add to pending digests
+		if (analysis.digest) {
+			this.#state.pendingDigests.push(analysis.digest);
+		}
+	}
+
+	applyTransactionEffects(effects: Experimental_SuiClientTypes.TransactionEffects): void {
+		const digest = effects.transactionDigest;
+
+		// Move from pending to approved
+		const pendingIndex = this.#state.pendingDigests.indexOf(digest);
+		if (pendingIndex >= 0) {
+			this.#state.pendingDigests.splice(pendingIndex, 1);
+			this.#state.approvedDigests.push(digest);
+		}
+
+		// Track created objects from changed objects
+		for (const changed of effects.changedObjects) {
+			if (changed.idOperation === 'Created' && changed.outputState === 'ObjectWrite') {
+				this.#state.createdObjects[changed.id] = {
+					objectId: changed.id,
+					version: changed.outputVersion!,
+					digest: changed.outputDigest!,
+					objectType: 'unknown', // Would need object type lookup
+				};
+			}
+		}
+	}
+
+	detectChange(newPolicy: AutoApprovalPolicy): boolean {
+		if (!this.#state.policy) {
+			return true;
+		}
+
+		// Normalize both policies through validation to ensure consistent comparison
+		try {
+			const normalizedCurrent = parse(AutoApprovalPolicySchema, this.#state.policy);
+			const normalizedNew = parse(AutoApprovalPolicySchema, newPolicy);
+
+			const currentHash = JSON.stringify(normalizedCurrent);
+			const newHash = JSON.stringify(normalizedNew);
+			return currentHash !== newHash;
+		} catch (error) {
+			// If validation fails, assume change is needed
+			return true;
+		}
 	}
 
 	update(policy: AutoApprovalPolicy, settings: AutoApprovalPolicySettings) {
+		// Validate policy and settings
+		const validatedPolicy = parse(AutoApprovalPolicySchema, policy);
+		const validatedSettings = parse(AutoApprovalPolicySettingsSchema, settings);
+
 		this.reset();
-		this.#state.policy = policy;
-		this.#state.settings = settings;
+		this.#state.policy = validatedPolicy;
+		this.#state.settings = validatedSettings;
 	}
 
 	approve() {
@@ -84,7 +231,8 @@ export class AutoApprovalManager {
 		if (!this.#state.settings) {
 			throw new Error('Policy settings have not been set');
 		}
-		this.#state.approvedAt = new Date().toISOString();
+		const timestamp = new Date().toISOString();
+		this.#state.approvedAt = timestamp;
 	}
 
 	reset() {
@@ -96,10 +244,43 @@ export class AutoApprovalManager {
 	}
 
 	applySettings(settings: AutoApprovalPolicySettings) {
-		this.#state.settings = settings;
+		const validatedSettings = parse(AutoApprovalPolicySettingsSchema, settings);
+		this.#state.settings = validatedSettings;
 	}
 
 	export(): string {
-		return JSON.stringify(this.#state);
+		// Validate state before exporting
+		const validatedState = parse(AutoApprovalStateSchema, this.#state);
+		return JSON.stringify(validatedState);
+	}
+
+	serialize(): string {
+		return this.export();
+	}
+
+	hasPolicy(): boolean {
+		return this.#state.policy !== null;
+	}
+
+	isPolicyEnabled(): boolean {
+		return this.#state.approvedAt !== null;
+	}
+
+	getCurrentSettings(): AutoApprovalPolicySettings | null {
+		return this.#state.settings;
+	}
+
+	createPolicy(policy: AutoApprovalPolicy, settings: AutoApprovalPolicySettings): void {
+		this.update(policy, settings);
+	}
+
+	updateSettings(settings: AutoApprovalPolicySettings): void {
+		this.applySettings(settings);
+	}
+
+	clearPolicy(): void {
+		this.#state.policy = null;
+		this.#state.settings = null;
+		this.reset();
 	}
 }

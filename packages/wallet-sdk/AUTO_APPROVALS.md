@@ -32,7 +32,7 @@ An `AutoApprovalPolicy` contains:
 
 - **ruleSets**: Collections of rules describing allowed asset interactions
 - **suggestedSettings**: Recommended user configurations (budgets, limits, etc.)
-- **defaultRuleSet**: Fallback ruleset for transactions without explicit intents
+- **defaultRuleSet**: Must be null - auto-approvals require explicit rule set selection
 
 ### Rule Types
 
@@ -56,8 +56,8 @@ configured by the user.
 
 ## Usage Flow
 
-1. **Transaction Construction**: Applications build transactions normally, optionally adding
-   `tx.add(autoApproval(ruleSetId))` for non-default rulesets
+1. **Transaction Construction**: Applications build transactions normally, adding
+   `tx.add(autoApproval(ruleSetId))` to request auto-approval with a specific rule set
 
 2. **Policy Evaluation**: Wallet loads the AutoApprovalManager and analyzes the transaction against
    current policy state
