@@ -1,10 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { bcs } from '@mysten/sui/dist/cjs/bcs/index.js';
+import { bcs } from '@mysten/sui/bcs';
 import type { AnalyzedObject } from './objects.js';
 import type { Analyzer } from '../analyzer.js';
-import { normalizeStructTag, parseStructTag } from '@mysten/sui/dist/cjs/utils/index.js';
+import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
 
 export type AnalyzedCoin = AnalyzedObject & { balance: bigint; coinType: string };
 
@@ -14,7 +14,7 @@ export const Coin = bcs.struct('Coin', {
 });
 
 export const coinsAnalyzer: Analyzer<Record<string, AnalyzedCoin>> = () => {
-	const parsedCoinType = parseStructTag('0x2::sui::SUI');
+	const parsedCoinStruct = parseStructTag('0x2::coin::Coin<0x2::sui::SUI>');
 
 	return async ({ get }) => {
 		const objects = await get('objects');
@@ -24,11 +24,11 @@ export const coinsAnalyzer: Analyzer<Record<string, AnalyzedCoin>> = () => {
 				objects
 					.filter((obj) => {
 						const parsed = parseStructTag(obj.type);
-						return parsed.address === parsedCoinType.address &&
-							parsed.module === parsedCoinType.module &&
-							parsed.name === parsedCoinType.name
-							? true
-							: false;
+						return (
+							parsed.address === parsedCoinStruct.address &&
+							parsed.module === parsedCoinStruct.module &&
+							parsed.name === parsedCoinStruct.name
+						);
 					})
 					.map(async (obj) => {
 						const content = Coin.parse(await obj.content);

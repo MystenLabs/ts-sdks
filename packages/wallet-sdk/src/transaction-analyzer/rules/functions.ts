@@ -14,12 +14,20 @@ export const moveFunctionAnalyzer: Analyzer<Experimental_SuiClientTypes.Function
 				.map((cmd) => `${cmd.MoveCall.package}::${cmd.MoveCall.module}::${cmd.MoveCall.function}`),
 		);
 
-		return Promise.all(
+		const results = await Promise.allSettled(
 			Array.from(functions).map(async (functionId) => {
 				const [packageId, moduleName, name] = functionId.split('::');
-				const res = await client.core.getMoveFunction({ packageId, moduleName, name });
-
-				return res.function;
+				try {
+					const res = await client.core.getMoveFunction({ packageId, moduleName, name });
+					return res.function;
+				} catch {
+					// Return null for functions that don't exist
+					return null;
+				}
 			}),
 		);
+
+		return results
+			.map((result) => (result.status === 'fulfilled' ? result.value : null))
+			.filter((fn): fn is Experimental_SuiClientTypes.FunctionResponse => fn !== null);
 	};
