@@ -6,6 +6,9 @@ import type { DAppKitStores } from '../store.js';
 import type { StateStorage } from '../../utils/storage.js';
 import type { UiWallet } from '@wallet-standard/ui';
 import { getWalletUniqueIdentifier } from '../../utils/wallets.js';
+import { SuiGetSupportedIntents } from '@mysten/wallet-standard';
+import type { SuiGetSupportedIntentsFeature } from '@mysten/wallet-standard';
+import { getWalletFeature } from '@wallet-standard/ui';
 
 /**
  * Attempts to connect to a previously authorized wallet account on mount and when new wallets are registered.
@@ -36,10 +39,32 @@ export function autoConnectWallet({
 				});
 
 				if (savedWalletData) {
+					// Try to get fresh supported intents from the wallet
+					let supportedIntents = savedWalletData.supportedIntents;
+					
+					try {
+						const wallet = wallets.find(w => 
+							w.accounts.some(account => account.address === savedWalletData.account.address)
+						);
+						
+						if (wallet && wallet.features.includes(SuiGetSupportedIntents)) {
+							const getSupportedIntentsFeature = getWalletFeature(
+								wallet,
+								SuiGetSupportedIntents,
+							) as SuiGetSupportedIntentsFeature[typeof SuiGetSupportedIntents];
+							
+							const dynamicIntentsResult = await getSupportedIntentsFeature.getSupportedIntents();
+							supportedIntents = dynamicIntentsResult.supportedIntents;
+						}
+					} catch (error) {
+						console.warn('Failed to get dynamic supported intents during autoconnect:', error);
+						// Fall back to saved intents
+					}
+					
 					$baseConnection.set({
 						status: 'connected',
 						currentAccount: savedWalletData.account,
-						supportedIntents: savedWalletData.supportedIntents,
+						supportedIntents,
 					});
 				}
 			},
