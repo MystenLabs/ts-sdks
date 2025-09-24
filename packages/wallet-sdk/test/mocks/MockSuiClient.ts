@@ -3,7 +3,7 @@
 
 import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 import { Experimental_CoreClient } from '@mysten/sui/experimental';
-import { normalizeSuiAddress, normalizeStructTag } from '@mysten/sui/utils';
+import { normalizeSuiAddress, normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
 import type { TransactionPlugin } from '@mysten/sui/transactions';
 import { Inputs } from '@mysten/sui/transactions';
 import {
@@ -147,7 +147,14 @@ export class MockSuiClient extends Experimental_CoreClient {
 		options: Experimental_SuiClientTypes.GetCoinsOptions,
 	): Promise<Experimental_SuiClientTypes.GetCoinsResponse> {
 		const coinObjects = Array.from(this.#objects.values()).filter((obj) => {
-			const isCoin = obj.type.startsWith('0x2::coin::Coin<');
+			const parsedType = parseStructTag(obj.type);
+			const parsedCoinType = parseStructTag('0x2::coin::Coin');
+
+			const isCoin =
+				parsedType.address === parsedCoinType.address &&
+				parsedType.module === parsedCoinType.module &&
+				parsedType.name === parsedCoinType.name;
+
 			if (!isCoin) return false;
 
 			// Filter by owner using helper function
@@ -225,8 +232,14 @@ export class MockSuiClient extends Experimental_CoreClient {
 	async getAllBalances(
 		options: Experimental_SuiClientTypes.GetAllBalancesOptions,
 	): Promise<Experimental_SuiClientTypes.GetAllBalancesResponse> {
+		const parsedCoinType = parseStructTag('0x2::coin::Coin');
 		const allObjects = Array.from(this.#objects.values()).filter((obj) => {
-			const isCoin = obj.type.startsWith('0x2::coin::Coin<');
+			const parsedType = parseStructTag(obj.type);
+
+			const isCoin =
+				parsedType.address === parsedCoinType.address &&
+				parsedType.module === parsedCoinType.module &&
+				parsedType.name === parsedCoinType.name;
 			const isOwnedByAddress = this.#isOwnedByAddress(obj, options.address);
 			return isCoin && isOwnedByAddress;
 		});
