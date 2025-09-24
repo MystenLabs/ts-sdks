@@ -83,7 +83,9 @@ export abstract class Signer {
 	async signAndExecuteTransaction({
 		transaction,
 		client,
-	}: SignAndExecuteOptions): Promise<Experimental_SuiClientTypes.TransactionResponse> {
+	}: SignAndExecuteOptions): Promise<
+		Omit<Experimental_SuiClientTypes.TransactionResponse, 'balanceChanges'>
+	> {
 		const bytes = await transaction.build({ client });
 		const { signature } = await this.signTransaction(bytes);
 		const response = await client.core.executeTransaction({
