@@ -101,7 +101,7 @@ describe('TransactionAnalyzer - Functions Rule', () => {
 			arguments: [tx.pure.address('0x123'), tx.pure.vector('u8', [1, 2, 3])],
 		});
 
-		// 5. Call non-existent function (should be filtered out)
+		// 5. Call non-existent function (should add an issue)
 		tx.moveCall({
 			target: '0x1234567890abcdef::module::function',
 			arguments: [],
@@ -110,14 +110,20 @@ describe('TransactionAnalyzer - Functions Rule', () => {
 		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
 		const { results, issues } = await analyzer.analyze();
 
-		expect(issues).toHaveLength(0);
+		expect(issues).toMatchInlineSnapshot(`
+			[
+			  {
+			    "message": "Failed to fetch Move function: 0x0000000000000000000000000000000000000000000000001234567890abcdef::module::function",
+			  },
+			]
+		`);
 
 		// Should find 4 functions (3 from defaults + 2 custom - 1 non-existent)
 		expect(results.moveFunctions).toHaveLength(4);
 		expect(results.moveFunctions).toMatchInlineSnapshot(`
 			[
 			  {
-			    "isEntry": true,
+			    "isEntry": false,
 			    "moduleName": "test",
 			    "name": "transfer",
 			    "packageId": "0x0000000000000000000000000000000000000000000000000000000000000999",
@@ -130,7 +136,7 @@ describe('TransactionAnalyzer - Functions Rule', () => {
 			            "typeParameters": [],
 			          },
 			        },
-			        "reference": null,
+			        "reference": "mutable",
 			      },
 			      {
 			        "body": {
@@ -156,7 +162,7 @@ describe('TransactionAnalyzer - Functions Rule', () => {
 			    "visibility": "public",
 			  },
 			  {
-			    "isEntry": true,
+			    "isEntry": false,
 			    "moduleName": "test",
 			    "name": "batch_transfer",
 			    "packageId": "0x0000000000000000000000000000000000000000000000000000000000000999",
@@ -177,7 +183,7 @@ describe('TransactionAnalyzer - Functions Rule', () => {
 			            },
 			          },
 			        },
-			        "reference": null,
+			        "reference": "mutable",
 			      },
 			    ],
 			    "returns": [],
@@ -252,7 +258,7 @@ describe('TransactionAnalyzer - Functions Rule', () => {
 
 		// Verify specific function details
 		const transferFunc = results.moveFunctions.find((f) => f.name === 'transfer');
-		expect(transferFunc?.isEntry).toBe(true);
+		expect(transferFunc?.isEntry).toBe(false);
 		expect(transferFunc?.visibility).toBe('public');
 		expect(transferFunc?.parameters).toHaveLength(4);
 

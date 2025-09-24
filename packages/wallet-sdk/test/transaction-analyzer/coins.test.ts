@@ -78,7 +78,7 @@ describe('TransactionAnalyzer - Coins Rule', () => {
 		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
 		const { results, issues } = await analyzer.analyze();
 
-		expect(issues).toHaveLength(0);
+		expect(issues).toMatchInlineSnapshot(`[]`);
 
 		// Should detect all coin objects but not the NFT
 		expect(Object.keys(results.coins)).toHaveLength(4);

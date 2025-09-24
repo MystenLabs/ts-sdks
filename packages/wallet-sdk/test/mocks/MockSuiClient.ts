@@ -108,10 +108,7 @@ export class MockSuiClient extends Experimental_CoreClient {
 	}
 
 	// Helper function to check if an object is owned by the given address
-	private isOwnedByAddress(
-		obj: Experimental_SuiClientTypes.ObjectResponse,
-		address: string,
-	): boolean {
+	#isOwnedByAddress(obj: Experimental_SuiClientTypes.ObjectResponse, address: string): boolean {
 		switch (obj.owner.$kind) {
 			case 'AddressOwner':
 				return obj.owner.AddressOwner === address;
@@ -146,22 +143,6 @@ export class MockSuiClient extends Experimental_CoreClient {
 		return { objects };
 	}
 
-	async multiGetObjects(options: {
-		ids: string[];
-		options?: { showOwner?: boolean };
-	}): Promise<Array<{ data?: Experimental_SuiClientTypes.ObjectResponse; error?: string }>> {
-		return options.ids.map((id) => {
-			const normalizedId = normalizeSuiAddress(id);
-			const obj = this.#objects.get(normalizedId);
-
-			if (!obj) {
-				return { error: `Object not found: ${id}` };
-			}
-
-			return { data: obj };
-		});
-	}
-
 	async getCoins(
 		options: Experimental_SuiClientTypes.GetCoinsOptions,
 	): Promise<Experimental_SuiClientTypes.GetCoinsResponse> {
@@ -170,7 +151,7 @@ export class MockSuiClient extends Experimental_CoreClient {
 			if (!isCoin) return false;
 
 			// Filter by owner using helper function
-			const isOwnedByAddress = this.isOwnedByAddress(obj, options.address);
+			const isOwnedByAddress = this.#isOwnedByAddress(obj, options.address);
 			if (!isOwnedByAddress) return false;
 
 			// Filter by coin type
@@ -208,7 +189,7 @@ export class MockSuiClient extends Experimental_CoreClient {
 		options: Experimental_SuiClientTypes.GetOwnedObjectsOptions,
 	): Promise<Experimental_SuiClientTypes.GetOwnedObjectsResponse> {
 		const ownedObjects = Array.from(this.#objects.values()).filter((obj) => {
-			return this.isOwnedByAddress(obj, options.address);
+			return this.#isOwnedByAddress(obj, options.address);
 		});
 
 		return {
@@ -246,7 +227,7 @@ export class MockSuiClient extends Experimental_CoreClient {
 	): Promise<Experimental_SuiClientTypes.GetAllBalancesResponse> {
 		const allObjects = Array.from(this.#objects.values()).filter((obj) => {
 			const isCoin = obj.type.startsWith('0x2::coin::Coin<');
-			const isOwnedByAddress = this.isOwnedByAddress(obj, options.address);
+			const isOwnedByAddress = this.#isOwnedByAddress(obj, options.address);
 			return isCoin && isOwnedByAddress;
 		});
 
@@ -441,9 +422,9 @@ export class MockSuiClient extends Experimental_CoreClient {
 		] as string[];
 
 		// Fetch objects using our multiGetObjects
-		const resolved = await this.multiGetObjects({ ids: dedupedIds });
+		const resolved = await this.getObjects({ objectIds: dedupedIds });
 
-		const objectsById = new Map(dedupedIds.map((id, index) => [id, resolved[index]]));
+		const objectsById = new Map(dedupedIds.map((id, index) => [id, resolved.objects[index]]));
 
 		// Update each UnresolvedObject input
 		for (const [index, input] of transactionData.inputs.entries()) {
@@ -454,25 +435,23 @@ export class MockSuiClient extends Experimental_CoreClient {
 			const id = normalizeSuiAddress(input.UnresolvedObject.objectId);
 			const resolvedObject = objectsById.get(id);
 
-			if (!resolvedObject?.data) {
+			if (!resolvedObject || resolvedObject instanceof Error) {
 				throw new Error(`Failed to resolve object: ${id}`);
 			}
 
-			const object = resolvedObject.data;
-
 			// Determine the type of reference based on owner
-			if (object.owner.$kind === 'Shared') {
+			if (resolvedObject.owner.$kind === 'Shared') {
 				transactionData.inputs[index] = Inputs.SharedObjectRef({
 					objectId: id,
-					initialSharedVersion: object.owner.Shared.initialSharedVersion,
+					initialSharedVersion: resolvedObject.owner.Shared.initialSharedVersion,
 					mutable: input.UnresolvedObject.mutable ?? true,
 				});
 			} else {
 				// For owned objects, use ObjectRef
 				transactionData.inputs[index] = Inputs.ObjectRef({
 					objectId: id,
-					digest: object.digest,
-					version: object.version,
+					digest: resolvedObject.digest,
+					version: resolvedObject.version,
 				});
 			}
 		}
