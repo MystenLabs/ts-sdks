@@ -101,7 +101,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
 		const { results, issues } = await analyzer.analyze();
 
-		expect(issues).toHaveLength(0);
+		expect(issues).toMatchInlineSnapshot(`[]`);
 
 		// Verify coin flows are tracked correctly
 		expect(results.coinFlows).toMatchInlineSnapshot(`
@@ -372,7 +372,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
 		const { results, issues } = await analyzer.analyze();
 
-		expect(issues).toHaveLength(0);
+		expect(issues).toMatchInlineSnapshot(`[]`);
 
 		// Should consume full gas coin due to dynamic split amount
 		expect(results.coinFlows).toHaveLength(1);

@@ -25,6 +25,8 @@ export const TEST_PACKAGE_ID = '0x999';
 export const TEST_MODULE_NAME = 'test';
 export const TEST_TRANSFER_FUNCTION = 'transfer';
 export const TEST_BATCH_TRANSFER_FUNCTION = 'batch_transfer';
+export const TEST_TRANSFER_NFT_FUNCTION = 'transfer_nft';
+export const TEST_COMPLEX_TRANSFER_FUNCTION = 'complex_transfer';
 
 // Additional package IDs for tests
 export const DEFI_PACKAGE_ID = '0xabc';
@@ -280,12 +282,12 @@ export const DEFAULT_MOVE_FUNCTIONS: Experimental_SuiClientTypes.FunctionRespons
 	createMockMoveFunction({
 		packageId: '0x999',
 		moduleName: 'test',
-		name: 'transfer',
+		name: TEST_TRANSFER_FUNCTION,
 		visibility: 'public',
-		isEntry: true,
+		isEntry: false,
 		parameters: [
 			{
-				reference: null,
+				reference: 'mutable',
 				body: {
 					$kind: 'datatype',
 					datatype: { typeName: '0x999::nft::NFT', typeParameters: [] },
@@ -299,12 +301,12 @@ export const DEFAULT_MOVE_FUNCTIONS: Experimental_SuiClientTypes.FunctionRespons
 	createMockMoveFunction({
 		packageId: '0x999',
 		moduleName: 'test',
-		name: 'batch_transfer',
+		name: TEST_BATCH_TRANSFER_FUNCTION,
 		visibility: 'public',
-		isEntry: true,
+		isEntry: false,
 		parameters: [
 			{
-				reference: null,
+				reference: 'mutable',
 				body: {
 					$kind: 'vector',
 					vector: {
@@ -313,6 +315,130 @@ export const DEFAULT_MOVE_FUNCTIONS: Experimental_SuiClientTypes.FunctionRespons
 							typeName: '0x2::coin::Coin',
 							typeParameters: [{ $kind: 'typeParameter', index: 0 }],
 						},
+					},
+				},
+			},
+		],
+	}),
+	createMockMoveFunction({
+		packageId: '0x999',
+		moduleName: 'test',
+		name: TEST_TRANSFER_NFT_FUNCTION,
+		visibility: 'public',
+		isEntry: false,
+		parameters: [
+			{
+				reference: 'mutable',
+				body: {
+					$kind: 'datatype',
+					datatype: { typeName: '0x999::nft::NFT', typeParameters: [] },
+				},
+			},
+			{ reference: null, body: { $kind: 'address' } },
+		],
+	}),
+	createMockMoveFunction({
+		packageId: '0x999',
+		moduleName: 'test',
+		name: TEST_COMPLEX_TRANSFER_FUNCTION,
+		visibility: 'public',
+		isEntry: false,
+		parameters: [
+			{
+				reference: 'mutable',
+				body: {
+					$kind: 'vector',
+					vector: {
+						$kind: 'datatype',
+						datatype: {
+							typeName: '0x2::coin::Coin',
+							typeParameters: [{ $kind: 'typeParameter', index: 0 }],
+						},
+					},
+				},
+			},
+			{ reference: null, body: { $kind: 'u64' } },
+			{ reference: null, body: { $kind: 'address' } },
+			{ reference: null, body: { $kind: 'bool' } },
+			{ reference: null, body: { $kind: 'vector', vector: { $kind: 'u8' } } },
+		],
+	}),
+	createMockMoveFunction({
+		packageId: '0x999',
+		moduleName: 'test',
+		name: 'consume_coin',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [
+			{
+				reference: 'mutable',
+				body: {
+					$kind: 'datatype',
+					datatype: {
+						typeName: '0x2::coin::Coin',
+						typeParameters: [{ $kind: 'typeParameter', index: 0 }],
+					},
+				},
+			},
+			{
+				reference: null,
+				body: {
+					$kind: 'datatype',
+					datatype: {
+						typeName: '0x2::coin::Coin',
+						typeParameters: [{ $kind: 'typeParameter', index: 0 }],
+					},
+				},
+			},
+		],
+	}),
+	createMockMoveFunction({
+		packageId: '0x999',
+		moduleName: 'test',
+		name: 'batch_operation',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [
+			{
+				reference: 'mutable',
+				body: {
+					$kind: 'vector',
+					vector: {
+						$kind: 'datatype',
+						datatype: {
+							typeName: '0x2::coin::Coin',
+							typeParameters: [{ $kind: 'typeParameter', index: 0 }],
+						},
+					},
+				},
+			},
+		],
+	}),
+	createMockMoveFunction({
+		packageId: '0999',
+		moduleName: 'test',
+		name: 'create_coin',
+		visibility: 'public',
+		isEntry: false,
+		parameters: [],
+		returns: [
+			{
+				reference: null,
+				body: {
+					$kind: 'datatype',
+					datatype: {
+						typeName: '0x2::coin::Coin',
+						typeParameters: [
+							{
+								$kind: 'datatype',
+								datatype: {
+									typeName: '0x2::sui::SUI',
+									typeParameters: [],
+								},
+							},
+						],
 					},
 				},
 			},

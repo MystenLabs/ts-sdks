@@ -57,7 +57,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
 		const { results, issues } = await analyzer.analyze();
 
-		expect(issues).toHaveLength(0);
+		expect(issues).toMatchInlineSnapshot(`[]`);
 
 		// Should detect all object IDs (including gas payment)
 		expect(results.objectIds).toHaveLength(5);

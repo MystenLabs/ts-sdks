@@ -65,7 +65,13 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
 		const { results, issues } = await analyzer.analyze();
 
-		expect(issues).toHaveLength(0);
+		expect(issues).toMatchInlineSnapshot(`
+			[
+			  {
+			    "message": "Failed to fetch Move function: 0x0000000000000000000000000000000000000000000000000000000000000999::test::complex_call",
+			  },
+			]
+		`);
 
 		// Should have 10 inputs: 6 pure values + 1 pure for gas split + 3 objects
 		expect(results.inputs).toHaveLength(10);

@@ -220,7 +220,7 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			      "typeArguments": [],
 			    },
 			    "function": {
-			      "isEntry": true,
+			      "isEntry": false,
 			      "moduleName": "test",
 			      "name": "batch_transfer",
 			      "packageId": "0x0000000000000000000000000000000000000000000000000000000000000999",
@@ -241,7 +241,7 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			              },
 			            },
 			          },
-			          "reference": null,
+			          "reference": "mutable",
 			        },
 			      ],
 			      "returns": [],
