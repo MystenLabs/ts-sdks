@@ -68,7 +68,7 @@ export class CurrentAccountSigner extends Signer {
 		transaction,
 	}: {
 		transaction: Transaction;
-	}): Promise<Experimental_SuiClientTypes.TransactionResponse> {
+	}): Promise<Omit<Experimental_SuiClientTypes.TransactionResponse, 'balanceChanges'>> {
 		const { bytes, signature, digest, effects } = await this.#dAppKit.signAndExecuteTransaction({
 			transaction,
 		});
