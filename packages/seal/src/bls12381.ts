@@ -143,10 +143,19 @@ export class Scalar {
 	}
 
 	toBytes(): Uint8Array<ArrayBuffer> {
-		return new Uint8Array(bls12_381.fields.Fr.toBytes(this.scalar)) as Uint8Array<ArrayBuffer>;
+		// Ensure big-endian byte order
+		let bytes = bls12_381.fields.Fr.toBytes(this.scalar);
+		if (bls12_381.fields.Fr.isLE) {
+			bytes = bytes.reverse();
+		}
+		return new Uint8Array(bytes);
 	}
 
 	static fromBytes(bytes: Uint8Array): Scalar {
+		// Ensure big-endian byte order
+		if (bls12_381.fields.Fr.isLE) {
+			bytes = bytes.reverse();
+		}
 		return new Scalar(bls12_381.fields.Fr.fromBytes(bytes));
 	}
 
