@@ -135,6 +135,7 @@ export const coinFlowAnalyzer: Analyzer<CoinFlow[]> = () => async (analyzer) => 
 
 	function mergeCoins(command: Extract<AnalyzedCommand, { $kind: 'MergeCoins' }>) {
 		const sources = command.sources.map(getTrackedCoin);
+		const amount = sources.reduce((a, c) => a + (c?.remainingBalance ?? 0n), 0n);
 
 		for (const src of sources) {
 			src?.consume();
@@ -146,7 +147,7 @@ export const coinFlowAnalyzer: Analyzer<CoinFlow[]> = () => async (analyzer) => 
 			return;
 		}
 
-		dest.remainingBalance += sources.reduce((a, c) => a + (c?.remainingBalance ?? 0n), 0n);
+		dest.remainingBalance += amount;
 	}
 
 	function transferObjects(command: Extract<AnalyzedCommand, { $kind: 'TransferObjects' }>) {

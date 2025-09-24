@@ -34,118 +34,6 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		]);
 	});
 
-	it('should track coin flows when splitting and transferring coins', async () => {
-		const client = new MockSuiClient();
-
-		// Add additional coins for comprehensive testing
-		client.addCoin({
-			objectId: '0xa5c010',
-			coinType: '0x2::sui::SUI',
-			balance: 5000000000n, // 5 SUI
-			owner: createAddressOwner(DEFAULT_SENDER),
-		});
-
-		client.addCoin({
-			objectId: '0xa5c011',
-			coinType: '0x2::sui::SUI',
-			balance: 2000000000n, // 2 SUI
-			owner: createAddressOwner(DEFAULT_SENDER),
-		});
-
-		client.addCoin({
-			objectId: '0xa5c012',
-			coinType: '0xa0b::usdc::USDC',
-			balance: 1000000000n, // 1000 USDC (6 decimals)
-			owner: createAddressOwner(DEFAULT_SENDER),
-		});
-
-		const tx = new Transaction();
-		tx.setSender(DEFAULT_SENDER);
-
-		// Test 1: Split coins (should track outflow when transferred)
-		const suiCoin = tx.object('0xa5c010');
-		const [splitCoin1, splitCoin2] = tx.splitCoins(suiCoin, [1000000000n, 500000000n]); // 1 SUI, 0.5 SUI
-
-		// Test 2: Merge coins (should combine balances)
-		const suiCoin2 = tx.object('0xa5c011');
-		tx.mergeCoins(suiCoin, [suiCoin2]); // Merge 2 SUI into main coin
-
-		// Test 3: Use gas coin (should track gas usage)
-		const [gasSplit] = tx.splitCoins(tx.gas, [100000000n]); // 0.1 SUI from gas
-
-		// Test 4: Transfer different coin types (should track outflows)
-		const usdcCoin = tx.object('0xa5c012');
-		const [usdcSplit] = tx.splitCoins(usdcCoin, [500000000n]); // 500 USDC
-
-		// Transfer coins to create outflows
-		tx.transferObjects([splitCoin1, gasSplit], tx.pure.address('0x456'));
-		tx.transferObjects([usdcSplit], tx.pure.address('0x789'));
-
-		// Test 5: Use coins in Move calls (should consume them)
-		tx.moveCall({
-			target: '0x999::test::consume_coin',
-			arguments: [splitCoin2], // This should consume the 0.5 SUI
-		});
-
-		// Test 6: Use coins in MakeMoveVec (should consume them)
-		const wethCoin = tx.object(TEST_WETH_COIN_ID);
-		const coinVec = tx.makeMoveVec({
-			elements: [wethCoin],
-		});
-
-		tx.moveCall({
-			target: '0x999::test::batch_operation',
-			arguments: [coinVec],
-		});
-
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toMatchInlineSnapshot(`[]`);
-
-		// Verify coin flows are tracked correctly
-		expect(results.coinFlows).toMatchInlineSnapshot(`
-			[
-			  {
-			    "amount": 3610000000n,
-			    "coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
-			  },
-			  {
-			    "amount": 500000000n,
-			    "coinType": "0x0000000000000000000000000000000000000000000000000000000000000a0b::usdc::USDC",
-			  },
-			  {
-			    "amount": 2500000000000000000n,
-			    "coinType": "0x0000000000000000000000000000000000000000000000000000000000000b0c::weth::WETH",
-			  },
-			]
-		`);
-
-		// Verify SUI outflow: 1 SUI (split1) + 0.1 SUI (gas) + 0.5 SUI (consumed in move call) = 1.6 SUI
-		const suiFlow = results.coinFlows.find(
-			(flow) =>
-				flow.coinType ===
-				'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
-		);
-		expect(suiFlow?.amount).toBe(3610000000n); // 1.6 SUI + 0.01 SUI gas budget
-
-		// Verify USDC outflow: 500 USDC transferred
-		const usdcFlow = results.coinFlows.find(
-			(flow) =>
-				flow.coinType ===
-				'0x0000000000000000000000000000000000000000000000000000000000000a0b::usdc::USDC',
-		);
-		expect(usdcFlow?.amount).toBe(500000000n); // Positive means outflow
-
-		// Verify WETH outflow: entire coin consumed in MakeMoveVec
-		const wethFlow = results.coinFlows.find(
-			(flow) =>
-				flow.coinType ===
-				'0x0000000000000000000000000000000000000000000000000000000000000b0c::weth::WETH',
-		);
-		expect(wethFlow?.amount).toBe(2500000000000000000n); // WETH balance consumed
-	});
-
 	it('should track gas coin flows when splitting and transferring', async () => {
 		const client = new MockSuiClient();
 		const tx = new Transaction();
@@ -203,10 +91,18 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		tx.mergeCoins(coin1, [coin2]); // Now coin1 has 7.5 SUI
 
 		// Split merged coin
-		const [splitCoin] = tx.splitCoins(coin1, [1000000000n]); // 1 SUI
+		const [splitCoin1, splitCoin2, splitCoin3] = tx.splitCoins(coin1, [
+			1000000000n,
+			500000000n,
+			250000000n,
+		]); // 1 SUI + 0.5 SUI + 0.25 SUI
+
+		const [toTransfer] = tx.mergeCoins(splitCoin1, [splitCoin2]); // 1.5 SUI
+
+		tx.mergeCoins(coin1, [splitCoin3]); // Merge back remaining .25
 
 		// Transfer the split
-		tx.transferObjects([splitCoin], tx.pure.address('0x456'));
+		tx.transferObjects([toTransfer], tx.pure.address('0x456'));
 
 		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
 		const { results, issues } = await analyzer.analyze();
@@ -216,7 +112,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		// Should only count the transferred amount, not double count the merged coins
 		expect(results.coinFlows).toHaveLength(1);
 		const suiFlow = results.coinFlows[0];
-		expect(suiFlow.amount).toBe(3510000000n); // 1 SUI + 2.5 SUI + 0.01 gas budget
+		expect(suiFlow.amount).toBe(1510000000n); // 1 SUI + 2.5 SUI + 0.01 gas budget
 	});
 
 	it('should track coins consumed in Move calls', async () => {
@@ -298,11 +194,10 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		const tx = new Transaction();
 		tx.setSender(DEFAULT_SENDER);
 
-		const suiCoin = tx.object(TEST_COIN_1_ID);
-		const dynamicAmount = tx.pure.u64(1000000000n); // 1 SUI as pure input
+		const dynamicAmount = tx.moveCall({ target: '0x999::test::get_dynamic_amount' });
 
 		// Split with dynamic amount - analyzer should assume full consumption
-		const [splitCoin] = tx.splitCoins(suiCoin, [dynamicAmount]);
+		const [splitCoin] = tx.splitCoins(tx.gas, [dynamicAmount]);
 		tx.transferObjects([splitCoin], tx.pure.address('0x456'));
 
 		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
@@ -316,7 +211,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 				flow.coinType ===
 				'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
 		);
-		expect(suiFlow?.amount).toBe(1010000000n); // 1 SUI + 0.01 gas budget
+		expect(suiFlow?.amount).toBe(5000000000n); // assume split consumed full gas coin
 	});
 
 	it('should handle multiple coin types in single transaction', async () => {
@@ -349,35 +244,22 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			'0x0000000000000000000000000000000000000000000000000000000000000b0c::weth::WETH',
 		]);
 
-		// All should be positive (outflows)
-		for (const flow of results.coinFlows) {
-			expect(flow.amount).toBeGreaterThan(0n);
-		}
-	});
-
-	it('should handle Move call results used as coins', async () => {
-		const client = new MockSuiClient();
-		const tx = new Transaction();
-		tx.setSender(DEFAULT_SENDER);
-
-		// Move call that returns a coin
-		const [returnedCoin] = tx.moveCall({
-			target: '0x999::test::create_coin',
-		});
-
-		// Use returned coin in split (should consume gas due to unknown amount)
-		const [splitFromGas] = tx.splitCoins(tx.gas, [returnedCoin]);
-		tx.transferObjects([splitFromGas], tx.pure.address('0x456'));
-
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toMatchInlineSnapshot(`[]`);
-
-		// Should consume full gas coin due to dynamic split amount
-		expect(results.coinFlows).toHaveLength(1);
-		const suiFlow = results.coinFlows[0];
-		expect(suiFlow.amount).toBe(5000000000n); // Full gas balance
+		expect(results.coinFlows).toMatchInlineSnapshot(`
+			[
+			  {
+			    "amount": 5010000000n,
+			    "coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+			  },
+			  {
+			    "amount": 500000000n,
+			    "coinType": "0x0000000000000000000000000000000000000000000000000000000000000a0b::usdc::USDC",
+			  },
+			  {
+			    "amount": 2500000000000000000n,
+			    "coinType": "0x0000000000000000000000000000000000000000000000000000000000000b0c::weth::WETH",
+			  },
+			]
+		`);
 	});
 
 	it('should not double count coins in split-merge chains', async () => {
@@ -394,17 +276,132 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		// Merge split with second coin
 		tx.mergeCoins(splitCoin, [coin2]); // splitCoin now has 3.5 SUI
 
-		// Transfer the merged result
-		tx.transferObjects([splitCoin], tx.pure.address('0x456'));
+		const [split2, split3] = tx.splitCoins(splitCoin, [1000000000n, 500000000n]); // 1 SUI, 0.5 SUI
+
+		// Transfer the merged result (1.5 SUI)
+		tx.transferObjects([split2, split3], tx.pure.address('0x456'));
+
+		tx.mergeCoins(coin1, [splitCoin]); // merge back remaining 6 sui
 
 		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
 		const { results, issues } = await analyzer.analyze();
 
 		expect(issues).toHaveLength(0);
 
-		// Should count total merged amount: 1 SUI (split) + 2.5 SUI (coin2) = 3.5 SUI
 		expect(results.coinFlows).toHaveLength(1);
 		const suiFlow = results.coinFlows[0];
-		expect(suiFlow.amount).toBe(3510000000n); // 3.5 SUI + 0.01 gas budget
+		expect(suiFlow.amount).toBe(1510000000n); // 1.5 SUI (split2 + split3) + 0.01 gas budget
+	});
+
+	it('should track coin flows when splitting and transferring coins', async () => {
+		const client = new MockSuiClient();
+
+		// Add additional coins for comprehensive testing
+		client.addCoin({
+			objectId: '0xa5c010',
+			coinType: '0x2::sui::SUI',
+			balance: 5000000000n, // 5 SUI
+			owner: createAddressOwner(DEFAULT_SENDER),
+		});
+
+		client.addCoin({
+			objectId: '0xa5c011',
+			coinType: '0x2::sui::SUI',
+			balance: 2000000000n, // 2 SUI
+			owner: createAddressOwner(DEFAULT_SENDER),
+		});
+
+		client.addCoin({
+			objectId: '0xa5c012',
+			coinType: '0xa0b::usdc::USDC',
+			balance: 1000000000n, // 1000 USDC (6 decimals)
+			owner: createAddressOwner(DEFAULT_SENDER),
+		});
+
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		// Test 1: Split coins (should track outflow when transferred)
+		const suiCoin = tx.object('0xa5c010');
+		const [splitCoin1, splitCoin2] = tx.splitCoins(suiCoin, [1000000000n, 500000000n]); // 1 SUI, 0.5 SUI
+
+		// Test 2: Merge coins (should combine balances)
+		const suiCoin2 = tx.object('0xa5c011');
+		tx.mergeCoins(suiCoin, [suiCoin2]); // Merge 2 SUI into main coin
+
+		// Test 3: Use gas coin (should track gas usage)
+		const [gasSplit] = tx.splitCoins(tx.gas, [100000000n]); // 0.1 SUI from gas
+
+		// Test 4: Transfer different coin types (should track outflows)
+		const usdcCoin = tx.object('0xa5c012');
+		const [usdcSplit] = tx.splitCoins(usdcCoin, [500000000n]); // 500 USDC
+
+		// Transfer coins to create outflows
+		tx.transferObjects([splitCoin1, gasSplit], tx.pure.address('0x456'));
+		tx.transferObjects([usdcSplit], tx.pure.address('0x789'));
+
+		// Test 5: Use coins in Move calls (should consume them)
+		tx.moveCall({
+			target: '0x999::test::consume_coin',
+			arguments: [splitCoin2], // This should consume the 0.5 SUI
+		});
+
+		// Test 6: Use coins in MakeMoveVec (should consume them)
+		const wethCoin = tx.object(TEST_WETH_COIN_ID);
+		const coinVec = tx.makeMoveVec({
+			elements: [wethCoin],
+		});
+
+		tx.moveCall({
+			target: '0x999::test::batch_operation',
+			arguments: [coinVec],
+		});
+
+		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
+		const { results, issues } = await analyzer.analyze();
+
+		expect(issues).toMatchInlineSnapshot(`[]`);
+
+		// Verify coin flows are tracked correctly
+		expect(results.coinFlows).toMatchInlineSnapshot(`
+			[
+			  {
+			    "amount": 1610000000n,
+			    "coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+			  },
+			  {
+			    "amount": 500000000n,
+			    "coinType": "0x0000000000000000000000000000000000000000000000000000000000000a0b::usdc::USDC",
+			  },
+			  {
+			    "amount": 2500000000000000000n,
+			    "coinType": "0x0000000000000000000000000000000000000000000000000000000000000b0c::weth::WETH",
+			  },
+			]
+		`);
+
+		// Verify SUI outflow: 1 SUI (split1) + 0.1 SUI (gas) + 0.5 SUI (consumed in move call) = 1.6 SUI
+		const suiFlow = results.coinFlows.find(
+			(flow) =>
+				flow.coinType ===
+				'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
+		);
+		expect(suiFlow?.amount).toBe(1610000000n); // 1.6 SUI + 0.01 SUI gas budget
+
+		// Verify USDC outflow: 500 USDC transferred
+		const usdcFlow = results.coinFlows.find(
+			(flow) =>
+				flow.coinType ===
+				'0x0000000000000000000000000000000000000000000000000000000000000a0b::usdc::USDC',
+		);
+		expect(usdcFlow?.amount).toBe(500000000n); // Positive means outflow
+
+		// Verify WETH outflow: entire coin consumed in MakeMoveVec
+		const wethFlow = results.coinFlows.find(
+			(flow) =>
+				flow.coinType ===
+				'0x0000000000000000000000000000000000000000000000000000000000000b0c::weth::WETH',
+		);
+		expect(wethFlow?.amount).toBe(2500000000000000000n); // WETH balance consumed
 	});
 });

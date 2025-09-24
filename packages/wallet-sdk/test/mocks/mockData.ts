@@ -444,6 +444,15 @@ export const DEFAULT_MOVE_FUNCTIONS: Experimental_SuiClientTypes.FunctionRespons
 			},
 		],
 	}),
+	createMockMoveFunction({
+		packageId: '0x999',
+		moduleName: 'test',
+		name: 'get_dynamic_amount',
+		visibility: 'public',
+		isEntry: false,
+		parameters: [],
+		returns: [{ reference: null, body: { $kind: 'u64' } }],
+	}),
 ];
 
 export const DEFAULT_GAS_PRICE = '1000';
