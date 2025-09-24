@@ -1,5 +1,11 @@
 # @mysten/suins
 
+## 0.9.0
+
+### Minor Changes
+
+- c88feaa: Update payments package to support buy back and burn
+
 ## 0.8.0
 
 ### Minor Changes
