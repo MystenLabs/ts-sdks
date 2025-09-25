@@ -155,7 +155,7 @@ export class SealClient {
 	 * @param sessionKey - The session key to use.
 	 * @param txBytes - The transaction bytes to use (that calls seal_approve* functions).
 	 * @param checkShareConsistency - If true, the shares are checked for consistency.
-	 * @param checkLEEncoding - If true, the shares are also checked using an LE encoded nonce.
+	 * @param checkLEEncoding - If true, the encryption is also checked using an LE encoded nonce.
 	 * @returns - The decrypted plaintext corresponding to ciphertext.
 	 */
 	async decrypt({
