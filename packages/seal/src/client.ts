@@ -187,7 +187,7 @@ export class SealClient {
 				encryptedObject,
 				keys: this.#cachedKeys,
 				publicKeys,
-				checkLEEncoding: false,
+				checkLEEncoding: false, // We intentionally do not support other encodings here
 			});
 		}
 		return decrypt({ encryptedObject, keys: this.#cachedKeys, checkLEEncoding });
