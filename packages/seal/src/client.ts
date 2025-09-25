@@ -163,7 +163,7 @@ export class SealClient {
 		sessionKey,
 		txBytes,
 		checkShareConsistency,
-		checkLENonce,
+		checkLENonce = false,
 	}: DecryptOptions) {
 		const encryptedObject = EncryptedObject.parse(data);
 
