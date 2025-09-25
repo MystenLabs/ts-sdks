@@ -4,8 +4,8 @@
 import { toHex } from '@mysten/bcs';
 import type { Fp2, Fp12 } from '@noble/curves/abstract/tower';
 import type { ProjPointType } from '@noble/curves/abstract/weierstrass';
-import { bls12_381 } from '@noble/curves/bls12-381';
-import { bytesToNumberBE, numberToBytesBE } from '@noble/curves/utils';
+import { bls12_381, bls12_381_Fr } from '@noble/curves/bls12-381';
+import { bytesToNumberBE, bytesToNumberLE, numberToBytesBE } from '@noble/curves/utils';
 
 export class G1Element {
 	point: ProjPointType<bigint>;
@@ -136,25 +136,33 @@ export class Scalar {
 	public static readonly SIZE = 32;
 
 	constructor(scalar: bigint) {
-		if (scalar < 0n || scalar >= bls12_381.fields.Fr.ORDER) {
-			throw new Error('Scalar out of range');
-		}
 		this.scalar = scalar;
 	}
 
-	static random(): Scalar {
-		return Scalar.fromBytes(bls12_381.utils.randomPrivateKey());
+	static fromBigint(scalar: bigint): Scalar | undefined {
+		if (scalar < 0n || scalar >= bls12_381.fields.Fr.ORDER) {
+			return undefined;
+		}
+		return new Scalar(scalar);
 	}
 
-	toBytes(): Uint8Array {
+	static random(): Scalar {
+		const randomSecretKey = bls12_381.utils.randomSecretKey();
+		if (bls12_381_Fr.isLE) {
+			return Scalar.fromBytesLE(randomSecretKey)!;
+		}
+		return Scalar.fromBytesBE(randomSecretKey)!;
+	}
+
+	toBytesBE(): Uint8Array {
 		return numberToBytesBE(this.scalar, Scalar.SIZE);
 	}
 
-	static fromBytes(bytes: Uint8Array): Scalar {
-		return new Scalar(bytesToNumberBE(bytes));
+	static fromBytesBE(bytes: Uint8Array): Scalar | undefined {
+		return this.fromBigint(bytesToNumberBE(bytes));
 	}
 
-	static fromNumber(num: number): Scalar {
-		return new Scalar(BigInt(num));
+	static fromBytesLE(bytes: Uint8Array): Scalar | undefined {
+		return this.fromBigint(bytesToNumberLE(bytes.slice().reverse()));
 	}
 }
