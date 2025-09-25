@@ -159,10 +159,16 @@ export class Scalar {
 	}
 
 	static fromBytesBE(bytes: Uint8Array): Scalar | undefined {
+		if (bytes.length !== Scalar.SIZE) {
+			return undefined;
+		}
 		return this.fromBigint(bytesToNumberBE(bytes));
 	}
 
 	static fromBytesLE(bytes: Uint8Array): Scalar | undefined {
+		if (bytes.length !== Scalar.SIZE) {
+			return undefined;
+		}
 		return this.fromBigint(bytesToNumberLE(bytes));
 	}
 }

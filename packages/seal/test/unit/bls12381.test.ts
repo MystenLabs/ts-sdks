@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { Scalar } from '../../src/bls12381';
+import { bls12_381 } from '@noble/curves/bls12-381';
 
 describe('BLS12-381', () => {
 	it('Scalar encoding', () => {
@@ -23,5 +24,26 @@ describe('BLS12-381', () => {
 		expect(s1!.scalar).toEqual(expectedLE);
 		expect(s2!.scalar).toEqual(expectedBE);
 		expect(s2!.toBytesBE()).toEqual(bytes);
+
+		expect(Scalar.fromBytesLE(new Uint8Array([]))).toBeUndefined();
+		expect(Scalar.fromBytesBE(new Uint8Array([]))).toBeUndefined();
+		expect(Scalar.fromBytesLE(new Uint8Array([1, 2, 3]))).toBeUndefined();
+		expect(Scalar.fromBytesBE(new Uint8Array([1, 2, 3]))).toBeUndefined();
+		expect(Scalar.fromBytesLE(new Uint8Array(Scalar.SIZE + 1))).toBeUndefined();
+		expect(Scalar.fromBytesBE(new Uint8Array(Scalar.SIZE + 1))).toBeUndefined();
+		expect(Scalar.fromBytesLE(new Uint8Array(Scalar.SIZE))).toBeDefined();
+		expect(Scalar.fromBytesBE(new Uint8Array(Scalar.SIZE))).toBeDefined();
+		expect(Scalar.fromBytesLE(new Uint8Array(Scalar.SIZE - 1))).toBeUndefined();
+		expect(Scalar.fromBytesBE(new Uint8Array(Scalar.SIZE - 1))).toBeUndefined();
+	});
+
+	it('Canonical scalars', () => {
+		const ORDER = bls12_381.fields.Fr.ORDER;
+		expect(Scalar.fromBigint(-1n)).toBeUndefined();
+		expect(Scalar.fromBigint(0n)).toBeDefined();
+		expect(Scalar.fromBigint(1n)).toBeDefined();
+		expect(Scalar.fromBigint(ORDER - 1n)).toBeDefined();
+		expect(Scalar.fromBigint(ORDER)).toBeUndefined();
+		expect(Scalar.fromBigint(ORDER + 1n)).toBeUndefined();
 	});
 });
