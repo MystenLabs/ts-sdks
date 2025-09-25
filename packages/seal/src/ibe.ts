@@ -195,7 +195,7 @@ function decap(nonce: G2Element, usk: G1Element): GTElement {
  *
  * @param randomness - The randomness.
  * @param nonce - The nonce.
- * @param encoding - The encoding used to interpret the randomness as a scalar. Defaults to big-endian.
+ * @param useBE - Flag to indicate if BE encoding is used for the randomness. Defaults to true.
  * @returns True if the randomness was used to create the nonce, false otherwise.
  */
 export function verifyNonce(
