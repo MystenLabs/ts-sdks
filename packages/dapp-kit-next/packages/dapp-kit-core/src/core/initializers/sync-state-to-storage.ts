@@ -24,7 +24,10 @@ export function syncStateToStorage({
 			if (!oldConnection || oldConnection.status === connection.status) return;
 
 			if (connection.account) {
-				storage.setItem(storageKey, getSavedAccountStorageKey(connection.account));
+				storage.setItem(
+					storageKey,
+					getSavedAccountStorageKey(connection.account, connection.supportedIntents),
+				);
 			} else {
 				storage.removeItem(storageKey);
 			}
@@ -32,7 +35,10 @@ export function syncStateToStorage({
 	});
 }
 
-export function getSavedAccountStorageKey(account: UiWalletAccount) {
+export function getSavedAccountStorageKey(
+	account: UiWalletAccount,
+	supportedIntents: string[],
+): string {
 	const walletIdentifier = getWalletUniqueIdentifier(account);
-	return `${walletIdentifier.replace(':', '_')}:${account.address}`;
+	return `${walletIdentifier.replace(':', '_')}:${account.address}:${supportedIntents.join(',')}:`;
 }

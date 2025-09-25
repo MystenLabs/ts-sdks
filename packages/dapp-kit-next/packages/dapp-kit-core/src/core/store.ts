@@ -21,6 +21,7 @@ type InternalWalletConnection =
 	| {
 			status: 'reconnecting' | 'connected';
 			currentAccount: UiWalletAccount;
+			supportedIntents: string[];
 	  };
 
 export type DAppKitStores<
@@ -82,6 +83,7 @@ export function createStores<
 						wallet: getAssociatedWalletOrThrow(connection.currentAccount, wallets),
 						account: connection.currentAccount,
 						status: connection.status,
+						supportedIntents: connection.supportedIntents,
 						isConnected: true,
 						isConnecting: false,
 						isReconnecting: false,
@@ -92,6 +94,7 @@ export function createStores<
 						wallet: null,
 						account: connection.currentAccount,
 						status: connection.status,
+						supportedIntents: [],
 						isConnected: false,
 						isConnecting: true,
 						isReconnecting: false,
@@ -102,6 +105,7 @@ export function createStores<
 						wallet: getAssociatedWalletOrThrow(connection.currentAccount, wallets),
 						account: connection.currentAccount,
 						status: connection.status,
+						supportedIntents: connection.supportedIntents,
 						isConnected: false,
 						isConnecting: false,
 						isReconnecting: true,
@@ -112,6 +116,7 @@ export function createStores<
 						wallet: null,
 						account: connection.currentAccount,
 						status: connection.status,
+						supportedIntents: [],
 						isConnected: false,
 						isConnecting: false,
 						isReconnecting: false,
