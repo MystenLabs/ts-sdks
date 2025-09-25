@@ -3,25 +3,25 @@
 
 import { toHex } from '@mysten/bcs';
 import type { Fp2, Fp12 } from '@noble/curves/abstract/tower';
-import type { ProjPointType } from '@noble/curves/abstract/weierstrass';
+import type { WeierstrassPoint } from '@noble/curves/abstract/weierstrass';
 import { bls12_381, bls12_381_Fr } from '@noble/curves/bls12-381';
 import { bytesToNumberBE, bytesToNumberLE, numberToBytesBE } from '@noble/curves/utils';
 
 export class G1Element {
-	point: ProjPointType<bigint>;
+	point: WeierstrassPoint<bigint>;
 
 	public static readonly SIZE = 48;
 
-	constructor(point: ProjPointType<bigint>) {
+	constructor(point: WeierstrassPoint<bigint>) {
 		this.point = point;
 	}
 
 	static generator(): G1Element {
-		return new G1Element(bls12_381.G1.ProjectivePoint.BASE);
+		return new G1Element(bls12_381.G1.Point.BASE);
 	}
 
 	static fromBytes(bytes: Uint8Array): G1Element {
-		return new G1Element(bls12_381.G1.ProjectivePoint.fromHex(toHex(bytes)));
+		return new G1Element(bls12_381.G1.Point.fromHex(toHex(bytes)));
 	}
 
 	toBytes(): Uint8Array<ArrayBuffer> {
@@ -41,9 +41,7 @@ export class G1Element {
 	}
 
 	static hashToCurve(data: Uint8Array): G1Element {
-		return new G1Element(
-			bls12_381.G1.ProjectivePoint.fromAffine(bls12_381.G1.hashToCurve(data).toAffine()),
-		);
+		return new G1Element(bls12_381.G1.Point.fromAffine(bls12_381.G1.hashToCurve(data).toAffine()));
 	}
 
 	pairing(other: G2Element): GTElement {
@@ -52,20 +50,20 @@ export class G1Element {
 }
 
 export class G2Element {
-	point: ProjPointType<Fp2>;
+	point: WeierstrassPoint<Fp2>;
 
 	public static readonly SIZE = 96;
 
-	constructor(point: ProjPointType<Fp2>) {
+	constructor(point: WeierstrassPoint<Fp2>) {
 		this.point = point;
 	}
 
 	static generator(): G2Element {
-		return new G2Element(bls12_381.G2.ProjectivePoint.BASE);
+		return new G2Element(bls12_381.G2.Point.BASE);
 	}
 
 	static fromBytes(bytes: Uint8Array): G2Element {
-		return new G2Element(bls12_381.G2.ProjectivePoint.fromHex(toHex(bytes)));
+		return new G2Element(bls12_381.G2.Point.fromBytes(bytes));
 	}
 
 	toBytes(): Uint8Array<ArrayBuffer> {
@@ -81,9 +79,7 @@ export class G2Element {
 	}
 
 	static hashToCurve(data: Uint8Array): G2Element {
-		return new G2Element(
-			bls12_381.G2.ProjectivePoint.fromAffine(bls12_381.G2.hashToCurve(data).toAffine()),
-		);
+		return new G2Element(bls12_381.G2.Point.fromAffine(bls12_381.G2.hashToCurve(data).toAffine()));
 	}
 
 	equals(other: G2Element): boolean {
@@ -151,14 +147,14 @@ export class Scalar {
 		if (bls12_381_Fr.isLE) {
 			return Scalar.fromBytesLE(randomSecretKey)!;
 		}
-		return Scalar.fromBytesBE(randomSecretKey)!;
+		return Scalar.fromBytes(randomSecretKey)!;
 	}
 
-	toBytesBE(): Uint8Array {
+	toBytes(): Uint8Array {
 		return numberToBytesBE(this.scalar, Scalar.SIZE);
 	}
 
-	static fromBytesBE(bytes: Uint8Array): Scalar | undefined {
+	static fromBytes(bytes: Uint8Array): Scalar | undefined {
 		if (bytes.length !== Scalar.SIZE) {
 			return undefined;
 		}

@@ -76,7 +76,7 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 			threshold,
 			this.objectIds,
 		);
-		const encryptedRandomness = xor(randomnessKey, r.toBytesBE());
+		const encryptedRandomness = xor(randomnessKey, r.toBytes());
 
 		return {
 			BonehFranklinBLS12381: {
@@ -142,7 +142,7 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 		if (publicKeys.length !== encryptedShares.length || publicKeys.length !== services.length) {
 			throw new Error('The number of public keys, encrypted shares and services must be the same');
 		}
-		const r = Scalar.fromBytesBE(randomness);
+		const r = Scalar.fromBytes(randomness);
 		if (r === undefined) {
 			throw new DecryptionError('Invalid randomness');
 		}
@@ -196,7 +196,7 @@ function decap(nonce: G2Element, usk: G1Element): GTElement {
  * @returns True if the randomness was used to create the nonce, false otherwise.
  */
 export function verifyNonceWithLE(nonce: G2Element, randomness: Uint8Array): boolean {
-	const rs = [Scalar.fromBytesBE(randomness), Scalar.fromBytesLE(randomness)].filter(
+	const rs = [Scalar.fromBytes(randomness), Scalar.fromBytesLE(randomness)].filter(
 		(r): r is Scalar => r !== undefined,
 	);
 	if (rs.length === 0) throw new InvalidCiphertextError('Invalid randomness');
@@ -212,7 +212,7 @@ export function verifyNonceWithLE(nonce: G2Element, randomness: Uint8Array): boo
  * @returns True if the randomness was used to create the nonce, false otherwise.
  */
 export function verifyNonce(nonce: G2Element, randomness: Uint8Array): boolean {
-	const r = Scalar.fromBytesBE(randomness);
+	const r = Scalar.fromBytes(randomness);
 	if (r === undefined) {
 		throw new InvalidCiphertextError('Invalid randomness');
 	}

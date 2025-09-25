@@ -355,7 +355,7 @@ describe('Integration test', () => {
 		).rejects.toThrow();
 
 		// But if checkLENonce is true, it should succeed
-		expect(
+		await expect(
 			client.decrypt({
 				data: encryptedBytesWithLE,
 				sessionKey,
@@ -365,14 +365,14 @@ describe('Integration test', () => {
 		).resolves.toEqual(data);
 
 		// For an encrypted object with BE nonce, decryption should work regardless of checkLENonce
-		expect(
+		await expect(
 			client.decrypt({
 				data: encryptedBytesWithBE,
 				sessionKey,
 				txBytes,
 			}),
 		).resolves.toEqual(data);
-		expect(
+		await expect(
 			client.decrypt({
 				data: encryptedBytesWithBE,
 				sessionKey,

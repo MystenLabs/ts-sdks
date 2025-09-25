@@ -53,7 +53,7 @@
 	"dependencies": {
 		"@mysten/bcs": "workspace:*",
 		"@mysten/sui": "workspace:*",
-		"@noble/curves": "^1.9.4",
-		"@noble/hashes": "^1.8.0"
+		"@noble/curves": "1.9.4",
+		"@noble/hashes": "1.8.0"
 	}
 }
