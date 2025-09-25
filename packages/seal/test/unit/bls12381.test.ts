@@ -26,26 +26,28 @@ describe('BLS12-381', () => {
 		expect(s2!.scalar).toEqual(expectedBE);
 		expect(s2!.toBytes()).toEqual(bytes);
 
-		expect(Scalar.fromBytesLE(new Uint8Array([]))).toBeUndefined();
-		expect(Scalar.fromBytes(new Uint8Array([]))).toBeUndefined();
-		expect(Scalar.fromBytesLE(new Uint8Array([1, 2, 3]))).toBeUndefined();
-		expect(Scalar.fromBytes(new Uint8Array([1, 2, 3]))).toBeUndefined();
-		expect(Scalar.fromBytesLE(new Uint8Array(Scalar.SIZE + 1))).toBeUndefined();
-		expect(Scalar.fromBytes(new Uint8Array(Scalar.SIZE + 1))).toBeUndefined();
 		expect(Scalar.fromBytesLE(new Uint8Array(Scalar.SIZE))).toBeDefined();
 		expect(Scalar.fromBytes(new Uint8Array(Scalar.SIZE))).toBeDefined();
-		expect(Scalar.fromBytesLE(new Uint8Array(Scalar.SIZE - 1))).toBeUndefined();
-		expect(Scalar.fromBytes(new Uint8Array(Scalar.SIZE - 1))).toBeUndefined();
+
+		expect(() => Scalar.fromBytesLE(new Uint8Array([]))).toThrowError();
+		expect(() => Scalar.fromBytes(new Uint8Array([]))).toThrowError();
+		expect(() => Scalar.fromBytesLE(new Uint8Array([1, 2, 3]))).toThrowError();
+		expect(() => Scalar.fromBytes(new Uint8Array([1, 2, 3]))).toThrowError();
+		expect(() => Scalar.fromBytesLE(new Uint8Array(Scalar.SIZE + 1))).toThrowError();
+		expect(() => Scalar.fromBytes(new Uint8Array(Scalar.SIZE + 1))).toThrowError();
+		expect(() => Scalar.fromBytesLE(new Uint8Array(Scalar.SIZE - 1))).toThrowError();
+		expect(() => Scalar.fromBytes(new Uint8Array(Scalar.SIZE - 1))).toThrowError();
 	});
 
 	it('Canonical scalars', () => {
 		const ORDER = bls12_381.fields.Fr.ORDER;
-		expect(Scalar.fromBigint(-1n)).toBeUndefined();
 		expect(Scalar.fromBigint(0n)).toBeDefined();
 		expect(Scalar.fromBigint(1n)).toBeDefined();
 		expect(Scalar.fromBigint(ORDER - 1n)).toBeDefined();
-		expect(Scalar.fromBigint(ORDER)).toBeUndefined();
-		expect(Scalar.fromBigint(ORDER + 1n)).toBeUndefined();
+
+		expect(() => Scalar.fromBigint(-1n)).toThrowError();
+		expect(() => Scalar.fromBigint(ORDER)).toThrowError();
+		expect(() => Scalar.fromBigint(ORDER + 1n)).toThrowError();
 	});
 
 	it('G1 encoding', () => {

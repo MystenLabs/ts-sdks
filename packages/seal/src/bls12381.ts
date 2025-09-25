@@ -1,7 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { toHex } from '@mysten/bcs';
 import type { Fp2, Fp12 } from '@noble/curves/abstract/tower';
 import type { WeierstrassPoint } from '@noble/curves/abstract/weierstrass';
 import { bls12_381, bls12_381_Fr } from '@noble/curves/bls12-381';
@@ -21,7 +20,11 @@ export class G1Element {
 	}
 
 	static fromBytes(bytes: Uint8Array): G1Element {
-		return new G1Element(bls12_381.G1.Point.fromHex(toHex(bytes)));
+		try {
+			return new G1Element(bls12_381.G1.Point.fromBytes(bytes));
+		} catch {
+			throw new Error('Invalid G1 point');
+		}
 	}
 
 	toBytes(): Uint8Array<ArrayBuffer> {
@@ -63,7 +66,11 @@ export class G2Element {
 	}
 
 	static fromBytes(bytes: Uint8Array): G2Element {
-		return new G2Element(bls12_381.G2.Point.fromBytes(bytes));
+		try {
+			return new G2Element(bls12_381.G2.Point.fromBytes(bytes));
+		} catch {
+			throw new Error('Invalid G2 point');
+		}
 	}
 
 	toBytes(): Uint8Array<ArrayBuffer> {
@@ -135,9 +142,9 @@ export class Scalar {
 		this.scalar = scalar;
 	}
 
-	static fromBigint(scalar: bigint): Scalar | undefined {
+	static fromBigint(scalar: bigint): Scalar {
 		if (scalar < 0n || scalar >= bls12_381.fields.Fr.ORDER) {
-			return undefined;
+			throw new Error('Scalar out of range');
 		}
 		return new Scalar(scalar);
 	}
@@ -154,16 +161,16 @@ export class Scalar {
 		return numberToBytesBE(this.scalar, Scalar.SIZE);
 	}
 
-	static fromBytes(bytes: Uint8Array): Scalar | undefined {
+	static fromBytes(bytes: Uint8Array): Scalar {
 		if (bytes.length !== Scalar.SIZE) {
-			return undefined;
+			throw new Error('Invalid scalar length');
 		}
 		return this.fromBigint(bytesToNumberBE(bytes));
 	}
 
-	static fromBytesLE(bytes: Uint8Array): Scalar | undefined {
+	static fromBytesLE(bytes: Uint8Array): Scalar {
 		if (bytes.length !== Scalar.SIZE) {
-			return undefined;
+			throw new Error('Invalid scalar length');
 		}
 		return this.fromBigint(bytesToNumberLE(bytes));
 	}
