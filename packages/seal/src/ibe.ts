@@ -142,9 +142,11 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 		if (publicKeys.length !== encryptedShares.length || publicKeys.length !== services.length) {
 			throw new Error('The number of public keys, encrypted shares and services must be the same');
 		}
-		const r = Scalar.fromBytes(randomness);
-		if (r === undefined) {
-			throw new DecryptionError('Invalid randomness');
+		let r;
+		try {
+			r = Scalar.fromBytes(randomness);
+		} catch {
+			throw new InvalidCiphertextError('Invalid randomness');
 		}
 		const gid_r = hashToG1(id).multiply(r);
 		return services.map(([objectId, index], i) => {
