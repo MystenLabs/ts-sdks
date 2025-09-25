@@ -277,9 +277,9 @@ describe('Seal encryption tests', () => {
 
 	it('kdf regression test', () => {
 		const x = G1Element.generator().pairing(
-			G2Element.generator().multiply(Scalar.fromNumber(12345)),
+			G2Element.generator().multiply(Scalar.fromBigint(12345n)!),
 		);
-		const nonce = G2Element.generator().multiply(Scalar.fromNumber(12345));
+		const nonce = G2Element.generator().multiply(Scalar.fromBigint(12345n)!);
 		const key = kdf(
 			x,
 			nonce,

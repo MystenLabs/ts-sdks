@@ -57,6 +57,8 @@ export interface DecryptOptions {
 	txBytes: Uint8Array;
 	/** Whether to check share consistency. */
 	checkShareConsistency?: boolean;
+	/** Whether to check also using an LE encoded nonce. */
+	checkLENonce?: boolean;
 }
 
 export interface FetchKeysOptions {

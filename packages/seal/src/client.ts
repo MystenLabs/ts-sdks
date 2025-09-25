@@ -155,9 +155,16 @@ export class SealClient {
 	 * @param sessionKey - The session key to use.
 	 * @param txBytes - The transaction bytes to use (that calls seal_approve* functions).
 	 * @param checkShareConsistency - If true, the shares are checked for consistency.
+	 * @param checkLENonce - If true, the shares are also checked using an LE encoded nonce.
 	 * @returns - The decrypted plaintext corresponding to ciphertext.
 	 */
-	async decrypt({ data, sessionKey, txBytes, checkShareConsistency }: DecryptOptions) {
+	async decrypt({
+		data,
+		sessionKey,
+		txBytes,
+		checkShareConsistency,
+		checkLENonce,
+	}: DecryptOptions) {
 		const encryptedObject = EncryptedObject.parse(data);
 
 		this.#validateEncryptionServices(
@@ -178,7 +185,7 @@ export class SealClient {
 			);
 			return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys });
 		}
-		return decrypt({ encryptedObject, keys: this.#cachedKeys });
+		return decrypt({ encryptedObject, keys: this.#cachedKeys, checkLENonce });
 	}
 
 	#weight(objectId: string) {

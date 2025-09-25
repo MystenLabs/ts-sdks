@@ -8,7 +8,7 @@ import { G1Element, G2Element, Scalar } from './bls12381.js';
  * The ciphertext is a pair of G1Elements (48 bytes).
  */
 export function elgamalDecrypt(sk: Uint8Array, [c0, c1]: [Uint8Array, Uint8Array]): Uint8Array {
-	return decrypt(Scalar.fromBytes(sk), [
+	return decrypt(Scalar.fromBytesBE(sk)!, [
 		G1Element.fromBytes(c0),
 		G1Element.fromBytes(c1),
 	]).toBytes();
@@ -24,15 +24,15 @@ function decrypt(sk: Scalar, [c0, c1]: [G1Element, G1Element]): G1Element {
 
 /** Generate a random secret key. */
 export function generateSecretKey(): Uint8Array<ArrayBuffer> {
-	return Scalar.random().toBytes() as Uint8Array<ArrayBuffer>;
+	return Scalar.random().toBytesBE() as Uint8Array<ArrayBuffer>;
 }
 
 /** Derive the BLS public key for a given secret key. */
 export function toPublicKey(sk: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
-	return G1Element.generator().multiply(Scalar.fromBytes(sk)).toBytes();
+	return G1Element.generator().multiply(Scalar.fromBytesBE(sk)!).toBytes();
 }
 
 /** Derive the BLS verification key for a given secret key. */
 export function toVerificationKey(sk: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
-	return G2Element.generator().multiply(Scalar.fromBytes(sk)).toBytes();
+	return G2Element.generator().multiply(Scalar.fromBytesBE(sk)!).toBytes();
 }

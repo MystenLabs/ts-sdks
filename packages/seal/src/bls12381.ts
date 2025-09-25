@@ -163,6 +163,6 @@ export class Scalar {
 	}
 
 	static fromBytesLE(bytes: Uint8Array): Scalar | undefined {
-		return this.fromBigint(bytesToNumberLE(bytes.slice().reverse()));
+		return this.fromBigint(bytesToNumberLE(bytes));
 	}
 }
