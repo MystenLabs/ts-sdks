@@ -23,7 +23,7 @@ export interface DecryptOptions {
 	encryptedObject: typeof EncryptedObject.$inferType;
 	keys: Map<KeyCacheKey, G1Element>;
 	publicKeys?: G2Element[];
-	checkLENonce?: boolean;
+	checkLEEncoding?: boolean;
 }
 
 /**
@@ -41,7 +41,7 @@ export async function decrypt({
 	encryptedObject,
 	keys,
 	publicKeys,
-	checkLENonce,
+	checkLEEncoding,
 }: DecryptOptions): Promise<Uint8Array> {
 	if (!encryptedObject.encryptedShares.BonehFranklinBLS12381) {
 		throw new UnsupportedFeatureError('Encryption mode not supported');
@@ -98,7 +98,7 @@ export async function decrypt({
 	);
 
 	// Verify that the nonce was created with the randomness.
-	if (!(checkLENonce ? verifyNonceWithLE(nonce, randomness) : verifyNonce(nonce, randomness))) {
+	if (!(checkLEEncoding ? verifyNonceWithLE(nonce, randomness) : verifyNonce(nonce, randomness))) {
 		throw new InvalidCiphertextError('Invalid nonce');
 	}
 

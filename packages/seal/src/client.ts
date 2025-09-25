@@ -150,12 +150,12 @@ export class SealClient {
 	 * any combination of at least threshold shares should either succesfully combine to the plaintext or fail.
 	 * This is useful in case the encryptor is not trusted and the decryptor wants to ensure all decryptors
 	 * receive the same output (e.g., for onchain encrypted voting).
-	 *
+	 * 
 	 * @param data - The encrypted bytes to decrypt.
 	 * @param sessionKey - The session key to use.
 	 * @param txBytes - The transaction bytes to use (that calls seal_approve* functions).
 	 * @param checkShareConsistency - If true, the shares are checked for consistency.
-	 * @param checkLENonce - If true, the shares are also checked using an LE encoded nonce.
+	 * @param checkLEEncoding - If true, the shares are also checked using an LE encoded nonce.
 	 * @returns - The decrypted plaintext corresponding to ciphertext.
 	 */
 	async decrypt({
@@ -163,7 +163,7 @@ export class SealClient {
 		sessionKey,
 		txBytes,
 		checkShareConsistency,
-		checkLENonce,
+		checkLEEncoding,
 	}: DecryptOptions) {
 		const encryptedObject = EncryptedObject.parse(data);
 
@@ -183,9 +183,9 @@ export class SealClient {
 			const publicKeys = await this.getPublicKeys(
 				encryptedObject.services.map(([objectId, _]) => objectId),
 			);
-			return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys, checkLENonce: false });
+			return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys, checkLEEncoding: false });
 		}
-		return decrypt({ encryptedObject, keys: this.#cachedKeys, checkLENonce });
+		return decrypt({ encryptedObject, keys: this.#cachedKeys, checkLEEncoding });
 	}
 
 	#weight(objectId: string) {

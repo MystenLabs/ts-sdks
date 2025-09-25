@@ -58,7 +58,7 @@ export interface DecryptOptions {
 	/** Whether to check share consistency. */
 	checkShareConsistency?: boolean;
 	/** Whether to check also using an LE encoded nonce. */
-	checkLENonce?: boolean;
+	checkLEEncoding?: boolean;
 }
 
 export interface FetchKeysOptions {

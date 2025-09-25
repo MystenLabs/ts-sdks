@@ -10,7 +10,7 @@ import { deriveKey, hashToG1, kdf, KeyPurpose } from './kdf.js';
 import type { KeyServer } from './key-server.js';
 import { xor } from './utils.js';
 import type { Share } from './shamir.js';
-import { DecryptionError, InvalidCiphertextError } from './error.js';
+import { InvalidCiphertextError } from './error.js';
 
 /**
  * The domain separation tag for the signing proof of possession.

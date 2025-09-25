@@ -363,7 +363,7 @@ describe('Integration test', () => {
 				data: encryptedBytesWithLE,
 				sessionKey,
 				txBytes,
-				checkLENonce: true,
+				checkLEEncoding: true,
 			}),
 		).resolves.toEqual(data);
 
@@ -380,7 +380,7 @@ describe('Integration test', () => {
 				data: encryptedBytesWithBE,
 				sessionKey,
 				txBytes,
-				checkLENonce: true,
+				checkLEEncoding: true,
 			}),
 		).resolves.toEqual(data);
 	});
