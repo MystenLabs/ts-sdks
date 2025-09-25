@@ -41,7 +41,7 @@ export async function decrypt({
 	encryptedObject,
 	keys,
 	publicKeys,
-	checkLENonce,
+	checkLENonce = false,
 }: DecryptOptions): Promise<Uint8Array> {
 	if (!encryptedObject.encryptedShares.BonehFranklinBLS12381) {
 		throw new UnsupportedFeatureError('Encryption mode not supported');
