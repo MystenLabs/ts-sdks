@@ -4,7 +4,7 @@
 import type { DAppKitStores } from '../store.js';
 import { task } from 'nanostores';
 import type { UiWallet, UiWalletAccount } from '@wallet-standard/ui';
-import type { StandardConnectInput } from '@mysten/wallet-standard';
+import type { StandardConnectInput, SuiWalletFeatures } from '@mysten/wallet-standard';
 import type { StandardConnectFeature } from '@mysten/wallet-standard';
 import { StandardConnect } from '@mysten/wallet-standard';
 import { getWalletFeature, uiWalletAccountBelongsToUiWallet } from '@wallet-standard/ui';
@@ -46,7 +46,7 @@ export function connectWalletCreator(
 			try {
 				$baseConnection.setKey('status', isAlreadyConnected ? 'reconnecting' : 'connecting');
 
-				const suiAccounts = await internalConnectWallet(
+				const { accounts: suiAccounts, supportedIntents } = await internalConnectWallet(
 					wallet,
 					supportedNetworks,
 					standardConnectArgs,
@@ -65,6 +65,7 @@ export function connectWalletCreator(
 				$baseConnection.set({
 					status: 'connected',
 					currentAccount: account ?? suiAccounts[0],
+					supportedIntents: supportedIntents ?? [],
 				});
 
 				return { accounts: suiAccounts };
@@ -90,8 +91,27 @@ export async function internalConnectWallet(
 
 	const underlyingWallet = getWalletForHandle(wallet);
 	const supportedChains = supportedNetworks.map(getChain);
-
-	return result.accounts
+	const supportedIntents =
+		result.supportedIntents ?? (await getSupportedIntentsFromFeature(wallet));
+	const accounts = result.accounts
 		.filter((account) => account.chains.some((chain) => supportedChains.includes(chain)))
 		.map(getOrCreateUiWalletAccountForStandardWalletAccount.bind(null, underlyingWallet));
+
+	return {
+		accounts,
+		supportedIntents,
+	};
+}
+
+export async function getSupportedIntentsFromFeature(wallet: UiWallet) {
+	if (!wallet.features.includes('sui:getSupportedIntents')) {
+		return [];
+	}
+
+	const getSupportedIntentsFeature = getWalletFeature(
+		wallet,
+		'sui:getSupportedIntents',
+	) as SuiWalletFeatures['sui:getSupportedIntents'];
+
+	return (await getSupportedIntentsFeature?.getSupportedIntents())?.supportedIntents ?? [];
 }

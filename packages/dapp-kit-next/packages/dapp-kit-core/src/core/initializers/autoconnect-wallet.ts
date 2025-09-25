@@ -7,7 +7,10 @@ import type { StateStorage } from '../../utils/storage.js';
 import type { UiWallet } from '@wallet-standard/ui';
 import { getWalletUniqueIdentifier } from '../../utils/wallets.js';
 
-import { internalConnectWallet } from '../actions/connect-wallet.js';
+import {
+	getSupportedIntentsFromFeature,
+	internalConnectWallet,
+} from '../actions/connect-wallet.js';
 import type { Networks } from '../../utils/networks.js';
 
 /**
@@ -44,7 +47,8 @@ export function autoConnectWallet({
 				if (savedWalletAccount) {
 					$baseConnection.set({
 						status: 'connected',
-						currentAccount: savedWalletAccount,
+						currentAccount: savedWalletAccount.account,
+						supportedIntents: savedWalletAccount.supportedIntents,
 					});
 				}
 			},
@@ -68,7 +72,7 @@ async function getSavedWalletAccount({
 		return null;
 	}
 
-	const [savedWalletId, savedAccountAddress] = savedWalletIdAndAddress.split(':');
+	const [savedWalletId, savedAccountAddress, savedIntents] = savedWalletIdAndAddress.split(':');
 	if (!savedWalletId || !savedAccountAddress) {
 		return null;
 	}
@@ -86,16 +90,27 @@ async function getSavedWalletAccount({
 	);
 
 	if (existingAccount) {
-		return existingAccount;
+		const supportedIntents = savedIntents ? savedIntents.split(',') : null;
+
+		return {
+			account: existingAccount,
+			supportedIntents: supportedIntents ?? (await getSupportedIntentsFromFeature(targetWallet)),
+		};
 	}
 
 	// For wallets that don't pre-populate the accounts array on page load,
 	// we need to silently request authorization and get the account directly.
-	const alreadyAuthorizedAccounts = await internalConnectWallet(targetWallet, networks, {
-		silent: true,
-	});
-
-	return (
-		alreadyAuthorizedAccounts.find((account) => account.address === savedAccountAddress) ?? null
+	const { accounts: alreadyAuthorizedAccounts, supportedIntents } = await internalConnectWallet(
+		targetWallet,
+		networks,
+		{
+			silent: true,
+		},
 	);
+
+	const account = alreadyAuthorizedAccounts.find(
+		(account) => account.address === savedAccountAddress,
+	);
+
+	return account ? { account, supportedIntents } : null;
 }
