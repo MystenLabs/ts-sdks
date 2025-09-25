@@ -191,26 +191,32 @@ function decap(nonce: G2Element, usk: G1Element): GTElement {
 
 /**
  * Verify that the given randomness was used to crate the nonce.
- * Check using ONLY big-endian encoding of the randomness.
+ * Throws an error if the given randomness is invalid (not a BLS scalar).
  *
  * @param randomness - The randomness.
  * @param nonce - The nonce.
+ * @param encoding - The encoding used to interpret the randomness as a scalar. Defaults to big-endian.
  * @returns True if the randomness was used to create the nonce, false otherwise.
  */
-export function verifyNonce(nonce: G2Element, randomness: Uint8Array): boolean {
+export function verifyNonce(
+	nonce: G2Element,
+	randomness: Uint8Array,
+	useBE: boolean = true,
+): boolean {
 	try {
-		const r = Scalar.fromBytes(randomness);
-		return verifyNonceWithScalar(nonce, r);
+		const r = decodeRandomness(randomness, useBE);
+		return G2Element.generator().multiply(r).equals(nonce);
 	} catch {
 		throw new InvalidCiphertextError('Invalid randomness');
 	}
 }
 
-/**
- * Verify that the given randomness (as a BLS12381 scalar) was used to create the nonce.
- */
-function verifyNonceWithScalar(nonce: G2Element, r: Scalar): boolean {
-	return G2Element.generator().multiply(r).equals(nonce);
+function decodeRandomness(bytes: Uint8Array, useBE: boolean): Scalar {
+	if (useBE) {
+		return Scalar.fromBytes(bytes);
+	} else {
+		return Scalar.fromBytesLE(bytes);
+	}
 }
 
 /**
@@ -228,47 +234,23 @@ export function decryptRandomness(
 }
 
 /**
- * The endianness to use when interpreting bytes as a scalar (see tryScalarFromBytes).
- */
-enum Endianess {
-	Big,
-	Little,
-}
-
-/**
- * Try to create a BLS12-831 scalar from bytes using the specified endianness. If the conversion fails, return undefined.
- *
- * @param bytes The bytes to convert.
- * @param endianness The endianness to use.
- * @returns The scalar, or undefined if the conversion failed.
- */
-function tryScalarFromBytes(bytes: Uint8Array, endianness: Endianess): Scalar | undefined {
-	try {
-		switch (endianness) {
-			case Endianess.Big:
-				return Scalar.fromBytes(bytes);
-			case Endianess.Little:
-				return Scalar.fromBytesLE(bytes);
-		}
-	} catch {
-		return undefined;
-	}
-}
-
-/**
  * Verify that the given randomness was used to crate the nonce.
  * Check using both big-endian and little-endian encoding of the randomness.
+ * 
+ * Throws an error if the nonce check doesn't pass using LE encoding _and_ the randomness is invalid as a BE encoded scalar.
  *
  * @param randomness - The randomness.
  * @param nonce - The nonce.
- * @returns True if the randomness was used to create the nonce, false otherwise.
+ * @returns True if the randomness was used to create the nonce using either LE or BE encoding, false otherwise.
  */
 export function verifyNonceWithLE(nonce: G2Element, randomness: Uint8Array): boolean {
-	// Try both big-endian and little-endian encoding of the randomness.
-	const rs = [
-		tryScalarFromBytes(randomness, Endianess.Big),
-		tryScalarFromBytes(randomness, Endianess.Little),
-	].filter((r): r is Scalar => r !== undefined);
-	if (rs.length === 0) throw new InvalidCiphertextError('Invalid randomness');
-	return rs.some((r) => verifyNonceWithScalar(nonce, r));
+	try {
+		// First try little-endian encoding
+		if (verifyNonce(nonce, randomness, false)) {
+			return true;
+		}
+	} catch {
+		// Ignore error and try big-endian encoding
+	}
+	return verifyNonce(nonce, randomness, true);
 }
