@@ -194,6 +194,10 @@ export class AutoApprovalManager {
 		return JSON.stringify(parse(AutoApprovalStateSchema, this.#state));
 	}
 
+	getState(): AutoApprovalState {
+		return parse(AutoApprovalStateSchema, this.#state);
+	}
+
 	getSettings(): AutoApprovalSettings | null {
 		return this.#state.settings;
 	}

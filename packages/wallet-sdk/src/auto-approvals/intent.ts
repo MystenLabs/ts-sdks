@@ -43,7 +43,7 @@ function replaceOperationTypeIntent(
 	cb?: (operationType: string) => void,
 ) {
 	let intentFound = false;
-	for (let index = 0; index <= transactionData.commands.length; index++) {
+	for (let index = 0; index < transactionData.commands.length; index++) {
 		const command = transactionData.commands[index];
 		if (command.$kind === '$Intent' && command.$Intent.name === OPERATION_TYPE_INTENT) {
 			if (intentFound) {

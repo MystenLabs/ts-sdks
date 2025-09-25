@@ -27,6 +27,12 @@ const AnyBalancesPermissionSchema = v.object({
 	$kind: v.literal('AnyBalance'),
 });
 
+export type PolicyPermission = v.InferOutput<
+	| typeof CoinBalancePermissionSchema
+	| typeof AnyBalancesPermissionSchema
+	| typeof ObjectTypePermissionSchema
+>;
+
 const AutoApprovalOperationSchema = v.object({
 	id: v.string(),
 	description: v.string(),
@@ -49,11 +55,10 @@ export const AutoApprovalSettingsSchema = v.object({
 
 export const AutoApprovalPolicySchema = v.object({
 	schemaVersion: v.literal('1.0.0'),
-	origin: v.string(),
-	network: v.string(),
 	operations: v.array(AutoApprovalOperationSchema),
-	suggestedSettings: v.partial(AutoApprovalSettingsSchema),
+	suggestedSettings: v.optional(v.partial(AutoApprovalSettingsSchema)),
 });
 
 export type AutoApprovalSettings = v.InferOutput<typeof AutoApprovalSettingsSchema>;
 export type AutoApprovalPolicy = v.InferOutput<typeof AutoApprovalPolicySchema>;
+export type AutoApprovalOperation = v.InferOutput<typeof AutoApprovalOperationSchema>;
