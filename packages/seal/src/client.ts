@@ -150,7 +150,7 @@ export class SealClient {
 	 * any combination of at least threshold shares should either succesfully combine to the plaintext or fail.
 	 * This is useful in case the encryptor is not trusted and the decryptor wants to ensure all decryptors
 	 * receive the same output (e.g., for onchain encrypted voting).
-	 * 
+	 *
 	 * @param data - The encrypted bytes to decrypt.
 	 * @param sessionKey - The session key to use.
 	 * @param txBytes - The transaction bytes to use (that calls seal_approve* functions).
@@ -183,7 +183,12 @@ export class SealClient {
 			const publicKeys = await this.getPublicKeys(
 				encryptedObject.services.map(([objectId, _]) => objectId),
 			);
-			return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys, checkLEEncoding: false });
+			return decrypt({
+				encryptedObject,
+				keys: this.#cachedKeys,
+				publicKeys,
+				checkLEEncoding: false,
+			});
 		}
 		return decrypt({ encryptedObject, keys: this.#cachedKeys, checkLEEncoding });
 	}
