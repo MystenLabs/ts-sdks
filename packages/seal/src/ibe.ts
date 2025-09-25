@@ -196,12 +196,11 @@ function decap(nonce: G2Element, usk: G1Element): GTElement {
  * @returns True if the randomness was used to create the nonce, false otherwise.
  */
 export function verifyNonceWithLE(nonce: G2Element, randomness: Uint8Array): boolean {
-	const r1 = Scalar.fromBytesBE(randomness);
-	const r2 = Scalar.fromBytesLE(randomness);
-	return (
-		(r1 !== undefined && verifyNonceWithScalar(nonce, r1)) ||
-		(r2 !== undefined && verifyNonceWithScalar(nonce, r2))
+	const rs = [Scalar.fromBytesBE(randomness), Scalar.fromBytesLE(randomness)].filter(
+		(r): r is Scalar => r !== undefined,
 	);
+	if (rs.length === 0) throw new DecryptionError('Invalid randomness');
+	return rs.some((r) => verifyNonceWithScalar(nonce, r));
 }
 
 /**
@@ -220,6 +219,9 @@ export function verifyNonce(nonce: G2Element, randomness: Uint8Array): boolean {
 	return verifyNonceWithScalar(nonce, r);
 }
 
+/**
+ * Verify that the given randomness (as a BLS12381 scalar) was used to create the nonce.
+ */
 function verifyNonceWithScalar(nonce: G2Element, r: Scalar): boolean {
 	return G2Element.generator().multiply(r).equals(nonce);
 }
