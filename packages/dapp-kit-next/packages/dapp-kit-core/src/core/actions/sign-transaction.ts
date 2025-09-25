@@ -23,7 +23,7 @@ export function signTransactionCreator({ $connection, $currentClient }: DAppKitS
 	 * Prompts the specified wallet account to sign a transaction.
 	 */
 	return async function signTransaction({ transaction, ...standardArgs }: SignTransactionArgs) {
-		const { account } = $connection.get();
+		const { account, supportedIntents } = $connection.get();
 		if (!account) {
 			throw new WalletNotConnectedError('No wallet is connected.');
 		}
@@ -38,9 +38,8 @@ export function signTransactionCreator({ $connection, $currentClient }: DAppKitS
 					return transaction;
 				}
 
-				// TODO: Fix passing through the supported intents for plugins.
 				transaction.setSenderIfNotSet(account.address);
-				return await transaction.toJSON({ client: suiClient });
+				return await transaction.toJSON({ client: suiClient, supportedIntents });
 			},
 		};
 

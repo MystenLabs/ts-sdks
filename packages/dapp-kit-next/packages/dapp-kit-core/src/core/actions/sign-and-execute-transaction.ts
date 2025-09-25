@@ -31,7 +31,7 @@ export function signAndExecuteTransactionCreator({ $connection, $currentClient }
 		transaction,
 		...standardArgs
 	}: SignAndExecuteTransactionArgs) {
-		const { account } = $connection.get();
+		const { account, supportedIntents } = $connection.get();
 		if (!account) {
 			throw new WalletNotConnectedError('No wallet is connected.');
 		}
@@ -46,9 +46,8 @@ export function signAndExecuteTransactionCreator({ $connection, $currentClient }
 					return transaction;
 				}
 
-				// TODO: Fix passing through the supported intents for plugins.
 				transaction.setSenderIfNotSet(account.address);
-				return await transaction.toJSON({ client: suiClient });
+				return await transaction.toJSON({ client: suiClient, supportedIntents });
 			},
 		};
 
