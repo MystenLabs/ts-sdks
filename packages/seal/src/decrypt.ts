@@ -98,10 +98,7 @@ export async function decrypt({
 	);
 
 	// Verify that the nonce was created with the randomness.
-	if (
-		(checkLENonce && !verifyNonceWithLE(nonce, randomness)) ||
-		(!checkLENonce && !verifyNonce(nonce, randomness))
-	) {
+	if (!(checkLENonce ? verifyNonceWithLE(nonce, randomness) : verifyNonce(nonce, randomness))) {
 		throw new InvalidCiphertextError('Invalid nonce');
 	}
 
