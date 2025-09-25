@@ -183,7 +183,7 @@ export class SealClient {
 			const publicKeys = await this.getPublicKeys(
 				encryptedObject.services.map(([objectId, _]) => objectId),
 			);
-			return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys });
+			return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys, checkLENonce });
 		}
 		return decrypt({ encryptedObject, keys: this.#cachedKeys, checkLENonce });
 	}
