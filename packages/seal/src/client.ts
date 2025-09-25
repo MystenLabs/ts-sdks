@@ -163,7 +163,7 @@ export class SealClient {
 		sessionKey,
 		txBytes,
 		checkShareConsistency,
-		checkLENonce = false,
+		checkLENonce,
 	}: DecryptOptions) {
 		const encryptedObject = EncryptedObject.parse(data);
 
@@ -183,7 +183,7 @@ export class SealClient {
 			const publicKeys = await this.getPublicKeys(
 				encryptedObject.services.map(([objectId, _]) => objectId),
 			);
-			return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys, checkLENonce });
+			return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys, checkLENonce: false });
 		}
 		return decrypt({ encryptedObject, keys: this.#cachedKeys, checkLENonce });
 	}
