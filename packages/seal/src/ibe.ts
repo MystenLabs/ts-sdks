@@ -10,7 +10,7 @@ import { deriveKey, hashToG1, kdf, KeyPurpose } from './kdf.js';
 import type { KeyServer } from './key-server.js';
 import { xor } from './utils.js';
 import type { Share } from './shamir.js';
-import { DecryptionError } from './error.js';
+import { DecryptionError, InvalidCiphertextError } from './error.js';
 
 /**
  * The domain separation tag for the signing proof of possession.
@@ -199,7 +199,7 @@ export function verifyNonceWithLE(nonce: G2Element, randomness: Uint8Array): boo
 	const rs = [Scalar.fromBytesBE(randomness), Scalar.fromBytesLE(randomness)].filter(
 		(r): r is Scalar => r !== undefined,
 	);
-	if (rs.length === 0) throw new DecryptionError('Invalid randomness');
+	if (rs.length === 0) throw new InvalidCiphertextError('Invalid randomness');
 	return rs.some((r) => verifyNonceWithScalar(nonce, r));
 }
 
@@ -214,7 +214,7 @@ export function verifyNonceWithLE(nonce: G2Element, randomness: Uint8Array): boo
 export function verifyNonce(nonce: G2Element, randomness: Uint8Array): boolean {
 	const r = Scalar.fromBytesBE(randomness);
 	if (r === undefined) {
-		throw new DecryptionError('Invalid randomness');
+		throw new InvalidCiphertextError('Invalid randomness');
 	}
 	return verifyNonceWithScalar(nonce, r);
 }
