@@ -33,6 +33,7 @@ export interface BaseAnalysis {
 	dryRun: Experimental_SuiClientTypes.DryRunTransactionResponse;
 	balanceChanges: Experimental_SuiClientTypes.BalanceChange[];
 	coinFlows: CoinFlow[];
+	accessLevel: Record<string, 'read' | 'mutate' | 'transfer'>;
 }
 
 export const baseAnalyzers: {

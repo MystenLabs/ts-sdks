@@ -9,6 +9,7 @@ import type { AutoApprovalState } from './schemas/state.js';
 import { AutoApprovalStateSchema } from './schemas/state.js';
 import type { AutoApprovalSettings } from './schemas/policy.js';
 import { AutoApprovalPolicySchema, AutoApprovalSettingsSchema } from './schemas/policy.js';
+import { parseStructTag } from '@mysten/sui/dist/cjs/utils/sui-types.js';
 
 export interface AutoApprovalManagerOptions {
 	policy: string;
@@ -64,8 +65,92 @@ export class AutoApprovalManager {
 		}
 	}
 
+	matchesPolicy(analysis: AutoApprovalAnalysis, checkSessionObjects = false): boolean {
+		if (analysis.issues.length > 0) {
+			return false;
+		}
+
+		if (!analysis.results.operationType) {
+			return false;
+		}
+
+		const operation = this.#state.policy.operations.find(
+			(op) => op.id === analysis.results.operationType,
+		);
+
+		if (!operation) {
+			return false;
+		}
+
+		if (!operation.permissions.anyBalance) {
+			for (const flow of analysis.results.coinFlows) {
+				if (!operation.permissions.balances?.find((b) => b.coinType === flow.coinType)) {
+					return false;
+				}
+			}
+		}
+
+		// TODO: add support for shared object filtering
+		for (const obj of analysis.results.ownedObjects) {
+			if (isCoinType(obj.type)) {
+				continue;
+			}
+
+			const accessLevel = analysis.results.accessLevel[obj.id];
+
+			if (!accessLevel) {
+				return false;
+			}
+
+			const ownedObjectsPermission = operation.permissions.ownedObjects?.find(
+				(p) => p.objectType === obj.type,
+			);
+			const createdObjectsPermission = operation.permissions.sessionCreatedObjects?.find(
+				(p) => p.objectType === obj.type,
+			);
+
+			if (!ownedObjectsPermission && !createdObjectsPermission) {
+				return false;
+			}
+
+			if (
+				ownedObjectsPermission &&
+				compareAccessLevel(ownedObjectsPermission.accessLevel, accessLevel)
+			) {
+				continue;
+			}
+
+			const hasSessionPermission =
+				createdObjectsPermission &&
+				compareAccessLevel(createdObjectsPermission.accessLevel, accessLevel);
+
+			if (!hasSessionPermission) {
+				return false;
+			}
+
+			if (checkSessionObjects && !this.#state.createdObjects[obj.id]) {
+				return false;
+			}
+		}
+
+		return true;
+
+		function compareAccessLevel(
+			required: 'read' | 'mutate' | 'transfer',
+			actual: 'read' | 'mutate' | 'transfer',
+		): boolean {
+			if (required === 'read') {
+				return true;
+			}
+			if (required === 'mutate') {
+				return actual === 'mutate' || actual === 'transfer';
+			}
+			return actual === 'transfer';
+		}
+	}
+
 	canAutoApprove(analysis: AutoApprovalAnalysis): boolean {
-		if (!this.#state.policy || !this.#state.settings) {
+		if (!this.#state.settings) {
 			return false;
 		}
 
@@ -91,7 +176,7 @@ export class AutoApprovalManager {
 			return false;
 		}
 
-		if (!analysis.results.operationType) {
+		if (!this.matchesPolicy(analysis, true)) {
 			return false;
 		}
 
@@ -206,4 +291,16 @@ export class AutoApprovalManager {
 		const validatedSettings = parse(AutoApprovalSettingsSchema, settings);
 		this.#state.settings = validatedSettings;
 	}
+}
+
+const parsedCoinType = parseStructTag('0x2::coin::Coin');
+
+function isCoinType(type: string): boolean {
+	const parsedType = parseStructTag(type);
+	return (
+		parsedType.address === parsedCoinType.address &&
+		parsedType.module === parsedCoinType.module &&
+		parsedType.name === parsedCoinType.name &&
+		parsedType.typeParams.length === 1
+	);
 }

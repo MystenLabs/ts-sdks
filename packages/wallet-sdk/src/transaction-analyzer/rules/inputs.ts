@@ -10,11 +10,13 @@ export type AnalyzedCommandInput =
 			index: number;
 			bytes: string; // base64 encoded
 			// TODO: add parsed value and type
+			accessLevel: 'read' | 'mutate' | 'transfer';
 	  }
 	| {
 			$kind: 'Object';
 			index: number;
 			object: Experimental_SuiClientTypes.ObjectResponse;
+			accessLevel: 'read' | 'mutate' | 'transfer';
 	  };
 
 export const inputAnalyzer: Analyzer<AnalyzedCommandInput[]> =
@@ -25,7 +27,7 @@ export const inputAnalyzer: Analyzer<AnalyzedCommandInput[]> =
 		return data.inputs.map((input, index): AnalyzedCommandInput => {
 			switch (input.$kind) {
 				case 'Pure':
-					return { $kind: 'Pure', index, bytes: input.Pure.bytes! };
+					return { $kind: 'Pure', index, bytes: input.Pure.bytes!, accessLevel: 'transfer' };
 				case 'Object':
 					const objectId =
 						input.Object.ImmOrOwnedObject?.objectId ??
@@ -37,7 +39,7 @@ export const inputAnalyzer: Analyzer<AnalyzedCommandInput[]> =
 						throw new Error(`Missing object for id ${objectId}`);
 					}
 
-					return { $kind: 'Object', index, object };
+					return { $kind: 'Object', index, object, accessLevel: 'read' };
 				default:
 					throw new Error(`Unknown input type: ${JSON.stringify(input)}`);
 			}

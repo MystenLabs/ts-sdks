@@ -12,13 +12,11 @@ import {
 	operationTypeAnalyzer,
 	TransactionAnalyzer,
 } from '../../src';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/dist/cjs/client';
-import { MIST_PER_SUI } from '@mysten/sui/dist/cjs/utils';
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { MIST_PER_SUI } from '@mysten/sui/utils';
 
 const policy: AutoApprovalPolicy = {
 	schemaVersion: '1.0.0',
-	origin: 'https://example.com',
-	network: 'testnet',
 	operations: [
 		{
 			id: 'test-operation',
@@ -55,6 +53,9 @@ describe('AutoApprovalManager', () => {
 			network: 'testnet',
 			origin: 'https://example.com',
 		});
+
+		// the transaction matches the policy (ignores all settings)
+		expect(manager.matchesPolicy(analysis)).toEqual(true);
 
 		// policy has not been approved
 		expect(manager.canAutoApprove(analysis)).toEqual(false);
