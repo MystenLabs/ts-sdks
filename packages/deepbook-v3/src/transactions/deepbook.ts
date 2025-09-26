@@ -279,6 +279,12 @@ export class DeepBookContract {
 		});
 	};
 
+	/**
+	 * @description Mint a referral for a pool
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {number} multiplier The multiplier for the referral
+	 * @returns A function that takes a Transaction object
+	 */
 	mintReferral = (poolKey: string, multiplier: number) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
