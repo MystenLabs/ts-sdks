@@ -1,0 +1,73 @@
+{
+	"schemaVersion": "1.0.0",
+	"operations": [
+		 {
+			"id": "basic-transfers",
+			"description": "Allow basic SUI and coin transfers to any address",
+			"permissions": {
+				"balances": [
+					{
+						"$kind": "CoinBalance",
+						"description": "Allow SUI transfers to any address",
+						"coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+					}
+				]
+			}
+		},
+		{
+			"id": "counter-operations",
+			"description": "Allow interactions with demo counter smart contracts",
+			"permissions": {
+				"balances": [
+					{
+						"$kind": "CoinBalance",
+						"description": "Allow SUI for gas fees",
+						"coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+					}
+				],
+				"ownedObjects": [
+					{
+						"$kind": "ObjectType",
+						"description": "Allow counter object interactions",
+						"objectType": "0x58a6d7dccd124b7e0bb9756dc309f5d5b9e2bc38a05261177970e96d0d3911f1::counter::Counter",
+						"accessLevel": "mutate"
+					}
+				]
+			}
+		},
+		{
+			"id": "nft-operations",
+			"description": "Allow NFT minting, transfers, and marketplace interactions",
+			"permissions": {
+				"balances": [
+					{
+						"$kind": "CoinBalance",
+						"description": "Allow SUI for gas fees",
+						"coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+					}
+				],
+				"ownedObjects": [
+					{
+						"$kind": "ObjectType",
+						"description": "Allow demo NFT interactions",
+						"objectType": "0x1ae7832d6ad190aa4c8d6a36dd014d8383246428fb27590262b8648fcec62ca0::nft::DemoNFT",
+						"accessLevel": "transfer"
+					}
+				]
+			}
+		},
+		{
+			"id": "walrus-operations",
+			"description": "Allow interactions with Walrus decentralized storage",
+			"permissions": {
+				"balances": [
+					{
+						"$kind": "CoinBalance",
+						"description": "Allow SUI payments for storage fees",
+						"coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+					}
+				]
+			}
+		}
+	]
+}

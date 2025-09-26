@@ -1,0 +1,188 @@
+{
+	"timestamp": "2025-09-11T23:21:44.876Z",
+	"summary": {
+		"totalFiles": 65,
+		"unusedFiles": 0,
+		"filesWithUnusedExports": 0,
+		"totalUnusedExports": 0
+	},
+	"unusedFiles": [],
+	"unusedExports": {},
+	"dependencyGraph": {
+		"src/App.tsx": [
+			"src/DemoApp.tsx",
+			"src/dApp-kit.ts",
+			"src/wallet/components/core/DemoWallet.tsx"
+		],
+		"src/app/components/layout/NetworkSwitcher.tsx": [
+			"src/app/constants/networks.ts",
+			"src/dApp-kit.ts"
+		],
+		"src/app/components/ui/Alert.tsx": [],
+		"src/app/components/ui/Button.tsx": [],
+		"src/app/components/ui/Card.tsx": [],
+		"src/app/components/ui/ConnectWalletPrompt.tsx": ["src/app/components/ui/Card.tsx"],
+		"src/app/components/ui/DemoLayout.tsx": [],
+		"src/app/components/ui/Input.tsx": [],
+		"src/app/components/ui/Modal.tsx": [],
+		"src/app/constants/networks.ts": ["src/app/types/network.ts"],
+		"src/app/demos/counter/CounterDemo.tsx": [
+			"src/app/components/ui/Alert.tsx",
+			"src/app/components/ui/ConnectWalletPrompt.tsx",
+			"src/app/components/ui/DemoLayout.tsx",
+			"src/app/constants/networks.ts",
+			"src/app/demos/counter/transactions.ts",
+			"src/app/hooks/useTransactionExecution.ts"
+		],
+		"src/app/demos/counter/transactions.ts": [],
+		"src/app/demos/nft/NFTMintDemo.tsx": [
+			"src/app/components/ui/Alert.tsx",
+			"src/app/components/ui/ConnectWalletPrompt.tsx",
+			"src/app/components/ui/DemoLayout.tsx",
+			"src/app/components/ui/Input.tsx",
+			"src/app/demos/nft/transactions.ts",
+			"src/app/hooks/useTransactionExecution.ts"
+		],
+		"src/app/demos/nft/transactions.ts": [],
+		"src/app/demos/transfer/transactions.ts": [],
+		"src/app/demos/transfer/TransferDemo.tsx": [
+			"src/app/components/ui/Alert.tsx",
+			"src/app/components/ui/Card.tsx",
+			"src/app/components/ui/ConnectWalletPrompt.tsx",
+			"src/app/components/ui/DemoLayout.tsx",
+			"src/app/components/ui/Input.tsx",
+			"src/app/demos/transfer/transactions.ts",
+			"src/app/hooks/useCoinBalances.ts",
+			"src/app/hooks/useTransactionExecution.ts",
+			"src/app/hooks/useWalletAccounts.ts",
+			"src/app/utils/format.ts"
+		],
+		"src/app/demos/wallet/WalletDemo.tsx": [
+			"src/app/components/ui/ConnectWalletPrompt.tsx",
+			"src/app/components/ui/DemoLayout.tsx",
+			"src/app/utils/format.ts"
+		],
+		"src/app/demos/walrus/transactions.ts": [],
+		"src/app/demos/walrus/WalrusDemo.tsx": [
+			"src/app/components/ui/Alert.tsx",
+			"src/app/components/ui/Card.tsx",
+			"src/app/components/ui/ConnectWalletPrompt.tsx",
+			"src/app/components/ui/DemoLayout.tsx",
+			"src/app/components/ui/Input.tsx",
+			"src/app/demos/walrus/transactions.ts",
+			"src/app/hooks/useNetworkConfig.ts",
+			"src/app/hooks/useTransactionExecution.ts",
+			"src/app/hooks/useWalrusBalances.ts"
+		],
+		"src/app/hooks/useCoinBalances.ts": ["src/app/types/coins.ts"],
+		"src/app/hooks/useNetworkConfig.ts": ["src/app/types/network.ts"],
+		"src/app/hooks/useTransactionExecution.ts": [],
+		"src/app/hooks/useWalletAccounts.ts": ["src/app/types/wallet.ts"],
+		"src/app/hooks/useWalrusBalances.ts": [],
+		"src/app/types/coins.ts": [],
+		"src/app/types/network.ts": [],
+		"src/app/types/wallet.ts": [],
+		"src/app/utils/format.ts": [],
+		"src/dApp-kit.ts": ["src/app/constants/networks.ts"],
+		"src/DemoApp.tsx": [
+			"src/app/components/layout/NetworkSwitcher.tsx",
+			"src/app/demos/counter/CounterDemo.tsx",
+			"src/app/demos/nft/NFTMintDemo.tsx",
+			"src/app/demos/transfer/TransferDemo.tsx",
+			"src/app/demos/wallet/WalletDemo.tsx",
+			"src/app/demos/walrus/WalrusDemo.tsx"
+		],
+		"src/main.tsx": ["src/App.tsx"],
+		"src/wallet/components/core/AccountInfo.tsx": [
+			"src/wallet/components/ui/ConfirmDialog.tsx",
+			"src/wallet/utils/format.ts"
+		],
+		"src/wallet/components/core/DemoWallet.tsx": [
+			"src/wallet/components/core/DemoWalletUI.tsx",
+			"src/wallet/providers/WalletProvider.tsx"
+		],
+		"src/wallet/components/core/DemoWalletUI.tsx": [
+			"src/wallet/components/core/AccountInfo.tsx",
+			"src/wallet/components/signing/TransactionApprovalModal.tsx",
+			"src/wallet/components/ui/BalancesList.tsx",
+			"src/wallet/components/ui/NetworkSelector.tsx",
+			"src/wallet/constants/icons.ts",
+			"src/wallet/hooks/useWalletAccount.ts",
+			"src/wallet/providers/WalletProvider.tsx",
+			"src/wallet/utils/suiClients.ts"
+		],
+		"src/wallet/components/policy/PolicyApprovalScreen.tsx": [
+			"src/app/components/ui/Button.tsx",
+			"src/app/components/ui/Modal.tsx",
+			"src/wallet/components/policy/PolicyRuleErrorBoundary.tsx",
+			"src/wallet/components/policy/PolicyRuleSetSelector.tsx",
+			"src/wallet/components/policy/PolicySettings.tsx"
+		],
+		"src/wallet/components/policy/PolicyRuleDisplay.tsx": [],
+		"src/wallet/components/policy/PolicyRuleErrorBoundary.tsx": [
+			"src/app/components/ui/Alert.tsx",
+			"src/app/components/ui/Button.tsx",
+			"src/app/components/ui/Modal.tsx"
+		],
+		"src/wallet/components/policy/PolicyRuleSet.tsx": [
+			"src/wallet/components/policy/PolicyRuleDisplay.tsx",
+			"src/wallet/policies/ruleSets.ts"
+		],
+		"src/wallet/components/policy/PolicyRuleSetSelector.tsx": [
+			"src/wallet/components/policy/PolicyRuleSet.tsx"
+		],
+		"src/wallet/components/policy/PolicySettings.tsx": [],
+		"src/wallet/components/signing/AccountDisplay.tsx": [],
+		"src/wallet/components/signing/AutoApprovalCountdown.tsx": [],
+		"src/wallet/components/signing/PolicyStatusMessage.tsx": [],
+		"src/wallet/components/signing/SigningActions.tsx": [],
+		"src/wallet/components/signing/SigningHeader.tsx": [],
+		"src/wallet/components/signing/SigningModal.tsx": [
+			"src/wallet/components/signing/AccountDisplay.tsx",
+			"src/wallet/components/signing/AutoApprovalCountdown.tsx",
+			"src/wallet/components/signing/PolicyStatusMessage.tsx",
+			"src/wallet/components/signing/SigningActions.tsx",
+			"src/wallet/components/signing/SigningHeader.tsx",
+			"src/wallet/components/signing/TransactionContent.tsx"
+		],
+		"src/wallet/components/signing/transaction/CoinFlowEntry.tsx": [],
+		"src/wallet/components/signing/transaction/CoinFlows.tsx": [
+			"src/wallet/components/signing/transaction/CoinFlowEntry.tsx"
+		],
+		"src/wallet/components/signing/transaction/TransactionCommands.tsx": [],
+		"src/wallet/components/signing/transaction/TransactionDetails.tsx": [
+			"src/wallet/components/signing/transaction/CoinFlows.tsx",
+			"src/wallet/components/signing/transaction/TransactionCommands.tsx",
+			"src/wallet/components/signing/transaction/TransactionInputs.tsx"
+		],
+		"src/wallet/components/signing/transaction/TransactionInputs.tsx": [],
+		"src/wallet/components/signing/TransactionApprovalModal.tsx": [
+			"src/wallet/components/policy/PolicyApprovalScreen.tsx",
+			"src/wallet/components/signing/SigningModal.tsx",
+			"src/wallet/core/DemoWalletImpl.ts",
+			"src/wallet/hooks/useAutoApproval.ts",
+			"src/wallet/utils/suiClients.ts"
+		],
+		"src/wallet/components/signing/TransactionContent.tsx": [
+			"src/wallet/components/signing/transaction/TransactionDetails.tsx"
+		],
+		"src/wallet/components/ui/BalancesList.tsx": ["src/wallet/utils/format.ts"],
+		"src/wallet/components/ui/ConfirmDialog.tsx": [],
+		"src/wallet/components/ui/NetworkSelector.tsx": [],
+		"src/wallet/constants/icons.ts": [],
+		"src/wallet/core/DemoWalletImpl.ts": ["src/wallet/constants/icons.ts"],
+		"src/wallet/hooks/useAutoApproval.ts": [],
+		"src/wallet/hooks/useWalletAccount.ts": [
+			"src/wallet/constants/icons.ts",
+			"src/wallet/utils/storage.ts"
+		],
+		"src/wallet/policies/ruleSets.ts": [],
+		"src/wallet/providers/WalletProvider.tsx": [
+			"src/wallet/core/DemoWalletImpl.ts",
+			"src/wallet/hooks/useWalletAccount.ts"
+		],
+		"src/wallet/utils/format.ts": [],
+		"src/wallet/utils/storage.ts": [],
+		"src/wallet/utils/suiClients.ts": []
+	}
+}
