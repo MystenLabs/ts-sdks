@@ -236,7 +236,7 @@ export function decryptRandomness(
 /**
  * Verify that the given randomness was used to crate the nonce.
  * Check using both big-endian and little-endian encoding of the randomness.
- * 
+ *
  * Throws an error if the nonce check doesn't pass using LE encoding _and_ the randomness is invalid as a BE encoded scalar.
  *
  * @param randomness - The randomness.
