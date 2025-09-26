@@ -242,4 +242,15 @@ export class DeepBookAdminContract {
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			});
 		};
+
+	/**
+	 * @description Initialize the balance manager map
+	 * @returns A function that takes a Transaction object
+	 */
+	initBalanaceManagerMap = () => (tx: Transaction) => {
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::init_balance_manager_map`,
+			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
+		});
+	};
 }

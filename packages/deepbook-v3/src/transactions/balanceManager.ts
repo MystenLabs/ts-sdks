@@ -321,6 +321,14 @@ export class BalanceManagerContract {
 		});
 	};
 
+	registerManager = (managerKey: string) => (tx: Transaction) => {
+		const managerId = this.#config.getBalanceManager(managerKey).address;
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::register_manager`,
+			arguments: [tx.object(managerId), tx.object(this.#config.REGISTRY_ID)],
+		});
+	};
+
 	/**
 	 * @description Get the owner of the BalanceManager
 	 * @param {string} managerKey The key of the BalanceManager
