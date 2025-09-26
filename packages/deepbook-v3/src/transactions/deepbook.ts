@@ -319,6 +319,42 @@ export class DeepBookContract {
 		};
 
 	/**
+	 * @description Claim the rewards for a referral
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} referral The referral to claim the rewards for
+	 * @returns A function that takes a Transaction object
+	 */
+	claimReferralRewards = (poolKey: string, referral: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+		const [baseRewards, quoteRewards, deepRewards] = tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::claim_referral_rewards`,
+			arguments: [tx.object(pool.address), tx.object(referral)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+
+		return { baseRewards, quoteRewards, deepRewards };
+	};
+
+	/**
+	 * @description Update the allowed versions for a pool
+	 * @param {string} poolKey The key of the pool to be updated
+	 * @returns A function that takes a Transaction object
+	 */
+	updatePoolAllowedVersions = (poolKey: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::update_pool_allowed_versions`,
+			arguments: [tx.object(pool.address), tx.object(this.#config.REGISTRY_ID)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
 	 * @description Gets an order
 	 * @param {string} poolKey The key to identify the pool
 	 * @param {string} orderId Order ID to get
@@ -801,6 +837,24 @@ export class DeepBookContract {
 		tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::get_balance_manager_ids`,
 			arguments: [tx.object(this.#config.REGISTRY_ID), tx.pure.address(owner)],
+		});
+	};
+
+	/**
+	 * @description Get the balances for a referral
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} referral The referral to get the balances for
+	 * @returns A function that takes a Transaction object
+	 */
+	getReferralBalances = (poolKey: string, referral: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_referral_balances`,
+			arguments: [tx.object(pool.address), tx.object(referral)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};
 }
