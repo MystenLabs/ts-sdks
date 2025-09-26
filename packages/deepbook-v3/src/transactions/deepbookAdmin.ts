@@ -3,10 +3,9 @@
 
 import type { Transaction } from '@mysten/sui/transactions';
 
-import type { CreatePoolAdminParams } from '../types/index.js';
+import type { CreatePoolAdminParams, SetEwmaParamsParams } from '../types/index.js';
 import type { DeepBookConfig } from '../utils/config.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
-import type { SetEwmaParamsParams } from '../types/index.js';
 
 /**
  * DeepBookAdminContract class for managing admin actions.
