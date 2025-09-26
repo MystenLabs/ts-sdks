@@ -293,17 +293,16 @@ export class BalanceManagerContract {
 	/**
 	 * @description Set the referral for the BalanceManager
 	 * @param {string} managerKey The name of the BalanceManager
-	 * @param {TransactionArgument} referral The referral to set the BalanceManager to
+	 * @param {string} referral The referral to set the BalanceManager to
 	 * @param {TransactionArgument} tradeCap The tradeCap for permission checking
 	 * @returns A function that takes a Transaction object
 	 */
 	setReferral =
-		(managerKey: string, referral: TransactionArgument, tradeCap: TransactionArgument) =>
-		(tx: Transaction) => {
+		(managerKey: string, referral: string, tradeCap: TransactionArgument) => (tx: Transaction) => {
 			const managerId = this.#config.getBalanceManager(managerKey).address;
 			tx.moveCall({
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::set_referral`,
-				arguments: [tx.object(managerId), referral, tradeCap],
+				arguments: [tx.object(managerId), tx.object(referral), tradeCap],
 			});
 		};
 
