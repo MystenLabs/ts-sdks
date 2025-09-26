@@ -71,7 +71,8 @@ export function InputsTab({ analysis }: InputsTabProps) {
 								</div>
 							);
 						} else if (input.$kind === 'Object') {
-							const objId = (input.object as any).data?.objectId || (input.object as any).objectId || 'unknown';
+							const objId =
+								(input.object as any).data?.objectId || (input.object as any).objectId || 'unknown';
 							const obj = input.object;
 							const access = input.accessLevel;
 							const coin = coins[objId];

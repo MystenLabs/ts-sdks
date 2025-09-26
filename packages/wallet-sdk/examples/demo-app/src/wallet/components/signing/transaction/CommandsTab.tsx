@@ -89,9 +89,7 @@ export function CommandsTab({ analysis }: CommandsTabProps) {
 									</span>
 									<span className="text-gray-600"> object(s) to </span>
 									<span className="font-mono">
-										{cmd.$kind === 'TransferObjects'
-											? formatArgument(cmd.address)
-											: 'Unknown'}
+										{cmd.$kind === 'TransferObjects' ? formatArgument(cmd.address) : 'Unknown'}
 									</span>
 								</div>
 							);
