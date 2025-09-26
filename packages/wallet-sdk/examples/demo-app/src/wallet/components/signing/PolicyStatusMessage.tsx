@@ -1,12 +1,19 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { AutoApprovalIssue } from '@mysten/wallet-sdk';
+
 interface PolicyStatusMessageProps {
+	settingsIssues?: AutoApprovalIssue[];
 	onEditPolicy: () => void;
 	onRemovePolicy: () => void;
 }
 
-export function PolicyStatusMessage({ onEditPolicy, onRemovePolicy }: PolicyStatusMessageProps) {
+export function PolicyStatusMessage({
+	settingsIssues,
+	onEditPolicy,
+	onRemovePolicy,
+}: PolicyStatusMessageProps) {
 	// Blue box for renewable issues with both options
 	return (
 		<div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -29,11 +36,14 @@ export function PolicyStatusMessage({ onEditPolicy, onRemovePolicy }: PolicyStat
 					</div>
 				</div>
 				<div className="flex-1">
-					<h3 className="text-sm font-medium text-blue-800 mb-1">
-						Policy settings do not allow this transaction (not enough budget, or operation not
-						approved, etc., better ux needed here)
-					</h3>
-					{/* <p className="text-sm text-blue-700 mb-3">{reason}</p> */}
+					<h3 className="text-sm font-medium text-blue-800 mb-1">Auto-approval not available</h3>
+					{settingsIssues && settingsIssues.length > 0 && (
+						<ul className="text-sm text-blue-700 mb-3">
+							{settingsIssues.map((issue, i) => (
+								<li key={i}>{issue.message}</li>
+							))}
+						</ul>
+					)}
 					<div className="flex flex-wrap gap-2">
 						<button
 							onClick={onEditPolicy}

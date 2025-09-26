@@ -60,6 +60,7 @@ export function SigningModal({
 						!autoApprovalState.canAutoApprove && (
 							<div className="p-4 border-b border-gray-100">
 								<PolicyStatusMessage
+									settingsIssues={autoApprovalState.settingsIssues}
 									onEditPolicy={onEditPolicy}
 									onRemovePolicy={handleRemovePolicy}
 								/>

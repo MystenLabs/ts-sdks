@@ -1,7 +1,7 @@
 {
 	"schemaVersion": "1.0.0",
 	"operations": [
-		 {
+		{
 			"id": "basic-transfers",
 			"description": "Allow basic SUI and coin transfers to any address",
 			"permissions": {
