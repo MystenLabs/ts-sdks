@@ -851,7 +851,7 @@ export class DeepBookContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		tx.moveCall({
+		return tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_referral_balances`,
 			arguments: [tx.object(pool.address), tx.object(referral)],
 			typeArguments: [baseCoin.type, quoteCoin.type],
