@@ -98,6 +98,12 @@ export interface CreatePermissionlessPoolParams {
 	deepCoin?: TransactionObjectArgument;
 }
 
+export interface SetEwmaParamsParams {
+	alpha: number;
+	zScoreThreshold: number;
+	additionalTakerFee: number;
+}
+
 export interface Config {
 	DEEPBOOK_PACKAGE_ID: string;
 	REGISTRY_ID: string;
