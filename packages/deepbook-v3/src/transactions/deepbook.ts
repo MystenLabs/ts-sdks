@@ -665,6 +665,45 @@ export class DeepBookContract {
 	};
 
 	/**
+	 * @description Create a new pool permissionlessly
+	 * @param {CreatePermissionlessPoolParams} params Parameters for creating permissionless pool
+	 * @returns A function that takes a Transaction object
+	 */
+	createPermissionlessPool = (params: CreatePermissionlessPoolParams) => (tx: Transaction) => {
+		tx.setSenderIfNotSet(this.#config.address);
+		const { baseCoinKey, quoteCoinKey, tickSize, lotSize, minSize, deepCoin } = params;
+		const baseCoin = this.#config.getCoin(baseCoinKey);
+		const quoteCoin = this.#config.getCoin(quoteCoinKey);
+		const deepCoinType = this.#config.getCoin('DEEP').type;
+
+		const baseScalar = baseCoin.scalar;
+		const quoteScalar = quoteCoin.scalar;
+
+		const adjustedTickSize = Math.round((tickSize * FLOAT_SCALAR * quoteScalar) / baseScalar);
+		const adjustedLotSize = Math.round(lotSize * baseScalar);
+		const adjustedMinSize = Math.round(minSize * baseScalar);
+
+		const deepCoinInput =
+			deepCoin ??
+			coinWithBalance({
+				type: deepCoinType,
+				balance: POOL_CREATION_FEE,
+			});
+
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::create_permissionless_pool`,
+			arguments: [
+				tx.object(this.#config.REGISTRY_ID), // registry_id
+				tx.pure.u64(adjustedTickSize), // adjusted tick_size
+				tx.pure.u64(adjustedLotSize), // adjusted lot_size
+				tx.pure.u64(adjustedMinSize), // adjusted min_size
+				deepCoinInput,
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
 	 * @description Get the trade parameters for a given pool, including taker fee, maker fee, and stake required.
 	 * @param {string} poolKey Key of the pool
 	 * @returns A function that takes a Transaction object
@@ -754,41 +793,14 @@ export class DeepBookContract {
 	};
 
 	/**
-	 * @description Create a new pool permissionlessly
-	 * @param {CreatePermissionlessPoolParams} params Parameters for creating permissionless pool
+	 * @description Get the balance manager IDs for a given owner
+	 * @param {string} owner The owner address to get balance manager IDs for
 	 * @returns A function that takes a Transaction object
 	 */
-	createPermissionlessPool = (params: CreatePermissionlessPoolParams) => (tx: Transaction) => {
-		tx.setSenderIfNotSet(this.#config.address);
-		const { baseCoinKey, quoteCoinKey, tickSize, lotSize, minSize, deepCoin } = params;
-		const baseCoin = this.#config.getCoin(baseCoinKey);
-		const quoteCoin = this.#config.getCoin(quoteCoinKey);
-		const deepCoinType = this.#config.getCoin('DEEP').type;
-
-		const baseScalar = baseCoin.scalar;
-		const quoteScalar = quoteCoin.scalar;
-
-		const adjustedTickSize = Math.round((tickSize * FLOAT_SCALAR * quoteScalar) / baseScalar);
-		const adjustedLotSize = Math.round(lotSize * baseScalar);
-		const adjustedMinSize = Math.round(minSize * baseScalar);
-
-		const deepCoinInput =
-			deepCoin ??
-			coinWithBalance({
-				type: deepCoinType,
-				balance: POOL_CREATION_FEE,
-			});
-
+	getBalanceManagerIds = (owner: string) => (tx: Transaction) => {
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::create_permissionless_pool`,
-			arguments: [
-				tx.object(this.#config.REGISTRY_ID), // registry_id
-				tx.pure.u64(adjustedTickSize), // adjusted tick_size
-				tx.pure.u64(adjustedLotSize), // adjusted lot_size
-				tx.pure.u64(adjustedMinSize), // adjusted min_size
-				deepCoinInput,
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::get_balance_manager_ids`,
+			arguments: [tx.object(this.#config.REGISTRY_ID), tx.pure.address(owner)],
 		});
 	};
 }
