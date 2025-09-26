@@ -13,8 +13,6 @@ export const CreatedObjectSchema = v.object({
 
 export const AutoApprovalStateSchema = v.object({
 	schemaVersion: v.literal('1.0.0'),
-	network: v.string(),
-	origin: v.string(),
 	policy: AutoApprovalPolicySchema,
 	settings: v.nullable(AutoApprovalSettingsSchema),
 	pendingDigests: v.array(v.string()),

@@ -9,6 +9,6 @@ export {
 } from './intent.js';
 
 export { AutoApprovalManager } from './manager.js';
-export type { AutoApprovalAnalysis } from './manager.js';
+export type { AutoApprovalAnalysis, AutoApprovalIssue, AutoApprovalCheck } from './manager.js';
 
 export * from './schemas/index.js';

@@ -9,13 +9,11 @@ import type { AutoApprovalState } from './schemas/state.js';
 import { AutoApprovalStateSchema } from './schemas/state.js';
 import type { AutoApprovalSettings } from './schemas/policy.js';
 import { AutoApprovalPolicySchema, AutoApprovalSettingsSchema } from './schemas/policy.js';
-import { parseStructTag } from '@mysten/sui/dist/cjs/utils/sui-types.js';
+import { parseStructTag } from '@mysten/sui/utils';
 
 export interface AutoApprovalManagerOptions {
 	policy: string;
 	state: string | null;
-	network: string;
-	origin: string;
 }
 
 export interface AutoApprovalAnalysis {
@@ -24,6 +22,18 @@ export interface AutoApprovalAnalysis {
 		operationType: string | null;
 	};
 	issues: TransactionAnalysisIssue[];
+}
+
+export interface AutoApprovalIssue {
+	message: string;
+}
+
+export interface AutoApprovalCheck {
+	matchesPolicy: boolean;
+	canAutoApprove: boolean;
+	policyIssues: AutoApprovalIssue[];
+	settingsIssues: AutoApprovalIssue[];
+	analysisIssues: AutoApprovalIssue[];
 }
 
 export class AutoApprovalManager {
@@ -48,30 +58,58 @@ export class AutoApprovalManager {
 			state ??
 			parse(AutoApprovalStateSchema, {
 				schemaVersion: '1.0.0',
-				origin: options.origin,
-				network: options.network,
 				policy: parse(AutoApprovalPolicySchema, JSON.parse(options.policy)),
 				settings: null,
 				createdObjects: {},
 				pendingDigests: [],
 			} satisfies AutoApprovalState);
-
-		if (this.#state.network !== options.network) {
-			throw new Error(`Network mismatch: expected ${options.network}, got ${this.#state.network}`);
-		}
-
-		if (this.#state.origin !== options.origin) {
-			throw new Error(`Origin mismatch: expected ${options.origin}, got ${this.#state.origin}`);
-		}
 	}
 
-	matchesPolicy(analysis: AutoApprovalAnalysis, checkSessionObjects = false): boolean {
+	checkTransaction(analysis: AutoApprovalAnalysis): AutoApprovalCheck {
+		const results: AutoApprovalCheck = {
+			matchesPolicy: false,
+			canAutoApprove: false,
+			analysisIssues: [...analysis.issues],
+			policyIssues: [],
+			settingsIssues: [],
+		};
+
+		if (results.analysisIssues.length > 0) {
+			return results;
+		}
+
+		const policyIssues = this.#matchesPolicy(analysis);
+
+		if (policyIssues.length > 0) {
+			results.policyIssues = policyIssues;
+			return results;
+		} else {
+			results.matchesPolicy = true;
+		}
+
+		const settingsIssues = this.#canAutoApprove(analysis);
+
+		if (settingsIssues.length > 0) {
+			results.settingsIssues = settingsIssues;
+			return results;
+		} else {
+			results.canAutoApprove = true;
+		}
+
+		return results;
+	}
+
+	#matchesPolicy(analysis: AutoApprovalAnalysis, checkSessionObjects = false): AutoApprovalIssue[] {
+		const issues: AutoApprovalIssue[] = [];
+
 		if (analysis.issues.length > 0) {
-			return false;
+			issues.push({ message: 'Transaction analysis failed' });
 		}
 
 		if (!analysis.results.operationType) {
-			return false;
+			issues.push({ message: 'Operation type not found in Transaction' });
+
+			return issues;
 		}
 
 		const operation = this.#state.policy.operations.find(
@@ -79,13 +117,16 @@ export class AutoApprovalManager {
 		);
 
 		if (!operation) {
-			return false;
+			issues.push({ message: 'Operation not found in policy' });
+			return issues;
 		}
 
 		if (!operation.permissions.anyBalance) {
 			for (const flow of analysis.results.coinFlows) {
 				if (!operation.permissions.balances?.find((b) => b.coinType === flow.coinType)) {
-					return false;
+					issues.push({
+						message: `Operation does not have permission to use coin type ${flow.coinType}`,
+					});
 				}
 			}
 		}
@@ -99,7 +140,7 @@ export class AutoApprovalManager {
 			const accessLevel = analysis.results.accessLevel[obj.id];
 
 			if (!accessLevel) {
-				return false;
+				issues.push({ message: `Access level could not be determined for object ${obj.id}` });
 			}
 
 			const ownedObjectsPermission = operation.permissions.ownedObjects?.find(
@@ -110,7 +151,7 @@ export class AutoApprovalManager {
 			);
 
 			if (!ownedObjectsPermission && !createdObjectsPermission) {
-				return false;
+				issues.push({ message: `No permission found for object ${obj.id}` });
 			}
 
 			if (
@@ -125,15 +166,15 @@ export class AutoApprovalManager {
 				compareAccessLevel(createdObjectsPermission.accessLevel, accessLevel);
 
 			if (!hasSessionPermission) {
-				return false;
+				issues.push({ message: `No session permission found for object ${obj.id}` });
 			}
 
 			if (checkSessionObjects && !this.#state.createdObjects[obj.id]) {
-				return false;
+				issues.push({ message: `Object ${obj.id} was not created in this session` });
 			}
 		}
 
-		return true;
+		return issues;
 
 		function compareAccessLevel(
 			required: 'read' | 'mutate' | 'transfer',
@@ -149,40 +190,40 @@ export class AutoApprovalManager {
 		}
 	}
 
-	canAutoApprove(analysis: AutoApprovalAnalysis): boolean {
+	#canAutoApprove(analysis: AutoApprovalAnalysis): AutoApprovalIssue[] {
+		const issues: AutoApprovalIssue[] = [];
+
 		if (!this.#state.settings) {
-			return false;
+			issues.push({ message: 'No auto-approval settings configured' });
+			return issues;
 		}
 
 		if (analysis.issues.length > 0) {
-			return false;
+			issues.push({ message: 'Transaction analysis failed' });
+			return issues;
 		}
 
 		if (new Date() > new Date(this.#state.settings.expiration)) {
-			return false;
+			issues.push({ message: 'Auto-approval settings have expired' });
 		}
 
 		if (
 			this.#state.settings.remainingTransactions !== null &&
 			this.#state.settings.remainingTransactions <= 0
 		) {
-			return false;
+			issues.push({ message: 'No remaining auto-approved transactions' });
 		}
 
 		if (
 			!analysis.results.operationType ||
 			!this.#state.settings.approvedOperations.includes(analysis.results.operationType)
 		) {
-			return false;
-		}
-
-		if (!this.matchesPolicy(analysis, true)) {
-			return false;
+			issues.push({ message: 'Operation type not approved for auto-approval' });
 		}
 
 		// TODO: analyze balances and budgets
 
-		return true;
+		return issues;
 	}
 
 	commitTransaction(analysis: AutoApprovalAnalysis): void {

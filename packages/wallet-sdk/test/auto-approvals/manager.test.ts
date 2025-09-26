@@ -50,15 +50,13 @@ describe('AutoApprovalManager', () => {
 		const manager = new AutoApprovalManager({
 			policy: JSON.stringify(policy),
 			state: null,
-			network: 'testnet',
-			origin: 'https://example.com',
 		});
 
-		// the transaction matches the policy (ignores all settings)
-		expect(manager.matchesPolicy(analysis)).toEqual(true);
+		// the transaction matches the policy
+		expect(manager.checkTransaction(analysis).matchesPolicy).toEqual(true);
 
 		// policy has not been approved
-		expect(manager.canAutoApprove(analysis)).toEqual(false);
+		expect(manager.checkTransaction(analysis).canAutoApprove).toEqual(false);
 
 		manager.updateSettings({
 			approvedOperations: ['test-operation'],
@@ -70,7 +68,7 @@ describe('AutoApprovalManager', () => {
 			},
 		});
 
-		expect(manager.canAutoApprove(analysis)).toEqual(true);
+		expect(manager.checkTransaction(analysis).canAutoApprove).toEqual(true);
 
 		// deduct balances
 		manager.commitTransaction(analysis);
@@ -98,8 +96,6 @@ describe('AutoApprovalManager', () => {
 		const manager2 = new AutoApprovalManager({
 			policy: JSON.stringify(policy),
 			state,
-			network: 'testnet',
-			origin: 'https://example.com',
 		});
 
 		const settings = manager2.getSettings();
