@@ -279,6 +279,19 @@ export class DeepBookContract {
 		});
 	};
 
+	mintReferral = (poolKey: string, multiplier: number) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const adjustedNumber = Math.round(multiplier * FLOAT_SCALAR);
+
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::mint_referral`,
+			arguments: [tx.object(pool.address), tx.pure.u64(adjustedNumber)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
 	/**
 	 * @description Gets an order
 	 * @param {string} poolKey The key to identify the pool
