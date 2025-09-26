@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { coinWithBalance } from '@mysten/sui/transactions';
-import type { Transaction } from '@mysten/sui/transactions';
+import type { Transaction, TransactionArgument } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
 
@@ -35,39 +35,40 @@ export class BalanceManagerContract {
 	};
 
 	/**
-	 * @description Create and share a new BalanceManager, manually set the owner
+	 * @description Create and share a new BalanceManager, manually set the owner. Returns the manager.
 	 * @returns A function that takes a Transaction object
 	 */
-	createAndShareBalanceManagerWithOwner = (ownerAddress: string) => (tx: Transaction) => {
-		const manager = tx.moveCall({
+	createBalanceManagerWithOwner = (ownerAddress: string) => (tx: Transaction) => {
+		return tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new_with_custom_owner`,
 			arguments: [tx.pure.address(ownerAddress)],
-		});
-
-		tx.moveCall({
-			target: '0x2::transfer::public_share_object',
-			arguments: [manager],
-			typeArguments: [`${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::BalanceManager`],
 		});
 	};
 
 	/**
-	 * @description Create and share a new BalanceManager, manually set the owner. Returns the depositCap, withdrawCap, and tradeCap.
+	 * @description Create and share a new BalanceManager, manually set the owner. Returns the manager, depositCap, withdrawCap, and tradeCap.
 	 * @returns A function that takes a Transaction object
 	 */
-	createAndShareBalanceManagerWithOwnerAndCaps = (ownerAddress: string) => (tx: Transaction) => {
+	createBalanceManagerWithOwnerAndCaps = (ownerAddress: string) => (tx: Transaction) => {
 		const [manager, depositCap, withdrawCap, tradeCap] = tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new_with_custom_owner_and_caps`,
 			arguments: [tx.pure.address(ownerAddress)],
 		});
 
+		return { manager, depositCap, withdrawCap, tradeCap };
+	};
+
+	/**
+	 * @description Share the BalanceManager
+	 * @param {TransactionArgument} manager The BalanceManager to share
+	 * @returns A function that takes a Transaction object
+	 */
+	shareBalanceManager = (manager: TransactionArgument) => (tx: Transaction) => {
 		tx.moveCall({
 			target: '0x2::transfer::public_share_object',
 			arguments: [manager],
 			typeArguments: [`${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::BalanceManager`],
 		});
-
-		return { depositCap, withdrawCap, tradeCap };
 	};
 
 	/**
