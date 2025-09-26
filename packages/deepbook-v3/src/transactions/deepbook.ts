@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { coinWithBalance } from '@mysten/sui/transactions';
-import type { Transaction, TransactionArgument } from '@mysten/sui/transactions';
+import type { Transaction } from '@mysten/sui/transactions';
 import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 
 import { OrderType, SelfMatchingOptions } from '../types/index.js';
@@ -305,7 +305,7 @@ export class DeepBookContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	updateReferralMultiplier =
-		(poolKey: string, referral: TransactionArgument, multiplier: number) => (tx: Transaction) => {
+		(poolKey: string, referral: string, multiplier: number) => (tx: Transaction) => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
@@ -313,7 +313,7 @@ export class DeepBookContract {
 
 			tx.moveCall({
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::update_referral_multiplier`,
-				arguments: [tx.object(pool.address), referral, tx.pure.u64(adjustedNumber)],
+				arguments: [tx.object(pool.address), tx.object(referral), tx.pure.u64(adjustedNumber)],
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			});
 		};

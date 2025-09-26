@@ -35,7 +35,7 @@ export class BalanceManagerContract {
 	};
 
 	/**
-	 * @description Create and share a new BalanceManager, manually set the owner. Returns the manager.
+	 * @description Create a new BalanceManager, manually set the owner. Returns the manager.
 	 * @returns A function that takes a Transaction object
 	 */
 	createBalanceManagerWithOwner = (ownerAddress: string) => (tx: Transaction) => {
@@ -46,7 +46,7 @@ export class BalanceManagerContract {
 	};
 
 	/**
-	 * @description Create and share a new BalanceManager, manually set the owner. Returns the manager, depositCap, withdrawCap, and tradeCap.
+	 * @description Create a new BalanceManager, manually set the owner. Returns the manager, depositCap, withdrawCap, and tradeCap.
 	 * @returns A function that takes a Transaction object
 	 */
 	createBalanceManagerWithOwnerAndCaps = (ownerAddress: string) => (tx: Transaction) => {
