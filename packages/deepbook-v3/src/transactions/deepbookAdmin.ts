@@ -255,6 +255,12 @@ export class DeepBookAdminContract {
 		});
 	};
 
+	/**
+	 * @description Set the EWMA parameters for a pool
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {SetEwmaParamsParams} params The parameters to set
+	 * @returns A function that takes a Transaction object
+	 */
 	setEwmaParams = (poolKey: string, params: SetEwmaParamsParams) => (tx: Transaction) => {
 		const { alpha, zScoreThreshold, additionalTakerFee } = params;
 		const adjustedAlpha = Math.round(alpha * FLOAT_SCALAR);
@@ -272,6 +278,29 @@ export class DeepBookAdminContract {
 				tx.pure.u64(adjustedAlpha),
 				tx.pure.u64(adjustedZScoreThreshold),
 				tx.pure.u64(adjustedAdditionalTakerFee),
+				tx.object.clock(),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Enable or disable the EWMA state for a pool
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {boolean} enable Whether to enable or disable the EWMA state
+	 * @returns A function that takes a Transaction object
+	 */
+	enableEwmaState = (poolKey: string, enable: boolean) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::enable_ewma_state`,
+			arguments: [
+				tx.object(pool.address),
+				tx.object(this.#adminCap()),
+				tx.pure.bool(enable),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
