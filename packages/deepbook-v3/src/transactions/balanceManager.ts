@@ -52,6 +52,25 @@ export class BalanceManagerContract {
 	};
 
 	/**
+	 * @description Create and share a new BalanceManager, manually set the owner. Returns the depositCap, withdrawCap, and tradeCap.
+	 * @returns A function that takes a Transaction object
+	 */
+	createAndShareBalanceManagerWithOwnerAndCaps = (ownerAddress: string) => (tx: Transaction) => {
+		const [manager, depositCap, withdrawCap, tradeCap] = tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new_with_custom_owner_and_caps`,
+			arguments: [tx.pure.address(ownerAddress)],
+		});
+
+		tx.moveCall({
+			target: '0x2::transfer::public_share_object',
+			arguments: [manager],
+			typeArguments: [`${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::BalanceManager`],
+		});
+
+		return { depositCap, withdrawCap, tradeCap };
+	};
+
+	/**
 	 * @description Deposit funds into the BalanceManager
 	 * @param {string} managerKey The key of the BalanceManager
 	 * @param {string} coinKey The key of the coin to deposit
