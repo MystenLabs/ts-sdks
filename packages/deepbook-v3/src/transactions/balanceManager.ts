@@ -354,4 +354,16 @@ export class BalanceManagerContract {
 			arguments: [tx.object(managerId)],
 		});
 	};
+
+	/**
+	 * @description Get the owner of the referral
+	 * @param {string} referral_id The ID of the referral to get the owner of
+	 * @returns A function that takes a Transaction object
+	 */
+	referralOwner = (referral_id: string) => (tx: Transaction) => {
+		return tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::referral_owner`,
+			arguments: [tx.object(referral_id)],
+		});
+	};
 }

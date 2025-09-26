@@ -682,11 +682,28 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.results![0].returnValues![0][0];
-		// VecSet<ID> is a struct with a single field "contents" which is a vector of addresses
-		// Parse as a vector of addresses directly
 		const vecOfAddresses = bcs.vector(bcs.Address).parse(new Uint8Array(bytes));
 
-		// Convert addresses to normalized strings
 		return vecOfAddresses.map((id: string) => normalizeSuiAddress(id));
+	}
+
+	/**
+	 * @description Get the owner of the referral
+	 * @param {string} referral The ID of the referral to get the owner of
+	 * @returns {Promise<string>} The owner of the referral
+	 */
+	async referralOwner(referral: string) {
+		const tx = new Transaction();
+		tx.add(this.balanceManager.referralOwner(referral));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const owner = bcs.Address.parse(new Uint8Array(bytes));
+
+		return owner;
 	}
 }
