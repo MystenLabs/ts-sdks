@@ -36,10 +36,10 @@ fragment TRANSACTION_FIELDS on TransactionBlock {
 		epoch {
 			epochId
 		}
-		unchangedSharedObjects {
+		unchangedConsensusObjects {
 			nodes {
 				__typename
-				... on SharedObjectRead {
+				... on ConsensusObjectRead {
 					object {
 						asMoveObject {
 							address
@@ -77,6 +77,20 @@ fragment TRANSACTION_FIELDS on TransactionBlock {
 						}
 					}
 				}
+			}
+		}
+		balanceChanges(first: 50) {
+			pageInfo {
+				hasNextPage
+			}
+			nodes {
+				owner {
+					address
+				}
+				coinType {
+					repr
+				}
+				amount
 			}
 		}
 	}

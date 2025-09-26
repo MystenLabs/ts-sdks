@@ -34,6 +34,22 @@ const introspection = {
     "types": [
       {
         "kind": "OBJECT",
+        "name": "AccumulatorRootCreateTransaction",
+        "fields": [
+          {
+            "name": "_",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
         "name": "ActiveJwk",
         "fields": [
           {
@@ -1237,6 +1253,15 @@ const introspection = {
         "kind": "OBJECT",
         "name": "Checkpoint",
         "fields": [
+          {
+            "name": "artifactsDigest",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
           {
             "name": "bcs",
             "type": {
@@ -2790,6 +2815,132 @@ const introspection = {
         "interfaces": []
       },
       {
+        "kind": "OBJECT",
+        "name": "ConsensusObjectCancelled",
+        "fields": [
+          {
+            "name": "address",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "SuiAddress"
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "version",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "UInt53"
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ConsensusObjectRead",
+        "fields": [
+          {
+            "name": "address",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "SuiAddress"
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "digest",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String"
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "object",
+            "type": {
+              "kind": "OBJECT",
+              "name": "Object"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "version",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "UInt53"
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ConsensusObjectStreamEnded",
+        "fields": [
+          {
+            "name": "address",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "SuiAddress"
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "mutable",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean"
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "version",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "UInt53"
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
         "kind": "SCALAR",
         "name": "DateTime"
       },
@@ -3282,6 +3433,10 @@ const introspection = {
         "kind": "UNION",
         "name": "EndOfEpochTransactionKind",
         "possibleTypes": [
+          {
+            "kind": "OBJECT",
+            "name": "AccumulatorRootCreateTransaction"
+          },
           {
             "kind": "OBJECT",
             "name": "AuthenticatorStateCreateTransaction"
@@ -9419,6 +9574,95 @@ const introspection = {
         "interfaces": []
       },
       {
+        "kind": "OBJECT",
+        "name": "ProgrammableSystemTransactionBlock",
+        "fields": [
+          {
+            "name": "inputs",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "TransactionInputConnection"
+              }
+            },
+            "args": [
+              {
+                "name": "after",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              },
+              {
+                "name": "before",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              },
+              {
+                "name": "first",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Int"
+                }
+              },
+              {
+                "name": "last",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Int"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "transactions",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "ProgrammableTransactionConnection"
+              }
+            },
+            "args": [
+              {
+                "name": "after",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              },
+              {
+                "name": "before",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              },
+              {
+                "name": "first",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Int"
+                }
+              },
+              {
+                "name": "last",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Int"
+                }
+              }
+            ],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
         "kind": "UNION",
         "name": "ProgrammableTransaction",
         "possibleTypes": [
@@ -11175,132 +11419,6 @@ const introspection = {
               "ofType": {
                 "kind": "SCALAR",
                 "name": "Boolean"
-              }
-            },
-            "args": [],
-            "isDeprecated": false
-          }
-        ],
-        "interfaces": []
-      },
-      {
-        "kind": "OBJECT",
-        "name": "SharedObjectCancelled",
-        "fields": [
-          {
-            "name": "address",
-            "type": {
-              "kind": "NON_NULL",
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "SuiAddress"
-              }
-            },
-            "args": [],
-            "isDeprecated": false
-          },
-          {
-            "name": "version",
-            "type": {
-              "kind": "NON_NULL",
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "UInt53"
-              }
-            },
-            "args": [],
-            "isDeprecated": false
-          }
-        ],
-        "interfaces": []
-      },
-      {
-        "kind": "OBJECT",
-        "name": "SharedObjectDelete",
-        "fields": [
-          {
-            "name": "address",
-            "type": {
-              "kind": "NON_NULL",
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "SuiAddress"
-              }
-            },
-            "args": [],
-            "isDeprecated": false
-          },
-          {
-            "name": "mutable",
-            "type": {
-              "kind": "NON_NULL",
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Boolean"
-              }
-            },
-            "args": [],
-            "isDeprecated": false
-          },
-          {
-            "name": "version",
-            "type": {
-              "kind": "NON_NULL",
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "UInt53"
-              }
-            },
-            "args": [],
-            "isDeprecated": false
-          }
-        ],
-        "interfaces": []
-      },
-      {
-        "kind": "OBJECT",
-        "name": "SharedObjectRead",
-        "fields": [
-          {
-            "name": "address",
-            "type": {
-              "kind": "NON_NULL",
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "SuiAddress"
-              }
-            },
-            "args": [],
-            "isDeprecated": false
-          },
-          {
-            "name": "digest",
-            "type": {
-              "kind": "NON_NULL",
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String"
-              }
-            },
-            "args": [],
-            "isDeprecated": false
-          },
-          {
-            "name": "object",
-            "type": {
-              "kind": "OBJECT",
-              "name": "Object"
-            },
-            "args": [],
-            "isDeprecated": false
-          },
-          {
-            "name": "version",
-            "type": {
-              "kind": "NON_NULL",
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "UInt53"
               }
             },
             "args": [],
@@ -13291,12 +13409,12 @@ const introspection = {
             "isDeprecated": false
           },
           {
-            "name": "unchangedSharedObjects",
+            "name": "unchangedConsensusObjects",
             "type": {
               "kind": "NON_NULL",
               "ofType": {
                 "kind": "OBJECT",
-                "name": "UnchangedSharedObjectConnection"
+                "name": "UnchangedConsensusObjectConnection"
               }
             },
             "args": [
@@ -13440,6 +13558,10 @@ const introspection = {
           {
             "kind": "OBJECT",
             "name": "GenesisTransaction"
+          },
+          {
+            "kind": "OBJECT",
+            "name": "ProgrammableSystemTransactionBlock"
           },
           {
             "kind": "OBJECT",
@@ -13707,25 +13829,25 @@ const introspection = {
       },
       {
         "kind": "UNION",
-        "name": "UnchangedSharedObject",
+        "name": "UnchangedConsensusObject",
         "possibleTypes": [
           {
             "kind": "OBJECT",
-            "name": "SharedObjectCancelled"
+            "name": "ConsensusObjectCancelled"
           },
           {
             "kind": "OBJECT",
-            "name": "SharedObjectDelete"
+            "name": "ConsensusObjectRead"
           },
           {
             "kind": "OBJECT",
-            "name": "SharedObjectRead"
+            "name": "ConsensusObjectStreamEnded"
           }
         ]
       },
       {
         "kind": "OBJECT",
-        "name": "UnchangedSharedObjectConnection",
+        "name": "UnchangedConsensusObjectConnection",
         "fields": [
           {
             "name": "edges",
@@ -13737,7 +13859,7 @@ const introspection = {
                   "kind": "NON_NULL",
                   "ofType": {
                     "kind": "OBJECT",
-                    "name": "UnchangedSharedObjectEdge"
+                    "name": "UnchangedConsensusObjectEdge"
                   }
                 }
               }
@@ -13755,7 +13877,7 @@ const introspection = {
                   "kind": "NON_NULL",
                   "ofType": {
                     "kind": "UNION",
-                    "name": "UnchangedSharedObject"
+                    "name": "UnchangedConsensusObject"
                   }
                 }
               }
@@ -13780,7 +13902,7 @@ const introspection = {
       },
       {
         "kind": "OBJECT",
-        "name": "UnchangedSharedObjectEdge",
+        "name": "UnchangedConsensusObjectEdge",
         "fields": [
           {
             "name": "cursor",
@@ -13800,7 +13922,7 @@ const introspection = {
               "kind": "NON_NULL",
               "ofType": {
                 "kind": "UNION",
-                "name": "UnchangedSharedObject"
+                "name": "UnchangedConsensusObject"
               }
             },
             "args": [],

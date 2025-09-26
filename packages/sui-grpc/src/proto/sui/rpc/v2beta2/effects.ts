@@ -95,14 +95,14 @@ export interface TransactionEffects {
 	 */
 	changedObjects: ChangedObject[];
 	/**
-	 * Shared objects that are not mutated in this transaction. Unlike owned objects,
-	 * read-only shared objects' version are not committed in the transaction,
+	 * Consensus objects that are not mutated in this transaction. Unlike owned objects,
+	 * read-only consensus objects' version are not committed in the transaction,
 	 * and in order for a node to catch up and execute it without consensus sequencing,
 	 * the version needs to be committed in the effects.
 	 *
-	 * @generated from protobuf field: repeated sui.rpc.v2beta2.UnchangedSharedObject unchanged_shared_objects = 13
+	 * @generated from protobuf field: repeated sui.rpc.v2beta2.UnchangedConsensusObject unchanged_consensus_objects = 13
 	 */
-	unchangedSharedObjects: UnchangedSharedObject[];
+	unchangedConsensusObjects: UnchangedConsensusObject[];
 	/**
 	 * Auxiliary data that are not protocol-critical, generated as part of the effects but are stored separately.
 	 * Storing it separately allows us to avoid bloating the effects with data that are not critical.
@@ -242,29 +242,29 @@ export enum ChangedObject_IdOperation {
 	DELETED = 3,
 }
 /**
- * A shared object that wasn't changed during execution.
+ * A consensus object that wasn't changed during execution.
  *
- * @generated from protobuf message sui.rpc.v2beta2.UnchangedSharedObject
+ * @generated from protobuf message sui.rpc.v2beta2.UnchangedConsensusObject
  */
-export interface UnchangedSharedObject {
+export interface UnchangedConsensusObject {
 	/**
-	 * @generated from protobuf field: optional sui.rpc.v2beta2.UnchangedSharedObject.UnchangedSharedObjectKind kind = 1
+	 * @generated from protobuf field: optional sui.rpc.v2beta2.UnchangedConsensusObject.UnchangedConsensusObjectKind kind = 1
 	 */
-	kind?: UnchangedSharedObject_UnchangedSharedObjectKind;
+	kind?: UnchangedConsensusObject_UnchangedConsensusObjectKind;
 	/**
-	 * ObjectId of the shared object.
+	 * ObjectId of the consensus object.
 	 *
 	 * @generated from protobuf field: optional string object_id = 2
 	 */
 	objectId?: string;
 	/**
-	 * Version of the shared object.
+	 * Version of the consensus object.
 	 *
 	 * @generated from protobuf field: optional uint64 version = 3
 	 */
 	version?: bigint;
 	/**
-	 * Digest of the shared object.
+	 * Digest of the consensus object.
 	 *
 	 * @generated from protobuf field: optional string digest = 4
 	 */
@@ -278,15 +278,15 @@ export interface UnchangedSharedObject {
 	objectType?: string;
 }
 /**
- * @generated from protobuf enum sui.rpc.v2beta2.UnchangedSharedObject.UnchangedSharedObjectKind
+ * @generated from protobuf enum sui.rpc.v2beta2.UnchangedConsensusObject.UnchangedConsensusObjectKind
  */
-export enum UnchangedSharedObject_UnchangedSharedObjectKind {
+export enum UnchangedConsensusObject_UnchangedConsensusObjectKind {
 	/**
-	 * @generated from protobuf enum value: UNCHANGED_SHARED_OBJECT_KIND_UNKNOWN = 0;
+	 * @generated from protobuf enum value: UNCHANGED_CONSENSUS_OBJECT_KIND_UNKNOWN = 0;
 	 */
-	UNCHANGED_SHARED_OBJECT_KIND_UNKNOWN = 0,
+	UNCHANGED_CONSENSUS_OBJECT_KIND_UNKNOWN = 0,
 	/**
-	 * Read-only shared object from the input.
+	 * Read-only consensus object from the input.
 	 *
 	 * @generated from protobuf enum value: READ_ONLY_ROOT = 1;
 	 */
@@ -363,10 +363,10 @@ class TransactionEffects$Type extends MessageType<TransactionEffects> {
 			},
 			{
 				no: 13,
-				name: 'unchanged_shared_objects',
+				name: 'unchanged_consensus_objects',
 				kind: 'message',
 				repeat: 2 /*RepeatType.UNPACKED*/,
-				T: () => UnchangedSharedObject,
+				T: () => UnchangedConsensusObject,
 			},
 			{
 				no: 14,
@@ -381,7 +381,7 @@ class TransactionEffects$Type extends MessageType<TransactionEffects> {
 		const message = globalThis.Object.create(this.messagePrototype!);
 		message.dependencies = [];
 		message.changedObjects = [];
-		message.unchangedSharedObjects = [];
+		message.unchangedConsensusObjects = [];
 		if (value !== undefined) reflectionMergePartial<TransactionEffects>(this, message, value);
 		return message;
 	}
@@ -449,9 +449,9 @@ class TransactionEffects$Type extends MessageType<TransactionEffects> {
 						ChangedObject.internalBinaryRead(reader, reader.uint32(), options),
 					);
 					break;
-				case /* repeated sui.rpc.v2beta2.UnchangedSharedObject unchanged_shared_objects */ 13:
-					message.unchangedSharedObjects.push(
-						UnchangedSharedObject.internalBinaryRead(reader, reader.uint32(), options),
+				case /* repeated sui.rpc.v2beta2.UnchangedConsensusObject unchanged_consensus_objects */ 13:
+					message.unchangedConsensusObjects.push(
+						UnchangedConsensusObject.internalBinaryRead(reader, reader.uint32(), options),
 					);
 					break;
 				case /* optional string auxiliary_data_digest */ 14:
@@ -535,10 +535,10 @@ class TransactionEffects$Type extends MessageType<TransactionEffects> {
 				writer.tag(12, WireType.LengthDelimited).fork(),
 				options,
 			).join();
-		/* repeated sui.rpc.v2beta2.UnchangedSharedObject unchanged_shared_objects = 13; */
-		for (let i = 0; i < message.unchangedSharedObjects.length; i++)
-			UnchangedSharedObject.internalBinaryWrite(
-				message.unchangedSharedObjects[i],
+		/* repeated sui.rpc.v2beta2.UnchangedConsensusObject unchanged_consensus_objects = 13; */
+		for (let i = 0; i < message.unchangedConsensusObjects.length; i++)
+			UnchangedConsensusObject.internalBinaryWrite(
+				message.unchangedConsensusObjects[i],
 				writer.tag(13, WireType.LengthDelimited).fork(),
 				options,
 			).join();
@@ -744,17 +744,17 @@ class ChangedObject$Type extends MessageType<ChangedObject> {
  */
 export const ChangedObject = new ChangedObject$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class UnchangedSharedObject$Type extends MessageType<UnchangedSharedObject> {
+class UnchangedConsensusObject$Type extends MessageType<UnchangedConsensusObject> {
 	constructor() {
-		super('sui.rpc.v2beta2.UnchangedSharedObject', [
+		super('sui.rpc.v2beta2.UnchangedConsensusObject', [
 			{
 				no: 1,
 				name: 'kind',
 				kind: 'enum',
 				opt: true,
 				T: () => [
-					'sui.rpc.v2beta2.UnchangedSharedObject.UnchangedSharedObjectKind',
-					UnchangedSharedObject_UnchangedSharedObjectKind,
+					'sui.rpc.v2beta2.UnchangedConsensusObject.UnchangedConsensusObjectKind',
+					UnchangedConsensusObject_UnchangedConsensusObjectKind,
 				],
 			},
 			{ no: 2, name: 'object_id', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -770,23 +770,23 @@ class UnchangedSharedObject$Type extends MessageType<UnchangedSharedObject> {
 			{ no: 5, name: 'object_type', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 		]);
 	}
-	create(value?: PartialMessage<UnchangedSharedObject>): UnchangedSharedObject {
+	create(value?: PartialMessage<UnchangedConsensusObject>): UnchangedConsensusObject {
 		const message = globalThis.Object.create(this.messagePrototype!);
-		if (value !== undefined) reflectionMergePartial<UnchangedSharedObject>(this, message, value);
+		if (value !== undefined) reflectionMergePartial<UnchangedConsensusObject>(this, message, value);
 		return message;
 	}
 	internalBinaryRead(
 		reader: IBinaryReader,
 		length: number,
 		options: BinaryReadOptions,
-		target?: UnchangedSharedObject,
-	): UnchangedSharedObject {
+		target?: UnchangedConsensusObject,
+	): UnchangedConsensusObject {
 		let message = target ?? this.create(),
 			end = reader.pos + length;
 		while (reader.pos < end) {
 			let [fieldNo, wireType] = reader.tag();
 			switch (fieldNo) {
-				case /* optional sui.rpc.v2beta2.UnchangedSharedObject.UnchangedSharedObjectKind kind */ 1:
+				case /* optional sui.rpc.v2beta2.UnchangedConsensusObject.UnchangedConsensusObjectKind kind */ 1:
 					message.kind = reader.int32();
 					break;
 				case /* optional string object_id */ 2:
@@ -821,11 +821,11 @@ class UnchangedSharedObject$Type extends MessageType<UnchangedSharedObject> {
 		return message;
 	}
 	internalBinaryWrite(
-		message: UnchangedSharedObject,
+		message: UnchangedConsensusObject,
 		writer: IBinaryWriter,
 		options: BinaryWriteOptions,
 	): IBinaryWriter {
-		/* optional sui.rpc.v2beta2.UnchangedSharedObject.UnchangedSharedObjectKind kind = 1; */
+		/* optional sui.rpc.v2beta2.UnchangedConsensusObject.UnchangedConsensusObjectKind kind = 1; */
 		if (message.kind !== undefined) writer.tag(1, WireType.Varint).int32(message.kind);
 		/* optional string object_id = 2; */
 		if (message.objectId !== undefined)
@@ -844,6 +844,6 @@ class UnchangedSharedObject$Type extends MessageType<UnchangedSharedObject> {
 	}
 }
 /**
- * @generated MessageType for protobuf message sui.rpc.v2beta2.UnchangedSharedObject
+ * @generated MessageType for protobuf message sui.rpc.v2beta2.UnchangedConsensusObject
  */
-export const UnchangedSharedObject = new UnchangedSharedObject$Type();
+export const UnchangedConsensusObject = new UnchangedConsensusObject$Type();

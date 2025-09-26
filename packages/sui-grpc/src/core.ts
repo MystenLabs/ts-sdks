@@ -12,14 +12,21 @@ import { Owner_OwnerKind } from './proto/sui/rpc/v2beta2/owner.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import type { ExecutedTransaction } from './proto/sui/rpc/v2beta2/executed_transaction.js';
 import type { TransactionEffects } from './proto/sui/rpc/v2beta2/effects.js';
+import { UnchangedConsensusObject_UnchangedConsensusObjectKind } from './proto/sui/rpc/v2beta2/effects.js';
 import {
 	ChangedObject_IdOperation,
 	ChangedObject_InputObjectState,
 	ChangedObject_OutputObjectState,
-	UnchangedSharedObject_UnchangedSharedObjectKind,
 } from './proto/sui/rpc/v2beta2/effects.js';
 import { TransactionDataBuilder } from '@mysten/sui/transactions';
 import { bcs } from '@mysten/sui/bcs';
+import type { OpenSignature, OpenSignatureBody } from './proto/sui/rpc/v2beta2/move_package.js';
+import {
+	Ability,
+	FunctionDescriptor_Visibility,
+	OpenSignature_Reference,
+	OpenSignatureBody_Type,
+} from './proto/sui/rpc/v2beta2/move_package.js';
 export interface GrpcCoreClientOptions extends Experimental_CoreClientOptions {
 	client: SuiGrpcClient;
 }
@@ -155,7 +162,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		const { response } = await this.#client.ledgerService.getTransaction({
 			digest: options.digest,
 			readMask: {
-				paths: ['digest', 'transaction', 'effects', 'signatures'],
+				paths: ['digest', 'transaction', 'effects', 'signatures', 'balance_changes'],
 			},
 		});
 
@@ -186,6 +193,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 					'transaction.transaction',
 					'transaction.effects',
 					'transaction.signatures',
+					'transaction.balance_changes',
 				],
 			},
 		});
@@ -208,6 +216,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 					'transaction.transaction',
 					'transaction.effects',
 					'transaction.signatures',
+					'transaction.balance_changes',
 				],
 			},
 		});
@@ -270,6 +279,62 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		return {
 			success: response.isValid ?? false,
 			errors: response.reason ? [response.reason] : [],
+		};
+	}
+
+	async getMoveFunction(
+		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
+	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse> {
+		const { response } = await this.#client.movePackageService.getFunction({
+			packageId: options.packageId,
+			moduleName: options.moduleName,
+			name: options.name,
+		});
+
+		let visibility: 'public' | 'private' | 'friend' | 'unknown' = 'unknown';
+
+		switch (response.function?.visibility) {
+			case FunctionDescriptor_Visibility.PUBLIC:
+				visibility = 'public';
+				break;
+			case FunctionDescriptor_Visibility.PRIVATE:
+				visibility = 'private';
+				break;
+			case FunctionDescriptor_Visibility.FRIEND:
+				visibility = 'friend';
+				break;
+		}
+
+		return {
+			function: {
+				packageId: options.packageId,
+				moduleName: options.moduleName,
+				name: response.function?.name!,
+				visibility,
+				isEntry: response.function?.isEntry ?? false,
+				typeParameters:
+					response.function?.typeParameters?.map(({ constraints }) => ({
+						isPhantom: false,
+						constraints:
+							constraints.map((constraint) => {
+								switch (constraint) {
+									case Ability.COPY:
+										return 'copy';
+									case Ability.DROP:
+										return 'drop';
+									case Ability.STORE:
+										return 'store';
+									case Ability.KEY:
+										return 'key';
+									default:
+										return 'unknown';
+								}
+							}) ?? [],
+					})) ?? [],
+				parameters:
+					response.function?.parameters?.map((param) => parseNormalizedSuiMoveType(param)) ?? [],
+				returns: response.function?.returns?.map((ret) => parseNormalizedSuiMoveType(ret)) ?? [],
+			},
 		};
 	}
 
@@ -382,24 +447,24 @@ function mapOutputObjectState(
 	}
 }
 
-function mapUnchangedSharedObjectKind(
-	kind: UnchangedSharedObject_UnchangedSharedObjectKind | undefined,
-): null | Experimental_SuiClientTypes.UnchangedSharedObject['kind'] {
+function mapUnchangedConsensusObjectKind(
+	kind: UnchangedConsensusObject_UnchangedConsensusObjectKind | undefined,
+): null | Experimental_SuiClientTypes.UnchangedConsensusObject['kind'] {
 	if (kind == null) {
 		return null;
 	}
 	switch (kind) {
-		case UnchangedSharedObject_UnchangedSharedObjectKind.UNCHANGED_SHARED_OBJECT_KIND_UNKNOWN:
+		case UnchangedConsensusObject_UnchangedConsensusObjectKind.UNCHANGED_CONSENSUS_OBJECT_KIND_UNKNOWN:
 			return 'Unknown';
-		case UnchangedSharedObject_UnchangedSharedObjectKind.READ_ONLY_ROOT:
+		case UnchangedConsensusObject_UnchangedConsensusObjectKind.READ_ONLY_ROOT:
 			return 'ReadOnlyRoot';
-		case UnchangedSharedObject_UnchangedSharedObjectKind.MUTATE_CONSENSUS_STREAM_ENDED:
+		case UnchangedConsensusObject_UnchangedConsensusObjectKind.MUTATE_CONSENSUS_STREAM_ENDED:
 			return 'MutateConsensusStreamEnded';
-		case UnchangedSharedObject_UnchangedSharedObjectKind.READ_CONSENSUS_STREAM_ENDED:
+		case UnchangedConsensusObject_UnchangedConsensusObjectKind.READ_CONSENSUS_STREAM_ENDED:
 			return 'ReadConsensusStreamEnded';
-		case UnchangedSharedObject_UnchangedSharedObjectKind.CANCELED:
+		case UnchangedConsensusObject_UnchangedConsensusObjectKind.CANCELED:
 			return 'Cancelled';
-		case UnchangedSharedObject_UnchangedSharedObjectKind.PER_EPOCH_CONFIG:
+		case UnchangedConsensusObject_UnchangedConsensusObjectKind.PER_EPOCH_CONFIG:
 			return 'PerEpochConfig';
 		default:
 			kind satisfies never;
@@ -470,10 +535,10 @@ export function parseTransactionEffects({
 		dependencies: effects.dependencies,
 		lamportVersion: effects.lamportVersion?.toString() ?? null,
 		changedObjects,
-		unchangedSharedObjects: effects.unchangedSharedObjects.map(
-			(object): Experimental_SuiClientTypes.UnchangedSharedObject => {
+		unchangedConsensusObjects: effects.unchangedConsensusObjects.map(
+			(object): Experimental_SuiClientTypes.UnchangedConsensusObject => {
 				return {
-					kind: mapUnchangedSharedObjectKind(object.kind)!,
+					kind: mapUnchangedConsensusObjectKind(object.kind)!,
 					// TODO: we are inconsistent about id vs objectId
 					objectId: object.objectId!,
 					version: object.version?.toString() ?? null,
@@ -526,5 +591,75 @@ function parseTransaction(
 			bcs: bytes,
 		},
 		signatures: parsedTx.txSignatures,
+		balanceChanges:
+			transaction.balanceChanges?.map((change) => ({
+				coinType: change.coinType!,
+				address: change.address!,
+				amount: change.amount!,
+			})) ?? [],
 	};
+}
+
+function parseNormalizedSuiMoveType(
+	type: OpenSignature,
+): Experimental_SuiClientTypes.OpenSignature {
+	let reference: 'mutable' | 'immutable' | null = null;
+
+	if (type.reference === OpenSignature_Reference.IMMUTABLE) {
+		reference = 'immutable';
+	} else if (type.reference === OpenSignature_Reference.MUTABLE) {
+		reference = 'mutable';
+	}
+
+	return {
+		reference,
+		body: parseNormalizedSuiMoveTypeBody(type.body!),
+	};
+}
+
+function parseNormalizedSuiMoveTypeBody(
+	type: OpenSignatureBody,
+): Experimental_SuiClientTypes.OpenSignatureBody {
+	switch (type.type) {
+		case OpenSignatureBody_Type.TYPE_UNKNOWN:
+			return { $kind: 'unknown' };
+		case OpenSignatureBody_Type.ADDRESS:
+			return { $kind: 'address' };
+		case OpenSignatureBody_Type.BOOL:
+			return { $kind: 'bool' };
+		case OpenSignatureBody_Type.U8:
+			return { $kind: 'u8' };
+		case OpenSignatureBody_Type.U16:
+			return { $kind: 'u16' };
+		case OpenSignatureBody_Type.U32:
+			return { $kind: 'u32' };
+		case OpenSignatureBody_Type.U64:
+			return { $kind: 'u64' };
+		case OpenSignatureBody_Type.U128:
+			return { $kind: 'u128' };
+		case OpenSignatureBody_Type.U256:
+			return { $kind: 'u256' };
+		case OpenSignatureBody_Type.VECTOR:
+			return {
+				$kind: 'vector',
+				vector: parseNormalizedSuiMoveTypeBody(type.typeParameterInstantiation[0]),
+			};
+		case OpenSignatureBody_Type.DATATYPE:
+			return {
+				$kind: 'datatype',
+				datatype: {
+					typeName: type.typeName!,
+					typeParameters: type.typeParameterInstantiation.map((t) =>
+						parseNormalizedSuiMoveTypeBody(t),
+					),
+				},
+			};
+		case OpenSignatureBody_Type.TYPE_PARAMETER:
+			return {
+				$kind: 'typeParameter',
+				index: type.typeParameter!,
+			};
+		default:
+			return { $kind: 'unknown' };
+	}
 }
