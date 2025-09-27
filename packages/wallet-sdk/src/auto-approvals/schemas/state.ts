@@ -16,7 +16,6 @@ export const AutoApprovalStateSchema = v.object({
 	policy: AutoApprovalPolicySchema,
 	settings: v.nullable(AutoApprovalSettingsSchema),
 	pendingDigests: v.array(v.string()),
-	createdObjects: v.record(v.string(), CreatedObjectSchema),
 });
 
 export type AutoApprovalState = v.InferOutput<typeof AutoApprovalStateSchema>;

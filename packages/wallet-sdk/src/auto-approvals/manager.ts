@@ -18,7 +18,7 @@ export interface AutoApprovalManagerOptions {
 
 export interface AutoApprovalAnalysis {
 	results: BaseAnalysis & {
-		usdValue: CoinValueAnalysis;
+		coinValues: CoinValueAnalysis;
 		operationType: string | null;
 	};
 	issues: TransactionAnalysisIssue[];
@@ -60,7 +60,6 @@ export class AutoApprovalManager {
 				schemaVersion: '1.0.0',
 				policy: parse(AutoApprovalPolicySchema, JSON.parse(options.policy)),
 				settings: null,
-				createdObjects: {},
 				pendingDigests: [],
 			} satisfies AutoApprovalState);
 	}
@@ -99,7 +98,7 @@ export class AutoApprovalManager {
 		return results;
 	}
 
-	#matchesPolicy(analysis: AutoApprovalAnalysis, checkSessionObjects = false): AutoApprovalIssue[] {
+	#matchesPolicy(analysis: AutoApprovalAnalysis): AutoApprovalIssue[] {
 		const issues: AutoApprovalIssue[] = [];
 
 		if (analysis.issues.length > 0) {
@@ -131,7 +130,6 @@ export class AutoApprovalManager {
 			}
 		}
 
-		// TODO: add support for shared object filtering
 		for (const obj of analysis.results.ownedObjects) {
 			if (isCoinType(obj.type)) {
 				continue;
@@ -146,31 +144,13 @@ export class AutoApprovalManager {
 			const ownedObjectsPermission = operation.permissions.ownedObjects?.find(
 				(p) => p.objectType === obj.type,
 			);
-			const createdObjectsPermission = operation.permissions.sessionCreatedObjects?.find(
-				(p) => p.objectType === obj.type,
-			);
 
-			if (!ownedObjectsPermission && !createdObjectsPermission) {
+			if (!ownedObjectsPermission) {
 				issues.push({ message: `No permission found for object ${obj.id}` });
-			}
-
-			if (
-				ownedObjectsPermission &&
-				compareAccessLevel(ownedObjectsPermission.accessLevel, accessLevel)
-			) {
-				continue;
-			}
-
-			const hasSessionPermission =
-				createdObjectsPermission &&
-				compareAccessLevel(createdObjectsPermission.accessLevel, accessLevel);
-
-			if (!hasSessionPermission) {
-				issues.push({ message: `No session permission found for object ${obj.id}` });
-			}
-
-			if (checkSessionObjects && !this.#state.createdObjects[obj.id]) {
-				issues.push({ message: `Object ${obj.id} was not created in this session` });
+			} else if (!compareAccessLevel(ownedObjectsPermission.accessLevel, accessLevel)) {
+				issues.push({
+					message: `Insufficient access level for object ${obj.id}: required ${ownedObjectsPermission.accessLevel}, got ${accessLevel}`,
+				});
 			}
 		}
 
@@ -221,13 +201,47 @@ export class AutoApprovalManager {
 			issues.push({ message: 'Operation type not approved for auto-approval' });
 		}
 
-		// TODO: analyze balances and budgets
+		for (const outflow of analysis.results.coinFlows) {
+			if (outflow.amount <= 0n) {
+				continue;
+			}
+
+			if (this.#state.settings.coinBudgets[outflow.coinType] !== undefined) {
+				const coinBudget = this.#state.settings.coinBudgets[outflow.coinType];
+
+				if (coinBudget) {
+					if (BigInt(coinBudget) < outflow.amount) {
+						issues.push({
+							message: `Insufficient budget for coin type ${outflow.coinType}`,
+						});
+					}
+				} else {
+					const coinAmount = analysis.results.coinValues.coinTypes.find(
+						(ct) => ct.coinType === outflow.coinType,
+					);
+
+					if (!coinAmount) {
+						issues.push({
+							message: `No budget configured for coin type ${outflow.coinType}`,
+						});
+					} else if ((this.#state.settings.sharedBudget ?? 0) < coinAmount.convertedAmount) {
+						issues.push({
+							message: `Insufficient budget for coin type ${outflow.coinType}`,
+						});
+					}
+				}
+			}
+		}
 
 		return issues;
 	}
 
 	commitTransaction(analysis: AutoApprovalAnalysis): void {
-		if (this.#state.settings?.remainingTransactions !== null && this.#state.settings) {
+		if (!this.#state.settings) {
+			throw new Error('No auto-approval settings configured');
+		}
+
+		if (this.#state.settings.remainingTransactions !== null && this.#state.settings) {
 			this.#state.settings.remainingTransactions = Math.max(
 				0,
 				this.#state.settings.remainingTransactions - 1,
@@ -235,15 +249,26 @@ export class AutoApprovalManager {
 		}
 
 		for (const outflow of analysis.results.coinFlows) {
-			const currentBudget = BigInt(this.#state.settings?.coinBudgets[outflow.coinType] ?? '0');
-			const newBalance = currentBudget - outflow.amount;
-
-			if (this.#state.settings) {
+			if (this.#state.settings.coinBudgets[outflow.coinType] !== undefined) {
+				const currentBudget = BigInt(this.#state.settings?.coinBudgets[outflow.coinType] ?? '0');
+				const newBalance = currentBudget - outflow.amount;
 				this.#state.settings.coinBudgets[outflow.coinType] = newBalance.toString();
+			} else {
+				if (this.#state.settings.sharedBudget === null) {
+					throw new Error('No budget available for coin type ' + outflow.coinType);
+				}
+
+				const coinValue = analysis.results.coinValues.coinTypes.find(
+					(ct) => ct.coinType === outflow.coinType,
+				);
+
+				if (!coinValue) {
+					throw new Error('No value available for coin type ' + outflow.coinType);
+				}
+
+				this.#state.settings.sharedBudget -= coinValue.convertedAmount;
 			}
 		}
-
-		// TODO: track USD budget
 
 		this.#state.pendingDigests.push(analysis.results.digest);
 	}
@@ -255,20 +280,35 @@ export class AutoApprovalManager {
 			this.#state.settings.remainingTransactions += 1;
 		}
 
-		this.#revertCoinFlows(analysis.results);
+		this.#revertCoinFlows(analysis);
 	}
 
-	#revertCoinFlows(analysis: BaseAnalysis): void {
-		for (const outflow of analysis.coinFlows) {
-			const currentBudget = BigInt(this.#state.settings?.coinBudgets[outflow.coinType] ?? '0');
-			const newBalance = currentBudget + outflow.amount;
-
-			if (this.#state.settings) {
-				this.#state.settings.coinBudgets[outflow.coinType] = newBalance.toString();
-			}
+	#revertCoinFlows(analysis: AutoApprovalAnalysis): void {
+		if (!this.#state.settings) {
+			throw new Error('No auto-approval settings configured');
 		}
 
-		// TODO: revert USD budget
+		for (const outflow of analysis.results.coinFlows) {
+			if (this.#state.settings?.coinBudgets[outflow.coinType] !== undefined) {
+				const currentBudget = BigInt(this.#state.settings?.coinBudgets[outflow.coinType] ?? '0');
+				const newBalance = currentBudget + outflow.amount;
+				this.#state.settings.coinBudgets[outflow.coinType] = newBalance.toString();
+			} else {
+				if (this.#state.settings.sharedBudget === null) {
+					throw new Error('No budget available for coin type ' + outflow.coinType);
+				}
+
+				const coinValue = analysis.results.coinValues.coinTypes.find(
+					(ct) => ct.coinType === outflow.coinType,
+				);
+
+				if (!coinValue) {
+					throw new Error('No value available for coin type ' + outflow.coinType);
+				}
+
+				this.#state.settings.sharedBudget += coinValue.convertedAmount;
+			}
+		}
 	}
 
 	#removePendingDigest(digest: string): void {
@@ -286,34 +326,47 @@ export class AutoApprovalManager {
 	): void {
 		this.#removePendingDigest(result.digest);
 
-		for (const changed of result.effects.changedObjects) {
-			if (changed.idOperation === 'Created' && changed.outputState === 'ObjectWrite') {
-				this.#state.createdObjects[changed.id] = {
-					objectId: changed.id,
-					version: changed.outputVersion!,
-					digest: changed.outputDigest!,
-					objectType: analysis.results.objectsById.get(changed.id)?.type || 'unknown',
-				};
-			}
+		if (!this.#state.settings) {
+			throw new Error('No auto-approval settings configured');
 		}
 
 		// Revert coin flows and use real balance changes instead
-		this.#revertCoinFlows(analysis.results);
+		this.#revertCoinFlows(analysis);
+
 		for (const change of result.balanceChanges) {
-			const currentBudget = BigInt(this.#state.settings?.coinBudgets[change.coinType] ?? '0');
-			const newBalance = currentBudget + BigInt(change.amount);
-			if (this.#state.settings) {
-				this.#state.settings.coinBudgets[change.coinType] = newBalance.toString();
+			if (this.#state.settings.coinBudgets[change.coinType] !== undefined) {
+				const currentBudget = BigInt(this.#state.settings?.coinBudgets[change.coinType] ?? '0');
+				const newBalance = currentBudget + BigInt(change.amount);
+				if (this.#state.settings) {
+					this.#state.settings.coinBudgets[change.coinType] = newBalance.toString();
+				}
+			} else {
+				if (this.#state.settings.sharedBudget === null) {
+					throw new Error('No budget available for coin type ' + change.coinType);
+				}
+
+				const coinValue = analysis.results.coinValues.coinTypes.find(
+					(ct) => ct.coinType === change.coinType,
+				);
+
+				if (!coinValue) {
+					throw new Error('No value available for coin type ' + change.coinType);
+				}
+
+				const convertedChange = Number(change.amount) * 10 ** coinValue.decimals * coinValue.price;
+
+				this.#state.settings.sharedBudget += convertedChange;
 			}
 		}
-
-		// TODO: track USD budget
 	}
 
 	reset() {
-		this.#state.settings = null;
-		this.#state.createdObjects = {};
-		this.#state.pendingDigests = [];
+		this.#state = {
+			schemaVersion: '1.0.0',
+			policy: this.#state.policy,
+			settings: null,
+			pendingDigests: [],
+		};
 	}
 
 	export(): string {

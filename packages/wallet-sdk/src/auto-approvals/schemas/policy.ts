@@ -38,17 +38,16 @@ const AutoApprovalOperationSchema = v.object({
 	description: v.string(),
 	permissions: v.object({
 		ownedObjects: v.optional(v.array(ObjectTypePermissionSchema)),
-		sessionCreatedObjects: v.optional(v.array(ObjectTypePermissionSchema)),
 		balances: v.optional(v.array(CoinBalancePermissionSchema)),
 		anyBalance: v.optional(AnyBalancesPermissionSchema),
 	}),
 });
 
-export const AutoApprovalSettingsSchema = v.object({
+export const AutoApprovalSettingsSchema = v.looseObject({
 	approvedOperations: v.array(v.string()),
 	expiration: v.number(),
 	remainingTransactions: v.nullable(v.number()),
-	usdBudget: v.nullable(v.number()),
+	sharedBudget: v.nullable(v.number()),
 	// TODO: normalize coin types
 	coinBudgets: v.record(v.string(), v.string()),
 });
