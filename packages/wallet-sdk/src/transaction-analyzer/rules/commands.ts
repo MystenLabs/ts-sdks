@@ -195,7 +195,7 @@ export const commandAnalyzer: Analyzer<AnalyzedCommand[]> =
 				return { $kind: 'Unknown', accessLevel };
 			}
 
-			return input;
+			return { ...input, accessLevel };
 		}
 
 		return commands;
