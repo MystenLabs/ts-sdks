@@ -9,14 +9,18 @@ import { NFTMintDemo } from './app/demos/nft/NFTMintDemo.js';
 import { WalrusDemo } from './app/demos/walrus/WalrusDemo.js';
 import { NetworkSwitcher } from './app/components/layout/NetworkSwitcher.js';
 
-type DemoTab = 'counter' | 'transfer' | 'wallet' | 'nft-mint' | 'walrus';
+export type DemoTab = 'counter' | 'transfer' | 'wallet' | 'nft-mint' | 'walrus';
+
+export interface DemoProps {
+	onNavigate?: (tab: DemoTab) => void;
+}
 
 interface Demo {
 	id: DemoTab;
 	name: string;
 	description: string;
 	icon: string;
-	component: React.ComponentType<{ onNavigate?: (tab: DemoTab) => void }>;
+	component: React.ComponentType<DemoProps>;
 }
 
 const DEMOS: Demo[] = [

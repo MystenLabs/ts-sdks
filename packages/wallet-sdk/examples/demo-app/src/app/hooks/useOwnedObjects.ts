@@ -45,8 +45,9 @@ export function useOwnedObjects(address?: string) {
 				});
 
 				const ownedObjects: OwnedObject[] = response.data
-					.filter((obj): obj is SuiObjectResponse & { data: NonNullable<SuiObjectResponse['data']> } =>
-						obj.data !== null
+					.filter(
+						(obj): obj is SuiObjectResponse & { data: NonNullable<SuiObjectResponse['data']> } =>
+							obj.data !== null,
 					)
 					.filter((obj) => {
 						// Filter out coins by checking if the type contains "coin::Coin"

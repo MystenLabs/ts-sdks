@@ -32,7 +32,8 @@ export function TransferDemo() {
 	// Persistent form state using localStorage via custom hook
 	const [formData, formActions] = useTransferForm();
 	const { recipient, amount, transferAll, selectedCoinType, selectedObjectIds } = formData;
-	const { setRecipient, setAmount, setTransferAll, setSelectedCoinType, setSelectedObjectIds } = formActions;
+	const { setRecipient, setAmount, setTransferAll, setSelectedCoinType, setSelectedObjectIds } =
+		formActions;
 
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [showAddressSelector, setShowAddressSelector] = useState(false);
@@ -56,7 +57,7 @@ export function TransferDemo() {
 				});
 				await executeTransaction(tx);
 				setSuccessMessage(
-					`Successfully transferred ${selectedObjectIds.length} object(s) to ${formatAddress(recipient)}`
+					`Successfully transferred ${selectedObjectIds.length} object(s) to ${formatAddress(recipient)}`,
 				);
 				setSelectedObjectIds([]); // Clear selection after transfer
 			} catch (err) {
@@ -86,7 +87,7 @@ export function TransferDemo() {
 					});
 					await executeTransaction(tx);
 					setSuccessMessage(
-						`Successfully transferred all SUI${selectedObjectIds.length > 0 ? ` + ${selectedObjectIds.length} object(s)` : ''} to ${formatAddress(recipient)}`
+						`Successfully transferred all SUI${selectedObjectIds.length > 0 ? ` + ${selectedObjectIds.length} object(s)` : ''} to ${formatAddress(recipient)}`,
 					);
 					if (selectedObjectIds.length > 0) {
 						setSelectedObjectIds([]);
@@ -205,10 +206,12 @@ export function TransferDemo() {
 								{coinBalances.map((coin) => (
 									<option key={coin.coinType} value={coin.coinType}>
 										{coin.name} ({coin.symbol}) -{' '}
-										{coin.totalBalance === '0' ? '0' : formatBalance(
-											coin.totalBalance,
-											coin.metadata?.decimals ?? (coin.coinType === '0x2::sui::SUI' ? 9 : 6),
-										)}{' '}
+										{coin.totalBalance === '0'
+											? '0'
+											: formatBalance(
+													coin.totalBalance,
+													coin.metadata?.decimals ?? (coin.coinType === '0x2::sui::SUI' ? 9 : 6),
+												)}{' '}
 										{coin.symbol}
 									</option>
 								))}

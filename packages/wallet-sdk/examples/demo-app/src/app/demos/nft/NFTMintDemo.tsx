@@ -10,8 +10,9 @@ import { DemoLayout } from '../../components/ui/DemoLayout.js';
 import { WalrusFile } from '@mysten/walrus';
 import { createMintNFTTransaction } from './transactions.js';
 import { operationType } from '@mysten/wallet-sdk';
+import type { DemoProps } from '../../../DemoApp.js';
 
-export function NFTMintDemo({ onNavigate }: { onNavigate?: (tab: string) => void }) {
+export function NFTMintDemo({ onNavigate }: DemoProps = {}) {
 	const currentAccount = useCurrentAccount();
 	const suiClient = useSuiClient();
 	const currentNetwork = useCurrentNetwork();
