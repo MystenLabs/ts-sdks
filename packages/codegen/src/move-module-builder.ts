@@ -219,7 +219,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		{ fields }: Fields,
 		typeParameters: TypeParameter[] = [],
 	) {
-		this.addImport('~root/../utils/index.js', 'MoveStruct');
+		this.addImport('~root/../utils', 'MoveStruct');
 		const fieldObject = await mapToObject({
 			items: Object.entries(fields),
 			getComment: ([_name, field]) => field.doc,
@@ -237,8 +237,8 @@ export class MoveModuleBuilder extends FileBuilder {
 						if (address !== this.summary.id.address || mod !== this.summary.id.name) {
 							return this.addStarImport(
 								address === this.summary.id.address
-									? `./${mod}.js`
-									: join(`~root`, this.#depsDir, `${address}/${mod}.js`),
+									? `./${mod}`
+									: join(`~root`, this.#depsDir, `${address}/${mod}`),
 								mod,
 							);
 						}
@@ -257,7 +257,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		{ fields }: Fields,
 		typeParameters: TypeParameter[] = [],
 	) {
-		this.addImport('~root/../utils/index.js', 'MoveTuple');
+		this.addImport('~root/../utils', 'MoveTuple');
 		const values = Object.values(fields).map((field) =>
 			renderTypeSignature(field.type_, {
 				format: 'bcs',
@@ -271,8 +271,8 @@ export class MoveModuleBuilder extends FileBuilder {
 					if (address !== this.summary.id.address || mod !== this.summary.id.name) {
 						return this.addStarImport(
 							address === this.summary.id.address
-								? `./${mod}.js`
-								: join(`~root`, this.#depsDir, `${address}/${mod}.js`),
+								? `./${mod}`
+								: join(`~root`, this.#depsDir, `${address}/${mod}`),
 							mod,
 						);
 					}
@@ -354,7 +354,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			);
 		}
 
-		this.addImport('~root/../utils/index.js', 'MoveEnum');
+		this.addImport('~root/../utils', 'MoveEnum');
 		this.exports.push(name);
 
 		const enumName = `\${$moduleName}::${name}`;
@@ -380,8 +380,8 @@ export class MoveModuleBuilder extends FileBuilder {
 										if (address !== this.summary.id.address || mod !== this.summary.id.name) {
 											return this.addStarImport(
 												address === this.summary.id.address
-													? `./${mod}.js`
-													: `~root/deps/${address}/${mod}.js`,
+													? `./${mod}`
+													: `~root/deps/${address}/${mod}`,
 												mod,
 											);
 										}
@@ -456,7 +456,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			);
 
 			if (parameters.length > 0) {
-				this.addImport('~root/../utils/index.js', 'normalizeMoveArguments');
+				this.addImport('~root/../utils', 'normalizeMoveArguments');
 			}
 
 			names.push(fnName);
@@ -481,7 +481,7 @@ export class MoveModuleBuilder extends FileBuilder {
 				.join(',\n');
 
 			if (argumentsTypes.length > 0) {
-				this.addImport('~root/../utils/index.js', 'type RawTransactionArgument');
+				this.addImport('~root/../utils', 'type RawTransactionArgument');
 			}
 
 			if (usedTypeParameters.size > 0) {
