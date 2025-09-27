@@ -19,11 +19,11 @@ export function useAnalysis(client: ClientWithCoreApi, walletRequest: WalletRequ
 
 			try {
 				const analyzer = TransactionAnalyzer.create<{
-					usdValue: CoinValueAnalysis;
+					coinValues: CoinValueAnalysis;
 					operationType: string | null;
 				}>(client, walletRequest.data, {
 					operationType: operationTypeAnalyzer,
-					usdValue: createCoinValueAnalyzer({
+					coinValues: createCoinValueAnalyzer({
 						getCoinPrices: async (_coinTypes: string[]) => {
 							return [];
 						},

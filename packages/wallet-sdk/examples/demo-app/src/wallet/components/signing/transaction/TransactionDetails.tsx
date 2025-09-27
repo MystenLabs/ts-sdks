@@ -73,7 +73,9 @@ export function TransactionDetails({ analysis, autoApprovalState }: TransactionD
 				{activeTab === 'approval' && autoApprovalState && (
 					<AutoApprovalTab analysis={analysis} autoApprovalState={autoApprovalState} />
 				)}
-				{activeTab === 'debug' && <DebugTab analysis={analysis} />}
+				{activeTab === 'debug' && (
+					<DebugTab analysis={analysis} autoApprovalState={autoApprovalState} />
+				)}
 			</div>
 		</div>
 	);

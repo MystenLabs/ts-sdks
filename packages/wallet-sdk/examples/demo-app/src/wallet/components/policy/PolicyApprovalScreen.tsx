@@ -32,12 +32,20 @@ export function PolicyApprovalScreen({
 		}
 		return settings?.approvedOperations || [];
 	});
-	const [remainingTransactions, setRemainingTransactions] = useState(
-		settings?.remainingTransactions ?? 10,
+
+	const [remainingTransactions, setRemainingTransactions] = useState<number | null>(
+		settings?.remainingTransactions ?? policy.suggestedSettings?.remainingTransactions ?? 10,
 	);
 
-	const [usdBudget, setUsdBudget] = useState(settings?.usdBudget ?? 10);
-	const [suiBudget, setSuiBudget] = useState('1');
+	const [sharedBudget, setSharedBudget] = useState<number | null>(
+		settings?.sharedBudget ?? policy.suggestedSettings?.sharedBudget ?? null,
+	);
+
+	const [coinBudgets, setCoinBudgets] = useState<Record<string, string>>(
+		settings?.coinBudgets ?? policy.suggestedSettings?.coinBudgets ?? {},
+	);
+
+	const [expirationHours, setExpirationHours] = useState(24);
 
 	const requestedRuleSet = requestedOperation
 		? policy.operations.find((rs) => rs.id === requestedOperation)
@@ -52,28 +60,48 @@ export function PolicyApprovalScreen({
 		);
 	};
 
+	// Check if all required coin types have budgets configured
+	const validateCoinBudgets = () => {
+		// Get all coin types from selected operations
+		const requiredCoinTypes = new Set<string>();
+		selectedOperations.forEach((opId) => {
+			const operation = policy.operations.find((op) => op.id === opId);
+			if (operation?.permissions?.balances) {
+				operation.permissions.balances.forEach((balance) => {
+					if (balance.coinType) {
+						requiredCoinTypes.add(balance.coinType);
+					}
+				});
+			}
+		});
+
+		// Check if each required coin type has a budget
+		for (const coinType of requiredCoinTypes) {
+			const hasCustomBudget = coinBudgets[coinType];
+			const hasSharedBudget = sharedBudget !== null && sharedBudget > 0;
+
+			// Coin must have either a custom budget or shared budget must be configured
+			if (!hasCustomBudget && !hasSharedBudget) {
+				return false;
+			}
+		}
+
+		return true;
+	};
+
 	const handleApprove = () => {
 		onApprove({
 			remainingTransactions,
-			usdBudget,
-			expiration: new Date(Date.now() + 24 * 60 * 60 * 1000).getTime(),
+			sharedBudget,
+			expiration: new Date(Date.now() + expirationHours * 60 * 60 * 1000).getTime(),
 			approvedOperations: selectedOperations,
-			coinBudgets: {
-				'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI': BigInt(
-					Math.floor(parseFloat(suiBudget) * 1_000_000_000),
-				).toString(),
-			},
+			coinBudgets,
 		});
 	};
 
 	return (
 		<PolicyRuleErrorBoundary onClose={onClose}>
 			<Modal isOpen onClose={onClose} title="Auto-Approval Policy" size="lg">
-				<p className="text-gray-500 mb-5">
-					This app wants to enable auto-approval for certain transaction types. You can control
-					which rule sets are enabled and set spending limits.
-				</p>
-
 				<PolicyOperationSelector
 					requestedOperation={requestedRuleSet || null}
 					otherOperations={otherRuleSets}
@@ -82,12 +110,16 @@ export function PolicyApprovalScreen({
 				/>
 
 				<PolicySettings
+					policy={policy}
+					selectedOperations={selectedOperations}
 					remainingTransactions={remainingTransactions}
-					usdBudget={usdBudget}
-					suiBudget={suiBudget}
+					sharedBudget={sharedBudget}
+					coinBudgets={coinBudgets}
+					expirationHours={expirationHours}
 					onRemainingTransactionsChange={setRemainingTransactions}
-					onUsdBudgetChange={setUsdBudget}
-					onSuiBudgetChange={setSuiBudget}
+					onSharedBudgetChange={setSharedBudget}
+					onCoinBudgetsChange={setCoinBudgets}
+					onExpirationHoursChange={setExpirationHours}
 				/>
 
 				<ModalFooter>
@@ -104,11 +136,8 @@ export function PolicyApprovalScreen({
 								variant="primary"
 								onClick={handleApprove}
 								disabled={
-									// For new policies: require requested ruleset to be selected
-									// For existing policies: allow updates even if requested ruleset is unchecked
-									settings
-										? false
-										: !requestedOperation || !selectedOperations.includes(requestedOperation)
+									// For existing policies: check budget validation
+									!validateCoinBudgets()
 								}
 							>
 								Update Policy
@@ -123,7 +152,13 @@ export function PolicyApprovalScreen({
 							<Button
 								variant="primary"
 								onClick={handleApprove}
-								disabled={selectedOperations.length === 0}
+								disabled={
+									selectedOperations.length === 0 ||
+									// For new policies: require requested ruleset and budget validation
+									!requestedOperation ||
+									!selectedOperations.includes(requestedOperation) ||
+									!validateCoinBudgets()
+								}
 							>
 								Approve Policy
 							</Button>

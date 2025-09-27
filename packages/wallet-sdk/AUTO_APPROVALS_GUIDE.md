@@ -3,6 +3,10 @@
 Wallet automatic approvals (auto-approvals) will enable users and applications to securely opt into
 auto-approval of specific types of transactions with user-defined limits and budgets.
 
+## Demo
+
+https://github.com/user-attachments/assets/28bc89bd-ba14-4d40-ae6e-72b735315a55
+
 ## Goals
 
 - A standard, not just a bespoke wallet-specific feature
@@ -114,16 +118,6 @@ enable auto-approvals.
 						"accessLevel": "transfer",
 						"description": "Use and trade items from inventory"
 					}
-				],
-
-				// Objects created during the session
-				"sessionCreatedObjects": [
-					{
-						"$kind": "ObjectType",
-						"objectType": "0xgame::loot::Reward",
-						"accessLevel": "transfer",
-						"description": "Collect and manage rewards earned during play"
-					}
 				]
 			}
 		},
@@ -184,19 +178,6 @@ enable auto-approvals.
 				"accessLevel": "transfer", // Pass by value (T) to Move functions
 				"description": "What you do with this object"
 			}
-		],
-
-		// sessionCreatedObjects: Objects created during the auto-approval session
-		// Useful for multi-step workflows like Walrus: first create a blob, then upload
-		// contents, then certify in a second transaction. Allows access to newly created
-		// objects without giving access to all existing objects of that type.
-		"sessionCreatedObjects": [
-			{
-				"$kind": "ObjectType",
-				"objectType": "0xwalrus::blob::Blob",
-				"accessLevel": "mutate",
-				"description": "Blobs created during this session for upload and certification"
-			}
 		]
 	}
 }
@@ -209,7 +190,8 @@ enable auto-approvals.
 Once applications have created their policy document, they need to host it at a well-known location
 where wallets can find it. The URL pattern is standardized so wallets know exactly where to look
 without any configuration or registration process. The policy should be served as a static file - it
-shouldn't be dynamically generated or personalized per user.
+shouldn't be dynamically generated or personalized per user. Wallets may cache policies, or fetch
+policies through their own backends to prevent serving policies tailored to specific users.
 
 The URL follows this pattern:
 `https://yourdomain.com/.well-known/sui/{network}/automatic-approval-policy.json`
@@ -227,7 +209,6 @@ that tells wallets which operation from the policy this transaction represents.
 <summary><b>Example: Adding Operation Type to Transaction</b></summary>
 
 ```typescript
-// TODO: this example is a little outdated
 import { Transaction, operationType } from '@mysten/sui/transactions';
 
 const tx = new Transaction();
@@ -291,7 +272,8 @@ The analyzer is designed to be extended with custom data. While it comes with co
 analyzers for understanding transaction structure, coin flows, and object access patterns, you can
 add your own analyzers for wallet-specific needs. For auto-approvals, the base analyzer is extended
 with the `operationTypeAnalyzer` to extract the operation type that applications embed in
-transactions, and the `coinValueAnalyzer` to calculate USD values for budget tracking.
+transactions, and the `coinValueAnalyzer` to calculate coin values in a normalized currency for
+budget tracking.
 
 <details>
 <summary><b>Example: Basic Transaction Analysis</b></summary>
@@ -313,7 +295,7 @@ async function analyzeTransaction(
 		operationType: operationTypeAnalyzer,
 
 		// Calculate USD values for budget tracking
-		usdValue: createCoinValueAnalyzer({
+		coinValues: createCoinValueAnalyzer({
 			getCoinPrices: async (coinTypes) => {
 				// Integrate with your price feed service
 				// This example returns mock prices
@@ -369,6 +351,65 @@ core methods:
 - `revertTransaction(analysis)`: Reverts the changes from a commitTransaction
 - `applyTransactionEffects(analysis, result)`: Reverts the predicted effects, and applies the real
   effects of a transaction
+
+##### User Settings
+
+The AutoApprovalManager maintains user settings, which are the user-configured preferences that
+control when transactions can be auto-approved. The current settings include:
+
+- **Approved Operations**: Which operation types from the policy can be auto-approved
+- **Expiration**: When the auto-approval session expires (as a timestamp)
+- **Remaining Transactions**: How many more transactions can be auto-approved (null for unlimited)
+- **Coin Budgets**: Maximum amounts per coin type that can be spent (stored as string to handle
+  large numbers)
+- **Shared Budget**: Shared budget in a standardized currency (eg USD), this budget is only used
+  when there is no specific budgets for a coinType.
+
+<details>
+<summary><b>Example: Settings Structure</b></summary>
+
+```typescript
+interface AutoApprovalSettings {
+	approvedOperations: string[]; // ["gameplay", "marketplace"]
+	expiration: number; // Unix timestamp
+	remainingTransactions: number | null; // 100 or null for unlimited
+	coinBudgets: Record<string, string>; // { "0x2::sui::SUI": "1000000000" }
+	sharedBudget: number | null; // 12.34 or null to only support specific coin budgets
+}
+```
+
+</details>
+
+Settings are updated in three ways:
+
+1. When users initially configure auto-approvals through the wallet UI
+2. When users modify existing settings (changing limits, extending expiration)
+3. Automatically modified when transactions are executed to adjust things like remaining
+   transactions and budget
+
+##### Persistence and Recovery
+
+The manager's state should be persisted after making changes to settings, invoking methods like
+`commitTransaction` or `applyTransactionEffects` that mutate th managers state. The `export()` and
+constructor methods handle serialization and deserialization:
+
+<details>
+<summary><b>Example: State Persistence</b></summary>
+
+```typescript
+// Save state after any changes
+function saveManagerState(manager: AutoApprovalManager, origin: string, network: string) {
+	localStorage.setItem(`auto-approval-${origin}-${network}`, manager.export());
+}
+
+// Create manager with persisted state
+const manager = new AutoApprovalManager({
+	policy: policyJson,
+	state: localStorage.getItem(`auto-approval-${origin}-${network}`),
+});
+```
+
+</details>
 
 <details>
 <summary><b>Example: Complete Auto-Approval Flow</b></summary>

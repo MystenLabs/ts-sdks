@@ -5,12 +5,14 @@ import type { AutoApprovalAnalysis } from '@mysten/wallet-sdk';
 import { toBase64 } from '@mysten/bcs';
 import { useState } from 'react';
 import { CopyableText } from '../../../../components/CopyableText.js';
+import type { AutoApprovalState } from '../../../hooks/useAutoApproval.js';
 
 interface DebugTabProps {
 	analysis: AutoApprovalAnalysis;
+	autoApprovalState?: AutoApprovalState;
 }
 
-export function DebugTab({ analysis }: DebugTabProps) {
+export function DebugTab({ analysis, autoApprovalState }: DebugTabProps) {
 	const { results, issues } = analysis;
 	const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['issues']));
 
@@ -146,6 +148,54 @@ export function DebugTab({ analysis }: DebugTabProps) {
 									</div>
 								)}
 							</div>
+						</div>
+					)}
+				</div>
+			)}
+
+			{/* Manager State */}
+			{autoApprovalState?.manager && (
+				<div className="border border-gray-200 rounded-lg overflow-hidden">
+					<button
+						onClick={() => toggleSection('managerState')}
+						className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors bg-white"
+					>
+						<div className="flex items-center justify-between">
+							<h3 className="text-sm font-semibold text-gray-900">Manager State</h3>
+							<svg
+								className={`w-4 h-4 text-gray-600 transform transition-transform ${
+									expandedSections.has('managerState') ? 'rotate-90' : ''
+								}`}
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth="2"
+									d="M9 5l7 7-7 7"
+								/>
+							</svg>
+						</div>
+					</button>
+					{expandedSections.has('managerState') && (
+						<div className="px-4 pb-3 bg-gray-50">
+							<pre className="text-xs text-gray-700 overflow-auto max-h-96">
+								{JSON.stringify(
+									autoApprovalState.manager.getState(),
+									(_key, value) => {
+										if (value instanceof Uint8Array) {
+											return toBase64(value);
+										}
+										if (value instanceof Map) {
+											return Object.fromEntries(value);
+										}
+										return typeof value === 'bigint' ? value.toString() : value;
+									},
+									2,
+								)}
+							</pre>
 						</div>
 					)}
 				</div>

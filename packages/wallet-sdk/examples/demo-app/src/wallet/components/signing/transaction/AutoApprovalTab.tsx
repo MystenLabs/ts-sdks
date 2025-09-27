@@ -12,11 +12,20 @@ interface AutoApprovalTabProps {
 export function AutoApprovalTab({ analysis, autoApprovalState }: AutoApprovalTabProps) {
 	const { results } = analysis;
 	const { operationType } = results;
-	const { matchesPolicy, canAutoApprove, policyIssues, settingsIssues, analysisIssues, manager } =
-		autoApprovalState;
+	const {
+		matchesPolicy,
+		canAutoApprove,
+		policyIssues,
+		settingsIssues,
+		analysisIssues,
+		manager,
+		hasPolicy,
+		hasSettings,
+	} = autoApprovalState;
 
 	// Get policy and settings from manager
-	const policy = manager?.getState().policy;
+	const managerState = manager?.getState();
+	const policy = managerState?.policy;
 	const settings = manager?.getSettings();
 	const operation = policy?.operations.find((op: { id: string }) => op.id === operationType);
 
@@ -44,6 +53,20 @@ export function AutoApprovalTab({ analysis, autoApprovalState }: AutoApprovalTab
 							<span className="font-medium">⚠ Policy matches but settings prevent approval</span>
 							<p className="mt-1 text-xs">Adjust your settings to enable auto-approval.</p>
 						</div>
+					) : !hasPolicy ? (
+						<div className="text-red-700">
+							<span className="font-medium">✗ No policy available</span>
+							<p className="mt-1 text-xs">
+								This application hasn't defined an auto-approval policy.
+							</p>
+						</div>
+					) : !hasSettings ? (
+						<div className="text-yellow-700">
+							<span className="font-medium">⚠ No settings configured</span>
+							<p className="mt-1 text-xs">
+								Configure settings to enable auto-approval for this application.
+							</p>
+						</div>
 					) : (
 						<div className="text-red-700">
 							<span className="font-medium">✗ Not eligible for auto-approval</span>
@@ -54,6 +77,39 @@ export function AutoApprovalTab({ analysis, autoApprovalState }: AutoApprovalTab
 					)}
 				</div>
 			</div>
+
+			{/* Manager State Summary */}
+			{managerState && (
+				<div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+					<h3 className="text-sm font-semibold text-gray-900 mb-3">Manager State</h3>
+					<div className="grid grid-cols-2 gap-4 text-xs">
+						<div>
+							<span className="text-gray-600">Has Policy:</span>
+							<span className="ml-2 font-medium">{hasPolicy ? 'Yes' : 'No'}</span>
+						</div>
+						<div>
+							<span className="text-gray-600">Has Settings:</span>
+							<span className="ml-2 font-medium">{hasSettings ? 'Yes' : 'No'}</span>
+						</div>
+						<div>
+							<span className="text-gray-600">Matches Policy:</span>
+							<span className="ml-2 font-medium">{matchesPolicy ? 'Yes' : 'No'}</span>
+						</div>
+						<div>
+							<span className="text-gray-600">Can Auto-Approve:</span>
+							<span className="ml-2 font-medium">{canAutoApprove ? 'Yes' : 'No'}</span>
+						</div>
+						{managerState.transactionHistory && (
+							<div className="col-span-2">
+								<span className="text-gray-600">Transaction History:</span>
+								<span className="ml-2 font-medium">
+									{managerState.transactionHistory.length} transactions
+								</span>
+							</div>
+						)}
+					</div>
+				</div>
+			)}
 
 			{/* Issues */}
 			{(policyIssues.length > 0 || settingsIssues.length > 0 || analysisIssues.length > 0) && (
@@ -162,9 +218,9 @@ export function AutoApprovalTab({ analysis, autoApprovalState }: AutoApprovalTab
 							<span className="font-medium">{settings.remainingTransactions ?? 'Unlimited'}</span>
 						</div>
 						<div className="flex justify-between text-xs">
-							<span className="text-gray-600">USD Budget</span>
+							<span className="text-gray-600">Shared Budget (USD)</span>
 							<span className="font-medium">
-								{settings.usdBudget ? `$${settings.usdBudget}` : 'Unlimited'}
+								{settings.sharedBudget ? `$${settings.sharedBudget}` : 'Not configured'}
 							</span>
 						</div>
 						<div className="flex justify-between text-xs">
@@ -177,7 +233,9 @@ export function AutoApprovalTab({ analysis, autoApprovalState }: AutoApprovalTab
 								{Object.entries(settings.coinBudgets).map(([coin, budget]) => (
 									<div key={coin} className="flex justify-between text-xs">
 										<span className="text-gray-500">{formatCoinType(coin)}</span>
-										<span>{String(budget)}</span>
+										<span className="font-medium">
+											{(Number(budget) / 1_000_000_000).toFixed(2)} {formatCoinType(coin)}
+										</span>
 									</div>
 								))}
 							</div>
