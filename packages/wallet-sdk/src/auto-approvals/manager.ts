@@ -215,20 +215,20 @@ export class AutoApprovalManager {
 							message: `Insufficient budget for coin type ${outflow.coinType}`,
 						});
 					}
-				} else {
-					const coinAmount = analysis.results.coinValues.coinTypes.find(
-						(ct) => ct.coinType === outflow.coinType,
-					);
+				}
+			} else {
+				const coinAmount = analysis.results.coinValues.coinTypes.find(
+					(ct) => ct.coinType === outflow.coinType,
+				);
 
-					if (!coinAmount) {
-						issues.push({
-							message: `No budget configured for coin type ${outflow.coinType}`,
-						});
-					} else if ((this.#state.settings.sharedBudget ?? 0) < coinAmount.convertedAmount) {
-						issues.push({
-							message: `Insufficient budget for coin type ${outflow.coinType}`,
-						});
-					}
+				if (!coinAmount) {
+					issues.push({
+						message: `No budget configured for coin type ${outflow.coinType}`,
+					});
+				} else if ((this.#state.settings.sharedBudget ?? 0) < coinAmount.convertedAmount) {
+					issues.push({
+						message: `Insufficient budget for coin type ${outflow.coinType}`,
+					});
 				}
 			}
 		}
