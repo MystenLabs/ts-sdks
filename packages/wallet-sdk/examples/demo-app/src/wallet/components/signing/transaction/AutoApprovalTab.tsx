@@ -99,14 +99,6 @@ export function AutoApprovalTab({ analysis, autoApprovalState }: AutoApprovalTab
 							<span className="text-gray-600">Can Auto-Approve:</span>
 							<span className="ml-2 font-medium">{canAutoApprove ? 'Yes' : 'No'}</span>
 						</div>
-						{managerState.transactionHistory && (
-							<div className="col-span-2">
-								<span className="text-gray-600">Transaction History:</span>
-								<span className="ml-2 font-medium">
-									{managerState.transactionHistory.length} transactions
-								</span>
-							</div>
-						)}
 					</div>
 				</div>
 			)}

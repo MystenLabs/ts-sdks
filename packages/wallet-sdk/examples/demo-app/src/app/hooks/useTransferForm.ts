@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useLocalStorageString, useLocalStorageBoolean } from './useLocalStorage.js';
+import { useState } from 'react';
 
 export interface TransferFormData {
 	recipient: string;
 	amount: string;
 	transferAll: boolean;
 	selectedCoinType: string;
+	selectedObjectIds: string[];
 }
 
 export interface TransferFormActions {
@@ -15,6 +17,7 @@ export interface TransferFormActions {
 	setAmount: (value: string) => void;
 	setTransferAll: (value: boolean) => void;
 	setSelectedCoinType: (value: string) => void;
+	setSelectedObjectIds: (value: string[]) => void;
 	clearForm: () => void;
 }
 
@@ -26,12 +29,14 @@ export function useTransferForm(): [TransferFormData, TransferFormActions] {
 		'transfer-coin-type',
 		'0x2::sui::SUI',
 	);
+	const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
 
 	const formData: TransferFormData = {
 		recipient,
 		amount,
 		transferAll,
 		selectedCoinType,
+		selectedObjectIds,
 	};
 
 	const actions: TransferFormActions = {
@@ -39,11 +44,13 @@ export function useTransferForm(): [TransferFormData, TransferFormActions] {
 		setAmount,
 		setTransferAll,
 		setSelectedCoinType,
+		setSelectedObjectIds,
 		clearForm: () => {
 			setRecipient('');
 			setAmount('');
 			setTransferAll(false);
 			setSelectedCoinType('0x2::sui::SUI');
+			setSelectedObjectIds([]);
 		},
 	};
 

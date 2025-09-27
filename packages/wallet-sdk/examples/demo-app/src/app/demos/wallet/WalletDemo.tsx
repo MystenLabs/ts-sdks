@@ -13,6 +13,7 @@ export function WalletDemo() {
 	const [balances, setBalances] = useState<CoinBalance[]>([]);
 	const [nfts, setNfts] = useState<SuiObjectData[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
+	const [selectedNft, setSelectedNft] = useState<SuiObjectData | null>(null);
 
 	const fetchWalletData = useCallback(async () => {
 		if (!currentAccount) return;
@@ -56,8 +57,9 @@ export function WalletDemo() {
 	}
 
 	return (
-		<DemoLayout maxWidth="lg">
-			{/* Token Balances Section */}
+		<div className="relative">
+			<DemoLayout maxWidth="lg">
+				{/* Token Balances Section */}
 			<div className="bg-white rounded-xl shadow-sm p-6">
 				<div className="flex justify-between items-center mb-6">
 					<h3 className="text-xl font-semibold text-gray-800">💰 Token Balances</h3>
@@ -115,6 +117,7 @@ export function WalletDemo() {
 								<div
 									key={nft.objectId}
 									className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg hover:scale-105 transition-all cursor-pointer"
+									onClick={() => setSelectedNft(nft)}
 								>
 									<div className="aspect-square bg-gray-100">
 										{display?.image_url ? (
@@ -148,6 +151,74 @@ export function WalletDemo() {
 					</div>
 				)}
 			</div>
-		</DemoLayout>
+			</DemoLayout>
+
+			{/* NFT Modal */}
+			{selectedNft && (
+				<div
+					className="fixed inset-0 bg-black/30 flex items-center justify-center p-4"
+					style={{ zIndex: 9999 }}
+					onClick={() => setSelectedNft(null)}
+				>
+					<div
+						className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-auto"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<div className="p-6">
+							<div className="flex justify-between items-start mb-4">
+								<h3 className="text-xl font-semibold text-gray-800">
+									{selectedNft.display?.data?.name || 'NFT Details'}
+								</h3>
+								<button
+									onClick={() => setSelectedNft(null)}
+									className="text-gray-400 hover:text-gray-600 text-xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
+								>
+									×
+								</button>
+							</div>
+
+							<div className="mb-6">
+								{selectedNft.display?.data?.image_url ? (
+									<img
+										src={selectedNft.display.data.image_url}
+										alt={selectedNft.display.data.name || 'NFT'}
+										className="w-full max-h-96 object-contain rounded-lg bg-gray-100"
+									/>
+								) : (
+									<div className="w-full h-48 flex items-center justify-center text-gray-400 bg-gray-100 rounded-lg">
+										<div className="text-center">
+											<div className="text-4xl mb-2">🖼️</div>
+											<div>No Image Available</div>
+										</div>
+									</div>
+								)}
+							</div>
+
+							{selectedNft.display?.data?.description && (
+								<div className="mb-4">
+									<h4 className="text-sm font-medium text-gray-700 mb-2">Description</h4>
+									<p className="text-gray-600">{selectedNft.display.data.description}</p>
+								</div>
+							)}
+
+							<div className="space-y-2 text-sm">
+								<div>
+									<span className="font-medium text-gray-700">Object ID: </span>
+									<span className="text-gray-600 font-mono text-xs break-all">
+										{selectedNft.objectId}
+									</span>
+								</div>
+								<div>
+									<span className="font-medium text-gray-700">Type: </span>
+									<span className="text-gray-600 text-xs break-all">
+										{selectedNft.type}
+									</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
+		</div>
 	);
 }

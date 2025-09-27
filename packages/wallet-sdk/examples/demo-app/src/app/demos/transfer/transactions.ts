@@ -9,6 +9,7 @@ interface TransferTransactionParams {
 	senderAddress: string;
 	recipient: string;
 	coinType: string;
+	objectIds?: string[];
 }
 
 interface TransferAmountParams extends TransferTransactionParams {
@@ -24,6 +25,7 @@ interface TransferAmountParams extends TransferTransactionParams {
 export function createTransferAllSuiTransaction({
 	senderAddress,
 	recipient,
+	objectIds = [],
 }: TransferTransactionParams): Transaction {
 	const tx = new Transaction();
 
@@ -35,6 +37,12 @@ export function createTransferAllSuiTransaction({
 	// Transfer all available gas for SUI
 	tx.transferObjects([tx.gas], recipient);
 
+	// Transfer additional objects if provided
+	if (objectIds.length > 0) {
+		const objects = objectIds.map((id) => tx.object(id));
+		tx.transferObjects(objects, recipient);
+	}
+
 	return tx;
 }
 
@@ -45,6 +53,7 @@ export function createTransferSuiAmountTransaction({
 	senderAddress,
 	recipient,
 	amount,
+	objectIds = [],
 }: TransferAmountParams): Transaction {
 	const tx = new Transaction();
 
@@ -58,6 +67,12 @@ export function createTransferSuiAmountTransaction({
 	const [coin] = tx.splitCoins(tx.gas, [amountInMist]);
 	tx.transferObjects([coin], recipient);
 
+	// Transfer additional objects if provided
+	if (objectIds.length > 0) {
+		const objects = objectIds.map((id) => tx.object(id));
+		tx.transferObjects(objects, recipient);
+	}
+
 	return tx;
 }
 
@@ -68,7 +83,7 @@ export async function createTransferAllCoinsTransaction(
 	params: TransferTransactionParams,
 	suiClient: SuiClient,
 ): Promise<Transaction> {
-	const { senderAddress, recipient, coinType } = params;
+	const { senderAddress, recipient, coinType, objectIds = [] } = params;
 	const tx = new Transaction();
 
 	// Add auto-approval intent for rule set selection
@@ -93,6 +108,12 @@ export async function createTransferAllCoinsTransaction(
 		recipient,
 	);
 
+	// Transfer additional objects if provided
+	if (objectIds.length > 0) {
+		const objects = objectIds.map((id) => tx.object(id));
+		tx.transferObjects(objects, recipient);
+	}
+
 	return tx;
 }
 
@@ -103,7 +124,7 @@ export async function createTransferCoinAmountTransaction(
 	params: TransferAmountParams,
 	suiClient: SuiClient,
 ): Promise<Transaction> {
-	const { senderAddress, recipient, coinType, amount, coinMetadata } = params;
+	const { senderAddress, recipient, coinType, amount, coinMetadata, objectIds = [] } = params;
 	const tx = new Transaction();
 
 	// Add auto-approval intent for rule set selection
@@ -143,6 +164,38 @@ export async function createTransferCoinAmountTransaction(
 		const [splitCoin] = tx.splitCoins(allCoinObjects[0], [transferAmount]);
 		tx.transferObjects([splitCoin], recipient);
 	}
+
+	// Transfer additional objects if provided
+	if (objectIds.length > 0) {
+		const objects = objectIds.map((id) => tx.object(id));
+		tx.transferObjects(objects, recipient);
+	}
+
+	return tx;
+}
+
+/**
+ * Creates a transaction to transfer objects only (no coins)
+ */
+export function createTransferObjectsTransaction({
+	senderAddress,
+	recipient,
+	objectIds,
+}: {
+	senderAddress: string;
+	recipient: string;
+	objectIds: string[];
+}): Transaction {
+	const tx = new Transaction();
+
+	// Add auto-approval intent for rule set selection
+	tx.add(operationType('basic-transfers'));
+
+	tx.setSenderIfNotSet(senderAddress);
+
+	// Transfer all selected objects
+	const objects = objectIds.map((id) => tx.object(id));
+	tx.transferObjects(objects, recipient);
 
 	return tx;
 }

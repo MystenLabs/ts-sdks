@@ -9,8 +9,9 @@ import { ConnectWalletPrompt } from '../../components/ui/ConnectWalletPrompt.js'
 import { DemoLayout } from '../../components/ui/DemoLayout.js';
 import { WalrusFile } from '@mysten/walrus';
 import { createMintNFTTransaction } from './transactions.js';
+import { operationType } from '@mysten/wallet-sdk';
 
-export function NFTMintDemo() {
+export function NFTMintDemo({ onNavigate }: { onNavigate?: (tab: string) => void }) {
 	const currentAccount = useCurrentAccount();
 	const suiClient = useSuiClient();
 	const currentNetwork = useCurrentNetwork();
@@ -79,6 +80,9 @@ export function NFTMintDemo() {
 				owner: currentAccount.address,
 			});
 
+			// Add operation type for auto-approval
+			registerTx.add(operationType('nft-operations'));
+
 			const result = await uploadExecution.executeTransaction(registerTx);
 			if (!result) {
 				throw new Error('Failed to register file on-chain');
@@ -89,6 +93,10 @@ export function NFTMintDemo() {
 
 			setUploadStep('Finalizing...');
 			const certifyTx = flow.certify();
+
+			// Add operation type for auto-approval
+			certifyTx.add(operationType('nft-operations'));
+
 			const certifyResult = await uploadExecution.executeTransaction(certifyTx);
 			if (!certifyResult) {
 				throw new Error('Failed to certify file on-chain');
@@ -155,11 +163,14 @@ export function NFTMintDemo() {
 
 			const result = await executeTransaction(tx);
 			if (result) {
-				setSuccessMessage(`Successfully minted NFT: ${nftName}! Check your wallet to see it.`);
+				setSuccessMessage(`Successfully minted NFT: ${nftName}! Switching to wallet...`);
 				setNftName('');
 				setNftDescription('');
 				setNftImageUrl('');
 				setSelectedFile(null);
+
+				// Switch to wallet demo immediately
+				onNavigate?.('wallet');
 			}
 		} catch (err) {
 			console.error('NFT minting failed:', err);

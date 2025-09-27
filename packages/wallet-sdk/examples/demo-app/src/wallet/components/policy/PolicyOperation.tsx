@@ -148,20 +148,10 @@ export function PolicyOperation({
 									<PolicyPermission key={`owned-${i}`} permission={rule} context="owned" />
 								))}
 
-								{/* Render session created object rules */}
-								{operation.permissions?.sessionCreatedObjects?.map((rule, i) => (
-									<PolicyPermission
-										key={`session-${i}`}
-										permission={rule}
-										context="sessionCreated"
-									/>
-								))}
-
 								{/* Check if there are no permissions */}
 								{!operation.permissions?.balances?.length &&
 									!operation.permissions?.anyBalance &&
-									!operation.permissions?.ownedObjects?.length &&
-									!operation.permissions?.sessionCreatedObjects?.length && (
+									!operation.permissions?.ownedObjects?.length && (
 										<div className="bg-gray-100 rounded-lg p-3">
 											<div className="text-sm text-gray-600 font-medium">
 												• No permissions defined

@@ -82,18 +82,17 @@ export function OverviewTab({ analysis, autoApprovalState }: OverviewTabProps) {
 										<div className="text-sm font-medium text-gray-900">
 											{formatCoinType(flow.coinType)}
 										</div>
-										<div className="text-xs text-gray-600">
-											{flow.humanAmount.toFixed(flow.decimals === 9 ? 4 : 2)}
-										</div>
 									</div>
 								</div>
-								{flow.price > 0 && (
-									<div className="text-right">
-										<div className="text-lg font-semibold text-red-600">
-											-${flow.usdValue.toFixed(2)}
-										</div>
+								<div className="text-right">
+									<div className="text-base font-semibold text-red-600">
+										-{flow.humanAmount.toFixed(flow.decimals === 9 ? 4 : 2)}{' '}
+										{formatCoinType(flow.coinType)}
 									</div>
-								)}
+									{flow.price > 0 && (
+										<div className="text-xs text-red-500">≈ ${flow.usdValue.toFixed(2)} USD</div>
+									)}
+								</div>
 							</div>
 						))}
 
@@ -101,9 +100,9 @@ export function OverviewTab({ analysis, autoApprovalState }: OverviewTabProps) {
 						{coinFlowsWithUSD.length > 1 && totalUSDValue > 0 && (
 							<div className="pt-3 border-t border-gray-200">
 								<div className="flex justify-between items-center">
-									<span className="text-sm font-bold text-gray-800">Total Value</span>
-									<span className="text-xl font-bold text-red-600">
-										-${totalUSDValue.toFixed(2)}
+									<span className="text-sm font-bold text-gray-800">Total USD Value</span>
+									<span className="text-base font-bold text-red-600">
+										≈ ${totalUSDValue.toFixed(2)} USD
 									</span>
 								</div>
 							</div>

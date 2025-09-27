@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader } from '../../components/ui/Card.js';
 import { ConnectWalletPrompt } from '../../components/ui/ConnectWalletPrompt.js';
 import { DemoLayout } from '../../components/ui/DemoLayout.js';
 import { WalrusFile } from '@mysten/walrus';
+import { operationType } from '@mysten/wallet-sdk';
 
 interface UploadResult {
 	files: Array<{
@@ -89,6 +90,9 @@ export function WalrusDemo() {
 				owner: account.address,
 			});
 
+			// Add operation type for auto-approval
+			registerTx.add(operationType('walrus-operations'));
+
 			const result = await uploadExecution.executeTransaction(registerTx);
 			if (!result) {
 				throw new Error('Failed to register blob on-chain');
@@ -101,6 +105,10 @@ export function WalrusDemo() {
 			// Step 4: Certify on-chain
 			setUploadStep('Finalizing and certifying...');
 			const certifyTx = flow.certify();
+
+			// Add operation type for auto-approval
+			certifyTx.add(operationType('walrus-operations'));
+
 			const certifyResult = await uploadExecution.executeTransaction(certifyTx);
 			if (!certifyResult) {
 				throw new Error('Failed to certify blob on-chain');

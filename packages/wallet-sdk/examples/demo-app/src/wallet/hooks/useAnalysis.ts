@@ -24,8 +24,43 @@ export function useAnalysis(client: ClientWithCoreApi, walletRequest: WalletRequ
 				}>(client, walletRequest.data, {
 					operationType: operationTypeAnalyzer,
 					coinValues: createCoinValueAnalyzer({
-						getCoinPrices: async (_coinTypes: string[]) => {
-							return [];
+						getCoinPrices: async (coinTypes: string[]) => {
+							// Provide mock prices for demo purposes
+							// In a real app, you would fetch these from a price API
+							return coinTypes.map((coinType) => {
+								// Normalize the coin type for comparison
+								const normalizedType = coinType.toLowerCase();
+
+								// Check for SUI coin
+								if (
+									normalizedType.includes('::sui::sui') ||
+									normalizedType === '0x2::sui::sui' ||
+									normalizedType ===
+										'0x0000000000000000000000000000000000000000000000000000000000000002::sui::sui'
+								) {
+									return {
+										coinType,
+										decimals: 9, // SUI has 9 decimals
+										price: 3.5, // Mock SUI price in USD
+									};
+								}
+
+								// Check for WAL coin
+								if (normalizedType.includes('::wal::wal')) {
+									return {
+										coinType,
+										decimals: 9, // WAL has 9 decimals
+										price: 0.5, // Mock WAL price in USD
+									};
+								}
+
+								// Return null for unknown coins (no price available)
+								return {
+									coinType,
+									decimals: 9, // Default to 9 decimals
+									price: null,
+								};
+							});
 						},
 					}),
 				});

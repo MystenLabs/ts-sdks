@@ -136,7 +136,7 @@ export function SigningModal({
 				<div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
 					{autoApprovalState?.canAutoApprove && !autoApprovalCancelled ? (
 						<AutoApprovalCountdown
-							initialSeconds={5}
+							initialSeconds={3}
 							onCancel={() => setCancelled(true)}
 							onComplete={onAutoApprove}
 						/>
@@ -145,7 +145,11 @@ export function SigningModal({
 							requestType={requestType}
 							onApprove={onApprove}
 							onReject={onReject}
-							onEnableAutoApprovals={autoApprovalState?.hasSettings ? undefined : onEditPolicy}
+							onEnableAutoApprovals={
+								!autoApprovalState?.hasSettings && autoApprovalState?.matchesPolicy
+									? onEditPolicy
+									: undefined
+							}
 						/>
 					)}
 				</div>

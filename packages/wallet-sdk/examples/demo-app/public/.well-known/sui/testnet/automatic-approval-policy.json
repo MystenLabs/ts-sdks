@@ -44,6 +44,11 @@
 						"$kind": "CoinBalance",
 						"description": "Allow SUI for gas fees",
 						"coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+					},
+					{
+						"$kind": "CoinBalance",
+						"description": "Allow WAL token transfers for storage operations",
+						"coinType": "0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL"
 					}
 				],
 				"ownedObjects": [
@@ -52,6 +57,12 @@
 						"description": "Allow demo NFT interactions",
 						"objectType": "0x1ae7832d6ad190aa4c8d6a36dd014d8383246428fb27590262b8648fcec62ca0::nft::DemoNFT",
 						"accessLevel": "transfer"
+					},
+					{
+						"$kind": "ObjectType",
+						"description": "Allow interactions with Walrus Blob objects",
+						"objectType": "0xd84704c17fc870b8764832c535aa6b11f21a95cd6f5bb38a9b07d2cf42220c66::blob::Blob",
+						"accessLevel": "mutate"
 					}
 				]
 			}
@@ -63,8 +74,21 @@
 				"balances": [
 					{
 						"$kind": "CoinBalance",
-						"description": "Allow SUI payments for storage fees",
+						"description": "Allow SUI payments for gas fees",
 						"coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+					},
+					{
+						"$kind": "CoinBalance",
+						"description": "Allow WAL token transfers for storage operations",
+						"coinType": "0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL"
+					}
+				],
+				"ownedObjects": [
+					{
+						"$kind": "ObjectType",
+						"description": "Allow interactions with Walrus Blob objects",
+						"objectType": "0xd84704c17fc870b8764832c535aa6b11f21a95cd6f5bb38a9b07d2cf42220c66::blob::Blob",
+						"accessLevel": "mutate"
 					}
 				]
 			}
