@@ -1,0 +1,15 @@
+{
+	"title": "dApp Kit",
+	"description": "Build Sui dapps in React",
+	"pages": [
+		"index",
+		"create-dapp",
+		"sui-client-provider",
+		"rpc-hooks",
+		"wallet-provider",
+		"wallet-components",
+		"wallet-hooks",
+		"slush-wallet",
+		"themes"
+	]
+}
