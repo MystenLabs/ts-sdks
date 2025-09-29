@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.18.0
+
+### Minor Changes
+
+- 7d8bc08: Support core package upgrade changes on testnet
+
 ## 0.17.0
 
 ### Minor Changes
