@@ -29,7 +29,10 @@ export class DeepBookConfig {
 	DEEPBOOK_PACKAGE_ID: string;
 	REGISTRY_ID: string;
 	DEEP_TREASURY_ID: string;
+	MARGIN_PACKAGE_ID: string;
+	MARGIN_REGISTRY_ID: string;
 	adminCap?: string;
+	marginAdminCap?: string;
 
 	balanceManager: BalanceManagerContract;
 
@@ -37,6 +40,7 @@ export class DeepBookConfig {
 		env,
 		address,
 		adminCap,
+		marginAdminCap,
 		balanceManagers,
 		coins,
 		pools,
@@ -44,12 +48,14 @@ export class DeepBookConfig {
 		env: Environment;
 		address: string;
 		adminCap?: string;
+		marginAdminCap?: string;
 		balanceManagers?: { [key: string]: BalanceManager };
 		coins?: CoinMap;
 		pools?: PoolMap;
 	}) {
 		this.address = normalizeSuiAddress(address);
 		this.adminCap = adminCap;
+		this.marginAdminCap = marginAdminCap;
 		this.balanceManagers = balanceManagers || {};
 
 		if (env === 'mainnet') {
@@ -58,12 +64,16 @@ export class DeepBookConfig {
 			this.DEEPBOOK_PACKAGE_ID = mainnetPackageIds.DEEPBOOK_PACKAGE_ID;
 			this.REGISTRY_ID = mainnetPackageIds.REGISTRY_ID;
 			this.DEEP_TREASURY_ID = mainnetPackageIds.DEEP_TREASURY_ID;
+			this.MARGIN_PACKAGE_ID = mainnetPackageIds.MARGIN_PACKAGE_ID;
+			this.MARGIN_REGISTRY_ID = mainnetPackageIds.MARGIN_REGISTRY_ID;
 		} else {
 			this.#coins = coins || testnetCoins;
 			this.#pools = pools || testnetPools;
 			this.DEEPBOOK_PACKAGE_ID = testnetPackageIds.DEEPBOOK_PACKAGE_ID;
 			this.REGISTRY_ID = testnetPackageIds.REGISTRY_ID;
 			this.DEEP_TREASURY_ID = testnetPackageIds.DEEP_TREASURY_ID;
+			this.MARGIN_PACKAGE_ID = testnetPackageIds.MARGIN_PACKAGE_ID;
+			this.MARGIN_REGISTRY_ID = testnetPackageIds.MARGIN_REGISTRY_ID;
 		}
 
 		this.balanceManager = new BalanceManagerContract(this);

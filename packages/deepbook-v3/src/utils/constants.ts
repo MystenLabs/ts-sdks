@@ -9,19 +9,25 @@ export interface DeepbookPackageIds {
 	DEEPBOOK_PACKAGE_ID: string;
 	REGISTRY_ID: string;
 	DEEP_TREASURY_ID: string;
+	MARGIN_PACKAGE_ID: string;
+	MARGIN_REGISTRY_ID: string;
 }
 
 export const testnetPackageIds = {
 	DEEPBOOK_PACKAGE_ID: '0xc483dba510597205749f2e8410c23f19be31a710aef251f353bc1b97755efd4d',
 	REGISTRY_ID: '0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1',
 	DEEP_TREASURY_ID: '0x69fffdae0075f8f71f4fa793549c11079266910e8905169845af1f5d00e09dcb',
+	MARGIN_PACKAGE_ID: '0xbe17e7a209d9ab78382a343403f1aea69e130cbea574fdb69ea8f7ff46494c22',
+	MARGIN_REGISTRY_ID: '0x2122abc902a5cbd80342ebd6ffade4d586c28aab28ca162d4c0001ed8edc25b6',
 } satisfies DeepbookPackageIds;
 
 export const mainnetPackageIds = {
 	DEEPBOOK_PACKAGE_ID: '0xb29d83c26cdd2a64959263abbcfc4a6937f0c9fccaf98580ca56faded65be244',
 	REGISTRY_ID: '0xaf16199a2dff736e9f07a845f23c5da6df6f756eddb631aed9d24a93efc4549d',
 	DEEP_TREASURY_ID: '0x032abf8948dda67a271bcc18e776dbbcfb0d58c8d288a700ff0d5521e57a1ffe',
-};
+	MARGIN_PACKAGE_ID: '',
+	MARGIN_REGISTRY_ID: '',
+} satisfies DeepbookPackageIds;
 
 export const testnetCoins: CoinMap = {
 	DEEP: {
