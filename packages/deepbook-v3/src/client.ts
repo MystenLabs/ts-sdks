@@ -15,6 +15,7 @@ import type { BalanceManager, Environment } from './types/index.js';
 import { DEEP_SCALAR, DeepBookConfig, FLOAT_SCALAR } from './utils/config.js';
 import type { CoinMap, PoolMap } from './utils/constants.js';
 import { MarginAdminContract } from './transactions/marginAdmin.js';
+import { MarginMaintainerContract } from './transactions/marginMaintainer.js';
 
 /**
  * DeepBookClient class for managing DeepBook operations.
@@ -29,6 +30,7 @@ export class DeepBookClient {
 	flashLoans: FlashLoanContract;
 	governance: GovernanceContract;
 	marginAdmin: MarginAdminContract;
+	marginMaintainer: MarginMaintainerContract;
 
 	/**
 	 * @param {SuiClient} client SuiClient instance
@@ -38,6 +40,8 @@ export class DeepBookClient {
 	 * @param {CoinMap} [coins] Optional initial CoinMap
 	 * @param {PoolMap} [pools] Optional initial PoolMap
 	 * @param {string} [adminCap] Optional admin capability
+	 * @param {string} [marginAdminCap] Optional margin admin capability
+	 * @param {string} [marginMaintainerCap] Optional margin maintainer capability
 	 */
 	constructor({
 		client,
@@ -48,6 +52,7 @@ export class DeepBookClient {
 		pools,
 		adminCap,
 		marginAdminCap,
+		marginMaintainerCap,
 	}: {
 		client: SuiClient;
 		address: string;
@@ -57,6 +62,7 @@ export class DeepBookClient {
 		pools?: PoolMap;
 		adminCap?: string;
 		marginAdminCap?: string;
+		marginMaintainerCap?: string;
 	}) {
 		this.client = client;
 		this.#address = normalizeSuiAddress(address);
@@ -68,6 +74,7 @@ export class DeepBookClient {
 			pools,
 			adminCap,
 			marginAdminCap,
+			marginMaintainerCap,
 		});
 		this.balanceManager = new BalanceManagerContract(this.#config);
 		this.deepBook = new DeepBookContract(this.#config);
@@ -75,6 +82,7 @@ export class DeepBookClient {
 		this.flashLoans = new FlashLoanContract(this.#config);
 		this.governance = new GovernanceContract(this.#config);
 		this.marginAdmin = new MarginAdminContract(this.#config);
+		this.marginMaintainer = new MarginMaintainerContract(this.#config);
 	}
 
 	/**

@@ -9,7 +9,7 @@ import type { PoolConfigParams } from '../types/index.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
 
 /**
- * DeepBookAdminContract class for managing admin actions.
+ * MarginAdminContract class for managing admin actions.
  */
 export class MarginAdminContract {
 	#config: DeepBookConfig;

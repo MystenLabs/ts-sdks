@@ -105,11 +105,6 @@ export interface SetEwmaParamsParams {
 	additionalTakerFee: number;
 }
 
-export interface Config {
-	DEEPBOOK_PACKAGE_ID: string;
-	REGISTRY_ID: string;
-	DEEP_TREASURY_ID: string;
-}
 export interface PoolConfigParams {
 	minWithdrawRiskRatio: number;
 	minBorrowRiskRatio: number;
@@ -117,6 +112,26 @@ export interface PoolConfigParams {
 	targetLiquidationRiskRatio: number;
 	userLiquidationReward: number;
 	poolLiquidationReward: number;
+}
+
+export interface MarginPoolConfigParams {
+	supplyCap: number;
+	maxUtilizationRate: number;
+	referralSpread: number;
+	minBorrow: number;
+}
+
+export interface InterestConfigParams {
+	baseRate: number;
+	baseSlope: number;
+	optimalUtilization: number;
+	excessSlope: number;
+}
+
+export interface Config {
+	DEEPBOOK_PACKAGE_ID: string;
+	REGISTRY_ID: string;
+	DEEP_TREASURY_ID: string;
 }
 
 export type Environment = 'mainnet' | 'testnet';

@@ -281,6 +281,16 @@ export const mainnetPools: PoolMap = {
 	},
 };
 
+export const testnetMarginPools = {
+	SUI: '0x4b40812800c4b26670e7efeb82a18412ff6fd5c9e4f2a19c5bec255e7e58a60e',
+	DBUSDC: '0x0b839ccb43352baff539d36f6f7bfd75c91b856a17555da99e36cc0e72699140',
+};
+
+export const mainnetMarginPools = {
+	SUI: '',
+	USDC: '',
+};
+
 export const testnetPythConfigs = {
 	pythStateId: '0x243759059f4c3111179da5878c12f68d612c21a8d54d85edc86164bb18be1c7c',
 	wormholeStateId: '0x31358d198147da50db32eda2562951d53973a0c0ad5ed738e9b17d88b213d790',
