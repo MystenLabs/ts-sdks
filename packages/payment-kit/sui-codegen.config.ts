@@ -7,7 +7,7 @@ const config: SuiCodegenConfig = {
 	output: './src/contracts',
 	packages: [
 		{
-			package: '@local-pkg/payment-kit',
+			package: '@mysten/payment-kit',
 			path: '../../../sui-payment-kit',
 		},
 	],
