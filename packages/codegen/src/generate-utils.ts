@@ -48,7 +48,7 @@ export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null
 
 			if (structTag.module === 'option' && structTag.name === 'Option') {
 				const type = getPureBcsSchema(structTag.typeParams[0]!);
-				return type ? bcs.vector(type) : null;
+				return type ? bcs.option(type) : null;
 			}
 		}
 
