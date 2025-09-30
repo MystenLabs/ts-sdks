@@ -109,5 +109,13 @@ export interface Config {
 	REGISTRY_ID: string;
 	DEEP_TREASURY_ID: string;
 }
+export interface PoolConfigParams {
+	minWithdrawRiskRatio: number;
+	minBorrowRiskRatio: number;
+	liquidationRiskRatio: number;
+	targetLiquidationRiskRatio: number;
+	userLiquidationReward: number;
+	poolLiquidationReward: number;
+}
 
 export type Environment = 'mainnet' | 'testnet';

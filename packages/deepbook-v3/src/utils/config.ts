@@ -33,6 +33,7 @@ export class DeepBookConfig {
 	MARGIN_REGISTRY_ID: string;
 	adminCap?: string;
 	marginAdminCap?: string;
+	marginMaintainerCap?: string;
 
 	balanceManager: BalanceManagerContract;
 
@@ -41,6 +42,7 @@ export class DeepBookConfig {
 		address,
 		adminCap,
 		marginAdminCap,
+		marginMaintainerCap,
 		balanceManagers,
 		coins,
 		pools,
@@ -49,6 +51,7 @@ export class DeepBookConfig {
 		address: string;
 		adminCap?: string;
 		marginAdminCap?: string;
+		marginMaintainerCap?: string;
 		balanceManagers?: { [key: string]: BalanceManager };
 		coins?: CoinMap;
 		pools?: PoolMap;
@@ -56,6 +59,7 @@ export class DeepBookConfig {
 		this.address = normalizeSuiAddress(address);
 		this.adminCap = adminCap;
 		this.marginAdminCap = marginAdminCap;
+		this.marginMaintainerCap = marginMaintainerCap;
 		this.balanceManagers = balanceManagers || {};
 
 		if (env === 'mainnet') {
