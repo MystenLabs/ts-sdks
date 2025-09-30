@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { ClientWithExtensions, Experimental_CoreClient } from '@mysten/sui/experimental';
+import type { ClientWithExtensions, Experimental_CoreClient } from '@mysten/sui/experimental';
 
 export type PaymentKitPackageConfig = {
 	packageId: string;
