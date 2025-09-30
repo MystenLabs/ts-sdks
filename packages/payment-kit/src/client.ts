@@ -18,7 +18,7 @@ export class PaymentKitClient {
 	// @ts-expect-error - suiClient will be used in a later PR
 	#suiClient: PaymentKitCompatibleClient;
 
-	constructor(config: PaymentKitClientConfig) {
+	private constructor(config: PaymentKitClientConfig) {
 		if (config.suiClient) {
 			this.#suiClient = config.suiClient;
 		} else {
