@@ -5,6 +5,8 @@ import type { Transaction } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
 import type { TransactionArgument } from '@mysten/sui/transactions';
+import type { PoolConfigParams } from '../types/index.js';
+import { FLOAT_SCALAR } from '../utils/config.js';
 
 /**
  * DeepBookAdminContract class for managing admin actions.
@@ -199,6 +201,44 @@ export class MarginAdminContract {
 				tx.pure.u64(version),
 				tx.object(this.#marginAdminCap()),
 			],
+		});
+	};
+
+	newPoolConfig = (poolKey: string, poolConfigParams: PoolConfigParams) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const {
+			minWithdrawRiskRatio,
+			minBorrowRiskRatio,
+			liquidationRiskRatio,
+			targetLiquidationRiskRatio,
+			userLiquidationReward,
+			poolLiquidationReward,
+		} = poolConfigParams;
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::new_pool_config`,
+			arguments: [
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.pure.u64(minWithdrawRiskRatio * FLOAT_SCALAR),
+				tx.pure.u64(minBorrowRiskRatio * FLOAT_SCALAR),
+				tx.pure.u64(liquidationRiskRatio * FLOAT_SCALAR),
+				tx.pure.u64(targetLiquidationRiskRatio * FLOAT_SCALAR),
+				tx.pure.u64(userLiquidationReward * FLOAT_SCALAR),
+				tx.pure.u64(poolLiquidationReward * FLOAT_SCALAR),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	newPoolConfigWithLeverage = (poolKey: string, leverage: number) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::new_pool_config_with_leverage`,
+			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.pure.u64(leverage * FLOAT_SCALAR)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};
 }

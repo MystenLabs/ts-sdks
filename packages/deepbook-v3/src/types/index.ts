@@ -15,6 +15,7 @@ export interface Coin {
 	address: string;
 	type: string;
 	scalar: number;
+	feed?: string;
 }
 
 export interface Pool {
