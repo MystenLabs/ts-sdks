@@ -4,7 +4,7 @@ import { normalizeSuiAddress } from '@mysten/sui/utils';
 
 import { BalanceManagerContract } from '../transactions/balanceManager.js';
 import type { BalanceManager, Environment } from '../types/index.js';
-import type { CoinMap, PoolMap } from './constants.js';
+import type { CoinMap, PoolMap, MarginPoolMap } from './constants.js';
 import {
 	mainnetCoins,
 	mainnetPackageIds,
@@ -12,6 +12,8 @@ import {
 	testnetCoins,
 	testnetPackageIds,
 	testnetPools,
+	mainnetMarginPools,
+	testnetMarginPools,
 } from './constants.js';
 
 export const FLOAT_SCALAR = 1000000000;
@@ -23,6 +25,7 @@ export const POOL_CREATION_FEE = 500 * 1_000_000; // 500 DEEP
 export class DeepBookConfig {
 	#coins: CoinMap;
 	#pools: PoolMap;
+	#marginPools: MarginPoolMap;
 	balanceManagers: { [key: string]: BalanceManager };
 	address: string;
 
@@ -46,6 +49,7 @@ export class DeepBookConfig {
 		balanceManagers,
 		coins,
 		pools,
+		marginPools,
 	}: {
 		env: Environment;
 		address: string;
@@ -55,6 +59,7 @@ export class DeepBookConfig {
 		balanceManagers?: { [key: string]: BalanceManager };
 		coins?: CoinMap;
 		pools?: PoolMap;
+		marginPools?: MarginPoolMap;
 	}) {
 		this.address = normalizeSuiAddress(address);
 		this.adminCap = adminCap;
@@ -65,6 +70,7 @@ export class DeepBookConfig {
 		if (env === 'mainnet') {
 			this.#coins = coins || mainnetCoins;
 			this.#pools = pools || mainnetPools;
+			this.#marginPools = marginPools || mainnetMarginPools;
 			this.DEEPBOOK_PACKAGE_ID = mainnetPackageIds.DEEPBOOK_PACKAGE_ID;
 			this.REGISTRY_ID = mainnetPackageIds.REGISTRY_ID;
 			this.DEEP_TREASURY_ID = mainnetPackageIds.DEEP_TREASURY_ID;
@@ -73,6 +79,7 @@ export class DeepBookConfig {
 		} else {
 			this.#coins = coins || testnetCoins;
 			this.#pools = pools || testnetPools;
+			this.#marginPools = marginPools || testnetMarginPools;
 			this.DEEPBOOK_PACKAGE_ID = testnetPackageIds.DEEPBOOK_PACKAGE_ID;
 			this.REGISTRY_ID = testnetPackageIds.REGISTRY_ID;
 			this.DEEP_TREASURY_ID = testnetPackageIds.DEEP_TREASURY_ID;
@@ -97,6 +104,15 @@ export class DeepBookConfig {
 		const pool = this.#pools[key];
 		if (!pool) {
 			throw new Error(`Pool not found for key: ${key}`);
+		}
+
+		return pool;
+	}
+
+	getMarginPool(key: string) {
+		const pool = this.#marginPools[key];
+		if (!pool) {
+			throw new Error(`Margin pool not found for key: ${key}`);
 		}
 
 		return pool;

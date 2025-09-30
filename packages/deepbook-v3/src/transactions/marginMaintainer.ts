@@ -83,4 +83,22 @@ export class MarginMaintainerContract {
 			],
 		});
 	};
+
+	enableDeepbookPoolForLoan =
+		(deepbookPoolKey: string, marginPoolKey: string, marginPoolCap: string) =>
+		(tx: Transaction) => {
+			const deepbookPool = this.#config.getPool(deepbookPoolKey);
+			const marginPool = this.#config.getMarginPool(marginPoolKey);
+			tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::enable_deepbook_pool_for_loan`,
+				arguments: [
+					tx.object(marginPool.address),
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					tx.pure.id(deepbookPool.address),
+					tx.object(marginPoolCap),
+					tx.object.clock(),
+				],
+				typeArguments: [marginPool.type],
+			});
+		};
 }

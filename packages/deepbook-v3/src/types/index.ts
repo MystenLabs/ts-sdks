@@ -24,6 +24,11 @@ export interface Pool {
 	quoteCoin: string;
 }
 
+export interface MarginPool {
+	address: string;
+	type: string;
+}
+
 // Trading constants
 export enum OrderType {
 	NO_RESTRICTION,

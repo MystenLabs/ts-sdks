@@ -1,10 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Coin, Pool } from '../types/index.js';
+import type { Coin, Pool, MarginPool } from '../types/index.js';
 
 export type CoinMap = Record<string, Coin>;
 export type PoolMap = Record<string, Pool>;
+export type MarginPoolMap = Record<string, MarginPool>;
 export interface DeepbookPackageIds {
 	DEEPBOOK_PACKAGE_ID: string;
 	REGISTRY_ID: string;
@@ -282,13 +283,25 @@ export const mainnetPools: PoolMap = {
 };
 
 export const testnetMarginPools = {
-	SUI: '0x4b40812800c4b26670e7efeb82a18412ff6fd5c9e4f2a19c5bec255e7e58a60e',
-	DBUSDC: '0x0b839ccb43352baff539d36f6f7bfd75c91b856a17555da99e36cc0e72699140',
+	SUI: {
+		address: '0x4b40812800c4b26670e7efeb82a18412ff6fd5c9e4f2a19c5bec255e7e58a60e',
+		type: '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
+	},
+	DBUSDC: {
+		address: '0x0b839ccb43352baff539d36f6f7bfd75c91b856a17555da99e36cc0e72699140',
+		type: '0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC',
+	},
 };
 
 export const mainnetMarginPools = {
-	SUI: '',
-	USDC: '',
+	SUI: {
+		address: '',
+		type: '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
+	},
+	USDC: {
+		address: '',
+		type: '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC',
+	},
 };
 
 export const testnetPythConfigs = {
