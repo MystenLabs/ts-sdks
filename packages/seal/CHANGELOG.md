@@ -1,5 +1,12 @@
 # @mysten/seal
 
+## 0.8.1
+
+### Patch Changes
+
+- 8d577a1: Fix generation of random BLS scalars which would fail, and likely cause encryption to
+  fail, for some versions of the @noble/curves dependency.
+
 ## 0.8.0
 
 ### Minor Changes
