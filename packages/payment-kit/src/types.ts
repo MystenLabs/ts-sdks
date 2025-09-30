@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { SuiClient } from '@mysten/sui/client';
-import { ClientWithExtensions } from '@mysten/sui/dist/cjs/experimental';
+import type { ClientWithExtensions } from '@mysten/sui/experimental';
 
 export type Network = 'mainnet' | 'testnet';
 
