@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { coinWithBalance } from '@mysten/sui/transactions';
-import type { Transaction } from '@mysten/sui/transactions';
+import type { Transaction, TransactionArgument } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
 
@@ -35,15 +35,35 @@ export class BalanceManagerContract {
 	};
 
 	/**
-	 * @description Create and share a new BalanceManager, manually set the owner
+	 * @description Create a new BalanceManager, manually set the owner. Returns the manager.
 	 * @returns A function that takes a Transaction object
 	 */
-	createAndShareBalanceManagerWithOwner = (ownerAddress: string) => (tx: Transaction) => {
-		const manager = tx.moveCall({
+	createBalanceManagerWithOwner = (ownerAddress: string) => (tx: Transaction) => {
+		return tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new_with_custom_owner`,
 			arguments: [tx.pure.address(ownerAddress)],
 		});
+	};
 
+	/**
+	 * @description Create a new BalanceManager, manually set the owner. Returns the manager, depositCap, withdrawCap, and tradeCap.
+	 * @returns A function that takes a Transaction object
+	 */
+	createBalanceManagerWithOwnerAndCaps = (ownerAddress: string) => (tx: Transaction) => {
+		const [manager, depositCap, withdrawCap, tradeCap] = tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new_with_custom_owner_and_caps`,
+			arguments: [tx.pure.address(ownerAddress)],
+		});
+
+		return { manager, depositCap, withdrawCap, tradeCap };
+	};
+
+	/**
+	 * @description Share the BalanceManager
+	 * @param {TransactionArgument} manager The BalanceManager to share
+	 * @returns A function that takes a Transaction object
+	 */
+	shareBalanceManager = (manager: TransactionArgument) => (tx: Transaction) => {
 		tx.moveCall({
 			target: '0x2::transfer::public_share_object',
 			arguments: [manager],
@@ -271,6 +291,44 @@ export class BalanceManagerContract {
 		};
 
 	/**
+	 * @description Set the referral for the BalanceManager
+	 * @param {string} managerKey The name of the BalanceManager
+	 * @param {string} referral The referral to set the BalanceManager to
+	 * @param {TransactionArgument} tradeCap The tradeCap for permission checking
+	 * @returns A function that takes a Transaction object
+	 */
+	setReferral =
+		(managerKey: string, referral: string, tradeCap: TransactionArgument) => (tx: Transaction) => {
+			const managerId = this.#config.getBalanceManager(managerKey).address;
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::set_referral`,
+				arguments: [tx.object(managerId), tx.object(referral), tradeCap],
+			});
+		};
+
+	/**
+	 * @description Unset the referral for the BalanceManager
+	 * @param {string} managerKey The name of the BalanceManager
+	 * @param {TransactionArgument} tradeCap The tradeCap for permission checking
+	 * @returns A function that takes a Transaction object
+	 */
+	unsetReferral = (managerKey: string, tradeCap: TransactionArgument) => (tx: Transaction) => {
+		const managerId = this.#config.getBalanceManager(managerKey).address;
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::unset_referral`,
+			arguments: [tx.object(managerId), tradeCap],
+		});
+	};
+
+	registerManager = (managerKey: string) => (tx: Transaction) => {
+		const managerId = this.#config.getBalanceManager(managerKey).address;
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::register_manager`,
+			arguments: [tx.object(managerId), tx.object(this.#config.REGISTRY_ID)],
+		});
+	};
+
+	/**
 	 * @description Get the owner of the BalanceManager
 	 * @param {string} managerKey The key of the BalanceManager
 	 * @returns A function that takes a Transaction object
@@ -293,6 +351,18 @@ export class BalanceManagerContract {
 		tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::id`,
 			arguments: [tx.object(managerId)],
+		});
+	};
+
+	/**
+	 * @description Get the owner of the referral
+	 * @param {string} referral_id The ID of the referral to get the owner of
+	 * @returns A function that takes a Transaction object
+	 */
+	referralOwner = (referral_id: string) => (tx: Transaction) => {
+		return tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::referral_owner`,
+			arguments: [tx.object(referral_id)],
 		});
 	};
 }
