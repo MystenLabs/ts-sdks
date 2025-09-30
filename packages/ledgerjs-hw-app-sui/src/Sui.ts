@@ -1,8 +1,15 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type Transport from '@ledgerhq/hw-transport';
+import { DeviceModelId } from '@ledgerhq/devices';
+import { LatestFirmwareVersionRequired, UpdateYourApp } from '@ledgerhq/errors';
+import { loadPKI } from '@ledgerhq/hw-bolos';
+import Transport, { TransportStatusError } from '@ledgerhq/hw-transport';
+import calService from '@ledgerhq/ledger-cal-service';
+import trustService from '@ledgerhq/ledger-trust-service';
 import sha256 from 'fast-sha256';
+import semver from 'semver';
+import { DescriptorInput, buildDescriptor } from './descriptor';
 
 export type GetPublicKeyResult = {
 	publicKey: Uint8Array;
@@ -19,6 +26,18 @@ export type GetVersionResult = {
 	patch: number;
 };
 
+export type Resolution = {
+	deviceModelId?: DeviceModelId | undefined;
+	certificateSignatureKind?: 'prod' | 'test' | undefined;
+	tokenAddress?: string;
+	tokenInternalId?: string;
+};
+
+export type AppConfig = {
+	blindSigningEnabled: boolean;
+	version: string;
+};
+
 enum LedgerToHost {
 	RESULT_ACCUMULATING = 0,
 	RESULT_FINAL = 1,
@@ -32,6 +51,23 @@ enum HostToLedger {
 	GET_CHUNK_RESPONSE_FAILURE = 2,
 	PUT_CHUNK_RESPONSE = 3,
 	RESULT_ACCUMULATING_RESPONSE = 4,
+}
+
+const MIN_VERSION = '1.3.0';
+const MANAGER_APP_NAME = 'Sui';
+
+function isPKIUnsupportedError(err: unknown): err is TransportStatusError {
+	return err instanceof TransportStatusError && err.message.includes('0x6a81');
+}
+
+async function tryLoadPKI(...args: Parameters<typeof loadPKI>) {
+	try {
+		await loadPKI(...args);
+	} catch (err) {
+		if (isPKIUnsupportedError(err)) {
+			throw new LatestFirmwareVersionRequired('LatestFirmwareVersionRequired');
+		}
+	}
 }
 
 /**
@@ -50,7 +86,14 @@ export default class Sui {
 		this.transport = transport;
 		this.transport.decorateAppAPIMethods(
 			this,
-			['getPublicKey', 'signTransaction', 'getVersion'],
+			[
+				'getPublicKey',
+				'signTransaction',
+				'getVersion',
+				'getChallenge',
+				'provideTrustedName',
+				'provideTrustedDynamicDescriptor',
+			],
 			scrambleKey,
 		);
 	}
@@ -94,9 +137,7 @@ export default class Sui {
 	async signTransaction(
 		path: string,
 		txn: Uint8Array,
-		options?: {
-			bcsObjects: Uint8Array[];
-		},
+		resolution?: Resolution,
 	): Promise<SignTransactionResult> {
 		const cla = 0x00;
 		const ins = 0x03;
@@ -119,33 +160,81 @@ export default class Sui {
 
 		// The public getVersion is decorated with a lock in the constructor:
 		const { major } = await this.#internalGetVersion();
-		const bcsObjects = options?.bcsObjects ?? [];
-
-		this.#log('Objects list length', bcsObjects.length);
 		this.#log('App version', major);
 
-		if (major > 0 && bcsObjects.length > 0) {
-			// Build object list payload:
-			const numItems = Buffer.alloc(4);
-			numItems.writeUInt32LE(bcsObjects.length, 0);
-
-			let listData = Buffer.from(numItems);
-
-			// Add each item with its length prefix:
-			for (const item of bcsObjects) {
-				const rawItem = Buffer.from(item);
-				const itemLen = Buffer.alloc(4);
-				itemLen.writeUInt32LE(rawItem.length, 0);
-
-				listData = Buffer.concat([listData, itemLen, rawItem]);
+		if (resolution) {
+			if (!resolution.deviceModelId) {
+				throw new Error('Resolution provided without a deviceModelId');
 			}
 
-			payloads.push(listData);
+			if (resolution.deviceModelId !== DeviceModelId.nanoS) {
+				await this.#checkAppVersion(MIN_VERSION, { throwOnOutdated: true });
+
+				const { descriptor, signature } = await calService.getCertificate(
+					resolution.deviceModelId,
+					'trusted_name',
+					'latest',
+					{ signatureKind: resolution.certificateSignatureKind },
+				);
+
+				try {
+					await loadPKI(this.transport, 'TRUSTED_NAME', descriptor, signature);
+				} catch (err) {
+					if (isPKIUnsupportedError(err)) {
+						throw new LatestFirmwareVersionRequired('LatestFirmwareVersionRequired');
+					}
+				}
+
+				if (resolution.tokenAddress) {
+					const challenge = await this.#getChallenge();
+					const { signedDescriptor } = await trustService.getOwnerAddress(
+						resolution.tokenAddress,
+						challenge,
+					);
+
+					if (signedDescriptor) {
+						await this.#provideTrustedName(signedDescriptor);
+					}
+				}
+
+				if (resolution.tokenInternalId) {
+					const { descriptor: coinMetaDescriptor, signature: coinMetaSignature } =
+						await calService.getCertificate(resolution.deviceModelId, 'coin_meta', 'latest', {
+							signatureKind: resolution.certificateSignatureKind,
+						});
+
+					await tryLoadPKI(this.transport, 'COIN_META', coinMetaDescriptor, coinMetaSignature);
+
+					const token = await calService.findToken(
+						{ id: resolution.tokenInternalId },
+						{ signatureKind: resolution.certificateSignatureKind },
+					);
+
+					await this.#provideTrustedDynamicDescriptor({
+						data: Buffer.from(token.descriptor.data, 'hex'),
+						signature: Buffer.from(token.descriptor.signature, 'hex'),
+					});
+				}
+			}
 		}
 
 		// Send the chunks and return the signature
 		const signature = await this.#sendChunks(cla, ins, p1, p2, payloads);
 		return { signature };
+	}
+
+	/**
+	 * Retrieve the app version on the attached Ledger device.
+	 */
+	async #checkAppVersion(minVersion: string, { throwOnOutdated }: { throwOnOutdated: boolean }) {
+		const { major, minor, patch } = await this.#internalGetVersion();
+		const outdated = semver.lt(`${major}.${minor}.${patch}`, minVersion);
+
+		if (outdated && throwOnOutdated) {
+			throw new UpdateYourApp(undefined, {
+				managerAppName: MANAGER_APP_NAME,
+			});
+		}
 	}
 
 	/**
@@ -162,6 +251,67 @@ export default class Sui {
 			minor,
 			patch,
 		};
+	}
+
+	/**
+	 * Method returning a 4 bytes TLV challenge as an hex string
+	 *
+	 * @returns {Promise<string>}
+	 */
+	async #getChallenge(): Promise<string> {
+		return await this.#sendChunks(
+			0x00, // CLA
+			0x20, // GET_CHALLENGE
+			0x00, // P1
+			0x00, // P2
+			Buffer.alloc(1),
+		).then((res) => {
+			const data = res.toString('hex');
+			const fourBytesChallenge = data.slice(0, -4);
+			const statusCode = data.slice(-4);
+
+			if (statusCode !== '9000') {
+				throw new Error(
+					`An error happened while generating the challenge. Status code: ${statusCode}`,
+				);
+			}
+			return `0x${fourBytesChallenge}`;
+		});
+	}
+
+	/**
+	 * Provides a trusted name to be displayed during transactions in place of the token address it is associated to. It shall be run just before a transaction involving the associated address that would be displayed on the device.
+	 *
+	 * @param data a stringified buffer of some TLV encoded data to represent the trusted name
+	 * @returns a boolean
+	 */
+	async #provideTrustedName(data: string): Promise<boolean> {
+		await this.#sendChunks(
+			0x00, // CLA
+			0x21, // PROVIDE_TRUSTED_NAME,
+			0x00, // P1
+			0x00, // P2
+			Buffer.from(data, 'hex'),
+		);
+
+		return true;
+	}
+
+	/**
+	 * Provides trusted dynamic and signed coin metadata
+	 *
+	 * @param data An object containing the descriptor and its signature from the CAL
+	 */
+	async #provideTrustedDynamicDescriptor(data: DescriptorInput): Promise<boolean> {
+		await this.#sendChunks(
+			0x00, // CLA
+			0x22, // Provide trusted dynamic descriptor
+			0x00, // P1
+			0x00, // P2
+			buildDescriptor(data),
+		);
+
+		return true;
 	}
 
 	/**
