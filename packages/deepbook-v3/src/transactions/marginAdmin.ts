@@ -38,9 +38,13 @@ export class MarginAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	mintMaintainerCap = () => (tx: Transaction) => {
-		tx.moveCall({
+		return tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::mint_maintainer_cap`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.object(this.#marginAdminCap())],
+			arguments: [
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(this.#marginAdminCap()),
+				tx.object.clock(),
+			],
 		});
 	};
 
@@ -48,10 +52,15 @@ export class MarginAdminContract {
 	 * @description Revoke a maintainer cap
 	 * @returns A function that takes a Transaction object
 	 */
-	revokeMaintainerCap = () => (tx: Transaction) => {
+	revokeMaintainerCap = (maintainerCapId: string) => (tx: Transaction) => {
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::revoke_maintainer_cap`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.object(this.#marginAdminCap())],
+			arguments: [
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(this.#marginAdminCap()),
+				tx.object(maintainerCapId),
+				tx.object.clock(),
+			],
 		});
 	};
 
@@ -216,7 +225,7 @@ export class MarginAdminContract {
 			userLiquidationReward,
 			poolLiquidationReward,
 		} = poolConfigParams;
-		tx.moveCall({
+		return tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::new_pool_config`,
 			arguments: [
 				tx.object(this.#config.MARGIN_REGISTRY_ID),

@@ -14,6 +14,7 @@ import { GovernanceContract } from './transactions/governance.js';
 import type { BalanceManager, Environment } from './types/index.js';
 import { DEEP_SCALAR, DeepBookConfig, FLOAT_SCALAR } from './utils/config.js';
 import type { CoinMap, PoolMap } from './utils/constants.js';
+import { MarginAdminContract } from './transactions/marginAdmin.js';
 
 /**
  * DeepBookClient class for managing DeepBook operations.
@@ -27,6 +28,7 @@ export class DeepBookClient {
 	deepBookAdmin: DeepBookAdminContract;
 	flashLoans: FlashLoanContract;
 	governance: GovernanceContract;
+	marginAdmin: MarginAdminContract;
 
 	/**
 	 * @param {SuiClient} client SuiClient instance
@@ -45,6 +47,7 @@ export class DeepBookClient {
 		coins,
 		pools,
 		adminCap,
+		marginAdminCap,
 	}: {
 		client: SuiClient;
 		address: string;
@@ -53,6 +56,7 @@ export class DeepBookClient {
 		coins?: CoinMap;
 		pools?: PoolMap;
 		adminCap?: string;
+		marginAdminCap?: string;
 	}) {
 		this.client = client;
 		this.#address = normalizeSuiAddress(address);
@@ -63,12 +67,14 @@ export class DeepBookClient {
 			coins,
 			pools,
 			adminCap,
+			marginAdminCap,
 		});
 		this.balanceManager = new BalanceManagerContract(this.#config);
 		this.deepBook = new DeepBookContract(this.#config);
 		this.deepBookAdmin = new DeepBookAdminContract(this.#config);
 		this.flashLoans = new FlashLoanContract(this.#config);
 		this.governance = new GovernanceContract(this.#config);
+		this.marginAdmin = new MarginAdminContract(this.#config);
 	}
 
 	/**
