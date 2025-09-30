@@ -15,7 +15,7 @@ import type {
 
 export class PaymentKitClient {
 	#packageConfig: PaymentKitPackageConfig;
-	// eslint-disable-next-line @typescript-eslint/no-unused-private-class-members
+	// @ts-expect-error - suiClient will be used in a later PR
 	#suiClient: PaymentKitCompatibleClient;
 
 	constructor(config: PaymentKitClientConfig) {
