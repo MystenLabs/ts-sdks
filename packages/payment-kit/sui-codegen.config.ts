@@ -8,7 +8,7 @@ const config: SuiCodegenConfig = {
 	packages: [
 		{
 			package: '@local-pkg/payment-kit',
-			path: '../../../payment-kit',
+			path: '../../../sui-payment-kit',
 		},
 	],
 };
