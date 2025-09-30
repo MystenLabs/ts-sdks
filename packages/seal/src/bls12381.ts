@@ -3,7 +3,7 @@
 
 import type { Fp2, Fp12 } from '@noble/curves/abstract/tower';
 import type { WeierstrassPoint } from '@noble/curves/abstract/weierstrass';
-import { bls12_381, bls12_381_Fr } from '@noble/curves/bls12-381';
+import { bls12_381 } from '@noble/curves/bls12-381';
 import { bytesToNumberBE, bytesToNumberLE, numberToBytesBE } from '@noble/curves/utils';
 
 export class G1Element {
@@ -151,9 +151,6 @@ export class Scalar {
 
 	static random(): Scalar {
 		const randomSecretKey = bls12_381.utils.randomSecretKey();
-		if (bls12_381_Fr.isLE) {
-			return Scalar.fromBytesLE(randomSecretKey)!;
-		}
 		return Scalar.fromBytes(randomSecretKey)!;
 	}
 
