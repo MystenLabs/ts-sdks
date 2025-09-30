@@ -48,11 +48,17 @@ export class MarginMaintainerContract {
 	};
 
 	newProtocolConfig =
-		(marginPoolConfig: TransactionArgument, interestConfig: TransactionArgument) =>
+		(
+			coinKey: string,
+			marginPoolConfig: MarginPoolConfigParams,
+			interestConfig: InterestConfigParams,
+		) =>
 		(tx: Transaction) => {
+			const marginPoolConfigObject = this.newMarginPoolConfig(coinKey, marginPoolConfig)(tx);
+			const interestConfigObject = this.newInterestConfig(interestConfig)(tx);
 			return tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_protocol_config`,
-				arguments: [marginPoolConfig, interestConfig],
+				arguments: [marginPoolConfigObject, interestConfigObject],
 			});
 		};
 
@@ -95,6 +101,60 @@ export class MarginMaintainerContract {
 					tx.object(marginPool.address),
 					tx.object(this.#config.MARGIN_REGISTRY_ID),
 					tx.pure.id(deepbookPool.address),
+					tx.object(marginPoolCap),
+					tx.object.clock(),
+				],
+				typeArguments: [marginPool.type],
+			});
+		};
+
+	disableDeepbookPoolForLoan =
+		(deepbookPoolKey: string, marginPoolKey: string, marginPoolCap: string) =>
+		(tx: Transaction) => {
+			const deepbookPool = this.#config.getPool(deepbookPoolKey);
+			const marginPool = this.#config.getMarginPool(marginPoolKey);
+			tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::disable_deepbook_pool_for_loan`,
+				arguments: [
+					tx.object(marginPool.address),
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					tx.pure.id(deepbookPool.address),
+					tx.object(marginPoolCap),
+					tx.object.clock(),
+				],
+				typeArguments: [marginPool.type],
+			});
+		};
+
+	updateInterestParams =
+		(marginPoolKey: string, marginPoolCap: string, interestConfig: InterestConfigParams) =>
+		(tx: Transaction) => {
+			const marginPool = this.#config.getMarginPool(marginPoolKey);
+			const interestConfigObject = this.newInterestConfig(interestConfig)(tx);
+			tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::update_interest_params`,
+				arguments: [
+					tx.object(marginPool.address),
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					interestConfigObject,
+					tx.object(marginPoolCap),
+					tx.object.clock(),
+				],
+				typeArguments: [marginPool.type],
+			});
+		};
+
+	updateMarginPoolConfig =
+		(marginPoolKey: string, marginPoolCap: string, marginPoolConfig: MarginPoolConfigParams) =>
+		(tx: Transaction) => {
+			const marginPool = this.#config.getMarginPool(marginPoolKey);
+			const marginPoolConfigObject = this.newMarginPoolConfig(marginPoolKey, marginPoolConfig)(tx);
+			tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::update_margin_pool_config`,
+				arguments: [
+					tx.object(marginPool.address),
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					marginPoolConfigObject,
 					tx.object(marginPoolCap),
 					tx.object.clock(),
 				],
