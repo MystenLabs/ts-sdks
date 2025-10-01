@@ -1,16 +1,15 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClientWithExtensions, Experimental_CoreClient } from '@mysten/sui/experimental';
+import { ClientWithCoreApi } from '@mysten/sui/experimental';
 
 export type PaymentKitPackageConfig = {
 	packageId: string;
 };
 
-export type PaymentKitCompatibleClient = ClientWithExtensions<{
-	core: Experimental_CoreClient;
-}>;
+export interface PaymentKitCompatibleClient extends ClientWithCoreApi {}
+export interface PaymentKitClientExtensionOptions {}
 
-export interface PaymentKitClientConfig {
-	suiClient: PaymentKitCompatibleClient;
+export interface PaymentKitClientOptions extends PaymentKitClientExtensionOptions {
+	client: PaymentKitCompatibleClient;
 }
