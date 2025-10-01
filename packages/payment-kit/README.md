@@ -20,7 +20,8 @@ import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { PaymentKitClient } from '@mysten/payment-kit';
 
 const suiClient = new SuiClient({
-	url: getFullnodeUrl('testnet'), // Testnet and Mainnet are supported
+	url: getFullnodeUrl('testnet'),
+	network: 'testnet',
 });
 
 const paymentKitClient = new PaymentKitClient({
@@ -52,7 +53,7 @@ are stored.
 There are two distinct ways in which payments are processed. Registry based payments and Ephemeral
 payments.
 
-#### Registry Processed Payments
+#### Registry Processed Payments `(processRegistryPayment)`
 
 When using a `PaymentRegistry` to process a payment a registry must always be specified. A registry
 has the ability to specify where funds must be sent and how long a `PaymentRecord` can live before
@@ -62,38 +63,30 @@ request cannot be fulfilled more than once. The existence of a `PaymentRecord` a
 a payment has been made. Once a payment has been fulfilled a `PaymentReceipt` is emitted that can be
 used as you please.
 
-#### Ephemeral Payments
+#### Ephemeral Payments `(processEphemeralPayment)`
 
 Unlike Registry processed payments, an ephemeral payment does not leverage a registry and does not
-write a `PaymentRecord`. This means a payment request can be fulfilled more than once and there is
-no way to guarantee a payment has been made, outside of a transaction digest. Although, a
+write a `PaymentRecord`. This means duplicate payments are not implicitly prevented. Although, a
 `PaymentReceipt` is still emitted once completed, similar to registry based payments.
 
 ### Payment Registries
 
 At the core of Payment Kit is the `PaymentRegistry`. Currently, a registry is used to process
-one-time payments, manage where funds are sent and specify the expiration of a `PaymentRecord`.
-Although a `PaymentRegistry` can eventually be expanded upon to support additional customization and
-functionality via configurations. While there is a default registry to leverage, entities are
-encouraged to create and manage their own registries. Registries are created via personalized name.
-This name is then used to Derived an Object ID. This means registry names must be unique.
-
-```rust
-public struct PaymentRegistry has key {
-    id: UID,
-    cap_id: ID,
-    config: VecMap<String, Value>,
-    version: u16,
-}
-```
+one-time payments, manage how funds are collected and specify the expiration of a `PaymentRecord`.
+While there is a default registry to leverage, entities are encouraged to create and manage their
+own registries. This enables easier indexing of relevant payments and reduces the potential for
+object congestion. Registries are created via personalized name. This name is then used to derive an
+Object ID. This means registry names must be unique.
 
 #### Registry Configuration
 
-Configurations are exclusive to a `PaymentRegistry`. There are currently two configurations offered:
+Configurations are applied to an instance of a `PaymentRegistry`. There are currently two
+configurations offered:
 
 1. Receipt Epoch Expiration: The number of epochs that must elapse before a `PaymentReceipt` is
-   eligible to be deleted. This is a permissionless operation and anyone can reclaim the storage
-   fees.
+   eligible to be deleted. Deleting expired receipts is a permissionless operation that anyone can
+   perform and will result in a small storage rebate for each deleted record, incentivizing
+   automatic cleanup up of registries.
 
 2. Registry Managed Funds: A configuration that specifies if payment funds must be sent to the
    registry itself. If a `PaymentRegistry` has set this configuration, the `receiver` must be the
@@ -106,25 +99,11 @@ This payment record is used to guarantee a payment has been made. But note recor
 based on a registries epoch expiration duration (the default expiration is 30 epochs after
 creation).
 
-```rust
-public struct PaymentRecord has copy, drop, store {
-    epoch_at_time_of_record: u64,
-}
-```
-
 #### Payment Keys
 
 A `PaymentRecord` is a Dynamic Field owned by the `PaymentRegistry`. This record is derived via a
 `PaymentKey`. A `PaymentKey` is a hash of request payment. This includes the `PaymentID`,
 `PaymentAmount`, `CoinType`, and `ReceiverAddress`.
-
-```rust
-public struct PaymentKey<phantom T> has copy, drop, store {
-    nonce: String,
-    payment_amount: u64,
-    receiver: address,
-}
-```
 
 ### Payment Receipts
 
