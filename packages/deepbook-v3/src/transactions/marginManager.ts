@@ -110,4 +110,26 @@ export class MarginManagerContract {
 			typeArguments: [baseCoin.type, quoteCoin.type, deepCoin.type],
 		});
 	};
+
+	withdrawBase = (managerKey: string, amount: number) => (tx: Transaction) => {
+		const manager = this.#config.getMarginManager(managerKey);
+		const pool = this.#config.getPool(manager.poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::withdraw`,
+			arguments: [
+				tx.object(manager.address),
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(baseMarginPool.address),
+				tx.object(quoteMarginPool.address),
+				tx.object(pool.address),
+				tx.pure.u64(amount * baseCoin.scalar),
+				tx.object.clock(),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type, baseCoin.type],
+		});
+	};
 }

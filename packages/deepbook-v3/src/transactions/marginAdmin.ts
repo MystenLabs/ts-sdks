@@ -7,6 +7,7 @@ import type { DeepBookConfig } from '../utils/config.js';
 import type { TransactionArgument } from '@mysten/sui/transactions';
 import type { PoolConfigParams } from '../types/index.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
+import { hexToBytes } from '@noble/hashes/utils';
 
 /**
  * MarginAdminContract class for managing admin actions.
@@ -156,7 +157,7 @@ export class MarginAdminContract {
 	 * @param {TransactionArgument} config The config to be added
 	 * @returns A function that takes a Transaction object
 	 */
-	addConfig = (tx: Transaction, config: TransactionArgument) => {
+	addConfig = (config: TransactionArgument) => (tx: Transaction) => {
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::add_config`,
 			arguments: [
@@ -173,7 +174,7 @@ export class MarginAdminContract {
 	 * @param {Transaction} tx The transaction object
 	 * @returns A function that takes a Transaction object
 	 */
-	removeConfig = (tx: Transaction) => {
+	removeConfig = () => (tx: Transaction) => {
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::remove_config`,
 			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.object(this.#marginAdminCap())],
@@ -248,6 +249,38 @@ export class MarginAdminContract {
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::new_pool_config_with_leverage`,
 			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.pure.u64(leverage * FLOAT_SCALAR)],
 			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	newCoinTypeData = (coinKey: string) => (tx: Transaction) => {
+		const coin = this.#config.getCoin(coinKey);
+		if (!coin.feed) {
+			throw new Error('Coin feed not found');
+		}
+		const priceFeedInput = new Uint8Array(
+			hexToBytes(coin['feed']!.startsWith('0x') ? coin.feed!.slice(2) : coin['feed']),
+		);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::oracle::new_coin_type_data`,
+			arguments: [tx.object(coin.metadataId!), tx.pure.vector('u8', priceFeedInput)],
+			typeArguments: [coin.type],
+		});
+	};
+
+	newPythConfig = (coins: string[], maxAgeSeconds: number) => (tx: Transaction) => {
+		const coinTypeDataList = [];
+		for (const coin of coins) {
+			coinTypeDataList.push(this.newCoinTypeData(coin)(tx));
+		}
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::oracle::new_pyth_config`,
+			arguments: [
+				tx.makeMoveVec({
+					elements: coinTypeDataList,
+					type: `${this.#config.MARGIN_PACKAGE_ID}::oracle::CoinTypeData`,
+				}),
+				tx.pure.u64(maxAgeSeconds),
+			],
 		});
 	};
 }
