@@ -694,6 +694,12 @@ importers:
       '@mysten/sui':
         specifier: workspace:*
         version: link:../typescript
+      axios:
+        specifier: ^1.10.0
+        version: 1.12.2
+      axios-retry:
+        specifier: ^4.5.0
+        version: 4.5.0(axios@1.12.2)
     devDependencies:
       '@iarna/toml':
         specifier: ^2.2.5

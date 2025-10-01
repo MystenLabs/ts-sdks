@@ -14,6 +14,8 @@ import {
 	testnetPools,
 	mainnetMarginPools,
 	testnetMarginPools,
+	mainnetPythConfigs,
+	testnetPythConfigs,
 } from './constants.js';
 
 export const FLOAT_SCALAR = 1000000000;
@@ -26,9 +28,14 @@ export class DeepBookConfig {
 	#coins: CoinMap;
 	#pools: PoolMap;
 	#marginPools: MarginPoolMap;
+	env: Environment;
 	balanceManagers: { [key: string]: BalanceManager };
 	marginManagers: { [key: string]: MarginManager };
 	address: string;
+	pyth: {
+		pythStateId: string;
+		wormholeStateId: string;
+	};
 
 	DEEPBOOK_PACKAGE_ID: string;
 	REGISTRY_ID: string;
@@ -64,6 +71,7 @@ export class DeepBookConfig {
 		pools?: PoolMap;
 		marginPools?: MarginPoolMap;
 	}) {
+		this.env = env;
 		this.address = normalizeSuiAddress(address);
 		this.adminCap = adminCap;
 		this.marginAdminCap = marginAdminCap;
@@ -80,6 +88,7 @@ export class DeepBookConfig {
 			this.DEEP_TREASURY_ID = mainnetPackageIds.DEEP_TREASURY_ID;
 			this.MARGIN_PACKAGE_ID = mainnetPackageIds.MARGIN_PACKAGE_ID;
 			this.MARGIN_REGISTRY_ID = mainnetPackageIds.MARGIN_REGISTRY_ID;
+			this.pyth = mainnetPythConfigs;
 		} else {
 			this.#coins = coins || testnetCoins;
 			this.#pools = pools || testnetPools;
@@ -89,6 +98,7 @@ export class DeepBookConfig {
 			this.DEEP_TREASURY_ID = testnetPackageIds.DEEP_TREASURY_ID;
 			this.MARGIN_PACKAGE_ID = testnetPackageIds.MARGIN_PACKAGE_ID;
 			this.MARGIN_REGISTRY_ID = testnetPackageIds.MARGIN_REGISTRY_ID;
+			this.pyth = testnetPythConfigs;
 		}
 
 		this.balanceManager = new BalanceManagerContract(this);

@@ -18,6 +18,8 @@ import { MarginAdminContract } from './transactions/marginAdmin.js';
 import { MarginMaintainerContract } from './transactions/marginMaintainer.js';
 import { MarginPoolContract } from './transactions/marginPool.js';
 import { MarginManagerContract } from './transactions/marginManager.js';
+import { SuiPriceServiceConnection } from './pyth/pyth.js';
+import { SuiPythClient } from './pyth/pyth.js';
 
 /**
  * DeepBookClient class for managing DeepBook operations.
@@ -767,5 +769,30 @@ export class DeepBookClient {
 			quote: quoteBalance / quoteScalar,
 			deep: deepBalance / DEEP_SCALAR,
 		};
+	}
+
+	async getPriceInfoObject(tx: Transaction, coinKey: string) {
+		// Initialize connection to the Sui Price Service
+		const endpoint =
+			this.#config.env === 'testnet'
+				? 'https://hermes-beta.pyth.network'
+				: 'https://hermes.pyth.network';
+		const connection = new SuiPriceServiceConnection(endpoint);
+
+		// List of price feed IDs
+		const priceIDs = [
+			this.#config.getCoin(coinKey).feed!, // ASSET/USD price ID
+		];
+
+		// Fetch price feed update data
+		const priceUpdateData = await connection.getPriceFeedsUpdateData(priceIDs);
+
+		// Initialize Sui Client and Pyth Client
+		const wormholeStateId = this.#config.pyth.wormholeStateId;
+		const pythStateId = this.#config.pyth.pythStateId;
+
+		const client = new SuiPythClient(this.client, pythStateId, wormholeStateId);
+
+		return await client.updatePriceFeeds(tx, priceUpdateData, priceIDs); // returns priceInfoObjectIds
 	}
 }
