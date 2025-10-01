@@ -118,18 +118,69 @@ export class MarginManagerContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
-		tx.moveCall({
+		return tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::withdraw`,
 			arguments: [
 				tx.object(manager.address),
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
 				tx.object(baseMarginPool.address),
 				tx.object(quoteMarginPool.address),
+				tx.object(baseCoin.priceInfoObjectId!),
+				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.object(pool.address),
 				tx.pure.u64(amount * baseCoin.scalar),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type, baseCoin.type],
+		});
+	};
+
+	withdrawQuote = (managerKey: string, amount: number) => (tx: Transaction) => {
+		const manager = this.#config.getMarginManager(managerKey);
+		const pool = this.#config.getPool(manager.poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::withdraw`,
+			arguments: [
+				tx.object(manager.address),
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(baseMarginPool.address),
+				tx.object(quoteMarginPool.address),
+				tx.object(baseCoin.priceInfoObjectId!),
+				tx.object(quoteCoin.priceInfoObjectId!),
+				tx.object(pool.address),
+				tx.pure.u64(amount * quoteCoin.scalar),
+				tx.object.clock(),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type, quoteCoin.type],
+		});
+	};
+
+	withdrawDeep = (managerKey: string, amount: number) => (tx: Transaction) => {
+		const manager = this.#config.getMarginManager(managerKey);
+		const pool = this.#config.getPool(manager.poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const deepCoin = this.#config.getCoin('DEEP');
+		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::withdraw`,
+			arguments: [
+				tx.object(manager.address),
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(baseMarginPool.address),
+				tx.object(quoteMarginPool.address),
+				tx.object(baseCoin.priceInfoObjectId!),
+				tx.object(quoteCoin.priceInfoObjectId!),
+				tx.object(pool.address),
+				tx.pure.u64(amount * deepCoin.scalar),
+				tx.object.clock(),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type, deepCoin.type],
 		});
 	};
 }

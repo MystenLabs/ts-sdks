@@ -816,6 +816,16 @@ export class DeepBookClient {
 			},
 		});
 
-		return res.data!.content!.fields!.price_info!.fields.arrival_time;
+		if (!res.data?.content) {
+			throw new Error(`Price info object not found for ${coinKey}`);
+		}
+
+		// Type guard to check if content has fields property
+		if ('fields' in res.data.content) {
+			const fields = res.data.content.fields as any;
+			return fields.price_info?.fields?.arrival_time;
+		} else {
+			throw new Error(`Invalid price info object structure for ${coinKey}`);
+		}
 	}
 }

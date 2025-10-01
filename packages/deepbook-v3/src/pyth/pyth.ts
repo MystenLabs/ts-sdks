@@ -164,8 +164,8 @@ export class SuiPythClient {
 			throw new Error('Price feed type mismatch');
 		}
 
-		// @ts-ignore
-		return result.data.content.fields.value;
+		const fields = result.data.content.fields as { value: string };
+		return fields.value;
 	}
 
 	/**
