@@ -309,7 +309,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse> {
 		const { response } = await this.#client.movePackageService.getFunction({
-			packageId: options.packageId,
+			packageId: (await this.mvr.resolvePackage({ package: options.packageId })).package,
 			moduleName: options.moduleName,
 			name: options.name,
 		});

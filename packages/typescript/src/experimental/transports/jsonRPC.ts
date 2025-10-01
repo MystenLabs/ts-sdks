@@ -284,7 +284,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse> {
 		const result = await this.#jsonRpcClient.getNormalizedMoveFunction({
-			package: options.packageId,
+			package: (await this.mvr.resolvePackage({ package: options.packageId })).package,
 			module: options.moduleName,
 			function: options.name,
 		});

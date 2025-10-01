@@ -392,7 +392,7 @@ export class GraphQLTransport extends Experimental_CoreClient {
 			{
 				query: GetMoveFunctionDocument,
 				variables: {
-					package: options.packageId,
+					package: (await this.mvr.resolvePackage({ package: options.packageId })).package,
 					module: options.moduleName,
 					function: options.name,
 				},
