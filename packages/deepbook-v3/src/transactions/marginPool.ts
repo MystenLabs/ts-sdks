@@ -18,7 +18,7 @@ export class MarginPoolContract {
 		this.#config = config;
 	}
 
-	supplyMarginPool =
+	supplyToMarginPool =
 		(coinKey: string, amountToDeposit: number, referralId?: string) => (tx: Transaction) => {
 			tx.setSenderIfNotSet(this.#config.address);
 			const marginPool = this.#config.getMarginPool(coinKey);
@@ -41,6 +41,24 @@ export class MarginPoolContract {
 				typeArguments: [marginPool.type],
 			});
 		};
+
+	withdrawFromMarginPool = (coinKey: string, amountToWithdraw?: number) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		const coin = this.#config.getCoin(coinKey);
+		const withdrawInput = amountToWithdraw
+			? tx.pure.u64(Math.round(amountToWithdraw * coin.scalar))
+			: null;
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::withdraw`,
+			arguments: [
+				tx.object(marginPool.address),
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object.option({ type: 'u64', value: withdrawInput }),
+				tx.object.clock(),
+			],
+			typeArguments: [marginPool.type],
+		});
+	};
 
 	mintReferral = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
