@@ -10,7 +10,6 @@ import {
 import type {
 	PaymentKitCompatibleClient,
 	PaymentKitPackageConfig,
-	PaymentKitClientExtensionOptions,
 	PaymentKitClientOptions,
 } from './types.js';
 import type { SuiClientRegistration } from '@mysten/sui/experimental';
@@ -40,13 +39,15 @@ export class PaymentKitClient {
 		}
 	}
 
-	static asClientExtension(
-		options: PaymentKitClientExtensionOptions,
-	): SuiClientRegistration<PaymentKitCompatibleClient, 'payment-kit', PaymentKitClient> {
+	static asClientExtension(): SuiClientRegistration<
+		PaymentKitCompatibleClient,
+		'payment-kit',
+		PaymentKitClient
+	> {
 		return {
-			name: 'payment-kit',
+			name: 'payment-kit' as const,
 			register: (client) => {
-				return new PaymentKitClient({ client, ...options });
+				return new PaymentKitClient({ client });
 			},
 		};
 	}

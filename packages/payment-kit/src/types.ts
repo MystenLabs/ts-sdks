@@ -8,8 +8,7 @@ export type PaymentKitPackageConfig = {
 };
 
 export interface PaymentKitCompatibleClient extends ClientWithCoreApi {}
-export interface PaymentKitClientExtensionOptions {}
 
-export interface PaymentKitClientOptions extends PaymentKitClientExtensionOptions {
+export interface PaymentKitClientOptions {
 	client: PaymentKitCompatibleClient;
 }
