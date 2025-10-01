@@ -16,6 +16,7 @@ import { DEEP_SCALAR, DeepBookConfig, FLOAT_SCALAR } from './utils/config.js';
 import type { CoinMap, PoolMap } from './utils/constants.js';
 import { MarginAdminContract } from './transactions/marginAdmin.js';
 import { MarginMaintainerContract } from './transactions/marginMaintainer.js';
+import { MarginPoolContract } from './transactions/marginPool.js';
 
 /**
  * DeepBookClient class for managing DeepBook operations.
@@ -31,6 +32,7 @@ export class DeepBookClient {
 	governance: GovernanceContract;
 	marginAdmin: MarginAdminContract;
 	marginMaintainer: MarginMaintainerContract;
+	marginPool: MarginPoolContract;
 
 	/**
 	 * @param {SuiClient} client SuiClient instance
@@ -83,6 +85,7 @@ export class DeepBookClient {
 		this.governance = new GovernanceContract(this.#config);
 		this.marginAdmin = new MarginAdminContract(this.#config);
 		this.marginMaintainer = new MarginMaintainerContract(this.#config);
+		this.marginPool = new MarginPoolContract(this.#config);
 	}
 
 	/**

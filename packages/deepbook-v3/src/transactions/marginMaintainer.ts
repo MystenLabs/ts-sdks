@@ -91,10 +91,9 @@ export class MarginMaintainerContract {
 	};
 
 	enableDeepbookPoolForLoan =
-		(deepbookPoolKey: string, marginPoolKey: string, marginPoolCap: string) =>
-		(tx: Transaction) => {
+		(deepbookPoolKey: string, coinKey: string, marginPoolCap: string) => (tx: Transaction) => {
 			const deepbookPool = this.#config.getPool(deepbookPoolKey);
-			const marginPool = this.#config.getMarginPool(marginPoolKey);
+			const marginPool = this.#config.getMarginPool(coinKey);
 			tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::enable_deepbook_pool_for_loan`,
 				arguments: [
@@ -109,10 +108,9 @@ export class MarginMaintainerContract {
 		};
 
 	disableDeepbookPoolForLoan =
-		(deepbookPoolKey: string, marginPoolKey: string, marginPoolCap: string) =>
-		(tx: Transaction) => {
+		(deepbookPoolKey: string, coinKey: string, marginPoolCap: string) => (tx: Transaction) => {
 			const deepbookPool = this.#config.getPool(deepbookPoolKey);
-			const marginPool = this.#config.getMarginPool(marginPoolKey);
+			const marginPool = this.#config.getMarginPool(coinKey);
 			tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::disable_deepbook_pool_for_loan`,
 				arguments: [
@@ -127,9 +125,9 @@ export class MarginMaintainerContract {
 		};
 
 	updateInterestParams =
-		(marginPoolKey: string, marginPoolCap: string, interestConfig: InterestConfigParams) =>
+		(coinKey: string, marginPoolCap: string, interestConfig: InterestConfigParams) =>
 		(tx: Transaction) => {
-			const marginPool = this.#config.getMarginPool(marginPoolKey);
+			const marginPool = this.#config.getMarginPool(coinKey);
 			const interestConfigObject = this.newInterestConfig(interestConfig)(tx);
 			tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::update_interest_params`,
@@ -145,10 +143,10 @@ export class MarginMaintainerContract {
 		};
 
 	updateMarginPoolConfig =
-		(marginPoolKey: string, marginPoolCap: string, marginPoolConfig: MarginPoolConfigParams) =>
+		(coinKey: string, marginPoolCap: string, marginPoolConfig: MarginPoolConfigParams) =>
 		(tx: Transaction) => {
-			const marginPool = this.#config.getMarginPool(marginPoolKey);
-			const marginPoolConfigObject = this.newMarginPoolConfig(marginPoolKey, marginPoolConfig)(tx);
+			const marginPool = this.#config.getMarginPool(coinKey);
+			const marginPoolConfigObject = this.newMarginPoolConfig(coinKey, marginPoolConfig)(tx);
 			tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::update_margin_pool_config`,
 				arguments: [
