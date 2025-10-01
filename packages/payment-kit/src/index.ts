@@ -4,6 +4,6 @@
 export { PaymentKitClient } from './client.js';
 export type {
 	PaymentKitCompatibleClient,
-	PaymentKitClientConfig,
+	PaymentKitClientOptions,
 	PaymentKitPackageConfig,
 } from './types.js';
