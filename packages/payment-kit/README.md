@@ -19,14 +19,10 @@ Typescript SDK, and a client instance of the Payment Kit SDK.
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { PaymentKitClient } from '@mysten/payment-kit';
 
-const suiClient = new SuiClient({
+const client = new SuiClient({
 	url: getFullnodeUrl('testnet'),
 	network: 'testnet',
-});
-
-const paymentKitClient = new PaymentKitClient({
-	suiClient,
-});
+}).$extend(PaymentKitClient.asClientExtension());
 ```
 
 The Payment Kit SDK already includes all relevant package and object IDs to operate against

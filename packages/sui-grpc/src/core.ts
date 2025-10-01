@@ -79,7 +79,9 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	): Promise<Experimental_SuiClientTypes.GetOwnedObjectsResponse> {
 		const response = await this.#client.liveDataService.listOwnedObjects({
 			owner: options.address,
-			objectType: options.type,
+			objectType: options.type
+				? (await this.mvr.resolveType({ type: options.type })).type
+				: undefined,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
 		});
 
@@ -108,10 +110,9 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	async getCoins(
 		options: Experimental_SuiClientTypes.GetCoinsOptions,
 	): Promise<Experimental_SuiClientTypes.GetCoinsResponse> {
-		// TODO: we need coins sorted by balance
 		const response = await this.#client.liveDataService.listOwnedObjects({
 			owner: options.address,
-			objectType: `0x2::coin::Coin<${options.coinType}>`,
+			objectType: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: options.coinType })).type}>`,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
 		});
 
@@ -138,16 +139,38 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	}
 
 	async getBalance(
-		_options: Experimental_SuiClientTypes.GetBalanceOptions,
+		options: Experimental_SuiClientTypes.GetBalanceOptions,
 	): Promise<Experimental_SuiClientTypes.GetBalanceResponse> {
-		// TODO: GRPC doesn't expose balances yet
-		throw new Error('Not implemented');
+		const result = await this.#client.liveDataService.getBalance({
+			owner: options.address,
+			coinType: (await this.mvr.resolveType({ type: options.coinType })).type,
+		});
+
+		return {
+			balance: {
+				balance: result.response.balance?.balance?.toString() ?? '0',
+				coinType: result.response.balance?.coinType ?? options.coinType,
+			},
+		};
 	}
+
 	async getAllBalances(
-		_options: Experimental_SuiClientTypes.GetAllBalancesOptions,
+		options: Experimental_SuiClientTypes.GetAllBalancesOptions,
 	): Promise<Experimental_SuiClientTypes.GetAllBalancesResponse> {
-		// TODO: GRPC doesn't expose balances yet
-		throw new Error('Not implemented');
+		const result = await this.#client.liveDataService.listBalances({
+			owner: options.address,
+			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
+			pageSize: options.limit,
+		});
+
+		return {
+			hasNextPage: !!result.response.nextPageToken,
+			cursor: result.response.nextPageToken ? toBase64(result.response.nextPageToken) : null,
+			balances: result.response.balances.map((balance) => ({
+				balance: balance.balance?.toString() ?? '0',
+				coinType: balance.coinType!,
+			})),
+		};
 	}
 	async getTransaction(
 		options: Experimental_SuiClientTypes.GetTransactionOptions,

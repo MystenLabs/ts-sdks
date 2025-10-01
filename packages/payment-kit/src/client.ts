@@ -15,27 +15,28 @@ import {
 	PaymentRecord,
 } from './contracts/payment_kit/payment_kit.js';
 import type {
-	PaymentKitClientConfig,
 	PaymentKitCompatibleClient,
 	PaymentKitPackageConfig,
+	PaymentKitClientOptions,
 	ProcessPaymentParams,
 	GetPaymentRecordParams,
 	GetPaymentRecordResponse,
 } from './types.js';
-import { normalizeStructTag } from '@mysten/sui/utils';
+import type { SuiClientRegistration } from '@mysten/sui/experimental';
+import { normalizeStructTag } from '@mysten/sui/dist/cjs/utils/sui-types.js';
 
 export class PaymentKitClient {
 	#packageConfig: PaymentKitPackageConfig;
-	#suiClient: PaymentKitCompatibleClient;
+	#client: PaymentKitCompatibleClient;
 
-	constructor(config: PaymentKitClientConfig) {
-		if (config.suiClient) {
-			this.#suiClient = config.suiClient;
+	private constructor(options: PaymentKitClientOptions) {
+		if (options.client) {
+			this.#client = options.client;
 		} else {
 			throw new PaymentKitClientError('suiClient must be provided');
 		}
 
-		const network = config.suiClient.network;
+		const network = options.client.network;
 		switch (network) {
 			case 'testnet':
 				this.#packageConfig = TESTNET_PAYMENT_KIT_PACKAGE_CONFIG;
@@ -46,6 +47,19 @@ export class PaymentKitClient {
 			default:
 				throw new PaymentKitClientError(`Unsupported network: ${network}`);
 		}
+	}
+
+	static asClientExtension(): SuiClientRegistration<
+		PaymentKitCompatibleClient,
+		'paymentKit',
+		PaymentKitClient
+	> {
+		return {
+			name: 'paymentKit' as const,
+			register: (client) => {
+				return new PaymentKitClient({ client });
+			},
+		};
 	}
 
 	get packageConfig() {
@@ -65,7 +79,7 @@ export class PaymentKitClient {
 		const { paymentId, coinType, sender, amount, receiver, registryId } = params;
 
 		return async (tx: Transaction) => {
-			const coins = await this.#suiClient.core.getCoins({
+			const coins = await this.#client.core.getCoins({
 				address: sender,
 				coinType,
 			});
@@ -138,7 +152,7 @@ export class PaymentKitClient {
 			PaymentKey.name.replace('@mysten/payment-kit', this.#packageConfig.packageId) +
 			`<${normalizedCoinType}>`;
 
-		const result = await this.#suiClient.core.getDynamicField({
+		const result = await this.#client.core.getDynamicField({
 			parentId: params.registryId,
 			name: {
 				type: paymentKeyType,

@@ -195,6 +195,12 @@ export class MvrClient implements Experimental_SuiClientTypes.MvrMethods {
 	async resolveType({
 		type,
 	}: Experimental_SuiClientTypes.MvrResolveTypeOptions): Promise<Experimental_SuiClientTypes.MvrResolveTypeResponse> {
+		if (!hasMvrName(type)) {
+			return {
+				type,
+			};
+		}
+
 		const mvrTypes = [...extractMvrTypes(type)];
 		const resolvedTypes = await this.#mvrTypeDataLoader.loadMany(mvrTypes);
 
