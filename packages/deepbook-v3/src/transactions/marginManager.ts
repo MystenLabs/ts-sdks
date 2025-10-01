@@ -271,4 +271,34 @@ export class MarginManagerContract {
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};
+
+	liquidate =
+		(
+			managerAddress: string,
+			poolKey: string,
+			debtIsBase: boolean,
+			repayCoin: TransactionArgument,
+		) =>
+		(tx: Transaction) => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
+			const marginPool = debtIsBase ? baseMarginPool : quoteMarginPool;
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::liquidate`,
+				arguments: [
+					tx.object(managerAddress),
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					tx.object(baseCoin.priceInfoObjectId!),
+					tx.object(quoteCoin.priceInfoObjectId!),
+					tx.object(marginPool.address),
+					tx.object(pool.address),
+					repayCoin,
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 }
