@@ -3,7 +3,7 @@
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
 import { BalanceManagerContract } from '../transactions/balanceManager.js';
-import type { BalanceManager, Environment } from '../types/index.js';
+import type { BalanceManager, Environment, MarginManager } from '../types/index.js';
 import type { CoinMap, PoolMap, MarginPoolMap } from './constants.js';
 import {
 	mainnetCoins,
@@ -27,6 +27,7 @@ export class DeepBookConfig {
 	#pools: PoolMap;
 	#marginPools: MarginPoolMap;
 	balanceManagers: { [key: string]: BalanceManager };
+	marginManagers: { [key: string]: MarginManager };
 	address: string;
 
 	DEEPBOOK_PACKAGE_ID: string;
@@ -47,6 +48,7 @@ export class DeepBookConfig {
 		marginAdminCap,
 		marginMaintainerCap,
 		balanceManagers,
+		marginManagers,
 		coins,
 		pools,
 		marginPools,
@@ -57,6 +59,7 @@ export class DeepBookConfig {
 		marginAdminCap?: string;
 		marginMaintainerCap?: string;
 		balanceManagers?: { [key: string]: BalanceManager };
+		marginManagers?: { [key: string]: MarginManager };
 		coins?: CoinMap;
 		pools?: PoolMap;
 		marginPools?: MarginPoolMap;
@@ -66,6 +69,7 @@ export class DeepBookConfig {
 		this.marginAdminCap = marginAdminCap;
 		this.marginMaintainerCap = marginMaintainerCap;
 		this.balanceManagers = balanceManagers || {};
+		this.marginManagers = marginManagers || {};
 
 		if (env === 'mainnet') {
 			this.#coins = coins || mainnetCoins;
@@ -129,5 +133,18 @@ export class DeepBookConfig {
 		}
 
 		return this.balanceManagers[managerKey];
+	}
+
+	/**
+	 * @description Get the margin manager by key
+	 * @param managerKey Key of the margin manager
+	 * @returns The MarginManager object
+	 */
+	getMarginManager(managerKey: string): MarginManager {
+		if (!Object.hasOwn(this.marginManagers, managerKey)) {
+			throw new Error(`Margin manager with key ${managerKey} not found.`);
+		}
+
+		return this.marginManagers[managerKey];
 	}
 }

@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import type { Transaction, TransactionArgument } from '@mysten/sui/transactions';
+import { coinWithBalance } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
 
@@ -60,4 +61,53 @@ export class MarginManagerContract {
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			});
 		};
+
+	depositBase = (managerKey: string, amount: number) => (tx: Transaction) => {
+		const manager = this.#config.getMarginManager(managerKey);
+		const pool = this.#config.getPool(manager.poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const coin = coinWithBalance({
+			type: baseCoin.type,
+			balance: amount * baseCoin.scalar,
+		});
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
+			arguments: [tx.object(manager.address), tx.object(this.#config.MARGIN_REGISTRY_ID), coin],
+			typeArguments: [baseCoin.type, quoteCoin.type, baseCoin.type],
+		});
+	};
+
+	depositQuote = (managerKey: string, amount: number) => (tx: Transaction) => {
+		const manager = this.#config.getMarginManager(managerKey);
+		const pool = this.#config.getPool(manager.poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const coin = coinWithBalance({
+			type: quoteCoin.type,
+			balance: amount * quoteCoin.scalar,
+		});
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
+			arguments: [tx.object(manager.address), tx.object(this.#config.MARGIN_REGISTRY_ID), coin],
+			typeArguments: [baseCoin.type, quoteCoin.type, quoteCoin.type],
+		});
+	};
+
+	depositDeep = (managerKey: string, amount: number) => (tx: Transaction) => {
+		const manager = this.#config.getMarginManager(managerKey);
+		const pool = this.#config.getPool(manager.poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const deepCoin = this.#config.getCoin('DEEP');
+		const coin = coinWithBalance({
+			type: deepCoin.type,
+			balance: amount * deepCoin.scalar,
+		});
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
+			arguments: [tx.object(manager.address), tx.object(this.#config.MARGIN_REGISTRY_ID), coin],
+			typeArguments: [baseCoin.type, quoteCoin.type, deepCoin.type],
+		});
+	};
 }

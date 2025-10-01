@@ -13,6 +13,7 @@ export interface BalanceManager {
 
 export interface MarginManager {
 	address: string;
+	poolKey: string;
 }
 
 export interface Coin {
