@@ -24,6 +24,7 @@ export class MarginPoolContract {
 			const marginPool = this.#config.getMarginPool(coinKey);
 			const coin = this.#config.getCoin(coinKey);
 			const depositInput = Math.round(amountToDeposit * coin.scalar);
+			const referralIdInput = referralId ? tx.object(referralId) : null;
 			const supply = coinWithBalance({
 				type: coin.type,
 				balance: depositInput,
@@ -35,7 +36,7 @@ export class MarginPoolContract {
 					tx.object(marginPool.address),
 					tx.object(this.#config.MARGIN_REGISTRY_ID),
 					supply,
-					tx.object.option({ type: 'address', value: referralId ? tx.object(referralId) : null }),
+					tx.object.option({ type: 'address', value: referralIdInput }),
 					tx.object.clock(),
 				],
 				typeArguments: [marginPool.type],
