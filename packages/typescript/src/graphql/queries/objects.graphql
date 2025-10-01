@@ -42,6 +42,9 @@ fragment OBJECT_FIELDS on Object {
 	owner {
 		...OBJECT_OWNER_FIELDS
 	}
+	previousTransactionBlock {
+		digest
+	}
 }
 
 fragment MOVE_OBJECT_FIELDS on MoveObject {
@@ -56,6 +59,9 @@ fragment MOVE_OBJECT_FIELDS on MoveObject {
 	}
 	owner {
 		...OBJECT_OWNER_FIELDS
+	}
+	previousTransactionBlock {
+		digest
 	}
 }
 

@@ -50,6 +50,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 					showOwner: true,
 					showType: true,
 					showBcs: true,
+					showPreviousTransaction: true,
 				},
 				signal: options.signal,
 			});
@@ -76,6 +77,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 				showOwner: true,
 				showType: true,
 				showBcs: true,
+				showPreviousTransaction: true,
 			},
 			filter: options.type ? { StructType: options.type } : null,
 			signal: options.signal,
@@ -123,6 +125,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 						$kind: 'ObjectOwner' as const,
 						ObjectOwner: options.address,
 					},
+					previousTransaction: coin.previousTransaction,
 				};
 			}),
 			hasNextPage: coins.hasNextPage,
@@ -317,6 +320,7 @@ function parseObject(object: SuiObjectData): Experimental_SuiClientTypes.ObjectR
 			object.bcs?.dataType === 'moveObject' ? fromBase64(object.bcs.bcsBytes) : new Uint8Array(),
 		),
 		owner: parseOwner(object.owner!),
+		previousTransaction: object.previousTransaction ?? null,
 	};
 }
 

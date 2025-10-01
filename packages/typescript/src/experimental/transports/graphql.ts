@@ -115,6 +115,7 @@ export class GraphQLTransport extends Experimental_CoreClient {
 								? fromBase64(obj.asMoveObject.contents.bcs)
 								: new Uint8Array(),
 						),
+						previousTransaction: obj.previousTransactionBlock?.digest ?? null,
 					};
 				}),
 		};
@@ -147,6 +148,7 @@ export class GraphQLTransport extends Experimental_CoreClient {
 				content: Promise.resolve(
 					obj.contents?.bcs ? fromBase64(obj.contents.bcs) : new Uint8Array(),
 				),
+				previousTransaction: obj.previousTransactionBlock?.digest ?? null,
 			})),
 			hasNextPage: objects.pageInfo.hasNextPage,
 			cursor: objects.pageInfo.endCursor ?? null,
@@ -181,6 +183,7 @@ export class GraphQLTransport extends Experimental_CoreClient {
 				content: Promise.resolve(
 					coin.contents?.bcs ? fromBase64(coin.contents.bcs) : new Uint8Array(),
 				),
+				previousTransaction: coin.previousTransactionBlock?.digest ?? null,
 			})),
 		};
 	}

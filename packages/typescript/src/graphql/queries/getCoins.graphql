@@ -23,6 +23,9 @@ query getCoins($owner: SuiAddress!, $first: Int, $cursor: String, $type: String 
 				address
 				version
 				digest
+				previousTransactionBlock {
+					digest
+				}
 			}
 		}
 	}

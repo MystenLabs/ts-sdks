@@ -124,6 +124,7 @@ export namespace Experimental_SuiClientTypes {
 		owner: ObjectOwner;
 		type: string;
 		content: PromiseLike<Uint8Array>;
+		previousTransaction: string | null;
 	}
 
 	export interface CoinResponse extends ObjectResponse {

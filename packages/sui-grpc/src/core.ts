@@ -47,7 +47,15 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 			const response = await this.#client.ledgerService.batchGetObjects({
 				requests: batch.map((id) => ({ objectId: id })),
 				readMask: {
-					paths: ['owner', 'object_type', 'bcs', 'digest', 'version', 'object_id'],
+					paths: [
+						'owner',
+						'object_type',
+						'bcs',
+						'digest',
+						'version',
+						'object_id',
+						'previous_transaction',
+					],
 				},
 			});
 
@@ -71,6 +79,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 							content: Promise.resolve(object.result.object.bcs?.value!),
 							owner: mapOwner(object.result.object.owner)!,
 							type: object.result.object.objectType!,
+							previousTransaction: object.result.object.previousTransaction ?? null,
 						};
 					},
 				),
@@ -90,6 +99,17 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 				? (await this.mvr.resolveType({ type: options.type })).type
 				: undefined,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
+			readMask: {
+				paths: [
+					'owner',
+					'object_type',
+					'bcs',
+					'digest',
+					'version',
+					'object_id',
+					'previous_transaction',
+				],
+			},
 		});
 
 		const objects = response.response.objects.map(
@@ -105,6 +125,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 				},
 				owner: mapOwner(object.owner)!,
 				type: object.objectType!,
+				previousTransaction: object.previousTransaction ?? null,
 			}),
 		);
 
@@ -121,6 +142,18 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 			owner: options.address,
 			objectType: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: options.coinType })).type}>`,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
+			readMask: {
+				paths: [
+					'owner',
+					'object_type',
+					'bcs',
+					'digest',
+					'version',
+					'object_id',
+					'balance',
+					'previous_transaction',
+				],
+			},
 		});
 
 		return {
@@ -138,6 +171,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 					owner: mapOwner(object.owner)!,
 					type: object.objectType!,
 					balance: object.balance?.toString()!,
+					previousTransaction: object.previousTransaction ?? null,
 				}),
 			),
 			cursor: response.response.nextPageToken ? toBase64(response.response.nextPageToken) : null,

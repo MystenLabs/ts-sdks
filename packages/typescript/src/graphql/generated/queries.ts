@@ -1064,6 +1064,12 @@ export type CoinMetadataSuinsRegistrationsArgs = {
   last?: InputMaybe<Scalars['Int']['input']>;
 };
 
+export type CoinRegistryCreateTransaction = {
+  __typename?: 'CoinRegistryCreateTransaction';
+  /** A workaround to define an empty variant of a GraphQL union. */
+  _?: Maybe<Scalars['Boolean']['output']>;
+};
+
 /** Same as AddressOwner, but the object is versioned by consensus. */
 export type ConsensusAddressOwner = {
   __typename?: 'ConsensusAddressOwner';
@@ -1292,7 +1298,7 @@ export type EndOfEpochTransactionTransactionsArgs = {
   last?: InputMaybe<Scalars['Int']['input']>;
 };
 
-export type EndOfEpochTransactionKind = AccumulatorRootCreateTransaction | AuthenticatorStateCreateTransaction | AuthenticatorStateExpireTransaction | BridgeCommitteeInitTransaction | BridgeStateCreateTransaction | ChangeEpochTransaction | CoinDenyListStateCreateTransaction | RandomnessStateCreateTransaction | StoreExecutionTimeObservationsTransaction;
+export type EndOfEpochTransactionKind = AccumulatorRootCreateTransaction | AuthenticatorStateCreateTransaction | AuthenticatorStateExpireTransaction | BridgeCommitteeInitTransaction | BridgeStateCreateTransaction | ChangeEpochTransaction | CoinDenyListStateCreateTransaction | CoinRegistryCreateTransaction | RandomnessStateCreateTransaction | StoreExecutionTimeObservationsTransaction;
 
 export type EndOfEpochTransactionKindConnection = {
   __typename?: 'EndOfEpochTransactionKindConnection';
@@ -5399,7 +5405,7 @@ export type GetCoinsQueryVariables = Exact<{
 }>;
 
 
-export type GetCoinsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', address: any, coins: { __typename?: 'CoinConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Coin', coinBalance?: string | null, address: any, version: number, digest?: string | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null, contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null }> } } | null };
+export type GetCoinsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', address: any, coins: { __typename?: 'CoinConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Coin', coinBalance?: string | null, address: any, version: number, digest?: string | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null, contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null, previousTransactionBlock?: { __typename?: 'TransactionBlock', digest?: string | null } | null }> } } | null };
 
 export type GetDynamicFieldsQueryVariables = Exact<{
   parentId: Scalars['SuiAddress']['input'];
@@ -5441,7 +5447,7 @@ export type GetOwnedObjectsQueryVariables = Exact<{
 }>;
 
 
-export type GetOwnedObjectsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', objects: { __typename?: 'MoveObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'MoveObject', address: any, digest?: string | null, version: number, contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null }> } } | null };
+export type GetOwnedObjectsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', objects: { __typename?: 'MoveObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'MoveObject', address: any, digest?: string | null, version: number, contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null, previousTransactionBlock?: { __typename?: 'TransactionBlock', digest?: string | null } | null }> } } | null };
 
 export type MultiGetObjectsQueryVariables = Exact<{
   objectIds: Array<Scalars['SuiAddress']['input']> | Scalars['SuiAddress']['input'];
@@ -5450,11 +5456,11 @@ export type MultiGetObjectsQueryVariables = Exact<{
 }>;
 
 
-export type MultiGetObjectsQuery = { __typename?: 'Query', objects: { __typename?: 'ObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Object', address: any, digest?: string | null, version: number, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null }> } };
+export type MultiGetObjectsQuery = { __typename?: 'Query', objects: { __typename?: 'ObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Object', address: any, digest?: string | null, version: number, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null, previousTransactionBlock?: { __typename?: 'TransactionBlock', digest?: string | null } | null }> } };
 
-export type Object_FieldsFragment = { __typename?: 'Object', address: any, digest?: string | null, version: number, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null };
+export type Object_FieldsFragment = { __typename?: 'Object', address: any, digest?: string | null, version: number, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null, previousTransactionBlock?: { __typename?: 'TransactionBlock', digest?: string | null } | null };
 
-export type Move_Object_FieldsFragment = { __typename?: 'MoveObject', address: any, digest?: string | null, version: number, contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null };
+export type Move_Object_FieldsFragment = { __typename?: 'MoveObject', address: any, digest?: string | null, version: number, contents?: { __typename?: 'MoveValue', bcs: string, type: { __typename?: 'MoveType', repr: string } } | null, owner?: { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null } | { __typename: 'ConsensusAddressOwner', startVersion: number, owner?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Immutable' } | { __typename: 'Parent', parent?: { __typename?: 'Owner', address: any } | null } | { __typename: 'Shared', initialSharedVersion: number } | null, previousTransactionBlock?: { __typename?: 'TransactionBlock', digest?: string | null } | null };
 
 type Object_Owner_Fields_AddressOwner_Fragment = { __typename: 'AddressOwner', owner?: { __typename?: 'Owner', asObject?: { __typename?: 'Object', address: any } | null, asAddress?: { __typename?: 'Address', address: any } | null } | null };
 
@@ -5565,6 +5571,9 @@ export const Object_FieldsFragmentDoc = new TypedDocumentString(`
   owner {
     ...OBJECT_OWNER_FIELDS
   }
+  previousTransactionBlock {
+    digest
+  }
 }
     fragment OBJECT_OWNER_FIELDS on ObjectOwner {
   __typename
@@ -5606,6 +5615,9 @@ export const Move_Object_FieldsFragmentDoc = new TypedDocumentString(`
   }
   owner {
     ...OBJECT_OWNER_FIELDS
+  }
+  previousTransactionBlock {
+    digest
   }
 }
     fragment OBJECT_OWNER_FIELDS on ObjectOwner {
@@ -5760,6 +5772,9 @@ export const GetCoinsDocument = new TypedDocumentString(`
         address
         version
         digest
+        previousTransactionBlock {
+          digest
+        }
       }
     }
   }
@@ -5897,6 +5912,9 @@ export const GetOwnedObjectsDocument = new TypedDocumentString(`
   owner {
     ...OBJECT_OWNER_FIELDS
   }
+  previousTransactionBlock {
+    digest
+  }
 }
 fragment OBJECT_OWNER_FIELDS on ObjectOwner {
   __typename
@@ -5951,6 +5969,9 @@ export const MultiGetObjectsDocument = new TypedDocumentString(`
   }
   owner {
     ...OBJECT_OWNER_FIELDS
+  }
+  previousTransactionBlock {
+    digest
   }
 }
 fragment OBJECT_OWNER_FIELDS on ObjectOwner {
