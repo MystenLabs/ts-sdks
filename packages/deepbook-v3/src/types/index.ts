@@ -11,6 +11,10 @@ export interface BalanceManager {
 	withdrawCap?: string;
 }
 
+export interface MarginManager {
+	address: string;
+}
+
 export interface Coin {
 	address: string;
 	type: string;

@@ -11,12 +11,13 @@ import { DeepBookContract } from './transactions/deepbook.js';
 import { DeepBookAdminContract } from './transactions/deepbookAdmin.js';
 import { FlashLoanContract } from './transactions/flashLoans.js';
 import { GovernanceContract } from './transactions/governance.js';
-import type { BalanceManager, Environment } from './types/index.js';
+import type { BalanceManager, Environment, MarginManager } from './types/index.js';
 import { DEEP_SCALAR, DeepBookConfig, FLOAT_SCALAR } from './utils/config.js';
 import type { CoinMap, PoolMap } from './utils/constants.js';
 import { MarginAdminContract } from './transactions/marginAdmin.js';
 import { MarginMaintainerContract } from './transactions/marginMaintainer.js';
 import { MarginPoolContract } from './transactions/marginPool.js';
+import { MarginManagerContract } from './transactions/marginManager.js';
 
 /**
  * DeepBookClient class for managing DeepBook operations.
@@ -33,12 +34,14 @@ export class DeepBookClient {
 	marginAdmin: MarginAdminContract;
 	marginMaintainer: MarginMaintainerContract;
 	marginPool: MarginPoolContract;
+	marginManager: MarginManagerContract;
 
 	/**
 	 * @param {SuiClient} client SuiClient instance
 	 * @param {string} address Address of the client
 	 * @param {Environment} env Environment configuration
 	 * @param {Object.<string, BalanceManager>} [balanceManagers] Optional initial BalanceManager map
+	 * @param {Object.<string, MarginManager>} [marginManagers] Optional initial MarginManager map
 	 * @param {CoinMap} [coins] Optional initial CoinMap
 	 * @param {PoolMap} [pools] Optional initial PoolMap
 	 * @param {string} [adminCap] Optional admin capability
@@ -60,6 +63,7 @@ export class DeepBookClient {
 		address: string;
 		env: Environment;
 		balanceManagers?: { [key: string]: BalanceManager };
+		marginManagers?: { [key: string]: MarginManager };
 		coins?: CoinMap;
 		pools?: PoolMap;
 		adminCap?: string;
@@ -86,6 +90,7 @@ export class DeepBookClient {
 		this.marginAdmin = new MarginAdminContract(this.#config);
 		this.marginMaintainer = new MarginMaintainerContract(this.#config);
 		this.marginPool = new MarginPoolContract(this.#config);
+		this.marginManager = new MarginManagerContract(this.#config);
 	}
 
 	/**
