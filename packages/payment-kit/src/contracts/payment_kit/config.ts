@@ -3,7 +3,7 @@
 import { MoveEnum } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as type_name from './deps/std/type_name.js';
-const $moduleName = '@local-pkg/payment-kit::config';
+const $moduleName = '@mysten/payment-kit::config';
 export const Value = new MoveEnum({
 	name: `${$moduleName}::Value`,
 	fields: {

@@ -6,4 +6,8 @@ export type {
 	PaymentKitCompatibleClient,
 	PaymentKitClientConfig,
 	PaymentKitPackageConfig,
+	ProcessPaymentParams,
+	GetPaymentRecordParams,
+	PaymentRecordData,
 } from './types.js';
+export { PaymentKitClientError } from './error.js';
