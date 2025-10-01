@@ -13,7 +13,7 @@ import type {
 	PaymentKitClientExtensionOptions,
 	PaymentKitClientOptions,
 } from './types.js';
-import { SuiClientRegistration } from '@mysten/sui/experimental';
+import type { SuiClientRegistration } from '@mysten/sui/experimental';
 
 export class PaymentKitClient {
 	#packageConfig: PaymentKitPackageConfig;
