@@ -53,7 +53,7 @@ are stored.
 There are two distinct ways in which payments are processed. Registry based payments and Ephemeral
 payments.
 
-#### Registry Processed Payments `(processRegistryPayment)`
+#### Registry Processed Payments
 
 When using a `PaymentRegistry` to process a payment a registry must always be specified. A registry
 has the ability to specify where funds must be sent and how long a `PaymentRecord` can live before
@@ -63,7 +63,7 @@ request cannot be fulfilled more than once. The existence of a `PaymentRecord` a
 a payment has been made. Once a payment has been fulfilled a `PaymentReceipt` is emitted that can be
 used as you please.
 
-#### Ephemeral Payments `(processEphemeralPayment)`
+#### Ephemeral Payments
 
 Unlike Registry processed payments, an ephemeral payment does not leverage a registry and does not
 write a `PaymentRecord`. This means duplicate payments are not implicitly prevented. Although, a
@@ -90,7 +90,10 @@ configurations offered:
 
 2. Registry Managed Funds: A configuration that specifies if payment funds must be sent to the
    registry itself. If a `PaymentRegistry` has set this configuration, the `receiver` must be the
-   registry itself. Funds can later be claimed by the registry admin.
+   registry itself. Funds can later be claimed by the registry admin. An added benefit to this
+   configuration is avoiding complicated coin merging, when dealing with high thoroughput payments.
+   This is because the destination is always the same coin object when the registry is set as the
+   fund manager.
 
 ### Payment Records
 
