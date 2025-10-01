@@ -23,6 +23,7 @@ export const MAX_TIMESTAMP = 1844674407370955161n;
 export const GAS_BUDGET = 0.5 * 500000000; // Adjust based on benchmarking
 export const DEEP_SCALAR = 1000000;
 export const POOL_CREATION_FEE = 500 * 1_000_000; // 500 DEEP
+export const PRICE_INFO_OBJECT_MAX_AGE = 30 * 1000;
 
 export class DeepBookConfig {
 	#coins: CoinMap;

@@ -42,6 +42,7 @@ export const testnetCoins: CoinMap = {
 		scalar: 1000000000,
 		feed: '0x50c67b3fd225db8912a424dd4baed60ffdde625ed2feaaf283724f9608fea266',
 		metadataId: '0x587c29de216efd4219573e08a1f6964d4fa7cb714518c2c8a0f29abfa264327d',
+		priceInfoObjectId: '0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0',
 	},
 	DBUSDC: {
 		address: `0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7`,
@@ -49,6 +50,7 @@ export const testnetCoins: CoinMap = {
 		scalar: 1000000,
 		feed: '0x41f3625971ca2ed2263e78573fe5ce23e13d2558ed3f2e47ab0f84fb9e7ae722',
 		metadataId: '0xa68a066e8a9cf7217722a150bacb993c424e7ad42d50d204b4e482ba5aeb8e00',
+		priceInfoObjectId: '0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81',
 	},
 	DBUSDT: {
 		address: `0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7`,

@@ -12,7 +12,12 @@ import { DeepBookAdminContract } from './transactions/deepbookAdmin.js';
 import { FlashLoanContract } from './transactions/flashLoans.js';
 import { GovernanceContract } from './transactions/governance.js';
 import type { BalanceManager, Environment, MarginManager } from './types/index.js';
-import { DEEP_SCALAR, DeepBookConfig, FLOAT_SCALAR } from './utils/config.js';
+import {
+	DEEP_SCALAR,
+	DeepBookConfig,
+	FLOAT_SCALAR,
+	PRICE_INFO_OBJECT_MAX_AGE,
+} from './utils/config.js';
 import type { CoinMap, PoolMap } from './utils/constants.js';
 import { MarginAdminContract } from './transactions/marginAdmin.js';
 import { MarginMaintainerContract } from './transactions/marginMaintainer.js';
@@ -771,7 +776,13 @@ export class DeepBookClient {
 		};
 	}
 
-	async getPriceInfoObject(tx: Transaction, coinKey: string) {
+	async getPriceInfoObject(tx: Transaction, coinKey: string): Promise<string> {
+		const currentTime = Date.now();
+		const dbusdcPriceInfoObjectAge = (await this.getPriceInfoObjectAge(coinKey)) * 1000;
+		if (currentTime - dbusdcPriceInfoObjectAge < PRICE_INFO_OBJECT_MAX_AGE) {
+			return await this.#config.getCoin(coinKey).priceInfoObjectId!;
+		}
+
 		// Initialize connection to the Sui Price Service
 		const endpoint =
 			this.#config.env === 'testnet'
@@ -793,6 +804,18 @@ export class DeepBookClient {
 
 		const client = new SuiPythClient(this.client, pythStateId, wormholeStateId);
 
-		return await client.updatePriceFeeds(tx, priceUpdateData, priceIDs); // returns priceInfoObjectIds
+		return (await client.updatePriceFeeds(tx, priceUpdateData, priceIDs))[0]; // returns priceInfoObjectIds
+	}
+
+	async getPriceInfoObjectAge(coinKey: string) {
+		const priceInfoObjectId = this.#config.getCoin(coinKey).priceInfoObjectId!;
+		const res = await this.client.getObject({
+			id: priceInfoObjectId,
+			options: {
+				showContent: true,
+			},
+		});
+
+		return res.data!.content!.fields!.price_info!.fields.arrival_time;
 	}
 }

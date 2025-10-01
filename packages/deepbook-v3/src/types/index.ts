@@ -22,6 +22,7 @@ export interface Coin {
 	scalar: number;
 	feed?: string;
 	metadataId?: string;
+	priceInfoObjectId?: string;
 }
 
 export interface Pool {
