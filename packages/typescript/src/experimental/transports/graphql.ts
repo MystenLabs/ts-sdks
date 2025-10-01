@@ -127,7 +127,9 @@ export class GraphQLTransport extends Experimental_CoreClient {
 					owner: options.address,
 					limit: options.limit,
 					cursor: options.cursor,
-					filter: options.type ? { type: options.type } : undefined,
+					filter: options.type
+						? { type: (await this.mvr.resolveType({ type: options.type })).type }
+						: undefined,
 				},
 			},
 			(result) => result.address?.objects,
@@ -158,7 +160,7 @@ export class GraphQLTransport extends Experimental_CoreClient {
 					owner: options.address,
 					cursor: options.cursor,
 					first: options.limit,
-					type: options.coinType,
+					type: (await this.mvr.resolveType({ type: options.coinType })).type,
 				},
 			},
 			(result) => result.address?.coins,
@@ -187,7 +189,10 @@ export class GraphQLTransport extends Experimental_CoreClient {
 		const result = await this.#graphqlQuery(
 			{
 				query: GetBalanceDocument,
-				variables: { owner: options.address, type: options.coinType },
+				variables: {
+					owner: options.address,
+					type: (await this.mvr.resolveType({ type: options.coinType })).type,
+				},
 			},
 			(result) => result.address?.balance,
 		);

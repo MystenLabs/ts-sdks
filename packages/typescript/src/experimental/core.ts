@@ -104,11 +104,14 @@ export abstract class Experimental_CoreClient
 	async getDynamicField(
 		options: Experimental_SuiClientTypes.GetDynamicFieldOptions,
 	): Promise<Experimental_SuiClientTypes.GetDynamicFieldResponse> {
-		const fieldId = deriveDynamicFieldID(
-			options.parentId,
-			TypeTagSerializer.parseFromStr(options.name.type),
-			options.name.bcs,
+		const normalizedNameType = TypeTagSerializer.parseFromStr(
+			(
+				await this.core.mvr.resolveType({
+					type: options.name.type,
+				})
+			).type,
 		);
+		const fieldId = deriveDynamicFieldID(options.parentId, normalizedNameType, options.name.bcs);
 		const {
 			objects: [fieldObject],
 		} = await this.getObjects({
