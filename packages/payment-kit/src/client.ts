@@ -41,11 +41,11 @@ export class PaymentKitClient {
 
 	static asClientExtension(): SuiClientRegistration<
 		PaymentKitCompatibleClient,
-		'paymentkit',
+		'paymentKit',
 		PaymentKitClient
 	> {
 		return {
-			name: 'paymentkit' as const,
+			name: 'paymentKit' as const,
 			register: (client) => {
 				return new PaymentKitClient({ client });
 			},
