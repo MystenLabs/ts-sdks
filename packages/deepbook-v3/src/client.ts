@@ -25,6 +25,7 @@ import { MarginPoolContract } from './transactions/marginPool.js';
 import { MarginManagerContract } from './transactions/marginManager.js';
 import { SuiPriceServiceConnection } from './pyth/pyth.js';
 import { SuiPythClient } from './pyth/pyth.js';
+import { PoolProxyContract } from './transactions/poolProxy.js';
 
 /**
  * DeepBookClient class for managing DeepBook operations.
@@ -42,6 +43,7 @@ export class DeepBookClient {
 	marginMaintainer: MarginMaintainerContract;
 	marginPool: MarginPoolContract;
 	marginManager: MarginManagerContract;
+	poolProxy: PoolProxyContract;
 
 	/**
 	 * @param {SuiClient} client SuiClient instance
@@ -100,6 +102,7 @@ export class DeepBookClient {
 		this.marginMaintainer = new MarginMaintainerContract(this.#config);
 		this.marginPool = new MarginPoolContract(this.#config);
 		this.marginManager = new MarginManagerContract(this.#config);
+		this.poolProxy = new PoolProxyContract(this.#config);
 	}
 
 	/**

@@ -74,9 +74,30 @@ export interface PlaceMarketOrderParams {
 	payWithDeep?: boolean;
 }
 
-export interface ProposalParams {
+export interface PlaceMarginLimitOrderParams {
 	poolKey: string;
-	balanceManagerKey: string;
+	marginManagerKey: string;
+	clientOrderId: string;
+	price: number;
+	quantity: number;
+	isBid: boolean;
+	expiration?: number | bigint;
+	orderType?: OrderType;
+	selfMatchingOption?: SelfMatchingOptions;
+	payWithDeep?: boolean;
+}
+
+export interface PlaceMarginMarketOrderParams {
+	poolKey: string;
+	marginManagerKey: string;
+	clientOrderId: string;
+	quantity: number;
+	isBid: boolean;
+	selfMatchingOption?: SelfMatchingOptions;
+	payWithDeep?: boolean;
+}
+
+export interface ProposalParams {
 	takerFee: number;
 	makerFee: number;
 	stakeRequired: number;
