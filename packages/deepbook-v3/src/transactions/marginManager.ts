@@ -18,6 +18,11 @@ export class MarginManagerContract {
 		this.#config = config;
 	}
 
+	/**
+	 * @description Create a new margin manager
+	 * @param {string} poolKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
 	newMarginManager = (poolKey: string) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
@@ -33,6 +38,11 @@ export class MarginManagerContract {
 		});
 	};
 
+	/**
+	 * @description Create a new margin manager with an initializer
+	 * @param {string} poolKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
 	newMarginManagerWithInitializer = (poolKey: string) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
@@ -49,6 +59,13 @@ export class MarginManagerContract {
 		return { manager, initializer };
 	};
 
+	/**
+	 * @description Share a margin manager
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {TransactionArgument} manager The margin manager to share
+	 * @param {TransactionArgument} initializer The initializer for the manager
+	 * @returns A function that takes a Transaction object
+	 */
 	shareMarginManager =
 		(poolKey: string, manager: TransactionArgument, initializer: TransactionArgument) =>
 		(tx: Transaction) => {
@@ -62,6 +79,12 @@ export class MarginManagerContract {
 			});
 		};
 
+	/**
+	 * @description Deposit base into a margin manager
+	 * @param {string} managerKey The key to identify the manager
+	 * @param {number} amount The amount to deposit
+	 * @returns A function that takes a Transaction object
+	 */
 	depositBase = (managerKey: string, amount: number) => (tx: Transaction) => {
 		const manager = this.#config.getMarginManager(managerKey);
 		const pool = this.#config.getPool(manager.poolKey);
@@ -78,6 +101,12 @@ export class MarginManagerContract {
 		});
 	};
 
+	/**
+	 * @description Deposit quote into a margin manager
+	 * @param {string} managerKey The key to identify the manager
+	 * @param {number} amount The amount to deposit
+	 * @returns A function that takes a Transaction object
+	 */
 	depositQuote = (managerKey: string, amount: number) => (tx: Transaction) => {
 		const manager = this.#config.getMarginManager(managerKey);
 		const pool = this.#config.getPool(manager.poolKey);
@@ -94,6 +123,12 @@ export class MarginManagerContract {
 		});
 	};
 
+	/**
+	 * @description Deposit deep into a margin manager
+	 * @param {string} managerKey The key to identify the manager
+	 * @param {number} amount The amount to deposit
+	 * @returns A function that takes a Transaction object
+	 */
 	depositDeep = (managerKey: string, amount: number) => (tx: Transaction) => {
 		const manager = this.#config.getMarginManager(managerKey);
 		const pool = this.#config.getPool(manager.poolKey);
@@ -111,6 +146,12 @@ export class MarginManagerContract {
 		});
 	};
 
+	/**
+	 * @description Withdraw base from a margin manager
+	 * @param {string} managerKey The key to identify the manager
+	 * @param {number} amount The amount to withdraw
+	 * @returns A function that takes a Transaction object
+	 */
 	withdrawBase = (managerKey: string, amount: number) => (tx: Transaction) => {
 		const manager = this.#config.getMarginManager(managerKey);
 		const pool = this.#config.getPool(manager.poolKey);
@@ -135,6 +176,12 @@ export class MarginManagerContract {
 		});
 	};
 
+	/**
+	 * @description Withdraw quote from a margin manager
+	 * @param {string} managerKey The key to identify the manager
+	 * @param {number} amount The amount to withdraw
+	 * @returns A function that takes a Transaction object
+	 */
 	withdrawQuote = (managerKey: string, amount: number) => (tx: Transaction) => {
 		const manager = this.#config.getMarginManager(managerKey);
 		const pool = this.#config.getPool(manager.poolKey);
@@ -159,6 +206,12 @@ export class MarginManagerContract {
 		});
 	};
 
+	/**
+	 * @description Withdraw deep from a margin manager
+	 * @param {string} managerKey The key to identify the manager
+	 * @param {number} amount The amount to withdraw
+	 * @returns A function that takes a Transaction object
+	 */
 	withdrawDeep = (managerKey: string, amount: number) => (tx: Transaction) => {
 		const manager = this.#config.getMarginManager(managerKey);
 		const pool = this.#config.getPool(manager.poolKey);
@@ -184,6 +237,12 @@ export class MarginManagerContract {
 		});
 	};
 
+	/**
+	 * @description Borrow base from a margin manager
+	 * @param {string} managerKey The key to identify the manager
+	 * @param {number} amount The amount to borrow
+	 * @returns A function that takes a Transaction object
+	 */
 	borrowBase = (managerKey: string, amount: number) => (tx: Transaction) => {
 		const manager = this.#config.getMarginManager(managerKey);
 		const pool = this.#config.getPool(manager.poolKey);
@@ -206,6 +265,12 @@ export class MarginManagerContract {
 		});
 	};
 
+	/**
+	 * @description Borrow quote from a margin manager
+	 * @param {string} managerKey The key to identify the manager
+	 * @param {number} amount The amount to borrow
+	 * @returns A function that takes a Transaction object
+	 */
 	borrowQuote = (managerKey: string, amount: number) => (tx: Transaction) => {
 		const manager = this.#config.getMarginManager(managerKey);
 		const pool = this.#config.getPool(manager.poolKey);
@@ -228,6 +293,12 @@ export class MarginManagerContract {
 		});
 	};
 
+	/**
+	 * @description Repay base from a margin manager
+	 * @param {string} managerKey The key to identify the manager
+	 * @param {number} amount The amount to repay
+	 * @returns A function that takes a Transaction object
+	 */
 	repayBase = (managerKey: string, amount?: number) => (tx: Transaction) => {
 		const manager = this.#config.getMarginManager(managerKey);
 		const pool = this.#config.getPool(manager.poolKey);
@@ -250,6 +321,12 @@ export class MarginManagerContract {
 		});
 	};
 
+	/**
+	 * @description Repay quote from a margin manager
+	 * @param {string} managerKey The key to identify the manager
+	 * @param {number} amount The amount to repay
+	 * @returns A function that takes a Transaction object
+	 */
 	repayQuote = (managerKey: string, amount?: number) => (tx: Transaction) => {
 		const manager = this.#config.getMarginManager(managerKey);
 		const pool = this.#config.getPool(manager.poolKey);
@@ -272,6 +349,14 @@ export class MarginManagerContract {
 		});
 	};
 
+	/**
+	 * @description Liquidate a margin manager
+	 * @param {string} managerAddress The address of the manager to liquidate
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {boolean} debtIsBase Whether the debt is in base
+	 * @param {TransactionArgument} repayCoin The coin to repay
+	 * @returns A function that takes a Transaction object
+	 */
 	liquidate =
 		(
 			managerAddress: string,

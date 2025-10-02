@@ -214,6 +214,12 @@ export class MarginAdminContract {
 		});
 	};
 
+	/**
+	 * @description Create a new pool config
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {PoolConfigParams} poolConfigParams The parameters for the pool config
+	 * @returns A function that takes a Transaction object
+	 */
 	newPoolConfig = (poolKey: string, poolConfigParams: PoolConfigParams) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
@@ -241,6 +247,12 @@ export class MarginAdminContract {
 		});
 	};
 
+	/**
+	 * @description Create a new pool config with leverage
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {number} leverage The leverage for the pool
+	 * @returns A function that takes a Transaction object
+	 */
 	newPoolConfigWithLeverage = (poolKey: string, leverage: number) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
@@ -252,6 +264,11 @@ export class MarginAdminContract {
 		});
 	};
 
+	/**
+	 * @description Create a new coin type data
+	 * @param {string} coinKey The key to identify the coin
+	 * @returns A function that takes a Transaction object
+	 */
 	newCoinTypeData = (coinKey: string) => (tx: Transaction) => {
 		const coin = this.#config.getCoin(coinKey);
 		if (!coin.feed) {
@@ -267,6 +284,12 @@ export class MarginAdminContract {
 		});
 	};
 
+	/**
+	 * @description Create a new Pyth config
+	 * @param {string[]} coins The coins to be added to the Pyth config
+	 * @param {number} maxAgeSeconds The max age in seconds for the Pyth config
+	 * @returns A function that takes a Transaction object
+	 */
 	newPythConfig = (coins: string[], maxAgeSeconds: number) => (tx: Transaction) => {
 		const coinTypeDataList = [];
 		for (const coin of coins) {

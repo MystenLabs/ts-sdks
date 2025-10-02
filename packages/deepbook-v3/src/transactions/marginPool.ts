@@ -18,6 +18,13 @@ export class MarginPoolContract {
 		this.#config = config;
 	}
 
+	/**
+	 * @description Supply to a margin pool
+	 * @param {string} coinKey The key to identify the pool
+	 * @param {number} amountToDeposit The amount to deposit
+	 * @param {string} referralId The ID of the referral
+	 * @returns A function that takes a Transaction object
+	 */
 	supplyToMarginPool =
 		(coinKey: string, amountToDeposit: number, referralId?: string) => (tx: Transaction) => {
 			tx.setSenderIfNotSet(this.#config.address);
@@ -43,6 +50,12 @@ export class MarginPoolContract {
 			});
 		};
 
+	/**
+	 * @description Withdraw from a margin pool
+	 * @param {string} coinKey The key to identify the pool
+	 * @param {number} amountToWithdraw The amount to withdraw
+	 * @returns A function that takes a Transaction object
+	 */
 	withdrawFromMarginPool = (coinKey: string, amountToWithdraw?: number) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
 		const coin = this.#config.getCoin(coinKey);
@@ -61,6 +74,11 @@ export class MarginPoolContract {
 		});
 	};
 
+	/**
+	 * @description Mint a referral for a margin pool
+	 * @param {string} coinKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
 	mintReferral = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
 		tx.moveCall({
@@ -70,6 +88,12 @@ export class MarginPoolContract {
 		});
 	};
 
+	/**
+	 * @description Withdraw referral fees from a margin pool
+	 * @param {string} coinKey The key to identify the pool
+	 * @param {string} referralId The ID of the referral
+	 * @returns A function that takes a Transaction object
+	 */
 	withdrawReferralFees = (coinKey: string, referralId: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
 		tx.moveCall({

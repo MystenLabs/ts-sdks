@@ -24,6 +24,11 @@ export class PoolProxyContract {
 		this.#config = config;
 	}
 
+	/**
+	 * @description Place a limit order
+	 * @param {PlaceMarginLimitOrderParams} params Parameters for placing a limit order
+	 * @returns A function that takes a Transaction object
+	 */
 	placeLimitOrder = (params: PlaceMarginLimitOrderParams) => (tx: Transaction) => {
 		const {
 			poolKey,
@@ -63,6 +68,11 @@ export class PoolProxyContract {
 		});
 	};
 
+	/**
+	 * @description Place a market order
+	 * @param {PlaceMarginMarketOrderParams} params Parameters for placing a market order
+	 * @returns A function that takes a Transaction object
+	 */
 	placeMarketOrder = (params: PlaceMarginMarketOrderParams) => (tx: Transaction) => {
 		const {
 			poolKey,
@@ -95,6 +105,11 @@ export class PoolProxyContract {
 		});
 	};
 
+	/**
+	 * @description Place a reduce only limit order
+	 * @param {PlaceMarginLimitOrderParams} params Parameters for placing a reduce only limit order
+	 * @returns A function that takes a Transaction object
+	 */
 	placeReduceOnlyLimitOrder = (params: PlaceMarginLimitOrderParams) => (tx: Transaction) => {
 		const {
 			poolKey,
@@ -139,6 +154,11 @@ export class PoolProxyContract {
 		});
 	};
 
+	/**
+	 * @description Place a reduce only market order
+	 * @param {PlaceMarginMarketOrderParams} params Parameters for placing a reduce only market order
+	 * @returns A function that takes a Transaction object
+	 */
 	placeReduceOnlyMarketOrder = (params: PlaceMarginMarketOrderParams) => (tx: Transaction) => {
 		const {
 			poolKey,
@@ -176,6 +196,13 @@ export class PoolProxyContract {
 		});
 	};
 
+	/**
+	 * @description Modify an existing order
+	 * @param {string} marginManagerKey The key to identify the MarginManager
+	 * @param {string} orderId Order ID to modify
+	 * @param {number} newQuantity New quantity for the order
+	 * @returns A function that takes a Transaction object
+	 */
 	modifyOrder =
 		(marginManagerKey: string, orderId: string, newQuantity: number) => (tx: Transaction) => {
 			const marginManager = this.#config.getMarginManager(marginManagerKey);
@@ -198,6 +225,12 @@ export class PoolProxyContract {
 			});
 		};
 
+	/**
+	 * @description Cancel an existing order
+	 * @param {string} marginManagerKey The key to identify the MarginManager
+	 * @param {string} orderId Order ID to cancel
+	 * @returns A function that takes a Transaction object
+	 */
 	cancelOrder = (marginManagerKey: string, orderId: string) => (tx: Transaction) => {
 		const marginManager = this.#config.getMarginManager(marginManagerKey);
 		const pool = this.#config.getPool(marginManager.poolKey);
@@ -216,6 +249,12 @@ export class PoolProxyContract {
 		});
 	};
 
+	/**
+	 * @description Cancel multiple existing orders
+	 * @param {string} marginManagerKey The key to identify the MarginManager
+	 * @param {string[]} orderIds Order IDs to cancel
+	 * @returns A function that takes a Transaction object
+	 */
 	cancelOrders = (marginManagerKey: string, orderIds: string[]) => (tx: Transaction) => {
 		const marginManager = this.#config.getMarginManager(marginManagerKey);
 		const pool = this.#config.getPool(marginManager.poolKey);
@@ -234,6 +273,11 @@ export class PoolProxyContract {
 		});
 	};
 
+	/**
+	 * @description Cancel all existing orders
+	 * @param {string} marginManagerKey The key to identify the MarginManager
+	 * @returns A function that takes a Transaction object
+	 */
 	cancelAllOrders = (marginManagerKey: string) => (tx: Transaction) => {
 		const marginManager = this.#config.getMarginManager(marginManagerKey);
 		const pool = this.#config.getPool(marginManager.poolKey);
@@ -251,6 +295,11 @@ export class PoolProxyContract {
 		});
 	};
 
+	/**
+	 * @description Withdraw settled amounts
+	 * @param {string} marginManagerKey The key to identify the MarginManager
+	 * @returns A function that takes a Transaction object
+	 */
 	withdrawSettledAmounts = (marginManagerKey: string) => (tx: Transaction) => {
 		const marginManager = this.#config.getMarginManager(marginManagerKey);
 		const pool = this.#config.getPool(marginManager.poolKey);
@@ -267,6 +316,12 @@ export class PoolProxyContract {
 		});
 	};
 
+	/**
+	 * @description Stake in the pool
+	 * @param {string} marginManagerKey The key to identify the MarginManager
+	 * @param {number} stakeAmount The amount to stake
+	 * @returns A function that takes a Transaction object
+	 */
 	stake = (marginManagerKey: string, stakeAmount: number) => (tx: Transaction) => {
 		const marginManager = this.#config.getMarginManager(marginManagerKey);
 		const pool = this.#config.getPool(marginManager.poolKey);
@@ -286,6 +341,11 @@ export class PoolProxyContract {
 		});
 	};
 
+	/**
+	 * @description Unstake from the pool
+	 * @param {string} marginManagerKey The key to identify the MarginManager
+	 * @returns A function that takes a Transaction object
+	 */
 	unstake = (marginManagerKey: string) => (tx: Transaction) => {
 		const marginManager = this.#config.getMarginManager(marginManagerKey);
 		const pool = this.#config.getPool(marginManager.poolKey);
@@ -302,6 +362,12 @@ export class PoolProxyContract {
 		});
 	};
 
+	/**
+	 * @description Submit a proposal
+	 * @param {string} marginManagerKey The key to identify the MarginManager
+	 * @param {ProposalParams} params Parameters for the proposal
+	 * @returns A function that takes a Transaction object
+	 */
 	submitProposal = (marginManagerKey: string, params: ProposalParams) => (tx: Transaction) => {
 		const { takerFee, makerFee, stakeRequired } = params;
 		const marginManager = this.#config.getMarginManager(marginManagerKey);
@@ -325,6 +391,12 @@ export class PoolProxyContract {
 		});
 	};
 
+	/**
+	 * @description Vote on a proposal
+	 * @param {string} marginManagerKey The key to identify the MarginManager
+	 * @param {string} proposalId The ID of the proposal to vote on
+	 * @returns A function that takes a Transaction object
+	 */
 	vote = (marginManagerKey: string, proposalId: string) => (tx: Transaction) => {
 		const marginManager = this.#config.getMarginManager(marginManagerKey);
 		const pool = this.#config.getPool(marginManager.poolKey);
@@ -342,6 +414,11 @@ export class PoolProxyContract {
 		});
 	};
 
+	/**
+	 * @description Claim a rebate from a pool
+	 * @param {string} marginManagerKey The key to identify the MarginManager
+	 * @returns A function that takes a Transaction object
+	 */
 	claimRebate = (marginManagerKey: string) => (tx: Transaction) => {
 		const marginManager = this.#config.getMarginManager(marginManagerKey);
 		const pool = this.#config.getPool(marginManager.poolKey);

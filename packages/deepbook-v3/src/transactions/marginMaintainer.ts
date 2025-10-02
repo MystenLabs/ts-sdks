@@ -33,6 +33,12 @@ export class MarginMaintainerContract {
 		return marginMaintainerCap;
 	}
 
+	/**
+	 * @description Create a new margin pool
+	 * @param {string} coinKey The key to identify the coin
+	 * @param {TransactionArgument} poolConfig The configuration for the pool
+	 * @returns A function that takes a Transaction object
+	 */
 	createMarginPool = (coinKey: string, poolConfig: TransactionArgument) => (tx: Transaction) => {
 		const coin = this.#config.getCoin(coinKey);
 		tx.moveCall({
@@ -47,6 +53,13 @@ export class MarginMaintainerContract {
 		});
 	};
 
+	/**
+	 * @description Create a new protocol config
+	 * @param {string} coinKey The key to identify the coin
+	 * @param {MarginPoolConfigParams} marginPoolConfig The configuration for the margin pool
+	 * @param {InterestConfigParams} interestConfig The configuration for the interest
+	 * @returns A function that takes a Transaction object
+	 */
 	newProtocolConfig =
 		(
 			coinKey: string,
@@ -62,6 +75,12 @@ export class MarginMaintainerContract {
 			});
 		};
 
+	/**
+	 * @description Create a new margin pool config
+	 * @param {string} coinKey The key to identify the coin
+	 * @param {MarginPoolConfigParams} marginPoolConfig The configuration for the margin pool
+	 * @returns A function that takes a Transaction object
+	 */
 	newMarginPoolConfig =
 		(coinKey: string, marginPoolConfig: MarginPoolConfigParams) => (tx: Transaction) => {
 			const coin = this.#config.getCoin(coinKey);
@@ -77,6 +96,11 @@ export class MarginMaintainerContract {
 			});
 		};
 
+	/**
+	 * @description Create a new interest config
+	 * @param {InterestConfigParams} interestConfig The configuration for the interest
+	 * @returns A function that takes a Transaction object
+	 */
 	newInterestConfig = (interestConfig: InterestConfigParams) => (tx: Transaction) => {
 		const { baseRate, baseSlope, optimalUtilization, excessSlope } = interestConfig;
 		return tx.moveCall({
@@ -90,6 +114,13 @@ export class MarginMaintainerContract {
 		});
 	};
 
+	/**
+	 * @description Enable a deepbook pool for loan
+	 * @param {string} deepbookPoolKey The key to identify the deepbook pool
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @param {string} marginPoolCap The margin pool cap
+	 * @returns A function that takes a Transaction object
+	 */
 	enableDeepbookPoolForLoan =
 		(deepbookPoolKey: string, coinKey: string, marginPoolCap: string) => (tx: Transaction) => {
 			const deepbookPool = this.#config.getPool(deepbookPoolKey);
@@ -107,6 +138,13 @@ export class MarginMaintainerContract {
 			});
 		};
 
+	/**
+	 * @description Disable a deepbook pool for loan
+	 * @param {string} deepbookPoolKey The key to identify the deepbook pool
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @param {string} marginPoolCap The margin pool cap
+	 * @returns A function that takes a Transaction object
+	 */
 	disableDeepbookPoolForLoan =
 		(deepbookPoolKey: string, coinKey: string, marginPoolCap: string) => (tx: Transaction) => {
 			const deepbookPool = this.#config.getPool(deepbookPoolKey);
@@ -124,6 +162,13 @@ export class MarginMaintainerContract {
 			});
 		};
 
+	/**
+	 * @description Update the interest params
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @param {string} marginPoolCap The margin pool cap
+	 * @param {InterestConfigParams} interestConfig The configuration for the interest
+	 * @returns A function that takes a Transaction object
+	 */
 	updateInterestParams =
 		(coinKey: string, marginPoolCap: string, interestConfig: InterestConfigParams) =>
 		(tx: Transaction) => {
@@ -142,6 +187,13 @@ export class MarginMaintainerContract {
 			});
 		};
 
+	/**
+	 * @description Update the margin pool config
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @param {string} marginPoolCap The margin pool cap
+	 * @param {MarginPoolConfigParams} marginPoolConfig The configuration for the margin pool
+	 * @returns A function that takes a Transaction object
+	 */
 	updateMarginPoolConfig =
 		(coinKey: string, marginPoolCap: string, marginPoolConfig: MarginPoolConfigParams) =>
 		(tx: Transaction) => {
