@@ -98,6 +98,14 @@ export interface PlaceMarginMarketOrderParams {
 }
 
 export interface ProposalParams {
+	poolKey: string;
+	balanceManagerKey: string;
+	takerFee: number;
+	makerFee: number;
+	stakeRequired: number;
+}
+
+export interface MarginProposalParams {
 	takerFee: number;
 	makerFee: number;
 	stakeRequired: number;

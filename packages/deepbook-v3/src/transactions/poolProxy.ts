@@ -4,7 +4,7 @@ import type { Transaction } from '@mysten/sui/transactions';
 import type {
 	PlaceMarginLimitOrderParams,
 	PlaceMarginMarketOrderParams,
-	ProposalParams,
+	MarginProposalParams,
 } from '../types/index.js';
 
 import type { DeepBookConfig } from '../utils/config.js';
@@ -365,31 +365,32 @@ export class PoolProxyContract {
 	/**
 	 * @description Submit a proposal
 	 * @param {string} marginManagerKey The key to identify the MarginManager
-	 * @param {ProposalParams} params Parameters for the proposal
+	 * @param {MarginProposalParams} params Parameters for the proposal
 	 * @returns A function that takes a Transaction object
 	 */
-	submitProposal = (marginManagerKey: string, params: ProposalParams) => (tx: Transaction) => {
-		const { takerFee, makerFee, stakeRequired } = params;
-		const marginManager = this.#config.getMarginManager(marginManagerKey);
-		const pool = this.#config.getPool(marginManager.poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		const stakeInput = Math.round(stakeRequired * FLOAT_SCALAR);
-		const takerFeeInput = Math.round(takerFee * FLOAT_SCALAR);
-		const makerFeeInput = Math.round(makerFee * FLOAT_SCALAR);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::submit_proposal`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(marginManager.address),
-				tx.object(pool.address),
-				tx.pure.u64(takerFeeInput),
-				tx.pure.u64(makerFeeInput),
-				tx.pure.u64(stakeInput),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
+	submitProposal =
+		(marginManagerKey: string, params: MarginProposalParams) => (tx: Transaction) => {
+			const { takerFee, makerFee, stakeRequired } = params;
+			const marginManager = this.#config.getMarginManager(marginManagerKey);
+			const pool = this.#config.getPool(marginManager.poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			const stakeInput = Math.round(stakeRequired * FLOAT_SCALAR);
+			const takerFeeInput = Math.round(takerFee * FLOAT_SCALAR);
+			const makerFeeInput = Math.round(makerFee * FLOAT_SCALAR);
+			tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::submit_proposal`,
+				arguments: [
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					tx.object(marginManager.address),
+					tx.object(pool.address),
+					tx.pure.u64(takerFeeInput),
+					tx.pure.u64(makerFeeInput),
+					tx.pure.u64(stakeInput),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 
 	/**
 	 * @description Vote on a proposal
