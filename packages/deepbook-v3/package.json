@@ -37,7 +37,7 @@
 	"dependencies": {
 		"@mysten/bcs": "workspace:*",
 		"@mysten/sui": "workspace:*",
-		"axios": "^1.10.0",
+		"axios": "^1.12.2",
 		"axios-retry": "^4.5.0"
 	},
 	"devDependencies": {
