@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 1.39.0
+
+### Minor Changes
+
+- ca92487: Add mvr support to more core API methods
+- 5ab3c0a: Update graphql schema and add getMoveFunction to core client API
+
 ## 1.38.0
 
 ### Minor Changes

@@ -1,5 +1,17 @@
 # @mysten/sui-grpc
 
+## 0.2.0
+
+### Minor Changes
+
+- ca92487: Add balance methods and mvr support
+
+### Patch Changes
+
+- Updated dependencies [ca92487]
+- Updated dependencies [5ab3c0a]
+  - @mysten/sui@1.39.0
+
 ## 0.1.0
 
 ### Minor Changes

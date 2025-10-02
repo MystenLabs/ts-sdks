@@ -1,5 +1,17 @@
 # @mysten/wallet-standard
 
+## 0.18.0
+
+### Minor Changes
+
+- 566b9ae: Add sui:getSupportedIntents feature
+
+### Patch Changes
+
+- Updated dependencies [ca92487]
+- Updated dependencies [5ab3c0a]
+  - @mysten/sui@1.39.0
+
 ## 0.17.0
 
 ### Minor Changes

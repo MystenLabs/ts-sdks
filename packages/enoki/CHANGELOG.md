@@ -1,5 +1,16 @@
 # @mysten/enoki
 
+## 0.12.2
+
+### Patch Changes
+
+- Updated dependencies [566b9ae]
+- Updated dependencies [ca92487]
+- Updated dependencies [5ab3c0a]
+  - @mysten/wallet-standard@0.18.0
+  - @mysten/sui@1.39.0
+  - @mysten/signers@0.5.1
+
 ## 0.12.1
 
 ### Patch Changes

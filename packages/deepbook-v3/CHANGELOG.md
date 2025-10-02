@@ -1,5 +1,17 @@
 # @mysten/deepbook-v3
 
+## 0.19.0
+
+### Minor Changes
+
+- fd91249: Margin package functionality
+
+### Patch Changes
+
+- Updated dependencies [ca92487]
+- Updated dependencies [5ab3c0a]
+  - @mysten/sui@1.39.0
+
 ## 0.18.0
 
 ### Minor Changes

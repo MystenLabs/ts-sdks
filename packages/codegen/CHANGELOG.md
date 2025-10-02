@@ -1,5 +1,14 @@
 # @mysten/codegen
 
+## 0.5.1
+
+### Patch Changes
+
+- 24e6b36: Optional struct generation should be bcs.option instead of bcs.vector
+- Updated dependencies [ca92487]
+- Updated dependencies [5ab3c0a]
+  - @mysten/sui@1.39.0
+
 ## 0.5.0
 
 ### Minor Changes
