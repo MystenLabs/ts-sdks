@@ -11,13 +11,16 @@ export type AnalyzedCommandArgument =
 	| AnalyzedCommandInput
 	| {
 			$kind: 'Unknown';
+			accessLevel: 'read' | 'mutate' | 'transfer';
 	  }
 	| {
 			$kind: 'GasCoin';
+			accessLevel: 'read' | 'mutate' | 'transfer';
 	  }
 	| {
 			$kind: 'Result';
 			index: [number, number];
+			accessLevel: 'read' | 'mutate' | 'transfer';
 	  };
 
 export type AnalyzedCommand =
@@ -106,7 +109,7 @@ export const commandAnalyzer: Analyzer<AnalyzedCommand[]> =
 						$kind: 'MergeCoins',
 						index,
 						sources: command.MergeCoins.sources.map((src) => mapInput(src)),
-						destination: mapInput(command.MergeCoins.destination),
+						destination: mapInput(command.MergeCoins.destination, 'mutate'),
 						command: command.MergeCoins,
 					});
 					break;
@@ -114,25 +117,39 @@ export const commandAnalyzer: Analyzer<AnalyzedCommand[]> =
 					commands.push({
 						$kind: 'SplitCoins',
 						index,
-						coin: mapInput(command.SplitCoins.coin),
-						amounts: command.SplitCoins.amounts.map((amt) => mapInput(amt)),
+						coin: mapInput(command.SplitCoins.coin, 'mutate'),
+						amounts: command.SplitCoins.amounts.map((amt) => mapInput(amt, 'transfer')),
 						command: command.SplitCoins,
 					});
 					break;
-				case 'MoveCall':
+				case 'MoveCall': {
+					const func = moveFunctions.find(
+						(fn) =>
+							fn.packageId === command.MoveCall.package &&
+							fn.moduleName === command.MoveCall.module &&
+							fn.name === command.MoveCall.function,
+					)!;
 					commands.push({
 						$kind: 'MoveCall',
 						index,
-						arguments: command.MoveCall.arguments.map((arg) => mapInput(arg)),
+						arguments: command.MoveCall.arguments.map((arg, i) => {
+							let accessLevel: 'read' | 'mutate' | 'transfer' = 'transfer';
+							switch (func.parameters[i].reference) {
+								case 'mutable':
+									accessLevel = 'mutate';
+									break;
+								case 'immutable':
+									accessLevel = 'read';
+									break;
+							}
+
+							return mapInput(arg, accessLevel);
+						}),
 						command: command.MoveCall,
-						function: moveFunctions.find(
-							(fn) =>
-								fn.packageId === command.MoveCall.package &&
-								fn.moduleName === command.MoveCall.module &&
-								fn.name === command.MoveCall.function,
-						)!,
+						function: func,
 					});
 					break;
+				}
 				case 'Publish':
 					commands.push({
 						$kind: 'Publish',
@@ -153,29 +170,32 @@ export const commandAnalyzer: Analyzer<AnalyzedCommand[]> =
 			}
 		}
 
-		function mapInput(arg: Argument): AnalyzedCommandArgument {
+		function mapInput(
+			arg: Argument,
+			accessLevel: 'read' | 'mutate' | 'transfer' = 'transfer',
+		): AnalyzedCommandArgument {
 			switch (arg.$kind) {
 				case 'Input':
 					break;
 				case 'GasCoin':
-					return { $kind: 'GasCoin' };
+					return { $kind: 'GasCoin', accessLevel };
 				case 'Result':
-					return { $kind: 'Result', index: [arg.Result, 0] };
+					return { $kind: 'Result', index: [arg.Result, 0], accessLevel };
 				case 'NestedResult':
-					return { $kind: 'Result', index: arg.NestedResult };
+					return { $kind: 'Result', index: arg.NestedResult, accessLevel };
 				default:
 					addIssue({ message: `Unexpected input type: ${JSON.stringify(arg)}` });
-					return { $kind: 'Unknown' };
+					return { $kind: 'Unknown', accessLevel };
 			}
 
 			const input = inputs[arg.Input];
 
 			if (!input) {
 				addIssue({ message: `Missing input for index ${arg.Input}` });
-				return { $kind: 'Unknown' };
+				return { $kind: 'Unknown', accessLevel };
 			}
 
-			return input;
+			return { ...input, accessLevel };
 		}
 
 		return commands;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import { TransactionDataBuilder } from '@mysten/sui/transactions';
 import type { TransactionData } from '@mysten/sui/transactions';
 import type { CoinFlow } from './rules/coin-flows.js';
 import { coinFlowAnalyzer } from './rules/coin-flows.js';
@@ -18,6 +19,7 @@ import { moveFunctionAnalyzer } from './rules/functions.js';
 
 export interface BaseAnalysis {
 	bytes: Uint8Array;
+	digest: string;
 	data: TransactionData;
 	inputs: AnalyzedCommandInput[];
 	commands: AnalyzedCommand[];
@@ -31,6 +33,7 @@ export interface BaseAnalysis {
 	dryRun: Experimental_SuiClientTypes.DryRunTransactionResponse;
 	balanceChanges: Experimental_SuiClientTypes.BalanceChange[];
 	coinFlows: CoinFlow[];
+	accessLevel: Record<string, 'read' | 'mutate' | 'transfer'>;
 }
 
 export const baseAnalyzers: {
@@ -44,7 +47,10 @@ export const baseAnalyzers: {
 			await get('bytes');
 			return tx.getData();
 		},
-
+	digest:
+		() =>
+		async ({ get }) =>
+			TransactionDataBuilder.getDigestFromBytes(await get('bytes')),
 	dryRun:
 		(_tx, client) =>
 		async ({ get }) => {
