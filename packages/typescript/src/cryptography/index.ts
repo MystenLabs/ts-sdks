@@ -28,6 +28,7 @@ export {
 	type ParsedKeypair,
 	type SignatureWithBytes,
 	Signer,
+	ExecutingSigner,
 	Keypair,
 	decodeSuiPrivateKey,
 	encodeSuiPrivateKey,
