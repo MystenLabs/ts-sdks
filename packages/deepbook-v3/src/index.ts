@@ -17,8 +17,6 @@ export { MarginAdminContract } from './transactions/marginAdmin.js';
 export { MarginMaintainerContract } from './transactions/marginMaintainer.js';
 export { MarginManagerContract } from './transactions/marginManager.js';
 export { MarginPoolContract } from './transactions/marginPool.js';
-
-// Pool proxy contract (newly added to client)
 export { PoolProxyContract } from './transactions/poolProxy.js';
 
 // Pyth price feed integration
