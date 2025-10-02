@@ -3,7 +3,7 @@
 
 import type { Transaction } from '@mysten/sui/transactions';
 
-import type { CreatePoolAdminParams, SetEwmaParamsParams } from '../types/index.js';
+import type { CreatePoolAdminParams, SetEwmaParams } from '../types/index.js';
 import type { DeepBookConfig } from '../utils/config.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
 
@@ -260,7 +260,7 @@ export class DeepBookAdminContract {
 	 * @param {SetEwmaParamsParams} params The parameters to set
 	 * @returns A function that takes a Transaction object
 	 */
-	setEwmaParams = (poolKey: string, params: SetEwmaParamsParams) => (tx: Transaction) => {
+	setEwmaParams = (poolKey: string, params: SetEwmaParams) => (tx: Transaction) => {
 		const { alpha, zScoreThreshold, additionalTakerFee } = params;
 		const adjustedAlpha = Math.round(alpha * FLOAT_SCALAR);
 		const adjustedZScoreThreshold = Math.round(zScoreThreshold * FLOAT_SCALAR);

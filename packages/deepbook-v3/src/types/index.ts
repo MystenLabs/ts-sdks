@@ -140,7 +140,7 @@ export interface CreatePermissionlessPoolParams {
 	deepCoin?: TransactionObjectArgument;
 }
 
-export interface SetEwmaParamsParams {
+export interface SetEwmaParams {
 	alpha: number;
 	zScoreThreshold: number;
 	additionalTakerFee: number;
