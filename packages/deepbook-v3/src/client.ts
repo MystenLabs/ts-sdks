@@ -810,6 +810,11 @@ export class DeepBookClient {
 		return (await client.updatePriceFeeds(tx, priceUpdateData, priceIDs))[0]; // returns priceInfoObjectIds
 	}
 
+	/**
+	 * @description Get the age of the price info object for a specific coin
+	 * @param {string} coinKey Key of the coin
+	 * @returns {Promise<string>} The arrival time of the price info object
+	 */
 	async getPriceInfoObjectAge(coinKey: string) {
 		const priceInfoObjectId = this.#config.getCoin(coinKey).priceInfoObjectId!;
 		const res = await this.client.getObject({
