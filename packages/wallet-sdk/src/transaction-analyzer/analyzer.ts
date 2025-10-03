@@ -46,15 +46,15 @@ type OptionsFromAnalyzers<T extends Record<string, Analyzer<Defined, any, any>>>
 	{
 		[K in keyof T]: T[K] extends Analyzer<Defined, infer O, any> ? O : never;
 	}[keyof T] & {
-		transactionJson: string;
+		transaction: string | Uint8Array;
 	}
 >;
 
 export async function analyze<T extends Record<string, Analyzer<Defined, any, any>>>(
 	analyzers: T,
-	{ transactionJson, ...options }: OptionsFromAnalyzers<T>,
+	{ transaction, ...options }: OptionsFromAnalyzers<T>,
 ) {
-	const transaction = Transaction.from(transactionJson);
+	const tx = Transaction.from(transaction);
 	const analyzerMap = new Map<
 		unknown,
 		(analysis: object) => AnalyzerResult | Promise<AnalyzerResult>
@@ -65,7 +65,7 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
 
 		if (!analyzerMap.has(cacheKey)) {
 			const deps: Record<string, Analyzer<Defined>> = analyzer.dependencies || {};
-			analyzerMap.set(cacheKey, analyzer.analyze(options, transaction));
+			analyzerMap.set(cacheKey, analyzer.analyze(options, tx));
 
 			Object.values(deps).forEach((dep) => initializeAnalyzer(dep));
 		}

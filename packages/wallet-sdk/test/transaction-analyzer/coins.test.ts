@@ -80,7 +80,7 @@ describe('TransactionAnalyzer - Coins Rule', () => {
 			{ coins, gasCoins },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 

@@ -64,7 +64,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			{ objectIds, objects, ownedObjects, objectsById },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 

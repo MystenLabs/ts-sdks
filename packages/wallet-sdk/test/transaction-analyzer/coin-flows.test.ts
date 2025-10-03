@@ -26,7 +26,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			{ coinFlows },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 
@@ -52,7 +52,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			{ coinFlows },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 
@@ -77,7 +77,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			{ coinFlows },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 
@@ -119,7 +119,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			{ coinFlows },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 
@@ -147,7 +147,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			{ coinFlows },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 
@@ -174,7 +174,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			{ coinFlows },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 
@@ -198,7 +198,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			{ coinFlows },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 
@@ -227,7 +227,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			{ coinFlows },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 
@@ -259,7 +259,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			{ coinFlows },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 
@@ -316,7 +316,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			{ coinFlows },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 
@@ -393,7 +393,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			{ coinFlows },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 

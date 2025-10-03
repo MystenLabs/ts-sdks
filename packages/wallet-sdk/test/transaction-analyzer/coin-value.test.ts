@@ -65,7 +65,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 			{ coinValue },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 				getCoinPrices: mockGetCoinPrices,
 			},
 		);
@@ -112,7 +112,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 			{ coinValue },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 				getCoinPrices: mockGetCoinPrices,
 			},
 		);
@@ -158,7 +158,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 			{ coinValue },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 				getCoinPrices: mockGetCoinPrices,
 			},
 		);
@@ -186,7 +186,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 			{ coinValue },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 				getCoinPrices: mockGetCoinPrices,
 			},
 		);
@@ -236,7 +236,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 			{ coinValue },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 				getCoinPrices: mockGetCoinPrices,
 			},
 		);
@@ -266,7 +266,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 			{ coinValue },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 				getCoinPrices: errorGetCoinPrices,
 			},
 		);
@@ -297,7 +297,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 			{ coinValue },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 				getCoinPrices: mockGetCoinPrices,
 			},
 		);

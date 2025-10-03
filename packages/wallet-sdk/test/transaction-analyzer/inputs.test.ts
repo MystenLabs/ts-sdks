@@ -67,7 +67,7 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 			{ inputs },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 

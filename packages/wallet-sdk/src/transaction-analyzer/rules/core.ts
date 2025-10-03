@@ -38,17 +38,20 @@ export const digest = createAnalyzer({
 		},
 });
 
-export const dryRun = createAnalyzer({
-	cacheKey: 'dryRun@1.0.0',
+export const transactionResponse = createAnalyzer({
+	cacheKey: 'transactionResponse@1.0.0',
 	dependencies: { bytes },
 	analyze:
-		(options: { client: ClientWithCoreApi }) =>
-		async ({
-			bytes,
-		}): Promise<AnalyzerResult<Experimental_SuiClientTypes.DryRunTransactionResponse>> => {
+		(options: {
+			client: ClientWithCoreApi;
+			transactionResponse?: Experimental_SuiClientTypes.TransactionResponse;
+		}) =>
+		async ({ bytes }): Promise<AnalyzerResult<Experimental_SuiClientTypes.TransactionResponse>> => {
 			try {
 				return {
-					result: await options.client.core.dryRunTransaction({ transaction: bytes }),
+					result:
+						options.transactionResponse ??
+						(await options.client.core.dryRunTransaction({ transaction: bytes })).transaction,
 				};
 			} catch {
 				return { issues: [{ message: 'Failed to dry run transaction' }] };
@@ -57,10 +60,10 @@ export const dryRun = createAnalyzer({
 });
 
 export const balanceChanges = createAnalyzer({
-	dependencies: { dryRun },
+	dependencies: { transactionResponse },
 	analyze:
 		() =>
-		({ dryRun }) => {
-			return { result: dryRun.transaction.balanceChanges || [] };
+		({ transactionResponse }) => {
+			return { result: transactionResponse.balanceChanges || [] };
 		},
 });
