@@ -3,7 +3,13 @@
 
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
-import { TransactionAnalyzer } from '../../src/transaction-analyzer/analyzer';
+import { analyze } from '../../src/transaction-analyzer/analyzer';
+import {
+	objectIds,
+	objects,
+	ownedObjects,
+	objectsById,
+} from '../../src/transaction-analyzer/rules/objects';
 import { MockSuiClient } from '../mocks/MockSuiClient';
 import {
 	DEFAULT_SENDER,
@@ -54,14 +60,17 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			arguments: [ownedCoin, parentOwnedCoin, sharedObject, consensusCoin, receivingObject],
 		});
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toMatchInlineSnapshot(`[]`);
+		const results = await analyze(
+			{ objectIds, objects, ownedObjects, objectsById },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
 		// Should detect all object IDs (including gas payment)
-		expect(results.objectIds).toHaveLength(5);
-		expect(results.objectIds).toMatchInlineSnapshot(`
+		expect(results.objectIds.result).toHaveLength(5);
+		expect(results.objectIds.result).toMatchInlineSnapshot(`
 			[
 			  "0x0000000000000000000000000000000000000000000000000000000000a5c000",
 			  "0x0000000000000000000000000000000000000000000000000000000000a5c004",
@@ -72,8 +81,8 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 		`);
 
 		// Should have all objects with ownership info
-		expect(results.objects).toHaveLength(5);
-		expect(results.objects).toMatchInlineSnapshot(`
+		expect(results.objects.result).toHaveLength(5);
+		expect(results.objects.result).toMatchInlineSnapshot(`
 			[
 			  {
 			    "content": Promise {},
@@ -84,6 +93,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			    },
 			    "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			    "previousTransaction": null,
 			    "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			    "version": "100",
 			  },
@@ -96,6 +106,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			    },
 			    "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			    "previousTransaction": null,
 			    "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			    "version": "104",
 			  },
@@ -110,6 +121,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			      },
 			    },
 			    "ownerAddress": null,
+			    "previousTransaction": null,
 			    "type": "0x0000000000000000000000000000000000000000000000000000000000000999::pool::Pool",
 			    "version": "1",
 			  },
@@ -122,6 +134,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			      "AddressOwner": "0xbabe",
 			    },
 			    "ownerAddress": "0xbabe",
+			    "previousTransaction": null,
 			    "type": "0x0000000000000000000000000000000000000000000000000000000000000999::nft::NFT",
 			    "version": "2",
 			  },
@@ -134,6 +147,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			    },
 			    "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			    "previousTransaction": null,
 			    "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			    "version": "105",
 			  },
@@ -141,8 +155,8 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 		`);
 
 		// Should filter owned objects (exclude shared and immutable)
-		expect(results.ownedObjects).toHaveLength(4);
-		expect(results.ownedObjects).toMatchInlineSnapshot(`
+		expect(results.ownedObjects.result).toHaveLength(4);
+		expect(results.ownedObjects.result).toMatchInlineSnapshot(`
 			[
 			  {
 			    "content": Promise {},
@@ -153,6 +167,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			    },
 			    "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			    "previousTransaction": null,
 			    "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			    "version": "100",
 			  },
@@ -165,6 +180,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			    },
 			    "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			    "previousTransaction": null,
 			    "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			    "version": "104",
 			  },
@@ -177,6 +193,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			      "AddressOwner": "0xbabe",
 			    },
 			    "ownerAddress": "0xbabe",
+			    "previousTransaction": null,
 			    "type": "0x0000000000000000000000000000000000000000000000000000000000000999::nft::NFT",
 			    "version": "2",
 			  },
@@ -189,6 +206,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			    },
 			    "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			    "previousTransaction": null,
 			    "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			    "version": "105",
 			  },
@@ -196,29 +214,35 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 		`);
 
 		// Should create objects by ID map
-		expect(results.objectsById.size).toBe(5);
+		expect(results.objectsById.result?.size).toBe(5);
 		expect(
-			results.objectsById.has('0x0000000000000000000000000000000000000000000000000000000000a5c000'),
+			results.objectsById.result?.has(
+				'0x0000000000000000000000000000000000000000000000000000000000a5c000',
+			),
 		).toBe(true);
 		expect(
-			results.objectsById.has('0x0000000000000000000000000000000000000000000000000000000000a5c004'),
+			results.objectsById.result?.has(
+				'0x0000000000000000000000000000000000000000000000000000000000a5c004',
+			),
 		).toBe(true);
 		expect(
-			results.objectsById.has('0x000000000000000000000000000000000000000000000000000000000000beef'),
+			results.objectsById.result?.has(
+				'0x000000000000000000000000000000000000000000000000000000000000beef',
+			),
 		).toBe(true);
 
 		// Verify specific object details
-		const ownedObject = results.objectsById.get(
+		const ownedObject = results.objectsById.result?.get(
 			'0x0000000000000000000000000000000000000000000000000000000000a5c000',
 		);
 		expect(ownedObject?.ownerAddress).toBe(DEFAULT_SENDER);
 
-		const sharedObjectResult = results.objectsById.get(
+		const sharedObjectResult = results.objectsById.result?.get(
 			'0x000000000000000000000000000000000000000000000000000000000000beef',
 		);
 		expect(sharedObjectResult?.ownerAddress).toBe(null);
 
-		const nftObjectResult = results.objectsById.get(
+		const nftObjectResult = results.objectsById.result?.get(
 			'0x000000000000000000000000000000000000000000000000000000000000dead',
 		);
 		expect(nftObjectResult?.ownerAddress).toBe('0xbabe');

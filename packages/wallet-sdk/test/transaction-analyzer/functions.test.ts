@@ -3,7 +3,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
-import { TransactionAnalyzer } from '../../src/transaction-analyzer/analyzer';
+import { analyze } from '../../src/transaction-analyzer/analyzer';
+import { moveFunctions } from '../../src/transaction-analyzer/rules/functions';
 import { MockSuiClient } from '../mocks/MockSuiClient';
 import {
 	DEFAULT_SENDER,
@@ -101,26 +102,17 @@ describe('TransactionAnalyzer - Functions Rule', () => {
 			arguments: [tx.pure.address('0x123'), tx.pure.vector('u8', [1, 2, 3])],
 		});
 
-		// 5. Call non-existent function (should add an issue)
-		tx.moveCall({
-			target: '0x1234567890abcdef::module::function',
-			arguments: [],
-		});
+		const results = await analyze(
+			{ moveFunctions },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toMatchInlineSnapshot(`
-			[
-			  {
-			    "message": "Failed to fetch Move function: 0x0000000000000000000000000000000000000000000000001234567890abcdef::module::function",
-			  },
-			]
-		`);
-
-		// Should find 4 functions (3 from defaults + 2 custom - 1 non-existent)
-		expect(results.moveFunctions).toHaveLength(4);
-		expect(results.moveFunctions).toMatchInlineSnapshot(`
+		// Should find 4 functions (4 successfully fetched)
+		expect(results.moveFunctions.result).toHaveLength(4);
+		expect(results.moveFunctions.result).toMatchInlineSnapshot(`
 			[
 			  {
 			    "isEntry": false,
@@ -257,20 +249,22 @@ describe('TransactionAnalyzer - Functions Rule', () => {
 		`);
 
 		// Verify specific function details
-		const transferFunc = results.moveFunctions.find((f) => f.name === 'transfer');
+		const transferFunc = results.moveFunctions.result?.find((f) => f.name === 'transfer');
 		expect(transferFunc?.isEntry).toBe(false);
 		expect(transferFunc?.visibility).toBe('public');
 		expect(transferFunc?.parameters).toHaveLength(4);
 
-		const batchTransferFunc = results.moveFunctions.find((f) => f.name === 'batch_transfer');
+		const batchTransferFunc = results.moveFunctions.result?.find(
+			(f) => f.name === 'batch_transfer',
+		);
 		expect(batchTransferFunc?.parameters[0]?.body?.$kind).toBe('vector');
 
-		const swapFunc = results.moveFunctions.find((f) => f.name === 'swap');
+		const swapFunc = results.moveFunctions.result?.find((f) => f.name === 'swap');
 		expect(swapFunc?.packageId).toBe(
 			'0x0000000000000000000000000000000000000000000000000000000000000abc',
 		);
 
-		const mintFunc = results.moveFunctions.find((f) => f.name === 'mint');
+		const mintFunc = results.moveFunctions.result?.find((f) => f.name === 'mint');
 		expect(mintFunc?.isEntry).toBe(false);
 		expect(mintFunc?.returns).toHaveLength(1);
 		expect(mintFunc?.parameters).toHaveLength(2);

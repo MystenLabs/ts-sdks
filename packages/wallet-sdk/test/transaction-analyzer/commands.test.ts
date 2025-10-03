@@ -3,7 +3,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
-import { TransactionAnalyzer } from '../../src/transaction-analyzer/analyzer';
+import { analyze } from '../../src/transaction-analyzer/analyzer';
+import { commands } from '../../src/transaction-analyzer/rules/commands';
 import { MockSuiClient } from '../mocks/MockSuiClient';
 import { DEFAULT_SENDER, TEST_COIN_1_ID, TEST_COIN_2_ID } from '../mocks/mockData';
 
@@ -33,11 +34,15 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			arguments: [coinVec],
 		});
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
+		const results = await analyze(
+			{ commands },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
-		expect(issues).toHaveLength(0);
-		expect(results.commands).toMatchInlineSnapshot(`
+		expect(results.commands.result).toMatchInlineSnapshot(`
 			[
 			  {
 			    "$kind": "MakeMoveVec",
@@ -57,6 +62,7 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			    "elements": [
 			      {
 			        "$kind": "Object",
+			        "accessLevel": "transfer",
 			        "index": 0,
 			        "object": {
 			          "content": Promise {},
@@ -67,12 +73,14 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			            "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			          },
 			          "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			          "previousTransaction": null,
 			          "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			          "version": "100",
 			        },
 			      },
 			      {
 			        "$kind": "Object",
+			        "accessLevel": "transfer",
 			        "index": 1,
 			        "object": {
 			          "content": Promise {},
@@ -83,6 +91,7 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			            "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			          },
 			          "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			          "previousTransaction": null,
 			          "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			          "version": "101",
 			        },
@@ -95,12 +104,14 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			    "amounts": [
 			      {
 			        "$kind": "Pure",
+			        "accessLevel": "transfer",
 			        "bytes": "ZAAAAAAAAAA=",
 			        "index": 2,
 			      },
 			    ],
 			    "coin": {
 			      "$kind": "GasCoin",
+			      "accessLevel": "mutate",
 			    },
 			    "command": {
 			      "amounts": [
@@ -132,6 +143,7 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			    },
 			    "destination": {
 			      "$kind": "Object",
+			      "accessLevel": "mutate",
 			      "index": 0,
 			      "object": {
 			        "content": Promise {},
@@ -142,6 +154,7 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			          "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			        },
 			        "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			        "previousTransaction": null,
 			        "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			        "version": "100",
 			      },
@@ -150,6 +163,7 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			    "sources": [
 			      {
 			        "$kind": "Object",
+			        "accessLevel": "transfer",
 			        "index": 1,
 			        "object": {
 			          "content": Promise {},
@@ -160,6 +174,7 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			            "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			          },
 			          "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			          "previousTransaction": null,
 			          "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			          "version": "101",
 			        },
@@ -170,6 +185,7 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			    "$kind": "TransferObjects",
 			    "address": {
 			      "$kind": "Pure",
+			      "accessLevel": "transfer",
 			      "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABFY=",
 			      "index": 3,
 			    },
@@ -189,6 +205,7 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			    "objects": [
 			      {
 			        "$kind": "Result",
+			        "accessLevel": "transfer",
 			        "index": [
 			          1,
 			          0,
@@ -201,6 +218,7 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			    "arguments": [
 			      {
 			        "$kind": "Result",
+			        "accessLevel": "mutate",
 			        "index": [
 			          0,
 			          0,

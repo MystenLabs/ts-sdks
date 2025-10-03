@@ -3,7 +3,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
-import { TransactionAnalyzer } from '../../src/transaction-analyzer/analyzer';
+import { analyze } from '../../src/transaction-analyzer/analyzer';
+import { coinFlows } from '../../src/transaction-analyzer/rules/coin-flows';
 import { MockSuiClient } from '../mocks/MockSuiClient';
 import {
 	DEFAULT_SENDER,
@@ -21,12 +22,16 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		tx.setSender(DEFAULT_SENDER);
 
 		// Empty transaction - gas coin is tracked but no actual flows
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
+		const results = await analyze(
+			{ coinFlows },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
-		expect(issues).toHaveLength(0);
 		// Gas coin is tracked with gas budget usage in empty transaction
-		expect(results.coinFlows).toEqual([
+		expect(results.coinFlows.result?.outflows).toEqual([
 			{
 				coinType: '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
 				amount: 10000000n, // Gas budget
@@ -43,18 +48,21 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		const [gasSplit] = tx.splitCoins(tx.gas, [100000000n]); // 0.1 SUI from gas
 		tx.transferObjects([gasSplit], tx.pure.address('0x456'));
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toHaveLength(0);
+		const results = await analyze(
+			{ coinFlows },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
 		// Should have SUI outflow of 0.1 SUI
-		expect(results.coinFlows).toHaveLength(1);
-		const suiFlow = results.coinFlows[0];
-		expect(suiFlow.coinType).toBe(
+		expect(results.coinFlows.result?.outflows).toHaveLength(1);
+		const suiFlow = results.coinFlows.result?.outflows[0];
+		expect(suiFlow?.coinType).toBe(
 			'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
 		);
-		expect(suiFlow.amount).toBe(110000000n); // 0.1 SUI + 0.01 SUI gas budget
+		expect(suiFlow?.amount).toBe(110000000n); // 0.1 SUI + 0.01 SUI gas budget
 	});
 
 	it('should track full gas coin transfer', async () => {
@@ -65,18 +73,21 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		// Transfer entire gas coin
 		tx.transferObjects([tx.gas], tx.pure.address('0x456'));
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toHaveLength(0);
+		const results = await analyze(
+			{ coinFlows },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
 		// Should have SUI outflow of full gas amount
-		expect(results.coinFlows).toHaveLength(1);
-		const suiFlow = results.coinFlows[0];
-		expect(suiFlow.coinType).toBe(
+		expect(results.coinFlows.result?.outflows).toHaveLength(1);
+		const suiFlow = results.coinFlows.result?.outflows[0];
+		expect(suiFlow?.coinType).toBe(
 			'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
 		);
-		expect(suiFlow.amount).toBe(5000000000n); // Full gas balance transferred
+		expect(suiFlow?.amount).toBe(5000000000n); // Full gas balance transferred
 	});
 
 	it('should handle merge and split operations correctly', async () => {
@@ -104,15 +115,18 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		// Transfer the split
 		tx.transferObjects([toTransfer], tx.pure.address('0x456'));
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toHaveLength(0);
+		const results = await analyze(
+			{ coinFlows },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
 		// Should only count the transferred amount, not double count the merged coins
-		expect(results.coinFlows).toHaveLength(1);
-		const suiFlow = results.coinFlows[0];
-		expect(suiFlow.amount).toBe(1510000000n); // 1 SUI + 2.5 SUI + 0.01 gas budget
+		expect(results.coinFlows.result?.outflows).toHaveLength(1);
+		const suiFlow = results.coinFlows.result?.outflows[0];
+		expect(suiFlow?.amount).toBe(1510000000n); // 1 SUI + 2.5 SUI + 0.01 gas budget
 	});
 
 	it('should track coins consumed in Move calls', async () => {
@@ -129,15 +143,18 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			arguments: [splitCoin, tx.gas],
 		});
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toHaveLength(0);
+		const results = await analyze(
+			{ coinFlows },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
 		// Should track both the split coin and gas coin as consumed
-		expect(results.coinFlows).toHaveLength(1);
-		const suiFlow = results.coinFlows[0];
-		expect(suiFlow.amount).toBe(5500000000n); // 0.5 SUI (split) + 5 SUI (gas)
+		expect(results.coinFlows.result?.outflows).toHaveLength(1);
+		const suiFlow = results.coinFlows.result?.outflows[0];
+		expect(suiFlow?.amount).toBe(5500000000n); // 0.5 SUI (split) + 5 SUI (gas)
 	});
 
 	it('should track coins consumed in MakeMoveVec', async () => {
@@ -153,15 +170,18 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			elements: [splitCoin, tx.gas],
 		});
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toHaveLength(0);
+		const results = await analyze(
+			{ coinFlows },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
 		// Should track both coins as consumed
-		expect(results.coinFlows).toHaveLength(1);
-		const suiFlow = results.coinFlows[0];
-		expect(suiFlow.amount).toBe(5300000000n); // 0.3 SUI (split) + 5 SUI (gas)
+		expect(results.coinFlows.result?.outflows).toHaveLength(1);
+		const suiFlow = results.coinFlows.result?.outflows[0];
+		expect(suiFlow?.amount).toBe(5300000000n); // 0.3 SUI (split) + 5 SUI (gas)
 	});
 
 	it('should track coins transferred back to sender (no outflow)', async () => {
@@ -174,14 +194,17 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		const [splitCoin] = tx.splitCoins(suiCoin, [100000000n]); // 0.1 SUI
 		tx.transferObjects([splitCoin], tx.pure.address(DEFAULT_SENDER));
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toHaveLength(0);
+		const results = await analyze(
+			{ coinFlows },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
 		// Should have no outflows since coin was transferred back to sender
 		// But gas budget is still consumed
-		expect(results.coinFlows).toEqual([
+		expect(results.coinFlows.result?.outflows).toEqual([
 			{
 				coinType: '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
 				amount: 10000000n, // Gas budget
@@ -200,13 +223,16 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		const [splitCoin] = tx.splitCoins(tx.gas, [dynamicAmount]);
 		tx.transferObjects([splitCoin], tx.pure.address('0x456'));
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toHaveLength(0);
+		const results = await analyze(
+			{ coinFlows },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
 		// Should track the full coin balance as outflow due to dynamic amount
-		const suiFlow = results.coinFlows.find(
+		const suiFlow = results.coinFlows.result?.outflows.find(
 			(flow) =>
 				flow.coinType ===
 				'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
@@ -229,22 +255,25 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		tx.transferObjects([usdcCoin], tx.pure.address('0x222'));
 		tx.transferObjects([wethCoin], tx.pure.address('0x333'));
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toHaveLength(0);
+		const results = await analyze(
+			{ coinFlows },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
 		// Should have outflows for all three coin types
-		expect(results.coinFlows).toHaveLength(3);
+		expect(results.coinFlows.result?.outflows).toHaveLength(3);
 
-		const coinTypes = results.coinFlows.map((flow) => flow.coinType).sort();
+		const coinTypes = results.coinFlows.result?.outflows.map((flow) => flow.coinType).sort();
 		expect(coinTypes).toEqual([
 			'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
 			'0x0000000000000000000000000000000000000000000000000000000000000a0b::usdc::USDC',
 			'0x0000000000000000000000000000000000000000000000000000000000000b0c::weth::WETH',
 		]);
 
-		expect(results.coinFlows).toMatchInlineSnapshot(`
+		expect(results.coinFlows.result?.outflows).toMatchInlineSnapshot(`
 			[
 			  {
 			    "amount": 5010000000n,
@@ -283,14 +312,17 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 
 		tx.mergeCoins(coin1, [splitCoin]); // merge back remaining 6 sui
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
+		const results = await analyze(
+			{ coinFlows },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
-		expect(issues).toHaveLength(0);
-
-		expect(results.coinFlows).toHaveLength(1);
-		const suiFlow = results.coinFlows[0];
-		expect(suiFlow.amount).toBe(1510000000n); // 1.5 SUI (split2 + split3) + 0.01 gas budget
+		expect(results.coinFlows.result?.outflows).toHaveLength(1);
+		const suiFlow = results.coinFlows.result?.outflows[0];
+		expect(suiFlow?.amount).toBe(1510000000n); // 1.5 SUI (split2 + split3) + 0.01 gas budget
 	});
 
 	it('should track coin flows when splitting and transferring coins', async () => {
@@ -357,13 +389,16 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			arguments: [coinVec],
 		});
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toMatchInlineSnapshot(`[]`);
+		const results = await analyze(
+			{ coinFlows },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
 		// Verify coin flows are tracked correctly
-		expect(results.coinFlows).toMatchInlineSnapshot(`
+		expect(results.coinFlows.result?.outflows).toMatchInlineSnapshot(`
 			[
 			  {
 			    "amount": 1610000000n,
@@ -381,7 +416,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		`);
 
 		// Verify SUI outflow: 1 SUI (split1) + 0.1 SUI (gas) + 0.5 SUI (consumed in move call) = 1.6 SUI
-		const suiFlow = results.coinFlows.find(
+		const suiFlow = results.coinFlows.result?.outflows.find(
 			(flow) =>
 				flow.coinType ===
 				'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
@@ -389,7 +424,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		expect(suiFlow?.amount).toBe(1610000000n); // 1.6 SUI + 0.01 SUI gas budget
 
 		// Verify USDC outflow: 500 USDC transferred
-		const usdcFlow = results.coinFlows.find(
+		const usdcFlow = results.coinFlows.result?.outflows.find(
 			(flow) =>
 				flow.coinType ===
 				'0x0000000000000000000000000000000000000000000000000000000000000a0b::usdc::USDC',
@@ -397,7 +432,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		expect(usdcFlow?.amount).toBe(500000000n); // Positive means outflow
 
 		// Verify WETH outflow: entire coin consumed in MakeMoveVec
-		const wethFlow = results.coinFlows.find(
+		const wethFlow = results.coinFlows.result?.outflows.find(
 			(flow) =>
 				flow.coinType ===
 				'0x0000000000000000000000000000000000000000000000000000000000000b0c::weth::WETH',

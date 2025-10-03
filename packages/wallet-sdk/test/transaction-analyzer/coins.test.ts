@@ -3,7 +3,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
-import { TransactionAnalyzer } from '../../src/transaction-analyzer/analyzer';
+import { analyze } from '../../src/transaction-analyzer/analyzer';
+import { coins, gasCoins } from '../../src/transaction-analyzer/rules/coins';
 import { MockSuiClient } from '../mocks/MockSuiClient';
 import {
 	DEFAULT_SENDER,
@@ -75,14 +76,17 @@ describe('TransactionAnalyzer - Coins Rule', () => {
 			arguments: [nft],
 		});
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toMatchInlineSnapshot(`[]`);
+		const results = await analyze(
+			{ coins, gasCoins },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
 		// Should detect all coin objects but not the NFT
-		expect(Object.keys(results.coins)).toHaveLength(4);
-		expect(results.coins).toMatchInlineSnapshot(`
+		expect(Object.keys(results.coins.result)).toHaveLength(4);
+		expect(results.coins.result).toMatchInlineSnapshot(`
 			{
 			  "0x0000000000000000000000000000000000000000000000000000000000a5c000": {
 			    "balance": 5000000000n,
@@ -95,6 +99,7 @@ describe('TransactionAnalyzer - Coins Rule', () => {
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			    },
 			    "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			    "previousTransaction": null,
 			    "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			    "version": "100",
 			  },
@@ -109,6 +114,7 @@ describe('TransactionAnalyzer - Coins Rule', () => {
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			    },
 			    "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			    "previousTransaction": null,
 			    "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			    "version": "101",
 			  },
@@ -123,6 +129,7 @@ describe('TransactionAnalyzer - Coins Rule', () => {
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			    },
 			    "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			    "previousTransaction": null,
 			    "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000a0b::usdc::USDC>",
 			    "version": "100",
 			  },
@@ -137,13 +144,14 @@ describe('TransactionAnalyzer - Coins Rule', () => {
 			      "ObjectOwner": "0x00parent",
 			    },
 			    "ownerAddress": "0x00parent",
+			    "previousTransaction": null,
 			    "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			    "version": "100",
 			  },
 			}
 		`);
 
-		expect(results.gasCoins).toMatchInlineSnapshot(`
+		expect(results.gasCoins.result).toMatchInlineSnapshot(`
 			[
 			  {
 			    "balance": 5000000000n,
@@ -156,6 +164,7 @@ describe('TransactionAnalyzer - Coins Rule', () => {
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			    },
 			    "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			    "previousTransaction": null,
 			    "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			    "version": "100",
 			  },

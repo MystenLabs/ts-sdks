@@ -88,6 +88,7 @@ export function createMockCoin(params: {
 		type: normalizeStructTag(`0x2::coin::Coin<${normalizedCoinType}>`),
 		owner: params.owner,
 		content: Promise.resolve(content),
+		previousTransaction: null,
 	};
 }
 
@@ -124,6 +125,7 @@ export function createMockNFT(params: {
 		type: normalizedNftType,
 		owner: params.owner,
 		content: Promise.resolve(content),
+		previousTransaction: null,
 	};
 }
 
@@ -148,6 +150,7 @@ export function createMockObject(params: {
 		type: normalizedObjectType,
 		owner: params.owner,
 		content: Promise.resolve(content),
+		previousTransaction: null,
 	};
 }
 

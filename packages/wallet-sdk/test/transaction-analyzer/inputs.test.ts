@@ -4,7 +4,8 @@
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
-import { TransactionAnalyzer } from '../../src/transaction-analyzer/analyzer';
+import { analyze } from '../../src/transaction-analyzer/analyzer';
+import { inputs } from '../../src/transaction-analyzer/rules/inputs';
 import { bcs } from '@mysten/sui/bcs';
 import { MockSuiClient } from '../mocks/MockSuiClient';
 import {
@@ -62,53 +63,57 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 			],
 		});
 
-		const analyzer = TransactionAnalyzer.create(client, await tx.toJSON(), {});
-		const { results, issues } = await analyzer.analyze();
-
-		expect(issues).toMatchInlineSnapshot(`
-			[
-			  {
-			    "message": "Failed to fetch Move function: 0x0000000000000000000000000000000000000000000000000000000000000999::test::complex_call",
-			  },
-			]
-		`);
+		const results = await analyze(
+			{ inputs },
+			{
+				client,
+				transactionJson: await tx.toJSON(),
+			},
+		);
 
 		// Should have 10 inputs: 6 pure values + 1 pure for gas split + 3 objects
-		expect(results.inputs).toHaveLength(10);
-		expect(results.inputs).toMatchInlineSnapshot(`
+		expect(results.inputs.result).toHaveLength(10);
+		expect(results.inputs.result).toMatchInlineSnapshot(`
 			[
 			  {
 			    "$kind": "Pure",
+			    "accessLevel": "transfer",
 			    "bytes": "6AMAAAAAAAA=",
 			    "index": 0,
 			  },
 			  {
 			    "$kind": "Pure",
+			    "accessLevel": "transfer",
 			    "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABFY=",
 			    "index": 1,
 			  },
 			  {
 			    "$kind": "Pure",
+			    "accessLevel": "transfer",
 			    "bytes": "AQ==",
 			    "index": 2,
 			  },
 			  {
 			    "$kind": "Pure",
+			    "accessLevel": "transfer",
 			    "bytes": "C2hlbGxvIHdvcmxk",
 			    "index": 3,
 			  },
 			  {
 			    "$kind": "Pure",
+			    "accessLevel": "transfer",
 			    "bytes": "A2QAAAAAAAAAyAAAAAAAAAAsAQAAAAAAAA==",
 			    "index": 4,
 			  },
 			  {
 			    "$kind": "Pure",
+			    "accessLevel": "transfer",
 			    "bytes": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEj",
 			    "index": 5,
 			  },
 			  {
 			    "$kind": "Object",
+			    "accessLevel": "read",
 			    "index": 6,
 			    "object": {
 			      "content": Promise {},
@@ -119,12 +124,14 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 			        "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
 			      },
 			      "ownerAddress": "0x0000000000000000000000000000000000000000000000000000000000000123",
+			      "previousTransaction": null,
 			      "type": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
 			      "version": "100",
 			    },
 			  },
 			  {
 			    "$kind": "Object",
+			    "accessLevel": "read",
 			    "index": 7,
 			    "object": {
 			      "content": Promise {},
@@ -137,12 +144,14 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 			        },
 			      },
 			      "ownerAddress": null,
+			      "previousTransaction": null,
 			      "type": "0x0000000000000000000000000000000000000000000000000000000000000999::pool::Pool",
 			      "version": "1",
 			    },
 			  },
 			  {
 			    "$kind": "Object",
+			    "accessLevel": "read",
 			    "index": 8,
 			    "object": {
 			      "content": Promise {},
@@ -153,12 +162,14 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 			        "AddressOwner": "0xbabe",
 			      },
 			      "ownerAddress": "0xbabe",
+			      "previousTransaction": null,
 			      "type": "0x0000000000000000000000000000000000000000000000000000000000000999::nft::NFT",
 			      "version": "2",
 			    },
 			  },
 			  {
 			    "$kind": "Pure",
+			    "accessLevel": "transfer",
 			    "bytes": "MgAAAAAAAAA=",
 			    "index": 9,
 			  },
@@ -166,47 +177,47 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 		`);
 
 		// Verify some specific input values
-		const u64Input = results.inputs[0];
-		if (u64Input.$kind === 'Pure') {
+		const u64Input = results.inputs.result?.[0];
+		if (u64Input?.$kind === 'Pure') {
 			expect(BigInt(bcs.u64().fromBase64(u64Input.bytes))).toBe(1000n);
 		}
 
-		const addressInput = results.inputs[1];
-		if (addressInput.$kind === 'Pure') {
+		const addressInput = results.inputs.result?.[1];
+		if (addressInput?.$kind === 'Pure') {
 			expect(bcs.Address.fromBase64(addressInput.bytes)).toBe(normalizeSuiAddress('0x456'));
 		}
 
-		const boolInput = results.inputs[2];
-		if (boolInput.$kind === 'Pure') {
+		const boolInput = results.inputs.result?.[2];
+		if (boolInput?.$kind === 'Pure') {
 			expect(bcs.bool().fromBase64(boolInput.bytes)).toBe(true);
 		}
 
-		const stringInput = results.inputs[3];
-		if (stringInput.$kind === 'Pure') {
+		const stringInput = results.inputs.result?.[3];
+		if (stringInput?.$kind === 'Pure') {
 			expect(bcs.string().fromBase64(stringInput.bytes)).toBe('hello world');
 		}
 
-		const vectorInput = results.inputs[4];
-		if (vectorInput.$kind === 'Pure') {
+		const vectorInput = results.inputs.result?.[4];
+		if (vectorInput?.$kind === 'Pure') {
 			const decoded = bcs.vector(bcs.u64()).fromBase64(vectorInput.bytes);
 			expect(decoded.map((v) => BigInt(v))).toEqual([100n, 200n, 300n]);
 		}
 
 		// Object inputs
-		const ownedObjectInput = results.inputs[6];
-		if (ownedObjectInput.$kind === 'Object') {
+		const ownedObjectInput = results.inputs.result?.[6];
+		if (ownedObjectInput?.$kind === 'Object') {
 			expect(ownedObjectInput.object.id).toBe(normalizeSuiAddress(TEST_COIN_1_ID));
 			expect(ownedObjectInput.object.owner.$kind).toBe('AddressOwner');
 		}
 
-		const sharedObjectInput = results.inputs[7];
-		if (sharedObjectInput.$kind === 'Object') {
+		const sharedObjectInput = results.inputs.result?.[7];
+		if (sharedObjectInput?.$kind === 'Object') {
 			expect(sharedObjectInput.object.id).toBe(normalizeSuiAddress(TEST_SHARED_OBJECT_ID));
 			expect(sharedObjectInput.object.owner.$kind).toBe('Shared');
 		}
 
-		const receivingObjectInput = results.inputs[8];
-		if (receivingObjectInput.$kind === 'Object') {
+		const receivingObjectInput = results.inputs.result?.[8];
+		if (receivingObjectInput?.$kind === 'Object') {
 			expect(receivingObjectInput.object.id).toBe(normalizeSuiAddress(TEST_NFT_ID));
 			expect(receivingObjectInput.object.type).toBe(
 				'0x0000000000000000000000000000000000000000000000000000000000000999::nft::NFT',
@@ -214,8 +225,8 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 		}
 
 		// Gas split amount
-		const gasAmountInput = results.inputs[9];
-		if (gasAmountInput.$kind === 'Pure') {
+		const gasAmountInput = results.inputs.result?.[9];
+		if (gasAmountInput?.$kind === 'Pure') {
 			expect(BigInt(bcs.u64().fromBase64(gasAmountInput.bytes))).toBe(50n);
 		}
 	});

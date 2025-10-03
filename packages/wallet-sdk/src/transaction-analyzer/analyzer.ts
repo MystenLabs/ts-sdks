@@ -45,7 +45,7 @@ export function createAnalyzer<
 type OptionsFromAnalyzers<T extends Record<string, Analyzer<Defined, any, any>>> = Simplify<
 	{
 		[K in keyof T]: T[K] extends Analyzer<Defined, infer O, any> ? O : never;
-	} & {
+	}[keyof T] & {
 		transactionJson: string;
 	}
 >;
@@ -98,9 +98,19 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
 			return { issues: [...issues] };
 		}
 
-		return analyzerMap.get(analyzer.cacheKey ?? analyzer)!(
-			Object.fromEntries(Object.entries(deps).map(([key, dep]) => [key, dep.result])),
-		);
+		try {
+			const result = await analyzerMap.get(analyzer.cacheKey ?? analyzer)!(
+				Object.fromEntries(Object.entries(deps).map(([key, dep]) => [key, dep.result])),
+			);
+
+			return result;
+		} catch (error) {
+			return {
+				issues: [
+					{ message: `Unexpected error while analyzing transaction: ${(error as Error).message}` },
+				],
+			};
+		}
 	}
 
 	function getAnalysis(analyzer: Analyzer<Defined>): Promise<AnalyzerResult> {
@@ -118,7 +128,7 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
 			Object.entries(analyzers).map(async ([key, analyzer]) => [key, await getAnalysis(analyzer)]),
 		),
 	) as {
-		[k in keyof T]: T[k] extends Analyzer<infer R, any, any> ? R : never;
+		[k in keyof T]: T[k] extends Analyzer<infer R, any, any> ? AnalyzerResult<R> : never;
 	};
 }
 
