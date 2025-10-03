@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
-import type { Analyzer } from '../analyzer.js';
+import { createAnalyzer } from '../analyzer.js';
+import { data } from '../core.js';
+import { objectsById } from './objects.js';
 
 export type AnalyzedCommandInput =
 	| {
@@ -19,29 +21,36 @@ export type AnalyzedCommandInput =
 			accessLevel: 'read' | 'mutate' | 'transfer';
 	  };
 
-export const inputAnalyzer: Analyzer<AnalyzedCommandInput[]> =
-	() =>
-	async ({ getAll }) => {
-		const [data, objects] = await getAll('data', 'objectsById');
-
-		return data.inputs.map((input, index): AnalyzedCommandInput => {
-			switch (input.$kind) {
-				case 'Pure':
-					return { $kind: 'Pure', index, bytes: input.Pure.bytes!, accessLevel: 'transfer' };
-				case 'Object':
-					const objectId =
-						input.Object.ImmOrOwnedObject?.objectId ??
-						input.Object.Receiving?.objectId ??
-						input.Object.SharedObject?.objectId!;
-
-					const object = objects.get(objectId)!;
-					if (!object) {
-						throw new Error(`Missing object for id ${objectId}`);
-					}
-
-					return { $kind: 'Object', index, object, accessLevel: 'read' };
-				default:
-					throw new Error(`Unknown input type: ${JSON.stringify(input)}`);
+export const inputs = createAnalyzer({
+	dependencies: { data, objectsById },
+	analyze:
+		() =>
+		({ data, objectsById }) => {
+			if (data.issues || objectsById.issues) {
+				return { issues: [...(data.issues || []), ...(objectsById.issues || [])] };
 			}
-		});
-	};
+
+			return {
+				result: data.result.inputs.map((input, index): AnalyzedCommandInput => {
+					switch (input.$kind) {
+						case 'Pure':
+							return { $kind: 'Pure', index, bytes: input.Pure.bytes!, accessLevel: 'transfer' };
+						case 'Object':
+							const objectId =
+								input.Object.ImmOrOwnedObject?.objectId ??
+								input.Object.Receiving?.objectId ??
+								input.Object.SharedObject?.objectId!;
+
+							const object = objectsById.result.get(objectId)!;
+							if (!object) {
+								throw new Error(`Missing object for id ${objectId}`);
+							}
+
+							return { $kind: 'Object', index, object, accessLevel: 'read' };
+						default:
+							throw new Error(`Unknown input type: ${JSON.stringify(input)}`);
+					}
+				}),
+			};
+		},
+});

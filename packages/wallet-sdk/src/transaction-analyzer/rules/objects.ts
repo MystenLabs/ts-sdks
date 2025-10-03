@@ -1,40 +1,40 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
-import type { Analyzer } from '../analyzer.js';
-import type { AnalyzedCommandArgument } from './commands.js';
+import type { ClientWithCoreApi, Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import { createAnalyzer } from '../analyzer.js';
+import type { TransactionAnalysisIssue } from '../analyzer.js';
 
-// SPDX-License-Identifier: Apache-2.0
+import { data } from '../core.js';
+
 export type AnalyzedObject = Experimental_SuiClientTypes.ObjectResponse & {
 	ownerAddress: string | null;
 };
 
-export const objectAnalyzers: {
-	objects: Analyzer<AnalyzedObject[]>;
-	ownedObjects: Analyzer<AnalyzedObject[]>;
-	objectsById: Analyzer<Map<string, AnalyzedObject>>;
-	objectIds: Analyzer<string[]>;
-	accessLevel: Analyzer<Record<string, 'read' | 'mutate' | 'transfer'>>;
-} = {
-	objectIds:
+export const objectIds = createAnalyzer({
+	dependencies: { data },
+	analyze:
 		() =>
-		async ({ get, addIssue }) => {
-			const data = await get('data');
+		({ data }) => {
+			if (data.issues) {
+				return { issues: data.issues };
+			}
 
-			const inputs = data.inputs
+			const issues: TransactionAnalysisIssue[] = [];
+
+			const inputs = data.result.inputs
 				.filter((input): input is Extract<typeof input, { $kind: 'Object' }> => {
 					switch (input.$kind) {
 						case 'UnresolvedObject':
 						case 'UnresolvedPure':
-							addIssue({ message: `Unexpected unresolved input: ${JSON.stringify(input)}` });
+							issues.push({ message: `Unexpected unresolved input: ${JSON.stringify(input)}` });
 							return false;
 						case 'Pure':
 							return false;
 						case 'Object':
 							return true;
 						default:
-							addIssue({ message: `Unknown input type: ${JSON.stringify(input)}` });
+							issues.push({ message: `Unknown input type: ${JSON.stringify(input)}` });
 							return false;
 					}
 				})
@@ -51,21 +51,38 @@ export const objectAnalyzers: {
 					}
 				});
 
-			const gasObjects = data.gasData.payment?.map((obj) => obj.objectId) || [];
+			if (issues.length) {
+				return { issues };
+			}
 
-			return Array.from(new Set([...inputs, ...gasObjects]));
+			const gasObjects = data.result.gasData.payment?.map((obj) => obj.objectId) || [];
+
+			return {
+				result: Array.from(new Set([...inputs, ...gasObjects])),
+			};
 		},
-	objects:
-		(_tx, client) =>
-		async ({ get, addIssue }) => {
+});
+
+export const objects = createAnalyzer({
+	cacheKey: 'objects@1.0.0',
+	dependencies: { objectIds },
+	analyze:
+		({ client }: { client: ClientWithCoreApi }) =>
+		async ({ objectIds }) => {
+			if (objectIds.issues) {
+				return { issues: objectIds.issues };
+			}
+
 			const { objects } = await client.core.getObjects({
-				objectIds: await get('objectIds'),
+				objectIds: objectIds.result,
 			});
+
+			const issues: TransactionAnalysisIssue[] = [];
 
 			const foundObjects = objects.filter(
 				(obj): obj is Experimental_SuiClientTypes.ObjectResponse => {
 					if (obj instanceof Error) {
-						addIssue({ message: `Failed to fetch object: ${obj.message}`, error: obj });
+						issues.push({ message: `Failed to fetch object: ${obj.message}`, error: obj });
 						return false;
 					}
 
@@ -73,7 +90,7 @@ export const objectAnalyzers: {
 				},
 			);
 
-			return foundObjects.map((obj) => {
+			const result = foundObjects.map((obj) => {
 				let ownerAddress: string | null = null;
 				switch (obj.owner.$kind) {
 					case 'AddressOwner':
@@ -90,112 +107,44 @@ export const objectAnalyzers: {
 						ownerAddress = null;
 						break;
 					default:
-						addIssue({ message: `Unknown owner type: ${JSON.stringify(obj.owner)}` });
+						issues.push({ message: `Unknown owner type: ${JSON.stringify(obj.owner)}` });
 				}
 
 				return { ...obj, ownerAddress };
 			});
+
+			if (issues.length) {
+				return { issues };
+			}
+
+			return { result };
 		},
-	ownedObjects:
-		() =>
-		async ({ get, addIssue }) => {
-			const objects = await get('objects');
+});
 
-			return objects.filter((obj) => {
-				switch (obj.owner.$kind) {
-					case 'AddressOwner':
-					case 'ObjectOwner':
-					case 'ConsensusAddressOwner':
-						return true;
-					case 'Shared':
-					case 'Immutable':
-						return false;
-					default:
-						addIssue({ message: `Unknown owner type: ${JSON.stringify(obj.owner)}` });
-						return false;
-				}
-			});
+export const ownedObjects = createAnalyzer({
+	dependencies: { objects },
+	analyze:
+		() =>
+		async ({ objects }) => {
+			if (objects.issues) {
+				return { issues: objects.issues };
+			}
+
+			return { result: objects.result.filter((obj) => obj.ownerAddress !== null) };
 		},
-	objectsById:
+});
+
+export const objectsById = createAnalyzer({
+	dependencies: { objects },
+	analyze:
 		() =>
-		async ({ get }) =>
-			new Map((await get('objects')).map((obj) => [obj.id, obj])),
-	accessLevel:
-		() =>
-		async ({ getAll, addIssue }) => {
-			const [commands, objects, gasCoins] = await getAll('commands', 'objects', 'gasCoins');
-			const gasCoinIds = new Set(gasCoins.map((g) => g.id));
-
-			const accessLevels: Record<string, 'read' | 'mutate' | 'transfer'> = Object.fromEntries(
-				objects.map((obj) => [obj.id, 'read' as const]),
-			);
-
-			for (const id of gasCoinIds) {
-				accessLevels[id] = 'mutate';
+		async ({ objects }) => {
+			if (objects.issues) {
+				return { issues: objects.issues };
 			}
 
-			for (const command of commands) {
-				switch (command.$kind) {
-					case 'TransferObjects':
-						for (const obj of command.objects) {
-							updateFromArgument(obj);
-						}
-						break;
-					case 'MoveCall':
-						for (const arg of command.arguments) {
-							updateFromArgument(arg);
-						}
-						break;
-					case 'SplitCoins':
-						updateFromArgument(command.coin);
-						break;
-					case 'MergeCoins':
-						updateFromArgument(command.destination);
-						for (const src of command.sources) {
-							updateFromArgument(src);
-						}
-						break;
-					case 'MakeMoveVec':
-						for (const el of command.elements) {
-							updateFromArgument(el);
-						}
-						break;
-					case 'Upgrade':
-						updateFromArgument(command.ticket);
-						break;
-					case 'Publish':
-						break;
-					default:
-						addIssue({ message: `Unknown command type: ${JSON.stringify(command)}` });
-				}
-			}
-
-			return accessLevels;
-
-			function updateFromArgument(arg: AnalyzedCommandArgument) {
-				switch (arg.$kind) {
-					case 'GasCoin':
-						for (const id of gasCoinIds) {
-							updateAccessLevel(id, arg.accessLevel);
-						}
-						break;
-					case 'Object':
-						updateAccessLevel(arg.object.id, arg.accessLevel);
-						break;
-				}
-			}
-
-			function updateAccessLevel(id: string, level: 'read' | 'mutate' | 'transfer') {
-				const current = accessLevels[id];
-				if (current === 'transfer') {
-					return;
-				} else if (current === 'mutate') {
-					if (level === 'transfer') {
-						accessLevels[id] = 'transfer';
-					}
-				} else {
-					accessLevels[id] = level;
-				}
-			}
+			return {
+				result: new Map(objects.result.map((obj) => [obj.id, obj])),
+			};
 		},
-};
+});
