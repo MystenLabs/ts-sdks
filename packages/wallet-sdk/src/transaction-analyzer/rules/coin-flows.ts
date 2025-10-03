@@ -7,7 +7,7 @@ import { createAnalyzer } from '../analyzer.js';
 import { bcs } from '@mysten/sui/bcs';
 import { commands } from './commands.js';
 import type { AnalyzedCommand, AnalyzedCommandArgument } from './commands.js';
-import { data } from '../core.js';
+import { data } from './core.js';
 import { inputs } from './inputs.js';
 import { coins, gasCoins } from './coins.js';
 
@@ -21,18 +21,6 @@ export const coinFlows = createAnalyzer({
 	analyze:
 		() =>
 		async ({ data, commands, inputs, coins, gasCoins }) => {
-			if (data.issues || commands.issues || inputs.issues || coins.issues || gasCoins.issues) {
-				return {
-					issues: [
-						...(data.issues ?? []),
-						...(commands.issues ?? []),
-						...(inputs.issues ?? []),
-						...(coins.issues ?? []),
-						...(gasCoins.issues ?? []),
-					],
-				};
-			}
-
 			const getTrackedCoin = (ref: AnalyzedCommandArgument): TrackedCoin | null => {
 				switch (ref.$kind) {
 					case 'GasCoin':
@@ -101,7 +89,7 @@ export const coinFlows = createAnalyzer({
 					const tracked = getTrackedCoin(obj);
 
 					// If coin is transferred to the sender, we can track the transfer in the gas coin
-					if (tracked && address && data.result.sender === address) {
+					if (tracked && address && data.sender === address) {
 						trackedCoins.get('gas')!.remainingBalance += tracked.remainingBalance;
 					}
 
@@ -117,20 +105,20 @@ export const coinFlows = createAnalyzer({
 				'gas',
 				new TrackedCoin(
 					normalizeStructTag('0x2::sui::SUI'),
-					gasCoins.result.reduce((a, c) => a + c.balance, 0n),
+					gasCoins.reduce((a, c) => a + c.balance, 0n),
 					true,
 				),
 			);
 
-			if (data.result.gasData.budget) {
-				trackedCoins.get('gas')!.remainingBalance -= BigInt(data.result.gasData.budget);
+			if (data.gasData.budget) {
+				trackedCoins.get('gas')!.remainingBalance -= BigInt(data.gasData.budget);
 			} else {
 				issues.push({ message: 'Gas budget not set in Transaction' });
 			}
 
-			for (const input of inputs.result) {
-				if (input.$kind === 'Object' && coins.result[input.object.id]) {
-					const coin = coins.result[input.object.id];
+			for (const input of inputs) {
+				if (input.$kind === 'Object' && coins[input.object.id]) {
+					const coin = coins[input.object.id];
 					trackedCoins.set(
 						`input:${input.index}`,
 						new TrackedCoin(coin.coinType, coin.balance, true),
@@ -138,7 +126,7 @@ export const coinFlows = createAnalyzer({
 				}
 			}
 
-			for (const command of commands.result) {
+			for (const command of commands) {
 				switch (command.$kind) {
 					case 'SplitCoins':
 						splitCoin(command);

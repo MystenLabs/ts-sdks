@@ -5,7 +5,7 @@ import type { ClientWithCoreApi, Experimental_SuiClientTypes } from '@mysten/sui
 import { createAnalyzer } from '../analyzer.js';
 import type { TransactionAnalysisIssue } from '../analyzer.js';
 
-import { data } from '../core.js';
+import { data } from './core.js';
 
 export type AnalyzedObject = Experimental_SuiClientTypes.ObjectResponse & {
 	ownerAddress: string | null;
@@ -16,13 +16,9 @@ export const objectIds = createAnalyzer({
 	analyze:
 		() =>
 		({ data }) => {
-			if (data.issues) {
-				return { issues: data.issues };
-			}
-
 			const issues: TransactionAnalysisIssue[] = [];
 
-			const inputs = data.result.inputs
+			const inputs = data.inputs
 				.filter((input): input is Extract<typeof input, { $kind: 'Object' }> => {
 					switch (input.$kind) {
 						case 'UnresolvedObject':
@@ -55,7 +51,7 @@ export const objectIds = createAnalyzer({
 				return { issues };
 			}
 
-			const gasObjects = data.result.gasData.payment?.map((obj) => obj.objectId) || [];
+			const gasObjects = data.gasData.payment?.map((obj) => obj.objectId) || [];
 
 			return {
 				result: Array.from(new Set([...inputs, ...gasObjects])),
@@ -69,12 +65,8 @@ export const objects = createAnalyzer({
 	analyze:
 		({ client }: { client: ClientWithCoreApi }) =>
 		async ({ objectIds }) => {
-			if (objectIds.issues) {
-				return { issues: objectIds.issues };
-			}
-
 			const { objects } = await client.core.getObjects({
-				objectIds: objectIds.result,
+				objectIds,
 			});
 
 			const issues: TransactionAnalysisIssue[] = [];
@@ -125,12 +117,8 @@ export const ownedObjects = createAnalyzer({
 	dependencies: { objects },
 	analyze:
 		() =>
-		async ({ objects }) => {
-			if (objects.issues) {
-				return { issues: objects.issues };
-			}
-
-			return { result: objects.result.filter((obj) => obj.ownerAddress !== null) };
+		({ objects }) => {
+			return { result: objects.filter((obj) => obj.ownerAddress !== null) };
 		},
 });
 
@@ -138,13 +126,7 @@ export const objectsById = createAnalyzer({
 	dependencies: { objects },
 	analyze:
 		() =>
-		async ({ objects }) => {
-			if (objects.issues) {
-				return { issues: objects.issues };
-			}
-
-			return {
-				result: new Map(objects.result.map((obj) => [obj.id, obj])),
-			};
-		},
+		({ objects }) => ({
+			result: new Map(objects.map((obj) => [obj.id, obj])),
+		}),
 });

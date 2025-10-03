@@ -13,29 +13,19 @@ export const accessLevel = createAnalyzer({
 	analyze:
 		() =>
 		async ({ commands, objects, gasCoins }) => {
-			if (commands.issues || objects.issues || gasCoins.issues) {
-				return {
-					issues: [
-						...(commands.issues ?? []),
-						...(objects.issues ?? []),
-						...(gasCoins.issues ?? []),
-					],
-				};
-			}
-
 			const issues: TransactionAnalysisIssue[] = [];
 
-			const gasCoinIds = new Set(gasCoins.result.map((g) => g.id));
+			const gasCoinIds = new Set(gasCoins.map((g) => g.id));
 
 			const accessLevels: Record<string, 'read' | 'mutate' | 'transfer'> = Object.fromEntries(
-				objects.result.map((obj) => [obj.id, 'read' as const]),
+				objects.map((obj) => [obj.id, 'read' as const]),
 			);
 
 			for (const id of gasCoinIds) {
 				accessLevels[id] = 'mutate';
 			}
 
-			for (const command of commands.result) {
+			for (const command of commands) {
 				switch (command.$kind) {
 					case 'TransferObjects':
 						for (const obj of command.objects) {

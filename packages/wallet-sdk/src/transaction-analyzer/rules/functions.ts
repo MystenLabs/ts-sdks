@@ -4,7 +4,7 @@
 import type { ClientWithCoreApi, Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 import type { TransactionAnalysisIssue } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
-import { data } from '../core.js';
+import { data } from './core.js';
 
 export const moveFunctions = createAnalyzer({
 	cacheKey: 'moveFunctions@1.0.0',
@@ -12,14 +12,10 @@ export const moveFunctions = createAnalyzer({
 	analyze:
 		({ client }: { client: ClientWithCoreApi }) =>
 		async ({ data }) => {
-			if (data.issues) {
-				return { issues: data.issues };
-			}
-
 			const issues: TransactionAnalysisIssue[] = [];
 
 			const functions = new Set(
-				data.result.commands
+				data.commands
 					.filter((cmd) => cmd.$kind === 'MoveCall')
 					.map(
 						(cmd) => `${cmd.MoveCall.package}::${cmd.MoveCall.module}::${cmd.MoveCall.function}`,

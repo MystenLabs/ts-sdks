@@ -6,7 +6,7 @@ import { objects, objectsById } from './objects.js';
 import type { AnalyzedObject } from './objects.js';
 import { createAnalyzer } from '../analyzer.js';
 import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
-import { data } from '../core.js';
+import { data } from './core.js';
 
 export type AnalyzedCoin = AnalyzedObject & { balance: bigint; coinType: string };
 
@@ -21,14 +21,10 @@ export const coins = createAnalyzer({
 	analyze:
 		() =>
 		async ({ objects }) => {
-			if (objects.issues) {
-				return { issues: objects.issues };
-			}
-
 			return {
 				result: Object.fromEntries(
 					await Promise.all(
-						objects.result
+						objects
 							.filter((obj) => {
 								const parsed = parseStructTag(obj.type);
 								return (
@@ -59,14 +55,10 @@ export const gasCoins = createAnalyzer({
 	analyze:
 		() =>
 		async ({ objectsById, data }) => {
-			if (objectsById.issues || data.issues) {
-				return { issues: [...(objectsById.issues ?? []), ...(data.issues ?? [])] };
-			}
-
 			return {
 				result: await Promise.all(
-					(data.result.gasData.payment ?? []).map(async (coin) => {
-						const obj = objectsById.result.get(coin.objectId)!;
+					(data.gasData.payment ?? []).map(async (coin) => {
+						const obj = objectsById.get(coin.objectId)!;
 						const content = Coin.parse(await obj.content);
 						return {
 							...obj,

@@ -19,16 +19,14 @@ export function createAnalyzer<
 		options: Options,
 		transaction: Transaction,
 	) => (analysis: {
-		[k in keyof Deps]: Deps[k] extends Analyzer<infer R, any, any>
-			? AnalyzerResult<NonNullable<R>>
-			: never;
+		[k in keyof Deps]: Deps[k] extends Analyzer<infer R, any, any> ? R : never;
 	}) => Promise<AnalyzerResult<T>> | AnalyzerResult<T>;
 }) {
 	return {
 		cacheKey,
 		dependencies,
 		analyze: analyze,
-	} as unknown as Analyzer<
+	} as Analyzer<
 		T,
 		Simplify<
 			UnionToIntersection<
@@ -88,7 +86,21 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
 			),
 		);
 
-		return analyzerMap.get(analyzer.cacheKey ?? analyzer)!(deps);
+		const issues = new Set<TransactionAnalysisIssue>();
+
+		for (const dep of Object.values(deps)) {
+			if (dep.issues) {
+				dep.issues.forEach((issue) => issues.add(issue));
+			}
+		}
+
+		if (issues.size) {
+			return { issues: [...issues] };
+		}
+
+		return analyzerMap.get(analyzer.cacheKey ?? analyzer)!(
+			Object.fromEntries(Object.entries(deps).map(([key, dep]) => [key, dep.result])),
+		);
 	}
 
 	function getAnalysis(analyzer: Analyzer<Defined>): Promise<AnalyzerResult> {
@@ -116,7 +128,7 @@ type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
 	? I
 	: never;
 
-export type Analyzer<
+type Analyzer<
 	T extends Defined,
 	Options = object,
 	Analysis extends Record<string, Defined> = {},

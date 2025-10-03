@@ -7,7 +7,7 @@ import { inputs } from './inputs.js';
 import type { AnalyzedCommandInput } from './inputs.js';
 import type { TransactionAnalysisIssue } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
-import { data } from '../core.js';
+import { data } from './core.js';
 import { moveFunctions } from './functions.js';
 
 export type AnalyzedCommandArgument =
@@ -87,16 +87,6 @@ export const commands = createAnalyzer({
 	analyze:
 		() =>
 		({ data, moveFunctions, inputs }) => {
-			if (data.issues || moveFunctions.issues || inputs.issues) {
-				return {
-					issues: [
-						...(data.issues || []),
-						...(moveFunctions.issues || []),
-						...(inputs.issues || []),
-					],
-				};
-			}
-
 			const issues: TransactionAnalysisIssue[] = [];
 			const commands: AnalyzedCommand[] = [];
 
@@ -118,7 +108,7 @@ export const commands = createAnalyzer({
 						return { $kind: 'Unknown', accessLevel };
 				}
 
-				const input = inputs.result[arg.Input];
+				const input = inputs[arg.Input];
 
 				if (!input) {
 					issues.push({ message: `Missing input for index ${arg.Input}` });
@@ -128,8 +118,8 @@ export const commands = createAnalyzer({
 				return { ...input, accessLevel };
 			};
 
-			for (let index = 0; index < data.result.commands.length; index++) {
-				const command = data.result.commands[index];
+			for (let index = 0; index < data.commands.length; index++) {
+				const command = data.commands[index];
 				switch (command.$kind) {
 					case '$Intent':
 						issues.push({ message: `Unexpected $Intent command: ${JSON.stringify(command)}` });
@@ -170,7 +160,7 @@ export const commands = createAnalyzer({
 						});
 						break;
 					case 'MoveCall': {
-						const func = moveFunctions.result.find(
+						const func = moveFunctions.find(
 							(fn) =>
 								fn.packageId === command.MoveCall.package &&
 								fn.moduleName === command.MoveCall.module &&

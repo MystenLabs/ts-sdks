@@ -3,7 +3,7 @@
 
 import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 import { createAnalyzer } from '../analyzer.js';
-import { data } from '../core.js';
+import { data } from './core.js';
 import { objectsById } from './objects.js';
 
 export type AnalyzedCommandInput =
@@ -26,12 +26,8 @@ export const inputs = createAnalyzer({
 	analyze:
 		() =>
 		({ data, objectsById }) => {
-			if (data.issues || objectsById.issues) {
-				return { issues: [...(data.issues || []), ...(objectsById.issues || [])] };
-			}
-
 			return {
-				result: data.result.inputs.map((input, index): AnalyzedCommandInput => {
+				result: data.inputs.map((input, index): AnalyzedCommandInput => {
 					switch (input.$kind) {
 						case 'Pure':
 							return { $kind: 'Pure', index, bytes: input.Pure.bytes!, accessLevel: 'transfer' };
@@ -41,7 +37,7 @@ export const inputs = createAnalyzer({
 								input.Object.Receiving?.objectId ??
 								input.Object.SharedObject?.objectId!;
 
-							const object = objectsById.result.get(objectId)!;
+							const object = objectsById.get(objectId)!;
 							if (!object) {
 								throw new Error(`Missing object for id ${objectId}`);
 							}
