@@ -3,25 +3,16 @@
 
 import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 import { parse, safeParse } from 'valibot';
-import type { BaseAnalysis } from '../transaction-analyzer/base.js';
-import type { CoinValueAnalysis, TransactionAnalysisIssue } from '../transaction-analyzer/index.js';
 import type { AutoApprovalState } from './schemas/state.js';
 import { AutoApprovalStateSchema } from './schemas/state.js';
 import type { AutoApprovalSettings } from './schemas/policy.js';
 import { AutoApprovalPolicySchema, AutoApprovalSettingsSchema } from './schemas/policy.js';
 import { parseStructTag } from '@mysten/sui/utils';
+import type { AutoApprovalResult } from './analyzer.js';
 
 export interface AutoApprovalManagerOptions {
 	policy: string;
 	state: string | null;
-}
-
-export interface AutoApprovalAnalysis {
-	results: BaseAnalysis & {
-		coinValues: CoinValueAnalysis;
-		operationType: string | null;
-	};
-	issues: TransactionAnalysisIssue[];
 }
 
 export interface AutoApprovalIssue {
@@ -64,11 +55,11 @@ export class AutoApprovalManager {
 			} satisfies AutoApprovalState);
 	}
 
-	checkTransaction(analysis: AutoApprovalAnalysis): AutoApprovalCheck {
+	checkTransaction(analysis: AutoApprovalResult): AutoApprovalCheck {
 		const results: AutoApprovalCheck = {
 			matchesPolicy: false,
 			canAutoApprove: false,
-			analysisIssues: [...analysis.issues],
+			analysisIssues: [...(analysis.issues ?? [])],
 			policyIssues: [],
 			settingsIssues: [],
 		};
@@ -98,21 +89,22 @@ export class AutoApprovalManager {
 		return results;
 	}
 
-	#matchesPolicy(analysis: AutoApprovalAnalysis): AutoApprovalIssue[] {
+	#matchesPolicy(analysis: AutoApprovalResult): AutoApprovalIssue[] {
 		const issues: AutoApprovalIssue[] = [];
 
-		if (analysis.issues.length > 0) {
+		if (analysis.issues) {
 			issues.push({ message: 'Transaction analysis failed' });
+			return issues;
 		}
 
-		if (!analysis.results.operationType) {
+		if (!analysis.result.operationType) {
 			issues.push({ message: 'Operation type not found in Transaction' });
 
 			return issues;
 		}
 
 		const operation = this.#state.policy.operations.find(
-			(op) => op.id === analysis.results.operationType,
+			(op) => op.id === analysis.result.operationType,
 		);
 
 		if (!operation) {
@@ -121,7 +113,7 @@ export class AutoApprovalManager {
 		}
 
 		if (!operation.permissions.anyBalance) {
-			for (const flow of analysis.results.coinFlows) {
+			for (const flow of analysis.result.coinFlows.outflows) {
 				if (!operation.permissions.balances?.find((b) => b.coinType === flow.coinType)) {
 					issues.push({
 						message: `Operation does not have permission to use coin type ${flow.coinType}`,
@@ -130,12 +122,12 @@ export class AutoApprovalManager {
 			}
 		}
 
-		for (const obj of analysis.results.ownedObjects) {
+		for (const obj of analysis.result.ownedObjects) {
 			if (isCoinType(obj.type)) {
 				continue;
 			}
 
-			const accessLevel = analysis.results.accessLevel[obj.id];
+			const accessLevel = analysis.result.accessLevel[obj.id];
 
 			if (!accessLevel) {
 				issues.push({ message: `Access level could not be determined for object ${obj.id}` });
@@ -170,7 +162,7 @@ export class AutoApprovalManager {
 		}
 	}
 
-	#canAutoApprove(analysis: AutoApprovalAnalysis): AutoApprovalIssue[] {
+	#canAutoApprove(analysis: AutoApprovalResult): AutoApprovalIssue[] {
 		const issues: AutoApprovalIssue[] = [];
 
 		if (!this.#state.settings) {
@@ -178,7 +170,7 @@ export class AutoApprovalManager {
 			return issues;
 		}
 
-		if (analysis.issues.length > 0) {
+		if (analysis.issues) {
 			issues.push({ message: 'Transaction analysis failed' });
 			return issues;
 		}
@@ -195,13 +187,13 @@ export class AutoApprovalManager {
 		}
 
 		if (
-			!analysis.results.operationType ||
-			!this.#state.settings.approvedOperations.includes(analysis.results.operationType)
+			!analysis.result.operationType ||
+			!this.#state.settings.approvedOperations.includes(analysis.result.operationType)
 		) {
 			issues.push({ message: 'Operation type not approved for auto-approval' });
 		}
 
-		for (const outflow of analysis.results.coinFlows) {
+		for (const outflow of analysis.result.coinFlows.outflows) {
 			if (outflow.amount <= 0n) {
 				continue;
 			}
@@ -217,7 +209,7 @@ export class AutoApprovalManager {
 					}
 				}
 			} else {
-				const coinAmount = analysis.results.coinValues.coinTypes.find(
+				const coinAmount = analysis.result.coinValues.coinTypes.find(
 					(ct) => ct.coinType === outflow.coinType,
 				);
 
@@ -236,9 +228,13 @@ export class AutoApprovalManager {
 		return issues;
 	}
 
-	commitTransaction(analysis: AutoApprovalAnalysis): void {
+	commitTransaction(analysis: AutoApprovalResult): void {
 		if (!this.#state.settings) {
 			throw new Error('No auto-approval settings configured');
+		}
+
+		if (!analysis.result) {
+			throw new Error('Transaction analysis failed');
 		}
 
 		if (this.#state.settings.remainingTransactions !== null && this.#state.settings) {
@@ -248,7 +244,7 @@ export class AutoApprovalManager {
 			);
 		}
 
-		for (const outflow of analysis.results.coinFlows) {
+		for (const outflow of analysis.result.coinFlows.outflows) {
 			if (this.#state.settings.coinBudgets[outflow.coinType] !== undefined) {
 				const currentBudget = BigInt(this.#state.settings?.coinBudgets[outflow.coinType] ?? '0');
 				const newBalance = currentBudget - outflow.amount;
@@ -258,7 +254,7 @@ export class AutoApprovalManager {
 					throw new Error('No budget available for coin type ' + outflow.coinType);
 				}
 
-				const coinValue = analysis.results.coinValues.coinTypes.find(
+				const coinValue = analysis.result.coinValues.coinTypes.find(
 					(ct) => ct.coinType === outflow.coinType,
 				);
 
@@ -270,11 +266,13 @@ export class AutoApprovalManager {
 			}
 		}
 
-		this.#state.pendingDigests.push(analysis.results.digest);
+		this.#state.pendingDigests.push(analysis.result.digest);
 	}
 
-	revertTransaction(analysis: AutoApprovalAnalysis): void {
-		this.#removePendingDigest(analysis.results.digest);
+	revertTransaction(analysis: AutoApprovalResult): void {
+		if (analysis.result?.digest) {
+			this.#removePendingDigest(analysis.result?.digest);
+		}
 
 		if (this.#state.settings?.remainingTransactions !== null && this.#state.settings) {
 			this.#state.settings.remainingTransactions += 1;
@@ -283,12 +281,16 @@ export class AutoApprovalManager {
 		this.#revertCoinFlows(analysis);
 	}
 
-	#revertCoinFlows(analysis: AutoApprovalAnalysis): void {
+	#revertCoinFlows(analysis: AutoApprovalResult): void {
 		if (!this.#state.settings) {
 			throw new Error('No auto-approval settings configured');
 		}
 
-		for (const outflow of analysis.results.coinFlows) {
+		if (!analysis.result) {
+			throw new Error('Transaction analysis failed');
+		}
+
+		for (const outflow of analysis.result.coinFlows.outflows) {
 			if (this.#state.settings?.coinBudgets[outflow.coinType] !== undefined) {
 				const currentBudget = BigInt(this.#state.settings?.coinBudgets[outflow.coinType] ?? '0');
 				const newBalance = currentBudget + outflow.amount;
@@ -298,7 +300,7 @@ export class AutoApprovalManager {
 					throw new Error('No budget available for coin type ' + outflow.coinType);
 				}
 
-				const coinValue = analysis.results.coinValues.coinTypes.find(
+				const coinValue = analysis.result.coinValues.coinTypes.find(
 					(ct) => ct.coinType === outflow.coinType,
 				);
 
@@ -321,13 +323,17 @@ export class AutoApprovalManager {
 	}
 
 	applyTransactionEffects(
-		analysis: AutoApprovalAnalysis,
+		analysis: AutoApprovalResult,
 		result: Experimental_SuiClientTypes.TransactionResponse,
 	): void {
 		this.#removePendingDigest(result.digest);
 
 		if (!this.#state.settings) {
 			throw new Error('No auto-approval settings configured');
+		}
+
+		if (!analysis.result) {
+			throw new Error('Transaction analysis failed');
 		}
 
 		// Revert coin flows and use real balance changes instead
@@ -345,7 +351,7 @@ export class AutoApprovalManager {
 					throw new Error('No budget available for coin type ' + change.coinType);
 				}
 
-				const coinValue = analysis.results.coinValues.coinTypes.find(
+				const coinValue = analysis.result.coinValues.coinTypes.find(
 					(ct) => ct.coinType === change.coinType,
 				);
 

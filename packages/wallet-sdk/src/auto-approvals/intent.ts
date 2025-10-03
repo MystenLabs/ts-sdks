@@ -4,7 +4,6 @@
 import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
 import type { TransactionDataBuilder } from '@mysten/sui/transactions';
 import { Commands } from '@mysten/sui/transactions';
-import type { Analyzer } from '../transaction-analyzer/index.js';
 
 export const OPERATION_TYPE_INTENT = 'OperationType';
 
@@ -56,19 +55,3 @@ function replaceOperationTypeIntent(
 		}
 	}
 }
-
-export const operationTypeAnalyzer: Analyzer<string | null> = (tx) => {
-	let operationType: string | null = null;
-	tx.addIntentResolver(
-		OPERATION_TYPE_INTENT,
-		extractOperationType((type) => {
-			operationType = type;
-		}),
-	);
-
-	return async ({ get }) => {
-		// wait for intent to be resolved
-		await get('data');
-		return operationType;
-	};
-};
