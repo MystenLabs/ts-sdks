@@ -106,7 +106,7 @@ describe('TransactionAnalyzer - Functions Rule', () => {
 			{ moveFunctions },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 

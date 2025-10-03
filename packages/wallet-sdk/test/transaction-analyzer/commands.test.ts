@@ -38,7 +38,7 @@ describe('TransactionAnalyzer - Commands Rule', () => {
 			{ commands },
 			{
 				client,
-				transactionJson: await tx.toJSON(),
+				transaction: await tx.toJSON(),
 			},
 		);
 
