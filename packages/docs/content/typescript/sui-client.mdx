@@ -8,8 +8,8 @@ The Sui TypeScript SDK provides a `SuiClient` class to connect to a network's JS
 ## Connecting to a Sui network
 
 To establish a connection to a network, import `SuiClient` from `@mysten/sui/client` and pass the
-relevant URL to the `url` parameter. The following example establishes a connection to Testnet and
-requests SUI from that network's faucet.
+relevant URL to the `url` parameter. The following example establishes a connection to Devnet and
+get all Coin<`coin_type`> objects owned by an address.
 
 ```typescript
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
@@ -102,12 +102,14 @@ along with a `limit` to specify the page size:
 
 ```ts
 const page1 = await client.getCheckpoints({
-	limit: 10,
+    descendingOrder: false,
+    limit: 10,
 });
 
 const page2 =
 	page1.hasNextPage &&
-	client.getCheckpoints({
+	await client.getCheckpoints({
+        descendingOrder: false,
 		cursor: page1.nextCursor,
 		limit: 10,
 	});
@@ -125,15 +127,16 @@ const tx = new Transaction();
 
 // add transaction data to tx...
 
-const { bytes, signature } = tx.sign({ client, signer: keypair });
+const { bytes, signature } = await tx.sign({ client, signer: keypair });
 
 const result = await client.executeTransactionBlock({
-	transactionBlock: bytes,
-	signature,
-	requestType: 'WaitForLocalExecution',
-	options: {
-		showEffects: true,
-	},
+    transactionBlock: bytes,
+    signature,
+    // Deprecated: requestType will be ignored by JSON RPC in the future
+    // requestType: 'WaitForLocalExecution',
+    options: {
+        showEffects: true,
+    },
 });
 ```
 
@@ -144,7 +147,8 @@ const result = await client.executeTransactionBlock({
 - `signature` - A signature, or list of signatures committed to the intent message of the
   transaction data, as a base-64 encoded string.
 - `requestType`: `WaitForEffectsCert` or `WaitForLocalExecution`. Determines when the RPC node
-  should return the response. Default to be `WaitForLocalExecution`
+  should return the response. Default to be `WaitForLocalExecution`.
+  (Deprecated: requestType will be ignored by JSON RPC in the future)
 - `options`:
   - `showBalanceChanges`: Whether to show balance_changes. Default to be False
   - `showEffects`: Whether to show transaction effects. Default to be False
@@ -157,15 +161,17 @@ const result = await client.executeTransactionBlock({
 
 ```tsx
 const tx = new Transaction();
-// add transaction data to tx
+
+// add transaction data to tx...
 
 const result = await client.signAndExecuteTransaction({
-	transaction: tx,
-	signer: keypair,
-	requestType: 'WaitForLocalExecution',
-	options: {
-		showEffects: true,
-	},
+    transaction: tx,
+    signer: keypair,
+    // Deprecated: requestType will be ignored by JSON RPC in the future
+    // requestType: 'WaitForLocalExecution',
+    options: {
+        showEffects: true,
+    },
 });
 ```
 
@@ -175,7 +181,8 @@ const result = await client.signAndExecuteTransaction({
   string.
 - `signer` - A `Keypair` instance to sign the transaction
 - `requestType`: `WaitForEffectsCert` or `WaitForLocalExecution`. Determines when the RPC node
-  should return the response. Default to be `WaitForLocalExecution`
+  should return the response. Default to be `WaitForLocalExecution`.
+  (Deprecated: requestType will be ignored by JSON RPC in the future)
 - `options`:
   - `showBalanceChanges`: Whether to show balance_changes. Default to be False
   - `showEffects`: Whether to show transaction effects. Default to be False
@@ -187,7 +194,7 @@ const result = await client.signAndExecuteTransaction({
 ### `waitForTransaction`
 
 Wait for a transaction result to be available over the API. This can be used in conjunction with
-`executeTransactionBlock` to wait for the transaction to be available via the API. This currently
+`signAndExecuteTransaction` to wait for the transaction to be available via the API. This currently
 polls the `getTransactionBlock` API to check for the transaction.
 
 ```tsx
