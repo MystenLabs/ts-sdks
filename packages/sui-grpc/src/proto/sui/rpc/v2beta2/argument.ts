@@ -1,13 +1,5 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import type { BinaryWriteOptions } from '@protobuf-ts/runtime';
-import type { IBinaryWriter } from '@protobuf-ts/runtime';
-import { WireType } from '@protobuf-ts/runtime';
-import type { BinaryReadOptions } from '@protobuf-ts/runtime';
-import type { IBinaryReader } from '@protobuf-ts/runtime';
-import { UnknownFieldHandler } from '@protobuf-ts/runtime';
-import type { PartialMessage } from '@protobuf-ts/runtime';
-import { reflectionMergePartial } from '@protobuf-ts/runtime';
 import { MessageType } from '@protobuf-ts/runtime';
 /**
  * An argument to a programmable transaction command.
@@ -81,70 +73,6 @@ class Argument$Type extends MessageType<Argument> {
 			{ no: 3, name: 'result', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
 			{ no: 4, name: 'subresult', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
 		]);
-	}
-	create(value?: PartialMessage<Argument>): Argument {
-		const message = globalThis.Object.create(this.messagePrototype!);
-		if (value !== undefined) reflectionMergePartial<Argument>(this, message, value);
-		return message;
-	}
-	internalBinaryRead(
-		reader: IBinaryReader,
-		length: number,
-		options: BinaryReadOptions,
-		target?: Argument,
-	): Argument {
-		let message = target ?? this.create(),
-			end = reader.pos + length;
-		while (reader.pos < end) {
-			let [fieldNo, wireType] = reader.tag();
-			switch (fieldNo) {
-				case /* optional sui.rpc.v2beta2.Argument.ArgumentKind kind */ 1:
-					message.kind = reader.int32();
-					break;
-				case /* optional uint32 input */ 2:
-					message.input = reader.uint32();
-					break;
-				case /* optional uint32 result */ 3:
-					message.result = reader.uint32();
-					break;
-				case /* optional uint32 subresult */ 4:
-					message.subresult = reader.uint32();
-					break;
-				default:
-					let u = options.readUnknownField;
-					if (u === 'throw')
-						throw new globalThis.Error(
-							`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`,
-						);
-					let d = reader.skip(wireType);
-					if (u !== false)
-						(u === true ? UnknownFieldHandler.onRead : u)(
-							this.typeName,
-							message,
-							fieldNo,
-							wireType,
-							d,
-						);
-			}
-		}
-		return message;
-	}
-	internalBinaryWrite(
-		message: Argument,
-		writer: IBinaryWriter,
-		options: BinaryWriteOptions,
-	): IBinaryWriter {
-		/* optional sui.rpc.v2beta2.Argument.ArgumentKind kind = 1; */
-		if (message.kind !== undefined) writer.tag(1, WireType.Varint).int32(message.kind);
-		/* optional uint32 input = 2; */
-		if (message.input !== undefined) writer.tag(2, WireType.Varint).uint32(message.input);
-		/* optional uint32 result = 3; */
-		if (message.result !== undefined) writer.tag(3, WireType.Varint).uint32(message.result);
-		/* optional uint32 subresult = 4; */
-		if (message.subresult !== undefined) writer.tag(4, WireType.Varint).uint32(message.subresult);
-		let u = options.writeUnknownFields;
-		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-		return writer;
 	}
 }
 /**

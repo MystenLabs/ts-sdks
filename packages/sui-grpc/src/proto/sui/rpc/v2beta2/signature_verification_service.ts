@@ -1,14 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { ServiceType } from '@protobuf-ts/runtime-rpc';
-import type { BinaryWriteOptions } from '@protobuf-ts/runtime';
-import type { IBinaryWriter } from '@protobuf-ts/runtime';
-import { WireType } from '@protobuf-ts/runtime';
-import type { BinaryReadOptions } from '@protobuf-ts/runtime';
-import type { IBinaryReader } from '@protobuf-ts/runtime';
-import { UnknownFieldHandler } from '@protobuf-ts/runtime';
-import type { PartialMessage } from '@protobuf-ts/runtime';
-import { reflectionMergePartial } from '@protobuf-ts/runtime';
 import { MessageType } from '@protobuf-ts/runtime';
 import { ActiveJwk } from './transaction.js';
 import { UserSignature } from './signature.js';
@@ -84,97 +76,6 @@ class VerifySignatureRequest$Type extends MessageType<VerifySignatureRequest> {
 			},
 		]);
 	}
-	create(value?: PartialMessage<VerifySignatureRequest>): VerifySignatureRequest {
-		const message = globalThis.Object.create(this.messagePrototype!);
-		message.jwks = [];
-		if (value !== undefined) reflectionMergePartial<VerifySignatureRequest>(this, message, value);
-		return message;
-	}
-	internalBinaryRead(
-		reader: IBinaryReader,
-		length: number,
-		options: BinaryReadOptions,
-		target?: VerifySignatureRequest,
-	): VerifySignatureRequest {
-		let message = target ?? this.create(),
-			end = reader.pos + length;
-		while (reader.pos < end) {
-			let [fieldNo, wireType] = reader.tag();
-			switch (fieldNo) {
-				case /* optional sui.rpc.v2beta2.Bcs message */ 1:
-					message.message = Bcs.internalBinaryRead(
-						reader,
-						reader.uint32(),
-						options,
-						message.message,
-					);
-					break;
-				case /* optional sui.rpc.v2beta2.UserSignature signature */ 2:
-					message.signature = UserSignature.internalBinaryRead(
-						reader,
-						reader.uint32(),
-						options,
-						message.signature,
-					);
-					break;
-				case /* optional string address */ 3:
-					message.address = reader.string();
-					break;
-				case /* repeated sui.rpc.v2beta2.ActiveJwk jwks */ 4:
-					message.jwks.push(ActiveJwk.internalBinaryRead(reader, reader.uint32(), options));
-					break;
-				default:
-					let u = options.readUnknownField;
-					if (u === 'throw')
-						throw new globalThis.Error(
-							`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`,
-						);
-					let d = reader.skip(wireType);
-					if (u !== false)
-						(u === true ? UnknownFieldHandler.onRead : u)(
-							this.typeName,
-							message,
-							fieldNo,
-							wireType,
-							d,
-						);
-			}
-		}
-		return message;
-	}
-	internalBinaryWrite(
-		message: VerifySignatureRequest,
-		writer: IBinaryWriter,
-		options: BinaryWriteOptions,
-	): IBinaryWriter {
-		/* optional sui.rpc.v2beta2.Bcs message = 1; */
-		if (message.message)
-			Bcs.internalBinaryWrite(
-				message.message,
-				writer.tag(1, WireType.LengthDelimited).fork(),
-				options,
-			).join();
-		/* optional sui.rpc.v2beta2.UserSignature signature = 2; */
-		if (message.signature)
-			UserSignature.internalBinaryWrite(
-				message.signature,
-				writer.tag(2, WireType.LengthDelimited).fork(),
-				options,
-			).join();
-		/* optional string address = 3; */
-		if (message.address !== undefined)
-			writer.tag(3, WireType.LengthDelimited).string(message.address);
-		/* repeated sui.rpc.v2beta2.ActiveJwk jwks = 4; */
-		for (let i = 0; i < message.jwks.length; i++)
-			ActiveJwk.internalBinaryWrite(
-				message.jwks[i],
-				writer.tag(4, WireType.LengthDelimited).fork(),
-				options,
-			).join();
-		let u = options.writeUnknownFields;
-		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-		return writer;
-	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2beta2.VerifySignatureRequest
@@ -187,61 +88,6 @@ class VerifySignatureResponse$Type extends MessageType<VerifySignatureResponse> 
 			{ no: 1, name: 'is_valid', kind: 'scalar', opt: true, T: 8 /*ScalarType.BOOL*/ },
 			{ no: 2, name: 'reason', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 		]);
-	}
-	create(value?: PartialMessage<VerifySignatureResponse>): VerifySignatureResponse {
-		const message = globalThis.Object.create(this.messagePrototype!);
-		if (value !== undefined) reflectionMergePartial<VerifySignatureResponse>(this, message, value);
-		return message;
-	}
-	internalBinaryRead(
-		reader: IBinaryReader,
-		length: number,
-		options: BinaryReadOptions,
-		target?: VerifySignatureResponse,
-	): VerifySignatureResponse {
-		let message = target ?? this.create(),
-			end = reader.pos + length;
-		while (reader.pos < end) {
-			let [fieldNo, wireType] = reader.tag();
-			switch (fieldNo) {
-				case /* optional bool is_valid */ 1:
-					message.isValid = reader.bool();
-					break;
-				case /* optional string reason */ 2:
-					message.reason = reader.string();
-					break;
-				default:
-					let u = options.readUnknownField;
-					if (u === 'throw')
-						throw new globalThis.Error(
-							`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`,
-						);
-					let d = reader.skip(wireType);
-					if (u !== false)
-						(u === true ? UnknownFieldHandler.onRead : u)(
-							this.typeName,
-							message,
-							fieldNo,
-							wireType,
-							d,
-						);
-			}
-		}
-		return message;
-	}
-	internalBinaryWrite(
-		message: VerifySignatureResponse,
-		writer: IBinaryWriter,
-		options: BinaryWriteOptions,
-	): IBinaryWriter {
-		/* optional bool is_valid = 1; */
-		if (message.isValid !== undefined) writer.tag(1, WireType.Varint).bool(message.isValid);
-		/* optional string reason = 2; */
-		if (message.reason !== undefined)
-			writer.tag(2, WireType.LengthDelimited).string(message.reason);
-		let u = options.writeUnknownFields;
-		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-		return writer;
 	}
 }
 /**

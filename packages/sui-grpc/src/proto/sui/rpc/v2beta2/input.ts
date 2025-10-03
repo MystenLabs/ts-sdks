@@ -1,13 +1,5 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import type { BinaryWriteOptions } from '@protobuf-ts/runtime';
-import type { IBinaryWriter } from '@protobuf-ts/runtime';
-import { WireType } from '@protobuf-ts/runtime';
-import type { BinaryReadOptions } from '@protobuf-ts/runtime';
-import type { IBinaryReader } from '@protobuf-ts/runtime';
-import { UnknownFieldHandler } from '@protobuf-ts/runtime';
-import type { PartialMessage } from '@protobuf-ts/runtime';
-import { reflectionMergePartial } from '@protobuf-ts/runtime';
 import { MessageType } from '@protobuf-ts/runtime';
 import { Value } from '../../../google/protobuf/struct.js';
 /**
@@ -123,97 +115,6 @@ class Input$Type extends MessageType<Input> {
 			{ no: 6, name: 'mutable', kind: 'scalar', opt: true, T: 8 /*ScalarType.BOOL*/ },
 			{ no: 1000, name: 'literal', kind: 'message', T: () => Value },
 		]);
-	}
-	create(value?: PartialMessage<Input>): Input {
-		const message = globalThis.Object.create(this.messagePrototype!);
-		if (value !== undefined) reflectionMergePartial<Input>(this, message, value);
-		return message;
-	}
-	internalBinaryRead(
-		reader: IBinaryReader,
-		length: number,
-		options: BinaryReadOptions,
-		target?: Input,
-	): Input {
-		let message = target ?? this.create(),
-			end = reader.pos + length;
-		while (reader.pos < end) {
-			let [fieldNo, wireType] = reader.tag();
-			switch (fieldNo) {
-				case /* optional sui.rpc.v2beta2.Input.InputKind kind */ 1:
-					message.kind = reader.int32();
-					break;
-				case /* optional bytes pure */ 2:
-					message.pure = reader.bytes();
-					break;
-				case /* optional string object_id */ 3:
-					message.objectId = reader.string();
-					break;
-				case /* optional uint64 version */ 4:
-					message.version = reader.uint64().toBigInt();
-					break;
-				case /* optional string digest */ 5:
-					message.digest = reader.string();
-					break;
-				case /* optional bool mutable */ 6:
-					message.mutable = reader.bool();
-					break;
-				case /* optional google.protobuf.Value literal */ 1000:
-					message.literal = Value.internalBinaryRead(
-						reader,
-						reader.uint32(),
-						options,
-						message.literal,
-					);
-					break;
-				default:
-					let u = options.readUnknownField;
-					if (u === 'throw')
-						throw new globalThis.Error(
-							`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`,
-						);
-					let d = reader.skip(wireType);
-					if (u !== false)
-						(u === true ? UnknownFieldHandler.onRead : u)(
-							this.typeName,
-							message,
-							fieldNo,
-							wireType,
-							d,
-						);
-			}
-		}
-		return message;
-	}
-	internalBinaryWrite(
-		message: Input,
-		writer: IBinaryWriter,
-		options: BinaryWriteOptions,
-	): IBinaryWriter {
-		/* optional sui.rpc.v2beta2.Input.InputKind kind = 1; */
-		if (message.kind !== undefined) writer.tag(1, WireType.Varint).int32(message.kind);
-		/* optional bytes pure = 2; */
-		if (message.pure !== undefined) writer.tag(2, WireType.LengthDelimited).bytes(message.pure);
-		/* optional string object_id = 3; */
-		if (message.objectId !== undefined)
-			writer.tag(3, WireType.LengthDelimited).string(message.objectId);
-		/* optional uint64 version = 4; */
-		if (message.version !== undefined) writer.tag(4, WireType.Varint).uint64(message.version);
-		/* optional string digest = 5; */
-		if (message.digest !== undefined)
-			writer.tag(5, WireType.LengthDelimited).string(message.digest);
-		/* optional bool mutable = 6; */
-		if (message.mutable !== undefined) writer.tag(6, WireType.Varint).bool(message.mutable);
-		/* optional google.protobuf.Value literal = 1000; */
-		if (message.literal)
-			Value.internalBinaryWrite(
-				message.literal,
-				writer.tag(1000, WireType.LengthDelimited).fork(),
-				options,
-			).join();
-		let u = options.writeUnknownFields;
-		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-		return writer;
 	}
 }
 /**

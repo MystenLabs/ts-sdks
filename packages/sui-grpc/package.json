@@ -31,7 +31,7 @@
 		"eslint:fix": "pnpm run eslint:check --fix",
 		"lint": "pnpm run eslint:check && pnpm run prettier:check",
 		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix",
-		"generate:proto": "protoc --ts_out ./src/proto --ts_opt server_none -I ../../../sui-apis/proto -I ../../../sui-apis/proto ../../../sui-apis/proto/sui/rpc/v2beta2/*.proto ../../../sui-apis/proto/google/*/*.proto",
+		"generate:proto": "protoc --ts_out ./src/proto --ts_opt force_server_none --ts_opt optimize_code_size -I ../../../sui-apis/proto -I ../../../sui-apis/proto ../../../sui-apis/proto/sui/rpc/v2beta2/*.proto ../../../sui-apis/proto/google/*/*.proto",
 		"generate": "rm -rf src/proto && mkdir src/proto && pnpm generate:proto && pnpm lint:fix"
 	},
 	"repository": {

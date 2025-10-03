@@ -1,14 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { ServiceType } from '@protobuf-ts/runtime-rpc';
-import type { BinaryWriteOptions } from '@protobuf-ts/runtime';
-import type { IBinaryWriter } from '@protobuf-ts/runtime';
-import { WireType } from '@protobuf-ts/runtime';
-import type { BinaryReadOptions } from '@protobuf-ts/runtime';
-import type { IBinaryReader } from '@protobuf-ts/runtime';
-import { UnknownFieldHandler } from '@protobuf-ts/runtime';
-import type { PartialMessage } from '@protobuf-ts/runtime';
-import { reflectionMergePartial } from '@protobuf-ts/runtime';
 import { MessageType } from '@protobuf-ts/runtime';
 import { FunctionDescriptor } from './move_package.js';
 import { DatatypeDescriptor } from './move_package.js';
@@ -176,56 +168,6 @@ class GetPackageRequest$Type extends MessageType<GetPackageRequest> {
 			{ no: 1, name: 'package_id', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 		]);
 	}
-	create(value?: PartialMessage<GetPackageRequest>): GetPackageRequest {
-		const message = globalThis.Object.create(this.messagePrototype!);
-		if (value !== undefined) reflectionMergePartial<GetPackageRequest>(this, message, value);
-		return message;
-	}
-	internalBinaryRead(
-		reader: IBinaryReader,
-		length: number,
-		options: BinaryReadOptions,
-		target?: GetPackageRequest,
-	): GetPackageRequest {
-		let message = target ?? this.create(),
-			end = reader.pos + length;
-		while (reader.pos < end) {
-			let [fieldNo, wireType] = reader.tag();
-			switch (fieldNo) {
-				case /* optional string package_id */ 1:
-					message.packageId = reader.string();
-					break;
-				default:
-					let u = options.readUnknownField;
-					if (u === 'throw')
-						throw new globalThis.Error(
-							`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`,
-						);
-					let d = reader.skip(wireType);
-					if (u !== false)
-						(u === true ? UnknownFieldHandler.onRead : u)(
-							this.typeName,
-							message,
-							fieldNo,
-							wireType,
-							d,
-						);
-			}
-		}
-		return message;
-	}
-	internalBinaryWrite(
-		message: GetPackageRequest,
-		writer: IBinaryWriter,
-		options: BinaryWriteOptions,
-	): IBinaryWriter {
-		/* optional string package_id = 1; */
-		if (message.packageId !== undefined)
-			writer.tag(1, WireType.LengthDelimited).string(message.packageId);
-		let u = options.writeUnknownFields;
-		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-		return writer;
-	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2beta2.GetPackageRequest
@@ -237,65 +179,6 @@ class GetPackageResponse$Type extends MessageType<GetPackageResponse> {
 		super('sui.rpc.v2beta2.GetPackageResponse', [
 			{ no: 1, name: 'package', kind: 'message', T: () => Package },
 		]);
-	}
-	create(value?: PartialMessage<GetPackageResponse>): GetPackageResponse {
-		const message = globalThis.Object.create(this.messagePrototype!);
-		if (value !== undefined) reflectionMergePartial<GetPackageResponse>(this, message, value);
-		return message;
-	}
-	internalBinaryRead(
-		reader: IBinaryReader,
-		length: number,
-		options: BinaryReadOptions,
-		target?: GetPackageResponse,
-	): GetPackageResponse {
-		let message = target ?? this.create(),
-			end = reader.pos + length;
-		while (reader.pos < end) {
-			let [fieldNo, wireType] = reader.tag();
-			switch (fieldNo) {
-				case /* optional sui.rpc.v2beta2.Package package */ 1:
-					message.package = Package.internalBinaryRead(
-						reader,
-						reader.uint32(),
-						options,
-						message.package,
-					);
-					break;
-				default:
-					let u = options.readUnknownField;
-					if (u === 'throw')
-						throw new globalThis.Error(
-							`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`,
-						);
-					let d = reader.skip(wireType);
-					if (u !== false)
-						(u === true ? UnknownFieldHandler.onRead : u)(
-							this.typeName,
-							message,
-							fieldNo,
-							wireType,
-							d,
-						);
-			}
-		}
-		return message;
-	}
-	internalBinaryWrite(
-		message: GetPackageResponse,
-		writer: IBinaryWriter,
-		options: BinaryWriteOptions,
-	): IBinaryWriter {
-		/* optional sui.rpc.v2beta2.Package package = 1; */
-		if (message.package)
-			Package.internalBinaryWrite(
-				message.package,
-				writer.tag(1, WireType.LengthDelimited).fork(),
-				options,
-			).join();
-		let u = options.writeUnknownFields;
-		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-		return writer;
 	}
 }
 /**
@@ -311,67 +194,6 @@ class GetDatatypeRequest$Type extends MessageType<GetDatatypeRequest> {
 			{ no: 3, name: 'name', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 		]);
 	}
-	create(value?: PartialMessage<GetDatatypeRequest>): GetDatatypeRequest {
-		const message = globalThis.Object.create(this.messagePrototype!);
-		if (value !== undefined) reflectionMergePartial<GetDatatypeRequest>(this, message, value);
-		return message;
-	}
-	internalBinaryRead(
-		reader: IBinaryReader,
-		length: number,
-		options: BinaryReadOptions,
-		target?: GetDatatypeRequest,
-	): GetDatatypeRequest {
-		let message = target ?? this.create(),
-			end = reader.pos + length;
-		while (reader.pos < end) {
-			let [fieldNo, wireType] = reader.tag();
-			switch (fieldNo) {
-				case /* optional string package_id */ 1:
-					message.packageId = reader.string();
-					break;
-				case /* optional string module_name */ 2:
-					message.moduleName = reader.string();
-					break;
-				case /* optional string name */ 3:
-					message.name = reader.string();
-					break;
-				default:
-					let u = options.readUnknownField;
-					if (u === 'throw')
-						throw new globalThis.Error(
-							`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`,
-						);
-					let d = reader.skip(wireType);
-					if (u !== false)
-						(u === true ? UnknownFieldHandler.onRead : u)(
-							this.typeName,
-							message,
-							fieldNo,
-							wireType,
-							d,
-						);
-			}
-		}
-		return message;
-	}
-	internalBinaryWrite(
-		message: GetDatatypeRequest,
-		writer: IBinaryWriter,
-		options: BinaryWriteOptions,
-	): IBinaryWriter {
-		/* optional string package_id = 1; */
-		if (message.packageId !== undefined)
-			writer.tag(1, WireType.LengthDelimited).string(message.packageId);
-		/* optional string module_name = 2; */
-		if (message.moduleName !== undefined)
-			writer.tag(2, WireType.LengthDelimited).string(message.moduleName);
-		/* optional string name = 3; */
-		if (message.name !== undefined) writer.tag(3, WireType.LengthDelimited).string(message.name);
-		let u = options.writeUnknownFields;
-		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-		return writer;
-	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2beta2.GetDatatypeRequest
@@ -383,65 +205,6 @@ class GetDatatypeResponse$Type extends MessageType<GetDatatypeResponse> {
 		super('sui.rpc.v2beta2.GetDatatypeResponse', [
 			{ no: 1, name: 'datatype', kind: 'message', T: () => DatatypeDescriptor },
 		]);
-	}
-	create(value?: PartialMessage<GetDatatypeResponse>): GetDatatypeResponse {
-		const message = globalThis.Object.create(this.messagePrototype!);
-		if (value !== undefined) reflectionMergePartial<GetDatatypeResponse>(this, message, value);
-		return message;
-	}
-	internalBinaryRead(
-		reader: IBinaryReader,
-		length: number,
-		options: BinaryReadOptions,
-		target?: GetDatatypeResponse,
-	): GetDatatypeResponse {
-		let message = target ?? this.create(),
-			end = reader.pos + length;
-		while (reader.pos < end) {
-			let [fieldNo, wireType] = reader.tag();
-			switch (fieldNo) {
-				case /* optional sui.rpc.v2beta2.DatatypeDescriptor datatype */ 1:
-					message.datatype = DatatypeDescriptor.internalBinaryRead(
-						reader,
-						reader.uint32(),
-						options,
-						message.datatype,
-					);
-					break;
-				default:
-					let u = options.readUnknownField;
-					if (u === 'throw')
-						throw new globalThis.Error(
-							`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`,
-						);
-					let d = reader.skip(wireType);
-					if (u !== false)
-						(u === true ? UnknownFieldHandler.onRead : u)(
-							this.typeName,
-							message,
-							fieldNo,
-							wireType,
-							d,
-						);
-			}
-		}
-		return message;
-	}
-	internalBinaryWrite(
-		message: GetDatatypeResponse,
-		writer: IBinaryWriter,
-		options: BinaryWriteOptions,
-	): IBinaryWriter {
-		/* optional sui.rpc.v2beta2.DatatypeDescriptor datatype = 1; */
-		if (message.datatype)
-			DatatypeDescriptor.internalBinaryWrite(
-				message.datatype,
-				writer.tag(1, WireType.LengthDelimited).fork(),
-				options,
-			).join();
-		let u = options.writeUnknownFields;
-		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-		return writer;
 	}
 }
 /**
@@ -457,67 +220,6 @@ class GetFunctionRequest$Type extends MessageType<GetFunctionRequest> {
 			{ no: 3, name: 'name', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 		]);
 	}
-	create(value?: PartialMessage<GetFunctionRequest>): GetFunctionRequest {
-		const message = globalThis.Object.create(this.messagePrototype!);
-		if (value !== undefined) reflectionMergePartial<GetFunctionRequest>(this, message, value);
-		return message;
-	}
-	internalBinaryRead(
-		reader: IBinaryReader,
-		length: number,
-		options: BinaryReadOptions,
-		target?: GetFunctionRequest,
-	): GetFunctionRequest {
-		let message = target ?? this.create(),
-			end = reader.pos + length;
-		while (reader.pos < end) {
-			let [fieldNo, wireType] = reader.tag();
-			switch (fieldNo) {
-				case /* optional string package_id */ 1:
-					message.packageId = reader.string();
-					break;
-				case /* optional string module_name */ 2:
-					message.moduleName = reader.string();
-					break;
-				case /* optional string name */ 3:
-					message.name = reader.string();
-					break;
-				default:
-					let u = options.readUnknownField;
-					if (u === 'throw')
-						throw new globalThis.Error(
-							`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`,
-						);
-					let d = reader.skip(wireType);
-					if (u !== false)
-						(u === true ? UnknownFieldHandler.onRead : u)(
-							this.typeName,
-							message,
-							fieldNo,
-							wireType,
-							d,
-						);
-			}
-		}
-		return message;
-	}
-	internalBinaryWrite(
-		message: GetFunctionRequest,
-		writer: IBinaryWriter,
-		options: BinaryWriteOptions,
-	): IBinaryWriter {
-		/* optional string package_id = 1; */
-		if (message.packageId !== undefined)
-			writer.tag(1, WireType.LengthDelimited).string(message.packageId);
-		/* optional string module_name = 2; */
-		if (message.moduleName !== undefined)
-			writer.tag(2, WireType.LengthDelimited).string(message.moduleName);
-		/* optional string name = 3; */
-		if (message.name !== undefined) writer.tag(3, WireType.LengthDelimited).string(message.name);
-		let u = options.writeUnknownFields;
-		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-		return writer;
-	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2beta2.GetFunctionRequest
@@ -529,65 +231,6 @@ class GetFunctionResponse$Type extends MessageType<GetFunctionResponse> {
 		super('sui.rpc.v2beta2.GetFunctionResponse', [
 			{ no: 1, name: 'function', kind: 'message', T: () => FunctionDescriptor },
 		]);
-	}
-	create(value?: PartialMessage<GetFunctionResponse>): GetFunctionResponse {
-		const message = globalThis.Object.create(this.messagePrototype!);
-		if (value !== undefined) reflectionMergePartial<GetFunctionResponse>(this, message, value);
-		return message;
-	}
-	internalBinaryRead(
-		reader: IBinaryReader,
-		length: number,
-		options: BinaryReadOptions,
-		target?: GetFunctionResponse,
-	): GetFunctionResponse {
-		let message = target ?? this.create(),
-			end = reader.pos + length;
-		while (reader.pos < end) {
-			let [fieldNo, wireType] = reader.tag();
-			switch (fieldNo) {
-				case /* optional sui.rpc.v2beta2.FunctionDescriptor function */ 1:
-					message.function = FunctionDescriptor.internalBinaryRead(
-						reader,
-						reader.uint32(),
-						options,
-						message.function,
-					);
-					break;
-				default:
-					let u = options.readUnknownField;
-					if (u === 'throw')
-						throw new globalThis.Error(
-							`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`,
-						);
-					let d = reader.skip(wireType);
-					if (u !== false)
-						(u === true ? UnknownFieldHandler.onRead : u)(
-							this.typeName,
-							message,
-							fieldNo,
-							wireType,
-							d,
-						);
-			}
-		}
-		return message;
-	}
-	internalBinaryWrite(
-		message: GetFunctionResponse,
-		writer: IBinaryWriter,
-		options: BinaryWriteOptions,
-	): IBinaryWriter {
-		/* optional sui.rpc.v2beta2.FunctionDescriptor function = 1; */
-		if (message.function)
-			FunctionDescriptor.internalBinaryWrite(
-				message.function,
-				writer.tag(1, WireType.LengthDelimited).fork(),
-				options,
-			).join();
-		let u = options.writeUnknownFields;
-		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-		return writer;
 	}
 }
 /**
@@ -602,68 +245,6 @@ class ListPackageVersionsRequest$Type extends MessageType<ListPackageVersionsReq
 			{ no: 2, name: 'page_size', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
 			{ no: 3, name: 'page_token', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },
 		]);
-	}
-	create(value?: PartialMessage<ListPackageVersionsRequest>): ListPackageVersionsRequest {
-		const message = globalThis.Object.create(this.messagePrototype!);
-		if (value !== undefined)
-			reflectionMergePartial<ListPackageVersionsRequest>(this, message, value);
-		return message;
-	}
-	internalBinaryRead(
-		reader: IBinaryReader,
-		length: number,
-		options: BinaryReadOptions,
-		target?: ListPackageVersionsRequest,
-	): ListPackageVersionsRequest {
-		let message = target ?? this.create(),
-			end = reader.pos + length;
-		while (reader.pos < end) {
-			let [fieldNo, wireType] = reader.tag();
-			switch (fieldNo) {
-				case /* optional string package_id */ 1:
-					message.packageId = reader.string();
-					break;
-				case /* optional uint32 page_size */ 2:
-					message.pageSize = reader.uint32();
-					break;
-				case /* optional bytes page_token */ 3:
-					message.pageToken = reader.bytes();
-					break;
-				default:
-					let u = options.readUnknownField;
-					if (u === 'throw')
-						throw new globalThis.Error(
-							`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`,
-						);
-					let d = reader.skip(wireType);
-					if (u !== false)
-						(u === true ? UnknownFieldHandler.onRead : u)(
-							this.typeName,
-							message,
-							fieldNo,
-							wireType,
-							d,
-						);
-			}
-		}
-		return message;
-	}
-	internalBinaryWrite(
-		message: ListPackageVersionsRequest,
-		writer: IBinaryWriter,
-		options: BinaryWriteOptions,
-	): IBinaryWriter {
-		/* optional string package_id = 1; */
-		if (message.packageId !== undefined)
-			writer.tag(1, WireType.LengthDelimited).string(message.packageId);
-		/* optional uint32 page_size = 2; */
-		if (message.pageSize !== undefined) writer.tag(2, WireType.Varint).uint32(message.pageSize);
-		/* optional bytes page_token = 3; */
-		if (message.pageToken !== undefined)
-			writer.tag(3, WireType.LengthDelimited).bytes(message.pageToken);
-		let u = options.writeUnknownFields;
-		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-		return writer;
 	}
 }
 /**
@@ -684,70 +265,6 @@ class ListPackageVersionsResponse$Type extends MessageType<ListPackageVersionsRe
 			{ no: 2, name: 'next_page_token', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },
 		]);
 	}
-	create(value?: PartialMessage<ListPackageVersionsResponse>): ListPackageVersionsResponse {
-		const message = globalThis.Object.create(this.messagePrototype!);
-		message.versions = [];
-		if (value !== undefined)
-			reflectionMergePartial<ListPackageVersionsResponse>(this, message, value);
-		return message;
-	}
-	internalBinaryRead(
-		reader: IBinaryReader,
-		length: number,
-		options: BinaryReadOptions,
-		target?: ListPackageVersionsResponse,
-	): ListPackageVersionsResponse {
-		let message = target ?? this.create(),
-			end = reader.pos + length;
-		while (reader.pos < end) {
-			let [fieldNo, wireType] = reader.tag();
-			switch (fieldNo) {
-				case /* repeated sui.rpc.v2beta2.PackageVersion versions */ 1:
-					message.versions.push(
-						PackageVersion.internalBinaryRead(reader, reader.uint32(), options),
-					);
-					break;
-				case /* optional bytes next_page_token */ 2:
-					message.nextPageToken = reader.bytes();
-					break;
-				default:
-					let u = options.readUnknownField;
-					if (u === 'throw')
-						throw new globalThis.Error(
-							`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`,
-						);
-					let d = reader.skip(wireType);
-					if (u !== false)
-						(u === true ? UnknownFieldHandler.onRead : u)(
-							this.typeName,
-							message,
-							fieldNo,
-							wireType,
-							d,
-						);
-			}
-		}
-		return message;
-	}
-	internalBinaryWrite(
-		message: ListPackageVersionsResponse,
-		writer: IBinaryWriter,
-		options: BinaryWriteOptions,
-	): IBinaryWriter {
-		/* repeated sui.rpc.v2beta2.PackageVersion versions = 1; */
-		for (let i = 0; i < message.versions.length; i++)
-			PackageVersion.internalBinaryWrite(
-				message.versions[i],
-				writer.tag(1, WireType.LengthDelimited).fork(),
-				options,
-			).join();
-		/* optional bytes next_page_token = 2; */
-		if (message.nextPageToken !== undefined)
-			writer.tag(2, WireType.LengthDelimited).bytes(message.nextPageToken);
-		let u = options.writeUnknownFields;
-		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-		return writer;
-	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2beta2.ListPackageVersionsResponse
@@ -767,61 +284,6 @@ class PackageVersion$Type extends MessageType<PackageVersion> {
 				L: 0 /*LongType.BIGINT*/,
 			},
 		]);
-	}
-	create(value?: PartialMessage<PackageVersion>): PackageVersion {
-		const message = globalThis.Object.create(this.messagePrototype!);
-		if (value !== undefined) reflectionMergePartial<PackageVersion>(this, message, value);
-		return message;
-	}
-	internalBinaryRead(
-		reader: IBinaryReader,
-		length: number,
-		options: BinaryReadOptions,
-		target?: PackageVersion,
-	): PackageVersion {
-		let message = target ?? this.create(),
-			end = reader.pos + length;
-		while (reader.pos < end) {
-			let [fieldNo, wireType] = reader.tag();
-			switch (fieldNo) {
-				case /* optional string package_id */ 1:
-					message.packageId = reader.string();
-					break;
-				case /* optional uint64 version */ 2:
-					message.version = reader.uint64().toBigInt();
-					break;
-				default:
-					let u = options.readUnknownField;
-					if (u === 'throw')
-						throw new globalThis.Error(
-							`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`,
-						);
-					let d = reader.skip(wireType);
-					if (u !== false)
-						(u === true ? UnknownFieldHandler.onRead : u)(
-							this.typeName,
-							message,
-							fieldNo,
-							wireType,
-							d,
-						);
-			}
-		}
-		return message;
-	}
-	internalBinaryWrite(
-		message: PackageVersion,
-		writer: IBinaryWriter,
-		options: BinaryWriteOptions,
-	): IBinaryWriter {
-		/* optional string package_id = 1; */
-		if (message.packageId !== undefined)
-			writer.tag(1, WireType.LengthDelimited).string(message.packageId);
-		/* optional uint64 version = 2; */
-		if (message.version !== undefined) writer.tag(2, WireType.Varint).uint64(message.version);
-		let u = options.writeUnknownFields;
-		if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-		return writer;
 	}
 }
 /**
