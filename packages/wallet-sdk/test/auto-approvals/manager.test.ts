@@ -1,16 +1,15 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { describe, test, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import {
+	analyze,
+	autoApprovalAnalyzer,
 	AutoApprovalManager,
 	AutoApprovalPolicy,
-	CoinValueAnalysis,
-	createCoinValueAnalyzer,
 	operationType,
-	operationTypeAnalyzer,
-	TransactionAnalyzer,
 } from '../../src';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { MIST_PER_SUI } from '@mysten/sui/utils';
@@ -28,24 +27,25 @@ const policy: AutoApprovalPolicy = {
 };
 
 describe('AutoApprovalManager', () => {
-	describe('placeholder example', async () => {
+	test.skip('placeholder example', async () => {
 		const keypair = new Ed25519Keypair();
 		const client = new SuiClient({ url: getFullnodeUrl('testnet') });
 
 		const tx = new Transaction();
 		tx.add(operationType('test-operation'));
-		const txJson = await tx.toJSON({ client });
+		const transactionJson = await tx.toJSON({ client });
 
-		const analysis = await TransactionAnalyzer.create<{
-			operationType: string | null;
-			usdValue: CoinValueAnalysis;
-		}>(client, txJson, {
-			operationType: operationTypeAnalyzer,
-			usdValue: createCoinValueAnalyzer({
+		const { analysis } = await analyze(
+			{
+				analysis: autoApprovalAnalyzer,
+			},
+			{
+				transactionJson,
+				client,
 				getCoinPrices: async (types) =>
 					types.map((coinType) => ({ coinType, decimals: 9, price: 2.5 })),
-			}),
-		}).analyze();
+			},
+		);
 
 		const manager = new AutoApprovalManager({
 			policy: JSON.stringify(policy),
@@ -66,6 +66,7 @@ describe('AutoApprovalManager', () => {
 			coinBudgets: {
 				'sui:0x2::sui::SUI': String(10n * MIST_PER_SUI),
 			},
+			sharedBudget: null,
 		});
 
 		expect(manager.checkTransaction(analysis).canAutoApprove).toEqual(true);
@@ -73,11 +74,15 @@ describe('AutoApprovalManager', () => {
 		// deduct balances
 		manager.commitTransaction(analysis);
 
-		const { signature } = await keypair.signTransaction(analysis.results.bytes);
+		if (!analysis.result) {
+			throw new Error('Transaction analysis failed');
+		}
+
+		const { signature } = await keypair.signTransaction(analysis.result.bytes);
 
 		try {
 			var { transaction } = await client.core.executeTransaction({
-				transaction: analysis.results.bytes,
+				transaction: analysis.result?.bytes,
 				signatures: [signature],
 			});
 		} catch (e) {

@@ -26,7 +26,7 @@ export interface CoinValueAnalysis {
 	}[];
 }
 
-export const coinValue = createAnalyzer({
+export const coinValues = createAnalyzer({
 	dependencies: { coinFlows },
 	analyze:
 		({ getCoinPrices }: CoinValueAnalyzerOptions) =>
