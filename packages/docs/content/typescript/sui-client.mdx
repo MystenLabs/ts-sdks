@@ -132,8 +132,6 @@ const { bytes, signature } = await tx.sign({ client, signer: keypair });
 const result = await client.executeTransactionBlock({
     transactionBlock: bytes,
     signature,
-    // Deprecated: requestType will be ignored by JSON RPC in the future
-    // requestType: 'WaitForLocalExecution',
     options: {
         showEffects: true,
     },
@@ -146,9 +144,6 @@ const result = await client.executeTransactionBlock({
   or as a base-64 encoded string.
 - `signature` - A signature, or list of signatures committed to the intent message of the
   transaction data, as a base-64 encoded string.
-- `requestType`: `WaitForEffectsCert` or `WaitForLocalExecution`. Determines when the RPC node
-  should return the response. Default to be `WaitForLocalExecution`.
-  (Deprecated: requestType will be ignored by JSON RPC in the future)
 - `options`:
   - `showBalanceChanges`: Whether to show balance_changes. Default to be False
   - `showEffects`: Whether to show transaction effects. Default to be False
@@ -167,8 +162,6 @@ const tx = new Transaction();
 const result = await client.signAndExecuteTransaction({
     transaction: tx,
     signer: keypair,
-    // Deprecated: requestType will be ignored by JSON RPC in the future
-    // requestType: 'WaitForLocalExecution',
     options: {
         showEffects: true,
     },
@@ -180,9 +173,6 @@ const result = await client.signAndExecuteTransaction({
 - `transaction` - BCS serialized transaction data bytes as a Uint8Array or as a base-64 encoded
   string.
 - `signer` - A `Keypair` instance to sign the transaction
-- `requestType`: `WaitForEffectsCert` or `WaitForLocalExecution`. Determines when the RPC node
-  should return the response. Default to be `WaitForLocalExecution`.
-  (Deprecated: requestType will be ignored by JSON RPC in the future)
 - `options`:
   - `showBalanceChanges`: Whether to show balance_changes. Default to be False
   - `showEffects`: Whether to show transaction effects. Default to be False
