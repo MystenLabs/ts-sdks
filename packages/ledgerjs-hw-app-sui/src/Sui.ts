@@ -3,6 +3,7 @@
 
 import type Transport from '@ledgerhq/hw-transport';
 import sha256 from 'fast-sha256';
+import { DescriptorInput, buildDescriptor } from './descriptor';
 
 export type GetPublicKeyResult = {
 	publicKey: Uint8Array;
@@ -50,7 +51,7 @@ export default class Sui {
 		this.transport = transport;
 		this.transport.decorateAppAPIMethods(
 			this,
-			['getPublicKey', 'signTransaction', 'getVersion'],
+			['getPublicKey', 'signTransaction', 'getVersion', 'provideTrustedDynamicDescriptor'],
 			scrambleKey,
 		);
 	}
@@ -162,6 +163,23 @@ export default class Sui {
 			minor,
 			patch,
 		};
+	}
+
+	/**
+	 * Provides trusted dynamic and signed coin metadata
+	 *
+	 * @param data An object containing the descriptor and its signature from the CAL
+	 */
+	async provideTrustedDynamicDescriptor(data: DescriptorInput): Promise<boolean> {
+		await this.#sendChunks(
+			0x00, // CLA
+			0x22, // Provide trusted dynamic descriptor
+			0x00, // P1
+			0x00, // P2
+			buildDescriptor(data),
+		);
+
+		return true;
 	}
 
 	/**
