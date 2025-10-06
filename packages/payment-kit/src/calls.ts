@@ -11,7 +11,7 @@ import {
 	processEphemeralPayment,
 	processRegistryPayment,
 } from './contracts/payment_kit/payment_kit.js';
-import { getRegistryIdFromParams } from './utils.js';
+import { getRegistryIdFromName } from './utils.js';
 
 export interface PaymentKitCallOptions {
 	packageConfig: PaymentKitPackageConfig;
@@ -33,13 +33,14 @@ export class PaymentKitCalls {
 	 * ```
 	 */
 	processRegistryPayment = (params: ProcessRegistryPaymentParams) => {
-		const { nonce, coinType, amount, receiver, registry } = params;
-		const registryId = getRegistryIdFromParams(this.#packageConfig.namespaceId, registry);
+		const { nonce, coinType, amount, receiver, registryName, registryId } = params;
+		const registryIdToUse =
+			registryId ?? getRegistryIdFromName(this.#packageConfig.namespaceId, registryName);
 
 		return processRegistryPayment({
 			package: this.#packageConfig.packageId,
 			arguments: {
-				registry: registryId,
+				registry: registryIdToUse,
 				nonce: nonce,
 				paymentAmount: amount,
 				coin: coinWithBalance({

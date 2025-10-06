@@ -14,26 +14,16 @@ export interface PaymentKitClientOptions {
 	client: PaymentKitCompatibleClient;
 }
 
-export type RegistryParam =
+export type Registry =
 	| { registryName: string; registryId?: never }
 	| { registryName?: never; registryId: string };
 
-export interface ProcessPaymentParams {
-	nonce: string;
-	amount: number | bigint;
-	coinType: string;
-	receiver: string;
-	sender: string;
-	registry?: RegistryParam;
-}
-
-export interface GetPaymentRecordParams {
-	registry?: RegistryParam;
+export type GetPaymentRecordParams = {
 	nonce: string;
 	amount: number | bigint;
 	receiver: string;
 	coinType: string;
-}
+} & Registry;
 
 export interface PaymentRecordData {
 	epochAtTimeOfRecord: string;
@@ -44,19 +34,18 @@ export interface GetPaymentRecordResponse {
 	paymentRecord: PaymentRecordData;
 }
 
-export interface ProcessRegistryPaymentParams {
+export type ProcessRegistryPaymentParams = {
 	nonce: string;
 	coinType: string;
 	sender: string;
 	amount: number | bigint;
 	receiver: string;
-	registry?: RegistryParam;
-}
+} & Registry;
 
-export interface ProcessEphemeralPaymentParams {
+export type ProcessEphemeralPaymentParams = {
 	nonce: string;
 	coinType: string;
 	sender: string;
 	amount: number | bigint;
 	receiver: string;
-}
+} & Registry;

@@ -16,9 +16,9 @@ import type {
 } from './types.js';
 import type { SuiClientRegistration } from '@mysten/sui/experimental';
 import { normalizeStructTag } from '@mysten/sui/dist/cjs/utils/sui-types.js';
-import { getRegistryIdFromParams } from './utils.js';
 import { PaymentKitTransactions } from './transactions.js';
 import { PaymentKitCalls } from './calls.js';
+import { getRegistryIdFromName } from './utils.js';
 
 export class PaymentKitClient {
 	#packageConfig: PaymentKitPackageConfig;
@@ -71,19 +71,20 @@ export class PaymentKitClient {
 	 *
 	 * @usage
 	 * ```ts
-	 * const paymentRecord = await client.getPaymentRecord({ registryId, nonce, amount, receiver, coinType });
+	 * const paymentRecord = await client.getPaymentRecord({ registry, nonce, amount, receiver, coinType });
 	 * ```
 	 */
 	async getPaymentRecord(params: GetPaymentRecordParams): Promise<GetPaymentRecordResponse | null> {
-		const { coinType, registry } = params;
+		const { coinType, registryId, registryName } = params;
 		const normalizedCoinType = normalizeStructTag(coinType);
 		const paymentKeyType =
 			PaymentKey.name.replace('@mysten/payment-kit', this.#packageConfig.packageId) +
 			`<${normalizedCoinType}>`;
 
-		const registryId = getRegistryIdFromParams(this.#packageConfig.namespaceId, registry);
+		const registryIdToUse =
+			registryId ?? getRegistryIdFromName(this.#packageConfig.namespaceId, registryName);
 		const result = await this.#client.core.getDynamicField({
-			parentId: registryId,
+			parentId: registryIdToUse,
 			name: {
 				type: paymentKeyType,
 				bcs: PaymentKey.serialize({
