@@ -55,8 +55,12 @@ export class PaymentKitClient {
 		};
 	}
 
-	get packageConfig() {
-		return this.#packageConfig;
+	get packageId() {
+		return this.#packageConfig.packageId;
+	}
+
+	get namespaceId() {
+		return this.#packageConfig.namespaceId;
 	}
 
 	/**
@@ -72,10 +76,9 @@ export class PaymentKitClient {
 		const { coinType, registry } = params;
 		const normalizedCoinType = normalizeStructTag(coinType);
 		const paymentKeyType =
-			PaymentKey.name.replace('@mysten/payment-kit', this.#packageConfig.packageId) +
-			`<${normalizedCoinType}>`;
+			PaymentKey.name.replace('@mysten/payment-kit', this.packageId) + `<${normalizedCoinType}>`;
 
-		const registryId = getRegistryIdFromParams(this.#packageConfig.namespaceId, registry);
+		const registryId = getRegistryIdFromParams(this.namespaceId, registry);
 		const result = await this.#client.core.getDynamicField({
 			parentId: registryId,
 			name: {

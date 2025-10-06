@@ -29,6 +29,14 @@ export class PaymentKitTransactions {
 		this.#packageConfig = options.packageConfig;
 	}
 
+	get packageId() {
+		return this.#packageConfig.packageId;
+	}
+
+	get namespaceId() {
+		return this.#packageConfig.namespaceId;
+	}
+
 	async #coinWithBalance(
 		amount: number | bigint,
 		coinType: string,
@@ -81,11 +89,11 @@ export class PaymentKitTransactions {
 
 		const tx = new Transaction();
 		const coin = await this.#coinWithBalance(amount, coinType, sender, tx);
-		const registryId = getRegistryIdFromParams(this.#packageConfig.namespaceId, registry);
+		const registryId = getRegistryIdFromParams(this.namespaceId, registry);
 
 		tx.add(
 			processRegistryPayment({
-				package: this.#packageConfig.packageId,
+				package: this.packageId,
 				arguments: {
 					registry: registryId,
 					nonce: nonce,
@@ -116,7 +124,7 @@ export class PaymentKitTransactions {
 
 		tx.add(
 			processEphemeralPayment({
-				package: this.#packageConfig.packageId,
+				package: this.packageId,
 				arguments: {
 					nonce: nonce,
 					paymentAmount: amount,
