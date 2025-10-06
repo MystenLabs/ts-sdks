@@ -101,7 +101,7 @@ creation).
 #### Payment Keys
 
 A `PaymentRecord` is a Dynamic Field owned by the `PaymentRegistry`. This record is derived via a
-`PaymentKey`. A `PaymentKey` is a hash of request payment. This includes the `PaymentID`,
+`PaymentKey`. A `PaymentKey` is a hash of request payment. This includes the `nonce`,
 `PaymentAmount`, `CoinType`, and `ReceiverAddress`.
 
 ### Payment Receipts
@@ -113,7 +113,7 @@ application.
 ```ts
 type PaymentReceipt = {
 	paymentType: PaymentType;
-	paymentId: string;
+	nonce: string;
 	amount: number;
 	receiver: string;
 	coinType: string;

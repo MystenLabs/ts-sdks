@@ -29,7 +29,7 @@ export class PaymentKitTransactions {
 		this.#packageConfig = options.packageConfig;
 	}
 
-	async #coinsToTransfer(
+	async #coinWithBalance(
 		amount: number | bigint,
 		coinType: string,
 		sender: string,
@@ -73,22 +73,22 @@ export class PaymentKitTransactions {
 	 *
 	 * @usage
 	 * ```ts
-	 * const tx = client.paymentKit.tx.processRegistryPaymentTransaction({ paymentId, coinType, sender, amount, receiver, registry });
+	 * const tx = client.paymentKit.tx.processRegistryPaymentTransaction({ nonce, coinType, sender, amount, receiver, registry });
 	 * ```
 	 */
 	async processRegistryPaymentTransaction(params: ProcessRegistryPaymentParams) {
-		const { paymentId, coinType, sender, amount, receiver, registry } = params;
+		const { nonce, coinType, sender, amount, receiver, registry } = params;
 
 		const tx = new Transaction();
-		const coin = await this.#coinsToTransfer(amount, coinType, sender, tx);
-		const registryId = getRegistryIdFromParams(registry);
+		const coin = await this.#coinWithBalance(amount, coinType, sender, tx);
+		const registryId = getRegistryIdFromParams(this.#packageConfig.namespaceId, registry);
 
 		tx.add(
 			processRegistryPayment({
 				package: this.#packageConfig.packageId,
 				arguments: {
 					registry: registryId,
-					nonce: paymentId,
+					nonce: nonce,
 					paymentAmount: amount,
 					coin,
 					receiver,
@@ -105,20 +105,20 @@ export class PaymentKitTransactions {
 	 *
 	 * @usage
 	 * ```ts
-	 * const tx = client.paymentKit.tx.processEphemeralPaymentTransaction({ paymentId, amount, coinType, receiver, sender });
+	 * const tx = client.paymentKit.tx.processEphemeralPaymentTransaction({ nonce, amount, coinType, receiver, sender });
 	 * ```
 	 */
 	async processEphemeralPaymentTransaction(params: ProcessEphemeralPaymentParams) {
-		const { paymentId, amount, coinType, receiver, sender } = params;
+		const { nonce, amount, coinType, receiver, sender } = params;
 
 		const tx = new Transaction();
-		const coin = await this.#coinsToTransfer(amount, coinType, sender, tx);
+		const coin = await this.#coinWithBalance(amount, coinType, sender, tx);
 
 		tx.add(
 			processEphemeralPayment({
 				package: this.#packageConfig.packageId,
 				arguments: {
-					nonce: paymentId,
+					nonce: nonce,
 					paymentAmount: amount,
 					coin,
 					receiver,

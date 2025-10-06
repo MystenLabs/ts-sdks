@@ -65,7 +65,7 @@ export class PaymentKitClient {
 	 *
 	 * @usage
 	 * ```ts
-	 * const paymentRecord = await client.getPaymentRecord({ registryId, paymentId, amount, receiver, coinType });
+	 * const paymentRecord = await client.getPaymentRecord({ registryId, nonce, amount, receiver, coinType });
 	 * ```
 	 */
 	async getPaymentRecord(params: GetPaymentRecordParams): Promise<GetPaymentRecordResponse | null> {
@@ -75,13 +75,13 @@ export class PaymentKitClient {
 			PaymentKey.name.replace('@mysten/payment-kit', this.#packageConfig.packageId) +
 			`<${normalizedCoinType}>`;
 
-		const registryId = getRegistryIdFromParams(registry);
+		const registryId = getRegistryIdFromParams(this.#packageConfig.namespaceId, registry);
 		const result = await this.#client.core.getDynamicField({
 			parentId: registryId,
 			name: {
 				type: paymentKeyType,
 				bcs: PaymentKey.serialize({
-					nonce: params.paymentId,
+					nonce: params.nonce,
 					payment_amount: params.amount,
 					receiver: params.receiver,
 				}).toBytes(),
@@ -96,7 +96,7 @@ export class PaymentKitClient {
 
 		return {
 			paymentRecord: { epochAtTimeOfRecord: decoded.epoch_at_time_of_record },
-			digestWhenCreated: '', // TODO - Get from previousTransaction
+			paymentTransactionDigest: '', // TODO - Get from previousTransaction
 		};
 	}
 }

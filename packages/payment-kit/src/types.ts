@@ -19,7 +19,7 @@ export type RegistryParam =
 	| { registryName?: never; registryId: string };
 
 export interface ProcessPaymentParams {
-	paymentId: string;
+	nonce: string;
 	amount: number | bigint;
 	coinType: string;
 	receiver: string;
@@ -29,7 +29,7 @@ export interface ProcessPaymentParams {
 
 export interface GetPaymentRecordParams {
 	registry?: RegistryParam;
-	paymentId: string;
+	nonce: string;
 	amount: number | bigint;
 	receiver: string;
 	coinType: string;
@@ -40,12 +40,12 @@ export interface PaymentRecordData {
 }
 
 export interface GetPaymentRecordResponse {
-	digestWhenCreated: string;
+	paymentTransactionDigest: string;
 	paymentRecord: PaymentRecordData;
 }
 
 export interface ProcessRegistryPaymentParams {
-	paymentId: string;
+	nonce: string;
 	coinType: string;
 	sender: string;
 	amount: number | bigint;
@@ -54,7 +54,7 @@ export interface ProcessRegistryPaymentParams {
 }
 
 export interface ProcessEphemeralPaymentParams {
-	paymentId: string;
+	nonce: string;
 	coinType: string;
 	sender: string;
 	amount: number | bigint;
