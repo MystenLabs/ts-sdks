@@ -25,13 +25,10 @@ export type GetPaymentRecordParams = {
 	coinType: string;
 } & Registry;
 
-export interface PaymentRecordData {
-	epochAtTimeOfRecord: string;
-}
-
 export interface GetPaymentRecordResponse {
-	paymentTransactionDigest: string;
-	paymentRecord: PaymentRecordData;
+	key: string;
+	paymentTransactionDigest: string | null;
+	epochAtTimeOfRecord: string;
 }
 
 export type ProcessEphemeralPaymentParams = {

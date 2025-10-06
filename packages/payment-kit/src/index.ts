@@ -9,7 +9,7 @@ export type {
 	GetPaymentRecordParams,
 	ProcessRegistryPaymentParams,
 	ProcessEphemeralPaymentParams,
-	PaymentRecordData,
+	GetPaymentRecordResponse,
 } from './types.js';
 export { PaymentKitClientError } from './error.js';
 export type { DEFAULT_REGISTRY_NAME } from './constants.js';
