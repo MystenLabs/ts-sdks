@@ -34,18 +34,12 @@ export interface GetPaymentRecordResponse {
 	paymentRecord: PaymentRecordData;
 }
 
-export type ProcessRegistryPaymentParams = {
-	nonce: string;
-	coinType: string;
-	sender: string;
-	amount: number | bigint;
-	receiver: string;
-} & Registry;
-
 export type ProcessEphemeralPaymentParams = {
 	nonce: string;
 	coinType: string;
 	sender: string;
 	amount: number | bigint;
 	receiver: string;
-} & Registry;
+};
+
+export type ProcessRegistryPaymentParams = ProcessEphemeralPaymentParams & Registry;
