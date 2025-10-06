@@ -41,7 +41,7 @@ export class PaymentKitCalls {
 			package: this.#packageConfig.packageId,
 			arguments: {
 				registry: registryIdToUse,
-				nonce: nonce,
+				nonce,
 				paymentAmount: amount,
 				coin: coinWithBalance({
 					type: coinType,

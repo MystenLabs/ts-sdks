@@ -75,7 +75,7 @@ export class PaymentKitClient {
 	 * ```
 	 */
 	async getPaymentRecord(params: GetPaymentRecordParams): Promise<GetPaymentRecordResponse | null> {
-		const { coinType, registryId, registryName } = params;
+		const { coinType, registryId, registryName, nonce, amount, receiver } = params;
 		const normalizedCoinType = normalizeStructTag(coinType);
 		const paymentKeyType =
 			PaymentKey.name.replace('@mysten/payment-kit', this.#packageConfig.packageId) +
@@ -88,9 +88,9 @@ export class PaymentKitClient {
 			name: {
 				type: paymentKeyType,
 				bcs: PaymentKey.serialize({
-					nonce: params.nonce,
-					payment_amount: params.amount,
-					receiver: params.receiver,
+					nonce,
+					payment_amount: amount,
+					receiver,
 				}).toBytes(),
 			},
 		});
