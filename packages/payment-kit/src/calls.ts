@@ -35,7 +35,7 @@ export class PaymentKitCalls {
 	processRegistryPayment = (params: ProcessRegistryPaymentParams) => {
 		const { nonce, coinType, amount, receiver, registryName, registryId } = params;
 		const registryIdToUse =
-			registryId ?? getRegistryIdFromName(this.#packageConfig.namespaceId, registryName);
+			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
 
 		return processRegistryPayment({
 			package: this.#packageConfig.packageId,

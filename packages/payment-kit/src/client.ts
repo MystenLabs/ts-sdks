@@ -82,7 +82,7 @@ export class PaymentKitClient {
 			`<${normalizedCoinType}>`;
 
 		const registryIdToUse =
-			registryId ?? getRegistryIdFromName(this.#packageConfig.namespaceId, registryName);
+			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
 		const result = await this.#client.core.getDynamicField({
 			parentId: registryIdToUse,
 			name: {
