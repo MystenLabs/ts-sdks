@@ -1,0 +1,105 @@
+{
+	"schemaVersion": "1.0.0",
+	"operations": [
+		{
+			"id": "basic-transfers",
+			"name": "Basic Transfers",
+			"description": "Allow basic SUI and coin transfers to any address",
+			"autoApprovalEnabled": true,
+			"permissions": {
+				"balances": [
+					{
+						"$kind": "CoinBalance",
+						"description": "Allow SUI transfers to any address",
+						"coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+					}
+				]
+			}
+		},
+		{
+			"id": "counter-operations",
+			"name": "Counter Operations",
+			"description": "Allow interactions with demo counter smart contracts",
+			"autoApprovalEnabled": true,
+			"permissions": {
+				"balances": [
+					{
+						"$kind": "CoinBalance",
+						"description": "Allow SUI for gas fees",
+						"coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+					}
+				],
+				"ownedObjects": [
+					{
+						"$kind": "ObjectType",
+						"description": "Allow counter object interactions",
+						"objectType": "0x58a6d7dccd124b7e0bb9756dc309f5d5b9e2bc38a05261177970e96d0d3911f1::counter::Counter",
+						"accessLevel": "mutate"
+					}
+				]
+			}
+		},
+		{
+			"id": "nft-operations",
+			"name": "NFT Operations",
+			"description": "Allow NFT minting, transfers, and marketplace interactions",
+			"autoApprovalEnabled": true,
+			"permissions": {
+				"balances": [
+					{
+						"$kind": "CoinBalance",
+						"description": "Allow SUI for gas fees",
+						"coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+					},
+					{
+						"$kind": "CoinBalance",
+						"description": "Allow WAL token transfers for storage operations",
+						"coinType": "0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL"
+					}
+				],
+				"ownedObjects": [
+					{
+						"$kind": "ObjectType",
+						"description": "Allow demo NFT interactions",
+						"objectType": "0x1ae7832d6ad190aa4c8d6a36dd014d8383246428fb27590262b8648fcec62ca0::nft::DemoNFT",
+						"accessLevel": "transfer"
+					},
+					{
+						"$kind": "ObjectType",
+						"description": "Allow interactions with Walrus Blob objects",
+						"objectType": "0xd84704c17fc870b8764832c535aa6b11f21a95cd6f5bb38a9b07d2cf42220c66::blob::Blob",
+						"accessLevel": "mutate"
+					}
+				]
+			}
+		},
+		{
+			"id": "walrus-operations",
+			"name": "Walrus Storage",
+			"description": "Allow interactions with Walrus decentralized storage",
+			"autoApprovalEnabled": true,
+			"permissions": {
+				"balances": [
+					{
+						"$kind": "CoinBalance",
+						"description": "Allow SUI payments for gas fees",
+						"coinType": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI"
+					},
+					{
+						"$kind": "CoinBalance",
+						"description": "Allow WAL token transfers for storage operations",
+						"coinType": "0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL"
+					}
+				],
+				"ownedObjects": [
+					{
+						"$kind": "ObjectType",
+						"description": "Allow interactions with Walrus Blob objects",
+						"objectType": "0xd84704c17fc870b8764832c535aa6b11f21a95cd6f5bb38a9b07d2cf42220c66::blob::Blob",
+						"accessLevel": "mutate"
+					}
+				]
+			}
+		}
+	]
+}

@@ -1,0 +1,19 @@
+/* Import Tailwind's Oxide engine CSS */
+@import 'tailwindcss';
+
+/* Custom animations and utilities that complement Tailwind */
+@keyframes slideIn {
+	from {
+		transform: translateX(100%);
+		opacity: 0;
+	}
+	to {
+		transform: translateX(0);
+		opacity: 1;
+	}
+}
+
+/* Custom utility classes for project-specific needs */
+.animate-slide-in {
+	animation: slideIn 0.3s ease-out;
+}
