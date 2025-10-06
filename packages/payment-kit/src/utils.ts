@@ -3,8 +3,8 @@
 
 import { bcs } from '@mysten/sui/bcs';
 import { deriveObjectID } from '@mysten/sui/utils';
-import { RegistryParam } from './types';
-import { DEFAULT_REGISTRY_NAME } from './constants';
+import type { RegistryParam } from './types.js';
+import { DEFAULT_REGISTRY_NAME } from './constants.js';
 
 export const getRegistryIdFromName = (registryName: string) => {
 	const namespaceId = DEFAULT_REGISTRY_NAME;
