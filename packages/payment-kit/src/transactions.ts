@@ -2,78 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Transaction } from '@mysten/sui/transactions';
-import { SUI_COIN_TYPE } from './constants.js';
-import type {
-	PaymentKitCompatibleClient,
-	PaymentKitPackageConfig,
-	ProcessEphemeralPaymentParams,
-	ProcessRegistryPaymentParams,
-} from './types.js';
-import {
-	processEphemeralPayment,
-	processRegistryPayment,
-} from './contracts/payment_kit/payment_kit.js';
-import { getRegistryIdFromParams } from './utils.js';
+import type { ProcessEphemeralPaymentParams, ProcessRegistryPaymentParams } from './types.js';
+import type { PaymentKitCalls } from './calls.js';
 
 export interface PaymentKitTransactionsOptions {
-	packageConfig: PaymentKitPackageConfig;
-	client: PaymentKitCompatibleClient;
+	calls: PaymentKitCalls;
 }
 
 export class PaymentKitTransactions {
-	#client: PaymentKitCompatibleClient;
-	#packageConfig: PaymentKitPackageConfig;
+	#calls: PaymentKitCalls;
 
 	constructor(options: PaymentKitTransactionsOptions) {
-		this.#client = options.client;
-		this.#packageConfig = options.packageConfig;
-	}
-
-	get packageId() {
-		return this.#packageConfig.packageId;
-	}
-
-	get namespaceId() {
-		return this.#packageConfig.namespaceId;
-	}
-
-	async #coinWithBalance(
-		amount: number | bigint,
-		coinType: string,
-		sender: string,
-		tx: Transaction,
-	) {
-		const coins = await this.#client.core.getCoins({
-			address: sender,
-			coinType,
-		});
-
-		let coin;
-		if (coinType === SUI_COIN_TYPE) {
-			coin = tx.splitCoins(tx.gas, [amount]);
-		} else {
-			let primaryCoinInput: string | null = null;
-
-			if (coins.objects.length > 0) {
-				primaryCoinInput = coins.objects[0].id;
-
-				if (coins.objects.length > 1) {
-					tx.mergeCoins(
-						coins.objects[0].id,
-						coins.objects.slice(1).map((c) => c.id),
-					);
-				}
-				tx.transferObjects([tx.gas, primaryCoinInput], sender);
-			}
-
-			if (!primaryCoinInput) {
-				throw new Error(`Requested Coin Object for ${coinType} not found`);
-			}
-
-			coin = tx.splitCoins(primaryCoinInput, [amount]);
-		}
-
-		return coin;
+		this.#calls = options.calls;
 	}
 
 	/**
@@ -84,26 +24,9 @@ export class PaymentKitTransactions {
 	 * const tx = client.paymentKit.tx.processRegistryPaymentTransaction({ nonce, coinType, sender, amount, receiver, registry });
 	 * ```
 	 */
-	async processRegistryPaymentTransaction(params: ProcessRegistryPaymentParams) {
-		const { nonce, coinType, sender, amount, receiver, registry } = params;
-
+	processRegistryPaymentTransaction(params: ProcessRegistryPaymentParams) {
 		const tx = new Transaction();
-		const coin = await this.#coinWithBalance(amount, coinType, sender, tx);
-		const registryId = getRegistryIdFromParams(this.namespaceId, registry);
-
-		tx.add(
-			processRegistryPayment({
-				package: this.packageId,
-				arguments: {
-					registry: registryId,
-					nonce: nonce,
-					paymentAmount: amount,
-					coin,
-					receiver,
-				},
-				typeArguments: [coinType],
-			}),
-		);
+		tx.add(this.#calls.processRegistryPaymentTransaction(params));
 
 		return tx;
 	}
@@ -113,27 +36,12 @@ export class PaymentKitTransactions {
 	 *
 	 * @usage
 	 * ```ts
-	 * const tx = client.paymentKit.tx.processEphemeralPaymentTransaction({ nonce, amount, coinType, receiver, sender });
+	 * const tx = client.paymentKit.tx.processEphemeralPaymentTransaction({ nonce, coinType, sender, amount, receiver });
 	 * ```
 	 */
-	async processEphemeralPaymentTransaction(params: ProcessEphemeralPaymentParams) {
-		const { nonce, amount, coinType, receiver, sender } = params;
-
+	processEphemeralPaymentTransaction(params: ProcessEphemeralPaymentParams) {
 		const tx = new Transaction();
-		const coin = await this.#coinWithBalance(amount, coinType, sender, tx);
-
-		tx.add(
-			processEphemeralPayment({
-				package: this.packageId,
-				arguments: {
-					nonce: nonce,
-					paymentAmount: amount,
-					coin,
-					receiver,
-				},
-				typeArguments: [coinType],
-			}),
-		);
+		tx.add(this.#calls.processEphemeralPaymentTransaction(params));
 
 		return tx;
 	}

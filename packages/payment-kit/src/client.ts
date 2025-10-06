@@ -17,10 +17,15 @@ import type {
 import type { SuiClientRegistration } from '@mysten/sui/experimental';
 import { normalizeStructTag } from '@mysten/sui/dist/cjs/utils/sui-types.js';
 import { getRegistryIdFromParams } from './utils.js';
+import { PaymentKitTransactions } from './transactions.js';
+import { PaymentKitCalls } from './calls.js';
 
 export class PaymentKitClient {
 	#packageConfig: PaymentKitPackageConfig;
 	#client: PaymentKitCompatibleClient;
+
+	calls: PaymentKitCalls;
+	tx: PaymentKitTransactions;
 
 	private constructor(options: PaymentKitClientOptions) {
 		if (options.client) {
@@ -40,6 +45,11 @@ export class PaymentKitClient {
 			default:
 				throw new PaymentKitClientError(`Unsupported network: ${network}`);
 		}
+
+		this.calls = new PaymentKitCalls({ packageConfig: this.#packageConfig });
+		this.tx = new PaymentKitTransactions({
+			calls: this.calls,
+		});
 	}
 
 	static asClientExtension(): SuiClientRegistration<
@@ -55,14 +65,6 @@ export class PaymentKitClient {
 		};
 	}
 
-	get packageId() {
-		return this.#packageConfig.packageId;
-	}
-
-	get namespaceId() {
-		return this.#packageConfig.namespaceId;
-	}
-
 	/**
 	 * Query for a payment record in a registry.
 	 * Returns the payment record data if it exists, null otherwise.
@@ -76,9 +78,10 @@ export class PaymentKitClient {
 		const { coinType, registry } = params;
 		const normalizedCoinType = normalizeStructTag(coinType);
 		const paymentKeyType =
-			PaymentKey.name.replace('@mysten/payment-kit', this.packageId) + `<${normalizedCoinType}>`;
+			PaymentKey.name.replace('@mysten/payment-kit', this.#packageConfig.packageId) +
+			`<${normalizedCoinType}>`;
 
-		const registryId = getRegistryIdFromParams(this.namespaceId, registry);
+		const registryId = getRegistryIdFromParams(this.#packageConfig.namespaceId, registry);
 		const result = await this.#client.core.getDynamicField({
 			parentId: registryId,
 			name: {
