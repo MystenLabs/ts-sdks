@@ -17,7 +17,7 @@ export function createMintNFTTransaction(params: {
 	const tx = new Transaction();
 
 	// Add auto-approval intent for rule set selection
-	tx.add(operationType('nft-operations', 'Mint NFT'));
+	tx.add(operationType('nft-operations'));
 
 	// Set sender
 	tx.setSenderIfNotSet(params.senderAddress);

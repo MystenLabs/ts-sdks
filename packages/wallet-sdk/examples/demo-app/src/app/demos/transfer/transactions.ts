@@ -30,7 +30,7 @@ export function createTransferAllSuiTransaction({
 	const tx = new Transaction();
 
 	// Add auto-approval intent for rule set selection
-	tx.add(operationType('basic-transfers', 'Transfer all SUI'));
+	tx.add(operationType('basic-transfers'));
 
 	tx.setSenderIfNotSet(senderAddress);
 
@@ -58,7 +58,7 @@ export function createTransferSuiAmountTransaction({
 	const tx = new Transaction();
 
 	// Add auto-approval intent for rule set selection
-	tx.add(operationType('basic-transfers', 'Transfer specific SUI amount'));
+	tx.add(operationType('basic-transfers'));
 
 	tx.setSenderIfNotSet(senderAddress);
 
@@ -87,7 +87,7 @@ export async function createTransferAllCoinsTransaction(
 	const tx = new Transaction();
 
 	// Add auto-approval intent for rule set selection
-	tx.add(operationType('basic-transfers', 'Transfer all coins'));
+	tx.add(operationType('basic-transfers'));
 
 	tx.setSenderIfNotSet(senderAddress);
 
@@ -128,7 +128,7 @@ export async function createTransferCoinAmountTransaction(
 	const tx = new Transaction();
 
 	// Add auto-approval intent for rule set selection
-	tx.add(operationType('basic-transfers', 'Transfer specific coin amount'));
+	tx.add(operationType('basic-transfers'));
 
 	tx.setSenderIfNotSet(senderAddress);
 
@@ -189,7 +189,7 @@ export function createTransferObjectsTransaction({
 	const tx = new Transaction();
 
 	// Add auto-approval intent for rule set selection
-	tx.add(operationType('basic-transfers', 'Transfer objects'));
+	tx.add(operationType('basic-transfers'));
 
 	tx.setSenderIfNotSet(senderAddress);
 

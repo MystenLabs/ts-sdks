@@ -1,17 +1,17 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AutoApprovalAnalysis, AutoApprovalIssue } from '@mysten/wallet-sdk';
+import type { AutoApprovalIssue } from '@mysten/wallet-sdk';
 import type { AutoApprovalState } from '../../../hooks/useAutoApproval.js';
+import type { WalletTransactionAnalysis } from '../../../hooks/useAnalysis.js';
 
 interface AutoApprovalTabProps {
-	analysis: AutoApprovalAnalysis;
+	analysis: WalletTransactionAnalysis;
 	autoApprovalState: AutoApprovalState;
 }
 
 export function AutoApprovalTab({ analysis, autoApprovalState }: AutoApprovalTabProps) {
-	const { results } = analysis;
-	const { operationType } = results;
+	const { autoApproval } = analysis;
 	const {
 		matchesPolicy,
 		canAutoApprove,
@@ -27,7 +27,9 @@ export function AutoApprovalTab({ analysis, autoApprovalState }: AutoApprovalTab
 	const managerState = manager?.getState();
 	const policy = managerState?.policy;
 	const settings = manager?.getSettings();
-	const operation = policy?.operations.find((op: { id: string }) => op.id === operationType);
+	const operation = policy?.operations.find(
+		(op: { id: string }) => op.id === autoApproval.result?.operationType,
+	);
 
 	return (
 		<div className="space-y-6">

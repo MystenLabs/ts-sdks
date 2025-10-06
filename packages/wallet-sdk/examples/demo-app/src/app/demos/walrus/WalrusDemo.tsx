@@ -91,7 +91,7 @@ export function WalrusDemo() {
 			});
 
 			// Add operation type for auto-approval
-			registerTx.add(operationType('walrus-operations', 'Register blob'));
+			registerTx.add(operationType('walrus-operations'));
 
 			const result = await uploadExecution.executeTransaction(registerTx);
 			if (!result) {
@@ -107,7 +107,7 @@ export function WalrusDemo() {
 			const certifyTx = flow.certify();
 
 			// Add operation type for auto-approval
-			certifyTx.add(operationType('walrus-operations', 'Certify blob'));
+			certifyTx.add(operationType('walrus-operations'));
 
 			const certifyResult = await uploadExecution.executeTransaction(certifyTx);
 			if (!certifyResult) {

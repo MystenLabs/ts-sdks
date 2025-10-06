@@ -1,20 +1,19 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AutoApprovalAnalysis } from '@mysten/wallet-sdk';
 import { formatAddress } from '@mysten/sui/utils';
+import type { WalletTransactionAnalysis } from '../../../hooks/useAnalysis.js';
 
 interface InputsTabProps {
-	analysis: AutoApprovalAnalysis;
+	analysis: WalletTransactionAnalysis;
 }
 
 export function InputsTab({ analysis }: InputsTabProps) {
-	const { results } = analysis;
-	const { inputs, coins, commands } = results;
+	const { inputs, coins, commands } = analysis;
 
 	// Map command indexes to which inputs they use
 	const inputUsage = new Map<number, number[]>();
-	commands.forEach((cmd, cmdIndex) => {
+	commands.result?.forEach((cmd, cmdIndex) => {
 		// Get arguments based on command type
 		let args: any[] = [];
 		if (cmd.$kind === 'MoveCall') {
@@ -43,11 +42,11 @@ export function InputsTab({ analysis }: InputsTabProps) {
 	return (
 		<div className="space-y-4">
 			<h3 className="text-sm font-semibold text-gray-900">Transaction Inputs</h3>
-			{inputs.length === 0 ? (
+			{!inputs?.result || inputs.result.length === 0 ? (
 				<div className="text-center py-4 text-sm text-gray-500">No inputs for this transaction</div>
 			) : (
 				<div className="space-y-2">
-					{inputs.map((input, index) => {
+					{inputs.result.map((input, index) => {
 						const usage = inputUsage.get(index) || [];
 
 						if (input.$kind === 'Pure') {
@@ -75,7 +74,7 @@ export function InputsTab({ analysis }: InputsTabProps) {
 								(input.object as any).data?.objectId || (input.object as any).objectId || 'unknown';
 							const obj = input.object;
 							const access = input.accessLevel;
-							const coin = coins[objId];
+							const coin = coins.result?.[objId];
 
 							const accessColor =
 								access === 'transfer'

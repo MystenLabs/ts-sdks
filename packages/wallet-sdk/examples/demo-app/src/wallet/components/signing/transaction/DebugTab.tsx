@@ -1,19 +1,18 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AutoApprovalAnalysis } from '@mysten/wallet-sdk';
 import { toBase64 } from '@mysten/bcs';
 import { useState } from 'react';
 import { CopyableText } from '../../../../components/CopyableText.js';
 import type { AutoApprovalState } from '../../../hooks/useAutoApproval.js';
+import type { WalletTransactionAnalysis } from '../../../hooks/useAnalysis.js';
 
 interface DebugTabProps {
-	analysis: AutoApprovalAnalysis;
+	analysis: WalletTransactionAnalysis;
 	autoApprovalState?: AutoApprovalState;
 }
 
 export function DebugTab({ analysis, autoApprovalState }: DebugTabProps) {
-	const { results, issues } = analysis;
 	const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['issues']));
 
 	const toggleSection = (section: string) => {
@@ -26,62 +25,68 @@ export function DebugTab({ analysis, autoApprovalState }: DebugTabProps) {
 		setExpandedSections(newExpanded);
 	};
 
+	if (analysis.autoApproval.issues) {
+		return (
+			<div className="space-y-4">
+				{/* Analysis Issues */}
+				{
+					<div className="bg-red-50 border border-red-200 rounded-lg overflow-hidden">
+						<button
+							onClick={() => toggleSection('issues')}
+							className="w-full px-4 py-3 text-left hover:bg-red-100 transition-colors"
+						>
+							<div className="flex items-center justify-between">
+								<h3 className="text-sm font-semibold text-red-900">
+									Analysis Issues ({analysis.autoApproval.issues.length})
+								</h3>
+								<svg
+									className={`w-4 h-4 text-red-600 transform transition-transform ${
+										expandedSections.has('issues') ? 'rotate-90' : ''
+									}`}
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth="2"
+										d="M9 5l7 7-7 7"
+									/>
+								</svg>
+							</div>
+						</button>
+						{expandedSections.has('issues') && (
+							<div className="px-4 pb-3">
+								<ul className="space-y-1">
+									{analysis.autoApproval.issues.map((issue, index) => (
+										<li key={index} className="text-xs text-red-700">
+											• {issue.message}
+										</li>
+									))}
+								</ul>
+							</div>
+						)}
+					</div>
+				}
+			</div>
+		);
+	}
+
 	return (
 		<div className="space-y-4">
-			{/* Analysis Issues */}
-			{issues.length > 0 && (
-				<div className="bg-red-50 border border-red-200 rounded-lg overflow-hidden">
-					<button
-						onClick={() => toggleSection('issues')}
-						className="w-full px-4 py-3 text-left hover:bg-red-100 transition-colors"
-					>
-						<div className="flex items-center justify-between">
-							<h3 className="text-sm font-semibold text-red-900">
-								Analysis Issues ({issues.length})
-							</h3>
-							<svg
-								className={`w-4 h-4 text-red-600 transform transition-transform ${
-									expandedSections.has('issues') ? 'rotate-90' : ''
-								}`}
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-							>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									strokeWidth="2"
-									d="M9 5l7 7-7 7"
-								/>
-							</svg>
-						</div>
-					</button>
-					{expandedSections.has('issues') && (
-						<div className="px-4 pb-3">
-							<ul className="space-y-1">
-								{issues.map((issue, index) => (
-									<li key={index} className="text-xs text-red-700">
-										• {issue.message}
-									</li>
-								))}
-							</ul>
-						</div>
-					)}
-				</div>
-			)}
-
 			{/* Transaction Digest & Bytes */}
 			<div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
 				<h3 className="text-sm font-semibold text-gray-900 mb-3">Transaction Metadata</h3>
 				<div className="space-y-3">
 					<div>
 						<div className="text-xs text-gray-600 mb-1">Digest:</div>
-						<CopyableText text={results.digest} className="text-gray-800" />
+						<CopyableText text={analysis.autoApproval.result.digest} className="text-gray-800" />
 					</div>
 					<div>
 						<div className="text-xs text-gray-600 mb-1">Bytes (Base64):</div>
 						<CopyableText
-							text={toBase64(results.bytes)}
+							text={toBase64(analysis.autoApproval.result.bytes)}
 							className="text-gray-800"
 							truncate
 							maxLength={60}
@@ -89,13 +94,15 @@ export function DebugTab({ analysis, autoApprovalState }: DebugTabProps) {
 					</div>
 					<div>
 						<span className="text-xs text-gray-600">Size: </span>
-						<span className="text-xs text-gray-800">{results.bytes.length} bytes</span>
+						<span className="text-xs text-gray-800">
+							{analysis.autoApproval.result.bytes.length} bytes
+						</span>
 					</div>
 				</div>
 			</div>
 
 			{/* Dry Run Results */}
-			{results.dryRun && (
+			{analysis.autoApproval.result && (
 				<div className="border border-gray-200 rounded-lg overflow-hidden">
 					<button
 						onClick={() => toggleSection('dryRun')}
@@ -123,25 +130,29 @@ export function DebugTab({ analysis, autoApprovalState }: DebugTabProps) {
 					{expandedSections.has('dryRun') && (
 						<div className="px-4 pb-3 bg-gray-50">
 							<div className="text-xs space-y-2">
-								{results.dryRun.transaction && (
+								{analysis.transactionResponse.result && (
 									<div>
 										<div className="font-medium text-gray-700 mb-1">Effects</div>
 										<div className="bg-white rounded p-2 border border-gray-200">
 											<div>
 												Status:{' '}
-												{results.dryRun.transaction.effects?.status.success ? 'Success' : 'Failed'}
+												{analysis.transactionResponse.result.effects?.status.success
+													? 'Success'
+													: 'Failed'}
 											</div>
-											{results.dryRun.transaction.effects?.gasUsed && (
+											{analysis.transactionResponse.result.effects?.gasUsed && (
 												<div>
-													Gas Used: {results.dryRun.transaction.effects.gasUsed.computationCost}{' '}
-													(compute) + {results.dryRun.transaction.effects.gasUsed.storageCost}{' '}
+													Gas Used:{' '}
+													{analysis.transactionResponse.result.effects.gasUsed.computationCost}{' '}
+													(compute) +{' '}
+													{analysis.transactionResponse.result.effects.gasUsed.storageCost}{' '}
 													(storage)
 												</div>
 											)}
-											{results.dryRun.transaction.effects?.changedObjects && (
+											{analysis.transactionResponse.result.effects?.changedObjects && (
 												<div>
 													Changed Objects:{' '}
-													{results.dryRun.transaction.effects.changedObjects.length}
+													{analysis.transactionResponse.result.effects.changedObjects.length}
 												</div>
 											)}
 										</div>
@@ -225,7 +236,7 @@ export function DebugTab({ analysis, autoApprovalState }: DebugTabProps) {
 					<div className="px-4 pb-3 bg-gray-50">
 						<pre className="text-xs text-gray-700 overflow-auto max-h-96">
 							{JSON.stringify(
-								results.data,
+								analysis.data,
 								(_key, value) => {
 									if (value instanceof Uint8Array) {
 										return toBase64(value);

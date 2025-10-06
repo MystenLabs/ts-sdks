@@ -75,7 +75,7 @@ export function PolicyOperation({
 				<div className="flex-1 min-w-0">
 					<div className="flex items-center justify-between mb-2">
 						<div className="flex items-center space-x-2">
-							<span className="text-sm font-semibold text-gray-900">{operation.name}</span>
+							<span className="text-sm font-semibold text-gray-900">{operation.id}</span>
 							{isHighlighted && (
 								<span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
 									Requested

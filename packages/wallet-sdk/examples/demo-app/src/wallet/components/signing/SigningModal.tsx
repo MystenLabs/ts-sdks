@@ -7,14 +7,14 @@ import { PolicyStatusMessage } from './PolicyStatusMessage.js';
 import { TransactionContent } from './TransactionContent.js';
 import { AutoApprovalCountdown } from './AutoApprovalCountdown.js';
 import { SigningActions } from './SigningActions.js';
-import type { AutoApprovalAnalysis } from '@mysten/wallet-sdk';
 import type { AutoApprovalState } from '../../hooks/useAutoApproval.js';
 import { useState } from 'react';
+import type { WalletTransactionAnalysis } from '../../hooks/useAnalysis.js';
 
 interface SigningModalProps {
 	account: ReadonlyWalletAccount;
 	requestType: 'personalMessage' | 'transaction' | 'signAndExecute';
-	analysis?: AutoApprovalAnalysis | null; // null = still analyzing
+	analysis?: WalletTransactionAnalysis | null; // null = still analyzing
 	autoApprovalState?: AutoApprovalState;
 	onApprove: () => void;
 	onAutoApprove: () => void;

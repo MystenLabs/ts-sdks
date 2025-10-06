@@ -1,29 +1,25 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AutoApprovalAnalysis } from '@mysten/wallet-sdk';
 import type { AutoApprovalState } from '../../../hooks/useAutoApproval.js';
 import { CopyableText } from '../../../../components/CopyableText.js';
+import type { WalletTransactionAnalysis } from '../../../hooks/useAnalysis.js';
 
 interface OverviewTabProps {
-	analysis: AutoApprovalAnalysis;
+	analysis: WalletTransactionAnalysis;
 	autoApprovalState?: AutoApprovalState;
 }
 
 export function OverviewTab({ analysis, autoApprovalState }: OverviewTabProps) {
-	const { results } = analysis;
-	const { operationType, coinFlows, gasCoins } = results;
+	const { data, autoApproval } = analysis;
 
 	// Get operation description from policy if available
 	const operation = autoApprovalState?.manager
 		?.getState()
-		.policy?.operations.find((op: { id: string }) => op.id === operationType);
-
-	// Calculate total gas
-	const totalGas = gasCoins.reduce((acc, coin) => acc + BigInt(coin.balance), 0n);
+		.policy?.operations.find((op: { id: string }) => op.id === autoApproval?.result?.operationType);
 
 	// Calculate USD values with hardcoded prices since analyzer doesn't have pricing
-	const coinFlowsWithUSD = coinFlows.map((flow) => {
+	const coinFlowsWithUSD = autoApproval.result?.coinFlows.outflows.map((flow) => {
 		let price = 0;
 		const coinType = flow.coinType.toLowerCase();
 
@@ -49,17 +45,17 @@ export function OverviewTab({ analysis, autoApprovalState }: OverviewTabProps) {
 		};
 	});
 
-	const totalUSDValue = coinFlowsWithUSD.reduce((acc, flow) => acc + flow.usdValue, 0);
+	const totalUSDValue = coinFlowsWithUSD?.reduce((acc, flow) => acc + flow.usdValue, 0) ?? 0;
 
 	return (
 		<div className="space-y-3">
 			{/* Operation Type - Compact */}
-			{operationType && operation && (
+			{operation && (
 				<div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
 					<div className="flex items-start justify-between">
 						<div>
 							<div className="text-xs text-blue-700 font-medium uppercase tracking-wider">
-								{operationType}
+								{operation.id}
 							</div>
 							<div className="text-sm text-blue-900 mt-1">{operation.description}</div>
 						</div>
@@ -68,7 +64,7 @@ export function OverviewTab({ analysis, autoApprovalState }: OverviewTabProps) {
 			)}
 
 			{/* Main Coin Flows */}
-			{coinFlowsWithUSD.length > 0 ? (
+			{coinFlowsWithUSD && coinFlowsWithUSD.length > 0 ? (
 				<div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
 					<div className="px-4 py-3 border-b border-gray-200 bg-gray-100">
 						<h3 className="text-sm font-semibold text-gray-900">Coin Outflows</h3>
@@ -116,10 +112,10 @@ export function OverviewTab({ analysis, autoApprovalState }: OverviewTabProps) {
 						)}
 					</div>
 				</div>
-			) : coinFlows.length > 0 ? (
+			) : (autoApproval.result?.coinFlows?.outflows?.length ?? 0) > 0 ? (
 				<div className="space-y-2">
 					<h3 className="text-sm font-semibold text-gray-900">Coin Transfers</h3>
-					{coinFlows.map((flow, index) => {
+					{autoApproval.result!.coinFlows.outflows.map((flow, index) => {
 						// All flows are outflows, so display them as negative red
 						return (
 							<div
@@ -143,12 +139,12 @@ export function OverviewTab({ analysis, autoApprovalState }: OverviewTabProps) {
 			)}
 
 			{/* Gas Fee */}
-			{totalGas > 0n && (
+			{BigInt(data.result?.gasData.budget ?? 0) > 0n && (
 				<div className="bg-gray-50 border border-gray-200 rounded-lg p-2">
 					<div className="flex justify-between items-center text-xs">
 						<span className="text-gray-600">Estimated Gas Fee</span>
 						<span className="font-medium text-gray-900">
-							{(Number(totalGas) / 1e9).toFixed(4)} SUI
+							{(Number(data.result?.gasData.budget ?? 0) / 1e9).toFixed(4)} SUI
 						</span>
 					</div>
 				</div>
@@ -157,7 +153,7 @@ export function OverviewTab({ analysis, autoApprovalState }: OverviewTabProps) {
 			{/* Transaction Digest */}
 			<div className="bg-gray-50 border border-gray-200 rounded-lg p-2">
 				<div className="text-xs text-gray-600 mb-1">Transaction Digest</div>
-				<CopyableText text={results.digest} className="text-gray-900" />
+				<CopyableText text={analysis.autoApproval.result?.digest ?? ''} className="text-gray-900" />
 			</div>
 		</div>
 	);

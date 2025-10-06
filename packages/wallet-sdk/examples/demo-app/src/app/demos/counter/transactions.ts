@@ -25,7 +25,7 @@ export function createCounterTransaction({ senderAddress }: CounterTransactionPa
 	const tx = new Transaction();
 
 	// Add auto-approval intent for rule set selection
-	tx.add(operationType('counter-operations', 'Create counter'));
+	tx.add(operationType('counter-operations'));
 
 	tx.setSenderIfNotSet(senderAddress);
 
@@ -45,7 +45,7 @@ export function incrementCounterTransaction({
 	const tx = new Transaction();
 
 	// Add auto-approval intent for rule set selection
-	tx.add(operationType('counter-operations', 'Increment counter'));
+	tx.add(operationType('counter-operations'));
 
 	tx.setSenderIfNotSet(senderAddress);
 
@@ -72,7 +72,7 @@ export function resetCounterTransaction({
 	const tx = new Transaction();
 
 	// Add auto-approval intent for rule set selection
-	tx.add(operationType('counter-operations', 'Reset counter'));
+	tx.add(operationType('counter-operations'));
 
 	tx.setSenderIfNotSet(senderAddress);
 

@@ -82,7 +82,7 @@ export function NFTMintDemo({ onNavigate }: DemoProps = {}) {
 			});
 
 			// Add operation type for auto-approval
-			registerTx.add(operationType('nft-operations', 'Register NFT image'));
+			registerTx.add(operationType('nft-operations'));
 
 			const result = await uploadExecution.executeTransaction(registerTx);
 			if (!result) {
@@ -96,7 +96,7 @@ export function NFTMintDemo({ onNavigate }: DemoProps = {}) {
 			const certifyTx = flow.certify();
 
 			// Add operation type for auto-approval
-			certifyTx.add(operationType('nft-operations', 'Certify NFT image'));
+			certifyTx.add(operationType('nft-operations'));
 
 			const certifyResult = await uploadExecution.executeTransaction(certifyTx);
 			if (!certifyResult) {

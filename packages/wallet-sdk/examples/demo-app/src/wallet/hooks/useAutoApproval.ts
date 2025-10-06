@@ -4,9 +4,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AutoApprovalManager } from '@mysten/wallet-sdk';
 import type {
-	AutoApprovalAnalysis,
 	AutoApprovalSettings,
 	AutoApprovalIssue,
+	AutoApprovalResult,
 } from '@mysten/wallet-sdk';
 
 export interface AutoApprovalState {
@@ -27,7 +27,7 @@ interface AutoApprovalActions {
 }
 
 export function useAutoApproval(
-	analysis: AutoApprovalAnalysis | null,
+	analysis: AutoApprovalResult | null,
 	origin: string,
 	network: string,
 ): [AutoApprovalState, AutoApprovalActions] {

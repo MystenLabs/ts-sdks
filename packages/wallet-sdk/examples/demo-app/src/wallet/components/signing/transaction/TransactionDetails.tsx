@@ -1,16 +1,16 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { useState } from 'react';
-import type { AutoApprovalAnalysis } from '@mysten/wallet-sdk';
 import type { AutoApprovalState } from '../../../hooks/useAutoApproval.js';
 import { OverviewTab } from './OverviewTab.js';
 import { InputsTab } from './InputsTab.js';
 import { CommandsTab } from './CommandsTab.js';
 import { AutoApprovalTab } from './AutoApprovalTab.js';
 import { DebugTab } from './DebugTab.js';
+import type { WalletTransactionAnalysis } from '../../../hooks/useAnalysis.js';
 
 interface TransactionDetailsProps {
-	analysis?: AutoApprovalAnalysis;
+	analysis?: WalletTransactionAnalysis;
 	autoApprovalState?: AutoApprovalState;
 }
 

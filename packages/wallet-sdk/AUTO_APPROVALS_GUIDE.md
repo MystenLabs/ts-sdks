@@ -160,12 +160,16 @@ Each operation in your policy includes several required and optional fields:
 - **`name`**: A short, human-readable name displayed in wallet UI (e.g., "Gameplay Actions")
 - **`description`**: A detailed explanation of what this operation does
 - **`autoApprovalEnabled`**: Whether this operation supports automatic approvals
-  - Set to `true` for operations users might want to auto-approve (routine gameplay, simple transfers)
-  - Set to `false` for operations that should always require manual approval (high-value trades, admin functions)
-  - This allows you to document all your application's operations while only enabling auto-approvals for appropriate ones
+  - Set to `true` for operations users might want to auto-approve (routine gameplay, simple
+    transfers)
+  - Set to `false` for operations that should always require manual approval (high-value trades,
+    admin functions)
+  - This allows you to document all your application's operations while only enabling auto-approvals
+    for appropriate ones
 - **`permissions`**: The blockchain permissions this operation requires (detailed below)
 
 Applications should set `autoApprovalEnabled: false` for sensitive operations like:
+
 - High-value financial transactions
 - Administrative or governance actions
 - Operations that modify critical user settings
@@ -232,11 +236,11 @@ ID and an optional description. This is done using the `operationType` function,
 special intent to the transaction that tells wallets which operation from the policy this
 transaction represents.
 
-The description parameter allows applications to provide specific context about what the
-individual transaction is doing within the broader operation type. This is particularly useful
-for operations that handle multiple types of actions. For example, a "walrus-operations"
-operation type might handle both "Register blob" and "Certify blob" transactions - the
-description helps users understand exactly what's happening in each step.
+The description parameter allows applications to provide specific context about what the individual
+transaction is doing within the broader operation type. This is particularly useful for operations
+that handle multiple types of actions. For example, a "walrus-operations" operation type might
+handle both "Register blob" and "Certify blob" transactions - the description helps users understand
+exactly what's happening in each step.
 
 <details>
 <summary><b>Example: Adding Operation Type to Transaction</b></summary>
@@ -251,11 +255,11 @@ tx.add(contract.doAction(params));
 
 // With description for specific context
 const registerTx = new Transaction();
-registerTx.add(operationType('walrus-operations', 'Register blob'));
+registerTx.add(operationType('walrus-operations'));
 registerTx.add(walrus.register(params));
 
 const certifyTx = new Transaction();
-certifyTx.add(operationType('walrus-operations', 'Certify blob'));
+certifyTx.add(operationType('walrus-operations'));
 certifyTx.add(walrus.certify(params));
 ```
 

@@ -1,11 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { WalletTransactionAnalysis } from '../../hooks/useAnalysis.js';
 import { TransactionDetails } from './transaction/TransactionDetails.js';
-import type { AutoApprovalAnalysis } from '@mysten/wallet-sdk';
 
 interface TransactionContentProps {
-	analysis?: AutoApprovalAnalysis;
+	analysis?: WalletTransactionAnalysis;
 	autoApprovalState?: any;
 }
 

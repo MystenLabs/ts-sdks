@@ -48,11 +48,11 @@ export function PolicyApprovalScreen({
 	const [expirationHours, setExpirationHours] = useState(24);
 
 	const requestedRuleSet = requestedOperation
-		? policy.operations.find((rs) => rs.id === requestedOperation && rs.autoApprovalEnabled)
+		? policy.operations.find((rs) => rs.id === requestedOperation)
 		: null;
 	const otherRuleSets = requestedOperation
-		? policy.operations.filter((rs) => rs.id !== requestedOperation && rs.autoApprovalEnabled)
-		: policy.operations.filter((rs) => rs.autoApprovalEnabled);
+		? policy.operations.filter((rs) => rs.id !== requestedOperation)
+		: policy.operations;
 
 	const handleRuleSetToggle = (ruleSetId: string) => {
 		setSelectedRuleSets((prev) =>

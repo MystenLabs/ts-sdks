@@ -26,7 +26,7 @@ export async function createSwapSuiForWalTransaction(
 	const tx = new Transaction();
 
 	// Add auto-approval intent for rule set selection
-	tx.add(operationType('walrus-operations', 'Swap SUI for WAL'));
+	tx.add(operationType('walrus-operations'));
 
 	tx.setSenderIfNotSet(senderAddress);
 

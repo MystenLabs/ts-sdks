@@ -33,15 +33,15 @@ export function TransactionApprovalModal({
 	const analysis = useAnalysis(suiClient, walletRequest);
 
 	const [autoApprovalState, autoApprovalActions] = useAutoApproval(
-		analysis,
+		analysis?.autoApproval ?? null,
 		origin,
 		suiClient.network,
 	);
 
 	const handleSignAndApprove = useCallback(async () => {
 		try {
-			if (analysis) {
-				await onApprove(analysis.results.bytes);
+			if (analysis?.autoApproval.result) {
+				await onApprove(analysis.autoApproval.result.bytes);
 			} else {
 				throw new Error('No transaction to approve');
 			}
@@ -62,7 +62,7 @@ export function TransactionApprovalModal({
 
 	if (!isOpen) return null;
 
-	if (analysis?.issues.length) {
+	if (analysis?.autoApproval.issues?.length) {
 		return (
 			<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
 				<div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
@@ -92,7 +92,7 @@ export function TransactionApprovalModal({
 
 					<div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
 						<p className="text-sm text-red-800 font-medium">Error Details:</p>
-						<p className="text-sm text-red-700 mt-1">{analysis.issues.join(', ')}</p>
+						<p className="text-sm text-red-700 mt-1">{analysis.autoApproval.issues.join(', ')}</p>
 					</div>
 
 					<div className="flex justify-end space-x-3">
@@ -118,7 +118,7 @@ export function TransactionApprovalModal({
 			<PolicyApprovalScreen
 				policy={autoApprovalState.manager.getState().policy}
 				settings={autoApprovalState.manager.getState().settings}
-				requestedOperation={analysis?.results.operationType}
+				requestedOperation={analysis?.autoApproval.result?.operationType}
 				onApprove={handleCommitPolicyChanges}
 				onReject={async () => {
 					await autoApprovalActions.reset();

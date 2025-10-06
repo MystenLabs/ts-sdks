@@ -1,17 +1,16 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AutoApprovalAnalysis } from '@mysten/wallet-sdk';
 import { formatAddress } from '@mysten/sui/utils';
 import { useState } from 'react';
+import type { WalletTransactionAnalysis } from '../../../hooks/useAnalysis.js';
 
 interface CommandsTabProps {
-	analysis: AutoApprovalAnalysis;
+	analysis: WalletTransactionAnalysis;
 }
 
 export function CommandsTab({ analysis }: CommandsTabProps) {
-	const { results } = analysis;
-	const { commands, moveFunctions } = results;
+	const { commands, moveFunctions } = analysis;
 	const [expandedCommands, setExpandedCommands] = useState<Set<number>>(new Set());
 
 	const toggleCommand = (index: number) => {
@@ -25,8 +24,8 @@ export function CommandsTab({ analysis }: CommandsTabProps) {
 	};
 
 	// Map package/module/function to move function details
-	const functionMap = new Map<string, (typeof moveFunctions)[0]>();
-	moveFunctions.forEach((func) => {
+	const functionMap = new Map<string, NonNullable<typeof moveFunctions.result>[0]>();
+	moveFunctions.result?.forEach((func) => {
 		const key = `${func.packageId}::${func.moduleName}::${func.name}`;
 		functionMap.set(key, func);
 	});
@@ -34,13 +33,13 @@ export function CommandsTab({ analysis }: CommandsTabProps) {
 	return (
 		<div className="space-y-4">
 			<h3 className="text-sm font-semibold text-gray-900">Transaction Commands</h3>
-			{commands.length === 0 ? (
+			{!commands.result || commands.result.length === 0 ? (
 				<div className="text-center py-4 text-sm text-gray-500">
 					No commands in this transaction
 				</div>
 			) : (
 				<div className="space-y-2">
-					{commands.map((cmd, index) => {
+					{commands.result.map((cmd, index) => {
 						const isExpanded = expandedCommands.has(index);
 						const type = cmd.$kind || 'Unknown';
 
