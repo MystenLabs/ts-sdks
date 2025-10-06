@@ -29,10 +29,10 @@ export class PaymentKitCalls {
 	 *
 	 * @usage
 	 * ```ts
-	 * tx.add(lient.paymentKit.call.processRegistryPaymentTransaction({ nonce, coinType, sender, amount, receiver, registry }));
+	 * tx.add(lient.paymentKit.call.processRegistryPayment({ nonce, coinType, sender, amount, receiver, registry }));
 	 * ```
 	 */
-	processRegistryPaymentTransaction = (params: ProcessRegistryPaymentParams) => {
+	processRegistryPayment = (params: ProcessRegistryPaymentParams) => {
 		const { nonce, coinType, amount, receiver, registry } = params;
 		const registryId = getRegistryIdFromParams(this.#packageConfig.namespaceId, registry);
 
@@ -57,10 +57,10 @@ export class PaymentKitCalls {
 	 *
 	 * @usage
 	 * ```ts
-	 * tx.add(client.paymentKit.call.processEphemeralPaymentTransaction({ nonce, coinType, sender, amount, receiver }));
+	 * tx.add(client.paymentKit.call.processEphemeralPayment({ nonce, coinType, sender, amount, receiver }));
 	 * ```
 	 */
-	processEphemeralPaymentTransaction = (params: ProcessEphemeralPaymentParams) => {
+	processEphemeralPayment = (params: ProcessEphemeralPaymentParams) => {
 		const { nonce, coinType, amount, receiver } = params;
 
 		return processEphemeralPayment({

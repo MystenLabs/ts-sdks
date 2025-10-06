@@ -26,7 +26,7 @@ export class PaymentKitTransactions {
 	 */
 	processRegistryPaymentTransaction(params: ProcessRegistryPaymentParams) {
 		const tx = new Transaction();
-		tx.add(this.#calls.processRegistryPaymentTransaction(params));
+		tx.add(this.#calls.processRegistryPayment(params));
 
 		return tx;
 	}
@@ -41,7 +41,7 @@ export class PaymentKitTransactions {
 	 */
 	processEphemeralPaymentTransaction(params: ProcessEphemeralPaymentParams) {
 		const tx = new Transaction();
-		tx.add(this.#calls.processEphemeralPaymentTransaction(params));
+		tx.add(this.#calls.processEphemeralPayment(params));
 
 		return tx;
 	}
