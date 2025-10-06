@@ -136,6 +136,7 @@ export abstract class Experimental_CoreClient
 				digest: fieldObject.digest,
 				version: fieldObject.version,
 				type: fieldObject.type,
+				previousTransaction: fieldObject.previousTransaction,
 				name: {
 					type:
 						typeof fieldType.typeParams[0] === 'string'

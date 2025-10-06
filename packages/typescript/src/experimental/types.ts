@@ -149,6 +149,7 @@ export namespace Experimental_SuiClientTypes {
 			version: string;
 			digest: string;
 			type: string;
+			previousTransaction: string | null;
 		};
 	}
 
