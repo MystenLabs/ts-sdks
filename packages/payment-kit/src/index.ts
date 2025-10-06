@@ -12,4 +12,4 @@ export type {
 	GetPaymentRecordResponse,
 } from './types.js';
 export { PaymentKitClientError } from './error.js';
-export type { DEFAULT_REGISTRY_NAME } from './constants.js';
+export { DEFAULT_REGISTRY_NAME } from './constants.js';
