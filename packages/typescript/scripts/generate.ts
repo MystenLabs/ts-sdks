@@ -322,7 +322,7 @@ fileGenerator.statements.push(
 );
 
 await fs.writeFile(
-	path.resolve(packageRoot, './src/client/types/generated.ts'),
+	path.resolve(packageRoot, './src/jsonRpc/types/generated.ts'),
 	await fileGenerator.printFile(),
 );
 
@@ -360,7 +360,7 @@ methodGenerator.statements.push(
 );
 
 await fs.writeFile(
-	path.resolve(packageRoot, './src/client/types/params.ts'),
+	path.resolve(packageRoot, './src/jsonRpc/types/params.ts'),
 	await methodGenerator.printFile(),
 );
 

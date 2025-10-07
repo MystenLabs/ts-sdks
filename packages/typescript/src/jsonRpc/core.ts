@@ -3,10 +3,9 @@
 
 import { fromBase64 } from '@mysten/bcs';
 
-import { bcs } from '../../bcs/index.js';
+import { bcs } from '../bcs/index.js';
 import type {
 	ObjectOwner,
-	SuiClient,
 	SuiMoveAbilitySet,
 	SuiMoveNormalizedType,
 	SuiMoveVisibility,
@@ -14,25 +13,26 @@ import type {
 	SuiObjectData,
 	SuiTransactionBlockResponse,
 	TransactionEffects,
-} from '../../client/index.js';
-import { Transaction } from '../../transactions/Transaction.js';
-import { Experimental_CoreClient } from '../core.js';
-import { ObjectError } from '../errors.js';
-import type { Experimental_SuiClientTypes } from '../types.js';
-import { parseTransactionBcs, parseTransactionEffectsBcs } from './utils.js';
-import { suiClientResolveTransactionPlugin } from './json-rpc-resolver.js';
-import { TransactionDataBuilder } from '../../transactions/TransactionData.js';
+} from './types/index.js';
+import { Transaction } from '../transactions/Transaction.js';
+import { jsonRpcClientResolveTransactionPlugin } from './json-rpc-resolver.js';
+import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
-import { normalizeSuiAddress } from '../../utils/sui-types.js';
+import { normalizeSuiAddress } from '../utils/sui-types.js';
+import { Experimental_CoreClient } from '../experimental/core.js';
+import type { Experimental_SuiClientTypes } from '../experimental/types.js';
+import { ObjectError } from '../experimental/errors.js';
+import { parseTransactionBcs, parseTransactionEffectsBcs } from '../experimental/index.js';
+import type { JsonRpcClient } from './client.js';
 
-export class JSONRpcTransport extends Experimental_CoreClient {
-	#jsonRpcClient: SuiClient;
+export class JSONRpcCoreClient extends Experimental_CoreClient {
+	#jsonRpcClient: JsonRpcClient;
 
 	constructor({
 		jsonRpcClient,
 		mvr,
 	}: {
-		jsonRpcClient: SuiClient;
+		jsonRpcClient: JsonRpcClient;
 		mvr?: Experimental_SuiClientTypes.MvrOptions;
 	}) {
 		super({ network: jsonRpcClient.network, base: jsonRpcClient, mvr });
@@ -280,7 +280,7 @@ export class JSONRpcTransport extends Experimental_CoreClient {
 	}
 
 	resolveTransactionPlugin() {
-		return suiClientResolveTransactionPlugin(this.#jsonRpcClient);
+		return jsonRpcClientResolveTransactionPlugin(this.#jsonRpcClient);
 	}
 
 	async getMoveFunction(

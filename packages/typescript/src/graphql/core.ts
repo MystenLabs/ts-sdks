@@ -35,7 +35,7 @@ import {
 } from '../experimental/transports/utils.js';
 import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.js';
 
-export class GraphQLTransport extends Experimental_CoreClient {
+export class GraphQLCoreClient extends Experimental_CoreClient {
 	#graphqlClient: SuiGraphQLClient;
 
 	constructor({

@@ -11,7 +11,7 @@ import { WebsocketClient } from './rpc-websocket-client.js';
  */
 export type HttpHeaders = { [header: string]: string };
 
-export interface SuiHTTPTransportOptions {
+export interface JsonRpcHTTPTransportOptions {
 	fetch?: typeof fetch;
 	WebSocketConstructor?: typeof WebSocket;
 	url: string;
@@ -24,7 +24,7 @@ export interface SuiHTTPTransportOptions {
 	};
 }
 
-export interface SuiTransportRequestOptions {
+export interface JsonRpcTransportRequestOptions {
 	method: string;
 	params: unknown[];
 	signal?: AbortSignal;
@@ -32,7 +32,7 @@ export interface SuiTransportRequestOptions {
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 
-export interface SuiTransportSubscribeOptions<T> {
+export interface JsonRpcTransportSubscribeOptions<T> {
 	method: string;
 	unsubscribe: string;
 	params: unknown[];
@@ -40,17 +40,19 @@ export interface SuiTransportSubscribeOptions<T> {
 	signal?: AbortSignal;
 }
 
-export interface SuiTransport {
-	request<T = unknown>(input: SuiTransportRequestOptions): Promise<T>;
-	subscribe<T = unknown>(input: SuiTransportSubscribeOptions<T>): Promise<() => Promise<boolean>>;
+export interface JsonRpcTransport {
+	request<T = unknown>(input: JsonRpcTransportRequestOptions): Promise<T>;
+	subscribe<T = unknown>(
+		input: JsonRpcTransportSubscribeOptions<T>,
+	): Promise<() => Promise<boolean>>;
 }
 
-export class SuiHTTPTransport implements SuiTransport {
+export class JsonRpcHTTPTransport implements JsonRpcTransport {
 	#requestId = 0;
-	#options: SuiHTTPTransportOptions;
+	#options: JsonRpcHTTPTransportOptions;
 	#websocketClient?: WebsocketClient;
 
-	constructor(options: SuiHTTPTransportOptions) {
+	constructor(options: JsonRpcHTTPTransportOptions) {
 		this.#options = options;
 	}
 
@@ -87,7 +89,7 @@ export class SuiHTTPTransport implements SuiTransport {
 		return this.#websocketClient;
 	}
 
-	async request<T>(input: SuiTransportRequestOptions): Promise<T> {
+	async request<T>(input: JsonRpcTransportRequestOptions): Promise<T> {
 		this.#requestId += 1;
 
 		const res = await this.fetch(this.#options.rpc?.url ?? this.#options.url, {
@@ -126,7 +128,7 @@ export class SuiHTTPTransport implements SuiTransport {
 		return data.result;
 	}
 
-	async subscribe<T>(input: SuiTransportSubscribeOptions<T>): Promise<() => Promise<boolean>> {
+	async subscribe<T>(input: JsonRpcTransportSubscribeOptions<T>): Promise<() => Promise<boolean>> {
 		const unsubscribe = await this.#getWebsocketClient().subscribe(input);
 
 		if (input.signal) {
