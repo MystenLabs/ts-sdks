@@ -168,7 +168,7 @@ module.exports = {
 			},
 		},
 		{
-			files: ['packages/sui-grpc/src/proto/**/*'],
+			files: ['packages/typescript/src/grpc/proto/**/*'],
 			rules: {
 				'@typescript-eslint/ban-types': 'off',
 				eqeqeq: 'off',
