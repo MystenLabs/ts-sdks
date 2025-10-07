@@ -21,10 +21,10 @@ export class PaymentKitTransactions {
 	 *
 	 * @usage
 	 * ```ts
-	 * const tx = client.paymentKit.tx.processRegistryPaymentTransaction({ nonce, coinType, sender, amount, receiver, registryName });
+	 * const tx = client.paymentKit.tx.processRegistryPayment({ nonce, coinType, sender, amount, receiver, registryName });
 	 * ```
 	 */
-	processRegistryPaymentTransaction(params: ProcessRegistryPaymentParams) {
+	processRegistryPayment(params: ProcessRegistryPaymentParams) {
 		const tx = new Transaction();
 		tx.add(this.#calls.processRegistryPayment(params));
 
@@ -36,10 +36,10 @@ export class PaymentKitTransactions {
 	 *
 	 * @usage
 	 * ```ts
-	 * const tx = client.paymentKit.tx.processEphemeralPaymentTransaction({ nonce, coinType, sender, amount, receiver });
+	 * const tx = client.paymentKit.tx.const({ nonce, coinType, sender, amount, receiver });
 	 * ```
 	 */
-	processEphemeralPaymentTransaction(params: ProcessEphemeralPaymentParams) {
+	processEphemeralPayment(params: ProcessEphemeralPaymentParams) {
 		const tx = new Transaction();
 		tx.add(this.#calls.processEphemeralPayment(params));
 
