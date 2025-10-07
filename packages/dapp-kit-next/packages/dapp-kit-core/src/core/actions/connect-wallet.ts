@@ -104,14 +104,14 @@ export async function internalConnectWallet(
 }
 
 export async function getSupportedIntentsFromFeature(wallet: UiWallet) {
-	if (!wallet.features.includes('sui:getSupportedIntents')) {
+	if (!wallet.features.includes('sui:getCapabilities')) {
 		return [];
 	}
 
-	const getSupportedIntentsFeature = getWalletFeature(
+	const getCapabilitiesFeature = getWalletFeature(
 		wallet,
-		'sui:getSupportedIntents',
-	) as SuiWalletFeatures['sui:getSupportedIntents'];
+		'sui:getCapabilities',
+	) as SuiWalletFeatures['sui:getCapabilities'];
 
-	return (await getSupportedIntentsFeature?.getSupportedIntents())?.supportedIntents ?? [];
+	return (await getCapabilitiesFeature?.getCapabilities())?.supportedIntents ?? [];
 }

@@ -120,7 +120,7 @@ interface SignOptions extends BuildTransactionOptions {
 	signer: Signer;
 }
 
-export function isTransaction(obj: unknown): obj is Transaction {
+export function isTransaction(obj: unknown): obj is TransactionLike {
 	return !!obj && typeof obj === 'object' && (obj as any)[TRANSACTION_BRAND] === true;
 }
 
@@ -157,6 +157,10 @@ function getGlobalPluginRegistry() {
 
 type InputSection = (CallArg | InputSection)[];
 type CommandSection = (Command | CommandSection)[];
+
+type TransactionLike = {
+	getData(): unknown;
+};
 
 /**
  * Transaction Builder
@@ -195,11 +199,13 @@ export class Transaction {
 	 * - A string returned from `Transaction#serialize`. The serialized format must be compatible, or it will throw an error.
 	 * - A byte array (or base64-encoded bytes) containing BCS transaction data.
 	 */
-	static from(transaction: string | Uint8Array | Transaction) {
+	static from(transaction: string | Uint8Array | TransactionLike) {
 		const newTransaction = new Transaction();
 
 		if (isTransaction(transaction)) {
-			newTransaction.#data = new TransactionDataBuilder(transaction.getData());
+			newTransaction.#data = TransactionDataBuilder.restore(
+				transaction.getData() as InferInput<typeof SerializedTransactionDataV2Schema>,
+			);
 		} else if (typeof transaction !== 'string' || !transaction.startsWith('{')) {
 			newTransaction.#data = TransactionDataBuilder.fromBytes(
 				typeof transaction === 'string' ? fromBase64(transaction) : transaction,
