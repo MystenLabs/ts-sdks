@@ -21,7 +21,7 @@ export class PaymentKitTransactions {
 	 *
 	 * @usage
 	 * ```ts
-	 * const tx = client.paymentKit.tx.processRegistryPaymentTransaction({ nonce, coinType, sender, amount, receiver, registry });
+	 * const tx = client.paymentKit.tx.processRegistryPaymentTransaction({ nonce, coinType, sender, amount, receiver, registryName });
 	 * ```
 	 */
 	processRegistryPaymentTransaction(params: ProcessRegistryPaymentParams) {

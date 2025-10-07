@@ -29,7 +29,7 @@ export class PaymentKitCalls {
 	 *
 	 * @usage
 	 * ```ts
-	 * tx.add(lient.paymentKit.call.processRegistryPayment({ nonce, coinType, sender, amount, receiver, registry }));
+	 * tx.add(lient.paymentKit.call.processRegistryPayment({ nonce, coinType, sender, amount, receiver, registryName }));
 	 * ```
 	 */
 	processRegistryPayment = (params: ProcessRegistryPaymentParams) => {
