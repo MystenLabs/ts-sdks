@@ -4,7 +4,6 @@ import { fromBase58, toBase64, toHex } from '@mysten/bcs';
 
 import type { Signer } from '../cryptography/index.js';
 import { Experimental_BaseClient } from '../experimental/client.js';
-import { JSONRpcTransport } from '../experimental/transports/jsonRPC.js';
 import type {
 	Experimental_SuiClientTypes,
 	SelfRegisteringClientExtension,
@@ -19,8 +18,8 @@ import {
 	normalizeSuiObjectId,
 } from '../utils/sui-types.js';
 import { normalizeSuiNSName } from '../utils/suins.js';
-import { SuiHTTPTransport } from './http-transport.js';
-import type { SuiTransport } from './http-transport.js';
+import { JsonRpcHTTPTransport } from './http-transport.js';
+import type { JsonRpcTransport } from './http-transport.js';
 import type {
 	AddressMetrics,
 	AllEpochsAddressMetrics,
@@ -103,6 +102,7 @@ import type {
 } from './types/index.js';
 import { isValidNamedPackage } from '../utils/move-registry.js';
 import { hasMvrName } from '../experimental/mvr.js';
+import { JSONRpcCoreClient } from './core.js';
 
 export interface PaginationArguments<Cursor> {
 	/** Optional paging cursor */
@@ -119,7 +119,7 @@ export interface OrderArguments {
  * Configuration options for the SuiClient
  * You must provide either a `url` or a `transport`
  */
-export type SuiClientOptions = NetworkOrTransport & {
+export type JsonRpcClientOptions = NetworkOrTransport & {
 	network?: Experimental_SuiClientTypes.Network;
 	mvr?: Experimental_SuiClientTypes.MvrOptions;
 };
@@ -130,22 +130,25 @@ type NetworkOrTransport =
 			transport?: never;
 	  }
 	| {
-			transport: SuiTransport;
+			transport: JsonRpcTransport;
 			url?: never;
 	  };
 
 const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiClient') as never;
 
-export function isSuiClient(client: unknown): client is SuiClient {
+export function isJsonRpcClient(client: unknown): client is JsonRpcClient {
 	return (
 		typeof client === 'object' && client !== null && (client as any)[SUI_CLIENT_BRAND] === true
 	);
 }
 
-export class SuiClient extends Experimental_BaseClient implements SelfRegisteringClientExtension {
-	core: JSONRpcTransport;
+export class JsonRpcClient
+	extends Experimental_BaseClient
+	implements SelfRegisteringClientExtension
+{
+	core: JSONRpcCoreClient;
 	jsonRpc = this;
-	protected transport: SuiTransport;
+	protected transport: JsonRpcTransport;
 
 	get [SUI_CLIENT_BRAND]() {
 		return true;
@@ -156,10 +159,10 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 	 *
 	 * @param options configuration options for the API Client
 	 */
-	constructor(options: SuiClientOptions) {
+	constructor(options: JsonRpcClientOptions) {
 		super({ network: options.network ?? 'unknown' });
-		this.transport = options.transport ?? new SuiHTTPTransport({ url: options.url });
-		this.core = new JSONRpcTransport({
+		this.transport = options.transport ?? new JsonRpcHTTPTransport({ url: options.url });
+		this.core = new JSONRpcCoreClient({
 			jsonRpcClient: this,
 			mvr: options.mvr,
 		});
@@ -1090,7 +1093,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		timeout?: number;
 		/** The amount of time to wait between checks for the transaction block. Defaults to 2 seconds. */
 		pollInterval?: number;
-	} & Parameters<SuiClient['getTransactionBlock']>[0]): Promise<SuiTransactionBlockResponse> {
+	} & Parameters<JsonRpcClient['getTransactionBlock']>[0]): Promise<SuiTransactionBlockResponse> {
 		const timeoutSignal = AbortSignal.timeout(timeout);
 		const timeoutPromise = new Promise((_, reject) => {
 			timeoutSignal.addEventListener('abort', () => reject(timeoutSignal.reason));
@@ -1119,7 +1122,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 		throw new Error('Unexpected error while waiting for transaction block.');
 	}
 
-	experimental_asClientExtension(this: SuiClient) {
+	experimental_asClientExtension(this: JsonRpcClient) {
 		return {
 			name: 'jsonRPC',
 			register: () => {
