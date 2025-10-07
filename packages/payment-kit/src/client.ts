@@ -77,7 +77,7 @@ export class PaymentKitClient {
 	async getPaymentRecord(params: GetPaymentRecordParams): Promise<GetPaymentRecordResponse | null> {
 		const { coinType, registryId, registryName, nonce, amount, receiver } = params;
 		const normalizedCoinType = normalizeStructTag(coinType);
-		const paymentKeyType = PaymentKey.name + `<${normalizedCoinType}>`;
+		const paymentKeyType = `${PaymentKey.name}<${normalizedCoinType}>`;
 
 		const registryIdToUse =
 			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
