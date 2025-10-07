@@ -3,19 +3,19 @@
 
 import { parse } from 'valibot';
 
-import { normalizeSuiAddress, normalizeSuiObjectId, SUI_TYPE_ARG } from '../../utils/index.js';
-import { ObjectRefSchema } from '../../transactions/data/internal.js';
-import type { CallArg, Command, OpenMoveTypeSignature } from '../../transactions/data/internal.js';
-import { Inputs } from '../../transactions/Inputs.js';
+import { normalizeSuiAddress, normalizeSuiObjectId, SUI_TYPE_ARG } from '../utils/index.js';
+import { ObjectRefSchema } from '../transactions/data/internal.js';
+import type { CallArg, Command, OpenMoveTypeSignature } from '../transactions/data/internal.js';
+import { Inputs } from '../transactions/Inputs.js';
 import {
 	getPureBcsSchema,
 	isTxContext,
 	normalizedTypeToMoveTypeSignature,
-} from '../../transactions/serializer.js';
-import type { TransactionDataBuilder } from '../../transactions/TransactionData.js';
+} from '../transactions/serializer.js';
+import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
-import type { SuiClient } from '../../client/index.js';
-import type { BuildTransactionOptions } from '../../transactions/index.js';
+import type { BuildTransactionOptions } from '../transactions/index.js';
+import type { JsonRpcClient } from './client.js';
 
 // The maximum objects that can be fetched at once using multiGetObjects.
 const MAX_OBJECTS_PER_FETCH = 50;
@@ -24,7 +24,7 @@ const MAX_OBJECTS_PER_FETCH = 50;
 const GAS_SAFE_OVERHEAD = 1000n;
 const MAX_GAS = 50_000_000_000;
 
-export function suiClientResolveTransactionPlugin(client: SuiClient) {
+export function jsonRpcClientResolveTransactionPlugin(client: JsonRpcClient) {
 	return async function resolveTransactionData(
 		transactionData: TransactionDataBuilder,
 		options: BuildTransactionOptions,
@@ -43,13 +43,13 @@ export function suiClientResolveTransactionPlugin(client: SuiClient) {
 	};
 }
 
-async function setGasPrice(transactionData: TransactionDataBuilder, client: SuiClient) {
+async function setGasPrice(transactionData: TransactionDataBuilder, client: JsonRpcClient) {
 	if (!transactionData.gasConfig.price) {
 		transactionData.gasConfig.price = String(await client.getReferenceGasPrice());
 	}
 }
 
-async function setGasBudget(transactionData: TransactionDataBuilder, client: SuiClient) {
+async function setGasBudget(transactionData: TransactionDataBuilder, client: JsonRpcClient) {
 	if (transactionData.gasConfig.budget) {
 		return;
 	}
@@ -88,7 +88,7 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Sui
 }
 
 // The current default is just picking _all_ coins we can which may not be ideal.
-async function setGasPayment(transactionData: TransactionDataBuilder, client: SuiClient) {
+async function setGasPayment(transactionData: TransactionDataBuilder, client: JsonRpcClient) {
 	if (!transactionData.gasConfig.payment) {
 		const coins = await client.getCoins({
 			owner: transactionData.gasConfig.owner || transactionData.sender!,
@@ -124,7 +124,10 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Su
 	}
 }
 
-async function resolveObjectReferences(transactionData: TransactionDataBuilder, client: SuiClient) {
+async function resolveObjectReferences(
+	transactionData: TransactionDataBuilder,
+	client: JsonRpcClient,
+) {
 	// Keep track of the object references that will need to be resolved at the end of the transaction.
 	// We keep the input by-reference to avoid needing to re-resolve it:
 	const objectsToResolve = transactionData.inputs.filter((input) => {
@@ -230,7 +233,7 @@ async function resolveObjectReferences(transactionData: TransactionDataBuilder, 
 	}
 }
 
-async function normalizeInputs(transactionData: TransactionDataBuilder, client: SuiClient) {
+async function normalizeInputs(transactionData: TransactionDataBuilder, client: JsonRpcClient) {
 	const { inputs, commands } = transactionData;
 	const moveCallsToResolve: Extract<Command, { MoveCall: unknown }>['MoveCall'][] = [];
 	const moveFunctionsToResolve = new Set<string>();

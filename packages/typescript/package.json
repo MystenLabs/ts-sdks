@@ -19,6 +19,7 @@
 		"faucet",
 		"graphql",
 		"grpc",
+		"jsonRpc",
 		"keypairs",
 		"multisig",
 		"src",
@@ -59,6 +60,10 @@
 		"./grpc": {
 			"import": "./dist/esm/grpc/index.js",
 			"require": "./dist/cjs/grpc/index.js"
+		},
+		"./jsonRpc": {
+			"import": "./dist/esm/jsonRpc/index.js",
+			"require": "./dist/cjs/jsonRpc/index.js"
 		},
 		"./keypairs/ed25519": {
 			"import": "./dist/esm/keypairs/ed25519/index.js",
