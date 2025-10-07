@@ -7,7 +7,7 @@ import type { DocumentNode } from 'graphql';
 import { print } from 'graphql';
 import { Experimental_BaseClient } from '../experimental/index.js';
 import type { Experimental_SuiClientTypes } from '../experimental/index.js';
-import { GraphQLTransport } from '../experimental/transports/graphql.js';
+import { GraphQLTransport } from './core.js';
 import type { TypedDocumentString } from './generated/queries.js';
 
 export type GraphQLDocument<
