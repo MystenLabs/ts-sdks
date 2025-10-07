@@ -102,17 +102,17 @@ along with a `limit` to specify the page size:
 
 ```ts
 const page1 = await client.getCheckpoints({
-    descendingOrder: false,
-    limit: 10,
+	descendingOrder: false,
+	limit: 10,
 });
 
 const page2 =
 	page1.hasNextPage &&
-	await client.getCheckpoints({
-        descendingOrder: false,
+	(await client.getCheckpoints({
+		descendingOrder: false,
 		cursor: page1.nextCursor,
 		limit: 10,
-	});
+	}));
 ```
 
 ## Methods
@@ -130,11 +130,11 @@ const tx = new Transaction();
 const { bytes, signature } = await tx.sign({ client, signer: keypair });
 
 const result = await client.executeTransactionBlock({
-    transactionBlock: bytes,
-    signature,
-    options: {
-        showEffects: true,
-    },
+	transactionBlock: bytes,
+	signature,
+	options: {
+		showEffects: true,
+	},
 });
 ```
 
@@ -160,11 +160,11 @@ const tx = new Transaction();
 // add transaction data to tx...
 
 const result = await client.signAndExecuteTransaction({
-    transaction: tx,
-    signer: keypair,
-    options: {
-        showEffects: true,
-    },
+	transaction: tx,
+	signer: keypair,
+	options: {
+		showEffects: true,
+	},
 });
 ```
 
