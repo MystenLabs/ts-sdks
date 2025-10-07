@@ -1,9 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { normalizeStructTag } from '@mysten/sui/dist/cjs/utils/sui-types.js';
 import type { PaymentKitPackageConfig } from './types.js';
-import { SUI_TYPE_ARG } from '@mysten/sui/dist/cjs/utils/constants.js';
+import { SUI_TYPE_ARG, normalizeStructTag } from '@mysten/sui/utils';
 
 export const TESTNET_PAYMENT_KIT_PACKAGE_CONFIG = {
 	packageId: '0x7e069abe383e80d32f2aec17b3793da82aabc8c2edf84abbf68dd7b719e71497',

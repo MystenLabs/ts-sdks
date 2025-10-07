@@ -15,7 +15,7 @@ import type {
 	GetPaymentRecordResponse,
 } from './types.js';
 import type { SuiClientRegistration } from '@mysten/sui/experimental';
-import { normalizeStructTag } from '@mysten/sui/dist/cjs/utils/sui-types.js';
+import { normalizeStructTag } from '@mysten/sui/utils';
 import { PaymentKitTransactions } from './transactions.js';
 import { PaymentKitCalls } from './calls.js';
 import { getRegistryIdFromName } from './utils.js';
@@ -77,9 +77,7 @@ export class PaymentKitClient {
 	async getPaymentRecord(params: GetPaymentRecordParams): Promise<GetPaymentRecordResponse | null> {
 		const { coinType, registryId, registryName, nonce, amount, receiver } = params;
 		const normalizedCoinType = normalizeStructTag(coinType);
-		const paymentKeyType =
-			PaymentKey.name.replace('@mysten/payment-kit', this.#packageConfig.packageId) +
-			`<${normalizedCoinType}>`;
+		const paymentKeyType = PaymentKey.name + `<${normalizedCoinType}>`;
 
 		const registryIdToUse =
 			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);

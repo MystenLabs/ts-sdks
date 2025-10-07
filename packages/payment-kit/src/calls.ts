@@ -38,7 +38,6 @@ export class PaymentKitCalls {
 			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
 
 		return processRegistryPayment({
-			package: this.#packageConfig.packageId,
 			arguments: {
 				registry: registryIdToUse,
 				nonce,
@@ -65,7 +64,6 @@ export class PaymentKitCalls {
 		const { nonce, coinType, amount, receiver } = params;
 
 		return processEphemeralPayment({
-			package: this.#packageConfig.packageId,
 			arguments: {
 				nonce: nonce,
 				paymentAmount: amount,
