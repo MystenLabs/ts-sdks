@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.39.1
+
+### Patch Changes
+
+- a9f9035: Added previousTransaction to GetDynamicFieldResponse
+
 ## 1.39.0
 
 ### Minor Changes

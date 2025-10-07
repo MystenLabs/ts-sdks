@@ -1,5 +1,12 @@
 # @mysten/walrus
 
+## 0.7.2
+
+### Patch Changes
+
+- Updated dependencies [a9f9035]
+  - @mysten/sui@1.39.1
+
 ## 0.7.1
 
 ### Patch Changes

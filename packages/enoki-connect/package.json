@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/enoki-connect",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Enoki Connect Wallet-Standard implementation",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",

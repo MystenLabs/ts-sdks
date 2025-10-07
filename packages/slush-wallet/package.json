@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/slush-wallet",
-	"version": "0.2.1",
+	"version": "0.2.2",
 	"description": "Wallet adapter for Slush web wallet",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
