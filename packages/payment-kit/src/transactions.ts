@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Transaction } from '@mysten/sui/transactions';
-import type { ProcessEphemeralPaymentParams, ProcessRegistryPaymentParams } from './types.js';
+import type { ProcessEphemeralPaymentOptions, ProcessRegistryPaymentOptions } from './types.js';
 import type { PaymentKitCalls } from './calls.js';
 
 export interface PaymentKitTransactionsOptions {
@@ -24,9 +24,9 @@ export class PaymentKitTransactions {
 	 * const tx = client.paymentKit.tx.processRegistryPayment({ nonce, coinType, sender, amount, receiver, registryName });
 	 * ```
 	 */
-	processRegistryPayment(params: ProcessRegistryPaymentParams) {
+	processRegistryPayment(options: ProcessRegistryPaymentOptions) {
 		const tx = new Transaction();
-		tx.add(this.#calls.processRegistryPayment(params));
+		tx.add(this.#calls.processRegistryPayment(options));
 
 		return tx;
 	}
@@ -39,9 +39,9 @@ export class PaymentKitTransactions {
 	 * const tx = client.paymentKit.tx.const({ nonce, coinType, sender, amount, receiver });
 	 * ```
 	 */
-	processEphemeralPayment(params: ProcessEphemeralPaymentParams) {
+	processEphemeralPayment(options: ProcessEphemeralPaymentOptions) {
 		const tx = new Transaction();
-		tx.add(this.#calls.processEphemeralPayment(params));
+		tx.add(this.#calls.processEphemeralPayment(options));
 
 		return tx;
 	}

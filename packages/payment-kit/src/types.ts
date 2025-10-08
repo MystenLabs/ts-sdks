@@ -18,7 +18,11 @@ export type Registry =
 	| { registryName: string; registryId?: never }
 	| { registryName?: never; registryId: string };
 
-export type GetPaymentRecordParams = {
+export type RegistryAndAdminCap = {
+	adminCapId: string;
+} & Registry;
+
+export type GetPaymentRecordOptions = {
 	nonce: string;
 	amount: number | bigint;
 	receiver: string;
@@ -31,7 +35,7 @@ export interface GetPaymentRecordResponse {
 	epochAtTimeOfRecord: string;
 }
 
-export type ProcessEphemeralPaymentParams = {
+export type ProcessEphemeralPaymentOptions = {
 	nonce: string;
 	coinType: string;
 	sender: string;
@@ -39,4 +43,32 @@ export type ProcessEphemeralPaymentParams = {
 	receiver: string;
 };
 
-export type ProcessRegistryPaymentParams = ProcessEphemeralPaymentParams & Registry;
+export type ProcessRegistryPaymentOptions = ProcessEphemeralPaymentOptions & Registry;
+
+export type CreateRegistryOptions = {
+	registryName: string;
+};
+
+export type SetEpochExpirationDurationOptions = {
+	epochExpirationDuration: number | bigint;
+} & RegistryAndAdminCap;
+
+export type SetRegistryManagedFundsOptions = {
+	registryManagedFunds: boolean;
+} & RegistryAndAdminCap;
+
+export type WithdrawFromRegistryOptions = {
+	coinType: string;
+} & RegistryAndAdminCap;
+
+export type DeletePaymentRecordOptions = {
+	coinType: string;
+	paymentKey: string;
+} & Registry;
+
+export type CreatePaymentKeyOptions = {
+	nonce: string;
+	amount: number | bigint;
+	receiver: string;
+	coinType: string;
+};

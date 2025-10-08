@@ -6,10 +6,16 @@ export type {
 	PaymentKitCompatibleClient,
 	PaymentKitClientOptions,
 	PaymentKitPackageConfig,
-	GetPaymentRecordParams,
-	ProcessRegistryPaymentParams,
-	ProcessEphemeralPaymentParams,
+	GetPaymentRecordOptions,
+	ProcessRegistryPaymentOptions,
+	ProcessEphemeralPaymentOptions,
 	GetPaymentRecordResponse,
+	CreateRegistryOptions,
+	SetEpochExpirationDurationOptions,
+	SetRegistryManagedFundsOptions,
+	WithdrawFromRegistryOptions,
+	DeletePaymentRecordOptions,
+	CreatePaymentKeyOptions,
 } from './types.js';
 export { PaymentKitClientError } from './error.js';
 export { DEFAULT_REGISTRY_NAME } from './constants.js';

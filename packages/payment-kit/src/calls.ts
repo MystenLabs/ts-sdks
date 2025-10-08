@@ -3,13 +3,25 @@
 
 import { coinWithBalance } from '@mysten/sui/transactions';
 import type {
+	CreatePaymentKeyOptions,
+	CreateRegistryOptions,
+	DeletePaymentRecordOptions,
 	PaymentKitPackageConfig,
-	ProcessEphemeralPaymentParams,
-	ProcessRegistryPaymentParams,
+	ProcessEphemeralPaymentOptions,
+	ProcessRegistryPaymentOptions,
+	SetEpochExpirationDurationOptions,
+	SetRegistryManagedFundsOptions,
+	WithdrawFromRegistryOptions,
 } from './types.js';
 import {
+	createPaymentKey,
+	createRegistry,
+	deletePaymentRecord,
 	processEphemeralPayment,
 	processRegistryPayment,
+	setConfigEpochExpirationDuration,
+	setConfigRegistryManagedFunds,
+	withdrawFromRegistry,
 } from './contracts/payment_kit/payment_kit.js';
 import { getRegistryIdFromName } from './utils.js';
 
@@ -32,8 +44,8 @@ export class PaymentKitCalls {
 	 * tx.add(lient.paymentKit.call.processRegistryPayment({ nonce, coinType, sender, amount, receiver, registryName }));
 	 * ```
 	 */
-	processRegistryPayment = (params: ProcessRegistryPaymentParams) => {
-		const { nonce, coinType, amount, receiver, registryName, registryId } = params;
+	processRegistryPayment = (options: ProcessRegistryPaymentOptions) => {
+		const { nonce, coinType, amount, receiver, registryName, registryId } = options;
 		const registryIdToUse =
 			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
 
@@ -60,8 +72,8 @@ export class PaymentKitCalls {
 	 * tx.add(client.paymentKit.call.processEphemeralPayment({ nonce, coinType, sender, amount, receiver }));
 	 * ```
 	 */
-	processEphemeralPayment = (params: ProcessEphemeralPaymentParams) => {
-		const { nonce, coinType, amount, receiver } = params;
+	processEphemeralPayment = (options: ProcessEphemeralPaymentOptions) => {
+		const { nonce, coinType, amount, receiver } = options;
 
 		return processEphemeralPayment({
 			arguments: {
@@ -71,6 +83,146 @@ export class PaymentKitCalls {
 					type: coinType,
 					balance: amount,
 				}),
+				receiver,
+			},
+			typeArguments: [coinType],
+		});
+	};
+
+	/**
+	 * Creates a `createRegistry` transaction
+	 *
+	 * @usage
+	 * ```ts
+	 * tx.add(client.paymentKit.call.createRegistry(registryName));
+	 * ```
+	 */
+	createRegistry = ({ registryName }: CreateRegistryOptions) => {
+		return createRegistry({
+			arguments: {
+				namespace: this.#packageConfig.namespaceId,
+				name: registryName,
+			},
+		});
+	};
+
+	/**
+	 * Creates a `setConfigEpochExpirationDuration` transaction
+	 *
+	 * @usage
+	 * ```ts
+	 * tx.add(client.paymentKit.call.setConfigEpochExpirationDuration({registryName, epochExpirationDuration, adminCapId}));
+	 * ```
+	 */
+	setConfigEpochExpirationDuration = ({
+		registryName,
+		registryId,
+		epochExpirationDuration,
+		adminCapId,
+	}: SetEpochExpirationDurationOptions) => {
+		const registryIdToUse =
+			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
+
+		return setConfigEpochExpirationDuration({
+			arguments: {
+				registry: registryIdToUse,
+				epochExpirationDuration,
+				cap: adminCapId,
+			},
+		});
+	};
+
+	/**
+	 * Creates a `setConfigRegistryManagedFunds` transaction
+	 *
+	 * @usage
+	 * ```ts
+	 * tx.add(client.paymentKit.call.setConfigRegistryManagedFunds({registryName, registryManagedFunds, adminCapId}));
+	 * ```
+	 */
+	setConfigRegistryManagedFunds = ({
+		registryName,
+		registryId,
+		registryManagedFunds,
+		adminCapId,
+	}: SetRegistryManagedFundsOptions) => {
+		const registryIdToUse =
+			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
+
+		return setConfigRegistryManagedFunds({
+			arguments: {
+				registry: registryIdToUse,
+				registryManagedFunds,
+				cap: adminCapId,
+			},
+		});
+	};
+
+	/**
+	 * Creates a `withdrawFromRegistry` transaction
+	 *
+	 * @usage
+	 * ```ts
+	 * tx.add(client.paymentKit.call.withdrawFromRegistry({coinType, registryName, adminCapId}));
+	 * ```
+	 */
+	withdrawFromRegistry = ({
+		coinType,
+		registryName,
+		registryId,
+		adminCapId,
+	}: WithdrawFromRegistryOptions) => {
+		const registryIdToUse =
+			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
+
+		return withdrawFromRegistry({
+			arguments: {
+				registry: registryIdToUse,
+				cap: adminCapId,
+			},
+			typeArguments: [coinType],
+		});
+	};
+
+	/**
+	 * Creates a `deletePaymentRecord` transaction
+	 *
+	 * @usage
+	 * ```ts
+	 * tx.add(client.paymentKit.call.deletePaymentRecord({coinType, registryName}));
+	 * ```
+	 */
+	deletePaymentRecord = ({
+		coinType,
+		paymentKey,
+		registryName,
+		registryId,
+	}: DeletePaymentRecordOptions) => {
+		const registryIdToUse =
+			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
+
+		return deletePaymentRecord({
+			arguments: {
+				registry: registryIdToUse,
+				paymentKey,
+			},
+			typeArguments: [coinType],
+		});
+	};
+
+	/**
+	 * Creates a `createPaymentKey` transaction
+	 *
+	 * @usage
+	 * ```ts
+	 * tx.add(client.paymentKit.call.createPaymentKey({nonce, amount, receiver, coinType}));
+	 * ```
+	 */
+	createPaymentKey = ({ nonce, amount, receiver, coinType }: CreatePaymentKeyOptions) => {
+		return createPaymentKey({
+			arguments: {
+				nonce,
+				paymentAmount: amount,
 				receiver,
 			},
 			typeArguments: [coinType],

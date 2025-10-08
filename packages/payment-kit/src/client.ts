@@ -11,7 +11,7 @@ import type {
 	PaymentKitCompatibleClient,
 	PaymentKitPackageConfig,
 	PaymentKitClientOptions,
-	GetPaymentRecordParams,
+	GetPaymentRecordOptions,
 	GetPaymentRecordResponse,
 } from './types.js';
 import type { SuiClientRegistration } from '@mysten/sui/experimental';
@@ -74,8 +74,10 @@ export class PaymentKitClient {
 	 * const paymentRecord = await client.getPaymentRecord({ registry, nonce, amount, receiver, coinType });
 	 * ```
 	 */
-	async getPaymentRecord(params: GetPaymentRecordParams): Promise<GetPaymentRecordResponse | null> {
-		const { coinType, registryId, registryName, nonce, amount, receiver } = params;
+	async getPaymentRecord(
+		options: GetPaymentRecordOptions,
+	): Promise<GetPaymentRecordResponse | null> {
+		const { coinType, registryId, registryName, nonce, amount, receiver } = options;
 		const normalizedCoinType = normalizeStructTag(coinType);
 		const paymentKeyType = `${PaymentKey.name}<${normalizedCoinType}>`;
 
