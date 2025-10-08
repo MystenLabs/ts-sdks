@@ -3,6 +3,7 @@
 
 import type Transport from '@ledgerhq/hw-transport';
 import sha256 from 'fast-sha256';
+import { DescriptorInput, buildDescriptor } from './descriptor';
 
 export type GetPublicKeyResult = {
 	publicKey: Uint8Array;
@@ -50,7 +51,7 @@ export default class Sui {
 		this.transport = transport;
 		this.transport.decorateAppAPIMethods(
 			this,
-			['getPublicKey', 'signTransaction', 'getVersion'],
+			['getPublicKey', 'signTransaction', 'getVersion', 'getChallenge', 'provideTrustedName', 'provideTrustedDynamicDescriptor'],
 			scrambleKey,
 		);
 	}
@@ -162,6 +163,67 @@ export default class Sui {
 			minor,
 			patch,
 		};
+	}
+
+	/**
+   * Method returning a 4 bytes TLV challenge as an hex string
+   *
+   * @returns {Promise<string>}
+   */
+  async #getChallenge(): Promise<string> {
+    return await this.#sendChunks(
+      0x00, // CLA
+      0x20, // GET_CHALLENGE
+      0x00, // P1
+      0x00, // P2
+      Buffer.alloc(1),
+    ).then(res => {
+      const data = res.toString("hex");
+      const fourBytesChallenge = data.slice(0, -4);
+      const statusCode = data.slice(-4);
+
+      if (statusCode !== "9000") {
+        throw new Error(
+          `An error happened while generating the challenge. Status code: ${statusCode}`,
+        );
+      }
+      return `0x${fourBytesChallenge}`;
+    });
+  }
+
+  /**
+   * Provides a trusted name to be displayed during transactions in place of the token address it is associated to. It shall be run just before a transaction involving the associated address that would be displayed on the device.
+   *
+   * @param data a stringified buffer of some TLV encoded data to represent the trusted name
+   * @returns a boolean
+   */
+  async #provideTrustedName(data: string): Promise<boolean> {
+    await this.#sendChunks(
+      0x00, // CLA
+      0x21, // PROVIDE_TRUSTED_NAME,
+      0x00, // P1
+      0x00, // P2
+      Buffer.from(data, "hex"),
+    );
+
+    return true;
+  }
+
+	/**
+	 * Provides trusted dynamic and signed coin metadata
+	 *
+	 * @param data An object containing the descriptor and its signature from the CAL
+	 */
+	async #provideTrustedDynamicDescriptor(data: DescriptorInput): Promise<boolean> {
+		await this.#sendChunks(
+			0x00, // CLA
+			0x22, // Provide trusted dynamic descriptor
+			0x00, // P1
+			0x00, // P2
+			buildDescriptor(data),
+		);
+
+		return true;
 	}
 
 	/**
