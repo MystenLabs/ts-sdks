@@ -18,6 +18,7 @@ import {
 	ChangedObject_InputObjectState,
 	ChangedObject_OutputObjectState,
 } from './proto/sui/rpc/v2/effects.js';
+import type { BuildTransactionOptions } from '../transactions/index.js';
 import { TransactionDataBuilder } from '../transactions/index.js';
 import { bcs } from '../bcs/index.js';
 import type { OpenSignature, OpenSignatureBody } from './proto/sui/rpc/v2/move_package.js';
@@ -119,9 +120,11 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 				digest: object.digest!,
 				// TODO: List owned objects doesn't return content right now
 				get content() {
-					return Promise.reject(
-						new Error('GRPC does not return object contents when listing owned objects'),
-					);
+					return object.bcs?.value
+						? Promise.resolve(object.bcs.value)
+						: Promise.reject(
+								new Error('GRPC does not return object contents when listing owned objects'),
+							);
 				},
 				owner: mapOwner(object.owner)!,
 				type: object.objectType!,
@@ -164,9 +167,11 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 					digest: object.digest!,
 					// TODO: List owned objects doesn't return content right now
 					get content() {
-						return Promise.reject(
-							new Error('GRPC does not return object contents when listing owned objects'),
-						);
+						return object.bcs?.value
+							? Promise.resolve(object.bcs.value)
+							: Promise.reject(
+									new Error('GRPC does not return object contents when listing owned objects'),
+								);
 					},
 					owner: mapOwner(object.owner)!,
 					type: object.objectType!,
@@ -395,8 +400,23 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		};
 	}
 
-	resolveTransactionPlugin(): never {
-		throw new Error('GRPC client does not support transaction resolution yet');
+	resolveTransactionPlugin() {
+		// const client = this.#client;
+		return async function resolveTransactionData(
+			_transactionData: TransactionDataBuilder,
+			_options: BuildTransactionOptions,
+			_next: () => Promise<void>,
+		) {
+			throw new Error('Transaction resolution is not supported with the GRPC client');
+
+			// const result = await client.liveDataService.simulateTransaction({
+			// 	transaction: transactionFromData(transactionData)
+			// })
+			// const resolvedData = dataFromSimulate(result)
+			// transactionData.applyResolvedData(resolvedData);
+
+			// return await next();
+		};
 	}
 }
 

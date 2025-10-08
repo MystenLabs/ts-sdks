@@ -104,3 +104,7 @@ export class TypeTagSerializer {
 		throw new Error('Invalid TypeTag');
 	}
 }
+
+export function normalizeTypeTag(type: string): string {
+	return TypeTagSerializer.tagToString(TypeTagSerializer.parseFromStr(type));
+}
