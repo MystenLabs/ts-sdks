@@ -4,6 +4,7 @@
 import { fromBase58, splitGenericParameters } from '@mysten/bcs';
 
 import { isValidNamedPackage } from './move-registry.js';
+import { TypeTagSerializer } from '../bcs/type-tag-serializer.js';
 
 const TX_DIGEST_LENGTH = 32;
 
@@ -80,6 +81,10 @@ export function normalizeStructTag(type: string | StructTag): string {
 			: '';
 
 	return `${address}::${module}::${name}${formattedTypeParams}`;
+}
+
+export function normalizeTypeTag(type: string): string {
+	return TypeTagSerializer.tagToString(TypeTagSerializer.parseFromStr(type));
 }
 
 /**
