@@ -18,6 +18,7 @@
 		"experimental",
 		"faucet",
 		"graphql",
+		"grpc",
 		"keypairs",
 		"multisig",
 		"src",
@@ -54,6 +55,10 @@
 		"./graphql": {
 			"import": "./dist/esm/graphql/index.js",
 			"require": "./dist/cjs/graphql/index.js"
+		},
+		"./grpc": {
+			"import": "./dist/esm/grpc/index.js",
+			"require": "./dist/cjs/grpc/index.js"
 		},
 		"./keypairs/ed25519": {
 			"import": "./dist/esm/keypairs/ed25519/index.js",
@@ -106,8 +111,12 @@
 	},
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+		"codegen": "pnpm codegen:graphql && pnpm codegen:grpc && pnpm lint:fix",
 		"codegen:graphql": "graphql-codegen --config graphql-codegen.ts",
 		"codegen:version": "node genversion.mjs",
+		"codegen:grpc": "rm -rf src/grpc/proto && mkdir src/grpc/proto && pnpm codegen:grpc-protoc && pnpm codegen:grpc-header",
+		"codegen:grpc-protoc": "protoc --ts_out ./src/grpc/proto --ts_opt force_server_none --ts_opt optimize_code_size --ts_opt ts_nocheck -I ../../../sui-apis/proto -I ../../../sui-apis/proto ../../../sui-apis/proto/sui/rpc/v2beta2/*.proto ../../../sui-apis/proto/google/*/*.proto",
+		"codegen:grpc-header": "find src/grpc/proto -type f -exec sh -c 'echo \"// Copyright (c) Mysten Labs, Inc.\\n// SPDX-License-Identifier: Apache-2.0\\n\" | cat - {} > temp && mv temp {}' \\;",
 		"build": "node genversion.mjs && pnpm build:package",
 		"build:package": "build-package",
 		"vitest": "vitest",
@@ -165,6 +174,9 @@
 		"@mysten/utils": "workspace:*",
 		"@noble/curves": "^1.9.4",
 		"@noble/hashes": "^1.8.0",
+		"@protobuf-ts/grpcweb-transport": "^2.11.1",
+		"@protobuf-ts/runtime": "^2.11.1",
+		"@protobuf-ts/runtime-rpc": "^2.11.1",
 		"@scure/base": "^1.2.6",
 		"@scure/bip32": "^1.7.0",
 		"@scure/bip39": "^1.6.0",
