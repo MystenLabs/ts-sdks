@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Transaction } from '@mysten/sui/transactions';
-import type { ProcessEphemeralPaymentOptions, ProcessRegistryPaymentOptions } from './types.js';
+import type {
+	CreateRegistryOptions,
+	DeletePaymentRecordOptions,
+	ProcessEphemeralPaymentOptions,
+	ProcessRegistryPaymentOptions,
+	SetEpochExpirationDurationOptions,
+	SetRegistryManagedFundsOptions,
+	WithdrawFromRegistryOptions,
+} from './types.js';
 import type { PaymentKitCalls } from './calls.js';
 
 export interface PaymentKitTransactionsOptions {
@@ -36,12 +44,87 @@ export class PaymentKitTransactions {
 	 *
 	 * @usage
 	 * ```ts
-	 * const tx = client.paymentKit.tx.const({ nonce, coinType, sender, amount, receiver });
+	 * const tx = client.paymentKit.tx.processEphemeralPayment({ nonce, coinType, sender, amount, receiver });
 	 * ```
 	 */
 	processEphemeralPayment(options: ProcessEphemeralPaymentOptions) {
 		const tx = new Transaction();
 		tx.add(this.#calls.processEphemeralPayment(options));
+
+		return tx;
+	}
+
+	/**
+	 * Creates a `createRegistry` transaction
+	 *
+	 * @usage
+	 * ```ts
+	 * const tx = client.paymentKit.tx.createRegistry({ registryName });
+	 * ```
+	 */
+	createRegistry(options: CreateRegistryOptions) {
+		const tx = new Transaction();
+		tx.add(this.#calls.createRegistry(options));
+
+		return tx;
+	}
+
+	/**
+	 * Creates a `setConfigEpochExpirationDuration` transaction
+	 *
+	 * @usage
+	 * ```ts
+	 * const tx = client.paymentKit.tx.setConfigEpochExpirationDuration({ registryName, epochExpirationDuration, adminCapId });
+	 * ```
+	 */
+	setConfigEpochExpirationDuration(options: SetEpochExpirationDurationOptions) {
+		const tx = new Transaction();
+		tx.add(this.#calls.setConfigEpochExpirationDuration(options));
+
+		return tx;
+	}
+
+	/**
+	 * Creates a `setConfigRegistryManagedFunds` transaction
+	 *
+	 * @usage
+	 * ```ts
+	 * const tx = client.paymentKit.tx.setConfigRegistryManagedFunds({ registryName, registryManagedFunds, adminCapId });
+	 * ```
+	 */
+	setConfigRegistryManagedFunds(options: SetRegistryManagedFundsOptions) {
+		const tx = new Transaction();
+		tx.add(this.#calls.setConfigRegistryManagedFunds(options));
+
+		return tx;
+	}
+
+	/**
+	 * Creates a `withdrawFromRegistry` transaction
+	 *
+	 * @usage
+	 * ```ts
+	 * const tx = client.paymentKit.tx.withdrawFromRegistry({ coinType, registryName, adminCapId });
+	 * ```
+	 */
+	withdrawFromRegistry(options: WithdrawFromRegistryOptions) {
+		const tx = new Transaction();
+		tx.add(this.#calls.withdrawFromRegistry(options));
+
+		return tx;
+	}
+
+	/**
+	 * Creates a `deletePaymentRecord` transaction
+	 *
+	 * @usage
+	 * ```ts
+	 * const tx = client.paymentKit.tx.deletePaymentRecord({ coinType, nonce, amount, receiver, registryName });
+	 * ```
+	 */
+	deletePaymentRecord(options: DeletePaymentRecordOptions) {
+		const tx = new Transaction();
+		tx.add(this.#calls.deletePaymentRecord(options));
 
 		return tx;
 	}
