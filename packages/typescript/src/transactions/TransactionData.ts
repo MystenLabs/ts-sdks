@@ -20,7 +20,6 @@ import { transactionDataFromV1 } from './data/v1.js';
 import type { SerializedTransactionDataV1 } from './data/v1.js';
 import type { SerializedTransactionDataV2Schema } from './data/v2.js';
 import { hashTypedData } from './hash.js';
-
 function prepareSuiAddress(address: string) {
 	return normalizeSuiAddress(address).replace('0x', '');
 }
@@ -335,5 +334,105 @@ export class TransactionDataBuilder implements TransactionData {
 			inputs: [...this.inputs],
 			commands: [...this.commands],
 		});
+	}
+
+	applyResolvedData(resolved: TransactionData) {
+		if (!this.sender) {
+			this.sender = resolved.sender ?? null;
+		}
+
+		if (!this.expiration) {
+			this.expiration = resolved.expiration ?? null;
+		}
+
+		if (!this.gasData.budget) {
+			this.gasData.budget = resolved.gasData.budget;
+		}
+
+		if (!this.gasData.owner) {
+			this.gasData.owner = resolved.gasData.owner ?? null;
+		}
+
+		if (!this.gasData.payment) {
+			this.gasData.payment = resolved.gasData.payment;
+		}
+
+		if (!this.gasData.price) {
+			this.gasData.price = resolved.gasData.price;
+		}
+
+		for (let i = 0; i < this.inputs.length; i++) {
+			const input = this.inputs[i];
+			const resolvedInput = resolved.inputs[i];
+
+			switch (input.$kind) {
+				case 'UnresolvedPure':
+					if (resolvedInput.$kind !== 'Pure') {
+						throw new Error(
+							`Expected input at index ${i} to resolve to a Pure argument, but got ${JSON.stringify(
+								resolvedInput,
+							)}`,
+						);
+					}
+					this.inputs[i] = resolvedInput;
+					break;
+				case 'UnresolvedObject':
+					if (resolvedInput.$kind !== 'Object') {
+						throw new Error(
+							`Expected input at index ${i} to resolve to an Object argument, but got ${JSON.stringify(
+								resolvedInput,
+							)}`,
+						);
+					}
+
+					if (
+						resolvedInput.Object.$kind === 'ImmOrOwnedObject' ||
+						resolvedInput.Object.$kind === 'Receiving'
+					) {
+						const original = input.UnresolvedObject;
+						const resolved =
+							resolvedInput.Object.ImmOrOwnedObject ?? resolvedInput.Object.Receiving!;
+
+						if (
+							normalizeSuiAddress(original.objectId) !== normalizeSuiAddress(resolved.objectId) ||
+							(original.version != null && original.version !== resolved.version) ||
+							(original.digest != null && original.digest !== resolved.digest) ||
+							// Objects with shared object properties should not resolve to owned objects
+							original.mutable != null ||
+							original.initialSharedVersion != null
+						) {
+							throw new Error(
+								`Input at index ${i} did not match unresolved object. ${JSON.stringify(original)} is not compatible with ${JSON.stringify(resolved)}`,
+							);
+						}
+					} else if (resolvedInput.Object.$kind === 'SharedObject') {
+						const original = input.UnresolvedObject;
+						const resolved = resolvedInput.Object.SharedObject;
+
+						if (
+							normalizeSuiAddress(original.objectId) !== normalizeSuiAddress(resolved.objectId) ||
+							(original.initialSharedVersion != null &&
+								original.initialSharedVersion !== resolved.initialSharedVersion) ||
+							(original.mutable != null && original.mutable !== resolved.mutable) ||
+							// Objects with owned object properties should not resolve to shared objects
+							original.version != null ||
+							original.digest != null
+						) {
+							throw new Error(
+								`Input at index ${i} did not match unresolved object. ${JSON.stringify(original)} is not compatible with ${JSON.stringify(resolved)}`,
+							);
+						}
+					} else {
+						throw new Error(
+							`Input at index ${i} resolved to an unexpected Object kind: ${JSON.stringify(
+								resolvedInput.Object,
+							)}`,
+						);
+					}
+
+					this.inputs[i] = resolvedInput;
+					break;
+			}
+		}
 	}
 }

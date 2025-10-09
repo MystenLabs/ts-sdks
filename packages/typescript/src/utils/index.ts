@@ -9,6 +9,7 @@ export {
 	normalizeStructTag,
 	normalizeSuiAddress,
 	normalizeSuiObjectId,
+	normalizeTypeTag,
 	parseStructTag,
 	SUI_ADDRESS_LENGTH,
 } from './sui-types.js';
