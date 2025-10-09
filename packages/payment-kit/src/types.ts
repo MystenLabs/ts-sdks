@@ -22,12 +22,14 @@ export type RegistryAndAdminCap = {
 	adminCapId: string;
 } & Registry;
 
-export type GetPaymentRecordOptions = {
+export type PaymentKeyArgs = {
+	coinType: string;
 	nonce: string;
 	amount: number | bigint;
 	receiver: string;
-	coinType: string;
-} & Registry;
+};
+
+export type GetPaymentRecordOptions = PaymentKeyArgs & Registry;
 
 export interface GetPaymentRecordResponse {
 	key: string;
@@ -36,12 +38,8 @@ export interface GetPaymentRecordResponse {
 }
 
 export type ProcessEphemeralPaymentOptions = {
-	nonce: string;
-	coinType: string;
 	sender: string;
-	amount: number | bigint;
-	receiver: string;
-};
+} & PaymentKeyArgs;
 
 export type ProcessRegistryPaymentOptions = ProcessEphemeralPaymentOptions & Registry;
 
@@ -63,12 +61,5 @@ export type WithdrawFromRegistryOptions = {
 
 export type DeletePaymentRecordOptions = {
 	coinType: string;
-	paymentKey: string;
-} & Registry;
-
-export type CreatePaymentKeyOptions = {
-	nonce: string;
-	amount: number | bigint;
-	receiver: string;
-	coinType: string;
-};
+} & PaymentKeyArgs &
+	Registry;

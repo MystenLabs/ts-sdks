@@ -3,7 +3,6 @@
 
 import { coinWithBalance } from '@mysten/sui/transactions';
 import type {
-	CreatePaymentKeyOptions,
 	CreateRegistryOptions,
 	DeletePaymentRecordOptions,
 	PaymentKitPackageConfig,
@@ -189,12 +188,14 @@ export class PaymentKitCalls {
 	 *
 	 * @usage
 	 * ```ts
-	 * tx.add(client.paymentKit.call.deletePaymentRecord({coinType, registryName}));
+	 * tx.add(client.paymentKit.call.deletePaymentRecord({coinType, nonce, amount, receiver, registryName}));
 	 * ```
 	 */
 	deletePaymentRecord = ({
 		coinType,
-		paymentKey,
+		nonce,
+		amount,
+		receiver,
 		registryName,
 		registryId,
 	}: DeletePaymentRecordOptions) => {
@@ -204,26 +205,14 @@ export class PaymentKitCalls {
 		return deletePaymentRecord({
 			arguments: {
 				registry: registryIdToUse,
-				paymentKey,
-			},
-			typeArguments: [coinType],
-		});
-	};
-
-	/**
-	 * Creates a `createPaymentKey` transaction
-	 *
-	 * @usage
-	 * ```ts
-	 * tx.add(client.paymentKit.call.createPaymentKey({nonce, amount, receiver, coinType}));
-	 * ```
-	 */
-	createPaymentKey = ({ nonce, amount, receiver, coinType }: CreatePaymentKeyOptions) => {
-		return createPaymentKey({
-			arguments: {
-				nonce,
-				paymentAmount: amount,
-				receiver,
+				paymentKey: createPaymentKey({
+					arguments: {
+						nonce,
+						paymentAmount: amount,
+						receiver,
+					},
+					typeArguments: [coinType],
+				}),
 			},
 			typeArguments: [coinType],
 		});
