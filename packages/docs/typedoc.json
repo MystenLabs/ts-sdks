@@ -8,6 +8,7 @@
 		"../enoki-connect",
 		"../graphql-transport",
 		"../kiosk",
+		"../payment-kit",
 		"../seal",
 		"../signers",
 		"../slush-wallet",
