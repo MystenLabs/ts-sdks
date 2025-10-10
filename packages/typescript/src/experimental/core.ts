@@ -105,6 +105,10 @@ export abstract class Experimental_CoreClient
 		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse>;
 
+	abstract defaultNameServiceName(
+		options: Experimental_SuiClientTypes.DefaultNameServiceNameOptions,
+	): Promise<Experimental_SuiClientTypes.DefaultNameServiceNameResponse>;
+
 	async getDynamicField(
 		options: Experimental_SuiClientTypes.GetDynamicFieldOptions,
 	): Promise<Experimental_SuiClientTypes.GetDynamicFieldResponse> {

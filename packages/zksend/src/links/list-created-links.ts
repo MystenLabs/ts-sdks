@@ -13,7 +13,7 @@ import { getContractIds } from './zk-bag.js';
 
 const ListCreatedLinksQuery = graphql(`
 	query listCreatedLinks($address: SuiAddress!, $function: String!, $cursor: String) {
-		transactionBlocks(
+		transactions(
 			last: 10
 			before: $cursor
 			filter: { sentAddress: $address, function: $function }
@@ -27,7 +27,7 @@ const ListCreatedLinksQuery = graphql(`
 					timestamp
 				}
 				digest
-				bcs
+				transactionBcs
 			}
 		}
 	}
@@ -56,8 +56,8 @@ export async function listCreatedLinks({
 	const gqlClient = new SuiGraphQLClient({
 		url:
 			network === 'testnet'
-				? 'https://sui-testnet.mystenlabs.com/graphql'
-				: 'https://sui-mainnet.mystenlabs.com/graphql',
+				? 'https://graphql.testnet.sui.io/graphql'
+				: 'https://graphql.mainnet.sui.io/graphql',
 		fetch: fetchFn,
 	});
 
@@ -72,20 +72,20 @@ export async function listCreatedLinks({
 		},
 	});
 
-	const transactionBlocks = page.data?.transactionBlocks;
+	const transactions = page.data?.transactions;
 
-	if (!transactionBlocks || page.errors?.length) {
+	if (!transactions || page.errors?.length) {
 		throw new Error('Failed to load created links');
 	}
 
 	const links = (
 		await Promise.all(
-			transactionBlocks.nodes.map(async (node) => {
-				if (!node.bcs) {
+			transactions.nodes.map(async (node) => {
+				if (!node.transactionBcs) {
 					return null;
 				}
 
-				const kind = bcs.TransactionData.parse(fromBase64(node.bcs)).V1.kind;
+				const kind = bcs.TransactionData.parse(fromBase64(node.transactionBcs)).V1.kind;
 
 				if (!kind?.ProgrammableTransaction) {
 					return null;
@@ -140,8 +140,8 @@ export async function listCreatedLinks({
 	).reverse();
 
 	return {
-		cursor: transactionBlocks.pageInfo.startCursor,
-		hasNextPage: transactionBlocks.pageInfo.hasPreviousPage,
+		cursor: transactions.pageInfo.startCursor,
+		hasNextPage: transactions.pageInfo.hasPreviousPage,
 		links: links.filter((link): link is NonNullable<typeof link> => link !== null),
 	};
 }

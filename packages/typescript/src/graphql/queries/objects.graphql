@@ -15,15 +15,9 @@ query getOwnedObjects($owner: SuiAddress!, $limit: Int, $cursor: String, $filter
 	}
 }
 
-query multiGetObjects($objectIds: [SuiAddress!]!, $limit: Int, $cursor: String) {
-	objects(first: $limit, after: $cursor, filter: { objectIds: $objectIds }) {
-		pageInfo {
-			hasNextPage
-			endCursor
-		}
-		nodes {
-			...OBJECT_FIELDS
-		}
+query multiGetObjects($objectKeys: [ObjectKey!]!) {
+	multiGetObjects(keys: $objectKeys) {
+		...OBJECT_FIELDS
 	}
 }
 
@@ -42,7 +36,7 @@ fragment OBJECT_FIELDS on Object {
 	owner {
 		...OBJECT_OWNER_FIELDS
 	}
-	previousTransactionBlock {
+	previousTransaction {
 		digest
 	}
 }
@@ -60,25 +54,20 @@ fragment MOVE_OBJECT_FIELDS on MoveObject {
 	owner {
 		...OBJECT_OWNER_FIELDS
 	}
-	previousTransactionBlock {
+	previousTransaction {
 		digest
 	}
 }
 
-fragment OBJECT_OWNER_FIELDS on ObjectOwner {
+fragment OBJECT_OWNER_FIELDS on Owner {
 	__typename
 	... on AddressOwner {
-		owner {
-			asObject {
-				address
-			}
-			asAddress {
-				address
-			}
+		address {
+			address
 		}
 	}
-	... on Parent {
-		parent {
+	... on ObjectOwner {
+		address {
 			address
 		}
 	}
@@ -87,7 +76,7 @@ fragment OBJECT_OWNER_FIELDS on ObjectOwner {
 	}
 	... on ConsensusAddressOwner {
 		startVersion
-		owner {
+		address {
 			address
 		}
 	}
