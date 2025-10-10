@@ -1,5 +1,16 @@
 # @mysten/dapp-kit
 
+## 0.19.2
+
+### Patch Changes
+
+- f5fc0c0: Update wallet-standard integration to use getCapabilties instead of getSupportedIntents
+- Updated dependencies [f5fc0c0]
+- Updated dependencies [f5fc0c0]
+  - @mysten/wallet-standard@0.19.0
+  - @mysten/sui@1.40.0
+  - @mysten/slush-wallet@0.2.3
+
 ## 0.19.1
 
 ### Patch Changes

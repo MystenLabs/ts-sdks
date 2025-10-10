@@ -1,5 +1,14 @@
 # @mysten/walletconnect-wallet
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [f5fc0c0]
+- Updated dependencies [f5fc0c0]
+  - @mysten/wallet-standard@0.19.0
+  - @mysten/sui@1.40.0
+
 ## 0.1.2
 
 ### Patch Changes

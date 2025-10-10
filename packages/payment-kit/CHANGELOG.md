@@ -1,5 +1,13 @@
 # @mysten/payment-kit
 
+## 0.0.4
+
+### Patch Changes
+
+- da06c0c: Added Registry and Payment Record calls
+- Updated dependencies [f5fc0c0]
+  - @mysten/sui@1.40.0
+
 ## 0.0.3
 
 ### Patch Changes

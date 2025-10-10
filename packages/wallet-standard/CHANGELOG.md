@@ -1,5 +1,16 @@
 # @mysten/wallet-standard
 
+## 0.19.0
+
+### Minor Changes
+
+- f5fc0c0: rename getSupportedIntents to getCapabilities
+
+### Patch Changes
+
+- Updated dependencies [f5fc0c0]
+  - @mysten/sui@1.40.0
+
 ## 0.18.1
 
 ### Patch Changes

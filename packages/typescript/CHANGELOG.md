@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.40.0
+
+### Minor Changes
+
+- f5fc0c0: Update Transaction.from to improve parsing Transaction instances from other SDK versions
+
 ## 1.39.1
 
 ### Patch Changes
