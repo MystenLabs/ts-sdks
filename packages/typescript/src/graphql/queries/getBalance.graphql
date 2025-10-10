@@ -1,13 +1,12 @@
 # Copyright (c) Mysten Labs, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-query getBalance($owner: SuiAddress!, $type: String = "0x2::sui::SUI") {
+query getBalance($owner: SuiAddress!, $coinType: String! = "0x2::sui::SUI") {
 	address(address: $owner) {
-		balance(type: $type) {
+		balance(coinType: $coinType) {
 			coinType {
 				repr
 			}
-			coinObjectCount
 			totalBalance
 		}
 	}

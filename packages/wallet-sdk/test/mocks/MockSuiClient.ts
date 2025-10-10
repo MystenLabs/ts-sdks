@@ -287,6 +287,12 @@ export class MockSuiClient extends Experimental_CoreClient {
 		throw new Error('executeTransaction not implemented in MockSuiClient');
 	}
 
+	async defaultNameServiceName(
+		_options: Experimental_SuiClientTypes.DefaultNameServiceNameOptions,
+	): Promise<Experimental_SuiClientTypes.DefaultNameServiceNameResponse> {
+		throw new Error('defaultNameServiceName not implemented in MockSuiClient');
+	}
+
 	async dryRunTransaction(
 		_options: Experimental_SuiClientTypes.DryRunTransactionOptions,
 	): Promise<Experimental_SuiClientTypes.DryRunTransactionResponse> {

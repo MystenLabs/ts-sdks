@@ -8,6 +8,7 @@ export type { DAppKitCompatibleClient } from './core/types.js';
 export type { WalletConnection } from './core/store.js';
 export type { Register, ResolvedRegister, RegisteredDAppKit } from './types.js';
 export type { StateStorage } from './utils/storage.js';
+export type { ClientWithCoreApi } from '@mysten/sui/experimental';
 
 export { getWalletUniqueIdentifier } from './utils/wallets.js';
 export type { UiWallet, UiWalletAccount } from '@wallet-standard/ui';

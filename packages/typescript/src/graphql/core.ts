@@ -6,12 +6,11 @@ import type { Experimental_SuiClientTypes } from '../experimental/types.js';
 import type { GraphQLQueryOptions, SuiGraphQLClient } from './client.js';
 import type {
 	Object_Owner_FieldsFragment,
-	Object_FieldsFragment,
 	Transaction_FieldsFragment,
 } from './generated/queries.js';
 import {
-	DryRunTransactionBlockDocument,
-	ExecuteTransactionBlockDocument,
+	DefaultSuinsNameDocument,
+	ExecuteTransactionDocument,
 	GetAllBalancesDocument,
 	GetBalanceDocument,
 	GetCoinsDocument,
@@ -21,12 +20,12 @@ import {
 	GetReferenceGasPriceDocument,
 	GetTransactionBlockDocument,
 	MultiGetObjectsDocument,
-	ResolveNameServiceNamesDocument,
+	SimulateTransactionDocument,
 	VerifyZkLoginSignatureDocument,
 	ZkLoginIntentScope,
 } from './generated/queries.js';
 import { ObjectError } from '../experimental/errors.js';
-import { fromBase64, toBase64 } from '@mysten/utils';
+import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import {
@@ -73,54 +72,50 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 	async getObjects(
 		options: Experimental_SuiClientTypes.GetObjectsOptions,
 	): Promise<Experimental_SuiClientTypes.GetObjectsResponse> {
-		const objects: Object_FieldsFragment[] = [];
+		const batches = chunk(options.objectIds, 50);
+		const results: Experimental_SuiClientTypes.GetObjectsResponse['objects'] = [];
 
-		let hasNextPage = true;
-		let cursor: string | null = null;
-
-		while (hasNextPage) {
-			const objectsPage = await this.#graphqlQuery(
+		for (const batch of batches) {
+			const page = await this.#graphqlQuery(
 				{
 					query: MultiGetObjectsDocument,
 					variables: {
-						objectIds: options.objectIds,
-						cursor,
+						objectKeys: batch.map((address) => ({ address })),
 					},
 				},
-				(result) => result.objects,
+				(result) => result.multiGetObjects,
 			);
-
-			objects.push(...objectsPage.nodes);
-			hasNextPage = objectsPage.pageInfo.hasNextPage;
-			cursor = (objectsPage.pageInfo.endCursor ?? null) as string | null;
+			results.push(
+				...batch
+					.map((id) => normalizeSuiAddress(id))
+					.map(
+						(id) =>
+							page.find((obj) => obj?.address === id) ??
+							new ObjectError('notFound', `Object ${id} not found`),
+					)
+					.map((obj) => {
+						if (obj instanceof ObjectError) {
+							return obj;
+						}
+						return {
+							id: obj.address,
+							version: obj.version?.toString()!,
+							digest: obj.digest!,
+							owner: mapOwner(obj.owner!),
+							type: obj.asMoveObject?.contents?.type?.repr!,
+							content: Promise.resolve(
+								obj.asMoveObject?.contents?.bcs
+									? fromBase64(obj.asMoveObject.contents.bcs)
+									: new Uint8Array(),
+							),
+							previousTransaction: obj.previousTransaction?.digest ?? null,
+						};
+					}),
+			);
 		}
 
 		return {
-			objects: options.objectIds
-				.map((id) => normalizeSuiAddress(id))
-				.map(
-					(id) =>
-						objects.find((obj) => obj.address === id) ??
-						new ObjectError('notFound', `Object ${id} not found`),
-				)
-				.map((obj) => {
-					if (obj instanceof ObjectError) {
-						return obj;
-					}
-					return {
-						id: obj.address,
-						version: obj.version.toString(),
-						digest: obj.digest!,
-						owner: mapOwner(obj.owner!),
-						type: obj.asMoveObject?.contents?.type?.repr!,
-						content: Promise.resolve(
-							obj.asMoveObject?.contents?.bcs
-								? fromBase64(obj.asMoveObject.contents.bcs)
-								: new Uint8Array(),
-						),
-						previousTransaction: obj.previousTransactionBlock?.digest ?? null,
-					};
-				}),
+			objects: results,
 		};
 	}
 	async getOwnedObjects(
@@ -144,14 +139,14 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 		return {
 			objects: objects.nodes.map((obj) => ({
 				id: obj.address,
-				version: obj.version.toString(),
+				version: obj.version?.toString()!,
 				digest: obj.digest!,
 				owner: mapOwner(obj.owner!),
 				type: obj.contents?.type?.repr!,
 				content: Promise.resolve(
 					obj.contents?.bcs ? fromBase64(obj.contents.bcs) : new Uint8Array(),
 				),
-				previousTransaction: obj.previousTransactionBlock?.digest ?? null,
+				previousTransaction: obj.previousTransaction?.digest ?? null,
 			})),
 			hasNextPage: objects.pageInfo.hasNextPage,
 			cursor: objects.pageInfo.endCursor ?? null,
@@ -167,10 +162,10 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 					owner: options.address,
 					cursor: options.cursor,
 					first: options.limit,
-					type: (await this.mvr.resolveType({ type: options.coinType })).type,
+					type: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: options.coinType })).type}>`,
 				},
 			},
-			(result) => result.address?.coins,
+			(result) => result.address?.objects,
 		);
 
 		return {
@@ -178,15 +173,15 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 			hasNextPage: coins.pageInfo.hasNextPage,
 			objects: coins.nodes.map((coin) => ({
 				id: coin.address,
-				version: coin.version.toString(),
+				version: coin.version?.toString()!,
 				digest: coin.digest!,
 				owner: mapOwner(coin.owner!),
 				type: coin.contents?.type?.repr!,
-				balance: coin.coinBalance!,
+				balance: (coin.contents?.json as { balance: string })?.balance,
 				content: Promise.resolve(
 					coin.contents?.bcs ? fromBase64(coin.contents.bcs) : new Uint8Array(),
 				),
-				previousTransaction: coin.previousTransactionBlock?.digest ?? null,
+				previousTransaction: coin.previousTransaction?.digest ?? null,
 			})),
 		};
 	}
@@ -207,7 +202,7 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 
 		return {
 			balance: {
-				coinType: result.coinType.repr,
+				coinType: result.coinType?.repr!,
 				balance: result.totalBalance!,
 			},
 		};
@@ -227,7 +222,7 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 			cursor: balances.pageInfo.endCursor ?? null,
 			hasNextPage: balances.pageInfo.hasNextPage,
 			balances: balances.nodes.map((balance) => ({
-				coinType: balance.coinType.repr,
+				coinType: balance.coinType?.repr!,
 				balance: balance.totalBalance!,
 			})),
 		};
@@ -240,7 +235,7 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 				query: GetTransactionBlockDocument,
 				variables: { digest: options.digest },
 			},
-			(result) => result.transactionBlock,
+			(result) => result.transaction,
 		);
 
 		return {
@@ -252,10 +247,13 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 	): Promise<Experimental_SuiClientTypes.ExecuteTransactionResponse> {
 		const result = await this.#graphqlQuery(
 			{
-				query: ExecuteTransactionBlockDocument,
-				variables: { txBytes: toBase64(options.transaction), signatures: options.signatures },
+				query: ExecuteTransactionDocument,
+				variables: {
+					transactionDataBcs: toBase64(options.transaction),
+					signatures: options.signatures,
+				},
 			},
-			(result) => result.executeTransactionBlock,
+			(result) => result.executeTransaction,
 		);
 
 		if (result.errors) {
@@ -266,7 +264,7 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 		}
 
 		return {
-			transaction: parseTransaction(result.effects.transactionBlock!),
+			transaction: parseTransaction(result.effects?.transaction!),
 		};
 	}
 	async dryRunTransaction(
@@ -274,10 +272,16 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 	): Promise<Experimental_SuiClientTypes.DryRunTransactionResponse> {
 		const result = await this.#graphqlQuery(
 			{
-				query: DryRunTransactionBlockDocument,
-				variables: { txBytes: toBase64(options.transaction) },
+				query: SimulateTransactionDocument,
+				variables: {
+					transaction: {
+						bcs: {
+							value: toBase64(options.transaction),
+						},
+					},
+				},
 			},
-			(result) => result.dryRunTransactionBlock,
+			(result) => result.simulateTransaction,
 		);
 
 		if (result.error) {
@@ -285,7 +289,7 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 		}
 
 		return {
-			transaction: parseTransaction(result.transaction!),
+			transaction: parseTransaction(result.effects?.transaction!),
 		};
 	}
 	async getReferenceGasPrice(): Promise<Experimental_SuiClientTypes.GetReferenceGasPriceResponse> {
@@ -309,7 +313,7 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 				query: GetDynamicFieldsDocument,
 				variables: { parentId: options.parentId },
 			},
-			(result) => result.owner?.dynamicFields,
+			(result) => result.address?.dynamicFields,
 		);
 
 		return {
@@ -317,20 +321,20 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 				const valueType =
 					dynamicField.value?.__typename === 'MoveObject'
 						? dynamicField.value.contents?.type?.repr!
-						: dynamicField.value?.type.repr!;
+						: dynamicField.value?.type?.repr!;
 				return {
 					id: deriveDynamicFieldID(
 						options.parentId,
-						dynamicField.name?.type.repr!,
+						dynamicField.name?.type?.repr!,
 						fromBase64(dynamicField.name?.bcs!),
 					),
 					type: normalizeStructTag(
 						dynamicField.value?.__typename === 'MoveObject'
-							? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${dynamicField.name?.type.repr}>,0x2::object::ID>`
-							: `0x2::dynamic_field::Field<${dynamicField.name?.type.repr},${valueType}>`,
+							? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${dynamicField.name?.type?.repr}>,0x2::object::ID>`
+							: `0x2::dynamic_field::Field<${dynamicField.name?.type?.repr},${valueType}>`,
 					),
 					name: {
-						type: dynamicField.name?.type.repr!,
+						type: dynamicField.name?.type?.repr!,
 						bcs: fromBase64(dynamicField.name?.bcs!),
 					},
 					valueType,
@@ -359,35 +363,31 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 					author: options.author,
 				},
 			},
-			(result) => result.verifyZkloginSignature,
+			(result) => result.verifyZkLoginSignature,
 		);
 
 		return {
-			success: result.success,
-			errors: result.errors,
+			success: result.success ?? false,
+			errors: result.error ? [result.error] : [],
 		};
 	}
 
-	async resolveNameServiceNames(
-		options: Experimental_SuiClientTypes.ResolveNameServiceNamesOptions,
-	): Promise<Experimental_SuiClientTypes.ResolveNameServiceNamesResponse> {
-		const suinsRegistrations = await this.#graphqlQuery(
+	async defaultNameServiceName(
+		options: Experimental_SuiClientTypes.DefaultNameServiceNameOptions,
+	): Promise<Experimental_SuiClientTypes.DefaultNameServiceNameResponse> {
+		const name = await this.#graphqlQuery(
 			{
-				query: ResolveNameServiceNamesDocument,
+				query: DefaultSuinsNameDocument,
 				signal: options.signal,
 				variables: {
 					address: options.address,
-					cursor: options.cursor,
-					limit: options.limit,
 				},
 			},
-			(result) => result.address?.suinsRegistrations,
+			(result) => result.address?.defaultSuinsName ?? null,
 		);
 
 		return {
-			hasNextPage: suinsRegistrations.pageInfo.hasNextPage,
-			nextCursor: suinsRegistrations.pageInfo.endCursor ?? null,
-			data: suinsRegistrations.nodes.map((node) => node.domain) ?? [],
+			data: { name: name },
 		};
 	}
 
@@ -489,19 +489,19 @@ class GraphQLResponseError extends Error {
 function mapOwner(owner: Object_Owner_FieldsFragment): Experimental_SuiClientTypes.ObjectOwner {
 	switch (owner.__typename) {
 		case 'AddressOwner':
-			return { $kind: 'AddressOwner', AddressOwner: owner.owner?.asAddress?.address };
+			return { $kind: 'AddressOwner', AddressOwner: owner.address?.address! };
 		case 'ConsensusAddressOwner':
 			return {
 				$kind: 'ConsensusAddressOwner',
 				ConsensusAddressOwner: {
-					owner: owner.owner?.address,
+					owner: owner?.address?.address!,
 					startVersion: String(owner.startVersion),
 				},
 			};
+		case 'ObjectOwner':
+			return { $kind: 'ObjectOwner', ObjectOwner: owner.address?.address! };
 		case 'Immutable':
 			return { $kind: 'Immutable', Immutable: true };
-		case 'Parent':
-			return { $kind: 'ObjectOwner', ObjectOwner: owner.parent?.address };
 		case 'Shared':
 			return {
 				$kind: 'Shared',
@@ -515,9 +515,9 @@ function parseTransaction(
 ): Experimental_SuiClientTypes.TransactionResponse {
 	const objectTypes: Record<string, string> = {};
 
-	transaction.effects?.unchangedConsensusObjects.nodes.forEach((node) => {
+	transaction.effects?.unchangedConsensusObjects?.nodes.forEach((node) => {
 		if (node.__typename === 'ConsensusObjectRead') {
-			const type = node.object?.asMoveObject?.contents?.type.repr;
+			const type = node.object?.asMoveObject?.contents?.type?.repr;
 			const address = node.object?.asMoveObject?.address;
 
 			if (type && address) {
@@ -526,30 +526,30 @@ function parseTransaction(
 		}
 	});
 
-	transaction.effects?.objectChanges.nodes.forEach((node) => {
+	transaction.effects?.objectChanges?.nodes.forEach((node) => {
 		const address = node.address;
 		const type =
-			node.inputState?.asMoveObject?.contents?.type.repr ??
-			node.outputState?.asMoveObject?.contents?.type.repr;
+			node.inputState?.asMoveObject?.contents?.type?.repr ??
+			node.outputState?.asMoveObject?.contents?.type?.repr;
 
 		if (address && type) {
 			objectTypes[address] = type;
 		}
 	});
 
-	if (transaction.effects?.balanceChanges.pageInfo.hasNextPage) {
+	if (transaction.effects?.balanceChanges?.pageInfo.hasNextPage) {
 		throw new Error('Pagination for balance changes is not supported');
 	}
 
 	return {
 		digest: transaction.digest!,
-		effects: parseTransactionEffectsBcs(fromBase64(transaction.effects?.bcs!)),
+		effects: parseTransactionEffectsBcs(fromBase64(transaction.effects?.effectsBcs!)),
 		epoch: transaction.effects?.epoch?.epochId?.toString() ?? null,
 		objectTypes: Promise.resolve(objectTypes),
-		transaction: parseTransactionBcs(fromBase64(transaction.bcs!)),
-		signatures: transaction.signatures!,
+		transaction: parseTransactionBcs(fromBase64(transaction.transactionBcs!)),
+		signatures: transaction.signatures.map((sig) => sig.signatureBytes!),
 		balanceChanges:
-			transaction.effects?.balanceChanges.nodes.map((change) => ({
+			transaction.effects?.balanceChanges?.nodes.map((change) => ({
 				coinType: change?.coinType?.repr!,
 				address: change.owner?.address!,
 				amount: change.amount!,
