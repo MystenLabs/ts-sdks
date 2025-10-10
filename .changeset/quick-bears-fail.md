@@ -1,5 +1,5 @@
 ---
-'@mysten/payment-kit': minor
+'@mysten/payment-kit': patch
 ---
 
-Added Registry and Payment Key related calls
+Added Registry and Payment Record calls
