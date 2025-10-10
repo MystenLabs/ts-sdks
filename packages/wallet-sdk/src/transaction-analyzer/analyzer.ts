@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
 import { Transaction } from '@mysten/sui/transactions';
+import type { Defined, Simplify, UnionToIntersection } from '../util.js';
 
 export function createAnalyzer<
 	T extends Defined,
@@ -132,13 +133,7 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
 	};
 }
 
-type Defined = {} | null;
-type Simplify<T> = { [K in keyof T]: T[K] } & {};
-type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (k: infer I) => void
-	? I
-	: never;
-
-type Analyzer<
+export type Analyzer<
 	T extends Defined,
 	Options = object,
 	Analysis extends Record<string, Defined> = {},

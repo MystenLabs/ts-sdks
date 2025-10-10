@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
 import { analyze } from '../../src/transaction-analyzer/analyzer';
-import { coinValue } from '../../src/transaction-analyzer/rules/coin-value';
+import { coinValues } from '../../src/transaction-analyzer/rules/coin-value.js';
 import { MockSuiClient } from '../mocks/MockSuiClient';
 import {
 	DEFAULT_SENDER,
@@ -62,7 +62,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 		tx.transferObjects([suiSplit, usdcSplit, wethSplit], tx.pure.address('0x456'));
 
 		const results = await analyze(
-			{ coinValue },
+			{ coinValues },
 			{
 				client,
 				transaction: await tx.toJSON(),
@@ -71,7 +71,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 		);
 
 		// Verify coin value analysis
-		expect(results.coinValue.result).toMatchInlineSnapshot(`
+		expect(results.coinValues.result).toMatchInlineSnapshot(`
 			{
 			  "coinTypes": [
 			    {
@@ -109,7 +109,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 
 		// Empty transaction - no coin flows except gas budget
 		const results = await analyze(
-			{ coinValue },
+			{ coinValues },
 			{
 				client,
 				transaction: await tx.toJSON(),
@@ -118,7 +118,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 		);
 
 		// Should have no value calculations for empty transaction
-		expect(results.coinValue.result).toEqual({
+		expect(results.coinValues.result).toEqual({
 			coinTypes: [
 				{
 					coinType: '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
@@ -155,7 +155,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 		tx.transferObjects([suiSplit, unknownCoin], tx.pure.address('0x456'));
 
 		const results = await analyze(
-			{ coinValue },
+			{ coinValues },
 			{
 				client,
 				transaction: await tx.toJSON(),
@@ -164,7 +164,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 		);
 
 		// Should track coins without prices separately
-		expect(results.coinValue.result?.coinTypesWithoutPrice).toContain(
+		expect(results.coinValues.result?.coinTypesWithoutPrice).toContain(
 			'0x0000000000000000000000000000000000000000000000000000000000000999::unknown::TOKEN',
 		);
 	});
@@ -183,7 +183,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 		tx.transferObjects([suiSplit], tx.pure.address('0x456'));
 
 		const results = await analyze(
-			{ coinValue },
+			{ coinValues },
 			{
 				client,
 				transaction: await tx.toJSON(),
@@ -191,7 +191,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 			},
 		);
 
-		expect(results.coinValue.result).toMatchInlineSnapshot(`
+		expect(results.coinValues.result).toMatchInlineSnapshot(`
 			{
 			  "coinTypes": [
 			    {
@@ -233,7 +233,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 		tx.transferObjects([suiSplit, usdcSplit, unknownCoin], tx.pure.address('0x456'));
 
 		const results = await analyze(
-			{ coinValue },
+			{ coinValues },
 			{
 				client,
 				transaction: await tx.toJSON(),
@@ -242,7 +242,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 		);
 
 		// Should have mixed results - some with prices, some without
-		expect(results.coinValue.result?.coinTypesWithoutPrice).toContain(
+		expect(results.coinValues.result?.coinTypesWithoutPrice).toContain(
 			'0x0000000000000000000000000000000000000000000000000000000000000999::unknown::TOKEN',
 		);
 	});
@@ -263,7 +263,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 
 		// Should handle the error gracefully by returning issues
 		const results = await analyze(
-			{ coinValue },
+			{ coinValues },
 			{
 				client,
 				transaction: await tx.toJSON(),
@@ -271,9 +271,9 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 			},
 		);
 
-		expect(results.coinValue.issues).toBeDefined();
-		expect(results.coinValue.result).toBeUndefined();
-		expect(results.coinValue.issues).toMatchInlineSnapshot(`
+		expect(results.coinValues.issues).toBeDefined();
+		expect(results.coinValues.result).toBeUndefined();
+		expect(results.coinValues.issues).toMatchInlineSnapshot(`
 			[
 			  {
 			    "message": "Unexpected error while analyzing transaction: Price provider unavailable",
@@ -294,7 +294,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 		tx.transferObjects([suiSplit], tx.pure.address(DEFAULT_SENDER));
 
 		const results = await analyze(
-			{ coinValue },
+			{ coinValues },
 			{
 				client,
 				transaction: await tx.toJSON(),
@@ -303,7 +303,7 @@ describe('TransactionAnalyzer - Coin Value Rule', () => {
 		);
 
 		// Should have no value calculation since coins weren't actually spent
-		expect(results.coinValue.result?.total).toBe(0.025);
-		expect(results.coinValue.result?.coinTypes).toHaveLength(1);
+		expect(results.coinValues.result?.total).toBe(0.025);
+		expect(results.coinValues.result?.coinTypes).toHaveLength(1);
 	});
 });
