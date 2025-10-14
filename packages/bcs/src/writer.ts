@@ -167,6 +167,7 @@ export class BcsWriter {
 	 * Adds support for iterations over the object.
 	 * @returns {Uint8Array}
 	 */
+	// oxlint-disable-next-line require-yields
 	*[Symbol.iterator](): Iterator<number, Iterable<number>> {
 		for (let i = 0; i < this.bytePosition; i++) {
 			yield this.dataView.getUint8(i);

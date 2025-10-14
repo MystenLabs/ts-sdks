@@ -246,7 +246,7 @@ export class EnokiConnectWallet implements Wallet {
 				if (session) {
 					this.#setAccounts(session);
 				}
-			} catch (_e) {
+			} catch {
 				// ignore
 			}
 
@@ -317,7 +317,7 @@ export class EnokiConnectWallet implements Wallet {
 						publicKey: fromBase64(anAccount.publicKey),
 					}),
 			);
-		} catch (error) {
+		} catch {
 			return [];
 		}
 	}

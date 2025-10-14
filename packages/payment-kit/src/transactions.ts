@@ -27,7 +27,7 @@ export class PaymentKitTransactions {
 	/**
 	 * Creates a `processRegistryPayment` transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.paymentKit.tx.processRegistryPayment({ nonce, coinType, sender, amount, receiver, registryName });
 	 * ```
@@ -42,7 +42,7 @@ export class PaymentKitTransactions {
 	/**
 	 * Creates a `processEphemeralPayment` transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.paymentKit.tx.processEphemeralPayment({ nonce, coinType, sender, amount, receiver });
 	 * ```
@@ -57,7 +57,7 @@ export class PaymentKitTransactions {
 	/**
 	 * Creates a `createRegistry` transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.paymentKit.tx.createRegistry({ registryName });
 	 * ```
@@ -72,7 +72,7 @@ export class PaymentKitTransactions {
 	/**
 	 * Creates a `setConfigEpochExpirationDuration` transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.paymentKit.tx.setConfigEpochExpirationDuration({ registryName, epochExpirationDuration, adminCapId });
 	 * ```
@@ -87,7 +87,7 @@ export class PaymentKitTransactions {
 	/**
 	 * Creates a `setConfigRegistryManagedFunds` transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.paymentKit.tx.setConfigRegistryManagedFunds({ registryName, registryManagedFunds, adminCapId });
 	 * ```
@@ -102,7 +102,7 @@ export class PaymentKitTransactions {
 	/**
 	 * Creates a `withdrawFromRegistry` transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.paymentKit.tx.withdrawFromRegistry({ coinType, registryName, adminCapId });
 	 * ```
@@ -117,7 +117,7 @@ export class PaymentKitTransactions {
 	/**
 	 * Creates a `deletePaymentRecord` transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.paymentKit.tx.deletePaymentRecord({ coinType, nonce, amount, receiver, registryName });
 	 * ```

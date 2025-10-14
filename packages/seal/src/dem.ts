@@ -83,7 +83,7 @@ export class AesGcm256 implements EncryptionInput {
 		ciphertext: typeof Ciphertext.$inferInput,
 	): Promise<Uint8Array> {
 		if (!('Aes256Gcm' in ciphertext)) {
-			throw new InvalidCiphertextError(`Invalid ciphertext ${ciphertext}`);
+			throw new InvalidCiphertextError(`Invalid ciphertext ${JSON.stringify(ciphertext)}`);
 		}
 		if (key.length !== 32) {
 			throw new Error('Key must be 32 bytes');
@@ -108,7 +108,7 @@ export class AesGcm256 implements EncryptionInput {
 					new Uint8Array(ciphertext.Aes256Gcm.blob),
 				),
 			);
-		} catch (e) {
+		} catch {
 			throw new DecryptionError(`Decryption failed`);
 		}
 	}
@@ -153,7 +153,7 @@ export class Hmac256Ctr implements EncryptionInput {
 		ciphertext: typeof Ciphertext.$inferInput,
 	): Promise<Uint8Array> {
 		if (!('Hmac256Ctr' in ciphertext)) {
-			throw new InvalidCiphertextError(`Invalid ciphertext ${ciphertext}`);
+			throw new InvalidCiphertextError(`Invalid ciphertext ${JSON.stringify(ciphertext)}`);
 		}
 		if (key.length !== 32) {
 			throw new Error('Key must be 32 bytes');

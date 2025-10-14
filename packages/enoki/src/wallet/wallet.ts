@@ -379,7 +379,7 @@ export class EnokiWallet implements Wallet {
 					if ((!pkceContext && !popup.location.hash) || (pkceContext && !popup.location.search)) {
 						return;
 					}
-				} catch (e) {
+				} catch {
 					return;
 				}
 				clearInterval(interval);

@@ -131,7 +131,7 @@ export class QuiltReader {
 			const bytes = await this.#readBytesFromSlivers(sliver, length, offset, columnSize);
 
 			return bytes;
-		} catch (_error) {
+		} catch {
 			// fallback to reading the full blob
 			return this.#readBytesFromBlob(sliver, length, offset);
 		}

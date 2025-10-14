@@ -22,7 +22,7 @@ export type ConnectWalletArgs = {
 
 	/**
 	 * An optional account to set as the selected account.
-	 * @defaultValue The first authorized account.
+	 * @default The first authorized account.
 	 */
 	account?: UiWalletAccount;
 } & Omit<StandardConnectInput, 'silent'>;

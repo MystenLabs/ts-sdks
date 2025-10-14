@@ -38,7 +38,7 @@ export class PaymentKitCalls {
 	/**
 	 * Creates a `processRegistryPayment` transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.add(lient.paymentKit.call.processRegistryPayment({ nonce, coinType, sender, amount, receiver, registryName }));
 	 * ```
@@ -66,7 +66,7 @@ export class PaymentKitCalls {
 	/**
 	 * Creates a `processRegistryPayment` transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.add(client.paymentKit.call.processEphemeralPayment({ nonce, coinType, sender, amount, receiver }));
 	 * ```
@@ -91,7 +91,7 @@ export class PaymentKitCalls {
 	/**
 	 * Creates a `createRegistry` transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.add(client.paymentKit.call.createRegistry(registryName));
 	 * ```
@@ -108,7 +108,7 @@ export class PaymentKitCalls {
 	/**
 	 * Creates a `setConfigEpochExpirationDuration` transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.add(client.paymentKit.call.setConfigEpochExpirationDuration({registryName, epochExpirationDuration, adminCapId}));
 	 * ```
@@ -134,7 +134,7 @@ export class PaymentKitCalls {
 	/**
 	 * Creates a `setConfigRegistryManagedFunds` transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.add(client.paymentKit.call.setConfigRegistryManagedFunds({registryName, registryManagedFunds, adminCapId}));
 	 * ```
@@ -160,7 +160,7 @@ export class PaymentKitCalls {
 	/**
 	 * Creates a `withdrawFromRegistry` transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.add(client.paymentKit.call.withdrawFromRegistry({coinType, registryName, adminCapId}));
 	 * ```
@@ -186,7 +186,7 @@ export class PaymentKitCalls {
 	/**
 	 * Creates a `deletePaymentRecord` transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.add(client.paymentKit.call.deletePaymentRecord({coinType, nonce, amount, receiver, registryName}));
 	 * ```

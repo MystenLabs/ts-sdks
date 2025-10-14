@@ -285,7 +285,7 @@ export class DeepBookClient {
 		try {
 			const orderInformation = res.results![0].returnValues![0][0];
 			return Order.parse(new Uint8Array(orderInformation));
-		} catch (e) {
+		} catch {
 			return null;
 		}
 	}
@@ -330,7 +330,7 @@ export class DeepBookClient {
 				normalized_price: normalizedPrice.toFixed(9),
 			};
 			return normalizedOrderInfo;
-		} catch (e) {
+		} catch {
 			return null;
 		}
 	}
@@ -355,7 +355,7 @@ export class DeepBookClient {
 		try {
 			const orderInformation = res.results![0].returnValues![0][0];
 			return bcs.vector(Order).parse(new Uint8Array(orderInformation));
-		} catch (e) {
+		} catch {
 			return null;
 		}
 	}

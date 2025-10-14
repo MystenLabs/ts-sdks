@@ -190,7 +190,7 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 			result.stdout.slice(result.stdout.indexOf('{'), result.stdout.lastIndexOf('}') + 1),
 		);
 	} catch (error) {
-		console.error(result.stdout);
+		console.error(error);
 		throw new Error('Failed to publish package');
 	}
 
@@ -203,7 +203,7 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 	});
 
 	// Transfer the upgrade capability to the sender so they can upgrade the package later if they want.
-	tx.transferObjects([cap], tx.pure.address(await toolbox.address()));
+	tx.transferObjects([cap], tx.pure.address(toolbox.address()));
 
 	const { digest } = await toolbox.client.signAndExecuteTransaction({
 		transaction: tx,

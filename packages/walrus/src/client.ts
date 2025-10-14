@@ -404,7 +404,7 @@ export class WalrusClient {
 		try {
 			const attemptGetMetadata = metadataExecutors.shift()!;
 			return await attemptGetMetadata();
-		} catch (error) {
+		} catch {
 			const chunkSize = Math.floor(metadataExecutors.length / this.#blobMetadataConcurrencyLimit);
 			const chunkedExecutors = chunk(metadataExecutors, chunkSize);
 
@@ -730,7 +730,7 @@ export class WalrusClient {
 	/**
 	 * A utility for creating a storage object in a transaction.
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.transferObjects([client.createStorage({ size: 1000, epochs: 3 })], owner);
 	 * ```
@@ -794,7 +794,7 @@ export class WalrusClient {
 	/**
 	 * Create a transaction that creates a storage object
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.createStorageTransaction({ size: 1000, epochs: 3, owner: signer.toSuiAddress() });
 	 * ```
@@ -817,7 +817,7 @@ export class WalrusClient {
 	/**
 	 * Execute a transaction that creates a storage object
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { digest, storage } = await client.executeCreateStorageTransaction({ size: 1000, epochs: 3, signer });
 	 * ```
@@ -865,7 +865,7 @@ export class WalrusClient {
 	/**
 	 * Register a blob in a transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.transferObjects([client.registerBlob({ size: 1000, epochs: 3, blobId, rootHash, deletable: true })], owner);
 	 * ```
@@ -1021,7 +1021,7 @@ export class WalrusClient {
 	/**
 	 * Create a transaction that registers a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.registerBlobTransaction({ size: 1000, epochs: 3, blobId, rootHash, deletable: true });
 	 * ```
@@ -1044,7 +1044,7 @@ export class WalrusClient {
 	/**
 	 * Execute a transaction that registers a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { digest, blob } = await client.executeRegisterBlobTransaction({ size: 1000, epochs: 3, signer });
 	 * ```
@@ -1196,7 +1196,7 @@ export class WalrusClient {
 	/**
 	 * Certify a blob in a transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.add(client.certifyBlob({ blobId, blobObjectId, confirmations }));
 	 * ```
@@ -1236,7 +1236,7 @@ export class WalrusClient {
 	/**
 	 * Create a transaction that certifies a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.certifyBlobTransaction({ blobId, blobObjectId, confirmations });
 	 * ```
@@ -1255,7 +1255,7 @@ export class WalrusClient {
 	/**
 	 * Execute a transaction that certifies a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { digest } = await client.executeCertifyBlobTransaction({ blobId, blobObjectId, confirmations, signer });
 	 * ```
@@ -1277,7 +1277,7 @@ export class WalrusClient {
 	/**
 	 * Delete a blob in a transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const storage = await client.deleteBlob({ blobObjectId });
 	 * tx.transferObjects([storage], owner);
@@ -1303,7 +1303,7 @@ export class WalrusClient {
 	/**
 	 * Create a transaction that deletes a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.deleteBlobTransaction({ blobObjectId, owner });
 	 * ```
@@ -1326,7 +1326,7 @@ export class WalrusClient {
 	/**
 	 * Execute a transaction that deletes a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { digest } = await client.executeDeleteBlobTransaction({ blobObjectId, signer });
 	 * ```
@@ -1352,7 +1352,7 @@ export class WalrusClient {
 	/**
 	 * Extend a blob in a transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.extendBlobTransaction({ blobObjectId, epochs });
 	 * ```
@@ -1390,7 +1390,7 @@ export class WalrusClient {
 	/**
 	 * Create a transaction that extends a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.extendBlobTransaction({ blobObjectId, epochs });
 	 * ```
@@ -1407,7 +1407,7 @@ export class WalrusClient {
 	/**
 	 * Execute a transaction that extends a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { digest } = await client.executeExtendBlobTransaction({ blobObjectId, signer });
 	 * ```
@@ -1508,7 +1508,7 @@ export class WalrusClient {
 	 * If attributes already exists, their previous values will be overwritten
 	 * If an attribute is set to `null`, it will be removed from the blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.add(client.writeBlobAttributes({ blobObjectId, attributes: { key: 'value', keyToRemove: null } }));
 	 * ```
@@ -1536,7 +1536,7 @@ export class WalrusClient {
 	 * If attributes already exists, their previous values will be overwritten
 	 * If an attribute is set to `null`, it will be removed from the blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.writeBlobAttributesTransaction({ blobObjectId, attributes: { key: 'value', keyToRemove: null } });
 	 * ```
@@ -1555,7 +1555,7 @@ export class WalrusClient {
 	 * If attributes already exists, their previous values will be overwritten
 	 * If an attribute is set to `null`, it will be removed from the blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { digest } = await client.executeWriteBlobAttributesTransaction({ blobObjectId, signer });
 	 * ```
@@ -1575,7 +1575,7 @@ export class WalrusClient {
 	/**
 	 * Write a sliver to a storage node
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const res = await client.writeSliver({ blobId, sliverPairIndex, sliverType, sliver });
 	 * ```
@@ -1596,7 +1596,7 @@ export class WalrusClient {
 	/**
 	 * Write metadata to a storage node
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const res = await client.writeMetadataToNode({ nodeIndex, blobId, metadata });
 	 * ```
@@ -1622,7 +1622,7 @@ export class WalrusClient {
 	/**
 	 * Get a storage confirmation from a storage node
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const confirmation = await client.getStorageConfirmationFromNode({ nodeIndex, blobId, deletable, objectId });
 	 * ```
@@ -1653,7 +1653,7 @@ export class WalrusClient {
 	/**
 	 * Encode a blob into slivers for each node
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { blobId, metadata, sliversByNode, rootHash } = await client.encodeBlob(blob);
 	 * ```
@@ -1707,7 +1707,7 @@ export class WalrusClient {
 	/**
 	 * Write slivers to a storage node
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * await client.writeSliversToNode({ blobId, slivers, signal });
 	 * ```
@@ -1747,7 +1747,7 @@ export class WalrusClient {
 	/**
 	 * Write a blob to all storage nodes
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * await client.writeEncodedBlobToNodes({ blob, deletable, epochs, signer });
 	 * ```
@@ -1796,7 +1796,7 @@ export class WalrusClient {
 	/**
 	 * Writes a blob to to an upload relay
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * await client.writeBlobToUploadRelay({ blob, deletable, epochs, signer });
 	 * ```
@@ -1818,7 +1818,7 @@ export class WalrusClient {
 	/**
 	 * Write encoded blob to a storage node
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const res = await client.writeEncodedBlobToNode({ nodeIndex, blobId, metadata, slivers });
 	 * ```
@@ -1850,7 +1850,7 @@ export class WalrusClient {
 	/**
 	 * Write a blob to all storage nodes
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { blobId, blobObject } = await client.writeBlob({ blob, deletable, epochs, signer });
 	 * ```
@@ -2078,7 +2078,7 @@ export class WalrusClient {
 	/**
 	 * Reset cached data in the client
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * client.reset();
 	 * ```

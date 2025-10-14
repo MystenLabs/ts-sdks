@@ -86,6 +86,7 @@ export class AwsKmsSigner extends Signer {
 	/**
 	 * Synchronous signing is not supported by AWS KMS.
 	 * @throws Always throws an error indicating synchronous signing is unsupported.
+	 * @deprecated use `sign` instead
 	 */
 	signData(): never {
 		throw new Error('KMS Signer does not support sync signing');

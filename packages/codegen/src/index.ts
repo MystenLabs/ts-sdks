@@ -38,7 +38,7 @@ export async function generateFromPackageSummary({
 		try {
 			const packageToml = await readFile(join(pkg.path, 'Move.toml'), 'utf-8');
 			packageName = parse(packageToml).package.name.toLowerCase();
-		} catch (e) {
+		} catch {
 			const message = `Package name not found in package.toml for ${pkg.path}`;
 			if (packageName) {
 				console.warn(message);

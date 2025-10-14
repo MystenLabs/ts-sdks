@@ -385,7 +385,7 @@ export function registerWalletConnectWallet({
 		walletName: 'Wallet Connect',
 		icon,
 		enabled: true,
-		...(metadata ?? {}),
+		...metadata,
 	};
 
 	const walletConnectWalletInstance = new WalletConnectWallet({

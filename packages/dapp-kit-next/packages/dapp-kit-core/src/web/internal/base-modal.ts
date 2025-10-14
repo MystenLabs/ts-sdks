@@ -48,7 +48,7 @@ export class BaseModal extends LitElement {
 	 * Opens the dialog and fires a cancelable `open` event. An `opened` event
 	 * is fired after the dialog opens.
 	 *
-	 * @return A `Promise` that resolves after the `opened` event was fired.
+	 * @returns A `Promise` that resolves after the `opened` event was fired.
 	 */
 	async show() {
 		this.#isOpening = true;
@@ -85,7 +85,7 @@ export class BaseModal extends LitElement {
 	 * @param returnValue A return value usually indicating which button was used
 	 *     to close a dialog. If a dialog is canceled by clicking the backdrop or
 	 *     pressing Escape, it will not change the return value after closing.
-	 * @return A Promise that resolves after the `closed` event was fired.
+	 * @returns A Promise that resolves after the `closed` event was fired.
 	 */
 	async close(returnValue = this.#returnValue) {
 		this.#isOpening = false;

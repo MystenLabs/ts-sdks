@@ -9,7 +9,7 @@ import type { Encoding } from './types.js';
  *
  * @param {Uint8Array} data Data to encode.
  * @param {String} encoding Encoding to use: base64 or hex
- * @return {String} Encoded value.
+ * @returns {String} Encoded value.
  */
 export function encodeStr(data: Uint8Array, encoding: Encoding): string {
 	switch (encoding) {
@@ -29,7 +29,7 @@ export function encodeStr(data: Uint8Array, encoding: Encoding): string {
  *
  * @param {String} data Data to encode.
  * @param {String} encoding Encoding to use: base64 or hex
- * @return {Uint8Array} Encoded value.
+ * @returns {Uint8Array} Encoded value.
  */
 export function decodeStr(data: string, encoding: Encoding): Uint8Array {
 	switch (encoding) {

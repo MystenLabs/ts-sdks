@@ -100,7 +100,6 @@ export function withCodegen(
 	owner: string,
 	title: string,
 	description: string,
-	price: number,
 ) {
 	const feedModule = FeedModule(PAYWALLRUS_PACKAGE_ID);
 	const policyModule = PolicyModule(PAYWALLRUS_PACKAGE_ID);

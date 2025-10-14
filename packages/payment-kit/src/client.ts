@@ -69,7 +69,7 @@ export class PaymentKitClient {
 	 * Query for a payment record in a registry.
 	 * Returns the payment record data if it exists, null otherwise.
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const paymentRecord = await client.getPaymentRecord({ registry, nonce, amount, receiver, coinType });
 	 * ```

@@ -124,7 +124,11 @@ describe('Transaction Reading API', () => {
 			limit: 1,
 		});
 
-		const { checkpoint, timestampMs, ...response2 } = await toolbox.client.getTransactionBlock({
+		const {
+			checkpoint: _checkpoint,
+			timestampMs: _timestampMs,
+			...response2
+		} = await toolbox.client.getTransactionBlock({
 			digest: response1.digest,
 			options,
 		});

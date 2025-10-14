@@ -609,7 +609,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 				await this.waitForTransaction({
 					digest: result.digest,
 				});
-			} catch (_) {
+			} catch {
 				// Ignore error while waiting for transaction
 			}
 		}
@@ -1104,7 +1104,7 @@ export class SuiClient extends Experimental_BaseClient implements SelfRegisterin
 			signal?.throwIfAborted();
 			try {
 				return await this.getTransactionBlock(input);
-			} catch (e) {
+			} catch {
 				// Wait for either the next poll interval, or the timeout.
 				await Promise.race([
 					new Promise((resolve) => setTimeout(resolve, pollInterval)),

@@ -45,12 +45,7 @@ export async function mapToObject<T>({
 	getComment,
 }: {
 	items: Iterable<T>;
-	mapper: (
-		item: T,
-	) =>
-		| Promise<null | [string, TSTemplateValue | TSTemplateValue]>
-		| null
-		| [string, TSTemplateValue | TSTemplateValue];
+	mapper: (item: T) => Promise<null | [string, TSTemplateValue]> | null | [string, TSTemplateValue];
 	getComment?: (item: T) => string | null | undefined;
 }) {
 	const fieldProps = await Promise.all(

@@ -70,7 +70,7 @@ export class BaseModal extends LitElement {
 	 * Opens the dialog and fires a cancelable `open` event. An `opened` event
 	 * is fired after the dialog opens.
 	 *
-	 * @return A `Promise` that resolves after the `opened` event was fired.
+	 * @returns A `Promise` that resolves after the `opened` event was fired.
 	 */
 	async show() {
 		this._closingResolvers?.resolve();

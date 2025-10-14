@@ -51,7 +51,7 @@ export default async function generate(
 				throw new Error(`Package path does not exist: ${pkg.path}`);
 			}
 
-			await execSync('sui move summary', {
+			execSync('sui move summary', {
 				cwd: pkg.path,
 				stdio: 'inherit',
 			});

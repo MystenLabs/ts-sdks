@@ -164,7 +164,7 @@ export class SessionKey {
 					client: this.#suiClient,
 				});
 				this.#personalMessageSignature = personalMessageSignature;
-			} catch (e) {
+			} catch {
 				throw new InvalidPersonalMessageSignatureError('Not valid');
 			}
 		}

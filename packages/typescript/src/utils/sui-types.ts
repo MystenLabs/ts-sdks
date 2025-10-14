@@ -12,7 +12,7 @@ export function isValidTransactionDigest(value: string): value is string {
 	try {
 		const buffer = fromBase58(value);
 		return buffer.length === TX_DIGEST_LENGTH;
-	} catch (e) {
+	} catch {
 		return false;
 	}
 }

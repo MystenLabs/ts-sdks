@@ -150,7 +150,7 @@ function getGlobalPluginRegistry() {
 		}
 
 		return target[TRANSACTION_REGISTRY_KEY];
-	} catch (e) {
+	} catch {
 		return modulePluginRegistry;
 	}
 }
@@ -888,7 +888,7 @@ export class Transaction {
 			if (cmd.$Intent?.name === 'AsyncTransactionThunk') {
 				try {
 					cmd.$Intent.data.resultIndex = getOriginalIndex(i);
-				} catch (e) {
+				} catch {
 					// If async thunk did not return a result, this will error, but is safe to ignore
 				}
 			}

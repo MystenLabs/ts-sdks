@@ -79,6 +79,7 @@ export class CurrentAccountSigner extends Signer {
 			epoch: null,
 			effects: parseTransactionEffectsBcs(fromBase64(effects)),
 			objectTypes: {
+				// oxlint-disable-next-line no-thenable
 				get then() {
 					const promise = Promise.reject<Record<string, string>>(
 						new Error('objectTypes is not implemented for WalletSigner'),

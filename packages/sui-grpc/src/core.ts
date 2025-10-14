@@ -644,7 +644,12 @@ function parseTransaction(
 		effects,
 		objectTypes: Promise.resolve(objectTypes),
 		transaction: {
-			...data,
+			gasData: data.gasData,
+			sender: data.sender,
+			expiration: data.expiration,
+			commands: data.commands,
+			inputs: data.inputs,
+			version: data.version,
 			bcs: bytes,
 		},
 		signatures: parsedTx.txSignatures,

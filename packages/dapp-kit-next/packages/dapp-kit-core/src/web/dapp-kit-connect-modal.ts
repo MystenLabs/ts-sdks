@@ -124,7 +124,10 @@ export class DAppKitConnectModal
 					<button
 						class="icon-button close-button"
 						aria-label="Close"
-						@click=${() => this.close('cancel')}
+						@click=${() => {
+							// oxlint-disable @typescript-eslint/no-floating-promises
+							this.close('cancel');
+						}}
 					>
 						${closeIcon}
 					</button>

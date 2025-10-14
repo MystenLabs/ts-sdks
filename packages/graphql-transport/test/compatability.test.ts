@@ -388,18 +388,19 @@ describe('GraphQL SuiClient compatibility', () => {
 	});
 
 	test('getTransactionBlock', async () => {
-		const { rawEffects, ...rpcTransactionBlock } = (await toolbox.client.getTransactionBlock({
-			digest: transactionBlockDigest,
-			options: {
-				showBalanceChanges: true,
-				showEffects: true,
-				showEvents: true,
-				// TODO inputs missing valueType
-				showInput: false,
-				showObjectChanges: true,
-				showRawInput: true,
-			},
-		})) as SuiTransactionBlockResponse & { rawEffects: unknown };
+		const { rawEffects: _rawEffects, ...rpcTransactionBlock } =
+			(await toolbox.client.getTransactionBlock({
+				digest: transactionBlockDigest,
+				options: {
+					showBalanceChanges: true,
+					showEffects: true,
+					showEvents: true,
+					// TODO inputs missing valueType
+					showInput: false,
+					showObjectChanges: true,
+					showRawInput: true,
+				},
+			})) as SuiTransactionBlockResponse & { rawEffects: unknown };
 		const graphQLTransactionBlock = await graphQLClient!.getTransactionBlock({
 			digest: transactionBlockDigest,
 			options: {
@@ -517,7 +518,11 @@ describe('GraphQL SuiClient compatibility', () => {
 		const [coin] = tx.splitCoins(tx.gas, [1]);
 		tx.transferObjects([coin], toolbox.address());
 
-		const { effects, results, ...rpc } = await toolbox.client.devInspectTransactionBlock({
+		const {
+			effects: _effects,
+			results: _results,
+			...rpc
+		} = await toolbox.client.devInspectTransactionBlock({
 			transactionBlock: tx as never,
 			sender: toolbox.address(),
 		});
@@ -535,11 +540,11 @@ describe('GraphQL SuiClient compatibility', () => {
 	});
 
 	test.skip('getDynamicFields', async () => {
-		const { nextCursor, ...rpc } = await toolbox.client.getDynamicFields({
+		const { nextCursor: _nextCursor, ...rpc } = await toolbox.client.getDynamicFields({
 			parentId: parentObjectId,
 		});
 
-		const { nextCursor: _, ...graphql } = await graphQLClient!.getDynamicFields({
+		const { nextCursor: __nextCursor, ...graphql } = await graphQLClient!.getDynamicFields({
 			parentId: parentObjectId,
 		});
 
@@ -580,24 +585,10 @@ describe('GraphQL SuiClient compatibility', () => {
 		const [coin] = tx.splitCoins(tx.gas, [1]);
 		tx.transferObjects([coin], toolbox.address());
 
-		const { confirmedLocalExecution, ...graphql } = await graphQLClient!.signAndExecuteTransaction({
-			transaction: tx as Transaction,
-			signer: toolbox.keypair,
-			options: {
-				showBalanceChanges: true,
-				showEffects: true,
-				showEvents: true,
-				showInput: true,
-				showObjectChanges: true,
-				showRawInput: true,
-			},
-		});
-
-		await toolbox.client.waitForTransaction({ digest: graphql.digest });
-
-		const { checkpoint, timestampMs, rawEffects, ...rpc } =
-			(await toolbox.client.getTransactionBlock({
-				digest: graphql.digest,
+		const { confirmedLocalExecution: _confirmedLocalExecution, ...graphql } =
+			await graphQLClient!.signAndExecuteTransaction({
+				transaction: tx as Transaction,
+				signer: toolbox.keypair,
 				options: {
 					showBalanceChanges: true,
 					showEffects: true,
@@ -606,7 +597,26 @@ describe('GraphQL SuiClient compatibility', () => {
 					showObjectChanges: true,
 					showRawInput: true,
 				},
-			})) as SuiTransactionBlockResponse & { rawEffects: unknown };
+			});
+
+		await toolbox.client.waitForTransaction({ digest: graphql.digest });
+
+		const {
+			checkpoint: _checkpoint,
+			timestampMs: _timestampMs,
+			rawEffects: _rawEffects,
+			...rpc
+		} = (await toolbox.client.getTransactionBlock({
+			digest: graphql.digest,
+			options: {
+				showBalanceChanges: true,
+				showEffects: true,
+				showEvents: true,
+				showInput: true,
+				showObjectChanges: true,
+				showRawInput: true,
+			},
+		})) as SuiTransactionBlockResponse & { rawEffects: unknown };
 
 		expect(graphql).toEqual(rpc);
 	});

@@ -183,7 +183,8 @@ export class UploadRelayClient {
 		let response: Response | undefined;
 
 		try {
-			response = await (0, this.#fetch)(`${this.host}${options.path}`, {
+			const fetch = this.#fetch;
+			response = await fetch(`${this.host}${options.path}`, {
 				...init,
 				signal: signal ? AbortSignal.any([timeoutSignal, signal]) : timeoutSignal,
 			});

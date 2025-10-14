@@ -317,7 +317,7 @@ export class SealClient {
 	async fetchKeys({ ids, txBytes, sessionKey, threshold }: FetchKeysOptions) {
 		if (threshold > this.#totalWeight || threshold < 1) {
 			throw new InvalidThresholdError(
-				`Invalid threshold ${threshold} servers with weights ${this.#configs}`,
+				`Invalid threshold ${threshold} servers with weights ${JSON.stringify(this.#configs)}`,
 			);
 		}
 		const keyServers = await this.getKeyServers();

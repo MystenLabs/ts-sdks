@@ -185,7 +185,7 @@ export abstract class Experimental_CoreClient
 					...input,
 					signal: abortSignal,
 				});
-			} catch (e) {
+			} catch {
 				await Promise.race([new Promise((resolve) => setTimeout(resolve, 2_000)), abortPromise]);
 			}
 		}
