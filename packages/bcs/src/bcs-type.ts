@@ -405,7 +405,7 @@ export class BcsEnum<
 
 				const enumEntry = canonicalOrder[index];
 				if (!enumEntry) {
-					throw new TypeError(`Unknown value ${index} for enum ${name}`);
+					throw new TypeError(`Unknown value ${index} for enum ${options.name}`);
 				}
 
 				const [kind, type] = enumEntry;
@@ -442,7 +442,7 @@ export class BcsEnum<
 
 				if (keys.length !== 1) {
 					throw new TypeError(
-						`Expected object with one key, but found ${keys.length} for type ${name}}`,
+						`Expected object with one key, but found ${keys.length} for type ${options.name}}`,
 					);
 				}
 
