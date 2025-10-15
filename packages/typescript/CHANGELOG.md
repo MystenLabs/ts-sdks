@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.42.0
+
+### Minor Changes
+
+- 98c8a27: Update grpc to rc
+
 ## 1.41.0
 
 ### Minor Changes
