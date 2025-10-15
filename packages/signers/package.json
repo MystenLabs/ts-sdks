@@ -67,7 +67,7 @@
 		"@google-cloud/kms": "^4.5.0",
 		"@mysten/ledgerjs-hw-app-sui": "workspace:*",
 		"@mysten/sui": "workspace:*",
-		"@noble/curves": "^1.9.4",
+		"@noble/curves": "=1.9.4",
 		"@noble/hashes": "^1.8.0",
 		"asn1-ts": "^8.0.2"
 	},

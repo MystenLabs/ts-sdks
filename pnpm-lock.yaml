@@ -1230,7 +1230,7 @@ importers:
         specifier: workspace:*
         version: link:../typescript
       '@noble/curves':
-        specifier: ^1.9.4
+        specifier: '=1.9.4'
         version: 1.9.4
       '@noble/hashes':
         specifier: ^1.8.0
@@ -1264,7 +1264,7 @@ importers:
         specifier: workspace:*
         version: link:../typescript
       '@noble/curves':
-        specifier: ^1.9.4
+        specifier: '=1.9.4'
         version: 1.9.4
       '@noble/hashes':
         specifier: ^1.8.0
