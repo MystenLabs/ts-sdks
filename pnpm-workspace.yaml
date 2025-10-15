@@ -38,3 +38,4 @@ packages:
   - '!packages/typescript/experimental'
   - '!packages/dapp-kit-next/packages/dapp-kit-core/web'
   - '!packages/typescript/grpc'
+  - '!packages/typescript/jsonRpc'
