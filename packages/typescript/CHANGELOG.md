@@ -1,5 +1,17 @@
 # @mysten/sui.js
 
+## 1.41.0
+
+### Minor Changes
+
+- d554cd2: Add new @mysten/sui/jsonRpc export
+- 04fcfbc: Add GRPC client
+
+### Patch Changes
+
+- Updated dependencies [a17c337]
+  - @mysten/bcs@1.8.1
+
 ## 1.40.0
 
 ### Minor Changes

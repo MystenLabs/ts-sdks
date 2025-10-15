@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.8.1
+
+### Patch Changes
+
+- a17c337: Fix name in bcs error message
+
 ## 1.8.0
 
 ### Minor Changes
