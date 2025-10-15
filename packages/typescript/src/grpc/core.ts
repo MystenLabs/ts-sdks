@@ -7,26 +7,26 @@ import type {
 } from '../experimental/index.js';
 import { Experimental_CoreClient } from '../experimental/index.js';
 import type { SuiGrpcClient } from './client.js';
-import type { Owner } from './proto/sui/rpc/v2beta2/owner.js';
-import { Owner_OwnerKind } from './proto/sui/rpc/v2beta2/owner.js';
+import type { Owner } from './proto/sui/rpc/v2/owner.js';
+import { Owner_OwnerKind } from './proto/sui/rpc/v2/owner.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
-import type { ExecutedTransaction } from './proto/sui/rpc/v2beta2/executed_transaction.js';
-import type { TransactionEffects } from './proto/sui/rpc/v2beta2/effects.js';
-import { UnchangedConsensusObject_UnchangedConsensusObjectKind } from './proto/sui/rpc/v2beta2/effects.js';
+import type { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
+import type { TransactionEffects } from './proto/sui/rpc/v2/effects.js';
+import { UnchangedConsensusObject_UnchangedConsensusObjectKind } from './proto/sui/rpc/v2/effects.js';
 import {
 	ChangedObject_IdOperation,
 	ChangedObject_InputObjectState,
 	ChangedObject_OutputObjectState,
-} from './proto/sui/rpc/v2beta2/effects.js';
+} from './proto/sui/rpc/v2/effects.js';
 import { TransactionDataBuilder } from '../transactions/index.js';
 import { bcs } from '../bcs/index.js';
-import type { OpenSignature, OpenSignatureBody } from './proto/sui/rpc/v2beta2/move_package.js';
+import type { OpenSignature, OpenSignatureBody } from './proto/sui/rpc/v2/move_package.js';
 import {
 	Ability,
 	FunctionDescriptor_Visibility,
 	OpenSignature_Reference,
 	OpenSignatureBody_Type,
-} from './proto/sui/rpc/v2beta2/move_package.js';
+} from './proto/sui/rpc/v2/move_package.js';
 export interface GrpcCoreClientOptions extends Experimental_CoreClientOptions {
 	client: SuiGrpcClient;
 }
@@ -93,7 +93,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	async getOwnedObjects(
 		options: Experimental_SuiClientTypes.GetOwnedObjectsOptions,
 	): Promise<Experimental_SuiClientTypes.GetOwnedObjectsResponse> {
-		const response = await this.#client.liveDataService.listOwnedObjects({
+		const response = await this.#client.stateService.listOwnedObjects({
 			owner: options.address,
 			objectType: options.type
 				? (await this.mvr.resolveType({ type: options.type })).type
@@ -138,7 +138,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	async getCoins(
 		options: Experimental_SuiClientTypes.GetCoinsOptions,
 	): Promise<Experimental_SuiClientTypes.GetCoinsResponse> {
-		const response = await this.#client.liveDataService.listOwnedObjects({
+		const response = await this.#client.stateService.listOwnedObjects({
 			owner: options.address,
 			objectType: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: options.coinType })).type}>`,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
@@ -182,7 +182,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	async getBalance(
 		options: Experimental_SuiClientTypes.GetBalanceOptions,
 	): Promise<Experimental_SuiClientTypes.GetBalanceResponse> {
-		const result = await this.#client.liveDataService.getBalance({
+		const result = await this.#client.stateService.getBalance({
 			owner: options.address,
 			coinType: (await this.mvr.resolveType({ type: options.coinType })).type,
 		});
@@ -198,7 +198,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	async getAllBalances(
 		options: Experimental_SuiClientTypes.GetAllBalancesOptions,
 	): Promise<Experimental_SuiClientTypes.GetAllBalancesResponse> {
-		const result = await this.#client.liveDataService.listBalances({
+		const result = await this.#client.stateService.listBalances({
 			owner: options.address,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
 			pageSize: options.limit,
@@ -261,7 +261,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	async dryRunTransaction(
 		options: Experimental_SuiClientTypes.DryRunTransactionOptions,
 	): Promise<Experimental_SuiClientTypes.DryRunTransactionResponse> {
-		const { response } = await this.#client.liveDataService.simulateTransaction({
+		const { response } = await this.#client.transactionExecutionService.simulateTransaction({
 			transaction: {
 				bcs: {
 					value: options.transaction,
@@ -293,7 +293,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	async getDynamicFields(
 		options: Experimental_SuiClientTypes.GetDynamicFieldsOptions,
 	): Promise<Experimental_SuiClientTypes.GetDynamicFieldsResponse> {
-		const response = await this.#client.liveDataService.listDynamicFields({
+		const response = await this.#client.stateService.listDynamicFields({
 			parent: options.parentId,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
 		});
@@ -302,12 +302,12 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 			dynamicFields: response.response.dynamicFields.map((field) => ({
 				id: field.fieldId!,
 				name: {
-					type: field.nameType!,
-					bcs: field.nameValue!,
+					type: field.name?.name!,
+					bcs: field.name?.value!,
 				},
-				type: field.dynamicObjectId
-					? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${field.nameType!}>,0x2::object::ID>`
-					: `0x2::dynamic_field::Field<${field.nameType!},${field.valueType!}>`,
+				type: field.fieldObject
+					? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${field.name?.name!}>,0x2::object::ID>`
+					: `0x2::dynamic_field::Field<${field.name?.value!},${field.valueType!}>`,
 			})),
 			cursor: response.response.nextPageToken ? toBase64(response.response.nextPageToken) : null,
 			hasNextPage: response.response.nextPageToken !== undefined,
@@ -622,13 +622,7 @@ function parseTransaction(
 	});
 
 	const objectTypes: Record<string, string> = {};
-	transaction.inputObjects.forEach((object) => {
-		if (object.objectId && object.objectType) {
-			objectTypes[object.objectId] = object.objectType;
-		}
-	});
-
-	transaction.outputObjects.forEach((object) => {
+	transaction.objects?.objects.forEach((object) => {
 		if (object.objectId && object.objectType) {
 			objectTypes[object.objectId] = object.objectType;
 		}

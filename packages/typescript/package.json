@@ -120,7 +120,7 @@
 		"codegen:graphql": "graphql-codegen --config graphql-codegen.ts",
 		"codegen:version": "node genversion.mjs",
 		"codegen:grpc": "rm -rf src/grpc/proto && mkdir src/grpc/proto && pnpm codegen:grpc-protoc && pnpm codegen:grpc-header",
-		"codegen:grpc-protoc": "protoc --ts_out ./src/grpc/proto --ts_opt force_server_none --ts_opt optimize_code_size --ts_opt ts_nocheck -I ../../../sui-apis/proto -I ../../../sui-apis/proto ../../../sui-apis/proto/sui/rpc/v2beta2/*.proto ../../../sui-apis/proto/google/*/*.proto",
+		"codegen:grpc-protoc": "protoc --ts_out ./src/grpc/proto --ts_opt force_server_none --ts_opt optimize_code_size --ts_opt ts_nocheck -I ../../../sui-apis/proto -I ../../../sui-apis/proto ../../../sui-apis/proto/sui/rpc/v2/*.proto ../../../sui-apis/proto/google/*/*.proto",
 		"codegen:grpc-header": "find src/grpc/proto -type f -exec sh -c 'echo \"// Copyright (c) Mysten Labs, Inc.\\n// SPDX-License-Identifier: Apache-2.0\\n\" | cat - {} > temp && mv temp {}' \\;",
 		"build": "node genversion.mjs && pnpm build:package",
 		"build:package": "build-package",
