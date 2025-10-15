@@ -9,7 +9,7 @@ import type { BcsType } from '@mysten/bcs';
 import { Inputs } from './Inputs.js';
 import { bcs } from '../bcs/index.js';
 import { jsonRpcClientResolveTransactionPlugin } from '../jsonRpc/json-rpc-resolver.js';
-import type { JsonRpcClient } from '../jsonRpc/client.js';
+import type { SuiJsonRpcClient } from '../jsonRpc/client.js';
 
 export interface BuildTransactionOptions {
 	client?: ClientWithCoreApi;
@@ -61,7 +61,7 @@ export async function resolveTransactionPlugin(
 	const client = getClient(options);
 	const plugin =
 		client.core?.resolveTransactionPlugin() ??
-		jsonRpcClientResolveTransactionPlugin(client as JsonRpcClient);
+		jsonRpcClientResolveTransactionPlugin(client as SuiJsonRpcClient);
 
 	return plugin(transactionData, options, async () => {
 		await validate(transactionData);

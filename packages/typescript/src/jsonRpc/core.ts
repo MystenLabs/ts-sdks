@@ -23,16 +23,16 @@ import { Experimental_CoreClient } from '../experimental/core.js';
 import type { Experimental_SuiClientTypes } from '../experimental/types.js';
 import { ObjectError } from '../experimental/errors.js';
 import { parseTransactionBcs, parseTransactionEffectsBcs } from '../experimental/index.js';
-import type { JsonRpcClient } from './client.js';
+import type { SuiJsonRpcClient } from './client.js';
 
 export class JSONRpcCoreClient extends Experimental_CoreClient {
-	#jsonRpcClient: JsonRpcClient;
+	#jsonRpcClient: SuiJsonRpcClient;
 
 	constructor({
 		jsonRpcClient,
 		mvr,
 	}: {
-		jsonRpcClient: JsonRpcClient;
+		jsonRpcClient: SuiJsonRpcClient;
 		mvr?: Experimental_SuiClientTypes.MvrOptions;
 	}) {
 		super({ network: jsonRpcClient.network, base: jsonRpcClient, mvr });

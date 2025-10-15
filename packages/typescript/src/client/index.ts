@@ -12,10 +12,10 @@ export {
 export { getFullnodeUrl } from './network.js';
 export type * from '../jsonRpc/types/index.js';
 export {
-	type JsonRpcClientOptions as SuiClientOptions,
+	type SuiJsonRpcClientOptions as SuiClientOptions,
 	type PaginationArguments,
 	type OrderArguments,
-	isJsonRpcClient as isSuiClient,
-	JsonRpcClient as SuiClient,
+	isSuiJsonRpcClient as isSuiClient,
+	SuiJsonRpcClient as SuiClient,
 } from '../jsonRpc/client.js';
 export { SuiHTTPStatusError, SuiHTTPTransportError, JsonRpcError } from '../jsonRpc/errors.js';

@@ -15,7 +15,7 @@ import {
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
 import type { BuildTransactionOptions } from '../transactions/index.js';
-import type { JsonRpcClient } from './client.js';
+import type { SuiJsonRpcClient } from './client.js';
 
 // The maximum objects that can be fetched at once using multiGetObjects.
 const MAX_OBJECTS_PER_FETCH = 50;
@@ -24,7 +24,7 @@ const MAX_OBJECTS_PER_FETCH = 50;
 const GAS_SAFE_OVERHEAD = 1000n;
 const MAX_GAS = 50_000_000_000;
 
-export function jsonRpcClientResolveTransactionPlugin(client: JsonRpcClient) {
+export function jsonRpcClientResolveTransactionPlugin(client: SuiJsonRpcClient) {
 	return async function resolveTransactionData(
 		transactionData: TransactionDataBuilder,
 		options: BuildTransactionOptions,
@@ -43,13 +43,13 @@ export function jsonRpcClientResolveTransactionPlugin(client: JsonRpcClient) {
 	};
 }
 
-async function setGasPrice(transactionData: TransactionDataBuilder, client: JsonRpcClient) {
+async function setGasPrice(transactionData: TransactionDataBuilder, client: SuiJsonRpcClient) {
 	if (!transactionData.gasConfig.price) {
 		transactionData.gasConfig.price = String(await client.getReferenceGasPrice());
 	}
 }
 
-async function setGasBudget(transactionData: TransactionDataBuilder, client: JsonRpcClient) {
+async function setGasBudget(transactionData: TransactionDataBuilder, client: SuiJsonRpcClient) {
 	if (transactionData.gasConfig.budget) {
 		return;
 	}
@@ -88,7 +88,7 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Jso
 }
 
 // The current default is just picking _all_ coins we can which may not be ideal.
-async function setGasPayment(transactionData: TransactionDataBuilder, client: JsonRpcClient) {
+async function setGasPayment(transactionData: TransactionDataBuilder, client: SuiJsonRpcClient) {
 	if (!transactionData.gasConfig.payment) {
 		const coins = await client.getCoins({
 			owner: transactionData.gasConfig.owner || transactionData.sender!,
@@ -126,7 +126,7 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Js
 
 async function resolveObjectReferences(
 	transactionData: TransactionDataBuilder,
-	client: JsonRpcClient,
+	client: SuiJsonRpcClient,
 ) {
 	// Keep track of the object references that will need to be resolved at the end of the transaction.
 	// We keep the input by-reference to avoid needing to re-resolve it:
@@ -233,7 +233,7 @@ async function resolveObjectReferences(
 	}
 }
 
-async function normalizeInputs(transactionData: TransactionDataBuilder, client: JsonRpcClient) {
+async function normalizeInputs(transactionData: TransactionDataBuilder, client: SuiJsonRpcClient) {
 	const { inputs, commands } = transactionData;
 	const moveCallsToResolve: Extract<Command, { MoveCall: unknown }>['MoveCall'][] = [];
 	const moveFunctionsToResolve = new Set<string>();

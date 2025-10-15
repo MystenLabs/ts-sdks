@@ -119,7 +119,7 @@ export interface OrderArguments {
  * Configuration options for the SuiClient
  * You must provide either a `url` or a `transport`
  */
-export type JsonRpcClientOptions = NetworkOrTransport & {
+export type SuiJsonRpcClientOptions = NetworkOrTransport & {
 	network?: Experimental_SuiClientTypes.Network;
 	mvr?: Experimental_SuiClientTypes.MvrOptions;
 };
@@ -136,13 +136,13 @@ type NetworkOrTransport =
 
 const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiClient') as never;
 
-export function isJsonRpcClient(client: unknown): client is JsonRpcClient {
+export function isSuiJsonRpcClient(client: unknown): client is SuiJsonRpcClient {
 	return (
 		typeof client === 'object' && client !== null && (client as any)[SUI_CLIENT_BRAND] === true
 	);
 }
 
-export class JsonRpcClient
+export class SuiJsonRpcClient
 	extends Experimental_BaseClient
 	implements SelfRegisteringClientExtension
 {
@@ -159,7 +159,7 @@ export class JsonRpcClient
 	 *
 	 * @param options configuration options for the API Client
 	 */
-	constructor(options: JsonRpcClientOptions) {
+	constructor(options: SuiJsonRpcClientOptions) {
 		super({ network: options.network ?? 'unknown' });
 		this.transport = options.transport ?? new JsonRpcHTTPTransport({ url: options.url });
 		this.core = new JSONRpcCoreClient({
@@ -1093,7 +1093,9 @@ export class JsonRpcClient
 		timeout?: number;
 		/** The amount of time to wait between checks for the transaction block. Defaults to 2 seconds. */
 		pollInterval?: number;
-	} & Parameters<JsonRpcClient['getTransactionBlock']>[0]): Promise<SuiTransactionBlockResponse> {
+	} & Parameters<
+		SuiJsonRpcClient['getTransactionBlock']
+	>[0]): Promise<SuiTransactionBlockResponse> {
 		const timeoutSignal = AbortSignal.timeout(timeout);
 		const timeoutPromise = new Promise((_, reject) => {
 			timeoutSignal.addEventListener('abort', () => reject(timeoutSignal.reason));
@@ -1122,7 +1124,7 @@ export class JsonRpcClient
 		throw new Error('Unexpected error while waiting for transaction block.');
 	}
 
-	experimental_asClientExtension(this: JsonRpcClient) {
+	experimental_asClientExtension(this: SuiJsonRpcClient) {
 		return {
 			name: 'jsonRPC',
 			register: () => {
