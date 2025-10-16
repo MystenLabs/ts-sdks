@@ -9,37 +9,56 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 //
-import { MessageType } from "@protobuf-ts/runtime";
+import { MessageType } from '@protobuf-ts/runtime';
 /**
  * @generated from protobuf message sui.rpc.v2.ProtocolConfig
  */
 export interface ProtocolConfig {
-    /**
-     * @generated from protobuf field: optional uint64 protocol_version = 1;
-     */
-    protocolVersion?: bigint;
-    /**
-     * @generated from protobuf field: map<string, bool> feature_flags = 2;
-     */
-    featureFlags: {
-        [key: string]: boolean;
-    };
-    /**
-     * @generated from protobuf field: map<string, string> attributes = 3;
-     */
-    attributes: {
-        [key: string]: string;
-    };
+	/**
+	 * @generated from protobuf field: optional uint64 protocol_version = 1;
+	 */
+	protocolVersion?: bigint;
+	/**
+	 * @generated from protobuf field: map<string, bool> feature_flags = 2;
+	 */
+	featureFlags: {
+		[key: string]: boolean;
+	};
+	/**
+	 * @generated from protobuf field: map<string, string> attributes = 3;
+	 */
+	attributes: {
+		[key: string]: string;
+	};
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class ProtocolConfig$Type extends MessageType<ProtocolConfig> {
-    constructor() {
-        super("sui.rpc.v2.ProtocolConfig", [
-            { no: 1, name: "protocol_version", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 2, name: "feature_flags", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 8 /*ScalarType.BOOL*/ } },
-            { no: 3, name: "attributes", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.ProtocolConfig', [
+			{
+				no: 1,
+				name: 'protocol_version',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{
+				no: 2,
+				name: 'feature_flags',
+				kind: 'map',
+				K: 9 /*ScalarType.STRING*/,
+				V: { kind: 'scalar', T: 8 /*ScalarType.BOOL*/ },
+			},
+			{
+				no: 3,
+				name: 'attributes',
+				kind: 'map',
+				K: 9 /*ScalarType.STRING*/,
+				V: { kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+			},
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ProtocolConfig

@@ -9,147 +9,147 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 //
-import { ServiceType } from "@protobuf-ts/runtime-rpc";
-import { MessageType } from "@protobuf-ts/runtime";
-import { FunctionDescriptor } from "./move_package";
-import { DatatypeDescriptor } from "./move_package";
-import { Package } from "./move_package";
+import { ServiceType } from '@protobuf-ts/runtime-rpc';
+import { MessageType } from '@protobuf-ts/runtime';
+import { FunctionDescriptor } from './move_package.js';
+import { DatatypeDescriptor } from './move_package.js';
+import { Package } from './move_package.js';
 /**
  * @generated from protobuf message sui.rpc.v2.GetPackageRequest
  */
 export interface GetPackageRequest {
-    /**
-     * Required. The `storage_id` of the requested package.
-     *
-     * @generated from protobuf field: optional string package_id = 1;
-     */
-    packageId?: string;
+	/**
+	 * Required. The `storage_id` of the requested package.
+	 *
+	 * @generated from protobuf field: optional string package_id = 1;
+	 */
+	packageId?: string;
 }
 /**
  * @generated from protobuf message sui.rpc.v2.GetPackageResponse
  */
 export interface GetPackageResponse {
-    /**
-     * The package.
-     *
-     * @generated from protobuf field: optional sui.rpc.v2.Package package = 1;
-     */
-    package?: Package;
+	/**
+	 * The package.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.Package package = 1;
+	 */
+	package?: Package;
 }
 /**
  * @generated from protobuf message sui.rpc.v2.GetDatatypeRequest
  */
 export interface GetDatatypeRequest {
-    /**
-     * Required. The `storage_id` of the requested package.
-     *
-     * @generated from protobuf field: optional string package_id = 1;
-     */
-    packageId?: string;
-    /**
-     * Required. The name of the requested module.
-     *
-     * @generated from protobuf field: optional string module_name = 2;
-     */
-    moduleName?: string;
-    /**
-     * Required. The name of the requested datatype.
-     *
-     * @generated from protobuf field: optional string name = 3;
-     */
-    name?: string;
+	/**
+	 * Required. The `storage_id` of the requested package.
+	 *
+	 * @generated from protobuf field: optional string package_id = 1;
+	 */
+	packageId?: string;
+	/**
+	 * Required. The name of the requested module.
+	 *
+	 * @generated from protobuf field: optional string module_name = 2;
+	 */
+	moduleName?: string;
+	/**
+	 * Required. The name of the requested datatype.
+	 *
+	 * @generated from protobuf field: optional string name = 3;
+	 */
+	name?: string;
 }
 /**
  * @generated from protobuf message sui.rpc.v2.GetDatatypeResponse
  */
 export interface GetDatatypeResponse {
-    /**
-     * The datatype.
-     *
-     * @generated from protobuf field: optional sui.rpc.v2.DatatypeDescriptor datatype = 1;
-     */
-    datatype?: DatatypeDescriptor;
+	/**
+	 * The datatype.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.DatatypeDescriptor datatype = 1;
+	 */
+	datatype?: DatatypeDescriptor;
 }
 /**
  * @generated from protobuf message sui.rpc.v2.GetFunctionRequest
  */
 export interface GetFunctionRequest {
-    /**
-     * Required. The `storage_id` of the requested package.
-     *
-     * @generated from protobuf field: optional string package_id = 1;
-     */
-    packageId?: string;
-    /**
-     * Required. The name of the requested module.
-     *
-     * @generated from protobuf field: optional string module_name = 2;
-     */
-    moduleName?: string;
-    /**
-     * Required. The name of the requested function.
-     *
-     * @generated from protobuf field: optional string name = 3;
-     */
-    name?: string;
+	/**
+	 * Required. The `storage_id` of the requested package.
+	 *
+	 * @generated from protobuf field: optional string package_id = 1;
+	 */
+	packageId?: string;
+	/**
+	 * Required. The name of the requested module.
+	 *
+	 * @generated from protobuf field: optional string module_name = 2;
+	 */
+	moduleName?: string;
+	/**
+	 * Required. The name of the requested function.
+	 *
+	 * @generated from protobuf field: optional string name = 3;
+	 */
+	name?: string;
 }
 /**
  * @generated from protobuf message sui.rpc.v2.GetFunctionResponse
  */
 export interface GetFunctionResponse {
-    /**
-     * The function.
-     *
-     * @generated from protobuf field: optional sui.rpc.v2.FunctionDescriptor function = 1;
-     */
-    function?: FunctionDescriptor;
+	/**
+	 * The function.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.FunctionDescriptor function = 1;
+	 */
+	function?: FunctionDescriptor;
 }
 /**
  * @generated from protobuf message sui.rpc.v2.ListPackageVersionsRequest
  */
 export interface ListPackageVersionsRequest {
-    /**
-     * Required. The `storage_id` of any version of the package.
-     *
-     * @generated from protobuf field: optional string package_id = 1;
-     */
-    packageId?: string;
-    /**
-     * The maximum number of versions to return. The service may return fewer than this value.
-     * If unspecified, at most `1000` entries will be returned.
-     * The maximum value is `10000`; values above `10000` will be coerced to `10000`.
-     *
-     * @generated from protobuf field: optional uint32 page_size = 2;
-     */
-    pageSize?: number;
-    /**
-     * A page token, received from a previous `ListPackageVersions` call.
-     * Provide this to retrieve the subsequent page.
-     *
-     * When paginating, all other parameters provided to `ListPackageVersions` must
-     * match the call that provided the page token.
-     *
-     * @generated from protobuf field: optional bytes page_token = 3;
-     */
-    pageToken?: Uint8Array;
+	/**
+	 * Required. The `storage_id` of any version of the package.
+	 *
+	 * @generated from protobuf field: optional string package_id = 1;
+	 */
+	packageId?: string;
+	/**
+	 * The maximum number of versions to return. The service may return fewer than this value.
+	 * If unspecified, at most `1000` entries will be returned.
+	 * The maximum value is `10000`; values above `10000` will be coerced to `10000`.
+	 *
+	 * @generated from protobuf field: optional uint32 page_size = 2;
+	 */
+	pageSize?: number;
+	/**
+	 * A page token, received from a previous `ListPackageVersions` call.
+	 * Provide this to retrieve the subsequent page.
+	 *
+	 * When paginating, all other parameters provided to `ListPackageVersions` must
+	 * match the call that provided the page token.
+	 *
+	 * @generated from protobuf field: optional bytes page_token = 3;
+	 */
+	pageToken?: Uint8Array;
 }
 /**
  * @generated from protobuf message sui.rpc.v2.ListPackageVersionsResponse
  */
 export interface ListPackageVersionsResponse {
-    /**
-     * List of all package versions, ordered by version.
-     *
-     * @generated from protobuf field: repeated sui.rpc.v2.PackageVersion versions = 1;
-     */
-    versions: PackageVersion[];
-    /**
-     * A token, which can be sent as `page_token` to retrieve the next page.
-     * If this field is omitted, there are no subsequent pages.
-     *
-     * @generated from protobuf field: optional bytes next_page_token = 2;
-     */
-    nextPageToken?: Uint8Array;
+	/**
+	 * List of all package versions, ordered by version.
+	 *
+	 * @generated from protobuf field: repeated sui.rpc.v2.PackageVersion versions = 1;
+	 */
+	versions: PackageVersion[];
+	/**
+	 * A token, which can be sent as `page_token` to retrieve the next page.
+	 * If this field is omitted, there are no subsequent pages.
+	 *
+	 * @generated from protobuf field: optional bytes next_page_token = 2;
+	 */
+	nextPageToken?: Uint8Array;
 }
 /**
  * A simplified representation of a package version
@@ -157,26 +157,26 @@ export interface ListPackageVersionsResponse {
  * @generated from protobuf message sui.rpc.v2.PackageVersion
  */
 export interface PackageVersion {
-    /**
-     * The storage ID of this package version
-     *
-     * @generated from protobuf field: optional string package_id = 1;
-     */
-    packageId?: string;
-    /**
-     * The version number
-     *
-     * @generated from protobuf field: optional uint64 version = 2;
-     */
-    version?: bigint;
+	/**
+	 * The storage ID of this package version
+	 *
+	 * @generated from protobuf field: optional string package_id = 1;
+	 */
+	packageId?: string;
+	/**
+	 * The version number
+	 *
+	 * @generated from protobuf field: optional uint64 version = 2;
+	 */
+	version?: bigint;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class GetPackageRequest$Type extends MessageType<GetPackageRequest> {
-    constructor() {
-        super("sui.rpc.v2.GetPackageRequest", [
-            { no: 1, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.GetPackageRequest', [
+			{ no: 1, name: 'package_id', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetPackageRequest
@@ -184,11 +184,11 @@ class GetPackageRequest$Type extends MessageType<GetPackageRequest> {
 export const GetPackageRequest = new GetPackageRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetPackageResponse$Type extends MessageType<GetPackageResponse> {
-    constructor() {
-        super("sui.rpc.v2.GetPackageResponse", [
-            { no: 1, name: "package", kind: "message", T: () => Package }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.GetPackageResponse', [
+			{ no: 1, name: 'package', kind: 'message', T: () => Package },
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetPackageResponse
@@ -196,13 +196,13 @@ class GetPackageResponse$Type extends MessageType<GetPackageResponse> {
 export const GetPackageResponse = new GetPackageResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetDatatypeRequest$Type extends MessageType<GetDatatypeRequest> {
-    constructor() {
-        super("sui.rpc.v2.GetDatatypeRequest", [
-            { no: 1, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "module_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.GetDatatypeRequest', [
+			{ no: 1, name: 'package_id', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 2, name: 'module_name', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 3, name: 'name', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetDatatypeRequest
@@ -210,11 +210,11 @@ class GetDatatypeRequest$Type extends MessageType<GetDatatypeRequest> {
 export const GetDatatypeRequest = new GetDatatypeRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetDatatypeResponse$Type extends MessageType<GetDatatypeResponse> {
-    constructor() {
-        super("sui.rpc.v2.GetDatatypeResponse", [
-            { no: 1, name: "datatype", kind: "message", T: () => DatatypeDescriptor }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.GetDatatypeResponse', [
+			{ no: 1, name: 'datatype', kind: 'message', T: () => DatatypeDescriptor },
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetDatatypeResponse
@@ -222,13 +222,13 @@ class GetDatatypeResponse$Type extends MessageType<GetDatatypeResponse> {
 export const GetDatatypeResponse = new GetDatatypeResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetFunctionRequest$Type extends MessageType<GetFunctionRequest> {
-    constructor() {
-        super("sui.rpc.v2.GetFunctionRequest", [
-            { no: 1, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "module_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.GetFunctionRequest', [
+			{ no: 1, name: 'package_id', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 2, name: 'module_name', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 3, name: 'name', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetFunctionRequest
@@ -236,11 +236,11 @@ class GetFunctionRequest$Type extends MessageType<GetFunctionRequest> {
 export const GetFunctionRequest = new GetFunctionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetFunctionResponse$Type extends MessageType<GetFunctionResponse> {
-    constructor() {
-        super("sui.rpc.v2.GetFunctionResponse", [
-            { no: 1, name: "function", kind: "message", T: () => FunctionDescriptor }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.GetFunctionResponse', [
+			{ no: 1, name: 'function', kind: 'message', T: () => FunctionDescriptor },
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetFunctionResponse
@@ -248,13 +248,13 @@ class GetFunctionResponse$Type extends MessageType<GetFunctionResponse> {
 export const GetFunctionResponse = new GetFunctionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListPackageVersionsRequest$Type extends MessageType<ListPackageVersionsRequest> {
-    constructor() {
-        super("sui.rpc.v2.ListPackageVersionsRequest", [
-            { no: 1, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "page_size", kind: "scalar", opt: true, T: 13 /*ScalarType.UINT32*/ },
-            { no: 3, name: "page_token", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.ListPackageVersionsRequest', [
+			{ no: 1, name: 'package_id', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 2, name: 'page_size', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
+			{ no: 3, name: 'page_token', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListPackageVersionsRequest
@@ -262,12 +262,18 @@ class ListPackageVersionsRequest$Type extends MessageType<ListPackageVersionsReq
 export const ListPackageVersionsRequest = new ListPackageVersionsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListPackageVersionsResponse$Type extends MessageType<ListPackageVersionsResponse> {
-    constructor() {
-        super("sui.rpc.v2.ListPackageVersionsResponse", [
-            { no: 1, name: "versions", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PackageVersion },
-            { no: 2, name: "next_page_token", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.ListPackageVersionsResponse', [
+			{
+				no: 1,
+				name: 'versions',
+				kind: 'message',
+				repeat: 1 /*RepeatType.PACKED*/,
+				T: () => PackageVersion,
+			},
+			{ no: 2, name: 'next_page_token', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListPackageVersionsResponse
@@ -275,12 +281,19 @@ class ListPackageVersionsResponse$Type extends MessageType<ListPackageVersionsRe
 export const ListPackageVersionsResponse = new ListPackageVersionsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PackageVersion$Type extends MessageType<PackageVersion> {
-    constructor() {
-        super("sui.rpc.v2.PackageVersion", [
-            { no: 1, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "version", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.PackageVersion', [
+			{ no: 1, name: 'package_id', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{
+				no: 2,
+				name: 'version',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.PackageVersion
@@ -289,9 +302,14 @@ export const PackageVersion = new PackageVersion$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.MovePackageService
  */
-export const MovePackageService = new ServiceType("sui.rpc.v2.MovePackageService", [
-    { name: "GetPackage", options: {}, I: GetPackageRequest, O: GetPackageResponse },
-    { name: "GetDatatype", options: {}, I: GetDatatypeRequest, O: GetDatatypeResponse },
-    { name: "GetFunction", options: {}, I: GetFunctionRequest, O: GetFunctionResponse },
-    { name: "ListPackageVersions", options: {}, I: ListPackageVersionsRequest, O: ListPackageVersionsResponse }
+export const MovePackageService = new ServiceType('sui.rpc.v2.MovePackageService', [
+	{ name: 'GetPackage', options: {}, I: GetPackageRequest, O: GetPackageResponse },
+	{ name: 'GetDatatype', options: {}, I: GetDatatypeRequest, O: GetDatatypeResponse },
+	{ name: 'GetFunction', options: {}, I: GetFunctionRequest, O: GetFunctionResponse },
+	{
+		name: 'ListPackageVersions',
+		options: {},
+		I: ListPackageVersionsRequest,
+		O: ListPackageVersionsResponse,
+	},
 ]);

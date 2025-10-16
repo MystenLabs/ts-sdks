@@ -9,41 +9,55 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 //
-import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
-import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
-import { SignatureVerificationService } from "./signature_verification_service";
-import { stackIntercept } from "@protobuf-ts/runtime-rpc";
-import type { VerifySignatureResponse } from "./signature_verification_service";
-import type { VerifySignatureRequest } from "./signature_verification_service";
-import type { UnaryCall } from "@protobuf-ts/runtime-rpc";
-import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
+import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
+import type { ServiceInfo } from '@protobuf-ts/runtime-rpc';
+import { SignatureVerificationService } from './signature_verification_service.js';
+import { stackIntercept } from '@protobuf-ts/runtime-rpc';
+import type { VerifySignatureResponse } from './signature_verification_service.js';
+import type { VerifySignatureRequest } from './signature_verification_service.js';
+import type { UnaryCall } from '@protobuf-ts/runtime-rpc';
+import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
 /**
  * @generated from protobuf service sui.rpc.v2.SignatureVerificationService
  */
 export interface ISignatureVerificationServiceClient {
-    /**
-     * Perform signature verification of a UserSignature against the provided message.
-     *
-     * @generated from protobuf rpc: VerifySignature(sui.rpc.v2.VerifySignatureRequest) returns (sui.rpc.v2.VerifySignatureResponse);
-     */
-    verifySignature(input: VerifySignatureRequest, options?: RpcOptions): UnaryCall<VerifySignatureRequest, VerifySignatureResponse>;
+	/**
+	 * Perform signature verification of a UserSignature against the provided message.
+	 *
+	 * @generated from protobuf rpc: VerifySignature(sui.rpc.v2.VerifySignatureRequest) returns (sui.rpc.v2.VerifySignatureResponse);
+	 */
+	verifySignature(
+		input: VerifySignatureRequest,
+		options?: RpcOptions,
+	): UnaryCall<VerifySignatureRequest, VerifySignatureResponse>;
 }
 /**
  * @generated from protobuf service sui.rpc.v2.SignatureVerificationService
  */
-export class SignatureVerificationServiceClient implements ISignatureVerificationServiceClient, ServiceInfo {
-    typeName = SignatureVerificationService.typeName;
-    methods = SignatureVerificationService.methods;
-    options = SignatureVerificationService.options;
-    constructor(private readonly _transport: RpcTransport) {
-    }
-    /**
-     * Perform signature verification of a UserSignature against the provided message.
-     *
-     * @generated from protobuf rpc: VerifySignature(sui.rpc.v2.VerifySignatureRequest) returns (sui.rpc.v2.VerifySignatureResponse);
-     */
-    verifySignature(input: VerifySignatureRequest, options?: RpcOptions): UnaryCall<VerifySignatureRequest, VerifySignatureResponse> {
-        const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<VerifySignatureRequest, VerifySignatureResponse>("unary", this._transport, method, opt, input);
-    }
+export class SignatureVerificationServiceClient
+	implements ISignatureVerificationServiceClient, ServiceInfo
+{
+	typeName = SignatureVerificationService.typeName;
+	methods = SignatureVerificationService.methods;
+	options = SignatureVerificationService.options;
+	constructor(private readonly _transport: RpcTransport) {}
+	/**
+	 * Perform signature verification of a UserSignature against the provided message.
+	 *
+	 * @generated from protobuf rpc: VerifySignature(sui.rpc.v2.VerifySignatureRequest) returns (sui.rpc.v2.VerifySignatureResponse);
+	 */
+	verifySignature(
+		input: VerifySignatureRequest,
+		options?: RpcOptions,
+	): UnaryCall<VerifySignatureRequest, VerifySignatureResponse> {
+		const method = this.methods[0],
+			opt = this._transport.mergeOptions(options);
+		return stackIntercept<VerifySignatureRequest, VerifySignatureResponse>(
+			'unary',
+			this._transport,
+			method,
+			opt,
+			input,
+		);
+	}
 }

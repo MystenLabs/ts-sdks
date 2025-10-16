@@ -9,39 +9,39 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 //
-import { ServiceType } from "@protobuf-ts/runtime-rpc";
-import { MessageType } from "@protobuf-ts/runtime";
-import { Value } from "../../../google/protobuf/struct";
-import { Bcs } from "./bcs";
-import { Argument } from "./argument";
-import { ExecutedTransaction } from "./executed_transaction";
-import { FieldMask } from "../../../google/protobuf/field_mask";
-import { UserSignature } from "./signature";
-import { Transaction } from "./transaction";
+import { ServiceType } from '@protobuf-ts/runtime-rpc';
+import { MessageType } from '@protobuf-ts/runtime';
+import { Value } from '../../../google/protobuf/struct.js';
+import { Bcs } from './bcs.js';
+import { Argument } from './argument.js';
+import { ExecutedTransaction } from './executed_transaction.js';
+import { FieldMask } from '../../../google/protobuf/field_mask.js';
+import { UserSignature } from './signature.js';
+import { Transaction } from './transaction.js';
 /**
  * @generated from protobuf message sui.rpc.v2.ExecuteTransactionRequest
  */
 export interface ExecuteTransactionRequest {
-    /**
-     * The transaction to execute.
-     *
-     * @generated from protobuf field: optional sui.rpc.v2.Transaction transaction = 1;
-     */
-    transaction?: Transaction;
-    /**
-     * Set of `UserSignature`s authorizing the execution of the provided
-     * transaction.
-     *
-     * @generated from protobuf field: repeated sui.rpc.v2.UserSignature signatures = 2;
-     */
-    signatures: UserSignature[];
-    /**
-     * Mask specifying which fields to read.
-     * If no mask is specified, defaults to `effects.status,checkpoint`.
-     *
-     * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 3;
-     */
-    readMask?: FieldMask;
+	/**
+	 * The transaction to execute.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.Transaction transaction = 1;
+	 */
+	transaction?: Transaction;
+	/**
+	 * Set of `UserSignature`s authorizing the execution of the provided
+	 * transaction.
+	 *
+	 * @generated from protobuf field: repeated sui.rpc.v2.UserSignature signatures = 2;
+	 */
+	signatures: UserSignature[];
+	/**
+	 * Mask specifying which fields to read.
+	 * If no mask is specified, defaults to `effects.status,checkpoint`.
+	 *
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 3;
+	 */
+	readMask?: FieldMask;
 }
 /**
  * Response message for `NodeService.ExecuteTransaction`.
@@ -49,40 +49,40 @@ export interface ExecuteTransactionRequest {
  * @generated from protobuf message sui.rpc.v2.ExecuteTransactionResponse
  */
 export interface ExecuteTransactionResponse {
-    /**
-     * @generated from protobuf field: optional sui.rpc.v2.ExecutedTransaction transaction = 1;
-     */
-    transaction?: ExecutedTransaction;
+	/**
+	 * @generated from protobuf field: optional sui.rpc.v2.ExecutedTransaction transaction = 1;
+	 */
+	transaction?: ExecutedTransaction;
 }
 /**
  * @generated from protobuf message sui.rpc.v2.SimulateTransactionRequest
  */
 export interface SimulateTransactionRequest {
-    /**
-     * @generated from protobuf field: optional sui.rpc.v2.Transaction transaction = 1;
-     */
-    transaction?: Transaction;
-    /**
-     * Mask specifying which fields to read.
-     *
-     * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 2;
-     */
-    readMask?: FieldMask;
-    /**
-     * Specify whether checks should be ENABLED (default) or DISABLED while executing the transaction
-     *
-     * @generated from protobuf field: optional sui.rpc.v2.SimulateTransactionRequest.TransactionChecks checks = 3;
-     */
-    checks?: SimulateTransactionRequest_TransactionChecks;
-    /**
-     * Perform gas selection based on a budget estimation and include the
-     * selected gas payment and budget in the response.
-     *
-     * This option will be ignored if `checks` is `DISABLED`.
-     *
-     * @generated from protobuf field: optional bool do_gas_selection = 4;
-     */
-    doGasSelection?: boolean;
+	/**
+	 * @generated from protobuf field: optional sui.rpc.v2.Transaction transaction = 1;
+	 */
+	transaction?: Transaction;
+	/**
+	 * Mask specifying which fields to read.
+	 *
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 2;
+	 */
+	readMask?: FieldMask;
+	/**
+	 * Specify whether checks should be ENABLED (default) or DISABLED while executing the transaction
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.SimulateTransactionRequest.TransactionChecks checks = 3;
+	 */
+	checks?: SimulateTransactionRequest_TransactionChecks;
+	/**
+	 * Perform gas selection based on a budget estimation and include the
+	 * selected gas payment and budget in the response.
+	 *
+	 * This option will be ignored if `checks` is `DISABLED`.
+	 *
+	 * @generated from protobuf field: optional bool do_gas_selection = 4;
+	 */
+	doGasSelection?: boolean;
 }
 /**
  * buf:lint:ignore ENUM_ZERO_VALUE_SUFFIX
@@ -90,27 +90,27 @@ export interface SimulateTransactionRequest {
  * @generated from protobuf enum sui.rpc.v2.SimulateTransactionRequest.TransactionChecks
  */
 export enum SimulateTransactionRequest_TransactionChecks {
-    /**
-     * @generated from protobuf enum value: ENABLED = 0;
-     */
-    ENABLED = 0,
-    /**
-     * @generated from protobuf enum value: DISABLED = 1;
-     */
-    DISABLED = 1
+	/**
+	 * @generated from protobuf enum value: ENABLED = 0;
+	 */
+	ENABLED = 0,
+	/**
+	 * @generated from protobuf enum value: DISABLED = 1;
+	 */
+	DISABLED = 1,
 }
 /**
  * @generated from protobuf message sui.rpc.v2.SimulateTransactionResponse
  */
 export interface SimulateTransactionResponse {
-    /**
-     * @generated from protobuf field: optional sui.rpc.v2.ExecutedTransaction transaction = 1;
-     */
-    transaction?: ExecutedTransaction;
-    /**
-     * @generated from protobuf field: repeated sui.rpc.v2.CommandResult command_outputs = 2;
-     */
-    commandOutputs: CommandResult[];
+	/**
+	 * @generated from protobuf field: optional sui.rpc.v2.ExecutedTransaction transaction = 1;
+	 */
+	transaction?: ExecutedTransaction;
+	/**
+	 * @generated from protobuf field: repeated sui.rpc.v2.CommandResult command_outputs = 2;
+	 */
+	commandOutputs: CommandResult[];
 }
 /**
  * An intermediate result/output from the execution of a single command
@@ -118,43 +118,49 @@ export interface SimulateTransactionResponse {
  * @generated from protobuf message sui.rpc.v2.CommandResult
  */
 export interface CommandResult {
-    /**
-     * @generated from protobuf field: repeated sui.rpc.v2.CommandOutput return_values = 1;
-     */
-    returnValues: CommandOutput[];
-    /**
-     * @generated from protobuf field: repeated sui.rpc.v2.CommandOutput mutated_by_ref = 2;
-     */
-    mutatedByRef: CommandOutput[];
+	/**
+	 * @generated from protobuf field: repeated sui.rpc.v2.CommandOutput return_values = 1;
+	 */
+	returnValues: CommandOutput[];
+	/**
+	 * @generated from protobuf field: repeated sui.rpc.v2.CommandOutput mutated_by_ref = 2;
+	 */
+	mutatedByRef: CommandOutput[];
 }
 /**
  * @generated from protobuf message sui.rpc.v2.CommandOutput
  */
 export interface CommandOutput {
-    /**
-     * @generated from protobuf field: optional sui.rpc.v2.Argument argument = 1;
-     */
-    argument?: Argument;
-    /**
-     * @generated from protobuf field: optional sui.rpc.v2.Bcs value = 2;
-     */
-    value?: Bcs;
-    /**
-     * JSON rendering of the output.
-     *
-     * @generated from protobuf field: optional google.protobuf.Value json = 3;
-     */
-    json?: Value;
+	/**
+	 * @generated from protobuf field: optional sui.rpc.v2.Argument argument = 1;
+	 */
+	argument?: Argument;
+	/**
+	 * @generated from protobuf field: optional sui.rpc.v2.Bcs value = 2;
+	 */
+	value?: Bcs;
+	/**
+	 * JSON rendering of the output.
+	 *
+	 * @generated from protobuf field: optional google.protobuf.Value json = 3;
+	 */
+	json?: Value;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class ExecuteTransactionRequest$Type extends MessageType<ExecuteTransactionRequest> {
-    constructor() {
-        super("sui.rpc.v2.ExecuteTransactionRequest", [
-            { no: 1, name: "transaction", kind: "message", T: () => Transaction },
-            { no: 2, name: "signatures", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => UserSignature },
-            { no: 3, name: "read_mask", kind: "message", T: () => FieldMask }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.ExecuteTransactionRequest', [
+			{ no: 1, name: 'transaction', kind: 'message', T: () => Transaction },
+			{
+				no: 2,
+				name: 'signatures',
+				kind: 'message',
+				repeat: 1 /*RepeatType.PACKED*/,
+				T: () => UserSignature,
+			},
+			{ no: 3, name: 'read_mask', kind: 'message', T: () => FieldMask },
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ExecuteTransactionRequest
@@ -162,11 +168,11 @@ class ExecuteTransactionRequest$Type extends MessageType<ExecuteTransactionReque
 export const ExecuteTransactionRequest = new ExecuteTransactionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ExecuteTransactionResponse$Type extends MessageType<ExecuteTransactionResponse> {
-    constructor() {
-        super("sui.rpc.v2.ExecuteTransactionResponse", [
-            { no: 1, name: "transaction", kind: "message", T: () => ExecutedTransaction }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.ExecuteTransactionResponse', [
+			{ no: 1, name: 'transaction', kind: 'message', T: () => ExecutedTransaction },
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ExecuteTransactionResponse
@@ -174,14 +180,23 @@ class ExecuteTransactionResponse$Type extends MessageType<ExecuteTransactionResp
 export const ExecuteTransactionResponse = new ExecuteTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SimulateTransactionRequest$Type extends MessageType<SimulateTransactionRequest> {
-    constructor() {
-        super("sui.rpc.v2.SimulateTransactionRequest", [
-            { no: 1, name: "transaction", kind: "message", T: () => Transaction },
-            { no: 2, name: "read_mask", kind: "message", T: () => FieldMask },
-            { no: 3, name: "checks", kind: "enum", opt: true, T: () => ["sui.rpc.v2.SimulateTransactionRequest.TransactionChecks", SimulateTransactionRequest_TransactionChecks] },
-            { no: 4, name: "do_gas_selection", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.SimulateTransactionRequest', [
+			{ no: 1, name: 'transaction', kind: 'message', T: () => Transaction },
+			{ no: 2, name: 'read_mask', kind: 'message', T: () => FieldMask },
+			{
+				no: 3,
+				name: 'checks',
+				kind: 'enum',
+				opt: true,
+				T: () => [
+					'sui.rpc.v2.SimulateTransactionRequest.TransactionChecks',
+					SimulateTransactionRequest_TransactionChecks,
+				],
+			},
+			{ no: 4, name: 'do_gas_selection', kind: 'scalar', opt: true, T: 8 /*ScalarType.BOOL*/ },
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.SimulateTransactionRequest
@@ -189,12 +204,18 @@ class SimulateTransactionRequest$Type extends MessageType<SimulateTransactionReq
 export const SimulateTransactionRequest = new SimulateTransactionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SimulateTransactionResponse$Type extends MessageType<SimulateTransactionResponse> {
-    constructor() {
-        super("sui.rpc.v2.SimulateTransactionResponse", [
-            { no: 1, name: "transaction", kind: "message", T: () => ExecutedTransaction },
-            { no: 2, name: "command_outputs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => CommandResult }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.SimulateTransactionResponse', [
+			{ no: 1, name: 'transaction', kind: 'message', T: () => ExecutedTransaction },
+			{
+				no: 2,
+				name: 'command_outputs',
+				kind: 'message',
+				repeat: 1 /*RepeatType.PACKED*/,
+				T: () => CommandResult,
+			},
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.SimulateTransactionResponse
@@ -202,12 +223,24 @@ class SimulateTransactionResponse$Type extends MessageType<SimulateTransactionRe
 export const SimulateTransactionResponse = new SimulateTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CommandResult$Type extends MessageType<CommandResult> {
-    constructor() {
-        super("sui.rpc.v2.CommandResult", [
-            { no: 1, name: "return_values", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => CommandOutput },
-            { no: 2, name: "mutated_by_ref", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => CommandOutput }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.CommandResult', [
+			{
+				no: 1,
+				name: 'return_values',
+				kind: 'message',
+				repeat: 1 /*RepeatType.PACKED*/,
+				T: () => CommandOutput,
+			},
+			{
+				no: 2,
+				name: 'mutated_by_ref',
+				kind: 'message',
+				repeat: 1 /*RepeatType.PACKED*/,
+				T: () => CommandOutput,
+			},
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CommandResult
@@ -215,13 +248,13 @@ class CommandResult$Type extends MessageType<CommandResult> {
 export const CommandResult = new CommandResult$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CommandOutput$Type extends MessageType<CommandOutput> {
-    constructor() {
-        super("sui.rpc.v2.CommandOutput", [
-            { no: 1, name: "argument", kind: "message", T: () => Argument },
-            { no: 2, name: "value", kind: "message", T: () => Bcs },
-            { no: 3, name: "json", kind: "message", T: () => Value }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.CommandOutput', [
+			{ no: 1, name: 'argument', kind: 'message', T: () => Argument },
+			{ no: 2, name: 'value', kind: 'message', T: () => Bcs },
+			{ no: 3, name: 'json', kind: 'message', T: () => Value },
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CommandOutput
@@ -230,7 +263,20 @@ export const CommandOutput = new CommandOutput$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.TransactionExecutionService
  */
-export const TransactionExecutionService = new ServiceType("sui.rpc.v2.TransactionExecutionService", [
-    { name: "ExecuteTransaction", options: {}, I: ExecuteTransactionRequest, O: ExecuteTransactionResponse },
-    { name: "SimulateTransaction", options: {}, I: SimulateTransactionRequest, O: SimulateTransactionResponse }
-]);
+export const TransactionExecutionService = new ServiceType(
+	'sui.rpc.v2.TransactionExecutionService',
+	[
+		{
+			name: 'ExecuteTransaction',
+			options: {},
+			I: ExecuteTransactionRequest,
+			O: ExecuteTransactionResponse,
+		},
+		{
+			name: 'SimulateTransaction',
+			options: {},
+			I: SimulateTransactionRequest,
+			O: SimulateTransactionResponse,
+		},
+	],
+);

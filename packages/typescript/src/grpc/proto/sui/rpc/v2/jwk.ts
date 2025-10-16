@@ -9,25 +9,25 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 //
-import { MessageType } from "@protobuf-ts/runtime";
+import { MessageType } from '@protobuf-ts/runtime';
 /**
  * Key to uniquely identify a JWK.
  *
  * @generated from protobuf message sui.rpc.v2.JwkId
  */
 export interface JwkId {
-    /**
-     * The issuer or identity of the OIDC provider.
-     *
-     * @generated from protobuf field: optional string iss = 1;
-     */
-    iss?: string;
-    /**
-     * A key ID used to uniquely identify a key from an OIDC provider.
-     *
-     * @generated from protobuf field: optional string kid = 2;
-     */
-    kid?: string;
+	/**
+	 * The issuer or identity of the OIDC provider.
+	 *
+	 * @generated from protobuf field: optional string iss = 1;
+	 */
+	iss?: string;
+	/**
+	 * A key ID used to uniquely identify a key from an OIDC provider.
+	 *
+	 * @generated from protobuf field: optional string kid = 2;
+	 */
+	kid?: string;
 }
 /**
  * A JSON web key.
@@ -39,39 +39,39 @@ export interface JwkId {
  * @generated from protobuf message sui.rpc.v2.Jwk
  */
 export interface Jwk {
-    /**
-     * Key type parameter, https://datatracker.ietf.org/doc/html/rfc7517#section-4.1.
-     *
-     * @generated from protobuf field: optional string kty = 1;
-     */
-    kty?: string;
-    /**
-     * RSA public exponent, https://datatracker.ietf.org/doc/html/rfc7517#section-9.3.
-     *
-     * @generated from protobuf field: optional string e = 2;
-     */
-    e?: string;
-    /**
-     * RSA modulus, https://datatracker.ietf.org/doc/html/rfc7517#section-9.3.
-     *
-     * @generated from protobuf field: optional string n = 3;
-     */
-    n?: string;
-    /**
-     * Algorithm parameter, https://datatracker.ietf.org/doc/html/rfc7517#section-4.4.
-     *
-     * @generated from protobuf field: optional string alg = 4;
-     */
-    alg?: string;
+	/**
+	 * Key type parameter, https://datatracker.ietf.org/doc/html/rfc7517#section-4.1.
+	 *
+	 * @generated from protobuf field: optional string kty = 1;
+	 */
+	kty?: string;
+	/**
+	 * RSA public exponent, https://datatracker.ietf.org/doc/html/rfc7517#section-9.3.
+	 *
+	 * @generated from protobuf field: optional string e = 2;
+	 */
+	e?: string;
+	/**
+	 * RSA modulus, https://datatracker.ietf.org/doc/html/rfc7517#section-9.3.
+	 *
+	 * @generated from protobuf field: optional string n = 3;
+	 */
+	n?: string;
+	/**
+	 * Algorithm parameter, https://datatracker.ietf.org/doc/html/rfc7517#section-4.4.
+	 *
+	 * @generated from protobuf field: optional string alg = 4;
+	 */
+	alg?: string;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class JwkId$Type extends MessageType<JwkId> {
-    constructor() {
-        super("sui.rpc.v2.JwkId", [
-            { no: 1, name: "iss", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "kid", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.JwkId', [
+			{ no: 1, name: 'iss', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 2, name: 'kid', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.JwkId
@@ -79,14 +79,14 @@ class JwkId$Type extends MessageType<JwkId> {
 export const JwkId = new JwkId$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Jwk$Type extends MessageType<Jwk> {
-    constructor() {
-        super("sui.rpc.v2.Jwk", [
-            { no: 1, name: "kty", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "e", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "n", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "alg", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
+	constructor() {
+		super('sui.rpc.v2.Jwk', [
+			{ no: 1, name: 'kty', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 2, name: 'e', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 3, name: 'n', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 4, name: 'alg', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+		]);
+	}
 }
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Jwk

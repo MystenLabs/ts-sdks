@@ -36,12 +36,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-import { typeofJsonValue } from "@protobuf-ts/runtime";
-import type { JsonValue } from "@protobuf-ts/runtime";
-import { lowerCamelCase } from "@protobuf-ts/runtime";
-import type { JsonReadOptions } from "@protobuf-ts/runtime";
-import type { JsonWriteOptions } from "@protobuf-ts/runtime";
-import { MessageType } from "@protobuf-ts/runtime";
+import { typeofJsonValue } from '@protobuf-ts/runtime';
+import type { JsonValue } from '@protobuf-ts/runtime';
+import { lowerCamelCase } from '@protobuf-ts/runtime';
+import type { JsonReadOptions } from '@protobuf-ts/runtime';
+import type { JsonWriteOptions } from '@protobuf-ts/runtime';
+import { MessageType } from '@protobuf-ts/runtime';
 /**
  * `FieldMask` represents a set of symbolic field paths, for example:
  *
@@ -246,50 +246,62 @@ import { MessageType } from "@protobuf-ts/runtime";
  * @generated from protobuf message google.protobuf.FieldMask
  */
 export interface FieldMask {
-    /**
-     * The set of field mask paths.
-     *
-     * @generated from protobuf field: repeated string paths = 1;
-     */
-    paths: string[];
+	/**
+	 * The set of field mask paths.
+	 *
+	 * @generated from protobuf field: repeated string paths = 1;
+	 */
+	paths: string[];
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class FieldMask$Type extends MessageType<FieldMask> {
-    constructor() {
-        super("google.protobuf.FieldMask", [
-            { no: 1, name: "paths", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    /**
-     * Encode `FieldMask` to JSON object.
-     */
-    internalJsonWrite(message: FieldMask, options: JsonWriteOptions): JsonValue {
-        const invalidFieldMaskJsonRegex = /[A-Z]|(_([.0-9_]|$))/g;
-        return message.paths.map(p => {
-            if (invalidFieldMaskJsonRegex.test(p))
-                throw new Error("Unable to encode FieldMask to JSON. lowerCamelCase of path name \"" + p + "\" is irreversible.");
-            return lowerCamelCase(p);
-        }).join(",");
-    }
-    /**
-     * Decode `FieldMask` from JSON object.
-     */
-    internalJsonRead(json: JsonValue, options: JsonReadOptions, target?: FieldMask): FieldMask {
-        if (typeof json !== "string")
-            throw new Error("Unable to parse FieldMask from JSON " + typeofJsonValue(json) + ". Expected string.");
-        if (!target)
-            target = this.create();
-        if (json === "")
-            return target;
-        let camelToSnake = (str: string) => {
-            if (str.includes("_"))
-                throw new Error("Unable to parse FieldMask from JSON. Path names must be lowerCamelCase.");
-            let sc = str.replace(/[A-Z]/g, letter => "_" + letter.toLowerCase());
-            return sc;
-        };
-        target.paths = json.split(",").map(camelToSnake);
-        return target;
-    }
+	constructor() {
+		super('google.protobuf.FieldMask', [
+			{
+				no: 1,
+				name: 'paths',
+				kind: 'scalar',
+				repeat: 2 /*RepeatType.UNPACKED*/,
+				T: 9 /*ScalarType.STRING*/,
+			},
+		]);
+	}
+	/**
+	 * Encode `FieldMask` to JSON object.
+	 */
+	internalJsonWrite(message: FieldMask, options: JsonWriteOptions): JsonValue {
+		const invalidFieldMaskJsonRegex = /[A-Z]|(_([.0-9_]|$))/g;
+		return message.paths
+			.map((p) => {
+				if (invalidFieldMaskJsonRegex.test(p))
+					throw new Error(
+						'Unable to encode FieldMask to JSON. lowerCamelCase of path name "' +
+							p +
+							'" is irreversible.',
+					);
+				return lowerCamelCase(p);
+			})
+			.join(',');
+	}
+	/**
+	 * Decode `FieldMask` from JSON object.
+	 */
+	internalJsonRead(json: JsonValue, options: JsonReadOptions, target?: FieldMask): FieldMask {
+		if (typeof json !== 'string')
+			throw new Error(
+				'Unable to parse FieldMask from JSON ' + typeofJsonValue(json) + '. Expected string.',
+			);
+		if (!target) target = this.create();
+		if (json === '') return target;
+		let camelToSnake = (str: string) => {
+			if (str.includes('_'))
+				throw new Error('Unable to parse FieldMask from JSON. Path names must be lowerCamelCase.');
+			let sc = str.replace(/[A-Z]/g, (letter) => '_' + letter.toLowerCase());
+			return sc;
+		};
+		target.paths = json.split(',').map(camelToSnake);
+		return target;
+	}
 }
 /**
  * @generated MessageType for protobuf message google.protobuf.FieldMask

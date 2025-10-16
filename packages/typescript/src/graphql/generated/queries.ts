@@ -4295,7 +4295,7 @@ export type Shared = {
 export type SharedInput = {
   __typename?: 'SharedInput';
   address: Scalars['SuiAddress']['output'];
-  /** The version that this this object was shared at. */
+  /** The version at which this object was shared.​ */
   initialSharedVersion: Scalars['UInt53']['output'];
   /**
    * Controls whether the transaction block can reference the shared object as a mutable

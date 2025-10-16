@@ -36,7 +36,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-import { MessageType } from "@protobuf-ts/runtime";
+import { MessageType } from '@protobuf-ts/runtime';
 /**
  * A generic empty message that you can re-use to avoid defining duplicated
  * empty messages in your APIs. A typical example is to use it as the request
@@ -51,13 +51,12 @@ import { MessageType } from "@protobuf-ts/runtime";
  *
  * @generated from protobuf message google.protobuf.Empty
  */
-export interface Empty {
-}
+export interface Empty {}
 // @generated message type with reflection information, may provide speed optimized methods
 class Empty$Type extends MessageType<Empty> {
-    constructor() {
-        super("google.protobuf.Empty", []);
-    }
+	constructor() {
+		super('google.protobuf.Empty', []);
+	}
 }
 /**
  * @generated MessageType for protobuf message google.protobuf.Empty
