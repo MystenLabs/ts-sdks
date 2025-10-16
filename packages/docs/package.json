@@ -24,6 +24,7 @@
 		"@mysten/enoki": "workspace:*",
 		"@mysten/enoki-connect": "workspace:*",
 		"@mysten/kiosk": "workspace:*",
+		"@mysten/payment-kit": "workspace:*",
 		"@mysten/seal": "workspace:*",
 		"@mysten/signers": "workspace:*",
 		"@mysten/slush-wallet": "workspace:*",

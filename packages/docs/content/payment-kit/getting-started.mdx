@@ -1,0 +1,227 @@
+---
+title: Getting Started
+---
+
+<Callout type="info">
+	This package is in active development and should be used with caution. APIs are experimental and
+	subject to breaking changes without notice. We recommend thoroughly testing any implementation
+	before using in production environments.
+</Callout>
+
+This guide will help you set up and start using the Payment Kit SDK in your Sui application.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- Node.js (v16 or higher)
+- A Sui wallet with testnet/mainnet SUI tokens
+- Basic understanding of TypeScript and the Sui blockchain
+
+## Installation
+
+Install the Payment Kit SDK and the Sui TypeScript SDK:
+
+```bash npm2yarn
+npm install --save @mysten/payment-kit @mysten/sui
+```
+
+## Setting Up the Client
+
+The Payment Kit SDK extends the standard `SuiClient` to provide payment functionality. Here's how to
+set it up:
+
+```ts
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { PaymentKitClient } from '@mysten/payment-kit';
+
+// Create a Sui client with Payment Kit extension
+const client = new SuiClient({
+	url: getFullnodeUrl('testnet'),
+	network: 'testnet',
+}).$extend(PaymentKitClient.asClientExtension());
+```
+
+The client will automatically configure the correct package IDs for the network you're using
+(testnet or mainnet).
+
+## Your First Payment
+
+Let's process a simple registry-based payment using the default payment registry:
+
+```ts
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { DEFAULT_REGISTRY_NAME } from '@mysten/payment-kit';
+
+// Create or load your keypair
+const keypair = Ed25519Keypair.generate();
+const sender = keypair.getPublicKey().toSuiAddress();
+
+// Define payment parameters
+const paymentParams = {
+	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5', // Unique identifier for this payment
+	coinType: '0x2::sui::SUI', // Coin type (SUI in this case)
+	amount: 1000000000, // 1 SUI (in MIST)
+	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	sender: sender,
+	registryName: DEFAULT_REGISTRY_NAME,
+};
+
+// Create the payment transaction
+const tx = client.paymentKit.tx.processRegistryPayment(paymentParams);
+
+// Sign and execute
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+	options: {
+		showEffects: true,
+		showEvents: true,
+	},
+});
+
+console.log('Payment processed:', result.digest);
+```
+
+## Understanding the Payment
+
+In this example:
+
+1. **Nonce**: A unique identifier (UUIDv4) that prevents duplicate payments when using a registry
+2. **Coin Type**: The type of coin being transferred (SUI token)
+3. **Amount**: The payment amount in the smallest unit (MIST for SUI)
+4. **Receiver**: The address receiving the payment
+5. **Sender**: The address sending the payment (must match the transaction signer)
+6. **Registry Name**: The payment registry to use (defaults to `default-payment-registry`)
+
+## Verifying the Payment
+
+After processing a payment, you can query the payment record to verify it exists:
+
+```ts
+// Query the payment record
+const paymentRecord = await client.paymentKit.getPaymentRecord({
+	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+	coinType: '0x2::sui::SUI',
+	amount: 1000000000,
+	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	registryName: DEFAULT_REGISTRY_NAME,
+});
+
+if (paymentRecord) {
+	console.log('Payment verified!');
+	console.log('Transaction:', paymentRecord.paymentTransactionDigest);
+	console.log('Epoch:', paymentRecord.epochAtTimeOfRecord);
+} else {
+	console.log('Payment not found');
+}
+```
+
+## Extracting the Payment Receipt
+
+Payment receipts are emitted as events. You can extract them from the transaction result:
+
+```ts
+// Get events from the transaction result
+const events = result.events || [];
+
+// Find the PaymentReceipt event
+const receiptEvent = events.find((event) => event.type.includes('PaymentReceipt'));
+
+if (receiptEvent) {
+	const receipt = receiptEvent.parsedJson;
+	console.log('Payment Receipt:', {
+		nonce: receipt.nonce,
+		amount: receipt.amount,
+		receiver: receipt.receiver,
+		coinType: receipt.coin_type,
+		timestampMs: receipt.timestamp_ms,
+		paymentType: receipt.payment_type,
+	});
+}
+```
+
+## Processing an Ephemeral Payment
+
+If you don't need duplicate prevention or persistent storage, use ephemeral payments:
+
+```ts
+const tx = client.paymentKit.tx.processEphemeralPayment({
+	nonce: '9d1fddd9-fe9b-4301-b54f-a59edd6a1b2a',
+	coinType: '0x2::sui::SUI',
+	amount: 1000000000,
+	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	sender: sender,
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+
+console.log('Ephemeral payment processed:', result.digest);
+```
+
+Ephemeral payments:
+
+- Don't create a `PaymentRecord`
+- Don't prevent duplicates
+- Still emit a `PaymentReceipt` event
+- Have lower gas costs
+
+## Working with Different Coin Types
+
+Payment Kit supports any Sui coin type. Here's how to process payments with custom coins:
+
+```ts
+// Example with a custom coin type
+const customCoinType = '0xabcd...::my_coin::MY_COIN';
+
+const tx = client.paymentKit.tx.processRegistryPayment({
+	nonce: '9d1fddd9-fe9b-4301-b54f-a59edd6a1b2a',
+	coinType: customCoinType,
+	amount: 5000,
+	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	sender: sender,
+	registryName: DEFAULT_REGISTRY_NAME,
+});
+
+// Execute the transaction
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+## Error Handling
+
+Always wrap payment operations in try-catch blocks:
+
+```ts
+try {
+	const tx = client.paymentKit.tx.processRegistryPayment(paymentParams);
+	const result = await client.signAndExecuteTransaction({
+		transaction: tx,
+		signer: keypair,
+	});
+
+	console.log('Success:', result.digest);
+} catch (error) {
+	if (error.message.includes('Duplicate')) {
+		console.error('Payment already processed');
+	} else if (error.message.includes('insufficient')) {
+		console.error('Insufficient balance');
+	} else {
+		console.error('Payment failed:', error.message);
+	}
+}
+```
+
+## Next Steps
+
+Now that you understand the basics, explore more advanced features:
+
+- [Payment Processing](./payment-processing) - Deep dive into payment models
+- [Registry Management](./registry-management) - Create and configure custom registries
+- [Examples](./examples) - Common payment scenarios and patterns
+- [API Reference](./api-reference) - Complete API documentation

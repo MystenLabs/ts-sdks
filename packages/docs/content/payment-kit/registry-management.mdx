@@ -1,0 +1,517 @@
+---
+title: Registry Management
+---
+
+<Callout type="info">
+	This package is in active development and should be used with caution. APIs are experimental and
+	subject to breaking changes without notice. We recommend thoroughly testing any implementation
+	before using in production environments.
+</Callout>
+
+Payment registries are the core of Payment Kit's duplicate prevention and payment tracking system.
+This guide covers creating, configuring, and managing payment registries.
+
+## Understanding Payment Registries
+
+A `PaymentRegistry` is an on-chain object that:
+
+- Stores `PaymentRecord` dynamic fields for each unique payment
+- Manages configuration settings (expiration, fund management)
+- Can be owned and administered by a specific account
+- Provides namespaced payment tracking
+
+### Default Registry
+
+Payment Kit provides a default registry that's ready to use:
+
+```ts
+import { DEFAULT_REGISTRY_NAME } from '@mysten/payment-kit';
+
+// Use the default registry
+const tx = client.paymentKit.tx.processRegistryPayment({
+	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	coinType: '0x2::sui::SUI',
+	amount: 1000000000,
+	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	sender: senderAddress,
+	registryName: DEFAULT_REGISTRY_NAME,
+});
+```
+
+**Default Registry Name**: `'default-payment-registry'`
+
+### When to Create a Custom Registry
+
+Consider creating your own registry when:
+
+- You want isolated payment tracking for your application
+- You need custom expiration policies
+- You want to manage funds centrally
+- You need better indexing of your payments
+- You want to avoid potential congestion on the default registry
+
+## Creating a Registry
+
+### Basic Registry Creation
+
+Creating a registry is simple - you only need to provide a unique name:
+
+```ts
+// Create a new registry
+const tx = client.paymentKit.tx.createRegistry({
+	registryName: 'my-app-payments',
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+	options: {
+		showEffects: true,
+		showObjectChanges: true,
+	},
+});
+
+console.log('Registry created!');
+console.log('Transaction:', result.digest);
+```
+
+### What Gets Created
+
+When you create a registry, two objects are created:
+
+1. **PaymentRegistry**: The registry object that stores payment records
+2. **RegistryAdminCap**: A capability object that grants admin permissions
+
+### Extracting the Admin Capability
+
+The `RegistryAdminCap` is crucial for configuring your registry:
+
+```ts
+// Find the admin cap in the transaction result
+const adminCapObject = result.objectChanges?.find(
+	(change) => change.type === 'created' && change.objectType.includes('RegistryAdminCap'),
+);
+
+if (adminCapObject && 'objectId' in adminCapObject) {
+	const adminCapId = adminCapObject.objectId;
+
+	console.log('Admin Capability ID:', adminCapId);
+
+	// Store this ID - you'll need it to configure the registry
+	await database.saveAdminCap({
+		registryName: 'my-app-payments',
+		adminCapId: adminCapId,
+		owner: senderAddress,
+	});
+}
+```
+
+### Deriving the Registry ID
+
+Payment Kit derives registry IDs deterministically from the registry name:
+
+```ts
+import { getRegistryIdFromName } from '@mysten/payment-kit/utils';
+
+// You can compute the registry ID without querying the chain
+const registryId = getRegistryIdFromName(
+	'my-app-payments',
+	namespaceId, // From constants
+);
+
+console.log('Registry ID:', registryId);
+```
+
+This allows you to reference registries by name throughout your application.
+
+## Registry Configuration
+
+Registries have two main configuration options:
+
+### 1. Epoch Expiration Duration
+
+Controls how long payment records persist before they can be deleted.
+
+**Default**: 30 epochs (~30 days on mainnet)
+
+```ts
+// Set expiration to 60 epochs
+const tx = client.paymentKit.tx.setConfigEpochExpirationDuration({
+	registryName: 'my-app-payments',
+	epochExpirationDuration: 60,
+	adminCapId: adminCapId,
+});
+
+await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+
+console.log('Expiration set to 60 epochs');
+```
+
+**How It Works:**
+
+When a payment is recorded, it stores the current epoch. After the expiration duration has passed,
+anyone can delete the record to reclaim storage fees:
+
+```ts
+// Current epoch: 1000
+// Payment recorded at epoch: 1000
+// Expiration duration: 30
+// Can be deleted after epoch: 1030
+```
+
+**Use Cases:**
+
+- **Short expiration (7-14 epochs)**: High-volume, time-sensitive payments (subscriptions, tickets)
+- **Medium expiration (30-60 epochs)**: Standard e-commerce transactions
+- **Long expiration (180+ epochs)**: Important financial records requiring long-term verification
+
+### 2. Registry Managed Funds
+
+Controls whether payments must be sent to the registry itself for later withdrawal.
+
+**Default**: Disabled (funds go directly to receivers)
+
+```ts
+// Enable registry-managed funds
+const tx = client.paymentKit.tx.setConfigRegistryManagedFunds({
+	registryName: 'my-app-payments',
+	registryManagedFunds: true,
+	adminCapId: adminCapId,
+});
+
+await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+
+console.log('Registry now manages funds');
+```
+
+**How It Works:**
+
+When enabled:
+
+- All payments must specify the registry as the receiver
+- Coins are transferred to the registry object
+- Registry admin can withdraw accumulated funds later
+- Simplifies coin merging for high-throughput scenarios
+
+```ts
+// With registry-managed funds enabled
+const registryId = getRegistryIdFromName('my-app-payments', namespaceId);
+
+const tx = client.paymentKit.tx.processRegistryPayment({
+	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	coinType: '0x2::sui::SUI',
+	amount: 1000000000,
+	receiver: registryId, // Must be the registry itself
+	sender: senderAddress,
+	registryName: 'my-app-payments',
+});
+```
+
+**Use Cases:**
+
+- Platforms collecting payments on behalf of sellers
+- Applications that need to batch process payouts
+- Scenarios with very high transaction volumes
+- Simplified accounting and reconciliation
+
+### Configuring Both Settings
+
+You can configure both settings independently:
+
+```ts
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+
+// Set expiration duration
+tx.add(
+	client.paymentKit.calls.setConfigEpochExpirationDuration({
+		registryName: 'my-app-payments',
+		epochExpirationDuration: 90,
+		adminCapId: adminCapId,
+	}),
+);
+
+// Enable managed funds
+tx.add(
+	client.paymentKit.calls.setConfigRegistryManagedFunds({
+		registryName: 'my-app-payments',
+		registryManagedFunds: true,
+		adminCapId: adminCapId,
+	}),
+);
+
+// Apply both configurations in one transaction
+await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+## Withdrawing Funds from a Registry
+
+If you've enabled registry-managed funds, you can withdraw accumulated coins:
+
+```ts
+// Withdraw all SUI from the registry
+const tx = client.paymentKit.tx.withdrawFromRegistry({
+	coinType: '0x2::sui::SUI',
+	registryName: 'my-app-payments',
+	adminCapId: adminCapId,
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+	options: {
+		showEffects: true,
+	},
+});
+
+console.log('Funds withdrawn!');
+```
+
+**Important Notes:**
+
+- Only the admin cap owner can withdraw funds
+- You must specify the coin type to withdraw
+- All coins of that type are withdrawn in one operation
+- The withdrawn coins are sent to the transaction sender
+
+### Withdrawing Multiple Coin Types
+
+If your registry accumulates different coin types:
+
+```ts
+const tx = new Transaction();
+
+// Withdraw SUI
+tx.add(
+	client.paymentKit.calls.withdrawFromRegistry({
+		coinType: '0x2::sui::SUI',
+		registryName: 'my-app-payments',
+		adminCapId: adminCapId,
+	}),
+);
+
+// Withdraw custom token
+tx.add(
+	client.paymentKit.calls.withdrawFromRegistry({
+		coinType: '0xabc123::my_token::MY_TOKEN',
+		registryName: 'my-app-payments',
+		adminCapId: adminCapId,
+	}),
+);
+
+await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+## Deleting Expired Payment Records
+
+After the expiration period, payment records can be deleted to reclaim storage fees:
+
+```ts
+// Delete an expired payment record
+const tx = client.paymentKit.tx.deletePaymentRecord({
+	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	coinType: '0x2::sui::SUI',
+	amount: 1000000000,
+	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	registryName: 'my-app-payments',
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+
+console.log('Record deleted, storage rebate received');
+```
+
+**Key Points:**
+
+- Records can only be deleted after expiration
+- Anyone can delete expired records (permissionless cleanup)
+- The deleter receives a small storage rebate
+- This incentivizes automatic cleanup of old records
+
+### Checking If a Record Can Be Deleted
+
+```ts
+// Get the payment record
+const record = await client.paymentKit.getPaymentRecord({
+	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	coinType: '0x2::sui::SUI',
+	amount: 1000000000,
+	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	registryName: 'my-app-payments',
+});
+
+if (record) {
+	const recordEpoch = parseInt(record.epochAtTimeOfRecord);
+	const currentEpoch = await client.getLatestSuiSystemState().then((state) => Number(state.epoch));
+
+	const expirationDuration = 30; // Your registry's setting
+	const canDelete = currentEpoch >= recordEpoch + expirationDuration;
+
+	console.log('Record epoch:', recordEpoch);
+	console.log('Current epoch:', currentEpoch);
+	console.log('Can delete:', canDelete);
+}
+```
+
+## Using Registry ID Directly
+
+If you know the registry ID, you can use it instead of the name:
+
+```ts
+const registryId = '0x123abc...';
+
+// Process payment using registry ID
+const tx = client.paymentKit.tx.processRegistryPayment({
+	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	coinType: '0x2::sui::SUI',
+	amount: 1000000000,
+	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	sender: senderAddress,
+	registryId: registryId, // Use ID instead of name
+});
+
+// Query using registry ID
+const record = await client.paymentKit.getPaymentRecord({
+	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	coinType: '0x2::sui::SUI',
+	amount: 1000000000,
+	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	registryId: registryId,
+});
+```
+
+## Complete Registry Setup Example
+
+Here's a complete workflow for setting up a custom registry:
+
+```ts
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { PaymentKitClient } from '@mysten/payment-kit';
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+
+const client = new SuiClient({
+	url: getFullnodeUrl('testnet'),
+	network: 'testnet',
+}).$extend(PaymentKitClient.asClientExtension());
+
+const keypair = Ed25519Keypair.generate();
+const registryName = 'my-marketplace-registry';
+
+// Step 1: Create the registry
+console.log('Creating registry...');
+const createTx = client.paymentKit.tx.createRegistry({
+	registryName: registryName,
+});
+
+const createResult = await client.signAndExecuteTransaction({
+	transaction: createTx,
+	signer: keypair,
+	options: {
+		showEffects: true,
+		showObjectChanges: true,
+	},
+});
+
+// Step 2: Extract the admin cap
+const adminCapObject = createResult.objectChanges?.find(
+	(change) => change.type === 'created' && change.objectType.includes('RegistryAdminCap'),
+);
+
+const adminCapId = adminCapObject && 'objectId' in adminCapObject ? adminCapObject.objectId : '';
+
+console.log('Registry created!');
+console.log('Admin Cap ID:', adminCapId);
+
+// Step 3: Configure the registry
+console.log('Configuring registry...');
+const configTx = new Transaction();
+
+// Set 60-epoch expiration
+configTx.add(
+	client.paymentKit.calls.setConfigEpochExpirationDuration({
+		registryName: registryName,
+		epochExpirationDuration: 60,
+		adminCapId: adminCapId,
+	}),
+);
+
+// Enable managed funds
+configTx.add(
+	client.paymentKit.calls.setConfigRegistryManagedFunds({
+		registryName: registryName,
+		registryManagedFunds: true,
+		adminCapId: adminCapId,
+	}),
+);
+
+await client.signAndExecuteTransaction({
+	transaction: configTx,
+	signer: keypair,
+});
+
+console.log('Registry configured!');
+console.log('Ready to process payments');
+
+// Step 4: Process a payment
+const registryId = getRegistryIdFromName(registryName, namespaceId);
+
+const paymentTx = client.paymentKit.tx.processRegistryPayment({
+	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	coinType: '0x2::sui::SUI',
+	amount: 1000000000,
+	receiver: registryId, // Funds go to registry
+	sender: keypair.getPublicKey().toSuiAddress(),
+	registryName: registryName,
+});
+
+const paymentResult = await client.signAndExecuteTransaction({
+	transaction: paymentTx,
+	signer: keypair,
+});
+
+console.log('First payment processed:', paymentResult.digest);
+```
+
+## Best Practices
+
+1. **Store Admin Caps Securely**: Treat your admin capability like private keys - they control your
+   registry
+
+2. **Use Descriptive Names**: Choose registry names that clearly identify their purpose (e.g.,
+   `acme-subscriptions`, `store-123-payments`)
+
+3. **Set Appropriate Expiration**: Balance storage costs with verification needs
+   - Short expiration = lower storage costs
+   - Long expiration = longer verification period
+
+4. **Monitor Registry Growth**: Track the number of payment records to anticipate storage costs
+
+5. **Plan Fund Management**: Decide upfront whether to use registry-managed funds based on your
+   withdrawal patterns
+
+6. **Document Your Configuration**: Keep records of your registry settings for operational
+   consistency
+
+7. **Test Thoroughly**: Always test registry operations on testnet before mainnet deployment
+
+## Next Steps
+
+- [Payment Processing](./payment-processing) - Learn how to process payments with your registry
+- [Examples](./examples) - See complete registry workflows
+- [API Reference](./api-reference) - Detailed API documentation

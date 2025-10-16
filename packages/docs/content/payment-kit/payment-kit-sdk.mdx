@@ -1,0 +1,612 @@
+---
+title: Payment Kit SDK
+---
+
+<Callout type="info">
+	This package is in active development and should be used with caution. APIs are experimental and
+	subject to breaking changes without notice. We recommend thoroughly testing any implementation
+	before using in production environments.
+</Callout>
+
+Complete API reference for the Payment Kit SDK.
+
+## Client Setup
+
+### PaymentKitClient
+
+The main client class that provides access to Payment Kit functionality.
+
+#### `asClientExtension()`
+
+Static method to create a Payment Kit client extension for `SuiClient`.
+
+```ts
+static asClientExtension(): SuiClientRegistration<
+  PaymentKitCompatibleClient,
+  'paymentKit',
+  PaymentKitClient
+>
+```
+
+**Example:**
+
+```ts
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { PaymentKitClient } from '@mysten/payment-kit';
+
+const client = new SuiClient({
+	url: getFullnodeUrl('testnet'),
+	network: 'testnet',
+}).$extend(PaymentKitClient.asClientExtension());
+
+// Access Payment Kit functionality
+client.paymentKit.tx.processRegistryPayment(/* ... */);
+```
+
+**Supported Networks:**
+
+- `testnet`
+- `mainnet`
+
+**Throws:**
+
+- `PaymentKitClientError` if network is unsupported
+
+## Transaction Methods
+
+Transaction methods create complete, ready-to-sign transactions.
+
+### `client.paymentKit.tx.processRegistryPayment()`
+
+Create a transaction to process a registry-based payment.
+
+```ts
+processRegistryPayment(
+  options: ProcessRegistryPaymentOptions
+): Transaction
+```
+
+**Parameters:**
+
+```ts
+type ProcessRegistryPaymentOptions = {
+	nonce: string; // Unique payment identifier
+	coinType: string; // Coin type (e.g., '0x2::sui::SUI')
+	amount: number | bigint; // Amount in smallest unit
+	receiver: string; // Recipient address
+	sender: string; // Sender address (must match signer)
+} & ({ registryName: string; registryId?: never } | { registryId: string; registryName?: never });
+```
+
+**Returns:** `Transaction` - Ready-to-sign transaction
+
+**Example:**
+
+```ts
+import { DEFAULT_REGISTRY_NAME } from '@mysten/payment-kit';
+
+const tx = client.paymentKit.tx.processRegistryPayment({
+	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+	coinType: '0x2::sui::SUI',
+	amount: 1000000000,
+	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	sender: senderAddress,
+	registryName: DEFAULT_REGISTRY_NAME,
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+**On-Chain Effects:**
+
+- Transfers coins from sender to receiver
+- Creates a `PaymentRecord` dynamic field on the registry
+- Emits a `PaymentReceipt` event
+
+**Throws:**
+
+- Error if payment with same key already exists
+- Error if sender has insufficient balance
+
+---
+
+### `client.paymentKit.tx.processEphemeralPayment()`
+
+Create a transaction to process an ephemeral payment (no registry storage).
+
+```ts
+processEphemeralPayment(
+  options: ProcessEphemeralPaymentOptions
+): Transaction
+```
+
+**Parameters:**
+
+```ts
+type ProcessEphemeralPaymentOptions = {
+	nonce: string; // Payment identifier (not enforced for uniqueness)
+	coinType: string; // Coin type
+	amount: number | bigint; // Amount in smallest unit
+	receiver: string; // Recipient address
+	sender: string; // Sender address (must match signer)
+};
+```
+
+**Returns:** `Transaction` - Ready-to-sign transaction
+
+**Example:**
+
+```ts
+const tx = client.paymentKit.tx.processEphemeralPayment({
+	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+	coinType: '0x2::sui::SUI',
+	amount: 500000000,
+	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	sender: senderAddress,
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+**On-Chain Effects:**
+
+- Transfers coins from sender to receiver
+- Emits a `PaymentReceipt` event
+- No `PaymentRecord` created (no duplicate prevention)
+
+---
+
+### `client.paymentKit.tx.createRegistry()`
+
+Create a transaction to create a new payment registry.
+
+```ts
+createRegistry(options: CreateRegistryOptions): Transaction
+```
+
+**Parameters:**
+
+```ts
+type CreateRegistryOptions = {
+	registryName: string; // Unique name for the registry
+};
+```
+
+**Returns:** `Transaction` - Ready-to-sign transaction
+
+**Example:**
+
+```ts
+const tx = client.paymentKit.tx.createRegistry({
+	registryName: 'my-payment-registry',
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+	options: {
+		showObjectChanges: true,
+	},
+});
+
+// Extract the RegistryAdminCap from result.objectChanges
+const adminCap = result.objectChanges?.find(
+	(change) => change.type === 'created' && change.objectType.includes('RegistryAdminCap'),
+);
+```
+
+**On-Chain Effects:**
+
+- Creates a `PaymentRegistry` object
+- Creates a `RegistryAdminCap` owned by sender
+- Registry ID is deterministically derived from name
+
+**Important:**
+
+- Registry names must be unique globally
+- Save the `RegistryAdminCap` object ID for configuration operations
+
+---
+
+### `client.paymentKit.tx.setConfigEpochExpirationDuration()`
+
+Create a transaction to set the epoch expiration duration for payment records.
+
+```ts
+setConfigEpochExpirationDuration(
+  options: SetEpochExpirationDurationOptions
+): Transaction
+```
+
+**Parameters:**
+
+```ts
+type SetEpochExpirationDurationOptions = {
+	epochExpirationDuration: number | bigint; // Number of epochs before records expire
+	adminCapId: string; // Admin capability object ID
+} & ({ registryName: string; registryId?: never } | { registryId: string; registryName?: never });
+```
+
+**Returns:** `Transaction` - Ready-to-sign transaction
+
+**Example:**
+
+```ts
+const tx = client.paymentKit.tx.setConfigEpochExpirationDuration({
+	registryName: 'my-registry',
+	epochExpirationDuration: 60,
+	adminCapId: adminCapId,
+});
+
+await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+**Requires:**
+
+- Transaction signer must own the admin capability
+
+**Default:** 30 epochs
+
+---
+
+### `client.paymentKit.tx.setConfigRegistryManagedFunds()`
+
+Create a transaction to enable/disable registry-managed funds.
+
+```ts
+setConfigRegistryManagedFunds(
+  options: SetRegistryManagedFundsOptions
+): Transaction
+```
+
+**Parameters:**
+
+```ts
+type SetRegistryManagedFundsOptions = {
+	registryManagedFunds: boolean; // Enable (true) or disable (false)
+	adminCapId: string; // Admin capability object ID
+} & ({ registryName: string; registryId?: never } | { registryId: string; registryName?: never });
+```
+
+**Returns:** `Transaction` - Ready-to-sign transaction
+
+**Example:**
+
+```ts
+const tx = client.paymentKit.tx.setConfigRegistryManagedFunds({
+	registryName: 'my-registry',
+	registryManagedFunds: true,
+	adminCapId: adminCapId,
+});
+
+await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+**When Enabled:**
+
+- Payment receiver must be the registry itself
+- Funds accumulate in the registry
+- Admin can withdraw funds later
+
+**Default:** Disabled (funds go directly to receivers)
+
+---
+
+### `client.paymentKit.tx.withdrawFromRegistry()`
+
+Create a transaction to withdraw accumulated funds from a registry.
+
+```ts
+withdrawFromRegistry(
+  options: WithdrawFromRegistryOptions
+): Transaction
+```
+
+**Parameters:**
+
+```ts
+type WithdrawFromRegistryOptions = {
+	coinType: string; // Coin type to withdraw
+	adminCapId: string; // Admin capability object ID
+} & ({ registryName: string; registryId?: never } | { registryId: string; registryName?: never });
+```
+
+**Returns:** `Transaction` - Ready-to-sign transaction
+
+**Example:**
+
+```ts
+const tx = client.paymentKit.tx.withdrawFromRegistry({
+	coinType: '0x2::sui::SUI',
+	registryName: 'my-registry',
+	adminCapId: adminCapId,
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+**Requires:**
+
+- Registry must have `registryManagedFunds` enabled
+- Transaction signer must own the admin capability
+
+**Effect:**
+
+- Withdraws all coins of specified type to the sender
+
+---
+
+### `client.paymentKit.tx.deletePaymentRecord()`
+
+Create a transaction to delete an expired payment record.
+
+```ts
+deletePaymentRecord(
+  options: DeletePaymentRecordOptions
+): Transaction
+```
+
+**Parameters:**
+
+```ts
+type DeletePaymentRecordOptions = {
+	nonce: string; // Payment nonce
+	coinType: string; // Coin type of the payment
+	amount: number | bigint; // Payment amount
+	receiver: string; // Payment receiver
+} & ({ registryName: string; registryId?: never } | { registryId: string; registryName?: never });
+```
+
+**Returns:** `Transaction` - Ready-to-sign transaction
+
+**Example:**
+
+```ts
+const tx = client.paymentKit.tx.deletePaymentRecord({
+	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+	coinType: '0x2::sui::SUI',
+	amount: 1000000000,
+	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	registryName: 'my-registry',
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+**Requires:**
+
+- Payment record must be expired (current epoch >= record epoch + expiration duration)
+- Anyone can delete expired records (permissionless)
+
+**Effect:**
+
+- Removes the payment record from the registry
+- Sender receives storage rebate
+
+## Query Methods
+
+### `client.paymentKit.getPaymentRecord()`
+
+Query the blockchain for a payment record.
+
+```ts
+async getPaymentRecord(
+  options: GetPaymentRecordOptions
+): Promise<GetPaymentRecordResponse | null>
+```
+
+**Parameters:**
+
+```ts
+type GetPaymentRecordOptions = {
+	nonce: string; // Payment nonce
+	coinType: string; // Coin type
+	amount: number | bigint; // Payment amount
+	receiver: string; // Payment receiver
+} & ({ registryName: string; registryId?: never } | { registryId: string; registryName?: never });
+```
+
+**Returns:**
+
+```ts
+type GetPaymentRecordResponse = {
+	key: string; // Dynamic field object ID
+	paymentTransactionDigest: string | null; // Transaction that created the record
+	epochAtTimeOfRecord: string; // Epoch when record was created
+} | null; // null if record doesn't exist
+```
+
+**Example:**
+
+```ts
+const record = await client.paymentKit.getPaymentRecord({
+	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+	coinType: '0x2::sui::SUI',
+	amount: 1000000000,
+	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	registryName: DEFAULT_REGISTRY_NAME,
+});
+
+if (record) {
+	console.log('Payment exists!');
+	console.log('Transaction:', record.paymentTransactionDigest);
+	console.log('Created at epoch:', record.epochAtTimeOfRecord);
+} else {
+	console.log('Payment not found');
+}
+```
+
+**Use Cases:**
+
+- Verify a payment was completed
+- Check for duplicate payments before processing
+- Retrieve payment details for reconciliation
+
+## Call Methods
+
+Call methods return transaction commands that can be composed in custom transactions. Use these when
+you need fine-grained control over transaction construction.
+
+### `client.paymentKit.calls.processRegistryPayment()`
+
+Returns a transaction command for registry-based payment.
+
+```ts
+processRegistryPayment(
+  options: ProcessRegistryPaymentOptions
+): TransactionObjectArgument
+```
+
+**Example:**
+
+```ts
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+
+// Add custom logic before payment
+tx.moveCall({
+	target: '0xMyPackage::my_module::pre_payment_check',
+	arguments: [
+		/* ... */
+	],
+});
+
+// Add payment command
+tx.add(
+	client.paymentKit.calls.processRegistryPayment({
+		nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+		coinType: '0x2::sui::SUI',
+		amount: 1000000000,
+		receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+		sender: senderAddress,
+		registryName: DEFAULT_REGISTRY_NAME,
+	}),
+);
+
+// Add custom logic after payment
+tx.moveCall({
+	target: '0xMyPackage::my_module::post_payment_action',
+	arguments: [
+		/* ... */
+	],
+});
+
+await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+### Other Call Methods
+
+All transaction methods have corresponding call methods:
+
+- `client.paymentKit.calls.processEphemeralPayment()`
+- `client.paymentKit.calls.createRegistry()`
+- `client.paymentKit.calls.setConfigEpochExpirationDuration()`
+- `client.paymentKit.calls.setConfigRegistryManagedFunds()`
+- `client.paymentKit.calls.withdrawFromRegistry()`
+- `client.paymentKit.calls.deletePaymentRecord()`
+
+## Types
+
+### PaymentReceipt Event
+
+Emitted when a payment is processed (registry or ephemeral).
+
+```ts
+type PaymentReceipt = {
+	payment_type: 'Registry' | 'Ephemeral'; // Payment model used
+	nonce: string; // Payment identifier
+	amount: string; // Amount (as string)
+	receiver: string; // Recipient address
+	coin_type: string; // Coin type
+	timestamp_ms: string; // Unix timestamp in ms
+};
+```
+
+**Extracting from Transaction Result:**
+
+```ts
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+	options: {
+		showEvents: true,
+	},
+});
+
+const receiptEvent = result.events?.find((event) => event.type.includes('PaymentReceipt'));
+
+if (receiptEvent) {
+	const receipt = receiptEvent.parsedJson as PaymentReceipt;
+	console.log('Payment Type:', receipt.payment_type);
+	console.log('Nonce:', receipt.nonce);
+	console.log('Amount:', receipt.amount);
+}
+```
+
+## Constants
+
+### DEFAULT_REGISTRY_NAME
+
+The name of the default payment registry provided by Payment Kit.
+
+```ts
+const DEFAULT_REGISTRY_NAME = 'default-payment-registry';
+```
+
+**Usage:**
+
+```ts
+import { DEFAULT_REGISTRY_NAME } from '@mysten/payment-kit';
+
+const tx = client.paymentKit.tx.processRegistryPayment({
+	// ... other options
+	registryName: DEFAULT_REGISTRY_NAME,
+});
+```
+
+## Error Handling
+
+### PaymentKitClientError
+
+Custom error class for Payment Kit errors.
+
+```ts
+class PaymentKitClientError extends Error {
+	constructor(message: string);
+}
+```
+
+### Future Versions
+
+Check the
+[CHANGELOG](https://github.com/MystenLabs/ts-sdks/blob/main/packages/payment-kit/CHANGELOG.md) for
+updates.
+
+## Next Steps
+
+- [Getting Started](./getting-started) - Quick start guide
+- [Payment Processing](./payment-processing) - Understanding payment models
+- [Examples](./examples) - Real-world code examples
+- [Registry Management](./registry-management) - Configure registries

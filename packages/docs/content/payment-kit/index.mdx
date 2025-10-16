@@ -1,0 +1,133 @@
+---
+title: Payment Kit
+---
+
+<Callout type="info">
+	This package is in active development and should be used with caution. APIs are experimental and
+	subject to breaking changes without notice. We recommend thoroughly testing any implementation
+	before using in production environments.
+</Callout>
+
+The Sui Payment Kit SDK is a TypeScript library that provides a simple and secure way to process
+blockchain payments on the Sui network. It offers flexible payment processing with built-in
+duplicate prevention, configurable payment registries, and comprehensive receipt management.
+
+## Overview
+
+Payment Kit enables developers to integrate secure payment processing into their Sui applications
+with minimal setup. The SDK provides two payment models:
+
+- **Registry-based payments**: Persistent payment records with duplicate prevention and configurable
+  expiration
+- **Ephemeral payments**: Lightweight payment processing without persistent storage
+
+All payments emit a `PaymentReceipt` that can be stored off-chain for verification and
+record-keeping.
+
+## Key Features
+
+- **Duplicate Prevention**: Registry-based payments automatically prevent duplicate transactions
+- **Flexible Payment Models**: Choose between registry-based or ephemeral payment processing
+- **Payment Registries**: Create and manage custom payment registries with configurable policies
+- **Receipt Management**: Automatic receipt generation for all payments
+- **Multi-coin Support**: Process payments with any Sui coin type
+- **Configurable Expiration**: Set custom expiration policies for payment records
+- **Fund Management**: Optional registry-managed funds for simplified coin handling
+
+## Installation
+
+```bash npm2yarn
+npm install --save @mysten/payment-kit @mysten/sui
+```
+
+## Quick Start
+
+```ts
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { PaymentKitClient } from '@mysten/payment-kit';
+
+// Create a Sui client with Payment Kit extension
+const client = new SuiClient({
+	url: getFullnodeUrl('testnet'),
+	network: 'testnet',
+}).$extend(PaymentKitClient.asClientExtension());
+
+// Process a registry-based payment
+const tx = client.paymentKit.tx.processRegistryPayment({
+	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+	coinType: '0x2::sui::SUI',
+	amount: 1000000000, // 1 SUI in MIST
+	receiver: '0x123...abc',
+	sender: '0x456...def',
+	registryName: 'default-payment-registry',
+});
+
+// Sign and execute the transaction
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+## Network Support
+
+Payment Kit supports the following Sui networks:
+
+- **Mainnet**: Production environment
+- **Testnet**: Testing environment
+
+The SDK automatically configures the correct package and object IDs based on the network specified
+in your `SuiClient` configuration.
+
+## Core Concepts
+
+### Payment Processing
+
+Payment Kit offers two distinct payment processing models to suit different application needs:
+
+1. **Registry-based Payments**: Creates a persistent `PaymentRecord` that prevents duplicate
+   payments and provides verifiable proof of payment
+2. **Ephemeral Payments**: Processes payments without persistent storage, suitable for scenarios
+   where duplicate prevention is handled externally
+
+### Payment Registries
+
+A `PaymentRegistry` manages payment records and configurations. Benefits include:
+
+- Centralized payment tracking
+- Configurable expiration policies
+- Optional fund management
+- Custom naming for easy identification and indexing
+
+### Payment Records
+
+When using registry-based payments, a `PaymentRecord` is created as a Dynamic Field on the registry.
+Records are identified by a composite key derived from:
+
+- Payment nonce (unique identifier)
+- Payment amount
+- Coin type
+- Receiver address
+
+### Payment Receipts
+
+Every payment (registry-based or ephemeral) emits a `PaymentReceipt` event containing:
+
+```ts
+type PaymentReceipt = {
+	paymentType: 'Registry' | 'Ephemeral';
+	nonce: string;
+	amount: number;
+	receiver: string;
+	coinType: string;
+	timestampMs: number;
+};
+```
+
+## Next Steps
+
+- [Getting Started Guide](./getting-started) - Detailed setup and usage instructions
+- [Payment Processing](./payment-processing) - Learn about different payment models
+- [Registry Management](./registry-management) - Create and configure payment registries
+- [API Reference](./api-reference) - Complete API documentation
+- [Examples](./examples) - Common use cases and code samples
