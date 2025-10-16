@@ -11,7 +11,7 @@ call any of the available functions to prepare your Programmable Transaction Blo
 
 ### Withdraw profits
 
-`withdraw(address: string, amount?: bigint | number)`
+`withdraw(address: string, amount?: string | bigint)`
 
 After setting up the manager, you can withdraw profits from the specified transfer policy.
 
@@ -20,7 +20,7 @@ After setting up the manager, you can withdraw profits from the specified transf
 ```typescript
 // ... tp transaction is initialized and policy is set.
 // Withdraw 10 SUI from the policy. Leave last parameter empty to withdraw all profits.
-tpTx.withdraw('address_to_transfer_coin', 10_000_000_000);
+tpTx.withdraw('address_to_transfer_coin', 10_000_000_000n);
 ```
 
 ### Add/Remove rules
@@ -31,14 +31,14 @@ After setting up the transaction, you can add any of the supported rules to the 
 
 #### Royalty rule
 
-`addRoyaltyRule(percentage, minAmount)`
+`addRoyaltyRule(percentageBps: number | string, minAmount: number | string)`
 
 You can add the royalty rule like the following example.
 
 `percentageToBasisPoints` is a helper to convert a percentage (0.00-100%) to basis points.
 
 Use `minAmount` to set a minimum amount per transaction, so that the royalty paid is
-**MAX(percentage, min_amount)**. Use 0 for no minimum amount.
+**MAX(percentageBps, minAmount)**. Use 0 for no minimum amount.
 
 ```typescript
 // ... tp transaction is initialized and policy is set.
@@ -87,13 +87,13 @@ tpTx.removePersonalKioskRule();
 
 #### Floor price rule
 
-`addFloorPriceRule(price)`
+`addFloorPriceRule(minPrice: string | bigint)`
 
 You can add the floor price rule like the following example:
 
 ```typescript
 // ... tp transaction is initialized and policy is set.
-tpTx.addFloorPriceRule(10_000_000_000); // sets 10 SUI as the floor price.
+tpTx.addFloorPriceRule(10_000_000_000n); // sets 10 SUI as the floor price.
 ```
 
 You can remove the rule by calling:
