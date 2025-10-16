@@ -4,10 +4,7 @@ import { fromBase58, toBase64, toHex } from '@mysten/bcs';
 
 import type { Signer } from '../cryptography/index.js';
 import { Experimental_BaseClient } from '../experimental/client.js';
-import type {
-	Experimental_SuiClientTypes,
-	SelfRegisteringClientExtension,
-} from '../experimental/types.js';
+import type { Experimental_SuiClientTypes } from '../experimental/types.js';
 import type { Transaction } from '../transactions/Transaction.js';
 import { isTransaction } from '../transactions/Transaction.js';
 import {
@@ -142,10 +139,7 @@ export function isSuiJsonRpcClient(client: unknown): client is SuiJsonRpcClient 
 	);
 }
 
-export class SuiJsonRpcClient
-	extends Experimental_BaseClient
-	implements SelfRegisteringClientExtension
-{
+export class SuiJsonRpcClient extends Experimental_BaseClient {
 	core: JSONRpcCoreClient;
 	jsonRpc = this;
 	protected transport: JsonRpcTransport;
@@ -1122,14 +1116,5 @@ export class SuiJsonRpcClient
 
 		// This should never happen, because the above case should always throw, but just adding it in the event that something goes horribly wrong.
 		throw new Error('Unexpected error while waiting for transaction block.');
-	}
-
-	experimental_asClientExtension(this: SuiJsonRpcClient) {
-		return {
-			name: 'jsonRPC',
-			register: () => {
-				return this;
-			},
-		} as const;
 	}
 }

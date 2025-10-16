@@ -10,23 +10,10 @@ export type SuiClientRegistration<
 	T extends Experimental_BaseClient = Experimental_BaseClient,
 	Name extends string = string,
 	Extension = unknown,
-> =
-	| {
-			readonly name: Name;
-			readonly register: (client: T) => Extension;
-	  }
-	| SelfRegisteringClientExtension<T, Name, Extension>;
-
-export interface SelfRegisteringClientExtension<
-	T extends Experimental_BaseClient = Experimental_BaseClient,
-	Name extends string = string,
-	Extension = unknown,
-> {
-	experimental_asClientExtension: () => {
-		readonly name: Name;
-		readonly register: (client: T) => Extension;
-	};
-}
+> = {
+	readonly name: Name;
+	readonly register: (client: T) => Extension;
+};
 
 export type ClientWithExtensions<
 	T,

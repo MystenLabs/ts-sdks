@@ -34,8 +34,21 @@ import type {
 	SealClientExtensionOptions,
 	SealClientOptions,
 	SealCompatibleClient,
+	SealOptions,
 } from './types.js';
 import { createFullId, count } from './utils.js';
+
+export function seal<Name = 'seal'>({ name = 'seal' as Name, ...options }: SealOptions<Name>) {
+	return {
+		name,
+		register: (client: SealCompatibleClient) => {
+			return new SealClient({
+				suiClient: client,
+				...options,
+			});
+		},
+	};
+}
 
 export class SealClient {
 	#suiClient: SealCompatibleClient;
@@ -74,6 +87,7 @@ export class SealClient {
 		this.#timeout = options.timeout ?? 10_000;
 	}
 
+	/** @deprecated Use `seal()` instead */
 	static asClientExtension(options: SealClientExtensionOptions) {
 		return {
 			name: 'seal' as const,

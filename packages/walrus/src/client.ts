@@ -5,7 +5,7 @@ import type { InferBcsType } from '@mysten/bcs';
 import { bcs } from '@mysten/bcs';
 import { SuiClient } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
-import type { ClientCache, ClientWithExtensions } from '@mysten/sui/experimental';
+import type { ClientCache, ClientWithCoreApi } from '@mysten/sui/experimental';
 import type { TransactionObjectArgument, TransactionResult } from '@mysten/sui/transactions';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
@@ -98,6 +98,7 @@ import type {
 	WriteBlobFlowOptions,
 	WriteBlobFlowRegisterOptions,
 	WriteBlobFlowUploadOptions,
+	WalrusOptions,
 } from './types.js';
 import { blobIdToInt, IntentType, SliverData, StorageConfirmation } from './utils/bcs.js';
 import {
@@ -111,7 +112,6 @@ import {
 	storageUnitsFromSize,
 	toPairIndex,
 	toShardIndex,
-	toTypeString,
 } from './utils/index.js';
 import { SuiObjectDataLoader } from './utils/object-loader.js';
 import { shuffle, weightedShuffle } from './utils/randomness.js';
@@ -126,14 +126,44 @@ import { QuiltFileReader } from './files/readers/quilt-file.js';
 import { QuiltReader } from './files/readers/quilt.js';
 import { retry } from './utils/retry.js';
 
+export function walrus<const Name = 'walrus'>({
+	packageConfig,
+	network,
+	name = 'walrus' as Name,
+	...options
+}: WalrusOptions<Name> = {}) {
+	return {
+		name,
+		register: (client: ClientWithCoreApi) => {
+			const walrusNetwork = network || client.network;
+
+			if (walrusNetwork !== 'mainnet' && walrusNetwork !== 'testnet') {
+				throw new WalrusClientError('Walrus client only supports mainnet and testnet');
+			}
+
+			return new WalrusClient(
+				packageConfig
+					? {
+							packageConfig,
+							suiClient: client,
+							...options,
+						}
+					: {
+							network: walrusNetwork as 'mainnet' | 'testnet',
+							suiClient: client,
+							...options,
+						},
+			);
+		},
+	};
+}
+
 export class WalrusClient {
 	#storageNodeClient: StorageNodeClient;
 	#wasmUrl: string | undefined;
 
 	#packageConfig: WalrusPackageConfig;
-	#suiClient: ClientWithExtensions<{
-		jsonRpc: SuiClient;
-	}>;
+	#suiClient: ClientWithCoreApi;
 	#objectLoader: SuiObjectDataLoader;
 
 	#blobMetadataConcurrencyLimit = 10;
@@ -178,6 +208,7 @@ export class WalrusClient {
 		this.#cache = this.#suiClient.cache.scope('@mysten/walrus');
 	}
 
+	/** @deprecated use `walrus()` instead */
 	static experimental_asClientExtension({
 		packageConfig,
 		network,
@@ -185,11 +216,7 @@ export class WalrusClient {
 	}: WalrusClientExtensionOptions = {}) {
 		return {
 			name: 'walrus' as const,
-			register: (
-				client: ClientWithExtensions<{
-					jsonRpc: SuiClient;
-				}>,
-			) => {
+			register: (client: ClientWithCoreApi) => {
 				const walrusNetwork = network || client.network;
 
 				if (walrusNetwork !== 'mainnet' && walrusNetwork !== 'testnet') {
@@ -215,26 +242,22 @@ export class WalrusClient {
 	/** The Move type for a WAL coin */
 	#walType() {
 		return this.#cache.read(['walType'], async () => {
-			const stakedWal = await this.#suiClient.jsonRpc.getNormalizedMoveStruct({
-				package: await this.#getPackageId(),
-				module: 'staked_wal',
-				struct: 'StakedWal',
+			const stakeWithPool = await this.#suiClient.core.getMoveFunction({
+				packageId: await this.#getPackageId(),
+				moduleName: 'staking',
+				name: 'stake_with_pool',
 			});
 
-			const balanceType = stakedWal.fields.find((field) => field.name === 'principal')?.type;
+			const toStake = stakeWithPool.function.parameters[1];
+			const toStakeCoin = toStake.body.$kind === 'datatype' ? toStake.body.datatype : null;
+			const toStakeCoinType =
+				toStakeCoin?.typeParameters[0]?.$kind === 'datatype' ? toStakeCoin.typeParameters[0] : null;
 
-			if (!balanceType) {
+			if (toStakeCoinType?.$kind !== 'datatype') {
 				throw new WalrusClientError('WAL type not found');
 			}
 
-			const parsed = parseStructTag(toTypeString(balanceType));
-			const coinType = parsed.typeParams[0];
-
-			if (!coinType) {
-				throw new WalrusClientError('WAL type not found');
-			}
-
-			return normalizeStructTag(coinType);
+			return normalizeStructTag(toStakeCoinType.datatype.typeName);
 		});
 	}
 

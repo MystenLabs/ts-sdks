@@ -8,51 +8,63 @@ npm install --save @mysten/walrus @mysten/sui
 
 ## Setup
 
-To use the walrus SDK you will need to create an instance of the SuiClient from the typescript SDK,
-and an instance of the walrus SDK.
+To use the walrus SDK you will need to create a Client from the typescript SDK, and extend it with
+the walrus SDK.
 
 ```ts
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { WalrusClient } from '@mysten/walrus';
+import { getFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { walrus } from '@mysten/walrus';
 
-const suiClient = new SuiClient({
+const client = new SuiJsonRpcClient({
 	url: getFullnodeUrl('testnet'),
-});
-
-const walrusClient = new WalrusClient({
+	// Setting network on your client is required for walrus to work correctly
 	network: 'testnet',
-	suiClient,
-});
+}).$extend(walrus());
 ```
 
 The walrus SDK currently includes all the relevant package and object IDs needed for connecting to
-testnet. You can also manually configure the walrusClient to use a different set of ids, allowing
-you to connect to a different network or updated deployment of the walrus contracts.
+testnet. You can also manually configure the walrus sdk to use a different set of ids, allowing you
+to connect to a different network or updated deployment of the walrus contracts.
 
 ```ts
-const walrusClient = new WalrusClient({
-	suiClient,
-	packageConfig: {
-		systemObjectId: '0x98ebc47370603fe81d9e15491b2f1443d619d1dab720d586e429ed233e1255c1',
-		stakingPoolId: '0x20266a17b4f1a216727f3eef5772f8d486a9e3b5e319af80a5b75809c035561d',
-	},
-});
+import { getFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { walrus } from '@mysten/walrus';
+
+const client = new SuiJsonRpcClient({
+	url: getFullnodeUrl('testnet'),
+	// Setting network on your client is required for walrus to work correctly
+	network: 'testnet',
+}).$extend(
+	walrus({
+		packageConfig: {
+			systemObjectId: '0x98ebc47370603fe81d9e15491b2f1443d619d1dab720d586e429ed233e1255c1',
+			stakingPoolId: '0x20266a17b4f1a216727f3eef5772f8d486a9e3b5e319af80a5b75809c035561d',
+		},
+	}),
+);
 ```
 
 For some environments you may need to customize how data is fetched:
 
 ```ts
-const walrusClient = new WalrusClient({
+import { getFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { walrus } from '@mysten/walrus';
+
+const client = new SuiJsonRpcClient({
+	url: getFullnodeUrl('testnet'),
+	// Setting network on your client is required for walrus to work correctly
 	network: 'testnet',
-	suiClient,
-	storageNodeClientOptions: {
-		fetch: (url, options) => {
-			console.log('fetching', url);
-			return fetch(url, options);
+}).$extend(
+	walrus({
+		storageNodeClientOptions: {
+			fetch: (url, options) => {
+				console.log('fetching', url);
+				return fetch(url, options);
+			},
+			timeout: 60_000,
 		},
-		timeout: 60_000,
-	},
-});
+	}),
+);
 ```
 
 This can be used to implement a fetch function with custom timeouts, rate limits, retry logic, or
@@ -69,7 +81,7 @@ aggregators is recommended, but the TS SDK can be useful when building applicati
 application needs to directly interact with walrus or users need to pay for their own storage
 directly.
 
-The `WalrusClient` exposes high level methods for reading and writing blobs, as well as lower level
+The walrus sdk exposes high level methods for reading and writing blobs, as well as lower level
 methods for the individual steps in the process that can be used to implement more complex flows
 when you want more control to implement more optimized implementations.
 
@@ -88,7 +100,7 @@ It is encouraged to always read files in batches when possible, which will allow
 more efficient when loading multiple files from the same quilt.
 
 ```ts
-const [file1, file2] = await walrusClient.getFiles({ ids: [anyBlobId, orQuiltId] });
+const [file1, file2] = await client.walrus.getFiles({ ids: [anyBlobId, orQuiltId] });
 ```
 
 A `WalrusFile` works like a `Response` object from the `fetch` API:
@@ -115,7 +127,7 @@ const tags: Record<string, string> = await file1.getTags();
 You can also get a `WalrusBlob` instead of a `WalrusFile` if you have the blobId:
 
 ```ts
-const blob = await walrusClient.getBlob({ blobId });
+const blob = await client.walrus.getBlob({ blobId });
 ```
 
 If the blob is a quilt, you can read the files in the quilt:
@@ -137,9 +149,16 @@ You can also construct a `WalrusFile` from a `Uint8Array`, `Blob`, or a `string`
 stored on walrus:
 
 ```ts
-const file1 = WalrusFile.from(new Uint8Array([1, 2, 3]));
-const file2 = WalrusFile.from(new Blob([new Uint8Array([1, 2, 3])]));
-const file3 = WalrusFile.from('Hello from the TS SDK!!!\n', {
+const file1 = WalrusFile.from({
+	contents: new Uint8Array([1, 2, 3]),
+	identifier: 'file1.bin',
+});
+const file2 = WalrusFile.from({
+	contents: new Blob([new Uint8Array([1, 2, 3])]),
+	identifier: 'file2.bin',
+});
+const file3 = WalrusFile.from({
+	contents: new TextEncoder().encode('Hello from the TS SDK!!!\n'),
 	identifier: 'README.md',
 	tags: {
 		'content-type': 'text/plain',
@@ -162,7 +181,7 @@ const results: {
 	id: string;
 	blobId: string;
 	blobObject: Blob.$inferType;
-}[] = walrusClient.writeFiles({
+}[] = client.walrus.writeFiles({
 	files: [file1, file2, file3],
 	epochs: 3,
 	deletable: true,
@@ -199,7 +218,7 @@ Here's a simplified example showing the core API usage with separate user intera
 
 ```tsx
 // Step 1: Create and encode the flow (can be done immediately when file is selected)
-const flow = walrusClient.writeFilesFlow({
+const flow = client.walrus.writeFilesFlow({
 	files: [
 		WalrusFile.from({
 			contents: new Uint8Array(fileData),
@@ -244,14 +263,14 @@ Writing blobs directly from a client requires a lot of requests to write data to
 nodes. An upload relay can be used to offload the work of these writes to a server, reducing
 complexity for the client.
 
-To use an upload relay, you can add the `uploadRelay` option when creating your `WalrusClient`.
+To use an upload relay, you can add the `uploadRelay` option when adding the walrus extension:
 
 ```ts
-const client = new SuiClient({
+const client = new SuiJsonRpcClient({
 	url: getFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(
-	WalrusClient.experimental_asClientExtension({
+	walrus({
 		uploadRelay: {
 			host: 'https://upload-relay.testnet.walrus.space',
 			sendTip: {
@@ -276,11 +295,11 @@ tip.
 A `const` will send a fixed amount for each blob written to the upload relay.
 
 ```ts
-const client = new SuiClient({
+const client = new SuiJsonRpcClient({
 	url: getFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(
-	WalrusClient.experimental_asClientExtension({
+	walrus({
 		uploadRelay: {
 			host: 'https://upload-relay.testnet.walrus.space',
 			sendTip: {
@@ -300,11 +319,11 @@ A `linear` tip will send a fixed amount for each blob written to the fan out pro
 multiplier based on the size of the blob.
 
 ```ts
-const client = new SuiClient({
+const client = new SuiJsonRpcClient({
 	url: getFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(
-	WalrusClient.experimental_asClientExtension({
+	walrus({
 		uploadRelay: {
 			host: 'https://upload-relay.testnet.walrus.space',
 			sendTip: {
@@ -332,7 +351,7 @@ The `readBlob` method will read a blob given the blobId and return Uint8Array co
 content:
 
 ```ts
-const blob = await walrusClient.readBlob({ blobId });
+const blob = await client.walrus.readBlob({ blobId });
 ```
 
 ### Writing Blobs
@@ -343,7 +362,7 @@ specify how long the blob should be stored for, and if the blob should be deleta
 ```ts
 const file = new TextEncoder().encode('Hello from the TS SDK!!!\n');
 
-const { blobId } = await walrusClient.writeBlob({
+const { blobId } = await client.walrus.writeBlob({
 	blob: file,
 	deletable: false,
 	epochs: 3,
@@ -376,7 +395,7 @@ You can check for these errors, and reset the client before retrying:
 import { RetryableWalrusClientError } from '@mysten/walrus';
 
 if (error instanceof RetryableWalrusClientError) {
-	walrusClient.reset();
+	client.walrus.reset();
 
 	/* retry your operation */
 }
@@ -403,13 +422,16 @@ You can pass an `onError` option in the storageNodeClientOptions to get the indi
 failed requests:
 
 ```ts
-const walrusClient = new WalrusClient({
+const client = new SuiJsonRpcClient({
+	url: getFullnodeUrl('testnet'),
 	network: 'testnet',
-	suiClient,
-	storageNodeClientOptions: {
-		onError: (error) => console.log(error),
-	},
-});
+}).$extend(
+	walrus({
+		storageNodeClientOptions: {
+			onError: (error) => console.log(error),
+		},
+	}),
+);
 ```
 
 ## Configuring network requests
@@ -429,22 +451,25 @@ behavior defined by your runtime. To customize how requests are made, you can pr
 import type { RequestInfo, RequestInit } from 'undici';
 import { Agent, fetch, setGlobalDispatcher } from 'undici';
 
-const walrusClient = new WalrusClient({
+const client = new SuiJsonRpcClient({
+	url: getFullnodeUrl('testnet'),
 	network: 'testnet',
-	suiClient,
-	storageNodeClientOptions: {
-		timeout: 60_000,
-		fetch: (url, init) => {
-			// Some casting may be required because undici types may not exactly match the @node/types types
-			return fetch(url as RequestInfo, {
-				...(init as RequestInit),
-				dispatcher: new Agent({
-					connectTimeout: 60_000,
-				}),
-			}) as unknown as Promise<Response>;
+}).$extend(
+	walrus({
+		storageNodeClientOptions: {
+			timeout: 60_000,
+			fetch: (url, init) => {
+				// Some casting may be required because undici types may not exactly match the @node/types types
+				return fetch(url as RequestInfo, {
+					...(init as RequestInit),
+					dispatcher: new Agent({
+						connectTimeout: 60_000,
+					}),
+				}) as unknown as Promise<Response>;
+			},
 		},
-	},
-});
+	}),
+);
 ```
 
 ## Loading the wasm module in vite or client side apps
@@ -460,22 +485,28 @@ and then passed into the walrus client:
 ```ts
 import walrusWasmUrl from '@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url';
 
-const walrusClient = new WalrusClient({
+const client = new SuiJsonRpcClient({
+	url: getFullnodeUrl('testnet'),
 	network: 'testnet',
-	suiClient,
-	wasmUrl: walrusWasmUrl,
-});
+}).$extend(
+	walrus({
+		wasmUrl: walrusWasmUrl,
+	}),
+);
 ```
 
 If you are unable to get a url for the wasm file in your bundler or build system, you can self host
 the wasm bindings, or load them from a CDN:
 
 ```ts
-const walrusClient = new WalrusClient({
+const client = new SuiJsonRpcClient({
+	url: getFullnodeUrl('testnet'),
 	network: 'testnet',
-	suiClient,
-	wasmUrl: 'https://unpkg.com/@mysten/walrus-wasm@latest/web/walrus_wasm_bg.wasm',
-});
+}).$extend(
+	walrus({
+		wasmUrl: 'https://unpkg.com/@mysten/walrus-wasm@latest/web/walrus_wasm_bg.wasm',
+	}),
+);
 ```
 
 In next.js when using walrus in API routes, you may need to tell next.js to skip bundling for the

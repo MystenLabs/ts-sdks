@@ -35,10 +35,6 @@ export abstract class Experimental_BaseClient {
 			this,
 			Object.fromEntries(
 				registrations.map((registration) => {
-					if ('experimental_asClientExtension' in registration) {
-						const { name, register } = registration.experimental_asClientExtension();
-						return [name, { value: register(this) }];
-					}
 					return [registration.name, { value: registration.register(this) }];
 				}),
 			),

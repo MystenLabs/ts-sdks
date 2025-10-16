@@ -3,12 +3,12 @@
 
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
-import { WalrusClient } from '../../src/client.js';
+import { walrus } from '../../src/client.js';
 
 const client = new SuiClient({
 	url: getFullnodeUrl('testnet'),
 	network: 'testnet',
-}).$extend(WalrusClient.experimental_asClientExtension());
+}).$extend(walrus());
 
 (async function main() {
 	const blobId = 'zaa1LYnJzLNYrm7RA_CwnkDxX4PKArAJVKKaEK_ct14';

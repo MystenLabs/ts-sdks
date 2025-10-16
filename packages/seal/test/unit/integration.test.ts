@@ -25,6 +25,7 @@ import { KeyCacheKey, SealCompatibleClient } from '../../src/types';
 import { G1Element } from '../../src/bls12381';
 import { createFullId } from '../../src/utils';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { seal } from '../../src/client';
 
 /**
  * Helper function
@@ -444,7 +445,7 @@ describe('Integration test', () => {
 		const data = new Uint8Array([1, 2, 3]);
 
 		const client = suiClient.$extend(
-			SealClient.asClientExtension({
+			seal({
 				serverConfigs: objectIds,
 				verifyKeyServers: false,
 			}),
