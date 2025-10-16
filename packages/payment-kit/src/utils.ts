@@ -3,8 +3,12 @@
 
 import { bcs } from '@mysten/sui/bcs';
 import { deriveObjectID } from '@mysten/sui/utils';
+import { DEFAULT_REGISTRY_NAME } from './constants';
 
-export const getRegistryIdFromName = (registryName: string, namespaceId: string) => {
+export const getRegistryIdFromName = (
+	registryName: string = DEFAULT_REGISTRY_NAME,
+	namespaceId: string,
+) => {
 	return deriveObjectID(
 		namespaceId,
 		'0x1::ascii::String',

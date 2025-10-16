@@ -106,13 +106,9 @@ if (adminCapObject && 'objectId' in adminCapObject) {
 Payment Kit derives registry IDs deterministically from the registry name:
 
 ```ts
-import { getRegistryIdFromName } from '@mysten/payment-kit/utils';
-
 // You can compute the registry ID without querying the chain
-const registryId = getRegistryIdFromName(
-	'my-app-payments',
-	namespaceId, // From constants
-);
+const registryName = 'random-registry-name';
+const registryId = client.paymentKit.getRegistryIdFromName(registryName);
 
 console.log('Registry ID:', registryId);
 ```

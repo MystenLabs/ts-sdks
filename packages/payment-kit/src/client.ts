@@ -107,4 +107,8 @@ export class PaymentKitClient {
 			epochAtTimeOfRecord: decoded.epoch_at_time_of_record,
 		};
 	}
+
+	getRegistryIdFromName(registryName: string): string {
+		return getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
+	}
 }
