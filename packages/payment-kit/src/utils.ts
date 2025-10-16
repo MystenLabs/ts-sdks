@@ -3,7 +3,7 @@
 
 import { bcs } from '@mysten/sui/bcs';
 import { deriveObjectID } from '@mysten/sui/utils';
-import { DEFAULT_REGISTRY_NAME } from './constants';
+import { DEFAULT_REGISTRY_NAME } from './constants.js';
 
 export const getRegistryIdFromName = (
 	registryName: string = DEFAULT_REGISTRY_NAME,
