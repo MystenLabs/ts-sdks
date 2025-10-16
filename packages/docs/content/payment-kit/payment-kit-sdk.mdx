@@ -85,15 +85,12 @@ type ProcessRegistryPaymentOptions = {
 **Example:**
 
 ```ts
-import { DEFAULT_REGISTRY_NAME } from '@mysten/payment-kit';
-
 const tx = client.paymentKit.tx.processRegistryPayment({
-	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
 	amount: 1000000000,
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	receiver,
 	sender: senderAddress,
-	registryName: DEFAULT_REGISTRY_NAME,
 });
 
 const result = await client.signAndExecuteTransaction({
@@ -143,10 +140,10 @@ type ProcessEphemeralPaymentOptions = {
 
 ```ts
 const tx = client.paymentKit.tx.processEphemeralPayment({
-	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
 	amount: 500000000,
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	receiver,
 	sender: senderAddress,
 });
 
@@ -380,10 +377,10 @@ type DeletePaymentRecordOptions = {
 
 ```ts
 const tx = client.paymentKit.tx.deletePaymentRecord({
-	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
 	amount: 1000000000,
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	receiver,
 	registryName: 'my-registry',
 });
 
@@ -440,11 +437,10 @@ type GetPaymentRecordResponse = {
 
 ```ts
 const record = await client.paymentKit.getPaymentRecord({
-	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
 	amount: 1000000000,
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
-	registryName: DEFAULT_REGISTRY_NAME,
+	receiver,
 });
 
 if (record) {
@@ -495,12 +491,11 @@ tx.moveCall({
 // Add payment command
 tx.add(
 	client.paymentKit.calls.processRegistryPayment({
-		nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+		nonce: crypto.randomUUID(),
 		coinType: '0x2::sui::SUI',
 		amount: 1000000000,
-		receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+		receiver,
 		sender: senderAddress,
-		registryName: DEFAULT_REGISTRY_NAME,
 	}),
 );
 
@@ -565,27 +560,6 @@ if (receiptEvent) {
 	console.log('Nonce:', receipt.nonce);
 	console.log('Amount:', receipt.amount);
 }
-```
-
-## Constants
-
-### DEFAULT_REGISTRY_NAME
-
-The name of the default payment registry provided by Payment Kit.
-
-```ts
-const DEFAULT_REGISTRY_NAME = 'default-payment-registry';
-```
-
-**Usage:**
-
-```ts
-import { DEFAULT_REGISTRY_NAME } from '@mysten/payment-kit';
-
-const tx = client.paymentKit.tx.processRegistryPayment({
-	// ... other options
-	registryName: DEFAULT_REGISTRY_NAME,
-});
 ```
 
 ## Error Handling

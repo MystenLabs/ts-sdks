@@ -25,20 +25,15 @@ A `PaymentRegistry` is an on-chain object that:
 Payment Kit provides a default registry that's ready to use:
 
 ```ts
-import { DEFAULT_REGISTRY_NAME } from '@mysten/payment-kit';
-
 // Use the default registry
 const tx = client.paymentKit.tx.processRegistryPayment({
-	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
 	amount: 1000000000,
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	receiver,
 	sender: senderAddress,
-	registryName: DEFAULT_REGISTRY_NAME,
 });
 ```
-
-**Default Registry Name**: `'default-payment-registry'`
 
 ### When to Create a Custom Registry
 
@@ -204,7 +199,7 @@ When enabled:
 const registryId = getRegistryIdFromName('my-app-payments', namespaceId);
 
 const tx = client.paymentKit.tx.processRegistryPayment({
-	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
 	amount: 1000000000,
 	receiver: registryId, // Must be the registry itself
@@ -322,10 +317,10 @@ After the expiration period, payment records can be deleted to reclaim storage f
 ```ts
 // Delete an expired payment record
 const tx = client.paymentKit.tx.deletePaymentRecord({
-	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
 	amount: 1000000000,
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	receiver,
 	registryName: 'my-app-payments',
 });
 
@@ -349,10 +344,10 @@ console.log('Record deleted, storage rebate received');
 ```ts
 // Get the payment record
 const record = await client.paymentKit.getPaymentRecord({
-	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
 	amount: 1000000000,
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	receiver,
 	registryName: 'my-app-payments',
 });
 
@@ -378,20 +373,20 @@ const registryId = '0x123abc...';
 
 // Process payment using registry ID
 const tx = client.paymentKit.tx.processRegistryPayment({
-	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
 	amount: 1000000000,
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	receiver,
 	sender: senderAddress,
 	registryId: registryId, // Use ID instead of name
 });
 
 // Query using registry ID
 const record = await client.paymentKit.getPaymentRecord({
-	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
 	amount: 1000000000,
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	receiver,
 	registryId: registryId,
 });
 ```
@@ -472,7 +467,7 @@ console.log('Ready to process payments');
 const registryId = getRegistryIdFromName(registryName, namespaceId);
 
 const paymentTx = client.paymentKit.tx.processRegistryPayment({
-	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
 	amount: 1000000000,
 	receiver: registryId, // Funds go to registry

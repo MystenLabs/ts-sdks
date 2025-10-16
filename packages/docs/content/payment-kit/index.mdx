@@ -54,12 +54,11 @@ const client = new SuiClient({
 
 // Process a registry-based payment
 const tx = client.paymentKit.tx.processRegistryPayment({
-	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
-	amount: 1000000000, // 1 SUI in MIST
+	amount: 1n * MIST_PER_SUI, // 1 SUI in MIST
 	receiver: '0x123...abc',
 	sender: '0x456...def',
-	registryName: 'default-payment-registry',
 });
 
 // Sign and execute the transaction

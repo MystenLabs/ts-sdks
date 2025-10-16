@@ -36,7 +36,6 @@ Ephemeral payments process transfers without creating persistent on-chain record
 provides:
 
 - **Lower Gas Costs**: No on-chain storage means cheaper transactions
-- **Faster Processing**: Simplified transaction execution
 - **Flexibility**: No registry configuration required
 
 **When to Use:**
@@ -73,7 +72,7 @@ When you process a registry payment, Payment Kit hashes these parameters to crea
 const paymentParams = {
 	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
 	amount: 1000000000,
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	receiver,
 	coinType: '0x2::sui::SUI',
 };
 
@@ -98,26 +97,28 @@ Each component affects the payment key. Changing any parameter creates a differe
 
 ```ts
 // Original payment
+const originalNonce = crypto.randomUUID();
+
 const payment1 = {
-	nonce: '8a7163ae-104e-4a0d-8580-9f256e7c3367',
+	nonce: originalNonce,
 	amount: 1000000000,
-	receiver: '0xabc...',
+	receiver,
 	coinType: '0x2::sui::SUI',
 };
 
 // Different nonce = different payment
 const payment2 = {
-	nonce: '1e1b3d4a-85fd-4fa6-b50e-940fe930c2cb', // Changed
+	nonce: crypto.randomUUID(), // Changed
 	amount: 1000000000,
-	receiver: '0xabc...',
+	receiver,
 	coinType: '0x2::sui::SUI',
 };
 
 // Different amount = different payment
 const payment3 = {
-	nonce: '8a7163ae-104e-4a0d-8580-9f256e7c3367',
+	nonce: originalNonce,
 	amount: 2000000000, // Changed
-	receiver: '0xabc...',
+	receiver,
 	coinType: '0x2::sui::SUI',
 };
 
@@ -131,16 +132,13 @@ Let's walk through a complete registry payment workflow:
 ### Step 1: Create the Transaction
 
 ```ts
-import { DEFAULT_REGISTRY_NAME } from '@mysten/payment-kit';
-
 // Define your payment parameters
 const paymentParams = {
-	nonce: '366aa90a-c37e-411d-aa78-d7309bd2f997', // Your unique payment ID
+	nonce: crypto.randomUUID(), // Your unique payment ID
 	coinType: '0x2::sui::SUI', // SUI token
 	amount: 1000000000, // 1 SUI (in MIST)
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	receiver,
 	sender: senderAddress, // Must match signer
-	registryName: DEFAULT_REGISTRY_NAME,
 };
 
 // Create the transaction
@@ -184,9 +182,9 @@ if (receiptEvent) {
 
 	console.log('Payment Receipt:');
 	console.log('  Type:', receipt.payment_type); // 'Registry'
-	console.log('  Nonce:', receipt.nonce); // '366aa90a-c37e-411d-aa78-d7309bd2f997'
-	console.log('  Amount:', receipt.amount); // 1000000000
-	console.log('  Receiver:', receipt.receiver); // '0x742d...'
+	console.log('  Nonce:', receipt.nonce); // 'crypto.randomUUID()'
+	console.log('  Amount:', receipt.amount); // 1n * MIST_PER_SUI
+	console.log('  Receiver:', receipt.receiver); //
 	console.log('  Coin Type:', receipt.coin_type); // '0x2::sui::SUI'
 	console.log('  Timestamp:', receipt.timestamp_ms); // Unix timestamp
 }
@@ -197,11 +195,10 @@ if (receiptEvent) {
 ```ts
 // Query the payment record to confirm it exists
 const record = await client.paymentKit.getPaymentRecord({
-	nonce: '366aa90a-c37e-411d-aa78-d7309bd2f997',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
 	amount: 1000000000,
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
-	registryName: DEFAULT_REGISTRY_NAME,
+	receiver,
 });
 
 if (record) {
@@ -221,10 +218,10 @@ Ephemeral payments follow a simpler flow without creating persistent records:
 ```ts
 // No registry needed for ephemeral payments
 const tx = client.paymentKit.tx.processEphemeralPayment({
-	nonce: '366aa90a-c37e-411d-aa78-d7309bd2f997',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
 	amount: 500000000, // 0.5 SUI
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	receiver,
 	sender: senderAddress,
 });
 
@@ -260,44 +257,6 @@ if (receiptEvent) {
 
 ## Advanced Payment Scenarios
 
-### Handling Duplicate Payments
-
-When using registry-based payments, attempting to process the same payment twice will fail:
-
-```ts
-try {
-	const tx = client.paymentKit.tx.processRegistryPayment({
-		nonce: '366aa90a-c37e-411d-aa78-d7309bd2f997',
-		coinType: '0x2::sui::SUI',
-		amount: 1000000000,
-		receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
-		sender: senderAddress,
-		registryName: DEFAULT_REGISTRY_NAME,
-	});
-
-	await client.signAndExecuteTransaction({
-		transaction: tx,
-		signer: keypair,
-	});
-} catch (error) {
-	// Check if this is a duplicate payment error
-	if (error.message.includes('already exists') || error.message.includes('duplicate')) {
-		console.log('This payment was already processed');
-
-		// Query the existing record
-		const existingRecord = await client.paymentKit.getPaymentRecord({
-			nonce: '366aa90a-c37e-411d-aa78-d7309bd2f997',
-			coinType: '0x2::sui::SUI',
-			amount: 1000000000,
-			receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
-			registryName: DEFAULT_REGISTRY_NAME,
-		});
-
-		console.log('Original transaction:', existingRecord.paymentTransactionDigest);
-	}
-}
-```
-
 ### Processing Multiple Payments in One Transaction
 
 You can combine multiple payment operations in a single transaction:
@@ -310,23 +269,21 @@ const tx = new Transaction();
 // Add multiple registry payments
 tx.add(
 	client.paymentKit.calls.processRegistryPayment({
-		nonce: '366aa90a-c37e-411d-aa78-d7309bd2f997',
+		nonce: crypto.randomUUID(),
 		coinType: '0x2::sui::SUI',
 		amount: 1000000000,
-		receiver: '0xabc...',
+		receiver,
 		sender: senderAddress,
-		registryName: DEFAULT_REGISTRY_NAME,
 	}),
 );
 
 tx.add(
 	client.paymentKit.calls.processRegistryPayment({
-		nonce: '9f51ee50-9989-4b8f-90c8-6766d2d3a5f5',
+		nonce: crypto.randomUUID(),
 		coinType: '0x2::sui::SUI',
 		amount: 2000000000,
-		receiver: '0xdef...',
+		receiver,
 		sender: senderAddress,
-		registryName: DEFAULT_REGISTRY_NAME,
 	}),
 );
 
@@ -346,12 +303,11 @@ Payment Kit works with any Sui coin type:
 const CUSTOM_COIN = '0xabc123::my_token::MY_TOKEN';
 
 const tx = client.paymentKit.tx.processRegistryPayment({
-	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+	nonce: crypto.randomUUID(),
 	coinType: CUSTOM_COIN,
 	amount: 1000, // Amount in the coin's smallest unit
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	receiver,
 	sender: senderAddress,
-	registryName: DEFAULT_REGISTRY_NAME,
 });
 
 // Make sure the sender has enough of the custom coin
@@ -371,8 +327,6 @@ Registry payments have higher gas costs because they:
 - Write data to the registry object
 - Perform duplicate checking
 
-Approximate gas cost: ~1-2M MIST (varies by network conditions)
-
 ### Ephemeral Payments
 
 Ephemeral payments have lower gas costs because they:
@@ -380,8 +334,6 @@ Ephemeral payments have lower gas costs because they:
 - Only transfer coins
 - Don't create persistent storage
 - Skip duplicate checking
-
-Approximate gas cost: ~0.5-1M MIST (varies by network conditions)
 
 ## Best Practices
 

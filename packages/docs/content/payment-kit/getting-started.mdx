@@ -14,7 +14,6 @@ This guide will help you set up and start using the Payment Kit SDK in your Sui 
 
 Before you begin, ensure you have:
 
-- Node.js (v16 or higher)
 - A Sui wallet with testnet/mainnet SUI tokens
 - Basic understanding of TypeScript and the Sui blockchain
 
@@ -51,24 +50,19 @@ Let's process a simple registry-based payment using the default payment registry
 
 ```ts
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { DEFAULT_REGISTRY_NAME } from '@mysten/payment-kit';
 
 // Create or load your keypair
 const keypair = Ed25519Keypair.generate();
 const sender = keypair.getPublicKey().toSuiAddress();
 
-// Define payment parameters
-const paymentParams = {
-	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5', // Unique identifier for this payment
-	coinType: '0x2::sui::SUI', // Coin type (SUI in this case)
-	amount: 1000000000, // 1 SUI (in MIST)
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
-	sender: sender,
-	registryName: DEFAULT_REGISTRY_NAME,
-};
-
 // Create the payment transaction
-const tx = client.paymentKit.tx.processRegistryPayment(paymentParams);
+const tx = client.paymentKit.tx.processRegistryPayment({
+	nonce: crypto.randomUUID(), // Unique identifier for this payment
+	coinType: '0x2::sui::SUI', // Coin type (SUI in this case)
+	amount: 1n * MIST_PER_SUI, // 1 SUI (in MIST)
+	receiver,
+	sender: sender,
+});
 
 // Sign and execute
 const result = await client.signAndExecuteTransaction({
@@ -92,7 +86,7 @@ In this example:
 3. **Amount**: The payment amount in the smallest unit (MIST for SUI)
 4. **Receiver**: The address receiving the payment
 5. **Sender**: The address sending the payment (must match the transaction signer)
-6. **Registry Name**: The payment registry to use (defaults to `default-payment-registry`)
+6. **Registry Name**: The payment registry to use (defaults to `DEFAULT_REGISTRY_NAME`)
 
 ## Verifying the Payment
 
@@ -101,11 +95,10 @@ After processing a payment, you can query the payment record to verify it exists
 ```ts
 // Query the payment record
 const paymentRecord = await client.paymentKit.getPaymentRecord({
-	nonce: '0f6a09cf-7b46-4e31-adce-f39e463ccae5',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
-	amount: 1000000000,
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
-	registryName: DEFAULT_REGISTRY_NAME,
+	amount: 1n * MIST_PER_SUI,
+	receiver,
 });
 
 if (paymentRecord) {
@@ -147,10 +140,10 @@ If you don't need duplicate prevention or persistent storage, use ephemeral paym
 
 ```ts
 const tx = client.paymentKit.tx.processEphemeralPayment({
-	nonce: '9d1fddd9-fe9b-4301-b54f-a59edd6a1b2a',
+	nonce: crypto.randomUUID(),
 	coinType: '0x2::sui::SUI',
-	amount: 1000000000,
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	amount: 1n * MIST_PER_SUI,
+	receiver,
 	sender: sender,
 });
 
@@ -178,12 +171,11 @@ Payment Kit supports any Sui coin type. Here's how to process payments with cust
 const customCoinType = '0xabcd...::my_coin::MY_COIN';
 
 const tx = client.paymentKit.tx.processRegistryPayment({
-	nonce: '9d1fddd9-fe9b-4301-b54f-a59edd6a1b2a',
+	nonce: crypto.randomUUID(),
 	coinType: customCoinType,
 	amount: 5000,
-	receiver: '0x742d35cc6634c0532925a3b844bc9c7eb6fb05f44228e1a3e0e1de2fd929fdda',
+	receiver,
 	sender: sender,
-	registryName: DEFAULT_REGISTRY_NAME,
 });
 
 // Execute the transaction
@@ -199,7 +191,7 @@ Always wrap payment operations in try-catch blocks:
 
 ```ts
 try {
-	const tx = client.paymentKit.tx.processRegistryPayment(paymentParams);
+	const tx = client.paymentKit.tx.processRegistryPayment({...});
 	const result = await client.signAndExecuteTransaction({
 		transaction: tx,
 		signer: keypair,
