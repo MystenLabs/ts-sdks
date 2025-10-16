@@ -110,30 +110,6 @@ if (paymentRecord) {
 }
 ```
 
-## Extracting the Payment Receipt
-
-Payment receipts are emitted as events. You can extract them from the transaction result:
-
-```ts
-// Get events from the transaction result
-const events = result.events || [];
-
-// Find the PaymentReceipt event
-const receiptEvent = events.find((event) => event.type.includes('PaymentReceipt'));
-
-if (receiptEvent) {
-	const receipt = receiptEvent.parsedJson;
-	console.log('Payment Receipt:', {
-		nonce: receipt.nonce,
-		amount: receipt.amount,
-		receiver: receipt.receiver,
-		coinType: receipt.coin_type,
-		timestampMs: receipt.timestamp_ms,
-		paymentType: receipt.payment_type,
-	});
-}
-```
-
 ## Processing an Ephemeral Payment
 
 If you don't need duplicate prevention or persistent storage, use ephemeral payments:
@@ -215,5 +191,4 @@ Now that you understand the basics, explore more advanced features:
 
 - [Payment Processing](./payment-processing) - Deep dive into payment models
 - [Registry Management](./registry-management) - Create and configure custom registries
-- [Examples](./examples) - Common payment scenarios and patterns
-- [API Reference](./api-reference) - Complete API documentation
+- [SDK API Reference](./payment-kit-sdk) - Complete SDK API documentation

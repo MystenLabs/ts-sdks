@@ -93,7 +93,9 @@ const tx2 = client.paymentKit.tx.processRegistryPayment({
 
 ### Changing Any Component Creates a New Key
 
-Each component affects the payment key. Changing any parameter creates a different payment:
+Each component affects the payment key. Changing any parameter creates a different payment. This
+means, as an example, that a `nonce` can be reused for a different payment, if the `coinType` or
+`receiver` differ.
 
 ```ts
 // Original payment
@@ -357,5 +359,3 @@ Ephemeral payments have lower gas costs because they:
 ## Next Steps
 
 - [Registry Management](./registry-management) - Learn how to create and configure custom registries
-- [Examples](./examples) - See complete payment workflows for common use cases
-- [API Reference](./api-reference) - Detailed API documentation
