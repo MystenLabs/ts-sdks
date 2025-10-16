@@ -56,7 +56,7 @@ const myCustomRule = {
         // The resolving function. This is called when calling the `purchaseAndResolve`.
 		resolveRuleFunction: (params: RuleResolvingParams) => {
             // By knowing the params we have here, we can extract the variables we need to resolve this rule.
-            const { transaction, itemType, packageId, extraArgs } = params;
+            const { transaction, itemType, packageId, extraArgs, transferRequest } = params;
             const { gamePass } = extraArgs;
             if(!gamePass) throw new Error("GamePass not supplied");
 
@@ -100,12 +100,13 @@ type RuleResolvingParams = {
 	itemId: string;
 	price: string;
 	policyId: ObjectArgument;
+	sellerKiosk: ObjectArgument;
 	kiosk: ObjectArgument;
-	ownedKiosk: ObjectArgument;
-	ownedKioskCap: ObjectArgument;
-	transferRequest: TransactionArgument;
-	purchasedItem: TransactionArgument;
+	kioskCap: ObjectArgument;
+	transferRequest: TransactionObjectArgument;
+	purchasedItem: TransactionObjectArgument;
 	packageId: string;
 	extraArgs: Record<string, any>; // extraParams contains more possible {key, values} to pass for custom rules.
+	kioskClient: KioskClient;
 };
 ```
