@@ -166,7 +166,7 @@ export class KioskTransaction {
 
 		callback(itemObj);
 
-		this.return({ itemType, item: itemObj, promise });
+		return this.return({ itemType, item: itemObj, promise });
 	}
 
 	/**
