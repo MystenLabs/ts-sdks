@@ -1967,8 +1967,12 @@ export class WalrusClient {
 	async writeQuilt({ blobs, ...options }: WriteQuiltOptions) {
 		const encoded = await this.encodeQuilt({ blobs });
 		const result = await this.writeBlob({
-			blob: encoded.quilt,
 			...options,
+			blob: encoded.quilt,
+			attributes: {
+				_walrusBlobType: 'quilt',
+				...options.attributes,
+			},
 		});
 
 		return {
@@ -2230,7 +2234,10 @@ export class WalrusClient {
 						blobId: metadata.blobId,
 						rootHash: metadata.rootHash,
 						deletable,
-						attributes,
+						attributes: {
+							_walrusBlobType: 'quilt',
+							...attributes,
+						},
 					}),
 				],
 				owner,
