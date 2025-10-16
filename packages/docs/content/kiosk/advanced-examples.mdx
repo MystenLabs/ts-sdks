@@ -62,44 +62,41 @@ This example demonstrates how to use the Kiosk SDK to mix two `bullsharks`.
 ```typescript
 // We're mixing two frens.
 async function mixFrens(firstFrenObjectId: string, secondFrenObjectId: string, cap: KioskOwnerCap) {
-    const tx = new Transaction();
-    const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
+	const tx = new Transaction();
+	const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
 
-    // borrow both frens.
-    const [fren1, promise1] = kioskTx.borrow({
-        itemType: bullsharkType,
-        itemId: firstFrenObjectId.
-    });
+	// borrow both frens.
+	const [fren1, promise1] = kioskTx.borrow({
+		itemType: bullsharkType,
+		itemId: firstFrenObjectId,
+	});
 
-    const [fren2, promise2] = kioskTx.borrow({
-        itemType: bullsharkType,
-        itemId: secondFrenObjectId.
-    });
+	const [fren2, promise2] = kioskTx.borrow({
+		itemType: bullsharkType,
+		itemId: secondFrenObjectId,
+	});
 
-    // Let's call the mix function. We skip any payment related stuff here.
-    tx.moveCall({
-        target: `${packageId}::mix_app::mix`,
-        arguments: [
-            fren1,
-            fren2,
-            kioskTx.getKiosk(),
-            kioskTx.getKioskCap(),
-        ]
-        typeArguments: [bullsharkType],
-    });
+	// Let's call the mix function. We skip any payment related stuff here.
+	tx.moveCall({
+		target: `${packageId}::mix_app::mix`,
+		arguments: [fren1, fren2, kioskTx.getKiosk(), kioskTx.getKioskCap()],
+		typeArguments: [bullsharkType],
+	});
 
-    kioskTx.return({
-        itemType: bullsharkType,
-        item: fren1,
-        promise: promise1
-    })
-    .return({
-        itemType: bullsharkType,
-        item: fren2,
-        promise: promise2
-    }).finalize();
+	kioskTx
+		.return({
+			itemType: bullsharkType,
+			item: fren1,
+			promise: promise1,
+		})
+		.return({
+			itemType: bullsharkType,
+			item: fren2,
+			promise: promise2,
+		})
+		.finalize();
 
-    // sign and execute transaction.
-    await signAndExecuteTransaction({ tx: tx });
+	// sign and execute transaction.
+	await signAndExecuteTransaction({ tx: tx });
 }
 ```

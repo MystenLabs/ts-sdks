@@ -26,7 +26,7 @@ const connectedAddress = '0xAnAddress';
 // This function should run when the user connects the wallet.
 // We should re-use the same `KioskClient` instance throughout our dApp.
 const getCap = async () => {
-    let { kioskOwnerCaps } = await kioskClient.getOwnedKiosks(address);
+    let { kioskOwnerCaps } = await kioskClient.getOwnedKiosks(connectedAddress);
     // Assume that the user has only 1 kiosk.
     // Here, you need to do some more checks in a realistic scenario.
     // And possibly give the user in our dApp a kiosk selector to choose which one they want to interact with (if they own more than one).
@@ -36,7 +36,7 @@ const getCap = async () => {
 // The mint function could be like the following.
 const mint = async () => {
     const tx = new Transaction();
-    const kioskTx = new KioskTransaction({ kioskClient, transaction: tx, cap: await getCap() }});
+    const kioskTx = new KioskTransaction({ kioskClient, transaction: tx, cap: await getCap() });
 
     // Assume it costs one SUI
     let coin = tx.splitCoins(tx.gas, [1_000_000_000]);
@@ -67,7 +67,7 @@ const kioskClient = new KioskClient({...});
 // Our mint function.
 const mint = async () => {
     const tx = new Transaction();
-    const kioskTx = new KioskTransaction({ kioskClient, transaction: tx }});
+    const kioskTx = new KioskTransaction({ kioskClient, transaction: tx });
 
     // Creates a kiosk.
     kioskTx.create();
