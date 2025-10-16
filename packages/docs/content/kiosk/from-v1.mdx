@@ -114,7 +114,7 @@ const placeAndListToKiosk = async () => {
 
 	const kioskTx = new KioskTransaction({ transaction: tx, kioskClient });
 
-	kioskTx.shareAndTransferCap('0xSomeSuiAddress').finalize();
+	kioskTx.create().shareAndTransferCap('0xSomeSuiAddress').finalize();
 
 	// ... continue to sign and execute the transaction
 };
