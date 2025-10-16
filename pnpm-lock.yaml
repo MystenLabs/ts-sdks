@@ -773,6 +773,9 @@ importers:
       '@mysten/kiosk':
         specifier: workspace:*
         version: link:../kiosk
+      '@mysten/payment-kit':
+        specifier: workspace:*
+        version: link:../payment-kit
       '@mysten/seal':
         specifier: workspace:*
         version: link:../seal
