@@ -1469,9 +1469,6 @@ importers:
       '@mysten/bcs':
         specifier: workspace:*
         version: link:../bcs
-      '@mysten/dapp-kit-react':
-        specifier: workspace:*
-        version: link:../dapp-kit-next/packages/dapp-kit-react
       '@mysten/sui':
         specifier: workspace:*
         version: link:../typescript
@@ -1485,6 +1482,9 @@ importers:
       '@mysten/build-scripts':
         specifier: workspace:*
         version: link:../build-scripts
+      '@mysten/dapp-kit-react':
+        specifier: workspace:*
+        version: link:../dapp-kit-next/packages/dapp-kit-react
       '@types/node':
         specifier: ^22.15.29
         version: 22.18.6

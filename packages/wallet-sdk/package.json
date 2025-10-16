@@ -1,7 +1,7 @@
 {
 	"name": "@mysten/wallet-sdk",
 	"version": "0.0.0",
-	"private": true,
+	"private": false,
 	"description": "Utilities for building Sui wallets",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -45,6 +45,7 @@
 	"homepage": "https://github.com/MystenLabs/ts-sdks/packages/wallet-sdk#readme",
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
+		"@mysten/dapp-kit-react": "workspace:*",
 		"@types/node": "^22.15.29",
 		"msw": "^2.11.1",
 		"typescript": "^5.9.2",
@@ -52,7 +53,6 @@
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:*",
-		"@mysten/dapp-kit-react": "workspace:*",
 		"@mysten/sui": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
 		"valibot": "^0.36.0"
