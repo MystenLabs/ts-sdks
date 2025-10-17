@@ -1,5 +1,13 @@
 # Change Log
 
+## 1.9.0
+
+### Minor Changes
+
+- f3b19a7: Use bcs.byteVector and bcs.bytes instead of bcs.vector(bcs.u8()) and bcs.fixedArrray(n,
+  bcs.u8()) to improve performance
+- f3b19a7: improve perf of bcs.byteVector
+
 ## 1.8.1
 
 ### Patch Changes

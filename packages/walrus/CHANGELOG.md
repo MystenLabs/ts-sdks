@@ -1,5 +1,22 @@
 # @mysten/walrus
 
+## 0.8.0
+
+### Minor Changes
+
+- 8894443: Set \_walrusBlobType for quilts
+- f3b19a7: Use bcs.byteVector and bcs.bytes instead of bcs.vector(bcs.u8()) and bcs.fixedArrray(n,
+  bcs.u8()) to improve performance
+- bf9f85c: deprecate asClientExtension methods
+
+### Patch Changes
+
+- Updated dependencies [f3b19a7]
+- Updated dependencies [f3b19a7]
+- Updated dependencies [bf9f85c]
+  - @mysten/sui@1.43.0
+  - @mysten/bcs@1.9.0
+
 ## 0.7.5
 
 ### Patch Changes

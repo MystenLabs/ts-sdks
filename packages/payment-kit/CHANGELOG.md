@@ -1,5 +1,18 @@
 # @mysten/payment-kit
 
+## 0.0.7
+
+### Patch Changes
+
+- 3ba4bd9: - `getRegistryIdFromName` is now an exposed method on `PaymentKitClient`
+  - `registryName` is now an optional parameter if `registryId` is not provided. If `registryName`
+    is `undefined` than the default registry name is used.
+- Updated dependencies [f3b19a7]
+- Updated dependencies [f3b19a7]
+- Updated dependencies [bf9f85c]
+  - @mysten/sui@1.43.0
+  - @mysten/bcs@1.9.0
+
 ## 0.0.6
 
 ### Patch Changes

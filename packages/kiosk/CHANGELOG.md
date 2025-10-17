@@ -1,5 +1,21 @@
 # @mysten/kiosk
 
+## 0.14.0
+
+### Minor Changes
+
+- 75e5d23: Add `return this` in some functions in file
+  `packages/kiosk/src/client/kiosk-transaction.ts` to make it chainable. If chain calls are not
+  supported, some of the usage in the document will not be implemented: line 117 in
+  `packages/docs/content/kiosk/from-v1.mdx` and line 110 in
+  `packages/docs/content/kiosk/kiosk-client/kiosk-transaction/examples.mdx`.
+
+### Patch Changes
+
+- Updated dependencies [f3b19a7]
+- Updated dependencies [bf9f85c]
+  - @mysten/sui@1.43.0
+
 ## 0.13.6
 
 ### Patch Changes
