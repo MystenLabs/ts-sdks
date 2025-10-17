@@ -27,7 +27,6 @@
 		"build": "build-package",
 		"test": "echo 'No unit tests for kiosk SDK'",
 		"pre-commit": "pnpm prettier:fix && pnpm lint && pnpm build",
-		"prepublishOnly": "pnpm turbo build",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"eslint:check": "eslint --max-warnings=0 .",

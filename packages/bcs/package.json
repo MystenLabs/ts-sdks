@@ -24,7 +24,6 @@
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"dev": "pnpm build --watch",
 		"build": "build-package",
-		"prepublishOnly": "pnpm turbo build",
 		"test": "vitest run --typecheck",
 		"test:watch": "vitest --typecheck",
 		"prettier:check": "prettier -c --ignore-unknown .",

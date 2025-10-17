@@ -29,7 +29,6 @@
 		"dev": "pnpm build --watch",
 		"build": "build-package",
 		"codegen": "pnpm tsx src/bin/cli.ts generate && pnpm lint:fix",
-		"prepublishOnly": "pnpm turbo build",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"prettier:check": "prettier -c --ignore-unknown .",
