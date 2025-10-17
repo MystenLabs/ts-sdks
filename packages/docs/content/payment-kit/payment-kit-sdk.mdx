@@ -16,28 +16,26 @@ Complete API reference for the Payment Kit SDK.
 
 The main client class that provides access to Payment Kit functionality.
 
-#### `asClientExtension()`
+#### `paymentKit()`
 
-Static method to create a Payment Kit client extension for `SuiClient`.
+Function to create a Payment Kit client extension for `SuiClient`.
 
 ```ts
-static asClientExtension(): SuiClientRegistration<
-  PaymentKitCompatibleClient,
-  'paymentKit',
-  PaymentKitClient
->
+paymentKit<Name extends string = 'paymentKit'>({
+	name = 'paymentKit' as Name,
+}): SuiClientRegistration<PaymentKitCompatibleClient, Name, PaymentKitClient>
 ```
 
 **Example:**
 
 ```ts
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { PaymentKitClient } from '@mysten/payment-kit';
+import { paymentKit } from '@mysten/payment-kit';
 
 const client = new SuiClient({
 	url: getFullnodeUrl('testnet'),
 	network: 'testnet',
-}).$extend(PaymentKitClient.asClientExtension());
+}).$extend(paymentKit());
 
 // Access Payment Kit functionality
 client.paymentKit.tx.processRegistryPayment(/* ... */);

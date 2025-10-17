@@ -32,13 +32,13 @@ set it up:
 
 ```ts
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { PaymentKitClient } from '@mysten/payment-kit';
+import { paymentKit } from '@mysten/payment-kit';
 
 // Create a Sui client with Payment Kit extension
 const client = new SuiClient({
 	url: getFullnodeUrl('testnet'),
 	network: 'testnet',
-}).$extend(PaymentKitClient.asClientExtension());
+}).$extend(paymentKit());
 ```
 
 The client will automatically configure the correct package IDs for the network you're using

@@ -20,6 +20,17 @@ import { PaymentKitTransactions } from './transactions.js';
 import { PaymentKitCalls } from './calls.js';
 import { getRegistryIdFromName } from './utils.js';
 
+export function paymentKit<Name extends string = 'paymentKit'>({
+	name = 'paymentKit' as Name,
+}): SuiClientRegistration<PaymentKitCompatibleClient, Name, PaymentKitClient> {
+	return {
+		name,
+		register: (client) => {
+			return new PaymentKitClient({ client });
+		},
+	};
+}
+
 export class PaymentKitClient {
 	#packageConfig: PaymentKitPackageConfig;
 	#client: PaymentKitCompatibleClient;
@@ -27,7 +38,7 @@ export class PaymentKitClient {
 	calls: PaymentKitCalls;
 	tx: PaymentKitTransactions;
 
-	private constructor(options: PaymentKitClientOptions) {
+	constructor(options: PaymentKitClientOptions) {
 		if (options.client) {
 			this.#client = options.client;
 		} else {
@@ -50,19 +61,6 @@ export class PaymentKitClient {
 		this.tx = new PaymentKitTransactions({
 			calls: this.calls,
 		});
-	}
-
-	static asClientExtension(): SuiClientRegistration<
-		PaymentKitCompatibleClient,
-		'paymentKit',
-		PaymentKitClient
-	> {
-		return {
-			name: 'paymentKit' as const,
-			register: (client) => {
-				return new PaymentKitClient({ client });
-			},
-		};
 	}
 
 	/**
