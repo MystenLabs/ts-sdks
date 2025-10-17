@@ -43,9 +43,13 @@
 	},
 	"homepage": "https://github.com/MystenLabs/seal#readme",
 	"devDependencies": {
+		"0x": "^6.0.0",
 		"@hey-api/openapi-ts": "^0.82.5",
 		"@mysten/build-scripts": "workspace:*",
 		"@types/node": "^22.15.29",
+		"clinic": "^13.0.0",
+		"flamebearer": "^1.1.3",
+		"speedscope": "^1.23.1",
 		"typescript": "^5.9.2",
 		"vitest": "^3.2.4"
 	},
