@@ -35,6 +35,7 @@ export class AutoApprovalManager {
 
 		if (options.state) {
 			const parseResult = safeParse(AutoApprovalStateSchema, JSON.parse(options.state));
+			// TODO: how do we want to handle failures
 			if (parseResult.success) {
 				const providedPolicy = parse(AutoApprovalPolicySchema, JSON.parse(options.policy));
 				const currentPolicy = parseResult.output.policy;
@@ -228,6 +229,7 @@ export class AutoApprovalManager {
 		return issues;
 	}
 
+	// TODO: we should ensure that only 1 tx is pending at a time, and pending txs can't increase budgets
 	commitTransaction(analysis: AutoApprovalResult): void {
 		if (!this.#state.settings) {
 			throw new Error('No auto-approval settings configured');

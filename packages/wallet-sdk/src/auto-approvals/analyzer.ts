@@ -4,7 +4,7 @@
 import type { Analyzer, AnalyzerResult } from '../transaction-analyzer/analyzer.js';
 import { createAnalyzer } from '../transaction-analyzer/index.js';
 import { analyzers } from '../transaction-analyzer/index.js';
-import { extractOperationType, OPERATION_TYPE_INTENT } from './intent.js';
+import { extractOperationType, OPERATION_INTENT } from './intent.js';
 
 const operationType = createAnalyzer({
 	dependencies: {
@@ -13,7 +13,7 @@ const operationType = createAnalyzer({
 	analyze: (_options, tx) => {
 		let operationType: string | null = null;
 		tx.addIntentResolver(
-			OPERATION_TYPE_INTENT,
+			OPERATION_INTENT,
 			extractOperationType((type) => {
 				operationType = type;
 			}),

@@ -5,18 +5,18 @@ import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
 import type { TransactionDataBuilder } from '@mysten/sui/transactions';
 import { Commands } from '@mysten/sui/transactions';
 
-export const OPERATION_TYPE_INTENT = 'OperationType';
+export const OPERATION_INTENT = '@mysten/wallet-kit/AutoApprovalOperation';
 
 export function operationType(operationType: string) {
 	return (tx: Transaction): TransactionResult => {
-		tx.addIntentResolver(OPERATION_TYPE_INTENT, (transactionData, _options, next) => {
+		tx.addIntentResolver(OPERATION_INTENT, (transactionData, _options, next) => {
 			replaceOperationTypeIntent(transactionData);
 			return next();
 		});
 
 		const result = tx.add(
 			Commands.Intent({
-				name: OPERATION_TYPE_INTENT,
+				name: OPERATION_INTENT,
 				inputs: {},
 				data: { operationType },
 			}),
@@ -44,7 +44,7 @@ function replaceOperationTypeIntent(
 	let intentFound = false;
 	for (let index = 0; index < transactionData.commands.length; index++) {
 		const command = transactionData.commands[index];
-		if (command.$kind === '$Intent' && command.$Intent.name === OPERATION_TYPE_INTENT) {
+		if (command.$kind === '$Intent' && command.$Intent.name === OPERATION_INTENT) {
 			if (intentFound) {
 				throw new Error('Multiple operation type intents found in transaction');
 			}

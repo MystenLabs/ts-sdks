@@ -40,7 +40,7 @@ describe('AutoApprovalManager', () => {
 				analysis: autoApprovalAnalyzer,
 			},
 			{
-				transactionJson,
+				transaction: transactionJson,
 				client,
 				getCoinPrices: async (types) =>
 					types.map((coinType) => ({ coinType, decimals: 9, price: 2.5 })),

@@ -43,9 +43,11 @@ const AutoApprovalOperationSchema = v.object({
 	}),
 });
 
+// TODO: do we want to support custom settings
 export const AutoApprovalSettingsSchema = v.looseObject({
 	approvedOperations: v.array(v.string()),
 	expiration: v.number(),
+	// TODO: figure out a better name
 	remainingTransactions: v.nullable(v.number()),
 	sharedBudget: v.nullable(v.number()),
 	// TODO: normalize coin types
@@ -55,6 +57,7 @@ export const AutoApprovalSettingsSchema = v.looseObject({
 export const AutoApprovalPolicySchema = v.object({
 	schemaVersion: v.literal('1.0.0'),
 	operations: v.array(AutoApprovalOperationSchema),
+	// TODO: do we want to split suggested settings into a different type (not everything makes sense as a suggestion)
 	suggestedSettings: v.optional(v.partial(AutoApprovalSettingsSchema)),
 });
 
