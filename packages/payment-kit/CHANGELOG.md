@@ -1,5 +1,11 @@
 # @mysten/payment-kit
 
+## 0.0.8
+
+### Patch Changes
+
+- bc6c9f9: Replaced asClientExtension() with paymentKit()
+
 ## 0.0.7
 
 ### Patch Changes
