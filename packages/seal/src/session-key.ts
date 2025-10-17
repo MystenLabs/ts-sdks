@@ -17,9 +17,9 @@ import {
 import type { SealCompatibleClient } from './types.js';
 
 export const RequestFormat = bcs.struct('RequestFormat', {
-	ptb: bcs.vector(bcs.u8()),
-	encKey: bcs.vector(bcs.u8()),
-	encVerificationKey: bcs.vector(bcs.u8()),
+	ptb: bcs.byteVector(),
+	encKey: bcs.byteVector(),
+	encVerificationKey: bcs.byteVector(),
 });
 
 export type Certificate = {

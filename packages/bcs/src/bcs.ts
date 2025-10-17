@@ -331,10 +331,7 @@ export const bcs = {
 			size,
 			read: (reader) => reader.readBytes(size),
 			write: (value, writer) => {
-				const array = new Uint8Array(value);
-				for (let i = 0; i < size; i++) {
-					writer.write8(array[i] ?? 0);
-				}
+				writer.writeBytes(new Uint8Array(value));
 			},
 			...options,
 			name: (options?.name ?? `bytes[${size}]`) as `bytes[${T}]`,
