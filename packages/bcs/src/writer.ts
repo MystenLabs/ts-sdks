@@ -87,6 +87,21 @@ export class BcsWriter {
 		this.dataView.setUint8(this.bytePosition, Number(value));
 		return this.shift(1);
 	}
+
+	/**
+	 * Write a U8 value into a buffer and shift cursor position by 1.
+	 * @param {Number} value Value to write.
+	 * @returns {this}
+	 */
+	writeBytes(bytes: Uint8Array): this {
+		this.ensureSizeOrGrow(bytes.length);
+
+		for (let i = 0; i < bytes.length; i++) {
+			this.dataView.setUint8(this.bytePosition + i, bytes[i]);
+		}
+
+		return this.shift(bytes.length);
+	}
 	/**
 	 * Write a U16 value into a buffer and shift cursor position by 2.
 	 * @param {Number} value Value to write.

@@ -366,9 +366,7 @@ export const bcs = {
 			write: (value, writer) => {
 				const array = new Uint8Array(value);
 				writer.writeULEB(array.length);
-				for (let i = 0; i < array.length; i++) {
-					writer.write8(array[i] ?? 0);
-				}
+				writer.writeBytes(array);
 			},
 			...options,
 			name: (options?.name ?? 'vector<u8>') as 'vector<u8>',
