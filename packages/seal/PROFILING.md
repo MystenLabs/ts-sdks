@@ -10,6 +10,11 @@ npx 0x --output-dir=flamegraph-output test/profile.mjs [size_mb] [mode]
 npx 0x --output-dir=flamegraph-output test/profile.mjs 20 encrypt
 
 npx 0x --output-dir=flamegraph-output test/profile.mjs 20 decrypt
+
+npx 0x --output-dir=flamegraph-output test/profile.mjs 20 encrypt hmac
+
+npx 0x --output-dir=flamegraph-output test/profile.mjs 20 encrypt hmac
+
 ```
 
 ## View result

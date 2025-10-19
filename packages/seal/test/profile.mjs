@@ -4,7 +4,7 @@
 import { fromHex } from '@mysten/bcs';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
-import { SealClient, SessionKey } from '@mysten/seal';
+import { SealClient, SessionKey, DemType } from '@mysten/seal';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 const TESTNET_PACKAGE_ID = '0x58dce5d91278bceb65d44666ffa225ab397fc3ae9d8398c8c779c5530bd978c2';
@@ -23,6 +23,7 @@ async function main() {
 	// Parse arguments
 	const sizeMB = parseInt(process.argv[2]) || 10;
 	const mode = (process.argv[3]).toLowerCase();
+	const demTypeArg = process.argv[4]?.toLowerCase();
 
 	// Validate arguments
 	if (sizeMB <= 0 || sizeMB > 100) {
@@ -32,6 +33,15 @@ async function main() {
 
 	if (!['encrypt', 'decrypt'].includes(mode)) {
 		console.error('Error: Mode must be "encrypt" or "decrypt"');
+		process.exit(1);
+	}
+
+	// Parse DEM type (default to AesGcm256)
+	let demType = DemType.AesGcm256;
+	if (demTypeArg === 'hmac') {
+		demType = DemType.Hmac256Ctr;
+	} else if (demTypeArg && demTypeArg !== 'aes') {
+		console.error('Error: DEM type must be "aes" or "hmac"');
 		process.exit(1);
 	}
 
@@ -69,24 +79,26 @@ async function main() {
 	}
 
 	const data = new Uint8Array(sizeMB * 1024 * 1024);
-	console.log(`\n Profiling ${sizeMB}MB ${mode}...\n`);
+	console.log(`\nProfiling ${sizeMB}MB ${mode}...\n`);
 
 	// ENCRYPT
 	if (mode === 'encrypt') {
 		const startEncrypt = Date.now();
 		const result = await client.encrypt({
+			demType,
 			threshold: 2,
 			packageId: TESTNET_PACKAGE_ID,
 			id: suiAddress,
 			data,
 		});
 		const encryptDuration = Date.now() - startEncrypt;
-		console.log(` ${sizeMB}MB encrypted in ${(encryptDuration / 1000).toFixed(2)}s`);
+		console.log(`${sizeMB}MB encrypted in ${(encryptDuration / 1000).toFixed(2)}s`);
 	}
 	// DECRYPT ONLY
 	else if (mode === 'decrypt') {
 		// First encrypt to get data
 		const result = await client.encrypt({
+			demType,
 			threshold: 2,
 			packageId: TESTNET_PACKAGE_ID,
 			id: suiAddress,
@@ -101,12 +113,12 @@ async function main() {
 			txBytes,
 		});
 		const decryptDuration = Date.now() - startDecrypt;
-		console.log(` ${sizeMB}MB decrypted in ${(decryptDuration / 1000).toFixed(2)}s`);
+		console.log(`${sizeMB}MB decrypted in ${(decryptDuration / 1000).toFixed(2)}s`);
 	} else {
 		console.log('Enter mode encrypt or decrypt');
 	}
 
-	console.log('\n Profiling complete!');
+	console.log('\nProfiling complete!');
 }
 
 main().catch(error => {
