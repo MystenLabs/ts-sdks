@@ -100,7 +100,7 @@ export class MarginPoolContract {
 	 * @param {string} coinKey The key to identify the pool
 	 * @returns A function that takes a Transaction object
 	 */
-	mintReferral = (coinKey: string) => (tx: Transaction) => {
+	mintSupplyReferral = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::mint_supply_referral`,
