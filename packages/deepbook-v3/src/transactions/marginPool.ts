@@ -58,7 +58,7 @@ export class MarginPoolContract {
 				arguments: [
 					tx.object(marginPool.address),
 					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.object(supplierCap),
+					supplierCap,
 					supply,
 					tx.pure.option('address', referralId),
 					tx.object.clock(),
@@ -70,6 +70,7 @@ export class MarginPoolContract {
 	/**
 	 * @description Withdraw from a margin pool
 	 * @param {string} coinKey The key to identify the pool
+	 * @param {TransactionObjectArgument} supplierCap The supplier cap object
 	 * @param {number} amountToWithdraw The amount to withdraw
 	 * @returns A function that takes a Transaction object
 	 */
@@ -86,7 +87,7 @@ export class MarginPoolContract {
 				arguments: [
 					tx.object(marginPool.address),
 					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.object(supplierCap),
+					supplierCap,
 					tx.object.option({ type: 'u64', value: withdrawInput }),
 					tx.object.clock(),
 				],
