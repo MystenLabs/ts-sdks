@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { coinWithBalance } from '@mysten/sui/transactions';
-import type { Transaction } from '@mysten/sui/transactions';
+import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
 
@@ -19,19 +19,35 @@ export class MarginPoolContract {
 	}
 
 	/**
+	 * @description Mint a supplier cap for margin pool
+	 * @returns A function that takes a Transaction object
+	 */
+	mintSupplierCap = () => (tx: Transaction) => {
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::mint_supplier_cap`,
+		});
+	};
+
+	/**
 	 * @description Supply to a margin pool
 	 * @param {string} coinKey The key to identify the pool
+	 * @param {TransactionObjectArgument} supplierCap The supplier cap object
 	 * @param {number} amountToDeposit The amount to deposit
 	 * @param {string} referralId The ID of the referral
 	 * @returns A function that takes a Transaction object
 	 */
 	supplyToMarginPool =
-		(coinKey: string, amountToDeposit: number, referralId?: string) => (tx: Transaction) => {
+		(
+			coinKey: string,
+			supplierCap: TransactionObjectArgument,
+			amountToDeposit: number,
+			referralId?: string,
+		) =>
+		(tx: Transaction) => {
 			tx.setSenderIfNotSet(this.#config.address);
 			const marginPool = this.#config.getMarginPool(coinKey);
 			const coin = this.#config.getCoin(coinKey);
 			const depositInput = Math.round(amountToDeposit * coin.scalar);
-			const referralIdInput = referralId ? tx.object(referralId) : null;
 			const supply = coinWithBalance({
 				type: coin.type,
 				balance: depositInput,
@@ -42,8 +58,9 @@ export class MarginPoolContract {
 				arguments: [
 					tx.object(marginPool.address),
 					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					tx.object(supplierCap),
 					supply,
-					tx.object.option({ type: 'address', value: referralIdInput }),
+					tx.pure.option('address', referralId),
 					tx.object.clock(),
 				],
 				typeArguments: [marginPool.type],
@@ -56,23 +73,26 @@ export class MarginPoolContract {
 	 * @param {number} amountToWithdraw The amount to withdraw
 	 * @returns A function that takes a Transaction object
 	 */
-	withdrawFromMarginPool = (coinKey: string, amountToWithdraw?: number) => (tx: Transaction) => {
-		const marginPool = this.#config.getMarginPool(coinKey);
-		const coin = this.#config.getCoin(coinKey);
-		const withdrawInput = amountToWithdraw
-			? tx.pure.u64(Math.round(amountToWithdraw * coin.scalar))
-			: null;
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::withdraw`,
-			arguments: [
-				tx.object(marginPool.address),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object.option({ type: 'u64', value: withdrawInput }),
-				tx.object.clock(),
-			],
-			typeArguments: [marginPool.type],
-		});
-	};
+	withdrawFromMarginPool =
+		(coinKey: string, supplierCap: TransactionObjectArgument, amountToWithdraw?: number) =>
+		(tx: Transaction) => {
+			const marginPool = this.#config.getMarginPool(coinKey);
+			const coin = this.#config.getCoin(coinKey);
+			const withdrawInput = amountToWithdraw
+				? tx.pure.u64(Math.round(amountToWithdraw * coin.scalar))
+				: null;
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::withdraw`,
+				arguments: [
+					tx.object(marginPool.address),
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					tx.object(supplierCap),
+					tx.object.option({ type: 'u64', value: withdrawInput }),
+					tx.object.clock(),
+				],
+				typeArguments: [marginPool.type],
+			});
+		};
 
 	/**
 	 * @description Mint a referral for a margin pool
@@ -82,8 +102,8 @@ export class MarginPoolContract {
 	mintReferral = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
 		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::mint_referral`,
-			arguments: [tx.object(marginPool.address), tx.object.clock()],
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::mint_supply_referral`,
+			arguments: [tx.object(marginPool.address), tx.object(this.#config.MARGIN_REGISTRY_ID)],
 			typeArguments: [marginPool.type],
 		});
 	};
