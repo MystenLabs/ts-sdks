@@ -6,7 +6,6 @@ import { fromBase64, isSerializedBcs } from '@mysten/bcs';
 import type { InferInput } from 'valibot';
 import { is, parse } from 'valibot';
 
-import type { SuiClient } from '../client/index.js';
 import type { SignatureWithBytes, Signer } from '../cryptography/index.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 import type { TransactionArgument } from './Commands.js';
@@ -32,6 +31,7 @@ import { createPure } from './pure.js';
 import { TransactionDataBuilder } from './TransactionData.js';
 import { getIdFromCallArg } from './utils.js';
 import { namedPackagesPlugin } from './plugins/NamedPackagesPlugin.js';
+import type { ClientWithCoreApi } from '../experimental/core.js';
 
 export type TransactionObjectArgument =
 	| Exclude<InferInput<typeof ArgumentSchema>, { Input: unknown; type?: 'pure' }>
@@ -744,7 +744,7 @@ export class Transaction {
 	/** Derive transaction digest */
 	async getDigest(
 		options: {
-			client?: SuiClient;
+			client?: ClientWithCoreApi;
 		} = {},
 	): Promise<string> {
 		await this.prepareForSerialization(options);
