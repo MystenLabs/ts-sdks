@@ -152,7 +152,7 @@ export function parseSerializedKeypairSignature(serializedSignature: string) {
 		case 'Secp256r1':
 			const size =
 				SIGNATURE_SCHEME_TO_SIZE[signatureScheme as keyof typeof SIGNATURE_SCHEME_TO_SIZE];
-			const signature = bytes.slice(1, bytes.length - size);
+			const signature = bytes.slice(1, 1 + size);
 			const publicKey = bytes.slice(1 + signature.length);
 
 			return {
