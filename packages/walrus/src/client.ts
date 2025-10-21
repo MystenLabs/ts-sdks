@@ -77,7 +77,6 @@ import type {
 	StorageNode,
 	StorageWithSizeOptions,
 	WalrusClientConfig,
-	WalrusClientExtensionOptions,
 	WalrusPackageConfig,
 	WriteBlobAttributesOptions,
 	WriteBlobOptions,
@@ -202,36 +201,6 @@ export class WalrusClient {
 		this.#cache = this.#suiClient.cache.scope('@mysten/walrus');
 	}
 
-	/** @deprecated use `walrus()` instead */
-	static experimental_asClientExtension({
-		packageConfig,
-		...options
-	}: WalrusClientExtensionOptions = {}) {
-		return {
-			name: 'walrus' as const,
-			register: (client: ClientWithCoreApi) => {
-				const walrusNetwork = client.network;
-
-				if (walrusNetwork !== 'mainnet' && walrusNetwork !== 'testnet') {
-					throw new WalrusClientError('Walrus client only supports mainnet and testnet');
-				}
-
-				return new WalrusClient(
-					packageConfig
-						? {
-								packageConfig,
-								suiClient: client,
-								...options,
-							}
-						: {
-								network: walrusNetwork as 'mainnet' | 'testnet',
-								suiClient: client,
-								...options,
-							},
-				);
-			},
-		};
-	}
 	/** The Move type for a WAL coin */
 	#walType() {
 		return this.#cache.read(['walType'], async () => {
