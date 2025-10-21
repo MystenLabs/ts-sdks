@@ -268,10 +268,9 @@ export class MultiSigPublicKey extends PublicKey {
 
 			let publicKey;
 			if (parsed.signatureScheme === 'ZkLogin') {
-				publicKey = toZkLoginPublicIdentifier(
-					parsed.zkLogin?.addressSeed,
-					parsed.zkLogin?.iss,
-				).toRawBytes();
+				publicKey = toZkLoginPublicIdentifier(parsed.zkLogin?.addressSeed, parsed.zkLogin?.iss, {
+					legacyAddress: false,
+				}).toRawBytes();
 			} else {
 				publicKey = parsed.publicKey;
 			}

@@ -42,7 +42,7 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 		this.#legacyAddress = this.#data.length !== this.#data[0] + 1 + 32;
 
 		if (this.#legacyAddress) {
-			this.#data = normalizeZkLoginPublicKeyBytes(this.#data);
+			this.#data = normalizeZkLoginPublicKeyBytes(this.#data, false);
 		}
 	}
 
@@ -199,10 +199,10 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 export function toZkLoginPublicIdentifier(
 	addressSeed: bigint,
 	iss: string,
-	options?: { client?: ClientWithCoreApi; legacyAddress?: boolean },
+	options: { client?: ClientWithCoreApi; legacyAddress: boolean },
 ): ZkLoginPublicIdentifier {
 	// Consists of iss_bytes_len || iss_bytes || padded_32_byte_address_seed.
-	const addressSeedBytesBigEndian = options?.legacyAddress
+	const addressSeedBytesBigEndian = options.legacyAddress
 		? toBigEndianBytes(addressSeed, 32)
 		: toPaddedBigEndianBytes(addressSeed, 32);
 
@@ -214,7 +214,7 @@ export function toZkLoginPublicIdentifier(
 	return new ZkLoginPublicIdentifier(tmp, options);
 }
 
-function normalizeZkLoginPublicKeyBytes(bytes: Uint8Array, legacyAddress = false) {
+function normalizeZkLoginPublicKeyBytes(bytes: Uint8Array, legacyAddress: boolean) {
 	const issByteLength = bytes[0] + 1;
 	const addressSeed = BigInt(`0x${toHex(bytes.slice(issByteLength))}`);
 	const seedBytes = legacyAddress
@@ -265,7 +265,9 @@ export function parseSerializedZkLoginSignature(signature: Uint8Array | string) 
 	const { inputs, maxEpoch, userSignature } = parseZkLoginSignature(signatureBytes);
 	const { issBase64Details, addressSeed } = inputs;
 	const iss = extractClaimValue<string>(issBase64Details, 'iss');
-	const publicIdentifier = toZkLoginPublicIdentifier(BigInt(addressSeed), iss);
+	const publicIdentifier = toZkLoginPublicIdentifier(BigInt(addressSeed), iss, {
+		legacyAddress: false,
+	});
 	return {
 		serializedSignature: toBase64(bytes),
 		signatureScheme: 'ZkLogin' as const,
