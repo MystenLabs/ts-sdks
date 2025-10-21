@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.9.1
+
+### Patch Changes
+
+- a37829f: Fix encoding/decoding large uleb128 values
+
 ## 1.9.0
 
 ### Minor Changes

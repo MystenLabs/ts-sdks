@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 1.43.1
+
+### Patch Changes
+
+- Updated dependencies [a37829f]
+  - @mysten/bcs@1.9.1
+
 ## 1.43.0
 
 ### Minor Changes

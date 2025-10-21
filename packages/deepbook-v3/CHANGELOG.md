@@ -1,5 +1,15 @@
 # @mysten/deepbook-v3
 
+## 0.19.6
+
+### Patch Changes
+
+- 48759a8: Update margin package on testnet
+- a05eba1: New testnet margin package, small function changes
+- Updated dependencies [a37829f]
+  - @mysten/bcs@1.9.1
+  - @mysten/sui@1.43.1
+
 ## 0.19.5
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @mysten/signers
 
+## 0.5.7
+
+### Patch Changes
+
+- @mysten/sui@1.43.1
+
 ## 0.5.6
 
 ### Patch Changes
