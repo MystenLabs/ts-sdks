@@ -4,6 +4,33 @@ title: Migrate to version 2.0
 
 # Migrating to @mysten/sui@2.0
 
+## ZkLogin `legacyAddress` parameter is now required
+
+The `legacyAddress` parameter is now **required** for all zkLogin address computation functions. In
+v1.x, this parameter had default values that varied by function, which could lead to confusion. You
+must now explicitly specify whether you want to use legacy address encoding.
+
+Update all calls to zkLogin functions to include the `legacyAddress` parameter. **To preserve
+existing behavior**, use the following migrations:
+
+```diff
+// computeZkLoginAddressFromSeed (previous default: true)
+- computeZkLoginAddressFromSeed(seed, iss)
++ computeZkLoginAddressFromSeed(seed, iss, true)
+
+// jwtToAddress (previous default: false)
+- jwtToAddress(jwt, userSalt)
++ jwtToAddress(jwt, userSalt, false)
+
+// computeZkLoginAddress (previous default: false)
+- computeZkLoginAddress({ claimName, claimValue, iss, aud, userSalt })
++ computeZkLoginAddress({ claimName, claimValue, iss, aud, userSalt, legacyAddress: false })
+
+// toZkLoginPublicIdentifier (no previous default, was optional)
+- toZkLoginPublicIdentifier(addressSeed, iss)
++ toZkLoginPublicIdentifier(addressSeed, iss, { legacyAddress: false })
+```
+
 ## ZkLogin Signature verification
 
 In previous versions of the SDK, methods that verified ZkLogin signatures created a GraphQL client
@@ -22,7 +49,7 @@ verifyTransactionSignature(txBytes, signature, { client });
 parseSignature(signatureBytes, { client });
 
 // For ZkLoginPublicIdentifier, the client is passed in when it it created
-zkLoginPublicIdentifier = toZkLoginPublicIdentifier(seed, iss, { client, legacy: true });
+zkLoginPublicIdentifier = toZkLoginPublicIdentifier(seed, iss, { client, legacyAddress: false });
 zkLoginPublicIdentifier.verifyPersonalMessage(message, signature);
 zkLoginPublicIdentifier.verifyTransaction(transaction, signature);
 ```
