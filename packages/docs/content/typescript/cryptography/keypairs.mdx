@@ -122,7 +122,7 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { verifyTransactionSignature } from '@mysten/sui/verify';
 
 // see Network Interactions with SuiClient for more info on creating clients
-const client = new SuiClient({ url: getFullnodeUrl('testnet') });
+const client = new SuiClient({ url: getFullnodeUrl('testnet'), network: 'testnet' });
 const tx = new Transaction();
 // ... add some transactions...
 const bytes = await tx.build({ client });

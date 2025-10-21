@@ -14,7 +14,7 @@ describe('useSuiClient', () => {
 	});
 
 	test('returns a SuiClient', () => {
-		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet') });
+		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet'), network: 'localnet' });
 		const wrapper = createSuiClientContextWrapper(suiClient);
 		const { result } = renderHook(() => useSuiClient(), { wrapper });
 
