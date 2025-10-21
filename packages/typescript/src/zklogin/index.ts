@@ -11,11 +11,7 @@ export {
 } from './utils.js';
 export { computeZkLoginAddressFromSeed, computeZkLoginAddress, jwtToAddress } from './address.js';
 export type { ComputeZkLoginAddressOptions } from './address.js';
-export {
-	toZkLoginPublicIdentifier,
-	ZkLoginPublicIdentifier,
-	type ZkLoginCompatibleClient,
-} from './publickey.js';
+export { toZkLoginPublicIdentifier, ZkLoginPublicIdentifier } from './publickey.js';
 export type { ZkLoginSignatureInputs } from './bcs.js';
 export { poseidonHash } from './poseidon.js';
 export { generateNonce, generateRandomness } from './nonce.js';
