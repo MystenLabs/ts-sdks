@@ -17,9 +17,9 @@ import { parseSerializedSignature } from '../cryptography/signature.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 // eslint-disable-next-line import/no-cycle
 import { publicKeyFromRawBytes } from '../verify/index.js';
-import type { ZkLoginCompatibleClient } from '../zklogin/publickey.js';
 import { toZkLoginPublicIdentifier } from '../zklogin/publickey.js';
 import { MultiSigSigner } from './signer.js';
+import type { ClientWithCoreApi } from '../experimental/core.js';
 
 type CompressedSignature =
 	| { ED25519: Uint8Array }
@@ -78,7 +78,7 @@ export class MultiSigPublicKey extends PublicKey {
 		 *  MultiSig public key as buffer or base-64 encoded string
 		 */
 		value: string | Uint8Array | MultiSigPublicKeyStruct,
-		options: { client?: ZkLoginCompatibleClient } = {},
+		options: { client?: ClientWithCoreApi } = {},
 	) {
 		super();
 
@@ -317,7 +317,7 @@ export class MultiSigPublicKey extends PublicKey {
  */
 export function parsePartialSignatures(
 	multisig: MultiSigStruct,
-	options: { client?: ZkLoginCompatibleClient } = {},
+	options: { client?: ClientWithCoreApi } = {},
 ): ParsedPartialMultiSigSignature[] {
 	const res: ParsedPartialMultiSigSignature[] = new Array(multisig.sigs.length);
 	for (let i = 0; i < multisig.sigs.length; i++) {
