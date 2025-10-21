@@ -87,6 +87,7 @@ export class TestToolbox {
 	constructor(keypair: Ed25519Keypair, url: string = DEFAULT_FULLNODE_URL, configPath: string) {
 		this.keypair = keypair;
 		this.client = new SuiClient({
+			network: 'localnet',
 			transport: new SuiHTTPTransport({
 				url,
 				WebSocketConstructor: WebSocket as never,
@@ -128,6 +129,7 @@ export class TestToolbox {
 
 export function getClient(url = DEFAULT_FULLNODE_URL): SuiClient {
 	return new SuiClient({
+		network: 'localnet',
 		transport: new SuiHTTPTransport({
 			url,
 			WebSocketConstructor: WebSocket as never,

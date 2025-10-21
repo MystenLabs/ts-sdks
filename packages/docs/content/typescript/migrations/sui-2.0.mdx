@@ -53,3 +53,19 @@ zkLoginPublicIdentifier = toZkLoginPublicIdentifier(seed, iss, { client, legacyA
 zkLoginPublicIdentifier.verifyPersonalMessage(message, signature);
 zkLoginPublicIdentifier.verifyTransaction(transaction, signature);
 ```
+
+## Network is now required for GraphQL and JSON RPC clients
+
+When creating a new `SuiGraphQLClient` or `SuiJsonRpcClient`, you must now provide a `network`
+parameter.
+
+```ts
+const client = new SuiGraphQLClient({
+	url: 'https://...',
+	network: 'mainnet', // or 'testnet', 'devnet', etc.
+});
+const client = new SuiJsonRpcClient({
+	url: 'https://...',
+	network: 'mainnet', // or 'testnet', 'devnet', etc.
+});
+```

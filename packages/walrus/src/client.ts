@@ -3,7 +3,6 @@
 
 import type { InferBcsType } from '@mysten/bcs';
 import { bcs } from '@mysten/bcs';
-import { SuiClient } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
 import type { ClientCache, ClientWithCoreApi } from '@mysten/sui/experimental';
 import type { TransactionObjectArgument, TransactionResult } from '@mysten/sui/transactions';
@@ -128,14 +127,13 @@ import { retry } from './utils/retry.js';
 
 export function walrus<const Name = 'walrus'>({
 	packageConfig,
-	network,
 	name = 'walrus' as Name,
 	...options
 }: WalrusOptions<Name> = {}) {
 	return {
 		name,
 		register: (client: ClientWithCoreApi) => {
-			const walrusNetwork = network || client.network;
+			const walrusNetwork = client.network;
 
 			if (walrusNetwork !== 'mainnet' && walrusNetwork !== 'testnet') {
 				throw new WalrusClientError('Walrus client only supports mainnet and testnet');
@@ -197,11 +195,7 @@ export class WalrusClient {
 			this.#uploadRelayClient = new UploadRelayClient(this.#uploadRelayConfig);
 		}
 
-		this.#suiClient =
-			config.suiClient ??
-			new SuiClient({
-				url: config.suiRpcUrl,
-			});
+		this.#suiClient = config.suiClient;
 
 		this.#storageNodeClient = new StorageNodeClient(config.storageNodeClientOptions);
 		this.#objectLoader = new SuiObjectDataLoader(this.#suiClient);
@@ -211,13 +205,12 @@ export class WalrusClient {
 	/** @deprecated use `walrus()` instead */
 	static experimental_asClientExtension({
 		packageConfig,
-		network,
 		...options
 	}: WalrusClientExtensionOptions = {}) {
 		return {
 			name: 'walrus' as const,
 			register: (client: ClientWithCoreApi) => {
-				const walrusNetwork = network || client.network;
+				const walrusNetwork = client.network;
 
 				if (walrusNetwork !== 'mainnet' && walrusNetwork !== 'testnet') {
 					throw new WalrusClientError('Walrus client only supports mainnet and testnet');
