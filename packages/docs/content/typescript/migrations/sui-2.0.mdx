@@ -69,3 +69,46 @@ const client = new SuiJsonRpcClient({
 	network: 'mainnet', // or 'testnet', 'devnet', etc.
 });
 ```
+
+## Removal of reportTransactionEffects API
+
+The `sui:reportTransactionEffects` wallet standard feature and associated hooks have been removed
+from both `@mysten/wallet-standard` and `@mysten/dapp-kit`.
+
+The following APIs have been removed:
+
+- `sui:reportTransactionEffects` feature from wallet standard
+- `useReportTransactionEffects` hook from dapp-kit
+- `reportTransactionEffects` callback from `useSignTransaction` hook's return value
+- Automatic transaction effects reporting in `useSignAndExecuteTransaction`
+
+**For dApp developers:**
+
+If you were using `useReportTransactionEffects`:
+
+```diff
+- const { mutateAsync: reportTransactionEffects } = useReportTransactionEffects();
+  const { effects } = await executePreSignedTransaction();
+- reportTransactionEffects({ effects });
+```
+
+If you were using the `reportTransactionEffects` callback from `useSignTransaction`:
+
+```diff
+const {
+	bytes,
+	signature,
+-	reportTransactionEffects
+} = await signTransaction({
+	transaction: new Transaction(),
+});
+const executeResult = await client.executeTransactionBlock({
+	transactionBlock: bytes,
+	signature,
+});
+- reportTransactionEffects(executeResult.rawEffects!);
+```
+
+**For wallet developers:**
+
+Remove the `sui:reportTransactionEffects` feature implementation from your wallet.

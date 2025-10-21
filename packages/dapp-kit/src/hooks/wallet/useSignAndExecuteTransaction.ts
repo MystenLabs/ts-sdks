@@ -21,7 +21,6 @@ import type { PartialBy } from '../../types/utilityTypes.js';
 import { useSuiClientContext } from '../useSuiClient.js';
 import { useCurrentAccount } from './useCurrentAccount.js';
 import { useCurrentWallet } from './useCurrentWallet.js';
-import { useReportTransactionEffects } from './useReportTransactionEffects.js';
 
 type UseSignAndExecuteTransactionArgs = PartialBy<
 	Omit<SuiSignAndExecuteTransactionInput, 'transaction'>,
@@ -78,7 +77,6 @@ export function useSignAndExecuteTransaction<
 	const { currentWallet, supportedIntents } = useCurrentWallet();
 	const currentAccount = useCurrentAccount();
 	const { client, network } = useSuiClientContext();
-	const { mutate: reportTransactionEffects } = useReportTransactionEffects();
 
 	const executeTransaction: ({
 		bytes,
@@ -151,18 +149,6 @@ export function useSignAndExecuteTransaction<
 			});
 
 			const result = await executeTransaction({ bytes, signature });
-
-			let effects: string;
-
-			if ('effects' in result && result.effects?.bcs) {
-				effects = result.effects.bcs;
-			} else if ('rawEffects' in result) {
-				effects = toBase64(new Uint8Array(result.rawEffects!));
-			} else {
-				throw new Error('Could not parse effects from transaction result.');
-			}
-
-			reportTransactionEffects({ effects, account: signerAccount, chain });
 
 			return result as Result;
 		},
