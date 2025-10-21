@@ -82,6 +82,7 @@ describe('zkLogin signature', () => {
 			const parsed = parseSerializedZkLoginSignature(testSignature);
 			const client = new SuiGraphQLClient({
 				url: DEFAULT_GRAPHQL_URL,
+				network: 'localnet',
 			});
 			const pk = new ZkLoginPublicIdentifier(parsed.publicKey, {
 				client,
@@ -117,6 +118,7 @@ describe('zkLogin signature', () => {
 			const pk = new ZkLoginPublicIdentifier(parsed.publicKey, {
 				client: new SuiGraphQLClient({
 					url: DEFAULT_GRAPHQL_URL,
+					network: 'localnet',
 				}),
 			});
 

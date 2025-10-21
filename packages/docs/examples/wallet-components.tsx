@@ -49,7 +49,7 @@ export const UncontrolledConnectModalExample = withProviders(() => {
 
 function withProviders(Component: React.FunctionComponent<object>) {
 	const networks = {
-		mainnet: { url: getFullnodeUrl('mainnet') },
+		mainnet: { url: getFullnodeUrl('mainnet'), network: 'mainnet' as const },
 	};
 
 	return function WrappedComponent() {

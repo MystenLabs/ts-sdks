@@ -65,7 +65,7 @@ describe('useSignAndExecuteTransaction', () => {
 			features: suiFeatures,
 		});
 
-		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet') });
+		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet'), network: 'localnet' });
 		const mockSignTransactionFeature = mockWallet.features['sui:signTransaction'];
 		const signTransaction = mockSignTransactionFeature!.signTransaction as Mock;
 
@@ -146,7 +146,7 @@ describe('useSignAndExecuteTransaction', () => {
 		const reportEffects = reportEffectsFeature!.reportTransactionEffects as Mock;
 		reportEffects.mockImplementation(async () => {});
 
-		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet') });
+		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet'), network: 'localnet' });
 		const executeTransaction = vi.spyOn(suiClient, 'executeTransactionBlock');
 		executeTransaction.mockResolvedValueOnce({
 			digest: '123',
@@ -191,7 +191,7 @@ describe('useSignAndExecuteTransaction', () => {
 			features: suiFeatures,
 		});
 
-		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet') });
+		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet'), network: 'localnet' });
 		const mockSignMessageFeature = mockWallet.features['sui:signTransaction'];
 		const signTransaction = mockSignMessageFeature!.signTransaction as Mock;
 
