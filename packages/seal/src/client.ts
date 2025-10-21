@@ -31,7 +31,6 @@ import type {
 	GetDerivedKeysOptions,
 	KeyCacheKey,
 	KeyServerConfig,
-	SealClientExtensionOptions,
 	SealClientOptions,
 	SealCompatibleClient,
 	SealOptions,
@@ -85,19 +84,6 @@ export class SealClient {
 
 		this.#verifyKeyServers = options.verifyKeyServers ?? true;
 		this.#timeout = options.timeout ?? 10_000;
-	}
-
-	/** @deprecated Use `seal()` instead */
-	static asClientExtension(options: SealClientExtensionOptions) {
-		return {
-			name: 'seal' as const,
-			register: (client: SealCompatibleClient) => {
-				return new SealClient({
-					suiClient: client,
-					...options,
-				});
-			},
-		};
 	}
 
 	/**
