@@ -10,16 +10,6 @@ export type SealCompatibleClient = ClientWithExtensions<{
 	core: Experimental_CoreClient;
 }>;
 
-/** Configuration options for initializing a SealClient*/
-export interface SealClientExtensionOptions {
-	/** Array of key server configs consisting of objectId, weight, optional API key name and API key */
-	serverConfigs: KeyServerConfig[];
-	/** Whether to verify the key servers' authenticity. */
-	verifyKeyServers?: boolean;
-	/** Timeout in milliseconds for network requests. */
-	timeout?: number;
-}
-
 export interface SealOptions<Name = 'seal'> {
 	/** Array of key server configs consisting of objectId, weight, optional API key name and API key */
 	serverConfigs: KeyServerConfig[];
@@ -41,8 +31,15 @@ export interface KeyServerConfig {
 	aggregatorUrl?: string;
 }
 
-export interface SealClientOptions extends SealClientExtensionOptions {
+/** Configuration options for initializing a SealClient*/
+export interface SealClientOptions {
 	suiClient: SealCompatibleClient;
+	/** Array of key server configs consisting of objectId, weight, optional API key name and API key */
+	serverConfigs: KeyServerConfig[];
+	/** Whether to verify the key servers' authenticity. */
+	verifyKeyServers?: boolean;
+	/** Timeout in milliseconds for network requests. */
+	timeout?: number;
 }
 
 export interface EncryptOptions {
