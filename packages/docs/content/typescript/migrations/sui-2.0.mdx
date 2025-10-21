@@ -1,0 +1,28 @@
+---
+title: Migrate to version 2.0
+---
+
+# Migrating to @mysten/sui@2.0
+
+## ZkLogin Signature verification
+
+In previous versions of the SDK, methods that verified ZkLogin signatures created a GraphQL client
+that used the GraphQL alpha to verify mainnet ZkLogin signatures. This default is being removed, as
+it was dependent on the GraphQL alpha endpoint, which is no longer available, and did not work for
+non-mainnet signatures.
+
+You will now need to pass a client (GraphQL, GRPC, or JSON RPC) to any methods that verify ZkLogin
+signatures.
+
+```ts
+const client: SuiGraphQLClient | SuiGrpcClient | SuiJsonRpcClient;
+
+verifyPersonalMessageSignature(message, signature, { client });
+verifyTransactionSignature(txBytes, signature, { client });
+parseSignature(signatureBytes, { client });
+
+// For ZkLoginPublicIdentifier, the client is passed in when it it created
+zkLoginPublicIdentifier = toZkLoginPublicIdentifier(seed, iss, { client, legacy: true });
+zkLoginPublicIdentifier.verifyPersonalMessage(message, signature);
+zkLoginPublicIdentifier.verifyTransaction(transaction, signature);
+```

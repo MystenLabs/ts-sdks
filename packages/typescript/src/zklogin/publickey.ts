@@ -8,34 +8,26 @@ import { bytesToHex } from '@noble/hashes/utils';
 import { PublicKey } from '../cryptography/publickey.js';
 import type { PublicKeyInitData } from '../cryptography/publickey.js';
 import { SIGNATURE_SCHEME_TO_FLAG } from '../cryptography/signature-scheme.js';
-import { SuiGraphQLClient } from '../graphql/client.js';
 import { normalizeSuiAddress, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
 import type { ZkLoginSignatureInputs } from './bcs.js';
 import { extractClaimValue } from './jwt-utils.js';
 import { parseZkLoginSignature } from './signature.js';
 import { normalizeZkLoginIssuer, toBigEndianBytes, toPaddedBigEndianBytes } from './utils.js';
-import type { ClientWithExtensions, Experimental_SuiClientTypes } from '../experimental/types.js';
-
-export interface ZkLoginCompatibleClient
-	extends ClientWithExtensions<{
-		core: {
-			verifyZkLoginSignature: Experimental_SuiClientTypes.TransportMethods['verifyZkLoginSignature'];
-		};
-	}> {}
+import type { ClientWithCoreApi } from '../experimental/core.js';
 
 /**
  * A zkLogin public identifier
  */
 export class ZkLoginPublicIdentifier extends PublicKey {
 	#data: Uint8Array<ArrayBuffer>;
-	#client?: ZkLoginCompatibleClient;
+	#client?: ClientWithCoreApi;
 	#legacyAddress: boolean;
 
 	/**
 	 * Create a new ZkLoginPublicIdentifier object
 	 * @param value zkLogin public identifier as buffer or base-64 encoded string
 	 */
-	constructor(value: PublicKeyInitData, { client }: { client?: ZkLoginCompatibleClient } = {}) {
+	constructor(value: PublicKeyInitData, { client }: { client?: ClientWithCoreApi } = {}) {
 		super();
 
 		this.#client = client;
@@ -60,7 +52,7 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 			client,
 			address,
 			legacyAddress,
-		}: { client?: ZkLoginCompatibleClient; address?: string; legacyAddress?: boolean } = {},
+		}: { client?: ClientWithCoreApi; address?: string; legacyAddress?: boolean } = {},
 	) {
 		let publicKey: ZkLoginPublicIdentifier;
 
@@ -207,7 +199,7 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 export function toZkLoginPublicIdentifier(
 	addressSeed: bigint,
 	iss: string,
-	options?: { client?: ZkLoginCompatibleClient; legacyAddress?: boolean },
+	options?: { client?: ClientWithCoreApi; legacyAddress?: boolean },
 ): ZkLoginPublicIdentifier {
 	// Consists of iss_bytes_len || iss_bytes || padded_32_byte_address_seed.
 	const addressSeedBytesBigEndian = options?.legacyAddress
@@ -239,16 +231,19 @@ async function graphqlVerifyZkLoginSignature({
 	bytes,
 	signature,
 	intentScope,
-	client = new SuiGraphQLClient({
-		url: 'https://sui-mainnet.mystenlabs.com/graphql',
-	}),
+	client,
 }: {
 	address: string;
 	bytes: string;
 	signature: string;
 	intentScope: 'PersonalMessage' | 'TransactionData';
-	client?: ZkLoginCompatibleClient;
+	client?: ClientWithCoreApi;
 }) {
+	if (!client) {
+		throw new Error(
+			'A Sui Client (GRPC, GraphQL, or JSON RPC) is required to verify zkLogin signatures',
+		);
+	}
 	const resp = await client.core.verifyZkLoginSignature({
 		bytes,
 		signature,
@@ -270,7 +265,7 @@ export function parseSerializedZkLoginSignature(signature: Uint8Array | string) 
 	const { inputs, maxEpoch, userSignature } = parseZkLoginSignature(signatureBytes);
 	const { issBase64Details, addressSeed } = inputs;
 	const iss = extractClaimValue<string>(issBase64Details, 'iss');
-	const publicIdentifer = toZkLoginPublicIdentifier(BigInt(addressSeed), iss);
+	const publicIdentifier = toZkLoginPublicIdentifier(BigInt(addressSeed), iss);
 	return {
 		serializedSignature: toBase64(bytes),
 		signatureScheme: 'ZkLogin' as const,
@@ -282,6 +277,6 @@ export function parseSerializedZkLoginSignature(signature: Uint8Array | string) 
 			addressSeed: BigInt(addressSeed),
 		},
 		signature: bytes,
-		publicKey: publicIdentifer.toRawBytes(),
+		publicKey: publicIdentifier.toRawBytes(),
 	};
 }
