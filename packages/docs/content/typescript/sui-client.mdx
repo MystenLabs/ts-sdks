@@ -18,7 +18,7 @@ import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 const rpcUrl = getFullnodeUrl('devnet');
 
 // create a client connected to devnet
-const client = new SuiClient({ url: rpcUrl });
+const client = new SuiClient({ url: rpcUrl, network: 'devnet' });
 
 // get coins owned by an address
 // replace <OWNER_ADDRESS> with actual address in the form of 0x123...
@@ -50,7 +50,7 @@ RPC.
 ```typescript
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
-const client = new SuiClient({ url: getFullnodeUrl('devnet') });
+const client = new SuiClient({ url: getFullnodeUrl('devnet'), network: 'devnet' });
 
 // asynchronously call suix_getCommitteeInfo
 const committeeInfo = await client.call('suix_getCommitteeInfo', []);
