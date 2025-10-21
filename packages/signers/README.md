@@ -179,7 +179,7 @@ import { Transaction } from '@mysten/sui/transactions';
 
 const transport = await Transport.open(undefined);
 const ledgerClient = new SuiLedgerClient(transport);
-const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
+const suiClient = new SuiClient({ url: getFullnodeUrl('testnet'), network: 'testnet' });
 
 const signer = await LedgerSigner.fromDerivationPath(
 	"m/44'/784'/0'/0'/0'",

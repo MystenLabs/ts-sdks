@@ -51,7 +51,7 @@ export interface SuiGraphQLClientOptions<Queries extends Record<string, GraphQLD
 	fetch?: typeof fetch;
 	headers?: Record<string, string>;
 	queries?: Queries;
-	network?: Experimental_SuiClientTypes.Network;
+	network: Experimental_SuiClientTypes.Network;
 	mvr?: Experimental_SuiClientTypes.MvrOptions;
 }
 
@@ -72,7 +72,7 @@ export class SuiGraphQLClient<
 		fetch: fetchFn = fetch,
 		headers = {},
 		queries = {} as Queries,
-		network = 'unknown',
+		network,
 		mvr,
 	}: SuiGraphQLClientOptions<Queries>) {
 		super({

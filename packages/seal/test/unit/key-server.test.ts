@@ -154,7 +154,7 @@ describe('key-server tests', () => {
 			// Mock fetch with exact response from the real service
 			const keyServers = await retrieveKeyServers({
 				objectIds: [id],
-				client: new SuiClient({ url: getFullnodeUrl('testnet') }),
+				client: new SuiClient({ url: getFullnodeUrl('testnet'), network: 'testnet' }),
 				configs: new Map(),
 			});
 			vi.clearAllMocks();

@@ -83,7 +83,7 @@ read-only operations. The default URLs to connect with the RPC server are:
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 // create a client connected to devnet
-const client = new SuiClient({ url: getFullnodeUrl('devnet') });
+const client = new SuiClient({ url: getFullnodeUrl('devnet'), network: 'devnet' });
 
 // get coins owned by an address
 await client.getCoins({
@@ -99,7 +99,7 @@ local network with a local validator, a fullnode, and a faucet server. Refer to
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 // create a client connected to devnet
-const client = new SuiClient({ url: getFullnodeUrl('localnet') });
+const client = new SuiClient({ url: getFullnodeUrl('localnet'), network: 'localnet' });
 
 // get coins owned by an address
 await client.getCoins({
