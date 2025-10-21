@@ -25,6 +25,7 @@ export class MarginPoolContract {
 	mintSupplierCap = () => (tx: Transaction) => {
 		return tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::mint_supplier_cap`,
+			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.object.clock()],
 		});
 	};
 
@@ -104,7 +105,11 @@ export class MarginPoolContract {
 		const marginPool = this.#config.getMarginPool(coinKey);
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::mint_supply_referral`,
-			arguments: [tx.object(marginPool.address), tx.object(this.#config.MARGIN_REGISTRY_ID)],
+			arguments: [
+				tx.object(marginPool.address),
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object.clock(),
+			],
 			typeArguments: [marginPool.type],
 		});
 	};

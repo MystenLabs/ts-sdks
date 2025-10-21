@@ -288,22 +288,25 @@ export class MarginAdminContract {
 	 * @description Create a new Pyth config
 	 * @param {string[]} coins The coins to be added to the Pyth config
 	 * @param {number} maxAgeSeconds The max age in seconds for the Pyth config
+	 * @param {number} maxIntervalBps The max interval in basis points for the Pyth config
 	 * @returns A function that takes a Transaction object
 	 */
-	newPythConfig = (coins: string[], maxAgeSeconds: number) => (tx: Transaction) => {
-		const coinTypeDataList = [];
-		for (const coin of coins) {
-			coinTypeDataList.push(this.newCoinTypeData(coin)(tx));
-		}
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::oracle::new_pyth_config`,
-			arguments: [
-				tx.makeMoveVec({
-					elements: coinTypeDataList,
-					type: `${this.#config.MARGIN_PACKAGE_ID}::oracle::CoinTypeData`,
-				}),
-				tx.pure.u64(maxAgeSeconds),
-			],
-		});
-	};
+	newPythConfig =
+		(coins: string[], maxAgeSeconds: number, maxIntervalBps: number) => (tx: Transaction) => {
+			const coinTypeDataList = [];
+			for (const coin of coins) {
+				coinTypeDataList.push(this.newCoinTypeData(coin)(tx));
+			}
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::oracle::new_pyth_config`,
+				arguments: [
+					tx.makeMoveVec({
+						elements: coinTypeDataList,
+						type: `${this.#config.MARGIN_PACKAGE_ID}::oracle::CoinTypeData`,
+					}),
+					tx.pure.u64(maxAgeSeconds),
+					tx.pure.u64(maxIntervalBps),
+				],
+			});
+		};
 }
