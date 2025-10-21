@@ -173,7 +173,7 @@ describe('Verify Signatures', () => {
 		});
 
 		describe('zkLogin signatures', () => {
-			const client = new SuiGraphQLClient({ url: DEFAULT_GRAPHQL_URL });
+			const client = new SuiGraphQLClient({ url: DEFAULT_GRAPHQL_URL, network: 'localnet' });
 			// this test assumes the localnet epoch is smaller than 3. it will fail if localnet has ran for too long and passed epoch 3.
 			// test case generated from `sui keytool zk-login-insecure-sign-personal-message --data "hello" --max-epoch 3`
 			const bytes = fromBase64('aGVsbG8='); // the base64 encoding of "hello"
