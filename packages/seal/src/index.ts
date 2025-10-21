@@ -8,7 +8,6 @@ export * from './error.js';
 export type {
 	SealCompatibleClient,
 	SealClientOptions,
-	SealClientExtensionOptions,
 	KeyServerConfig,
 	EncryptOptions,
 	DecryptOptions,
