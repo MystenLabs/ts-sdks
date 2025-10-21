@@ -61,7 +61,7 @@ export class ZkSendLinkBuilder {
 		path = DEFAULT_ZK_SEND_LINK_OPTIONS.path,
 		keypair = new Ed25519Keypair(),
 		network = DEFAULT_ZK_SEND_LINK_OPTIONS.network,
-		client = new SuiClient({ url: getFullnodeUrl(network) }),
+		client = new SuiClient({ url: getFullnodeUrl(network), network }),
 		sender,
 		contract = getContractIds(network),
 	}: ZkSendLinkBuilderOptions) {
@@ -302,7 +302,7 @@ export class ZkSendLinkBuilder {
 	static async createLinks({
 		links,
 		network = 'mainnet',
-		client = new SuiClient({ url: getFullnodeUrl(network) }),
+		client = new SuiClient({ url: getFullnodeUrl(network), network }),
 		transaction = new Transaction(),
 		contract: contractIds = getContractIds(network),
 	}: {

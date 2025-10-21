@@ -23,6 +23,7 @@ export const DEMO_BEAR_CONFIG = {
 
 const client = new SuiClient({
 	url: getFullnodeUrl('testnet'),
+	network: 'testnet',
 });
 
 // address:  0x8ab2b2a5cfa538db19062b79622abe28f3171c8b8048c5957b01846d57574630
