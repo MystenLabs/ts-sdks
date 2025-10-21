@@ -15,7 +15,7 @@ export async function getSentTransactionsWithLinks({
 	limit = 10,
 	network = 'mainnet',
 	contract = getContractIds(network),
-	client = new SuiClient({ url: getFullnodeUrl(network) }),
+	client = new SuiClient({ url: getFullnodeUrl(network), network }),
 	loadAssets = true,
 	loadClaimedAssets = false,
 	options,

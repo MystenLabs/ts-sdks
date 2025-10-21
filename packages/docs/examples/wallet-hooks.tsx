@@ -309,7 +309,7 @@ function withProviders(
 	// Work around server-side pre-rendering
 	const queryClient = new QueryClient();
 	const networks = {
-		mainnet: { url: getFullnodeUrl('mainnet') },
+		mainnet: { url: getFullnodeUrl('mainnet'), network: 'mainnet' as const },
 	};
 
 	return () => {

@@ -8,7 +8,7 @@ import { expect } from 'vitest';
 import { ALLOWED_METADATA, SuinsClient, SuinsTransaction } from '../src/index.js';
 
 export const e2eLiveNetworkDryRunFlow = async (network: 'mainnet' | 'testnet') => {
-	const client = new SuiClient({ url: getFullnodeUrl(network) });
+	const client = new SuiClient({ url: getFullnodeUrl(network), network });
 
 	const sender = normalizeSuiAddress('0x2');
 	const suinsClient = new SuinsClient({
