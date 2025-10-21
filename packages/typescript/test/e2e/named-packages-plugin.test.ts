@@ -98,7 +98,9 @@ describe.concurrent('Name Resolution Plugin', () => {
 		});
 
 		const json = JSON.parse(
-			await transaction.toJSON({ client: new SuiClient({ url: getFullnodeUrl('testnet') }) }),
+			await transaction.toJSON({
+				client: new SuiClient({ url: getFullnodeUrl('testnet'), network: 'testnet' }),
+			}),
 		);
 
 		expect(json.commands[0].MoveCall.package).toBe(normalizeSuiAddress('0x1'));
@@ -348,6 +350,7 @@ const dryRun = async (
 ) => {
 	const client = new SuiClient({
 		url: getFullnodeUrl(network),
+		network,
 		mvr: withOverrides
 			? {
 					overrides: localMvrOverrides,

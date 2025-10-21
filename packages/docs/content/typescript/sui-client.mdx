@@ -29,6 +29,7 @@ import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 // create a client connected to devnet
 const client = new SuiJsonRpcClient({
 	url: 'https://fullnode.devnet.sui.io:443',
+	network: 'devnet',
 });
 
 // get coins owned by an address
@@ -72,7 +73,6 @@ import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 const client = new SuiJsonRpcClient({
 	url: 'https://fullnode.devnet.sui.io:443',
 });
-
 // asynchronously call suix_getCommitteeInfo
 const committeeInfo = await client.call('suix_getCommitteeInfo', []);
 ```
