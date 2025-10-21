@@ -21,7 +21,7 @@ const MOCK_QUERY_TRANSACTION_BLOCK_RESULT_DATA = {
 };
 
 describe('useSuiClientQueries', () => {
-	const suiClient = new SuiClient({ url: getFullnodeUrl('mainnet') });
+	const suiClient = new SuiClient({ url: getFullnodeUrl('mainnet'), network: 'mainnet' });
 	const wrapper = createWalletProviderContextWrapper({}, suiClient);
 	test('should fetch data', async () => {
 		const getAllBalances = vi.spyOn(suiClient, 'getAllBalances');

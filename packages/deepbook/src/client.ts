@@ -44,7 +44,10 @@ export class DeepBookClient {
 	 * @param currentAddress (optional) address of the current user (default: DUMMY_ADDRESS)
 	 */
 	constructor(
-		public suiClient: SuiClient = new SuiClient({ url: getFullnodeUrl('testnet') }),
+		public suiClient: SuiClient = new SuiClient({
+			url: getFullnodeUrl('testnet'),
+			network: 'testnet',
+		}),
 		public accountCap: string | undefined = undefined,
 		public currentAddress: string = DUMMY_ADDRESS,
 		private clientOrderId: number = 0,
