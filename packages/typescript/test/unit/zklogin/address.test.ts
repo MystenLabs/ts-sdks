@@ -18,6 +18,7 @@ describe('zkLogin address', () => {
 			computeZkLoginAddressFromSeed(
 				BigInt('13322897930163218532266430409510394316985274769125667290600321564259466511711'),
 				'https://accounts.google.com',
+				true,
 			),
 		).toBe('0xf7badc2b245c7f74d7509a4aa357ecf80a29e7713fb4c44b0e7541ec43885ee1');
 	});
@@ -27,6 +28,7 @@ describe('zkLogin address', () => {
 			computeZkLoginAddressFromSeed(
 				BigInt('380704556853533152350240698167704405529973457670972223618755249929828551006'),
 				'https://accounts.google.com',
+				true,
 			),
 		).toBe('0xbd8b8ed42d90aebc71518385d8a899af14cef8b5a171c380434dd6f5bbfe7bf3');
 	});
@@ -36,7 +38,7 @@ describe('zkLogin address', () => {
 			'380704556853533152350240698167704405529973457670972223618755249929828551006',
 		);
 		const iss = 'https://accounts.google.com';
-		expect(computeZkLoginAddressFromSeed(seed, iss)).toEqual(
+		expect(computeZkLoginAddressFromSeed(seed, iss, true)).toEqual(
 			toZkLoginPublicIdentifier(seed, iss, { legacyAddress: true }).toSuiAddress(),
 		);
 	});
@@ -47,7 +49,7 @@ describe('zkLogin address', () => {
 		);
 		const iss = 'https://accounts.google.com';
 		expect(computeZkLoginAddressFromSeed(seed, iss, false)).toEqual(
-			toZkLoginPublicIdentifier(seed, iss).toSuiAddress(),
+			toZkLoginPublicIdentifier(seed, iss, { legacyAddress: false }).toSuiAddress(),
 		);
 	});
 
@@ -55,7 +57,7 @@ describe('zkLogin address', () => {
 		const jwt =
 			'eyJraWQiOiJzdWkta2V5LWlkIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiI4YzJkN2Q2Ni04N2FmLTQxZmEtYjZmYy02M2U4YmI3MWZhYjQiLCJhdWQiOiJ0ZXN0IiwibmJmIjoxNjk3NDY1NDQ1LCJpc3MiOiJodHRwczovL29hdXRoLnN1aS5pbyIsImV4cCI6MTY5NzU1MTg0NSwibm9uY2UiOiJoVFBwZ0Y3WEFLYlczN3JFVVM2cEVWWnFtb0kifQ.';
 		const userSalt = '248191903847969014646285995941615069143';
-		const address = jwtToAddress(jwt, userSalt);
+		const address = jwtToAddress(jwt, userSalt, false);
 		expect(address).toBe('0x22cebcf68a9d75d508d50d553dd6bae378ef51177a3a6325b749e57e3ba237d6');
 	});
 
@@ -83,7 +85,7 @@ describe('zkLogin address', () => {
 		const jwt2 =
 			'eyJhbGciOiJSUzI1NiIsImtpZCI6InN1aS1rZXktaWQiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwic3ViIjoiMTIzNDU2Nzg5MCIsImF1ZCI6IjEyMzQ1Njc4OTAuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJleHAiOjE2OTc1NTE4NDUsImlhdCI6MTY5NzQ2NTQ0NX0.';
 
-		expect(jwtToAddress(jwt1, '0')).toBe(jwtToAddress(jwt2, '0'));
+		expect(jwtToAddress(jwt1, '0', false)).toBe(jwtToAddress(jwt2, '0', false));
 	});
 
 	test('lengthChecks: if header is too long, should throw an error', () => {
