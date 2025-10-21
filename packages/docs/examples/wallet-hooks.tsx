@@ -307,7 +307,7 @@ function withProviders(
 	walletProviderProps?: Omit<ComponentProps<typeof WalletProvider>, 'children'>,
 ) {
 	const networks = {
-		mainnet: { url: getFullnodeUrl('mainnet') },
+		mainnet: { url: getFullnodeUrl('mainnet'), network: 'mainnet' as const },
 	};
 
 	return function WrappedComponent() {

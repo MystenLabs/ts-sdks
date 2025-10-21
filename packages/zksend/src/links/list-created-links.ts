@@ -54,6 +54,7 @@ export async function listCreatedLinks({
 	fetch?: typeof fetch;
 }) {
 	const gqlClient = new SuiGraphQLClient({
+		network: network || 'mainnet',
 		url:
 			network === 'testnet'
 				? 'https://graphql.testnet.sui.io/graphql'
