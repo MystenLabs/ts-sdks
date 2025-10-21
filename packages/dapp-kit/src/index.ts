@@ -21,7 +21,6 @@ export * from './hooks/wallet/useDisconnectWallet.js';
 export * from './hooks/wallet/useSignAndExecuteTransaction.js';
 export * from './hooks/wallet/useSignPersonalMessage.js';
 export * from './hooks/wallet/useSignTransaction.js';
-export * from './hooks/wallet/useReportTransactionEffects.js';
 export * from './hooks/wallet/useSwitchAccount.js';
 export * from './hooks/wallet/useWallets.js';
 export * from './themes/lightTheme.js';
