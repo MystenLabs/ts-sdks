@@ -11,8 +11,8 @@ import { Secp256k1PublicKey } from '../keypairs/secp256k1/publickey.js';
 import { Secp256r1PublicKey } from '../keypairs/secp256r1/publickey.js';
 // eslint-disable-next-line import/no-cycle
 import { MultiSigPublicKey } from '../multisig/publickey.js';
-import type { ZkLoginCompatibleClient } from '../zklogin/publickey.js';
 import { ZkLoginPublicIdentifier } from '../zklogin/publickey.js';
+import type { ClientWithCoreApi } from '../experimental/core.js';
 
 export async function verifySignature(
 	bytes: Uint8Array,
@@ -37,7 +37,7 @@ export async function verifySignature(
 export async function verifyPersonalMessageSignature(
 	message: Uint8Array,
 	signature: string,
-	options: { client?: ZkLoginCompatibleClient; address?: string } = {},
+	options: { client?: ClientWithCoreApi; address?: string } = {},
 ): Promise<PublicKey> {
 	const parsedSignature = parseSignature(signature, options);
 
@@ -60,7 +60,7 @@ export async function verifyPersonalMessageSignature(
 export async function verifyTransactionSignature(
 	transaction: Uint8Array,
 	signature: string,
-	options: { client?: ZkLoginCompatibleClient; address?: string } = {},
+	options: { client?: ClientWithCoreApi; address?: string } = {},
 ): Promise<PublicKey> {
 	const parsedSignature = parseSignature(signature, options);
 
@@ -80,7 +80,7 @@ export async function verifyTransactionSignature(
 	return parsedSignature.publicKey;
 }
 
-function parseSignature(signature: string, options: { client?: ZkLoginCompatibleClient } = {}) {
+function parseSignature(signature: string, options: { client?: ClientWithCoreApi } = {}) {
 	const parsedSignature = parseSerializedSignature(signature);
 
 	if (parsedSignature.signatureScheme === 'MultiSig') {
@@ -104,7 +104,7 @@ function parseSignature(signature: string, options: { client?: ZkLoginCompatible
 export function publicKeyFromRawBytes(
 	signatureScheme: SignatureScheme,
 	bytes: Uint8Array,
-	options: { client?: ZkLoginCompatibleClient; address?: string } = {},
+	options: { client?: ClientWithCoreApi; address?: string } = {},
 ): PublicKey {
 	let publicKey: PublicKey;
 	switch (signatureScheme) {
@@ -139,7 +139,7 @@ export function publicKeyFromRawBytes(
 
 export function publicKeyFromSuiBytes(
 	publicKey: string | Uint8Array,
-	options: { client?: ZkLoginCompatibleClient; address?: string } = {},
+	options: { client?: ClientWithCoreApi; address?: string } = {},
 ) {
 	const bytes = typeof publicKey === 'string' ? fromBase64(publicKey) : publicKey;
 
