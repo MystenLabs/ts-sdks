@@ -393,13 +393,13 @@ Here's a complete workflow for setting up a custom registry:
 
 ```ts
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { PaymentKitClient } from '@mysten/payment-kit';
+import { paymentKit } from '@mysten/payment-ki
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 
 const client = new SuiClient({
 	url: getFullnodeUrl('testnet'),
 	network: 'testnet',
-}).$extend(PaymentKitClient.asClientExtension());
+}).$extend(paymentKit());
 
 const keypair = Ed25519Keypair.generate();
 const registryName = 'my-marketplace-registry';

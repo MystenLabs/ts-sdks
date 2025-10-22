@@ -14,18 +14,16 @@ import type {
 	GetPaymentRecordOptions,
 	GetPaymentRecordResponse,
 } from './types.js';
-import type { SuiClientRegistration } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi } from '@mysten/sui/experimental';
 import { normalizeStructTag } from '@mysten/sui/utils';
 import { PaymentKitTransactions } from './transactions.js';
 import { PaymentKitCalls } from './calls.js';
 import { getRegistryIdFromName } from './utils.js';
 
-export function paymentKit<Name extends string = 'paymentKit'>({
-	name = 'paymentKit' as Name,
-}): SuiClientRegistration<PaymentKitCompatibleClient, Name, PaymentKitClient> {
+export function paymentKit<const Name = 'paymentKit'>({ name = 'paymentKit' as Name } = {}) {
 	return {
 		name,
-		register: (client) => {
+		register: (client: ClientWithCoreApi) => {
 			return new PaymentKitClient({ client });
 		},
 	};
