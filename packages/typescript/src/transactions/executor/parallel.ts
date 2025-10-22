@@ -6,10 +6,10 @@ import { promiseWithResolvers } from '@mysten/utils';
 import { bcs } from '../../bcs/index.js';
 import type { SuiObjectRef } from '../../bcs/types.js';
 import type {
-	SuiClient,
+	SuiJsonRpcClient,
 	SuiTransactionBlockResponse,
 	SuiTransactionBlockResponseOptions,
-} from '../../client/index.js';
+} from '../../jsonRpc/index.js';
 import type { Signer } from '../../cryptography/index.js';
 import type { ObjectCacheOptions } from '../ObjectCache.js';
 import { Transaction } from '../Transaction.js';
@@ -26,7 +26,7 @@ const PARALLEL_EXECUTOR_DEFAULTS = {
 	epochBoundaryWindow: 1_000,
 } satisfies Omit<ParallelTransactionExecutorOptions, 'signer' | 'client'>;
 export interface ParallelTransactionExecutorOptions extends Omit<ObjectCacheOptions, 'address'> {
-	client: SuiClient;
+	client: SuiJsonRpcClient;
 	signer: Signer;
 	/** The number of coins to create in a batch when refilling the gas pool */
 	coinBatchSize?: number;
@@ -56,7 +56,7 @@ interface CoinWithBalance {
 }
 export class ParallelTransactionExecutor {
 	#signer: Signer;
-	#client: SuiClient;
+	#client: SuiJsonRpcClient;
 	#coinBatchSize: number;
 	#initialCoinBalance: bigint;
 	#minimumCoinBalance: bigint;

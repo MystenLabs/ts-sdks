@@ -3,7 +3,7 @@
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { OwnedObjectRef } from '../../src/client';
+import { OwnedObjectRef } from '../../src/jsonRpc';
 import { Transaction } from '../../src/transactions';
 import { CachingTransactionExecutor } from '../../src/transactions/executor/caching';
 import { normalizeSuiAddress } from '../../src/utils';

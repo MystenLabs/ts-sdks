@@ -4,7 +4,7 @@
 import { afterEach, afterAll, beforeAll, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
 import { bcs } from '../../src/bcs';
-import { SuiClient } from '../../src/client';
+import { SuiJsonRpcClient } from '../../src/jsonRpc';
 import { Ed25519Keypair } from '../../src/keypairs/ed25519';
 import { ParallelTransactionExecutor, Transaction } from '../../src/transactions';
 import { setup, TestToolbox } from './utils/setup';
@@ -50,13 +50,13 @@ describe('ParallelTransactionExecutor', { retry: 3 }, () => {
 		let totalTransactions = 0;
 
 		(toolbox.client.executeTransactionBlock as Mock).mockImplementation(async function (
-			this: SuiClient,
+			this: SuiJsonRpcClient,
 			input,
 		) {
 			totalTransactions++;
 			concurrentRequests++;
 			maxConcurrentRequests = Math.max(maxConcurrentRequests, concurrentRequests);
-			const promise = SuiClient.prototype.executeTransactionBlock.call(this, input);
+			const promise = SuiJsonRpcClient.prototype.executeTransactionBlock.call(this, input);
 
 			return promise.finally(() => {
 				concurrentRequests--;

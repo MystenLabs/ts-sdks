@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ObjectResponseError } from '../client/index.js';
+import type { ObjectResponseError } from '../jsonRpc/index.js';
 
 export class SuiClientError extends Error {}
 

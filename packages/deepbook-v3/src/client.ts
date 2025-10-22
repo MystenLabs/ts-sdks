@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
 import { Account, Order, OrderDeepPrice, VecSet } from './types/bcs.js';
-import type { SuiClient } from '@mysten/sui/client';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
@@ -40,7 +40,7 @@ import { MarginTPSLContract } from './transactions/marginTPSL.js';
  * DeepBookClient class for managing DeepBook operations.
  */
 export class DeepBookClient {
-	client: SuiClient;
+	client: SuiJsonRpcClient;
 	#config: DeepBookConfig;
 	#address: string;
 	balanceManager: BalanceManagerContract;
@@ -58,7 +58,7 @@ export class DeepBookClient {
 	marginTPSL: MarginTPSLContract;
 
 	/**
-	 * @param {SuiClient} client SuiClient instance
+	 * @param {SuiJsonRpcClient} client SuiJsonRpcClient instance
 	 * @param {string} address Address of the client
 	 * @param {Environment} env Environment configuration
 	 * @param {Object.<string, BalanceManager>} [balanceManagers] Optional initial BalanceManager map
@@ -81,7 +81,7 @@ export class DeepBookClient {
 		marginAdminCap,
 		marginMaintainerCap,
 	}: {
-		client: SuiClient;
+		client: SuiJsonRpcClient;
 		address: string;
 		env: Environment;
 		balanceManagers?: { [key: string]: BalanceManager };

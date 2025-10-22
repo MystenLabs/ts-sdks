@@ -3,7 +3,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { SuiObjectData } from '../../src/client';
+import { SuiObjectData } from '../../src/jsonRpc';
 import { setup, TestToolbox } from './utils/setup';
 
 describe('Test Object Display Standard', () => {
