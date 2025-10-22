@@ -36,7 +36,7 @@ transactions to finish before sending the next one.
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { SerialTransactionExecutor } from '@mysten/sui/transactions';
 
-const client = new SuiClient({ url: getFullnodeUrl('devnet') });
+const client = new SuiClient({ url: getFullnodeUrl('devnet'), network: 'devnet' });
 
 const executor = new SerialTransactionExecutor({
 	client,
@@ -106,7 +106,7 @@ way that avoids conflicts between transactions using the same object ids.
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { ParallelTransactionExecutor } from '@mysten/sui/transactions';
 
-const client = new SuiClient({ url: getFullnodeUrl('devnet') });
+const client = new SuiClient({ url: getFullnodeUrl('devnet'), network: 'devnet' });
 
 const executor = new ParallelTransactionExecutor({
 	client,

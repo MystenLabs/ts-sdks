@@ -17,9 +17,12 @@ import {
 export function computeZkLoginAddressFromSeed(
 	addressSeed: bigint,
 	iss: string,
-	/** TODO: This default should be changed in the next major release */
-	legacyAddress = true,
+	legacyAddress: boolean,
 ) {
+	// Explicitly check for people not using typescript and ignoring the major version migration guide
+	if (legacyAddress === undefined) {
+		throw new Error('legacyAddress parameter must be specified');
+	}
 	const addressSeedBytesBigEndian = legacyAddress
 		? toBigEndianBytes(addressSeed, 32)
 		: toPaddedBigEndianBytes(addressSeed, 32);
@@ -61,7 +64,11 @@ export function lengthChecks(jwt: string) {
 	}
 }
 
-export function jwtToAddress(jwt: string, userSalt: string | bigint, legacyAddress = false) {
+export function jwtToAddress(jwt: string, userSalt: string | bigint, legacyAddress: boolean) {
+	// Explicitly check for people not using typescript and ignoring the major version migration guide
+	if (legacyAddress === undefined) {
+		throw new Error('legacyAddress parameter must be specified');
+	}
 	lengthChecks(jwt);
 
 	const decodedJWT = decodeJwt(jwt);
@@ -82,7 +89,7 @@ export interface ComputeZkLoginAddressOptions {
 	userSalt: string | bigint;
 	iss: string;
 	aud: string;
-	legacyAddress?: boolean;
+	legacyAddress: boolean;
 }
 
 export function computeZkLoginAddress({
@@ -91,8 +98,12 @@ export function computeZkLoginAddress({
 	iss,
 	aud,
 	userSalt,
-	legacyAddress = false,
+	legacyAddress,
 }: ComputeZkLoginAddressOptions) {
+	// Explicitly check for people not using typescript and ignoring the major version migration guide
+	if (legacyAddress === undefined) {
+		throw new Error('legacyAddress parameter must be specified');
+	}
 	return computeZkLoginAddressFromSeed(
 		genAddressSeed(userSalt, claimName, claimValue, aud),
 		iss,

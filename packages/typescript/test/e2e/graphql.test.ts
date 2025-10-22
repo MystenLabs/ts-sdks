@@ -34,6 +34,7 @@ const queries = {
 
 const client = new SuiGraphQLClient({
 	url: DEFAULT_GRAPHQL_URL,
+	network: 'localnet',
 	queries,
 });
 

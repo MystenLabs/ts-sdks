@@ -11,7 +11,7 @@ describe('Session key tests', () => {
 	const TESTNET_PACKAGE_ID = '0x9709d4ee371488c2bc09f508e98e881bd1d5335e0805d7e6a99edd54a7027954';
 	it('import and export session key', async () => {
 		const kp = Ed25519Keypair.generate();
-		const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
+		const suiClient = new SuiClient({ url: getFullnodeUrl('testnet'), network: 'testnet' });
 		const sessionKey = await SessionKey.create({
 			address: kp.getPublicKey().toSuiAddress(),
 			packageId: TESTNET_PACKAGE_ID,

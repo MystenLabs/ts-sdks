@@ -20,7 +20,7 @@ export function createSuiClientContextWrapper(client: SuiClient) {
 
 export function createWalletProviderContextWrapper(
 	providerProps: Omit<ComponentProps<typeof WalletProvider>, 'children'> = {},
-	suiClient: SuiClient = new SuiClient({ url: getFullnodeUrl('localnet') }),
+	suiClient: SuiClient = new SuiClient({ url: getFullnodeUrl('localnet'), network: 'localnet' }),
 ) {
 	const queryClient = new QueryClient();
 	return function WalletProviderContextWrapper({ children }: { children: React.ReactNode }) {

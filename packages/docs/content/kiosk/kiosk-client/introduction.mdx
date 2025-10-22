@@ -21,7 +21,7 @@ import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 
 // We need a Sui Client. You can re-use the SuiClient of your project
 // (it's not recommended to create a new one).
-const client = new SuiClient({ url: getFullnodeUrl('testnet') });
+const client = new SuiClient({ url: getFullnodeUrl('testnet'), network: 'testnet' });
 
 // Now we can use it to create a kiosk Client.
 const kioskClient = new KioskClient({

@@ -117,7 +117,7 @@ export interface OrderArguments {
  * You must provide either a `url` or a `transport`
  */
 export type SuiJsonRpcClientOptions = NetworkOrTransport & {
-	network?: Experimental_SuiClientTypes.Network;
+	network: Experimental_SuiClientTypes.Network;
 	mvr?: Experimental_SuiClientTypes.MvrOptions;
 };
 
@@ -154,7 +154,7 @@ export class SuiJsonRpcClient extends Experimental_BaseClient {
 	 * @param options configuration options for the API Client
 	 */
 	constructor(options: SuiJsonRpcClientOptions) {
-		super({ network: options.network ?? 'unknown' });
+		super({ network: options.network });
 		this.transport = options.transport ?? new JsonRpcHTTPTransport({ url: options.url });
 		this.core = new JSONRpcCoreClient({
 			jsonRpcClient: this,

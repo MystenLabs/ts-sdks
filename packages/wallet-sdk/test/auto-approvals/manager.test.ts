@@ -29,7 +29,7 @@ const policy: AutoApprovalPolicy = {
 describe('AutoApprovalManager', () => {
 	test.skip('placeholder example', async () => {
 		const keypair = new Ed25519Keypair();
-		const client = new SuiClient({ url: getFullnodeUrl('testnet') });
+		const client = new SuiClient({ url: getFullnodeUrl('testnet'), network: 'testnet' });
 
 		const tx = new Transaction();
 		tx.add(operationType('test-operation'));

@@ -21,6 +21,7 @@ describe('MultiSig with zklogin signature', () => {
 		const pkZklogin = toZkLoginPublicIdentifier(
 			BigInt('2455937816256448139232531453880118833510874847675649348355284726183344259587'),
 			'https://id.twitch.tv/oauth2',
+			{ legacyAddress: false },
 		);
 		// set up ephemeral keypair, consistent with default zklogin proof.
 		const parsed = decodeSuiPrivateKey(

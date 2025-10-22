@@ -8,7 +8,7 @@ import { createWalletProviderContextWrapper } from '../test-utils.js';
 
 describe('useSuiClientMutation', () => {
 	it('should fetch data', async () => {
-		const suiClient = new SuiClient({ url: getFullnodeUrl('mainnet') });
+		const suiClient = new SuiClient({ url: getFullnodeUrl('mainnet'), network: 'mainnet' });
 		const wrapper = createWalletProviderContextWrapper({}, suiClient);
 
 		const queryTransactionBlocks = vi.spyOn(suiClient, 'queryTransactionBlocks');

@@ -60,7 +60,7 @@ import { MIST_PER_SUI } from '@mysten/sui/utils';
 const MY_ADDRESS = '<YOUR_SUI_ADDRESS>';
 
 // create a new SuiClient object pointing to the network you want to use
-const suiClient = new SuiClient({ url: getFullnodeUrl('devnet') });
+const suiClient = new SuiClient({ url: getFullnodeUrl('devnet'), network: 'devnet' });
 
 // Convert MIST to Sui
 const balance = (balance) => {

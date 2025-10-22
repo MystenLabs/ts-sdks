@@ -88,7 +88,7 @@ export class ZkSendLink {
 
 	constructor({
 		network = DEFAULT_ZK_SEND_LINK_OPTIONS.network,
-		client = new SuiClient({ url: getFullnodeUrl(network) }),
+		client = new SuiClient({ url: getFullnodeUrl(network), network }),
 		keypair,
 		contract = getContractIds(network),
 		address,

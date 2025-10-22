@@ -35,7 +35,7 @@ describe('SuiClientProvider', () => {
 	});
 
 	it('can accept pre-configured SuiClients', () => {
-		const suiClient = new SuiClient({ url: 'http://localhost:8080' });
+		const suiClient = new SuiClient({ url: 'http://localhost:8080', network: 'localnet' });
 		const ChildComponent = () => {
 			const client = useSuiClient();
 			expect(client).toBeInstanceOf(SuiClient);
@@ -74,10 +74,12 @@ describe('SuiClientProvider', () => {
 					networks={{
 						a: {
 							url: 'http://localhost:8080',
+							network: 'localnet',
 							custom: setSelectedNetwork,
 						},
 						b: {
 							url: 'http://localhost:8080',
+							network: 'localnet',
 							custom: setSelectedNetwork,
 						},
 					}}
@@ -127,10 +129,12 @@ describe('SuiClientProvider', () => {
 					networks={{
 						a: {
 							url: 'http://localhost:8080',
+							network: 'localnet',
 							custom: setSelectedNetwork,
 						},
 						b: {
 							url: 'http://localhost:8080',
+							network: 'localnet',
 							custom: setSelectedNetwork,
 						},
 					}}
@@ -180,10 +184,12 @@ describe('SuiClientProvider', () => {
 					networks={{
 						a: {
 							url: 'http://localhost:8080',
+							network: 'localnet',
 							custom: setSelectedNetwork,
 						},
 						b: {
 							url: 'http://localhost:8080',
+							network: 'localnet',
 							custom: setSelectedNetwork,
 						},
 					}}
