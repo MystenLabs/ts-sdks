@@ -17,11 +17,11 @@ require constantly changing the package IDs)._
 
 ```typescript
 import { KioskClient, Network } from '@mysten/kiosk';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 
-// We need a Sui Client. You can re-use the SuiClient of your project
+// We need a Sui Client. You can re-use the SuiJsonRpcClient of your project
 // (it's not recommended to create a new one).
-const client = new SuiClient({ url: getFullnodeUrl('testnet'), network: 'testnet' });
+const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('testnet'), network: 'testnet' });
 
 // Now we can use it to create a kiosk Client.
 const kioskClient = new KioskClient({

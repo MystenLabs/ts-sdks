@@ -3,7 +3,7 @@
 
 import { fromBase64, toBase64 } from '@mysten/bcs';
 import type { InferBcsType } from '@mysten/bcs';
-import type { SuiMoveNormalizedType } from '@mysten/sui/client';
+import type { SuiMoveNormalizedType } from '@mysten/sui/jsonRpc';
 
 import type { Committee } from '../contracts/walrus/committee.js';
 import type { EncodingType } from '../types.js';
