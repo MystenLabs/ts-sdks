@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '@mysten/sui/bcs';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import type {
 	CoinStruct,
 	SuiObjectData,
 	SuiTransaction,
 	SuiTransactionBlockResponse,
-} from '@mysten/sui/client';
+} from '@mysten/sui/jsonRpc';
 import type { Keypair } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import type { TransactionObjectArgument } from '@mysten/sui/transactions';
@@ -42,7 +42,7 @@ const SUI_COIN_OBJECT_TYPE = normalizeStructTag('0x2::coin::Coin<0x2::sui::SUI>'
 export type ZkSendLinkOptions = {
 	claimApi?: string;
 	keypair?: Keypair;
-	client?: SuiClient;
+	client?: SuiJsonRpcClient;
 	network?: 'mainnet' | 'testnet';
 	host?: string;
 	path?: string;
@@ -69,7 +69,7 @@ export class ZkSendLink {
 	claimedBy?: string;
 	bagObject?: SuiObjectData | null;
 
-	#client: SuiClient;
+	#client: SuiJsonRpcClient;
 	#contract?: ZkBag<ZkBagContractOptions>;
 	#network: 'mainnet' | 'testnet';
 	#host: string;
@@ -88,7 +88,7 @@ export class ZkSendLink {
 
 	constructor({
 		network = DEFAULT_ZK_SEND_LINK_OPTIONS.network,
-		client = new SuiClient({ url: getFullnodeUrl(network), network }),
+		client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl(network), network }),
 		keypair,
 		contract = getContractIds(network),
 		address,

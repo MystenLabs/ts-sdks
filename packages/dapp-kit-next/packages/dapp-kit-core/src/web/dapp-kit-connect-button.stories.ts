@@ -5,12 +5,12 @@ import type { Meta, StoryObj } from '@storybook/web-components';
 import { html } from 'lit';
 import type { DAppKitConnectButton } from './dapp-kit-connect-button.js';
 import { createDAppKit } from '../core/index.js';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 
 const dAppKit = createDAppKit({
 	networks: ['testnet'],
 	createClient(network) {
-		return new SuiClient({ network, url: getFullnodeUrl(network) });
+		return new SuiJsonRpcClient({ network, url: getJsonRpcFullnodeUrl(network) });
 	},
 });
 

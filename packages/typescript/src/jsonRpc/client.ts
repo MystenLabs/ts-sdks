@@ -113,7 +113,7 @@ export interface OrderArguments {
 }
 
 /**
- * Configuration options for the SuiClient
+ * Configuration options for the SuiJsonRpcClient
  * You must provide either a `url` or a `transport`
  */
 export type SuiJsonRpcClientOptions = NetworkOrTransport & {
@@ -131,7 +131,7 @@ type NetworkOrTransport =
 			url?: never;
 	  };
 
-const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiClient') as never;
+const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiJsonRpcClient') as never;
 
 export function isSuiJsonRpcClient(client: unknown): client is SuiJsonRpcClient {
 	return (

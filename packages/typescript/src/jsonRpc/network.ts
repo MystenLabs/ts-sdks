@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-export function getFullnodeUrl(network: 'mainnet' | 'testnet' | 'devnet' | 'localnet') {
+export function getJsonRpcFullnodeUrl(network: 'mainnet' | 'testnet' | 'devnet' | 'localnet') {
 	switch (network) {
 		case 'mainnet':
 			return 'https://fullnode.mainnet.sui.io:443';
