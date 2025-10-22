@@ -1,6 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { renderHook, waitFor } from '@testing-library/react';
 
 import { useSuiClientQueries } from '../../src/hooks/useSuiClientQueries.js';
@@ -21,7 +21,10 @@ const MOCK_QUERY_TRANSACTION_BLOCK_RESULT_DATA = {
 };
 
 describe('useSuiClientQueries', () => {
-	const suiClient = new SuiClient({ url: getFullnodeUrl('mainnet'), network: 'mainnet' });
+	const suiClient = new SuiJsonRpcClient({
+		url: getJsonRpcFullnodeUrl('mainnet'),
+		network: 'mainnet',
+	});
 	const wrapper = createWalletProviderContextWrapper({}, suiClient);
 	test('should fetch data', async () => {
 		const getAllBalances = vi.spyOn(suiClient, 'getAllBalances');

@@ -3,7 +3,7 @@
 
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { SuiTransactionBlockResponse } from '../../src/client';
+import { SuiTransactionBlockResponse } from '../../src/jsonRpc';
 import { Transaction } from '../../src/transactions';
 import { executePaySuiNTimes, setup, TestToolbox } from './utils/setup';
 

@@ -3,7 +3,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { SuiGasData } from '../../src/client';
+import { SuiGasData } from '../../src/jsonRpc';
 import { setup, TestToolbox } from './utils/setup';
 
 describe('Invoke any RPC endpoint', () => {

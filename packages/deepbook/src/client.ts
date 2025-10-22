@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '@mysten/sui/bcs';
-import type { OrderArguments, PaginatedEvents, PaginationArguments } from '@mysten/sui/client';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import type { OrderArguments, PaginatedEvents, PaginationArguments } from '@mysten/sui/jsonRpc';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import type { Argument, TransactionObjectInput, TransactionResult } from '@mysten/sui/transactions';
 import { Transaction } from '@mysten/sui/transactions';
 import {
@@ -44,8 +44,8 @@ export class DeepBookClient {
 	 * @param currentAddress (optional) address of the current user (default: DUMMY_ADDRESS)
 	 */
 	constructor(
-		public suiClient: SuiClient = new SuiClient({
-			url: getFullnodeUrl('testnet'),
+		public suiClient: SuiJsonRpcClient = new SuiJsonRpcClient({
+			url: getJsonRpcFullnodeUrl('testnet'),
 			network: 'testnet',
 		}),
 		public accountCap: string | undefined = undefined,
