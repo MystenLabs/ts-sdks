@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { getFullnodeUrl, SuiClient } from '../../src/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '../../src/jsonRpc';
 import { namedPackagesPlugin, Transaction } from '../../src/transactions';
 import { normalizeSuiAddress } from '../../src/utils';
 import { extractMvrTypes } from '../../src/experimental/mvr';
@@ -99,7 +99,7 @@ describe.concurrent('Name Resolution Plugin', () => {
 
 		const json = JSON.parse(
 			await transaction.toJSON({
-				client: new SuiClient({ url: getFullnodeUrl('testnet'), network: 'testnet' }),
+				client: new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('testnet'), network: 'testnet' }),
 			}),
 		);
 
@@ -348,8 +348,8 @@ const dryRun = async (
 	network: 'mainnet' | 'testnet',
 	withOverrides = false,
 ) => {
-	const client = new SuiClient({
-		url: getFullnodeUrl(network),
+	const client = new SuiJsonRpcClient({
+		url: getJsonRpcFullnodeUrl(network),
 		network,
 		mvr: withOverrides
 			? {

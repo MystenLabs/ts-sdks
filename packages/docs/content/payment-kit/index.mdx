@@ -43,12 +43,12 @@ npm install --save @mysten/payment-kit @mysten/sui
 ## Quick Start
 
 ```ts
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { PaymentKitClient } from '@mysten/payment-kit';
 
 // Create a Sui client with Payment Kit extension
-const client = new SuiClient({
-	url: getFullnodeUrl('testnet'),
+const client = new SuiJsonRpcClient({
+	url: getJsonRpcFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(PaymentKitClient.asClientExtension());
 
@@ -76,7 +76,7 @@ Payment Kit supports the following Sui networks:
 - **Testnet**: Testing environment
 
 The SDK automatically configures the correct package and object IDs based on the network specified
-in your `SuiClient` configuration.
+in your `SuiJsonRpcClient` configuration.
 
 ## Core Concepts
 

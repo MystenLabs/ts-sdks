@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { SuiClient } from '@mysten/sui/client';
+import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { screen } from '@testing-library/dom';
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -20,10 +20,10 @@ describe('SuiClientProvider', () => {
 		expect(screen.getByText('Test')).toBeInTheDocument();
 	});
 
-	it('provides a SuiClient instance to its children', () => {
+	it('provides a SuiJsonRpcClient instance to its children', () => {
 		const ChildComponent = () => {
 			const client = useSuiClient();
-			expect(client).toBeInstanceOf(SuiClient);
+			expect(client).toBeInstanceOf(SuiJsonRpcClient);
 			return <div>Test</div>;
 		};
 
@@ -35,10 +35,10 @@ describe('SuiClientProvider', () => {
 	});
 
 	it('can accept pre-configured SuiClients', () => {
-		const suiClient = new SuiClient({ url: 'http://localhost:8080', network: 'localnet' });
+		const suiClient = new SuiJsonRpcClient({ url: 'http://localhost:8080', network: 'localnet' });
 		const ChildComponent = () => {
 			const client = useSuiClient();
-			expect(client).toBeInstanceOf(SuiClient);
+			expect(client).toBeInstanceOf(SuiJsonRpcClient);
 			expect(client).toBe(suiClient);
 			return <div>Test</div>;
 		};
@@ -85,7 +85,7 @@ describe('SuiClientProvider', () => {
 					}}
 					createClient={(name, { custom, ...config }) => {
 						custom(name);
-						return new SuiClient(config);
+						return new SuiJsonRpcClient(config);
 					}}
 				>
 					<div>{`selected network: ${selectedNetwork}`}</div>

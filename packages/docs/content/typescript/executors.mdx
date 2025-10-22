@@ -27,16 +27,16 @@ transactions to finish before sending the next one.
 
 `SerialTransactionExecutor` can be configured with a number of options:
 
-- `client`: An instance of `SuiClient` used to execute transactions.
+- `client`: An instance of `SuiJsonRpcClient` used to execute transactions.
 - `signer`: The signer/keypair used for signed transactions.
 - `defaultBudget`: The default budget for transactions, which will be used if the transaction does
   not specify a budget (default `50_000_000n`),
 
 ```ts
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { SerialTransactionExecutor } from '@mysten/sui/transactions';
 
-const client = new SuiClient({ url: getFullnodeUrl('devnet'), network: 'devnet' });
+const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('devnet'), network: 'devnet' });
 
 const executor = new SerialTransactionExecutor({
 	client,
@@ -68,7 +68,7 @@ will maintain a pool of gas coins, and automatically execute additional transact
 gas pool as needed.
 
 <Callout type="warn">
-	Using SuiClient or wallets to execute additional transactions while `ParallelTransactionExecutor`
+	Using SuiJsonRpcClient or wallets to execute additional transactions while `ParallelTransactionExecutor`
 	is in use may consume/combine gas coins in the gasPool, causing transactions to fail. This may
 	also result in the coins becoming locked for the remainder of the current epoch, preventing them
 	from being used in future transactions.
@@ -84,7 +84,7 @@ way that avoids conflicts between transactions using the same object ids.
 
 `ParallelTransactionExecutor` can be configured with a number of options:
 
-- `client`: An instance of `SuiClient` used to execute transactions.
+- `client`: An instance of `SuiJsonRpcClient` used to execute transactions.
 - `signer`: The signer/keypair used for signed transactions.
 - `coinBatchSize`: The maximum number of new coins to create when refilling the gas pool
   (default 20)
@@ -103,10 +103,10 @@ way that avoids conflicts between transactions using the same object ids.
   each epoch boundary to ensure the gas price is up-to-date for the next epoch. (default `1000`)
 
 ```ts
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { ParallelTransactionExecutor } from '@mysten/sui/transactions';
 
-const client = new SuiClient({ url: getFullnodeUrl('devnet'), network: 'devnet' });
+const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('devnet'), network: 'devnet' });
 
 const executor = new ParallelTransactionExecutor({
 	client,

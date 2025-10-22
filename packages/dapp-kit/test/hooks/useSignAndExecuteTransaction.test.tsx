@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '@mysten/sui/bcs';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { expect, type Mock } from 'vitest';
@@ -62,7 +62,10 @@ describe('useSignAndExecuteTransaction', () => {
 			features: suiFeatures,
 		});
 
-		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet'), network: 'localnet' });
+		const suiClient = new SuiJsonRpcClient({
+			url: getJsonRpcFullnodeUrl('localnet'),
+			network: 'localnet',
+		});
 		const mockSignTransactionFeature = mockWallet.features['sui:signTransaction'];
 		const signTransaction = mockSignTransactionFeature!.signTransaction as Mock;
 
@@ -129,7 +132,10 @@ describe('useSignAndExecuteTransaction', () => {
 			signature: '123',
 		});
 
-		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet'), network: 'localnet' });
+		const suiClient = new SuiJsonRpcClient({
+			url: getJsonRpcFullnodeUrl('localnet'),
+			network: 'localnet',
+		});
 		const executeTransaction = vi.spyOn(suiClient, 'executeTransactionBlock');
 		executeTransaction.mockResolvedValueOnce({
 			digest: '123',
@@ -169,7 +175,10 @@ describe('useSignAndExecuteTransaction', () => {
 			features: suiFeatures,
 		});
 
-		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet'), network: 'localnet' });
+		const suiClient = new SuiJsonRpcClient({
+			url: getJsonRpcFullnodeUrl('localnet'),
+			network: 'localnet',
+		});
 		const mockSignMessageFeature = mockWallet.features['sui:signTransaction'];
 		const signTransaction = mockSignMessageFeature!.signTransaction as Mock;
 
