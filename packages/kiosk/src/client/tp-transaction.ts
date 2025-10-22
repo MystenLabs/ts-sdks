@@ -28,8 +28,6 @@ export type TransferPolicyBaseParams = {
 export type TransferPolicyTransactionParams = {
 	kioskClient: KioskClient;
 	transaction: Transaction;
-	/** @deprecated use transaction instead */
-	transactionBlock?: Transaction;
 	cap?: TransferPolicyCap;
 };
 
@@ -40,12 +38,7 @@ export class TransferPolicyTransaction {
 	policyCap?: ObjectArgument;
 	type?: string;
 
-	constructor({
-		kioskClient,
-		transactionBlock,
-		transaction = transactionBlock!,
-		cap,
-	}: TransferPolicyTransactionParams) {
+	constructor({ kioskClient, transaction, cap }: TransferPolicyTransactionParams) {
 		this.kioskClient = kioskClient;
 		this.transaction = transaction;
 		if (cap) this.setCap(cap);
