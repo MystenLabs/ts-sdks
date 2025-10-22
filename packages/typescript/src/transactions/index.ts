@@ -56,7 +56,5 @@ export {
 } from './plugins/NamedPackagesPlugin.js';
 
 export type { NamedPackagesOverrides };
-/** @deprecated Use NamedPackagesOverrides instead */
-export type NamedPackagesPluginCache = NamedPackagesOverrides;
 
 export { isArgument } from './utils.js';

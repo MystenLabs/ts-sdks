@@ -62,21 +62,3 @@ export {
 	type EnumInputShape,
 	type EnumOutputShapeWithKeys,
 };
-
-/** @deprecated use toBase58 instead */
-export const toB58 = toBase58;
-
-/** @deprecated use fromBase58 instead */
-export const fromB58 = fromBase58;
-
-/** @deprecated use toBase64 instead */
-export const toB64 = toBase64;
-
-/** @deprecated use fromBase64 instead */
-export const fromB64 = fromBase64;
-
-/** @deprecated use toHex instead */
-export const toHEX = toHex;
-
-/** @deprecated use fromHex instead */
-export const fromHEX = fromHex;
