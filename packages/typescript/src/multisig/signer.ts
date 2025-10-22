@@ -58,13 +58,6 @@ export class MultiSigSigner extends Signer {
 		);
 	}
 
-	/** @deprecated use `sign` instead */
-	signData(_data: Uint8Array): never {
-		throw new Error(
-			'MultiSigSigner does not support signing directly. Use signTransaction or signPersonalMessage instead',
-		);
-	}
-
 	async signTransaction(bytes: Uint8Array) {
 		const signature = this.#pubkey.combinePartialSignatures(
 			await Promise.all(
