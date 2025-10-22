@@ -77,9 +77,6 @@ import type {
 	ResolvedNameServiceNames,
 	ResolveNameServiceAddressParams,
 	ResolveNameServiceNamesParams,
-	SubscribeEventParams,
-	SubscribeTransactionParams,
-	SuiEvent,
 	SuiMoveFunctionArgType,
 	SuiMoveNormalizedFunction,
 	SuiMoveNormalizedModule,
@@ -90,9 +87,7 @@ import type {
 	SuiSystemStateSummary,
 	SuiTransactionBlockResponse,
 	SuiTransactionBlockResponseQuery,
-	TransactionEffects,
 	TryGetPastObjectParams,
-	Unsubscribe,
 	ValidatorsApy,
 	VerifyZkLoginSignatureParams,
 	ZkLoginVerifyResult,
@@ -588,7 +583,6 @@ export class SuiJsonRpcClient extends Experimental_BaseClient {
 		transactionBlock,
 		signature,
 		options,
-		requestType,
 		signal,
 	}: ExecuteTransactionBlockParams): Promise<SuiTransactionBlockResponse> {
 		const result: SuiTransactionBlockResponse = await this.transport.request({
@@ -600,16 +594,6 @@ export class SuiJsonRpcClient extends Experimental_BaseClient {
 			],
 			signal,
 		});
-
-		if (requestType === 'WaitForLocalExecution') {
-			try {
-				await this.waitForTransaction({
-					digest: result.digest,
-				});
-			} catch {
-				// Ignore error while waiting for transaction
-			}
-		}
 
 		return result;
 	}
@@ -764,44 +748,6 @@ export class SuiJsonRpcClient extends Experimental_BaseClient {
 			method: 'suix_queryEvents',
 			params: [query, cursor, limit, (order || 'descending') === 'descending'],
 			signal,
-		});
-	}
-
-	/**
-	 * Subscribe to get notifications whenever an event matching the filter occurs
-	 *
-	 * @deprecated
-	 */
-	async subscribeEvent(
-		input: SubscribeEventParams & {
-			/** function to run when we receive a notification of a new event matching the filter */
-			onMessage: (event: SuiEvent) => void;
-		},
-	): Promise<Unsubscribe> {
-		return this.transport.subscribe({
-			method: 'suix_subscribeEvent',
-			unsubscribe: 'suix_unsubscribeEvent',
-			params: [input.filter],
-			onMessage: input.onMessage,
-			signal: input.signal,
-		});
-	}
-
-	/**
-	 * @deprecated
-	 */
-	async subscribeTransaction(
-		input: SubscribeTransactionParams & {
-			/** function to run when we receive a notification of a new event matching the filter */
-			onMessage: (event: TransactionEffects) => void;
-		},
-	): Promise<Unsubscribe> {
-		return this.transport.subscribe({
-			method: 'suix_subscribeTransaction',
-			unsubscribe: 'suix_unsubscribeTransaction',
-			params: [input.filter],
-			onMessage: input.onMessage,
-			signal: input.signal,
 		});
 	}
 
