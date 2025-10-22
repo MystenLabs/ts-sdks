@@ -1,5 +1,11 @@
 # @mysten/payment-kit
 
+## 0.0.10
+
+### Patch Changes
+
+- 4e537fd: Removed the need to pass an empty object `{}` when calling `paymentKit`
+
 ## 0.0.9
 
 ### Patch Changes
