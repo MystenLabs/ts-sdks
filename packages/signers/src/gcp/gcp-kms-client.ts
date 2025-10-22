@@ -87,15 +87,6 @@ export class GcpKmsSigner extends Signer {
 	}
 
 	/**
-	 * Synchronous signing is not supported by GCP KMS.
-	 * @throws Always throws an error indicating synchronous signing is unsupported.
-	 * @deprecated use `sign` instead
-	 */
-	signData(): never {
-		throw new Error('GCP Signer does not support sync signing');
-	}
-
-	/**
 	 * Creates a GCP KMS signer from the provided options.
 	 * Expects the credentials file to be set as an env variable
 	 * (GOOGLE_APPLICATION_CREDENTIALS).

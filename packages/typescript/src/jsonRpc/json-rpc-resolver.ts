@@ -44,13 +44,13 @@ export function jsonRpcClientResolveTransactionPlugin(client: SuiJsonRpcClient) 
 }
 
 async function setGasPrice(transactionData: TransactionDataBuilder, client: SuiJsonRpcClient) {
-	if (!transactionData.gasConfig.price) {
-		transactionData.gasConfig.price = String(await client.getReferenceGasPrice());
+	if (!transactionData.gasData.price) {
+		transactionData.gasData.price = String(await client.getReferenceGasPrice());
 	}
 }
 
 async function setGasBudget(transactionData: TransactionDataBuilder, client: SuiJsonRpcClient) {
-	if (transactionData.gasConfig.budget) {
+	if (transactionData.gasData.budget) {
 		return;
 	}
 
@@ -72,7 +72,7 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Sui
 		);
 	}
 
-	const safeOverhead = GAS_SAFE_OVERHEAD * BigInt(transactionData.gasConfig.price || 1n);
+	const safeOverhead = GAS_SAFE_OVERHEAD * BigInt(transactionData.gasData.price || 1n);
 
 	const baseComputationCostWithOverhead =
 		BigInt(dryRunResult.effects.gasUsed.computationCost) + safeOverhead;
@@ -82,16 +82,16 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Sui
 		BigInt(dryRunResult.effects.gasUsed.storageCost) -
 		BigInt(dryRunResult.effects.gasUsed.storageRebate);
 
-	transactionData.gasConfig.budget = String(
+	transactionData.gasData.budget = String(
 		gasBudget > baseComputationCostWithOverhead ? gasBudget : baseComputationCostWithOverhead,
 	);
 }
 
 // The current default is just picking _all_ coins we can which may not be ideal.
 async function setGasPayment(transactionData: TransactionDataBuilder, client: SuiJsonRpcClient) {
-	if (!transactionData.gasConfig.payment) {
+	if (!transactionData.gasData.payment) {
 		const coins = await client.getCoins({
-			owner: transactionData.gasConfig.owner || transactionData.sender!,
+			owner: transactionData.gasData.owner || transactionData.sender!,
 			coinType: SUI_TYPE_ARG,
 		});
 
@@ -118,7 +118,7 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Su
 			throw new Error('No valid gas coins found for the transaction.');
 		}
 
-		transactionData.gasConfig.payment = paymentCoins.map((payment) =>
+		transactionData.gasData.payment = paymentCoins.map((payment) =>
 			parse(ObjectRefSchema, payment),
 		);
 	}
