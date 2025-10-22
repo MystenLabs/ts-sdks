@@ -89,8 +89,8 @@ export class Ed25519Keypair extends Keypair {
 		if (typeof secretKey === 'string') {
 			const decoded = decodeSuiPrivateKey(secretKey);
 
-			if (decoded.schema !== 'ED25519') {
-				throw new Error(`Expected a ED25519 keypair, got ${decoded.schema}`);
+			if (decoded.scheme !== 'ED25519') {
+				throw new Error(`Expected a ED25519 keypair, got ${decoded.scheme}`);
 			}
 
 			return this.fromSecretKey(decoded.secretKey, options);
