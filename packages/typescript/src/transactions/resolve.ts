@@ -39,7 +39,7 @@ export function needsTransactionResolution(
 	}
 
 	if (!options.onlyTransactionKind) {
-		if (!data.gasConfig.price || !data.gasConfig.budget || !data.gasConfig.payment) {
+		if (!data.gasData.price || !data.gasData.budget || !data.gasData.payment) {
 			return true;
 		}
 	}

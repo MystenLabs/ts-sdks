@@ -84,13 +84,13 @@ describe('offline build', () => {
 		tx.setGasBudget(999);
 
 		// Ensure that setting budget after a clone does not affect the original:
-		expect(tx2.blockData).not.toEqual(tx.blockData);
+		expect(tx2.getData()).not.toEqual(tx.getData());
 
-		// Ensure `blockData` always breaks reference equality:
-		expect(tx.blockData).not.toBe(tx.blockData);
-		expect(tx.blockData.gasConfig).not.toBe(tx.blockData.gasConfig);
-		expect(tx.blockData.transactions).not.toBe(tx.blockData.transactions);
-		expect(tx.blockData.inputs).not.toBe(tx.blockData.inputs);
+		// Ensure `getData()` always breaks reference equality:
+		expect(tx.getData()).not.toBe(tx.getData());
+		expect(tx.getData().gasData).not.toBe(tx.getData().gasData);
+		expect(tx.getData().commands).not.toBe(tx.getData().commands);
+		expect(tx.getData().inputs).not.toBe(tx.getData().inputs);
 	});
 
 	it('can determine the type of inputs for built-in Commands', async () => {
