@@ -1,6 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 import { MIST_PER_SUI, normalizeSuiAddress } from '@mysten/sui/utils';
 import { expect } from 'vitest';
@@ -8,7 +8,7 @@ import { expect } from 'vitest';
 import { ALLOWED_METADATA, SuinsClient, SuinsTransaction } from '../src/index.js';
 
 export const e2eLiveNetworkDryRunFlow = async (network: 'mainnet' | 'testnet') => {
-	const client = new SuiClient({ url: getFullnodeUrl(network), network });
+	const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl(network), network });
 
 	const sender = normalizeSuiAddress('0x2');
 	const suinsClient = new SuinsClient({

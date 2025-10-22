@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createDAppKit } from '@mysten/dapp-kit-react';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 
 export const dAppKit = createDAppKit({
 	enableBurnerWallet: process.env.NODE_ENV === 'development',
 	networks: ['mainnet', 'testnet'],
 	defaultNetwork: 'testnet',
 	createClient(network) {
-		return new SuiClient({ network, url: getFullnodeUrl(network) });
+		return new SuiJsonRpcClient({ network, url: getJsonRpcFullnodeUrl(network) });
 	},
 });
 

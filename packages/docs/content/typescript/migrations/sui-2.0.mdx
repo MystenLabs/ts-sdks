@@ -70,6 +70,40 @@ const client = new SuiJsonRpcClient({
 });
 ```
 
+## Removal of SuiClient exports from @mysten/sui/client
+
+The `@mysten/sui/client` export path has been removed. All JSON-RPC client functionality is now
+exported from `@mysten/sui/jsonRpc`.
+
+The following exports have been removed from `@mysten/sui/client`:
+
+- `SuiClient` (use `SuiJsonRpcClient` instead)
+- `SuiClientOptions` (use `SuiJsonRpcClientOptions` instead)
+- `isSuiClient` (use `isSuiJsonRpcClient` instead)
+- `SuiTransport` (use `JsonRpcTransport` instead)
+- `SuiTransportRequestOptions` (use `JsonRpcTransportRequestOptions` instead)
+- `SuiTransportSubscribeOptions` (use `JsonRpcTransportSubscribeOptions` instead)
+- `SuiHTTPTransportOptions` (use `JsonRpcHTTPTransportOptions` instead)
+- `SuiHTTPTransport` (use `JsonRpcHTTPTransport` instead)
+- `getFullnodeUrl` (use `getJsonRpcFullnodeUrl` instead)
+- All JSON-RPC types (now exported from `@mysten/sui/jsonRpc`)
+
+**Migration:**
+
+Update all imports from `@mysten/sui/client` to `@mysten/sui/jsonRpc` and rename classes:
+
+```diff
+- import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
++ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+
+- const client = new SuiClient({
+-   url: getFullnodeUrl('devnet'),
++ const client = new SuiJsonRpcClient({
++   url: getJsonRpcFullnodeUrl('devnet'),
+    network: 'devnet',
+  });
+```
+
 ## Removal of reportTransactionEffects API
 
 The `sui:reportTransactionEffects` wallet standard feature and associated hooks have been removed

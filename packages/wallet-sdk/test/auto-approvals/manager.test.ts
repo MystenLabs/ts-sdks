@@ -11,7 +11,7 @@ import {
 	AutoApprovalPolicy,
 	operationType,
 } from '../../src';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { MIST_PER_SUI } from '@mysten/sui/utils';
 
 const policy: AutoApprovalPolicy = {
@@ -29,7 +29,10 @@ const policy: AutoApprovalPolicy = {
 describe('AutoApprovalManager', () => {
 	test.skip('placeholder example', async () => {
 		const keypair = new Ed25519Keypair();
-		const client = new SuiClient({ url: getFullnodeUrl('testnet'), network: 'testnet' });
+		const client = new SuiJsonRpcClient({
+			url: getJsonRpcFullnodeUrl('testnet'),
+			network: 'testnet',
+		});
 
 		const tx = new Transaction();
 		tx.add(operationType('test-operation'));

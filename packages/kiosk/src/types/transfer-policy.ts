@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ObjectOwner } from '@mysten/sui/client';
+import type { ObjectOwner } from '@mysten/sui/jsonRpc';
 import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 
 import type { KioskClient } from '../client/kiosk-client.js';
