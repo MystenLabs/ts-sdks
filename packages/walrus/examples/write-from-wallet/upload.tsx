@@ -6,12 +6,12 @@ import { useState, useRef } from 'react';
 
 import type { WalrusClient, WriteFilesFlow } from '../../src/index.js';
 import { WalrusFile } from '../../src/index.js';
-import type { SuiClient } from '@mysten/sui/client';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 
 export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void }) {
 	const dAppKit = useDAppKit();
 	const currentAccount = useCurrentAccount();
-	const suiClient = useSuiClient() as SuiClient & { walrus: WalrusClient };
+	const suiClient = useSuiClient() as SuiJsonRpcClient & { walrus: WalrusClient };
 	const flowRef = useRef<WriteFilesFlow | null>(null);
 	const [state, setState] = useState<
 		| 'empty'

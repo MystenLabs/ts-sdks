@@ -8,8 +8,12 @@ import { retry } from 'ts-retry-promise';
 import { expect, inject } from 'vitest';
 import { WebSocket } from 'ws';
 
-import type { SuiObjectChangePublished } from '../../../src/client/index.js';
-import { getFullnodeUrl, SuiClient, SuiHTTPTransport } from '../../../src/client/index.js';
+import type { SuiObjectChangePublished } from '../../../src/jsonRpc/index.js';
+import {
+	getJsonRpcFullnodeUrl,
+	SuiJsonRpcClient,
+	JsonRpcHTTPTransport,
+} from '../../../src/jsonRpc/index.js';
 import type { Keypair } from '../../../src/cryptography/index.js';
 import {
 	FaucetRateLimitError,
@@ -21,7 +25,7 @@ import { Transaction, UpgradePolicy } from '../../../src/transactions/index.js';
 import { SUI_TYPE_ARG } from '../../../src/utils/index.js';
 
 const DEFAULT_FAUCET_URL = import.meta.env.FAUCET_URL ?? getFaucetHost('localnet');
-const DEFAULT_FULLNODE_URL = import.meta.env.FULLNODE_URL ?? getFullnodeUrl('localnet');
+const DEFAULT_FULLNODE_URL = import.meta.env.FULLNODE_URL ?? getJsonRpcFullnodeUrl('localnet');
 
 const SUI_TOOLS_CONTAINER_ID = inject('suiToolsContainerId');
 
@@ -80,15 +84,15 @@ class TestPackageRegistry {
 
 export class TestToolbox {
 	keypair: Ed25519Keypair;
-	client: SuiClient;
+	client: SuiJsonRpcClient;
 	registry: TestPackageRegistry;
 	configPath: string;
 
 	constructor(keypair: Ed25519Keypair, url: string = DEFAULT_FULLNODE_URL, configPath: string) {
 		this.keypair = keypair;
-		this.client = new SuiClient({
+		this.client = new SuiJsonRpcClient({
 			network: 'localnet',
-			transport: new SuiHTTPTransport({
+			transport: new JsonRpcHTTPTransport({
 				url,
 				WebSocketConstructor: WebSocket as never,
 			}),
@@ -127,10 +131,10 @@ export class TestToolbox {
 	}
 }
 
-export function getClient(url = DEFAULT_FULLNODE_URL): SuiClient {
-	return new SuiClient({
+export function getClient(url = DEFAULT_FULLNODE_URL): SuiJsonRpcClient {
+	return new SuiJsonRpcClient({
 		network: 'localnet',
-		transport: new SuiHTTPTransport({
+		transport: new JsonRpcHTTPTransport({
 			url,
 			WebSocketConstructor: WebSocket as never,
 		}),
@@ -345,7 +349,7 @@ export function getRandomAddresses(n: number): string[] {
 }
 
 export async function paySui(
-	client: SuiClient,
+	client: SuiJsonRpcClient,
 	signer: Keypair,
 	numRecipients: number = 1,
 	recipients?: string[],
@@ -390,7 +394,7 @@ export async function paySui(
 }
 
 export async function executePaySuiNTimes(
-	client: SuiClient,
+	client: SuiJsonRpcClient,
 	signer: Keypair,
 	nTimes: number,
 	numRecipientsPerTxn: number = 1,

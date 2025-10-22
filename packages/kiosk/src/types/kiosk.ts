@@ -5,7 +5,7 @@ import type {
 	PaginatedObjectsResponse,
 	SuiObjectData,
 	SuiObjectDataOptions,
-} from '@mysten/sui/client';
+} from '@mysten/sui/jsonRpc';
 import type { TransactionArgument } from '@mysten/sui/transactions';
 
 import type { ObjectArgument } from './index.js';
