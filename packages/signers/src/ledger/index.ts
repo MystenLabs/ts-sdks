@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type SuiLedgerClient from '@mysten/ledgerjs-hw-app-sui';
-import type { SuiClient } from '@mysten/sui/client';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import type { SignatureWithBytes } from '@mysten/sui/cryptography';
 import { messageWithIntent, Signer, toSerializedSignature } from '@mysten/sui/cryptography';
 import { Ed25519PublicKey } from '@mysten/sui/keypairs/ed25519';
@@ -23,7 +23,7 @@ export interface LedgerSignerOptions {
 	publicKey: Ed25519PublicKey;
 	derivationPath: string;
 	ledgerClient: SuiLedgerClient;
-	suiClient: SuiClient;
+	suiClient: SuiJsonRpcClient;
 }
 
 /**
@@ -33,7 +33,7 @@ export class LedgerSigner extends Signer {
 	#derivationPath: string;
 	#publicKey: Ed25519PublicKey;
 	#ledgerClient: SuiLedgerClient;
-	#suiClient: SuiClient;
+	#suiClient: SuiJsonRpcClient;
 
 	/**
 	 * Creates an instance of LedgerSigner. It's expected to call the static `fromDerivationPath` method to create an instance.
@@ -131,7 +131,7 @@ export class LedgerSigner extends Signer {
 	static async fromDerivationPath(
 		derivationPath: string,
 		ledgerClient: SuiLedgerClient,
-		suiClient: SuiClient,
+		suiClient: SuiJsonRpcClient,
 	) {
 		const { publicKey } = await ledgerClient.getPublicKey(derivationPath);
 		if (!publicKey) {

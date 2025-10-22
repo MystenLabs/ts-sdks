@@ -1,8 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SuiTransactionBlockResponseOptions } from '@mysten/sui/client';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import type { SuiTransactionBlockResponseOptions } from '@mysten/sui/jsonRpc';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
 import { ZkSendLink } from './claim.js';
@@ -15,7 +15,7 @@ export async function getSentTransactionsWithLinks({
 	limit = 10,
 	network = 'mainnet',
 	contract = getContractIds(network),
-	client = new SuiClient({ url: getFullnodeUrl(network), network }),
+	client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl(network), network }),
 	loadAssets = true,
 	loadClaimedAssets = false,
 	options,
@@ -33,7 +33,7 @@ export async function getSentTransactionsWithLinks({
 	host?: string;
 	path?: string;
 	claimApi?: string;
-	client?: SuiClient;
+	client?: SuiJsonRpcClient;
 	options?: SuiTransactionBlockResponseOptions;
 }) {
 	const packageId = normalizeSuiAddress(contract.packageId);

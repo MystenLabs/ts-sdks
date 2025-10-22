@@ -32,8 +32,8 @@ npm install @mysten/sui
 Then update all imports to use the new package name:
 
 ```diff
-- import { SuiClient } from '@mysten/sui.js'
-+ import { SuiClient } from '@mysten/sui'
+- import { SuiJsonRpcClient } from '@mysten/sui.js'
++ import { SuiJsonRpcClient } from '@mysten/sui'
 ```
 
 ### `@mysten/sui/transactions`
@@ -67,8 +67,8 @@ The `TransactionBlock` class has been renamed to `Transaction`, along with many 
 - `suiClient.signAndExecuteTransactionBlock({ transactionBlock })` ->
   `suiClient.signAndExecuteTransaction({ transaction })`
 
-There are a few methods on SuiClient that retain the `TransactionBlock` name because they correspond
-to specific JSON RPC calls. The following methods are unchanged:
+There are a few methods on SuiJsonRpcClient that retain the `TransactionBlock` name because they
+correspond to specific JSON RPC calls. The following methods are unchanged:
 
 - `suiClient.getTransactionBlock`
 - `suiClient.queryTransactionBlocks`
