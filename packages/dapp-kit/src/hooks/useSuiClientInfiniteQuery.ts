@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SuiClient } from '@mysten/sui/client';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import type {
 	InfiniteData,
 	UseInfiniteQueryOptions,
@@ -19,11 +19,15 @@ interface PaginatedResult {
 }
 
 export type SuiRpcPaginatedMethodName = {
-	[K in keyof SuiClient]: SuiClient[K] extends (input: any) => Promise<PaginatedResult> ? K : never;
-}[keyof SuiClient];
+	[K in keyof SuiJsonRpcClient]: SuiJsonRpcClient[K] extends (
+		input: any,
+	) => Promise<PaginatedResult>
+		? K
+		: never;
+}[keyof SuiJsonRpcClient];
 
 export type SuiRpcPaginatedMethods = {
-	[K in SuiRpcPaginatedMethodName]: SuiClient[K] extends (
+	[K in SuiRpcPaginatedMethodName]: SuiJsonRpcClient[K] extends (
 		input: infer Params,
 	) => Promise<
 		infer Result extends { hasNextPage?: boolean | null; nextCursor?: infer Cursor | null }

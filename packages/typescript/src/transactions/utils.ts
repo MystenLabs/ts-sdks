@@ -3,7 +3,7 @@
 
 import { is } from 'valibot';
 
-import type { SuiMoveNormalizedType } from '../client/index.js';
+import type { SuiMoveNormalizedType } from '../jsonRpc/index.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 import { ArgumentSchema } from './data/internal.js';
 import type { Argument, CallArg } from './data/internal.js';

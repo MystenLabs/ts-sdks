@@ -19,7 +19,7 @@ import {
 	useWallets,
 	WalletProvider,
 } from '@mysten/dapp-kit';
-import { getFullnodeUrl } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ComponentProps } from 'react';
@@ -309,7 +309,7 @@ function withProviders(
 	// Work around server-side pre-rendering
 	const queryClient = new QueryClient();
 	const networks = {
-		mainnet: { url: getFullnodeUrl('mainnet'), network: 'mainnet' as const },
+		mainnet: { url: getJsonRpcFullnodeUrl('mainnet'), network: 'mainnet' as const },
 	};
 
 	return () => {
