@@ -1,24 +1,24 @@
 ---
-title: Network Interactions with SuiClient
+title: Network Interactions with SuiJsonRpcClient
 ---
 
-The Sui TypeScript SDK provides a `SuiClient` class to connect to a network's JSON-RPC server. Use
-`SuiClient` for all JSON-RPC operations.
+The Sui TypeScript SDK provides a `SuiJsonRpcClient` class to connect to a network's JSON-RPC
+sSuiJsonRpcCliente `SuiJsonRpcClient` for all JSON-RPC operations.
 
 ## Connecting to a Sui network
 
-To establish a connection to a network, import `SuiClient` from `@mysten/sui/client` and pass the
-relevant URL to the `url` parameter. The following example establishes a connection to Devnet and
-get all `Coin<coin_type>` objects owned by an address.
+To establish a connection to a network, import `SuiJsonRpcClient` from `@mysten/sui/client` and pass
+the relevant URL to the `url` parameter. The following example establishes a connection to Devnet
+and get all `Coin<coin_type>` objects owned by an address.
 
 ```typescript
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 
-// use getFullnodeUrl to define Devnet RPC location
-const rpcUrl = getFullnodeUrl('devnet');
+// use getJsonRpcFullnodeUrl to define Devnet RPC location
+const rpcUrl = getJsonRpcFullnodeUrl('devnet');
 
 // create a client connected to devnet
-const client = new SuiClient({ url: rpcUrl, network: 'devnet' });
+const client = new SuiJsonRpcClient({ url: rpcUrl, network: 'devnet' });
 
 // get coins owned by an address
 // replace <OWNER_ADDRESS> with actual address in the form of 0x123...
@@ -27,8 +27,8 @@ await client.getCoins({
 });
 ```
 
-The `getFullnodeUrl` helper in the previous code provides the URL for the specified network, useful
-during development. In a production application, however, you should use the
+The `getJsonRpcFullnodeUrl` helper in the previous code provides the URL for the specified network,
+useful during development. In a production application, however, you should use the
 [Mainnet RPC address](../typescript#network-locations). The function supports the following values:
 
 - `localnet`
@@ -43,14 +43,14 @@ more information.
 
 ## Manually calling unsupported RPC methods
 
-You can use `SuiClient` to call any RPC method the node you're connecting to exposes. Most RPC
-methods are built into `SuiClient`, but you can use `call` to leverage any methods available in the
-RPC.
+You can use `SuiJsonRpcClient` to call any RPC method the node you're connecting to exposes. Most
+RPC methods are built inSuiJsonRpcClientient`, but you can use `call` to leverage any methods
+available in the RPC.
 
 ```typescript
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 
-const client = new SuiClient({ url: getFullnodeUrl('devnet'), network: 'devnet' });
+const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('devnet'), network: 'devnet' });
 
 // asynchronously call suix_getCommitteeInfo
 const committeeInfo = await client.call('suix_getCommitteeInfo', []);
@@ -61,15 +61,15 @@ For a full list of available RPC methods, see the
 
 ## Customizing the transport
 
-The `SuiClient` uses a `Transport` class to manage connections to the RPC node. The default
+The `SuiJsonRpcClient` uses a `Transport` class to manage connections to the RPC node. The default
 `SuiHTTPTransport` makes both JSON RPC requests, as well as websocket requests for subscriptions.
 You can construct a custom transport instance if you need to pass any custom options, such as
 headers or timeout values.
 
 ```typescript
-import { getFullnodeUrl, SuiClient, SuiHTTPTransport } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient, SuiHTTPTransport } from '@mysten/sui/jsonRpc';
 
-const client = new SuiClient({
+const client = new SuiJsonRpcClient({
 	transport: new SuiHTTPTransport({
 		url: 'https://my-custom-node.com/rpc',
 		websocket: {
@@ -87,8 +87,8 @@ const client = new SuiClient({
 
 ## Pagination
 
-`SuiClient` exposes a number of RPC methods that return paginated results. These methods return a
-result object with 3 fields:
+`SuiJsonRpcClient` exposes a number of RPC methods that return paginated results. These methods
+return a result object with 3 fields:
 
 - data: The list of results for the current page
 - nextCursor: a cursor pointing to the next page of results
@@ -117,8 +117,8 @@ const page2 =
 
 ## Methods
 
-In addition to the RPC methods mentioned above, `SuiClient` also exposes some methods for working
-with Transactions.
+In addition to the RPC methods mentioned above, `SuiJsonRpcClient` also exposes some methods for
+working with Transactions.
 
 ### `executeTransactionBlock`
 

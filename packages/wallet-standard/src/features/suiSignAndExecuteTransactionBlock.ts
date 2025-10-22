@@ -5,7 +5,7 @@ import type {
 	ExecuteTransactionRequestType,
 	SuiTransactionBlockResponse,
 	SuiTransactionBlockResponseOptions,
-} from '@mysten/sui/client';
+} from '@mysten/sui/jsonRpc';
 
 import type { SuiSignTransactionBlockInput } from './suiSignTransactionBlock.js';
 

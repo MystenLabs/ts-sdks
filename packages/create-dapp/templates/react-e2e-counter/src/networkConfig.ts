@@ -1,4 +1,4 @@
-import { getFullnodeUrl } from "@mysten/sui/client";
+import { getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 import {
   DEVNET_COUNTER_PACKAGE_ID,
   TESTNET_COUNTER_PACKAGE_ID,
@@ -9,19 +9,22 @@ import { createNetworkConfig } from "@mysten/dapp-kit";
 const { networkConfig, useNetworkVariable, useNetworkVariables } =
   createNetworkConfig({
     devnet: {
-      url: getFullnodeUrl("devnet"),
+      url: getJsonRpcFullnodeUrl("devnet"),
+      network: "devnet",
       variables: {
         counterPackageId: DEVNET_COUNTER_PACKAGE_ID,
       },
     },
     testnet: {
-      url: getFullnodeUrl("testnet"),
+      url: getJsonRpcFullnodeUrl("testnet"),
+      network: "testnet",
       variables: {
         counterPackageId: TESTNET_COUNTER_PACKAGE_ID,
       },
     },
     mainnet: {
-      url: getFullnodeUrl("mainnet"),
+      url: getJsonRpcFullnodeUrl("mainnet"),
+      network: "mainnet",
       variables: {
         counterPackageId: MAINNET_COUNTER_PACKAGE_ID,
       },

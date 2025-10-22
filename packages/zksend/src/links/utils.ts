@@ -1,7 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ObjectOwner, SuiObjectChange, SuiTransactionBlockResponse } from '@mysten/sui/client';
+import type {
+	ObjectOwner,
+	SuiObjectChange,
+	SuiTransactionBlockResponse,
+} from '@mysten/sui/jsonRpc';
 import type { Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, normalizeSuiAddress, parseStructTag } from '@mysten/sui/utils';
 
