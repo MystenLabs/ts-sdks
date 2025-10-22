@@ -5,7 +5,7 @@ import { describe, expect, test, beforeEach } from 'vitest';
 import { TEST_DEFAULT_NETWORK, TEST_NETWORKS, TestWalletInitializeResult } from '../../test-utils';
 import { createMockWallets, MockWallet } from '../../mocks/mock-wallet';
 import { createDAppKit, DAppKit } from '../../../src';
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { getWallets } from '@mysten/wallet-standard';
 import { createMockAccount } from '../../mocks/mock-account';
 import { UiWallet } from '@wallet-standard/ui';
@@ -21,7 +21,7 @@ describe('[Integration] connectWallet action', () => {
 			networks: TEST_NETWORKS,
 			defaultNetwork: TEST_DEFAULT_NETWORK,
 			createClient(network) {
-				return new SuiClient({ network, url: getFullnodeUrl(network) });
+				return new SuiJsonRpcClient({ network, url: getJsonRpcFullnodeUrl(network) });
 			},
 			walletInitializers: [
 				{

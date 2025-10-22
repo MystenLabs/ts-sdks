@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SuiClient } from '@mysten/sui/client';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import type { StandardEventsListeners, Wallet } from '@mysten/wallet-standard';
 
 import type { EnokiClientConfig } from '../EnokiClient/index.js';
@@ -89,9 +89,9 @@ export type RegisterEnokiWalletsOptions = {
 		| ClientConfig
 		| {
 				/**
-				 * The SuiClient instance to use when building and executing transactions.
+				 * The SuiJsonRpcClient instance to use when building and executing transactions.
 				 */
-				client: SuiClient;
+				client: SuiJsonRpcClient;
 
 				/**
 				 * The network to use when building and executing transactions.

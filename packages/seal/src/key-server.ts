@@ -34,7 +34,7 @@ export const SERVER_VERSION_REQUIREMENT = new Version('0.4.1');
  * from onchain state containing name, objectId, URL and pk.
  *
  * @param objectIds - The key server object IDs.
- * @param client - The SuiClient to use.
+ * @param client - The SuiJsonRpcClient to use.
  * @returns - An array of SealKeyServer.
  */
 export async function retrieveKeyServers({

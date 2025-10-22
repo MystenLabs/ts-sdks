@@ -1,6 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { renderHook } from '@testing-library/react';
 
 import { useSuiClient } from '../../src/index.js';
@@ -13,8 +13,11 @@ describe('useSuiClient', () => {
 		);
 	});
 
-	test('returns a SuiClient', () => {
-		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet'), network: 'localnet' });
+	test('returns a SuiJsonRpcClient', () => {
+		const suiClient = new SuiJsonRpcClient({
+			url: getJsonRpcFullnodeUrl('localnet'),
+			network: 'localnet',
+		});
 		const wrapper = createSuiClientContextWrapper(suiClient);
 		const { result } = renderHook(() => useSuiClient(), { wrapper });
 
