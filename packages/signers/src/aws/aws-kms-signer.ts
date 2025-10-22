@@ -84,15 +84,6 @@ export class AwsKmsSigner extends Signer {
 	}
 
 	/**
-	 * Synchronous signing is not supported by AWS KMS.
-	 * @throws Always throws an error indicating synchronous signing is unsupported.
-	 * @deprecated use `sign` instead
-	 */
-	signData(): never {
-		throw new Error('KMS Signer does not support sync signing');
-	}
-
-	/**
 	 * Prepares the signer by fetching and setting the public key from AWS KMS.
 	 * It is recommended to initialize an `AwsKmsSigner` instance using this function.
 	 * @returns A promise that resolves once a `AwsKmsSigner` instance is prepared (public key is set).
