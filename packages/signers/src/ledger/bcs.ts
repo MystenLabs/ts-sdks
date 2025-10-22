@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs, TypeTagSerializer } from '@mysten/sui/bcs';
-import type { ObjectOwner } from '@mysten/sui/client';
+import type { ObjectOwner } from '@mysten/sui/jsonRpc';
 import {
 	fromBase64,
 	normalizeStructTag,

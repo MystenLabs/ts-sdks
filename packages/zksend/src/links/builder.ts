@@ -1,8 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import type { CoinStruct } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import type { CoinStruct } from '@mysten/sui/jsonRpc';
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import type { Keypair, Signer } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
@@ -18,7 +18,7 @@ export interface ZkSendLinkBuilderOptions {
 	path?: string;
 	keypair?: Keypair;
 	network?: 'mainnet' | 'testnet';
-	client?: SuiClient;
+	client?: SuiJsonRpcClient;
 	sender: string;
 	contract?: ZkBagContractOptions | null;
 }
@@ -52,7 +52,7 @@ export class ZkSendLinkBuilder {
 	#host: string;
 	#path: string;
 	keypair: Keypair;
-	#client: SuiClient;
+	#client: SuiJsonRpcClient;
 	#coinsByType = new Map<string, CoinStruct[]>();
 	#contract?: ZkBag<ZkBagContractOptions>;
 
@@ -61,7 +61,7 @@ export class ZkSendLinkBuilder {
 		path = DEFAULT_ZK_SEND_LINK_OPTIONS.path,
 		keypair = new Ed25519Keypair(),
 		network = DEFAULT_ZK_SEND_LINK_OPTIONS.network,
-		client = new SuiClient({ url: getFullnodeUrl(network), network }),
+		client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl(network), network }),
 		sender,
 		contract = getContractIds(network),
 	}: ZkSendLinkBuilderOptions) {
@@ -302,12 +302,12 @@ export class ZkSendLinkBuilder {
 	static async createLinks({
 		links,
 		network = 'mainnet',
-		client = new SuiClient({ url: getFullnodeUrl(network), network }),
+		client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl(network), network }),
 		transaction = new Transaction(),
 		contract: contractIds = getContractIds(network),
 	}: {
 		transaction?: Transaction;
-		client?: SuiClient;
+		client?: SuiJsonRpcClient;
 		network?: 'mainnet' | 'testnet';
 		links: ZkSendLinkBuilder[];
 		contract?: ZkBagContractOptions;

@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SuiClient } from '@mysten/sui/client';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { useContext } from 'react';
 
 import { SuiClientContext } from '../components/SuiClientProvider.js';
@@ -18,6 +18,6 @@ export function useSuiClientContext() {
 	return suiClient;
 }
 
-export function useSuiClient(): SuiClient {
+export function useSuiClient(): SuiJsonRpcClient {
 	return useSuiClientContext().client;
 }
