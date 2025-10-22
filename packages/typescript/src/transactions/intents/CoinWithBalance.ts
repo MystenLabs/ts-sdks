@@ -5,7 +5,7 @@ import type { InferInput } from 'valibot';
 import { bigint, object, parse, string } from 'valibot';
 
 import { bcs } from '../../bcs/index.js';
-import type { CoinStruct, SuiClient } from '../../client/index.js';
+import type { CoinStruct, SuiJsonRpcClient } from '../../jsonRpc/index.js';
 import { normalizeStructTag } from '../../utils/sui-types.js';
 import { Commands } from '../Commands.js';
 import type { Argument } from '../data/internal.js';
@@ -183,7 +183,7 @@ async function getCoinsOfType({
 }: {
 	coinType: string;
 	balance: bigint;
-	client: SuiClient;
+	client: SuiJsonRpcClient;
 	owner: string;
 	usedIds: Set<string>;
 }): Promise<CoinStruct[]> {
@@ -220,10 +220,10 @@ async function getCoinsOfType({
 	}
 }
 
-export function getSuiClient(options: BuildTransactionOptions): SuiClient {
-	const client = getClient(options) as SuiClient;
+export function getSuiClient(options: BuildTransactionOptions): SuiJsonRpcClient {
+	const client = getClient(options) as SuiJsonRpcClient;
 	if (!client.jsonRpc) {
-		throw new Error(`CoinWithBalance intent currently only works with SuiClient`);
+		throw new Error(`CoinWithBalance intent currently only works with SuiJsonRpcClient`);
 	}
 
 	return client;

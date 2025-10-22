@@ -12,11 +12,11 @@ npm install --save @mysten/payment-kit @mysten/sui
 
 ## Setup
 
-In order to use the Payment Kit SDK you will first need to create an instance of SuiClient from the
-Typescript SDK, and a client instance of the Payment Kit SDK.
+In order to use the Payment Kit SDK you will first need to create an instance of SuiJsonRpcClient
+from the Typescript SDK, and a client instance of the Payment Kit SDK.
 
 ```ts
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { paymentKit } from '@mysten/payment-kit';
 
 // Create a Sui client with a Payment Kit extension

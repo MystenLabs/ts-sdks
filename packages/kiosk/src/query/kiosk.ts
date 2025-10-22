@@ -4,10 +4,10 @@
 import type {
 	PaginatedObjectsResponse,
 	PaginationArguments,
-	SuiClient,
+	SuiJsonRpcClient,
 	SuiObjectData,
 	SuiObjectResponse,
-} from '@mysten/sui/client';
+} from '@mysten/sui/jsonRpc';
 import { isValidSuiAddress } from '@mysten/sui/utils';
 
 import type {
@@ -29,7 +29,7 @@ import {
 } from '../utils.js';
 
 export async function fetchKiosk(
-	client: SuiClient,
+	client: SuiJsonRpcClient,
 	kioskId: string,
 	pagination: PaginationArguments<string>,
 	options: FetchKioskOptions,
@@ -91,7 +91,7 @@ const DEFAULT_PAGE_SIZE = 50;
 const PERSON_KIOSK_CURSOR = 'personal';
 const OWNED_KIOSKS_CURSOR = 'owned';
 export async function getOwnedKiosks(
-	client: SuiClient,
+	client: SuiJsonRpcClient,
 	address: string,
 	options?: {
 		pagination?: PaginationArguments<string>;
@@ -234,7 +234,7 @@ function formatOwnedKioskResponse(
 
 // Get a kiosk extension data for a given kioskId and extensionType.
 export async function fetchKioskExtension(
-	client: SuiClient,
+	client: SuiJsonRpcClient,
 	kioskId: string,
 	extensionType: string,
 ): Promise<KioskExtension | null> {

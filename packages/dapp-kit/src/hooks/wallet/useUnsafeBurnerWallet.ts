@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SuiClient } from '@mysten/sui/client';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { toBase64 } from '@mysten/sui/utils';
@@ -37,7 +37,7 @@ export function useUnsafeBurnerWallet(enabled: boolean) {
 	}, [enabled, suiClient]);
 }
 
-function registerUnsafeBurnerWallet(suiClient: SuiClient) {
+function registerUnsafeBurnerWallet(suiClient: SuiJsonRpcClient) {
 	const walletsApi = getWallets();
 	const registeredWallets = walletsApi.get();
 
