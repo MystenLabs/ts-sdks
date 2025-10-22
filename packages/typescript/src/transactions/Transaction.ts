@@ -221,8 +221,6 @@ export class Transaction {
 		return newTransaction;
 	}
 
-	/** @deprecated global plugins should be registered with a name */
-	static registerGlobalSerializationPlugin(step: TransactionPlugin): void;
 	static registerGlobalSerializationPlugin(name: string, step: TransactionPlugin): void;
 	static registerGlobalSerializationPlugin(
 		stepOrStep: TransactionPlugin | string,
@@ -238,8 +236,6 @@ export class Transaction {
 		getGlobalPluginRegistry().serializationPlugins.delete(name);
 	}
 
-	/** @deprecated global plugins should be registered with a name */
-	static registerGlobalBuildPlugin(step: TransactionPlugin): void;
 	static registerGlobalBuildPlugin(name: string, step: TransactionPlugin): void;
 	static registerGlobalBuildPlugin(
 		stepOrStep: TransactionPlugin | string,
@@ -287,31 +283,26 @@ export class Transaction {
 		this.#data.expiration = expiration ? parse(TransactionExpiration, expiration) : null;
 	}
 	setGasPrice(price: number | bigint) {
-		this.#data.gasConfig.price = String(price);
+		this.#data.gasData.price = String(price);
 	}
 	setGasBudget(budget: number | bigint) {
-		this.#data.gasConfig.budget = String(budget);
+		this.#data.gasData.budget = String(budget);
 	}
 
 	setGasBudgetIfNotSet(budget: number | bigint) {
 		if (this.#data.gasData.budget == null) {
-			this.#data.gasConfig.budget = String(budget);
+			this.#data.gasData.budget = String(budget);
 		}
 	}
 
 	setGasOwner(owner: string) {
-		this.#data.gasConfig.owner = owner;
+		this.#data.gasData.owner = owner;
 	}
 	setGasPayment(payments: ObjectRef[]) {
-		this.#data.gasConfig.payment = payments.map((payment) => parse(ObjectRefSchema, payment));
+		this.#data.gasData.payment = payments.map((payment) => parse(ObjectRefSchema, payment));
 	}
 
 	#data: TransactionDataBuilder;
-
-	/** @deprecated Use `getData()` instead. */
-	get blockData() {
-		return serializeV1TransactionData(this.#data.snapshot());
-	}
 
 	/** Get a snapshot of the transaction data, in JSON form: */
 	getData() {
