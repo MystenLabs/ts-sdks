@@ -2,3 +2,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
 export class PaymentKitClientError extends Error {}
+
+export class PaymentKitUriError extends PaymentKitClientError {}
