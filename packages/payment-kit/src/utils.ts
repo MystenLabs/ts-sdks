@@ -4,7 +4,7 @@
 import { bcs } from '@mysten/sui/bcs';
 import { deriveObjectID, isValidSuiAddress, isValidSuiObjectId } from '@mysten/sui/utils';
 import { DEFAULT_REGISTRY_NAME, SUI_PROTOCOL } from './constants.js';
-import { PaymentUriParams } from './types.js';
+import type { PaymentUriParams } from './types.js';
 import { PaymentKitUriError } from './error.js';
 
 export const getRegistryIdFromName = (
