@@ -66,7 +66,7 @@ export type DeletePaymentRecordOptions = {
 
 export type PaymentUriParams = {
 	receiverAddress: string;
-	amount: string;
+	amount: bigint;
 	coinType: string;
 	nonce: string;
 	label?: string;

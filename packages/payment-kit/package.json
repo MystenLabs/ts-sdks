@@ -37,7 +37,6 @@
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:*",
-		"@mysten/sui": "workspace:*",
-		"bignumber.js": "^9.3.0"
+		"@mysten/sui": "workspace:*"
 	}
 }

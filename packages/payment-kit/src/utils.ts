@@ -5,7 +5,6 @@ import { bcs } from '@mysten/sui/bcs';
 import { deriveObjectID, isValidSuiAddress, isValidSuiObjectId } from '@mysten/sui/utils';
 import { DEFAULT_REGISTRY_NAME, SUI_PROTOCOL } from './constants.js';
 import { PaymentUriParams } from './types.js';
-import BigNumber from 'bignumber.js';
 import { PaymentKitUriError } from './error.js';
 
 export const getRegistryIdFromName = (
@@ -23,9 +22,8 @@ const validateNonce = (nonce: string) => {
 	return nonce.length <= 36;
 };
 
-const validateAmount = (amount: BigNumber) => {
-	const bigAmount = new BigNumber(amount);
-	return !bigAmount.isNaN() && bigAmount.isGreaterThan(0);
+const validateAmount = (amount: bigint) => {
+	return amount > 0n;
 };
 
 export const createUri = (params: PaymentUriParams): string => {
@@ -37,9 +35,8 @@ export const createUri = (params: PaymentUriParams): string => {
 
 	const uri = new URL(SUI_PROTOCOL + address);
 
-	const parsedAmount = new BigNumber(amount);
-	if (validateAmount(parsedAmount)) {
-		uri.searchParams.append('amount', parsedAmount.toFixed(parsedAmount.decimalPlaces() ?? 0));
+	if (validateAmount(amount)) {
+		uri.searchParams.append('amount', amount.toString());
 	} else {
 		throw new PaymentKitUriError('Amount must be a positive numeric string');
 	}
@@ -106,8 +103,8 @@ export const parseUri = (uri: string): PaymentUriParams => {
 	}
 
 	// Validate amount is a valid numeric string (int or float) and positive
-	const amountNum = BigNumber(amount);
-	if (!validateAmount(amountNum)) {
+	const bigIntAmount = BigInt(amount);
+	if (!validateAmount(bigIntAmount)) {
 		throw new PaymentKitUriError('Invalid URI: Amount must be a positive number');
 	}
 
@@ -128,7 +125,7 @@ export const parseUri = (uri: string): PaymentUriParams => {
 
 	const baseParams = {
 		receiverAddress: address,
-		amount,
+		amount: bigIntAmount,
 		coinType,
 		nonce,
 		label: params.get('label') ? decodeURIComponent(params.get('label')!) : undefined,
