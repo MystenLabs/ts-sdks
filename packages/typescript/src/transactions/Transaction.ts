@@ -508,13 +508,13 @@ export class Transaction {
 		this.#data.mapCommandArguments(resultIndex, (arg) => {
 			if (arg.$kind === 'Result' && !this.#availableResults.has(arg.Result)) {
 				throw new Error(
-					`Result { Result: ${arg.Result} } is not available to use the current transaction`,
+					`Result { Result: ${arg.Result} } is not available to use in the current transaction`,
 				);
 			}
 
 			if (arg.$kind === 'NestedResult' && !this.#availableResults.has(arg.NestedResult[0])) {
 				throw new Error(
-					`Result { NestedResult: [${arg.NestedResult[0]}, ${arg.NestedResult[1]}] } is not available to use the current transaction`,
+					`Result { NestedResult: [${arg.NestedResult[0]}, ${arg.NestedResult[1]}] } is not available to use in the current transaction`,
 				);
 			}
 
