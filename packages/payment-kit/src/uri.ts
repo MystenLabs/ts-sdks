@@ -1,11 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import {
-	isValidNamedType,
-	isValidSuiAddress,
-	isValidSuiObjectId,
-} from '@mysten/sui/dist/cjs/utils';
+import { isValidNamedType, isValidSuiAddress, isValidSuiObjectId } from '@mysten/sui/utils';
 import type { PaymentUriParams } from './types.js';
 import { PaymentKitUriError } from './error.js';
 import { SUI_PROTOCOL } from './constants.js';
