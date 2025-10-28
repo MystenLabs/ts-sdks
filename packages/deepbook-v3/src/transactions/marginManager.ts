@@ -386,4 +386,180 @@ export class MarginManagerContract {
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			});
 		};
+
+	// === Read-Only Functions ===
+
+	/**
+	 * @description Get the owner address of a margin manager
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	ownerByPoolKey = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::owner`,
+			arguments: [tx.object(marginManagerId)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Get the DeepBook pool ID associated with a margin manager
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	deepbookPool = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deepbook_pool`,
+			arguments: [tx.object(marginManagerId)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Get the margin pool ID (if any) associated with a margin manager
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	marginPoolId = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::margin_pool_id`,
+			arguments: [tx.object(marginManagerId)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Get borrowed shares for both base and quote assets
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	borrowedShares = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::borrowed_shares`,
+			arguments: [tx.object(marginManagerId)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Get borrowed base shares
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	borrowedBaseShares = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::borrowed_base_shares`,
+			arguments: [tx.object(marginManagerId)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Get borrowed quote shares
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	borrowedQuoteShares = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::borrowed_quote_shares`,
+			arguments: [tx.object(marginManagerId)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Check if margin manager has base asset debt
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	hasBaseDebt = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::has_base_debt`,
+			arguments: [tx.object(marginManagerId)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Get the balance manager ID for a margin manager
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	balanceManager = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::balance_manager`,
+			arguments: [tx.object(marginManagerId)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Calculate assets (base and quote) for a margin manager
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	calculateAssets = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::calculate_assets`,
+			arguments: [tx.object(marginManagerId), tx.object(pool.address)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Calculate debts (base and quote) for a margin manager
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} coinKey The key to identify the debt coin (base or quote)
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	calculateDebts =
+		(poolKey: string, coinKey: string, marginManagerId: string) => (tx: Transaction) => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			const debtCoin = this.#config.getCoin(coinKey);
+			const marginPool = this.#config.getMarginPool(coinKey);
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::calculate_debts`,
+				arguments: [tx.object(marginManagerId), tx.object(marginPool.address), tx.object.clock()],
+				typeArguments: [baseCoin.type, quoteCoin.type, debtCoin.type],
+			});
+		};
 }
