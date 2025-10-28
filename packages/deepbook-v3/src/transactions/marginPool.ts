@@ -131,4 +131,205 @@ export class MarginPoolContract {
 			typeArguments: [marginPool.type],
 		});
 	};
+
+	// === Read-only/View Functions ===
+
+	/**
+	 * @description Get the margin pool ID
+	 * @param {string} coinKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
+	getId = (coinKey: string) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::id`,
+			arguments: [tx.object(marginPool.address)],
+			typeArguments: [marginPool.type],
+		});
+	};
+
+	/**
+	 * @description Check if a deepbook pool is allowed for borrowing
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @param {string} deepbookPoolId The ID of the deepbook pool
+	 * @returns A function that takes a Transaction object
+	 */
+	deepbookPoolAllowed = (coinKey: string, deepbookPoolId: string) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::deepbook_pool_allowed`,
+			arguments: [tx.object(marginPool.address), tx.pure.id(deepbookPoolId)],
+			typeArguments: [marginPool.type],
+		});
+	};
+
+	/**
+	 * @description Get the total supply amount
+	 * @param {string} coinKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
+	totalSupply = (coinKey: string) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::total_supply`,
+			arguments: [tx.object(marginPool.address)],
+			typeArguments: [marginPool.type],
+		});
+	};
+
+	/**
+	 * @description Get the total supply shares
+	 * @param {string} coinKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
+	supplyShares = (coinKey: string) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::supply_shares`,
+			arguments: [tx.object(marginPool.address)],
+			typeArguments: [marginPool.type],
+		});
+	};
+
+	/**
+	 * @description Get the total borrow amount
+	 * @param {string} coinKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
+	totalBorrow = (coinKey: string) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::total_borrow`,
+			arguments: [tx.object(marginPool.address)],
+			typeArguments: [marginPool.type],
+		});
+	};
+
+	/**
+	 * @description Get the total borrow shares
+	 * @param {string} coinKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
+	borrowShares = (coinKey: string) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::borrow_shares`,
+			arguments: [tx.object(marginPool.address)],
+			typeArguments: [marginPool.type],
+		});
+	};
+
+	/**
+	 * @description Get the last update timestamp
+	 * @param {string} coinKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
+	lastUpdateTimestamp = (coinKey: string) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::last_update_timestamp`,
+			arguments: [tx.object(marginPool.address)],
+			typeArguments: [marginPool.type],
+		});
+	};
+
+	/**
+	 * @description Get the supply cap
+	 * @param {string} coinKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
+	supplyCap = (coinKey: string) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::supply_cap`,
+			arguments: [tx.object(marginPool.address)],
+			typeArguments: [marginPool.type],
+		});
+	};
+
+	/**
+	 * @description Get the max utilization rate
+	 * @param {string} coinKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
+	maxUtilizationRate = (coinKey: string) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::max_utilization_rate`,
+			arguments: [tx.object(marginPool.address)],
+			typeArguments: [marginPool.type],
+		});
+	};
+
+	/**
+	 * @description Get the protocol spread
+	 * @param {string} coinKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
+	protocolSpread = (coinKey: string) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::protocol_spread`,
+			arguments: [tx.object(marginPool.address)],
+			typeArguments: [marginPool.type],
+		});
+	};
+
+	/**
+	 * @description Get the minimum borrow amount
+	 * @param {string} coinKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
+	minBorrow = (coinKey: string) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::min_borrow`,
+			arguments: [tx.object(marginPool.address)],
+			typeArguments: [marginPool.type],
+		});
+	};
+
+	/**
+	 * @description Get the current interest rate
+	 * @param {string} coinKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
+	interestRate = (coinKey: string) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::interest_rate`,
+			arguments: [tx.object(marginPool.address)],
+			typeArguments: [marginPool.type],
+		});
+	};
+
+	/**
+	 * @description Get user supply shares for a supplier cap
+	 * @param {string} coinKey The key to identify the pool
+	 * @param {string} supplierCapId The ID of the supplier cap
+	 * @returns A function that takes a Transaction object
+	 */
+	userSupplyShares = (coinKey: string, supplierCapId: string) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::user_supply_shares`,
+			arguments: [tx.object(marginPool.address), tx.pure.id(supplierCapId)],
+			typeArguments: [marginPool.type],
+		});
+	};
+
+	/**
+	 * @description Get user supply amount for a supplier cap
+	 * @param {string} coinKey The key to identify the pool
+	 * @param {string} supplierCapId The ID of the supplier cap
+	 * @returns A function that takes a Transaction object
+	 */
+	userSupplyAmount = (coinKey: string, supplierCapId: string) => (tx: Transaction) => {
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::user_supply_amount`,
+			arguments: [tx.object(marginPool.address), tx.pure.id(supplierCapId), tx.object.clock()],
+			typeArguments: [marginPool.type],
+		});
+	};
 }

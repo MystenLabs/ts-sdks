@@ -836,4 +836,280 @@ export class DeepBookClient {
 			throw new Error(`Invalid price info object structure for ${coinKey}`);
 		}
 	}
+
+	// === Margin Pool View Methods ===
+
+	/**
+	 * @description Get the margin pool ID
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @returns {Promise<string>} The margin pool ID
+	 */
+	async getMarginPoolId(coinKey: string): Promise<string> {
+		const tx = new Transaction();
+		tx.add(this.marginPool.getId(coinKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		return bcs.Address.parse(new Uint8Array(bytes));
+	}
+
+	/**
+	 * @description Check if a deepbook pool is allowed for borrowing from margin pool
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @param {string} deepbookPoolId The ID of the deepbook pool
+	 * @returns {Promise<boolean>} Whether the deepbook pool is allowed
+	 */
+	async isDeepbookPoolAllowed(coinKey: string, deepbookPoolId: string): Promise<boolean> {
+		const tx = new Transaction();
+		tx.add(this.marginPool.deepbookPoolAllowed(coinKey, deepbookPoolId));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		return bcs.bool().parse(new Uint8Array(bytes));
+	}
+
+	/**
+	 * @description Get the total supply amount in the margin pool
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @returns {Promise<number>} The total supply amount (scaled)
+	 */
+	async getMarginPoolTotalSupply(coinKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginPool.totalSupply(coinKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const rawAmount = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const coin = this.#config.getCoin(coinKey);
+		return rawAmount / coin.scalar;
+	}
+
+	/**
+	 * @description Get the total supply shares in the margin pool
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @returns {Promise<number>} The total supply shares (scaled)
+	 */
+	async getMarginPoolSupplyShares(coinKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginPool.supplyShares(coinKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const rawShares = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const coin = this.#config.getCoin(coinKey);
+		return rawShares / coin.scalar;
+	}
+
+	/**
+	 * @description Get the total borrow amount in the margin pool
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @returns {Promise<number>} The total borrow amount (scaled)
+	 */
+	async getMarginPoolTotalBorrow(coinKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginPool.totalBorrow(coinKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const rawAmount = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const coin = this.#config.getCoin(coinKey);
+		return rawAmount / coin.scalar;
+	}
+
+	/**
+	 * @description Get the total borrow shares in the margin pool
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @returns {Promise<number>} The total borrow shares (scaled)
+	 */
+	async getMarginPoolBorrowShares(coinKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginPool.borrowShares(coinKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const rawShares = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const coin = this.#config.getCoin(coinKey);
+		return rawShares / coin.scalar;
+	}
+
+	/**
+	 * @description Get the last update timestamp of the margin pool
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @returns {Promise<number>} The last update timestamp in milliseconds
+	 */
+	async getMarginPoolLastUpdateTimestamp(coinKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginPool.lastUpdateTimestamp(coinKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		return Number(bcs.U64.parse(new Uint8Array(bytes)));
+	}
+
+	/**
+	 * @description Get the supply cap of the margin pool
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @returns {Promise<number>} The supply cap (scaled)
+	 */
+	async getMarginPoolSupplyCap(coinKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginPool.supplyCap(coinKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const rawAmount = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const coin = this.#config.getCoin(coinKey);
+		return rawAmount / coin.scalar;
+	}
+
+	/**
+	 * @description Get the max utilization rate of the margin pool
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @returns {Promise<number>} The max utilization rate (as a decimal, e.g., 0.95 for 95%)
+	 */
+	async getMarginPoolMaxUtilizationRate(coinKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginPool.maxUtilizationRate(coinKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const rawRate = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		return rawRate / FLOAT_SCALAR;
+	}
+
+	/**
+	 * @description Get the protocol spread of the margin pool
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @returns {Promise<number>} The protocol spread (as a decimal)
+	 */
+	async getMarginPoolProtocolSpread(coinKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginPool.protocolSpread(coinKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const rawSpread = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		return rawSpread / FLOAT_SCALAR;
+	}
+
+	/**
+	 * @description Get the minimum borrow amount for the margin pool
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @returns {Promise<number>} The minimum borrow amount (scaled)
+	 */
+	async getMarginPoolMinBorrow(coinKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginPool.minBorrow(coinKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const rawAmount = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const coin = this.#config.getCoin(coinKey);
+		return rawAmount / coin.scalar;
+	}
+
+	/**
+	 * @description Get the current interest rate of the margin pool
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @returns {Promise<number>} The current interest rate (as a decimal)
+	 */
+	async getMarginPoolInterestRate(coinKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginPool.interestRate(coinKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const rawRate = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		return rawRate / FLOAT_SCALAR;
+	}
+
+	/**
+	 * @description Get user supply shares for a supplier cap
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @param {string} supplierCapId The ID of the supplier cap
+	 * @returns {Promise<number>} The user's supply shares (scaled)
+	 */
+	async getUserSupplyShares(coinKey: string, supplierCapId: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginPool.userSupplyShares(coinKey, supplierCapId));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const rawShares = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const coin = this.#config.getCoin(coinKey);
+		return rawShares / coin.scalar;
+	}
+
+	/**
+	 * @description Get user supply amount for a supplier cap
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @param {string} supplierCapId The ID of the supplier cap
+	 * @returns {Promise<number>} The user's supply amount (scaled)
+	 */
+	async getUserSupplyAmount(coinKey: string, supplierCapId: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginPool.userSupplyAmount(coinKey, supplierCapId));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const rawAmount = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const coin = this.#config.getCoin(coinKey);
+		return rawAmount / coin.scalar;
+	}
 }
