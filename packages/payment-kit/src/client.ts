@@ -13,13 +13,12 @@ import type {
 	PaymentKitClientOptions,
 	GetPaymentRecordOptions,
 	GetPaymentRecordResponse,
-	PaymentUriParams,
 } from './types.js';
 import type { ClientWithCoreApi } from '@mysten/sui/experimental';
 import { normalizeStructTag } from '@mysten/sui/utils';
 import { PaymentKitTransactions } from './transactions.js';
 import { PaymentKitCalls } from './calls.js';
-import { createUri, getRegistryIdFromName, parseUri } from './utils.js';
+import { getRegistryIdFromName } from './utils.js';
 
 export function paymentKit<const Name = 'paymentKit'>({ name = 'paymentKit' as Name } = {}) {
 	return {
@@ -116,37 +115,5 @@ export class PaymentKitClient {
 	 */
 	getRegistryIdFromName(registryName: string): string {
 		return getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
-	}
-
-	/**
-	 * Create a payment URI from the given parameters.
-	 * Returns the constructed URI string.
-	 *
-	 * @example
-	 * ```ts
-	 * const uri = client.createUri({
-	 *   receiverAddress: "0x...",
-	 *   amount: "10000000", (0.01 SUI)
-	 *   coinType: "0x2::sui::SUI",
-	 *   nonce: <nonce>,
-	 *   registryName: "my-registry"
-	 * });
-	 * ```
-	 */
-	createUri(params: PaymentUriParams): string {
-		return createUri(params);
-	}
-
-	/**
-	 * Parse a payment URI into its components.
-	 * Returns the parsed payment URI parameters.
-	 *
-	 * @example
-	 * ```ts
-	 * const params = client.parseUri("sui:0x...?amount=1000&coinType=0x2::sui::SUI&nonce=...");
-	 * ```
-	 */
-	parseUri(uri: string): PaymentUriParams {
-		return parseUri(uri);
 	}
 }

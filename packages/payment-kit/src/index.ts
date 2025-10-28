@@ -19,4 +19,4 @@ export type {
 } from './types.js';
 export { PaymentKitClientError, PaymentKitUriError } from './error.js';
 export { DEFAULT_REGISTRY_NAME } from './constants.js';
-export { createUri, parseUri } from './utils.js';
+export { createPaymentTransactionUri, parsePaymentTransactionUri } from './uri.js';
