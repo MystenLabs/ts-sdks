@@ -1158,9 +1158,6 @@ importers:
       '@mysten/sui':
         specifier: workspace:*
         version: link:../typescript
-      bignumber.js:
-        specifier: ^9.3.0
-        version: 9.3.1
     devDependencies:
       '@mysten/build-scripts':
         specifier: workspace:*
