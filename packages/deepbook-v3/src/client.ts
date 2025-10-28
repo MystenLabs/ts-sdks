@@ -1345,40 +1345,54 @@ export class DeepBookClient {
 
 	/**
 	 * @description Calculate debts (base and quote) for a margin manager
+	 * NOTE: This function automatically determines whether to use base or quote margin pool
+	 * based on hasBaseDebt. You don't need to specify the debt coin type.
 	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} coinKey The key to identify the debt coin (base or quote)
 	 * @param {string} marginManagerId The ID of the margin manager
 	 * @param {number} decimals Number of decimal places to show (default: 6)
 	 * @returns {Promise<{baseDebt: string, quoteDebt: string}>} The base and quote debts
 	 */
 	async getMarginManagerDebts(
 		poolKey: string,
-		coinKey: string,
 		marginManagerId: string,
 		decimals: number = 6,
 	): Promise<{ baseDebt: string; quoteDebt: string }> {
+		// First check if the margin manager has base debt
+		const hasBaseDebt = await this.getMarginManagerHasBaseDebt(poolKey, marginManagerId);
+
+		// Get the pool configuration to determine base and quote coins
+		const pool = this.#config.getPool(poolKey);
+		const debtCoinKey = hasBaseDebt ? pool.baseCoin : pool.quoteCoin;
+
+		// Now call calculateDebts with the correct debt coin
 		const tx = new Transaction();
-		tx.add(this.marginManager.calculateDebts(poolKey, coinKey, marginManagerId));
+		tx.add(this.marginManager.calculateDebts(poolKey, debtCoinKey, marginManagerId));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
 			transactionBlock: tx,
 		});
 
-		const baseBytes = res.results![0].returnValues![0][0];
-		const quoteBytes = res.results![0].returnValues![1][0];
-		const pool = this.#config.getPool(poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		// Check if the transaction failed
+		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+			throw new Error(
+				`Failed to get margin manager debts: ${res.effects?.status?.error || 'Unknown error'}`,
+			);
+		}
+
+		// The Move function returns a tuple (u64, u64), so returnValues has 2 elements
+		const baseBytes = res.results[0].returnValues[0][0];
+		const quoteBytes = res.results[0].returnValues[1][0];
+		const debtCoin = this.#config.getCoin(debtCoinKey);
 
 		const baseDebt = this.#formatTokenAmount(
 			BigInt(bcs.U64.parse(new Uint8Array(baseBytes))),
-			baseCoin.scalar,
+			debtCoin.scalar,
 			decimals,
 		);
 		const quoteDebt = this.#formatTokenAmount(
 			BigInt(bcs.U64.parse(new Uint8Array(quoteBytes))),
-			quoteCoin.scalar,
+			debtCoin.scalar,
 			decimals,
 		);
 
