@@ -44,7 +44,7 @@ export const createUri = (params: PaymentUriParams): string => {
 	uri.searchParams.append('coinType', coinType);
 
 	if (validateNonce(nonce)) {
-		uri.searchParams.append('nonce', nonce);
+		uri.searchParams.append('nonce', encodeURIComponent(nonce));
 	} else {
 		throw new PaymentKitUriError('Nonce length exceeds maximum of 36 characters');
 	}
@@ -127,7 +127,7 @@ export const parseUri = (uri: string): PaymentUriParams => {
 		receiverAddress: address,
 		amount: bigIntAmount,
 		coinType,
-		nonce,
+		nonce: decodeURIComponent(nonce),
 		label: params.get('label') ? decodeURIComponent(params.get('label')!) : undefined,
 		message: params.get('message') ? decodeURIComponent(params.get('message')!) : undefined,
 		iconUrl: params.get('icon') ? decodeURIComponent(params.get('icon')!) : undefined,

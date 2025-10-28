@@ -126,7 +126,7 @@ export class PaymentKitClient {
 	 * ```ts
 	 * const uri = client.createUri({
 	 *   receiverAddress: "0x...",
-	 *   amount: "1000",
+	 *   amount: "10000000", (0.01 SUI)
 	 *   coinType: "0x2::sui::SUI",
 	 *   nonce: <nonce>,
 	 *   registryName: "my-registry"
