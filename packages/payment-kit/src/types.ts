@@ -72,4 +72,4 @@ export type PaymentUriParams = {
 	label?: string;
 	message?: string;
 	iconUrl?: string;
-} & (Registry | undefined);
+} & Partial<Registry>;
