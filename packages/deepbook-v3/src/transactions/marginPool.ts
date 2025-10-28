@@ -53,6 +53,9 @@ export class MarginPoolContract {
 				type: coin.type,
 				balance: depositInput,
 			});
+			// const referralInput = referralId
+			// 	? tx.object.option({ type: '0x2::object::ID', value: referralId })
+			// 	: tx.object.option({ type: '0x2::object::ID', value: null });
 
 			tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::supply`,
@@ -61,7 +64,10 @@ export class MarginPoolContract {
 					tx.object(this.#config.MARGIN_REGISTRY_ID),
 					supplierCap,
 					supply,
-					tx.pure.option('address', referralId),
+					tx.object.option({
+						type: '0x2::object::ID',
+						value: referralId ? tx.pure.id(referralId) : null,
+					}),
 					tx.object.clock(),
 				],
 				typeArguments: [marginPool.type],
