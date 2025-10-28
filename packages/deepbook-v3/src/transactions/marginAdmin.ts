@@ -309,4 +309,53 @@ export class MarginAdminContract {
 				],
 			});
 		};
+
+	/**
+	 * @description Mint a pause cap
+	 * @returns A function that takes a Transaction object
+	 */
+	mintPauseCap = () => (tx: Transaction) => {
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::mint_pause_cap`,
+			arguments: [
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(this.#marginAdminCap()),
+				tx.object.clock(),
+			],
+		});
+	};
+
+	/**
+	 * @description Revoke a pause cap
+	 * @param {string} pauseCapId The ID of the pause cap to revoke
+	 * @returns A function that takes a Transaction object
+	 */
+	revokePauseCap = (pauseCapId: string) => (tx: Transaction) => {
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::revoke_pause_cap`,
+			arguments: [
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(this.#marginAdminCap()),
+				tx.object.clock(),
+				tx.pure.id(pauseCapId),
+			],
+		});
+	};
+
+	/**
+	 * @description Disable a version using pause cap
+	 * @param {number} version The version to disable
+	 * @param {string} pauseCapId The ID of the pause cap
+	 * @returns A function that takes a Transaction object
+	 */
+	disableVersionPauseCap = (version: number, pauseCapId: string) => (tx: Transaction) => {
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::disable_version_pause_cap`,
+			arguments: [
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.pure.u64(version),
+				tx.object(pauseCapId),
+			],
+		});
+	};
 }
