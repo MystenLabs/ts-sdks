@@ -1,8 +1,10 @@
 {
-  "name": "move-trace-adapter",
-  "displayName": "move-trace-adapter",
+  "name": "@mysten/trace-adapter",
+  "displayName": "@mysten/trace-adapter",
   "description": "A Debug Adapter Protocol implementation for visualizing Move VM traces",
   "version": "0.0.1",
+  "license": "Apache-2.0",
+  "author": "Mysten Labs <build@mystenlabs.com>",
   "main": "./out/adapter.js",
   "types": "./out/adapter.d.ts",
   "files": [
@@ -16,19 +18,32 @@
   },
   "scripts": {
     "compile": "tsc -p ./",
-    "lint": "eslint src --ext ts",
-    "test": "npm run compile && mocha --config ./.mocharc.yaml"
+    "prettier:check": "prettier -c --ignore-unknown .",
+    "prettier:fix": "prettier -w --ignore-unknown .",
+    "eslint:check": "eslint --max-warnings=0 .",
+    "eslint:fix": "pnpm run eslint:check --fix",
+    "lint": "pnpm run eslint:check && pnpm run prettier:check",
+    "lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix",
+    "test": "pnpm run compile && mocha --config ./.mocharc.yaml"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mystenlabs/ts-sdks.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mystenlabs/ts-sdks/issues"
+  },
+  "homepage": "https://github.com/MystenLabs/ts-sdks#readme",
   "devDependencies": {
     "@types/lodash.snakecase": "^4.1.9",
-    "@types/node": "20.x",
+    "@types/node": "^22.15.29",
     "@typescript-eslint/eslint-plugin": "^7.14.1",
     "@typescript-eslint/parser": "^7.11.0",
     "@vscode/debugadapter-testsupport": "^1.56.0",
     "eslint": "^8.57.0",
     "line-diff": "^2.1.1",
     "mocha": "10.2.0",
-    "typescript": "^5.4.5"
+    "typescript": "^5.9.2"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
