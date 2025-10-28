@@ -23,6 +23,7 @@ import { MarginAdminContract } from './transactions/marginAdmin.js';
 import { MarginMaintainerContract } from './transactions/marginMaintainer.js';
 import { MarginPoolContract } from './transactions/marginPool.js';
 import { MarginManagerContract } from './transactions/marginManager.js';
+import { MarginRegistryContract } from './transactions/marginRegistry.js';
 import { SuiPriceServiceConnection } from './pyth/pyth.js';
 import { SuiPythClient } from './pyth/pyth.js';
 import { PoolProxyContract } from './transactions/poolProxy.js';
@@ -43,6 +44,7 @@ export class DeepBookClient {
 	marginMaintainer: MarginMaintainerContract;
 	marginPool: MarginPoolContract;
 	marginManager: MarginManagerContract;
+	marginRegistry: MarginRegistryContract;
 	poolProxy: PoolProxyContract;
 
 	/**
@@ -102,6 +104,7 @@ export class DeepBookClient {
 		this.marginMaintainer = new MarginMaintainerContract(this.#config);
 		this.marginPool = new MarginPoolContract(this.#config);
 		this.marginManager = new MarginManagerContract(this.#config);
+		this.marginRegistry = new MarginRegistryContract(this.#config);
 		this.poolProxy = new PoolProxyContract(this.#config);
 	}
 
@@ -1397,6 +1400,233 @@ export class DeepBookClient {
 		);
 
 		return { baseDebt, quoteDebt };
+	}
+
+	// === Margin Registry Functions ===
+
+	/**
+	 * @description Check if a deepbook pool is enabled for margin trading
+	 * @param {string} poolKey The key to identify the pool
+	 * @returns {Promise<boolean>} True if the pool is enabled for margin trading
+	 */
+	async isPoolEnabledForMargin(poolKey: string): Promise<boolean> {
+		const tx = new Transaction();
+		tx.add(this.marginRegistry.poolEnabled(poolKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		return bcs.Bool.parse(new Uint8Array(bytes));
+	}
+
+	/**
+	 * @description Get the margin manager IDs for a given owner address
+	 * @param {string} owner The owner address
+	 * @returns {Promise<string[]>} Array of margin manager IDs
+	 */
+	async getMarginManagerIdsForOwner(owner: string): Promise<string[]> {
+		const tx = new Transaction();
+		tx.add(this.marginRegistry.getMarginManagerIds(owner));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const vecSet = VecSet(bcs.Address).parse(new Uint8Array(bytes));
+		return vecSet.contents.map((id) => normalizeSuiAddress(id));
+	}
+
+	/**
+	 * @description Get the base margin pool ID for a deepbook pool
+	 * @param {string} poolKey The key to identify the pool
+	 * @returns {Promise<string>} The base margin pool ID
+	 */
+	async getBaseMarginPoolId(poolKey: string): Promise<string> {
+		const tx = new Transaction();
+		tx.add(this.marginRegistry.baseMarginPoolId(poolKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const id = bcs.Address.parse(new Uint8Array(bytes));
+		return '0x' + id;
+	}
+
+	/**
+	 * @description Get the quote margin pool ID for a deepbook pool
+	 * @param {string} poolKey The key to identify the pool
+	 * @returns {Promise<string>} The quote margin pool ID
+	 */
+	async getQuoteMarginPoolId(poolKey: string): Promise<string> {
+		const tx = new Transaction();
+		tx.add(this.marginRegistry.quoteMarginPoolId(poolKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const id = bcs.Address.parse(new Uint8Array(bytes));
+		return '0x' + id;
+	}
+
+	/**
+	 * @description Get the minimum withdraw risk ratio for a deepbook pool
+	 * @param {string} poolKey The key to identify the pool
+	 * @returns {Promise<number>} The minimum withdraw risk ratio as a decimal (e.g., 1.5 for 150%)
+	 */
+	async getMinWithdrawRiskRatio(poolKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginRegistry.minWithdrawRiskRatio(poolKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const ratio = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		return ratio / FLOAT_SCALAR;
+	}
+
+	/**
+	 * @description Get the minimum borrow risk ratio for a deepbook pool
+	 * @param {string} poolKey The key to identify the pool
+	 * @returns {Promise<number>} The minimum borrow risk ratio as a decimal (e.g., 1.25 for 125%)
+	 */
+	async getMinBorrowRiskRatio(poolKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginRegistry.minBorrowRiskRatio(poolKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const ratio = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		return ratio / FLOAT_SCALAR;
+	}
+
+	/**
+	 * @description Get the liquidation risk ratio for a deepbook pool
+	 * @param {string} poolKey The key to identify the pool
+	 * @returns {Promise<number>} The liquidation risk ratio as a decimal (e.g., 1.125 for 112.5%)
+	 */
+	async getLiquidationRiskRatio(poolKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginRegistry.liquidationRiskRatio(poolKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const ratio = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		return ratio / FLOAT_SCALAR;
+	}
+
+	/**
+	 * @description Get the target liquidation risk ratio for a deepbook pool
+	 * @param {string} poolKey The key to identify the pool
+	 * @returns {Promise<number>} The target liquidation risk ratio as a decimal (e.g., 1.25 for 125%)
+	 */
+	async getTargetLiquidationRiskRatio(poolKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginRegistry.targetLiquidationRiskRatio(poolKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const ratio = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		return ratio / FLOAT_SCALAR;
+	}
+
+	/**
+	 * @description Get the user liquidation reward for a deepbook pool
+	 * @param {string} poolKey The key to identify the pool
+	 * @returns {Promise<number>} The user liquidation reward as a decimal (e.g., 0.05 for 5%)
+	 */
+	async getUserLiquidationReward(poolKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginRegistry.userLiquidationReward(poolKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const reward = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		return reward / FLOAT_SCALAR;
+	}
+
+	/**
+	 * @description Get the pool liquidation reward for a deepbook pool
+	 * @param {string} poolKey The key to identify the pool
+	 * @returns {Promise<number>} The pool liquidation reward as a decimal (e.g., 0.05 for 5%)
+	 */
+	async getPoolLiquidationReward(poolKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.add(this.marginRegistry.poolLiquidationReward(poolKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const reward = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		return reward / FLOAT_SCALAR;
+	}
+
+	/**
+	 * @description Get all allowed maintainer cap IDs
+	 * @returns {Promise<string[]>} Array of allowed maintainer cap IDs
+	 */
+	async getAllowedMaintainers(): Promise<string[]> {
+		const tx = new Transaction();
+		tx.add(this.marginRegistry.allowedMaintainers());
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const vecSet = VecSet(bcs.Address).parse(new Uint8Array(bytes));
+		return vecSet.contents.map((id) => normalizeSuiAddress(id));
+	}
+
+	/**
+	 * @description Get all allowed pause cap IDs
+	 * @returns {Promise<string[]>} Array of allowed pause cap IDs
+	 */
+	async getAllowedPauseCaps(): Promise<string[]> {
+		const tx = new Transaction();
+		tx.add(this.marginRegistry.allowedPauseCaps());
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const vecSet = VecSet(bcs.Address).parse(new Uint8Array(bytes));
+		return vecSet.contents.map((id) => normalizeSuiAddress(id));
 	}
 
 	/**
