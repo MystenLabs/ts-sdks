@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/payment-kit",
-	"version": "0.0.10",
+	"version": "0.0.11",
 	"private": false,
 	"description": "Sui Payment Kit",
 	"license": "Apache-2.0",

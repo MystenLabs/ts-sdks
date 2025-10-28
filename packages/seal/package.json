@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/seal",
-	"version": "0.9.1",
+	"version": "0.9.2",
 	"description": "Seal SDK",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",

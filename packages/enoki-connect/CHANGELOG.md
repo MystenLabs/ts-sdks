@@ -1,5 +1,12 @@
 # @mysten/enoki-connect
 
+## 0.1.8
+
+### Patch Changes
+
+- @mysten/sui@1.43.2
+- @mysten/wallet-standard@0.19.5
+
 ## 0.1.7
 
 ### Patch Changes

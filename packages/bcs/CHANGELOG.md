@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.9.2
+
+### Patch Changes
+
+- 89fa2dc: Work around bug in turbopack thatbreaks uleb128 encoding in next@16
+
 ## 1.9.1
 
 ### Patch Changes
