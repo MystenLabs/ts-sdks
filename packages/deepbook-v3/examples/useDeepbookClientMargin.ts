@@ -44,16 +44,16 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 
 		// Test supply/borrow statistics
 		console.log('\n2. Supply/Borrow Statistics:');
-		const totalSupply = await dbClient.getMarginPoolTotalSupply(coinKey);
+		const totalSupply = await dbClient.getMarginPoolTotalSupply(coinKey, 6);
 		console.log(`Total Supply (${coinKey}):`, totalSupply);
 
-		const supplyShares = await dbClient.getMarginPoolSupplyShares(coinKey);
+		const supplyShares = await dbClient.getMarginPoolSupplyShares(coinKey, 6);
 		console.log(`Supply Shares (${coinKey}):`, supplyShares);
 
-		const totalBorrow = await dbClient.getMarginPoolTotalBorrow(coinKey);
+		const totalBorrow = await dbClient.getMarginPoolTotalBorrow(coinKey, 6);
 		console.log(`Total Borrow (${coinKey}):`, totalBorrow);
 
-		const borrowShares = await dbClient.getMarginPoolBorrowShares(coinKey);
+		const borrowShares = await dbClient.getMarginPoolBorrowShares(coinKey, 6);
 		console.log(`Borrow Shares (${coinKey}):`, borrowShares);
 
 		// Test timestamps and configuration
@@ -61,7 +61,7 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 		const lastUpdate = await dbClient.getMarginPoolLastUpdateTimestamp(coinKey);
 		console.log(`Last Update Timestamp (${coinKey}):`, new Date(lastUpdate).toISOString());
 
-		const supplyCap = await dbClient.getMarginPoolSupplyCap(coinKey);
+		const supplyCap = await dbClient.getMarginPoolSupplyCap(coinKey, 6);
 		console.log(`Supply Cap (${coinKey}):`, supplyCap);
 
 		const maxUtilization = await dbClient.getMarginPoolMaxUtilizationRate(coinKey);
@@ -70,7 +70,7 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 		const protocolSpread = await dbClient.getMarginPoolProtocolSpread(coinKey);
 		console.log(`Protocol Spread (${coinKey}):`, `${(protocolSpread * 100).toFixed(4)}%`);
 
-		const minBorrow = await dbClient.getMarginPoolMinBorrow(coinKey);
+		const minBorrow = await dbClient.getMarginPoolMinBorrow(coinKey, 6);
 		console.log(`Min Borrow (${coinKey}):`, minBorrow);
 
 		const interestRate = await dbClient.getMarginPoolInterestRate(coinKey);
@@ -79,10 +79,10 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 		// Test user-specific functions (these might fail if supplier cap doesn't exist)
 		console.log("\n4. User-Specific Functions (may fail if supplier cap doesn't exist):");
 		try {
-			const userSupplyShares = await dbClient.getUserSupplyShares(coinKey, testSupplierCapId);
+			const userSupplyShares = await dbClient.getUserSupplyShares(coinKey, testSupplierCapId, 6);
 			console.log(`User Supply Shares (${coinKey}):`, userSupplyShares);
 
-			const userSupplyAmount = await dbClient.getUserSupplyAmount(coinKey, testSupplierCapId);
+			const userSupplyAmount = await dbClient.getUserSupplyAmount(coinKey, testSupplierCapId, 6);
 			console.log(`User Supply Amount (${coinKey}):`, userSupplyAmount);
 		} catch (userError) {
 			console.log(
@@ -106,16 +106,16 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 			console.log(`Deepbook Pool Allowed (${dbusdcCoinKey}):`, dbusdcIsAllowed);
 
 			// Supply/Borrow Statistics
-			const dbusdcTotalSupply = await dbClient.getMarginPoolTotalSupply(dbusdcCoinKey);
+			const dbusdcTotalSupply = await dbClient.getMarginPoolTotalSupply(dbusdcCoinKey, 6);
 			console.log(`Total Supply (${dbusdcCoinKey}):`, dbusdcTotalSupply);
 
-			const dbusdcSupplyShares = await dbClient.getMarginPoolSupplyShares(dbusdcCoinKey);
+			const dbusdcSupplyShares = await dbClient.getMarginPoolSupplyShares(dbusdcCoinKey, 6);
 			console.log(`Supply Shares (${dbusdcCoinKey}):`, dbusdcSupplyShares);
 
-			const dbusdcTotalBorrow = await dbClient.getMarginPoolTotalBorrow(dbusdcCoinKey);
+			const dbusdcTotalBorrow = await dbClient.getMarginPoolTotalBorrow(dbusdcCoinKey, 6);
 			console.log(`Total Borrow (${dbusdcCoinKey}):`, dbusdcTotalBorrow);
 
-			const dbusdcBorrowShares = await dbClient.getMarginPoolBorrowShares(dbusdcCoinKey);
+			const dbusdcBorrowShares = await dbClient.getMarginPoolBorrowShares(dbusdcCoinKey, 6);
 			console.log(`Borrow Shares (${dbusdcCoinKey}):`, dbusdcBorrowShares);
 
 			// Timestamps and Configuration
@@ -125,7 +125,7 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 				new Date(dbusdcLastUpdate).toISOString(),
 			);
 
-			const dbusdcSupplyCap = await dbClient.getMarginPoolSupplyCap(dbusdcCoinKey);
+			const dbusdcSupplyCap = await dbClient.getMarginPoolSupplyCap(dbusdcCoinKey, 6);
 			console.log(`Supply Cap (${dbusdcCoinKey}):`, dbusdcSupplyCap);
 
 			const dbusdcMaxUtilization = await dbClient.getMarginPoolMaxUtilizationRate(dbusdcCoinKey);
@@ -140,7 +140,7 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 				`${(dbusdcProtocolSpread * 100).toFixed(4)}%`,
 			);
 
-			const dbusdcMinBorrow = await dbClient.getMarginPoolMinBorrow(dbusdcCoinKey);
+			const dbusdcMinBorrow = await dbClient.getMarginPoolMinBorrow(dbusdcCoinKey, 6);
 			console.log(`Min Borrow (${dbusdcCoinKey}):`, dbusdcMinBorrow);
 
 			const dbusdcInterestRate = await dbClient.getMarginPoolInterestRate(dbusdcCoinKey);
@@ -151,12 +151,14 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 				const dbusdcUserSupplyShares = await dbClient.getUserSupplyShares(
 					dbusdcCoinKey,
 					testSupplierCapId,
+					6,
 				);
 				console.log(`User Supply Shares (${dbusdcCoinKey}):`, dbusdcUserSupplyShares);
 
 				const dbusdcUserSupplyAmount = await dbClient.getUserSupplyAmount(
 					dbusdcCoinKey,
 					testSupplierCapId,
+					6,
 				);
 				console.log(`User Supply Amount (${dbusdcCoinKey}):`, dbusdcUserSupplyAmount);
 			} catch (userError) {

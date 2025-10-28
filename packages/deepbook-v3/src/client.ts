@@ -879,9 +879,10 @@ export class DeepBookClient {
 	/**
 	 * @description Get the total supply amount in the margin pool
 	 * @param {string} coinKey The key to identify the margin pool
-	 * @returns {Promise<number>} The total supply amount (scaled)
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<string>} The total supply amount as a string
 	 */
-	async getMarginPoolTotalSupply(coinKey: string): Promise<number> {
+	async getMarginPoolTotalSupply(coinKey: string, decimals: number = 6): Promise<string> {
 		const tx = new Transaction();
 		tx.add(this.marginPool.totalSupply(coinKey));
 
@@ -891,17 +892,18 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.results![0].returnValues![0][0];
-		const rawAmount = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const rawAmount = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
 		const coin = this.#config.getCoin(coinKey);
-		return rawAmount / coin.scalar;
+		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
 	}
 
 	/**
 	 * @description Get the total supply shares in the margin pool
 	 * @param {string} coinKey The key to identify the margin pool
-	 * @returns {Promise<number>} The total supply shares (scaled)
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<string>} The total supply shares as a string
 	 */
-	async getMarginPoolSupplyShares(coinKey: string): Promise<number> {
+	async getMarginPoolSupplyShares(coinKey: string, decimals: number = 6): Promise<string> {
 		const tx = new Transaction();
 		tx.add(this.marginPool.supplyShares(coinKey));
 
@@ -911,17 +913,18 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.results![0].returnValues![0][0];
-		const rawShares = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const rawShares = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
 		const coin = this.#config.getCoin(coinKey);
-		return rawShares / coin.scalar;
+		return this.#formatTokenAmount(rawShares, coin.scalar, decimals);
 	}
 
 	/**
 	 * @description Get the total borrow amount in the margin pool
 	 * @param {string} coinKey The key to identify the margin pool
-	 * @returns {Promise<number>} The total borrow amount (scaled)
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<string>} The total borrow amount as a string
 	 */
-	async getMarginPoolTotalBorrow(coinKey: string): Promise<number> {
+	async getMarginPoolTotalBorrow(coinKey: string, decimals: number = 6): Promise<string> {
 		const tx = new Transaction();
 		tx.add(this.marginPool.totalBorrow(coinKey));
 
@@ -931,17 +934,18 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.results![0].returnValues![0][0];
-		const rawAmount = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const rawAmount = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
 		const coin = this.#config.getCoin(coinKey);
-		return rawAmount / coin.scalar;
+		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
 	}
 
 	/**
 	 * @description Get the total borrow shares in the margin pool
 	 * @param {string} coinKey The key to identify the margin pool
-	 * @returns {Promise<number>} The total borrow shares (scaled)
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<string>} The total borrow shares as a string
 	 */
-	async getMarginPoolBorrowShares(coinKey: string): Promise<number> {
+	async getMarginPoolBorrowShares(coinKey: string, decimals: number = 6): Promise<string> {
 		const tx = new Transaction();
 		tx.add(this.marginPool.borrowShares(coinKey));
 
@@ -951,9 +955,9 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.results![0].returnValues![0][0];
-		const rawShares = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const rawShares = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
 		const coin = this.#config.getCoin(coinKey);
-		return rawShares / coin.scalar;
+		return this.#formatTokenAmount(rawShares, coin.scalar, decimals);
 	}
 
 	/**
@@ -977,9 +981,10 @@ export class DeepBookClient {
 	/**
 	 * @description Get the supply cap of the margin pool
 	 * @param {string} coinKey The key to identify the margin pool
-	 * @returns {Promise<number>} The supply cap (scaled)
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<string>} The supply cap as a string
 	 */
-	async getMarginPoolSupplyCap(coinKey: string): Promise<number> {
+	async getMarginPoolSupplyCap(coinKey: string, decimals: number = 6): Promise<string> {
 		const tx = new Transaction();
 		tx.add(this.marginPool.supplyCap(coinKey));
 
@@ -989,9 +994,9 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.results![0].returnValues![0][0];
-		const rawAmount = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const rawAmount = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
 		const coin = this.#config.getCoin(coinKey);
-		return rawAmount / coin.scalar;
+		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
 	}
 
 	/**
@@ -1035,9 +1040,10 @@ export class DeepBookClient {
 	/**
 	 * @description Get the minimum borrow amount for the margin pool
 	 * @param {string} coinKey The key to identify the margin pool
-	 * @returns {Promise<number>} The minimum borrow amount (scaled)
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<string>} The minimum borrow amount as a string
 	 */
-	async getMarginPoolMinBorrow(coinKey: string): Promise<number> {
+	async getMarginPoolMinBorrow(coinKey: string, decimals: number = 6): Promise<string> {
 		const tx = new Transaction();
 		tx.add(this.marginPool.minBorrow(coinKey));
 
@@ -1047,9 +1053,9 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.results![0].returnValues![0][0];
-		const rawAmount = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const rawAmount = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
 		const coin = this.#config.getCoin(coinKey);
-		return rawAmount / coin.scalar;
+		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
 	}
 
 	/**
@@ -1075,9 +1081,14 @@ export class DeepBookClient {
 	 * @description Get user supply shares for a supplier cap
 	 * @param {string} coinKey The key to identify the margin pool
 	 * @param {string} supplierCapId The ID of the supplier cap
-	 * @returns {Promise<number>} The user's supply shares (scaled)
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<string>} The user's supply shares as a string
 	 */
-	async getUserSupplyShares(coinKey: string, supplierCapId: string): Promise<number> {
+	async getUserSupplyShares(
+		coinKey: string,
+		supplierCapId: string,
+		decimals: number = 6,
+	): Promise<string> {
 		const tx = new Transaction();
 		tx.add(this.marginPool.userSupplyShares(coinKey, supplierCapId));
 
@@ -1087,18 +1098,23 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.results![0].returnValues![0][0];
-		const rawShares = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const rawShares = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
 		const coin = this.#config.getCoin(coinKey);
-		return rawShares / coin.scalar;
+		return this.#formatTokenAmount(rawShares, coin.scalar, decimals);
 	}
 
 	/**
 	 * @description Get user supply amount for a supplier cap
 	 * @param {string} coinKey The key to identify the margin pool
 	 * @param {string} supplierCapId The ID of the supplier cap
-	 * @returns {Promise<number>} The user's supply amount (scaled)
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<string>} The user's supply amount as a string
 	 */
-	async getUserSupplyAmount(coinKey: string, supplierCapId: string): Promise<number> {
+	async getUserSupplyAmount(
+		coinKey: string,
+		supplierCapId: string,
+		decimals: number = 6,
+	): Promise<string> {
 		const tx = new Transaction();
 		tx.add(this.marginPool.userSupplyAmount(coinKey, supplierCapId));
 
@@ -1108,8 +1124,43 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.results![0].returnValues![0][0];
-		const rawAmount = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const rawAmount = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
 		const coin = this.#config.getCoin(coinKey);
-		return rawAmount / coin.scalar;
+		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
+	}
+
+	/**
+	 * @description Helper function to format token amounts without floating point errors
+	 * @param {bigint} rawAmount The raw amount as bigint
+	 * @param {number} scalar The token scalar (e.g., 1000000000 for 9 decimals)
+	 * @param {number} decimals Number of decimal places to show
+	 * @returns {string} Formatted amount as string
+	 */
+	#formatTokenAmount(rawAmount: bigint, scalar: number, decimals: number): string {
+		const scalarBigInt = BigInt(scalar);
+		const integerPart = rawAmount / scalarBigInt;
+		const fractionalPart = rawAmount % scalarBigInt;
+
+		// If no fractional part, return just the integer
+		if (fractionalPart === 0n) {
+			return integerPart.toString();
+		}
+
+		// Convert fractional part to string with leading zeros
+		const scalarDigits = scalar.toString().length - 1;
+		const fractionalStr = fractionalPart.toString().padStart(scalarDigits, '0');
+
+		// Truncate to desired decimal places
+		const truncated = fractionalStr.slice(0, decimals);
+
+		// Remove trailing zeros for cleaner output
+		const trimmed = truncated.replace(/0+$/, '');
+
+		// If nothing left after trimming, return just integer
+		if (!trimmed) {
+			return integerPart.toString();
+		}
+
+		return `${integerPart}.${trimmed}`;
 	}
 }
