@@ -1,5 +1,11 @@
 # @mysten/payment-kit
 
+## 0.0.12
+
+### Patch Changes
+
+- c185b9d: Added Payment Kit URI helper methods to create and parse valid uris
+
 ## 0.0.11
 
 ### Patch Changes
