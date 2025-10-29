@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.20.0
+
+### Minor Changes
+
+- 762404b: Update margin testnet package
+
 ## 0.19.7
 
 ### Patch Changes
