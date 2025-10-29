@@ -6,15 +6,15 @@ import type { PaymentUriParams } from './types.js';
 import { PaymentKitUriError } from './error.js';
 import { SUI_PROTOCOL } from './constants.js';
 
-const validateNonce = (nonce: string) => {
+const isValidNonce = (nonce: string) => {
 	return nonce.length <= 36;
 };
 
-const validateAmount = (amount: bigint) => {
+const isValidAmount = (amount: bigint) => {
 	return amount > 0n;
 };
 
-const validateCoinType = (coinType: string) => {
+const isValidCoinType = (coinType: string) => {
 	return isValidNamedType(coinType);
 };
 
@@ -42,19 +42,19 @@ export const createPaymentTransactionUri = (params: PaymentUriParams): string =>
 
 	const uri = new URL(SUI_PROTOCOL + address);
 
-	if (validateAmount(amount)) {
+	if (isValidAmount(amount)) {
 		uri.searchParams.append('amount', amount.toString());
 	} else {
 		throw new PaymentKitUriError('Amount must be a positive numeric string');
 	}
 
-	if (validateCoinType(coinType)) {
+	if (isValidCoinType(coinType)) {
 		uri.searchParams.append('coinType', coinType);
 	} else {
 		throw new PaymentKitUriError('Invalid Coin Type');
 	}
 
-	if (validateNonce(nonce)) {
+	if (isValidNonce(nonce)) {
 		uri.searchParams.append('nonce', nonce);
 	} else {
 		throw new PaymentKitUriError('Nonce length exceeds maximum of 36 characters');
@@ -113,29 +113,29 @@ export const parsePaymentTransactionUri = (uri: string): PaymentUriParams => {
 	const params = url.searchParams;
 	const amount = params.get('amount');
 	const coinType = params.get('coinType');
-	const nonce = params.get('nonce') || undefined;
+	const nonce = params.get('nonce') ?? undefined;
 
 	// Amount and CoinType are required
 	if (!amount || !coinType || !nonce) {
 		throw new PaymentKitUriError('Invalid URI: Missing required parameters');
 	}
 
-	if (!validateCoinType(coinType)) {
+	if (!isValidCoinType(coinType)) {
 		throw new PaymentKitUriError('Invalid URI: Coin Type is not valid');
 	}
 
-	if (!validateNonce(nonce)) {
+	if (!isValidNonce(nonce)) {
 		throw new PaymentKitUriError('Invalid URI: Nonce length exceeds maximum of 36 characters');
 	}
 
 	// Validate amount is a valid numeric string (int or float) and positive
 	const bigIntAmount = BigInt(amount);
-	if (!validateAmount(bigIntAmount)) {
+	if (!isValidAmount(bigIntAmount)) {
 		throw new PaymentKitUriError('Invalid URI: Amount must be a positive number');
 	}
 
 	// Extract optional registry parameter
-	const registry = params.get('registry') || undefined;
+	const registry = params.get('registry') ?? undefined;
 
 	// Determine if registry is an ID or name
 	let registryId: string | undefined;
@@ -154,9 +154,9 @@ export const parsePaymentTransactionUri = (uri: string): PaymentUriParams => {
 		amount: bigIntAmount,
 		coinType,
 		nonce: nonce,
-		label: params.get('label') ? params.get('label')! : undefined,
-		message: params.get('message') ? params.get('message')! : undefined,
-		iconUrl: params.get('icon') ? params.get('icon')! : undefined,
+		label: params.get('label') ?? undefined,
+		message: params.get('message') ?? undefined,
+		iconUrl: params.get('icon') ?? undefined,
 	};
 
 	if (registryId) {
