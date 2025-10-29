@@ -269,22 +269,20 @@ export namespace Experimental_SuiClientTypes {
 	}
 
 	/** Name service methods */
-	export interface ResolveNameServiceNamesOptions extends CoreClientMethodOptions {
+	export interface DefaultNameServiceNameOptions extends CoreClientMethodOptions {
 		address: string;
-		cursor?: string | null | undefined;
-		limit?: number | null | undefined;
 	}
 
-	export interface ResolveNameServiceNamesResponse {
-		data: string[];
-		hasNextPage: boolean;
-		nextCursor: string | null;
+	export interface DefaultNameServiceNameResponse {
+		data: {
+			name: string | null;
+		};
 	}
 
 	export interface TransportMethods {
-		resolveNameServiceNames?: (
-			options: ResolveNameServiceNamesOptions,
-		) => Promise<ResolveNameServiceNamesResponse>;
+		defaultNameServiceName: (
+			options: DefaultNameServiceNameOptions,
+		) => Promise<DefaultNameServiceNameResponse>;
 	}
 
 	/** MVR methods */

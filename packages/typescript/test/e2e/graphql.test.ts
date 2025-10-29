@@ -5,12 +5,12 @@ import { describe, expect, it } from 'vitest';
 import { SuiGraphQLClient } from '../../src/graphql';
 import { graphql } from '../../src/graphql/schemas/latest';
 
-const DEFAULT_GRAPHQL_URL = import.meta.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125';
+const DEFAULT_GRAPHQL_URL = import.meta.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125/graphql';
 
 const queries = {
 	getFirstTransactionBlock: graphql(`
 		query getEpochs($limit: Int!) {
-			transactionBlocks(first: $limit, filter: { atCheckpoint: 0 }) {
+			transactions(first: $limit, filter: { atCheckpoint: 0 }) {
 				pageInfo {
 					hasNextPage
 					hasPreviousPage
@@ -45,7 +45,7 @@ describe('GraphQL client', () => {
 			},
 		});
 
-		expect(response.data?.transactionBlocks.edges[0].node.kind?.__typename).toEqual(
+		expect(response.data?.transactions?.edges[0].node.kind?.__typename).toEqual(
 			'GenesisTransaction',
 		);
 	});
@@ -54,7 +54,7 @@ describe('GraphQL client', () => {
 		const response = await client.query({
 			query: graphql(`
 				query getEpochs($limit: Int!) {
-					transactionBlocks(first: $limit, filter: { atCheckpoint: 0 }) {
+					transactions(first: $limit, filter: { atCheckpoint: 0 }) {
 						edges {
 							node {
 								kind {
@@ -87,13 +87,13 @@ describe('GraphQL client', () => {
 			},
 		});
 
-		expect(response.data?.transactionBlocks.edges[0].node.kind?.__typename).toEqual(
+		expect(response.data?.transactions?.edges[0].node.kind?.__typename).toEqual(
 			'GenesisTransaction',
 		);
 
 		expect(response).toEqual({
 			data: {
-				transactionBlocks: {
+				transactions: {
 					edges: [
 						{
 							node: {

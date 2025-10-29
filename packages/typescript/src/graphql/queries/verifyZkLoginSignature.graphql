@@ -4,13 +4,13 @@ query verifyZkLoginSignature(
 	$intentScope: ZkLoginIntentScope!
 	$author: SuiAddress!
 ) {
-	verifyZkloginSignature(
+	verifyZkLoginSignature(
 		bytes: $bytes
 		signature: $signature
 		intentScope: $intentScope
 		author: $author
 	) {
 		success
-		errors
+		error
 	}
 }

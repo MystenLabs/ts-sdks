@@ -1,16 +1,8 @@
 # Copyright (c) Mysten Labs, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-query resolveNameServiceNames($address: SuiAddress!, $limit: Int, $cursor: String) {
+query defaultSuinsName($address: SuiAddress!) {
 	address(address: $address) {
-		suinsRegistrations(first: $limit, after: $cursor) {
-			pageInfo {
-				hasNextPage
-				endCursor
-			}
-			nodes {
-				domain
-			}
-		}
+		defaultSuinsName
 	}
 }

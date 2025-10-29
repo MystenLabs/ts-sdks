@@ -344,6 +344,22 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		};
 	}
 
+	async defaultNameServiceName(
+		options: Experimental_SuiClientTypes.DefaultNameServiceNameOptions,
+	): Promise<Experimental_SuiClientTypes.DefaultNameServiceNameResponse> {
+		const name =
+			(
+				await this.#client.nameService.reverseLookupName({
+					address: options.address,
+				})
+			).response.record?.name ?? null;
+		return {
+			data: {
+				name,
+			},
+		};
+	}
+
 	async getMoveFunction(
 		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse> {

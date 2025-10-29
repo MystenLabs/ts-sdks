@@ -13,6 +13,7 @@ import { SubscriptionServiceClient } from './proto/sui/rpc/v2/subscription_servi
 import { GrpcCoreClient } from './core.js';
 import type { Experimental_SuiClientTypes } from '../experimental/index.js';
 import { Experimental_BaseClient } from '../experimental/index.js';
+import { NameServiceClient } from './proto/sui/rpc/v2/name_service.client.js';
 
 interface SuiGrpcTransportOptions extends GrpcWebOptions {
 	transport?: never;
@@ -36,6 +37,7 @@ export class SuiGrpcClient extends Experimental_BaseClient {
 	subscriptionService: SubscriptionServiceClient;
 	movePackageService: MovePackageServiceClient;
 	signatureVerificationService: SignatureVerificationServiceClient;
+	nameService: NameServiceClient;
 
 	constructor(options: SuiGrpcClientOptions) {
 		super({ network: options.network });
@@ -48,6 +50,7 @@ export class SuiGrpcClient extends Experimental_BaseClient {
 		this.subscriptionService = new SubscriptionServiceClient(transport);
 		this.movePackageService = new MovePackageServiceClient(transport);
 		this.signatureVerificationService = new SignatureVerificationServiceClient(transport);
+		this.nameService = new NameServiceClient(transport);
 
 		this.core = new GrpcCoreClient({
 			client: this,

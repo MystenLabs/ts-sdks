@@ -6,7 +6,7 @@ import { inject } from 'vitest';
 Object.entries({
 	FAUCET_URL: `http://localhost:${inject('faucetPort')}`,
 	FULLNODE_URL: `http://localhost:${inject('localnetPort')}`,
-	GRAPHQL_URL: `http://localhost:${inject('graphqlPort')}`,
+	GRAPHQL_URL: `http://localhost:${inject('graphqlPort')}/graphql`,
 }).forEach(([key, value]) => {
 	process.env[key] = value;
 });

@@ -1,20 +1,22 @@
 # Copyright (c) Mysten Labs, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-query dryRunTransactionBlock($txBytes: String!) {
-	dryRunTransactionBlock(txBytes: $txBytes) {
+query simulateTransaction($transaction: JSON!) {
+	simulateTransaction(transaction: $transaction) {
 		error
-		transaction {
-			...TRANSACTION_FIELDS
+		effects {
+			transaction {
+				...TRANSACTION_FIELDS
+			}
 		}
 	}
 }
 
-mutation executeTransactionBlock($txBytes: String!, $signatures: [String!]!) {
-	executeTransactionBlock(txBytes: $txBytes, signatures: $signatures) {
+mutation executeTransaction($transactionDataBcs: Base64!, $signatures: [Base64!]!) {
+	executeTransaction(transactionDataBcs: $transactionDataBcs, signatures: $signatures) {
 		errors
 		effects {
-			transactionBlock {
+			transaction {
 				...TRANSACTION_FIELDS
 			}
 		}
@@ -22,17 +24,19 @@ mutation executeTransactionBlock($txBytes: String!, $signatures: [String!]!) {
 }
 
 query getTransactionBlock($digest: String!) {
-	transactionBlock(digest: $digest) {
+	transaction(digest: $digest) {
 		...TRANSACTION_FIELDS
 	}
 }
 
-fragment TRANSACTION_FIELDS on TransactionBlock {
+fragment TRANSACTION_FIELDS on Transaction {
 	digest
-	bcs
-	signatures
+	transactionBcs
+	signatures {
+		signatureBytes
+	}
 	effects {
-		bcs
+		effectsBcs
 		epoch {
 			epochId
 		}

@@ -15,9 +15,10 @@ declare module 'vitest' {
 }
 
 const SUI_TOOLS_TAG =
-	process.env.SUI_TOOLS_TAG || process.arch === 'arm64'
-		? 'e4d7ef827d609d606907969372bb30ff4c10d60a-arm64'
-		: 'e4d7ef827d609d606907969372bb30ff4c10d60a';
+	process.env.SUI_TOOLS_TAG ||
+	(process.arch === 'arm64'
+		? '06204e155ea3b35fe4c949321d70091ad0ed8437-arm64'
+		: '06204e155ea3b35fe4c949321d70091ad0ed8437');
 
 export default async function setup({ provide }: GlobalSetupContext) {
 	console.log('Starting test containers');
@@ -30,7 +31,6 @@ export default async function setup({ provide }: GlobalSetupContext) {
 			POSTGRES_DB: 'sui_indexer_v2',
 		})
 		.withCommand(['-c', 'max_connections=500'])
-
 		.withExposedPorts(5432)
 		.withNetwork(network)
 		.withPullPolicy(PullPolicy.alwaysPull())
@@ -43,18 +43,8 @@ export default async function setup({ provide }: GlobalSetupContext) {
 			'start',
 			'--with-faucet',
 			'--force-regenesis',
-			'--with-indexer',
-			'--pg-port',
-			'5432',
-			'--pg-db-name',
-			'sui_indexer_v2',
-			'--pg-host',
-			pg.getIpAddress(network.getName()),
-			'--pg-user',
-			'postgres',
-			'--pg-password',
-			'postgrespw',
 			'--with-graphql',
+			`--with-indexer=postgres://postgres:postgrespw@${pg.getIpAddress(network.getName())}:5432/sui_indexer_v2`,
 		])
 		.withCopyDirectoriesToContainer([
 			{ source: resolve(__dirname, '../data'), target: '/test-data' },

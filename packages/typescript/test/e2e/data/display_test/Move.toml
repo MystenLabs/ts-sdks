@@ -3,12 +3,5 @@ name = "display_test"
 version = "0.0.1"
 edition = "2024.beta"
 
-[dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
-
-# Using a local dep for the Move stdlib instead of a git dep to avoid the overhead of fetching the git dep in
-# CI. The local dep is an unmodified version of the upstream stdlib
-MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "framework/testnet" }
-
 [addresses]
 display_test =  "0x0"

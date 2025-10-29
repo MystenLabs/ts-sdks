@@ -11,7 +11,7 @@ import { MultiSigPublicKey } from '../../src/multisig/publickey';
 import { verifyPersonalMessageSignature } from '../../src/verify';
 import { getClient } from './utils/setup';
 
-const DEFAULT_GRAPHQL_URL = import.meta.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125';
+const DEFAULT_GRAPHQL_URL = import.meta.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125/graphql';
 
 describe('Verify Signatures', () => {
 	// describe('transaction signatures', () => {});

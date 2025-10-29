@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#[allow(lint(self_transfer))]
 module entry_point_vector::entry_point_vector;
 
 public struct Obj has key, store {
@@ -25,7 +26,7 @@ public struct AnotherObjAny<phantom Any> has key {
 
 public struct Any {}
 
-public entry fun mint(v: u64, ctx: &mut TxContext) {
+public fun mint(v: u64, ctx: &mut TxContext) {
     transfer::public_transfer(
         Obj {
             id: object::new(ctx),
@@ -35,7 +36,7 @@ public entry fun mint(v: u64, ctx: &mut TxContext) {
     )
 }
 
-public entry fun mint_another(v: u64, ctx: &mut TxContext) {
+public fun mint_another(v: u64, ctx: &mut TxContext) {
     transfer::transfer(
         AnotherObj {
             id: object::new(ctx),
@@ -45,7 +46,7 @@ public entry fun mint_another(v: u64, ctx: &mut TxContext) {
     )
 }
 
-public entry fun mint_child(v: u64, parent: &mut Obj, ctx: &mut TxContext) {
+public fun mint_child(v: u64, parent: &mut Obj, ctx: &mut TxContext) {
     sui::dynamic_object_field::add(
         &mut parent.id,
         0,
@@ -56,22 +57,22 @@ public entry fun mint_child(v: u64, parent: &mut Obj, ctx: &mut TxContext) {
     )
 }
 
-public entry fun mint_shared(v: u64, ctx: &mut TxContext) {
+public fun mint_shared(v: u64, ctx: &mut TxContext) {
     transfer::public_share_object(Obj {
         id: object::new(ctx),
         value: v,
     })
 }
 
-public entry fun prim_vec_len(v: vector<u64>, _: &mut TxContext) {
+public fun prim_vec_len(v: vector<u64>, _: &mut TxContext) {
     assert!(vector::length(&v) == 2, 0);
 }
 
-public entry fun obj_vec_empty(v: vector<Obj>, _: &mut TxContext) {
+public fun obj_vec_empty(v: vector<Obj>, _: &mut TxContext) {
     vector::destroy_empty(v);
 }
 
-public entry fun obj_vec_destroy(mut v: vector<Obj>, _: &mut TxContext) {
+public fun obj_vec_destroy(mut v: vector<Obj>, _: &mut TxContext) {
     assert!(vector::length(&v) == 1, 0);
     let Obj { id, value } = vector::pop_back(&mut v);
     assert!(value == 42, 0);
@@ -79,7 +80,7 @@ public entry fun obj_vec_destroy(mut v: vector<Obj>, _: &mut TxContext) {
     vector::destroy_empty(v);
 }
 
-public entry fun two_obj_vec_destroy(mut v: vector<Obj>, _: &mut TxContext) {
+public fun two_obj_vec_destroy(mut v: vector<Obj>, _: &mut TxContext) {
     assert!(vector::length(&v) == 2, 0);
     let Obj { id, value } = vector::pop_back(&mut v);
     assert!(value == 42, 0);
@@ -90,7 +91,7 @@ public entry fun two_obj_vec_destroy(mut v: vector<Obj>, _: &mut TxContext) {
     vector::destroy_empty(v);
 }
 
-public entry fun same_objects(o: Obj, mut v: vector<Obj>, _: &mut TxContext) {
+public fun same_objects(o: Obj, mut v: vector<Obj>, _: &mut TxContext) {
     let Obj { id, value } = o;
     assert!(value == 42, 0);
     object::delete(id);
@@ -100,7 +101,7 @@ public entry fun same_objects(o: Obj, mut v: vector<Obj>, _: &mut TxContext) {
     vector::destroy_empty(v);
 }
 
-public entry fun same_objects_ref(
+public fun same_objects_ref(
     o: &Obj,
     mut v: vector<Obj>,
     _: &mut TxContext,
@@ -111,7 +112,7 @@ public entry fun same_objects_ref(
     vector::destroy_empty(v);
 }
 
-public entry fun child_access(
+public fun child_access(
     child: Obj,
     mut v: vector<Obj>,
     _: &mut TxContext,
@@ -125,7 +126,7 @@ public entry fun child_access(
     vector::destroy_empty(v);
 }
 
-public entry fun mint_any<Any>(v: u64, ctx: &mut TxContext) {
+public fun mint_any<Any>(v: u64, ctx: &mut TxContext) {
     transfer::transfer(
         ObjAny<Any> {
             id: object::new(ctx),
@@ -135,7 +136,7 @@ public entry fun mint_any<Any>(v: u64, ctx: &mut TxContext) {
     )
 }
 
-public entry fun mint_another_any<Any>(v: u64, ctx: &mut TxContext) {
+public fun mint_another_any<Any>(v: u64, ctx: &mut TxContext) {
     transfer::transfer(
         AnotherObjAny<Any> {
             id: object::new(ctx),
@@ -145,7 +146,7 @@ public entry fun mint_another_any<Any>(v: u64, ctx: &mut TxContext) {
     )
 }
 
-public entry fun mint_child_any<Any>(
+public fun mint_child_any<Any>(
     v: u64,
     parent: &mut ObjAny<Any>,
     ctx: &mut TxContext,
@@ -160,14 +161,14 @@ public entry fun mint_child_any<Any>(
     )
 }
 
-public entry fun mint_shared_any<Any>(v: u64, ctx: &mut TxContext) {
+public fun mint_shared_any<Any>(v: u64, ctx: &mut TxContext) {
     transfer::share_object(ObjAny<Any> {
         id: object::new(ctx),
         value: v,
     })
 }
 
-public entry fun obj_vec_destroy_any<Any>(
+public fun obj_vec_destroy_any<Any>(
     mut v: vector<ObjAny<Any>>,
     _: &mut TxContext,
 ) {
@@ -178,7 +179,7 @@ public entry fun obj_vec_destroy_any<Any>(
     vector::destroy_empty(v);
 }
 
-public entry fun two_obj_vec_destroy_any<Any>(
+public fun two_obj_vec_destroy_any<Any>(
     mut v: vector<ObjAny<Any>>,
     _: &mut TxContext,
 ) {
@@ -192,7 +193,7 @@ public entry fun two_obj_vec_destroy_any<Any>(
     vector::destroy_empty(v);
 }
 
-public entry fun same_objects_any<Any>(
+public fun same_objects_any<Any>(
     o: ObjAny<Any>,
     mut v: vector<ObjAny<Any>>,
     _: &mut TxContext,
@@ -206,7 +207,7 @@ public entry fun same_objects_any<Any>(
     vector::destroy_empty(v);
 }
 
-public entry fun same_objects_ref_any<Any>(
+public fun same_objects_ref_any<Any>(
     o: &ObjAny<Any>,
     mut v: vector<ObjAny<Any>>,
     _: &mut TxContext,
@@ -217,7 +218,7 @@ public entry fun same_objects_ref_any<Any>(
     vector::destroy_empty(v);
 }
 
-public entry fun child_access_any<Any>(
+public fun child_access_any<Any>(
     child: ObjAny<Any>,
     mut v: vector<ObjAny<Any>>,
     _: &mut TxContext,
@@ -231,6 +232,6 @@ public entry fun child_access_any<Any>(
     vector::destroy_empty(v);
 }
 
-public entry fun type_param_vec_empty<T: key>(v: vector<T>, _: &mut TxContext) {
+public fun type_param_vec_empty<T: key>(v: vector<T>, _: &mut TxContext) {
     vector::destroy_empty(v);
 }

@@ -6,15 +6,15 @@ module entry_point_types::entry_point_types;
 use std::ascii;
 use std::string;
 
-public entry fun ascii_arg(s: ascii::String, len: u64, _: &mut TxContext) {
+public fun ascii_arg(s: ascii::String, len: u64, _: &mut TxContext) {
     assert!(ascii::length(&s) == len, 0);
 }
 
-public entry fun utf8_arg(s: string::String, len: u64, _: &mut TxContext) {
+public fun utf8_arg(s: string::String, len: u64, _: &mut TxContext) {
     assert!(string::length(&s) == len, 0);
 }
 
-public entry fun utf8_vec_arg(
+public fun utf8_vec_arg(
     mut v: vector<string::String>,
     total_len: u64,
     _: &mut TxContext,
@@ -27,13 +27,13 @@ public entry fun utf8_vec_arg(
     assert!(string::length(&concat) == total_len, 0);
 }
 
-public entry fun option_ascii_arg(_: Option<ascii::String>) {}
+public fun option_ascii_arg(_: Option<ascii::String>) {}
 
-public entry fun option_utf8_arg(_: Option<string::String>) {}
+public fun option_utf8_arg(_: Option<string::String>) {}
 
-public entry fun vec_option_utf8_arg(_: vector<Option<string::String>>) {}
+public fun vec_option_utf8_arg(_: vector<Option<string::String>>) {}
 
-public entry fun option_vec_option_utf8_arg(
+public fun option_vec_option_utf8_arg(
     _: Option<vector<Option<string::String>>>,
 ) {}
 

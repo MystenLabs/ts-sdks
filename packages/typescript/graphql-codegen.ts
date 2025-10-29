@@ -12,7 +12,7 @@ const header = `
 const config: CodegenConfig = {
 	overwrite: true,
 	schema:
-		'https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/mainnet/crates/sui-graphql-rpc/schema.graphql',
+		'https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/main/crates/sui-indexer-alt-graphql/schema.graphql',
 	documents: ['src/graphql/queries/*.graphql'],
 	ignoreNoDocuments: true,
 	generates: {
@@ -23,7 +23,7 @@ const config: CodegenConfig = {
 					Base64: 'string',
 					DateTime: 'string',
 					ObjectID: 'string',
-					Address: 'string',
+					SuiAddress: 'string',
 					JSON: 'unknown',
 					UInt53: 'number',
 					MoveData: '../types.js#MoveData',

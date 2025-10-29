@@ -24,12 +24,12 @@ public fun start(ctx: &mut TxContext) {
     transfer::public_transfer(b, a_address);
 }
 
-public entry fun receiver(parent: &mut A, x: Receiving<B>) {
+public fun receiver(parent: &mut A, x: Receiving<B>) {
     let b = transfer::receive(&mut parent.id, x);
     transfer::public_transfer(b, @tto);
 }
 
-public entry fun deleter(parent: &mut A, x: Receiving<B>) {
+public fun deleter(parent: &mut A, x: Receiving<B>) {
     let B { id } = transfer::receive(&mut parent.id, x);
     object::delete(id);
 }
@@ -38,7 +38,7 @@ public fun return_(parent: &mut A, x: Receiving<B>): B {
     transfer::receive(&mut parent.id, x)
 }
 
-public entry fun delete_(b: B) {
+public fun delete_(b: B) {
     let B { id } = b;
     object::delete(id);
 }

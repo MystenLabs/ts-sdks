@@ -1,17 +1,12 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClientWithExtensions, Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi } from '@mysten/sui/experimental';
 import type { Networks } from '../utils/networks.js';
 import type { StateStorage } from '../utils/storage.js';
 import type { WalletInitializer } from '../wallets/index.js';
 
-export type DAppKitCompatibleClient = ClientWithExtensions<{
-	core: {
-		resolveNameServiceNames: Experimental_SuiClientTypes.TransportMethods['resolveNameServiceNames'];
-		verifyZkLoginSignature: Experimental_SuiClientTypes.TransportMethods['verifyZkLoginSignature'];
-	};
-}>;
+export type DAppKitCompatibleClient = ClientWithCoreApi;
 
 export type SlushWalletConfig = {
 	/**

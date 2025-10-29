@@ -273,10 +273,15 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 		};
 	}
 
-	resolveNameServiceNames(
-		options: Experimental_SuiClientTypes.ResolveNameServiceNamesOptions,
-	): Promise<Experimental_SuiClientTypes.ResolveNameServiceNamesResponse> {
-		return this.#jsonRpcClient.resolveNameServiceNames(options);
+	async defaultNameServiceName(
+		options: Experimental_SuiClientTypes.DefaultNameServiceNameOptions,
+	): Promise<Experimental_SuiClientTypes.DefaultNameServiceNameResponse> {
+		const name = (await this.#jsonRpcClient.resolveNameServiceNames(options)).data[0];
+		return {
+			data: {
+				name,
+			},
+		};
 	}
 
 	resolveTransactionPlugin() {
