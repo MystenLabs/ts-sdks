@@ -191,7 +191,7 @@ Payment Kit provides helper functions to create and parse Payment Kit transactio
 are useful for generating payment links, QR codes, or deep links in your application:
 
 ```ts
-import { createPaymentTransactionUri, parsePaymentTransactionUri } from '@mysten/payment-kit';
+import { createPaymentTransactionUri } from '@mysten/payment-kit';
 
 // Create a payment URI
 const paymentUri = createPaymentTransactionUri({
@@ -210,6 +210,8 @@ console.log(paymentUri);
 You can then parse URIs back into payment parameters:
 
 ```ts
+import { parsePaymentTransactionUri } from '@mysten/payment-kit';
+
 // Parse a payment URI
 const params = parsePaymentTransactionUri(paymentUri);
 
