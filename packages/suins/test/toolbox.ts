@@ -39,6 +39,7 @@ export class TestToolbox {
 
 export function getClient(): SuiJsonRpcClient {
 	return new SuiJsonRpcClient({
+		network: 'localnet',
 		url: DEFAULT_FULLNODE_URL,
 	});
 }
