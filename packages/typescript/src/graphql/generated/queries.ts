@@ -4491,7 +4491,7 @@ export type GetAllBalancesQuery = { __typename?: 'Query', address: { __typename?
 
 export type GetBalanceQueryVariables = Exact<{
   owner: Scalars['SuiAddress']['input'];
-  coinType?: Scalars['String']['input'];
+  coinType?: InputMaybe<Scalars['String']['input']>;
 }>;
 
 
@@ -4501,7 +4501,7 @@ export type GetCoinsQueryVariables = Exact<{
   owner: Scalars['SuiAddress']['input'];
   first?: InputMaybe<Scalars['Int']['input']>;
   cursor?: InputMaybe<Scalars['String']['input']>;
-  type?: Scalars['String']['input'];
+  type?: InputMaybe<Scalars['String']['input']>;
 }>;
 
 
@@ -4819,7 +4819,7 @@ export const GetAllBalancesDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<GetAllBalancesQuery, GetAllBalancesQueryVariables>;
 export const GetBalanceDocument = new TypedDocumentString(`
-    query getBalance($owner: SuiAddress!, $coinType: String! = "0x2::sui::SUI") {
+    query getBalance($owner: SuiAddress!, $coinType: String = "0x2::sui::SUI") {
   address(address: $owner) {
     balance(coinType: $coinType) {
       coinType {
@@ -4831,7 +4831,7 @@ export const GetBalanceDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<GetBalanceQuery, GetBalanceQueryVariables>;
 export const GetCoinsDocument = new TypedDocumentString(`
-    query getCoins($owner: SuiAddress!, $first: Int, $cursor: String, $type: String! = "0x2::coin::Coin<0x2::sui::SUI>") {
+    query getCoins($owner: SuiAddress!, $first: Int, $cursor: String, $type: String = "0x2::coin::Coin<0x2::sui::SUI>") {
   address(address: $owner) {
     address
     objects(first: $first, after: $cursor, filter: {type: $type}) {

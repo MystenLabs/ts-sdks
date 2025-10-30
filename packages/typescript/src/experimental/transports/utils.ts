@@ -1,7 +1,9 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { toBase58 } from '@mysten/utils';
 import { bcs } from '../../bcs/index.js';
+import { hashTypedData } from '../../transactions/hash.js';
 import { TransactionDataBuilder } from '../../transactions/TransactionData.js';
 import type { Experimental_SuiClientTypes } from '../types.js';
 
@@ -73,7 +75,7 @@ function parseTransactionEffectsV2({
 
 	return {
 		bcs: bytes,
-		digest: effects.transactionDigest,
+		digest: toBase58(hashTypedData('TransactionEffects', bytes)),
 		version: 2,
 		status:
 			effects.status.$kind === 'Success'
