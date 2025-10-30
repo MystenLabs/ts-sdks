@@ -1,5 +1,14 @@
 # @mysten/dapp-kit
 
+## 0.19.8
+
+### Patch Changes
+
+- Updated dependencies [44d9b4f]
+  - @mysten/sui@1.44.0
+  - @mysten/slush-wallet@0.2.9
+  - @mysten/wallet-standard@0.19.6
+
 ## 0.19.7
 
 ### Patch Changes

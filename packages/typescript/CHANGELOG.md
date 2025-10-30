@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.44.0
+
+### Minor Changes
+
+- 44d9b4f: Update GraphQL client to use beta schema"
+
 ## 1.43.2
 
 ### Patch Changes
