@@ -100,12 +100,24 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 						const bcsContent = obj.asMoveObject?.contents?.bcs
 							? fromBase64(obj.asMoveObject.contents.bcs)
 							: null;
+
+						// Determine object type: package or Move object
+						// GraphQL already returns normalized struct tags
+						let type: string;
+						if (obj.asMovePackage) {
+							type = 'package';
+						} else if (obj.asMoveObject?.contents?.type?.repr) {
+							type = obj.asMoveObject.contents.type.repr;
+						} else {
+							type = '';
+						}
+
 						return {
 							id: obj.address,
 							version: obj.version?.toString()!,
 							digest: obj.digest!,
 							owner: mapOwner(obj.owner!),
-							type: normalizeStructTag(obj.asMoveObject?.contents?.type?.repr!),
+							type,
 							content: Promise.resolve(bcsContent!),
 							previousTransaction: obj.previousTransaction?.digest ?? null,
 						};
