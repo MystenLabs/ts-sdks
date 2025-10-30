@@ -185,6 +185,41 @@ try {
 }
 ```
 
+## Creating Payment URIs
+
+Payment Kit provides helper functions to create and parse Payment Kit transaction URIs. These URIs
+are useful for generating payment links, QR codes, or deep links in your application:
+
+```ts
+import { createPaymentTransactionUri, parsePaymentTransactionUri } from '@mysten/payment-kit';
+
+// Create a payment URI
+const paymentUri = createPaymentTransactionUri({
+	receiverAddress: '0x123...abc',
+	amount: 1n * MIST_PER_SUI,
+	coinType: '0x2::sui::SUI',
+	nonce: crypto.randomUUID(),
+	label: 'Coffee Payment',
+	message: 'Payment for espresso',
+});
+
+console.log(paymentUri);
+// Output: sui:0x123...abc?amount=1000000000&coinType=0x2::sui::SUI&nonce=...&label=Coffee%20Payment&message=Payment%20for%20espresso
+```
+
+You can then parse URIs back into payment parameters:
+
+```ts
+// Parse a payment URI
+const params = parsePaymentTransactionUri(paymentUri);
+
+// Use the parsed parameters to create a transaction
+const tx = client.paymentKit.tx.processRegistryPayment({
+	...params,
+	sender: sender,
+});
+```
+
 ## Next Steps
 
 Now that you understand the basics, explore more advanced features:
