@@ -97,17 +97,16 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 						if (obj instanceof ObjectError) {
 							return obj;
 						}
+						const bcsContent = obj.asMoveObject?.contents?.bcs
+							? fromBase64(obj.asMoveObject.contents.bcs)
+							: null;
 						return {
 							id: obj.address,
 							version: obj.version?.toString()!,
 							digest: obj.digest!,
 							owner: mapOwner(obj.owner!),
-							type: obj.asMoveObject?.contents?.type?.repr!,
-							content: Promise.resolve(
-								obj.asMoveObject?.contents?.bcs
-									? fromBase64(obj.asMoveObject.contents.bcs)
-									: new Uint8Array(),
-							),
+							type: normalizeStructTag(obj.asMoveObject?.contents?.type?.repr!),
+							content: Promise.resolve(bcsContent!),
 							previousTransaction: obj.previousTransaction?.digest ?? null,
 						};
 					}),
@@ -144,7 +143,7 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 				owner: mapOwner(obj.owner!),
 				type: obj.contents?.type?.repr!,
 				content: Promise.resolve(
-					obj.contents?.bcs ? fromBase64(obj.contents.bcs) : new Uint8Array(),
+					obj.contents?.bcs ? fromBase64(obj.contents.bcs) : (null as never),
 				),
 				previousTransaction: obj.previousTransaction?.digest ?? null,
 			})),
@@ -179,7 +178,7 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 				type: coin.contents?.type?.repr!,
 				balance: (coin.contents?.json as { balance: string })?.balance,
 				content: Promise.resolve(
-					coin.contents?.bcs ? fromBase64(coin.contents.bcs) : new Uint8Array(),
+					coin.contents?.bcs ? fromBase64(coin.contents.bcs) : (null as never),
 				),
 				previousTransaction: coin.previousTransaction?.digest ?? null,
 			})),
@@ -202,8 +201,8 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 
 		return {
 			balance: {
-				coinType: result.coinType?.repr!,
-				balance: result.totalBalance!,
+				coinType: result.coinType?.repr ?? options.coinType,
+				balance: result.totalBalance ?? '0',
 			},
 		};
 	}
@@ -311,7 +310,11 @@ export class GraphQLCoreClient extends Experimental_CoreClient {
 		const result = await this.#graphqlQuery(
 			{
 				query: GetDynamicFieldsDocument,
-				variables: { parentId: options.parentId },
+				variables: {
+					parentId: options.parentId,
+					first: options.limit,
+					cursor: options.cursor,
+				},
 			},
 			(result) => result.address?.dynamicFields,
 		);
