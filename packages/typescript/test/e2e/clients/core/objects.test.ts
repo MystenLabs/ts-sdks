@@ -257,4 +257,33 @@ describe('Core API - Objects', () => {
 			expect(result.hasNextPage).toBe(false);
 		});
 	});
+
+	describe('getObject - Package Objects', () => {
+		testWithAllClients('should fetch package object correctly', async (client) => {
+			// Fetch the test package as an object
+			const { object } = await client.core.getObject({ objectId: testPackageId });
+
+			expect(object.id).toBe(normalizeSuiAddress(testPackageId));
+			expect(object.type).toBe('package');
+			expect(object.version).toBe('1'); // First version of published package
+			expect(object.owner).toBeDefined();
+		});
+
+		testWithAllClients('should handle multiple package objects', async (client) => {
+			// Fetch multiple packages including the framework
+			const { objects } = await client.core.getObjects({
+				objectIds: ['0x2', testPackageId],
+			});
+
+			expect(objects.length).toBe(2);
+
+			// Both should be packages
+			for (const obj of objects) {
+				expect(obj).not.toBeInstanceOf(Error);
+				if (!(obj instanceof Error)) {
+					expect(obj.type).toBe('package');
+				}
+			}
+		});
+	});
 });

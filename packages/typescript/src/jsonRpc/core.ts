@@ -324,11 +324,18 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 function parseObject(object: SuiObjectData): Experimental_SuiClientTypes.ObjectResponse {
 	const bcsContent =
 		object.bcs?.dataType === 'moveObject' ? fromBase64(object.bcs.bcsBytes) : new Uint8Array();
+
+	// Package objects have type "package" which is not a struct tag, so don't normalize it
+	const type =
+		object.type && object.type.includes('::')
+			? normalizeStructTag(object.type)
+			: (object.type ?? '');
+
 	return {
 		id: object.objectId,
 		version: object.version,
 		digest: object.digest,
-		type: normalizeStructTag(object.type!),
+		type,
 		content: Promise.resolve(bcsContent),
 		owner: parseOwner(object.owner!),
 		previousTransaction: object.previousTransaction ?? null,
