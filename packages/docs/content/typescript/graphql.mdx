@@ -15,10 +15,11 @@ We'll start by creating our client, and executing a very basic query:
 
 ```typescript
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
-import { graphql } from '@mysten/sui/graphql/schemas/latest';
+import { graphql } from '@mysten/sui/graphql/schema';
 
 const gqlClient = new SuiGraphQLClient({
 	url: 'https://graphql.testnet.sui.io/graphql',
+	network: 'testnet',
 });
 
 const chainIdentifierQuery = graphql(`
@@ -43,11 +44,8 @@ You may have noticed the example above does not include any type definitions for
 automatically provide the required type information to ensure that your queries are properly typed
 when executed through `SuiGraphQLClient`.
 
-The `graphql` function itself is imported from a versioned schema file, and you should ensure that
-you are using the version that corresponds to the latest release of the GraphQL API.
-
-The `graphql` also detects variables used by your query, and will ensure that the variables passed
-to your query are properly typed.
+The `graphql` function detects variables used by your query, and will ensure that the variables
+passed to your query are properly typed.
 
 ```typescript
 const getSuinsName = graphql(`
