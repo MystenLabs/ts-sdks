@@ -9,7 +9,8 @@ import { Experimental_CoreClient } from '../experimental/index.js';
 import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2/owner.js';
 import { Owner_OwnerKind } from './proto/sui/rpc/v2/owner.js';
-import { chunk, fromBase64, toBase64 } from '@mysten/utils';
+import { DynamicField_DynamicFieldKind } from './proto/sui/rpc/v2/state_service.js';
+import { chunk, fromBase64, toBase58, toBase64 } from '@mysten/utils';
 import type { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import type { TransactionEffects } from './proto/sui/rpc/v2/effects.js';
 import { UnchangedConsensusObject_UnchangedConsensusObjectKind } from './proto/sui/rpc/v2/effects.js';
@@ -21,6 +22,8 @@ import {
 import type { BuildTransactionOptions } from '../transactions/index.js';
 import { TransactionDataBuilder } from '../transactions/index.js';
 import { bcs } from '../bcs/index.js';
+import { normalizeStructTag } from '../utils/sui-types.js';
+import { hashTypedData } from '../transactions/hash.js';
 import type { OpenSignature, OpenSignatureBody } from './proto/sui/rpc/v2/move_package.js';
 import {
 	Ability,
@@ -51,7 +54,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 					paths: [
 						'owner',
 						'object_type',
-						'bcs',
+						'contents',
 						'digest',
 						'version',
 						'object_id',
@@ -72,14 +75,15 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 							return new Error('Unexpected result type');
 						}
 
+						const bcsContent = object.result.object.contents?.value ?? null;
+
 						return {
 							id: object.result.object.objectId!,
 							version: object.result.object.version?.toString()!,
 							digest: object.result.object.digest!,
-							// TODO: bcs content is not returned in all cases
-							content: Promise.resolve(object.result.object.bcs?.value!),
+							content: Promise.resolve(bcsContent!),
 							owner: mapOwner(object.result.object.owner)!,
-							type: object.result.object.objectType!,
+							type: normalizeStructTag(object.result.object.objectType!),
 							previousTransaction: object.result.object.previousTransaction ?? null,
 						};
 					},
@@ -100,6 +104,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 				? (await this.mvr.resolveType({ type: options.type })).type
 				: undefined,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
+			pageSize: options.limit,
 			readMask: {
 				paths: [
 					'owner',
@@ -224,12 +229,20 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		const { response } = await this.#client.ledgerService.getTransaction({
 			digest: options.digest,
 			readMask: {
-				paths: ['digest', 'transaction', 'effects', 'signatures', 'balance_changes'],
+				paths: [
+					'digest',
+					'transaction.bcs',
+					'transaction.digest',
+					'effects',
+					'signatures',
+					'balance_changes',
+					'objects',
+				],
 			},
 		});
 
 		return {
-			transaction: parseTransaction(response.transaction!),
+			transaction: response.transaction ? parseTransaction(response.transaction) : (null as never),
 		};
 	}
 	async executeTransaction(
@@ -251,11 +264,13 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 			})),
 			readMask: {
 				paths: [
+					'digest',
+					'transaction.bcs',
 					'transaction.digest',
-					'transaction.transaction',
-					'transaction.effects',
-					'transaction.signatures',
-					'transaction.balance_changes',
+					'effects',
+					'signatures',
+					'balance_changes',
+					'objects',
 				],
 			},
 		});
@@ -275,10 +290,12 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 			readMask: {
 				paths: [
 					'transaction.digest',
-					'transaction.transaction',
+					'transaction.transaction.bcs',
+					'transaction.transaction.digest',
 					'transaction.effects',
 					'transaction.signatures',
 					'transaction.balance_changes',
+					'transaction.objects',
 				],
 			},
 		});
@@ -301,19 +318,28 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		const response = await this.#client.stateService.listDynamicFields({
 			parent: options.parentId,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
+			pageSize: options.limit,
+			readMask: {
+				paths: ['field_id', 'name', 'value_type', 'kind'],
+			},
 		});
 
 		return {
-			dynamicFields: response.response.dynamicFields.map((field) => ({
-				id: field.fieldId!,
-				name: {
-					type: field.name?.name!,
-					bcs: field.name?.value!,
-				},
-				type: field.fieldObject
+			dynamicFields: response.response.dynamicFields.map((field) => {
+				const isDynamicObject = field.kind === DynamicField_DynamicFieldKind.OBJECT;
+				const fieldType = isDynamicObject
 					? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${field.name?.name!}>,0x2::object::ID>`
-					: `0x2::dynamic_field::Field<${field.name?.value!},${field.valueType!}>`,
-			})),
+					: `0x2::dynamic_field::Field<${field.name?.name!},${field.valueType!}>`;
+				return {
+					id: field.fieldId!,
+					name: {
+						type: field.name?.name!,
+						bcs: field.name?.value!,
+					},
+					valueType: field.valueType!,
+					type: normalizeStructTag(fieldType),
+				};
+			}),
 			cursor: response.response.nextPageToken ? toBase64(response.response.nextPageToken) : null,
 			hasNextPage: response.response.nextPageToken !== undefined,
 		};
@@ -322,10 +348,19 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	async verifyZkLoginSignature(
 		options: Experimental_SuiClientTypes.VerifyZkLoginSignatureOptions,
 	): Promise<Experimental_SuiClientTypes.ZkLoginVerifyResponse> {
+		const messageBytes = fromBase64(options.bytes);
+
+		// For PersonalMessage, the server expects BCS-encoded vector<u8>
+		// For TransactionData, the server expects the raw BCS-encoded TransactionData as-is
+		const messageValue =
+			options.intentScope === 'PersonalMessage'
+				? bcs.byteVector().serialize(messageBytes).toBytes()
+				: messageBytes;
+
 		const { response } = await this.#client.signatureVerificationService.verifySignature({
 			message: {
 				name: options.intentScope,
-				value: fromBase64(options.bytes),
+				value: messageValue,
 			},
 			signature: {
 				bcs: {
@@ -335,6 +370,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 					oneofKind: undefined,
 				},
 			},
+			address: options.author,
 			jwks: [],
 		});
 
@@ -591,9 +627,14 @@ export function parseTransactionEffects({
 		},
 	);
 
+	// The effects digest should be computed from the effects BCS by hashing it
+	const effectsDigest = effects.bcs?.value
+		? toBase58(hashTypedData('TransactionEffects', effects.bcs.value))
+		: effects.digest!;
+
 	return {
 		bcs: effects.bcs?.value!,
-		digest: effects.digest!,
+		digest: effectsDigest,
 		version: 2,
 		status: effects.status?.success
 			? {
@@ -646,15 +687,22 @@ export function parseTransactionEffects({
 function parseTransaction(
 	transaction: ExecutedTransaction,
 ): Experimental_SuiClientTypes.TransactionResponse {
-	const parsedTx = bcs.SenderSignedData.parse(transaction.transaction?.bcs?.value!)[0];
-	const bytes = bcs.TransactionData.serialize(parsedTx.intentMessage.value).toBytes();
+	const tx = transaction.transaction;
+
+	const bytes = tx?.bcs?.value;
+
+	if (!bytes) {
+		throw new Error('Transaction BCS bytes are required but missing from gRPC response');
+	}
+
+	const txData = bcs.TransactionData.parse(bytes);
 	const data = TransactionDataBuilder.restore({
 		version: 2,
-		sender: parsedTx.intentMessage.value.V1.sender,
-		expiration: parsedTx.intentMessage.value.V1.expiration,
-		gasData: parsedTx.intentMessage.value.V1.gasData,
-		inputs: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.inputs,
-		commands: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.commands,
+		sender: txData.V1.sender,
+		expiration: txData.V1.expiration,
+		gasData: txData.V1.gasData,
+		inputs: txData.V1.kind.ProgrammableTransaction!.inputs,
+		commands: txData.V1.kind.ProgrammableTransaction!.commands,
 	});
 
 	const objectTypes: Record<string, string> = {};
@@ -666,7 +714,11 @@ function parseTransaction(
 
 	const effects = parseTransactionEffects({
 		effects: transaction.effects,
-	})!;
+	});
+
+	if (!effects) {
+		throw new Error('Transaction effects are required but missing from gRPC response');
+	}
 
 	return {
 		digest: transaction.digest!,
@@ -682,7 +734,7 @@ function parseTransaction(
 			version: data.version,
 			bcs: bytes,
 		},
-		signatures: parsedTx.txSignatures,
+		signatures: transaction.signatures?.map((sig) => toBase64(sig.bcs?.value!)) ?? [],
 		balanceChanges:
 			transaction.balanceChanges?.map((change) => ({
 				coinType: change.coinType!,
