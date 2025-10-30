@@ -240,7 +240,7 @@ async function graphqlVerifyZkLoginSignature({
 	signature,
 	intentScope,
 	client = new SuiGraphQLClient({
-		url: 'https://sui-mainnet.mystenlabs.com/graphql',
+		url: 'https://graphql.mainnet.sui.io/graphql',
 	}),
 }: {
 	address: string;

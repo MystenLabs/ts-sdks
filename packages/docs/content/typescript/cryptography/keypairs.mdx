@@ -150,7 +150,7 @@ import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
 
 const publicKey = await verifyPersonalMessageSignature(message, zkSignature, {
 	client: new SuiGraphQLClient({
-		url: 'https://sui-testnet.mystenlabs.com/graphql',
+		url: 'https://graphql.testnet.sui.io/graphql',
 	}),
 });
 ```
@@ -168,7 +168,7 @@ import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
 
 const publicKey = await verifyPersonalMessageSignature(message, zkSignature, {
 	client: new SuiGraphQLClient({
-		url: 'https://sui-testnet.mystenlabs.com/graphql',
+		url: 'https://graphql.testnet.sui.io/graphql',
 	}),
 	// Pass in the expected address, and the verification method will throw an error if the signature is not valid for the provided address
 	address: '0x...expectedAddress',
