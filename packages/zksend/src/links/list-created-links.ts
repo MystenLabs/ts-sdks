@@ -4,7 +4,7 @@
 import { bcs } from '@mysten/sui/bcs';
 import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
-import { graphql } from '@mysten/sui/graphql/schemas/latest';
+import { graphql } from '@mysten/sui/graphql/schema';
 import { fromBase64, normalizeSuiAddress } from '@mysten/sui/utils';
 
 import { ZkSendLink } from './claim.js';

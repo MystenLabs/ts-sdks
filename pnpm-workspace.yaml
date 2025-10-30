@@ -34,7 +34,7 @@ packages:
   - '!packages/signers/ledger'
   - '!packages/typescript/zklogin'
   - '!packages/typescript/keypairs/passkey'
-  - '!packages/typescript/graphql/schemas/latest'
+  - '!packages/typescript/graphql/schema'
   - '!packages/signers/utils'
   - '!packages/signers/webcrypto'
   - '!packages/zksend/experimental/unified-adapter'
