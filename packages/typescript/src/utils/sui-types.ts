@@ -46,8 +46,13 @@ function parseTypeTag(type: string): string | StructTag {
 }
 
 export function parseStructTag(type: string): StructTag {
-	const [address, module] = type.split('::');
+	const parts = type.split('::');
 
+	if (parts.length < 3) {
+		throw new Error(`Invalid struct tag: ${type}`);
+	}
+
+	const [address, module] = parts;
 	const isMvrPackage = isValidNamedPackage(address);
 
 	const rest = type.slice(address.length + module.length + 4);
