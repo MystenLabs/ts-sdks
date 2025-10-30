@@ -5,7 +5,7 @@ query getCoins(
 	$owner: SuiAddress!
 	$first: Int
 	$cursor: String
-	$type: String! = "0x2::coin::Coin<0x2::sui::SUI>"
+	$type: String = "0x2::coin::Coin<0x2::sui::SUI>"
 ) {
 	address(address: $owner) {
 		address
