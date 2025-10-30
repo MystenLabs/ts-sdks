@@ -90,15 +90,6 @@ export class TransactionDataBuilder implements TransactionData {
 		return toBase58(hash);
 	}
 
-	// @deprecated use gasData instead
-	get gasConfig() {
-		return this.gasData;
-	}
-	// @deprecated use gasData instead
-	set gasConfig(value) {
-		this.gasData = value;
-	}
-
 	version = 2 as const;
 	sender: string | null;
 	expiration: TransactionExpiration | null;
@@ -128,8 +119,6 @@ export class TransactionDataBuilder implements TransactionData {
 		overrides?: {
 			expiration?: TransactionExpiration;
 			sender?: string;
-			// @deprecated use gasData instead
-			gasConfig?: Partial<GasData>;
 			gasData?: Partial<GasData>;
 		};
 		onlyTransactionKind?: boolean;
@@ -154,7 +143,7 @@ export class TransactionDataBuilder implements TransactionData {
 
 		const expiration = overrides?.expiration ?? this.expiration;
 		const sender = overrides?.sender ?? this.sender;
-		const gasData = { ...this.gasData, ...overrides?.gasConfig, ...overrides?.gasData };
+		const gasData = { ...this.gasData, ...overrides?.gasData };
 
 		if (!sender) {
 			throw new Error('Missing transaction sender');

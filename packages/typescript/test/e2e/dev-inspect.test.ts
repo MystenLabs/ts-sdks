@@ -3,7 +3,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { SuiClient } from '../../src/client';
+import { SuiJsonRpcClient } from '../../src/jsonRpc';
 import { Keypair } from '../../src/cryptography';
 import { Transaction } from '../../src/transactions';
 import { setup, TestToolbox } from './utils/setup';
@@ -68,7 +68,7 @@ describe('Test dev inspect', () => {
 });
 
 async function validateDevInspectTransaction(
-	client: SuiClient,
+	client: SuiJsonRpcClient,
 	signer: Keypair,
 	transactionBlock: Transaction,
 	status: 'success' | 'failure',

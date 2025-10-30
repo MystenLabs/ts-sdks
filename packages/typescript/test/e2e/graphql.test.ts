@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { SuiGraphQLClient } from '../../src/graphql';
-import { graphql } from '../../src/graphql/schemas/latest';
+import { graphql } from '../../src/graphql/schema';
 
 const DEFAULT_GRAPHQL_URL = import.meta.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125/graphql';
 
@@ -34,6 +34,7 @@ const queries = {
 
 const client = new SuiGraphQLClient({
 	url: DEFAULT_GRAPHQL_URL,
+	network: 'localnet',
 	queries,
 });
 

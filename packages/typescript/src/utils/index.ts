@@ -13,18 +13,7 @@ export {
 	SUI_ADDRESS_LENGTH,
 } from './sui-types.js';
 
-export {
-	fromB64,
-	toB64,
-	fromHEX,
-	toHex,
-	toHEX,
-	fromHex,
-	fromBase64,
-	toBase64,
-	fromBase58,
-	toBase58,
-} from '@mysten/bcs';
+export { toHex, fromHex, fromBase64, toBase64, fromBase58, toBase58 } from '@mysten/bcs';
 export { isValidSuiNSName, normalizeSuiNSName } from './suins.js';
 
 export {

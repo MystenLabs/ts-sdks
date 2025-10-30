@@ -18,3 +18,4 @@ export {
 	SuiJsonRpcClient,
 } from './client.js';
 export { SuiHTTPStatusError, SuiHTTPTransportError, JsonRpcError } from './errors.js';
+export { getJsonRpcFullnodeUrl } from './network.js';

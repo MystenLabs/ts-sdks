@@ -27,16 +27,16 @@ npm install --save @mysten/payment-kit @mysten/sui
 
 ## Setting Up the Client
 
-The Payment Kit SDK extends the standard `SuiClient` to provide payment functionality. Here's how to
-set it up:
+The Payment Kit SDK extends the standard `SuiJsonRpcClient` to provide payment functionality. Here's
+how to set it up:
 
 ```ts
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { paymentKit } from '@mysten/payment-kit';
 
 // Create a Sui client with Payment Kit extension
-const client = new SuiClient({
-	url: getFullnodeUrl('testnet'),
+const client = new SuiJsonRpcClient({
+	url: getJsonRpcFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(paymentKit());
 ```

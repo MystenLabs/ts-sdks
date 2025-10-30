@@ -4,7 +4,7 @@
 import type { BcsType } from '@mysten/bcs';
 import { pureBcsSchemaFromTypeName } from '@mysten/sui/bcs';
 import type { PureTypeName, ShapeFromPureTypeName } from '@mysten/sui/bcs';
-import type { SuiObjectData } from '@mysten/sui/client';
+import type { SuiObjectData } from '@mysten/sui/jsonRpc';
 import type {
 	Experimental_BaseClient,
 	Experimental_SuiClientTypes,

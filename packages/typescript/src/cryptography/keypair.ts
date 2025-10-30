@@ -20,8 +20,6 @@ export const SUI_PRIVATE_KEY_PREFIX = 'suiprivkey';
 
 export type ParsedKeypair = {
 	scheme: SignatureScheme;
-	/** @deprecated use `scheme` instead */
-	schema: SignatureScheme;
 	secretKey: Uint8Array;
 };
 
@@ -135,7 +133,6 @@ export function decodeSuiPrivateKey(value: string): ParsedKeypair {
 
 	return {
 		scheme: signatureScheme,
-		schema: signatureScheme,
 		secretKey: secretKey,
 	};
 }

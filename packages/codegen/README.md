@@ -31,8 +31,8 @@ export default config;
 ```
 
 The `package` field should be the MVR name for your move package. If you have not registered your
-package on MVR yet, you can use the `@local-pkg` scope, and set up an override in your `SuiClient`
-to resolve it to the correct address.
+package on MVR yet, you can use the `@local-pkg` scope, and set up an override in your
+`SuiJsonRpcClient` to resolve it to the correct address.
 
 ## Generating code
 
@@ -65,14 +65,14 @@ or by adding something the following script to your package.json and running `pn
 }
 ```
 
-## Setting up SuiClient
+## Setting up SuiJsonRpcClient
 
 If your package is registered on MVR, the generated code should work without additional
-configuration. If you are using a `@local-pkg` name, you will need to configure your `SuiClient` to
-resolver the package name correctly:
+configuration. If you are using a `@local-pkg` name, you will need to configure your
+`SuiJsonRpcClient` to resolver the package name correctly:
 
 ```ts
-const client = new SuiClient({
+const client = new SuiJsonRpcClient({
 	network: 'testnet',
 	url: testnetRpcUrl,
 	mvr: {
@@ -90,7 +90,7 @@ If you are using `dapp-kit`, you may need to set up your network config and `Sui
 ```ts
 const { networkConfig, useNetworkVariable, useNetworkVariables } = createNetworkConfig({
 	testnet: {
-		url: getFullnodeUrl('testnet'),
+		url: getJsonRpcFullnodeUrl('testnet'),
 		variables: {
 			yourPackageId: YOUR_TESTNET_PACKAGE_ID,
 		},
@@ -103,7 +103,7 @@ const { networkConfig, useNetworkVariable, useNetworkVariables } = createNetwork
 	networks={networkConfig}
 	defaultNetwork="testnet"
 	createClient={(network, config) => {
-		return new SuiClient({
+		return new SuiJsonRpcClient({
 			network,
 			url: config.url,
 			mvr: {

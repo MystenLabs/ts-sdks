@@ -33,6 +33,9 @@ fragment OBJECT_FIELDS on Object {
 			}
 		}
 	}
+	asMovePackage {
+		__typename
+	}
 	owner {
 		...OBJECT_OWNER_FIELDS
 	}

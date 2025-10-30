@@ -3,7 +3,7 @@
 
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { SuiTransactionBlockResponse } from '../../src/client';
+import { SuiTransactionBlockResponse } from '../../src/jsonRpc';
 import { Transaction } from '../../src/transactions';
 import { executePaySuiNTimes, setup, TestToolbox } from './utils/setup';
 
@@ -30,7 +30,6 @@ describe('Transaction Reading API', () => {
 			return toolbox.client.signAndExecuteTransaction({
 				signer: toolbox.keypair,
 				transaction: tx,
-				requestType: 'WaitForEffectsCert',
 			});
 		}
 

@@ -5,11 +5,17 @@ import path from 'path';
 import type { ContainerRuntimeClient } from 'testcontainers';
 import { getContainerRuntimeClient } from 'testcontainers';
 import { retry } from 'ts-retry-promise';
-import { expect, inject } from 'vitest';
+import { expect, inject, it, test } from 'vitest';
 import { WebSocket } from 'ws';
 
-import type { SuiObjectChangePublished } from '../../../src/client/index.js';
-import { getFullnodeUrl, SuiClient, SuiHTTPTransport } from '../../../src/client/index.js';
+import type { SuiObjectChangePublished } from '../../../src/jsonRpc/index.js';
+import {
+	getJsonRpcFullnodeUrl,
+	SuiJsonRpcClient,
+	JsonRpcHTTPTransport,
+} from '../../../src/jsonRpc/index.js';
+import { SuiGrpcClient } from '../../../src/grpc/index.js';
+import { SuiGraphQLClient } from '../../../src/graphql/index.js';
 import type { Keypair } from '../../../src/cryptography/index.js';
 import {
 	FaucetRateLimitError,
@@ -19,9 +25,10 @@ import {
 import { Ed25519Keypair } from '../../../src/keypairs/ed25519/index.js';
 import { Transaction, UpgradePolicy } from '../../../src/transactions/index.js';
 import { SUI_TYPE_ARG } from '../../../src/utils/index.js';
+import type { ClientWithCoreApi } from '../../../src/experimental/core.js';
 
 const DEFAULT_FAUCET_URL = import.meta.env.FAUCET_URL ?? getFaucetHost('localnet');
-const DEFAULT_FULLNODE_URL = import.meta.env.FULLNODE_URL ?? getFullnodeUrl('localnet');
+const DEFAULT_FULLNODE_URL = import.meta.env.FULLNODE_URL ?? getJsonRpcFullnodeUrl('localnet');
 
 const SUI_TOOLS_CONTAINER_ID = inject('suiToolsContainerId');
 
@@ -59,17 +66,30 @@ class TestPackageRegistry {
 
 export class TestToolbox {
 	keypair: Ed25519Keypair;
-	client: SuiClient;
+	client: SuiJsonRpcClient;
+	grpcClient: SuiGrpcClient;
+	graphqlClient: SuiGraphQLClient;
 	registry: TestPackageRegistry;
 	configPath: string;
 
 	constructor(keypair: Ed25519Keypair, url: string = DEFAULT_FULLNODE_URL, configPath: string) {
 		this.keypair = keypair;
-		this.client = new SuiClient({
-			transport: new SuiHTTPTransport({
+		this.client = new SuiJsonRpcClient({
+			network: 'localnet',
+			transport: new JsonRpcHTTPTransport({
 				url,
 				WebSocketConstructor: WebSocket as never,
 			}),
+		});
+		this.grpcClient = new SuiGrpcClient({
+			network: 'localnet',
+			baseUrl: url,
+		});
+		// GraphQL port is injected by vitest setup
+		const graphqlPort = inject('graphqlPort');
+		this.graphqlClient = new SuiGraphQLClient({
+			network: 'localnet',
+			url: `http://127.0.0.1:${graphqlPort}/graphql`,
 		});
 		this.registry = TestPackageRegistry.forUrl(url);
 		this.configPath = configPath;
@@ -103,11 +123,118 @@ export class TestToolbox {
 			});
 		};
 	}
+
+	/**
+	 * Test that all three client implementations (JSON RPC, gRPC, GraphQL) return the same data
+	 * for a given query. This ensures consistency across the different transport layers.
+	 *
+	 * @param queryFn - Function that takes a client and returns a promise with the query result
+	 * @param normalize - Optional function to normalize results before comparison (e.g., to ignore cursor differences)
+	 * @param options - Options to skip the test entirely
+	 */
+	async expectAllClientsReturnSameData<T>(
+		queryFn: (client: ClientWithCoreApi) => Promise<T>,
+		normalize?: (result: T) => T,
+		options?: { skip?: boolean },
+	) {
+		if (options?.skip) {
+			test.skip('all clients return same data', () => {});
+			return;
+		}
+
+		const [jsonRpcResult, grpcResult, graphqlResult] = await Promise.all([
+			queryFn(this.client),
+			queryFn(this.grpcClient),
+			queryFn(this.graphqlClient),
+		]);
+
+		const normalizedJson = normalize ? normalize(jsonRpcResult) : jsonRpcResult;
+		const normalizedGrpc = normalize ? normalize(grpcResult) : grpcResult;
+		const normalizedGraphql = normalize ? normalize(graphqlResult) : graphqlResult;
+
+		expect(normalizedJson).toEqual(normalizedGrpc);
+		expect(normalizedJson).toEqual(normalizedGraphql);
+	}
 }
 
-export function getClient(url = DEFAULT_FULLNODE_URL): SuiClient {
-	return new SuiClient({
-		transport: new SuiHTTPTransport({
+/**
+ * Creates a test helper function that runs tests against all three client implementations.
+ * This should be called at module level with a getter function that will return the toolbox or clients.
+ *
+ * @param getClients - A function that returns clients. Can be either:
+ *   - () => TestToolbox (for localnet tests using the standard test setup)
+ *   - () => { jsonRpc: Client, grpc: Client, graphql: Client } (for custom client configurations like testnet)
+ * @returns A function that creates test cases for all clients
+ */
+export function createTestWithAllClients(
+	getClients:
+		| (() => TestToolbox)
+		| (() => {
+				jsonRpc: ClientWithCoreApi;
+				grpc: ClientWithCoreApi;
+				graphql: ClientWithCoreApi;
+		  }),
+) {
+	return function testWithAllClients(
+		testName: string,
+		testFn: (client: ClientWithCoreApi) => Promise<void>,
+		options?: { skip?: Array<'jsonrpc' | 'grpc' | 'graphql'> | boolean },
+	) {
+		// If skip is true, skip all tests
+		if (options?.skip === true) {
+			test.skip(`[JSON RPC] ${testName}`, () => {});
+			test.skip(`[gRPC] ${testName}`, () => {});
+			test.skip(`[GraphQL] ${testName}`, () => {});
+			return;
+		}
+
+		const skipArray = Array.isArray(options?.skip) ? options.skip : [];
+
+		// Helper to get the clients from either format
+		const clients = () => {
+			const result = getClients();
+			if ('client' in result) {
+				// It's a TestToolbox
+				return {
+					jsonRpc: result.client,
+					grpc: result.grpcClient,
+					graphql: result.graphqlClient,
+				};
+			}
+			// It's already in the correct format
+			return result;
+		};
+
+		if (!skipArray.includes('jsonrpc')) {
+			it(`[JSON RPC] ${testName}`, async () => {
+				await testFn(clients().jsonRpc);
+			});
+		} else {
+			test.skip(`[JSON RPC] ${testName}`, () => {});
+		}
+
+		if (!skipArray.includes('grpc')) {
+			it(`[gRPC] ${testName}`, async () => {
+				await testFn(clients().grpc);
+			});
+		} else {
+			test.skip(`[gRPC] ${testName}`, () => {});
+		}
+
+		if (!skipArray.includes('graphql')) {
+			it(`[GraphQL] ${testName}`, async () => {
+				await testFn(clients().graphql);
+			});
+		} else {
+			test.skip(`[GraphQL] ${testName}`, () => {});
+		}
+	};
+}
+
+export function getClient(url = DEFAULT_FULLNODE_URL): SuiJsonRpcClient {
+	return new SuiJsonRpcClient({
+		network: 'localnet',
+		transport: new JsonRpcHTTPTransport({
 			url,
 			WebSocketConstructor: WebSocket as never,
 		}),
@@ -297,7 +424,7 @@ export function getRandomAddresses(n: number): string[] {
 }
 
 export async function paySui(
-	client: SuiClient,
+	client: SuiJsonRpcClient,
 	signer: Keypair,
 	numRecipients: number = 1,
 	recipients?: string[],
@@ -342,7 +469,7 @@ export async function paySui(
 }
 
 export async function executePaySuiNTimes(
-	client: SuiClient,
+	client: SuiJsonRpcClient,
 	signer: Keypair,
 	nTimes: number,
 	numRecipientsPerTxn: number = 1,

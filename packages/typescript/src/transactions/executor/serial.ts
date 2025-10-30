@@ -4,7 +4,7 @@
 import { toBase64 } from '@mysten/bcs';
 
 import type { bcs } from '../../bcs/index.js';
-import type { SuiClient, SuiTransactionBlockResponseOptions } from '../../client/index.js';
+import type { SuiJsonRpcClient, SuiTransactionBlockResponseOptions } from '../../jsonRpc/index.js';
 import type { Signer } from '../../cryptography/keypair.js';
 import type { ObjectCacheOptions } from '../ObjectCache.js';
 import { isTransaction, Transaction } from '../Transaction.js';
@@ -22,7 +22,7 @@ export class SerialTransactionExecutor {
 		defaultGasBudget = 50_000_000n,
 		...options
 	}: Omit<ObjectCacheOptions, 'address'> & {
-		client: SuiClient;
+		client: SuiJsonRpcClient;
 		signer: Signer;
 		/** The gasBudget to use if the transaction has not defined it's own gasBudget, defaults to `50_000_000n` */
 		defaultGasBudget?: bigint;

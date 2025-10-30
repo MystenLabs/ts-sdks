@@ -11,14 +11,14 @@ import { Theme } from "@radix-ui/themes";
 import App from "./App.tsx";
 import { networkConfig } from "./networkConfig.ts";
 import { registerWalletConnectWallet } from "@mysten/walletconnect-wallet";
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 
 const queryClient = new QueryClient();
 
 registerWalletConnectWallet({
   projectId: "your_project_id",
   getClient: (chain) =>
-    new SuiClient({ network: chain, url: getFullnodeUrl(chain) }),
+    new SuiJsonRpcClient({ network: chain, url: getJsonRpcFullnodeUrl(chain) }),
   metadata: {
     walletName: "Wallet Connect",
     icon: "https://walletconnect.org/walletconnect-logo.png",

@@ -4,7 +4,7 @@
 import { bcs } from '@mysten/bcs';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { SuiTransactionBlockResponse } from '../../src/client';
+import { SuiTransactionBlockResponse } from '../../src/jsonRpc';
 import { Transaction } from '../../src/transactions';
 import { TransactionDataBuilder } from '../../src/transactions/TransactionData';
 import { SUI_SYSTEM_STATE_OBJECT_ID } from '../../src/utils';

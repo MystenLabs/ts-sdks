@@ -18,7 +18,7 @@ The main client class that provides access to Payment Kit functionality.
 
 #### `paymentKit()`
 
-Function to create a Payment Kit client extension for `SuiClient`.
+Function to create a Payment Kit client extension for `SuiJsonRpcClient`.
 
 ```ts
 paymentKit<Name extends string = 'paymentKit'>({
@@ -29,11 +29,11 @@ paymentKit<Name extends string = 'paymentKit'>({
 **Example:**
 
 ```ts
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { paymentKit } from '@mysten/payment-kit';
 
-const client = new SuiClient({
-	url: getFullnodeUrl('testnet'),
+const client = new SuiJsonRpcClient({
+	url: getJsonRpcFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(paymentKit());
 

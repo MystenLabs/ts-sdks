@@ -396,10 +396,12 @@ describe('Multisig address creation:', () => {
 		pk4 = toZkLoginPublicIdentifier(
 			BigInt('20794788559620669596206457022966176986688727876128223628113916380927502737911'),
 			'https://id.twitch.tv/oauth2',
+			{ legacyAddress: false },
 		);
 		pk5 = toZkLoginPublicIdentifier(
 			BigInt('380704556853533152350240698167704405529973457670972223618755249929828551006'),
 			'https://id.twitch.tv/oauth2',
+			{ legacyAddress: false },
 		);
 
 		const secret_key_ed25519 = new Uint8Array([

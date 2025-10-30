@@ -125,6 +125,7 @@ export namespace Experimental_SuiClientTypes {
 			id: string;
 			type: string;
 			name: DynamicFieldName;
+			valueType: string;
 		}[];
 	}
 
