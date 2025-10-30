@@ -146,3 +146,27 @@ const executeResult = await client.executeTransactionBlock({
 **For wallet developers:**
 
 Remove the `sui:reportTransactionEffects` feature implementation from your wallet.
+
+## GraphQL Schema Consolidation
+
+The SDK now exports a single unified GraphQL schema instead of multiple versioned schemas. Now that
+the GraphQL API is more stable, there should always only be a single schema supported by the API.
+
+**Breaking changes:**
+
+The following versioned schema exports have been removed:
+
+- `@mysten/sui/graphql/schemas/2024.1`
+- `@mysten/sui/graphql/schemas/2024.4`
+- `@mysten/sui/graphql/schemas/latest`
+
+**Migration:**
+
+Replace all versioned schema imports with the new unified schema export:
+
+```diff
+- import { graphql } from '@mysten/sui/graphql/schemas/latest';
+- import { graphql } from '@mysten/sui/graphql/schemas/2024.4';
+- import { graphql } from '@mysten/sui/graphql/schemas/2024.1';
++ import { graphql } from '@mysten/sui/graphql/schema';
+```
