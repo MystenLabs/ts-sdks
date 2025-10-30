@@ -77,13 +77,20 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 
 						const bcsContent = object.result.object.contents?.value ?? null;
 
+						// Package objects have type "package" which is not a struct tag, so don't normalize it
+						const objectType = object.result.object.objectType;
+						const type =
+							objectType && objectType.includes('::')
+								? normalizeStructTag(objectType)
+								: (objectType ?? '');
+
 						return {
 							id: object.result.object.objectId!,
 							version: object.result.object.version?.toString()!,
 							digest: object.result.object.digest!,
 							content: Promise.resolve(bcsContent!),
 							owner: mapOwner(object.result.object.owner)!,
-							type: normalizeStructTag(object.result.object.objectType!),
+							type,
 							previousTransaction: object.result.object.previousTransaction ?? null,
 						};
 					},
