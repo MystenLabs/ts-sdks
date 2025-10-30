@@ -18,7 +18,7 @@ import { Transaction } from '../transactions/Transaction.js';
 import { jsonRpcClientResolveTransactionPlugin } from './json-rpc-resolver.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
-import { normalizeSuiAddress } from '../utils/sui-types.js';
+import { normalizeSuiAddress, normalizeStructTag } from '../utils/sui-types.js';
 import { Experimental_CoreClient } from '../experimental/core.js';
 import type { Experimental_SuiClientTypes } from '../experimental/types.js';
 import { ObjectError } from '../experimental/errors.js';
@@ -112,7 +112,7 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 					version: coin.version,
 					digest: coin.digest,
 					balance: coin.balance,
-					type: `0x2::coin::Coin<${coin.coinType}>`,
+					type: normalizeStructTag(`0x2::coin::Coin<${coin.coinType}>`),
 					content: Promise.resolve(
 						Coin.serialize({
 							id: coin.coinObjectId,
@@ -122,8 +122,8 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 						}).toBytes(),
 					),
 					owner: {
-						$kind: 'ObjectOwner' as const,
-						ObjectOwner: options.address,
+						$kind: 'AddressOwner' as const,
+						AddressOwner: options.address,
 					},
 					previousTransaction: coin.previousTransaction,
 				};
@@ -142,7 +142,7 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 
 		return {
 			balance: {
-				coinType: balance.coinType,
+				coinType: normalizeStructTag(balance.coinType),
 				balance: balance.totalBalance,
 			},
 		};
@@ -155,7 +155,7 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 
 		return {
 			balances: balances.map((balance) => ({
-				coinType: balance.coinType,
+				coinType: normalizeStructTag(balance.coinType),
 				balance: balance.totalBalance,
 			})),
 			hasNextPage: false,
@@ -220,7 +220,7 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 				signatures: [],
 				transaction: parseTransactionBcs(options.transaction),
 				balanceChanges: result.balanceChanges.map((change) => ({
-					coinType: change.coinType,
+					coinType: normalizeStructTag(change.coinType),
 					address: parseOwnerAddress(change.owner)!,
 					amount: change.amount,
 				})),
@@ -245,13 +245,19 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 
 		return {
 			dynamicFields: dynamicFields.data.map((dynamicField) => {
+				const isDynamicObject = dynamicField.type === 'DynamicObject';
+				const fullType = isDynamicObject
+					? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${dynamicField.name.type}>, 0x2::object::ID>`
+					: `0x2::dynamic_field::Field<${dynamicField.name.type}, ${dynamicField.objectType}>`;
+
 				return {
 					id: dynamicField.objectId,
-					type: dynamicField.objectType,
+					type: normalizeStructTag(fullType),
 					name: {
 						type: dynamicField.name.type,
 						bcs: fromBase64(dynamicField.bcsName),
 					},
+					valueType: dynamicField.objectType,
 				};
 			}),
 			hasNextPage: dynamicFields.hasNextPage,
@@ -316,14 +322,14 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 }
 
 function parseObject(object: SuiObjectData): Experimental_SuiClientTypes.ObjectResponse {
+	const bcsContent =
+		object.bcs?.dataType === 'moveObject' ? fromBase64(object.bcs.bcsBytes) : new Uint8Array();
 	return {
 		id: object.objectId,
 		version: object.version,
 		digest: object.digest,
-		type: object.type!,
-		content: Promise.resolve(
-			object.bcs?.dataType === 'moveObject' ? fromBase64(object.bcs.bcsBytes) : new Uint8Array(),
-		),
+		type: normalizeStructTag(object.type!),
+		content: Promise.resolve(bcsContent),
 		owner: parseOwner(object.owner!),
 		previousTransaction: object.previousTransaction ?? null,
 	};
@@ -432,7 +438,7 @@ function parseTransaction(
 		signatures: parsedTx.txSignatures,
 		balanceChanges:
 			transaction.balanceChanges?.map((change) => ({
-				coinType: change.coinType,
+				coinType: normalizeStructTag(change.coinType),
 				address: parseOwnerAddress(change.owner)!,
 				amount: change.amount,
 			})) ?? [],
