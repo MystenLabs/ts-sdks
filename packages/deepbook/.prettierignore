@@ -7,3 +7,4 @@ yarn-error.log*
 .swc/
 out/
 CHANGELOG.md
+test/e2e/data
