@@ -49,6 +49,7 @@ export async function retrieveKeyServers({
 			// First get the KeyServer object and validate it.
 			const res = await client.core.getObject({
 				objectId,
+				include: { content: true },
 			});
 			const ks = KeyServerMove.parse(await res.object.content);
 			if (

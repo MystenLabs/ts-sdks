@@ -604,7 +604,10 @@ describe('Core API - Transaction Resolution', () => {
 				expect(receivingInput.Object?.Receiving?.digest).toBeDefined();
 
 				// Verify transaction would succeed using dryRun (avoids consuming objects)
-				const dryRunResult = await client.core.simulateTransaction({ transaction: bytes });
+				const dryRunResult = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true },
+				});
 				expect(dryRunResult.transaction.effects?.status.success).toBe(true);
 			},
 			{ skip: ['graphql'] },
@@ -673,7 +676,10 @@ describe('Core API - Transaction Resolution', () => {
 				expect(sharedInput.Object?.SharedObject?.mutable).toBe(true);
 
 				// Verify transaction would succeed using dryRun (avoids consuming objects)
-				const dryRunResult = await client.core.simulateTransaction({ transaction: bytes });
+				const dryRunResult = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true },
+				});
 				expect(dryRunResult.transaction.effects?.status.success).toBe(true);
 			},
 			{ skip: ['graphql'] },
