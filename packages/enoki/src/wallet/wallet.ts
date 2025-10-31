@@ -40,7 +40,7 @@ import type {
 	EnokiGetSessionMethod,
 } from './features.js';
 import { EnokiGetMetadata, EnokiGetSession } from './features.js';
-import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { SuiClientTypes } from '@mysten/sui/client';
 import { decodeJwt } from '@mysten/sui/zklogin';
 import type { ExportedWebCryptoKeypair } from '@mysten/signers/webcrypto';
 import { WebCryptoSigner } from '@mysten/signers/webcrypto';
@@ -72,7 +72,7 @@ export class EnokiWallet implements Wallet {
 	#clientId: string;
 	#redirectUrl: string;
 	#extraParams: Record<string, string> | (() => Record<string, string>) | undefined;
-	#getCurrentNetwork: () => Experimental_SuiClientTypes.Network;
+	#getCurrentNetwork: () => SuiClientTypes.Network;
 	#windowFeatures?: string | (() => string);
 
 	get name() {
@@ -352,7 +352,7 @@ export class EnokiWallet implements Wallet {
 		return { client: sessionContext.client, keypair };
 	}
 
-	async #createSession({ network }: { network: Experimental_SuiClientTypes.Network }) {
+	async #createSession({ network }: { network: SuiClientTypes.Network }) {
 		const popup = window.open(
 			'about:blank',
 			'_blank',
