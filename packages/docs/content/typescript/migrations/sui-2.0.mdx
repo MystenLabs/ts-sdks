@@ -147,6 +147,57 @@ const executeResult = await client.executeTransactionBlock({
 
 Remove the `sui:reportTransactionEffects` feature implementation from your wallet.
 
+## Experimental Client API Stabilization
+
+The experimental client API has been stabilized and moved from `@mysten/sui/experimental` to
+`@mysten/sui/client`. All `Experimental_` prefixes have been removed from types and classes.
+
+**Breaking changes:**
+
+- The `@mysten/sui/experimental` module has been removed
+- All `Experimental_` prefixed types and classes have been renamed
+- Client types namespace changed from `Experimental_SuiClientTypes` to `SuiClientTypes`
+
+**Migration:**
+
+Update imports and remove `Experimental_` prefixes:
+
+```diff
+- import {
+-   Experimental_BaseClient,
+-   Experimental_CoreClient,
+-   type Experimental_SuiClientTypes,
+-   type Experimental_CoreClientOptions,
+- } from '@mysten/sui/experimental';
++ import {
++   BaseClient,
++   CoreClient,
++   type SuiClientTypes,
++   type CoreClientOptions,
++ } from '@mysten/sui/client';
+
+// Update class extensions
+- class MyClient extends Experimental_CoreClient {
++ class MyClient extends CoreClient {
+    async getObjects(
+-     options: Experimental_SuiClientTypes.GetObjectsOptions,
+-   ): Promise<Experimental_SuiClientTypes.GetObjectsResponse> {
++     options: SuiClientTypes.GetObjectsOptions,
++   ): Promise<SuiClientTypes.GetObjectsResponse> {
+      // ...
+    }
+  }
+```
+
+**Common renames:**
+
+| Old Name                         | New Name            |
+| -------------------------------- | ------------------- |
+| `Experimental_BaseClient`        | `BaseClient`        |
+| `Experimental_CoreClient`        | `CoreClient`        |
+| `Experimental_SuiClientTypes`    | `SuiClientTypes`    |
+| `Experimental_CoreClientOptions` | `CoreClientOptions` |
+
 ## GraphQL Schema Consolidation
 
 The SDK now exports a single unified GraphQL schema instead of multiple versioned schemas. Now that

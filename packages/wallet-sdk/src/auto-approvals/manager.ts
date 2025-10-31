@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { SuiClientTypes } from '@mysten/sui/client';
 import { parse, safeParse } from 'valibot';
 import type { AutoApprovalState } from './schemas/state.js';
 import { AutoApprovalStateSchema } from './schemas/state.js';
@@ -128,10 +128,10 @@ export class AutoApprovalManager {
 				continue;
 			}
 
-			const accessLevel = analysis.result.accessLevel[obj.id];
+			const accessLevel = analysis.result.accessLevel[obj.objectId];
 
 			if (!accessLevel) {
-				issues.push({ message: `Access level could not be determined for object ${obj.id}` });
+				issues.push({ message: `Access level could not be determined for object ${obj.objectId}` });
 			}
 
 			const ownedObjectsPermission = operation.permissions.ownedObjects?.find(
@@ -139,10 +139,10 @@ export class AutoApprovalManager {
 			);
 
 			if (!ownedObjectsPermission) {
-				issues.push({ message: `No permission found for object ${obj.id}` });
+				issues.push({ message: `No permission found for object ${obj.objectId}` });
 			} else if (!compareAccessLevel(ownedObjectsPermission.accessLevel, accessLevel)) {
 				issues.push({
-					message: `Insufficient access level for object ${obj.id}: required ${ownedObjectsPermission.accessLevel}, got ${accessLevel}`,
+					message: `Insufficient access level for object ${obj.objectId}: required ${ownedObjectsPermission.accessLevel}, got ${accessLevel}`,
 				});
 			}
 		}
@@ -326,7 +326,7 @@ export class AutoApprovalManager {
 
 	applyTransactionEffects(
 		analysis: AutoApprovalResult,
-		result: Experimental_SuiClientTypes.TransactionResponse,
+		result: SuiClientTypes.TransactionResponse,
 	): void {
 		this.#removePendingDigest(result.digest);
 

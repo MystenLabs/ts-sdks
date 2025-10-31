@@ -1,8 +1,9 @@
 ---
-"@mysten/sui": major
+'@mysten/sui': major
 ---
 
 Remove deprecated exports and properties:
+
 - Removed `fromB64`, `toB64`, `fromHEX`, `toHEX` exports from utils (use `fromBase64`, `toBase64`, `fromHex`, `toHex` instead)
 - Removed `schema` property from `ParsedKeypair` (use `scheme` instead)
 - Removed `requestType` parameter from `executeTransactionBlock`

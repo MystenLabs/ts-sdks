@@ -1,13 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClientWithCoreApi, Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import { createAnalyzer } from '../analyzer.js';
 import type { TransactionAnalysisIssue } from '../analyzer.js';
 
 import { data } from './core.js';
 
-export type AnalyzedObject = Experimental_SuiClientTypes.ObjectResponse & {
+export type AnalyzedObject = SuiClientTypes.ObjectResponse & {
 	ownerAddress: string | null;
 };
 
@@ -65,22 +65,20 @@ export const objects = createAnalyzer({
 	analyze:
 		({ client }: { client: ClientWithCoreApi }) =>
 		async ({ objectIds }) => {
-			const { objects } = await client.core.getObjects({
+			const { objects } = await client.core.listObjects({
 				objectIds,
 			});
 
 			const issues: TransactionAnalysisIssue[] = [];
 
-			const foundObjects = objects.filter(
-				(obj): obj is Experimental_SuiClientTypes.ObjectResponse => {
-					if (obj instanceof Error) {
-						issues.push({ message: `Failed to fetch object: ${obj.message}`, error: obj });
-						return false;
-					}
+			const foundObjects = objects.filter((obj): obj is SuiClientTypes.ObjectResponse => {
+				if (obj instanceof Error) {
+					issues.push({ message: `Failed to fetch object: ${obj.message}`, error: obj });
+					return false;
+				}
 
-					return true;
-				},
-			);
+				return true;
+			});
 
 			const result = foundObjects.map((obj) => {
 				let ownerAddress: string | null = null;
@@ -127,6 +125,6 @@ export const objectsById = createAnalyzer({
 	analyze:
 		() =>
 		({ objects }) => ({
-			result: new Map(objects.map((obj) => [obj.id, obj])),
+			result: new Map(objects.map((obj) => [obj.objectId, obj])),
 		}),
 });

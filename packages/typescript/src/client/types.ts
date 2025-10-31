@@ -4,10 +4,10 @@
 
 import type { SerializedTransactionDataV2, TransactionPlugin } from '../transactions/index.js';
 import type { ClientCache } from './cache.js';
-import type { Experimental_BaseClient } from './client.js';
+import type { BaseClient } from './client.js';
 
 export type SuiClientRegistration<
-	T extends Experimental_BaseClient = Experimental_BaseClient,
+	T extends BaseClient = BaseClient,
 	Name extends string = string,
 	Extension = unknown,
 > = {
@@ -15,17 +15,14 @@ export type SuiClientRegistration<
 	readonly register: (client: T) => Extension;
 };
 
-export type ClientWithExtensions<
-	T,
-	Base extends Experimental_BaseClient = Experimental_BaseClient,
-> = Base & T;
+export type ClientWithExtensions<T, Base extends BaseClient = BaseClient> = Base & T;
 
-export namespace Experimental_SuiClientTypes {
+export namespace SuiClientTypes {
 	export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet' | (string & {});
 
 	export interface SuiClientOptions {
 		network: Network;
-		base?: Experimental_BaseClient;
+		base?: BaseClient;
 		cache?: ClientCache;
 	}
 
@@ -44,14 +41,14 @@ export namespace Experimental_SuiClientTypes {
 
 	/** Object methods */
 	export interface TransportMethods {
-		getObjects: (options: GetObjectsOptions) => Promise<GetObjectsResponse>;
-		getOwnedObjects: (options: GetOwnedObjectsOptions) => Promise<GetOwnedObjectsResponse>;
-		getCoins: (options: GetCoinsOptions) => Promise<GetCoinsResponse>;
-		getDynamicFields: (options: GetDynamicFieldsOptions) => Promise<GetDynamicFieldsResponse>;
+		listObjects: (options: ListObjectsOptions) => Promise<ListObjectsResponse>;
+		listOwnedObjects: (options: ListOwnedObjectsOptions) => Promise<ListOwnedObjectsResponse>;
+		listCoins: (options: ListCoinsOptions) => Promise<ListCoinsResponse>;
+		listDynamicFields: (options: ListDynamicFieldsOptions) => Promise<ListDynamicFieldsResponse>;
 		getDynamicField: (options: GetDynamicFieldOptions) => Promise<GetDynamicFieldResponse>;
 	}
 
-	export interface GetObjectsOptions extends CoreClientMethodOptions {
+	export interface ListObjectsOptions extends CoreClientMethodOptions {
 		objectIds: string[];
 	}
 
@@ -59,21 +56,21 @@ export namespace Experimental_SuiClientTypes {
 		objectId: string;
 	}
 
-	export interface GetOwnedObjectsOptions extends CoreClientMethodOptions {
-		address: string;
+	export interface ListOwnedObjectsOptions extends CoreClientMethodOptions {
+		owner: string;
 		limit?: number;
 		cursor?: string | null;
 		type?: string;
 	}
 
-	export interface GetCoinsOptions extends CoreClientMethodOptions {
-		address: string;
+	export interface ListCoinsOptions extends CoreClientMethodOptions {
+		owner: string;
 		coinType: string;
 		limit?: number;
 		cursor?: string | null;
 	}
 
-	export interface GetDynamicFieldsOptions extends CoreClientMethodOptions {
+	export interface ListDynamicFieldsOptions extends CoreClientMethodOptions {
 		parentId: string;
 		limit?: number;
 		cursor?: string | null;
@@ -84,7 +81,7 @@ export namespace Experimental_SuiClientTypes {
 		name: DynamicFieldName;
 	}
 
-	export interface GetObjectsResponse {
+	export interface ListObjectsResponse {
 		objects: (ObjectResponse | Error)[];
 	}
 
@@ -92,20 +89,20 @@ export namespace Experimental_SuiClientTypes {
 		object: ObjectResponse;
 	}
 
-	export interface GetOwnedObjectsResponse {
+	export interface ListOwnedObjectsResponse {
 		objects: ObjectResponse[];
 		hasNextPage: boolean;
 		cursor: string | null;
 	}
 
-	export interface GetCoinsResponse {
+	export interface ListCoinsResponse {
 		objects: CoinResponse[];
 		hasNextPage: boolean;
 		cursor: string | null;
 	}
 
 	export interface ObjectResponse {
-		id: string;
+		objectId: string;
 		version: string;
 		digest: string;
 		owner: ObjectOwner;
@@ -118,11 +115,11 @@ export namespace Experimental_SuiClientTypes {
 		balance: string;
 	}
 
-	export interface GetDynamicFieldsResponse {
+	export interface ListDynamicFieldsResponse {
 		hasNextPage: boolean;
 		cursor: string | null;
 		dynamicFields: {
-			id: string;
+			fieldId: string;
 			type: string;
 			name: DynamicFieldName;
 			valueType: string;
@@ -133,7 +130,7 @@ export namespace Experimental_SuiClientTypes {
 		dynamicField: {
 			name: DynamicFieldName;
 			value: DynamicFieldValue;
-			id: string;
+			fieldId: string;
 			version: string;
 			digest: string;
 			type: string;
@@ -154,11 +151,11 @@ export namespace Experimental_SuiClientTypes {
 	/** Balance methods */
 	export interface TransportMethods {
 		getBalance: (options: GetBalanceOptions) => Promise<GetBalanceResponse>;
-		getAllBalances: (options: GetAllBalancesOptions) => Promise<GetAllBalancesResponse>;
+		listBalances: (options: ListBalancesOptions) => Promise<ListBalancesResponse>;
 	}
 
 	export interface GetBalanceOptions extends CoreClientMethodOptions {
-		address: string;
+		owner: string;
 		coinType: string;
 	}
 
@@ -171,13 +168,13 @@ export namespace Experimental_SuiClientTypes {
 		balance: CoinBalance;
 	}
 
-	export interface GetAllBalancesOptions extends CoreClientMethodOptions {
-		address: string;
+	export interface ListBalancesOptions extends CoreClientMethodOptions {
+		owner: string;
 		limit?: number;
 		cursor?: string | null;
 	}
 
-	export interface GetAllBalancesResponse {
+	export interface ListBalancesResponse {
 		balances: CoinBalance[];
 		hasNextPage: boolean;
 		cursor: string | null;
@@ -187,10 +184,19 @@ export namespace Experimental_SuiClientTypes {
 	export interface TransportMethods {
 		getTransaction: (options: GetTransactionOptions) => Promise<GetTransactionResponse>;
 		executeTransaction: (options: ExecuteTransactionOptions) => Promise<ExecuteTransactionResponse>;
-		dryRunTransaction: (options: DryRunTransactionOptions) => Promise<DryRunTransactionResponse>;
+		simulateTransaction: (
+			options: SimulateTransactionOptions,
+		) => Promise<SimulateTransactionResponse>;
 		resolveTransactionPlugin: () => TransactionPlugin;
 	}
 
+	export interface Event {
+		packageId: string;
+		module: string;
+		sender: string;
+		eventType: string;
+		bcs: Uint8Array;
+	}
 	export interface TransactionResponse {
 		digest: string;
 		signatures: string[];
@@ -199,8 +205,7 @@ export namespace Experimental_SuiClientTypes {
 		objectTypes: PromiseLike<Record<string, string>>;
 		transaction: TransactionData;
 		balanceChanges: BalanceChange[];
-		// TODO: add events
-		// events?: Uint8Array;
+		events: Event[];
 	}
 
 	export interface BalanceChange {
@@ -226,11 +231,11 @@ export namespace Experimental_SuiClientTypes {
 		signatures: string[];
 	}
 
-	export interface DryRunTransactionOptions extends CoreClientMethodOptions {
+	export interface SimulateTransactionOptions extends CoreClientMethodOptions {
 		transaction: Uint8Array;
 	}
 
-	export interface DryRunTransactionResponse {
+	export interface SimulateTransactionResponse {
 		transaction: TransactionResponse;
 	}
 
@@ -255,7 +260,7 @@ export namespace Experimental_SuiClientTypes {
 		bytes: string;
 		signature: string;
 		intentScope: 'TransactionData' | 'PersonalMessage';
-		author: string;
+		address: string;
 	}
 
 	export interface ZkLoginVerifyResponse {
@@ -510,7 +515,6 @@ export namespace Experimental_SuiClientTypes {
 
 	export interface TransactionEffects {
 		bcs: Uint8Array | null;
-		digest: string;
 		version: number;
 		status: ExecutionStatus;
 		gasUsed: GasCostSummary;
@@ -525,7 +529,7 @@ export namespace Experimental_SuiClientTypes {
 	}
 
 	export interface ChangedObject {
-		id: string;
+		objectId: string;
 		inputState: 'Unknown' | 'DoesNotExist' | 'Exists';
 		inputVersion: string | null;
 		inputDigest: string | null;
