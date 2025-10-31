@@ -5,8 +5,8 @@ import type { PublicKey, SignatureScheme } from '@mysten/sui/cryptography';
 import { SIGNATURE_FLAG_TO_SCHEME, Signer } from '@mysten/sui/cryptography';
 import type { DAppKit } from '../core/index.js';
 import type { Transaction } from '@mysten/sui/transactions';
-import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
-import { parseTransactionBcs, parseTransactionEffectsBcs } from '@mysten/sui/experimental';
+import type { SuiClientTypes } from '@mysten/sui/client';
+import { parseTransactionBcs, parseTransactionEffectsBcs } from '@mysten/sui/client';
 import { toBase64, fromBase64 } from '@mysten/sui/utils';
 import { publicKeyFromSuiBytes } from '@mysten/sui/verify';
 
@@ -68,7 +68,7 @@ export class CurrentAccountSigner extends Signer {
 		transaction,
 	}: {
 		transaction: Transaction;
-	}): Promise<Omit<Experimental_SuiClientTypes.TransactionResponse, 'balanceChanges'>> {
+	}): Promise<Omit<SuiClientTypes.TransactionResponse, 'balanceChanges'>> {
 		const { bytes, signature, digest, effects } = await this.#dAppKit.signAndExecuteTransaction({
 			transaction,
 		});

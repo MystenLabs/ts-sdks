@@ -1,11 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type {
-	Experimental_CoreClientOptions,
-	Experimental_SuiClientTypes,
-} from '../experimental/index.js';
-import { Experimental_CoreClient } from '../experimental/index.js';
+import type { CoreClientOptions, SuiClientTypes } from '../client/index.js';
+import { CoreClient } from '../client/index.js';
 import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2/owner.js';
 import { Owner_OwnerKind } from './proto/sui/rpc/v2/owner.js';
@@ -35,10 +32,10 @@ import {
 	applyGrpcResolvedTransaction,
 	transactionDataToGrpcTransaction,
 } from '../client/transaction-resolver.js';
-export interface GrpcCoreClientOptions extends Experimental_CoreClientOptions {
+export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
 }
-export class GrpcCoreClient extends Experimental_CoreClient {
+export class GrpcCoreClient extends CoreClient {
 	#client: SuiGrpcClient;
 	constructor({ client, ...options }: GrpcCoreClientOptions) {
 		super(options);
@@ -46,10 +43,10 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	}
 
 	async getObjects(
-		options: Experimental_SuiClientTypes.GetObjectsOptions,
-	): Promise<Experimental_SuiClientTypes.GetObjectsResponse> {
+		options: SuiClientTypes.GetObjectsOptions,
+	): Promise<SuiClientTypes.GetObjectsResponse> {
 		const batches = chunk(options.objectIds, 50);
-		const results: Experimental_SuiClientTypes.GetObjectsResponse['objects'] = [];
+		const results: SuiClientTypes.GetObjectsResponse['objects'] = [];
 
 		for (const batch of batches) {
 			const response = await this.#client.ledgerService.batchGetObjects({
@@ -68,37 +65,35 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 			});
 
 			results.push(
-				...response.response.objects.map(
-					(object): Experimental_SuiClientTypes.ObjectResponse | Error => {
-						if (object.result.oneofKind === 'error') {
-							// TODO: improve error handling
-							return new Error(object.result.error.message);
-						}
+				...response.response.objects.map((object): SuiClientTypes.ObjectResponse | Error => {
+					if (object.result.oneofKind === 'error') {
+						// TODO: improve error handling
+						return new Error(object.result.error.message);
+					}
 
-						if (object.result.oneofKind !== 'object') {
-							return new Error('Unexpected result type');
-						}
+					if (object.result.oneofKind !== 'object') {
+						return new Error('Unexpected result type');
+					}
 
-						const bcsContent = object.result.object.contents?.value ?? null;
+					const bcsContent = object.result.object.contents?.value ?? null;
 
-						// Package objects have type "package" which is not a struct tag, so don't normalize it
-						const objectType = object.result.object.objectType;
-						const type =
-							objectType && objectType.includes('::')
-								? normalizeStructTag(objectType)
-								: (objectType ?? '');
+					// Package objects have type "package" which is not a struct tag, so don't normalize it
+					const objectType = object.result.object.objectType;
+					const type =
+						objectType && objectType.includes('::')
+							? normalizeStructTag(objectType)
+							: (objectType ?? '');
 
-						return {
-							id: object.result.object.objectId!,
-							version: object.result.object.version?.toString()!,
-							digest: object.result.object.digest!,
-							content: Promise.resolve(bcsContent!),
-							owner: mapOwner(object.result.object.owner)!,
-							type,
-							previousTransaction: object.result.object.previousTransaction ?? null,
-						};
-					},
-				),
+					return {
+						id: object.result.object.objectId!,
+						version: object.result.object.version?.toString()!,
+						digest: object.result.object.digest!,
+						content: Promise.resolve(bcsContent!),
+						owner: mapOwner(object.result.object.owner)!,
+						type,
+						previousTransaction: object.result.object.previousTransaction ?? null,
+					};
+				}),
 			);
 		}
 
@@ -107,8 +102,8 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		};
 	}
 	async getOwnedObjects(
-		options: Experimental_SuiClientTypes.GetOwnedObjectsOptions,
-	): Promise<Experimental_SuiClientTypes.GetOwnedObjectsResponse> {
+		options: SuiClientTypes.GetOwnedObjectsOptions,
+	): Promise<SuiClientTypes.GetOwnedObjectsResponse> {
 		const response = await this.#client.stateService.listOwnedObjects({
 			owner: options.address,
 			objectType: options.type
@@ -130,7 +125,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		});
 
 		const objects = response.response.objects.map(
-			(object): Experimental_SuiClientTypes.ObjectResponse => ({
+			(object): SuiClientTypes.ObjectResponse => ({
 				id: object.objectId!,
 				version: object.version?.toString()!,
 				digest: object.digest!,
@@ -155,8 +150,8 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		};
 	}
 	async getCoins(
-		options: Experimental_SuiClientTypes.GetCoinsOptions,
-	): Promise<Experimental_SuiClientTypes.GetCoinsResponse> {
+		options: SuiClientTypes.GetCoinsOptions,
+	): Promise<SuiClientTypes.GetCoinsResponse> {
 		const response = await this.#client.stateService.listOwnedObjects({
 			owner: options.address,
 			objectType: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: options.coinType })).type}>`,
@@ -177,7 +172,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 
 		return {
 			objects: response.response.objects.map(
-				(object): Experimental_SuiClientTypes.CoinResponse => ({
+				(object): SuiClientTypes.CoinResponse => ({
 					id: object.objectId!,
 					version: object.version?.toString()!,
 					digest: object.digest!,
@@ -201,8 +196,8 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	}
 
 	async getBalance(
-		options: Experimental_SuiClientTypes.GetBalanceOptions,
-	): Promise<Experimental_SuiClientTypes.GetBalanceResponse> {
+		options: SuiClientTypes.GetBalanceOptions,
+	): Promise<SuiClientTypes.GetBalanceResponse> {
 		const result = await this.#client.stateService.getBalance({
 			owner: options.address,
 			coinType: (await this.mvr.resolveType({ type: options.coinType })).type,
@@ -217,8 +212,8 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	}
 
 	async getAllBalances(
-		options: Experimental_SuiClientTypes.GetAllBalancesOptions,
-	): Promise<Experimental_SuiClientTypes.GetAllBalancesResponse> {
+		options: SuiClientTypes.GetAllBalancesOptions,
+	): Promise<SuiClientTypes.GetAllBalancesResponse> {
 		const result = await this.#client.stateService.listBalances({
 			owner: options.address,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
@@ -235,8 +230,8 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		};
 	}
 	async getTransaction(
-		options: Experimental_SuiClientTypes.GetTransactionOptions,
-	): Promise<Experimental_SuiClientTypes.GetTransactionResponse> {
+		options: SuiClientTypes.GetTransactionOptions,
+	): Promise<SuiClientTypes.GetTransactionResponse> {
 		const { response } = await this.#client.ledgerService.getTransaction({
 			digest: options.digest,
 			readMask: {
@@ -257,8 +252,8 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		};
 	}
 	async executeTransaction(
-		options: Experimental_SuiClientTypes.ExecuteTransactionOptions,
-	): Promise<Experimental_SuiClientTypes.ExecuteTransactionResponse> {
+		options: SuiClientTypes.ExecuteTransactionOptions,
+	): Promise<SuiClientTypes.ExecuteTransactionResponse> {
 		const { response } = await this.#client.transactionExecutionService.executeTransaction({
 			transaction: {
 				bcs: {
@@ -290,8 +285,8 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		};
 	}
 	async dryRunTransaction(
-		options: Experimental_SuiClientTypes.DryRunTransactionOptions,
-	): Promise<Experimental_SuiClientTypes.DryRunTransactionResponse> {
+		options: SuiClientTypes.DryRunTransactionOptions,
+	): Promise<SuiClientTypes.DryRunTransactionResponse> {
 		const { response } = await this.#client.transactionExecutionService.simulateTransaction({
 			transaction: {
 				bcs: {
@@ -315,7 +310,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 			transaction: parseTransaction(response.transaction!),
 		};
 	}
-	async getReferenceGasPrice(): Promise<Experimental_SuiClientTypes.GetReferenceGasPriceResponse> {
+	async getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
 		const response = await this.#client.ledgerService.getEpoch({});
 
 		return {
@@ -324,8 +319,8 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	}
 
 	async getDynamicFields(
-		options: Experimental_SuiClientTypes.GetDynamicFieldsOptions,
-	): Promise<Experimental_SuiClientTypes.GetDynamicFieldsResponse> {
+		options: SuiClientTypes.GetDynamicFieldsOptions,
+	): Promise<SuiClientTypes.GetDynamicFieldsResponse> {
 		const response = await this.#client.stateService.listDynamicFields({
 			parent: options.parentId,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
@@ -357,8 +352,8 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	}
 
 	async verifyZkLoginSignature(
-		options: Experimental_SuiClientTypes.VerifyZkLoginSignatureOptions,
-	): Promise<Experimental_SuiClientTypes.ZkLoginVerifyResponse> {
+		options: SuiClientTypes.VerifyZkLoginSignatureOptions,
+	): Promise<SuiClientTypes.ZkLoginVerifyResponse> {
 		const messageBytes = fromBase64(options.bytes);
 
 		// For PersonalMessage, the server expects BCS-encoded vector<u8>
@@ -392,8 +387,8 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	}
 
 	async defaultNameServiceName(
-		options: Experimental_SuiClientTypes.DefaultNameServiceNameOptions,
-	): Promise<Experimental_SuiClientTypes.DefaultNameServiceNameResponse> {
+		options: SuiClientTypes.DefaultNameServiceNameOptions,
+	): Promise<SuiClientTypes.DefaultNameServiceNameResponse> {
 		const name =
 			(
 				await this.#client.nameService.reverseLookupName({
@@ -408,8 +403,8 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	}
 
 	async getMoveFunction(
-		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
-	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse> {
+		options: SuiClientTypes.GetMoveFunctionOptions,
+	): Promise<SuiClientTypes.GetMoveFunctionResponse> {
 		const resolvedPackageId = (await this.mvr.resolvePackage({ package: options.packageId }))
 			.package;
 		const { response } = await this.#client.movePackageService.getFunction({
@@ -493,7 +488,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	}
 }
 
-function mapOwner(owner: Owner | null | undefined): Experimental_SuiClientTypes.ObjectOwner | null {
+function mapOwner(owner: Owner | null | undefined): SuiClientTypes.ObjectOwner | null {
 	if (!owner) {
 		return null;
 	}
@@ -599,7 +594,7 @@ function mapOutputObjectState(
 
 function mapUnchangedConsensusObjectKind(
 	kind: UnchangedConsensusObject_UnchangedConsensusObjectKind | undefined,
-): null | Experimental_SuiClientTypes.UnchangedConsensusObject['kind'] {
+): null | SuiClientTypes.UnchangedConsensusObject['kind'] {
 	if (kind == null) {
 		return null;
 	}
@@ -626,27 +621,25 @@ export function parseTransactionEffects({
 	effects,
 }: {
 	effects: TransactionEffects | undefined;
-}): Experimental_SuiClientTypes.TransactionEffects | null {
+}): SuiClientTypes.TransactionEffects | null {
 	if (!effects) {
 		return null;
 	}
 
-	const changedObjects = effects.changedObjects.map(
-		(change): Experimental_SuiClientTypes.ChangedObject => {
-			return {
-				id: change.objectId!,
-				inputState: mapInputObjectState(change.inputState)!,
-				inputVersion: change.inputVersion?.toString() ?? null,
-				inputDigest: change.inputDigest ?? null,
-				inputOwner: mapOwner(change.inputOwner),
-				outputState: mapOutputObjectState(change.outputState)!,
-				outputVersion: change.outputVersion?.toString() ?? null,
-				outputDigest: change.outputDigest ?? null,
-				outputOwner: mapOwner(change.outputOwner),
-				idOperation: mapIdOperation(change.idOperation)!,
-			};
-		},
-	);
+	const changedObjects = effects.changedObjects.map((change): SuiClientTypes.ChangedObject => {
+		return {
+			id: change.objectId!,
+			inputState: mapInputObjectState(change.inputState)!,
+			inputVersion: change.inputVersion?.toString() ?? null,
+			inputDigest: change.inputDigest ?? null,
+			inputOwner: mapOwner(change.inputOwner),
+			outputState: mapOutputObjectState(change.outputState)!,
+			outputVersion: change.outputVersion?.toString() ?? null,
+			outputDigest: change.outputDigest ?? null,
+			outputOwner: mapOwner(change.outputOwner),
+			idOperation: mapIdOperation(change.idOperation)!,
+		};
+	});
 
 	// The effects digest should be computed from the effects BCS by hashing it
 	const effectsDigest = effects.bcs?.value
@@ -691,7 +684,7 @@ export function parseTransactionEffects({
 		lamportVersion: effects.lamportVersion?.toString() ?? null,
 		changedObjects,
 		unchangedConsensusObjects: effects.unchangedConsensusObjects.map(
-			(object): Experimental_SuiClientTypes.UnchangedConsensusObject => {
+			(object): SuiClientTypes.UnchangedConsensusObject => {
 				return {
 					kind: mapUnchangedConsensusObjectKind(object.kind)!,
 					// TODO: we are inconsistent about id vs objectId
@@ -705,9 +698,7 @@ export function parseTransactionEffects({
 	};
 }
 
-function parseTransaction(
-	transaction: ExecutedTransaction,
-): Experimental_SuiClientTypes.TransactionResponse {
+function parseTransaction(transaction: ExecutedTransaction): SuiClientTypes.TransactionResponse {
 	const tx = transaction.transaction;
 
 	const bytes = tx?.bcs?.value;
@@ -765,9 +756,7 @@ function parseTransaction(
 	};
 }
 
-function parseNormalizedSuiMoveType(
-	type: OpenSignature,
-): Experimental_SuiClientTypes.OpenSignature {
+function parseNormalizedSuiMoveType(type: OpenSignature): SuiClientTypes.OpenSignature {
 	let reference: 'mutable' | 'immutable' | null = null;
 
 	if (type.reference === OpenSignature_Reference.IMMUTABLE) {
@@ -782,9 +771,7 @@ function parseNormalizedSuiMoveType(
 	};
 }
 
-function parseNormalizedSuiMoveTypeBody(
-	type: OpenSignatureBody,
-): Experimental_SuiClientTypes.OpenSignatureBody {
+function parseNormalizedSuiMoveTypeBody(type: OpenSignatureBody): SuiClientTypes.OpenSignatureBody {
 	switch (type.type) {
 		case OpenSignatureBody_Type.TYPE_UNKNOWN:
 			return { $kind: 'unknown' };

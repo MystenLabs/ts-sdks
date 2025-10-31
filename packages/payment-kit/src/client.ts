@@ -14,7 +14,7 @@ import type {
 	GetPaymentRecordOptions,
 	GetPaymentRecordResponse,
 } from './types.js';
-import type { ClientWithCoreApi } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { normalizeStructTag } from '@mysten/sui/utils';
 import { PaymentKitTransactions } from './transactions.js';
 import { PaymentKitCalls } from './calls.js';

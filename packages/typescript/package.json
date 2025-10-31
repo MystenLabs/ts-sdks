@@ -45,10 +45,6 @@
 			"import": "./dist/esm/cryptography/index.js",
 			"require": "./dist/cjs/cryptography/index.js"
 		},
-		"./experimental": {
-			"import": "./dist/esm/experimental/index.js",
-			"require": "./dist/cjs/experimental/index.js"
-		},
 		"./faucet": {
 			"import": "./dist/esm/faucet/index.js",
 			"require": "./dist/cjs/faucet/index.js"

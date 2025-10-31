@@ -2,23 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { toBase58 } from '@mysten/utils';
-import { bcs } from '../../bcs/index.js';
-import { hashTypedData } from '../../transactions/hash.js';
-import { TransactionDataBuilder } from '../../transactions/TransactionData.js';
-import type { Experimental_SuiClientTypes } from '../types.js';
+import { bcs } from '../bcs/index.js';
+import { hashTypedData } from '../transactions/hash.js';
+import { TransactionDataBuilder } from '../transactions/TransactionData.js';
+import type { SuiClientTypes } from './types.js';
 
 export function parseTransactionBcs(
 	bytes: Uint8Array,
-): Experimental_SuiClientTypes.TransactionResponse['transaction'] {
+): SuiClientTypes.TransactionResponse['transaction'] {
 	return {
 		...TransactionDataBuilder.fromBytes(bytes).snapshot(),
 		bcs: bytes,
 	};
 }
 
-export function parseTransactionEffectsBcs(
-	effects: Uint8Array,
-): Experimental_SuiClientTypes.TransactionEffects {
+export function parseTransactionEffectsBcs(effects: Uint8Array): SuiClientTypes.TransactionEffects {
 	const parsed = bcs.TransactionEffects.parse(effects);
 
 	switch (parsed.$kind) {
@@ -36,7 +34,7 @@ export function parseTransactionEffectsBcs(
 function parseTransactionEffectsV1(_: {
 	bytes: Uint8Array;
 	effects: NonNullable<(typeof bcs.TransactionEffects.$inferType)['V1']>;
-}): Experimental_SuiClientTypes.TransactionEffects {
+}): SuiClientTypes.TransactionEffects {
 	throw new Error('V1 effects are not supported yet');
 }
 
@@ -46,9 +44,9 @@ function parseTransactionEffectsV2({
 }: {
 	bytes: Uint8Array;
 	effects: NonNullable<(typeof bcs.TransactionEffects.$inferType)['V2']>;
-}): Experimental_SuiClientTypes.TransactionEffects {
+}): SuiClientTypes.TransactionEffects {
 	const changedObjects = effects.changedObjects.map(
-		([id, change]): Experimental_SuiClientTypes.ChangedObject => {
+		([id, change]): SuiClientTypes.ChangedObject => {
 			return {
 				id,
 				inputState: change.inputState.$kind === 'Exist' ? 'Exists' : 'DoesNotExist',
@@ -97,7 +95,7 @@ function parseTransactionEffectsV2({
 		lamportVersion: effects.lamportVersion,
 		changedObjects,
 		unchangedConsensusObjects: effects.unchangedSharedObjects.map(
-			([objectId, object]): Experimental_SuiClientTypes.UnchangedConsensusObject => {
+			([objectId, object]): SuiClientTypes.UnchangedConsensusObject => {
 				return {
 					kind:
 						object.$kind === 'MutateDeleted'

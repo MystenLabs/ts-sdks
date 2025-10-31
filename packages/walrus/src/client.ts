@@ -4,7 +4,7 @@
 import type { InferBcsType } from '@mysten/bcs';
 import { bcs } from '@mysten/bcs';
 import type { Signer } from '@mysten/sui/cryptography';
-import type { ClientCache, ClientWithCoreApi } from '@mysten/sui/experimental';
+import type { ClientCache, ClientWithCoreApi } from '@mysten/sui/client';
 import type { TransactionObjectArgument, TransactionResult } from '@mysten/sui/transactions';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';

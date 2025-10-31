@@ -4,10 +4,10 @@
 
 import type { SerializedTransactionDataV2, TransactionPlugin } from '../transactions/index.js';
 import type { ClientCache } from './cache.js';
-import type { Experimental_BaseClient } from './client.js';
+import type { BaseClient } from './client.js';
 
 export type SuiClientRegistration<
-	T extends Experimental_BaseClient = Experimental_BaseClient,
+	T extends BaseClient = BaseClient,
 	Name extends string = string,
 	Extension = unknown,
 > = {
@@ -15,17 +15,14 @@ export type SuiClientRegistration<
 	readonly register: (client: T) => Extension;
 };
 
-export type ClientWithExtensions<
-	T,
-	Base extends Experimental_BaseClient = Experimental_BaseClient,
-> = Base & T;
+export type ClientWithExtensions<T, Base extends BaseClient = BaseClient> = Base & T;
 
-export namespace Experimental_SuiClientTypes {
+export namespace SuiClientTypes {
 	export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet' | (string & {});
 
 	export interface SuiClientOptions {
 		network: Network;
-		base?: Experimental_BaseClient;
+		base?: BaseClient;
 		cache?: ClientCache;
 	}
 

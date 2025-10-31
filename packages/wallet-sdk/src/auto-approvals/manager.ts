@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { SuiClientTypes } from '@mysten/sui/client';
 import { parse, safeParse } from 'valibot';
 import type { AutoApprovalState } from './schemas/state.js';
 import { AutoApprovalStateSchema } from './schemas/state.js';
@@ -326,7 +326,7 @@ export class AutoApprovalManager {
 
 	applyTransactionEffects(
 		analysis: AutoApprovalResult,
-		result: Experimental_SuiClientTypes.TransactionResponse,
+		result: SuiClientTypes.TransactionResponse,
 	): void {
 		this.#removePendingDigest(result.digest);
 

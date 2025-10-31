@@ -3,7 +3,7 @@
 
 import type { Transaction } from '@mysten/sui/transactions';
 import { TransactionDataBuilder } from '@mysten/sui/transactions';
-import type { ClientWithCoreApi, Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import type { AnalyzerResult } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
 
@@ -44,9 +44,9 @@ export const transactionResponse = createAnalyzer({
 	analyze:
 		(options: {
 			client: ClientWithCoreApi;
-			transactionResponse?: Experimental_SuiClientTypes.TransactionResponse;
+			transactionResponse?: SuiClientTypes.TransactionResponse;
 		}) =>
-		async ({ bytes }): Promise<AnalyzerResult<Experimental_SuiClientTypes.TransactionResponse>> => {
+		async ({ bytes }): Promise<AnalyzerResult<SuiClientTypes.TransactionResponse>> => {
 			try {
 				return {
 					result:

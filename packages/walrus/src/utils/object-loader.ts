@@ -5,20 +5,14 @@ import type { BcsType } from '@mysten/bcs';
 import { pureBcsSchemaFromTypeName } from '@mysten/sui/bcs';
 import type { PureTypeName, ShapeFromPureTypeName } from '@mysten/sui/bcs';
 import type { SuiObjectData } from '@mysten/sui/jsonRpc';
-import type {
-	Experimental_BaseClient,
-	Experimental_SuiClientTypes,
-} from '@mysten/sui/experimental';
+import type { BaseClient, SuiClientTypes } from '@mysten/sui/client';
 import { deriveDynamicFieldID } from '@mysten/sui/utils';
 import DataLoader from 'dataloader';
 import { Field } from './bcs.js';
 
-export class SuiObjectDataLoader extends DataLoader<
-	string,
-	Experimental_SuiClientTypes.ObjectResponse
-> {
-	#dynamicFieldCache = new Map<string, Map<string, Experimental_SuiClientTypes.ObjectResponse>>();
-	constructor(suiClient: Experimental_BaseClient) {
+export class SuiObjectDataLoader extends DataLoader<string, SuiClientTypes.ObjectResponse> {
+	#dynamicFieldCache = new Map<string, Map<string, SuiClientTypes.ObjectResponse>>();
+	constructor(suiClient: BaseClient) {
 		super(async (ids: readonly string[]) => {
 			const { objects } = await suiClient.core.getObjects({
 				objectIds: ids as string[],

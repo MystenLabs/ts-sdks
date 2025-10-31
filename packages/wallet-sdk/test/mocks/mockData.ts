@@ -3,7 +3,7 @@
 
 import { bcs } from '@mysten/sui/bcs';
 import { normalizeSuiAddress, normalizeStructTag } from '@mysten/sui/utils';
-import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { SuiClientTypes } from '@mysten/sui/client';
 
 export const DEFAULT_SENDER = '0x0000000000000000000000000000000000000000000000000000000000000123';
 
@@ -39,28 +39,26 @@ export const CoinStruct = bcs.struct('Coin', {
 });
 
 // Helper functions to create owner types
-export function createAddressOwner(address: string): Experimental_SuiClientTypes.AddressOwner {
+export function createAddressOwner(address: string): SuiClientTypes.AddressOwner {
 	return { $kind: 'AddressOwner', AddressOwner: address };
 }
 
-export function createSharedOwner(
-	initialSharedVersion: string,
-): Experimental_SuiClientTypes.SharedOwner {
+export function createSharedOwner(initialSharedVersion: string): SuiClientTypes.SharedOwner {
 	return { $kind: 'Shared', Shared: { initialSharedVersion } };
 }
 
-export function createImmutableOwner(): Experimental_SuiClientTypes.ImmutableOwner {
+export function createImmutableOwner(): SuiClientTypes.ImmutableOwner {
 	return { $kind: 'Immutable', Immutable: true };
 }
 
-export function createObjectOwner(objectId: string): Experimental_SuiClientTypes.ParentOwner {
+export function createObjectOwner(objectId: string): SuiClientTypes.ParentOwner {
 	return { $kind: 'ObjectOwner', ObjectOwner: objectId };
 }
 
 export function createConsensusAddressOwner(
 	owner: string,
 	startVersion: string,
-): Experimental_SuiClientTypes.ConsensusAddressOwner {
+): SuiClientTypes.ConsensusAddressOwner {
 	return { $kind: 'ConsensusAddressOwner', ConsensusAddressOwner: { owner, startVersion } };
 }
 
@@ -69,10 +67,10 @@ export function createMockCoin(params: {
 	objectId: string;
 	coinType: string;
 	balance: bigint;
-	owner: Experimental_SuiClientTypes.ObjectOwner;
+	owner: SuiClientTypes.ObjectOwner;
 	version?: string;
 	digest?: string;
-}): Experimental_SuiClientTypes.ObjectResponse {
+}): SuiClientTypes.ObjectResponse {
 	const normalizedId = normalizeSuiAddress(params.objectId);
 	const normalizedCoinType = normalizeStructTag(params.coinType);
 
@@ -103,10 +101,10 @@ export const NFTStruct = bcs.struct('NFT', {
 export function createMockNFT(params: {
 	objectId: string;
 	nftType: string;
-	owner: Experimental_SuiClientTypes.ObjectOwner;
+	owner: SuiClientTypes.ObjectOwner;
 	version?: string;
 	digest?: string;
-}): Experimental_SuiClientTypes.ObjectResponse {
+}): SuiClientTypes.ObjectResponse {
 	const normalizedId = normalizeSuiAddress(params.objectId);
 	const normalizedNftType = normalizeStructTag(params.nftType);
 
@@ -132,11 +130,11 @@ export function createMockNFT(params: {
 export function createMockObject(params: {
 	objectId: string;
 	objectType: string;
-	owner: Experimental_SuiClientTypes.ObjectOwner;
+	owner: SuiClientTypes.ObjectOwner;
 	version?: string;
 	digest?: string;
 	content?: Uint8Array;
-}): Experimental_SuiClientTypes.ObjectResponse {
+}): SuiClientTypes.ObjectResponse {
 	const normalizedId = normalizeSuiAddress(params.objectId);
 	const normalizedObjectType = normalizeStructTag(params.objectType);
 
@@ -158,12 +156,12 @@ export function createMockMoveFunction(params: {
 	packageId: string;
 	moduleName: string;
 	name: string;
-	visibility: Experimental_SuiClientTypes.Visibility;
+	visibility: SuiClientTypes.Visibility;
 	isEntry: boolean;
-	typeParameters?: Experimental_SuiClientTypes.TypeParameter[];
-	parameters: Experimental_SuiClientTypes.OpenSignature[];
-	returns?: Experimental_SuiClientTypes.OpenSignature[];
-}): Experimental_SuiClientTypes.FunctionResponse {
+	typeParameters?: SuiClientTypes.TypeParameter[];
+	parameters: SuiClientTypes.OpenSignature[];
+	returns?: SuiClientTypes.OpenSignature[];
+}): SuiClientTypes.FunctionResponse {
 	return {
 		packageId: normalizeSuiAddress(params.packageId),
 		moduleName: params.moduleName,
@@ -181,10 +179,10 @@ export function createMockCoins(params: {
 	coinType: string;
 	totalBalance: bigint;
 	numCoins: number;
-	owner: Experimental_SuiClientTypes.ObjectOwner;
+	owner: SuiClientTypes.ObjectOwner;
 	baseObjectId?: string;
-}): Experimental_SuiClientTypes.ObjectResponse[] {
-	const coins: Experimental_SuiClientTypes.ObjectResponse[] = [];
+}): SuiClientTypes.ObjectResponse[] {
+	const coins: SuiClientTypes.ObjectResponse[] = [];
 	const baseId = params.baseObjectId || '0xc01';
 
 	// Split balance deterministically across coins using powers of 2
@@ -220,7 +218,7 @@ export function createMockCoins(params: {
 }
 
 // Default objects that the mock client knows about
-export const DEFAULT_OBJECTS: Experimental_SuiClientTypes.ObjectResponse[] = [
+export const DEFAULT_OBJECTS: SuiClientTypes.ObjectResponse[] = [
 	// 10 SUI coins for main sender (split across multiple coins)
 	...createMockCoins({
 		coinType: '0x2::sui::SUI',
@@ -281,7 +279,7 @@ export const DEFAULT_OBJECTS: Experimental_SuiClientTypes.ObjectResponse[] = [
 ];
 
 // Default move functions that the mock client knows about
-export const DEFAULT_MOVE_FUNCTIONS: Experimental_SuiClientTypes.FunctionResponse[] = [
+export const DEFAULT_MOVE_FUNCTIONS: SuiClientTypes.FunctionResponse[] = [
 	createMockMoveFunction({
 		packageId: '0x999',
 		moduleName: 'test',

@@ -13,7 +13,7 @@ import type { ZkLoginSignatureInputs } from './bcs.js';
 import { extractClaimValue } from './jwt-utils.js';
 import { parseZkLoginSignature } from './signature.js';
 import { normalizeZkLoginIssuer, toBigEndianBytes, toPaddedBigEndianBytes } from './utils.js';
-import type { ClientWithCoreApi } from '../experimental/core.js';
+import type { ClientWithCoreApi } from '../client/core.js';
 
 /**
  * A zkLogin public identifier
