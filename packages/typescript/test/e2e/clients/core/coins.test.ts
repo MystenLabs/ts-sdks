@@ -26,8 +26,8 @@ describe('Core API - Coins', () => {
 			throw new Error('testAddress is undefined');
 		}
 
-		const ownedObjects = await toolbox.client.core.getOwnedObjects({
-			address: testAddress,
+		const ownedObjects = await toolbox.client.core.listOwnedObjects({
+			owner: testAddress,
 		});
 
 		const treasuryCap = ownedObjects.objects.find(
@@ -39,7 +39,7 @@ describe('Core API - Coins', () => {
 			const tx = new Transaction();
 			const [coin] = tx.moveCall({
 				target: `${testPackageId}::test_coin::mint`,
-				arguments: [tx.object(treasuryCap.id), tx.pure.u64(1000000)],
+				arguments: [tx.object(treasuryCap.objectId), tx.pure.u64(1000000)],
 			});
 			tx.transferObjects([coin], tx.pure.address(testAddress));
 
@@ -58,8 +58,8 @@ describe('Core API - Coins', () => {
 	describe('getCoins', () => {
 		it('all clients return same data: getCoins', async () => {
 			await toolbox.expectAllClientsReturnSameData(async (client) => {
-				const { cursor: _, ...res } = await client.core.getCoins({
-					address: testAddress,
+				const { cursor: _, ...res } = await client.core.listCoins({
+					owner: testAddress,
 					coinType: SUI_TYPE_ARG,
 					limit: 5,
 				});
@@ -69,8 +69,8 @@ describe('Core API - Coins', () => {
 		});
 
 		testWithAllClients('should get coins for an address', async (client) => {
-			const result = await client.core.getCoins({
-				address: testAddress,
+			const result = await client.core.listCoins({
+				owner: testAddress,
 				coinType: SUI_TYPE_ARG,
 			});
 
@@ -89,8 +89,8 @@ describe('Core API - Coins', () => {
 
 		testWithAllClients('should paginate coins', async (client) => {
 			// Get first page with limit
-			const firstPage = await client.core.getCoins({
-				address: testAddress,
+			const firstPage = await client.core.listCoins({
+				owner: testAddress,
 				coinType: SUI_TYPE_ARG,
 				limit: 2,
 			});
@@ -99,16 +99,16 @@ describe('Core API - Coins', () => {
 
 			if (firstPage.hasNextPage && firstPage.cursor) {
 				// Get second page
-				const secondPage = await client.core.getCoins({
-					address: testAddress,
+				const secondPage = await client.core.listCoins({
+					owner: testAddress,
 					coinType: SUI_TYPE_ARG,
 					limit: 2,
 					cursor: firstPage.cursor,
 				});
 
 				// Verify different coins on second page
-				const firstPageIds = new Set(firstPage.objects.map((coin) => coin.id));
-				const secondPageIds = secondPage.objects.map((coin) => coin.id);
+				const firstPageIds = new Set(firstPage.objects.map((coin) => coin.objectId));
+				const secondPageIds = secondPage.objects.map((coin) => coin.objectId);
 
 				for (const id of secondPageIds) {
 					expect(firstPageIds.has(id)).toBe(false);
@@ -119,8 +119,8 @@ describe('Core API - Coins', () => {
 		testWithAllClients('should return empty for address with no coins', async (client) => {
 			// Use a new keypair address that has no coins
 			const emptyAddress = new Ed25519Keypair().toSuiAddress();
-			const result = await client.core.getCoins({
-				address: emptyAddress,
+			const result = await client.core.listCoins({
+				owner: emptyAddress,
 				coinType: SUI_TYPE_ARG,
 			});
 
@@ -132,13 +132,13 @@ describe('Core API - Coins', () => {
 	describe('getBalance', () => {
 		it('all clients return same data: getBalance', async () => {
 			await toolbox.expectAllClientsReturnSameData((client) =>
-				client.core.getBalance({ address: testAddress, coinType: SUI_TYPE_ARG }),
+				client.core.getBalance({ owner: testAddress, coinType: SUI_TYPE_ARG }),
 			);
 		});
 
 		testWithAllClients('should get balance for an address', async (client) => {
 			const result = await client.core.getBalance({
-				address: testAddress,
+				owner: testAddress,
 				coinType: SUI_TYPE_ARG,
 			});
 
@@ -152,7 +152,7 @@ describe('Core API - Coins', () => {
 			// Use a new keypair address that has no coins
 			const emptyAddress = new Ed25519Keypair().toSuiAddress();
 			const result = await client.core.getBalance({
-				address: emptyAddress,
+				owner: emptyAddress,
 				coinType: SUI_TYPE_ARG,
 			});
 
@@ -165,7 +165,7 @@ describe('Core API - Coins', () => {
 	describe('getAllBalances', () => {
 		it('all clients return same data: getAllBalances', async () => {
 			await toolbox.expectAllClientsReturnSameData(
-				(client) => client.core.getAllBalances({ address: testAddress, limit: 5 }),
+				(client) => client.core.listBalances({ owner: testAddress, limit: 5 }),
 				// Normalize: ignore cursor and sort by coinType (order may vary across APIs)
 				(result) => ({
 					...result,
@@ -176,8 +176,8 @@ describe('Core API - Coins', () => {
 		});
 
 		testWithAllClients('should get all balances for an address', async (client) => {
-			const result = await client.core.getAllBalances({
-				address: testAddress,
+			const result = await client.core.listBalances({
+				owner: testAddress,
 			});
 
 			expect(result.balances.length).toBeGreaterThan(0);
@@ -193,8 +193,8 @@ describe('Core API - Coins', () => {
 
 		testWithAllClients('should paginate all balances', async (client) => {
 			// Get first page with limit
-			const firstPage = await client.core.getAllBalances({
-				address: testAddress,
+			const firstPage = await client.core.listBalances({
+				owner: testAddress,
 				limit: 1,
 			});
 
@@ -202,8 +202,8 @@ describe('Core API - Coins', () => {
 
 			if (firstPage.hasNextPage && firstPage.cursor) {
 				// Get second page
-				const secondPage = await client.core.getAllBalances({
-					address: testAddress,
+				const secondPage = await client.core.listBalances({
+					owner: testAddress,
 					limit: 1,
 					cursor: firstPage.cursor,
 				});
@@ -221,8 +221,8 @@ describe('Core API - Coins', () => {
 		testWithAllClients('should return empty for address with no balances', async (client) => {
 			// Use a new keypair address that has no coins
 			const emptyAddress = new Ed25519Keypair().toSuiAddress();
-			const result = await client.core.getAllBalances({
-				address: emptyAddress,
+			const result = await client.core.listBalances({
+				owner: emptyAddress,
 			});
 
 			expect(result.balances).toEqual([]);
@@ -232,8 +232,8 @@ describe('Core API - Coins', () => {
 
 	describe('Custom Coin Type', () => {
 		testWithAllClients('should see custom coin in getAllBalances', async (client) => {
-			const result = await client.core.getAllBalances({
-				address: testAddress,
+			const result = await client.core.listBalances({
+				owner: testAddress,
 			});
 
 			// Find the custom coin (minted in beforeAll)
@@ -245,8 +245,8 @@ describe('Core API - Coins', () => {
 		});
 
 		testWithAllClients('should find custom coins with getCoins', async (client) => {
-			const result = await client.core.getCoins({
-				address: testAddress,
+			const result = await client.core.listCoins({
+				owner: testAddress,
 				coinType: `${testPackageId}::test_coin::TEST_COIN`,
 			});
 

@@ -19,7 +19,7 @@ import { normalizeSuiAddress } from '../utils/sui-types.js';
 import { publicKeyFromRawBytes } from '../verify/index.js';
 import { toZkLoginPublicIdentifier } from '../zklogin/publickey.js';
 import { MultiSigSigner } from './signer.js';
-import type { ClientWithCoreApi } from '../experimental/core.js';
+import type { ClientWithCoreApi } from '../client/core.js';
 
 type CompressedSignature =
 	| { ED25519: Uint8Array }

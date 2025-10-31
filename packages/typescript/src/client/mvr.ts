@@ -13,7 +13,7 @@ import {
 import type { ClientCache } from './cache.js';
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { PACKAGE_VERSION } from '../version.js';
-import type { Experimental_SuiClientTypes } from './types.js';
+import type { SuiClientTypes } from './types.js';
 
 const NAME_SEPARATOR = '/';
 const MVR_API_HEADER = {
@@ -30,7 +30,7 @@ export interface MvrClientOptions {
 	};
 }
 
-export class MvrClient implements Experimental_SuiClientTypes.MvrMethods {
+export class MvrClient implements SuiClientTypes.MvrMethods {
 	#cache: ClientCache;
 	#url?: string;
 	#pageSize: number;
@@ -185,7 +185,7 @@ export class MvrClient implements Experimental_SuiClientTypes.MvrMethods {
 
 	async resolvePackage({
 		package: name,
-	}: Experimental_SuiClientTypes.MvrResolvePackageOptions): Promise<Experimental_SuiClientTypes.MvrResolvePackageResponse> {
+	}: SuiClientTypes.MvrResolvePackageOptions): Promise<SuiClientTypes.MvrResolvePackageResponse> {
 		if (!hasMvrName(name)) {
 			return {
 				package: name,
@@ -199,7 +199,7 @@ export class MvrClient implements Experimental_SuiClientTypes.MvrMethods {
 
 	async resolveType({
 		type,
-	}: Experimental_SuiClientTypes.MvrResolveTypeOptions): Promise<Experimental_SuiClientTypes.MvrResolveTypeResponse> {
+	}: SuiClientTypes.MvrResolveTypeOptions): Promise<SuiClientTypes.MvrResolveTypeResponse> {
 		if (!hasMvrName(type)) {
 			return {
 				type,
@@ -227,7 +227,7 @@ export class MvrClient implements Experimental_SuiClientTypes.MvrMethods {
 	async resolve({
 		types = [],
 		packages = [],
-	}: Experimental_SuiClientTypes.MvrResolveOptions): Promise<Experimental_SuiClientTypes.MvrResolveResponse> {
+	}: SuiClientTypes.MvrResolveOptions): Promise<SuiClientTypes.MvrResolveResponse> {
 		const mvrTypes = new Set<string>();
 
 		for (const type of types ?? []) {
@@ -432,7 +432,7 @@ export function findNamesInTransaction(builder: TransactionDataBuilder): {
  */
 export function replaceNames(
 	builder: TransactionDataBuilder,
-	resolved: Experimental_SuiClientTypes.MvrResolveResponse,
+	resolved: SuiClientTypes.MvrResolveResponse,
 ) {
 	for (const command of builder.commands) {
 		// Replacements for `MakeMoveVec` commands (that can include types)
