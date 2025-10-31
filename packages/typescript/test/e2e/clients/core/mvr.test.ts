@@ -6,7 +6,7 @@ import { beforeAll, describe, expect } from 'vitest';
 import { SuiJsonRpcClient, JsonRpcHTTPTransport } from '../../../../src/jsonRpc/index.js';
 import { SuiGrpcClient } from '../../../../src/grpc/index.js';
 import { SuiGraphQLClient } from '../../../../src/graphql/index.js';
-import type { ClientWithCoreApi } from '../../../../src/experimental/core.js';
+import type { ClientWithCoreApi } from '../../../../src/client/core.js';
 import { createTestWithAllClients } from '../../utils/setup.js';
 
 describe('Core API - MVR (Move Registry)', () => {

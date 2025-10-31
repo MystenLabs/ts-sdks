@@ -87,7 +87,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			  {
 			    "content": Promise {},
 			    "digest": "11111111111111111111111111111111",
-			    "id": "0x0000000000000000000000000000000000000000000000000000000000a5c000",
+			    "objectId": "0x0000000000000000000000000000000000000000000000000000000000a5c000",
 			    "owner": {
 			      "$kind": "AddressOwner",
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
@@ -100,7 +100,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			  {
 			    "content": Promise {},
 			    "digest": "11111111111111111111111111111111",
-			    "id": "0x0000000000000000000000000000000000000000000000000000000000a5c004",
+			    "objectId": "0x0000000000000000000000000000000000000000000000000000000000a5c004",
 			    "owner": {
 			      "$kind": "AddressOwner",
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
@@ -113,7 +113,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			  {
 			    "content": Promise {},
 			    "digest": "11111111111111111111111111111111",
-			    "id": "0x000000000000000000000000000000000000000000000000000000000000beef",
+			    "objectId": "0x000000000000000000000000000000000000000000000000000000000000beef",
 			    "owner": {
 			      "$kind": "Shared",
 			      "Shared": {
@@ -128,7 +128,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			  {
 			    "content": Promise {},
 			    "digest": "E7YX7zmxdAVVzrGkcoss2ziUHKMa7qBChPbqg5nGQyYo",
-			    "id": "0x000000000000000000000000000000000000000000000000000000000000dead",
+			    "objectId": "0x000000000000000000000000000000000000000000000000000000000000dead",
 			    "owner": {
 			      "$kind": "AddressOwner",
 			      "AddressOwner": "0xbabe",
@@ -141,7 +141,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			  {
 			    "content": Promise {},
 			    "digest": "11111111111111111111111111111111",
-			    "id": "0x0000000000000000000000000000000000000000000000000000000000a5c005",
+			    "objectId": "0x0000000000000000000000000000000000000000000000000000000000a5c005",
 			    "owner": {
 			      "$kind": "AddressOwner",
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
@@ -161,7 +161,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			  {
 			    "content": Promise {},
 			    "digest": "11111111111111111111111111111111",
-			    "id": "0x0000000000000000000000000000000000000000000000000000000000a5c000",
+			    "objectId": "0x0000000000000000000000000000000000000000000000000000000000a5c000",
 			    "owner": {
 			      "$kind": "AddressOwner",
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
@@ -174,7 +174,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			  {
 			    "content": Promise {},
 			    "digest": "11111111111111111111111111111111",
-			    "id": "0x0000000000000000000000000000000000000000000000000000000000a5c004",
+			    "objectId": "0x0000000000000000000000000000000000000000000000000000000000a5c004",
 			    "owner": {
 			      "$kind": "AddressOwner",
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
@@ -187,7 +187,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			  {
 			    "content": Promise {},
 			    "digest": "E7YX7zmxdAVVzrGkcoss2ziUHKMa7qBChPbqg5nGQyYo",
-			    "id": "0x000000000000000000000000000000000000000000000000000000000000dead",
+			    "objectId": "0x000000000000000000000000000000000000000000000000000000000000dead",
 			    "owner": {
 			      "$kind": "AddressOwner",
 			      "AddressOwner": "0xbabe",
@@ -200,7 +200,7 @@ describe('TransactionAnalyzer - Objects Rule', () => {
 			  {
 			    "content": Promise {},
 			    "digest": "11111111111111111111111111111111",
-			    "id": "0x0000000000000000000000000000000000000000000000000000000000a5c005",
+			    "objectId": "0x0000000000000000000000000000000000000000000000000000000000a5c005",
 			    "owner": {
 			      "$kind": "AddressOwner",
 			      "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
