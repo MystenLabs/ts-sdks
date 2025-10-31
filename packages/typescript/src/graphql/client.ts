@@ -5,8 +5,8 @@ import type { TypedDocumentNode } from '@graphql-typed-document-node/core';
 import type { TadaDocumentNode } from 'gql.tada';
 import type { DocumentNode } from 'graphql';
 import { print } from 'graphql';
-import { Experimental_BaseClient } from '../experimental/index.js';
-import type { Experimental_SuiClientTypes } from '../experimental/index.js';
+import { BaseClient } from '../client/index.js';
+import type { SuiClientTypes } from '../client/index.js';
 import { GraphQLCoreClient } from './core.js';
 import type { TypedDocumentString } from './generated/queries.js';
 
@@ -51,8 +51,8 @@ export interface SuiGraphQLClientOptions<Queries extends Record<string, GraphQLD
 	fetch?: typeof fetch;
 	headers?: Record<string, string>;
 	queries?: Queries;
-	network: Experimental_SuiClientTypes.Network;
-	mvr?: Experimental_SuiClientTypes.MvrOptions;
+	network: SuiClientTypes.Network;
+	mvr?: SuiClientTypes.MvrOptions;
 }
 
 export class SuiGraphQLRequestError extends Error {}
@@ -60,7 +60,7 @@ export class SuiGraphQLRequestError extends Error {}
 export class SuiGraphQLClient<
 	// eslint-disable-next-line @typescript-eslint/ban-types
 	Queries extends Record<string, GraphQLDocument> = {},
-> extends Experimental_BaseClient {
+> extends BaseClient {
 	#url: string;
 	#queries: Queries;
 	#headers: Record<string, string>;

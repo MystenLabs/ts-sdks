@@ -6,7 +6,7 @@ import type { StandardEventsListeners, Wallet } from '@mysten/wallet-standard';
 
 import type { EnokiClientConfig } from '../EnokiClient/index.js';
 import type { AuthProvider, EnokiNetwork } from '../EnokiClient/type.js';
-import type { ClientWithCoreApi, Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import type { ZkLoginSignatureInputs } from '@mysten/sui/zklogin';
 import type { UseStore } from 'idb-keyval';
 import type { WritableAtom } from 'nanostores';
@@ -43,7 +43,7 @@ type ClientConfig = {
 	/**
 	 * A function that returns the current network that the application is acting on.
 	 */
-	getCurrentNetwork: () => Experimental_SuiClientTypes.Network;
+	getCurrentNetwork: () => SuiClientTypes.Network;
 };
 
 export type EnokiWalletOptions = {
