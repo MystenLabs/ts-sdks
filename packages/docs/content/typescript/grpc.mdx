@@ -1,0 +1,137 @@
+---
+title: SuiGrpcClient
+---
+
+<Callout type="warn">
+	SuiGrpcClient is still in development and may change rapidly as it is being developed.
+</Callout>
+
+The Typescript SDK includes the `SuiGrpcClient` which provides access to the Sui gRPC API. The gRPC
+client offers improved performance and type-safe access to Sui blockchain data through protocol
+buffers.
+
+## Creating a gRPC client
+
+To get started, create a `SuiGrpcClient` instance by specifying a network and base URL:
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const grpcClient = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+});
+```
+
+For local development:
+
+```typescript
+const grpcClient = new SuiGrpcClient({
+	network: 'localnet',
+	baseUrl: 'http://127.0.0.1:9000',
+});
+```
+
+You can also provide a custom transport for advanced use cases:
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { GrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
+
+const transport = new GrpcWebFetchTransport({
+	baseUrl: 'https://your-custom-grpc-endpoint.com',
+	// Additional transport options
+});
+
+const grpcClient = new SuiGrpcClient({
+	network: 'testnet',
+	transport,
+});
+```
+
+## Using service clients
+
+The `SuiGrpcClient` exposes several service clients for lower-level access to the gRPC API. These
+service clients are generated using [protobuf-ts](https://github.com/timostamm/protobuf-ts), which
+provides type-safe gRPC clients for TypeScript. For more details on how to use gRPC with Sui, see
+the [gRPC overview](https://docs.sui.io/concepts/grpc-overview).
+
+### Transaction Execution Service
+
+```typescript
+const { response } = await grpcClient.transactionExecutionService.executeTransaction({
+	transaction: {
+		bcs: {
+			value: transactionBytes,
+		},
+	},
+	signatures: signatures.map((sig) => ({
+		bcs: { value: fromBase64(sig) },
+		signature: { oneofKind: undefined },
+	})),
+});
+```
+
+### Ledger Service
+
+```typescript
+// Get transaction by digest
+const { response } = await grpcClient.ledgerService.getTransaction({
+	digest: '0x123...',
+});
+
+// Get current epoch information
+const { response: epochInfo } = await grpcClient.ledgerService.getEpoch({});
+```
+
+### State Service
+
+```typescript
+// List owned objects
+const { response } = await grpcClient.stateService.listOwnedObjects({
+	owner: '0xabc...',
+	objectType: '0x2::coin::Coin<0x2::sui::SUI>',
+});
+
+// Get dynamic fields
+const { response: fields } = await grpcClient.stateService.listDynamicFields({
+	parent: '0x123...',
+});
+```
+
+### Move Package Service
+
+```typescript
+// Get function information
+const { response } = await grpcClient.movePackageService.getFunction({
+	packageId: '0x2',
+	moduleName: 'coin',
+	name: 'transfer',
+});
+```
+
+### Name Service
+
+```typescript
+// Reverse lookup address to get name
+const { response } = await grpcClient.nameService.reverseLookupName({
+	address: '0xabc...',
+});
+```
+
+### Signature Verification Service
+
+```typescript
+// Verify a signature
+const { response } = await grpcClient.signatureVerificationService.verifySignature({
+	message: {
+		name: 'TransactionData',
+		value: messageBytes,
+	},
+	signature: {
+		bcs: { value: signatureBytes },
+		signature: { oneofKind: undefined },
+	},
+	jwks: [],
+});
+```

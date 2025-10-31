@@ -9,6 +9,7 @@
 		"faucet",
 		"sui-client",
 		"graphql",
+		"grpc",
 		"transaction-building",
 		"cryptography",
 		"utils",
