@@ -36,7 +36,7 @@ export const coins = createAnalyzer({
 							})
 							.map(async (obj) => {
 								return [
-									obj.id,
+									obj.objectId,
 									{
 										...obj,
 										coinType: normalizeStructTag(parseStructTag(obj.type).typeParams[0]),

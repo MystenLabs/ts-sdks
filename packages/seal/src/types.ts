@@ -1,13 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClientWithExtensions, Experimental_CoreClient } from '@mysten/sui/experimental';
+import type { ClientWithExtensions, CoreClient } from '@mysten/sui/client';
 import type { DemType, KemType } from './encrypt.js';
 import type { SessionKey } from './session-key.js';
 
 export type KeyCacheKey = `${string}:${string}`;
 export type SealCompatibleClient = ClientWithExtensions<{
-	core: Experimental_CoreClient;
+	core: CoreClient;
 }>;
 
 export interface SealOptions<Name = 'seal'> {

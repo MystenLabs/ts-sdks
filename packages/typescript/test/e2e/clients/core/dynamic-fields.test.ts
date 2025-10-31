@@ -73,18 +73,18 @@ describe('Core API - Dynamic Fields', () => {
 	describe('getDynamicFields', () => {
 		it('all clients return same data: getDynamicFields', async () => {
 			await toolbox.expectAllClientsReturnSameData(
-				(client) => client.core.getDynamicFields({ parentId: objectWithDynamicFieldsId }),
+				(client) => client.core.listDynamicFields({ parentId: objectWithDynamicFieldsId }),
 				// Normalize: ignore cursor and sort by id (order may vary across APIs)
 				(result) => ({
 					...result,
 					cursor: null,
-					dynamicFields: result.dynamicFields.sort((a, b) => a.id.localeCompare(b.id)),
+					dynamicFields: result.dynamicFields.sort((a, b) => a.fieldId.localeCompare(b.fieldId)),
 				}),
 			);
 		});
 
 		testWithAllClients('should get all dynamic fields for an object', async (client) => {
-			const result = await client.core.getDynamicFields({
+			const result = await client.core.listDynamicFields({
 				parentId: objectWithDynamicFieldsId,
 			});
 
@@ -114,7 +114,7 @@ describe('Core API - Dynamic Fields', () => {
 
 		testWithAllClients('should paginate dynamic fields', async (client) => {
 			// Get first page with limit of 2
-			const firstPage = await client.core.getDynamicFields({
+			const firstPage = await client.core.listDynamicFields({
 				parentId: objectWithDynamicFieldsId,
 				limit: 2,
 			});
@@ -124,7 +124,7 @@ describe('Core API - Dynamic Fields', () => {
 			expect(firstPage.cursor).toBeDefined();
 
 			// Get second page
-			const secondPage = await client.core.getDynamicFields({
+			const secondPage = await client.core.listDynamicFields({
 				parentId: objectWithDynamicFieldsId,
 				limit: 2,
 				cursor: firstPage.cursor,
@@ -135,14 +135,14 @@ describe('Core API - Dynamic Fields', () => {
 
 			// Verify all fields are unique
 			const allFieldIds = [
-				...firstPage.dynamicFields.map((f) => f.id),
-				...secondPage.dynamicFields.map((f) => f.id),
+				...firstPage.dynamicFields.map((f) => f.fieldId),
+				...secondPage.dynamicFields.map((f) => f.fieldId),
 			];
 			expect(new Set(allFieldIds).size).toBe(3);
 		});
 
 		testWithAllClients('should handle empty result for non-existent parent', async (client) => {
-			const result = await client.core.getDynamicFields({
+			const result = await client.core.listDynamicFields({
 				parentId: '0x0000000000000000000000000000000000000000000000000000000000000001',
 			});
 
