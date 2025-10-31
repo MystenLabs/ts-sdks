@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '../../src/jsonRpc';
 import { namedPackagesPlugin, Transaction } from '../../src/transactions';
 import { normalizeSuiAddress } from '../../src/utils';
-import { extractMvrTypes } from '../../src/experimental/mvr';
+import { extractMvrTypes } from '../../src/client/mvr';
 
 const MAINNET_URL = 'https://mainnet.mvr.mystenlabs.com';
 const TESTNET_URL = 'https://testnet.mvr.mystenlabs.com';

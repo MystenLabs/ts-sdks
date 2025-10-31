@@ -5,18 +5,17 @@ import { TypeTagSerializer } from '../bcs/type-tag-serializer.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { normalizeStructTag, parseStructTag, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
-import { Experimental_BaseClient } from './client.js';
-import type { ClientWithExtensions, Experimental_SuiClientTypes } from './types.js';
+import { BaseClient } from './client.js';
+import type { ClientWithExtensions, SuiClientTypes } from './types.js';
 import { MvrClient } from './mvr.js';
 
 export type ClientWithCoreApi = ClientWithExtensions<{
-	core: Experimental_CoreClient;
+	core: CoreClient;
 }>;
 
-export interface Experimental_CoreClientOptions
-	extends Experimental_SuiClientTypes.SuiClientOptions {
-	base: Experimental_BaseClient;
-	mvr?: Experimental_SuiClientTypes.MvrOptions;
+export interface CoreClientOptions extends SuiClientTypes.SuiClientOptions {
+	base: BaseClient;
+	mvr?: SuiClientTypes.MvrOptions;
 }
 
 const DEFAULT_MVR_URLS: Record<string, string> = {
@@ -24,14 +23,11 @@ const DEFAULT_MVR_URLS: Record<string, string> = {
 	testnet: 'https://testnet.mvr.mystenlabs.com',
 };
 
-export abstract class Experimental_CoreClient
-	extends Experimental_BaseClient
-	implements Experimental_SuiClientTypes.TransportMethods
-{
+export abstract class CoreClient extends BaseClient implements SuiClientTypes.TransportMethods {
 	core = this;
-	mvr: Experimental_SuiClientTypes.MvrMethods;
+	mvr: SuiClientTypes.MvrMethods;
 
-	constructor(options: Experimental_CoreClientOptions) {
+	constructor(options: CoreClientOptions) {
 		super(options);
 
 		this.mvr = new MvrClient({
@@ -42,76 +38,76 @@ export abstract class Experimental_CoreClient
 		});
 	}
 
-	abstract getObjects(
-		options: Experimental_SuiClientTypes.GetObjectsOptions,
-	): Promise<Experimental_SuiClientTypes.GetObjectsResponse>;
+	abstract listObjects(
+		options: SuiClientTypes.ListObjectsOptions,
+	): Promise<SuiClientTypes.ListObjectsResponse>;
 
 	async getObject(
-		options: Experimental_SuiClientTypes.GetObjectOptions,
-	): Promise<Experimental_SuiClientTypes.GetObjectResponse> {
+		options: SuiClientTypes.GetObjectOptions,
+	): Promise<SuiClientTypes.GetObjectResponse> {
 		const { objectId } = options;
 		const {
 			objects: [result],
-		} = await this.getObjects({ objectIds: [objectId], signal: options.signal });
+		} = await this.listObjects({ objectIds: [objectId], signal: options.signal });
 		if (result instanceof Error) {
 			throw result;
 		}
 		return { object: result };
 	}
 
-	abstract getCoins(
-		options: Experimental_SuiClientTypes.GetCoinsOptions,
-	): Promise<Experimental_SuiClientTypes.GetCoinsResponse>;
+	abstract listCoins(
+		options: SuiClientTypes.ListCoinsOptions,
+	): Promise<SuiClientTypes.ListCoinsResponse>;
 
-	abstract getOwnedObjects(
-		options: Experimental_SuiClientTypes.GetOwnedObjectsOptions,
-	): Promise<Experimental_SuiClientTypes.GetOwnedObjectsResponse>;
+	abstract listOwnedObjects(
+		options: SuiClientTypes.ListOwnedObjectsOptions,
+	): Promise<SuiClientTypes.ListOwnedObjectsResponse>;
 
 	abstract getBalance(
-		options: Experimental_SuiClientTypes.GetBalanceOptions,
-	): Promise<Experimental_SuiClientTypes.GetBalanceResponse>;
+		options: SuiClientTypes.GetBalanceOptions,
+	): Promise<SuiClientTypes.GetBalanceResponse>;
 
-	abstract getAllBalances(
-		options: Experimental_SuiClientTypes.GetAllBalancesOptions,
-	): Promise<Experimental_SuiClientTypes.GetAllBalancesResponse>;
+	abstract listBalances(
+		options: SuiClientTypes.ListBalancesOptions,
+	): Promise<SuiClientTypes.ListBalancesResponse>;
 
 	abstract getTransaction(
-		options: Experimental_SuiClientTypes.GetTransactionOptions,
-	): Promise<Experimental_SuiClientTypes.GetTransactionResponse>;
+		options: SuiClientTypes.GetTransactionOptions,
+	): Promise<SuiClientTypes.GetTransactionResponse>;
 
 	abstract executeTransaction(
-		options: Experimental_SuiClientTypes.ExecuteTransactionOptions,
-	): Promise<Experimental_SuiClientTypes.ExecuteTransactionResponse>;
+		options: SuiClientTypes.ExecuteTransactionOptions,
+	): Promise<SuiClientTypes.ExecuteTransactionResponse>;
 
-	abstract dryRunTransaction(
-		options: Experimental_SuiClientTypes.DryRunTransactionOptions,
-	): Promise<Experimental_SuiClientTypes.DryRunTransactionResponse>;
+	abstract simulateTransaction(
+		options: SuiClientTypes.SimulateTransactionOptions,
+	): Promise<SuiClientTypes.SimulateTransactionResponse>;
 
 	abstract getReferenceGasPrice(
-		options?: Experimental_SuiClientTypes.GetReferenceGasPriceOptions,
-	): Promise<Experimental_SuiClientTypes.GetReferenceGasPriceResponse>;
+		options?: SuiClientTypes.GetReferenceGasPriceOptions,
+	): Promise<SuiClientTypes.GetReferenceGasPriceResponse>;
 
-	abstract getDynamicFields(
-		options: Experimental_SuiClientTypes.GetDynamicFieldsOptions,
-	): Promise<Experimental_SuiClientTypes.GetDynamicFieldsResponse>;
+	abstract listDynamicFields(
+		options: SuiClientTypes.ListDynamicFieldsOptions,
+	): Promise<SuiClientTypes.ListDynamicFieldsResponse>;
 
 	abstract resolveTransactionPlugin(): TransactionPlugin;
 
 	abstract verifyZkLoginSignature(
-		options: Experimental_SuiClientTypes.VerifyZkLoginSignatureOptions,
-	): Promise<Experimental_SuiClientTypes.ZkLoginVerifyResponse>;
+		options: SuiClientTypes.VerifyZkLoginSignatureOptions,
+	): Promise<SuiClientTypes.ZkLoginVerifyResponse>;
 
 	abstract getMoveFunction(
-		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
-	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse>;
+		options: SuiClientTypes.GetMoveFunctionOptions,
+	): Promise<SuiClientTypes.GetMoveFunctionResponse>;
 
 	abstract defaultNameServiceName(
-		options: Experimental_SuiClientTypes.DefaultNameServiceNameOptions,
-	): Promise<Experimental_SuiClientTypes.DefaultNameServiceNameResponse>;
+		options: SuiClientTypes.DefaultNameServiceNameOptions,
+	): Promise<SuiClientTypes.DefaultNameServiceNameResponse>;
 
 	async getDynamicField(
-		options: Experimental_SuiClientTypes.GetDynamicFieldOptions,
-	): Promise<Experimental_SuiClientTypes.GetDynamicFieldResponse> {
+		options: SuiClientTypes.GetDynamicFieldOptions,
+	): Promise<SuiClientTypes.GetDynamicFieldResponse> {
 		const normalizedNameType = TypeTagSerializer.parseFromStr(
 			(
 				await this.core.mvr.resolveType({
@@ -122,7 +118,7 @@ export abstract class Experimental_CoreClient
 		const fieldId = deriveDynamicFieldID(options.parentId, normalizedNameType, options.name.bcs);
 		const {
 			objects: [fieldObject],
-		} = await this.getObjects({
+		} = await this.listObjects({
 			objectIds: [fieldId],
 			signal: options.signal,
 		});
@@ -136,7 +132,7 @@ export abstract class Experimental_CoreClient
 
 		return {
 			dynamicField: {
-				id: fieldObject.id,
+				fieldId: fieldObject.objectId,
 				digest: fieldObject.digest,
 				version: fieldObject.version,
 				type: fieldObject.type,
@@ -168,7 +164,7 @@ export abstract class Experimental_CoreClient
 		signal?: AbortSignal;
 		/** The amount of time to wait for transaction. Defaults to one minute. */
 		timeout?: number;
-	} & Experimental_SuiClientTypes.GetTransactionOptions): Promise<Experimental_SuiClientTypes.GetTransactionResponse> {
+	} & SuiClientTypes.GetTransactionOptions): Promise<SuiClientTypes.GetTransactionResponse> {
 		const abortSignal = signal
 			? AbortSignal.any([AbortSignal.timeout(timeout), signal])
 			: AbortSignal.timeout(timeout);

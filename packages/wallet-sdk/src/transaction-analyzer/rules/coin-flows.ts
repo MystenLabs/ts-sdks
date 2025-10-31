@@ -117,8 +117,8 @@ export const coinFlows = createAnalyzer({
 			}
 
 			for (const input of inputs) {
-				if (input.$kind === 'Object' && coins[input.object.id]) {
-					const coin = coins[input.object.id];
+				if (input.$kind === 'Object' && coins[input.object.objectId]) {
+					const coin = coins[input.object.objectId];
 					trackedCoins.set(
 						`input:${input.index}`,
 						new TrackedCoin(coin.coinType, coin.balance, true),

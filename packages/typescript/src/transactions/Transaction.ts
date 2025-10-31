@@ -31,7 +31,7 @@ import { createPure } from './pure.js';
 import { TransactionDataBuilder } from './TransactionData.js';
 import { getIdFromCallArg } from './utils.js';
 import { namedPackagesPlugin } from './plugins/NamedPackagesPlugin.js';
-import type { ClientWithCoreApi } from '../experimental/core.js';
+import type { ClientWithCoreApi } from '../client/core.js';
 
 export type TransactionObjectArgument =
 	| Exclude<InferInput<typeof ArgumentSchema>, { Input: unknown; type?: 'pure' }>
@@ -282,14 +282,14 @@ export class Transaction {
 	setExpiration(expiration?: InferInput<typeof TransactionExpiration> | null) {
 		this.#data.expiration = expiration ? parse(TransactionExpiration, expiration) : null;
 	}
-	setGasPrice(price: number | bigint) {
+	setGasPrice(price: number | bigint | string) {
 		this.#data.gasData.price = String(price);
 	}
-	setGasBudget(budget: number | bigint) {
+	setGasBudget(budget: number | bigint | string) {
 		this.#data.gasData.budget = String(budget);
 	}
 
-	setGasBudgetIfNotSet(budget: number | bigint) {
+	setGasBudgetIfNotSet(budget: number | bigint | string) {
 		if (this.#data.gasData.budget == null) {
 			this.#data.gasData.budget = String(budget);
 		}

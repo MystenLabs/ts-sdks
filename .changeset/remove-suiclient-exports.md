@@ -13,6 +13,7 @@ BREAKING CHANGE: All exports from `@mysten/sui/client` have been removed. Use `@
 - `getFullnodeUrl` -> `getJsonRpcFullnodeUrl`
 
 Migration example:
+
 ```ts
 // Before
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
