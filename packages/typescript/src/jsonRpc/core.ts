@@ -39,9 +39,9 @@ export class JSONRpcCoreClient extends CoreClient {
 		this.#jsonRpcClient = jsonRpcClient;
 	}
 
-	async getObjects(options: SuiClientTypes.GetObjectsOptions) {
+	async listObjects(options: SuiClientTypes.ListObjectsOptions) {
 		const batches = chunk(options.objectIds, 50);
-		const results: SuiClientTypes.GetObjectsResponse['objects'] = [];
+		const results: SuiClientTypes.ListObjectsResponse['objects'] = [];
 
 		for (const batch of batches) {
 			const objects = await this.#jsonRpcClient.multiGetObjects({
@@ -68,9 +68,9 @@ export class JSONRpcCoreClient extends CoreClient {
 			objects: results,
 		};
 	}
-	async getOwnedObjects(options: SuiClientTypes.GetOwnedObjectsOptions) {
+	async listOwnedObjects(options: SuiClientTypes.ListOwnedObjectsOptions) {
 		const objects = await this.#jsonRpcClient.getOwnedObjects({
-			owner: options.address,
+			owner: options.owner,
 			limit: options.limit,
 			cursor: options.cursor,
 			options: {
@@ -96,9 +96,9 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
-	async getCoins(options: SuiClientTypes.GetCoinsOptions) {
+	async listCoins(options: SuiClientTypes.ListCoinsOptions) {
 		const coins = await this.#jsonRpcClient.getCoins({
-			owner: options.address,
+			owner: options.owner,
 			coinType: options.coinType,
 			limit: options.limit,
 			cursor: options.cursor,
@@ -108,14 +108,14 @@ export class JSONRpcCoreClient extends CoreClient {
 		return {
 			objects: coins.data.map((coin) => {
 				return {
-					id: coin.coinObjectId,
+					objectId: coin.coinObjectId,
 					version: coin.version,
 					digest: coin.digest,
 					balance: coin.balance,
 					type: normalizeStructTag(`0x2::coin::Coin<${coin.coinType}>`),
 					content: Promise.resolve(
 						Coin.serialize({
-							id: coin.coinObjectId,
+							objectId: coin.coinObjectId,
 							balance: {
 								value: coin.balance,
 							},
@@ -123,7 +123,7 @@ export class JSONRpcCoreClient extends CoreClient {
 					),
 					owner: {
 						$kind: 'AddressOwner' as const,
-						AddressOwner: options.address,
+						AddressOwner: options.owner,
 					},
 					previousTransaction: coin.previousTransaction,
 				};
@@ -135,7 +135,7 @@ export class JSONRpcCoreClient extends CoreClient {
 
 	async getBalance(options: SuiClientTypes.GetBalanceOptions) {
 		const balance = await this.#jsonRpcClient.getBalance({
-			owner: options.address,
+			owner: options.owner,
 			coinType: options.coinType,
 			signal: options.signal,
 		});
@@ -147,9 +147,9 @@ export class JSONRpcCoreClient extends CoreClient {
 			},
 		};
 	}
-	async getAllBalances(options: SuiClientTypes.GetAllBalancesOptions) {
+	async listBalances(options: SuiClientTypes.ListBalancesOptions) {
 		const balances = await this.#jsonRpcClient.getAllBalances({
-			owner: options.address,
+			owner: options.owner,
 			signal: options.signal,
 		});
 
@@ -199,7 +199,7 @@ export class JSONRpcCoreClient extends CoreClient {
 			transaction: parseTransaction(transaction),
 		};
 	}
-	async dryRunTransaction(options: SuiClientTypes.DryRunTransactionOptions) {
+	async simulateTransaction(options: SuiClientTypes.SimulateTransactionOptions) {
 		const tx = Transaction.from(options.transaction);
 		const result = await this.#jsonRpcClient.dryRunTransactionBlock({
 			transactionBlock: options.transaction,
@@ -224,6 +224,14 @@ export class JSONRpcCoreClient extends CoreClient {
 					address: parseOwnerAddress(change.owner)!,
 					amount: change.amount,
 				})),
+				events:
+					result.events?.map((event) => ({
+						packageId: event.packageId,
+						module: event.transactionModule,
+						sender: event.sender,
+						eventType: event.type,
+						bcs: 'bcs' in event ? fromBase64(event.bcs) : new Uint8Array(),
+					})) ?? [],
 			},
 		};
 	}
@@ -236,7 +244,7 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
-	async getDynamicFields(options: SuiClientTypes.GetDynamicFieldsOptions) {
+	async listDynamicFields(options: SuiClientTypes.ListDynamicFieldsOptions) {
 		const dynamicFields = await this.#jsonRpcClient.getDynamicFields({
 			parentId: options.parentId,
 			limit: options.limit,
@@ -251,7 +259,7 @@ export class JSONRpcCoreClient extends CoreClient {
 					: `0x2::dynamic_field::Field<${dynamicField.name.type}, ${dynamicField.objectType}>`;
 
 				return {
-					id: dynamicField.objectId,
+					fieldId: dynamicField.objectId,
 					type: normalizeStructTag(fullType),
 					name: {
 						type: dynamicField.name.type,
@@ -270,7 +278,7 @@ export class JSONRpcCoreClient extends CoreClient {
 			bytes: options.bytes,
 			signature: options.signature,
 			intentScope: options.intentScope,
-			author: options.author,
+			author: options.address,
 		});
 
 		return {
@@ -334,7 +342,7 @@ function parseObject(object: SuiObjectData): SuiClientTypes.ObjectResponse {
 			: (object.type ?? '');
 
 	return {
-		id: object.objectId,
+		objectId: object.objectId,
 		version: object.version,
 		digest: object.digest,
 		type,
@@ -451,6 +459,14 @@ function parseTransaction(
 				address: parseOwnerAddress(change.owner)!,
 				amount: change.amount,
 			})) ?? [],
+		events:
+			transaction.events?.map((event) => ({
+				packageId: event.packageId,
+				module: event.transactionModule,
+				sender: event.sender,
+				eventType: event.type,
+				bcs: 'bcs' in event ? fromBase64(event.bcs) : new Uint8Array(),
+			})) ?? [],
 	};
 }
 
@@ -474,7 +490,7 @@ function parseTransactionEffectsJson({
 		switch (change.type) {
 			case 'published':
 				changedObjects.push({
-					id: change.packageId,
+					objectId: change.packageId,
 					inputState: 'DoesNotExist',
 					inputVersion: null,
 					inputDigest: null,
@@ -488,7 +504,7 @@ function parseTransactionEffectsJson({
 				break;
 			case 'transferred':
 				changedObjects.push({
-					id: change.objectId,
+					objectId: change.objectId,
 					inputState: 'Exists',
 					inputVersion: change.version,
 					inputDigest: change.digest,
@@ -506,7 +522,7 @@ function parseTransactionEffectsJson({
 				break;
 			case 'mutated':
 				changedObjects.push({
-					id: change.objectId,
+					objectId: change.objectId,
 					inputState: 'Exists',
 					inputVersion: change.previousVersion,
 					inputDigest: null,
@@ -521,7 +537,7 @@ function parseTransactionEffectsJson({
 				break;
 			case 'deleted':
 				changedObjects.push({
-					id: change.objectId,
+					objectId: change.objectId,
 					inputState: 'Exists',
 					inputVersion: change.version,
 					inputDigest: effects.deleted?.find((d) => d.objectId === change.objectId)?.digest ?? null,
@@ -536,7 +552,7 @@ function parseTransactionEffectsJson({
 				break;
 			case 'wrapped':
 				changedObjects.push({
-					id: change.objectId,
+					objectId: change.objectId,
 					inputState: 'Exists',
 					inputVersion: change.version,
 					inputDigest: null,
@@ -558,7 +574,7 @@ function parseTransactionEffectsJson({
 				break;
 			case 'created':
 				changedObjects.push({
-					id: change.objectId,
+					objectId: change.objectId,
 					inputState: 'DoesNotExist',
 					inputVersion: null,
 					inputDigest: null,
@@ -578,7 +594,6 @@ function parseTransactionEffectsJson({
 		objectTypes,
 		effects: {
 			bcs: bytes ?? null,
-			digest: effects.transactionDigest,
 			version: 2,
 			status:
 				effects.status.status === 'success'
@@ -587,7 +602,7 @@ function parseTransactionEffectsJson({
 			gasUsed: effects.gasUsed,
 			transactionDigest: effects.transactionDigest,
 			gasObject: {
-				id: effects.gasObject?.reference.objectId,
+				objectId: effects.gasObject?.reference.objectId,
 				inputState: 'Exists',
 				inputVersion: null,
 				inputDigest: null,
@@ -613,7 +628,7 @@ const Balance = bcs.struct('Balance', {
 });
 
 const Coin = bcs.struct('Coin', {
-	id: bcs.Address,
+	objectId: bcs.Address,
 	balance: Balance,
 });
 

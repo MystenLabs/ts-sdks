@@ -66,11 +66,11 @@ export class GraphQLCoreClient extends CoreClient {
 		return extractedData as NonNullable<Data>;
 	}
 
-	async getObjects(
-		options: SuiClientTypes.GetObjectsOptions,
-	): Promise<SuiClientTypes.GetObjectsResponse> {
+	async listObjects(
+		options: SuiClientTypes.ListObjectsOptions,
+	): Promise<SuiClientTypes.ListObjectsResponse> {
 		const batches = chunk(options.objectIds, 50);
-		const results: SuiClientTypes.GetObjectsResponse['objects'] = [];
+		const results: SuiClientTypes.ListObjectsResponse['objects'] = [];
 
 		for (const batch of batches) {
 			const page = await this.#graphqlQuery(
@@ -110,7 +110,7 @@ export class GraphQLCoreClient extends CoreClient {
 						}
 
 						return {
-							id: obj.address,
+							objectId: obj.address,
 							version: obj.version?.toString()!,
 							digest: obj.digest!,
 							owner: mapOwner(obj.owner!),
@@ -126,14 +126,14 @@ export class GraphQLCoreClient extends CoreClient {
 			objects: results,
 		};
 	}
-	async getOwnedObjects(
-		options: SuiClientTypes.GetOwnedObjectsOptions,
-	): Promise<SuiClientTypes.GetOwnedObjectsResponse> {
+	async listOwnedObjects(
+		options: SuiClientTypes.ListOwnedObjectsOptions,
+	): Promise<SuiClientTypes.ListOwnedObjectsResponse> {
 		const objects = await this.#graphqlQuery(
 			{
 				query: GetOwnedObjectsDocument,
 				variables: {
-					owner: options.address,
+					owner: options.owner,
 					limit: options.limit,
 					cursor: options.cursor,
 					filter: options.type
@@ -146,7 +146,7 @@ export class GraphQLCoreClient extends CoreClient {
 
 		return {
 			objects: objects.nodes.map((obj) => ({
-				id: obj.address,
+				objectId: obj.address,
 				version: obj.version?.toString()!,
 				digest: obj.digest!,
 				owner: mapOwner(obj.owner!),
@@ -160,14 +160,14 @@ export class GraphQLCoreClient extends CoreClient {
 			cursor: objects.pageInfo.endCursor ?? null,
 		};
 	}
-	async getCoins(
-		options: SuiClientTypes.GetCoinsOptions,
-	): Promise<SuiClientTypes.GetCoinsResponse> {
+	async listCoins(
+		options: SuiClientTypes.ListCoinsOptions,
+	): Promise<SuiClientTypes.ListCoinsResponse> {
 		const coins = await this.#graphqlQuery(
 			{
 				query: GetCoinsDocument,
 				variables: {
-					owner: options.address,
+					owner: options.owner,
 					cursor: options.cursor,
 					first: options.limit,
 					type: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: options.coinType })).type}>`,
@@ -180,7 +180,7 @@ export class GraphQLCoreClient extends CoreClient {
 			cursor: coins.pageInfo.endCursor ?? null,
 			hasNextPage: coins.pageInfo.hasNextPage,
 			objects: coins.nodes.map((coin) => ({
-				id: coin.address,
+				objectId: coin.address,
 				version: coin.version?.toString()!,
 				digest: coin.digest!,
 				owner: mapOwner(coin.owner!),
@@ -201,7 +201,7 @@ export class GraphQLCoreClient extends CoreClient {
 			{
 				query: GetBalanceDocument,
 				variables: {
-					owner: options.address,
+					owner: options.owner,
 					type: (await this.mvr.resolveType({ type: options.coinType })).type,
 				},
 			},
@@ -215,13 +215,13 @@ export class GraphQLCoreClient extends CoreClient {
 			},
 		};
 	}
-	async getAllBalances(
-		options: SuiClientTypes.GetAllBalancesOptions,
-	): Promise<SuiClientTypes.GetAllBalancesResponse> {
+	async listBalances(
+		options: SuiClientTypes.ListBalancesOptions,
+	): Promise<SuiClientTypes.ListBalancesResponse> {
 		const balances = await this.#graphqlQuery(
 			{
 				query: GetAllBalancesDocument,
-				variables: { owner: options.address },
+				variables: { owner: options.owner },
 			},
 			(result) => result.address?.balances,
 		);
@@ -275,9 +275,9 @@ export class GraphQLCoreClient extends CoreClient {
 			transaction: parseTransaction(result.effects?.transaction!),
 		};
 	}
-	async dryRunTransaction(
-		options: SuiClientTypes.DryRunTransactionOptions,
-	): Promise<SuiClientTypes.DryRunTransactionResponse> {
+	async simulateTransaction(
+		options: SuiClientTypes.SimulateTransactionOptions,
+	): Promise<SuiClientTypes.SimulateTransactionResponse> {
 		const result = await this.#graphqlQuery(
 			{
 				query: SimulateTransactionDocument,
@@ -313,9 +313,9 @@ export class GraphQLCoreClient extends CoreClient {
 		};
 	}
 
-	async getDynamicFields(
-		options: SuiClientTypes.GetDynamicFieldsOptions,
-	): Promise<SuiClientTypes.GetDynamicFieldsResponse> {
+	async listDynamicFields(
+		options: SuiClientTypes.ListDynamicFieldsOptions,
+	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
 		const result = await this.#graphqlQuery(
 			{
 				query: GetDynamicFieldsDocument,
@@ -335,7 +335,7 @@ export class GraphQLCoreClient extends CoreClient {
 						? dynamicField.value.contents?.type?.repr!
 						: dynamicField.value?.type?.repr!;
 				return {
-					id: deriveDynamicFieldID(
+					fieldId: deriveDynamicFieldID(
 						options.parentId,
 						dynamicField.name?.type?.repr!,
 						fromBase64(dynamicField.name?.bcs!),
@@ -372,7 +372,7 @@ export class GraphQLCoreClient extends CoreClient {
 					bytes: options.bytes,
 					signature: options.signature,
 					intentScope,
-					author: options.author,
+					author: options.address,
 				},
 			},
 			(result) => result.verifyZkLoginSignature,
@@ -566,7 +566,14 @@ function parseTransaction(
 				address: change.owner?.address!,
 				amount: change.amount!,
 			})) ?? [],
-		// events: transaction.events?.pageInfo.hasNextPage
+		events:
+			transaction.effects?.events?.nodes.map((event) => ({
+				packageId: event.transactionModule?.package?.address!,
+				module: event.transactionModule?.name!,
+				sender: event.sender?.address!,
+				eventType: event.contents?.type?.repr!,
+				bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
+			})) ?? [],
 	};
 }
 

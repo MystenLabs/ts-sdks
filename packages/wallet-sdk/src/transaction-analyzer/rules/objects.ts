@@ -65,7 +65,7 @@ export const objects = createAnalyzer({
 	analyze:
 		({ client }: { client: ClientWithCoreApi }) =>
 		async ({ objectIds }) => {
-			const { objects } = await client.core.getObjects({
+			const { objects } = await client.core.listObjects({
 				objectIds,
 			});
 
@@ -125,6 +125,6 @@ export const objectsById = createAnalyzer({
 	analyze:
 		() =>
 		({ objects }) => ({
-			result: new Map(objects.map((obj) => [obj.id, obj])),
+			result: new Map(objects.map((obj) => [obj.objectId, obj])),
 		}),
 });

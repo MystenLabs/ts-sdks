@@ -51,7 +51,7 @@ export const transactionResponse = createAnalyzer({
 				return {
 					result:
 						options.transactionResponse ??
-						(await options.client.core.dryRunTransaction({ transaction: bytes })).transaction,
+						(await options.client.core.simulateTransaction({ transaction: bytes })).transaction,
 				};
 			} catch {
 				return { issues: [{ message: 'Failed to dry run transaction' }] };

@@ -38,9 +38,9 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		});
 	}
 
-	abstract getObjects(
-		options: SuiClientTypes.GetObjectsOptions,
-	): Promise<SuiClientTypes.GetObjectsResponse>;
+	abstract listObjects(
+		options: SuiClientTypes.ListObjectsOptions,
+	): Promise<SuiClientTypes.ListObjectsResponse>;
 
 	async getObject(
 		options: SuiClientTypes.GetObjectOptions,
@@ -48,28 +48,28 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		const { objectId } = options;
 		const {
 			objects: [result],
-		} = await this.getObjects({ objectIds: [objectId], signal: options.signal });
+		} = await this.listObjects({ objectIds: [objectId], signal: options.signal });
 		if (result instanceof Error) {
 			throw result;
 		}
 		return { object: result };
 	}
 
-	abstract getCoins(
-		options: SuiClientTypes.GetCoinsOptions,
-	): Promise<SuiClientTypes.GetCoinsResponse>;
+	abstract listCoins(
+		options: SuiClientTypes.ListCoinsOptions,
+	): Promise<SuiClientTypes.ListCoinsResponse>;
 
-	abstract getOwnedObjects(
-		options: SuiClientTypes.GetOwnedObjectsOptions,
-	): Promise<SuiClientTypes.GetOwnedObjectsResponse>;
+	abstract listOwnedObjects(
+		options: SuiClientTypes.ListOwnedObjectsOptions,
+	): Promise<SuiClientTypes.ListOwnedObjectsResponse>;
 
 	abstract getBalance(
 		options: SuiClientTypes.GetBalanceOptions,
 	): Promise<SuiClientTypes.GetBalanceResponse>;
 
-	abstract getAllBalances(
-		options: SuiClientTypes.GetAllBalancesOptions,
-	): Promise<SuiClientTypes.GetAllBalancesResponse>;
+	abstract listBalances(
+		options: SuiClientTypes.ListBalancesOptions,
+	): Promise<SuiClientTypes.ListBalancesResponse>;
 
 	abstract getTransaction(
 		options: SuiClientTypes.GetTransactionOptions,
@@ -79,17 +79,17 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options: SuiClientTypes.ExecuteTransactionOptions,
 	): Promise<SuiClientTypes.ExecuteTransactionResponse>;
 
-	abstract dryRunTransaction(
-		options: SuiClientTypes.DryRunTransactionOptions,
-	): Promise<SuiClientTypes.DryRunTransactionResponse>;
+	abstract simulateTransaction(
+		options: SuiClientTypes.SimulateTransactionOptions,
+	): Promise<SuiClientTypes.SimulateTransactionResponse>;
 
 	abstract getReferenceGasPrice(
 		options?: SuiClientTypes.GetReferenceGasPriceOptions,
 	): Promise<SuiClientTypes.GetReferenceGasPriceResponse>;
 
-	abstract getDynamicFields(
-		options: SuiClientTypes.GetDynamicFieldsOptions,
-	): Promise<SuiClientTypes.GetDynamicFieldsResponse>;
+	abstract listDynamicFields(
+		options: SuiClientTypes.ListDynamicFieldsOptions,
+	): Promise<SuiClientTypes.ListDynamicFieldsResponse>;
 
 	abstract resolveTransactionPlugin(): TransactionPlugin;
 
@@ -118,7 +118,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		const fieldId = deriveDynamicFieldID(options.parentId, normalizedNameType, options.name.bcs);
 		const {
 			objects: [fieldObject],
-		} = await this.getObjects({
+		} = await this.listObjects({
 			objectIds: [fieldId],
 			signal: options.signal,
 		});
@@ -132,7 +132,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 
 		return {
 			dynamicField: {
-				id: fieldObject.id,
+				fieldId: fieldObject.objectId,
 				digest: fieldObject.digest,
 				version: fieldObject.version,
 				type: fieldObject.type,

@@ -1,9 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { toBase58 } from '@mysten/utils';
 import { bcs } from '../bcs/index.js';
-import { hashTypedData } from '../transactions/hash.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import type { SuiClientTypes } from './types.js';
 
@@ -48,7 +46,7 @@ function parseTransactionEffectsV2({
 	const changedObjects = effects.changedObjects.map(
 		([id, change]): SuiClientTypes.ChangedObject => {
 			return {
-				id,
+				objectId: id,
 				inputState: change.inputState.$kind === 'Exist' ? 'Exists' : 'DoesNotExist',
 				inputVersion: change.inputState.Exist?.[0][0] ?? null,
 				inputDigest: change.inputState.Exist?.[0][1] ?? null,
@@ -73,7 +71,6 @@ function parseTransactionEffectsV2({
 
 	return {
 		bcs: bytes,
-		digest: toBase58(hashTypedData('TransactionEffects', bytes)),
 		version: 2,
 		status:
 			effects.status.$kind === 'Success'
