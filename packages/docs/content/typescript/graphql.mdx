@@ -6,6 +6,12 @@ title: SuiGraphQLClient
 	SuiGraphQLClient is still in development and may change rapidly as it is being developed.
 </Callout>
 
+<Callout type="info">
+	The `SuiGraphQLClient` can be used for reading and writing data directly, but deeper integration
+	into other SDKs is not ready yet. In a future release, GraphQL clients will be able to be passed
+	into any Mysten SDK method that currently accepts a JSON-RPC client.
+</Callout>
+
 To support GraphQL Queries, the Typescript SDK includes the `SuiGraphQLClient` which can help you
 write and execute GraphQL queries against the Sui GraphQL API that are type-safe and easy to use.
 For more details on the Sui GraphQL API, see the
