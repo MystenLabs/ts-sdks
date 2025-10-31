@@ -15,10 +15,10 @@ export const accessLevel = createAnalyzer({
 		async ({ commands, objects, gasCoins }) => {
 			const issues: TransactionAnalysisIssue[] = [];
 
-			const gasCoinIds = new Set(gasCoins.map((g) => g.id));
+			const gasCoinIds = new Set(gasCoins.map((g) => g.objectId));
 
 			const accessLevels: Record<string, 'read' | 'mutate' | 'transfer'> = Object.fromEntries(
-				objects.map((obj) => [obj.id, 'read' as const]),
+				objects.map((obj) => [obj.objectId, 'read' as const]),
 			);
 
 			for (const id of gasCoinIds) {
@@ -77,7 +77,7 @@ export const accessLevel = createAnalyzer({
 						}
 						break;
 					case 'Object':
-						updateAccessLevel(arg.object.id, arg.accessLevel);
+						updateAccessLevel(arg.object.objectId, arg.accessLevel);
 						break;
 				}
 			}

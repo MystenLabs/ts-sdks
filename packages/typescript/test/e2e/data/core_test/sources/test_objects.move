@@ -3,11 +3,24 @@
 
 module core_test::test_objects {
     use sui::dynamic_field;
+    use sui::event;
 
     /// Simple owned object for testing
     public struct SimpleObject has key, store {
         id: UID,
         value: u64,
+    }
+
+    /// Event emitted when an object is created
+    public struct ObjectCreated has copy, drop {
+        object_id: ID,
+        value: u64,
+    }
+
+    /// Event emitted when a value changes
+    public struct ValueChanged has copy, drop {
+        old_value: u64,
+        new_value: u64,
     }
 
     /// Object with dynamic fields for testing dynamic field queries
@@ -24,10 +37,33 @@ module core_test::test_objects {
 
     /// Create a simple owned object and return it
     public fun create_simple_object(value: u64, ctx: &mut TxContext): SimpleObject {
+        let id = object::new(ctx);
+        let object_id = object::uid_to_inner(&id);
+
+        event::emit(ObjectCreated {
+            object_id,
+            value,
+        });
+
         SimpleObject {
-            id: object::new(ctx),
+            id,
             value,
         }
+    }
+
+    /// Create a simple object with event emission (entry function)
+    entry fun create_object_with_event(value: u64, ctx: &mut TxContext) {
+        let obj = create_simple_object(value, ctx);
+        transfer::transfer(obj, ctx.sender());
+    }
+
+    /// Update the value of a simple object and emit event
+    public fun update_value(obj: &mut SimpleObject, new_value: u64) {
+        event::emit(ValueChanged {
+            old_value: obj.value,
+            new_value,
+        });
+        obj.value = new_value;
     }
 
     /// Create object with dynamic fields

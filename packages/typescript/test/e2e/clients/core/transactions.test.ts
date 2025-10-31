@@ -11,12 +11,16 @@ describe('Core API - Transactions', () => {
 	let toolbox: TestToolbox;
 	let testAddress: string;
 	let executedTxDigest: string;
+	let packageId: string;
 
 	const testWithAllClients = createTestWithAllClients(() => toolbox);
 
 	beforeAll(async () => {
 		toolbox = await setup();
 		testAddress = toolbox.address();
+
+		// Publish the test package to get event-emitting functions
+		packageId = await toolbox.getPackage('core_test');
 
 		// Execute a simple transaction to use in getTransaction tests
 		const tx = new Transaction();
@@ -177,7 +181,7 @@ describe('Core API - Transactions', () => {
 		});
 	});
 
-	describe('dryRunTransaction', () => {
+	describe('simulateTransaction', () => {
 		testWithAllClients('should dry run a valid transaction', async (client) => {
 			const tx = new Transaction();
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
@@ -185,7 +189,7 @@ describe('Core API - Transactions', () => {
 			tx.setSender(testAddress);
 			const bytes = await tx.build({ client: toolbox.client });
 
-			const result = await client.core.dryRunTransaction({
+			const result = await client.core.simulateTransaction({
 				transaction: bytes,
 			});
 
@@ -205,7 +209,7 @@ describe('Core API - Transactions', () => {
 			tx.setSender(testAddress);
 			const bytes = await tx.build({ client: toolbox.client });
 
-			const result = await client.core.dryRunTransaction({
+			const result = await client.core.simulateTransaction({
 				transaction: bytes,
 			});
 
@@ -218,8 +222,8 @@ describe('Core API - Transactions', () => {
 		testWithAllClients('should detect transaction failure in dry run', async (client) => {
 			// Create a transaction that will fail (try to transfer more than we have)
 			const tx = new Transaction();
-			const coins = await client.core.getCoins({
-				address: testAddress,
+			const coins = await client.core.listCoins({
+				owner: testAddress,
 				coinType: SUI_TYPE_ARG,
 			});
 
@@ -228,7 +232,7 @@ describe('Core API - Transactions', () => {
 				const tooMuchAmount = BigInt(firstCoin.balance) * BigInt(2);
 
 				tx.transferObjects(
-					[tx.splitCoins(tx.object(firstCoin.id), [tooMuchAmount])],
+					[tx.splitCoins(tx.object(firstCoin.objectId), [tooMuchAmount])],
 					tx.pure.address(testAddress),
 				);
 
@@ -242,7 +246,7 @@ describe('Core API - Transactions', () => {
 		testWithAllClients('should not actually execute transaction', async (client) => {
 			// Get balance before
 			const balanceBefore = await client.core.getBalance({
-				address: testAddress,
+				owner: testAddress,
 				coinType: SUI_TYPE_ARG,
 			});
 
@@ -255,13 +259,13 @@ describe('Core API - Transactions', () => {
 			tx.setSender(testAddress);
 			const bytes = await tx.build({ client: toolbox.client });
 
-			await client.core.dryRunTransaction({
+			await client.core.simulateTransaction({
 				transaction: bytes,
 			});
 
 			// Balance should be unchanged after dry run
 			const balanceAfter = await client.core.getBalance({
-				address: testAddress,
+				owner: testAddress,
 				coinType: SUI_TYPE_ARG,
 			});
 
@@ -359,6 +363,119 @@ describe('Core API - Transactions', () => {
 					signal: controller.signal,
 				}),
 			).rejects.toThrow();
+		});
+	});
+
+	describe('events', () => {
+		testWithAllClients('should return events for transaction that emits events', async (client) => {
+			// Call a function that emits events
+			const tx = new Transaction();
+			tx.moveCall({
+				target: `${packageId}::test_objects::create_object_with_event`,
+				arguments: [tx.pure.u64(42)],
+			});
+
+			tx.setSender(testAddress);
+			const bytes = await tx.build({ client: toolbox.client });
+			const signature = await toolbox.keypair.signTransaction(bytes);
+
+			const result = await client.core.executeTransaction({
+				transaction: bytes,
+				signatures: [signature.signature],
+			});
+
+			// Verify events field exists
+			expect(result.transaction.events).toBeDefined();
+			expect(Array.isArray(result.transaction.events)).toBe(true);
+			expect(result.transaction.events.length).toBeGreaterThan(0);
+
+			// Verify event structure
+			const event = result.transaction.events[0];
+			expect(event.packageId).toBe(packageId);
+			expect(event.module).toBe('test_objects');
+			expect(event.sender).toBe(testAddress);
+			expect(event.eventType).toContain('ObjectCreated');
+			expect(event.bcs).toBeInstanceOf(Uint8Array);
+
+			// Wait for transaction to be indexed
+			await client.core.waitForTransaction({ digest: result.transaction.digest });
+		});
+
+		testWithAllClients(
+			'should return empty events array for transactions without events',
+			async (client) => {
+				// Simple transfer without events
+				const tx = new Transaction();
+				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+
+				tx.setSender(testAddress);
+				const bytes = await tx.build({ client: toolbox.client });
+				const signature = await toolbox.keypair.signTransaction(bytes);
+
+				const result = await client.core.executeTransaction({
+					transaction: bytes,
+					signatures: [signature.signature],
+				});
+
+				expect(result.transaction.events).toBeDefined();
+				expect(Array.isArray(result.transaction.events)).toBe(true);
+				expect(result.transaction.events.length).toBe(0);
+
+				// Wait for transaction to be indexed
+				await client.core.waitForTransaction({ digest: result.transaction.digest });
+			},
+		);
+
+		testWithAllClients('should include events in getTransaction response', async (client) => {
+			// Execute a transaction with events
+			const tx = new Transaction();
+			tx.moveCall({
+				target: `${packageId}::test_objects::create_object_with_event`,
+				arguments: [tx.pure.u64(123)],
+			});
+
+			tx.setSender(testAddress);
+			const bytes = await tx.build({ client: toolbox.client });
+			const signature = await toolbox.keypair.signTransaction(bytes);
+
+			const executeResult = await client.core.executeTransaction({
+				transaction: bytes,
+				signatures: [signature.signature],
+			});
+
+			// Wait for it to be indexed
+			await client.core.waitForTransaction({ digest: executeResult.transaction.digest });
+
+			// Get the transaction and verify events are included
+			const getResult = await client.core.getTransaction({
+				digest: executeResult.transaction.digest,
+			});
+
+			expect(getResult.transaction.events).toBeDefined();
+			expect(Array.isArray(getResult.transaction.events)).toBe(true);
+			expect(getResult.transaction.events.length).toBeGreaterThan(0);
+			expect(getResult.transaction.events[0].eventType).toContain('ObjectCreated');
+		});
+
+		testWithAllClients('should include events in simulateTransaction response', async (client) => {
+			const tx = new Transaction();
+			tx.moveCall({
+				target: `${packageId}::test_objects::create_object_with_event`,
+				arguments: [tx.pure.u64(999)],
+			});
+
+			tx.setSender(testAddress);
+			const bytes = await tx.build({ client: toolbox.client });
+
+			const result = await client.core.simulateTransaction({
+				transaction: bytes,
+			});
+
+			expect(result.transaction.events).toBeDefined();
+			expect(Array.isArray(result.transaction.events)).toBe(true);
+			expect(result.transaction.events.length).toBeGreaterThan(0);
+			expect(result.transaction.events[0].packageId).toBe(packageId);
+			expect(result.transaction.events[0].eventType).toContain('ObjectCreated');
 		});
 	});
 });

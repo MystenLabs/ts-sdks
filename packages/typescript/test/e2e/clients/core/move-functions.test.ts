@@ -3,6 +3,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 import { setup, TestToolbox, createTestWithAllClients } from '../../utils/setup.js';
+import { normalizeSuiAddress } from '../../../../src/utils/index.js';
 
 describe('Core API - Move Functions', () => {
 	let toolbox: TestToolbox;
@@ -27,6 +28,16 @@ describe('Core API - Move Functions', () => {
 			);
 		});
 
+		it('all clients return same data: getMoveFunction for 0x2 (address normalization test)', async () => {
+			await toolbox.expectAllClientsReturnSameData((client) =>
+				client.core.getMoveFunction({
+					packageId: '0x2',
+					moduleName: 'coin',
+					name: 'value',
+				}),
+			);
+		});
+
 		testWithAllClients('should get Move function details', async (client) => {
 			const result = await client.core.getMoveFunction({
 				packageId: testPackageId,
@@ -37,7 +48,7 @@ describe('Core API - Move Functions', () => {
 			expect(result.function).toBeDefined();
 			expect(result.function.name).toBe('ascii_arg');
 			expect(result.function.moduleName).toBe('entry_point_types');
-			expect(result.function.packageId).toBe(testPackageId);
+			expect(result.function.packageId).toBe(normalizeSuiAddress(testPackageId));
 			expect(result.function.visibility).toBe('public');
 			expect(result.function.isEntry).toBe(false);
 			expect(result.function.typeParameters).toEqual([]);

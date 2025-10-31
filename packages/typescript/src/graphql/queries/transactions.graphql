@@ -97,5 +97,27 @@ fragment TRANSACTION_FIELDS on Transaction {
 				amount
 			}
 		}
+		events(first: 50) {
+			pageInfo {
+				hasNextPage
+			}
+			nodes {
+				transactionModule {
+					package {
+						address
+					}
+					name
+				}
+				sender {
+					address
+				}
+				contents {
+					type {
+						repr
+					}
+					bcs
+				}
+			}
+		}
 	}
 }
