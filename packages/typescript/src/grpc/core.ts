@@ -7,7 +7,7 @@ import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2/owner.js';
 import { Owner_OwnerKind } from './proto/sui/rpc/v2/owner.js';
 import { DynamicField_DynamicFieldKind } from './proto/sui/rpc/v2/state_service.js';
-import { chunk, fromBase64, toBase58, toBase64 } from '@mysten/utils';
+import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import type { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import type { TransactionEffects } from './proto/sui/rpc/v2/effects.js';
 import { UnchangedConsensusObject_UnchangedConsensusObjectKind } from './proto/sui/rpc/v2/effects.js';
@@ -20,7 +20,6 @@ import type { BuildTransactionOptions } from '../transactions/index.js';
 import { TransactionDataBuilder } from '../transactions/index.js';
 import { bcs } from '../bcs/index.js';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
-import { hashTypedData } from '../transactions/hash.js';
 import type { OpenSignature, OpenSignatureBody } from './proto/sui/rpc/v2/move_package.js';
 import {
 	Ability,
@@ -42,11 +41,11 @@ export class GrpcCoreClient extends CoreClient {
 		this.#client = client;
 	}
 
-	async getObjects(
-		options: SuiClientTypes.GetObjectsOptions,
-	): Promise<SuiClientTypes.GetObjectsResponse> {
+	async listObjects(
+		options: SuiClientTypes.ListObjectsOptions,
+	): Promise<SuiClientTypes.ListObjectsResponse> {
 		const batches = chunk(options.objectIds, 50);
-		const results: SuiClientTypes.GetObjectsResponse['objects'] = [];
+		const results: SuiClientTypes.ListObjectsResponse['objects'] = [];
 
 		for (const batch of batches) {
 			const response = await this.#client.ledgerService.batchGetObjects({
@@ -85,7 +84,7 @@ export class GrpcCoreClient extends CoreClient {
 							: (objectType ?? '');
 
 					return {
-						id: object.result.object.objectId!,
+						objectId: object.result.object.objectId!,
 						version: object.result.object.version?.toString()!,
 						digest: object.result.object.digest!,
 						content: Promise.resolve(bcsContent!),
@@ -101,11 +100,11 @@ export class GrpcCoreClient extends CoreClient {
 			objects: results,
 		};
 	}
-	async getOwnedObjects(
-		options: SuiClientTypes.GetOwnedObjectsOptions,
-	): Promise<SuiClientTypes.GetOwnedObjectsResponse> {
+	async listOwnedObjects(
+		options: SuiClientTypes.ListOwnedObjectsOptions,
+	): Promise<SuiClientTypes.ListOwnedObjectsResponse> {
 		const response = await this.#client.stateService.listOwnedObjects({
-			owner: options.address,
+			owner: options.owner,
 			objectType: options.type
 				? (await this.mvr.resolveType({ type: options.type })).type
 				: undefined,
@@ -126,7 +125,7 @@ export class GrpcCoreClient extends CoreClient {
 
 		const objects = response.response.objects.map(
 			(object): SuiClientTypes.ObjectResponse => ({
-				id: object.objectId!,
+				objectId: object.objectId!,
 				version: object.version?.toString()!,
 				digest: object.digest!,
 				// TODO: List owned objects doesn't return content right now
@@ -149,11 +148,11 @@ export class GrpcCoreClient extends CoreClient {
 			hasNextPage: response.response.nextPageToken !== undefined,
 		};
 	}
-	async getCoins(
-		options: SuiClientTypes.GetCoinsOptions,
-	): Promise<SuiClientTypes.GetCoinsResponse> {
+	async listCoins(
+		options: SuiClientTypes.ListCoinsOptions,
+	): Promise<SuiClientTypes.ListCoinsResponse> {
 		const response = await this.#client.stateService.listOwnedObjects({
-			owner: options.address,
+			owner: options.owner,
 			objectType: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: options.coinType })).type}>`,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
 			readMask: {
@@ -173,7 +172,7 @@ export class GrpcCoreClient extends CoreClient {
 		return {
 			objects: response.response.objects.map(
 				(object): SuiClientTypes.CoinResponse => ({
-					id: object.objectId!,
+					objectId: object.objectId!,
 					version: object.version?.toString()!,
 					digest: object.digest!,
 					// TODO: List owned objects doesn't return content right now
@@ -199,7 +198,7 @@ export class GrpcCoreClient extends CoreClient {
 		options: SuiClientTypes.GetBalanceOptions,
 	): Promise<SuiClientTypes.GetBalanceResponse> {
 		const result = await this.#client.stateService.getBalance({
-			owner: options.address,
+			owner: options.owner,
 			coinType: (await this.mvr.resolveType({ type: options.coinType })).type,
 		});
 
@@ -211,11 +210,11 @@ export class GrpcCoreClient extends CoreClient {
 		};
 	}
 
-	async getAllBalances(
-		options: SuiClientTypes.GetAllBalancesOptions,
-	): Promise<SuiClientTypes.GetAllBalancesResponse> {
+	async listBalances(
+		options: SuiClientTypes.ListBalancesOptions,
+	): Promise<SuiClientTypes.ListBalancesResponse> {
 		const result = await this.#client.stateService.listBalances({
-			owner: options.address,
+			owner: options.owner,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
 			pageSize: options.limit,
 		});
@@ -243,6 +242,7 @@ export class GrpcCoreClient extends CoreClient {
 					'signatures',
 					'balance_changes',
 					'objects',
+					'events',
 				],
 			},
 		});
@@ -277,6 +277,7 @@ export class GrpcCoreClient extends CoreClient {
 					'signatures',
 					'balance_changes',
 					'objects',
+					'events',
 				],
 			},
 		});
@@ -284,9 +285,9 @@ export class GrpcCoreClient extends CoreClient {
 			transaction: parseTransaction(response.transaction!),
 		};
 	}
-	async dryRunTransaction(
-		options: SuiClientTypes.DryRunTransactionOptions,
-	): Promise<SuiClientTypes.DryRunTransactionResponse> {
+	async simulateTransaction(
+		options: SuiClientTypes.SimulateTransactionOptions,
+	): Promise<SuiClientTypes.SimulateTransactionResponse> {
 		const { response } = await this.#client.transactionExecutionService.simulateTransaction({
 			transaction: {
 				bcs: {
@@ -302,6 +303,7 @@ export class GrpcCoreClient extends CoreClient {
 					'transaction.signatures',
 					'transaction.balance_changes',
 					'transaction.objects',
+					'transaction.events',
 				],
 			},
 		});
@@ -318,9 +320,9 @@ export class GrpcCoreClient extends CoreClient {
 		};
 	}
 
-	async getDynamicFields(
-		options: SuiClientTypes.GetDynamicFieldsOptions,
-	): Promise<SuiClientTypes.GetDynamicFieldsResponse> {
+	async listDynamicFields(
+		options: SuiClientTypes.ListDynamicFieldsOptions,
+	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
 		const response = await this.#client.stateService.listDynamicFields({
 			parent: options.parentId,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
@@ -337,7 +339,7 @@ export class GrpcCoreClient extends CoreClient {
 					? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${field.name?.name!}>,0x2::object::ID>`
 					: `0x2::dynamic_field::Field<${field.name?.name!},${field.valueType!}>`;
 				return {
-					id: field.fieldId!,
+					fieldId: field.fieldId!,
 					name: {
 						type: field.name?.name!,
 						bcs: field.name?.value!,
@@ -376,7 +378,7 @@ export class GrpcCoreClient extends CoreClient {
 					oneofKind: undefined,
 				},
 			},
-			address: options.author,
+			address: options.address,
 			jwks: [],
 		});
 
@@ -628,7 +630,7 @@ export function parseTransactionEffects({
 
 	const changedObjects = effects.changedObjects.map((change): SuiClientTypes.ChangedObject => {
 		return {
-			id: change.objectId!,
+			objectId: change.objectId!,
 			inputState: mapInputObjectState(change.inputState)!,
 			inputVersion: change.inputVersion?.toString() ?? null,
 			inputDigest: change.inputDigest ?? null,
@@ -641,14 +643,9 @@ export function parseTransactionEffects({
 		};
 	});
 
-	// The effects digest should be computed from the effects BCS by hashing it
-	const effectsDigest = effects.bcs?.value
-		? toBase58(hashTypedData('TransactionEffects', effects.bcs.value))
-		: effects.digest!;
-
 	return {
 		bcs: effects.bcs?.value!,
-		digest: effectsDigest,
+
 		version: 2,
 		status: effects.status?.success
 			? {
@@ -668,7 +665,7 @@ export function parseTransactionEffects({
 		},
 		transactionDigest: effects.transactionDigest!,
 		gasObject: {
-			id: effects.gasObject?.objectId!,
+			objectId: effects.gasObject?.objectId!,
 			inputState: mapInputObjectState(effects.gasObject?.inputState)!,
 			inputVersion: effects.gasObject?.inputVersion?.toString() ?? null,
 			inputDigest: effects.gasObject?.inputDigest ?? null,
@@ -752,6 +749,14 @@ function parseTransaction(transaction: ExecutedTransaction): SuiClientTypes.Tran
 				coinType: change.coinType!,
 				address: change.address!,
 				amount: change.amount!,
+			})) ?? [],
+		events:
+			transaction.events?.events.map((event) => ({
+				packageId: normalizeSuiAddress(event.packageId!),
+				module: event.module!,
+				sender: normalizeSuiAddress(event.sender!),
+				eventType: event.eventType!,
+				bcs: event.contents?.value ?? new Uint8Array(),
 			})) ?? [],
 	};
 }

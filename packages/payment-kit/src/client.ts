@@ -98,7 +98,7 @@ export class PaymentKitClient {
 		const decoded = PaymentRecord.parse(result.dynamicField.value.bcs);
 
 		return {
-			key: result.dynamicField.id,
+			key: result.dynamicField.fieldId,
 			paymentTransactionDigest: result.dynamicField.previousTransaction,
 			epochAtTimeOfRecord: decoded.epoch_at_time_of_record,
 		};

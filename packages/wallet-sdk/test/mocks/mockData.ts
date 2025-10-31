@@ -80,7 +80,7 @@ export function createMockCoin(params: {
 	}).toBytes();
 
 	return {
-		id: normalizedId,
+		objectId: normalizedId,
 		version: params.version || '100',
 		digest: params.digest || '11111111111111111111111111111111',
 		type: normalizeStructTag(`0x2::coin::Coin<${normalizedCoinType}>`),
@@ -117,7 +117,7 @@ export function createMockNFT(params: {
 	}).toBytes();
 
 	return {
-		id: normalizedId,
+		objectId: normalizedId,
 		version: params.version || '2',
 		digest: params.digest || 'E7YX7zmxdAVVzrGkcoss2ziUHKMa7qBChPbqg5nGQyYo',
 		type: normalizedNftType,
@@ -142,7 +142,7 @@ export function createMockObject(params: {
 	const content = params.content || bcs.Address.serialize(normalizedId).toBytes();
 
 	return {
-		id: normalizedId,
+		objectId: normalizedId,
 		version: params.version || '1',
 		digest: params.digest || '11111111111111111111111111111111',
 		type: normalizedObjectType,

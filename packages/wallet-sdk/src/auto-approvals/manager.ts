@@ -128,10 +128,10 @@ export class AutoApprovalManager {
 				continue;
 			}
 
-			const accessLevel = analysis.result.accessLevel[obj.id];
+			const accessLevel = analysis.result.accessLevel[obj.objectId];
 
 			if (!accessLevel) {
-				issues.push({ message: `Access level could not be determined for object ${obj.id}` });
+				issues.push({ message: `Access level could not be determined for object ${obj.objectId}` });
 			}
 
 			const ownedObjectsPermission = operation.permissions.ownedObjects?.find(
@@ -139,10 +139,10 @@ export class AutoApprovalManager {
 			);
 
 			if (!ownedObjectsPermission) {
-				issues.push({ message: `No permission found for object ${obj.id}` });
+				issues.push({ message: `No permission found for object ${obj.objectId}` });
 			} else if (!compareAccessLevel(ownedObjectsPermission.accessLevel, accessLevel)) {
 				issues.push({
-					message: `Insufficient access level for object ${obj.id}: required ${ownedObjectsPermission.accessLevel}, got ${accessLevel}`,
+					message: `Insufficient access level for object ${obj.objectId}: required ${ownedObjectsPermission.accessLevel}, got ${accessLevel}`,
 				});
 			}
 		}

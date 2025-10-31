@@ -118,7 +118,7 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 			    "object": {
 			      "content": Promise {},
 			      "digest": "11111111111111111111111111111111",
-			      "id": "0x0000000000000000000000000000000000000000000000000000000000a5c000",
+			      "objectId": "0x0000000000000000000000000000000000000000000000000000000000a5c000",
 			      "owner": {
 			        "$kind": "AddressOwner",
 			        "AddressOwner": "0x0000000000000000000000000000000000000000000000000000000000000123",
@@ -136,7 +136,7 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 			    "object": {
 			      "content": Promise {},
 			      "digest": "11111111111111111111111111111111",
-			      "id": "0x000000000000000000000000000000000000000000000000000000000000beef",
+			      "objectId": "0x000000000000000000000000000000000000000000000000000000000000beef",
 			      "owner": {
 			        "$kind": "Shared",
 			        "Shared": {
@@ -156,7 +156,7 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 			    "object": {
 			      "content": Promise {},
 			      "digest": "E7YX7zmxdAVVzrGkcoss2ziUHKMa7qBChPbqg5nGQyYo",
-			      "id": "0x000000000000000000000000000000000000000000000000000000000000dead",
+			      "objectId": "0x000000000000000000000000000000000000000000000000000000000000dead",
 			      "owner": {
 			        "$kind": "AddressOwner",
 			        "AddressOwner": "0xbabe",
@@ -206,19 +206,19 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 		// Object inputs
 		const ownedObjectInput = results.inputs.result?.[6];
 		if (ownedObjectInput?.$kind === 'Object') {
-			expect(ownedObjectInput.object.id).toBe(normalizeSuiAddress(TEST_COIN_1_ID));
+			expect(ownedObjectInput.object.objectId).toBe(normalizeSuiAddress(TEST_COIN_1_ID));
 			expect(ownedObjectInput.object.owner.$kind).toBe('AddressOwner');
 		}
 
 		const sharedObjectInput = results.inputs.result?.[7];
 		if (sharedObjectInput?.$kind === 'Object') {
-			expect(sharedObjectInput.object.id).toBe(normalizeSuiAddress(TEST_SHARED_OBJECT_ID));
+			expect(sharedObjectInput.object.objectId).toBe(normalizeSuiAddress(TEST_SHARED_OBJECT_ID));
 			expect(sharedObjectInput.object.owner.$kind).toBe('Shared');
 		}
 
 		const receivingObjectInput = results.inputs.result?.[8];
 		if (receivingObjectInput?.$kind === 'Object') {
-			expect(receivingObjectInput.object.id).toBe(normalizeSuiAddress(TEST_NFT_ID));
+			expect(receivingObjectInput.object.objectId).toBe(normalizeSuiAddress(TEST_NFT_ID));
 			expect(receivingObjectInput.object.type).toBe(
 				'0x0000000000000000000000000000000000000000000000000000000000000999::nft::NFT',
 			);

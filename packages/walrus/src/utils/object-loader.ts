@@ -14,7 +14,7 @@ export class SuiObjectDataLoader extends DataLoader<string, SuiClientTypes.Objec
 	#dynamicFieldCache = new Map<string, Map<string, SuiClientTypes.ObjectResponse>>();
 	constructor(suiClient: BaseClient) {
 		super(async (ids: readonly string[]) => {
-			const { objects } = await suiClient.core.getObjects({
+			const { objects } = await suiClient.core.listObjects({
 				objectIds: ids as string[],
 			});
 

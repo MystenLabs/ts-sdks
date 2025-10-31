@@ -21,7 +21,7 @@ export class MockSuiClient extends CoreClient {
 	#objects = new Map<string, SuiClientTypes.ObjectResponse>();
 	#moveFunctions = new Map<string, SuiClientTypes.FunctionResponse>();
 	#gasPrice = DEFAULT_GAS_PRICE;
-	#nextDryRunResult: SuiClientTypes.DryRunTransactionResponse | null = null;
+	#nextDryRunResult: SuiClientTypes.SimulateTransactionResponse | null = null;
 
 	constructor(network: SuiClientTypes.Network = 'testnet') {
 		super({
@@ -36,7 +36,7 @@ export class MockSuiClient extends CoreClient {
 	#initializeDefaults() {
 		// Add all default objects
 		for (const obj of DEFAULT_OBJECTS) {
-			this.#objects.set(obj.id, obj);
+			this.#objects.set(obj.objectId, obj);
 		}
 
 		// Add all default move functions
@@ -57,7 +57,7 @@ export class MockSuiClient extends CoreClient {
 		digest?: string;
 	}): void {
 		const coin = createMockCoin(params);
-		this.#objects.set(coin.id, coin);
+		this.#objects.set(coin.objectId, coin);
 	}
 
 	addNFT(params: {
@@ -68,7 +68,7 @@ export class MockSuiClient extends CoreClient {
 		digest?: string;
 	}): void {
 		const nft = createMockNFT(params);
-		this.#objects.set(nft.id, nft);
+		this.#objects.set(nft.objectId, nft);
 	}
 
 	addObject(params: {
@@ -80,7 +80,7 @@ export class MockSuiClient extends CoreClient {
 		content?: Uint8Array;
 	}): void {
 		const obj = createMockObject(params);
-		this.#objects.set(obj.id, obj);
+		this.#objects.set(obj.objectId, obj);
 	}
 
 	addMoveFunction(params: {
@@ -99,7 +99,7 @@ export class MockSuiClient extends CoreClient {
 		this.#moveFunctions.set(key, fn);
 	}
 
-	setNextDryRunResult(result: SuiClientTypes.DryRunTransactionResponse): void {
+	setNextDryRunResult(result: SuiClientTypes.SimulateTransactionResponse): void {
 		this.#nextDryRunResult = result;
 	}
 
@@ -124,9 +124,9 @@ export class MockSuiClient extends CoreClient {
 		}
 	}
 
-	async getObjects(
-		options: SuiClientTypes.GetObjectsOptions,
-	): Promise<SuiClientTypes.GetObjectsResponse> {
+	async listObjects(
+		options: SuiClientTypes.ListObjectsOptions,
+	): Promise<SuiClientTypes.ListObjectsResponse> {
 		const objects = options.objectIds.map((id): SuiClientTypes.ObjectResponse | Error => {
 			const normalizedId = normalizeSuiAddress(id);
 			const obj = this.#objects.get(normalizedId);
@@ -141,9 +141,9 @@ export class MockSuiClient extends CoreClient {
 		return { objects };
 	}
 
-	async getCoins(
-		options: SuiClientTypes.GetCoinsOptions,
-	): Promise<SuiClientTypes.GetCoinsResponse> {
+	async listCoins(
+		options: SuiClientTypes.ListCoinsOptions,
+	): Promise<SuiClientTypes.ListCoinsResponse> {
 		const coinObjects = Array.from(this.#objects.values()).filter((obj) => {
 			const parsedType = parseStructTag(obj.type);
 			const parsedCoinType = parseStructTag('0x2::coin::Coin');
@@ -156,7 +156,7 @@ export class MockSuiClient extends CoreClient {
 			if (!isCoin) return false;
 
 			// Filter by owner using helper function
-			const isOwnedByAddress = this.#isOwnedByAddress(obj, options.address);
+			const isOwnedByAddress = this.#isOwnedByAddress(obj, options.owner);
 			if (!isOwnedByAddress) return false;
 
 			// Filter by coin type
@@ -190,11 +190,11 @@ export class MockSuiClient extends CoreClient {
 		};
 	}
 
-	async getOwnedObjects(
-		options: SuiClientTypes.GetOwnedObjectsOptions,
-	): Promise<SuiClientTypes.GetOwnedObjectsResponse> {
+	async listOwnedObjects(
+		options: SuiClientTypes.ListOwnedObjectsOptions,
+	): Promise<SuiClientTypes.ListOwnedObjectsResponse> {
 		const ownedObjects = Array.from(this.#objects.values()).filter((obj) => {
-			return this.#isOwnedByAddress(obj, options.address);
+			return this.#isOwnedByAddress(obj, options.owner);
 		});
 
 		return {
@@ -207,8 +207,8 @@ export class MockSuiClient extends CoreClient {
 	async getBalance(
 		options: SuiClientTypes.GetBalanceOptions,
 	): Promise<SuiClientTypes.GetBalanceResponse> {
-		const coins = await this.getCoins({
-			address: options.address,
+		const coins = await this.listCoins({
+			owner: options.owner,
 			coinType: options.coinType,
 		});
 
@@ -224,9 +224,9 @@ export class MockSuiClient extends CoreClient {
 		};
 	}
 
-	async getAllBalances(
-		options: SuiClientTypes.GetAllBalancesOptions,
-	): Promise<SuiClientTypes.GetAllBalancesResponse> {
+	async listBalances(
+		options: SuiClientTypes.ListBalancesOptions,
+	): Promise<SuiClientTypes.ListBalancesResponse> {
 		const parsedCoinType = parseStructTag('0x2::coin::Coin');
 		const allObjects = Array.from(this.#objects.values()).filter((obj) => {
 			const parsedType = parseStructTag(obj.type);
@@ -235,7 +235,7 @@ export class MockSuiClient extends CoreClient {
 				parsedType.address === parsedCoinType.address &&
 				parsedType.module === parsedCoinType.module &&
 				parsedType.name === parsedCoinType.name;
-			const isOwnedByAddress = this.#isOwnedByAddress(obj, options.address);
+			const isOwnedByAddress = this.#isOwnedByAddress(obj, options.owner);
 			return isCoin && isOwnedByAddress;
 		});
 
@@ -288,9 +288,9 @@ export class MockSuiClient extends CoreClient {
 		throw new Error('defaultNameServiceName not implemented in MockSuiClient');
 	}
 
-	async dryRunTransaction(
-		_options: SuiClientTypes.DryRunTransactionOptions,
-	): Promise<SuiClientTypes.DryRunTransactionResponse> {
+	async simulateTransaction(
+		_options: SuiClientTypes.SimulateTransactionOptions,
+	): Promise<SuiClientTypes.SimulateTransactionResponse> {
 		if (this.#nextDryRunResult) {
 			const result = this.#nextDryRunResult;
 			this.#nextDryRunResult = null;
@@ -305,7 +305,6 @@ export class MockSuiClient extends CoreClient {
 				epoch: '1',
 				effects: {
 					bcs: new Uint8Array(),
-					digest: 'mockEffectsDigest',
 					version: 1,
 					transactionDigest: 'mockTransactionDigest',
 					status: { success: true, error: null },
@@ -316,7 +315,7 @@ export class MockSuiClient extends CoreClient {
 						nonRefundableStorageFee: '0',
 					},
 					gasObject: {
-						id: normalizeSuiAddress('0xa5c01'),
+						objectId: normalizeSuiAddress('0xa5c01'),
 						inputState: 'Exists',
 						inputVersion: '100',
 						inputDigest: '11111111111111111111111111111111',
@@ -345,6 +344,7 @@ export class MockSuiClient extends CoreClient {
 					bcs: new Uint8Array(),
 				} as SuiClientTypes.TransactionData,
 				balanceChanges: [],
+				events: [],
 			},
 		};
 	}
@@ -355,9 +355,9 @@ export class MockSuiClient extends CoreClient {
 		return { referenceGasPrice: this.#gasPrice };
 	}
 
-	async getDynamicFields(
-		_options: SuiClientTypes.GetDynamicFieldsOptions,
-	): Promise<SuiClientTypes.GetDynamicFieldsResponse> {
+	async listDynamicFields(
+		_options: SuiClientTypes.ListDynamicFieldsOptions,
+	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
 		return {
 			dynamicFields: [],
 			hasNextPage: false,
@@ -391,7 +391,7 @@ export class MockSuiClient extends CoreClient {
 				if (firstSuiCoin) {
 					transactionData.gasData.payment = [
 						{
-							objectId: firstSuiCoin.id,
+							objectId: firstSuiCoin.objectId,
 							version: firstSuiCoin.version,
 							digest: firstSuiCoin.digest,
 						},
@@ -436,7 +436,7 @@ export class MockSuiClient extends CoreClient {
 		] as string[];
 
 		// Fetch objects using our multiGetObjects
-		const resolved = await this.getObjects({ objectIds: dedupedIds });
+		const resolved = await this.listObjects({ objectIds: dedupedIds });
 
 		const objectsById = new Map(dedupedIds.map((id, index) => [id, resolved.objects[index]]));
 

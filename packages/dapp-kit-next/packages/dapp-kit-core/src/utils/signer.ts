@@ -89,6 +89,8 @@ export class CurrentAccountSigner extends Signer {
 				},
 			},
 			transaction: parseTransactionBcs(fromBase64(bytes)),
+			// TODO: fix this
+			events: [],
 		};
 	}
 }

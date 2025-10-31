@@ -248,7 +248,7 @@ async function graphqlVerifyZkLoginSignature({
 		bytes,
 		signature,
 		intentScope,
-		author: address,
+		address: address,
 	});
 
 	return resp.success === true && resp.errors.length === 0;
