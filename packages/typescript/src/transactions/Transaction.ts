@@ -282,14 +282,14 @@ export class Transaction {
 	setExpiration(expiration?: InferInput<typeof TransactionExpiration> | null) {
 		this.#data.expiration = expiration ? parse(TransactionExpiration, expiration) : null;
 	}
-	setGasPrice(price: number | bigint) {
+	setGasPrice(price: number | bigint | string) {
 		this.#data.gasData.price = String(price);
 	}
-	setGasBudget(budget: number | bigint) {
+	setGasBudget(budget: number | bigint | string) {
 		this.#data.gasData.budget = String(budget);
 	}
 
-	setGasBudgetIfNotSet(budget: number | bigint) {
+	setGasBudgetIfNotSet(budget: number | bigint | string) {
 		if (this.#data.gasData.budget == null) {
 			this.#data.gasData.budget = String(budget);
 		}

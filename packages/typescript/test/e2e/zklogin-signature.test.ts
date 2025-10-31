@@ -10,6 +10,7 @@ import {
 	ZkLoginPublicIdentifier,
 } from '../../src/zklogin/publickey';
 import { getZkLoginSignature, parseZkLoginSignature } from '../../src/zklogin/signature';
+import { execSuiTools, setup } from './utils/setup';
 
 const DEFAULT_GRAPHQL_URL = import.meta.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125/graphql';
 
@@ -74,11 +75,31 @@ describe('zkLogin signature', () => {
 			retry: 10,
 		},
 		async () => {
-			// this test assumes the localnet epoch is smaller than 3. it will fail if localnet has ran for too long and passed epoch 3.
-			// test case generated from `sui keytool zk-login-insecure-sign-personal-message --data "hello" --max-epoch 3`
+			const toolbox = await setup();
+			const epoch = await toolbox.client.getLatestSuiSystemState();
+			const currentEpoch = Number(epoch.epoch);
+			const maxEpoch = currentEpoch + 10;
+
+			// Generate PersonalMessage signature dynamically
 			const bytes = 'aGVsbG8='; // the base64 encoding of "hello"
-			const testSignature =
-				'BQNMODIxMjAxNjM1OTAxNDk1MDg0Mjg0MTUyNTc3NTE1NjQ4NzI2MjEzOTk0OTQ3ODkwNjkwMTc5ODI5NjEwMTkyNTI3MTY5MTU2NTE4ME0xNjE1NTM3MDU2ODcyNzI3OTgxODg5MzYwMzc1NDQwNzYxNzM3NzcxNTgwOTA2NTUwMTYyODczNjg4MjcyNTU3NTIzMjgzNDkyMzcyNgExAwJNMTE2MTk3MTE1NjYyNDg1NTk1NzUyNzE0MDEzMTI1NzE2OTg5NTkxMDA2MjM3NjM4NzY0NjM1OTEzNDY1NTY2OTM1NzI5NzQxOTE1MDlMNTIyOTU4MjE1NDQ1MzkxMDM4MzYwMzYzNjEzNTY0NDU5MTc1NTk3NDI1OTQyMDg4NjUxMzYwMTQ2Mjc0OTk5Mzg2NTA2MTkyODU2NAJNMTA5MDE5ODc3NzAyNTI5NzkzOTM2NDM4NDU1MjM1MzQ2NTQ4MjY3MTkyODUzMzA2NzQwNTk3Nzg0Nzg3NzYwODQ2Mjc4NjQyNzg0NzJMMjg0MjQxNTQ4Mjg0NjQyNzg5NzAwNjM2OTIyMDk0NDUyNjUzMzgwNzc3ODIxMzQyOTA5NTQ2NDc1ODc0MTE5NTkxMTU5NjE0MzY4MwIBMQEwA00xODg1NDIyNzM3ODk4ODA1MDA3NTM2NTExNjAxNzEzNTYxOTQ1MzA3NDcyOTcwNzE5OTgyOTA5OTA2OTUwMDk3NzgzNTcwNjY1OTU4OEw0ODU5NzY1MTQ5OTgxMDYyMTIxOTc0Njg3NTYxNzc4NDA2ODU0NzAxNjEyNzk4NTU2NTE3NzQ4OTU1NDA5NzgxMjkxNTA1MDYzNjQxATEod2lhWE56SWpvaWFIUjBjSE02THk5dllYVjBhQzV6ZFdrdWFXOGlMQwI+ZXlKcmFXUWlPaUp6ZFdrdGEyVjVMV2xrSWl3aWRIbHdJam9pU2xkVUlpd2lZV3huSWpvaVVsTXlOVFlpZlFNMjA0MzUzNjY2MDAwMzYzNzU3NDU5MjU5NjM0NTY4NjEzMDc5MjUyMDk0NzAyMTkzMzQwMTg1NjQxNTgxNDg1NDQwMzYxOTYyODQ2NDIDAAAAAAAAAGEA+XrHUDMkMaPswTIFsqIgx3yX6j7IvU1T/1yzw4kjKwjgLL0ZtPQZjc2djX7Q9pFoBdObkSZ6JZ4epiOf05q4BrnG7hYw7z5xEUSmSNsGu7IoT3J0z77lP/zuUDzBpJIA';
+			const pmResult = await execSuiTools([
+				'sui',
+				'keytool',
+				'zk-login-insecure-sign-personal-message',
+				'--data',
+				'hello',
+				'--max-epoch',
+				maxEpoch.toString(),
+			]);
+
+			const pmOutput = pmResult.stdout;
+			const pmSigMatch = pmOutput.match(/│\s*sig\s*│\s*(.+?)\s*│/);
+
+			if (!pmSigMatch) {
+				throw new Error('Failed to generate zkLogin signature: could not parse output');
+			}
+
+			const testSignature = pmSigMatch[1].trim();
 			const parsed = parseSerializedZkLoginSignature(testSignature);
 			const client = new SuiGraphQLClient({
 				url: DEFAULT_GRAPHQL_URL,
@@ -88,14 +109,29 @@ describe('zkLogin signature', () => {
 				client,
 			});
 
-			// verifies ok bc max_epoch 3 is within upper bound.
+			// verifies ok bc max_epoch is within upper bound.
 			const res = await pk.verifyPersonalMessage(fromBase64(bytes), parsed.signature);
 			expect(res).toBe(true);
 
-			// test case generated from `sui keytool zk-login-insecure-sign-personal-message --data "hello" --max-epoch 100`
-			// fails to verify bc max_epoch too large.
-			const testSignature2 =
-				'BQNNMTU3MTEzMjIxMjQyNzE4OTQyODkwNzkwMzcyMTAyNzkxNDU1MzAxMTc4NzgxMDIyOTYzNzQ2Njk5MTE0NzU5MDY3ODYyNDYyNzQ2MTBNMTY2MDg4MjI5MjU0NDI1OTQyMjkxMjY4MDIzMzUyNDE3NDU3NTcwMDc0NjUxMjQ0MTI1OTczMTE2MDM5NzYwMTk2ODk0MzE5ODY5MDYBMQMCTTEzNDQ1MjU4Mzc0Mjk4MTE1MjAzMjEwODM4NzU1Nzk0MDExMTg1NDU0OTgzODgxMTg5OTYwNTQzODc5NjMzMDE5OTQxODEyMDk2MjYzTDE3Njk4NDE1NzUzNDg4NDgzOTEzMjMxMTA3NDMyNDkzMTkyOTAxMTEwNjY0NzE2OTkxMzQwNzY0NjExMzg2OTk5NDg1NDAyODA3MzgCTTE0ODU5NDk0ODMxNjI4MzQyMDEzMTM0NDA4NzAxMTIwNDUxMDI4MDkyMTg4MDAxMTMwOTkxNjkxMjAyNzMyMzA2NzcxODI4NTYxNzU0TTIwMzM1NDE4NjE3NzgyMzU5MTQ2NTg0NzcwNzM0MDcyMzI3NzYwMjAyNDYwMDE2NDY0NjAwNjQzMDA2Nzg5NzAyODg0MzQ1NTkzNjg5AgExATADTTE4Nzk4Mjk5MDAzOTAyMDI3MDcxNTg1ODY5MjY3MzYyOTc5ODUwOTExNzA3Nzk2MzU0NDQyMTY2NzEzOTcyNjQ2NzE2OTQ1OTgyMjM4TTEyMDExNjg0MjA0MDI0NTMxNzY2ODUxMTU0OTAyMzI5Njk4MDIwODQ3NTQ1NDU5NDk2MjA2MDI2NDg5MTE5MzUzODI4NTI2NTE5MzAwATEod2lhWE56SWpvaWFIUjBjSE02THk5dllYVjBhQzV6ZFdrdWFXOGlMQwI+ZXlKcmFXUWlPaUp6ZFdrdGEyVjVMV2xrSWl3aWRIbHdJam9pU2xkVUlpd2lZV3huSWpvaVVsTXlOVFlpZlFNMjA0MzUzNjY2MDAwMzYzNzU3NDU5MjU5NjM0NTY4NjEzMDc5MjUyMDk0NzAyMTkzMzQwMTg1NjQxNTgxNDg1NDQwMzYxOTYyODQ2NDJkAAAAAAAAAGEA+XrHUDMkMaPswTIFsqIgx3yX6j7IvU1T/1yzw4kjKwjgLL0ZtPQZjc2djX7Q9pFoBdObkSZ6JZ4epiOf05q4BrnG7hYw7z5xEUSmSNsGu7IoT3J0z77lP/zuUDzBpJIA';
+			// Generate signature with max_epoch too large (should fail)
+			const largePmResult = await execSuiTools([
+				'sui',
+				'keytool',
+				'zk-login-insecure-sign-personal-message',
+				'--data',
+				'hello',
+				'--max-epoch',
+				(currentEpoch + 100).toString(),
+			]);
+
+			const largePmOutput = largePmResult.stdout;
+			const largePmSigMatch = largePmOutput.match(/│\s*sig\s*│\s*(.+?)\s*│/);
+
+			if (!largePmSigMatch) {
+				throw new Error('Failed to generate zkLogin signature: could not parse output');
+			}
+
+			const testSignature2 = largePmSigMatch[1].trim();
 			const parsed2 = parseSerializedZkLoginSignature(testSignature2);
 			const res1 = await pk.verifyPersonalMessage(fromBase64(bytes), parsed2.signature);
 			expect(res1).toBe(false);
@@ -109,7 +145,17 @@ describe('zkLogin signature', () => {
 			retry: 10,
 		},
 		async () => {
-			// this test assumes the localnet epoch is smaller than 3. it will fail if localnet has ran for too long and passed epoch 3.
+			// Note: This test uses hardcoded transaction bytes and zklogin signatures
+			// The transaction bytes are for a specific transaction structure that was signed
+			// Generating dynamic transaction signatures would require building and signing actual transactions
+			// which is more complex than personal message signing
+
+			// For now, we keep the hardcoded signatures but acknowledge this test may fail
+			// if the localnet has run too long. A full implementation would require:
+			// 1. Building a transaction with the toolbox
+			// 2. Using execSuiTools to sign it with zklogin
+			// 3. Parsing and verifying the signature
+
 			const bytes =
 				'AAACACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAxawU0NcBzUEjfOeFhCMcbEO0UZDc8fySmLcBavf7cF8AAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAQEBAAEAAMDw0OKiyouNDkBV7EghDsd9BV2zU0As2gHXCFumHT1cAc/OLfzdVoEphi8yCEaHgSSrh8nwhU6goYIZ39PLEoYkAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADA8NDiosqLjQ5AVexIIQ7HfQVds1NALNoB1whbph09XAEAAAAAAAAAAQAAAAAAAAAA';
 			const testSignature =
@@ -122,7 +168,7 @@ describe('zkLogin signature', () => {
 				}),
 			});
 
-			// verifies ok bc max_epoch 5 is within upper bound.
+			// verifies ok bc max_epoch 5 is within upper bound (assuming localnet epoch is low).
 			const res = await pk.verifyTransaction(fromBase64(bytes), parsed.signature);
 			expect(res).toBe(true);
 

@@ -297,15 +297,17 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 	async getMoveFunction(
 		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse> {
+		const resolvedPackageId = (await this.mvr.resolvePackage({ package: options.packageId }))
+			.package;
 		const result = await this.#jsonRpcClient.getNormalizedMoveFunction({
-			package: (await this.mvr.resolvePackage({ package: options.packageId })).package,
+			package: resolvedPackageId,
 			module: options.moduleName,
 			function: options.name,
 		});
 
 		return {
 			function: {
-				packageId: normalizeSuiAddress(options.packageId),
+				packageId: normalizeSuiAddress(resolvedPackageId),
 				moduleName: options.moduleName,
 				name: options.name,
 				visibility: parseVisibility(result.visibility),

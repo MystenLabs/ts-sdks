@@ -22,7 +22,7 @@ import {
 import type { BuildTransactionOptions } from '../transactions/index.js';
 import { TransactionDataBuilder } from '../transactions/index.js';
 import { bcs } from '../bcs/index.js';
-import { normalizeStructTag } from '../utils/sui-types.js';
+import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import { hashTypedData } from '../transactions/hash.js';
 import type { OpenSignature, OpenSignatureBody } from './proto/sui/rpc/v2/move_package.js';
 import {
@@ -31,6 +31,10 @@ import {
 	OpenSignature_Reference,
 	OpenSignatureBody_Type,
 } from './proto/sui/rpc/v2/move_package.js';
+import {
+	applyGrpcResolvedTransaction,
+	transactionDataToGrpcTransaction,
+} from '../client/transaction-resolver.js';
 export interface GrpcCoreClientOptions extends Experimental_CoreClientOptions {
 	client: SuiGrpcClient;
 }
@@ -406,8 +410,10 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	async getMoveFunction(
 		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse> {
+		const resolvedPackageId = (await this.mvr.resolvePackage({ package: options.packageId }))
+			.package;
 		const { response } = await this.#client.movePackageService.getFunction({
-			packageId: (await this.mvr.resolvePackage({ package: options.packageId })).package,
+			packageId: resolvedPackageId,
 			moduleName: options.moduleName,
 			name: options.name,
 		});
@@ -428,7 +434,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 
 		return {
 			function: {
-				packageId: options.packageId,
+				packageId: normalizeSuiAddress(resolvedPackageId),
 				moduleName: options.moduleName,
 				name: response.function?.name!,
 				visibility,
@@ -460,21 +466,29 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	}
 
 	resolveTransactionPlugin() {
-		// const client = this.#client;
+		const client = this.#client;
 		return async function resolveTransactionData(
-			_transactionData: TransactionDataBuilder,
-			_options: BuildTransactionOptions,
-			_next: () => Promise<void>,
+			transactionData: TransactionDataBuilder,
+			options: BuildTransactionOptions,
+			next: () => Promise<void>,
 		) {
-			throw new Error('Transaction resolution is not supported with the GRPC client');
+			const grpcTransaction = transactionDataToGrpcTransaction(transactionData.snapshot());
 
-			// const result = await client.liveDataService.simulateTransaction({
-			// 	transaction: transactionFromData(transactionData)
-			// })
-			// const resolvedData = dataFromSimulate(result)
-			// transactionData.applyResolvedData(resolvedData);
+			const { response } = await client.transactionExecutionService.simulateTransaction({
+				transaction: grpcTransaction,
+				doGasSelection: !options.onlyTransactionKind,
+				readMask: {
+					paths: ['transaction.transaction.bcs', 'transaction.transaction'],
+				},
+			});
 
-			// return await next();
+			if (!response.transaction?.transaction) {
+				throw new Error('simulateTransaction did not return resolved transaction data');
+			}
+
+			applyGrpcResolvedTransaction(transactionData, response.transaction.transaction, options);
+
+			return await next();
 		};
 	}
 }
