@@ -11,8 +11,8 @@ import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import { StateServiceClient } from './proto/sui/rpc/v2/state_service.client.js';
 import { SubscriptionServiceClient } from './proto/sui/rpc/v2/subscription_service.client.js';
 import { GrpcCoreClient } from './core.js';
-import type { Experimental_SuiClientTypes } from '../experimental/index.js';
-import { Experimental_BaseClient } from '../experimental/index.js';
+import type { SuiClientTypes } from '../client/index.js';
+import { BaseClient } from '../client/index.js';
 import { NameServiceClient } from './proto/sui/rpc/v2/name_service.client.js';
 
 interface SuiGrpcTransportOptions extends GrpcWebOptions {
@@ -20,8 +20,8 @@ interface SuiGrpcTransportOptions extends GrpcWebOptions {
 }
 
 export type SuiGrpcClientOptions = {
-	network: Experimental_SuiClientTypes.Network;
-	mvr?: Experimental_SuiClientTypes.MvrOptions;
+	network: SuiClientTypes.Network;
+	mvr?: SuiClientTypes.MvrOptions;
 } & (
 	| {
 			transport: RpcTransport;
@@ -29,7 +29,7 @@ export type SuiGrpcClientOptions = {
 	| SuiGrpcTransportOptions
 );
 
-export class SuiGrpcClient extends Experimental_BaseClient {
+export class SuiGrpcClient extends BaseClient {
 	core: GrpcCoreClient;
 	transactionExecutionService: TransactionExecutionServiceClient;
 	ledgerService: LedgerServiceClient;
