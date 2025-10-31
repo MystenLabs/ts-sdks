@@ -14,7 +14,7 @@ import type {
 	GetPaymentRecordOptions,
 	GetPaymentRecordResponse,
 } from './types.js';
-import type { ClientWithCoreApi } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { normalizeStructTag } from '@mysten/sui/utils';
 import { PaymentKitTransactions } from './transactions.js';
 import { PaymentKitCalls } from './calls.js';
@@ -98,7 +98,7 @@ export class PaymentKitClient {
 		const decoded = PaymentRecord.parse(result.dynamicField.value.bcs);
 
 		return {
-			key: result.dynamicField.id,
+			key: result.dynamicField.fieldId,
 			paymentTransactionDigest: result.dynamicField.previousTransaction,
 			epochAtTimeOfRecord: decoded.epoch_at_time_of_record,
 		};

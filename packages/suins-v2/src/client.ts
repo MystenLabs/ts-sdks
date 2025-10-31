@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClientWithCoreApi, SuiClientRegistration } from '@mysten/sui/src/experimental';
+import type { ClientWithCoreApi, SuiClientRegistration } from '@mysten/sui/client';
 import { SuiNsCalls } from './calls.js';
 import type { SuiNsObjectIds, SuiNsPackageIds } from './calls.js';
 
