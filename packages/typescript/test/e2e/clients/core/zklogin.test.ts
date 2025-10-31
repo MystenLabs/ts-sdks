@@ -10,13 +10,13 @@ describe('Core API - ZkLogin', () => {
 		bytes: string;
 		signature: string;
 		intentScope: string;
-		author: string;
+		address: string;
 	};
 	let validTransactionSignatureCase: {
 		bytes: string;
 		signature: string;
 		intentScope: string;
-		author: string;
+		address: string;
 	};
 
 	const testWithAllClients = createTestWithAllClients(() => toolbox);
@@ -51,7 +51,7 @@ describe('Core API - ZkLogin', () => {
 			bytes: 'aGVsbG8=', // base64 encoding of "hello"
 			signature: pmSigMatch[1].trim(),
 			intentScope: 'PersonalMessage',
-			author: pmAddressMatch[1].trim(),
+			address: pmAddressMatch[1].trim(),
 		};
 
 		// Hardcoded TransactionData signature (generated using local keytool)
@@ -62,7 +62,7 @@ describe('Core API - ZkLogin', () => {
 			signature:
 				'BQNNMTAxMjU3MTg5NDg5NTE3ODA1MzAxNDc5MDg0MTQxMjQzNzI1NjkyNDM5MDM5MTYxMDI4OTg5NzgwNzEyMzMzMjE1MjU1MTA5MDQyMjZNMTg5MzMwODkxMDYyMzMxOTQ2NTEwMTAyNzg1Mjg0NTA2OTM1MjkyOTY4NzYwOTAxODQxNDM1MTk5MDMzMDQ3NTcxMDk0NDI3MjQxNzEBMQMCTTE4MjEwNTE3NTgyMjk2Njc2ODEzODc0Mzg1ODQ3OTAyNTQwNDA0MzU3NDY5NTcwOTE5NTI0NjkyMTgyMTIwMjg2MTQzMjk1Mjg3MTUyTDkxNjAwNzI4MzE5NzQzOTIyMTA0MjE4MzU1MTY1MDUyNzUyNDEyMjIzNDI2ODk1MDc4NjgyMzQyMjAwMzE5NDE3MzQyMTY4OTI4ODECTTE1OTk4NzgyODg2MDU2OTIxNDk0NTA3NDYxMDcyNDAxNjQ0MjY1Nzc4OTgwMjg2MDk2OTEzOTU2NjIyMzE3MTkxNDM1NjU0NjQxODQ3TTEyNTE1OTg1MzExMDcwNTM0OTgxMjgyNTM1NzI5NDYxNTA1NTY0NDIwODQ4NTE3ODQ2Nzc3NDM3MDUxODkzMzkyMDc2MzIyMTg5MDA3AgExATADTDkwODQyOTczNTg1MzM2MTM2NzAwNTYzNTIyOTA4NzQwNzE1NDM5NjA4Mzk3ODM3NTY0NjEyNjAxNjUzODIwMTc3NDYyOTE2MjQ5OTVMMjI2ODgxMzgxODAzMTcyNDAwNjE2NzE2NDU4OTgyMTIxOTYzOTE3MzQ1MTQ2ODk1Mzg4Nzk0NjAxNDI2MDgxODA4NDQ5MzIxNjI3NQExKHdpYVhOeklqb2lhSFIwY0hNNkx5OXZZWFYwYUM1emRXa3VhVzhpTEMCPmV5SnJhV1FpT2lKemRXa3RhMlY1TFdsa0lpd2lkSGx3SWpvaVNsZFVJaXdpWVd4bklqb2lVbE15TlRZaWZRTTIwNDM1MzY2NjAwMDM2Mzc1NzQ1OTI1OTYzNDU2ODYxMzA3OTI1MjA5NDcwMjE5MzM0MDE4NTY0MTU4MTQ4NTQ0MDM2MTk2Mjg0NjQyCgAAAAAAAABhAJLFfkmhnjOADZ8013Wq0iX+U5arCckvpFEnX3RrGrEXTrpLOKpuVChDGqIAF+1qmyIcGqzCTE5HEsrxOLjwFg+5xu4WMO8+cRFEpkjbBruyKE9ydM++5T/87lA8waSSAA==',
 			intentScope: 'TransactionData',
-			author: '0xc0f0d0e2a2ca8b8d0e4055ec48210ec77d055db353402cda01d7085ba61d3d5c',
+			address: '0xc0f0d0e2a2ca8b8d0e4055ec48210ec77d055db353402cda01d7085ba61d3d5c',
 		};
 	});
 
@@ -83,7 +83,7 @@ describe('Core API - ZkLogin', () => {
 		testWithAllClients('should fail verification for wrong author', async (client) => {
 			const wrongAuthorCase = {
 				...validSignatureCase,
-				author: '0x0000000000000000000000000000000000000000000000000000000000000000',
+				address: '0x0000000000000000000000000000000000000000000000000000000000000000',
 			};
 
 			const result = await client.core.verifyZkLoginSignature(wrongAuthorCase as any);
@@ -124,7 +124,7 @@ describe('Core API - ZkLogin', () => {
 			async (client) => {
 				const wrongAuthorCase = {
 					...validTransactionSignatureCase,
-					author: '0x0000000000000000000000000000000000000000000000000000000000000000',
+					address: '0x0000000000000000000000000000000000000000000000000000000000000000',
 				};
 
 				const result = await client.core.verifyZkLoginSignature(wrongAuthorCase as any);

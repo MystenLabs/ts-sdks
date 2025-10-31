@@ -35,11 +35,11 @@ describe('Core API - Transaction Resolution', () => {
 		testWithAllClients(
 			'should resolve object ID to full reference',
 			async (client) => {
-				const coins = await client.core.getCoins({ address: testAddress, coinType: SUI_TYPE_ARG });
+				const coins = await client.core.listCoins({ owner: testAddress, coinType: SUI_TYPE_ARG });
 				expect(coins.objects.length).toBeGreaterThan(0);
 
 				const tx = new Transaction();
-				tx.transferObjects([tx.object(coins.objects[0].id)], testAddress);
+				tx.transferObjects([tx.object(coins.objects[0].objectId)], testAddress);
 				tx.setSender(testAddress);
 
 				// Build with client - performs resolution
@@ -63,13 +63,13 @@ describe('Core API - Transaction Resolution', () => {
 		testWithAllClients(
 			'should NOT overwrite explicit object version/digest',
 			async (client) => {
-				const coins = await client.core.getCoins({ address: testAddress, coinType: SUI_TYPE_ARG });
+				const coins = await client.core.listCoins({ owner: testAddress, coinType: SUI_TYPE_ARG });
 				const coin = coins.objects[0];
 
 				const tx = new Transaction();
 				// Explicitly provide full reference
 				tx.transferObjects(
-					[tx.objectRef({ objectId: coin.id, version: coin.version, digest: coin.digest })],
+					[tx.objectRef({ objectId: coin.objectId, version: coin.version, digest: coin.digest })],
 					testAddress,
 				);
 				tx.setSender(testAddress);
@@ -232,7 +232,7 @@ describe('Core API - Transaction Resolution', () => {
 		testWithAllClients(
 			'should NOT overwrite explicit gas payment',
 			async (client) => {
-				const coins = await client.core.getCoins({ address: testAddress, coinType: SUI_TYPE_ARG });
+				const coins = await client.core.listCoins({ owner: testAddress, coinType: SUI_TYPE_ARG });
 				expect(coins.objects.length).toBeGreaterThan(0);
 
 				const explicitGasCoin = coins.objects[0];
@@ -240,7 +240,7 @@ describe('Core API - Transaction Resolution', () => {
 				tx.setSender(testAddress);
 				tx.setGasPayment([
 					{
-						objectId: explicitGasCoin.id,
+						objectId: explicitGasCoin.objectId,
 						version: explicitGasCoin.version,
 						digest: explicitGasCoin.digest,
 					},
@@ -252,7 +252,7 @@ describe('Core API - Transaction Resolution', () => {
 
 				// Verify explicit gas coin preserved
 				const parsed = bcs.TransactionData.parse(bytes);
-				expect(parsed.V1?.gasData.payment?.[0].objectId).toBe(explicitGasCoin.id);
+				expect(parsed.V1?.gasData.payment?.[0].objectId).toBe(explicitGasCoin.objectId);
 			},
 			{ skip: ['graphql'] },
 		);
@@ -460,9 +460,9 @@ describe('Core API - Transaction Resolution', () => {
 			'should resolve objects in onlyTransactionKind mode and mutate tx.getData() for objects but not gas',
 			async (client) => {
 				// Get a real object to use
-				const coins = await client.core.getCoins({ address: testAddress, coinType: SUI_TYPE_ARG });
+				const coins = await client.core.listCoins({ owner: testAddress, coinType: SUI_TYPE_ARG });
 				expect(coins.objects.length).toBeGreaterThan(0);
-				const coinId = coins.objects[0].id;
+				const coinId = coins.objects[0].objectId;
 
 				const tx = new Transaction();
 				// Use object ID only (unresolved) - will need resolution
@@ -604,7 +604,7 @@ describe('Core API - Transaction Resolution', () => {
 				expect(receivingInput.Object?.Receiving?.digest).toBeDefined();
 
 				// Verify transaction would succeed using dryRun (avoids consuming objects)
-				const dryRunResult = await client.core.dryRunTransaction({ transaction: bytes });
+				const dryRunResult = await client.core.simulateTransaction({ transaction: bytes });
 				expect(dryRunResult.transaction.effects?.status.success).toBe(true);
 			},
 			{ skip: ['graphql'] },
@@ -673,7 +673,7 @@ describe('Core API - Transaction Resolution', () => {
 				expect(sharedInput.Object?.SharedObject?.mutable).toBe(true);
 
 				// Verify transaction would succeed using dryRun (avoids consuming objects)
-				const dryRunResult = await client.core.dryRunTransaction({ transaction: bytes });
+				const dryRunResult = await client.core.simulateTransaction({ transaction: bytes });
 				expect(dryRunResult.transaction.effects?.status.success).toBe(true);
 			},
 			{ skip: ['graphql'] },

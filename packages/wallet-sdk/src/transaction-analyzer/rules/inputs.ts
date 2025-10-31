@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { SuiClientTypes } from '@mysten/sui/client';
 import { createAnalyzer } from '../analyzer.js';
 import { data } from './core.js';
 import { objectsById } from './objects.js';
@@ -17,7 +17,7 @@ export type AnalyzedCommandInput =
 	| {
 			$kind: 'Object';
 			index: number;
-			object: Experimental_SuiClientTypes.ObjectResponse;
+			object: SuiClientTypes.ObjectResponse;
 			accessLevel: 'read' | 'mutate' | 'transfer';
 	  };
 

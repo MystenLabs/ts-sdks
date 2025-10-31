@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Signer } from '@mysten/sui/cryptography';
-import type { ClientWithCoreApi } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 
 import type { StorageNodeInfo } from './contracts/walrus/storage_node.js';
