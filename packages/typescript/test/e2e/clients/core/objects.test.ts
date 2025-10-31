@@ -73,7 +73,7 @@ describe('Core API - Objects', () => {
 			async (client) => {
 				const { object } = await client.core.getObject({ objectId: testObjectId });
 
-				expect(object.id).toBe(normalizeSuiAddress(testObjectId));
+				expect(object.objectId).toBe(normalizeSuiAddress(testObjectId));
 				expect(object.type).toContain('SimpleObject');
 				expect(object.owner).toBeDefined();
 				expect(object.previousTransaction).toBeDefined();
@@ -122,7 +122,7 @@ describe('Core API - Objects', () => {
 			expect(coins.data.length).toBeGreaterThan(0);
 
 			const coinIds = coins.data.map((coin) => coin.coinObjectId);
-			const { objects } = await client.core.getObjects({ objectIds: coinIds });
+			const { objects } = await client.core.listObjects({ objectIds: coinIds });
 
 			expect(objects.length).toBe(coinIds.length);
 
@@ -132,7 +132,7 @@ describe('Core API - Objects', () => {
 				expect(result).not.toBeInstanceOf(Error);
 
 				if (!(result instanceof Error)) {
-					expect(result.id).toBe(normalizeSuiAddress(coinIds[i]));
+					expect(result.objectId).toBe(normalizeSuiAddress(coinIds[i]));
 					expect(result.type).toContain('Coin<');
 					expect(result.owner).toBeDefined();
 				}
@@ -141,7 +141,7 @@ describe('Core API - Objects', () => {
 
 		testWithAllClients('should handle mix of valid and invalid object IDs', async (client) => {
 			const objectIds = [testObjectId, normalizeSuiAddress('0x9999')];
-			const { objects } = await client.core.getObjects({ objectIds });
+			const { objects } = await client.core.listObjects({ objectIds });
 
 			expect(objects.length).toBe(2);
 
@@ -153,27 +153,27 @@ describe('Core API - Objects', () => {
 		});
 
 		testWithAllClients('should handle empty array', async (client) => {
-			const { objects } = await client.core.getObjects({ objectIds: [] });
+			const { objects } = await client.core.listObjects({ objectIds: [] });
 			expect(objects).toEqual([]);
 		});
 	});
 
-	describe('getOwnedObjects', () => {
-		it('all clients return same data: getOwnedObjects', async () => {
+	describe('listOwnedObjects', () => {
+		it('all clients return same data: listOwnedObjects', async () => {
 			await toolbox.expectAllClientsReturnSameData(
-				(client) => client.core.getOwnedObjects({ address: testAddress, limit: 5 }),
+				(client) => client.core.listOwnedObjects({ owner: testAddress, limit: 5 }),
 				// Normalize: ignore cursor and sort by id (order may vary across APIs)
 				(result) => ({
 					...result,
 					cursor: null,
-					objects: result.objects.sort((a, b) => a.id.localeCompare(b.id)),
+					objects: result.objects.sort((a, b) => a.objectId.localeCompare(b.objectId)),
 				}),
 			);
 		});
 
 		testWithAllClients('should get owned objects for an address', async (client) => {
-			const result = await client.core.getOwnedObjects({
-				address: testAddress,
+			const result = await client.core.listOwnedObjects({
+				owner: testAddress,
 			});
 
 			expect(result.objects.length).toBeGreaterThan(0);
@@ -191,8 +191,8 @@ describe('Core API - Objects', () => {
 
 		testWithAllClients('should filter owned objects by type', async (client) => {
 			// Filter by SUI coin type
-			const result = await client.core.getOwnedObjects({
-				address: testAddress,
+			const result = await client.core.listOwnedObjects({
+				owner: testAddress,
 				type: `0x2::coin::Coin<${SUI_TYPE_ARG}>`,
 			});
 
@@ -207,8 +207,8 @@ describe('Core API - Objects', () => {
 
 		testWithAllClients('should paginate owned objects', async (client) => {
 			// Get first page with limit
-			const firstPage = await client.core.getOwnedObjects({
-				address: testAddress,
+			const firstPage = await client.core.listOwnedObjects({
+				owner: testAddress,
 				limit: 2,
 			});
 
@@ -218,15 +218,15 @@ describe('Core API - Objects', () => {
 			expect(firstPage.cursor).toBeDefined();
 
 			// Get second page
-			const secondPage = await client.core.getOwnedObjects({
-				address: testAddress,
+			const secondPage = await client.core.listOwnedObjects({
+				owner: testAddress,
 				limit: 2,
 				cursor: firstPage.cursor!,
 			});
 
 			// Verify different objects on second page
-			const firstPageIds = new Set(firstPage.objects.map((obj) => obj.id));
-			const secondPageIds = secondPage.objects.map((obj) => obj.id);
+			const firstPageIds = new Set(firstPage.objects.map((obj) => obj.objectId));
+			const secondPageIds = secondPage.objects.map((obj) => obj.objectId);
 
 			for (const id of secondPageIds) {
 				expect(firstPageIds.has(id)).toBe(false);
@@ -235,8 +235,8 @@ describe('Core API - Objects', () => {
 			// Navigate to the last page
 			let currentPage = secondPage;
 			while (currentPage.hasNextPage && currentPage.cursor) {
-				currentPage = await client.core.getOwnedObjects({
-					address: testAddress,
+				currentPage = await client.core.listOwnedObjects({
+					owner: testAddress,
 					limit: 2,
 					cursor: currentPage.cursor,
 				});
@@ -249,8 +249,8 @@ describe('Core API - Objects', () => {
 
 		testWithAllClients('should return empty array for address with no objects', async (client) => {
 			const emptyAddress = Ed25519Keypair.generate().getPublicKey().toSuiAddress();
-			const result = await client.core.getOwnedObjects({
-				address: emptyAddress,
+			const result = await client.core.listOwnedObjects({
+				owner: emptyAddress,
 			});
 
 			expect(result.objects).toEqual([]);
@@ -263,7 +263,7 @@ describe('Core API - Objects', () => {
 			// Fetch the test package as an object
 			const { object } = await client.core.getObject({ objectId: testPackageId });
 
-			expect(object.id).toBe(normalizeSuiAddress(testPackageId));
+			expect(object.objectId).toBe(normalizeSuiAddress(testPackageId));
 			expect(object.type).toBe('package');
 			expect(object.version).toBe('1'); // First version of published package
 			expect(object.owner).toBeDefined();
@@ -271,7 +271,7 @@ describe('Core API - Objects', () => {
 
 		testWithAllClients('should handle multiple package objects', async (client) => {
 			// Fetch multiple packages including the framework
-			const { objects } = await client.core.getObjects({
+			const { objects } = await client.core.listObjects({
 				objectIds: ['0x2', testPackageId],
 			});
 

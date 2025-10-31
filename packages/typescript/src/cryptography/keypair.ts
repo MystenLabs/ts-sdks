@@ -12,7 +12,7 @@ import { SIGNATURE_FLAG_TO_SCHEME, SIGNATURE_SCHEME_TO_FLAG } from './signature-
 import type { SignatureScheme } from './signature-scheme.js';
 import { toSerializedSignature } from './signature.js';
 import type { Transaction } from '../transactions/Transaction.js';
-import type { ClientWithCoreApi, Experimental_SuiClientTypes } from '../experimental/index.js';
+import type { ClientWithCoreApi, SuiClientTypes } from '../client/index.js';
 
 export const PRIVATE_KEY_SIZE = 32;
 export const LEGACY_PRIVATE_KEY_SIZE = 64;
@@ -81,9 +81,7 @@ export abstract class Signer {
 	async signAndExecuteTransaction({
 		transaction,
 		client,
-	}: SignAndExecuteOptions): Promise<
-		Omit<Experimental_SuiClientTypes.TransactionResponse, 'balanceChanges'>
-	> {
+	}: SignAndExecuteOptions): Promise<Omit<SuiClientTypes.TransactionResponse, 'balanceChanges'>> {
 		const bytes = await transaction.build({ client });
 		const { signature } = await this.signTransaction(bytes);
 		const response = await client.core.executeTransaction({
