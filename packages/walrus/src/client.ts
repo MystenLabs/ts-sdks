@@ -4,7 +4,7 @@
 import type { InferBcsType } from '@mysten/bcs';
 import { bcs } from '@mysten/bcs';
 import type { Signer } from '@mysten/sui/cryptography';
-import type { ClientCache, ClientWithCoreApi } from '@mysten/sui/experimental';
+import type { ClientCache, ClientWithCoreApi } from '@mysten/sui/client';
 import type { TransactionObjectArgument, TransactionResult } from '@mysten/sui/transactions';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
@@ -828,9 +828,9 @@ export class WalrusClient {
 
 		const createdObjectIds = effects?.changedObjects
 			.filter((object) => object.idOperation === 'Created')
-			.map((object) => object.id);
+			.map((object) => object.objectId);
 
-		const createdObjects = await this.#suiClient.core.getObjects({
+		const createdObjects = await this.#suiClient.core.listObjects({
 			objectIds: createdObjectIds,
 		});
 
@@ -1062,9 +1062,9 @@ export class WalrusClient {
 
 		const createdObjectIds = effects?.changedObjects
 			.filter((object) => object.idOperation === 'Created')
-			.map((object) => object.id);
+			.map((object) => object.objectId);
 
-		const createdObjects = await this.#suiClient.core.getObjects({
+		const createdObjects = await this.#suiClient.core.listObjects({
 			objectIds: createdObjectIds,
 		});
 
@@ -1094,9 +1094,9 @@ export class WalrusClient {
 
 		const createdObjectIds = effects?.changedObjects
 			.filter((object) => object.idOperation === 'Created')
-			.map((object) => object.id);
+			.map((object) => object.objectId);
 
-		const createdObjects = await this.#suiClient.core.getObjects({
+		const createdObjects = await this.#suiClient.core.listObjects({
 			objectIds: createdObjectIds,
 		});
 

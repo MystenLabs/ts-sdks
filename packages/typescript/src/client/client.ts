@@ -4,29 +4,25 @@
 
 import type { Simplify, UnionToIntersection } from '@mysten/utils';
 import { ClientCache } from './cache.js';
-import type { Experimental_CoreClient } from './core.js';
-import type {
-	ClientWithExtensions,
-	Experimental_SuiClientTypes,
-	SuiClientRegistration,
-} from './types.js';
+import type { CoreClient } from './core.js';
+import type { ClientWithExtensions, SuiClientTypes, SuiClientRegistration } from './types.js';
 
-export abstract class Experimental_BaseClient {
-	network: Experimental_SuiClientTypes.Network;
+export abstract class BaseClient {
+	network: SuiClientTypes.Network;
 	cache: ClientCache;
-	base: Experimental_BaseClient;
+	base: BaseClient;
 
 	constructor({
 		network,
 		base,
 		cache = base?.cache ?? new ClientCache(),
-	}: Experimental_SuiClientTypes.SuiClientOptions) {
+	}: SuiClientTypes.SuiClientOptions) {
 		this.network = network;
 		this.base = base ?? this;
 		this.cache = cache;
 	}
 
-	abstract core: Experimental_CoreClient;
+	abstract core: CoreClient;
 
 	$extend<const Registrations extends SuiClientRegistration<this>[]>(
 		...registrations: Registrations

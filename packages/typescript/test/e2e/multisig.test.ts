@@ -11,23 +11,48 @@ import { Ed25519Keypair } from '../../src/keypairs/ed25519';
 import { MultiSigPublicKey } from '../../src/multisig/publickey';
 import { Transaction } from '../../src/transactions';
 import { getZkLoginSignature } from '../../src/zklogin';
-import { toZkLoginPublicIdentifier } from '../../src/zklogin/publickey';
-import { DEFAULT_RECIPIENT, setupWithFundedAddress } from './utils/setup';
+import {
+	parseSerializedZkLoginSignature,
+	toZkLoginPublicIdentifier,
+} from '../../src/zklogin/publickey';
+import { DEFAULT_RECIPIENT, execSuiTools, setup, setupWithFundedAddress } from './utils/setup';
 
 describe('MultiSig with zklogin signature', () => {
 	it('Execute tx with multisig with 1 sig and 1 zkLogin sig combined', async () => {
-		// default ephemeral keypair, address_seed and zklogin inputs defined: https://github.com/MystenLabs/sui/blob/071a2955f7dbb83ee01c35d3a4257926a50a35f5/crates/sui-types/src/unit_tests/zklogin_test_vectors.json
-		// set up default zklogin public identifier with address seed consistent with default zklogin proof.
+		// Get current epoch to generate a valid zkLogin signature with appropriate max epoch
+		const tempToolbox = await setup();
+		const epoch = await tempToolbox.client.getLatestSuiSystemState();
+		const currentEpoch = Number(epoch.epoch);
+		const maxEpoch = currentEpoch + 10;
+
+		// Generate a zkLogin signature dynamically using sui keytool
+		// This creates a fresh signature with a valid max epoch
+		const pmResult = await execSuiTools([
+			'sui',
+			'keytool',
+			'zk-login-insecure-sign-personal-message',
+			'--data',
+			'hello',
+			'--max-epoch',
+			maxEpoch.toString(),
+		]);
+
+		const pmOutput = pmResult.stdout;
+		const pmSigMatch = pmOutput.match(/│\s*sig\s*│\s*(.+?)\s*│/);
+
+		if (!pmSigMatch) {
+			throw new Error('Failed to generate zkLogin signature: could not parse output');
+		}
+
+		// Parse the generated zkLogin signature to get the public key and proof details
+		const tempSig = pmSigMatch[1].trim();
+		const parsedZkLogin = parseSerializedZkLoginSignature(tempSig);
+		// Create ZkLoginPublicIdentifier from the parsed data
 		const pkZklogin = toZkLoginPublicIdentifier(
-			BigInt('2455937816256448139232531453880118833510874847675649348355284726183344259587'),
-			'https://id.twitch.tv/oauth2',
+			parsedZkLogin.zkLogin.addressSeed,
+			parsedZkLogin.zkLogin.iss,
 			{ legacyAddress: false },
 		);
-		// set up ephemeral keypair, consistent with default zklogin proof.
-		const parsed = decodeSuiPrivateKey(
-			'suiprivkey1qzdlfxn2qa2lj5uprl8pyhexs02sg2wrhdy7qaq50cqgnffw4c2477kg9h3',
-		);
-		const ephemeralKeypair = Ed25519Keypair.fromSecretKey(parsed.secretKey);
 
 		// set up default single keypair.
 		const kp = Ed25519Keypair.fromSecretKey(
@@ -37,7 +62,8 @@ describe('MultiSig with zklogin signature', () => {
 			]),
 		);
 		const pkSingle = kp.getPublicKey();
-		// construct multisig address.
+
+		// construct multisig address with the dynamically generated zkLogin public key
 		const multiSigPublicKey = MultiSigPublicKey.fromPublicKeys({
 			threshold: 1,
 			publicKeys: [
@@ -60,42 +86,20 @@ describe('MultiSig with zklogin signature', () => {
 		// sign with the single keypair.
 		const singleSig = (await kp.signTransaction(bytes)).signature;
 
-		const zkLoginInputs = {
-			addressSeed: '2455937816256448139232531453880118833510874847675649348355284726183344259587',
-			headerBase64: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEifQ',
-			issBase64Details: {
-				indexMod4: 2,
-				value: 'wiaXNzIjoiaHR0cHM6Ly9pZC50d2l0Y2gudHYvb2F1dGgyIiw',
-			},
-			proofPoints: {
-				a: [
-					'2557188010312611627171871816260238532309920510408732193456156090279866747728',
-					'19071990941441318350711693802255556881405833839657840819058116822481115301678',
-					'1',
-				],
-				b: [
-					[
-						'135230770152349711361478655152288995176559604356405117885164129359471890574',
-						'7216898009175721143474942227108999120632545700438440510233575843810308715248',
-					],
-					[
-						'13253503214497870514695718691991905909426624538921072690977377011920360793667',
-						'9020530007799152621750172565457249844990381864119377955672172301732296026267',
-					],
-					['1', '0'],
-				],
-				c: [
-					'873909373264079078688783673576894039693316815418733093168579354008866728804',
-					'17533051555163888509441575111667473521314561492884091535743445342304799397998',
-					'1',
-				],
-			},
-		};
+		// Get the ephemeral keypair that was used to generate the zkLogin signature
+		// This is the default ephemeral keypair used by the sui keytool
+		const parsed = decodeSuiPrivateKey(
+			'suiprivkey1qzdlfxn2qa2lj5uprl8pyhexs02sg2wrhdy7qaq50cqgnffw4c2477kg9h3',
+		);
+		const ephemeralKeypair = Ed25519Keypair.fromSecretKey(parsed.secretKey);
+
+		// Sign the transaction with the ephemeral keypair
 		const ephemeralSig = (await ephemeralKeypair.signTransaction(bytes)).signature;
-		// create zklogin signature based on default zk proof.
+
+		// Create zkLogin signature using the dynamically generated proof with the correct maxEpoch
 		const zkLoginSig = getZkLoginSignature({
-			inputs: zkLoginInputs,
-			maxEpoch: '2',
+			inputs: parsedZkLogin.zkLogin.inputs,
+			maxEpoch: maxEpoch.toString(),
 			userSignature: fromBase64(ephemeralSig),
 		});
 

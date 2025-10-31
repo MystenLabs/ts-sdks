@@ -3,8 +3,8 @@
 import { fromBase58, toBase64, toHex } from '@mysten/bcs';
 
 import type { Signer } from '../cryptography/index.js';
-import { Experimental_BaseClient } from '../experimental/client.js';
-import type { Experimental_SuiClientTypes } from '../experimental/types.js';
+import { BaseClient } from '../client/client.js';
+import type { SuiClientTypes } from '../client/types.js';
 import type { Transaction } from '../transactions/Transaction.js';
 import { isTransaction } from '../transactions/Transaction.js';
 import {
@@ -93,7 +93,7 @@ import type {
 	ZkLoginVerifyResult,
 } from './types/index.js';
 import { isValidNamedPackage } from '../utils/move-registry.js';
-import { hasMvrName } from '../experimental/mvr.js';
+import { hasMvrName } from '../client/mvr.js';
 import { JSONRpcCoreClient } from './core.js';
 
 export interface PaginationArguments<Cursor> {
@@ -112,8 +112,8 @@ export interface OrderArguments {
  * You must provide either a `url` or a `transport`
  */
 export type SuiJsonRpcClientOptions = NetworkOrTransport & {
-	network: Experimental_SuiClientTypes.Network;
-	mvr?: Experimental_SuiClientTypes.MvrOptions;
+	network: SuiClientTypes.Network;
+	mvr?: SuiClientTypes.MvrOptions;
 };
 
 type NetworkOrTransport =
@@ -134,7 +134,7 @@ export function isSuiJsonRpcClient(client: unknown): client is SuiJsonRpcClient 
 	);
 }
 
-export class SuiJsonRpcClient extends Experimental_BaseClient {
+export class SuiJsonRpcClient extends BaseClient {
 	core: JSONRpcCoreClient;
 	jsonRpc = this;
 	protected transport: JsonRpcTransport;
