@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.20.2
+
+### Patch Changes
+
+- c95ff1a: Update DeepBook and margin package IDs
+
 ## 0.20.1
 
 ### Patch Changes
