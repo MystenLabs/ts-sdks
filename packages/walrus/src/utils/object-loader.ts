@@ -10,12 +10,19 @@ import { deriveDynamicFieldID } from '@mysten/sui/utils';
 import DataLoader from 'dataloader';
 import { Field } from './bcs.js';
 
-export class SuiObjectDataLoader extends DataLoader<string, SuiClientTypes.ObjectResponse> {
-	#dynamicFieldCache = new Map<string, Map<string, SuiClientTypes.ObjectResponse>>();
+export class SuiObjectDataLoader extends DataLoader<
+	string,
+	SuiClientTypes.ObjectResponse<{ content: true }>
+> {
+	#dynamicFieldCache = new Map<
+		string,
+		Map<string, SuiClientTypes.ObjectResponse<{ content: true }>>
+	>();
 	constructor(suiClient: BaseClient) {
 		super(async (ids: readonly string[]) => {
 			const { objects } = await suiClient.core.listObjects({
 				objectIds: ids as string[],
+				include: { content: true },
 			});
 
 			return objects;

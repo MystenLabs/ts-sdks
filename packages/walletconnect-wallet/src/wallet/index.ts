@@ -256,6 +256,7 @@ export class WalletConnectWallet implements Wallet {
 
 		const tx = await client.core.waitForTransaction({
 			digest: response.digest,
+			include: { effects: true },
 		});
 
 		return {

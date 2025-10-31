@@ -829,6 +829,7 @@ export class WalrusClient {
 
 		const createdObjects = await this.#suiClient.core.listObjects({
 			objectIds: createdObjectIds,
+			include: { content: true },
 		});
 
 		const suiBlobObject = createdObjects.objects.find(
@@ -1063,6 +1064,7 @@ export class WalrusClient {
 
 		const createdObjects = await this.#suiClient.core.listObjects({
 			objectIds: createdObjectIds,
+			include: { content: true },
 		});
 
 		const suiBlobObject = createdObjects.objects.find(
@@ -1087,6 +1089,7 @@ export class WalrusClient {
 			transaction: { effects },
 		} = await this.#suiClient.core.waitForTransaction({
 			digest,
+			include: { effects: true },
 		});
 
 		const createdObjectIds = effects?.changedObjects
@@ -1095,6 +1098,7 @@ export class WalrusClient {
 
 		const createdObjects = await this.#suiClient.core.listObjects({
 			objectIds: createdObjectIds,
+			include: { content: true },
 		});
 
 		const suiBlobObject = createdObjects.objects.find(

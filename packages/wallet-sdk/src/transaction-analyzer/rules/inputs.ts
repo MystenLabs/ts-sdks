@@ -17,7 +17,7 @@ export type AnalyzedCommandInput =
 	| {
 			$kind: 'Object';
 			index: number;
-			object: SuiClientTypes.ObjectResponse;
+			object: SuiClientTypes.ObjectResponse<{ content: true }>;
 			accessLevel: 'read' | 'mutate' | 'transfer';
 	  };
 

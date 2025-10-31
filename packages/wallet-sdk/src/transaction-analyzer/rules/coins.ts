@@ -40,7 +40,7 @@ export const coins = createAnalyzer({
 									{
 										...obj,
 										coinType: normalizeStructTag(parseStructTag(obj.type).typeParams[0]),
-										balance: BigInt(Coin.parse(await obj.content).balance),
+										balance: BigInt(Coin.parse(obj.content).balance),
 									},
 								];
 							}),

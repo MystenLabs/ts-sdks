@@ -41,58 +41,61 @@ export class GrpcCoreClient extends CoreClient {
 		this.#client = client;
 	}
 
-	async listObjects(
-		options: SuiClientTypes.ListObjectsOptions,
-	): Promise<SuiClientTypes.ListObjectsResponse> {
+	async listObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListObjectsOptions<Include>,
+	): Promise<SuiClientTypes.ListObjectsResponse<Include>> {
 		const batches = chunk(options.objectIds, 50);
-		const results: SuiClientTypes.ListObjectsResponse['objects'] = [];
+		const results: SuiClientTypes.ListObjectsResponse<Include>['objects'] = [];
+
+		const paths = ['owner', 'object_type', 'digest', 'version', 'object_id'];
+		if (options.include?.content) {
+			paths.push('contents');
+		}
+		if (options.include?.previousTransaction) {
+			paths.push('previous_transaction');
+		}
 
 		for (const batch of batches) {
 			const response = await this.#client.ledgerService.batchGetObjects({
 				requests: batch.map((id) => ({ objectId: id })),
 				readMask: {
-					paths: [
-						'owner',
-						'object_type',
-						'contents',
-						'digest',
-						'version',
-						'object_id',
-						'previous_transaction',
-					],
+					paths,
 				},
 			});
 
 			results.push(
-				...response.response.objects.map((object): SuiClientTypes.ObjectResponse | Error => {
-					if (object.result.oneofKind === 'error') {
-						// TODO: improve error handling
-						return new Error(object.result.error.message);
-					}
+				...response.response.objects.map(
+					(object): SuiClientTypes.ObjectResponse<Include> | Error => {
+						if (object.result.oneofKind === 'error') {
+							// TODO: improve error handling
+							return new Error(object.result.error.message);
+						}
 
-					if (object.result.oneofKind !== 'object') {
-						return new Error('Unexpected result type');
-					}
+						if (object.result.oneofKind !== 'object') {
+							return new Error('Unexpected result type');
+						}
 
-					const bcsContent = object.result.object.contents?.value ?? null;
+						const bcsContent = object.result.object.contents?.value ?? undefined;
 
-					// Package objects have type "package" which is not a struct tag, so don't normalize it
-					const objectType = object.result.object.objectType;
-					const type =
-						objectType && objectType.includes('::')
-							? normalizeStructTag(objectType)
-							: (objectType ?? '');
+						// Package objects have type "package" which is not a struct tag, so don't normalize it
+						const objectType = object.result.object.objectType;
+						const type =
+							objectType && objectType.includes('::')
+								? normalizeStructTag(objectType)
+								: (objectType ?? '');
 
-					return {
-						objectId: object.result.object.objectId!,
-						version: object.result.object.version?.toString()!,
-						digest: object.result.object.digest!,
-						content: Promise.resolve(bcsContent!),
-						owner: mapOwner(object.result.object.owner)!,
-						type,
-						previousTransaction: object.result.object.previousTransaction ?? null,
-					};
-				}),
+						return {
+							objectId: object.result.object.objectId!,
+							version: object.result.object.version?.toString()!,
+							digest: object.result.object.digest!,
+							content: bcsContent as SuiClientTypes.ObjectResponse<Include>['content'],
+							owner: mapOwner(object.result.object.owner)!,
+							type,
+							previousTransaction: (object.result.object.previousTransaction ??
+								undefined) as SuiClientTypes.ObjectResponse<Include>['previousTransaction'],
+						};
+					},
+				),
 			);
 		}
 
@@ -100,9 +103,17 @@ export class GrpcCoreClient extends CoreClient {
 			objects: results,
 		};
 	}
-	async listOwnedObjects(
-		options: SuiClientTypes.ListOwnedObjectsOptions,
-	): Promise<SuiClientTypes.ListOwnedObjectsResponse> {
+	async listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListOwnedObjectsOptions<Include>,
+	): Promise<SuiClientTypes.ListOwnedObjectsResponse<Include>> {
+		const paths = ['owner', 'object_type', 'digest', 'version', 'object_id'];
+		if (options.include?.content) {
+			paths.push('contents');
+		}
+		if (options.include?.previousTransaction) {
+			paths.push('previous_transaction');
+		}
+
 		const response = await this.#client.stateService.listOwnedObjects({
 			owner: options.owner,
 			objectType: options.type
@@ -111,34 +122,20 @@ export class GrpcCoreClient extends CoreClient {
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
 			pageSize: options.limit,
 			readMask: {
-				paths: [
-					'owner',
-					'object_type',
-					'bcs',
-					'digest',
-					'version',
-					'object_id',
-					'previous_transaction',
-				],
+				paths,
 			},
 		});
 
 		const objects = response.response.objects.map(
-			(object): SuiClientTypes.ObjectResponse => ({
+			(object): SuiClientTypes.ObjectResponse<Include> => ({
 				objectId: object.objectId!,
 				version: object.version?.toString()!,
 				digest: object.digest!,
-				// TODO: List owned objects doesn't return content right now
-				get content() {
-					return object.bcs?.value
-						? Promise.resolve(object.bcs.value)
-						: Promise.reject(
-								new Error('GRPC does not return object contents when listing owned objects'),
-							);
-				},
+				content: object.contents?.value as SuiClientTypes.ObjectResponse<Include>['content'],
 				owner: mapOwner(object.owner)!,
 				type: object.objectType!,
-				previousTransaction: object.previousTransaction ?? null,
+				previousTransaction: (object.previousTransaction ??
+					undefined) as SuiClientTypes.ObjectResponse<Include>['previousTransaction'],
 			}),
 		);
 
@@ -148,45 +145,38 @@ export class GrpcCoreClient extends CoreClient {
 			hasNextPage: response.response.nextPageToken !== undefined,
 		};
 	}
-	async listCoins(
-		options: SuiClientTypes.ListCoinsOptions,
-	): Promise<SuiClientTypes.ListCoinsResponse> {
+	async listCoins<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListCoinsOptions<Include>,
+	): Promise<SuiClientTypes.ListCoinsResponse<Include>> {
+		const paths = ['owner', 'object_type', 'digest', 'version', 'object_id', 'balance'];
+		if (options.include?.content) {
+			paths.push('contents');
+		}
+		if (options.include?.previousTransaction) {
+			paths.push('previous_transaction');
+		}
+
 		const response = await this.#client.stateService.listOwnedObjects({
 			owner: options.owner,
 			objectType: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: options.coinType })).type}>`,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
 			readMask: {
-				paths: [
-					'owner',
-					'object_type',
-					'bcs',
-					'digest',
-					'version',
-					'object_id',
-					'balance',
-					'previous_transaction',
-				],
+				paths,
 			},
 		});
 
 		return {
 			objects: response.response.objects.map(
-				(object): SuiClientTypes.CoinResponse => ({
+				(object): SuiClientTypes.CoinResponse<Include> => ({
 					objectId: object.objectId!,
 					version: object.version?.toString()!,
 					digest: object.digest!,
-					// TODO: List owned objects doesn't return content right now
-					get content() {
-						return object.bcs?.value
-							? Promise.resolve(object.bcs.value)
-							: Promise.reject(
-									new Error('GRPC does not return object contents when listing owned objects'),
-								);
-					},
+					content: object.contents?.value as SuiClientTypes.CoinResponse<Include>['content'],
 					owner: mapOwner(object.owner)!,
 					type: object.objectType!,
 					balance: object.balance?.toString()!,
-					previousTransaction: object.previousTransaction ?? null,
+					previousTransaction: (object.previousTransaction ??
+						undefined) as SuiClientTypes.CoinResponse<Include>['previousTransaction'],
 				}),
 			),
 			cursor: response.response.nextPageToken ? toBase64(response.response.nextPageToken) : null,
@@ -228,32 +218,59 @@ export class GrpcCoreClient extends CoreClient {
 			})),
 		};
 	}
-	async getTransaction(
-		options: SuiClientTypes.GetTransactionOptions,
-	): Promise<SuiClientTypes.GetTransactionResponse> {
+	async getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		options: SuiClientTypes.GetTransactionOptions<Include>,
+	): Promise<SuiClientTypes.GetTransactionResponse<Include>> {
+		const paths = ['digest', 'transaction.digest', 'signatures'];
+		if (options.include?.transaction) {
+			paths.push('transaction.bcs');
+		}
+		if (options.include?.balanceChanges) {
+			paths.push('balance_changes');
+		}
+		if (options.include?.effects) {
+			paths.push('effects');
+		}
+		if (options.include?.events) {
+			paths.push('events');
+		}
+		if (options.include?.objectTypes) {
+			paths.push('objects');
+		}
+
 		const { response } = await this.#client.ledgerService.getTransaction({
 			digest: options.digest,
 			readMask: {
-				paths: [
-					'digest',
-					'transaction.bcs',
-					'transaction.digest',
-					'effects',
-					'signatures',
-					'balance_changes',
-					'objects',
-					'events',
-				],
+				paths,
 			},
 		});
 
 		return {
-			transaction: response.transaction ? parseTransaction(response.transaction) : (null as never),
+			transaction: response.transaction
+				? parseTransaction(response.transaction, options.include)
+				: (null as never),
 		};
 	}
-	async executeTransaction(
-		options: SuiClientTypes.ExecuteTransactionOptions,
-	): Promise<SuiClientTypes.ExecuteTransactionResponse> {
+	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
+	): Promise<SuiClientTypes.ExecuteTransactionResponse<Include>> {
+		const paths = ['digest', 'transaction.digest', 'signatures'];
+		if (options.include?.transaction) {
+			paths.push('transaction.bcs');
+		}
+		if (options.include?.balanceChanges) {
+			paths.push('balance_changes');
+		}
+		if (options.include?.effects) {
+			paths.push('effects');
+		}
+		if (options.include?.events) {
+			paths.push('events');
+		}
+		if (options.include?.objectTypes) {
+			paths.push('objects');
+		}
+
 		const { response } = await this.#client.transactionExecutionService.executeTransaction({
 			transaction: {
 				bcs: {
@@ -269,25 +286,37 @@ export class GrpcCoreClient extends CoreClient {
 				},
 			})),
 			readMask: {
-				paths: [
-					'digest',
-					'transaction.bcs',
-					'transaction.digest',
-					'effects',
-					'signatures',
-					'balance_changes',
-					'objects',
-					'events',
-				],
+				paths,
 			},
 		});
 		return {
-			transaction: parseTransaction(response.transaction!),
+			transaction: parseTransaction(response.transaction!, options.include),
 		};
 	}
-	async simulateTransaction(
-		options: SuiClientTypes.SimulateTransactionOptions,
-	): Promise<SuiClientTypes.SimulateTransactionResponse> {
+	async simulateTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		options: SuiClientTypes.SimulateTransactionOptions<Include>,
+	): Promise<SuiClientTypes.SimulateTransactionResponse<Include>> {
+		const paths = [
+			'transaction.digest',
+			'transaction.transaction.digest',
+			'transaction.signatures',
+		];
+		if (options.include?.transaction) {
+			paths.push('transaction.transaction.bcs');
+		}
+		if (options.include?.balanceChanges) {
+			paths.push('transaction.balance_changes');
+		}
+		if (options.include?.effects) {
+			paths.push('transaction.effects');
+		}
+		if (options.include?.events) {
+			paths.push('transaction.events');
+		}
+		if (options.include?.objectTypes) {
+			paths.push('transaction.objects');
+		}
+
 		const { response } = await this.#client.transactionExecutionService.simulateTransaction({
 			transaction: {
 				bcs: {
@@ -295,21 +324,12 @@ export class GrpcCoreClient extends CoreClient {
 				},
 			},
 			readMask: {
-				paths: [
-					'transaction.digest',
-					'transaction.transaction.bcs',
-					'transaction.transaction.digest',
-					'transaction.effects',
-					'transaction.signatures',
-					'transaction.balance_changes',
-					'transaction.objects',
-					'transaction.events',
-				],
+				paths,
 			},
 		});
 
 		return {
-			transaction: parseTransaction(response.transaction!),
+			transaction: parseTransaction(response.transaction!, options.include),
 		};
 	}
 	async getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
@@ -695,46 +715,39 @@ export function parseTransactionEffects({
 	};
 }
 
-function parseTransaction(transaction: ExecutedTransaction): SuiClientTypes.TransactionResponse {
-	const tx = transaction.transaction;
-
-	const bytes = tx?.bcs?.value;
-
-	if (!bytes) {
-		throw new Error('Transaction BCS bytes are required but missing from gRPC response');
-	}
-
-	const txData = bcs.TransactionData.parse(bytes);
-	const data = TransactionDataBuilder.restore({
-		version: 2,
-		sender: txData.V1.sender,
-		expiration: txData.V1.expiration,
-		gasData: txData.V1.gasData,
-		inputs: txData.V1.kind.ProgrammableTransaction!.inputs,
-		commands: txData.V1.kind.ProgrammableTransaction!.commands,
-	});
-
+function parseTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	transaction: ExecutedTransaction,
+	include?: Include,
+): SuiClientTypes.TransactionResponse<Include> {
 	const objectTypes: Record<string, string> = {};
-	transaction.objects?.objects.forEach((object) => {
-		if (object.objectId && object.objectType) {
-			objectTypes[object.objectId] = object.objectType;
-		}
-	});
-
-	const effects = parseTransactionEffects({
-		effects: transaction.effects,
-	});
-
-	if (!effects) {
-		throw new Error('Transaction effects are required but missing from gRPC response');
+	if (include?.objectTypes) {
+		transaction.objects?.objects.forEach((object) => {
+			if (object.objectId && object.objectType) {
+				objectTypes[object.objectId] = object.objectType;
+			}
+		});
 	}
 
-	return {
-		digest: transaction.digest!,
-		epoch: transaction.effects?.epoch?.toString() ?? null,
-		effects,
-		objectTypes: Promise.resolve(objectTypes),
-		transaction: {
+	let transactionData: SuiClientTypes.TransactionData | undefined;
+	if (include?.transaction) {
+		const tx = transaction.transaction;
+		const bytes = tx?.bcs?.value;
+
+		if (!bytes) {
+			throw new Error('Transaction BCS bytes are required but missing from gRPC response');
+		}
+
+		const txData = bcs.TransactionData.parse(bytes);
+		const data = TransactionDataBuilder.restore({
+			version: 2,
+			sender: txData.V1.sender,
+			expiration: txData.V1.expiration,
+			gasData: txData.V1.gasData,
+			inputs: txData.V1.kind.ProgrammableTransaction!.inputs,
+			commands: txData.V1.kind.ProgrammableTransaction!.commands,
+		});
+
+		transactionData = {
 			gasData: data.gasData,
 			sender: data.sender,
 			expiration: data.expiration,
@@ -742,22 +755,40 @@ function parseTransaction(transaction: ExecutedTransaction): SuiClientTypes.Tran
 			inputs: data.inputs,
 			version: data.version,
 			bcs: bytes,
-		},
+		};
+	}
+
+	const effects = include?.effects
+		? parseTransactionEffects({
+				effects: transaction.effects,
+			})
+		: undefined;
+
+	return {
+		digest: transaction.digest!,
+		epoch: transaction.effects?.epoch?.toString() ?? null,
+		effects: effects as SuiClientTypes.TransactionResponse<Include>['effects'],
+		objectTypes: (include?.objectTypes
+			? Promise.resolve(objectTypes)
+			: undefined) as SuiClientTypes.TransactionResponse<Include>['objectTypes'],
+		transaction: transactionData as SuiClientTypes.TransactionResponse<Include>['transaction'],
 		signatures: transaction.signatures?.map((sig) => toBase64(sig.bcs?.value!)) ?? [],
-		balanceChanges:
-			transaction.balanceChanges?.map((change) => ({
-				coinType: change.coinType!,
-				address: change.address!,
-				amount: change.amount!,
-			})) ?? [],
-		events:
-			transaction.events?.events.map((event) => ({
-				packageId: normalizeSuiAddress(event.packageId!),
-				module: event.module!,
-				sender: normalizeSuiAddress(event.sender!),
-				eventType: event.eventType!,
-				bcs: event.contents?.value ?? new Uint8Array(),
-			})) ?? [],
+		balanceChanges: (include?.balanceChanges
+			? (transaction.balanceChanges?.map((change) => ({
+					coinType: change.coinType!,
+					address: change.address!,
+					amount: change.amount!,
+				})) ?? [])
+			: undefined) as SuiClientTypes.TransactionResponse<Include>['balanceChanges'],
+		events: (include?.events
+			? (transaction.events?.events.map((event) => ({
+					packageId: normalizeSuiAddress(event.packageId!),
+					module: event.module!,
+					sender: normalizeSuiAddress(event.sender!),
+					eventType: event.eventType!,
+					bcs: event.contents?.value ?? new Uint8Array(),
+				})) ?? [])
+			: undefined) as SuiClientTypes.TransactionResponse<Include>['events'],
 	};
 }
 

@@ -68,7 +68,7 @@ export class CurrentAccountSigner extends Signer {
 		transaction,
 	}: {
 		transaction: Transaction;
-	}): Promise<Omit<SuiClientTypes.TransactionResponse, 'balanceChanges'>> {
+	}): Promise<SuiClientTypes.TransactionResponse<{ transaction: true; effects: true }>> {
 		const { bytes, signature, digest, effects } = await this.#dAppKit.signAndExecuteTransaction({
 			transaction,
 		});
@@ -78,19 +78,10 @@ export class CurrentAccountSigner extends Signer {
 			signatures: [signature],
 			epoch: null,
 			effects: parseTransactionEffectsBcs(fromBase64(effects)),
-			objectTypes: {
-				// oxlint-disable-next-line no-thenable
-				get then() {
-					const promise = Promise.reject<Record<string, string>>(
-						new Error('objectTypes is not implemented for WalletSigner'),
-					);
-
-					return promise.then.bind(promise);
-				},
-			},
 			transaction: parseTransactionBcs(fromBase64(bytes)),
-			// TODO: fix this
-			events: [],
+			events: undefined,
+			objectTypes: undefined,
+			balanceChanges: undefined,
 		};
 	}
 }

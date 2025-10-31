@@ -87,6 +87,7 @@ describe('AutoApprovalManager', () => {
 			var { transaction } = await client.core.executeTransaction({
 				transaction: analysis.result?.bytes,
 				signatures: [signature],
+				include: { balanceChanges: true },
 			});
 		} catch (e) {
 			// revert deductions on failure

@@ -38,30 +38,34 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		});
 	}
 
-	abstract listObjects(
-		options: SuiClientTypes.ListObjectsOptions,
-	): Promise<SuiClientTypes.ListObjectsResponse>;
+	abstract listObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListObjectsOptions<Include>,
+	): Promise<SuiClientTypes.ListObjectsResponse<Include>>;
 
-	async getObject(
-		options: SuiClientTypes.GetObjectOptions,
-	): Promise<SuiClientTypes.GetObjectResponse> {
+	async getObject<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.GetObjectOptions<Include>,
+	): Promise<SuiClientTypes.GetObjectResponse<Include>> {
 		const { objectId } = options;
 		const {
 			objects: [result],
-		} = await this.listObjects({ objectIds: [objectId], signal: options.signal });
+		} = await this.listObjects({
+			objectIds: [objectId],
+			signal: options.signal,
+			include: options.include,
+		});
 		if (result instanceof Error) {
 			throw result;
 		}
 		return { object: result };
 	}
 
-	abstract listCoins(
-		options: SuiClientTypes.ListCoinsOptions,
-	): Promise<SuiClientTypes.ListCoinsResponse>;
+	abstract listCoins<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListCoinsOptions<Include>,
+	): Promise<SuiClientTypes.ListCoinsResponse<Include>>;
 
-	abstract listOwnedObjects(
-		options: SuiClientTypes.ListOwnedObjectsOptions,
-	): Promise<SuiClientTypes.ListOwnedObjectsResponse>;
+	abstract listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListOwnedObjectsOptions<Include>,
+	): Promise<SuiClientTypes.ListOwnedObjectsResponse<Include>>;
 
 	abstract getBalance(
 		options: SuiClientTypes.GetBalanceOptions,
@@ -71,17 +75,17 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options: SuiClientTypes.ListBalancesOptions,
 	): Promise<SuiClientTypes.ListBalancesResponse>;
 
-	abstract getTransaction(
-		options: SuiClientTypes.GetTransactionOptions,
-	): Promise<SuiClientTypes.GetTransactionResponse>;
+	abstract getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		options: SuiClientTypes.GetTransactionOptions<Include>,
+	): Promise<SuiClientTypes.GetTransactionResponse<Include>>;
 
-	abstract executeTransaction(
-		options: SuiClientTypes.ExecuteTransactionOptions,
-	): Promise<SuiClientTypes.ExecuteTransactionResponse>;
+	abstract executeTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
+	): Promise<SuiClientTypes.ExecuteTransactionResponse<Include>>;
 
-	abstract simulateTransaction(
-		options: SuiClientTypes.SimulateTransactionOptions,
-	): Promise<SuiClientTypes.SimulateTransactionResponse>;
+	abstract simulateTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		options: SuiClientTypes.SimulateTransactionOptions<Include>,
+	): Promise<SuiClientTypes.SimulateTransactionResponse<Include>>;
 
 	abstract getReferenceGasPrice(
 		options?: SuiClientTypes.GetReferenceGasPriceOptions,
@@ -121,6 +125,10 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		} = await this.listObjects({
 			objectIds: [fieldId],
 			signal: options.signal,
+			include: {
+				previousTransaction: true,
+				content: true,
+			},
 		});
 
 		if (fieldObject instanceof Error) {
@@ -155,7 +163,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		};
 	}
 
-	async waitForTransaction({
+	async waitForTransaction<Include extends SuiClientTypes.TransactionInclude = object>({
 		signal,
 		timeout = 60 * 1000,
 		...input
@@ -164,7 +172,9 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		signal?: AbortSignal;
 		/** The amount of time to wait for transaction. Defaults to one minute. */
 		timeout?: number;
-	} & SuiClientTypes.GetTransactionOptions): Promise<SuiClientTypes.GetTransactionResponse> {
+	} & SuiClientTypes.GetTransactionOptions<Include>): Promise<
+		SuiClientTypes.GetTransactionResponse<Include>
+	> {
 		const abortSignal = signal
 			? AbortSignal.any([AbortSignal.timeout(timeout), signal])
 			: AbortSignal.timeout(timeout);

@@ -41,33 +41,52 @@ export namespace SuiClientTypes {
 
 	/** Object methods */
 	export interface TransportMethods {
-		listObjects: (options: ListObjectsOptions) => Promise<ListObjectsResponse>;
-		listOwnedObjects: (options: ListOwnedObjectsOptions) => Promise<ListOwnedObjectsResponse>;
-		listCoins: (options: ListCoinsOptions) => Promise<ListCoinsResponse>;
+		listObjects: <Include extends ObjectInclude = {}>(
+			options: ListObjectsOptions<Include>,
+		) => Promise<ListObjectsResponse<Include>>;
+		listOwnedObjects: <Include extends ObjectInclude = {}>(
+			options: ListOwnedObjectsOptions<Include>,
+		) => Promise<ListOwnedObjectsResponse<Include>>;
+		listCoins: <Include extends ObjectInclude = {}>(
+			options: ListCoinsOptions<Include>,
+		) => Promise<ListCoinsResponse<Include>>;
 		listDynamicFields: (options: ListDynamicFieldsOptions) => Promise<ListDynamicFieldsResponse>;
 		getDynamicField: (options: GetDynamicFieldOptions) => Promise<GetDynamicFieldResponse>;
 	}
 
-	export interface ListObjectsOptions extends CoreClientMethodOptions {
+	export interface ObjectInclude {
+		content?: boolean;
+		previousTransaction?: boolean;
+	}
+
+	export interface ListObjectsOptions<Include extends ObjectInclude = {}>
+		extends CoreClientMethodOptions {
 		objectIds: string[];
+		include?: Include;
 	}
 
-	export interface GetObjectOptions extends CoreClientMethodOptions {
+	export interface GetObjectOptions<Include extends ObjectInclude = {}>
+		extends CoreClientMethodOptions {
 		objectId: string;
+		include?: Include;
 	}
 
-	export interface ListOwnedObjectsOptions extends CoreClientMethodOptions {
+	export interface ListOwnedObjectsOptions<Include extends ObjectInclude = {}>
+		extends CoreClientMethodOptions {
 		owner: string;
 		limit?: number;
 		cursor?: string | null;
 		type?: string;
+		include?: Include;
 	}
 
-	export interface ListCoinsOptions extends CoreClientMethodOptions {
+	export interface ListCoinsOptions<Include extends ObjectInclude = {}>
+		extends CoreClientMethodOptions {
 		owner: string;
 		coinType: string;
 		limit?: number;
 		cursor?: string | null;
+		include?: Include;
 	}
 
 	export interface ListDynamicFieldsOptions extends CoreClientMethodOptions {
@@ -81,37 +100,38 @@ export namespace SuiClientTypes {
 		name: DynamicFieldName;
 	}
 
-	export interface ListObjectsResponse {
-		objects: (ObjectResponse | Error)[];
+	export interface ListObjectsResponse<out Include extends ObjectInclude = {}> {
+		objects: (ObjectResponse<Include> | Error)[];
 	}
 
-	export interface GetObjectResponse {
-		object: ObjectResponse;
+	export interface GetObjectResponse<out Include extends ObjectInclude = {}> {
+		object: ObjectResponse<Include>;
 	}
 
-	export interface ListOwnedObjectsResponse {
-		objects: ObjectResponse[];
+	export interface ListOwnedObjectsResponse<out Include extends ObjectInclude = {}> {
+		objects: ObjectResponse<Include>[];
 		hasNextPage: boolean;
 		cursor: string | null;
 	}
 
-	export interface ListCoinsResponse {
-		objects: CoinResponse[];
+	export interface ListCoinsResponse<out Include extends ObjectInclude = {}> {
+		objects: CoinResponse<Include>[];
 		hasNextPage: boolean;
 		cursor: string | null;
 	}
 
-	export interface ObjectResponse {
+	export interface ObjectResponse<out Include extends ObjectInclude = {}> {
 		objectId: string;
 		version: string;
 		digest: string;
 		owner: ObjectOwner;
 		type: string;
-		content: PromiseLike<Uint8Array>;
-		previousTransaction: string | null;
+		content: Include extends { content: true } ? Uint8Array<ArrayBuffer> : undefined;
+		previousTransaction: Include extends { previousTransaction: true } ? string | null : undefined;
 	}
 
-	export interface CoinResponse extends ObjectResponse {
+	export interface CoinResponse<out Include extends ObjectInclude = {}>
+		extends ObjectResponse<Include> {
 		balance: string;
 	}
 
@@ -182,30 +202,37 @@ export namespace SuiClientTypes {
 
 	/** Transaction methods */
 	export interface TransportMethods {
-		getTransaction: (options: GetTransactionOptions) => Promise<GetTransactionResponse>;
-		executeTransaction: (options: ExecuteTransactionOptions) => Promise<ExecuteTransactionResponse>;
-		simulateTransaction: (
-			options: SimulateTransactionOptions,
-		) => Promise<SimulateTransactionResponse>;
+		getTransaction: <Include extends TransactionInclude = {}>(
+			options: GetTransactionOptions<Include>,
+		) => Promise<GetTransactionResponse<Include>>;
+		executeTransaction: <Include extends TransactionInclude = {}>(
+			options: ExecuteTransactionOptions<Include>,
+		) => Promise<ExecuteTransactionResponse<Include>>;
+		simulateTransaction: <Include extends TransactionInclude = {}>(
+			options: SimulateTransactionOptions<Include>,
+		) => Promise<SimulateTransactionResponse<Include>>;
 		resolveTransactionPlugin: () => TransactionPlugin;
 	}
 
-	export interface Event {
-		packageId: string;
-		module: string;
-		sender: string;
-		eventType: string;
-		bcs: Uint8Array;
-	}
-	export interface TransactionResponse {
+	export interface TransactionResponse<out Include extends TransactionInclude = {}> {
 		digest: string;
 		signatures: string[];
 		epoch: string | null;
-		effects: TransactionEffects;
-		objectTypes: PromiseLike<Record<string, string>>;
-		transaction: TransactionData;
-		balanceChanges: BalanceChange[];
-		events: Event[];
+		balanceChanges: Include extends { balanceChanges: true } ? BalanceChange[] : undefined;
+		effects: Include extends { effects: true } ? TransactionEffects : undefined;
+		events: Include extends { events: true } ? Event[] : undefined;
+		objectTypes: Include extends { objectTypes: true }
+			? PromiseLike<Record<string, string>>
+			: undefined;
+		transaction: Include extends { transaction: true } ? TransactionData : undefined;
+	}
+
+	export interface TransactionInclude {
+		balanceChanges?: boolean;
+		effects?: boolean;
+		events?: boolean;
+		objectTypes?: boolean;
+		transaction?: boolean;
 	}
 
 	export interface BalanceChange {
@@ -218,29 +245,35 @@ export namespace SuiClientTypes {
 		bcs: Uint8Array;
 	}
 
-	export interface GetTransactionOptions extends CoreClientMethodOptions {
+	export interface GetTransactionOptions<Include extends TransactionInclude = {}>
+		extends CoreClientMethodOptions {
 		digest: string;
+		include?: Include;
 	}
 
-	export interface GetTransactionResponse {
-		transaction: TransactionResponse;
+	export interface GetTransactionResponse<out Include extends TransactionInclude = {}> {
+		transaction: TransactionResponse<Include>;
 	}
 
-	export interface ExecuteTransactionOptions extends CoreClientMethodOptions {
+	export interface ExecuteTransactionOptions<Include extends TransactionInclude = {}>
+		extends CoreClientMethodOptions {
 		transaction: Uint8Array;
 		signatures: string[];
+		include?: Include;
 	}
 
-	export interface SimulateTransactionOptions extends CoreClientMethodOptions {
+	export interface SimulateTransactionOptions<Include extends TransactionInclude = {}>
+		extends CoreClientMethodOptions {
 		transaction: Uint8Array;
+		include?: Include;
 	}
 
-	export interface SimulateTransactionResponse {
-		transaction: TransactionResponse;
+	export interface SimulateTransactionResponse<out Include extends TransactionInclude = {}> {
+		transaction: TransactionResponse<Include>;
 	}
 
-	export interface ExecuteTransactionResponse {
-		transaction: TransactionResponse;
+	export interface ExecuteTransactionResponse<out Include extends TransactionInclude = {}> {
+		transaction: TransactionResponse<Include>;
 	}
 
 	export interface GetReferenceGasPriceOptions extends CoreClientMethodOptions {}
@@ -571,4 +604,12 @@ export namespace SuiClientTypes {
 		version: string | null;
 		digest: string | null;
 	}
+}
+
+export interface Event {
+	packageId: string;
+	module: string;
+	sender: string;
+	eventType: string;
+	bcs: Uint8Array;
 }

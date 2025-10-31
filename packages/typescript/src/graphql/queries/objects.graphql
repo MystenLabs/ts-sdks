@@ -1,7 +1,14 @@
 # Copyright (c) Mysten Labs, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-query getOwnedObjects($owner: SuiAddress!, $limit: Int, $cursor: String, $filter: ObjectFilter) {
+query getOwnedObjects(
+	$owner: SuiAddress!
+	$limit: Int
+	$cursor: String
+	$filter: ObjectFilter
+	$includeContent: Boolean = false
+	$includePreviousTransaction: Boolean = false
+) {
 	address(address: $owner) {
 		objects(first: $limit, after: $cursor, filter: $filter) {
 			pageInfo {
@@ -15,7 +22,11 @@ query getOwnedObjects($owner: SuiAddress!, $limit: Int, $cursor: String, $filter
 	}
 }
 
-query multiGetObjects($objectKeys: [ObjectKey!]!) {
+query multiGetObjects(
+	$objectKeys: [ObjectKey!]!
+	$includeContent: Boolean = false
+	$includePreviousTransaction: Boolean = false
+) {
 	multiGetObjects(keys: $objectKeys) {
 		...OBJECT_FIELDS
 	}
@@ -27,7 +38,7 @@ fragment OBJECT_FIELDS on Object {
 	version
 	asMoveObject {
 		contents {
-			bcs
+			bcs @include(if: $includeContent)
 			type {
 				repr
 			}
@@ -39,7 +50,7 @@ fragment OBJECT_FIELDS on Object {
 	owner {
 		...OBJECT_OWNER_FIELDS
 	}
-	previousTransaction {
+	previousTransaction @include(if: $includePreviousTransaction) {
 		digest
 	}
 }
@@ -49,7 +60,7 @@ fragment MOVE_OBJECT_FIELDS on MoveObject {
 	digest
 	version
 	contents {
-		bcs
+		bcs @include(if: $includeContent)
 		type {
 			repr
 		}
@@ -57,7 +68,7 @@ fragment MOVE_OBJECT_FIELDS on MoveObject {
 	owner {
 		...OBJECT_OWNER_FIELDS
 	}
-	previousTransaction {
+	previousTransaction @include(if: $includePreviousTransaction) {
 		digest
 	}
 }

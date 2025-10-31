@@ -64,14 +64,20 @@ describe('Core API - Objects', () => {
 	describe('getObject', () => {
 		it('all clients return same data: getObject', async () => {
 			await toolbox.expectAllClientsReturnSameData((client) =>
-				client.core.getObject({ objectId: testObjectId }),
+				client.core.getObject({
+					objectId: testObjectId,
+					include: { content: true, previousTransaction: true },
+				}),
 			);
 		});
 
 		testWithAllClients(
 			'should get an existing object',
 			async (client) => {
-				const { object } = await client.core.getObject({ objectId: testObjectId });
+				const { object } = await client.core.getObject({
+					objectId: testObjectId,
+					include: { content: true, previousTransaction: true },
+				});
 
 				expect(object.objectId).toBe(normalizeSuiAddress(testObjectId));
 				expect(object.type).toContain('SimpleObject');
@@ -87,7 +93,10 @@ describe('Core API - Objects', () => {
 		);
 
 		testWithAllClients('should parse BCS content correctly', async (client) => {
-			const { object } = await client.core.getObject({ objectId: testObjectId });
+			const { object } = await client.core.getObject({
+				objectId: testObjectId,
+				include: { content: true },
+			});
 			const content = await object.content;
 
 			// Parse BCS and verify the value field
@@ -161,7 +170,12 @@ describe('Core API - Objects', () => {
 	describe('listOwnedObjects', () => {
 		it('all clients return same data: listOwnedObjects', async () => {
 			await toolbox.expectAllClientsReturnSameData(
-				(client) => client.core.listOwnedObjects({ owner: testAddress, limit: 5 }),
+				(client) =>
+					client.core.listOwnedObjects({
+						owner: testAddress,
+						limit: 5,
+						include: { content: true, previousTransaction: true },
+					}),
 				// Normalize: ignore cursor and sort by id (order may vary across APIs)
 				(result) => ({
 					...result,
@@ -283,6 +297,202 @@ describe('Core API - Objects', () => {
 				if (!(obj instanceof Error)) {
 					expect(obj.type).toBe('package');
 				}
+			}
+		});
+	});
+
+	describe('getObject - Include Options', () => {
+		testWithAllClients('should work with no includes', async (client) => {
+			const { object } = await client.core.getObject({
+				objectId: testObjectId,
+				include: {},
+			});
+
+			expect(object.objectId).toBe(normalizeSuiAddress(testObjectId));
+			expect(object.type).toContain('SimpleObject');
+			expect(object.owner).toBeDefined();
+
+			// content and previousTransaction should be undefined
+			expect(object.content).toBeUndefined();
+			expect(object.previousTransaction).toBeUndefined();
+		});
+
+		testWithAllClients('should include content when requested', async (client) => {
+			const { object } = await client.core.getObject({
+				objectId: testObjectId,
+				include: { content: true },
+			});
+
+			expect(object.objectId).toBe(normalizeSuiAddress(testObjectId));
+
+			// content should be available
+			const content = await object.content;
+			expect(content).toBeInstanceOf(Uint8Array);
+			expect(content.length).toBeGreaterThan(0);
+
+			// previousTransaction should still be undefined
+			expect(object.previousTransaction).toBeUndefined();
+		});
+
+		testWithAllClients('should include previousTransaction when requested', async (client) => {
+			const { object } = await client.core.getObject({
+				objectId: testObjectId,
+				include: { previousTransaction: true },
+			});
+
+			expect(object.objectId).toBe(normalizeSuiAddress(testObjectId));
+
+			// previousTransaction should be available
+			expect(object.previousTransaction).toBeDefined();
+			expect(typeof object.previousTransaction).toBe('string');
+
+			// content should be undefined
+			expect(object.content).toBeUndefined();
+		});
+
+		testWithAllClients('should include both content and previousTransaction', async (client) => {
+			const { object } = await client.core.getObject({
+				objectId: testObjectId,
+				include: { content: true, previousTransaction: true },
+			});
+
+			expect(object.objectId).toBe(normalizeSuiAddress(testObjectId));
+
+			// Both should be available
+			const content = await object.content;
+			expect(content).toBeInstanceOf(Uint8Array);
+			expect(content.length).toBeGreaterThan(0);
+
+			expect(object.previousTransaction).toBeDefined();
+			expect(typeof object.previousTransaction).toBe('string');
+		});
+	});
+
+	describe('listObjects - Include Options', () => {
+		testWithAllClients('should work with no includes', async (client) => {
+			const { objects } = await client.core.listObjects({
+				objectIds: [testObjectId],
+				include: {},
+			});
+
+			expect(objects.length).toBe(1);
+			const object = objects[0];
+			expect(object).not.toBeInstanceOf(Error);
+
+			if (!(object instanceof Error)) {
+				expect(object.objectId).toBe(normalizeSuiAddress(testObjectId));
+				expect(object.content).toBeUndefined();
+				expect(object.previousTransaction).toBeUndefined();
+			}
+		});
+
+		testWithAllClients('should include content when requested', async (client) => {
+			const { objects } = await client.core.listObjects({
+				objectIds: [testObjectId],
+				include: { content: true },
+			});
+
+			expect(objects.length).toBe(1);
+			const object = objects[0];
+			expect(object).not.toBeInstanceOf(Error);
+
+			if (!(object instanceof Error)) {
+				const content = await object.content;
+				expect(content).toBeInstanceOf(Uint8Array);
+				expect(object.previousTransaction).toBeUndefined();
+			}
+		});
+
+		testWithAllClients('should include previousTransaction when requested', async (client) => {
+			const { objects } = await client.core.listObjects({
+				objectIds: [testObjectId],
+				include: { previousTransaction: true },
+			});
+
+			expect(objects.length).toBe(1);
+			const object = objects[0];
+			expect(object).not.toBeInstanceOf(Error);
+
+			if (!(object instanceof Error)) {
+				expect(object.previousTransaction).toBeDefined();
+				expect(object.content).toBeUndefined();
+			}
+		});
+
+		testWithAllClients('should include both content and previousTransaction', async (client) => {
+			const { objects } = await client.core.listObjects({
+				objectIds: [testObjectId],
+				include: { content: true, previousTransaction: true },
+			});
+
+			expect(objects.length).toBe(1);
+			const object = objects[0];
+			expect(object).not.toBeInstanceOf(Error);
+
+			if (!(object instanceof Error)) {
+				const content = await object.content;
+				expect(content).toBeInstanceOf(Uint8Array);
+				expect(object.previousTransaction).toBeDefined();
+			}
+		});
+	});
+
+	describe('listOwnedObjects - Include Options', () => {
+		testWithAllClients('should work with no includes', async (client) => {
+			const result = await client.core.listOwnedObjects({
+				owner: testAddress,
+				limit: 2,
+				include: {},
+			});
+
+			expect(result.objects.length).toBeGreaterThan(0);
+			for (const obj of result.objects) {
+				expect(obj.content).toBeUndefined();
+				expect(obj.previousTransaction).toBeUndefined();
+			}
+		});
+
+		testWithAllClients('should include content when requested', async (client) => {
+			const result = await client.core.listOwnedObjects({
+				owner: testAddress,
+				limit: 2,
+				include: { content: true },
+			});
+
+			expect(result.objects.length).toBeGreaterThan(0);
+			for (const obj of result.objects) {
+				const content = await obj.content;
+				expect(content).toBeInstanceOf(Uint8Array);
+				expect(obj.previousTransaction).toBeUndefined();
+			}
+		});
+
+		testWithAllClients('should include previousTransaction when requested', async (client) => {
+			const result = await client.core.listOwnedObjects({
+				owner: testAddress,
+				limit: 2,
+				include: { previousTransaction: true },
+			});
+
+			expect(result.objects.length).toBeGreaterThan(0);
+			for (const obj of result.objects) {
+				expect(obj.previousTransaction).toBeDefined();
+				expect(obj.content).toBeUndefined();
+			}
+		});
+
+		testWithAllClients('should include both content and previousTransaction', async (client) => {
+			const result = await client.core.listOwnedObjects({
+				owner: testAddress,
+				limit: 2,
+				include: { content: true, previousTransaction: true },
+			});
+
+			expect(result.objects.length).toBeGreaterThan(0);
+			for (const obj of result.objects) {
+				const content = await obj.content;
+				expect(content).toBeInstanceOf(Uint8Array);
+				expect(obj.previousTransaction).toBeDefined();
 			}
 		});
 	});
