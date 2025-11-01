@@ -17,4 +17,4 @@ export const MAINNET_PAYMENT_KIT_PACKAGE_CONFIG = {
 export const SUI_COIN_TYPE = normalizeStructTag(SUI_TYPE_ARG);
 export const DEFAULT_REGISTRY_NAME = 'default-payment-registry';
 
-export const SUI_PROTOCOL = 'sui:';
+export const SUI_PAYMENT_KIT_PROTOCOL = 'sui:pay';

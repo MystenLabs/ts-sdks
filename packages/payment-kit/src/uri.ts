@@ -4,7 +4,7 @@
 import { isValidNamedType, isValidSuiAddress, isValidSuiObjectId } from '@mysten/sui/utils';
 import type { PaymentUriParams } from './types.js';
 import { PaymentKitUriError } from './error.js';
-import { SUI_PROTOCOL } from './constants.js';
+import { SUI_PAYMENT_KIT_PROTOCOL } from './constants.js';
 
 const isValidNonce = (nonce: string) => {
 	return nonce.length <= 36;
@@ -34,13 +34,15 @@ const isValidCoinType = (coinType: string) => {
  * ```
  */
 export const createPaymentTransactionUri = (params: PaymentUriParams): string => {
-	const { receiverAddress: address, amount, coinType, nonce, registryId, registryName } = params;
+	const { receiverAddress, amount, coinType, nonce, registryId, registryName } = params;
 
-	if (!isValidSuiAddress(address)) {
+	const uri = new URL(SUI_PAYMENT_KIT_PROTOCOL);
+
+	if (!isValidSuiAddress(receiverAddress)) {
+		uri.searchParams.append('receiver', amount.toString());
+	} else {
 		throw new PaymentKitUriError('Invalid Sui address');
 	}
-
-	const uri = new URL(SUI_PROTOCOL + address);
 
 	if (isValidAmount(amount)) {
 		uri.searchParams.append('amount', amount.toString());
@@ -97,27 +99,27 @@ export const createPaymentTransactionUri = (params: PaymentUriParams): string =>
  * ```
  */
 export const parsePaymentTransactionUri = (uri: string): PaymentUriParams => {
-	if (!uri.startsWith('sui:')) {
-		throw new PaymentKitUriError('Invalid URI: Must start with sui:');
+	if (!uri.startsWith(SUI_PAYMENT_KIT_PROTOCOL + '?')) {
+		throw new PaymentKitUriError('Invalid URI: Must start with sui:pay?');
 	}
 
 	const url = new URL(uri);
-	const address = url.pathname.replace('/', '');
-
-	// Validate the address
-	if (!isValidSuiAddress(address)) {
-		throw new PaymentKitUriError('Invalid Sui address');
-	}
 
 	// Extract query parameters
 	const params = url.searchParams;
+	const receiver = params.get('receiver');
 	const amount = params.get('amount');
 	const coinType = params.get('coinType');
 	const nonce = params.get('nonce') ?? undefined;
 
 	// Amount and CoinType are required
-	if (!amount || !coinType || !nonce) {
+	if (!receiver || !amount || !coinType || !nonce) {
 		throw new PaymentKitUriError('Invalid URI: Missing required parameters');
+	}
+
+	// Validate the receiver address
+	if (!isValidSuiAddress(receiver)) {
+		throw new PaymentKitUriError('Invalid URI: Receiver address is not valid');
 	}
 
 	if (!isValidCoinType(coinType)) {
@@ -150,7 +152,7 @@ export const parsePaymentTransactionUri = (uri: string): PaymentUriParams => {
 	}
 
 	const baseParams = {
-		receiverAddress: address,
+		receiverAddress: receiver,
 		amount: bigIntAmount,
 		coinType,
 		nonce: nonce,
