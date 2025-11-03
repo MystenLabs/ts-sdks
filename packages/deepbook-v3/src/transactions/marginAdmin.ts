@@ -139,6 +139,8 @@ export class MarginAdminContract {
 	 */
 	updateRiskParams = (poolKey: string, poolConfig: TransactionArgument) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::update_risk_params`,
 			arguments: [
@@ -148,6 +150,7 @@ export class MarginAdminContract {
 				poolConfig,
 				tx.object.clock(),
 			],
+			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};
 
