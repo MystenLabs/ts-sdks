@@ -14,8 +14,8 @@ To use the walrus SDK you will need to create a Client from the typescript SDK, 
 the walrus SDK.
 
 ```ts
-import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
-import { getFullnodeUrl } from "@mysten/sui/client";
+import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { getFullnodeUrl } from '@mysten/sui/client';
 import { walrus } from '@mysten/walrus';
 
 const client = new SuiJsonRpcClient({
@@ -30,8 +30,8 @@ testnet. You can also manually configure the walrus sdk to use a different set o
 to connect to a different network or updated deployment of the walrus contracts.
 
 ```ts
-import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
-import { getFullnodeUrl } from "@mysten/sui/client";
+import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { getFullnodeUrl } from '@mysten/sui/client';
 import { walrus } from '@mysten/walrus';
 
 const client = new SuiJsonRpcClient({
@@ -51,8 +51,8 @@ const client = new SuiJsonRpcClient({
 For some environments you may need to customize how data is fetched:
 
 ```ts
-import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
-import { getFullnodeUrl } from "@mysten/sui/client";
+import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { getFullnodeUrl } from '@mysten/sui/client';
 import { walrus } from '@mysten/walrus';
 
 const client = new SuiJsonRpcClient({
@@ -194,8 +194,8 @@ const results: {
 });
 ```
 
-Currently, the provided files will all be written into a single quilt. Future versions of the SDK may
-optimize how files are stored to be more efficient by splitting files into multiple quilts.
+Currently, the provided files will all be written into a single quilt. Future versions of the SDK
+may optimize how files are stored to be more efficient by splitting files into multiple quilts.
 
 The current quilt encoding is less efficient for single files, so writing multiple files together is
 recommended when possible. Writing raw blobs directly is also possible using the `writeBlob` API
