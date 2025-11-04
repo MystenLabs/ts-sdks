@@ -1,5 +1,11 @@
 # @mysten/payment-kit
 
+## 0.0.14
+
+### Patch Changes
+
+- ef45c9a: Updated Payment Kit URI Standard
+
 ## 0.0.13
 
 ### Patch Changes
