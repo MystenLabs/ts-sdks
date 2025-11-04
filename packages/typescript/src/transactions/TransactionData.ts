@@ -20,6 +20,7 @@ import { transactionDataFromV1 } from './data/v1.js';
 import type { SerializedTransactionDataV1 } from './data/v1.js';
 import type { SerializedTransactionDataV2Schema } from './data/v2.js';
 import { hashTypedData } from './hash.js';
+import { getIdFromCallArg, remapCommandArguments } from './utils.js';
 function prepareSuiAddress(address: string) {
 	return normalizeSuiAddress(address).replace('0x', '');
 }
@@ -305,6 +306,81 @@ export class TransactionDataBuilder implements TransactionData {
 						}
 
 						if (arg.NestedResult[0] > index) {
+							arg.NestedResult[0] += sizeDiff;
+						}
+						break;
+				}
+				return arg;
+			});
+		}
+	}
+
+	insertTransaction(atCommandIndex: number, otherTransaction: TransactionData) {
+		const inputMapping = new Map<number, number>();
+		const commandMapping = new Map<number, number>();
+
+		for (let i = 0; i < otherTransaction.inputs.length; i++) {
+			const otherInput = otherTransaction.inputs[i];
+			const id = getIdFromCallArg(otherInput);
+
+			let existingIndex = -1;
+			if (id !== undefined) {
+				existingIndex = this.inputs.findIndex((input) => getIdFromCallArg(input) === id);
+
+				if (
+					existingIndex !== -1 &&
+					this.inputs[existingIndex].Object?.SharedObject &&
+					otherInput.Object?.SharedObject
+				) {
+					this.inputs[existingIndex].Object!.SharedObject!.mutable =
+						this.inputs[existingIndex].Object!.SharedObject!.mutable ||
+						otherInput.Object.SharedObject.mutable;
+				}
+			}
+
+			if (existingIndex !== -1) {
+				inputMapping.set(i, existingIndex);
+			} else {
+				const newIndex = this.inputs.length;
+				this.inputs.push(otherInput);
+				inputMapping.set(i, newIndex);
+			}
+		}
+
+		for (let i = 0; i < otherTransaction.commands.length; i++) {
+			commandMapping.set(i, atCommandIndex + i);
+		}
+
+		const remappedCommands: Command[] = [];
+		for (let i = 0; i < otherTransaction.commands.length; i++) {
+			const command = structuredClone(otherTransaction.commands[i]);
+
+			remapCommandArguments(command, inputMapping, commandMapping);
+
+			remappedCommands.push(command);
+		}
+
+		this.commands.splice(atCommandIndex, 0, ...remappedCommands);
+
+		const sizeDiff = remappedCommands.length;
+		if (sizeDiff > 0) {
+			this.mapArguments((arg, _command, commandIndex) => {
+				if (
+					commandIndex >= atCommandIndex &&
+					commandIndex < atCommandIndex + remappedCommands.length
+				) {
+					return arg;
+				}
+
+				switch (arg.$kind) {
+					case 'Result':
+						if (arg.Result >= atCommandIndex) {
+							arg.Result += sizeDiff;
+						}
+						break;
+
+					case 'NestedResult':
+						if (arg.NestedResult[0] >= atCommandIndex) {
 							arg.NestedResult[0] += sizeDiff;
 						}
 						break;
