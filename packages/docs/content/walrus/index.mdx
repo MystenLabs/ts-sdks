@@ -20,7 +20,7 @@ import { walrus } from '@mysten/walrus';
 
 const client = new SuiJsonRpcClient({
 	url: getFullnodeUrl('testnet'),
-	// Setting network on your client is optional for walrus to work correctly
+	// Setting network on your client is required for walrus to work correctly
 	network: 'testnet',
 }).$extend(walrus());
 ```
@@ -36,7 +36,7 @@ import { walrus } from '@mysten/walrus';
 
 const client = new SuiJsonRpcClient({
 	url: getFullnodeUrl('testnet'),
-	// Setting network on your client is optional for walrus to work correctly
+	// Setting network on your client is required for walrus to work correctly
 	network: 'testnet',
 }).$extend(
 	walrus({
@@ -57,7 +57,7 @@ import { walrus } from '@mysten/walrus';
 
 const client = new SuiJsonRpcClient({
 	url: getFullnodeUrl('testnet'),
-	// Setting network on your client is optional for walrus to work correctly
+	// Setting network on your client is required for walrus to work correctly
 	network: 'testnet',
 }).$extend(
 	walrus({
