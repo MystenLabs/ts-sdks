@@ -26,7 +26,7 @@ describe('Core API - Transactions', () => {
 		const tx = new Transaction();
 		tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
-		const result = await toolbox.client.signAndExecuteTransaction({
+		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 			transaction: tx,
 			signer: toolbox.keypair,
 			options: {
@@ -39,7 +39,7 @@ describe('Core API - Transactions', () => {
 		executedTxDigest = result.digest;
 
 		// Wait for transaction to be indexed
-		await toolbox.client.waitForTransaction({ digest: executedTxDigest });
+		await toolbox.jsonRpcClient.waitForTransaction({ digest: executedTxDigest });
 	});
 
 	describe('getTransaction', () => {
@@ -113,7 +113,7 @@ describe('Core API - Transactions', () => {
 
 			// Build and sign the transaction
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 			const signature = await toolbox.keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
@@ -138,7 +138,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [500])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 			const signature = await toolbox.keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
@@ -162,7 +162,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 
 			// Use wrong keypair to sign
 			const wrongKeypair = Ed25519Keypair.generate();
@@ -183,7 +183,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 			const signature = await toolbox.keypair.signTransaction(bytes);
 
 			await expect(
@@ -201,7 +201,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -222,7 +222,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -273,7 +273,7 @@ describe('Core API - Transactions', () => {
 			);
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 
 			await client.core.simulateTransaction({
 				transaction: bytes,
@@ -296,7 +296,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 			const signature = await toolbox.keypair.signTransaction(bytes);
 
 			const executeResult = await client.core.executeTransaction({
@@ -323,7 +323,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 			const signature = await toolbox.keypair.signTransaction(bytes);
 
 			const executeResult = await client.core.executeTransaction({
@@ -394,7 +394,7 @@ describe('Core API - Transactions', () => {
 			});
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 			const signature = await toolbox.keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
@@ -428,7 +428,7 @@ describe('Core API - Transactions', () => {
 				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 				tx.setSender(testAddress);
-				const bytes = await tx.build({ client: toolbox.client });
+				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 				const signature = await toolbox.keypair.signTransaction(bytes);
 
 				const result = await client.core.executeTransaction({
@@ -455,7 +455,7 @@ describe('Core API - Transactions', () => {
 			});
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 			const signature = await toolbox.keypair.signTransaction(bytes);
 
 			const executeResult = await client.core.executeTransaction({
@@ -486,7 +486,7 @@ describe('Core API - Transactions', () => {
 			});
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -627,7 +627,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 			const signature = await toolbox.keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
@@ -652,7 +652,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 			const signature = await toolbox.keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
@@ -675,7 +675,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 			const signature = await toolbox.keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
@@ -708,7 +708,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -727,7 +727,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -745,7 +745,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.client });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,

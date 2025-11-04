@@ -26,7 +26,7 @@ describe('Core API - Coins', () => {
 			throw new Error('testAddress is undefined');
 		}
 
-		const ownedObjects = await toolbox.client.core.listOwnedObjects({
+		const ownedObjects = await toolbox.jsonRpcClient.core.listOwnedObjects({
 			owner: testAddress,
 		});
 
@@ -43,7 +43,7 @@ describe('Core API - Coins', () => {
 			});
 			tx.transferObjects([coin], tx.pure.address(testAddress));
 
-			const result = await toolbox.client.signAndExecuteTransaction({
+			const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 				transaction: tx,
 				signer: toolbox.keypair,
 				options: {
@@ -51,7 +51,7 @@ describe('Core API - Coins', () => {
 				},
 			});
 
-			await toolbox.client.waitForTransaction({ digest: result.digest });
+			await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
 		}
 	});
 

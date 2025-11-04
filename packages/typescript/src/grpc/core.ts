@@ -534,15 +534,6 @@ function mapOwner(owner: Owner | null | undefined): SuiClientTypes.ObjectOwner |
 	}
 
 	if (owner.kind === Owner_OwnerKind.SHARED) {
-		if (owner.address) {
-			return {
-				$kind: 'ConsensusAddressOwner',
-				ConsensusAddressOwner: {
-					owner: owner.address,
-					startVersion: owner.version?.toString()!,
-				},
-			};
-		}
 		return {
 			$kind: 'Shared',
 			Shared: {
@@ -551,7 +542,19 @@ function mapOwner(owner: Owner | null | undefined): SuiClientTypes.ObjectOwner |
 		};
 	}
 
-	throw new Error('Unknown owner kind');
+	if (owner.kind === Owner_OwnerKind.CONSENSUS_ADDRESS) {
+		return {
+			$kind: 'ConsensusAddressOwner',
+			ConsensusAddressOwner: {
+				owner: owner.address!,
+				startVersion: owner.version?.toString()!,
+			},
+		};
+	}
+
+	throw new Error(
+		`Unknown owner kind ${JSON.stringify(owner, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))}`,
+	);
 }
 
 function mapIdOperation(
@@ -675,7 +678,9 @@ export function parseTransactionEffects({
 			: {
 					success: false,
 					// TODO: parse errors properly
-					error: JSON.stringify(effects.status?.error),
+					error: JSON.stringify(effects.status?.error, (_k, v) =>
+						typeof v === 'bigint' ? v.toString() : v,
+					),
 				},
 		gasUsed: {
 			computationCost: effects.gasUsed?.computationCost?.toString()!,

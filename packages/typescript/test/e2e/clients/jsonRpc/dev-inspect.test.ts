@@ -3,10 +3,10 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { SuiJsonRpcClient } from '../../src/jsonRpc';
-import { Keypair } from '../../src/cryptography';
-import { Transaction } from '../../src/transactions';
-import { setup, TestToolbox } from './utils/setup';
+import { SuiJsonRpcClient } from '../../../../src/jsonRpc';
+import { Keypair } from '../../../../src/cryptography';
+import { Transaction } from '../../../../src/transactions';
+import { setup, TestToolbox } from '../../utils/setup';
 
 describe('Test dev inspect', () => {
 	let toolbox: TestToolbox;
@@ -21,21 +21,33 @@ describe('Test dev inspect', () => {
 		const tx = new Transaction();
 		const coin = tx.splitCoins(tx.gas, [10]);
 		tx.transferObjects([coin], tx.pure.address(toolbox.address()));
-		await validateDevInspectTransaction(toolbox.client, toolbox.keypair, tx, 'success');
+		await validateDevInspectTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx, 'success');
 	});
 
 	it('can set gas price as number', async () => {
 		const tx = new Transaction();
 		const coin = tx.splitCoins(tx.gas, [10]);
 		tx.transferObjects([coin], tx.pure.address(toolbox.address()));
-		await validateDevInspectTransaction(toolbox.client, toolbox.keypair, tx, 'success', 2000);
+		await validateDevInspectTransaction(
+			toolbox.jsonRpcClient,
+			toolbox.keypair,
+			tx,
+			'success',
+			2000,
+		);
 	});
 
 	it('can set gas price as bigint', async () => {
 		const tx = new Transaction();
 		const coin = tx.splitCoins(tx.gas, [10]);
 		tx.transferObjects([coin], tx.pure.address(toolbox.address()));
-		await validateDevInspectTransaction(toolbox.client, toolbox.keypair, tx, 'success', 2000n);
+		await validateDevInspectTransaction(
+			toolbox.jsonRpcClient,
+			toolbox.keypair,
+			tx,
+			'success',
+			2000n,
+		);
 	});
 
 	it('Move Call that returns struct', async () => {
@@ -52,7 +64,7 @@ describe('Test dev inspect', () => {
 		// TODO: Ideally dev inspect transactions wouldn't need this, but they do for now
 		tx.transferObjects([obj], tx.pure.address(toolbox.address()));
 
-		await validateDevInspectTransaction(toolbox.client, toolbox.keypair, tx, 'success');
+		await validateDevInspectTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx, 'success');
 	});
 
 	it('Move Call that aborts', async () => {
@@ -63,7 +75,7 @@ describe('Test dev inspect', () => {
 			arguments: [],
 		});
 
-		await validateDevInspectTransaction(toolbox.client, toolbox.keypair, tx, 'failure');
+		await validateDevInspectTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx, 'failure');
 	});
 });
 

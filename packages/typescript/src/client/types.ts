@@ -505,11 +505,19 @@ export namespace SuiClientTypes {
 	export interface AddressOwner {
 		$kind: 'AddressOwner';
 		AddressOwner: string;
+		ObjectOwner?: never;
+		Shared?: never;
+		Immutable?: never;
+		ConsensusAddressOwner?: never;
 	}
 
 	export interface ParentOwner {
 		$kind: 'ObjectOwner';
 		ObjectOwner: string;
+		AddressOwner?: never;
+		Shared?: never;
+		Immutable?: never;
+		ConsensusAddressOwner?: never;
 	}
 
 	export interface SharedOwner {
@@ -517,11 +525,19 @@ export namespace SuiClientTypes {
 		Shared: {
 			initialSharedVersion: string;
 		};
+		AddressOwner?: never;
+		ObjectOwner?: never;
+		Immutable?: never;
+		ConsensusAddressOwner?: never;
 	}
 
 	export interface ImmutableOwner {
 		$kind: 'Immutable';
 		Immutable: true;
+		AddressOwner?: never;
+		ObjectOwner?: never;
+		Shared?: never;
+		ConsensusAddressOwner?: never;
 	}
 
 	export interface ConsensusAddressOwner {
@@ -530,10 +546,19 @@ export namespace SuiClientTypes {
 			owner: string;
 			startVersion: string;
 		};
+		AddressOwner?: never;
+		ObjectOwner?: never;
+		Shared?: never;
+		Immutable?: never;
 	}
 
 	export interface UnknownOwner {
 		$kind: 'Unknown';
+		AddressOwner?: never;
+		ObjectOwner?: never;
+		Shared?: never;
+		Immutable?: never;
+		ConsensusAddressOwner?: never;
 	}
 
 	export type ObjectOwner =

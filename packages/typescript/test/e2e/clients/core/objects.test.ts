@@ -36,7 +36,7 @@ describe('Core API - Objects', () => {
 		});
 		tx.transferObjects([obj], tx.pure.address(testAddress));
 
-		const result = await toolbox.client.signAndExecuteTransaction({
+		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 			transaction: tx,
 			signer: toolbox.keypair,
 			options: {
@@ -46,7 +46,7 @@ describe('Core API - Objects', () => {
 		});
 
 		// Wait for the transaction to be indexed
-		await toolbox.client.waitForTransaction({
+		await toolbox.jsonRpcClient.waitForTransaction({
 			digest: result.digest,
 		});
 
@@ -122,7 +122,7 @@ describe('Core API - Objects', () => {
 	describe('getObjects', () => {
 		testWithAllClients('should get multiple objects', async (client) => {
 			// Get multiple gas coins from the test address
-			const coins = await toolbox.client.getCoins({
+			const coins = await toolbox.jsonRpcClient.getCoins({
 				owner: testAddress,
 				coinType: SUI_TYPE_ARG,
 				limit: 3,
