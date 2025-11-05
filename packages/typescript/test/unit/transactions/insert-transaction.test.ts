@@ -147,4 +147,151 @@ describe('TransactionDataBuilder.insertTransaction', () => {
 		expect(builder2.commands[0].MoveCall?.module).toBe('main');
 		expect(builder2.commands[1].MoveCall?.module).toBe('insert');
 	});
+
+	it('should handle replaceCommand with Result resultIndex', async () => {
+		const mainTx = new Transaction();
+		const result1 = mainTx.moveCall({
+			target: '0x1::main::func1',
+			arguments: [],
+		});
+		mainTx.moveCall({
+			target: '0x1::main::func2',
+			arguments: [result1], // References command 0
+		});
+
+		await mainTx.prepareForSerialization({});
+		const mainBuilder = TransactionDataBuilder.restore(mainTx.getData());
+
+		// Replace command 0 with multiple commands, mapping result to {Result: 1}
+		const otherTx = new Transaction();
+		otherTx.moveCall({ target: '0x2::other::step1', arguments: [] });
+		otherTx.moveCall({ target: '0x2::other::step2', arguments: [] });
+		await otherTx.prepareForSerialization({});
+
+		mainBuilder.replaceCommand(0, otherTx.getData().commands, { Result: 1 });
+
+		// Command 2 (func2) references are adjusted:
+		// 1. Original arg references index 0, so it gets cloned from {Result: 1}
+		// 2. The cloned arg has Result=1, which is > index (0), so it gets adjusted by sizeDiff (+1)
+		// 3. Final result: {Result: 2}
+		expect(mainBuilder.commands[2].MoveCall?.arguments[0]).toEqual({ $kind: 'Result', Result: 2 });
+		expect(mainBuilder.commands.length).toBe(3);
+	});
+
+	it('should handle replaceCommand with NestedResult resultIndex', async () => {
+		const mainTx = new Transaction();
+		const result1 = mainTx.moveCall({
+			target: '0x1::main::func1',
+			arguments: [],
+		});
+		mainTx.moveCall({
+			target: '0x1::main::func2',
+			arguments: [result1], // References command 0
+		});
+
+		await mainTx.prepareForSerialization({});
+		const mainBuilder = TransactionDataBuilder.restore(mainTx.getData());
+
+		// Replace command 0 with multiple commands including one that returns nested results
+		const otherTx = new Transaction();
+		otherTx.moveCall({ target: '0x2::other::step1', arguments: [] });
+		const [coin1] = otherTx.splitCoins(otherTx.gas, [1000]);
+		otherTx.transferObjects([coin1], '0x123');
+
+		await otherTx.prepareForSerialization({});
+
+		mainBuilder.replaceCommand(0, otherTx.getData().commands, { NestedResult: [1, 0] });
+
+		// Command 3 (func2) references are adjusted:
+		// 1. Original arg references index 0, so it gets cloned from {NestedResult: [1, 0]}
+		// 2. The cloned arg has NestedResult[0]=1, which is > index (0), so it gets adjusted by sizeDiff (+2)
+		// 3. Final result: {NestedResult: [3, 0]}
+		expect(mainBuilder.commands[3].MoveCall?.arguments[0]).toEqual({
+			$kind: 'NestedResult',
+			NestedResult: [3, 0],
+		});
+	});
+
+	it('should convert NestedResult to Result when replacing with number resultIndex', async () => {
+		const mainTx = new Transaction();
+		const [coin1] = mainTx.splitCoins(mainTx.gas, [1000]);
+		mainTx.transferObjects([coin1], '0x123');
+
+		await mainTx.prepareForSerialization({});
+		const mainBuilder = TransactionDataBuilder.restore(mainTx.getData());
+
+		// Command 1 uses NestedResult [0, 0] for the split coin
+		expect(mainBuilder.commands[1].TransferObjects?.objects[0]).toEqual({
+			$kind: 'NestedResult',
+			NestedResult: [0, 0],
+		});
+
+		// Replace command 0 (splitCoins) with a simple moveCall that returns a single result
+		// Using a NUMBER resultIndex (not {Result: 0}) to trigger NestedResult -> Result conversion
+		const otherTx = new Transaction();
+		otherTx.moveCall({ target: '0x2::other::getObject', arguments: [] });
+		await otherTx.prepareForSerialization({});
+
+		mainBuilder.replaceCommand(0, otherTx.getData().commands, 0);
+
+		// The NestedResult should now be converted to Result because resultIndex is a number
+		expect(mainBuilder.commands[1].TransferObjects?.objects[0]).toEqual({
+			$kind: 'Result',
+			Result: 0,
+		});
+	});
+
+	it('should allow replacing NestedResult[N, 0] with Result', async () => {
+		const mainTx = new Transaction();
+		const [coin1] = mainTx.splitCoins(mainTx.gas, [1000]);
+		mainTx.transferObjects([coin1], '0x123');
+
+		await mainTx.prepareForSerialization({});
+		const mainBuilder = TransactionDataBuilder.restore(mainTx.getData());
+
+		// Command 1 uses NestedResult [0, 0] - the 0th element from the split
+		expect(mainBuilder.commands[1].TransferObjects?.objects[0]).toEqual({
+			$kind: 'NestedResult',
+			NestedResult: [0, 0],
+		});
+
+		// Replace command 0 with {Result: 0} - this should work for NestedResult[N, 0]
+		const otherTx = new Transaction();
+		otherTx.moveCall({ target: '0x2::other::getObject', arguments: [] });
+		await otherTx.prepareForSerialization({});
+
+		// This should succeed because NestedResult[0, 0] can be replaced with Result
+		mainBuilder.replaceCommand(0, otherTx.getData().commands, { Result: 0 });
+
+		// After replacement, the NestedResult[0, 0] should become Result with adjusted index
+		expect(mainBuilder.commands[1].TransferObjects?.objects[0]).toMatchObject({
+			$kind: 'Result',
+		});
+	});
+
+	it('should throw error when replacing command with Result but NestedResult[N, M] references it where M != 0', async () => {
+		const mainTx = new Transaction();
+		const [_coin1, coin2] = mainTx.splitCoins(mainTx.gas, [1000, 2000]);
+		mainTx.transferObjects([coin2], '0x123'); // Uses NestedResult [0, 1]
+
+		await mainTx.prepareForSerialization({});
+		const mainBuilder = TransactionDataBuilder.restore(mainTx.getData());
+
+		// Command 1 uses NestedResult [0, 1] - the 1st element from the split
+		expect(mainBuilder.commands[1].TransferObjects?.objects[0]).toEqual({
+			$kind: 'NestedResult',
+			NestedResult: [0, 1],
+		});
+
+		// Try to replace command 0 with {Result: 0}
+		// This should error because NestedResult[0, 1] cannot be replaced with a single Result
+		const otherTx = new Transaction();
+		otherTx.moveCall({ target: '0x2::other::getObject', arguments: [] });
+		await otherTx.prepareForSerialization({});
+
+		// This should throw an error
+		expect(() => {
+			mainBuilder.replaceCommand(0, otherTx.getData().commands, { Result: 0 });
+		}).toThrow();
+	});
 });

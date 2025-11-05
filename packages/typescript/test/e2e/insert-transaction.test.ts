@@ -302,4 +302,130 @@ describe('TransactionData.insertTransaction', () => {
 		// Verify success - proves the mutability upgrade worked
 		expect(result.effects?.status.status).toBe('success');
 	});
+
+	it('should execute transaction with replaceCommandWithTransaction using NestedResult resultIndex', async () => {
+		const PLACEHOLDER = 'PLACEHOLDER';
+
+		async function replacePlugin(
+			transactionData: TransactionDataBuilder,
+			_buildOptions: BuildTransactionOptions,
+			next: () => Promise<void>,
+		) {
+			for (let i = transactionData.commands.length - 1; i >= 0; i--) {
+				const command = transactionData.commands[i];
+				if (command.$kind === '$Intent' && command.$Intent.name === PLACEHOLDER) {
+					const intentData = command.$Intent.data as {
+						transaction: typeof transactionData;
+						resultIndex: { Result: number } | { NestedResult: [number, number] };
+					};
+					transactionData.replaceCommandWithTransaction(
+						i,
+						intentData.transaction,
+						intentData.resultIndex,
+					);
+				}
+			}
+
+			await next();
+		}
+
+		const mainTx = new Transaction();
+		mainTx.addIntentResolver(PLACEHOLDER, replacePlugin);
+
+		// Create replacement transaction - split coins and use both
+		const replacementTx = new Transaction();
+		const [coin1] = replacementTx.splitCoins(replacementTx.gas, [500, 1000]);
+		// Transfer coin1 so it's not unused
+		replacementTx.transferObjects([coin1], toolbox.address());
+
+		await replacementTx.prepareForSerialization({});
+
+		// Add placeholder intent that will be replaced, mapping to NestedResult[0, 1] (coin2)
+		const [placeholder] = mainTx.add(
+			Commands.Intent({
+				name: PLACEHOLDER,
+				inputs: {},
+				data: {
+					transaction: replacementTx.getData(),
+					resultIndex: { NestedResult: [0, 1] },
+				},
+			}),
+		);
+		// Use coin2 from the replacement transaction
+		mainTx.transferObjects([placeholder], toolbox.address());
+
+		// Execute
+		const result = await toolbox.client.signAndExecuteTransaction({
+			transaction: mainTx,
+			signer: toolbox.keypair,
+			options: {
+				showEffects: true,
+			},
+		});
+
+		// Verify success
+		expect(result.effects?.status.status).toBe('success');
+	});
+
+	it('should execute transaction with replaceCommandWithTransaction using NestedResult[0,0] mapped to Result', async () => {
+		const PLACEHOLDER = 'PLACEHOLDER';
+
+		async function replacePlugin(
+			transactionData: TransactionDataBuilder,
+			_buildOptions: BuildTransactionOptions,
+			next: () => Promise<void>,
+		) {
+			for (let i = transactionData.commands.length - 1; i >= 0; i--) {
+				const command = transactionData.commands[i];
+				if (command.$Intent && command.$Intent.name === PLACEHOLDER) {
+					const intentData = command.$Intent.data as {
+						transaction: typeof transactionData;
+						resultIndex: { Result: number } | { NestedResult: [number, number] };
+					};
+					transactionData.replaceCommandWithTransaction(
+						i,
+						intentData.transaction,
+						intentData.resultIndex,
+					);
+				}
+			}
+
+			await next();
+		}
+
+		const mainTx = new Transaction();
+		mainTx.addIntentResolver(PLACEHOLDER, replacePlugin);
+
+		// Create replacement transaction - split a single coin
+		const replacementTx = new Transaction();
+		replacementTx.splitCoins(replacementTx.gas, [2000]);
+
+		await replacementTx.prepareForSerialization({});
+
+		// Add placeholder intent, mapping to NestedResult[0, 0] (the single split coin)
+		const [placeholder] = mainTx.add(
+			Commands.Intent({
+				name: PLACEHOLDER,
+				inputs: {},
+				data: {
+					transaction: replacementTx.getData(),
+					resultIndex: { NestedResult: [0, 0] },
+				},
+			}),
+		);
+		// Transfer the split coin
+		mainTx.transferObjects([placeholder], toolbox.address());
+
+		// Execute
+		const result2 = await toolbox.client.signAndExecuteTransaction({
+			transaction: mainTx,
+			signer: toolbox.keypair,
+			options: {
+				showEffects: true,
+			},
+		});
+
+		// Verify success
+		expect(result2.effects?.status.status).toBe('success');
+	});
 });

@@ -15,7 +15,7 @@ import type {
 	TransactionExpiration,
 	TransactionData,
 } from './data/internal.js';
-import { TransactionDataSchema } from './data/internal.js';
+import { ArgumentSchema, TransactionDataSchema } from './data/internal.js';
 import { transactionDataFromV1 } from './data/v1.js';
 import type { SerializedTransactionDataV1 } from './data/v1.js';
 import type { SerializedTransactionDataV2Schema } from './data/v2.js';
@@ -274,45 +274,93 @@ export class TransactionDataBuilder implements TransactionData {
 		}
 	}
 
-	replaceCommand(index: number, replacement: Command | Command[], resultIndex = index) {
+	replaceCommand(
+		index: number,
+		replacement: Command | Command[],
+		resultIndex: number | { Result: number } | { NestedResult: [number, number] } = index,
+	) {
 		if (!Array.isArray(replacement)) {
 			this.commands[index] = replacement;
 			return;
 		}
 
 		const sizeDiff = replacement.length - 1;
-		this.commands.splice(index, 1, ...replacement);
 
-		if (sizeDiff !== 0) {
-			this.mapArguments((arg, _command, commandIndex) => {
-				if (commandIndex < index + replacement.length) {
-					return arg;
+		this.commands.splice(index, 1, ...structuredClone(replacement));
+
+		this.mapArguments((originalArg, _command, commandIndex) => {
+			if (commandIndex < index + replacement.length) {
+				return originalArg;
+			}
+
+			let arg = originalArg;
+
+			if (typeof resultIndex !== 'number') {
+				if (originalArg.$kind === 'Result' && originalArg.Result === index) {
+					arg = structuredClone(parse(ArgumentSchema, resultIndex));
+				} else if (originalArg.$kind === 'NestedResult' && originalArg.NestedResult[0] === index) {
+					if (originalArg.NestedResult[1] === 0) {
+						if ('Result' in resultIndex) {
+							arg = {
+								$kind: 'Result',
+								Result: resultIndex.Result,
+							};
+						} else {
+							arg = structuredClone(parse(ArgumentSchema, resultIndex));
+						}
+					} else {
+						throw new Error(
+							`Cannot replace command ${index} with a specific result type: NestedResult[${index}, ${originalArg.NestedResult[1]}] references a nested element that cannot be mapped to the replacement result`,
+						);
+					}
 				}
+			}
 
-				switch (arg.$kind) {
-					case 'Result':
-						if (arg.Result === index) {
-							arg.Result = resultIndex;
-						}
+			switch (arg.$kind) {
+				case 'Result':
+					if (arg.Result === index && typeof resultIndex === 'number') {
+						arg.Result = resultIndex;
+					}
+					if (arg.Result > index) {
+						arg.Result += sizeDiff;
+					}
+					break;
 
-						if (arg.Result > index) {
-							arg.Result += sizeDiff;
-						}
-						break;
+				case 'NestedResult':
+					if (arg.NestedResult[0] === index && typeof resultIndex === 'number') {
+						return {
+							$kind: 'Result',
+							Result: resultIndex,
+						};
+					}
+					if (arg.NestedResult[0] > index) {
+						arg.NestedResult[0] += sizeDiff;
+					}
+					break;
+			}
+			return arg;
+		});
+	}
 
-					case 'NestedResult':
-						if (arg.NestedResult[0] === index) {
-							arg.NestedResult[0] = resultIndex;
-						}
+	replaceCommandWithTransaction(
+		index: number,
+		otherTransaction: TransactionData,
+		result: { Result: number } | { NestedResult: [number, number] },
+	) {
+		this.insertTransaction(index, otherTransaction);
 
-						if (arg.NestedResult[0] > index) {
-							arg.NestedResult[0] += sizeDiff;
-						}
-						break;
-				}
-				return arg;
-			});
-		}
+		this.replaceCommand(
+			index + otherTransaction.commands.length,
+			[],
+			'Result' in result
+				? { Result: result.Result + index }
+				: {
+						NestedResult: [result.NestedResult[0] + index, result.NestedResult[1]] as [
+							number,
+							number,
+						],
+					},
+		);
 	}
 
 	insertTransaction(atCommandIndex: number, otherTransaction: TransactionData) {
