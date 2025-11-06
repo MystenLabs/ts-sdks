@@ -288,28 +288,27 @@ export class TransactionDataBuilder implements TransactionData {
 
 		this.commands.splice(index, 1, ...structuredClone(replacement));
 
-		this.mapArguments((originalArg, _command, commandIndex) => {
+		this.mapArguments((arg, _command, commandIndex) => {
 			if (commandIndex < index + replacement.length) {
-				return originalArg;
+				return arg;
 			}
-
-			let arg = originalArg;
 
 			if (typeof resultIndex !== 'number') {
 				if (
-					(originalArg.$kind === 'Result' && originalArg.Result === index) ||
-					(originalArg.$kind === 'NestedResult' && originalArg.NestedResult[0] === index)
+					(arg.$kind === 'Result' && arg.Result === index) ||
+					(arg.$kind === 'NestedResult' && arg.NestedResult[0] === index)
 				) {
-					if (!('NestedResult' in originalArg) || originalArg.NestedResult[1] === 0) {
-						arg = parse(ArgumentSchema, structuredClone(resultIndex));
+					if (!('NestedResult' in arg) || arg.NestedResult[1] === 0) {
+						return parse(ArgumentSchema, structuredClone(resultIndex));
 					} else {
 						throw new Error(
-							`Cannot replace command ${index} with a specific result type: NestedResult[${index}, ${originalArg.NestedResult[1]}] references a nested element that cannot be mapped to the replacement result`,
+							`Cannot replace command ${index} with a specific result type: NestedResult[${index}, ${arg.NestedResult[1]}] references a nested element that cannot be mapped to the replacement result`,
 						);
 					}
 				}
 			}
 
+			// Handle adjustment of other references
 			switch (arg.$kind) {
 				case 'Result':
 					if (arg.Result === index && typeof resultIndex === 'number') {
@@ -347,7 +346,7 @@ export class TransactionDataBuilder implements TransactionData {
 			index + otherTransaction.commands.length,
 			[],
 			'Result' in result
-				? { Result: result.Result + index }
+				? { NestedResult: [result.Result + index, 0] }
 				: {
 						NestedResult: [result.NestedResult[0] + index, result.NestedResult[1]] as [
 							number,

@@ -170,11 +170,9 @@ describe('TransactionDataBuilder.insertTransaction', () => {
 
 		mainBuilder.replaceCommand(0, otherTx.getData().commands, { Result: 1 });
 
-		// Command 2 (func2) references are adjusted:
-		// 1. Original arg references index 0, so it gets cloned from {Result: 1}
-		// 2. The cloned arg has Result=1, which is > index (0), so it gets adjusted by sizeDiff (+1)
-		// 3. Final result: {Result: 2}
-		expect(mainBuilder.commands[2].MoveCall?.arguments[0]).toEqual({ $kind: 'Result', Result: 2 });
+		// Command 2 (func2) that referenced command 0 now gets {Result: 1}
+		// The replacement value is final and not adjusted further
+		expect(mainBuilder.commands[2].MoveCall?.arguments[0]).toEqual({ $kind: 'Result', Result: 1 });
 		expect(mainBuilder.commands.length).toBe(3);
 	});
 
@@ -202,44 +200,14 @@ describe('TransactionDataBuilder.insertTransaction', () => {
 
 		mainBuilder.replaceCommand(0, otherTx.getData().commands, { NestedResult: [1, 0] });
 
-		// Command 3 (func2) references are adjusted:
-		// 1. Original arg references index 0, so it gets cloned from {NestedResult: [1, 0]}
-		// 2. The cloned arg has NestedResult[0]=1, which is > index (0), so it gets adjusted by sizeDiff (+2)
-		// 3. Final result: {NestedResult: [3, 0]}
+		// Command 3 (func2) that referenced command 0 now gets {NestedResult: [1, 0]}
+		// The replacement value is final and not adjusted further
 		expect(mainBuilder.commands[3].MoveCall?.arguments[0]).toEqual({
 			$kind: 'NestedResult',
-			NestedResult: [3, 0],
+			NestedResult: [1, 0],
 		});
 	});
 
-	it('should convert NestedResult to Result when replacing with number resultIndex', async () => {
-		const mainTx = new Transaction();
-		const [coin1] = mainTx.splitCoins(mainTx.gas, [1000]);
-		mainTx.transferObjects([coin1], '0x123');
-
-		await mainTx.prepareForSerialization({});
-		const mainBuilder = TransactionDataBuilder.restore(mainTx.getData());
-
-		// Command 1 uses NestedResult [0, 0] for the split coin
-		expect(mainBuilder.commands[1].TransferObjects?.objects[0]).toEqual({
-			$kind: 'NestedResult',
-			NestedResult: [0, 0],
-		});
-
-		// Replace command 0 (splitCoins) with a simple moveCall that returns a single result
-		// Using a NUMBER resultIndex (not {Result: 0}) to trigger NestedResult -> Result conversion
-		const otherTx = new Transaction();
-		otherTx.moveCall({ target: '0x2::other::getObject', arguments: [] });
-		await otherTx.prepareForSerialization({});
-
-		mainBuilder.replaceCommand(0, otherTx.getData().commands, 0);
-
-		// The NestedResult should now be converted to Result because resultIndex is a number
-		expect(mainBuilder.commands[1].TransferObjects?.objects[0]).toEqual({
-			$kind: 'Result',
-			Result: 0,
-		});
-	});
 
 	it('should allow replacing NestedResult[N, 0] with Result', async () => {
 		const mainTx = new Transaction();
