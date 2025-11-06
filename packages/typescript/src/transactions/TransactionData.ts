@@ -296,18 +296,12 @@ export class TransactionDataBuilder implements TransactionData {
 			let arg = originalArg;
 
 			if (typeof resultIndex !== 'number') {
-				if (originalArg.$kind === 'Result' && originalArg.Result === index) {
-					arg = structuredClone(parse(ArgumentSchema, resultIndex));
-				} else if (originalArg.$kind === 'NestedResult' && originalArg.NestedResult[0] === index) {
-					if (originalArg.NestedResult[1] === 0) {
-						if ('Result' in resultIndex) {
-							arg = {
-								$kind: 'Result',
-								Result: resultIndex.Result,
-							};
-						} else {
-							arg = structuredClone(parse(ArgumentSchema, resultIndex));
-						}
+				if (
+					(originalArg.$kind === 'Result' && originalArg.Result === index) ||
+					(originalArg.$kind === 'NestedResult' && originalArg.NestedResult[0] === index)
+				) {
+					if (!('NestedResult' in originalArg) || originalArg.NestedResult[1] === 0) {
+						arg = parse(ArgumentSchema, structuredClone(resultIndex));
 					} else {
 						throw new Error(
 							`Cannot replace command ${index} with a specific result type: NestedResult[${index}, ${originalArg.NestedResult[1]}] references a nested element that cannot be mapped to the replacement result`,
