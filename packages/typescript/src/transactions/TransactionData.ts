@@ -21,6 +21,7 @@ import type { SerializedTransactionDataV1 } from './data/v1.js';
 import type { SerializedTransactionDataV2Schema } from './data/v2.js';
 import { hashTypedData } from './hash.js';
 import { getIdFromCallArg, remapCommandArguments } from './utils.js';
+import type { TransactionResult } from './Transaction.js';
 function prepareSuiAddress(address: string) {
 	return normalizeSuiAddress(address).replace('0x', '');
 }
@@ -338,8 +339,12 @@ export class TransactionDataBuilder implements TransactionData {
 	replaceCommandWithTransaction(
 		index: number,
 		otherTransaction: TransactionData,
-		result: { Result: number } | { NestedResult: [number, number] },
+		result: TransactionResult,
 	) {
+		if (result.$kind !== 'Result' && result.$kind !== 'NestedResult') {
+			throw new Error('Result must be of kind Result or NestedResult');
+		}
+
 		this.insertTransaction(index, otherTransaction);
 
 		this.replaceCommand(
@@ -348,10 +353,10 @@ export class TransactionDataBuilder implements TransactionData {
 			'Result' in result
 				? { NestedResult: [result.Result + index, 0] }
 				: {
-						NestedResult: [result.NestedResult[0] + index, result.NestedResult[1]] as [
-							number,
-							number,
-						],
+						NestedResult: [
+							(result as { NestedResult: [number, number] }).NestedResult[0] + index,
+							(result as { NestedResult: [number, number] }).NestedResult[1],
+						] as [number, number],
 					},
 		);
 	}

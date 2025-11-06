@@ -208,7 +208,6 @@ describe('TransactionDataBuilder.insertTransaction', () => {
 		});
 	});
 
-
 	it('should allow replacing NestedResult[N, 0] with Result', async () => {
 		const mainTx = new Transaction();
 		const [coin1] = mainTx.splitCoins(mainTx.gas, [1000]);

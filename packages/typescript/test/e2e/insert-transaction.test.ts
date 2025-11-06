@@ -3,7 +3,7 @@
 
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { Transaction } from '../../src/transactions';
+import { Transaction, TransactionResult } from '../../src/transactions';
 import { Commands } from '../../src/transactions/Commands';
 import type { TransactionDataBuilder } from '../../src/transactions/TransactionData';
 import type { BuildTransactionOptions } from '../../src/transactions/resolve';
@@ -316,7 +316,7 @@ describe('TransactionData.insertTransaction', () => {
 				if (command.$kind === '$Intent' && command.$Intent.name === PLACEHOLDER) {
 					const intentData = command.$Intent.data as {
 						transaction: typeof transactionData;
-						resultIndex: { Result: number } | { NestedResult: [number, number] };
+						resultIndex: TransactionResult;
 					};
 					transactionData.replaceCommandWithTransaction(
 						i,
@@ -347,7 +347,10 @@ describe('TransactionData.insertTransaction', () => {
 				inputs: {},
 				data: {
 					transaction: replacementTx.getData(),
-					resultIndex: { NestedResult: [0, 1] },
+					resultIndex: {
+						$kind: 'NestedResult',
+						NestedResult: [0, 1],
+					},
 				},
 			}),
 		);
@@ -380,7 +383,7 @@ describe('TransactionData.insertTransaction', () => {
 				if (command.$Intent && command.$Intent.name === PLACEHOLDER) {
 					const intentData = command.$Intent.data as {
 						transaction: typeof transactionData;
-						resultIndex: { Result: number } | { NestedResult: [number, number] };
+						resultIndex: TransactionResult;
 					};
 					transactionData.replaceCommandWithTransaction(
 						i,
@@ -409,7 +412,10 @@ describe('TransactionData.insertTransaction', () => {
 				inputs: {},
 				data: {
 					transaction: replacementTx.getData(),
-					resultIndex: { NestedResult: [0, 0] },
+					resultIndex: {
+						$kind: 'NestedResult',
+						NestedResult: [0, 0],
+					},
 				},
 			}),
 		);
