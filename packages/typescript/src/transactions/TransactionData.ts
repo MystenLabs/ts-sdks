@@ -323,8 +323,8 @@ export class TransactionDataBuilder implements TransactionData {
 				case 'NestedResult':
 					if (arg.NestedResult[0] === index && typeof resultIndex === 'number') {
 						return {
-							$kind: 'Result',
-							Result: resultIndex,
+							$kind: 'NestedResult',
+							NestedResult: [resultIndex, arg.NestedResult[1]],
 						};
 					}
 					if (arg.NestedResult[0] > index) {
