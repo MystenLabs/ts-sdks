@@ -38,7 +38,7 @@ export const createPaymentTransactionUri = (params: PaymentUriParams): string =>
 
 	const uri = new URL(SUI_PAYMENT_KIT_PROTOCOL);
 
-	if (!isValidSuiAddress(receiverAddress)) {
+	if (isValidSuiAddress(receiverAddress)) {
 		uri.searchParams.append('receiver', amount.toString());
 	} else {
 		throw new PaymentKitUriError('Invalid Sui address');
