@@ -1,5 +1,11 @@
 # @mysten/payment-kit
 
+## 0.0.15
+
+### Patch Changes
+
+- be1336a: Resolved an issue where valid addresses were being flagged as invalid
+
 ## 0.0.14
 
 ### Patch Changes
