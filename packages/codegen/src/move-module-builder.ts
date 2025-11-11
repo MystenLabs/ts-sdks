@@ -205,9 +205,7 @@ export class MoveModuleBuilder extends FileBuilder {
 	}
 
 	hasFunctions() {
-		return Object.values(this.summary.functions).some(
-			(func) => func.visibility === 'Public' && !func.macro_,
-		);
+		return this.#includedFunctions.size > 0;
 	}
 
 	hasTypesOrFunctions() {
