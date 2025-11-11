@@ -1,5 +1,11 @@
 # @mysten/payment-kit
 
+## 0.0.16
+
+### Patch Changes
+
+- c87d668: Write receiverAddress instead of amount for receiver when creating a payment uri
+
 ## 0.0.15
 
 ### Patch Changes
