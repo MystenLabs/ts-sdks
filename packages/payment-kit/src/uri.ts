@@ -39,7 +39,7 @@ export const createPaymentTransactionUri = (params: PaymentUriParams): string =>
 	const uri = new URL(SUI_PAYMENT_KIT_PROTOCOL);
 
 	if (isValidSuiAddress(receiverAddress)) {
-		uri.searchParams.append('receiver', amount.toString());
+		uri.searchParams.append('receiver', receiverAddress);
 	} else {
 		throw new PaymentKitUriError('Invalid Sui address');
 	}
@@ -110,7 +110,7 @@ export const parsePaymentTransactionUri = (uri: string): PaymentUriParams => {
 	const receiver = params.get('receiver');
 	const amount = params.get('amount');
 	const coinType = params.get('coinType');
-	const nonce = params.get('nonce') ?? undefined;
+	const nonce = params.get('nonce');
 
 	// Amount and CoinType are required
 	if (!receiver || !amount || !coinType || !nonce) {
