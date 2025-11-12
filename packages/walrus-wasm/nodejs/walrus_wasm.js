@@ -1,10 +1,6 @@
-let wasm;
-export function __wbg_set_wasm(val) {
-    wasm = val;
-}
 
-
-let WASM_VECTOR_LEN = 0;
+let imports = {};
+imports['__wbindgen_placeholder__'] = module.exports;
 
 let cachedUint8ArrayMemory0 = null;
 
@@ -15,22 +11,33 @@ function getUint8ArrayMemory0() {
     return cachedUint8ArrayMemory0;
 }
 
-const lTextEncoder = typeof TextEncoder === 'undefined' ? (0, module.require)('util').TextEncoder : TextEncoder;
+let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
 
-let cachedTextEncoder = new lTextEncoder('utf-8');
+cachedTextDecoder.decode();
 
-const encodeString = (typeof cachedTextEncoder.encodeInto === 'function'
-    ? function (arg, view) {
-    return cachedTextEncoder.encodeInto(arg, view);
+function decodeText(ptr, len) {
+    return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
 }
-    : function (arg, view) {
-    const buf = cachedTextEncoder.encode(arg);
-    view.set(buf);
-    return {
-        read: arg.length,
-        written: buf.length
-    };
-});
+
+function getStringFromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return decodeText(ptr, len);
+}
+
+let WASM_VECTOR_LEN = 0;
+
+const cachedTextEncoder = new TextEncoder();
+
+if (!('encodeInto' in cachedTextEncoder)) {
+    cachedTextEncoder.encodeInto = function (arg, view) {
+        const buf = cachedTextEncoder.encode(arg);
+        view.set(buf);
+        return {
+            read: arg.length,
+            written: buf.length
+        };
+    }
+}
 
 function passStringToWasm0(arg, malloc, realloc) {
 
@@ -61,7 +68,7 @@ function passStringToWasm0(arg, malloc, realloc) {
         }
         ptr = realloc(ptr, len, len = offset + arg.length * 3, 1) >>> 0;
         const view = getUint8ArrayMemory0().subarray(ptr + offset, ptr + len);
-        const ret = encodeString(arg, view);
+        const ret = cachedTextEncoder.encodeInto(arg, view);
 
         offset += ret.written;
         ptr = realloc(ptr, len, offset, 1) >>> 0;
@@ -78,21 +85,6 @@ function getDataViewMemory0() {
         cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
     }
     return cachedDataViewMemory0;
-}
-
-function addToExternrefTable0(obj) {
-    const idx = wasm.__externref_table_alloc();
-    wasm.__wbindgen_export_4.set(idx, obj);
-    return idx;
-}
-
-function handleError(f, args) {
-    try {
-        return f.apply(this, args);
-    } catch (e) {
-        const idx = addToExternrefTable0(e);
-        wasm.__wbindgen_exn_store(idx);
-    }
 }
 
 function isLikeNone(x) {
@@ -164,21 +156,40 @@ function debugString(val) {
     return className;
 }
 
-const lTextDecoder = typeof TextDecoder === 'undefined' ? (0, module.require)('util').TextDecoder : TextDecoder;
+function addToExternrefTable0(obj) {
+    const idx = wasm.__externref_table_alloc();
+    wasm.__wbindgen_externrefs.set(idx, obj);
+    return idx;
+}
 
-let cachedTextDecoder = new lTextDecoder('utf-8', { ignoreBOM: true, fatal: true });
+function handleError(f, args) {
+    try {
+        return f.apply(this, args);
+    } catch (e) {
+        const idx = addToExternrefTable0(e);
+        wasm.__wbindgen_exn_store(idx);
+    }
+}
 
-cachedTextDecoder.decode();
-
-function getStringFromWasm0(ptr, len) {
+function getArrayU8FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
-    return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
+    return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
 }
 
 function takeFromExternrefTable0(idx) {
-    const value = wasm.__wbindgen_export_4.get(idx);
+    const value = wasm.__wbindgen_externrefs.get(idx);
     wasm.__externref_table_dealloc(idx);
     return value;
+}
+
+function passArrayJsValueToWasm0(array, malloc) {
+    const ptr = malloc(array.length * 4, 4) >>> 0;
+    for (let i = 0; i < array.length; i++) {
+        const add = addToExternrefTable0(array[i]);
+        getDataViewMemory0().setUint32(ptr + 4 * i, add, true);
+    }
+    WASM_VECTOR_LEN = array.length;
+    return ptr;
 }
 
 function passArray8ToWasm0(arg, malloc) {
@@ -193,7 +204,7 @@ function passArray8ToWasm0(arg, malloc) {
  * @param {Uint8Array} msg
  * @returns {boolean}
  */
-export function bls12381_min_pk_verify(signature, public_key, msg) {
+exports.bls12381_min_pk_verify = function(signature, public_key, msg) {
     const ptr0 = passArray8ToWasm0(signature, wasm.__wbindgen_malloc);
     const len0 = WASM_VECTOR_LEN;
     const ptr1 = passArray8ToWasm0(public_key, wasm.__wbindgen_malloc);
@@ -205,19 +216,15 @@ export function bls12381_min_pk_verify(signature, public_key, msg) {
         throw takeFromExternrefTable0(ret[1]);
     }
     return ret[0] !== 0;
-}
+};
 
-function getArrayU8FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
-}
 /**
  * Aggregate a list of signatures.
  * The signatures must be of the type Vec<Vec<u8>> with each signature being a 96 bytes long serialized signature.
  * @param {any} signatures
  * @returns {Uint8Array}
  */
-export function bls12381_min_pk_aggregate(signatures) {
+exports.bls12381_min_pk_aggregate = function(signatures) {
     const ret = wasm.bls12381_min_pk_aggregate(signatures);
     if (ret[3]) {
         throw takeFromExternrefTable0(ret[2]);
@@ -225,7 +232,7 @@ export function bls12381_min_pk_aggregate(signatures) {
     var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
     wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
     return v1;
-}
+};
 
 /**
  * Verify an aggregate signature.
@@ -234,7 +241,7 @@ export function bls12381_min_pk_aggregate(signatures) {
  * @param {Uint8Array} signature
  * @returns {boolean}
  */
-export function bls12381_min_pk_verify_aggregate(public_keys, msg, signature) {
+exports.bls12381_min_pk_verify_aggregate = function(public_keys, msg, signature) {
     const ptr0 = passArray8ToWasm0(msg, wasm.__wbindgen_malloc);
     const len0 = WASM_VECTOR_LEN;
     const ptr1 = passArray8ToWasm0(signature, wasm.__wbindgen_malloc);
@@ -244,38 +251,13 @@ export function bls12381_min_pk_verify_aggregate(public_keys, msg, signature) {
         throw takeFromExternrefTable0(ret[1]);
     }
     return ret[0] !== 0;
-}
-
-/**
- * @param {any} msg
- * @returns {any}
- */
-export function rs_encode(msg) {
-    const ret = wasm.rs_encode(msg);
-    if (ret[2]) {
-        throw takeFromExternrefTable0(ret[1]);
-    }
-    return takeFromExternrefTable0(ret[0]);
-}
-
-/**
- * @param {any} original
- * @param {any} recovery
- * @returns {any}
- */
-export function rs_decode(original, recovery) {
-    const ret = wasm.rs_decode(original, recovery);
-    if (ret[2]) {
-        throw takeFromExternrefTable0(ret[1]);
-    }
-    return takeFromExternrefTable0(ret[0]);
-}
+};
 
 const BlobEncoderFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_blobencoder_free(ptr >>> 0, 1));
 
-export class BlobEncoder {
+class BlobEncoder {
 
     __destroy_into_raw() {
         const ptr = this.__wbg_ptr;
@@ -301,54 +283,73 @@ export class BlobEncoder {
         return this;
     }
     /**
-     * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::encode_with_metadata].
-     * Returns a tuple with a vector of [walrus_core::encoding::slivers::SliverPair]´s and a [walrus_core::metadata::VerifiedBlobMetadataWithId]`.
+     * Encode data and write BCS-encoded SliverData directly into pre-allocated buffers.
+     *
+     * Arguments:
+     * - data: Input data to encode
+     * - primary_buffers: Array of Uint8Array buffers (one per shard) for primary slivers
+     * - secondary_buffers: Array of Uint8Array buffers (one per shard) for secondary slivers
+     *
+     * Each buffer will be written with BCS-encoded SliverData.
+     *
+     * Returns: JsValue with (metadata, root_hash)
      * @param {Uint8Array} data
+     * @param {Array<any>} primary_buffers
+     * @param {Array<any>} secondary_buffers
      * @returns {any}
      */
-    encode_with_metadata(data) {
-        const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.blobencoder_encode_with_metadata(this.__wbg_ptr, ptr0, len0);
+    encode(data, primary_buffers, secondary_buffers) {
+        const ret = wasm.blobencoder_encode(this.__wbg_ptr, data, primary_buffers, secondary_buffers);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
         return takeFromExternrefTable0(ret[0]);
     }
     /**
-     * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::compute_metadata].
-     * Returns [walrus_core::metadata::VerifiedBlobMetadataWithId].
+     * Compute metadata for data without encoding it.
+     * Returns (metadata, root_hash)
      * @param {Uint8Array} data
      * @returns {any}
      */
     compute_metadata(data) {
-        const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.blobencoder_compute_metadata(this.__wbg_ptr, ptr0, len0);
+        const ret = wasm.blobencoder_compute_metadata(this.__wbg_ptr, data);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
         return takeFromExternrefTable0(ret[0]);
     }
     /**
-     * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::decode].
-     * The input `slivers` is expected to be a `Vec<SliverData<Primary>>`.
-     * Returns `Vec<u8>`.
+     * Decode blob from BCS-encoded SliverData buffers.
+     *
+     * Arguments:
+     * - blob_id: The blob identifier
+     * - blob_size: The original unencoded blob size in bytes
+     * - bcs_buffers: Vec<Uint8Array>, each containing BCS-encoded SliverData<Primary>
+     * - output_buffer: Uint8Array to write decoded data into (must be exactly blob_size bytes)
      * @param {any} blob_id
      * @param {bigint} blob_size
-     * @param {any} slivers
-     * @returns {any}
+     * @param {Uint8Array[]} bcs_buffers
+     * @param {Uint8Array} output_buffer
      */
-    decode(blob_id, blob_size, slivers) {
-        const ret = wasm.blobencoder_decode(this.__wbg_ptr, blob_id, blob_size, slivers);
-        if (ret[2]) {
-            throw takeFromExternrefTable0(ret[1]);
+    decode(blob_id, blob_size, bcs_buffers, output_buffer) {
+        const ptr0 = passArrayJsValueToWasm0(bcs_buffers, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.blobencoder_decode(this.__wbg_ptr, blob_id, blob_size, ptr0, len0, output_buffer);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
         }
-        return takeFromExternrefTable0(ret[0]);
     }
 }
+if (Symbol.dispose) BlobEncoder.prototype[Symbol.dispose] = BlobEncoder.prototype.free;
 
-export function __wbg_String_fed4d24b68977888(arg0, arg1) {
+exports.BlobEncoder = BlobEncoder;
+
+exports.__wbg_Error_e83987f665cf5504 = function(arg0, arg1) {
+    const ret = Error(getStringFromWasm0(arg0, arg1));
+    return ret;
+};
+
+exports.__wbg_String_fed4d24b68977888 = function(arg0, arg1) {
     const ret = String(arg1);
     const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len1 = WASM_VECTOR_LEN;
@@ -356,37 +357,77 @@ export function __wbg_String_fed4d24b68977888(arg0, arg1) {
     getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
 };
 
-export function __wbg_buffer_609cc3eee51ed158(arg0) {
-    const ret = arg0.buffer;
+exports.__wbg___wbindgen_boolean_get_6d5a1ee65bab5f68 = function(arg0) {
+    const v = arg0;
+    const ret = typeof(v) === 'boolean' ? v : undefined;
+    return isLikeNone(ret) ? 0xFFFFFF : ret ? 1 : 0;
+};
+
+exports.__wbg___wbindgen_debug_string_df47ffb5e35e6763 = function(arg0, arg1) {
+    const ret = debugString(arg1);
+    const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+    getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+};
+
+exports.__wbg___wbindgen_is_function_ee8a6c5833c90377 = function(arg0) {
+    const ret = typeof(arg0) === 'function';
     return ret;
 };
 
-export function __wbg_call_672a4d21634d4a24() { return handleError(function (arg0, arg1) {
+exports.__wbg___wbindgen_is_object_c818261d21f283a4 = function(arg0) {
+    const val = arg0;
+    const ret = typeof(val) === 'object' && val !== null;
+    return ret;
+};
+
+exports.__wbg___wbindgen_jsval_loose_eq_b664b38a2f582147 = function(arg0, arg1) {
+    const ret = arg0 == arg1;
+    return ret;
+};
+
+exports.__wbg___wbindgen_number_get_a20bf9b85341449d = function(arg0, arg1) {
+    const obj = arg1;
+    const ret = typeof(obj) === 'number' ? obj : undefined;
+    getDataViewMemory0().setFloat64(arg0 + 8 * 1, isLikeNone(ret) ? 0 : ret, true);
+    getDataViewMemory0().setInt32(arg0 + 4 * 0, !isLikeNone(ret), true);
+};
+
+exports.__wbg___wbindgen_string_get_e4f06c90489ad01b = function(arg0, arg1) {
+    const obj = arg1;
+    const ret = typeof(obj) === 'string' ? obj : undefined;
+    var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len1 = WASM_VECTOR_LEN;
+    getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+    getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+};
+
+exports.__wbg___wbindgen_throw_b855445ff6a94295 = function(arg0, arg1) {
+    throw new Error(getStringFromWasm0(arg0, arg1));
+};
+
+exports.__wbg_call_e762c39fa8ea36bf = function() { return handleError(function (arg0, arg1) {
     const ret = arg0.call(arg1);
     return ret;
 }, arguments) };
 
-export function __wbg_done_769e5ede4b31c67b(arg0) {
+exports.__wbg_done_2042aa2670fb1db1 = function(arg0) {
     const ret = arg0.done;
     return ret;
 };
 
-export function __wbg_get_67b2ba62fc30de12() { return handleError(function (arg0, arg1) {
-    const ret = Reflect.get(arg0, arg1);
-    return ret;
-}, arguments) };
-
-export function __wbg_get_b9b93047fe3cf45b(arg0, arg1) {
+exports.__wbg_get_7bed016f185add81 = function(arg0, arg1) {
     const ret = arg0[arg1 >>> 0];
     return ret;
 };
 
-export function __wbg_getwithrefkey_bb8f74a92cb2e784(arg0, arg1) {
-    const ret = arg0[arg1];
+exports.__wbg_get_efcb449f58ec27c2 = function() { return handleError(function (arg0, arg1) {
+    const ret = Reflect.get(arg0, arg1);
     return ret;
-};
+}, arguments) };
 
-export function __wbg_instanceof_ArrayBuffer_e14585432e3737fc(arg0) {
+exports.__wbg_instanceof_ArrayBuffer_70beb1189ca63b38 = function(arg0) {
     let result;
     try {
         result = arg0 instanceof ArrayBuffer;
@@ -397,7 +438,7 @@ export function __wbg_instanceof_ArrayBuffer_e14585432e3737fc(arg0) {
     return ret;
 };
 
-export function __wbg_instanceof_Uint8Array_17156bcf118086a9(arg0) {
+exports.__wbg_instanceof_Uint8Array_20c8e73002f7af98 = function(arg0) {
     let result;
     try {
         result = arg0 instanceof Uint8Array;
@@ -408,111 +449,97 @@ export function __wbg_instanceof_Uint8Array_17156bcf118086a9(arg0) {
     return ret;
 };
 
-export function __wbg_isArray_a1eab7e0d067391b(arg0) {
+exports.__wbg_isArray_96e0af9891d0945d = function(arg0) {
     const ret = Array.isArray(arg0);
     return ret;
 };
 
-export function __wbg_isSafeInteger_343e2beeeece1bb0(arg0) {
+exports.__wbg_isSafeInteger_d216eda7911dde36 = function(arg0) {
     const ret = Number.isSafeInteger(arg0);
     return ret;
 };
 
-export function __wbg_iterator_9a24c88df860dc65() {
+exports.__wbg_iterator_e5822695327a3c39 = function() {
     const ret = Symbol.iterator;
     return ret;
 };
 
-export function __wbg_length_a446193dc22c12f8(arg0) {
+exports.__wbg_length_69bca3cb64fc8748 = function(arg0) {
     const ret = arg0.length;
     return ret;
 };
 
-export function __wbg_length_e2d2a49132c1b256(arg0) {
+exports.__wbg_length_cdd215e10d9dd507 = function(arg0) {
     const ret = arg0.length;
     return ret;
 };
 
-export function __wbg_new_405e22f390576ce2() {
+exports.__wbg_new_1acc0b6eea89d040 = function() {
     const ret = new Object();
     return ret;
 };
 
-export function __wbg_new_78feb108b6472713() {
-    const ret = new Array();
-    return ret;
-};
-
-export function __wbg_new_a12002a7f91c75be(arg0) {
+exports.__wbg_new_5a79be3ab53b8aa5 = function(arg0) {
     const ret = new Uint8Array(arg0);
     return ret;
 };
 
-export function __wbg_next_25feadfc0913fea9(arg0) {
-    const ret = arg0.next;
+exports.__wbg_new_e17d9f43105b08be = function() {
+    const ret = new Array();
     return ret;
 };
 
-export function __wbg_next_6574e1a8a62d1055() { return handleError(function (arg0) {
+exports.__wbg_next_020810e0ae8ebcb0 = function() { return handleError(function (arg0) {
     const ret = arg0.next();
     return ret;
 }, arguments) };
 
-export function __wbg_set_37837023f3d740e8(arg0, arg1, arg2) {
-    arg0[arg1 >>> 0] = arg2;
+exports.__wbg_next_2c826fe5dfec6b6a = function(arg0) {
+    const ret = arg0.next;
+    return ret;
 };
 
-export function __wbg_set_3fda3bac07393de4(arg0, arg1, arg2) {
+exports.__wbg_prototypesetcall_2a6620b6922694b2 = function(arg0, arg1, arg2) {
+    Uint8Array.prototype.set.call(getArrayU8FromWasm0(arg0, arg1), arg2);
+};
+
+exports.__wbg_set_3fda3bac07393de4 = function(arg0, arg1, arg2) {
     arg0[arg1] = arg2;
 };
 
-export function __wbg_set_65595bdd868b3009(arg0, arg1, arg2) {
-    arg0.set(arg1, arg2 >>> 0);
+exports.__wbg_set_9e6516df7b7d0f19 = function(arg0, arg1, arg2) {
+    arg0.set(getArrayU8FromWasm0(arg1, arg2));
 };
 
-export function __wbg_value_cd1ffa7b1ab794f1(arg0) {
+exports.__wbg_set_c213c871859d6500 = function(arg0, arg1, arg2) {
+    arg0[arg1 >>> 0] = arg2;
+};
+
+exports.__wbg_value_692627309814bb8c = function(arg0) {
     const ret = arg0.value;
     return ret;
 };
 
-export function __wbindgen_bigint_from_u64(arg0) {
+exports.__wbindgen_cast_2241b6af4c4b2941 = function(arg0, arg1) {
+    // Cast intrinsic for `Ref(String) -> Externref`.
+    const ret = getStringFromWasm0(arg0, arg1);
+    return ret;
+};
+
+exports.__wbindgen_cast_4625c577ab2ec9ee = function(arg0) {
+    // Cast intrinsic for `U64 -> Externref`.
     const ret = BigInt.asUintN(64, arg0);
     return ret;
 };
 
-export function __wbindgen_bigint_get_as_i64(arg0, arg1) {
-    const v = arg1;
-    const ret = typeof(v) === 'bigint' ? v : undefined;
-    getDataViewMemory0().setBigInt64(arg0 + 8 * 1, isLikeNone(ret) ? BigInt(0) : ret, true);
-    getDataViewMemory0().setInt32(arg0 + 4 * 0, !isLikeNone(ret), true);
-};
-
-export function __wbindgen_boolean_get(arg0) {
-    const v = arg0;
-    const ret = typeof(v) === 'boolean' ? (v ? 1 : 0) : 2;
+exports.__wbindgen_cast_d6cd19b81560fd6e = function(arg0) {
+    // Cast intrinsic for `F64 -> Externref`.
+    const ret = arg0;
     return ret;
 };
 
-export function __wbindgen_debug_string(arg0, arg1) {
-    const ret = debugString(arg1);
-    const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    const len1 = WASM_VECTOR_LEN;
-    getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
-    getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
-};
-
-export function __wbindgen_error_new(arg0, arg1) {
-    const ret = new Error(getStringFromWasm0(arg0, arg1));
-    return ret;
-};
-
-export function __wbindgen_in(arg0, arg1) {
-    const ret = arg0 in arg1;
-    return ret;
-};
-
-export function __wbindgen_init_externref_table() {
-    const table = wasm.__wbindgen_export_4;
+exports.__wbindgen_init_externref_table = function() {
+    const table = wasm.__wbindgen_externrefs;
     const offset = table.grow(4);
     table.set(0, undefined);
     table.set(offset + 0, undefined);
@@ -522,69 +549,10 @@ export function __wbindgen_init_externref_table() {
     ;
 };
 
-export function __wbindgen_is_bigint(arg0) {
-    const ret = typeof(arg0) === 'bigint';
-    return ret;
-};
+const wasmPath = `${__dirname}/walrus_wasm_bg.wasm`;
+const wasmBytes = require('fs').readFileSync(wasmPath);
+const wasmModule = new WebAssembly.Module(wasmBytes);
+const wasm = exports.__wasm = new WebAssembly.Instance(wasmModule, imports).exports;
 
-export function __wbindgen_is_function(arg0) {
-    const ret = typeof(arg0) === 'function';
-    return ret;
-};
-
-export function __wbindgen_is_object(arg0) {
-    const val = arg0;
-    const ret = typeof(val) === 'object' && val !== null;
-    return ret;
-};
-
-export function __wbindgen_is_undefined(arg0) {
-    const ret = arg0 === undefined;
-    return ret;
-};
-
-export function __wbindgen_jsval_eq(arg0, arg1) {
-    const ret = arg0 === arg1;
-    return ret;
-};
-
-export function __wbindgen_jsval_loose_eq(arg0, arg1) {
-    const ret = arg0 == arg1;
-    return ret;
-};
-
-export function __wbindgen_memory() {
-    const ret = wasm.memory;
-    return ret;
-};
-
-export function __wbindgen_number_get(arg0, arg1) {
-    const obj = arg1;
-    const ret = typeof(obj) === 'number' ? obj : undefined;
-    getDataViewMemory0().setFloat64(arg0 + 8 * 1, isLikeNone(ret) ? 0 : ret, true);
-    getDataViewMemory0().setInt32(arg0 + 4 * 0, !isLikeNone(ret), true);
-};
-
-export function __wbindgen_number_new(arg0) {
-    const ret = arg0;
-    return ret;
-};
-
-export function __wbindgen_string_get(arg0, arg1) {
-    const obj = arg1;
-    const ret = typeof(obj) === 'string' ? obj : undefined;
-    var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    var len1 = WASM_VECTOR_LEN;
-    getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
-    getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
-};
-
-export function __wbindgen_string_new(arg0, arg1) {
-    const ret = getStringFromWasm0(arg0, arg1);
-    return ret;
-};
-
-export function __wbindgen_throw(arg0, arg1) {
-    throw new Error(getStringFromWasm0(arg0, arg1));
-};
+wasm.__wbindgen_start();
 

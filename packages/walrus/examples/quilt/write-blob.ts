@@ -32,7 +32,7 @@ async function uploadFile() {
 
 	const files = [
 		WalrusFile.from({
-			contents: new TextEncoder().encode('test 1'),
+			contents: new TextEncoder().encode('test 1!'),
 			identifier: 'test1',
 			tags: {
 				a: 'a',
@@ -41,7 +41,7 @@ async function uploadFile() {
 			},
 		}),
 		WalrusFile.from({
-			contents: new TextEncoder().encode('test 2'),
+			contents: new TextEncoder().encode('test 2!'),
 			identifier: 'test2',
 		}),
 		WalrusFile.from({

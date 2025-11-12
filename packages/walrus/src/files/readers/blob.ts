@@ -5,6 +5,7 @@ import type { FileReader } from '../file.js';
 import type { WalrusClient } from '../../client.js';
 import { getSizes, getSourceSymbols } from '../../utils/index.js';
 import { QuiltReader } from './quilt.js';
+import { SliverData } from '../../utils/bcs.js';
 
 export interface BlobReaderOptions {
 	client: WalrusClient;
@@ -115,7 +116,7 @@ export class BlobReader implements FileReader {
 				index: sliverIndex,
 				signal,
 			})
-			.then((sliver) => new Uint8Array(sliver.symbols.data));
+			.then((sliver) => SliverData.parse(sliver).symbols.data);
 
 		this.#secondarySlivers.set(sliverIndex, sliverPromise);
 

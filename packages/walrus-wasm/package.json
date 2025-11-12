@@ -7,17 +7,28 @@
   "private": false,
   "main": "index.js",
   "types": "./web/walrus_wasm.d.ts",
+  "scripts": {
+    "build:wasm": "pnpm build:nodejs && pnpm build:web",
+    "build:nodejs": "wasm-pack build --target nodejs --release --out-dir nodejs --no-pack && rm nodejs/.gitignore",
+    "build:web": "wasm-pack build --target web --release --out-dir web --no-pack && rm web/.gitignore",
+    "test": "vitest run"
+  },
   "exports": {
     ".": {
+      "types": "./web/walrus_wasm.d.ts",
       "browser": "./web/walrus_wasm.js",
       "import": "./index.mjs",
-      "require": "./index.js",
-      "types": "./web/walrus_wasm.d.ts"
+      "require": "./index.js"
     },
     "./web/walrus_wasm_bg.wasm": {
       "browser": "./web/walrus_wasm_bg.wasm",
       "import": "./web/walrus_wasm_bg.wasm",
       "require": "./web/walrus_wasm_bg.wasm"
     }
+  },
+  "devDependencies": {
+    "@mysten/bcs": "workspace:*",
+    "vite": "^7.2.6",
+    "vitest": "^4.0.15"
   }
 }

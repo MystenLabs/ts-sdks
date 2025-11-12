@@ -97,7 +97,7 @@ export type GetSliverRequestInput = {
 	sliverType: SliverType;
 	sliverPairIndex: number;
 };
-export type GetSliverResponse = SliverData;
+export type GetSliverResponse = Uint8Array;
 
 export type StoreSliverRequestInput = {
 	blobId: string;

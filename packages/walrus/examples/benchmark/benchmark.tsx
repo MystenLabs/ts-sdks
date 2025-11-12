@@ -41,13 +41,16 @@ export function BenchmarkPage() {
 			// Generate a new keypair on first load
 			const keypair = Ed25519Keypair.generate();
 			const newSettings = {
-				...settings,
+				size: '1MB',
+				useUploadRelay: true,
+				epochs: 1,
+				iterations: 1,
 				secretKey: keypair.getSecretKey(),
 			};
 			setSettings(newSettings);
 			localStorage.setItem('walrus-benchmark-settings', JSON.stringify(newSettings));
 		}
-	}, [settings]);
+	}, []);
 
 	// Save settings to localStorage whenever they change
 	useEffect(() => {
