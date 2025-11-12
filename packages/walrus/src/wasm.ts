@@ -10,11 +10,13 @@ import init, {
 
 import type { StorageConfirmation } from './storage-node/types.js';
 import type { EncodingType, ProtocolMessageCertificate } from './types.js';
-import type { BlobMetadata, BlobMetadataWithId, SliverData, SliverPair } from './utils/bcs.js';
+import type { BlobMetadata, BlobMetadataWithId } from './utils/bcs.js';
 import { BlobId, blobIdFromBytes } from './utils/bcs.js';
+import { getSourceSymbols } from './utils/index.js';
 
 export interface EncodedBlob {
-	sliverPairs: (typeof SliverPair.$inferInput)[];
+	primarySlivers: Uint8Array[];
+	secondarySlivers: Uint8Array[];
 	blobId: string;
 	metadata: typeof BlobMetadata.$inferInput;
 	rootHash: Uint8Array;
@@ -34,10 +36,20 @@ export async function getWasmBindings(url?: string) {
 			throw new Error(`Unsupported encoding type: ${encodingType}`);
 		}
 
-		const [sliverPairs, metadata, rootHash] = encoder.encode_with_metadata(bytes);
+		// Pre-allocate BCS buffers
+		const bufferSizes = computeBcsBufferSizes(bytes.length, nShards);
+		const primaryBuffers = Array.from({ length: nShards }).map(
+			() => new Uint8Array(bufferSizes.primary),
+		);
+		const secondaryBuffers = Array.from({ length: nShards }).map(
+			() => new Uint8Array(bufferSizes.secondary),
+		);
+
+		const [metadata, rootHash] = encoder.encode(bytes, primaryBuffers, secondaryBuffers);
 
 		return {
-			sliverPairs,
+			primarySlivers: primaryBuffers,
+			secondarySlivers: secondaryBuffers,
 			blobId: blobIdFromBytes(new Uint8Array(metadata.blob_id)),
 			metadata: metadata.metadata,
 			rootHash: new Uint8Array(rootHash.Digest),
@@ -63,7 +75,7 @@ export async function getWasmBindings(url?: string) {
 		blobId: string,
 		nShards: number,
 		size: number | bigint | string,
-		slivers: (typeof SliverData.$inferInput)[],
+		slivers: Uint8Array[],
 		encodingType: EncodingType = 'RS2',
 	): Uint8Array {
 		const encoder = new BlobEncoder(nShards);
@@ -72,16 +84,10 @@ export async function getWasmBindings(url?: string) {
 			throw new Error(`Unsupported encoding type: ${encodingType}`);
 		}
 
-		const [bytes] = encoder.decode(
-			BlobId.serialize(blobId).toBytes(),
-			BigInt(size),
-			slivers.map((sliver) => ({
-				...sliver,
-				_sliver_type: undefined,
-			})),
-		);
-
-		return new Uint8Array(bytes);
+		const blobSize = BigInt(size);
+		const outputBuffer = new Uint8Array(Number(blobSize));
+		encoder.decode(BlobId.serialize(blobId).toBytes(), blobSize, slivers, outputBuffer);
+		return outputBuffer;
 	}
 
 	function getVerifySignature() {
@@ -118,5 +124,42 @@ export async function getWasmBindings(url?: string) {
 		decodePrimarySlivers,
 		getVerifySignature,
 		computeMetadata,
+	};
+}
+
+function uleb128Size(value: number): number {
+	let size = 1;
+	value >>= 7;
+	while (value !== 0) {
+		size++;
+		value >>= 7;
+	}
+	return size;
+}
+
+function computeBcsBufferSize(dataLength: number): number {
+	const ulebSize = uleb128Size(dataLength);
+	return ulebSize + dataLength + 2 + 2; // ULEB128 + data + symbol_size + index
+}
+
+function computeBcsBufferSizes(blobSize: number, nShards: number) {
+	const { primarySymbols, secondarySymbols } = getSourceSymbols(nShards);
+
+	let symbolSize =
+		Math.floor((Math.max(blobSize, 1) - 1) / (primarySymbols * secondarySymbols)) + 1;
+	if (symbolSize % 2 === 1) {
+		symbolSize = symbolSize + 1;
+	}
+
+	const primarySliverSize = secondarySymbols * symbolSize;
+	const secondarySliverSize = primarySymbols * symbolSize;
+
+	const primaryBcsSize = computeBcsBufferSize(primarySliverSize);
+	const secondaryBcsSize = computeBcsBufferSize(secondarySliverSize);
+
+	return {
+		nShards,
+		primary: primaryBcsSize,
+		secondary: secondaryBcsSize,
 	};
 }

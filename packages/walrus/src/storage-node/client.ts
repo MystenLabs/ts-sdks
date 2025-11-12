@@ -168,7 +168,7 @@ export class StorageNodeClient {
 		);
 
 		const bcsBytes = await response.arrayBuffer();
-		return SliverData.parse(new Uint8Array(bcsBytes));
+		return new Uint8Array(bcsBytes);
 	}
 
 	/**
