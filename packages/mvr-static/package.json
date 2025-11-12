@@ -3,7 +3,7 @@
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "The static generation tool for Move Registry (mvr)",
 	"homepage": "https://sdk.mystenlabs.com",
-	"version": "0.2.9",
+	"version": "0.2.10",
 	"license": "Apache-2.0",
 	"files": [
 		"CHANGELOG.md",

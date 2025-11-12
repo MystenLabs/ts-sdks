@@ -1,5 +1,14 @@
 # @mysten/deepbook-v3
 
+## 0.20.3
+
+### Patch Changes
+
+- a2f84a3: Update margin withdraw referral function
+- e0490df: Fix deepbook admin function
+- Updated dependencies [88bdbac]
+  - @mysten/sui@1.45.0
+
 ## 0.20.2
 
 ### Patch Changes
