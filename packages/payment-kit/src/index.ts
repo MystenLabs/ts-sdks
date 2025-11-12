@@ -20,3 +20,4 @@ export type {
 export { PaymentKitClientError, PaymentKitUriError } from './error.js';
 export { DEFAULT_REGISTRY_NAME, SUI_PAYMENT_KIT_PROTOCOL } from './constants.js';
 export { createPaymentTransactionUri, parsePaymentTransactionUri } from './uri.js';
+export { getRegistryIdFromName } from './utils.js';
