@@ -5,9 +5,7 @@ import { bcs } from '../bcs/index.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import type { SuiClientTypes } from './types.js';
 
-export function parseTransactionBcs(
-	bytes: Uint8Array,
-): SuiClientTypes.TransactionResponse['transaction'] {
+export function parseTransactionBcs(bytes: Uint8Array): SuiClientTypes.TransactionData {
 	return {
 		...TransactionDataBuilder.fromBytes(bytes).snapshot(),
 		bcs: bytes,

@@ -829,6 +829,7 @@ export class WalrusClient {
 
 		const createdObjects = await this.#suiClient.core.listObjects({
 			objectIds: createdObjectIds,
+			include: { content: true },
 		});
 
 		const suiBlobObject = createdObjects.objects.find(
@@ -843,7 +844,7 @@ export class WalrusClient {
 
 		return {
 			digest,
-			storage: Storage.parse(await suiBlobObject.content),
+			storage: Storage.parse(suiBlobObject.content),
 		};
 	}
 
@@ -1063,6 +1064,7 @@ export class WalrusClient {
 
 		const createdObjects = await this.#suiClient.core.listObjects({
 			objectIds: createdObjectIds,
+			include: { content: true },
 		});
 
 		const suiBlobObject = createdObjects.objects.find(
@@ -1077,7 +1079,7 @@ export class WalrusClient {
 
 		return {
 			digest,
-			blob: Blob.parse(await suiBlobObject.content),
+			blob: Blob.parse(suiBlobObject.content),
 		};
 	}
 
@@ -1087,6 +1089,7 @@ export class WalrusClient {
 			transaction: { effects },
 		} = await this.#suiClient.core.waitForTransaction({
 			digest,
+			include: { effects: true },
 		});
 
 		const createdObjectIds = effects?.changedObjects
@@ -1095,6 +1098,7 @@ export class WalrusClient {
 
 		const createdObjects = await this.#suiClient.core.listObjects({
 			objectIds: createdObjectIds,
+			include: { content: true },
 		});
 
 		const suiBlobObject = createdObjects.objects.find(
@@ -1107,7 +1111,7 @@ export class WalrusClient {
 			);
 		}
 
-		return Blob.parse(await suiBlobObject.content);
+		return Blob.parse(suiBlobObject.content);
 	}
 
 	async certificateFromConfirmations({
