@@ -18,10 +18,10 @@ import {
 } from './mockData.js';
 
 export class MockSuiClient extends CoreClient {
-	#objects = new Map<string, SuiClientTypes.ObjectResponse>();
+	#objects = new Map<string, SuiClientTypes.ObjectResponse<{ content: true }>>();
 	#moveFunctions = new Map<string, SuiClientTypes.FunctionResponse>();
 	#gasPrice = DEFAULT_GAS_PRICE;
-	#nextDryRunResult: SuiClientTypes.SimulateTransactionResponse | null = null;
+	#nextDryRunResult: SuiClientTypes.SimulateTransactionResponse<any> | null = null;
 
 	constructor(network: SuiClientTypes.Network = 'testnet') {
 		super({
@@ -99,7 +99,7 @@ export class MockSuiClient extends CoreClient {
 		this.#moveFunctions.set(key, fn);
 	}
 
-	setNextDryRunResult(result: SuiClientTypes.SimulateTransactionResponse): void {
+	setNextDryRunResult(result: SuiClientTypes.SimulateTransactionResponse<any>): void {
 		this.#nextDryRunResult = result;
 	}
 
@@ -124,10 +124,10 @@ export class MockSuiClient extends CoreClient {
 		}
 	}
 
-	async listObjects(
-		options: SuiClientTypes.ListObjectsOptions,
-	): Promise<SuiClientTypes.ListObjectsResponse> {
-		const objects = options.objectIds.map((id): SuiClientTypes.ObjectResponse | Error => {
+	async listObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListObjectsOptions<Include>,
+	): Promise<SuiClientTypes.ListObjectsResponse<Include>> {
+		const objects = options.objectIds.map((id): SuiClientTypes.ObjectResponse<Include> | Error => {
 			const normalizedId = normalizeSuiAddress(id);
 			const obj = this.#objects.get(normalizedId);
 
@@ -135,15 +135,15 @@ export class MockSuiClient extends CoreClient {
 				return new Error(`Object not found: ${id}`);
 			}
 
-			return obj;
+			return obj as SuiClientTypes.ObjectResponse<Include>;
 		});
 
 		return { objects };
 	}
 
-	async listCoins(
-		options: SuiClientTypes.ListCoinsOptions,
-	): Promise<SuiClientTypes.ListCoinsResponse> {
+	async listCoins<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListCoinsOptions<Include>,
+	): Promise<SuiClientTypes.ListCoinsResponse<Include>> {
 		const coinObjects = Array.from(this.#objects.values()).filter((obj) => {
 			const parsedType = parseStructTag(obj.type);
 			const parsedCoinType = parseStructTag('0x2::coin::Coin');
@@ -164,24 +164,21 @@ export class MockSuiClient extends CoreClient {
 			return coinType === options.coinType;
 		});
 
-		const objects: SuiClientTypes.CoinResponse[] = await Promise.all(
-			coinObjects.map(async (obj) => {
-				// Parse balance from BCS content
-				let balance = '0';
-				try {
-					const content = await obj.content;
-					const parsedCoin = CoinStruct.parse(content);
-					balance = parsedCoin.balance.value.toString();
-				} catch {
-					// Fallback to 0 if parsing fails
-				}
+		const objects: SuiClientTypes.CoinResponse<Include>[] = coinObjects.map((obj) => {
+			// Parse balance from BCS content
+			let balance = '0';
+			try {
+				const parsedCoin = CoinStruct.parse(obj.content);
+				balance = parsedCoin.balance.value.toString();
+			} catch {
+				// Fallback to 0 if parsing fails
+			}
 
-				return {
-					...obj,
-					balance,
-				};
-			}),
-		);
+			return {
+				...(obj as any),
+				balance,
+			};
+		});
 
 		return {
 			objects,
@@ -190,15 +187,15 @@ export class MockSuiClient extends CoreClient {
 		};
 	}
 
-	async listOwnedObjects(
-		options: SuiClientTypes.ListOwnedObjectsOptions,
-	): Promise<SuiClientTypes.ListOwnedObjectsResponse> {
+	async listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListOwnedObjectsOptions<Include>,
+	): Promise<SuiClientTypes.ListOwnedObjectsResponse<Include>> {
 		const ownedObjects = Array.from(this.#objects.values()).filter((obj) => {
 			return this.#isOwnedByAddress(obj, options.owner);
 		});
 
 		return {
-			objects: ownedObjects,
+			objects: ownedObjects as SuiClientTypes.ObjectResponse<Include>[],
 			hasNextPage: false,
 			cursor: null,
 		};
@@ -246,8 +243,7 @@ export class MockSuiClient extends CoreClient {
 			if (!coinType) continue;
 
 			try {
-				const content = await obj.content;
-				const parsedCoin = CoinStruct.parse(content);
+				const parsedCoin = CoinStruct.parse(obj.content);
 				const balance = BigInt(parsedCoin.balance.value);
 				const current = balancesByType.get(coinType) || 0n;
 				balancesByType.set(coinType, current + balance);
@@ -270,15 +266,15 @@ export class MockSuiClient extends CoreClient {
 		};
 	}
 
-	async getTransaction(
-		_options: SuiClientTypes.GetTransactionOptions,
-	): Promise<SuiClientTypes.GetTransactionResponse> {
+	async getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		_options: SuiClientTypes.GetTransactionOptions<Include>,
+	): Promise<SuiClientTypes.GetTransactionResponse<Include>> {
 		throw new Error('getTransaction not implemented in MockSuiClient');
 	}
 
-	async executeTransaction(
-		_options: SuiClientTypes.ExecuteTransactionOptions,
-	): Promise<SuiClientTypes.ExecuteTransactionResponse> {
+	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		_options: SuiClientTypes.ExecuteTransactionOptions<Include>,
+	): Promise<SuiClientTypes.ExecuteTransactionResponse<Include>> {
 		throw new Error('executeTransaction not implemented in MockSuiClient');
 	}
 
@@ -288,13 +284,13 @@ export class MockSuiClient extends CoreClient {
 		throw new Error('defaultNameServiceName not implemented in MockSuiClient');
 	}
 
-	async simulateTransaction(
-		_options: SuiClientTypes.SimulateTransactionOptions,
-	): Promise<SuiClientTypes.SimulateTransactionResponse> {
+	async simulateTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		_options: SuiClientTypes.SimulateTransactionOptions<Include>,
+	): Promise<SuiClientTypes.SimulateTransactionResponse<Include>> {
 		if (this.#nextDryRunResult) {
 			const result = this.#nextDryRunResult;
 			this.#nextDryRunResult = null;
-			return result;
+			return result as SuiClientTypes.SimulateTransactionResponse<Include>;
 		}
 
 		// Default dry run response - minimal valid structure
@@ -339,14 +335,12 @@ export class MockSuiClient extends CoreClient {
 					unchangedConsensusObjects: [],
 					auxiliaryDataDigest: null,
 				},
-				objectTypes: Promise.resolve({}),
-				transaction: {
-					bcs: new Uint8Array(),
-				} as SuiClientTypes.TransactionData,
-				balanceChanges: [],
-				events: [],
+				objectTypes: undefined,
+				transaction: undefined,
+				balanceChanges: undefined,
+				events: undefined,
 			},
-		};
+		} as any;
 	}
 
 	async getReferenceGasPrice(

@@ -3,7 +3,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { setup, TestToolbox } from './utils/setup';
+import { setup, TestToolbox } from '../../utils/setup';
 
 describe('Checkpoints Reading API', () => {
 	let toolbox: TestToolbox;
@@ -13,12 +13,13 @@ describe('Checkpoints Reading API', () => {
 	});
 
 	it('Get latest checkpoint sequence number', async () => {
-		const checkpointSequenceNumber = await toolbox.client.getLatestCheckpointSequenceNumber();
+		const checkpointSequenceNumber =
+			await toolbox.jsonRpcClient.getLatestCheckpointSequenceNumber();
 		expect(BigInt(checkpointSequenceNumber)).toBeGreaterThan(0);
 	});
 
 	it('gets checkpoint by id', async () => {
-		const resp = await toolbox.client.getCheckpoint({ id: '0' });
+		const resp = await toolbox.jsonRpcClient.getCheckpoint({ id: '0' });
 		expect(resp.digest.length).greaterThan(0);
 		expect(resp.transactions.length).greaterThan(0);
 		expect(resp.epoch).not.toBeNull();
@@ -29,14 +30,14 @@ describe('Checkpoints Reading API', () => {
 	});
 
 	it('get checkpoint contents by digest', async () => {
-		const checkpoint_resp = await toolbox.client.getCheckpoint({ id: '0' });
+		const checkpoint_resp = await toolbox.jsonRpcClient.getCheckpoint({ id: '0' });
 		const digest = checkpoint_resp.digest;
-		const resp = await toolbox.client.getCheckpoint({ id: digest });
+		const resp = await toolbox.jsonRpcClient.getCheckpoint({ id: digest });
 		expect(checkpoint_resp).toEqual(resp);
 	});
 
 	it('getCheckpoints', async () => {
-		const checkpoints = await toolbox.client.getCheckpoints({
+		const checkpoints = await toolbox.jsonRpcClient.getCheckpoints({
 			descendingOrder: false,
 			limit: 1,
 		});
@@ -45,7 +46,7 @@ describe('Checkpoints Reading API', () => {
 		expect(checkpoints.data.length).toEqual(1);
 		expect(checkpoints.hasNextPage).toBeTruthy();
 
-		const checkpoints1 = await toolbox.client.getCheckpoints({
+		const checkpoints1 = await toolbox.jsonRpcClient.getCheckpoints({
 			cursor: checkpoints.nextCursor!,
 			limit: 1,
 			descendingOrder: false,

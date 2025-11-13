@@ -25,11 +25,11 @@ describe('CachingTransactionExecutor', { retry: 3 }, async () => {
 
 	beforeEach(async () => {
 		executor = new CachingTransactionExecutor({
-			client: toolbox.client,
+			client: toolbox.jsonRpcClient,
 		});
 		const tx = new Transaction();
-		vi.spyOn(toolbox.client, 'getNormalizedMoveFunction');
-		vi.spyOn(toolbox.client, 'multiGetObjects');
+		vi.spyOn(toolbox.jsonRpcClient, 'getNormalizedMoveFunction');
+		vi.spyOn(toolbox.jsonRpcClient, 'multiGetObjects');
 		tx.moveCall({
 			target: `${packageId}::tto::start`,
 			typeArguments: [],
@@ -44,7 +44,7 @@ describe('CachingTransactionExecutor', { retry: 3 }, async () => {
 			},
 		});
 
-		await toolbox.client.waitForTransaction({ digest: x.digest });
+		await toolbox.jsonRpcClient.waitForTransaction({ digest: x.digest });
 
 		const y = x.effects?.created!.map((o) => getOwnerAddress(o))!;
 		receiveObjectId = x.effects?.created!.filter(
@@ -86,8 +86,8 @@ describe('CachingTransactionExecutor', { retry: 3 }, async () => {
 		});
 
 		expect(result.effects?.status.status).toBe('success');
-		expect(toolbox.client.getNormalizedMoveFunction).toHaveBeenCalledOnce();
-		expect(toolbox.client.getNormalizedMoveFunction).toHaveBeenCalledWith({
+		expect(toolbox.jsonRpcClient.getNormalizedMoveFunction).toHaveBeenCalledOnce();
+		expect(toolbox.jsonRpcClient.getNormalizedMoveFunction).toHaveBeenCalledWith({
 			package: normalizeSuiAddress(packageId),
 			module: 'tto',
 			function: 'receiver',
@@ -99,7 +99,7 @@ describe('CachingTransactionExecutor', { retry: 3 }, async () => {
 			function: 'receiver',
 		});
 
-		expect(toolbox.client.getNormalizedMoveFunction).toHaveBeenCalledOnce();
+		expect(toolbox.jsonRpcClient.getNormalizedMoveFunction).toHaveBeenCalledOnce();
 
 		expect(receiver).toEqual({
 			module: 'tto',
@@ -143,7 +143,7 @@ describe('CachingTransactionExecutor', { retry: 3 }, async () => {
 		await executor.buildTransaction({
 			transaction: tx,
 		});
-		expect(toolbox.client.getNormalizedMoveFunction).toHaveBeenCalledOnce();
+		expect(toolbox.jsonRpcClient.getNormalizedMoveFunction).toHaveBeenCalledOnce();
 	});
 
 	it('caches objects', async () => {
@@ -160,7 +160,7 @@ describe('CachingTransactionExecutor', { retry: 3 }, async () => {
 		tx.setSender(toolbox.address());
 		const loadedIds: string[] = [];
 
-		expect(toolbox.client.multiGetObjects).toHaveBeenCalledTimes(0);
+		expect(toolbox.jsonRpcClient.multiGetObjects).toHaveBeenCalledTimes(0);
 
 		const result = await executor.signAndExecuteTransaction({
 			transaction: tx,
@@ -169,7 +169,7 @@ describe('CachingTransactionExecutor', { retry: 3 }, async () => {
 				showEffects: true,
 			},
 		});
-		expect(toolbox.client.multiGetObjects).toHaveBeenCalledTimes(0);
+		expect(toolbox.jsonRpcClient.multiGetObjects).toHaveBeenCalledTimes(0);
 
 		expect(result.effects?.status.status).toBe('success');
 		expect(loadedIds).toEqual([]);
@@ -178,9 +178,9 @@ describe('CachingTransactionExecutor', { retry: 3 }, async () => {
 		txb2.transferObjects([txb2.object(receiveObjectId.reference.objectId)], toolbox.address());
 		txb2.setSender(toolbox.address());
 
-		expect(toolbox.client.multiGetObjects).toHaveBeenCalledTimes(0);
+		expect(toolbox.jsonRpcClient.multiGetObjects).toHaveBeenCalledTimes(0);
 
-		await toolbox.client.waitForTransaction({ digest: result.digest });
+		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
 
 		const result2 = await executor.signAndExecuteTransaction({
 			transaction: txb2,
@@ -190,10 +190,10 @@ describe('CachingTransactionExecutor', { retry: 3 }, async () => {
 			},
 		});
 
-		expect(toolbox.client.multiGetObjects).toHaveBeenCalledTimes(0);
+		expect(toolbox.jsonRpcClient.multiGetObjects).toHaveBeenCalledTimes(0);
 		expect(result2.effects?.status.status).toBe('success');
 
-		await toolbox.client.waitForTransaction({ digest: result2.digest });
+		await toolbox.jsonRpcClient.waitForTransaction({ digest: result2.digest });
 
 		await executor.reset();
 
@@ -201,7 +201,7 @@ describe('CachingTransactionExecutor', { retry: 3 }, async () => {
 		txb3.transferObjects([txb3.object(receiveObjectId.reference.objectId)], toolbox.address());
 		txb3.setSender(toolbox.address());
 
-		expect(toolbox.client.multiGetObjects).toHaveBeenCalledTimes(0);
+		expect(toolbox.jsonRpcClient.multiGetObjects).toHaveBeenCalledTimes(0);
 
 		const result3 = await executor.signAndExecuteTransaction({
 			transaction: txb3,
@@ -210,9 +210,9 @@ describe('CachingTransactionExecutor', { retry: 3 }, async () => {
 				showEffects: true,
 			},
 		});
-		expect(toolbox.client.multiGetObjects).toHaveBeenCalledTimes(1);
+		expect(toolbox.jsonRpcClient.multiGetObjects).toHaveBeenCalledTimes(1);
 		expect(result3.effects?.status.status).toBe('success');
-		await toolbox.client.waitForTransaction({ digest: result3.digest });
+		await toolbox.jsonRpcClient.waitForTransaction({ digest: result3.digest });
 	});
 });
 

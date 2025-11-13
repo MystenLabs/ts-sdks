@@ -4502,6 +4502,8 @@ export type GetCoinsQueryVariables = Exact<{
   first?: InputMaybe<Scalars['Int']['input']>;
   cursor?: InputMaybe<Scalars['String']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
+  includeContent?: InputMaybe<Scalars['Boolean']['input']>;
+  includePreviousTransaction?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
@@ -4542,6 +4544,8 @@ export type GetOwnedObjectsQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
   cursor?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<ObjectFilter>;
+  includeContent?: InputMaybe<Scalars['Boolean']['input']>;
+  includePreviousTransaction?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
@@ -4549,6 +4553,8 @@ export type GetOwnedObjectsQuery = { __typename?: 'Query', address: { __typename
 
 export type MultiGetObjectsQueryVariables = Exact<{
   objectKeys: Array<ObjectKey> | ObjectKey;
+  includeContent?: InputMaybe<Scalars['Boolean']['input']>;
+  includePreviousTransaction?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
@@ -4572,6 +4578,11 @@ export type Object_Owner_FieldsFragment = Object_Owner_Fields_AddressOwner_Fragm
 
 export type SimulateTransactionQueryVariables = Exact<{
   transaction: Scalars['JSON']['input'];
+  includeTransaction?: InputMaybe<Scalars['Boolean']['input']>;
+  includeEffects?: InputMaybe<Scalars['Boolean']['input']>;
+  includeEvents?: InputMaybe<Scalars['Boolean']['input']>;
+  includeBalanceChanges?: InputMaybe<Scalars['Boolean']['input']>;
+  includeObjectTypes?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
@@ -4580,6 +4591,11 @@ export type SimulateTransactionQuery = { __typename?: 'Query', simulateTransacti
 export type ExecuteTransactionMutationVariables = Exact<{
   transactionDataBcs: Scalars['Base64']['input'];
   signatures: Array<Scalars['Base64']['input']> | Scalars['Base64']['input'];
+  includeTransaction?: InputMaybe<Scalars['Boolean']['input']>;
+  includeEffects?: InputMaybe<Scalars['Boolean']['input']>;
+  includeEvents?: InputMaybe<Scalars['Boolean']['input']>;
+  includeBalanceChanges?: InputMaybe<Scalars['Boolean']['input']>;
+  includeObjectTypes?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
@@ -4587,6 +4603,11 @@ export type ExecuteTransactionMutation = { __typename?: 'Mutation', executeTrans
 
 export type GetTransactionBlockQueryVariables = Exact<{
   digest: Scalars['String']['input'];
+  includeTransaction?: InputMaybe<Scalars['Boolean']['input']>;
+  includeEffects?: InputMaybe<Scalars['Boolean']['input']>;
+  includeEvents?: InputMaybe<Scalars['Boolean']['input']>;
+  includeBalanceChanges?: InputMaybe<Scalars['Boolean']['input']>;
+  includeObjectTypes?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
@@ -4653,7 +4674,7 @@ export const Object_FieldsFragmentDoc = new TypedDocumentString(`
   version
   asMoveObject {
     contents {
-      bcs
+      bcs @include(if: $includeContent)
       type {
         repr
       }
@@ -4665,7 +4686,7 @@ export const Object_FieldsFragmentDoc = new TypedDocumentString(`
   owner {
     ...OBJECT_OWNER_FIELDS
   }
-  previousTransaction {
+  previousTransaction @include(if: $includePreviousTransaction) {
     digest
   }
 }
@@ -4697,7 +4718,7 @@ export const Move_Object_FieldsFragmentDoc = new TypedDocumentString(`
   digest
   version
   contents {
-    bcs
+    bcs @include(if: $includeContent)
     type {
       repr
     }
@@ -4705,7 +4726,7 @@ export const Move_Object_FieldsFragmentDoc = new TypedDocumentString(`
   owner {
     ...OBJECT_OWNER_FIELDS
   }
-  previousTransaction {
+  previousTransaction @include(if: $includePreviousTransaction) {
     digest
   }
 }
@@ -4734,16 +4755,16 @@ export const Move_Object_FieldsFragmentDoc = new TypedDocumentString(`
 export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
     fragment TRANSACTION_FIELDS on Transaction {
   digest
-  transactionBcs
+  transactionBcs @include(if: $includeTransaction)
   signatures {
     signatureBytes
   }
   effects {
-    effectsBcs
     epoch {
       epochId
     }
-    unchangedConsensusObjects {
+    effectsBcs @include(if: $includeEffects)
+    unchangedConsensusObjects @include(if: $includeObjectTypes) {
       nodes {
         __typename
         ... on ConsensusObjectRead {
@@ -4760,7 +4781,7 @@ export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
         }
       }
     }
-    objectChanges {
+    objectChanges @include(if: $includeObjectTypes) {
       nodes {
         address
         inputState {
@@ -4786,7 +4807,7 @@ export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
         }
       }
     }
-    balanceChanges(first: 50) {
+    balanceChanges(first: 50) @include(if: $includeBalanceChanges) {
       pageInfo {
         hasNextPage
       }
@@ -4800,7 +4821,7 @@ export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
         amount
       }
     }
-    events(first: 50) {
+    events(first: 50) @include(if: $includeEvents) {
       pageInfo {
         hasNextPage
       }
@@ -4856,7 +4877,7 @@ export const GetBalanceDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<GetBalanceQuery, GetBalanceQueryVariables>;
 export const GetCoinsDocument = new TypedDocumentString(`
-    query getCoins($owner: SuiAddress!, $first: Int, $cursor: String, $type: String = "0x2::coin::Coin<0x2::sui::SUI>") {
+    query getCoins($owner: SuiAddress!, $first: Int, $cursor: String, $type: String = "0x2::coin::Coin<0x2::sui::SUI>", $includeContent: Boolean = false, $includePreviousTransaction: Boolean = false) {
   address(address: $owner) {
     address
     objects(first: $first, after: $cursor, filter: {type: $type}) {
@@ -4869,7 +4890,7 @@ export const GetCoinsDocument = new TypedDocumentString(`
           ...OBJECT_OWNER_FIELDS
         }
         contents {
-          bcs
+          bcs @include(if: $includeContent)
           json
           type {
             repr
@@ -4878,7 +4899,7 @@ export const GetCoinsDocument = new TypedDocumentString(`
         address
         version
         digest
-        previousTransaction {
+        previousTransaction @include(if: $includePreviousTransaction) {
           digest
         }
       }
@@ -4979,7 +5000,7 @@ export const DefaultSuinsNameDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DefaultSuinsNameQuery, DefaultSuinsNameQueryVariables>;
 export const GetOwnedObjectsDocument = new TypedDocumentString(`
-    query getOwnedObjects($owner: SuiAddress!, $limit: Int, $cursor: String, $filter: ObjectFilter) {
+    query getOwnedObjects($owner: SuiAddress!, $limit: Int, $cursor: String, $filter: ObjectFilter, $includeContent: Boolean = false, $includePreviousTransaction: Boolean = false) {
   address(address: $owner) {
     objects(first: $limit, after: $cursor, filter: $filter) {
       pageInfo {
@@ -4997,7 +5018,7 @@ export const GetOwnedObjectsDocument = new TypedDocumentString(`
   digest
   version
   contents {
-    bcs
+    bcs @include(if: $includeContent)
     type {
       repr
     }
@@ -5005,7 +5026,7 @@ export const GetOwnedObjectsDocument = new TypedDocumentString(`
   owner {
     ...OBJECT_OWNER_FIELDS
   }
-  previousTransaction {
+  previousTransaction @include(if: $includePreviousTransaction) {
     digest
   }
 }
@@ -5032,7 +5053,7 @@ fragment OBJECT_OWNER_FIELDS on Owner {
   }
 }`) as unknown as TypedDocumentString<GetOwnedObjectsQuery, GetOwnedObjectsQueryVariables>;
 export const MultiGetObjectsDocument = new TypedDocumentString(`
-    query multiGetObjects($objectKeys: [ObjectKey!]!) {
+    query multiGetObjects($objectKeys: [ObjectKey!]!, $includeContent: Boolean = false, $includePreviousTransaction: Boolean = false) {
   multiGetObjects(keys: $objectKeys) {
     ...OBJECT_FIELDS
   }
@@ -5043,7 +5064,7 @@ export const MultiGetObjectsDocument = new TypedDocumentString(`
   version
   asMoveObject {
     contents {
-      bcs
+      bcs @include(if: $includeContent)
       type {
         repr
       }
@@ -5055,7 +5076,7 @@ export const MultiGetObjectsDocument = new TypedDocumentString(`
   owner {
     ...OBJECT_OWNER_FIELDS
   }
-  previousTransaction {
+  previousTransaction @include(if: $includePreviousTransaction) {
     digest
   }
 }
@@ -5082,7 +5103,7 @@ fragment OBJECT_OWNER_FIELDS on Owner {
   }
 }`) as unknown as TypedDocumentString<MultiGetObjectsQuery, MultiGetObjectsQueryVariables>;
 export const SimulateTransactionDocument = new TypedDocumentString(`
-    query simulateTransaction($transaction: JSON!) {
+    query simulateTransaction($transaction: JSON!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false) {
   simulateTransaction(transaction: $transaction) {
     error
     effects {
@@ -5094,16 +5115,16 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
 }
     fragment TRANSACTION_FIELDS on Transaction {
   digest
-  transactionBcs
+  transactionBcs @include(if: $includeTransaction)
   signatures {
     signatureBytes
   }
   effects {
-    effectsBcs
     epoch {
       epochId
     }
-    unchangedConsensusObjects {
+    effectsBcs @include(if: $includeEffects)
+    unchangedConsensusObjects @include(if: $includeObjectTypes) {
       nodes {
         __typename
         ... on ConsensusObjectRead {
@@ -5120,7 +5141,7 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
         }
       }
     }
-    objectChanges {
+    objectChanges @include(if: $includeObjectTypes) {
       nodes {
         address
         inputState {
@@ -5146,7 +5167,7 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
         }
       }
     }
-    balanceChanges(first: 50) {
+    balanceChanges(first: 50) @include(if: $includeBalanceChanges) {
       pageInfo {
         hasNextPage
       }
@@ -5160,7 +5181,7 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
         amount
       }
     }
-    events(first: 50) {
+    events(first: 50) @include(if: $includeEvents) {
       pageInfo {
         hasNextPage
       }
@@ -5185,7 +5206,7 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
   }
 }`) as unknown as TypedDocumentString<SimulateTransactionQuery, SimulateTransactionQueryVariables>;
 export const ExecuteTransactionDocument = new TypedDocumentString(`
-    mutation executeTransaction($transactionDataBcs: Base64!, $signatures: [Base64!]!) {
+    mutation executeTransaction($transactionDataBcs: Base64!, $signatures: [Base64!]!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false) {
   executeTransaction(
     transactionDataBcs: $transactionDataBcs
     signatures: $signatures
@@ -5200,16 +5221,16 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
 }
     fragment TRANSACTION_FIELDS on Transaction {
   digest
-  transactionBcs
+  transactionBcs @include(if: $includeTransaction)
   signatures {
     signatureBytes
   }
   effects {
-    effectsBcs
     epoch {
       epochId
     }
-    unchangedConsensusObjects {
+    effectsBcs @include(if: $includeEffects)
+    unchangedConsensusObjects @include(if: $includeObjectTypes) {
       nodes {
         __typename
         ... on ConsensusObjectRead {
@@ -5226,7 +5247,7 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
         }
       }
     }
-    objectChanges {
+    objectChanges @include(if: $includeObjectTypes) {
       nodes {
         address
         inputState {
@@ -5252,7 +5273,7 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
         }
       }
     }
-    balanceChanges(first: 50) {
+    balanceChanges(first: 50) @include(if: $includeBalanceChanges) {
       pageInfo {
         hasNextPage
       }
@@ -5266,7 +5287,7 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
         amount
       }
     }
-    events(first: 50) {
+    events(first: 50) @include(if: $includeEvents) {
       pageInfo {
         hasNextPage
       }
@@ -5291,23 +5312,23 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
   }
 }`) as unknown as TypedDocumentString<ExecuteTransactionMutation, ExecuteTransactionMutationVariables>;
 export const GetTransactionBlockDocument = new TypedDocumentString(`
-    query getTransactionBlock($digest: String!) {
+    query getTransactionBlock($digest: String!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false) {
   transaction(digest: $digest) {
     ...TRANSACTION_FIELDS
   }
 }
     fragment TRANSACTION_FIELDS on Transaction {
   digest
-  transactionBcs
+  transactionBcs @include(if: $includeTransaction)
   signatures {
     signatureBytes
   }
   effects {
-    effectsBcs
     epoch {
       epochId
     }
-    unchangedConsensusObjects {
+    effectsBcs @include(if: $includeEffects)
+    unchangedConsensusObjects @include(if: $includeObjectTypes) {
       nodes {
         __typename
         ... on ConsensusObjectRead {
@@ -5324,7 +5345,7 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
         }
       }
     }
-    objectChanges {
+    objectChanges @include(if: $includeObjectTypes) {
       nodes {
         address
         inputState {
@@ -5350,7 +5371,7 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
         }
       }
     }
-    balanceChanges(first: 50) {
+    balanceChanges(first: 50) @include(if: $includeBalanceChanges) {
       pageInfo {
         hasNextPage
       }
@@ -5364,7 +5385,7 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
         amount
       }
     }
-    events(first: 50) {
+    events(first: 50) @include(if: $includeEvents) {
       pageInfo {
         hasNextPage
       }

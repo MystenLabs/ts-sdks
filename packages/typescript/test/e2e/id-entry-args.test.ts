@@ -21,15 +21,12 @@ describe('Test ID as args to entry functions', () => {
 			target: `${packageId}::test::test_id`,
 			arguments: [tx.pure.id('0x000000000000000000000000c2b5625c221264078310a084df0a3137956d20ee')],
 		});
-		const result = await toolbox.client.signAndExecuteTransaction({
-			signer: toolbox.keypair,
+		const result = await toolbox.keypair.signAndExecuteTransaction({
+			client: toolbox.grpcClient,
 			transaction: tx,
-			options: {
-				showEffects: true,
-			},
 		});
-		await toolbox.client.waitForTransaction({ digest: result.digest });
-		expect(result.effects?.status.status).toEqual('success');
+		await toolbox.grpcClient.core.waitForTransaction({ digest: result.digest });
+		expect(result.effects?.status.success).toEqual(true);
 	});
 
 	it('Test ID as arg to entry functions', async () => {
@@ -38,14 +35,11 @@ describe('Test ID as args to entry functions', () => {
 			target: `${packageId}::test::test_id_non_mut`,
 			arguments: [tx.pure.id('0x000000000000000000000000c2b5625c221264078310a084df0a3137956d20ee')],
 		});
-		const result = await toolbox.client.signAndExecuteTransaction({
-			signer: toolbox.keypair,
+		const result = await toolbox.keypair.signAndExecuteTransaction({
+			client: toolbox.grpcClient,
 			transaction: tx,
-			options: {
-				showEffects: true,
-			},
 		});
-		await toolbox.client.waitForTransaction({ digest: result.digest });
-		expect(result.effects?.status.status).toEqual('success');
+		await toolbox.grpcClient.core.waitForTransaction({ digest: result.digest });
+		expect(result.effects?.status.success).toEqual(true);
 	});
 });
