@@ -77,7 +77,7 @@ export function createMockCoin(params: {
 	const content = CoinStruct.serialize({
 		id: normalizedId,
 		balance: { value: params.balance },
-	}).toBytes() as Uint8Array<ArrayBuffer>;
+	}).toBytes();
 
 	return {
 		objectId: normalizedId,
@@ -114,7 +114,7 @@ export function createMockNFT(params: {
 		name: 'Test NFT',
 		description: 'A test NFT object',
 		image_url: 'https://example.com/nft.png',
-	}).toBytes() as Uint8Array<ArrayBuffer>;
+	}).toBytes();
 
 	return {
 		objectId: normalizedId,

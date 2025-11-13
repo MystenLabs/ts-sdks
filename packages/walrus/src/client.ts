@@ -844,7 +844,7 @@ export class WalrusClient {
 
 		return {
 			digest,
-			storage: Storage.parse(await suiBlobObject.content),
+			storage: Storage.parse(suiBlobObject.content),
 		};
 	}
 
@@ -1079,7 +1079,7 @@ export class WalrusClient {
 
 		return {
 			digest,
-			blob: Blob.parse(await suiBlobObject.content),
+			blob: Blob.parse(suiBlobObject.content),
 		};
 	}
 
@@ -1111,7 +1111,7 @@ export class WalrusClient {
 			);
 		}
 
-		return Blob.parse(await suiBlobObject.content);
+		return Blob.parse(suiBlobObject.content);
 	}
 
 	async certificateFromConfirmations({

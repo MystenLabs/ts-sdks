@@ -59,7 +59,7 @@ export const gasCoins = createAnalyzer({
 				result: await Promise.all(
 					(data.gasData.payment ?? []).map(async (coin) => {
 						const obj = objectsById.get(coin.objectId)!;
-						const content = Coin.parse(await obj.content);
+						const content = Coin.parse(obj.content);
 						return {
 							...obj,
 							coinType: normalizeStructTag(parseStructTag(obj.type).typeParams[0]),
