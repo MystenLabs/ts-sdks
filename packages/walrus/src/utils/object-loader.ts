@@ -10,12 +10,19 @@ import { deriveDynamicFieldID } from '@mysten/sui/utils';
 import DataLoader from 'dataloader';
 import { Field } from './bcs.js';
 
-export class SuiObjectDataLoader extends DataLoader<string, SuiClientTypes.ObjectResponse> {
-	#dynamicFieldCache = new Map<string, Map<string, SuiClientTypes.ObjectResponse>>();
+export class SuiObjectDataLoader extends DataLoader<
+	string,
+	SuiClientTypes.ObjectResponse<{ content: true }>
+> {
+	#dynamicFieldCache = new Map<
+		string,
+		Map<string, SuiClientTypes.ObjectResponse<{ content: true }>>
+	>();
 	constructor(suiClient: BaseClient) {
 		super(async (ids: readonly string[]) => {
 			const { objects } = await suiClient.core.listObjects({
 				objectIds: ids as string[],
+				include: { content: true },
 			});
 
 			return objects;
@@ -26,7 +33,7 @@ export class SuiObjectDataLoader extends DataLoader<string, SuiClientTypes.Objec
 		const data = await super.load(id);
 
 		if (schema) {
-			return schema.parse(await data.content);
+			return schema.parse(data.content);
 		}
 
 		return data as T;
@@ -42,15 +49,13 @@ export class SuiObjectDataLoader extends DataLoader<string, SuiClientTypes.Objec
 			return data as (T | Error)[];
 		}
 
-		return Promise.all(
-			data.map(async (d) => {
-				if (d instanceof Error) {
-					return d;
-				}
+		return data.map((d) => {
+			if (d instanceof Error) {
+				return d;
+			}
 
-				return schema.parse(await d.content);
-			}),
-		);
+			return schema.parse(d.content);
+		});
 	}
 
 	async loadManyOrThrow<T>(ids: string[], schema: BcsType<T, any>): Promise<T[]> {

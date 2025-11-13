@@ -4,12 +4,12 @@
 import { fromHex, toBase64 } from '@mysten/bcs';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { bcs } from '../../src/bcs';
-import { Ed25519Keypair } from '../../src/keypairs/ed25519';
-import { Transaction } from '../../src/transactions';
-import { coinWithBalance } from '../../src/transactions/intents/CoinWithBalance';
-import { normalizeSuiAddress } from '../../src/utils';
-import { setup, TestToolbox } from './utils/setup';
+import { bcs } from '../../../../src/bcs';
+import { Ed25519Keypair } from '../../../../src/keypairs/ed25519';
+import { Transaction } from '../../../../src/transactions';
+import { coinWithBalance } from '../../../../src/transactions/intents/CoinWithBalance';
+import { normalizeSuiAddress } from '../../../../src/utils';
+import { setup, TestToolbox } from '../../utils/setup';
 
 describe('coinWithBalance', () => {
 	let toolbox: TestToolbox;
@@ -93,7 +93,7 @@ describe('coinWithBalance', () => {
 			JSON.parse(
 				await tx.toJSON({
 					supportedIntents: [],
-					client: toolbox.client,
+					client: toolbox.jsonRpcClient,
 				}),
 			),
 		).toEqual({
@@ -146,12 +146,12 @@ describe('coinWithBalance', () => {
 			version: 2,
 		});
 
-		const { digest } = await toolbox.client.signAndExecuteTransaction({
+		const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 			transaction: tx,
 			signer: publishToolbox.keypair,
 		});
 
-		const result = await toolbox.client.waitForTransaction({
+		const result = await toolbox.jsonRpcClient.waitForTransaction({
 			digest,
 			options: { showEffects: true, showBalanceChanges: true },
 		});
@@ -241,7 +241,7 @@ describe('coinWithBalance', () => {
 			JSON.parse(
 				await tx.toJSON({
 					supportedIntents: [],
-					client: publishToolbox.client,
+					client: publishToolbox.jsonRpcClient,
 				}),
 			),
 		).toEqual({
@@ -295,12 +295,12 @@ describe('coinWithBalance', () => {
 			version: 2,
 		});
 
-		const { digest } = await toolbox.client.signAndExecuteTransaction({
+		const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 			transaction: tx,
 			signer: publishToolbox.keypair,
 		});
 
-		const result = await toolbox.client.waitForTransaction({
+		const result = await toolbox.jsonRpcClient.waitForTransaction({
 			digest,
 			options: { showEffects: true, showBalanceChanges: true },
 		});
@@ -406,7 +406,7 @@ describe('coinWithBalance', () => {
 			JSON.parse(
 				await tx.toJSON({
 					supportedIntents: [],
-					client: publishToolbox.client,
+					client: publishToolbox.jsonRpcClient,
 				}),
 			),
 		).toEqual({
@@ -464,12 +464,12 @@ describe('coinWithBalance', () => {
 			version: 2,
 		});
 
-		const { digest } = await toolbox.client.signAndExecuteTransaction({
+		const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 			transaction: tx,
 			signer: publishToolbox.keypair,
 		});
 
-		const result = await toolbox.client.waitForTransaction({
+		const result = await toolbox.jsonRpcClient.waitForTransaction({
 			digest,
 			options: { showEffects: true, showBalanceChanges: true, showObjectChanges: true },
 		});
@@ -610,7 +610,7 @@ describe('coinWithBalance', () => {
 			JSON.parse(
 				await tx.toJSON({
 					supportedIntents: [],
-					client: publishToolbox.client,
+					client: publishToolbox.jsonRpcClient,
 				}),
 			),
 		).toEqual({
@@ -730,12 +730,12 @@ describe('coinWithBalance', () => {
 			version: 2,
 		});
 
-		const { digest } = await toolbox.client.signAndExecuteTransaction({
+		const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 			transaction: tx,
 			signer: publishToolbox.keypair,
 		});
 
-		const result = await toolbox.client.waitForTransaction({
+		const result = await toolbox.jsonRpcClient.waitForTransaction({
 			digest,
 			options: { showEffects: true, showBalanceChanges: true, showObjectChanges: true },
 		});

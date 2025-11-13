@@ -3,25 +3,24 @@
 
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { OwnedObjectRef, SuiJsonRpcClient } from '../../src/jsonRpc';
 import type { Keypair } from '../../src/cryptography';
 import { Transaction } from '../../src/transactions';
 import { setup, TestToolbox } from './utils/setup';
+import { ClientWithCoreApi, SuiClientTypes } from '../../src/client';
 
-function getOwnerAddress(o: OwnedObjectRef): string | undefined {
-	// const owner = getObjectOwner(o);
-	if (typeof o.owner == 'object' && 'AddressOwner' in o.owner) {
-		return o.owner.AddressOwner;
-	} else {
-		return undefined;
-	}
+function getOwnerAddress(o: SuiClientTypes.ChangedObject): string | undefined {
+	return (
+		o.outputOwner?.AddressOwner ??
+		o.outputOwner?.ObjectOwner ??
+		o.outputOwner?.ConsensusAddressOwner?.owner
+	);
 }
 
-describe('Transfer to Object', { retry: 3 }, () => {
+describe('Transfer to Object', () => {
 	let toolbox: TestToolbox;
 	let packageId: string;
-	let parentObjectId: OwnedObjectRef;
-	let receiveObjectId: OwnedObjectRef;
+	let parentObjectId: SuiClientTypes.ChangedObject;
+	let receiveObjectId: SuiClientTypes.ChangedObject;
 	let sharedObjectId: string;
 
 	beforeAll(async () => {
@@ -36,16 +35,22 @@ describe('Transfer to Object', { retry: 3 }, () => {
 			typeArguments: [],
 			arguments: [],
 		});
-		const x = await validateTransaction(toolbox.client, toolbox.keypair, tx);
-		const y = x.effects?.created!.map((o) => getOwnerAddress(o))!;
-		receiveObjectId = x.effects?.created!.filter(
-			(o) => !y.includes(o.reference.objectId) && getOwnerAddress(o) !== undefined,
+		const x = await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
+		const y = x.effects?.changedObjects
+			.filter((o) => o.idOperation === 'Created')
+			.map((o) => getOwnerAddress(o))!;
+		receiveObjectId = x.effects?.changedObjects!.filter(
+			(o) =>
+				o.idOperation === 'Created' && !y.includes(o.objectId) && getOwnerAddress(o) !== undefined,
 		)[0]!;
-		parentObjectId = x.effects?.created!.filter(
-			(o) => y.includes(o.reference.objectId) && getOwnerAddress(o) !== undefined,
+		parentObjectId = x.effects?.changedObjects!.filter(
+			(o) =>
+				o.idOperation === 'Created' && y.includes(o.objectId) && getOwnerAddress(o) !== undefined,
 		)[0]!;
-		const sharedObject = x.effects?.created!.filter((o) => getOwnerAddress(o) === undefined)[0]!;
-		sharedObjectId = sharedObject.reference.objectId;
+		const sharedObject = x.effects?.changedObjects!.filter(
+			(o) => getOwnerAddress(o) === undefined,
+		)[0]!;
+		sharedObjectId = sharedObject.objectId;
 	});
 
 	it('Basic Receive: receive and then transfer', async () => {
@@ -53,12 +58,9 @@ describe('Transfer to Object', { retry: 3 }, () => {
 		tx.moveCall({
 			target: `${packageId}::tto::receiver`,
 			typeArguments: [],
-			arguments: [
-				tx.object(parentObjectId.reference.objectId),
-				tx.object(receiveObjectId.reference.objectId),
-			],
+			arguments: [tx.object(parentObjectId.objectId), tx.object(receiveObjectId.objectId)],
 		});
-		await validateTransaction(toolbox.client, toolbox.keypair, tx);
+		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
 	});
 
 	it('Basic Receive: receive and then delete', async () => {
@@ -66,12 +68,9 @@ describe('Transfer to Object', { retry: 3 }, () => {
 		tx.moveCall({
 			target: `${packageId}::tto::deleter`,
 			typeArguments: [],
-			arguments: [
-				tx.object(parentObjectId.reference.objectId),
-				tx.object(receiveObjectId.reference.objectId),
-			],
+			arguments: [tx.object(parentObjectId.objectId), tx.object(receiveObjectId.objectId)],
 		});
-		await validateTransaction(toolbox.client, toolbox.keypair, tx);
+		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
 	});
 
 	it('receive + return, then delete', async () => {
@@ -79,17 +78,14 @@ describe('Transfer to Object', { retry: 3 }, () => {
 		const b = tx.moveCall({
 			target: `${packageId}::tto::return_`,
 			typeArguments: [],
-			arguments: [
-				tx.object(parentObjectId.reference.objectId),
-				tx.object(receiveObjectId.reference.objectId),
-			],
+			arguments: [tx.object(parentObjectId.objectId), tx.object(receiveObjectId.objectId)],
 		});
 		tx.moveCall({
 			target: `${packageId}::tto::delete_`,
 			typeArguments: [],
 			arguments: [b],
 		});
-		await validateTransaction(toolbox.client, toolbox.keypair, tx);
+		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
 	});
 
 	it('Basic Receive: &Receiving arg type', async () => {
@@ -97,12 +93,10 @@ describe('Transfer to Object', { retry: 3 }, () => {
 		tx.moveCall({
 			target: `${packageId}::tto::invalid_call_immut_ref`,
 			typeArguments: [],
-			arguments: [
-				tx.object(parentObjectId.reference.objectId),
-				tx.object(receiveObjectId.reference.objectId),
-			],
+			arguments: [tx.object(parentObjectId.objectId), tx.object(receiveObjectId.objectId)],
 		});
-		await validateTransaction(toolbox.client, toolbox.keypair, tx);
+
+		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
 	});
 
 	it('Basic Receive: &mut Receiving arg type', async () => {
@@ -110,12 +104,9 @@ describe('Transfer to Object', { retry: 3 }, () => {
 		tx.moveCall({
 			target: `${packageId}::tto::invalid_call_mut_ref`,
 			typeArguments: [],
-			arguments: [
-				tx.object(parentObjectId.reference.objectId),
-				tx.object(receiveObjectId.reference.objectId),
-			],
+			arguments: [tx.object(parentObjectId.objectId), tx.object(receiveObjectId.objectId)],
 		});
-		await validateTransaction(toolbox.client, toolbox.keypair, tx);
+		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
 	});
 
 	it.fails('Trying to pass shared object as receiving argument', async () => {
@@ -123,25 +114,22 @@ describe('Transfer to Object', { retry: 3 }, () => {
 		tx.moveCall({
 			target: `${packageId}::tto::receiver`,
 			typeArguments: [],
-			arguments: [tx.object(parentObjectId.reference.objectId), tx.object(sharedObjectId)],
+			arguments: [tx.object(parentObjectId.objectId), tx.object(sharedObjectId)],
 		});
-		await validateTransaction(toolbox.client, toolbox.keypair, tx);
+		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
 	});
 });
 
-async function validateTransaction(client: SuiJsonRpcClient, signer: Keypair, tx: Transaction) {
+async function validateTransaction(client: ClientWithCoreApi, signer: Keypair, tx: Transaction) {
 	tx.setSenderIfNotSet(signer.getPublicKey().toSuiAddress());
 	const localDigest = await tx.getDigest({ client });
-	const result = await client.signAndExecuteTransaction({
-		signer,
+	const result = await signer.signAndExecuteTransaction({
+		client,
 		transaction: tx,
-		options: {
-			showEffects: true,
-		},
 	});
 	expect(localDigest).toEqual(result.digest);
-	expect(result.effects?.status.status).toEqual('success');
+	expect(result.effects?.status.success).toEqual(true);
 
-	await client.waitForTransaction({ digest: result.digest });
+	await client.core.waitForTransaction({ digest: result.digest });
 	return result;
 }

@@ -96,16 +96,13 @@ describe('TransactionData.insertTransaction', () => {
 		});
 
 		// Execute the merged transaction - should work with deduplicated clock input
-		const result = await toolbox.client.signAndExecuteTransaction({
+		const result = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: mainTx,
-			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-			},
+			client: toolbox.grpcClient,
 		});
 
 		// Verify execution succeeded
-		expect(result.effects?.status.status).toBe('success');
+		expect(result.effects?.status.success).toBe(true);
 	});
 
 	it('should execute transaction with coin splits merged', async () => {
@@ -159,16 +156,13 @@ describe('TransactionData.insertTransaction', () => {
 		);
 
 		// Execute
-		const result = await toolbox.client.signAndExecuteTransaction({
+		const result = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: mainTx,
-			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-			},
+			client: toolbox.grpcClient,
 		});
 
 		// Verify success
-		expect(result.effects?.status.status).toBe('success');
+		expect(result.effects?.status.success).toBe(true);
 	});
 
 	it('should deduplicate same coin object used in both transactions', async () => {
@@ -222,16 +216,13 @@ describe('TransactionData.insertTransaction', () => {
 		);
 
 		// Execute - should work because the coin input is deduplicated
-		const result = await toolbox.client.signAndExecuteTransaction({
+		const result = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: mainTx,
-			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-			},
+			client: toolbox.grpcClient,
 		});
 
 		// Verify success
-		expect(result.effects?.status.status).toBe('success');
+		expect(result.effects?.status.success).toBe(true);
 	});
 
 	it('should upgrade shared object from immutable to mutable when merging', async () => {
@@ -291,16 +282,13 @@ describe('TransactionData.insertTransaction', () => {
 		});
 
 		// Execute - should work with the shared object upgraded to mutable
-		const result = await toolbox.client.signAndExecuteTransaction({
+		const result = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: mainTx,
-			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-			},
+			client: toolbox.grpcClient,
 		});
 
 		// Verify success - proves the mutability upgrade worked
-		expect(result.effects?.status.status).toBe('success');
+		expect(result.effects?.status.success).toBe(true);
 	});
 
 	it('should execute transaction with replaceCommandWithTransaction using NestedResult resultIndex', async () => {
@@ -358,16 +346,13 @@ describe('TransactionData.insertTransaction', () => {
 		mainTx.transferObjects([placeholder], toolbox.address());
 
 		// Execute
-		const result = await toolbox.client.signAndExecuteTransaction({
+		const result = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: mainTx,
-			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-			},
+			client: toolbox.grpcClient,
 		});
 
 		// Verify success
-		expect(result.effects?.status.status).toBe('success');
+		expect(result.effects?.status.success).toBe(true);
 	});
 
 	it('should execute transaction with replaceCommandWithTransaction using NestedResult[0,0] mapped to Result', async () => {
@@ -423,15 +408,12 @@ describe('TransactionData.insertTransaction', () => {
 		mainTx.transferObjects([placeholder], toolbox.address());
 
 		// Execute
-		const result2 = await toolbox.client.signAndExecuteTransaction({
+		const result2 = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: mainTx,
-			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-			},
+			client: toolbox.grpcClient,
 		});
 
 		// Verify success
-		expect(result2.effects?.status.status).toBe('success');
+		expect(result2.effects?.status.success).toBe(true);
 	});
 });
