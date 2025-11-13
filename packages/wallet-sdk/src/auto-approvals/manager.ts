@@ -326,7 +326,7 @@ export class AutoApprovalManager {
 
 	applyTransactionEffects(
 		analysis: AutoApprovalResult,
-		result: SuiClientTypes.TransactionResponse,
+		result: SuiClientTypes.TransactionResponse<{ balanceChanges: true }>,
 	): void {
 		this.#removePendingDigest(result.digest);
 

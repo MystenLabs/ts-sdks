@@ -58,24 +58,20 @@ class TestPackageRegistry {
 	}
 
 	async getPackage(name: string, toolbox?: TestToolbox) {
-		// Return cached package if available
 		if (this.#packages.has(name)) {
 			return this.#packages.get(name)!;
 		}
 
-		// If a publish is already in progress, wait for it
 		if (this.#pendingPublishes.has(name)) {
 			return await this.#pendingPublishes.get(name)!;
 		}
 
-		// Start a new publish and track it
 		const publishPromise = (async () => {
 			try {
 				const { packageId } = await publishPackage(name, toolbox);
 				this.#packages.set(name, packageId);
 				return packageId;
 			} finally {
-				// Clean up the pending promise once done
 				this.#pendingPublishes.delete(name);
 			}
 		})();
@@ -87,7 +83,7 @@ class TestPackageRegistry {
 
 export class TestToolbox {
 	keypair: Ed25519Keypair;
-	client: SuiJsonRpcClient;
+	jsonRpcClient: SuiJsonRpcClient;
 	grpcClient: SuiGrpcClient;
 	graphqlClient: SuiGraphQLClient;
 	registry: TestPackageRegistry;
@@ -95,7 +91,7 @@ export class TestToolbox {
 
 	constructor(keypair: Ed25519Keypair, url: string = DEFAULT_FULLNODE_URL, configPath: string) {
 		this.keypair = keypair;
-		this.client = new SuiJsonRpcClient({
+		this.jsonRpcClient = new SuiJsonRpcClient({
 			network: 'localnet',
 			transport: new JsonRpcHTTPTransport({
 				url,
@@ -121,14 +117,14 @@ export class TestToolbox {
 	}
 
 	async getGasObjectsOwnedByAddress() {
-		return await this.client.getCoins({
+		return await this.jsonRpcClient.getCoins({
 			owner: this.address(),
 			coinType: SUI_TYPE_ARG,
 		});
 	}
 
 	public async getActiveValidators() {
-		return (await this.client.getLatestSuiSystemState()).activeValidators;
+		return (await this.jsonRpcClient.getLatestSuiSystemState()).activeValidators;
 	}
 
 	public async getPackage(path: string) {
@@ -164,7 +160,7 @@ export class TestToolbox {
 		}
 
 		const [jsonRpcResult, grpcResult, graphqlResult] = await Promise.all([
-			queryFn(this.client),
+			queryFn(this.jsonRpcClient),
 			queryFn(this.grpcClient),
 			queryFn(this.graphqlClient),
 		]);
@@ -214,10 +210,10 @@ export function createTestWithAllClients(
 		// Helper to get the clients from either format
 		const clients = () => {
 			const result = getClients();
-			if ('client' in result) {
+			if ('jsonRpcClient' in result) {
 				// It's a TestToolbox
 				return {
-					jsonRpc: result.client,
+					jsonRpc: result.jsonRpcClient,
 					grpc: result.grpcClient,
 					graphql: result.graphqlClient,
 				};
@@ -316,8 +312,7 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 		toolbox = await setup();
 	}
 
-	// Retry build with exponential backoff to handle concurrent builds
-	const buildResult = await retry(
+	return await retry(
 		async () => {
 			const result = await execSuiTools([
 				'sui',
@@ -331,10 +326,8 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 			]);
 
 			if (!result.stdout.includes('{')) {
-				// Include the actual output in the error so retry logic can check it
-				const buildOutput = result.stdout + '\n' + (result.stderr || '');
-				console.error(`Build failed for ${packageName}:`, buildOutput);
-				throw new Error(`Failed to build package: ${buildOutput}`);
+				console.error(result.stdout);
+				throw new Error('Failed to publish package');
 			}
 
 			let resultJson;
@@ -343,60 +336,48 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 					result.stdout.slice(result.stdout.indexOf('{'), result.stdout.lastIndexOf('}') + 1),
 				);
 			} catch (error) {
-				console.error('Failed to parse build output:', error);
-				throw new Error(`Failed to parse build output: ${result.stdout}`);
+				console.error(error);
+				throw new Error('Failed to publish package');
 			}
 
-			return resultJson;
+			const { modules, dependencies } = resultJson;
+
+			const tx = new Transaction();
+			const cap = tx.publish({
+				modules,
+				dependencies,
+			});
+
+			// Transfer the upgrade capability to the sender so they can upgrade the package later if they want.
+			tx.transferObjects([cap], tx.pure.address(toolbox.address()));
+
+			const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				transaction: tx,
+				signer: toolbox.keypair,
+			});
+
+			const publishTxn = await toolbox.jsonRpcClient.waitForTransaction({
+				digest: digest,
+				options: { showObjectChanges: true, showEffects: true },
+			});
+
+			expect(publishTxn.effects?.status.status).toEqual('success');
+
+			const packageId = ((publishTxn.objectChanges?.filter(
+				(a) => a.type === 'published',
+			) as SuiObjectChangePublished[]) ?? [])[0]?.packageId.replace(/^(0x)(0+)/, '0x') as string;
+
+			expect(packageId).toBeTypeOf('string');
+
+			return { packageId, publishTxn };
 		},
 		{
 			backoff: 'EXPONENTIAL',
-			timeout: 3 * 60 * 1000, // 3 minutes total timeout
-			retries: 10,
-			retryIf: (error: unknown) => {
-				// Retry on directory conflicts (os error 39)
-				const errorMsg = (error as Error)?.message || error?.toString() || '';
-				const isDirectoryConflict =
-					errorMsg.includes('Directory not empty') || errorMsg.includes('os error 39');
-				if (isDirectoryConflict) {
-					console.warn(`Detected build directory conflict for ${packageName}, will retry...`);
-				}
-				return isDirectoryConflict;
-			},
-			logger: (msg) => console.warn(`Retrying package build for ${packageName}: ${msg}`),
+			timeout: 1000 * 60 * 3,
+			retries: 3,
+			logger: (msg) => console.warn('Retrying package publish: ' + msg),
 		},
 	);
-
-	const { modules, dependencies } = buildResult;
-
-	const tx = new Transaction();
-	const cap = tx.publish({
-		modules,
-		dependencies,
-	});
-
-	// Transfer the upgrade capability to the sender so they can upgrade the package later if they want.
-	tx.transferObjects([cap], tx.pure.address(toolbox.address()));
-
-	const { digest } = await toolbox.client.signAndExecuteTransaction({
-		transaction: tx,
-		signer: toolbox.keypair,
-	});
-
-	const publishTxn = await toolbox.client.waitForTransaction({
-		digest: digest,
-		options: { showObjectChanges: true, showEffects: true },
-	});
-
-	expect(publishTxn.effects?.status.status).toEqual('success');
-
-	const packageId = ((publishTxn.objectChanges?.filter(
-		(a) => a.type === 'published',
-	) as SuiObjectChangePublished[]) ?? [])[0]?.packageId.replace(/^(0x)(0+)/, '0x') as string;
-
-	expect(packageId).toBeTypeOf('string');
-
-	return { packageId, publishTxn };
 }
 
 export async function upgradePackage(
@@ -448,7 +429,7 @@ export async function upgradePackage(
 		arguments: [cap, receipt],
 	});
 
-	const result = await toolbox.client.signAndExecuteTransaction({
+	const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 		transaction: tx,
 		signer: toolbox.keypair,
 		options: {
