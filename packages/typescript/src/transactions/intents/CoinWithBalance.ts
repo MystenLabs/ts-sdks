@@ -5,15 +5,14 @@ import type { InferInput } from 'valibot';
 import { bigint, object, parse, string } from 'valibot';
 
 import { bcs } from '../../bcs/index.js';
-import type { CoinStruct, SuiJsonRpcClient } from '../../jsonRpc/index.js';
 import { normalizeStructTag } from '../../utils/sui-types.js';
 import { Commands } from '../Commands.js';
 import type { Argument } from '../data/internal.js';
 import { Inputs } from '../Inputs.js';
-import { getClient } from '../resolve.js';
 import type { BuildTransactionOptions } from '../resolve.js';
 import type { Transaction, TransactionResult } from '../Transaction.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
+import type { ClientWithCoreApi, SuiClientTypes } from '../../client/index.js';
 
 const COIN_WITH_BALANCE = 'CoinWithBalance';
 const SUI_TYPE = normalizeStructTag('0x2::sui::SUI');
@@ -91,8 +90,15 @@ async function resolveCoinBalance(
 		}
 	}
 
-	const coinsByType = new Map<string, CoinStruct[]>();
-	const client = getSuiClient(buildOptions);
+	const coinsByType = new Map<string, SuiClientTypes.CoinResponse[]>();
+	const client = buildOptions.client;
+
+	if (!client) {
+		throw new Error(
+			'Client must be provided to build or serialize transactions with CoinWithBalance intents',
+		);
+	}
+
 	await Promise.all(
 		[...coinTypes].map(async (coinType) => {
 			coinsByType.set(
@@ -137,7 +143,7 @@ async function resolveCoinBalance(
 				transactionData.addInput(
 					'object',
 					Inputs.ObjectRef({
-						objectId: coin.coinObjectId,
+						objectId: coin.objectId,
 						digest: coin.digest,
 						version: coin.version,
 					}),
@@ -183,22 +189,30 @@ async function getCoinsOfType({
 }: {
 	coinType: string;
 	balance: bigint;
-	client: SuiJsonRpcClient;
+	client: ClientWithCoreApi;
 	owner: string;
 	usedIds: Set<string>;
-}): Promise<CoinStruct[]> {
+}): Promise<SuiClientTypes.CoinResponse[]> {
 	let remainingBalance = balance;
-	const coins: CoinStruct[] = [];
+	const coins: SuiClientTypes.CoinResponse[] = [];
 
 	return loadMoreCoins();
 
-	async function loadMoreCoins(cursor: string | null = null): Promise<CoinStruct[]> {
-		const { data, hasNextPage, nextCursor } = await client.getCoins({ owner, coinType, cursor });
+	async function loadMoreCoins(
+		cursor: string | null = null,
+	): Promise<SuiClientTypes.CoinResponse[]> {
+		const {
+			objects,
+			hasNextPage,
+			cursor: nextCursor,
+		} = await client.core.listCoins({
+			owner,
+			coinType,
+			cursor,
+		});
 
-		const sortedCoins = data.sort((a, b) => Number(BigInt(b.balance) - BigInt(a.balance)));
-
-		for (const coin of sortedCoins) {
-			if (usedIds.has(coin.coinObjectId)) {
+		for (const coin of objects) {
+			if (usedIds.has(coin.objectId)) {
 				continue;
 			}
 
@@ -218,13 +232,4 @@ async function getCoinsOfType({
 
 		throw new Error(`Not enough coins of type ${coinType} to satisfy requested balance`);
 	}
-}
-
-export function getSuiClient(options: BuildTransactionOptions): SuiJsonRpcClient {
-	const client = getClient(options) as SuiJsonRpcClient;
-	if (!client.jsonRpc) {
-		throw new Error(`CoinWithBalance intent currently only works with SuiJsonRpcClient`);
-	}
-
-	return client;
 }

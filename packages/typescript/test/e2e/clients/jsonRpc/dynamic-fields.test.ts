@@ -3,8 +3,8 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { SuiObjectData } from '../../src/jsonRpc';
-import { setup, TestToolbox } from './utils/setup';
+import { SuiObjectData } from '../../../../src/jsonRpc';
+import { setup, TestToolbox } from '../../utils/setup';
 
 describe('Dynamic Fields Reading API', () => {
 	let toolbox: TestToolbox;
@@ -15,7 +15,7 @@ describe('Dynamic Fields Reading API', () => {
 		toolbox = await setup();
 		packageId = await toolbox.getPackage('dynamic_fields');
 
-		await toolbox.client
+		await toolbox.jsonRpcClient
 			.getOwnedObjects({
 				owner: toolbox.address(),
 				options: { showType: true },
@@ -28,13 +28,13 @@ describe('Dynamic Fields Reading API', () => {
 	});
 
 	it('get all dynamic fields', async () => {
-		const dynamicFields = await toolbox.client.getDynamicFields({
+		const dynamicFields = await toolbox.jsonRpcClient.getDynamicFields({
 			parentId: parentObjectId,
 		});
 		expect(dynamicFields.data.length).toEqual(2);
 	});
 	it('limit response in page', async () => {
-		const dynamicFields = await toolbox.client.getDynamicFields({
+		const dynamicFields = await toolbox.jsonRpcClient.getDynamicFields({
 			parentId: parentObjectId,
 			limit: 1,
 		});
@@ -42,12 +42,12 @@ describe('Dynamic Fields Reading API', () => {
 		expect(dynamicFields.nextCursor).not.toEqual(null);
 	});
 	it('go to next cursor', async () => {
-		return await toolbox.client
+		return await toolbox.jsonRpcClient
 			.getDynamicFields({ parentId: parentObjectId, limit: 1 })
 			.then(async function (dynamicFields) {
 				expect(dynamicFields.nextCursor).not.toEqual(null);
 
-				const dynamicFieldsCursor = await toolbox.client.getDynamicFields({
+				const dynamicFieldsCursor = await toolbox.jsonRpcClient.getDynamicFields({
 					parentId: parentObjectId,
 					cursor: dynamicFields.nextCursor,
 				});
@@ -55,13 +55,13 @@ describe('Dynamic Fields Reading API', () => {
 			});
 	});
 	it('get dynamic object field', async () => {
-		const dynamicFields = await toolbox.client.getDynamicFields({
+		const dynamicFields = await toolbox.jsonRpcClient.getDynamicFields({
 			parentId: parentObjectId,
 		});
 		for (const data of dynamicFields.data) {
 			const objName = data.name;
 
-			const object = await toolbox.client.getDynamicFieldObject({
+			const object = await toolbox.jsonRpcClient.getDynamicFieldObject({
 				parentId: parentObjectId,
 				name: objName,
 			});

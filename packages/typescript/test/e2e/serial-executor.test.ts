@@ -13,12 +13,12 @@ let executor: SerialTransactionExecutor;
 beforeAll(async () => {
 	toolbox = await setup();
 	executor = new SerialTransactionExecutor({
-		client: toolbox.client,
+		client: toolbox.jsonRpcClient,
 		signer: toolbox.keypair,
 	});
 
-	vi.spyOn(toolbox.client, 'multiGetObjects');
-	vi.spyOn(toolbox.client, 'getCoins');
+	vi.spyOn(toolbox.jsonRpcClient, 'multiGetObjects');
+	vi.spyOn(toolbox.jsonRpcClient, 'getCoins');
 });
 
 afterEach(async () => {
@@ -39,7 +39,7 @@ describe('SerialExecutor', { retry: 3 }, () => {
 		const txb = new Transaction();
 		const [coin] = txb.splitCoins(txb.gas, [1]);
 		txb.transferObjects([coin], toolbox.address());
-		expect(toolbox.client.getCoins).toHaveBeenCalledTimes(0);
+		expect(toolbox.jsonRpcClient.getCoins).toHaveBeenCalledTimes(0);
 
 		const result = await executor.executeTransaction(txb);
 
@@ -50,7 +50,7 @@ describe('SerialExecutor', { retry: 3 }, () => {
 				index !== effects.V2.gasObjectIndex && outputState.ObjectWrite,
 		)?.[0]!;
 
-		expect(toolbox.client.getCoins).toHaveBeenCalledTimes(1);
+		expect(toolbox.jsonRpcClient.getCoins).toHaveBeenCalledTimes(1);
 
 		const txb2 = new Transaction();
 		txb2.transferObjects([newCoinId], toolbox.address());
@@ -67,8 +67,8 @@ describe('SerialExecutor', { retry: 3 }, () => {
 
 		expect(results[0].digest).not.toEqual(results[1].digest);
 		expect(results[1].digest).not.toEqual(results[2].digest);
-		expect(toolbox.client.multiGetObjects).toHaveBeenCalledTimes(0);
-		expect(toolbox.client.getCoins).toHaveBeenCalledTimes(1);
+		expect(toolbox.jsonRpcClient.multiGetObjects).toHaveBeenCalledTimes(0);
+		expect(toolbox.jsonRpcClient.getCoins).toHaveBeenCalledTimes(1);
 	});
 
 	it('Resets cache on errors', async () => {
@@ -79,27 +79,27 @@ describe('SerialExecutor', { retry: 3 }, () => {
 		const result = await executor.executeTransaction(txb);
 		const effects = bcs.TransactionEffects.fromBase64(result.effects);
 
-		await toolbox.client.waitForTransaction({ digest: result.digest });
+		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
 
 		const newCoinId = effects.V2?.changedObjects.find(
 			([_id, { outputState }], index) =>
 				index !== effects.V2.gasObjectIndex && outputState.ObjectWrite,
 		)?.[0]!;
 
-		expect(toolbox.client.getCoins).toHaveBeenCalledTimes(1);
+		expect(toolbox.jsonRpcClient.getCoins).toHaveBeenCalledTimes(1);
 
 		const txb2 = new Transaction();
 		txb2.transferObjects([newCoinId], toolbox.address());
 		const txb3 = new Transaction();
 		txb3.transferObjects([newCoinId], new Ed25519Keypair().toSuiAddress());
 
-		const { digest } = await toolbox.client.signAndExecuteTransaction({
+		const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 			signer: toolbox.keypair,
 			transaction: txb2,
 		});
 
 		await expect(() => executor.executeTransaction(txb3)).rejects.toThrowError();
-		await toolbox.client.waitForTransaction({ digest });
+		await toolbox.jsonRpcClient.waitForTransaction({ digest });
 
 		// // Transaction should succeed after cache reset/error
 		const result2 = await executor.executeTransaction(txb3);

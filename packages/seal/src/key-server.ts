@@ -49,8 +49,9 @@ export async function retrieveKeyServers({
 			// First get the KeyServer object and validate it.
 			const res = await client.core.getObject({
 				objectId,
+				include: { content: true },
 			});
-			const ks = KeyServerMove.parse(await res.object.content);
+			const ks = KeyServerMove.parse(res.object.content);
 			if (
 				EXPECTED_SERVER_VERSION < Number(ks.firstVersion) ||
 				EXPECTED_SERVER_VERSION > Number(ks.lastVersion)
