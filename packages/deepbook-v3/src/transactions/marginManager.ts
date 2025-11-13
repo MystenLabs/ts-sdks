@@ -562,4 +562,35 @@ export class MarginManagerContract {
 				typeArguments: [baseCoin.type, quoteCoin.type, debtCoin.type],
 			});
 		};
+
+	/**
+	 * @description Get comprehensive state information for a margin manager
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 * @returns Returns (manager_id, deepbook_pool_id, risk_ratio, base_asset, quote_asset,
+	 *                   base_debt, quote_debt, base_pyth_price, base_pyth_decimals,
+	 *                   quote_pyth_price, quote_pyth_decimals)
+	 */
+	managerState = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::manager_state`,
+			arguments: [
+				tx.object(marginManagerId),
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(baseCoin.priceInfoObjectId!),
+				tx.object(quoteCoin.priceInfoObjectId!),
+				tx.object(pool.address),
+				tx.object(baseMarginPool.address),
+				tx.object(quoteMarginPool.address),
+				tx.object.clock(),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
 }
