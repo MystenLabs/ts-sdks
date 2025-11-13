@@ -272,7 +272,7 @@ describe('Core API - Transaction Resolution', () => {
 				expect(bytes).toBeDefined();
 
 				// Execute resolved transaction (use JSON RPC client for signing since gRPC doesn't support it)
-				const result = await toolbox.client.signAndExecuteTransaction({
+				const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 					transaction: tx,
 					signer: toolbox.keypair,
 					options: {
@@ -282,7 +282,7 @@ describe('Core API - Transaction Resolution', () => {
 				expect(result.effects?.status.status).toBe('success');
 
 				// Wait for indexing
-				await toolbox.client.waitForTransaction({ digest: result.digest });
+				await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
 			},
 			{ skip: ['graphql'] },
 		);
@@ -313,7 +313,7 @@ describe('Core API - Transaction Resolution', () => {
 				expect(pureInput?.Pure).toBeDefined();
 
 				// Execute resolved transaction (use JSON RPC client for signing since gRPC doesn't support it)
-				const result = await toolbox.client.signAndExecuteTransaction({
+				const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 					transaction: tx,
 					signer: toolbox.keypair,
 					options: {
@@ -328,7 +328,7 @@ describe('Core API - Transaction Resolution', () => {
 				expect(createdObjects?.length).toBeGreaterThan(0);
 
 				// Wait for indexing
-				await toolbox.client.waitForTransaction({ digest: result.digest });
+				await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
 			},
 			{ skip: ['graphql'] },
 		);
@@ -367,7 +367,7 @@ describe('Core API - Transaction Resolution', () => {
 			).ProgrammableTransaction;
 
 			// Test conversion: TransactionData -> BCS (via onlyTransactionKind)
-			const bytes = await tx.build({ client: toolbox.client, onlyTransactionKind: true });
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient, onlyTransactionKind: true });
 
 			// Parse the BCS back to verify the round-trip preserved the structure
 			const kind = bcs.TransactionKind.parse(bytes);
@@ -520,7 +520,7 @@ describe('Core API - Transaction Resolution', () => {
 					typeArguments: [],
 					arguments: [],
 				});
-				const setupResult = await toolbox.client.signAndExecuteTransaction({
+				const setupResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 					transaction: setupTx,
 					signer: toolbox.keypair,
 					options: {
@@ -529,7 +529,7 @@ describe('Core API - Transaction Resolution', () => {
 				});
 
 				expect(setupResult.effects?.status.status).toBe('success');
-				await toolbox.client.waitForTransaction({ digest: setupResult.digest });
+				await toolbox.jsonRpcClient.waitForTransaction({ digest: setupResult.digest });
 
 				// Find the created objects
 				const created = setupResult.effects?.created || [];
@@ -604,7 +604,10 @@ describe('Core API - Transaction Resolution', () => {
 				expect(receivingInput.Object?.Receiving?.digest).toBeDefined();
 
 				// Verify transaction would succeed using dryRun (avoids consuming objects)
-				const dryRunResult = await client.core.simulateTransaction({ transaction: bytes });
+				const dryRunResult = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true },
+				});
 				expect(dryRunResult.transaction.effects?.status.success).toBe(true);
 			},
 			{ skip: ['graphql'] },
@@ -621,7 +624,7 @@ describe('Core API - Transaction Resolution', () => {
 					target: `${packageId}::test_objects::create_shared_object`,
 					arguments: [],
 				});
-				const setupResult = await toolbox.client.signAndExecuteTransaction({
+				const setupResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 					transaction: setupTx,
 					signer: toolbox.keypair,
 					options: {
@@ -630,7 +633,7 @@ describe('Core API - Transaction Resolution', () => {
 				});
 
 				expect(setupResult.effects?.status.status).toBe('success');
-				await toolbox.client.waitForTransaction({ digest: setupResult.digest });
+				await toolbox.jsonRpcClient.waitForTransaction({ digest: setupResult.digest });
 
 				// Find the shared object
 				const created = setupResult.effects?.created || [];
@@ -673,7 +676,10 @@ describe('Core API - Transaction Resolution', () => {
 				expect(sharedInput.Object?.SharedObject?.mutable).toBe(true);
 
 				// Verify transaction would succeed using dryRun (avoids consuming objects)
-				const dryRunResult = await client.core.simulateTransaction({ transaction: bytes });
+				const dryRunResult = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true },
+				});
 				expect(dryRunResult.transaction.effects?.status.success).toBe(true);
 			},
 			{ skip: ['graphql'] },

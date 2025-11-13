@@ -63,8 +63,9 @@ export async function retrieveKeyServers({
 			// First get the KeyServer object and validate it.
 			const res = await client.core.getObject({
 				objectId,
+				include: { content: true },
 			});
-			const ks = KeyServerMove.parse(await res.object.content);
+			const ks = KeyServerMove.parse(res.object.content);
 
 			// Find the highest supported version.
 			const firstVersion = Number(ks.firstVersion);
