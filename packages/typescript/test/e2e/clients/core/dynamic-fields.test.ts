@@ -26,7 +26,7 @@ describe('Core API - Dynamic Fields', () => {
 			arguments: [tx.pure.vector('u8', Array.from(new TextEncoder().encode('test_df_object')))],
 		});
 
-		const result = await toolbox.client.signAndExecuteTransaction({
+		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 			transaction: tx,
 			signer: toolbox.keypair,
 			options: {
@@ -38,7 +38,7 @@ describe('Core API - Dynamic Fields', () => {
 		expect(result.effects?.status.status).toBe('success');
 
 		// Wait for indexing
-		await toolbox.client.waitForTransaction({ digest: result.digest });
+		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
 
 		// Find the created ObjectWithDynamicFields
 		if (result.objectChanges) {
@@ -55,7 +55,7 @@ describe('Core API - Dynamic Fields', () => {
 
 		// Fallback: find via getOwnedObjects if objectChanges didn't work
 		if (!objectWithDynamicFieldsId) {
-			const ownedObjects = await toolbox.client.getOwnedObjects({
+			const ownedObjects = await toolbox.jsonRpcClient.getOwnedObjects({
 				owner: testAddress,
 				options: {
 					showType: true,

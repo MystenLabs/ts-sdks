@@ -3,8 +3,8 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { SuiObjectData } from '../../src/jsonRpc';
-import { setup, TestToolbox } from './utils/setup';
+import { SuiObjectData } from '../../../../src/jsonRpc';
+import { setup, TestToolbox } from '../../utils/setup';
 
 describe('Test Object Display Standard', () => {
 	let toolbox: TestToolbox;
@@ -17,7 +17,7 @@ describe('Test Object Display Standard', () => {
 
 	it('Test getting Display fields with error object', async () => {
 		const resp = (
-			await toolbox.client.getOwnedObjects({
+			await toolbox.jsonRpcClient.getOwnedObjects({
 				owner: toolbox.address(),
 				options: { showDisplay: true, showType: true },
 				filter: { StructType: `${packageId}::boars::Boar` },
@@ -26,7 +26,7 @@ describe('Test Object Display Standard', () => {
 		const data = resp[0].data as SuiObjectData;
 		const boarId = data.objectId;
 		const display = (
-			await toolbox.client.getObject({
+			await toolbox.jsonRpcClient.getObject({
 				id: boarId,
 				options: { showDisplay: true },
 			})
@@ -61,7 +61,7 @@ describe('Test Object Display Standard', () => {
 		const coin = (await toolbox.getGasObjectsOwnedByAddress()).data[0];
 		const coinId = coin.coinObjectId;
 		const display = (
-			await toolbox.client.getObject({
+			await toolbox.jsonRpcClient.getObject({
 				id: coinId,
 				options: { showDisplay: true },
 			})
