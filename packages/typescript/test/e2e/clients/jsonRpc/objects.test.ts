@@ -3,9 +3,9 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { Transaction } from '../../src/transactions';
-import { normalizeSuiAddress, SUI_TYPE_ARG } from '../../src/utils';
-import { setup, TestToolbox } from './utils/setup';
+import { Transaction } from '../../../../src/transactions';
+import { normalizeSuiAddress, SUI_TYPE_ARG } from '../../../../src/utils';
+import { setup, TestToolbox } from '../../utils/setup';
 
 describe('Object Reading API', () => {
 	let toolbox: TestToolbox;
@@ -15,7 +15,7 @@ describe('Object Reading API', () => {
 	});
 
 	it('Get Owned Objects', async () => {
-		const gasObjects = await toolbox.client.getOwnedObjects({
+		const gasObjects = await toolbox.jsonRpcClient.getOwnedObjects({
 			owner: toolbox.address(),
 		});
 		expect(gasObjects.data.length).to.greaterThan(0);
@@ -26,7 +26,7 @@ describe('Object Reading API', () => {
 		expect(gasObjects.data.length).to.greaterThan(0);
 		const objectInfos = await Promise.all(
 			gasObjects.data.map((gasObject) => {
-				return toolbox.client.getObject({
+				return toolbox.jsonRpcClient.getObject({
 					id: gasObject.coinObjectId,
 					options: { showType: true },
 				});
@@ -43,7 +43,7 @@ describe('Object Reading API', () => {
 		const gasObjectIds = gasObjects.data.map((gasObject) => {
 			return gasObject.coinObjectId;
 		});
-		const objectInfos = await toolbox.client.multiGetObjects({
+		const objectInfos = await toolbox.jsonRpcClient.multiGetObjects({
 			ids: gasObjectIds,
 			options: {
 				showType: true,
@@ -58,7 +58,7 @@ describe('Object Reading API', () => {
 	});
 
 	it('handles trying to get non-existent old objects', async () => {
-		const res = await toolbox.client.tryGetPastObject({
+		const res = await toolbox.jsonRpcClient.tryGetPastObject({
 			id: normalizeSuiAddress('0x9999'),
 			version: 0,
 		});
@@ -67,12 +67,12 @@ describe('Object Reading API', () => {
 	});
 
 	it('can read live versions', async () => {
-		const { data } = await toolbox.client.getCoins({
+		const { data } = await toolbox.jsonRpcClient.getCoins({
 			owner: toolbox.address(),
 			coinType: SUI_TYPE_ARG,
 		});
 
-		const res = await toolbox.client.tryGetPastObject({
+		const res = await toolbox.jsonRpcClient.tryGetPastObject({
 			id: data[0].coinObjectId,
 			version: Number(data[0].version),
 		});
@@ -81,12 +81,12 @@ describe('Object Reading API', () => {
 	});
 
 	it('handles trying to get a newer version than the latest version', async () => {
-		const { data } = await toolbox.client.getCoins({
+		const { data } = await toolbox.jsonRpcClient.getCoins({
 			owner: toolbox.address(),
 			coinType: SUI_TYPE_ARG,
 		});
 
-		const res = await toolbox.client.tryGetPastObject({
+		const res = await toolbox.jsonRpcClient.tryGetPastObject({
 			id: data[0].coinObjectId,
 			version: Number(data[0].version) + 1,
 		});
@@ -95,12 +95,12 @@ describe('Object Reading API', () => {
 	});
 
 	it('handles fetching versions that do not exist', async () => {
-		const { data } = await toolbox.client.getCoins({
+		const { data } = await toolbox.jsonRpcClient.getCoins({
 			owner: toolbox.address(),
 			coinType: SUI_TYPE_ARG,
 		});
 
-		const res = await toolbox.client.tryGetPastObject({
+		const res = await toolbox.jsonRpcClient.tryGetPastObject({
 			id: data[0].coinObjectId,
 			// NOTE: This works because we know that this is a fresh coin that hasn't been modified:
 			version: Number(data[0].version) - 1,
@@ -110,7 +110,7 @@ describe('Object Reading API', () => {
 	});
 
 	it('can find old versions of objects', async () => {
-		const { data } = await toolbox.client.getCoins({
+		const { data } = await toolbox.jsonRpcClient.getCoins({
 			owner: toolbox.address(),
 			coinType: SUI_TYPE_ARG,
 		});
@@ -119,13 +119,13 @@ describe('Object Reading API', () => {
 		// Transfer the entire gas object:
 		tx.transferObjects([tx.gas], normalizeSuiAddress('0x2'));
 
-		const { digest } = await toolbox.client.signAndExecuteTransaction({
+		const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 			signer: toolbox.keypair,
 			transaction: tx,
 		});
-		await toolbox.client.waitForTransaction({ digest });
+		await toolbox.jsonRpcClient.waitForTransaction({ digest });
 
-		const res = await toolbox.client.tryGetPastObject({
+		const res = await toolbox.jsonRpcClient.tryGetPastObject({
 			id: data[0].coinObjectId,
 			// NOTE: This works because we know that this is a fresh coin that hasn't been modified:
 			version: Number(data[0].version),

@@ -81,12 +81,16 @@ export abstract class Signer {
 	async signAndExecuteTransaction({
 		transaction,
 		client,
-	}: SignAndExecuteOptions): Promise<Omit<SuiClientTypes.TransactionResponse, 'balanceChanges'>> {
+	}: SignAndExecuteOptions): Promise<
+		SuiClientTypes.TransactionResponse<{ transaction: true; effects: true }>
+	> {
+		transaction.setSenderIfNotSet(this.toSuiAddress());
 		const bytes = await transaction.build({ client });
 		const { signature } = await this.signTransaction(bytes);
 		const response = await client.core.executeTransaction({
 			transaction: bytes,
 			signatures: [signature],
+			include: { transaction: true, effects: true },
 		});
 
 		return response.transaction;
