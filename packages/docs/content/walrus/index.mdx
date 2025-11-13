@@ -419,8 +419,8 @@ operation to succeed, and gracefully handle cases where some nodes may be in a b
 
 ### Network errors
 
-Walrus is designed to handle some nodes being down, and the SDK will only throw errors when it
-can't read from or write to enough storage nodes. When trying to troubleshoot problems, it can be
+Walrus is designed to handle some nodes being down, and the SDK will only throw errors when it can't
+read from or write to enough storage nodes. When trying to troubleshoot problems, it can be
 challenging to figure out what's going wrong when you don't see all the individual network errors.
 
 You can pass an `onError` option in the storageNodeClientOptions to get the individual errors from
