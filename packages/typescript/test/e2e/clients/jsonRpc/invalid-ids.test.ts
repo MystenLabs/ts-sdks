@@ -3,8 +3,8 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { Transaction } from '../../src/transactions';
-import { setup, TestToolbox } from './utils/setup';
+import { Transaction } from '../../../../src/transactions';
+import { setup, TestToolbox } from '../../utils/setup';
 
 describe('Object id/Address/Transaction digest validation', () => {
 	let toolbox: TestToolbox;
@@ -16,40 +16,40 @@ describe('Object id/Address/Transaction digest validation', () => {
 	//Test that with invalid object id/address/digest, functions will throw an error before making a request to the rpc server
 	it('Test all functions with invalid Sui Address', async () => {
 		//empty id
-		await expect(toolbox.client.getOwnedObjects({ owner: '' })).rejects.toThrowError(
+		await expect(toolbox.jsonRpcClient.getOwnedObjects({ owner: '' })).rejects.toThrowError(
 			/Invalid Sui address/,
 		);
 	});
 
 	it('Test all functions with invalid Object Id', async () => {
 		//empty id
-		await expect(toolbox.client.getObject({ id: '' })).rejects.toThrowError(
+		await expect(toolbox.jsonRpcClient.getObject({ id: '' })).rejects.toThrowError(
 			/Invalid Sui Object id/,
 		);
 
 		//more than 20bytes
 		await expect(
-			toolbox.client.getDynamicFields({
+			toolbox.jsonRpcClient.getDynamicFields({
 				parentId: '0x0000000000000000000000004ce52ee7b659b610d59a1ced129291b3d0d4216322',
 			}),
 		).rejects.toThrowError(/Invalid Sui Object id/);
 
 		//wrong batch request
 		const objectIds = ['0xBABE', '0xCAFE', '0xWRONG', '0xFACE'];
-		await expect(toolbox.client.multiGetObjects({ ids: objectIds })).rejects.toThrowError(
+		await expect(toolbox.jsonRpcClient.multiGetObjects({ ids: objectIds })).rejects.toThrowError(
 			/Invalid Sui Object id 0xWRONG/,
 		);
 	});
 
 	it('Test all functions with invalid Transaction Digest', async () => {
 		//empty digest
-		await expect(toolbox.client.getTransactionBlock({ digest: '' })).rejects.toThrowError(
+		await expect(toolbox.jsonRpcClient.getTransactionBlock({ digest: '' })).rejects.toThrowError(
 			/Invalid Transaction digest/,
 		);
 
 		//wrong batch request
 		const digests = ['AQ7FA8JTGs368CvMkXj2iFz2WUWwzP6AAWgsLpPLxUmr', 'wrong'];
-		await expect(toolbox.client.multiGetTransactionBlocks({ digests })).rejects.toThrowError(
+		await expect(toolbox.jsonRpcClient.multiGetTransactionBlocks({ digests })).rejects.toThrowError(
 			/Invalid Transaction digest wrong/,
 		);
 	});

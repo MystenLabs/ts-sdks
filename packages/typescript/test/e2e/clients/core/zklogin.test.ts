@@ -24,7 +24,7 @@ describe('Core API - ZkLogin', () => {
 	beforeAll(async () => {
 		toolbox = await setup();
 
-		const epoch = await toolbox.client.getLatestSuiSystemState();
+		const epoch = await toolbox.jsonRpcClient.getLatestSuiSystemState();
 		const currentEpoch = Number(epoch.epoch);
 		const maxEpoch = currentEpoch + 10;
 

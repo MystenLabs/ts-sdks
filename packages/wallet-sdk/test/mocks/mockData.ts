@@ -70,7 +70,7 @@ export function createMockCoin(params: {
 	owner: SuiClientTypes.ObjectOwner;
 	version?: string;
 	digest?: string;
-}): SuiClientTypes.ObjectResponse {
+}): SuiClientTypes.ObjectResponse<{ content: true }> {
 	const normalizedId = normalizeSuiAddress(params.objectId);
 	const normalizedCoinType = normalizeStructTag(params.coinType);
 
@@ -85,8 +85,8 @@ export function createMockCoin(params: {
 		digest: params.digest || '11111111111111111111111111111111',
 		type: normalizeStructTag(`0x2::coin::Coin<${normalizedCoinType}>`),
 		owner: params.owner,
-		content: Promise.resolve(content),
-		previousTransaction: null,
+		content,
+		previousTransaction: null as any,
 	};
 }
 
@@ -104,7 +104,7 @@ export function createMockNFT(params: {
 	owner: SuiClientTypes.ObjectOwner;
 	version?: string;
 	digest?: string;
-}): SuiClientTypes.ObjectResponse {
+}): SuiClientTypes.ObjectResponse<{ content: true }> {
 	const normalizedId = normalizeSuiAddress(params.objectId);
 	const normalizedNftType = normalizeStructTag(params.nftType);
 
@@ -122,8 +122,8 @@ export function createMockNFT(params: {
 		digest: params.digest || 'E7YX7zmxdAVVzrGkcoss2ziUHKMa7qBChPbqg5nGQyYo',
 		type: normalizedNftType,
 		owner: params.owner,
-		content: Promise.resolve(content),
-		previousTransaction: null,
+		content,
+		previousTransaction: null as any,
 	};
 }
 
@@ -134,12 +134,13 @@ export function createMockObject(params: {
 	version?: string;
 	digest?: string;
 	content?: Uint8Array;
-}): SuiClientTypes.ObjectResponse {
+}): SuiClientTypes.ObjectResponse<{ content: true }> {
 	const normalizedId = normalizeSuiAddress(params.objectId);
 	const normalizedObjectType = normalizeStructTag(params.objectType);
 
 	// Default content is just the object ID as address
-	const content = params.content || bcs.Address.serialize(normalizedId).toBytes();
+	const content = (params.content ||
+		bcs.Address.serialize(normalizedId).toBytes()) as Uint8Array<ArrayBuffer>;
 
 	return {
 		objectId: normalizedId,
@@ -147,8 +148,8 @@ export function createMockObject(params: {
 		digest: params.digest || '11111111111111111111111111111111',
 		type: normalizedObjectType,
 		owner: params.owner,
-		content: Promise.resolve(content),
-		previousTransaction: null,
+		content,
+		previousTransaction: null as any,
 	};
 }
 
@@ -181,8 +182,8 @@ export function createMockCoins(params: {
 	numCoins: number;
 	owner: SuiClientTypes.ObjectOwner;
 	baseObjectId?: string;
-}): SuiClientTypes.ObjectResponse[] {
-	const coins: SuiClientTypes.ObjectResponse[] = [];
+}): SuiClientTypes.ObjectResponse<{ content: true }>[] {
+	const coins: SuiClientTypes.ObjectResponse<{ content: true }>[] = [];
 	const baseId = params.baseObjectId || '0xc01';
 
 	// Split balance deterministically across coins using powers of 2
@@ -218,7 +219,7 @@ export function createMockCoins(params: {
 }
 
 // Default objects that the mock client knows about
-export const DEFAULT_OBJECTS: SuiClientTypes.ObjectResponse[] = [
+export const DEFAULT_OBJECTS: SuiClientTypes.ObjectResponse<{ content: true }>[] = [
 	// 10 SUI coins for main sender (split across multiple coins)
 	...createMockCoins({
 		coinType: '0x2::sui::SUI',
