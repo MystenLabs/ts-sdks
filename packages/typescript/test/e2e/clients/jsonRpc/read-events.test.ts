@@ -3,7 +3,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { setup, TestToolbox } from './utils/setup';
+import { setup, TestToolbox } from '../../utils/setup';
 
 describe('Event Reading API', () => {
 	let toolbox: TestToolbox;
@@ -17,14 +17,14 @@ describe('Event Reading API', () => {
 
 	it('Get All Events', async () => {
 		// TODO: refactor so that we can provide None here to signify there's no filter
-		const allEvents = await toolbox.client.queryEvents({
+		const allEvents = await toolbox.jsonRpcClient.queryEvents({
 			query: { TimeRange: { startTime: '0', endTime: Date.now().toString() } },
 		});
 		expect(allEvents.data.length).to.greaterThan(0);
 	});
 
 	it('Get all event paged', async () => {
-		const page1 = await toolbox.client.queryEvents({
+		const page1 = await toolbox.jsonRpcClient.queryEvents({
 			query: { TimeRange: { startTime: '0', endTime: Date.now().toString() } },
 			limit: 2,
 		});
@@ -32,7 +32,7 @@ describe('Event Reading API', () => {
 	});
 
 	it('Get events by sender paginated', async () => {
-		const query1 = await toolbox.client.queryEvents({
+		const query1 = await toolbox.jsonRpcClient.queryEvents({
 			query: { Sender: toolbox.address() },
 			limit: 2,
 		});

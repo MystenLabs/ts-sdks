@@ -20,15 +20,15 @@ describe('ParallelTransactionExecutor', { retry: 3 }, () => {
 		await toolbox.mintNft();
 
 		executor = new ParallelTransactionExecutor({
-			client: toolbox.client,
+			client: toolbox.jsonRpcClient,
 			signer: toolbox.keypair,
 			maxPoolSize: 3,
 			coinBatchSize: 2,
 		});
 
-		vi.spyOn(toolbox.client, 'multiGetObjects');
-		vi.spyOn(toolbox.client, 'getCoins');
-		vi.spyOn(toolbox.client, 'executeTransactionBlock');
+		vi.spyOn(toolbox.jsonRpcClient, 'multiGetObjects');
+		vi.spyOn(toolbox.jsonRpcClient, 'getCoins');
+		vi.spyOn(toolbox.jsonRpcClient, 'executeTransactionBlock');
 	});
 
 	afterEach(async () => {
@@ -49,7 +49,7 @@ describe('ParallelTransactionExecutor', { retry: 3 }, () => {
 		let maxConcurrentRequests = 0;
 		let totalTransactions = 0;
 
-		(toolbox.client.executeTransactionBlock as Mock).mockImplementation(async function (
+		(toolbox.jsonRpcClient.executeTransactionBlock as Mock).mockImplementation(async function (
 			this: SuiJsonRpcClient,
 			input,
 		) {
@@ -98,7 +98,7 @@ describe('ParallelTransactionExecutor', { retry: 3 }, () => {
 		const returnFunds = new Transaction();
 		returnFunds.transferObjects([returnFunds.gas], toolbox.address());
 
-		await toolbox.client.signAndExecuteTransaction({
+		await toolbox.jsonRpcClient.signAndExecuteTransaction({
 			transaction: returnFunds,
 			signer: receiver,
 		});
@@ -152,7 +152,7 @@ describe('ParallelTransactionExecutor', { retry: 3 }, () => {
 		);
 
 		const txbs = newCoins.flatMap((newCoinId) => {
-			expect(toolbox.client.getCoins).toHaveBeenCalledTimes(0);
+			expect(toolbox.jsonRpcClient.getCoins).toHaveBeenCalledTimes(0);
 			const txb2 = new Transaction();
 			txb2.transferObjects([newCoinId], toolbox.address());
 			const txb3 = new Transaction();
@@ -172,7 +172,7 @@ describe('ParallelTransactionExecutor', { retry: 3 }, () => {
 
 	it('removes coins from pool when they drop below the minimum', async () => {
 		executor = new ParallelTransactionExecutor({
-			client: toolbox.client,
+			client: toolbox.jsonRpcClient,
 			signer: toolbox.keypair,
 			maxPoolSize: 1,
 			coinBatchSize: 1,
@@ -187,7 +187,7 @@ describe('ParallelTransactionExecutor', { retry: 3 }, () => {
 
 		expect(r1.data.effects?.status.status).toEqual('success');
 		// 1 tx to fill the gas pool + the executed transaction
-		expect(toolbox.client.executeTransactionBlock).toHaveBeenCalledTimes(2);
+		expect(toolbox.jsonRpcClient.executeTransactionBlock).toHaveBeenCalledTimes(2);
 
 		const tx2 = new Transaction();
 		tx2.transferObjects([await toolbox.mintNft()], toolbox.address());
@@ -195,6 +195,6 @@ describe('ParallelTransactionExecutor', { retry: 3 }, () => {
 
 		expect(r2.data.effects?.status.status).toEqual('success');
 		// 2 txs to refill the gas pool + 2 executed transactions
-		expect(toolbox.client.executeTransactionBlock).toHaveBeenCalledTimes(4);
+		expect(toolbox.jsonRpcClient.executeTransactionBlock).toHaveBeenCalledTimes(4);
 	});
 });
