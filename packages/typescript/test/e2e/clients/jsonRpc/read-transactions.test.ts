@@ -3,9 +3,9 @@
 
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { SuiTransactionBlockResponse } from '../../src/jsonRpc';
-import { Transaction } from '../../src/transactions';
-import { executePaySuiNTimes, setup, TestToolbox } from './utils/setup';
+import { SuiTransactionBlockResponse } from '../../../../src/jsonRpc';
+import { Transaction } from '../../../../src/transactions';
+import { executePaySuiNTimes, setup, TestToolbox } from '../../utils/setup';
 
 describe('Transaction Reading API', () => {
 	let toolbox: TestToolbox;
@@ -14,11 +14,15 @@ describe('Transaction Reading API', () => {
 
 	beforeAll(async () => {
 		toolbox = await setup();
-		transactions = await executePaySuiNTimes(toolbox.client, toolbox.keypair, NUM_TRANSACTIONS);
+		transactions = await executePaySuiNTimes(
+			toolbox.jsonRpcClient,
+			toolbox.keypair,
+			NUM_TRANSACTIONS,
+		);
 	});
 
 	it('Get Total Transactions', async () => {
-		const numTransactions = await toolbox.client.getTotalTransactionBlocks();
+		const numTransactions = await toolbox.jsonRpcClient.getTotalTransactionBlocks();
 		expect(numTransactions).toBeGreaterThan(0);
 	});
 
@@ -27,7 +31,7 @@ describe('Transaction Reading API', () => {
 			const tx = new Transaction();
 			const [coin] = tx.splitCoins(tx.gas, [1]);
 			tx.transferObjects([coin], toolbox.address());
-			return toolbox.client.signAndExecuteTransaction({
+			return toolbox.jsonRpcClient.signAndExecuteTransaction({
 				signer: toolbox.keypair,
 				transaction: tx,
 			});
@@ -41,15 +45,15 @@ describe('Transaction Reading API', () => {
 			const { digest } = await setupTransaction();
 
 			// Should succeed using wait
-			const waited = await toolbox.client.waitForTransaction({ digest });
+			const waited = await toolbox.jsonRpcClient.waitForTransaction({ digest });
 			expect(waited.digest).toEqual(digest);
 		});
 
 		it('abort signal doesnt throw after transaction is received', async () => {
 			const { digest } = await setupTransaction();
 
-			const waited = await toolbox.client.waitForTransaction({ digest });
-			const secondWait = await toolbox.client.waitForTransaction({ digest, timeout: 2000 });
+			const waited = await toolbox.jsonRpcClient.waitForTransaction({ digest });
+			const secondWait = await toolbox.jsonRpcClient.waitForTransaction({ digest, timeout: 2000 });
 			// wait for timeout to expire incase it causes an unhandled rejection
 			await new Promise((resolve) => setTimeout(resolve, 2100));
 			expect(waited.digest).toEqual(digest);
@@ -63,7 +67,7 @@ describe('Transaction Reading API', () => {
 			abortController.abort();
 
 			await expect(
-				toolbox.client.waitForTransaction({
+				toolbox.jsonRpcClient.waitForTransaction({
 					digest,
 					signal: abortController.signal,
 				}),
@@ -72,11 +76,11 @@ describe('Transaction Reading API', () => {
 
 		it('times out when provided an invalid digest', async () => {
 			const spy = vi
-				.spyOn(toolbox.client, 'getTransactionBlock')
+				.spyOn(toolbox.jsonRpcClient, 'getTransactionBlock')
 				.mockImplementation(() => Promise.reject());
 
 			await expect(
-				toolbox.client.waitForTransaction({
+				toolbox.jsonRpcClient.waitForTransaction({
 					digest: 'foobar',
 					pollInterval: 10,
 					timeout: 55,
@@ -90,13 +94,13 @@ describe('Transaction Reading API', () => {
 
 	it('Get Transaction', async () => {
 		const digest = transactions[0].digest;
-		const txn = await toolbox.client.getTransactionBlock({ digest });
+		const txn = await toolbox.jsonRpcClient.getTransactionBlock({ digest });
 		expect(txn.digest).toEqual(digest);
 	});
 
 	it('Multi Get Pay Transactions', async () => {
 		const digests = transactions.map((t) => t.digest);
-		const txns = await toolbox.client.multiGetTransactionBlocks({
+		const txns = await toolbox.jsonRpcClient.multiGetTransactionBlocks({
 			digests,
 			options: { showBalanceChanges: true },
 		});
@@ -118,7 +122,7 @@ describe('Transaction Reading API', () => {
 			// comparing checkpoint causes a race condition resulting in flaky tests
 			// timestamp is only available after indexing, causing flaky tests
 			data: [{ checkpoint: _, timestampMs: __, ...response1 }],
-		} = await toolbox.client.queryTransactionBlocks({
+		} = await toolbox.jsonRpcClient.queryTransactionBlocks({
 			options,
 			limit: 1,
 		});
@@ -127,7 +131,7 @@ describe('Transaction Reading API', () => {
 			checkpoint: _checkpoint,
 			timestampMs: _timestampMs,
 			...response2
-		} = await toolbox.client.getTransactionBlock({
+		} = await toolbox.jsonRpcClient.getTransactionBlock({
 			digest: response1.digest,
 			options,
 		});
@@ -135,18 +139,18 @@ describe('Transaction Reading API', () => {
 	});
 
 	it('Get Transactions', async () => {
-		const allTransactions = await toolbox.client.queryTransactionBlocks({
+		const allTransactions = await toolbox.jsonRpcClient.queryTransactionBlocks({
 			limit: 10,
 		});
 		expect(allTransactions.data.length).to.greaterThan(0);
 	});
 
 	it('Genesis exists', async () => {
-		const allTransactions = await toolbox.client.queryTransactionBlocks({
+		const allTransactions = await toolbox.jsonRpcClient.queryTransactionBlocks({
 			limit: 1,
 			order: 'ascending',
 		});
-		const resp = await toolbox.client.getTransactionBlock({
+		const resp = await toolbox.jsonRpcClient.getTransactionBlock({
 			digest: allTransactions.data[0].digest,
 			options: { showInput: true },
 		});

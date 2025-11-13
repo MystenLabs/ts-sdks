@@ -1,7 +1,14 @@
 # Copyright (c) Mysten Labs, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-query simulateTransaction($transaction: JSON!) {
+query simulateTransaction(
+	$transaction: JSON!
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+) {
 	simulateTransaction(transaction: $transaction) {
 		error
 		effects {
@@ -12,7 +19,15 @@ query simulateTransaction($transaction: JSON!) {
 	}
 }
 
-mutation executeTransaction($transactionDataBcs: Base64!, $signatures: [Base64!]!) {
+mutation executeTransaction(
+	$transactionDataBcs: Base64!
+	$signatures: [Base64!]!
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+) {
 	executeTransaction(transactionDataBcs: $transactionDataBcs, signatures: $signatures) {
 		errors
 		effects {
@@ -23,7 +38,14 @@ mutation executeTransaction($transactionDataBcs: Base64!, $signatures: [Base64!]
 	}
 }
 
-query getTransactionBlock($digest: String!) {
+query getTransactionBlock(
+	$digest: String!
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+) {
 	transaction(digest: $digest) {
 		...TRANSACTION_FIELDS
 	}
@@ -31,16 +53,16 @@ query getTransactionBlock($digest: String!) {
 
 fragment TRANSACTION_FIELDS on Transaction {
 	digest
-	transactionBcs
+	transactionBcs @include(if: $includeTransaction)
 	signatures {
 		signatureBytes
 	}
 	effects {
-		effectsBcs
 		epoch {
 			epochId
 		}
-		unchangedConsensusObjects {
+		effectsBcs @include(if: $includeEffects)
+		unchangedConsensusObjects @include(if: $includeObjectTypes) {
 			nodes {
 				__typename
 				... on ConsensusObjectRead {
@@ -57,7 +79,7 @@ fragment TRANSACTION_FIELDS on Transaction {
 				}
 			}
 		}
-		objectChanges {
+		objectChanges @include(if: $includeObjectTypes) {
 			nodes {
 				address
 				inputState {
@@ -83,7 +105,7 @@ fragment TRANSACTION_FIELDS on Transaction {
 				}
 			}
 		}
-		balanceChanges(first: 50) {
+		balanceChanges(first: 50) @include(if: $includeBalanceChanges) {
 			pageInfo {
 				hasNextPage
 			}
@@ -97,7 +119,7 @@ fragment TRANSACTION_FIELDS on Transaction {
 				amount
 			}
 		}
-		events(first: 50) {
+		events(first: 50) @include(if: $includeEvents) {
 			pageInfo {
 				hasNextPage
 			}

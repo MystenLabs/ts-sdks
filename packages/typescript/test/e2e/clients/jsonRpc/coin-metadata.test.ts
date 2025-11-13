@@ -3,7 +3,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { setup, TestToolbox } from './utils/setup';
+import { setup, TestToolbox } from '../../utils/setup';
 
 describe('Test Coin Metadata', () => {
 	let toolbox: TestToolbox;
@@ -15,7 +15,7 @@ describe('Test Coin Metadata', () => {
 	});
 
 	it('Test accessing coin metadata', async () => {
-		const coinMetadata = (await toolbox.client.getCoinMetadata({
+		const coinMetadata = (await toolbox.jsonRpcClient.getCoinMetadata({
 			coinType: `${packageId}::test::TEST`,
 		}))!;
 		expect(coinMetadata.decimals).to.equal(2);
