@@ -3,7 +3,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { setup, TestToolbox } from './utils/setup';
+import { setup, TestToolbox } from '../../utils/setup';
 
 const DEFAULT_PACKAGE = '0x2';
 const DEFAULT_MODULE = 'coin';
@@ -18,7 +18,7 @@ describe('Normalized modules API', () => {
 	});
 
 	it('Get Move function arg types', async () => {
-		const argTypes = await toolbox.client.getMoveFunctionArgTypes({
+		const argTypes = await toolbox.jsonRpcClient.getMoveFunctionArgTypes({
 			package: DEFAULT_PACKAGE,
 			module: DEFAULT_MODULE,
 			function: DEFAULT_FUNCTION,
@@ -31,14 +31,14 @@ describe('Normalized modules API', () => {
 	});
 
 	it('Get Normalized Modules by packages', async () => {
-		const modules = await toolbox.client.getNormalizedMoveModulesByPackage({
+		const modules = await toolbox.jsonRpcClient.getNormalizedMoveModulesByPackage({
 			package: DEFAULT_PACKAGE,
 		});
 		expect(Object.keys(modules)).contains(DEFAULT_MODULE);
 	});
 
 	it('Get Normalized Move Module', async () => {
-		const normalized = await toolbox.client.getNormalizedMoveModule({
+		const normalized = await toolbox.jsonRpcClient.getNormalizedMoveModule({
 			package: DEFAULT_PACKAGE,
 			module: DEFAULT_MODULE,
 		});
@@ -46,7 +46,7 @@ describe('Normalized modules API', () => {
 	});
 
 	it('Get Normalized Move Function', async () => {
-		const normalized = await toolbox.client.getNormalizedMoveFunction({
+		const normalized = await toolbox.jsonRpcClient.getNormalizedMoveFunction({
 			package: DEFAULT_PACKAGE,
 			module: DEFAULT_MODULE,
 			function: DEFAULT_FUNCTION,
@@ -55,7 +55,7 @@ describe('Normalized modules API', () => {
 	});
 
 	it('Get Normalized Move Struct ', async () => {
-		const struct = await toolbox.client.getNormalizedMoveStruct({
+		const struct = await toolbox.jsonRpcClient.getNormalizedMoveStruct({
 			package: DEFAULT_PACKAGE,
 			module: DEFAULT_MODULE,
 			struct: DEFAULT_STRUCT,

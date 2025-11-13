@@ -21,7 +21,7 @@ describe('MultiSig with zklogin signature', () => {
 	it('Execute tx with multisig with 1 sig and 1 zkLogin sig combined', async () => {
 		// Get current epoch to generate a valid zkLogin signature with appropriate max epoch
 		const tempToolbox = await setup();
-		const epoch = await tempToolbox.client.getLatestSuiSystemState();
+		const epoch = await tempToolbox.jsonRpcClient.getLatestSuiSystemState();
 		const currentEpoch = Number(epoch.epoch);
 		const maxEpoch = currentEpoch + 10;
 
@@ -80,8 +80,8 @@ describe('MultiSig with zklogin signature', () => {
 		tx.setSenderIfNotSet(multisigAddr);
 		const coin = tx.splitCoins(tx.gas, [1]);
 		tx.transferObjects([coin], DEFAULT_RECIPIENT);
-		const client = toolbox.client;
-		const bytes = await tx.build({ client: toolbox.client });
+		const client = toolbox.jsonRpcClient;
+		const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 
 		// sign with the single keypair.
 		const singleSig = (await kp.signTransaction(bytes)).signature;
