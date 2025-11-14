@@ -361,4 +361,24 @@ export class MarginAdminContract {
 			],
 		});
 	};
+
+	/**
+	 * @description Withdraw the default referral fees (admin only)
+	 * The default referral at 0x0 doesn't have a SupplyReferral object
+	 * @param {string} coinKey The key to identify the margin pool
+	 * @returns A function that takes a Transaction object and returns a Coin<Asset>
+	 */
+	adminWithdrawDefaultReferralFees = (coinKey: string) => (tx: Transaction) => {
+		const coin = this.#config.getCoin(coinKey);
+		const marginPool = this.#config.getMarginPool(coinKey);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::admin_withdraw_default_referral_fees`,
+			arguments: [
+				tx.object(marginPool.address),
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(this.#marginAdminCap()),
+			],
+			typeArguments: [coin.type],
+		});
+	};
 }
