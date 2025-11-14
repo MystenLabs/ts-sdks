@@ -5,11 +5,17 @@ import path from 'path';
 import type { ContainerRuntimeClient } from 'testcontainers';
 import { getContainerRuntimeClient } from 'testcontainers';
 import { retry } from 'ts-retry-promise';
-import { expect, inject } from 'vitest';
+import { expect, inject, it, test } from 'vitest';
 import { WebSocket } from 'ws';
 
-import type { SuiObjectChangePublished } from '../../../src/client/index.js';
-import { getFullnodeUrl, SuiClient, SuiHTTPTransport } from '../../../src/client/index.js';
+import type { SuiObjectChangePublished } from '../../../src/jsonRpc/index.js';
+import {
+	getJsonRpcFullnodeUrl,
+	SuiJsonRpcClient,
+	JsonRpcHTTPTransport,
+} from '../../../src/jsonRpc/index.js';
+import { SuiGrpcClient } from '../../../src/grpc/index.js';
+import { SuiGraphQLClient } from '../../../src/graphql/index.js';
 import type { Keypair } from '../../../src/cryptography/index.js';
 import {
 	FaucetRateLimitError,
@@ -19,9 +25,10 @@ import {
 import { Ed25519Keypair } from '../../../src/keypairs/ed25519/index.js';
 import { Transaction, UpgradePolicy } from '../../../src/transactions/index.js';
 import { SUI_TYPE_ARG } from '../../../src/utils/index.js';
+import type { ClientWithCoreApi } from '../../../src/client/core.js';
 
 const DEFAULT_FAUCET_URL = import.meta.env.FAUCET_URL ?? getFaucetHost('localnet');
-const DEFAULT_FULLNODE_URL = import.meta.env.FULLNODE_URL ?? getFullnodeUrl('localnet');
+const DEFAULT_FULLNODE_URL = import.meta.env.FULLNODE_URL ?? getJsonRpcFullnodeUrl('localnet');
 
 const SUI_TOOLS_CONTAINER_ID = inject('suiToolsContainerId');
 
@@ -51,24 +58,20 @@ class TestPackageRegistry {
 	}
 
 	async getPackage(name: string, toolbox?: TestToolbox) {
-		// Return cached package if available
 		if (this.#packages.has(name)) {
 			return this.#packages.get(name)!;
 		}
 
-		// If a publish is already in progress, wait for it
 		if (this.#pendingPublishes.has(name)) {
 			return await this.#pendingPublishes.get(name)!;
 		}
 
-		// Start a new publish and track it
 		const publishPromise = (async () => {
 			try {
 				const { packageId } = await publishPackage(name, toolbox);
 				this.#packages.set(name, packageId);
 				return packageId;
 			} finally {
-				// Clean up the pending promise once done
 				this.#pendingPublishes.delete(name);
 			}
 		})();
@@ -80,17 +83,30 @@ class TestPackageRegistry {
 
 export class TestToolbox {
 	keypair: Ed25519Keypair;
-	client: SuiClient;
+	jsonRpcClient: SuiJsonRpcClient;
+	grpcClient: SuiGrpcClient;
+	graphqlClient: SuiGraphQLClient;
 	registry: TestPackageRegistry;
 	configPath: string;
 
 	constructor(keypair: Ed25519Keypair, url: string = DEFAULT_FULLNODE_URL, configPath: string) {
 		this.keypair = keypair;
-		this.client = new SuiClient({
-			transport: new SuiHTTPTransport({
+		this.jsonRpcClient = new SuiJsonRpcClient({
+			network: 'localnet',
+			transport: new JsonRpcHTTPTransport({
 				url,
 				WebSocketConstructor: WebSocket as never,
 			}),
+		});
+		this.grpcClient = new SuiGrpcClient({
+			network: 'localnet',
+			baseUrl: url,
+		});
+		// GraphQL port is injected by vitest setup
+		const graphqlPort = inject('graphqlPort');
+		this.graphqlClient = new SuiGraphQLClient({
+			network: 'localnet',
+			url: `http://127.0.0.1:${graphqlPort}/graphql`,
 		});
 		this.registry = TestPackageRegistry.forUrl(url);
 		this.configPath = configPath;
@@ -101,14 +117,14 @@ export class TestToolbox {
 	}
 
 	async getGasObjectsOwnedByAddress() {
-		return await this.client.getCoins({
+		return await this.jsonRpcClient.getCoins({
 			owner: this.address(),
 			coinType: SUI_TYPE_ARG,
 		});
 	}
 
 	public async getActiveValidators() {
-		return (await this.client.getLatestSuiSystemState()).activeValidators;
+		return (await this.jsonRpcClient.getLatestSuiSystemState()).activeValidators;
 	}
 
 	public async getPackage(path: string) {
@@ -124,11 +140,118 @@ export class TestToolbox {
 			});
 		};
 	}
+
+	/**
+	 * Test that all three client implementations (JSON RPC, gRPC, GraphQL) return the same data
+	 * for a given query. This ensures consistency across the different transport layers.
+	 *
+	 * @param queryFn - Function that takes a client and returns a promise with the query result
+	 * @param normalize - Optional function to normalize results before comparison (e.g., to ignore cursor differences)
+	 * @param options - Options to skip the test entirely
+	 */
+	async expectAllClientsReturnSameData<T>(
+		queryFn: (client: ClientWithCoreApi) => Promise<T>,
+		normalize?: (result: T) => T,
+		options?: { skip?: boolean },
+	) {
+		if (options?.skip) {
+			test.skip('all clients return same data', () => {});
+			return;
+		}
+
+		const [jsonRpcResult, grpcResult, graphqlResult] = await Promise.all([
+			queryFn(this.jsonRpcClient),
+			queryFn(this.grpcClient),
+			queryFn(this.graphqlClient),
+		]);
+
+		const normalizedJson = normalize ? normalize(jsonRpcResult) : jsonRpcResult;
+		const normalizedGrpc = normalize ? normalize(grpcResult) : grpcResult;
+		const normalizedGraphql = normalize ? normalize(graphqlResult) : graphqlResult;
+
+		expect(normalizedJson).toEqual(normalizedGrpc);
+		expect(normalizedJson).toEqual(normalizedGraphql);
+	}
 }
 
-export function getClient(url = DEFAULT_FULLNODE_URL): SuiClient {
-	return new SuiClient({
-		transport: new SuiHTTPTransport({
+/**
+ * Creates a test helper function that runs tests against all three client implementations.
+ * This should be called at module level with a getter function that will return the toolbox or clients.
+ *
+ * @param getClients - A function that returns clients. Can be either:
+ *   - () => TestToolbox (for localnet tests using the standard test setup)
+ *   - () => { jsonRpc: Client, grpc: Client, graphql: Client } (for custom client configurations like testnet)
+ * @returns A function that creates test cases for all clients
+ */
+export function createTestWithAllClients(
+	getClients:
+		| (() => TestToolbox)
+		| (() => {
+				jsonRpc: ClientWithCoreApi;
+				grpc: ClientWithCoreApi;
+				graphql: ClientWithCoreApi;
+		  }),
+) {
+	return function testWithAllClients(
+		testName: string,
+		testFn: (client: ClientWithCoreApi) => Promise<void>,
+		options?: { skip?: Array<'jsonrpc' | 'grpc' | 'graphql'> | boolean },
+	) {
+		// If skip is true, skip all tests
+		if (options?.skip === true) {
+			test.skip(`[JSON RPC] ${testName}`, () => {});
+			test.skip(`[gRPC] ${testName}`, () => {});
+			test.skip(`[GraphQL] ${testName}`, () => {});
+			return;
+		}
+
+		const skipArray = Array.isArray(options?.skip) ? options.skip : [];
+
+		// Helper to get the clients from either format
+		const clients = () => {
+			const result = getClients();
+			if ('jsonRpcClient' in result) {
+				// It's a TestToolbox
+				return {
+					jsonRpc: result.jsonRpcClient,
+					grpc: result.grpcClient,
+					graphql: result.graphqlClient,
+				};
+			}
+			// It's already in the correct format
+			return result;
+		};
+
+		if (!skipArray.includes('jsonrpc')) {
+			it(`[JSON RPC] ${testName}`, async () => {
+				await testFn(clients().jsonRpc);
+			});
+		} else {
+			test.skip(`[JSON RPC] ${testName}`, () => {});
+		}
+
+		if (!skipArray.includes('grpc')) {
+			it(`[gRPC] ${testName}`, async () => {
+				await testFn(clients().grpc);
+			});
+		} else {
+			test.skip(`[gRPC] ${testName}`, () => {});
+		}
+
+		if (!skipArray.includes('graphql')) {
+			it(`[GraphQL] ${testName}`, async () => {
+				await testFn(clients().graphql);
+			});
+		} else {
+			test.skip(`[GraphQL] ${testName}`, () => {});
+		}
+	};
+}
+
+export function getClient(url = DEFAULT_FULLNODE_URL): SuiJsonRpcClient {
+	return new SuiJsonRpcClient({
+		network: 'localnet',
+		transport: new JsonRpcHTTPTransport({
 			url,
 			WebSocketConstructor: WebSocket as never,
 		}),
@@ -189,8 +312,7 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 		toolbox = await setup();
 	}
 
-	// Retry build with exponential backoff to handle concurrent builds
-	const buildResult = await retry(
+	return await retry(
 		async () => {
 			const result = await execSuiTools([
 				'sui',
@@ -204,10 +326,8 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 			]);
 
 			if (!result.stdout.includes('{')) {
-				// Include the actual output in the error so retry logic can check it
-				const buildOutput = result.stdout + '\n' + (result.stderr || '');
-				console.error(`Build failed for ${packageName}:`, buildOutput);
-				throw new Error(`Failed to build package: ${buildOutput}`);
+				console.error(result.stdout);
+				throw new Error('Failed to publish package');
 			}
 
 			let resultJson;
@@ -216,60 +336,48 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 					result.stdout.slice(result.stdout.indexOf('{'), result.stdout.lastIndexOf('}') + 1),
 				);
 			} catch (error) {
-				console.error('Failed to parse build output:', error);
-				throw new Error(`Failed to parse build output: ${result.stdout}`);
+				console.error(error);
+				throw new Error('Failed to publish package');
 			}
 
-			return resultJson;
+			const { modules, dependencies } = resultJson;
+
+			const tx = new Transaction();
+			const cap = tx.publish({
+				modules,
+				dependencies,
+			});
+
+			// Transfer the upgrade capability to the sender so they can upgrade the package later if they want.
+			tx.transferObjects([cap], tx.pure.address(toolbox.address()));
+
+			const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				transaction: tx,
+				signer: toolbox.keypair,
+			});
+
+			const publishTxn = await toolbox.jsonRpcClient.waitForTransaction({
+				digest: digest,
+				options: { showObjectChanges: true, showEffects: true },
+			});
+
+			expect(publishTxn.effects?.status.status).toEqual('success');
+
+			const packageId = ((publishTxn.objectChanges?.filter(
+				(a) => a.type === 'published',
+			) as SuiObjectChangePublished[]) ?? [])[0]?.packageId.replace(/^(0x)(0+)/, '0x') as string;
+
+			expect(packageId).toBeTypeOf('string');
+
+			return { packageId, publishTxn };
 		},
 		{
 			backoff: 'EXPONENTIAL',
-			timeout: 3 * 60 * 1000, // 3 minutes total timeout
-			retries: 10,
-			retryIf: (error: unknown) => {
-				// Retry on directory conflicts (os error 39)
-				const errorMsg = (error as Error)?.message || error?.toString() || '';
-				const isDirectoryConflict =
-					errorMsg.includes('Directory not empty') || errorMsg.includes('os error 39');
-				if (isDirectoryConflict) {
-					console.warn(`Detected build directory conflict for ${packageName}, will retry...`);
-				}
-				return isDirectoryConflict;
-			},
-			logger: (msg) => console.warn(`Retrying package build for ${packageName}: ${msg}`),
+			timeout: 1000 * 60 * 3,
+			retries: 3,
+			logger: (msg) => console.warn('Retrying package publish: ' + msg),
 		},
 	);
-
-	const { modules, dependencies } = buildResult;
-
-	const tx = new Transaction();
-	const cap = tx.publish({
-		modules,
-		dependencies,
-	});
-
-	// Transfer the upgrade capability to the sender so they can upgrade the package later if they want.
-	tx.transferObjects([cap], tx.pure.address(toolbox.address()));
-
-	const { digest } = await toolbox.client.signAndExecuteTransaction({
-		transaction: tx,
-		signer: toolbox.keypair,
-	});
-
-	const publishTxn = await toolbox.client.waitForTransaction({
-		digest: digest,
-		options: { showObjectChanges: true, showEffects: true },
-	});
-
-	expect(publishTxn.effects?.status.status).toEqual('success');
-
-	const packageId = ((publishTxn.objectChanges?.filter(
-		(a) => a.type === 'published',
-	) as SuiObjectChangePublished[]) ?? [])[0]?.packageId.replace(/^(0x)(0+)/, '0x') as string;
-
-	expect(packageId).toBeTypeOf('string');
-
-	return { packageId, publishTxn };
 }
 
 export async function upgradePackage(
@@ -321,7 +429,7 @@ export async function upgradePackage(
 		arguments: [cap, receipt],
 	});
 
-	const result = await toolbox.client.signAndExecuteTransaction({
+	const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 		transaction: tx,
 		signer: toolbox.keypair,
 		options: {
@@ -343,7 +451,7 @@ export function getRandomAddresses(n: number): string[] {
 }
 
 export async function paySui(
-	client: SuiClient,
+	client: SuiJsonRpcClient,
 	signer: Keypair,
 	numRecipients: number = 1,
 	recipients?: string[],
@@ -388,7 +496,7 @@ export async function paySui(
 }
 
 export async function executePaySuiNTimes(
-	client: SuiClient,
+	client: SuiJsonRpcClient,
 	signer: Keypair,
 	nTimes: number,
 	numRecipientsPerTxn: number = 1,

@@ -4,7 +4,7 @@
 import { bcs } from '@mysten/bcs';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { SuiTransactionBlockResponse } from '../../src/client';
+import { SuiTransactionBlockResponse } from '../../src/jsonRpc';
 import { Transaction } from '../../src/transactions';
 import { TransactionDataBuilder } from '../../src/transactions/TransactionData';
 import { SUI_SYSTEM_STATE_OBJECT_ID } from '../../src/utils';
@@ -30,7 +30,7 @@ describe('Transaction bcs Serialization and deserialization', () => {
 	async function serializeAndDeserialize(tx: Transaction, mutable: boolean[]) {
 		tx.setSender(toolbox.address());
 		const transactionBytes = await tx.build({
-			client: toolbox.client,
+			client: toolbox.jsonRpcClient,
 		});
 		const deserializedTxnBuilder = TransactionDataBuilder.fromBytes(transactionBytes);
 		expect(
@@ -100,11 +100,11 @@ describe('TXB v2 JSON serialization', () => {
 		const reserializedTxnJson = await deserializedTxnBuilder.getData();
 		expect(reserializedTxnJson).toEqual(transactionJson);
 		const reserializedTxnBytes = await deserializedTxnBuilder.build({
-			client: toolbox.client,
+			client: toolbox.grpcClient,
 		});
 		expect(reserializedTxnBytes).toEqual(
 			await tx.build({
-				client: toolbox.client,
+				client: toolbox.grpcClient,
 			}),
 		);
 
@@ -187,11 +187,11 @@ describe('TXB v1 JSON serialization', () => {
 		const transactionJson = json ?? (await tx.serialize());
 		const deserializedTxnBuilder = Transaction.from(transactionJson);
 		const reserializedTxnBytes = await deserializedTxnBuilder.build({
-			client: toolbox.client,
+			client: toolbox.jsonRpcClient,
 		});
 		expect(reserializedTxnBytes).toEqual(
 			await tx.build({
-				client: toolbox.client,
+				client: toolbox.jsonRpcClient,
 			}),
 		);
 

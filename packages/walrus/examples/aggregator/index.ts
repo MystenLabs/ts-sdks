@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { serve } from '@hono/node-server';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { Hono } from 'hono';
 
 import { BlobBlockedError, BlobNotCertifiedError, WalrusClient } from '../../src/index.js';
 
 const app = new Hono();
 
-const suiClient = new SuiClient({
-	url: getFullnodeUrl('testnet'),
+const suiClient = new SuiJsonRpcClient({
+	url: getJsonRpcFullnodeUrl('testnet'),
 });
 
 const walrusClient = new WalrusClient({

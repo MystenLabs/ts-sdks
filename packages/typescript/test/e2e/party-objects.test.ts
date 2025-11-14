@@ -28,24 +28,22 @@ describe('Party Objects', () => {
 			arguments: [coinWithBalance({ balance: 1 }), party],
 		});
 
-		const { digest } = await toolbox.client.signAndExecuteTransaction({
-			transaction: await createPartyTxn.build({
-				client: toolbox.client,
-			}),
-			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-			},
+		const { digest } = await toolbox.keypair.signAndExecuteTransaction({
+			transaction: createPartyTxn,
+			client: toolbox.jsonRpcClient,
 		});
 
-		const { effects } = await toolbox.client.waitForTransaction({
+		const {
+			transaction: { effects },
+		} = await toolbox.jsonRpcClient.core.waitForTransaction({
 			digest,
-			options: {
-				showEffects: true,
+			include: {
+				effects: true,
 			},
 		});
 
-		const partyCoin = effects!.created![0].reference.objectId;
+		const partyCoin = effects!.changedObjects.filter((o) => o.idOperation === 'Created')[0]
+			.objectId;
 
 		const returnTx = new Transaction();
 		returnTx.setSender(toolbox.address());
@@ -56,19 +54,28 @@ describe('Party Objects', () => {
 			arguments: [returnTx.object(partyCoin), returnTx.pure.address(toolbox.address())],
 		});
 
-		const { digest: returnDigest } = await toolbox.client.signAndExecuteTransaction({
-			transaction: await returnTx.build({ client: toolbox.client }),
-			signer: toolbox.keypair,
+		await returnTx.build({
+			client: toolbox.jsonRpcClient,
 		});
 
-		const { effects: returnEffects } = await toolbox.client.waitForTransaction({
+		const { digest: returnDigest } = await toolbox.keypair.signAndExecuteTransaction({
+			transaction: returnTx,
+			client: toolbox.jsonRpcClient,
+		});
+
+		const {
+			transaction: { effects: returnEffects },
+		} = await toolbox.jsonRpcClient.core.waitForTransaction({
 			digest: returnDigest,
-			options: {
-				showEffects: true,
+			include: {
+				effects: true,
 			},
 		});
 
-		expect(returnEffects!.status.status).toBe('success');
+		expect(returnEffects!.status).toEqual({
+			error: null,
+			success: true,
+		});
 	});
 
 	it('should correctly handle party objects only used in ptb commands', async () => {
@@ -86,24 +93,23 @@ describe('Party Objects', () => {
 			arguments: [coinWithBalance({ balance: 1 }), party],
 		});
 
-		const { digest } = await toolbox.client.signAndExecuteTransaction({
-			transaction: await createPartyTxn.build({
-				client: toolbox.client,
-			}),
-			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-			},
+		const { digest } = await toolbox.keypair.signAndExecuteTransaction({
+			transaction: createPartyTxn,
+			client: toolbox.jsonRpcClient,
 		});
 
-		const { effects } = await toolbox.client.waitForTransaction({
+		const {
+			transaction: { effects },
+		} = await toolbox.jsonRpcClient.core.waitForTransaction({
 			digest,
-			options: {
-				showEffects: true,
+			include: {
+				effects: true,
 			},
 		});
 
-		const partyCoin = effects!.created![0].reference;
+		await new Promise((resolve) => setTimeout(resolve, 3000));
+
+		const partyCoin = effects!.changedObjects.filter((o) => o.idOperation === 'Created')[0];
 
 		const returnTx = new Transaction();
 		returnTx.setSender(toolbox.address());
@@ -112,24 +118,29 @@ describe('Party Objects', () => {
 				returnTx.sharedObjectRef({
 					objectId: partyCoin.objectId,
 					mutable: true,
-					initialSharedVersion: partyCoin.version,
+					initialSharedVersion: partyCoin.outputVersion!,
 				}),
 			],
 			toolbox.keypair.getPublicKey().toSuiAddress(),
 		);
 
-		const { digest: returnDigest } = await toolbox.client.signAndExecuteTransaction({
-			transaction: await returnTx.build({ client: toolbox.client }),
-			signer: toolbox.keypair,
+		const { digest: returnDigest } = await toolbox.keypair.signAndExecuteTransaction({
+			transaction: returnTx,
+			client: toolbox.jsonRpcClient,
 		});
 
-		const { effects: returnEffects } = await toolbox.client.waitForTransaction({
+		const {
+			transaction: { effects: returnEffects },
+		} = await toolbox.jsonRpcClient.core.waitForTransaction({
 			digest: returnDigest,
-			options: {
-				showEffects: true,
+			include: {
+				effects: true,
 			},
 		});
 
-		expect(returnEffects!.status.status).toBe('success');
+		expect(returnEffects!.status).toEqual({
+			error: null,
+			success: true,
+		});
 	});
 });

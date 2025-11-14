@@ -1,6 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 
 import { DeepBookClient } from '../src/index.js'; // Adjust import source accordingly
 
@@ -19,8 +19,8 @@ import { DeepBookClient } from '../src/index.js'; // Adjust import source accord
 	const dbClient = new DeepBookClient({
 		address: '0x0',
 		env: env,
-		client: new SuiClient({
-			url: getFullnodeUrl(env),
+		client: new SuiJsonRpcClient({
+			url: getJsonRpcFullnodeUrl(env),
 		}),
 		balanceManagers: balanceManagers,
 	});

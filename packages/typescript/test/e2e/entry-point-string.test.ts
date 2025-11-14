@@ -20,15 +20,14 @@ describe('Test Move call with strings', () => {
 				tx.pure.u64(len),
 			],
 		});
-		const result = await toolbox.client.signAndExecuteTransaction({
+
+		const result = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: tx,
-			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-			},
+			client: toolbox.grpcClient,
 		});
-		await toolbox.client.waitForTransaction({ digest: result.digest });
-		expect(result.effects?.status.status).toEqual('success');
+
+		await toolbox.grpcClient.core.waitForTransaction({ digest: result.digest });
+		expect(result.effects?.status.success).toEqual(true);
 	}
 
 	beforeAll(async () => {

@@ -3,8 +3,8 @@
 import { fromBase58, toBase64, toHex } from '@mysten/bcs';
 
 import type { Signer } from '../cryptography/index.js';
-import { Experimental_BaseClient } from '../experimental/client.js';
-import type { Experimental_SuiClientTypes } from '../experimental/types.js';
+import { BaseClient } from '../client/client.js';
+import type { SuiClientTypes } from '../client/types.js';
 import type { Transaction } from '../transactions/Transaction.js';
 import { isTransaction } from '../transactions/Transaction.js';
 import {
@@ -77,9 +77,6 @@ import type {
 	ResolvedNameServiceNames,
 	ResolveNameServiceAddressParams,
 	ResolveNameServiceNamesParams,
-	SubscribeEventParams,
-	SubscribeTransactionParams,
-	SuiEvent,
 	SuiMoveFunctionArgType,
 	SuiMoveNormalizedFunction,
 	SuiMoveNormalizedModule,
@@ -90,15 +87,13 @@ import type {
 	SuiSystemStateSummary,
 	SuiTransactionBlockResponse,
 	SuiTransactionBlockResponseQuery,
-	TransactionEffects,
 	TryGetPastObjectParams,
-	Unsubscribe,
 	ValidatorsApy,
 	VerifyZkLoginSignatureParams,
 	ZkLoginVerifyResult,
 } from './types/index.js';
 import { isValidNamedPackage } from '../utils/move-registry.js';
-import { hasMvrName } from '../experimental/mvr.js';
+import { hasMvrName } from '../client/mvr.js';
 import { JSONRpcCoreClient } from './core.js';
 
 export interface PaginationArguments<Cursor> {
@@ -113,12 +108,12 @@ export interface OrderArguments {
 }
 
 /**
- * Configuration options for the SuiClient
+ * Configuration options for the SuiJsonRpcClient
  * You must provide either a `url` or a `transport`
  */
 export type SuiJsonRpcClientOptions = NetworkOrTransport & {
-	network?: Experimental_SuiClientTypes.Network;
-	mvr?: Experimental_SuiClientTypes.MvrOptions;
+	network: SuiClientTypes.Network;
+	mvr?: SuiClientTypes.MvrOptions;
 };
 
 type NetworkOrTransport =
@@ -131,7 +126,7 @@ type NetworkOrTransport =
 			url?: never;
 	  };
 
-const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiClient') as never;
+const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiJsonRpcClient') as never;
 
 export function isSuiJsonRpcClient(client: unknown): client is SuiJsonRpcClient {
 	return (
@@ -139,7 +134,7 @@ export function isSuiJsonRpcClient(client: unknown): client is SuiJsonRpcClient 
 	);
 }
 
-export class SuiJsonRpcClient extends Experimental_BaseClient {
+export class SuiJsonRpcClient extends BaseClient {
 	core: JSONRpcCoreClient;
 	jsonRpc = this;
 	protected transport: JsonRpcTransport;
@@ -154,7 +149,7 @@ export class SuiJsonRpcClient extends Experimental_BaseClient {
 	 * @param options configuration options for the API Client
 	 */
 	constructor(options: SuiJsonRpcClientOptions) {
-		super({ network: options.network ?? 'unknown' });
+		super({ network: options.network });
 		this.transport = options.transport ?? new JsonRpcHTTPTransport({ url: options.url });
 		this.core = new JSONRpcCoreClient({
 			jsonRpcClient: this,
@@ -588,7 +583,6 @@ export class SuiJsonRpcClient extends Experimental_BaseClient {
 		transactionBlock,
 		signature,
 		options,
-		requestType,
 		signal,
 	}: ExecuteTransactionBlockParams): Promise<SuiTransactionBlockResponse> {
 		const result: SuiTransactionBlockResponse = await this.transport.request({
@@ -600,16 +594,6 @@ export class SuiJsonRpcClient extends Experimental_BaseClient {
 			],
 			signal,
 		});
-
-		if (requestType === 'WaitForLocalExecution') {
-			try {
-				await this.waitForTransaction({
-					digest: result.digest,
-				});
-			} catch {
-				// Ignore error while waiting for transaction
-			}
-		}
 
 		return result;
 	}
@@ -764,44 +748,6 @@ export class SuiJsonRpcClient extends Experimental_BaseClient {
 			method: 'suix_queryEvents',
 			params: [query, cursor, limit, (order || 'descending') === 'descending'],
 			signal,
-		});
-	}
-
-	/**
-	 * Subscribe to get notifications whenever an event matching the filter occurs
-	 *
-	 * @deprecated
-	 */
-	async subscribeEvent(
-		input: SubscribeEventParams & {
-			/** function to run when we receive a notification of a new event matching the filter */
-			onMessage: (event: SuiEvent) => void;
-		},
-	): Promise<Unsubscribe> {
-		return this.transport.subscribe({
-			method: 'suix_subscribeEvent',
-			unsubscribe: 'suix_unsubscribeEvent',
-			params: [input.filter],
-			onMessage: input.onMessage,
-			signal: input.signal,
-		});
-	}
-
-	/**
-	 * @deprecated
-	 */
-	async subscribeTransaction(
-		input: SubscribeTransactionParams & {
-			/** function to run when we receive a notification of a new event matching the filter */
-			onMessage: (event: TransactionEffects) => void;
-		},
-	): Promise<Unsubscribe> {
-		return this.transport.subscribe({
-			method: 'suix_subscribeTransaction',
-			unsubscribe: 'suix_unsubscribeTransaction',
-			params: [input.filter],
-			onMessage: input.onMessage,
-			signal: input.signal,
 		});
 	}
 

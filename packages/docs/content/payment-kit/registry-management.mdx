@@ -392,12 +392,12 @@ const record = await client.paymentKit.getPaymentRecord({
 Here's a complete workflow for setting up a custom registry:
 
 ```ts
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { paymentKit } from '@mysten/payment-kit';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 
-const client = new SuiClient({
-	url: getFullnodeUrl('testnet'),
+const client = new SuiJsonRpcClient({
+	url: getJsonRpcFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(paymentKit());
 

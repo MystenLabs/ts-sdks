@@ -23,7 +23,7 @@ export default defineConfig({
 			'@mysten/utils': new URL('../utils/src', import.meta.url).pathname,
 			'@mysten/sui/keypairs/ed25519': new URL('../typescript/src/keypairs/ed25519', import.meta.url)
 				.pathname,
-			'@mysten/sui/client': new URL('../typescript/src/client', import.meta.url).pathname,
+			'@mysten/sui/jsonRpc': new URL('../typescript/src/jsonRpc', import.meta.url).pathname,
 			'@mysten/sui/utils': new URL('../typescript/src/utils', import.meta.url).pathname,
 			'@mysten/sui/transactions': new URL('../typescript/src/transactions', import.meta.url)
 				.pathname,

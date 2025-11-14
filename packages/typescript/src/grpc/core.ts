@@ -1,14 +1,12 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type {
-	Experimental_CoreClientOptions,
-	Experimental_SuiClientTypes,
-} from '../experimental/index.js';
-import { Experimental_CoreClient } from '../experimental/index.js';
+import type { CoreClientOptions, SuiClientTypes } from '../client/index.js';
+import { CoreClient } from '../client/index.js';
 import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2/owner.js';
 import { Owner_OwnerKind } from './proto/sui/rpc/v2/owner.js';
+import { DynamicField_DynamicFieldKind } from './proto/sui/rpc/v2/state_service.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import type { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import type { TransactionEffects } from './proto/sui/rpc/v2/effects.js';
@@ -21,6 +19,7 @@ import {
 import type { BuildTransactionOptions } from '../transactions/index.js';
 import { TransactionDataBuilder } from '../transactions/index.js';
 import { bcs } from '../bcs/index.js';
+import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import type { OpenSignature, OpenSignatureBody } from './proto/sui/rpc/v2/move_package.js';
 import {
 	Ability,
@@ -28,41 +27,45 @@ import {
 	OpenSignature_Reference,
 	OpenSignatureBody_Type,
 } from './proto/sui/rpc/v2/move_package.js';
-export interface GrpcCoreClientOptions extends Experimental_CoreClientOptions {
+import {
+	applyGrpcResolvedTransaction,
+	transactionDataToGrpcTransaction,
+} from '../client/transaction-resolver.js';
+export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
 }
-export class GrpcCoreClient extends Experimental_CoreClient {
+export class GrpcCoreClient extends CoreClient {
 	#client: SuiGrpcClient;
 	constructor({ client, ...options }: GrpcCoreClientOptions) {
 		super(options);
 		this.#client = client;
 	}
 
-	async getObjects(
-		options: Experimental_SuiClientTypes.GetObjectsOptions,
-	): Promise<Experimental_SuiClientTypes.GetObjectsResponse> {
+	async listObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListObjectsOptions<Include>,
+	): Promise<SuiClientTypes.ListObjectsResponse<Include>> {
 		const batches = chunk(options.objectIds, 50);
-		const results: Experimental_SuiClientTypes.GetObjectsResponse['objects'] = [];
+		const results: SuiClientTypes.ListObjectsResponse<Include>['objects'] = [];
+
+		const paths = ['owner', 'object_type', 'digest', 'version', 'object_id'];
+		if (options.include?.content) {
+			paths.push('contents');
+		}
+		if (options.include?.previousTransaction) {
+			paths.push('previous_transaction');
+		}
 
 		for (const batch of batches) {
 			const response = await this.#client.ledgerService.batchGetObjects({
 				requests: batch.map((id) => ({ objectId: id })),
 				readMask: {
-					paths: [
-						'owner',
-						'object_type',
-						'bcs',
-						'digest',
-						'version',
-						'object_id',
-						'previous_transaction',
-					],
+					paths,
 				},
 			});
 
 			results.push(
 				...response.response.objects.map(
-					(object): Experimental_SuiClientTypes.ObjectResponse | Error => {
+					(object): SuiClientTypes.ObjectResponse<Include> | Error => {
 						if (object.result.oneofKind === 'error') {
 							// TODO: improve error handling
 							return new Error(object.result.error.message);
@@ -72,15 +75,24 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 							return new Error('Unexpected result type');
 						}
 
+						const bcsContent = object.result.object.contents?.value ?? undefined;
+
+						// Package objects have type "package" which is not a struct tag, so don't normalize it
+						const objectType = object.result.object.objectType;
+						const type =
+							objectType && objectType.includes('::')
+								? normalizeStructTag(objectType)
+								: (objectType ?? '');
+
 						return {
-							id: object.result.object.objectId!,
+							objectId: object.result.object.objectId!,
 							version: object.result.object.version?.toString()!,
 							digest: object.result.object.digest!,
-							// TODO: bcs content is not returned in all cases
-							content: Promise.resolve(object.result.object.bcs?.value!),
+							content: bcsContent as SuiClientTypes.ObjectResponse<Include>['content'],
 							owner: mapOwner(object.result.object.owner)!,
-							type: object.result.object.objectType!,
-							previousTransaction: object.result.object.previousTransaction ?? null,
+							type,
+							previousTransaction: (object.result.object.previousTransaction ??
+								undefined) as SuiClientTypes.ObjectResponse<Include>['previousTransaction'],
 						};
 					},
 				),
@@ -91,44 +103,39 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 			objects: results,
 		};
 	}
-	async getOwnedObjects(
-		options: Experimental_SuiClientTypes.GetOwnedObjectsOptions,
-	): Promise<Experimental_SuiClientTypes.GetOwnedObjectsResponse> {
+	async listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListOwnedObjectsOptions<Include>,
+	): Promise<SuiClientTypes.ListOwnedObjectsResponse<Include>> {
+		const paths = ['owner', 'object_type', 'digest', 'version', 'object_id'];
+		if (options.include?.content) {
+			paths.push('contents');
+		}
+		if (options.include?.previousTransaction) {
+			paths.push('previous_transaction');
+		}
+
 		const response = await this.#client.stateService.listOwnedObjects({
-			owner: options.address,
+			owner: options.owner,
 			objectType: options.type
 				? (await this.mvr.resolveType({ type: options.type })).type
 				: undefined,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
+			pageSize: options.limit,
 			readMask: {
-				paths: [
-					'owner',
-					'object_type',
-					'bcs',
-					'digest',
-					'version',
-					'object_id',
-					'previous_transaction',
-				],
+				paths,
 			},
 		});
 
 		const objects = response.response.objects.map(
-			(object): Experimental_SuiClientTypes.ObjectResponse => ({
-				id: object.objectId!,
+			(object): SuiClientTypes.ObjectResponse<Include> => ({
+				objectId: object.objectId!,
 				version: object.version?.toString()!,
 				digest: object.digest!,
-				// TODO: List owned objects doesn't return content right now
-				get content() {
-					return object.bcs?.value
-						? Promise.resolve(object.bcs.value)
-						: Promise.reject(
-								new Error('GRPC does not return object contents when listing owned objects'),
-							);
-				},
+				content: object.contents?.value as SuiClientTypes.ObjectResponse<Include>['content'],
 				owner: mapOwner(object.owner)!,
 				type: object.objectType!,
-				previousTransaction: object.previousTransaction ?? null,
+				previousTransaction: (object.previousTransaction ??
+					undefined) as SuiClientTypes.ObjectResponse<Include>['previousTransaction'],
 			}),
 		);
 
@@ -138,45 +145,38 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 			hasNextPage: response.response.nextPageToken !== undefined,
 		};
 	}
-	async getCoins(
-		options: Experimental_SuiClientTypes.GetCoinsOptions,
-	): Promise<Experimental_SuiClientTypes.GetCoinsResponse> {
+	async listCoins<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListCoinsOptions<Include>,
+	): Promise<SuiClientTypes.ListCoinsResponse<Include>> {
+		const paths = ['owner', 'object_type', 'digest', 'version', 'object_id', 'balance'];
+		if (options.include?.content) {
+			paths.push('contents');
+		}
+		if (options.include?.previousTransaction) {
+			paths.push('previous_transaction');
+		}
+
 		const response = await this.#client.stateService.listOwnedObjects({
-			owner: options.address,
+			owner: options.owner,
 			objectType: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: options.coinType })).type}>`,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
 			readMask: {
-				paths: [
-					'owner',
-					'object_type',
-					'bcs',
-					'digest',
-					'version',
-					'object_id',
-					'balance',
-					'previous_transaction',
-				],
+				paths,
 			},
 		});
 
 		return {
 			objects: response.response.objects.map(
-				(object): Experimental_SuiClientTypes.CoinResponse => ({
-					id: object.objectId!,
+				(object): SuiClientTypes.CoinResponse<Include> => ({
+					objectId: object.objectId!,
 					version: object.version?.toString()!,
 					digest: object.digest!,
-					// TODO: List owned objects doesn't return content right now
-					get content() {
-						return object.bcs?.value
-							? Promise.resolve(object.bcs.value)
-							: Promise.reject(
-									new Error('GRPC does not return object contents when listing owned objects'),
-								);
-					},
+					content: object.contents?.value as SuiClientTypes.CoinResponse<Include>['content'],
 					owner: mapOwner(object.owner)!,
 					type: object.objectType!,
 					balance: object.balance?.toString()!,
-					previousTransaction: object.previousTransaction ?? null,
+					previousTransaction: (object.previousTransaction ??
+						undefined) as SuiClientTypes.CoinResponse<Include>['previousTransaction'],
 				}),
 			),
 			cursor: response.response.nextPageToken ? toBase64(response.response.nextPageToken) : null,
@@ -185,10 +185,10 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	}
 
 	async getBalance(
-		options: Experimental_SuiClientTypes.GetBalanceOptions,
-	): Promise<Experimental_SuiClientTypes.GetBalanceResponse> {
+		options: SuiClientTypes.GetBalanceOptions,
+	): Promise<SuiClientTypes.GetBalanceResponse> {
 		const result = await this.#client.stateService.getBalance({
-			owner: options.address,
+			owner: options.owner,
 			coinType: (await this.mvr.resolveType({ type: options.coinType })).type,
 		});
 
@@ -200,11 +200,11 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		};
 	}
 
-	async getAllBalances(
-		options: Experimental_SuiClientTypes.GetAllBalancesOptions,
-	): Promise<Experimental_SuiClientTypes.GetAllBalancesResponse> {
+	async listBalances(
+		options: SuiClientTypes.ListBalancesOptions,
+	): Promise<SuiClientTypes.ListBalancesResponse> {
 		const result = await this.#client.stateService.listBalances({
-			owner: options.address,
+			owner: options.owner,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
 			pageSize: options.limit,
 		});
@@ -218,23 +218,59 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 			})),
 		};
 	}
-	async getTransaction(
-		options: Experimental_SuiClientTypes.GetTransactionOptions,
-	): Promise<Experimental_SuiClientTypes.GetTransactionResponse> {
+	async getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		options: SuiClientTypes.GetTransactionOptions<Include>,
+	): Promise<SuiClientTypes.GetTransactionResponse<Include>> {
+		const paths = ['digest', 'transaction.digest', 'signatures'];
+		if (options.include?.transaction) {
+			paths.push('transaction.bcs');
+		}
+		if (options.include?.balanceChanges) {
+			paths.push('balance_changes');
+		}
+		if (options.include?.effects) {
+			paths.push('effects');
+		}
+		if (options.include?.events) {
+			paths.push('events');
+		}
+		if (options.include?.objectTypes) {
+			paths.push('objects');
+		}
+
 		const { response } = await this.#client.ledgerService.getTransaction({
 			digest: options.digest,
 			readMask: {
-				paths: ['digest', 'transaction', 'effects', 'signatures', 'balance_changes'],
+				paths,
 			},
 		});
 
 		return {
-			transaction: parseTransaction(response.transaction!),
+			transaction: response.transaction
+				? parseTransaction(response.transaction, options.include)
+				: (null as never),
 		};
 	}
-	async executeTransaction(
-		options: Experimental_SuiClientTypes.ExecuteTransactionOptions,
-	): Promise<Experimental_SuiClientTypes.ExecuteTransactionResponse> {
+	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
+	): Promise<SuiClientTypes.ExecuteTransactionResponse<Include>> {
+		const paths = ['digest', 'transaction.digest', 'signatures'];
+		if (options.include?.transaction) {
+			paths.push('transaction.bcs');
+		}
+		if (options.include?.balanceChanges) {
+			paths.push('balance_changes');
+		}
+		if (options.include?.effects) {
+			paths.push('effects');
+		}
+		if (options.include?.events) {
+			paths.push('events');
+		}
+		if (options.include?.objectTypes) {
+			paths.push('objects');
+		}
+
 		const { response } = await this.#client.transactionExecutionService.executeTransaction({
 			transaction: {
 				bcs: {
@@ -250,22 +286,37 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 				},
 			})),
 			readMask: {
-				paths: [
-					'transaction.digest',
-					'transaction.transaction',
-					'transaction.effects',
-					'transaction.signatures',
-					'transaction.balance_changes',
-				],
+				paths,
 			},
 		});
 		return {
-			transaction: parseTransaction(response.transaction!),
+			transaction: parseTransaction(response.transaction!, options.include),
 		};
 	}
-	async dryRunTransaction(
-		options: Experimental_SuiClientTypes.DryRunTransactionOptions,
-	): Promise<Experimental_SuiClientTypes.DryRunTransactionResponse> {
+	async simulateTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		options: SuiClientTypes.SimulateTransactionOptions<Include>,
+	): Promise<SuiClientTypes.SimulateTransactionResponse<Include>> {
+		const paths = [
+			'transaction.digest',
+			'transaction.transaction.digest',
+			'transaction.signatures',
+		];
+		if (options.include?.transaction) {
+			paths.push('transaction.transaction.bcs');
+		}
+		if (options.include?.balanceChanges) {
+			paths.push('transaction.balance_changes');
+		}
+		if (options.include?.effects) {
+			paths.push('transaction.effects');
+		}
+		if (options.include?.events) {
+			paths.push('transaction.events');
+		}
+		if (options.include?.objectTypes) {
+			paths.push('transaction.objects');
+		}
+
 		const { response } = await this.#client.transactionExecutionService.simulateTransaction({
 			transaction: {
 				bcs: {
@@ -273,21 +324,15 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 				},
 			},
 			readMask: {
-				paths: [
-					'transaction.digest',
-					'transaction.transaction',
-					'transaction.effects',
-					'transaction.signatures',
-					'transaction.balance_changes',
-				],
+				paths,
 			},
 		});
 
 		return {
-			transaction: parseTransaction(response.transaction!),
+			transaction: parseTransaction(response.transaction!, options.include),
 		};
 	}
-	async getReferenceGasPrice(): Promise<Experimental_SuiClientTypes.GetReferenceGasPriceResponse> {
+	async getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
 		const response = await this.#client.ledgerService.getEpoch({});
 
 		return {
@@ -295,37 +340,55 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 		};
 	}
 
-	async getDynamicFields(
-		options: Experimental_SuiClientTypes.GetDynamicFieldsOptions,
-	): Promise<Experimental_SuiClientTypes.GetDynamicFieldsResponse> {
+	async listDynamicFields(
+		options: SuiClientTypes.ListDynamicFieldsOptions,
+	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
 		const response = await this.#client.stateService.listDynamicFields({
 			parent: options.parentId,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
+			pageSize: options.limit,
+			readMask: {
+				paths: ['field_id', 'name', 'value_type', 'kind'],
+			},
 		});
 
 		return {
-			dynamicFields: response.response.dynamicFields.map((field) => ({
-				id: field.fieldId!,
-				name: {
-					type: field.name?.name!,
-					bcs: field.name?.value!,
-				},
-				type: field.fieldObject
+			dynamicFields: response.response.dynamicFields.map((field) => {
+				const isDynamicObject = field.kind === DynamicField_DynamicFieldKind.OBJECT;
+				const fieldType = isDynamicObject
 					? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${field.name?.name!}>,0x2::object::ID>`
-					: `0x2::dynamic_field::Field<${field.name?.value!},${field.valueType!}>`,
-			})),
+					: `0x2::dynamic_field::Field<${field.name?.name!},${field.valueType!}>`;
+				return {
+					fieldId: field.fieldId!,
+					name: {
+						type: field.name?.name!,
+						bcs: field.name?.value!,
+					},
+					valueType: field.valueType!,
+					type: normalizeStructTag(fieldType),
+				};
+			}),
 			cursor: response.response.nextPageToken ? toBase64(response.response.nextPageToken) : null,
 			hasNextPage: response.response.nextPageToken !== undefined,
 		};
 	}
 
 	async verifyZkLoginSignature(
-		options: Experimental_SuiClientTypes.VerifyZkLoginSignatureOptions,
-	): Promise<Experimental_SuiClientTypes.ZkLoginVerifyResponse> {
+		options: SuiClientTypes.VerifyZkLoginSignatureOptions,
+	): Promise<SuiClientTypes.ZkLoginVerifyResponse> {
+		const messageBytes = fromBase64(options.bytes);
+
+		// For PersonalMessage, the server expects BCS-encoded vector<u8>
+		// For TransactionData, the server expects the raw BCS-encoded TransactionData as-is
+		const messageValue =
+			options.intentScope === 'PersonalMessage'
+				? bcs.byteVector().serialize(messageBytes).toBytes()
+				: messageBytes;
+
 		const { response } = await this.#client.signatureVerificationService.verifySignature({
 			message: {
 				name: options.intentScope,
-				value: fromBase64(options.bytes),
+				value: messageValue,
 			},
 			signature: {
 				bcs: {
@@ -335,6 +398,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 					oneofKind: undefined,
 				},
 			},
+			address: options.address,
 			jwks: [],
 		});
 
@@ -345,8 +409,8 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	}
 
 	async defaultNameServiceName(
-		options: Experimental_SuiClientTypes.DefaultNameServiceNameOptions,
-	): Promise<Experimental_SuiClientTypes.DefaultNameServiceNameResponse> {
+		options: SuiClientTypes.DefaultNameServiceNameOptions,
+	): Promise<SuiClientTypes.DefaultNameServiceNameResponse> {
 		const name =
 			(
 				await this.#client.nameService.reverseLookupName({
@@ -361,10 +425,12 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	}
 
 	async getMoveFunction(
-		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
-	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse> {
+		options: SuiClientTypes.GetMoveFunctionOptions,
+	): Promise<SuiClientTypes.GetMoveFunctionResponse> {
+		const resolvedPackageId = (await this.mvr.resolvePackage({ package: options.packageId }))
+			.package;
 		const { response } = await this.#client.movePackageService.getFunction({
-			packageId: (await this.mvr.resolvePackage({ package: options.packageId })).package,
+			packageId: resolvedPackageId,
 			moduleName: options.moduleName,
 			name: options.name,
 		});
@@ -385,7 +451,7 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 
 		return {
 			function: {
-				packageId: options.packageId,
+				packageId: normalizeSuiAddress(resolvedPackageId),
 				moduleName: options.moduleName,
 				name: response.function?.name!,
 				visibility,
@@ -417,26 +483,34 @@ export class GrpcCoreClient extends Experimental_CoreClient {
 	}
 
 	resolveTransactionPlugin() {
-		// const client = this.#client;
+		const client = this.#client;
 		return async function resolveTransactionData(
-			_transactionData: TransactionDataBuilder,
-			_options: BuildTransactionOptions,
-			_next: () => Promise<void>,
+			transactionData: TransactionDataBuilder,
+			options: BuildTransactionOptions,
+			next: () => Promise<void>,
 		) {
-			throw new Error('Transaction resolution is not supported with the GRPC client');
+			const grpcTransaction = transactionDataToGrpcTransaction(transactionData.snapshot());
 
-			// const result = await client.liveDataService.simulateTransaction({
-			// 	transaction: transactionFromData(transactionData)
-			// })
-			// const resolvedData = dataFromSimulate(result)
-			// transactionData.applyResolvedData(resolvedData);
+			const { response } = await client.transactionExecutionService.simulateTransaction({
+				transaction: grpcTransaction,
+				doGasSelection: !options.onlyTransactionKind,
+				readMask: {
+					paths: ['transaction.transaction.bcs', 'transaction.transaction'],
+				},
+			});
 
-			// return await next();
+			if (!response.transaction?.transaction) {
+				throw new Error('simulateTransaction did not return resolved transaction data');
+			}
+
+			applyGrpcResolvedTransaction(transactionData, response.transaction.transaction, options);
+
+			return await next();
 		};
 	}
 }
 
-function mapOwner(owner: Owner | null | undefined): Experimental_SuiClientTypes.ObjectOwner | null {
+function mapOwner(owner: Owner | null | undefined): SuiClientTypes.ObjectOwner | null {
 	if (!owner) {
 		return null;
 	}
@@ -460,15 +534,6 @@ function mapOwner(owner: Owner | null | undefined): Experimental_SuiClientTypes.
 	}
 
 	if (owner.kind === Owner_OwnerKind.SHARED) {
-		if (owner.address) {
-			return {
-				$kind: 'ConsensusAddressOwner',
-				ConsensusAddressOwner: {
-					owner: owner.address,
-					startVersion: owner.version?.toString()!,
-				},
-			};
-		}
 		return {
 			$kind: 'Shared',
 			Shared: {
@@ -477,7 +542,19 @@ function mapOwner(owner: Owner | null | undefined): Experimental_SuiClientTypes.
 		};
 	}
 
-	throw new Error('Unknown owner kind');
+	if (owner.kind === Owner_OwnerKind.CONSENSUS_ADDRESS) {
+		return {
+			$kind: 'ConsensusAddressOwner',
+			ConsensusAddressOwner: {
+				owner: owner.address!,
+				startVersion: owner.version?.toString()!,
+			},
+		};
+	}
+
+	throw new Error(
+		`Unknown owner kind ${JSON.stringify(owner, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))}`,
+	);
 }
 
 function mapIdOperation(
@@ -542,7 +619,7 @@ function mapOutputObjectState(
 
 function mapUnchangedConsensusObjectKind(
 	kind: UnchangedConsensusObject_UnchangedConsensusObjectKind | undefined,
-): null | Experimental_SuiClientTypes.UnchangedConsensusObject['kind'] {
+): null | SuiClientTypes.UnchangedConsensusObject['kind'] {
 	if (kind == null) {
 		return null;
 	}
@@ -569,31 +646,29 @@ export function parseTransactionEffects({
 	effects,
 }: {
 	effects: TransactionEffects | undefined;
-}): Experimental_SuiClientTypes.TransactionEffects | null {
+}): SuiClientTypes.TransactionEffects | null {
 	if (!effects) {
 		return null;
 	}
 
-	const changedObjects = effects.changedObjects.map(
-		(change): Experimental_SuiClientTypes.ChangedObject => {
-			return {
-				id: change.objectId!,
-				inputState: mapInputObjectState(change.inputState)!,
-				inputVersion: change.inputVersion?.toString() ?? null,
-				inputDigest: change.inputDigest ?? null,
-				inputOwner: mapOwner(change.inputOwner),
-				outputState: mapOutputObjectState(change.outputState)!,
-				outputVersion: change.outputVersion?.toString() ?? null,
-				outputDigest: change.outputDigest ?? null,
-				outputOwner: mapOwner(change.outputOwner),
-				idOperation: mapIdOperation(change.idOperation)!,
-			};
-		},
-	);
+	const changedObjects = effects.changedObjects.map((change): SuiClientTypes.ChangedObject => {
+		return {
+			objectId: change.objectId!,
+			inputState: mapInputObjectState(change.inputState)!,
+			inputVersion: change.inputVersion?.toString() ?? null,
+			inputDigest: change.inputDigest ?? null,
+			inputOwner: mapOwner(change.inputOwner),
+			outputState: mapOutputObjectState(change.outputState)!,
+			outputVersion: change.outputVersion?.toString() ?? null,
+			outputDigest: change.outputDigest ?? null,
+			outputOwner: mapOwner(change.outputOwner),
+			idOperation: mapIdOperation(change.idOperation)!,
+		};
+	});
 
 	return {
 		bcs: effects.bcs?.value!,
-		digest: effects.digest!,
+
 		version: 2,
 		status: effects.status?.success
 			? {
@@ -603,7 +678,9 @@ export function parseTransactionEffects({
 			: {
 					success: false,
 					// TODO: parse errors properly
-					error: JSON.stringify(effects.status?.error),
+					error: JSON.stringify(effects.status?.error, (_k, v) =>
+						typeof v === 'bigint' ? v.toString() : v,
+					),
 				},
 		gasUsed: {
 			computationCost: effects.gasUsed?.computationCost?.toString()!,
@@ -613,7 +690,7 @@ export function parseTransactionEffects({
 		},
 		transactionDigest: effects.transactionDigest!,
 		gasObject: {
-			id: effects.gasObject?.objectId!,
+			objectId: effects.gasObject?.objectId!,
 			inputState: mapInputObjectState(effects.gasObject?.inputState)!,
 			inputVersion: effects.gasObject?.inputVersion?.toString() ?? null,
 			inputDigest: effects.gasObject?.inputDigest ?? null,
@@ -629,7 +706,7 @@ export function parseTransactionEffects({
 		lamportVersion: effects.lamportVersion?.toString() ?? null,
 		changedObjects,
 		unchangedConsensusObjects: effects.unchangedConsensusObjects.map(
-			(object): Experimental_SuiClientTypes.UnchangedConsensusObject => {
+			(object): SuiClientTypes.UnchangedConsensusObject => {
 				return {
 					kind: mapUnchangedConsensusObjectKind(object.kind)!,
 					// TODO: we are inconsistent about id vs objectId
@@ -643,37 +720,39 @@ export function parseTransactionEffects({
 	};
 }
 
-function parseTransaction(
+function parseTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
 	transaction: ExecutedTransaction,
-): Experimental_SuiClientTypes.TransactionResponse {
-	const parsedTx = bcs.SenderSignedData.parse(transaction.transaction?.bcs?.value!)[0];
-	const bytes = bcs.TransactionData.serialize(parsedTx.intentMessage.value).toBytes();
-	const data = TransactionDataBuilder.restore({
-		version: 2,
-		sender: parsedTx.intentMessage.value.V1.sender,
-		expiration: parsedTx.intentMessage.value.V1.expiration,
-		gasData: parsedTx.intentMessage.value.V1.gasData,
-		inputs: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.inputs,
-		commands: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.commands,
-	});
-
+	include?: Include,
+): SuiClientTypes.TransactionResponse<Include> {
 	const objectTypes: Record<string, string> = {};
-	transaction.objects?.objects.forEach((object) => {
-		if (object.objectId && object.objectType) {
-			objectTypes[object.objectId] = object.objectType;
+	if (include?.objectTypes) {
+		transaction.objects?.objects.forEach((object) => {
+			if (object.objectId && object.objectType) {
+				objectTypes[object.objectId] = object.objectType;
+			}
+		});
+	}
+
+	let transactionData: SuiClientTypes.TransactionData | undefined;
+	if (include?.transaction) {
+		const tx = transaction.transaction;
+		const bytes = tx?.bcs?.value;
+
+		if (!bytes) {
+			throw new Error('Transaction BCS bytes are required but missing from gRPC response');
 		}
-	});
 
-	const effects = parseTransactionEffects({
-		effects: transaction.effects,
-	})!;
+		const txData = bcs.TransactionData.parse(bytes);
+		const data = TransactionDataBuilder.restore({
+			version: 2,
+			sender: txData.V1.sender,
+			expiration: txData.V1.expiration,
+			gasData: txData.V1.gasData,
+			inputs: txData.V1.kind.ProgrammableTransaction!.inputs,
+			commands: txData.V1.kind.ProgrammableTransaction!.commands,
+		});
 
-	return {
-		digest: transaction.digest!,
-		epoch: transaction.effects?.epoch?.toString() ?? null,
-		effects,
-		objectTypes: Promise.resolve(objectTypes),
-		transaction: {
+		transactionData = {
 			gasData: data.gasData,
 			sender: data.sender,
 			expiration: data.expiration,
@@ -681,20 +760,44 @@ function parseTransaction(
 			inputs: data.inputs,
 			version: data.version,
 			bcs: bytes,
-		},
-		signatures: parsedTx.txSignatures,
-		balanceChanges:
-			transaction.balanceChanges?.map((change) => ({
-				coinType: change.coinType!,
-				address: change.address!,
-				amount: change.amount!,
-			})) ?? [],
+		};
+	}
+
+	const effects = include?.effects
+		? parseTransactionEffects({
+				effects: transaction.effects,
+			})
+		: undefined;
+
+	return {
+		digest: transaction.digest!,
+		epoch: transaction.effects?.epoch?.toString() ?? null,
+		effects: effects as SuiClientTypes.TransactionResponse<Include>['effects'],
+		objectTypes: (include?.objectTypes
+			? Promise.resolve(objectTypes)
+			: undefined) as SuiClientTypes.TransactionResponse<Include>['objectTypes'],
+		transaction: transactionData as SuiClientTypes.TransactionResponse<Include>['transaction'],
+		signatures: transaction.signatures?.map((sig) => toBase64(sig.bcs?.value!)) ?? [],
+		balanceChanges: (include?.balanceChanges
+			? (transaction.balanceChanges?.map((change) => ({
+					coinType: change.coinType!,
+					address: change.address!,
+					amount: change.amount!,
+				})) ?? [])
+			: undefined) as SuiClientTypes.TransactionResponse<Include>['balanceChanges'],
+		events: (include?.events
+			? (transaction.events?.events.map((event) => ({
+					packageId: normalizeSuiAddress(event.packageId!),
+					module: event.module!,
+					sender: normalizeSuiAddress(event.sender!),
+					eventType: event.eventType!,
+					bcs: event.contents?.value ?? new Uint8Array(),
+				})) ?? [])
+			: undefined) as SuiClientTypes.TransactionResponse<Include>['events'],
 	};
 }
 
-function parseNormalizedSuiMoveType(
-	type: OpenSignature,
-): Experimental_SuiClientTypes.OpenSignature {
+function parseNormalizedSuiMoveType(type: OpenSignature): SuiClientTypes.OpenSignature {
 	let reference: 'mutable' | 'immutable' | null = null;
 
 	if (type.reference === OpenSignature_Reference.IMMUTABLE) {
@@ -709,9 +812,7 @@ function parseNormalizedSuiMoveType(
 	};
 }
 
-function parseNormalizedSuiMoveTypeBody(
-	type: OpenSignatureBody,
-): Experimental_SuiClientTypes.OpenSignatureBody {
+function parseNormalizedSuiMoveTypeBody(type: OpenSignatureBody): SuiClientTypes.OpenSignatureBody {
 	switch (type.type) {
 		case OpenSignatureBody_Type.TYPE_UNKNOWN:
 			return { $kind: 'unknown' };

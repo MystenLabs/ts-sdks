@@ -1,21 +1,20 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { BaseClient } from './client.js';
+import type { ClientWithCoreApi, CoreClientOptions } from './core.js';
+import { CoreClient } from './core.js';
+import type { ClientWithExtensions, SuiClientTypes, SuiClientRegistration } from './types.js';
+export { parseTransactionBcs, parseTransactionEffectsBcs } from './utils.js';
+
 export {
-	type JsonRpcTransport as SuiTransport,
-	type JsonRpcTransportRequestOptions as SuiTransportRequestOptions,
-	type JsonRpcTransportSubscribeOptions as SuiTransportSubscribeOptions,
-	type HttpHeaders,
-	type JsonRpcHTTPTransportOptions as SuiHTTPTransportOptions,
-	JsonRpcHTTPTransport as SuiHTTPTransport,
-} from '../jsonRpc/http-transport.js';
-export { getFullnodeUrl } from './network.js';
-export type * from '../jsonRpc/types/index.js';
-export {
-	type SuiJsonRpcClientOptions as SuiClientOptions,
-	type PaginationArguments,
-	type OrderArguments,
-	isSuiJsonRpcClient as isSuiClient,
-	SuiJsonRpcClient as SuiClient,
-} from '../jsonRpc/client.js';
-export { SuiHTTPStatusError, SuiHTTPTransportError, JsonRpcError } from '../jsonRpc/errors.js';
+	BaseClient,
+	CoreClient,
+	type CoreClientOptions,
+	type ClientWithExtensions,
+	type SuiClientTypes,
+	type SuiClientRegistration,
+	type ClientWithCoreApi,
+};
+
+export { ClientCache, type ClientCacheOptions } from './cache.js';

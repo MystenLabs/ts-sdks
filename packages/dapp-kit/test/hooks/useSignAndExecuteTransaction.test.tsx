@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '@mysten/sui/bcs';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { expect, type Mock } from 'vitest';
@@ -62,7 +62,10 @@ describe('useSignAndExecuteTransaction', () => {
 			features: suiFeatures,
 		});
 
-		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet') });
+		const suiClient = new SuiJsonRpcClient({
+			url: getJsonRpcFullnodeUrl('localnet'),
+			network: 'localnet',
+		});
 		const mockSignTransactionFeature = mockWallet.features['sui:signTransaction'];
 		const signTransaction = mockSignTransactionFeature!.signTransaction as Mock;
 
@@ -70,11 +73,6 @@ describe('useSignAndExecuteTransaction', () => {
 			bytes: 'abc',
 			signature: '123',
 		});
-
-		const reportEffectsFeature = mockWallet.features['sui:reportTransactionEffects'];
-		const reportEffects = reportEffectsFeature!.reportTransactionEffects as Mock;
-
-		reportEffects.mockImplementation(async () => {});
 
 		const executeTransaction = vi.spyOn(suiClient, 'executeTransactionBlock');
 
@@ -109,11 +107,6 @@ describe('useSignAndExecuteTransaction', () => {
 			signature: '123',
 			rawEffects: [10, 20, 30],
 		});
-		expect(reportEffects).toHaveBeenCalledWith({
-			effects: 'ChQe',
-			chain: 'sui:testnet',
-			account: mockWallet.accounts[0],
-		});
 
 		const call = signTransaction.mock.calls[0];
 
@@ -139,11 +132,10 @@ describe('useSignAndExecuteTransaction', () => {
 			signature: '123',
 		});
 
-		const reportEffectsFeature = mockWallet.features['sui:reportTransactionEffects'];
-		const reportEffects = reportEffectsFeature!.reportTransactionEffects as Mock;
-		reportEffects.mockImplementation(async () => {});
-
-		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet') });
+		const suiClient = new SuiJsonRpcClient({
+			url: getJsonRpcFullnodeUrl('localnet'),
+			network: 'localnet',
+		});
 		const executeTransaction = vi.spyOn(suiClient, 'executeTransactionBlock');
 		executeTransaction.mockResolvedValueOnce({
 			digest: '123',
@@ -167,11 +159,6 @@ describe('useSignAndExecuteTransaction', () => {
 		});
 
 		await waitFor(() => expect(result.current.useSignAndExecuteTransaction.isSuccess).toBe(true));
-		expect(reportEffects).toHaveBeenCalledWith({
-			effects: 'ChQe',
-			chain: 'sui:test',
-			account: mockWallet.accounts[0],
-		});
 
 		expect(signTransaction).toHaveBeenCalledWith({
 			transaction: expect.any(Object),
@@ -188,7 +175,10 @@ describe('useSignAndExecuteTransaction', () => {
 			features: suiFeatures,
 		});
 
-		const suiClient = new SuiClient({ url: getFullnodeUrl('localnet') });
+		const suiClient = new SuiJsonRpcClient({
+			url: getJsonRpcFullnodeUrl('localnet'),
+			network: 'localnet',
+		});
 		const mockSignMessageFeature = mockWallet.features['sui:signTransaction'];
 		const signTransaction = mockSignMessageFeature!.signTransaction as Mock;
 
@@ -196,11 +186,6 @@ describe('useSignAndExecuteTransaction', () => {
 			bytes: 'abc',
 			signature: '123',
 		});
-
-		const reportEffectsFeature = mockWallet.features['sui:reportTransactionEffects'];
-		const reportEffects = reportEffectsFeature!.reportTransactionEffects as Mock;
-
-		reportEffects.mockImplementation(async () => {});
 
 		const wrapper = createWalletProviderContextWrapper({}, suiClient);
 
@@ -272,11 +257,6 @@ describe('useSignAndExecuteTransaction', () => {
 			custom: 123,
 		});
 		expect(result.current.useSignAndExecuteTransaction.data?.custom).toBe(123);
-		expect(reportEffects).toHaveBeenCalledWith({
-			account: mockWallet.accounts[0],
-			chain: 'sui:testnet',
-			effects: effectsBcs,
-		});
 
 		const call = signTransaction.mock.calls[0];
 

@@ -4,7 +4,7 @@
 import type { BcsType } from '@mysten/bcs';
 
 import { bcs } from '../bcs/index.js';
-import type { SuiMoveNormalizedType } from '../client/index.js';
+import type { SuiMoveNormalizedType } from '../jsonRpc/index.js';
 import { MOVE_STDLIB_ADDRESS, SUI_FRAMEWORK_ADDRESS } from '../utils/index.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 import type { OpenMoveTypeSignature, OpenMoveTypeSignatureBody } from './data/internal.js';

@@ -4,7 +4,7 @@
 import { EnokiWallet } from './wallet.js';
 import type { RegisterEnokiWalletsOptions } from './types.js';
 import { getWallets } from '@mysten/wallet-standard';
-import type { ClientWithCoreApi } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import type { AuthProvider } from '../EnokiClient/type.js';
 import { isEnokiNetwork } from '../utils.js';
 import { ENOKI_PROVIDER_WALLETS_INFO } from './providers.js';

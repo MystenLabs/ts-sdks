@@ -18,14 +18,14 @@ import { Transaction } from '../transactions/Transaction.js';
 import { jsonRpcClientResolveTransactionPlugin } from './json-rpc-resolver.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
-import { normalizeSuiAddress } from '../utils/sui-types.js';
-import { Experimental_CoreClient } from '../experimental/core.js';
-import type { Experimental_SuiClientTypes } from '../experimental/types.js';
-import { ObjectError } from '../experimental/errors.js';
-import { parseTransactionBcs, parseTransactionEffectsBcs } from '../experimental/index.js';
+import { normalizeSuiAddress, normalizeStructTag } from '../utils/sui-types.js';
+import { CoreClient } from '../client/core.js';
+import type { SuiClientTypes } from '../client/types.js';
+import { ObjectError } from '../client/errors.js';
+import { parseTransactionBcs, parseTransactionEffectsBcs } from '../client/index.js';
 import type { SuiJsonRpcClient } from './client.js';
 
-export class JSONRpcCoreClient extends Experimental_CoreClient {
+export class JSONRpcCoreClient extends CoreClient {
 	#jsonRpcClient: SuiJsonRpcClient;
 
 	constructor({
@@ -33,15 +33,17 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 		mvr,
 	}: {
 		jsonRpcClient: SuiJsonRpcClient;
-		mvr?: Experimental_SuiClientTypes.MvrOptions;
+		mvr?: SuiClientTypes.MvrOptions;
 	}) {
 		super({ network: jsonRpcClient.network, base: jsonRpcClient, mvr });
 		this.#jsonRpcClient = jsonRpcClient;
 	}
 
-	async getObjects(options: Experimental_SuiClientTypes.GetObjectsOptions) {
+	async listObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListObjectsOptions<Include>,
+	) {
 		const batches = chunk(options.objectIds, 50);
-		const results: Experimental_SuiClientTypes.GetObjectsResponse['objects'] = [];
+		const results: SuiClientTypes.ListObjectsResponse<Include>['objects'] = [];
 
 		for (const batch of batches) {
 			const objects = await this.#jsonRpcClient.multiGetObjects({
@@ -49,8 +51,8 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 				options: {
 					showOwner: true,
 					showType: true,
-					showBcs: true,
-					showPreviousTransaction: true,
+					showBcs: options.include?.content ?? false,
+					showPreviousTransaction: options.include?.previousTransaction ?? false,
 				},
 				signal: options.signal,
 			});
@@ -59,7 +61,7 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 				if (object.error) {
 					results.push(ObjectError.fromResponse(object.error, batch[idx]));
 				} else {
-					results.push(parseObject(object.data!));
+					results.push(parseObject(object.data!, options.include));
 				}
 			}
 		}
@@ -68,16 +70,18 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 			objects: results,
 		};
 	}
-	async getOwnedObjects(options: Experimental_SuiClientTypes.GetOwnedObjectsOptions) {
+	async listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListOwnedObjectsOptions<Include>,
+	) {
 		const objects = await this.#jsonRpcClient.getOwnedObjects({
-			owner: options.address,
+			owner: options.owner,
 			limit: options.limit,
 			cursor: options.cursor,
 			options: {
 				showOwner: true,
 				showType: true,
-				showBcs: true,
-				showPreviousTransaction: true,
+				showBcs: options.include?.content ?? false,
+				showPreviousTransaction: options.include?.previousTransaction ?? false,
 			},
 			filter: options.type ? { StructType: options.type } : null,
 			signal: options.signal,
@@ -89,16 +93,18 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 					throw ObjectError.fromResponse(result.error);
 				}
 
-				return parseObject(result.data!);
+				return parseObject(result.data!, options.include);
 			}),
 			hasNextPage: objects.hasNextPage,
 			cursor: objects.nextCursor ?? null,
 		};
 	}
 
-	async getCoins(options: Experimental_SuiClientTypes.GetCoinsOptions) {
+	async listCoins<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.ListCoinsOptions<Include>,
+	) {
 		const coins = await this.#jsonRpcClient.getCoins({
-			owner: options.address,
+			owner: options.owner,
 			coinType: options.coinType,
 			limit: options.limit,
 			cursor: options.cursor,
@@ -106,100 +112,110 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 		});
 
 		return {
-			objects: coins.data.map((coin) => {
-				return {
-					id: coin.coinObjectId,
+			objects: coins.data.map(
+				(coin): SuiClientTypes.CoinResponse<Include> => ({
+					objectId: coin.coinObjectId,
 					version: coin.version,
 					digest: coin.digest,
 					balance: coin.balance,
-					type: `0x2::coin::Coin<${coin.coinType}>`,
-					content: Promise.resolve(
-						Coin.serialize({
-							id: coin.coinObjectId,
-							balance: {
-								value: coin.balance,
-							},
-						}).toBytes(),
-					),
+					type: normalizeStructTag(`0x2::coin::Coin<${coin.coinType}>`),
+					content: (options.include?.content
+						? Coin.serialize({
+								objectId: coin.coinObjectId,
+								balance: {
+									value: coin.balance,
+								},
+							}).toBytes()
+						: undefined) as SuiClientTypes.CoinResponse<Include>['content'],
 					owner: {
-						$kind: 'ObjectOwner' as const,
-						ObjectOwner: options.address,
+						$kind: 'AddressOwner' as const,
+						AddressOwner: options.owner,
 					},
-					previousTransaction: coin.previousTransaction,
-				};
-			}),
+					previousTransaction: (options.include?.previousTransaction
+						? coin.previousTransaction
+						: undefined) as SuiClientTypes.CoinResponse<Include>['previousTransaction'],
+				}),
+			),
 			hasNextPage: coins.hasNextPage,
 			cursor: coins.nextCursor ?? null,
 		};
 	}
 
-	async getBalance(options: Experimental_SuiClientTypes.GetBalanceOptions) {
+	async getBalance(options: SuiClientTypes.GetBalanceOptions) {
 		const balance = await this.#jsonRpcClient.getBalance({
-			owner: options.address,
+			owner: options.owner,
 			coinType: options.coinType,
 			signal: options.signal,
 		});
 
 		return {
 			balance: {
-				coinType: balance.coinType,
+				coinType: normalizeStructTag(balance.coinType),
 				balance: balance.totalBalance,
 			},
 		};
 	}
-	async getAllBalances(options: Experimental_SuiClientTypes.GetAllBalancesOptions) {
+	async listBalances(options: SuiClientTypes.ListBalancesOptions) {
 		const balances = await this.#jsonRpcClient.getAllBalances({
-			owner: options.address,
+			owner: options.owner,
 			signal: options.signal,
 		});
 
 		return {
 			balances: balances.map((balance) => ({
-				coinType: balance.coinType,
+				coinType: normalizeStructTag(balance.coinType),
 				balance: balance.totalBalance,
 			})),
 			hasNextPage: false,
 			cursor: null,
 		};
 	}
-	async getTransaction(options: Experimental_SuiClientTypes.GetTransactionOptions) {
+	async getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		options: SuiClientTypes.GetTransactionOptions<Include>,
+	) {
 		const transaction = await this.#jsonRpcClient.getTransactionBlock({
 			digest: options.digest,
 			options: {
+				// showRawInput is always needed to extract signatures from SenderSignedData
 				showRawInput: true,
-				showObjectChanges: true,
-				showRawEffects: true,
-				showEvents: true,
-				showEffects: true,
-				showBalanceChanges: true,
+				showObjectChanges: options.include?.objectTypes ?? false,
+				showRawEffects: options.include?.effects ?? false,
+				showEvents: options.include?.events ?? false,
+				showEffects: options.include?.effects ?? false,
+				showBalanceChanges: options.include?.balanceChanges ?? false,
 			},
 			signal: options.signal,
 		});
 
 		return {
-			transaction: parseTransaction(transaction),
+			transaction: parseTransaction(transaction, options.include),
 		};
 	}
-	async executeTransaction(options: Experimental_SuiClientTypes.ExecuteTransactionOptions) {
+	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
+	) {
 		const transaction = await this.#jsonRpcClient.executeTransactionBlock({
 			transactionBlock: options.transaction,
 			signature: options.signatures,
 			options: {
-				showRawEffects: true,
-				showEvents: true,
-				showObjectChanges: true,
+				// showRawInput is always needed to extract signatures from SenderSignedData
 				showRawInput: true,
-				showEffects: true,
-				showBalanceChanges: true,
+				showRawEffects: options.include?.effects ?? false,
+				showEvents: options.include?.events ?? false,
+				showObjectChanges: options.include?.objectTypes ?? false,
+				showEffects: options.include?.effects ?? false,
+				showBalanceChanges: options.include?.balanceChanges ?? false,
 			},
 			signal: options.signal,
 		});
 
 		return {
-			transaction: parseTransaction(transaction),
+			transaction: parseTransaction(transaction, options.include),
 		};
 	}
-	async dryRunTransaction(options: Experimental_SuiClientTypes.DryRunTransactionOptions) {
+	async simulateTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		options: SuiClientTypes.SimulateTransactionOptions<Include>,
+	) {
 		const tx = Transaction.from(options.transaction);
 		const result = await this.#jsonRpcClient.dryRunTransactionBlock({
 			transactionBlock: options.transaction,
@@ -215,19 +231,36 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 			transaction: {
 				digest: await tx.getDigest(),
 				epoch: null,
-				effects,
-				objectTypes: Promise.resolve(objectTypes),
+				effects: (options.include?.effects
+					? effects
+					: undefined) as SuiClientTypes.TransactionResponse<Include>['effects'],
+				objectTypes: (options.include?.objectTypes
+					? Promise.resolve(objectTypes)
+					: undefined) as SuiClientTypes.TransactionResponse<Include>['objectTypes'],
 				signatures: [],
-				transaction: parseTransactionBcs(options.transaction),
-				balanceChanges: result.balanceChanges.map((change) => ({
-					coinType: change.coinType,
-					address: parseOwnerAddress(change.owner)!,
-					amount: change.amount,
-				})),
+				transaction: (options.include?.transaction
+					? parseTransactionBcs(options.transaction)
+					: undefined) as SuiClientTypes.TransactionResponse<Include>['transaction'],
+				balanceChanges: (options.include?.balanceChanges
+					? result.balanceChanges.map((change) => ({
+							coinType: normalizeStructTag(change.coinType),
+							address: parseOwnerAddress(change.owner)!,
+							amount: change.amount,
+						}))
+					: undefined) as SuiClientTypes.TransactionResponse<Include>['balanceChanges'],
+				events: (options.include?.events
+					? (result.events?.map((event) => ({
+							packageId: event.packageId,
+							module: event.transactionModule,
+							sender: event.sender,
+							eventType: event.type,
+							bcs: 'bcs' in event ? fromBase64(event.bcs) : new Uint8Array(),
+						})) ?? [])
+					: undefined) as SuiClientTypes.TransactionResponse<Include>['events'],
 			},
 		};
 	}
-	async getReferenceGasPrice(options?: Experimental_SuiClientTypes.GetReferenceGasPriceOptions) {
+	async getReferenceGasPrice(options?: SuiClientTypes.GetReferenceGasPriceOptions) {
 		const referenceGasPrice = await this.#jsonRpcClient.getReferenceGasPrice({
 			signal: options?.signal,
 		});
@@ -236,7 +269,7 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 		};
 	}
 
-	async getDynamicFields(options: Experimental_SuiClientTypes.GetDynamicFieldsOptions) {
+	async listDynamicFields(options: SuiClientTypes.ListDynamicFieldsOptions) {
 		const dynamicFields = await this.#jsonRpcClient.getDynamicFields({
 			parentId: options.parentId,
 			limit: options.limit,
@@ -245,13 +278,19 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 
 		return {
 			dynamicFields: dynamicFields.data.map((dynamicField) => {
+				const isDynamicObject = dynamicField.type === 'DynamicObject';
+				const fullType = isDynamicObject
+					? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${dynamicField.name.type}>, 0x2::object::ID>`
+					: `0x2::dynamic_field::Field<${dynamicField.name.type}, ${dynamicField.objectType}>`;
+
 				return {
-					id: dynamicField.objectId,
-					type: dynamicField.objectType,
+					fieldId: dynamicField.objectId,
+					type: normalizeStructTag(fullType),
 					name: {
 						type: dynamicField.name.type,
 						bcs: fromBase64(dynamicField.bcsName),
 					},
+					valueType: dynamicField.objectType,
 				};
 			}),
 			hasNextPage: dynamicFields.hasNextPage,
@@ -259,12 +298,12 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 		};
 	}
 
-	async verifyZkLoginSignature(options: Experimental_SuiClientTypes.VerifyZkLoginSignatureOptions) {
+	async verifyZkLoginSignature(options: SuiClientTypes.VerifyZkLoginSignatureOptions) {
 		const result = await this.#jsonRpcClient.verifyZkLoginSignature({
 			bytes: options.bytes,
 			signature: options.signature,
 			intentScope: options.intentScope,
-			author: options.author,
+			author: options.address,
 		});
 
 		return {
@@ -274,8 +313,8 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 	}
 
 	async defaultNameServiceName(
-		options: Experimental_SuiClientTypes.DefaultNameServiceNameOptions,
-	): Promise<Experimental_SuiClientTypes.DefaultNameServiceNameResponse> {
+		options: SuiClientTypes.DefaultNameServiceNameOptions,
+	): Promise<SuiClientTypes.DefaultNameServiceNameResponse> {
 		const name = (await this.#jsonRpcClient.resolveNameServiceNames(options)).data[0];
 		return {
 			data: {
@@ -289,17 +328,19 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 	}
 
 	async getMoveFunction(
-		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
-	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse> {
+		options: SuiClientTypes.GetMoveFunctionOptions,
+	): Promise<SuiClientTypes.GetMoveFunctionResponse> {
+		const resolvedPackageId = (await this.mvr.resolvePackage({ package: options.packageId }))
+			.package;
 		const result = await this.#jsonRpcClient.getNormalizedMoveFunction({
-			package: (await this.mvr.resolvePackage({ package: options.packageId })).package,
+			package: resolvedPackageId,
 			module: options.moduleName,
 			function: options.name,
 		});
 
 		return {
 			function: {
-				packageId: normalizeSuiAddress(options.packageId),
+				packageId: normalizeSuiAddress(resolvedPackageId),
 				moduleName: options.moduleName,
 				name: options.name,
 				visibility: parseVisibility(result.visibility),
@@ -315,21 +356,35 @@ export class JSONRpcCoreClient extends Experimental_CoreClient {
 	}
 }
 
-function parseObject(object: SuiObjectData): Experimental_SuiClientTypes.ObjectResponse {
+function parseObject<Include extends SuiClientTypes.ObjectInclude = object>(
+	object: SuiObjectData,
+	include?: Include,
+): SuiClientTypes.ObjectResponse<Include> {
+	const bcsContent =
+		object.bcs?.dataType === 'moveObject' ? fromBase64(object.bcs.bcsBytes) : undefined;
+
+	// Package objects have type "package" which is not a struct tag, so don't normalize it
+	const type =
+		object.type && object.type.includes('::')
+			? normalizeStructTag(object.type)
+			: (object.type ?? '');
+
 	return {
-		id: object.objectId,
+		objectId: object.objectId,
 		version: object.version,
 		digest: object.digest,
-		type: object.type!,
-		content: Promise.resolve(
-			object.bcs?.dataType === 'moveObject' ? fromBase64(object.bcs.bcsBytes) : new Uint8Array(),
-		),
+		type,
+		content: (include?.content
+			? bcsContent
+			: undefined) as SuiClientTypes.ObjectResponse<Include>['content'],
 		owner: parseOwner(object.owner!),
-		previousTransaction: object.previousTransaction ?? null,
+		previousTransaction: (include?.previousTransaction
+			? (object.previousTransaction ?? undefined)
+			: undefined) as SuiClientTypes.ObjectResponse<Include>['previousTransaction'],
 	};
 }
 
-function parseOwner(owner: ObjectOwner): Experimental_SuiClientTypes.ObjectOwner {
+function parseOwner(owner: ObjectOwner): SuiClientTypes.ObjectOwner {
 	if (owner === 'Immutable') {
 		return {
 			$kind: 'Immutable',
@@ -397,45 +452,71 @@ function parseOwnerAddress(owner: ObjectOwner): string | null {
 	throw new Error(`Unknown owner type: ${JSON.stringify(owner)}`);
 }
 
-function parseTransaction(
+function parseTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
 	transaction: SuiTransactionBlockResponse,
-): Experimental_SuiClientTypes.TransactionResponse {
-	const parsedTx = bcs.SenderSignedData.parse(fromBase64(transaction.rawTransaction!))[0];
+	include?: Include,
+): SuiClientTypes.TransactionResponse<Include> {
 	const objectTypes: Record<string, string> = {};
 
-	transaction.objectChanges?.forEach((change) => {
-		if (change.type !== 'published') {
-			objectTypes[change.objectId] = change.objectType;
+	if (include?.objectTypes) {
+		transaction.objectChanges?.forEach((change) => {
+			if (change.type !== 'published') {
+				objectTypes[change.objectId] = change.objectType;
+			}
+		});
+	}
+
+	let transactionData: SuiClientTypes.TransactionData | undefined;
+	let signatures: string[] = [];
+
+	if (transaction.rawTransaction) {
+		const parsedTx = bcs.SenderSignedData.parse(fromBase64(transaction.rawTransaction))[0];
+		signatures = parsedTx.txSignatures;
+
+		if (include?.transaction) {
+			const bytes = bcs.TransactionData.serialize(parsedTx.intentMessage.value).toBytes();
+			const data = TransactionDataBuilder.restore({
+				version: 2,
+				sender: parsedTx.intentMessage.value.V1.sender,
+				expiration: parsedTx.intentMessage.value.V1.expiration,
+				gasData: parsedTx.intentMessage.value.V1.gasData,
+				inputs: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.inputs,
+				commands: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.commands,
+			});
+			transactionData = {
+				...data,
+				bcs: bytes,
+			};
 		}
-	});
-
-	const bytes = bcs.TransactionData.serialize(parsedTx.intentMessage.value).toBytes();
-
-	const data = TransactionDataBuilder.restore({
-		version: 2,
-		sender: parsedTx.intentMessage.value.V1.sender,
-		expiration: parsedTx.intentMessage.value.V1.expiration,
-		gasData: parsedTx.intentMessage.value.V1.gasData,
-		inputs: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.inputs,
-		commands: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.commands,
-	});
+	}
 
 	return {
 		digest: transaction.digest,
 		epoch: transaction.effects?.executedEpoch ?? null,
-		effects: parseTransactionEffectsBcs(new Uint8Array(transaction.rawEffects!)),
-		objectTypes: Promise.resolve(objectTypes),
-		transaction: {
-			...data,
-			bcs: bytes,
-		},
-		signatures: parsedTx.txSignatures,
-		balanceChanges:
-			transaction.balanceChanges?.map((change) => ({
-				coinType: change.coinType,
-				address: parseOwnerAddress(change.owner)!,
-				amount: change.amount,
-			})) ?? [],
+		effects: (include?.effects
+			? parseTransactionEffectsBcs(new Uint8Array(transaction.rawEffects!))
+			: undefined) as SuiClientTypes.TransactionResponse<Include>['effects'],
+		objectTypes: (include?.objectTypes
+			? Promise.resolve(objectTypes)
+			: undefined) as SuiClientTypes.TransactionResponse<Include>['objectTypes'],
+		transaction: transactionData as SuiClientTypes.TransactionResponse<Include>['transaction'],
+		signatures,
+		balanceChanges: (include?.balanceChanges
+			? (transaction.balanceChanges?.map((change) => ({
+					coinType: normalizeStructTag(change.coinType),
+					address: parseOwnerAddress(change.owner)!,
+					amount: change.amount,
+				})) ?? [])
+			: undefined) as SuiClientTypes.TransactionResponse<Include>['balanceChanges'],
+		events: (include?.events
+			? (transaction.events?.map((event) => ({
+					packageId: event.packageId,
+					module: event.transactionModule,
+					sender: event.sender,
+					eventType: event.type,
+					bcs: 'bcs' in event ? fromBase64(event.bcs) : new Uint8Array(),
+				})) ?? [])
+			: undefined) as SuiClientTypes.TransactionResponse<Include>['events'],
 	};
 }
 
@@ -448,18 +529,18 @@ function parseTransactionEffectsJson({
 	effects: TransactionEffects;
 	objectChanges: SuiObjectChange[] | null;
 }): {
-	effects: Experimental_SuiClientTypes.TransactionEffects;
+	effects: SuiClientTypes.TransactionEffects;
 	objectTypes: Record<string, string>;
 } {
-	const changedObjects: Experimental_SuiClientTypes.ChangedObject[] = [];
-	const unchangedConsensusObjects: Experimental_SuiClientTypes.UnchangedConsensusObject[] = [];
+	const changedObjects: SuiClientTypes.ChangedObject[] = [];
+	const unchangedConsensusObjects: SuiClientTypes.UnchangedConsensusObject[] = [];
 	const objectTypes: Record<string, string> = {};
 
 	objectChanges?.forEach((change) => {
 		switch (change.type) {
 			case 'published':
 				changedObjects.push({
-					id: change.packageId,
+					objectId: change.packageId,
 					inputState: 'DoesNotExist',
 					inputVersion: null,
 					inputDigest: null,
@@ -473,7 +554,7 @@ function parseTransactionEffectsJson({
 				break;
 			case 'transferred':
 				changedObjects.push({
-					id: change.objectId,
+					objectId: change.objectId,
 					inputState: 'Exists',
 					inputVersion: change.version,
 					inputDigest: change.digest,
@@ -491,7 +572,7 @@ function parseTransactionEffectsJson({
 				break;
 			case 'mutated':
 				changedObjects.push({
-					id: change.objectId,
+					objectId: change.objectId,
 					inputState: 'Exists',
 					inputVersion: change.previousVersion,
 					inputDigest: null,
@@ -506,7 +587,7 @@ function parseTransactionEffectsJson({
 				break;
 			case 'deleted':
 				changedObjects.push({
-					id: change.objectId,
+					objectId: change.objectId,
 					inputState: 'Exists',
 					inputVersion: change.version,
 					inputDigest: effects.deleted?.find((d) => d.objectId === change.objectId)?.digest ?? null,
@@ -521,7 +602,7 @@ function parseTransactionEffectsJson({
 				break;
 			case 'wrapped':
 				changedObjects.push({
-					id: change.objectId,
+					objectId: change.objectId,
 					inputState: 'Exists',
 					inputVersion: change.version,
 					inputDigest: null,
@@ -543,7 +624,7 @@ function parseTransactionEffectsJson({
 				break;
 			case 'created':
 				changedObjects.push({
-					id: change.objectId,
+					objectId: change.objectId,
 					inputState: 'DoesNotExist',
 					inputVersion: null,
 					inputDigest: null,
@@ -563,7 +644,6 @@ function parseTransactionEffectsJson({
 		objectTypes,
 		effects: {
 			bcs: bytes ?? null,
-			digest: effects.transactionDigest,
 			version: 2,
 			status:
 				effects.status.status === 'success'
@@ -572,7 +652,7 @@ function parseTransactionEffectsJson({
 			gasUsed: effects.gasUsed,
 			transactionDigest: effects.transactionDigest,
 			gasObject: {
-				id: effects.gasObject?.reference.objectId,
+				objectId: effects.gasObject?.reference.objectId,
 				inputState: 'Exists',
 				inputVersion: null,
 				inputDigest: null,
@@ -598,13 +678,11 @@ const Balance = bcs.struct('Balance', {
 });
 
 const Coin = bcs.struct('Coin', {
-	id: bcs.Address,
+	objectId: bcs.Address,
 	balance: Balance,
 });
 
-function parseNormalizedSuiMoveType(
-	type: SuiMoveNormalizedType,
-): Experimental_SuiClientTypes.OpenSignature {
+function parseNormalizedSuiMoveType(type: SuiMoveNormalizedType): SuiClientTypes.OpenSignature {
 	if (typeof type !== 'string') {
 		if ('Reference' in type) {
 			return {
@@ -629,7 +707,7 @@ function parseNormalizedSuiMoveType(
 
 function parseNormalizedSuiMoveTypeBody(
 	type: SuiMoveNormalizedType,
-): Experimental_SuiClientTypes.OpenSignatureBody {
+): SuiClientTypes.OpenSignatureBody {
 	switch (type) {
 		case 'Address':
 			return { $kind: 'address' };
@@ -680,7 +758,7 @@ function parseNormalizedSuiMoveTypeBody(
 	throw new Error(`Unknown type: ${JSON.stringify(type)}`);
 }
 
-function parseAbilities(abilitySet: SuiMoveAbilitySet): Experimental_SuiClientTypes.Ability[] {
+function parseAbilities(abilitySet: SuiMoveAbilitySet): SuiClientTypes.Ability[] {
 	return abilitySet.abilities.map((ability) => {
 		switch (ability) {
 			case 'Copy':
@@ -697,7 +775,7 @@ function parseAbilities(abilitySet: SuiMoveAbilitySet): Experimental_SuiClientTy
 	});
 }
 
-function parseVisibility(visibility: SuiMoveVisibility): Experimental_SuiClientTypes.Visibility {
+function parseVisibility(visibility: SuiMoveVisibility): SuiClientTypes.Visibility {
 	switch (visibility) {
 		case 'Public':
 			return 'public';

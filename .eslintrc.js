@@ -38,6 +38,7 @@ module.exports = {
 		'packages/move-bytecode-template',
 		'packages/walrus-wasm',
 		'packages/walrus/src/node-api',
+		'packages/walrus/src/contracts',
 		'generated',
 		'vite-env.d.ts',
 	],

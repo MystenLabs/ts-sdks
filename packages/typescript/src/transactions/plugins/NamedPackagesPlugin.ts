@@ -1,12 +1,12 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { ClientCache } from '../../experimental/cache.js';
-import { MvrClient } from '../../experimental/mvr.js';
+import { ClientCache } from '../../client/cache.js';
+import { MvrClient } from '../../client/mvr.js';
 import type { BuildTransactionOptions } from '../resolve.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
-import { findNamesInTransaction, replaceNames } from '../../experimental/mvr.js';
-import type { NamedPackagesOverrides } from '../../experimental/mvr.js';
+import { findNamesInTransaction, replaceNames } from '../../client/mvr.js';
+import type { NamedPackagesOverrides } from '../../client/mvr.js';
 
 export type NamedPackagesPluginOptions = {
 	/**

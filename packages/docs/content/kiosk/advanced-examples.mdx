@@ -14,8 +14,8 @@ const capyType = `${packageId}::suifrens::SuiFren<${packageId}::capy::Capy>`;
 
 // initialize a kioskClient.
 const kioskClient = new KioskClient({
-	client: new SuiClient({
-		url: getFullnodeUrl('mainnet'),
+	client: new SuiJsonRpcClient({
+		url: getJsonRpcFullnodeUrl('mainnet'),
 	}),
 	network: Network.MAINNET,
 });

@@ -5,4 +5,3 @@ import { dAppKit } from './dapp-kit';
 <template>
 	<mysten-dapp-kit-connect-button :instance="dAppKit" />
 </template>
-

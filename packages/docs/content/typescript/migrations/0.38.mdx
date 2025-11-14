@@ -25,14 +25,15 @@ The Sui TypeScript SDK deprecates the following classes with version 0.38.0:
 
 - `JsonRpcProvider` - The `JsonRpcProvider` class is deprecated in favor of the `suiClient` class
   when creating a client for a Sui network. See
-  [Network Interactions with SuiClient](typescript/sui-client) for more information.
+  [Network Interactions with SuiJsonRpcClient](typescript/sui-client) for more information.
 - `SignerWithProver` and `RawSigner` - Key pairs now directly support signing transactions and
   messages without the need of a `Signer` class. See the
   [Key pairs](typescript/cryptography/keypairs) topic for more information.
-- `signAndExecuteTransaction` - This method was not deprecated, but is now part of `SuiClient`.
+- `signAndExecuteTransaction` - This method was not deprecated, but is now part of
+  `SuiJsonRpcClient`.
 - `Connection` classes - The `Connection` classes (`Connection`, `devnetConnection`, and so on) have
-  been deprecated in favor of using `suiClient` for establishing the connection. See
-  [Network Interactions with SuiClient](typescript/sui-client) for more information.
+  been deprecated in favor ofSuiJsonRpcClientuiClient` for establishing the connection. See
+  [Network Interactions with SuiJsonRpcClient](typescript/sui-client) for more information.
 - The `superstruct` type definitions for `JsonRPCProvider` types are replaced with generated types
   exported from `@mysten/sui/client`. The new type definitions are pure TypeScript types that you
   can't use for runtime validation.
@@ -47,8 +48,8 @@ an example of transaction signing, see the
 
 ### Faucet requests
 
-The ability to request SUI from a faucet is not part of `SuiClient` as it was with
-`JsonRpcProvider`. Instead, you must use the `requestSuiFromFaucetV0` method from
+SuiJsonRpcClient The ability to request SUI from a faucet is not part of `SuiJsonRpcClient` as it
+was with `JsonRpcProvider`. Instead, you must use the `requestSuiFromFaucetV0` method from
 `@mysten/sui/faucet`. The `@mysten/sui/faucet` import also provides a `getFaucetHost` method to
 retrieve the faucet URL for `localnet`, `testnet`, or `devnet` networks.
 

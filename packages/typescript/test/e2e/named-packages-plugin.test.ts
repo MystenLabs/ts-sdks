@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { getFullnodeUrl, SuiClient } from '../../src/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '../../src/jsonRpc';
 import { namedPackagesPlugin, Transaction } from '../../src/transactions';
 import { normalizeSuiAddress } from '../../src/utils';
-import { extractMvrTypes } from '../../src/experimental/mvr';
+import { extractMvrTypes } from '../../src/client/mvr';
 
 const MAINNET_URL = 'https://mainnet.mvr.mystenlabs.com';
 const TESTNET_URL = 'https://testnet.mvr.mystenlabs.com';
@@ -98,7 +98,9 @@ describe.concurrent('Name Resolution Plugin', () => {
 		});
 
 		const json = JSON.parse(
-			await transaction.toJSON({ client: new SuiClient({ url: getFullnodeUrl('testnet') }) }),
+			await transaction.toJSON({
+				client: new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('testnet'), network: 'testnet' }),
+			}),
 		);
 
 		expect(json.commands[0].MoveCall.package).toBe(normalizeSuiAddress('0x1'));
@@ -346,8 +348,9 @@ const dryRun = async (
 	network: 'mainnet' | 'testnet',
 	withOverrides = false,
 ) => {
-	const client = new SuiClient({
-		url: getFullnodeUrl(network),
+	const client = new SuiJsonRpcClient({
+		url: getJsonRpcFullnodeUrl(network),
+		network,
 		mvr: withOverrides
 			? {
 					overrides: localMvrOverrides,

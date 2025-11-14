@@ -64,8 +64,8 @@ may not be immediately observable.
 There are 2 ways to observe the results of a transaction. Methods like
 `client.signAndExecuteTransaction` accept an `options` object with options like `showObjectChanges`
 and `showBalanceChanges` (see
-[the SuiClient docs for more details](/typescript/sui-client#arguments)). These options will cause
-the request to contain additional details about the effects of the transaction that can be
+[the SuiJsonRpcClient docs for more details](/typescript/sui-client#arguments)). These options will
+cause the request to contain additional details about the effects of the transaction that can be
 immediately displayed to the user, or used for further processing in your application.
 
 The other way effects of transactions can be observed is by querying other RPC methods like
@@ -279,7 +279,7 @@ const tx = new Transaction();
 await tx.build({ client });
 ```
 
-In most cases, building requires your SuiClient to fully resolve input values.
+In most cases, building requires your SuiJsonRpcClient to fully resolve input values.
 
 If you have transaction bytes, you can also convert them back into a `Transaction` class:
 

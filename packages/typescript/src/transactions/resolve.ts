@@ -3,7 +3,7 @@
 
 import type { Argument } from './data/internal.js';
 
-import type { ClientWithCoreApi } from '../experimental/index.js';
+import type { ClientWithCoreApi } from '../client/index.js';
 import type { TransactionDataBuilder } from './TransactionData.js';
 import type { BcsType } from '@mysten/bcs';
 import { Inputs } from './Inputs.js';
@@ -39,7 +39,7 @@ export function needsTransactionResolution(
 	}
 
 	if (!options.onlyTransactionKind) {
-		if (!data.gasConfig.price || !data.gasConfig.budget || !data.gasConfig.payment) {
+		if (!data.gasData.price || !data.gasData.budget || !data.gasData.payment) {
 			return true;
 		}
 	}

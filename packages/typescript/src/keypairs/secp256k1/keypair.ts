@@ -81,8 +81,8 @@ export class Secp256k1Keypair extends Keypair {
 		if (typeof secretKey === 'string') {
 			const decoded = decodeSuiPrivateKey(secretKey);
 
-			if (decoded.schema !== 'Secp256k1') {
-				throw new Error(`Expected a Secp256k1 keypair, got ${decoded.schema}`);
+			if (decoded.scheme !== 'Secp256k1') {
+				throw new Error(`Expected a Secp256k1 keypair, got ${decoded.scheme}`);
 			}
 
 			return this.fromSecretKey(decoded.secretKey, options);

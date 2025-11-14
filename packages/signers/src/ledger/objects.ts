@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Transaction } from '@mysten/sui/transactions';
-import type { SuiClient } from '@mysten/sui/client';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { SuiMoveObject } from './bcs.js';
 
-export const getInputObjects = async (transaction: Transaction, client: SuiClient) => {
+export const getInputObjects = async (transaction: Transaction, client: SuiJsonRpcClient) => {
 	const data = transaction.getData();
 
 	const gasObjectIds = data.gasData.payment?.map((object) => object.objectId) ?? [];
