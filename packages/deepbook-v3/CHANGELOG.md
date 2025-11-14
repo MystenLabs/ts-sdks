@@ -1,5 +1,12 @@
 # @mysten/deepbook-v3
 
+## 0.20.4
+
+### Patch Changes
+
+- bf5773f: Improve read only functions and add manager state function
+- d8355d7: Admin withdraw referral fees
+
 ## 0.20.3
 
 ### Patch Changes
