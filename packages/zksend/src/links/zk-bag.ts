@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { bcs } from '@mysten/sui/bcs';
 import type { Argument, Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 
 export interface ZkBagContractOptions {
@@ -28,6 +29,20 @@ export function getContractIds(network?: 'mainnet' | 'testnet') {
 
 	return network === 'mainnet' ? MAINNET_CONTRACT_IDS : TESTNET_CONTRACT_IDS;
 }
+
+bcs.struct('ZkSendBagStore', {
+	id: bcs.Address,
+	items: bcs.struct('ZkSendTable', {
+		id: bcs.Address,
+		size: bcs.u64(),
+	}),
+});
+
+export const ZkBagStruct = bcs.struct('ZkBag', {
+	id: bcs.Address,
+	owner: bcs.Address,
+	item_ids: bcs.vector(bcs.Address),
+});
 
 export class ZkBag<IDs> {
 	#package: string;
