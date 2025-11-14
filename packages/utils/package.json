@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/utils",
-	"version": "0.1.1",
+	"version": "0.2.0",
 	"description": "Shared utilities for @mysten/* packages",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -24,7 +24,6 @@
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"dev": "pnpm build --watch",
 		"build": "build-package",
-		"prepublishOnly": "pnpm turbo build",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"eslint:check": "eslint --max-warnings=0 .",
@@ -45,7 +44,7 @@
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/utils#readme",
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"typescript": "^5.8.3",
+		"typescript": "^5.9.2",
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {

@@ -1,0 +1,1 @@
+# `@mysten/walletconnect-wallet`

@@ -19,7 +19,7 @@ This package is a perfect fit for the following applications:
 ## Example of a Template Module
 
 The following code is a close-copy of the `Coin` example from the
-[Coins and Tokens](https://docs.sui.io/guides/developer/coin).
+[Coins and Tokens](https://docs.sui.io/standards/currency).
 
 ```move
 module 0x0::template {
@@ -160,7 +160,7 @@ await init({ module_or_path: url });
 ## Build locally
 
 To build the binary, you need to have Rust installed and then the `wasm-pack`. The installation
-script [can be found here](https://rustwasm.github.io/wasm-pack/).
+script [can be found here](https://github.com/rustwasm/wasm-pack).
 
 ```
 pnpm build:wasm

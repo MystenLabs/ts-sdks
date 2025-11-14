@@ -312,7 +312,8 @@ export class EnokiWallet implements Wallet {
 
 	async #getKeypair(sessionContext: EnokiSessionContext) {
 		const session = await this.#state.getSession(sessionContext);
-		if (!session?.jwt || (session.proof && Date.now() > session.expiresAt)) {
+
+		if (!session?.jwt || Date.now() > session.expiresAt) {
 			await this.#createSession({ network: sessionContext.client.network, disablePopup: false });
 		}
 
@@ -331,13 +332,15 @@ export class EnokiWallet implements Wallet {
 		}
 
 		const ephemeralKeypair = WebCryptoSigner.import(storedNativeSigner);
-		const proof = await this.#enokiClient.createZkLoginZkp({
-			network: sessionContext.client.network as EnokiNetwork,
-			jwt: updatedSession.jwt,
-			maxEpoch: updatedSession.maxEpoch,
-			randomness: updatedSession.randomness,
-			ephemeralPublicKey: ephemeralKeypair.getPublicKey(),
-		});
+		const proof =
+			updatedSession.proof ??
+			(await this.#enokiClient.createZkLoginZkp({
+				network: sessionContext.client.network as EnokiNetwork,
+				jwt: updatedSession.jwt,
+				maxEpoch: updatedSession.maxEpoch,
+				randomness: updatedSession.randomness,
+				ephemeralPublicKey: ephemeralKeypair.getPublicKey(),
+			}));
 
 		await this.#state.setSession(sessionContext, { ...updatedSession, proof });
 
@@ -397,7 +400,7 @@ export class EnokiWallet implements Wallet {
 					if ((!pkceContext && !popup.location.hash) || (pkceContext && !popup.location.search)) {
 						return;
 					}
-				} catch (e) {
+				} catch {
 					return;
 				}
 				clearInterval(interval);

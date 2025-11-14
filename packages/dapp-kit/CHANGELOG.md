@@ -1,5 +1,138 @@
 # @mysten/dapp-kit
 
+## 0.19.9
+
+### Patch Changes
+
+- Updated dependencies [88bdbac]
+  - @mysten/sui@1.45.0
+  - @mysten/slush-wallet@0.2.10
+  - @mysten/wallet-standard@0.19.7
+
+## 0.19.8
+
+### Patch Changes
+
+- Updated dependencies [44d9b4f]
+  - @mysten/sui@1.44.0
+  - @mysten/slush-wallet@0.2.9
+  - @mysten/wallet-standard@0.19.6
+
+## 0.19.7
+
+### Patch Changes
+
+- @mysten/sui@1.43.2
+- @mysten/slush-wallet@0.2.8
+- @mysten/wallet-standard@0.19.5
+
+## 0.19.6
+
+### Patch Changes
+
+- @mysten/sui@1.43.1
+- @mysten/slush-wallet@0.2.7
+- @mysten/wallet-standard@0.19.4
+
+## 0.19.5
+
+### Patch Changes
+
+- Updated dependencies [f3b19a7]
+- Updated dependencies [bf9f85c]
+  - @mysten/sui@1.43.0
+  - @mysten/slush-wallet@0.2.6
+  - @mysten/wallet-standard@0.19.3
+
+## 0.19.4
+
+### Patch Changes
+
+- Updated dependencies [98c8a27]
+  - @mysten/sui@1.42.0
+  - @mysten/slush-wallet@0.2.5
+  - @mysten/wallet-standard@0.19.2
+
+## 0.19.3
+
+### Patch Changes
+
+- Updated dependencies [d554cd2]
+- Updated dependencies [04fcfbc]
+  - @mysten/sui@1.41.0
+  - @mysten/slush-wallet@0.2.4
+  - @mysten/wallet-standard@0.19.1
+
+## 0.19.2
+
+### Patch Changes
+
+- f5fc0c0: Update wallet-standard integration to use getCapabilties instead of getSupportedIntents
+- Updated dependencies [f5fc0c0]
+- Updated dependencies [f5fc0c0]
+  - @mysten/wallet-standard@0.19.0
+  - @mysten/sui@1.40.0
+  - @mysten/slush-wallet@0.2.3
+
+## 0.19.1
+
+### Patch Changes
+
+- Updated dependencies [a9f9035]
+  - @mysten/sui@1.39.1
+  - @mysten/slush-wallet@0.2.2
+  - @mysten/wallet-standard@0.18.1
+
+## 0.19.0
+
+### Minor Changes
+
+- 566b9ae: Add support for sui:getSupportedIntents
+
+### Patch Changes
+
+- Updated dependencies [566b9ae]
+- Updated dependencies [ca92487]
+- Updated dependencies [5ab3c0a]
+  - @mysten/wallet-standard@0.18.0
+  - @mysten/sui@1.39.0
+  - @mysten/slush-wallet@0.2.1
+
+## 0.18.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
+### Patch Changes
+
+- Updated dependencies [3c1741f]
+- Updated dependencies [ea1ac70]
+  - @mysten/sui@1.38.0
+  - @mysten/wallet-standard@0.17.0
+  - @mysten/slush-wallet@0.2.0
+  - @mysten/utils@0.2.0
+
+## 0.17.7
+
+### Patch Changes
+
+- Updated dependencies [c689b98]
+- Updated dependencies [c689b98]
+- Updated dependencies [5b9ff1a]
+  - @mysten/sui@1.37.6
+  - @mysten/wallet-standard@0.16.14
+  - @mysten/slush-wallet@0.1.24
+
+## 0.17.6
+
+### Patch Changes
+
+- Updated dependencies [3980d04]
+  - @mysten/sui@1.37.5
+  - @mysten/slush-wallet@0.1.23
+  - @mysten/wallet-standard@0.16.13
+
 ## 0.17.5
 
 ### Patch Changes

@@ -51,8 +51,8 @@ export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null
 			}
 
 			if (structTag.module === 'option' && structTag.name === 'Option') {
-				const type = getPureBcsSchema(structTag.typeParams[0]);
-				return type ? bcs.vector(type) : null;
+				const type = getPureBcsSchema(structTag.typeParams[0]!);
+				return type ? bcs.option(type) : null;
 			}
 		}
 
@@ -69,9 +69,10 @@ export function normalizeMoveArguments(
 	argTypes: string[],
 	parameterNames?: string[],
 ) {
-	if (parameterNames && argTypes.length !== parameterNames.length) {
+	const argLen = Array.isArray(args) ? args.length : Object.keys(args).length;
+	if (parameterNames && argLen !== parameterNames.length) {
 		throw new Error(
-			`Invalid number of parameterNames, expected ${argTypes.length}, got ${parameterNames.length}`,
+			`Invalid number of arguments, expected ${parameterNames.length}, got ${argLen}`,
 		);
 	}
 
@@ -126,7 +127,7 @@ export function normalizeMoveArguments(
 			continue;
 		}
 
-		const type = argTypes[i];
+		const type = argTypes[i]!;
 		const bcsType = getPureBcsSchema(type);
 
 		if (bcsType) {

@@ -1,0 +1,61 @@
+---
+title: Derived Objects
+---
+
+Derived objects enable deterministic IDs for objects, enabling offline derivation of object IDs.
+[Click here to read more.](https://docs.sui.io/concepts/sui-move-concepts/derived-objects)
+
+To derive an object ID, you can import `deriveObjectID` function exposed from utils.
+
+```typescript
+import { deriveObjectID } from '@mysten/sui/utils';
+```
+
+To derive any object, you need to have its parent's ID (the object from which it was derived), and
+the key used to generate it.
+
+<Callout type="warn">
+	It is recommended to verify the on-chain `derived_object::derive_address` match your off-chain
+	calculation (at least once when implementing offline calculations), especially for critical cases
+	like transferring assets.
+</Callout>
+
+## Deriving using primitive keys
+
+To derive the IDs using primitive types, you can use the built-in types like this, assuming you have
+a parent object with ID `0xc0ffee`.
+
+```typescript
+// Example 1: On-chain derivation for `0xc0ffee + vector<u8>([0,1,2])
+deriveObjectID('0xc0ffee', 'vector<u8>', bcs.vector(bcs.u8()).serialize([0, 1, 2]).toBytes());
+
+// Example 2: On-chain derivation for `0xc0ffee + address('0x111')`
+deriveObjectID('0xc0ffee', 'address', bcs.Address.serialize('0x111').toBytes());
+
+// Example 3: On-chain derivation for `0xc0ffee + non-ascii string ("foo")`
+deriveObjectID('0xc0ffee', '0x1::string::String', bcs.String.serialize('foo').toBytes());
+```
+
+## Deriving using custom types
+
+To derive IDs using your custom objects, you can use BCS & the known type IDs.
+
+Assuming a custom struct on-chain (for the key) being:
+
+```move
+public struct DemoStruct has copy, store, drop { value: u64 }
+```
+
+you can derive it by doing:
+
+```typescript
+// Assuming we wanted to derive for key `DemoStruct { value: 1 }`.
+const bcsType = bcs.struct('DemoStruct', {
+	value: bcs.u64(),
+});
+
+const key = bcsType.serialize({ value: 1 }).toBytes();
+
+// Derive the object ID for the key `DemoStruct { value: 1 }`.
+deriveObjectID('0xc0ffee', `0xc0ffee::demo::DemoStruct`, key);
+```

@@ -71,9 +71,13 @@ export function getConcatenatedSignature(signature: Uint8Array, keyScheme: strin
 
 	switch (keyScheme) {
 		case 'Secp256k1':
-			return new secp256k1.Signature(BigInt(r), BigInt(s)).normalizeS().toCompactRawBytes();
+			return new secp256k1.Signature(BigInt(r), BigInt(s))
+				.normalizeS()
+				.toCompactRawBytes() as Uint8Array<ArrayBuffer>;
 		case 'Secp256r1':
-			return new secp256r1.Signature(BigInt(r), BigInt(s)).normalizeS().toCompactRawBytes();
+			return new secp256r1.Signature(BigInt(r), BigInt(s))
+				.normalizeS()
+				.toCompactRawBytes() as Uint8Array<ArrayBuffer>;
 		default:
 			throw new Error('Unsupported key scheme');
 	}

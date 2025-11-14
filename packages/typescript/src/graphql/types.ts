@@ -83,4 +83,5 @@ export interface CustomScalars {
 	MoveTypeSignature: MoveTypeSignature;
 	OpenMoveTypeSignature: OpenMoveTypeSignature;
 	SuiAddress: string;
+	UInt53: number;
 }

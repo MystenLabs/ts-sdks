@@ -50,7 +50,7 @@ export function hasExpired(options: HasExpiredOptions) {
 		`${packageAddress}::suins_registration::SuinsRegistration`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['self', 'clock'];
+	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -77,7 +77,7 @@ export function hasExpiredPastGracePeriod(options: HasExpiredPastGracePeriodOpti
 		`${packageAddress}::suins_registration::SuinsRegistration`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['self', 'clock'];
+	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

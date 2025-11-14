@@ -9,6 +9,7 @@ This is a monorepo containing TypeScript SDKs for the Sui blockchain ecosystem. 
 ## Common Commands
 
 ### Setup and Build
+
 ```bash
 # Initial setup
 pnpm install
@@ -22,6 +23,7 @@ pnpm turbo build --filter=@mysten/sui
 ```
 
 ### Testing
+
 ```bash
 # Run unit tests
 pnpm test
@@ -37,6 +39,7 @@ pnpm test:e2e
 ```
 
 ### Linting and Formatting
+
 ```bash
 # Check lint and formatting
 pnpm lint
@@ -50,6 +53,7 @@ pnpm prettier:check
 ```
 
 ### Package Management
+
 ```bash
 # Add a changeset for version updates
 pnpm changeset
@@ -61,6 +65,7 @@ pnpm changeset-version
 ## Architecture
 
 ### Repository Structure
+
 - **packages/** - All SDK packages organized by functionality
   - **typescript/** - Core Sui SDK with submodules for bcs, client, cryptography, transactions, etc.
   - **dapp-kit/** - React hooks and components for dApp development
@@ -71,11 +76,13 @@ pnpm changeset-version
   - **zksend/** - zkSend functionality
 
 ### Build System
+
 - Uses Turbo for monorepo task orchestration with dependency-aware builds
 - Each package can have its own test configuration (typically using Vitest)
 - Common build outputs: `dist/` for compiled code, with both ESM and CJS formats
 
 ### Key Patterns
+
 1. **Modular exports**: Packages use subpath exports (e.g., `@mysten/sui/client`, `@mysten/sui/bcs`)
 2. **Shared utilities**: Common functionality in `packages/utils`
 3. **Code generation**: Some packages use GraphQL codegen and version generation scripts
@@ -83,6 +90,7 @@ pnpm changeset-version
 5. **Type safety**: Extensive TypeScript usage with strict type checking
 
 ### Development Workflow
+
 1. Changes require changesets for version management
 2. Turbo ensures dependencies are built before dependents
 3. ESLint and Prettier are enforced across the codebase

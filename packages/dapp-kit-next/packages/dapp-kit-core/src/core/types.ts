@@ -1,34 +1,29 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClientWithExtensions, Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi } from '@mysten/sui/experimental';
 import type { Networks } from '../utils/networks.js';
 import type { StateStorage } from '../utils/storage.js';
 import type { WalletInitializer } from '../wallets/index.js';
 
-export type DAppKitCompatibleClient = ClientWithExtensions<{
-	core: {
-		resolveNameServiceNames: Experimental_SuiClientTypes.TransportMethods['resolveNameServiceNames'];
-		verifyZkLoginSignature: Experimental_SuiClientTypes.TransportMethods['verifyZkLoginSignature'];
-	};
-}>;
+export type DAppKitCompatibleClient = ClientWithCoreApi;
 
 export type SlushWalletConfig = {
 	/**
 	 * The name of your application, shown to the user when connecting to the wallet.
-	 * @defaultValue The value of the `<meta name="application-name">` tag, or `document.title` if the meta tag is not populated.
+	 * @default The value of the `<meta name="application-name">` tag, or `document.title` if the meta tag is not populated.
 	 */
 	appName?: string;
 
 	/**
 	 * The host origin of the wallet.
-	 * @defaultValue https://my.slush.app
+	 * @default https://my.slush.app
 	 */
 	origin?: string;
 
 	/**
 	 * The URL to fetch the wallet metadata from.
-	 * @defaultValue https://api.slush.app/api/wallet/metadata
+	 * @default https://api.slush.app/api/wallet/metadata
 	 */
 	metadataApiUrl?: string;
 };
@@ -39,7 +34,7 @@ export type CreateDAppKitOptions<
 > = {
 	/**
 	 * Enables automatically connecting to the most recently used wallet account.
-	 * @defaultValue `true`
+	 * @default `true`
 	 */
 	autoConnect?: boolean;
 
@@ -58,7 +53,7 @@ export type CreateDAppKitOptions<
 
 	/**
 	 * The name of the network to use by default.
-	 * @defaultValue The first network specified in `networks`.
+	 * @default The first network specified in `networks`.
 	 */
 	defaultNetwork?: TNetworks[number];
 
@@ -69,19 +64,19 @@ export type CreateDAppKitOptions<
 
 	/**
 	 * Enables a "burner" wallet when set to `true`. This setting is intended for development and testing only.
-	 * @defaultValue `false`
+	 * @default `false`
 	 */
 	enableBurnerWallet?: boolean;
 
 	/**
 	 * Configures how the most recently connected to wallet account is stored. Set to `null` to disable persisting state entirely.
-	 * @defaultValue `localStorage` if available
+	 * @default `localStorage` if available
 	 */
 	storage?: StateStorage | null;
 
 	/**
 	 * The key to use to store the most recently connected wallet account.
-	 * @defaultValue `mysten-dapp-kit:selected-wallet-and-address`
+	 * @default `mysten-dapp-kit:selected-wallet-and-address`
 	 */
 	storageKey?: string;
 

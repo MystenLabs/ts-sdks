@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/move-bytecode-template",
-	"version": "0.2.1",
+	"version": "0.3.0",
 	"description": "Move Binary Format implementation in WASM",
 	"main": "index.js",
 	"types": "./web/move_bytecode_template.d.ts",
@@ -34,8 +34,7 @@
 	"devDependencies": {
 		"@mysten/bcs": "workspace:*",
 		"@mysten/build-scripts": "workspace:*",
-		"typescript": "^5.8.3",
-		"vitest": "^3.2.4",
-		"wasm-pack": "^0.13.1"
+		"typescript": "^5.9.2",
+		"vitest": "^3.2.4"
 	}
 }

@@ -88,7 +88,7 @@ export function createDAppKit<
 	manageWalletConnection(stores);
 
 	if (autoConnect) {
-		autoConnectWallet({ stores, storageKey, storage });
+		autoConnectWallet({ networks, stores, storageKey, storage });
 	}
 
 	registerAdditionalWallets(

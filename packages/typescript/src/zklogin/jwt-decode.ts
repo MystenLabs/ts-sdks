@@ -1,5 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+// oxlint-disable check-tag-names
 
 /** Copied from https://github.com/auth0/jwt-decode/blob/3d372e9875ff673228a9f2d9df74e84690842a9c/lib/index.ts */
 
@@ -80,7 +81,7 @@ function base64UrlDecode(str: string) {
 
 	try {
 		return b64DecodeUnicode(output);
-	} catch (err) {
+	} catch {
 		return atob(output);
 	}
 }

@@ -916,7 +916,7 @@ describe('Transaction.add with async functions', () => {
 		rootTransaction.transferObjects([result], '0x0');
 
 		await expect(rootTransaction.toJSON()).rejects.toThrow(
-			'Result { Result: 2 } is not available to use the current transaction',
+			'Result { Result: 2 } is not available to use in the current transaction',
 		);
 	});
 

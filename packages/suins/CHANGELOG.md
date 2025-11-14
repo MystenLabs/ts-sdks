@@ -1,5 +1,109 @@
 # @mysten/suins
 
+## 0.9.10
+
+### Patch Changes
+
+- Updated dependencies [88bdbac]
+  - @mysten/sui@1.45.0
+
+## 0.9.9
+
+### Patch Changes
+
+- Updated dependencies [44d9b4f]
+  - @mysten/sui@1.44.0
+
+## 0.9.8
+
+### Patch Changes
+
+- @mysten/sui@1.43.2
+
+## 0.9.7
+
+### Patch Changes
+
+- @mysten/sui@1.43.1
+
+## 0.9.6
+
+### Patch Changes
+
+- Updated dependencies [f3b19a7]
+- Updated dependencies [bf9f85c]
+  - @mysten/sui@1.43.0
+
+## 0.9.5
+
+### Patch Changes
+
+- Updated dependencies [98c8a27]
+  - @mysten/sui@1.42.0
+
+## 0.9.4
+
+### Patch Changes
+
+- Updated dependencies [d554cd2]
+- Updated dependencies [04fcfbc]
+  - @mysten/sui@1.41.0
+
+## 0.9.3
+
+### Patch Changes
+
+- Updated dependencies [f5fc0c0]
+  - @mysten/sui@1.40.0
+
+## 0.9.2
+
+### Patch Changes
+
+- Updated dependencies [a9f9035]
+  - @mysten/sui@1.39.1
+
+## 0.9.1
+
+### Patch Changes
+
+- Updated dependencies [ca92487]
+- Updated dependencies [5ab3c0a]
+  - @mysten/sui@1.39.0
+
+## 0.9.0
+
+### Minor Changes
+
+- c88feaa: Update payments package to support buy back and burn
+
+## 0.8.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
+### Patch Changes
+
+- Updated dependencies [3c1741f]
+- Updated dependencies [ea1ac70]
+  - @mysten/sui@1.38.0
+
+## 0.7.36
+
+### Patch Changes
+
+- Updated dependencies [c689b98]
+- Updated dependencies [5b9ff1a]
+  - @mysten/sui@1.37.6
+
+## 0.7.35
+
+### Patch Changes
+
+- Updated dependencies [3980d04]
+  - @mysten/sui@1.37.5
+
 ## 0.7.34
 
 ### Patch Changes

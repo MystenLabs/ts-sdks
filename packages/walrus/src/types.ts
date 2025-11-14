@@ -1,9 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SuiClient } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
-import type { ClientWithExtensions } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi } from '@mysten/sui/experimental';
 import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 
 import type { StorageNodeInfo } from './contracts/walrus/storage_node.js';
@@ -34,9 +33,7 @@ export interface WalrusPackageConfig {
 
 type SuiClientOrRpcUrl =
 	| {
-			suiClient: ClientWithExtensions<{
-				jsonRpc: SuiClient;
-			}>;
+			suiClient: ClientWithCoreApi;
 			suiRpcUrl?: never;
 	  }
 	| {
@@ -94,6 +91,12 @@ interface BaseWalrusClientConfig {
 export type WalrusClientConfig = BaseWalrusClientConfig &
 	WalrusNetworkOrPackageConfig &
 	SuiClientOrRpcUrl;
+
+export type WalrusOptions<Name = 'walrus'> = BaseWalrusClientConfig & {
+	packageConfig?: WalrusPackageConfig;
+	network?: 'mainnet' | 'testnet';
+	name?: Name;
+};
 
 export type WalrusClientExtensionOptions = BaseWalrusClientConfig & {
 	packageConfig?: WalrusPackageConfig;

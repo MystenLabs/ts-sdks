@@ -101,14 +101,25 @@ export abstract class Experimental_CoreClient
 		options: Experimental_SuiClientTypes.VerifyZkLoginSignatureOptions,
 	): Promise<Experimental_SuiClientTypes.ZkLoginVerifyResponse>;
 
+	abstract getMoveFunction(
+		options: Experimental_SuiClientTypes.GetMoveFunctionOptions,
+	): Promise<Experimental_SuiClientTypes.GetMoveFunctionResponse>;
+
+	abstract defaultNameServiceName(
+		options: Experimental_SuiClientTypes.DefaultNameServiceNameOptions,
+	): Promise<Experimental_SuiClientTypes.DefaultNameServiceNameResponse>;
+
 	async getDynamicField(
 		options: Experimental_SuiClientTypes.GetDynamicFieldOptions,
 	): Promise<Experimental_SuiClientTypes.GetDynamicFieldResponse> {
-		const fieldId = deriveDynamicFieldID(
-			options.parentId,
-			TypeTagSerializer.parseFromStr(options.name.type),
-			options.name.bcs,
+		const normalizedNameType = TypeTagSerializer.parseFromStr(
+			(
+				await this.core.mvr.resolveType({
+					type: options.name.type,
+				})
+			).type,
 		);
+		const fieldId = deriveDynamicFieldID(options.parentId, normalizedNameType, options.name.bcs);
 		const {
 			objects: [fieldObject],
 		} = await this.getObjects({
@@ -129,6 +140,7 @@ export abstract class Experimental_CoreClient
 				digest: fieldObject.digest,
 				version: fieldObject.version,
 				type: fieldObject.type,
+				previousTransaction: fieldObject.previousTransaction,
 				name: {
 					type:
 						typeof fieldType.typeParams[0] === 'string'
@@ -177,7 +189,7 @@ export abstract class Experimental_CoreClient
 					...input,
 					signal: abortSignal,
 				});
-			} catch (e) {
+			} catch {
 				await Promise.race([new Promise((resolve) => setTimeout(resolve, 2_000)), abortPromise]);
 			}
 		}

@@ -58,7 +58,7 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description: Create pool for trading pair
+	 * @description Create pool for trading pair
 	 * @param baseAssetType Full coin type of the base asset, eg: "0x3d0d0ce17dcd3b40c2d839d96ce66871ffb40e1154a8dd99af72292b3d10d7fc::wbtc::WBTC"
 	 * @param quoteAssetType Full coin type of quote asset, eg: "0x3d0d0ce17dcd3b40c2d839d96ce66871ffb40e1154a8dd99af72292b3d10d7fc::usdt::USDT"
 	 * @param tickSize Minimal Price Change Accuracy of this pool, eg: 10000000. The number must be an integer float scaled by `FLOAT_SCALING_FACTOR`.
@@ -82,7 +82,7 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description: Create pool for trading pair
+	 * @description Create pool for trading pair
 	 * @param baseAssetType Full coin type of the base asset, eg: "0x3d0d0ce17dcd3b40c2d839d96ce66871ffb40e1154a8dd99af72292b3d10d7fc::wbtc::WBTC"
 	 * @param quoteAssetType Full coin type of quote asset, eg: "0x3d0d0ce17dcd3b40c2d839d96ce66871ffb40e1154a8dd99af72292b3d10d7fc::usdt::USDT"
 	 * @param tickSize Minimal Price Change Accuracy of this pool, eg: 10000000. The number must be an interger float scaled by `FLOAT_SCALING_FACTOR`.
@@ -116,7 +116,7 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description: Create Account Cap
+	 * @description Create Account Cap
 	 * @param tx
 	 */
 	createAccountCap(tx: Transaction) {
@@ -129,7 +129,7 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description: Create and Transfer custodian account to user
+	 * @description Create and Transfer custodian account to user
 	 * @param currentAddress current address of the user
 	 * @param tx
 	 */
@@ -143,7 +143,7 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description: Create and Transfer custodian account to user
+	 * @description Create and Transfer custodian account to user
 	 * @param currentAddress: current user address, eg: "0xbddc9d4961b46a130c2e1f38585bbc6fa8077ce54bcb206b26874ac08d607966"
 	 * @param accountCap: Object id of Account Capacity under user address, created after invoking createAccount, eg: "0x6f699fef193723277559c8f499ca3706121a65ac96d273151b8e52deb29135d3"
 	 */
@@ -230,7 +230,7 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description: place a limit order
+	 * @description place a limit order
 	 * @param poolId Object id of pool, created after invoking createPool, eg: "0xcaee8e1c046b58e55196105f1436a2337dcaa0c340a7a8c8baf65e4afb8823a4"
 	 * @param price: price of the limit order. The number must be an interger float scaled by `FLOAT_SCALING_FACTOR`.
 	 * @param quantity: quantity of the limit order in BASE ASSET, eg: 100000000.
@@ -274,7 +274,7 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description: place a market order
+	 * @description place a market order
 	 * @param poolId Object id of pool, created after invoking createPool, eg: "0xcaee8e1c046b58e55196105f1436a2337dcaa0c340a7a8c8baf65e4afb8823a4"
 	 * @param quantity Amount of quote asset to swap in base asset
 	 * @param orderType bid for buying base with quote, ask for selling base for quote
@@ -331,7 +331,7 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description: swap exact quote for base
+	 * @description swap exact quote for base
 	 * @param poolId Object id of pool, created after invoking createPool, eg: "0xcaee8e1c046b58e55196105f1436a2337dcaa0c340a7a8c8baf65e4afb8823a4"
 	 * @param tokenObjectIn Object id of the token to swap: eg: "0x6e566fec4c388eeb78a7dab832c9f0212eb2ac7e8699500e203def5b41b9c70d"
 	 * @param amountIn amount of token to buy or sell, eg: 10000000.
@@ -407,7 +407,7 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description: cancel an order
+	 * @description cancel an order
 	 * @param poolId Object id of pool, created after invoking createPool, eg: "0xcaee8e1c046b58e55196105f1436a2337dcaa0c340a7a8c8baf65e4afb8823a4"
 	 * @param orderId orderId of a limit order, you can find them through function query.list_open_orders eg: "0"
 	 */
@@ -422,7 +422,7 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description: Cancel all limit orders under a certain account capacity
+	 * @description Cancel all limit orders under a certain account capacity
 	 * @param poolId Object id of pool, created after invoking createPool, eg: "0xcaee8e1c046b58e55196105f1436a2337dcaa0c340a7a8c8baf65e4afb8823a4"
 	 */
 	async cancelAllOrders(poolId: string): Promise<Transaction> {
@@ -436,7 +436,7 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description: batch cancel order
+	 * @description batch cancel order
 	 * @param poolId Object id of pool, created after invoking createPool, eg: "0xcaee8e1c046b58e55196105f1436a2337dcaa0c340a7a8c8baf65e4afb8823a4"
 	 * @param orderIds array of order ids you want to cancel, you can find your open orders by query.list_open_orders eg: ["0", "1", "2"]
 	 */
@@ -572,7 +572,7 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description: get the base and quote token in custodian account
+	 * @description get the base and quote token in custodian account
 	 * @param poolId the pool id, eg: 0xcaee8e1c046b58e55196105f1436a2337dcaa0c340a7a8c8baf65e4afb8823a4
 	 * @param accountCap your accountCap, eg: 0x6f699fef193723277559c8f499ca3706121a65ac96d273151b8e52deb29135d3. If not provided, `this.accountCap` will be used.
 	 */

@@ -4,7 +4,7 @@
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Agent, setGlobalDispatcher } from 'undici';
 
-import { WalrusClient } from '../../src/client.js';
+import { walrus } from '../../src/client.js';
 import { getFundedKeypair } from '../funded-keypair.js';
 
 // Node connect timeout is 10 seconds, and walrus nodes can be slow to respond
@@ -19,7 +19,7 @@ const client = new SuiClient({
 	url: getFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(
-	WalrusClient.experimental_asClientExtension({
+	walrus({
 		storageNodeClientOptions: {
 			timeout: 60_000,
 		},

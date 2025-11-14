@@ -1,5 +1,127 @@
 # @mysten/walrus
 
+## 0.8.4
+
+### Patch Changes
+
+- Updated dependencies [88bdbac]
+  - @mysten/sui@1.45.0
+
+## 0.8.3
+
+### Patch Changes
+
+- Updated dependencies [44d9b4f]
+  - @mysten/sui@1.44.0
+
+## 0.8.2
+
+### Patch Changes
+
+- Updated dependencies [89fa2dc]
+  - @mysten/bcs@1.9.2
+  - @mysten/sui@1.43.2
+
+## 0.8.1
+
+### Patch Changes
+
+- Updated dependencies [a37829f]
+  - @mysten/bcs@1.9.1
+  - @mysten/sui@1.43.1
+
+## 0.8.0
+
+### Minor Changes
+
+- 8894443: Set \_walrusBlobType for quilts
+- f3b19a7: Use bcs.byteVector and bcs.bytes instead of bcs.vector(bcs.u8()) and bcs.fixedArrray(n,
+  bcs.u8()) to improve performance
+- bf9f85c: deprecate asClientExtension methods
+
+### Patch Changes
+
+- Updated dependencies [f3b19a7]
+- Updated dependencies [f3b19a7]
+- Updated dependencies [bf9f85c]
+  - @mysten/sui@1.43.0
+  - @mysten/bcs@1.9.0
+
+## 0.7.5
+
+### Patch Changes
+
+- Updated dependencies [98c8a27]
+  - @mysten/sui@1.42.0
+
+## 0.7.4
+
+### Patch Changes
+
+- Updated dependencies [a17c337]
+- Updated dependencies [d554cd2]
+- Updated dependencies [04fcfbc]
+  - @mysten/bcs@1.8.1
+  - @mysten/sui@1.41.0
+
+## 0.7.3
+
+### Patch Changes
+
+- Updated dependencies [f5fc0c0]
+  - @mysten/sui@1.40.0
+
+## 0.7.2
+
+### Patch Changes
+
+- Updated dependencies [a9f9035]
+  - @mysten/sui@1.39.1
+
+## 0.7.1
+
+### Patch Changes
+
+- Updated dependencies [ca92487]
+- Updated dependencies [5ab3c0a]
+  - @mysten/sui@1.39.0
+
+## 0.7.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
+### Patch Changes
+
+- Updated dependencies [3c1741f]
+- Updated dependencies [ea1ac70]
+  - @mysten/sui@1.38.0
+  - @mysten/utils@0.2.0
+  - @mysten/bcs@1.8.0
+
+## 0.6.7
+
+### Patch Changes
+
+- ab94098: Fix bug that resulted in invalid blobs for quilts with large indexes
+
+## 0.6.6
+
+### Patch Changes
+
+- 78bd0e9: Update codegen arg normalization for object args
+- Updated dependencies [c689b98]
+- Updated dependencies [5b9ff1a]
+  - @mysten/sui@1.37.6
+
+## 0.6.5
+
+### Patch Changes
+
+- Updated dependencies [3980d04]
+  - @mysten/sui@1.37.5
+
 ## 0.6.4
 
 ### Patch Changes

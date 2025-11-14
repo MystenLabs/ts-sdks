@@ -94,8 +94,8 @@ function parseTransactionEffectsV2({
 		dependencies: effects.dependencies,
 		lamportVersion: effects.lamportVersion,
 		changedObjects,
-		unchangedSharedObjects: effects.unchangedSharedObjects.map(
-			([objectId, object]): Experimental_SuiClientTypes.UnchangedSharedObject => {
+		unchangedConsensusObjects: effects.unchangedSharedObjects.map(
+			([objectId, object]): Experimental_SuiClientTypes.UnchangedConsensusObject => {
 				return {
 					kind:
 						object.$kind === 'MutateDeleted'

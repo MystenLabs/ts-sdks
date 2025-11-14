@@ -28,7 +28,7 @@ beforeAll(async () => {
 
 describe('Transaction bcs Serialization and deserialization', () => {
 	async function serializeAndDeserialize(tx: Transaction, mutable: boolean[]) {
-		tx.setSender(await toolbox.address());
+		tx.setSender(toolbox.address());
 		const transactionBytes = await tx.build({
 			client: toolbox.client,
 		});
@@ -91,10 +91,10 @@ describe('Transaction bcs Serialization and deserialization', () => {
 
 describe('TXB v2 JSON serialization', () => {
 	async function serializeAndDeserialize(tx: Transaction) {
-		tx.setSender(await toolbox.address());
-		tx.setGasOwner(await toolbox.address());
+		tx.setSender(toolbox.address());
+		tx.setGasOwner(toolbox.address());
 		tx.setExpiration({ None: true });
-		tx.setSender(await toolbox.address());
+		tx.setSender(toolbox.address());
 		const transactionJson = await tx.getData();
 		const deserializedTxnBuilder = Transaction.from(JSON.stringify(transactionJson));
 		const reserializedTxnJson = await deserializedTxnBuilder.getData();
@@ -180,10 +180,10 @@ describe('TXB v2 JSON serialization', () => {
 
 describe('TXB v1 JSON serialization', () => {
 	async function serializeAndDeserialize(tx: Transaction, json?: string) {
-		tx.setSender(await toolbox.address());
-		tx.setGasOwner(await toolbox.address());
+		tx.setSender(toolbox.address());
+		tx.setGasOwner(toolbox.address());
 		tx.setExpiration({ None: true });
-		tx.setSender(await toolbox.address());
+		tx.setSender(toolbox.address());
 		const transactionJson = json ?? (await tx.serialize());
 		const deserializedTxnBuilder = Transaction.from(transactionJson);
 		const reserializedTxnBytes = await deserializedTxnBuilder.build({

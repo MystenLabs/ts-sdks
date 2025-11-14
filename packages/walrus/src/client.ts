@@ -5,7 +5,7 @@ import type { InferBcsType } from '@mysten/bcs';
 import { bcs } from '@mysten/bcs';
 import { SuiClient } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
-import type { ClientCache, ClientWithExtensions } from '@mysten/sui/experimental';
+import type { ClientCache, ClientWithCoreApi } from '@mysten/sui/experimental';
 import type { TransactionObjectArgument, TransactionResult } from '@mysten/sui/transactions';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
@@ -98,6 +98,7 @@ import type {
 	WriteBlobFlowOptions,
 	WriteBlobFlowRegisterOptions,
 	WriteBlobFlowUploadOptions,
+	WalrusOptions,
 } from './types.js';
 import { blobIdToInt, IntentType, SliverData, StorageConfirmation } from './utils/bcs.js';
 import {
@@ -111,7 +112,6 @@ import {
 	storageUnitsFromSize,
 	toPairIndex,
 	toShardIndex,
-	toTypeString,
 } from './utils/index.js';
 import { SuiObjectDataLoader } from './utils/object-loader.js';
 import { shuffle, weightedShuffle } from './utils/randomness.js';
@@ -126,14 +126,44 @@ import { QuiltFileReader } from './files/readers/quilt-file.js';
 import { QuiltReader } from './files/readers/quilt.js';
 import { retry } from './utils/retry.js';
 
+export function walrus<const Name = 'walrus'>({
+	packageConfig,
+	network,
+	name = 'walrus' as Name,
+	...options
+}: WalrusOptions<Name> = {}) {
+	return {
+		name,
+		register: (client: ClientWithCoreApi) => {
+			const walrusNetwork = network || client.network;
+
+			if (walrusNetwork !== 'mainnet' && walrusNetwork !== 'testnet') {
+				throw new WalrusClientError('Walrus client only supports mainnet and testnet');
+			}
+
+			return new WalrusClient(
+				packageConfig
+					? {
+							packageConfig,
+							suiClient: client,
+							...options,
+						}
+					: {
+							network: walrusNetwork as 'mainnet' | 'testnet',
+							suiClient: client,
+							...options,
+						},
+			);
+		},
+	};
+}
+
 export class WalrusClient {
 	#storageNodeClient: StorageNodeClient;
 	#wasmUrl: string | undefined;
 
 	#packageConfig: WalrusPackageConfig;
-	#suiClient: ClientWithExtensions<{
-		jsonRpc: SuiClient;
-	}>;
+	#suiClient: ClientWithCoreApi;
 	#objectLoader: SuiObjectDataLoader;
 
 	#blobMetadataConcurrencyLimit = 10;
@@ -178,6 +208,7 @@ export class WalrusClient {
 		this.#cache = this.#suiClient.cache.scope('@mysten/walrus');
 	}
 
+	/** @deprecated use `walrus()` instead */
 	static experimental_asClientExtension({
 		packageConfig,
 		network,
@@ -185,11 +216,7 @@ export class WalrusClient {
 	}: WalrusClientExtensionOptions = {}) {
 		return {
 			name: 'walrus' as const,
-			register: (
-				client: ClientWithExtensions<{
-					jsonRpc: SuiClient;
-				}>,
-			) => {
+			register: (client: ClientWithCoreApi) => {
 				const walrusNetwork = network || client.network;
 
 				if (walrusNetwork !== 'mainnet' && walrusNetwork !== 'testnet') {
@@ -215,26 +242,22 @@ export class WalrusClient {
 	/** The Move type for a WAL coin */
 	#walType() {
 		return this.#cache.read(['walType'], async () => {
-			const stakedWal = await this.#suiClient.jsonRpc.getNormalizedMoveStruct({
-				package: await this.#getPackageId(),
-				module: 'staked_wal',
-				struct: 'StakedWal',
+			const stakeWithPool = await this.#suiClient.core.getMoveFunction({
+				packageId: await this.#getPackageId(),
+				moduleName: 'staking',
+				name: 'stake_with_pool',
 			});
 
-			const balanceType = stakedWal.fields.find((field) => field.name === 'principal')?.type;
+			const toStake = stakeWithPool.function.parameters[1];
+			const toStakeCoin = toStake.body.$kind === 'datatype' ? toStake.body.datatype : null;
+			const toStakeCoinType =
+				toStakeCoin?.typeParameters[0]?.$kind === 'datatype' ? toStakeCoin.typeParameters[0] : null;
 
-			if (!balanceType) {
+			if (toStakeCoinType?.$kind !== 'datatype') {
 				throw new WalrusClientError('WAL type not found');
 			}
 
-			const parsed = parseStructTag(toTypeString(balanceType));
-			const coinType = parsed.typeParams[0];
-
-			if (!coinType) {
-				throw new WalrusClientError('WAL type not found');
-			}
-
-			return normalizeStructTag(coinType);
+			return normalizeStructTag(toStakeCoinType.datatype.typeName);
 		});
 	}
 
@@ -358,7 +381,9 @@ export class WalrusClient {
 			nonce,
 			blobDigest: () => {
 				if (!sha256Hash) {
-					sha256Hash = crypto.subtle.digest('SHA-256', bytes).then((hash) => new Uint8Array(hash));
+					sha256Hash = crypto.subtle
+						.digest('SHA-256', bytes as BufferSource)
+						.then((hash) => new Uint8Array(hash));
 				}
 
 				return sha256Hash;
@@ -402,7 +427,7 @@ export class WalrusClient {
 		try {
 			const attemptGetMetadata = metadataExecutors.shift()!;
 			return await attemptGetMetadata();
-		} catch (error) {
+		} catch {
 			const chunkSize = Math.floor(metadataExecutors.length / this.#blobMetadataConcurrencyLimit);
 			const chunkedExecutors = chunk(metadataExecutors, chunkSize);
 
@@ -728,7 +753,7 @@ export class WalrusClient {
 	/**
 	 * A utility for creating a storage object in a transaction.
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.transferObjects([client.createStorage({ size: 1000, epochs: 3 })], owner);
 	 * ```
@@ -792,7 +817,7 @@ export class WalrusClient {
 	/**
 	 * Create a transaction that creates a storage object
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.createStorageTransaction({ size: 1000, epochs: 3, owner: signer.toSuiAddress() });
 	 * ```
@@ -815,7 +840,7 @@ export class WalrusClient {
 	/**
 	 * Execute a transaction that creates a storage object
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { digest, storage } = await client.executeCreateStorageTransaction({ size: 1000, epochs: 3, signer });
 	 * ```
@@ -863,7 +888,7 @@ export class WalrusClient {
 	/**
 	 * Register a blob in a transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.transferObjects([client.registerBlob({ size: 1000, epochs: 3, blobId, rootHash, deletable: true })], owner);
 	 * ```
@@ -925,7 +950,7 @@ export class WalrusClient {
 		nonce: Uint8Array;
 	}) {
 		return async (transaction: Transaction) => {
-			const nonceDigest = await crypto.subtle.digest('SHA-256', nonce);
+			const nonceDigest = await crypto.subtle.digest('SHA-256', nonce as BufferSource);
 			const lengthBytes = bcs.u64().serialize(size).toBytes();
 			const digest = typeof blobDigest === 'function' ? await blobDigest() : blobDigest;
 			const authPayload = new Uint8Array(
@@ -1019,7 +1044,7 @@ export class WalrusClient {
 	/**
 	 * Create a transaction that registers a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.registerBlobTransaction({ size: 1000, epochs: 3, blobId, rootHash, deletable: true });
 	 * ```
@@ -1042,7 +1067,7 @@ export class WalrusClient {
 	/**
 	 * Execute a transaction that registers a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { digest, blob } = await client.executeRegisterBlobTransaction({ size: 1000, epochs: 3, signer });
 	 * ```
@@ -1194,7 +1219,7 @@ export class WalrusClient {
 	/**
 	 * Certify a blob in a transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.add(client.certifyBlob({ blobId, blobObjectId, confirmations }));
 	 * ```
@@ -1234,7 +1259,7 @@ export class WalrusClient {
 	/**
 	 * Create a transaction that certifies a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.certifyBlobTransaction({ blobId, blobObjectId, confirmations });
 	 * ```
@@ -1253,7 +1278,7 @@ export class WalrusClient {
 	/**
 	 * Execute a transaction that certifies a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { digest } = await client.executeCertifyBlobTransaction({ blobId, blobObjectId, confirmations, signer });
 	 * ```
@@ -1275,7 +1300,7 @@ export class WalrusClient {
 	/**
 	 * Delete a blob in a transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const storage = await client.deleteBlob({ blobObjectId });
 	 * tx.transferObjects([storage], owner);
@@ -1301,7 +1326,7 @@ export class WalrusClient {
 	/**
 	 * Create a transaction that deletes a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.deleteBlobTransaction({ blobObjectId, owner });
 	 * ```
@@ -1324,7 +1349,7 @@ export class WalrusClient {
 	/**
 	 * Execute a transaction that deletes a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { digest } = await client.executeDeleteBlobTransaction({ blobObjectId, signer });
 	 * ```
@@ -1350,7 +1375,7 @@ export class WalrusClient {
 	/**
 	 * Extend a blob in a transaction
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.extendBlobTransaction({ blobObjectId, epochs });
 	 * ```
@@ -1388,7 +1413,7 @@ export class WalrusClient {
 	/**
 	 * Create a transaction that extends a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.extendBlobTransaction({ blobObjectId, epochs });
 	 * ```
@@ -1405,7 +1430,7 @@ export class WalrusClient {
 	/**
 	 * Execute a transaction that extends a blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { digest } = await client.executeExtendBlobTransaction({ blobObjectId, signer });
 	 * ```
@@ -1506,7 +1531,7 @@ export class WalrusClient {
 	 * If attributes already exists, their previous values will be overwritten
 	 * If an attribute is set to `null`, it will be removed from the blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * tx.add(client.writeBlobAttributes({ blobObjectId, attributes: { key: 'value', keyToRemove: null } }));
 	 * ```
@@ -1534,7 +1559,7 @@ export class WalrusClient {
 	 * If attributes already exists, their previous values will be overwritten
 	 * If an attribute is set to `null`, it will be removed from the blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const tx = client.writeBlobAttributesTransaction({ blobObjectId, attributes: { key: 'value', keyToRemove: null } });
 	 * ```
@@ -1553,7 +1578,7 @@ export class WalrusClient {
 	 * If attributes already exists, their previous values will be overwritten
 	 * If an attribute is set to `null`, it will be removed from the blob
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { digest } = await client.executeWriteBlobAttributesTransaction({ blobObjectId, signer });
 	 * ```
@@ -1573,7 +1598,7 @@ export class WalrusClient {
 	/**
 	 * Write a sliver to a storage node
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const res = await client.writeSliver({ blobId, sliverPairIndex, sliverType, sliver });
 	 * ```
@@ -1594,7 +1619,7 @@ export class WalrusClient {
 	/**
 	 * Write metadata to a storage node
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const res = await client.writeMetadataToNode({ nodeIndex, blobId, metadata });
 	 * ```
@@ -1620,7 +1645,7 @@ export class WalrusClient {
 	/**
 	 * Get a storage confirmation from a storage node
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const confirmation = await client.getStorageConfirmationFromNode({ nodeIndex, blobId, deletable, objectId });
 	 * ```
@@ -1651,7 +1676,7 @@ export class WalrusClient {
 	/**
 	 * Encode a blob into slivers for each node
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { blobId, metadata, sliversByNode, rootHash } = await client.encodeBlob(blob);
 	 * ```
@@ -1705,7 +1730,7 @@ export class WalrusClient {
 	/**
 	 * Write slivers to a storage node
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * await client.writeSliversToNode({ blobId, slivers, signal });
 	 * ```
@@ -1745,7 +1770,7 @@ export class WalrusClient {
 	/**
 	 * Write a blob to all storage nodes
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * await client.writeEncodedBlobToNodes({ blob, deletable, epochs, signer });
 	 * ```
@@ -1794,7 +1819,7 @@ export class WalrusClient {
 	/**
 	 * Writes a blob to to an upload relay
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * await client.writeBlobToUploadRelay({ blob, deletable, epochs, signer });
 	 * ```
@@ -1816,7 +1841,7 @@ export class WalrusClient {
 	/**
 	 * Write encoded blob to a storage node
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const res = await client.writeEncodedBlobToNode({ nodeIndex, blobId, metadata, slivers });
 	 * ```
@@ -1848,7 +1873,7 @@ export class WalrusClient {
 	/**
 	 * Write a blob to all storage nodes
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * const { blobId, blobObject } = await client.writeBlob({ blob, deletable, epochs, signer });
 	 * ```
@@ -1965,8 +1990,12 @@ export class WalrusClient {
 	async writeQuilt({ blobs, ...options }: WriteQuiltOptions) {
 		const encoded = await this.encodeQuilt({ blobs });
 		const result = await this.writeBlob({
-			blob: encoded.quilt,
 			...options,
+			blob: encoded.quilt,
+			attributes: {
+				_walrusBlobType: 'quilt',
+				...options.attributes,
+			},
 		});
 
 		return {
@@ -2076,7 +2105,7 @@ export class WalrusClient {
 	/**
 	 * Reset cached data in the client
 	 *
-	 * @usage
+	 * @example
 	 * ```ts
 	 * client.reset();
 	 * ```
@@ -2228,7 +2257,10 @@ export class WalrusClient {
 						blobId: metadata.blobId,
 						rootHash: metadata.rootHash,
 						deletable,
-						attributes,
+						attributes: {
+							_walrusBlobType: 'quilt',
+							...attributes,
+						},
 					}),
 				],
 				owner,

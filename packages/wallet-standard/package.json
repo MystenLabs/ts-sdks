@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/wallet-standard",
-	"version": "0.16.12",
+	"version": "0.19.7",
 	"description": "A suite of standard utilities for implementing wallets based on the Wallet Standard.",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -23,7 +23,6 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "build-package",
-		"prepublishOnly": "pnpm turbo build",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"eslint:check": "eslint --max-warnings=0 .",
@@ -38,7 +37,7 @@
 	},
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"typescript": "^5.8.3",
+		"typescript": "^5.9.2",
 		"typescript-json-schema": "^0.65.1"
 	}
 }

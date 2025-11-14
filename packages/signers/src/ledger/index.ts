@@ -9,8 +9,11 @@ import { Ed25519PublicKey } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { toBase64 } from '@mysten/sui/utils';
 
-import { SuiMoveObject } from './bcs.js';
 import { bcs } from '@mysten/sui/bcs';
+import { getInputObjects } from './objects.js';
+
+export { SuiMoveObject } from './bcs.js';
+export { getInputObjects } from './objects.js';
 
 /**
  * Configuration options for initializing the LedgerSigner.
@@ -66,7 +69,10 @@ export class LedgerSigner extends Signer {
 	 * @returns The signed transaction bytes and signature.
 	 */
 	override async signTransaction(bytes: Uint8Array): Promise<SignatureWithBytes> {
-		const transactionOptions = await this.#getClearSigningOptions(bytes).catch(() => ({
+		const transactionOptions = await getInputObjects(
+			Transaction.from(bytes),
+			this.#suiClient,
+		).catch(() => ({
 			// Fail gracefully so network errors or serialization issues don't break transaction signing:
 			bcsObjects: [],
 		}));
@@ -133,57 +139,6 @@ export class LedgerSigner extends Signer {
 			ledgerClient,
 			suiClient,
 		});
-	}
-
-	async #getClearSigningOptions(transactionBytes: Uint8Array) {
-		const transaction = Transaction.from(transactionBytes);
-		const data = transaction.getData();
-
-		const gasObjectIds = data.gasData.payment?.map((object) => object.objectId) ?? [];
-		const inputObjectIds = data.inputs
-			.map((input) => {
-				return input.$kind === 'Object' && input.Object.$kind === 'ImmOrOwnedObject'
-					? input.Object.ImmOrOwnedObject.objectId
-					: null;
-			})
-			.filter((objectId): objectId is string => !!objectId);
-
-		const objects = await this.#suiClient.multiGetObjects({
-			ids: [...gasObjectIds, ...inputObjectIds],
-			options: {
-				showBcs: true,
-				showPreviousTransaction: true,
-				showStorageRebate: true,
-				showOwner: true,
-			},
-		});
-
-		// NOTE: We should probably get rid of this manual serialization logic in favor of using the
-		// already serialized object bytes from the GraphQL API once there is more mainstream support
-		// for it + we can enforce the transport type on the Sui client.
-		const bcsObjects = objects
-			.map((object) => {
-				if (object.error || !object.data || object.data.bcs?.dataType !== 'moveObject') {
-					return null;
-				}
-
-				return SuiMoveObject.serialize({
-					data: {
-						MoveObject: {
-							type: object.data.bcs.type,
-							hasPublicTransfer: object.data.bcs.hasPublicTransfer,
-							version: object.data.bcs.version,
-							contents: object.data.bcs.bcsBytes,
-						},
-					},
-					owner: object.data.owner!,
-					previousTransaction: object.data.previousTransaction!,
-					storageRebate: object.data.storageRebate!,
-				}).toBytes();
-			})
-			.filter((bcsBytes): bcsBytes is Uint8Array => !!bcsBytes);
-
-		return { bcsObjects };
 	}
 
 	/**

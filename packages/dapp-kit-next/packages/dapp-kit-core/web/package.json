@@ -1,5 +1,5 @@
 {
 	"private": true,
-	"import": "../dist/esm/web/index.js",
-	"main": "../dist/cjs/web/index.js"
+	"import": "../dist/web/index.js",
+	"main": "../dist/web/index.cjs"
 }

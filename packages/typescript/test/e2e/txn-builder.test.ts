@@ -74,6 +74,10 @@ describe('Transaction Builders', () => {
 
 	it(
 		'MoveCall Shared Object',
+		{
+			// TODO: This test is currently flaky, so adding a retry to unblock merging
+			retry: 10,
+		},
 		async () => {
 			const coins = await toolbox.getGasObjectsOwnedByAddress();
 			const coin_2 = coins.data[2];
@@ -91,10 +95,6 @@ describe('Transaction Builders', () => {
 			});
 
 			await validateTransaction(toolbox.client, toolbox.keypair, tx);
-		},
-		{
-			// TODO: This test is currently flaky, so adding a retry to unblock merging
-			retry: 10,
 		},
 	);
 
@@ -157,6 +157,10 @@ describe('Transaction Builders', () => {
 
 	it(
 		'Publish and Upgrade Package',
+		{
+			// TODO: This test is currently flaky, so adding a retry to unblock merging
+			retry: 10,
+		},
 		async () => {
 			// Step 1. Publish the package
 			const { packageId, publishTxn } = await publishPackage('serializer', toolbox);
@@ -197,10 +201,6 @@ describe('Transaction Builders', () => {
 			// Step 4. Make sure the behaviour of the upgrade package matches
 			// the newly introduced function
 			await upgradePackage(packageId, capId, 'serializer_upgrade', toolbox);
-		},
-		{
-			// TODO: This test is currently flaky, so adding a retry to unblock merging
-			retry: 10,
 		},
 	);
 

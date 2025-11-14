@@ -74,7 +74,7 @@ describe('Seal encryption tests', () => {
 		expect(parsed.threshold).toEqual(2);
 	});
 
-	it('test encryption round-trip with AesGcm-mode', async () => {
+	it('test encryption round-trip with AesGcm-mode', { timeout: 30000 }, async () => {
 		const [sk1, pk1] = generateKeyPair();
 		const [sk2, pk2] = generateKeyPair();
 		const [sk3, pk3] = generateKeyPair();
@@ -169,7 +169,7 @@ describe('Seal encryption tests', () => {
 		).rejects.toThrow();
 	});
 
-	it('test encryption round-trip with Hmac256Ctr-mode', async () => {
+	it('test encryption round-trip with Hmac256Ctr-mode', { timeout: 30000 }, async () => {
 		const [sk1, pk1] = generateKeyPair();
 		const [sk2, pk2] = generateKeyPair();
 		const [sk3, pk3] = generateKeyPair();
@@ -277,9 +277,9 @@ describe('Seal encryption tests', () => {
 
 	it('kdf regression test', () => {
 		const x = G1Element.generator().pairing(
-			G2Element.generator().multiply(Scalar.fromNumber(12345)),
+			G2Element.generator().multiply(Scalar.fromBigint(12345n)!),
 		);
-		const nonce = G2Element.generator().multiply(Scalar.fromNumber(12345));
+		const nonce = G2Element.generator().multiply(Scalar.fromBigint(12345n)!);
 		const key = kdf(
 			x,
 			nonce,

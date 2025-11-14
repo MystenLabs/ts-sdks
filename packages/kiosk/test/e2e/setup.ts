@@ -102,7 +102,7 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 	});
 
 	// Transfer the upgrade capability to the sender so they can upgrade the package later if they want.
-	tx.transferObjects([cap], tx.pure.address(await toolbox.address()));
+	tx.transferObjects([cap], tx.pure.address(toolbox.address()));
 
 	const { digest } = await toolbox.client.signAndExecuteTransaction({
 		transaction: tx,
@@ -146,7 +146,7 @@ export async function mintHero(toolbox: TestToolbox, packageId: string): Promise
 	const hero = tx.moveCall({
 		target: `${packageId}::hero::mint_hero`,
 	});
-	tx.transferObjects([hero], await toolbox.address());
+	tx.transferObjects([hero], toolbox.address());
 
 	const res = await executeTransaction(toolbox, tx);
 
@@ -158,7 +158,7 @@ export async function mintVillain(toolbox: TestToolbox, packageId: string): Prom
 	const hero = tx.moveCall({
 		target: `${packageId}::hero::mint_villain`,
 	});
-	tx.transferObjects([hero], await toolbox.address());
+	tx.transferObjects([hero], toolbox.address());
 
 	const res = await executeTransaction(toolbox, tx);
 

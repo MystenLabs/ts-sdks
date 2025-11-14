@@ -89,7 +89,7 @@ export function applyCoupon(options: ApplyCouponOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['suins', 'intent', 'couponCode', 'clock'];
+	const parameterNames = ['suins', 'intent', 'couponCode'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -127,7 +127,7 @@ export function registerWithCoupon(options: RegisterWithCouponOptions) {
 		'0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['Suins', 'CouponCode', 'DomainName', 'NoYears', 'Payment', 'Clock'];
+	const parameterNames = ['Suins', 'CouponCode', 'DomainName', 'NoYears', 'Payment'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

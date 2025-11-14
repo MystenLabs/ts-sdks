@@ -10,6 +10,7 @@ import { deriveKey, hashToG1, kdf, KeyPurpose } from './kdf.js';
 import type { KeyServer } from './key-server.js';
 import { xor } from './utils.js';
 import type { Share } from './shamir.js';
+import { InvalidCiphertextError } from './error.js';
 
 /**
  * The domain separation tag for the signing proof of possession.
@@ -131,7 +132,7 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 	 * @returns All decrypted shares.
 	 */
 	static decryptAllSharesUsingRandomness(
-		randomness: Scalar,
+		randomness: Uint8Array,
 		encryptedShares: Uint8Array[],
 		services: [string, number][],
 		publicKeys: G2Element[],
@@ -141,7 +142,13 @@ export class BonehFranklinBLS12381Services extends IBEServers {
 		if (publicKeys.length !== encryptedShares.length || publicKeys.length !== services.length) {
 			throw new Error('The number of public keys, encrypted shares and services must be the same');
 		}
-		const gid_r = hashToG1(id).multiply(randomness);
+		let r;
+		try {
+			r = Scalar.fromBytes(randomness);
+		} catch {
+			throw new InvalidCiphertextError('Invalid randomness');
+		}
+		const gid_r = hashToG1(id).multiply(r);
 		return services.map(([objectId, index], i) => {
 			return {
 				index,
@@ -184,13 +191,32 @@ function decap(nonce: G2Element, usk: G1Element): GTElement {
 
 /**
  * Verify that the given randomness was used to crate the nonce.
+ * Throws an error if the given randomness is invalid (not a BLS scalar).
  *
  * @param randomness - The randomness.
  * @param nonce - The nonce.
+ * @param useBE - Flag to indicate if BE encoding is used for the randomness. Defaults to true.
  * @returns True if the randomness was used to create the nonce, false otherwise.
  */
-export function verifyNonce(nonce: G2Element, randomness: Scalar): boolean {
-	return G2Element.generator().multiply(randomness).equals(nonce);
+export function verifyNonce(
+	nonce: G2Element,
+	randomness: Uint8Array,
+	useBE: boolean = true,
+): boolean {
+	try {
+		const r = decodeRandomness(randomness, useBE);
+		return G2Element.generator().multiply(r).equals(nonce);
+	} catch {
+		throw new InvalidCiphertextError('Invalid randomness');
+	}
+}
+
+function decodeRandomness(bytes: Uint8Array, useBE: boolean): Scalar {
+	if (useBE) {
+		return Scalar.fromBytes(bytes);
+	} else {
+		return Scalar.fromBytesLE(bytes);
+	}
 }
 
 /**
@@ -198,11 +224,33 @@ export function verifyNonce(nonce: G2Element, randomness: Scalar): boolean {
  *
  * @param encrypted_randomness - The encrypted randomness.
  * @param derived_key - The derived key.
- * @returns The randomness.
+ * @returns The randomness. Returns both the scalar interpreted in big-endian and little-endian encoding.
  */
 export function decryptRandomness(
 	encryptedRandomness: Uint8Array,
 	randomnessKey: Uint8Array,
-): Scalar {
-	return Scalar.fromBytes(xor(encryptedRandomness, randomnessKey));
+): Uint8Array {
+	return xor(encryptedRandomness, randomnessKey);
+}
+
+/**
+ * Verify that the given randomness was used to crate the nonce.
+ * Check using both big-endian and little-endian encoding of the randomness.
+ *
+ * Throws an error if the nonce check doesn't pass using LE encoding _and_ the randomness is invalid as a BE encoded scalar.
+ *
+ * @param randomness - The randomness.
+ * @param nonce - The nonce.
+ * @returns True if the randomness was used to create the nonce using either LE or BE encoding, false otherwise.
+ */
+export function verifyNonceWithLE(nonce: G2Element, randomness: Uint8Array): boolean {
+	try {
+		// First try little-endian encoding
+		if (verifyNonce(nonce, randomness, false)) {
+			return true;
+		}
+	} catch {
+		// Ignore error and try big-endian encoding
+	}
+	return verifyNonce(nonce, randomness, true);
 }

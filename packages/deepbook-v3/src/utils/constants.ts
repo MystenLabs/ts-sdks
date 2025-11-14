@@ -1,27 +1,34 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Coin, Pool } from '../types/index.js';
+import type { Coin, Pool, MarginPool } from '../types/index.js';
 
 export type CoinMap = Record<string, Coin>;
 export type PoolMap = Record<string, Pool>;
+export type MarginPoolMap = Record<string, MarginPool>;
 export interface DeepbookPackageIds {
 	DEEPBOOK_PACKAGE_ID: string;
 	REGISTRY_ID: string;
 	DEEP_TREASURY_ID: string;
+	MARGIN_PACKAGE_ID: string;
+	MARGIN_REGISTRY_ID: string;
 }
 
 export const testnetPackageIds = {
-	DEEPBOOK_PACKAGE_ID: '0xa3886aaa8aa831572dd39549242ca004a438c3a55967af9f0387ad2b01595068',
+	DEEPBOOK_PACKAGE_ID: '0x467e34e75debeea8b89d03aea15755373afc39a7c96c9959549c7f5f689843cf',
 	REGISTRY_ID: '0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1',
 	DEEP_TREASURY_ID: '0x69fffdae0075f8f71f4fa793549c11079266910e8905169845af1f5d00e09dcb',
+	MARGIN_PACKAGE_ID: '0xf74ec503c186327663e11b5b888bd8a654bb8afaba34342274d3172edf3abeef',
+	MARGIN_REGISTRY_ID: '0xda0148a2759bea4afdc3b9dc44ca109df455ef30f36c690846f91a9e63cd94ca',
 } satisfies DeepbookPackageIds;
 
 export const mainnetPackageIds = {
 	DEEPBOOK_PACKAGE_ID: '0xb29d83c26cdd2a64959263abbcfc4a6937f0c9fccaf98580ca56faded65be244',
 	REGISTRY_ID: '0xaf16199a2dff736e9f07a845f23c5da6df6f756eddb631aed9d24a93efc4549d',
 	DEEP_TREASURY_ID: '0x032abf8948dda67a271bcc18e776dbbcfb0d58c8d288a700ff0d5521e57a1ffe',
-};
+	MARGIN_PACKAGE_ID: '',
+	MARGIN_REGISTRY_ID: '',
+} satisfies DeepbookPackageIds;
 
 export const testnetCoins: CoinMap = {
 	DEEP: {
@@ -33,11 +40,17 @@ export const testnetCoins: CoinMap = {
 		address: `0x0000000000000000000000000000000000000000000000000000000000000002`,
 		type: `0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI`,
 		scalar: 1000000000,
+		feed: '0x50c67b3fd225db8912a424dd4baed60ffdde625ed2feaaf283724f9608fea266',
+		metadataId: '0x587c29de216efd4219573e08a1f6964d4fa7cb714518c2c8a0f29abfa264327d',
+		priceInfoObjectId: '0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0',
 	},
 	DBUSDC: {
 		address: `0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7`,
 		type: `0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC`,
 		scalar: 1000000,
+		feed: '0x41f3625971ca2ed2263e78573fe5ce23e13d2558ed3f2e47ab0f84fb9e7ae722',
+		metadataId: '0xa68a066e8a9cf7217722a150bacb993c424e7ad42d50d204b4e482ba5aeb8e00',
+		priceInfoObjectId: '0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81',
 	},
 	DBUSDT: {
 		address: `0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7`,
@@ -61,11 +74,15 @@ export const mainnetCoins: CoinMap = {
 		address: `0x0000000000000000000000000000000000000000000000000000000000000002`,
 		type: `0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI`,
 		scalar: 1000000000,
+		feed: '0x23d7315113f5b1d3ba7a83604c44b94d79f4fd69af77f804fc7f920a6dc65744',
+		metadataId: '0x9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3',
 	},
 	USDC: {
 		address: `0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7`,
 		type: `0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC`,
 		scalar: 1000000,
+		feed: '0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a',
+		metadataId: '0x69b7a7c3c200439c1b5f3b19d7d495d5966d5f08de66c69276152f8db3992ec6',
 	},
 	WUSDC: {
 		address: `0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf`,
@@ -269,4 +286,36 @@ export const mainnetPools: PoolMap = {
 		baseCoin: 'ALKIMI',
 		quoteCoin: 'SUI',
 	},
+};
+
+export const testnetMarginPools = {
+	SUI: {
+		address: '0x4b66d48e11cf9d6b82ab350185d7929494f622c0fff25a8e93e044ca76e4eb1a',
+		type: '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
+	},
+	DBUSDC: {
+		address: '0xa363f544a496ba179e23d316c86decad37628622220a372e400448257533fb98',
+		type: '0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC',
+	},
+};
+
+export const mainnetMarginPools = {
+	SUI: {
+		address: '',
+		type: '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
+	},
+	USDC: {
+		address: '',
+		type: '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC',
+	},
+};
+
+export const testnetPythConfigs = {
+	pythStateId: '0x243759059f4c3111179da5878c12f68d612c21a8d54d85edc86164bb18be1c7c',
+	wormholeStateId: '0x31358d198147da50db32eda2562951d53973a0c0ad5ed738e9b17d88b213d790',
+};
+
+export const mainnetPythConfigs = {
+	pythStateId: '0x1f9310238ee9298fb703c3419030b35b22bb1cc37113e3bb5007c99aec79e5b8',
+	wormholeStateId: '0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c',
 };

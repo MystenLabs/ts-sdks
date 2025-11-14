@@ -206,7 +206,7 @@ export class DataLoader<K, V, C = K> {
 // next macrotask. For browser environments, a macrotask is used (via
 // setImmediate or setTimeout) at a potential performance penalty.
 const enqueuePostPromiseJob: (fn: () => void) => void =
-	/** @ts-ignore */
+	// @ts-ignore
 	typeof process === 'object' && typeof process.nextTick === 'function'
 		? function (fn) {
 				if (!resolvedPromise) {

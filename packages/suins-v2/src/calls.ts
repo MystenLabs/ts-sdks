@@ -241,6 +241,7 @@ export class SuiNsCalls {
 			arguments: {
 				suins: this.#objectIds.suins,
 				intent: options.arguments.intent,
+				bbbVault: options.arguments.bbbVault,
 				payment: options.arguments.payment,
 			},
 			typeArguments: options.typeArguments,
@@ -253,6 +254,7 @@ export class SuiNsCalls {
 			arguments: {
 				suins: this.#objectIds.suins,
 				intent: options.arguments.intent,
+				bbbVault: options.arguments.bbbVault,
 				payment: options.arguments.payment,
 				priceInfoObject: options.arguments.priceInfoObject,
 				userPriceGuard: options.arguments.userPriceGuard,

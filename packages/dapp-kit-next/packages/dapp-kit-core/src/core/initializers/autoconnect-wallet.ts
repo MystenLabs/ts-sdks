@@ -7,14 +7,22 @@ import type { StateStorage } from '../../utils/storage.js';
 import type { UiWallet } from '@wallet-standard/ui';
 import { getWalletUniqueIdentifier } from '../../utils/wallets.js';
 
+import {
+	getSupportedIntentsFromFeature,
+	internalConnectWallet,
+} from '../actions/connect-wallet.js';
+import type { Networks } from '../../utils/networks.js';
+
 /**
  * Attempts to connect to a previously authorized wallet account on mount and when new wallets are registered.
  */
 export function autoConnectWallet({
+	networks,
 	stores: { $baseConnection, $compatibleWallets },
 	storage,
 	storageKey,
 }: {
+	networks: Networks;
 	stores: DAppKitStores;
 	storage: StateStorage;
 	storageKey: string;
@@ -29,6 +37,7 @@ export function autoConnectWallet({
 
 				const savedWalletAccount = await task(() => {
 					return getSavedWalletAccount({
+						networks,
 						storage,
 						storageKey,
 						wallets,
@@ -38,7 +47,8 @@ export function autoConnectWallet({
 				if (savedWalletAccount) {
 					$baseConnection.set({
 						status: 'connected',
-						currentAccount: savedWalletAccount,
+						currentAccount: savedWalletAccount.account,
+						supportedIntents: savedWalletAccount.supportedIntents,
 					});
 				}
 			},
@@ -47,10 +57,12 @@ export function autoConnectWallet({
 }
 
 async function getSavedWalletAccount({
+	networks,
 	storage,
 	storageKey,
 	wallets,
 }: {
+	networks: Networks;
 	storage: StateStorage;
 	storageKey: string;
 	wallets: readonly UiWallet[];
@@ -60,20 +72,45 @@ async function getSavedWalletAccount({
 		return null;
 	}
 
-	const [savedWalletId, savedAccountAddress] = savedWalletIdAndAddress.split(':');
+	const [savedWalletId, savedAccountAddress, savedIntents] = savedWalletIdAndAddress.split(':');
 	if (!savedWalletId || !savedAccountAddress) {
 		return null;
 	}
 
-	for (const wallet of wallets) {
-		if (getWalletUniqueIdentifier(wallet) === savedWalletId) {
-			for (const account of wallet.accounts) {
-				if (account.address === savedAccountAddress) {
-					return account;
-				}
-			}
-		}
+	const targetWallet = wallets.find(
+		(wallet) => getWalletUniqueIdentifier(wallet) === savedWalletId,
+	);
+
+	if (!targetWallet) {
+		return null;
 	}
 
-	return null;
+	const existingAccount = targetWallet.accounts.find(
+		(account) => account.address === savedAccountAddress,
+	);
+
+	if (existingAccount) {
+		const supportedIntents = savedIntents ? savedIntents.split(',') : null;
+
+		return {
+			account: existingAccount,
+			supportedIntents: supportedIntents ?? (await getSupportedIntentsFromFeature(targetWallet)),
+		};
+	}
+
+	// For wallets that don't pre-populate the accounts array on page load,
+	// we need to silently request authorization and get the account directly.
+	const { accounts: alreadyAuthorizedAccounts, supportedIntents } = await internalConnectWallet(
+		targetWallet,
+		networks,
+		{
+			silent: true,
+		},
+	);
+
+	const account = alreadyAuthorizedAccounts.find(
+		(account) => account.address === savedAccountAddress,
+	);
+
+	return account ? { account, supportedIntents } : null;
 }

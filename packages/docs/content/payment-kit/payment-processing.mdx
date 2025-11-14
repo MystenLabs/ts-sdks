@@ -1,0 +1,361 @@
+---
+title: Payment Processing
+---
+
+<Callout type="info">
+	This package is in active development and should be used with caution. APIs are experimental and
+	subject to breaking changes without notice. We recommend thoroughly testing any implementation
+	before using in production environments.
+</Callout>
+
+Payment Kit provides two distinct payment processing models, each designed for different use cases.
+This guide explains how each model works and when to use them.
+
+## Payment Models Overview
+
+### Registry-Based Payments
+
+Registry-based payments create a persistent `PaymentRecord` stored on-chain in a `PaymentRegistry`.
+This model provides:
+
+- **Duplicate Prevention**: A payment with the same parameters can only be processed once
+- **Verifiable Proof**: On-chain proof that a payment was made
+- **Expiration Management**: Records can be deleted after a configurable period
+- **Centralized Tracking**: All payments are indexed under a specific registry
+
+**When to Use:**
+
+- E-commerce checkouts
+- Subscription payments
+- Invoice payments
+- Any scenario requiring duplicate prevention
+
+### Ephemeral Payments
+
+Ephemeral payments process transfers without creating persistent on-chain records. This model
+provides:
+
+- **Lower Gas Costs**: No on-chain storage means cheaper transactions
+- **Flexibility**: No registry configuration required
+
+**When to Use:**
+
+- Tipping/donations
+- Recurring payments with external tracking
+- High-frequency microtransactions
+- Scenarios where duplicate prevention is handled off-chain
+
+## How Payment Keys Work
+
+Payment Kit uses a composite key system to uniquely identify payments. Understanding this is crucial
+for using the SDK effectively.
+
+### Payment Key Components
+
+A payment key is derived from four parameters:
+
+```ts
+type PaymentKeyArgs = {
+	nonce: string; // Unique identifier you provide
+	amount: number; // Payment amount in smallest unit
+	receiver: string; // Recipient address
+	coinType: string; // Coin type being transferred
+};
+```
+
+### Key Generation
+
+When you process a registry payment, Payment Kit hashes these parameters to create a unique key:
+
+```ts
+// These parameters create a unique payment key
+const paymentParams = {
+	nonce: 'b5e88aec-d88e-4961-9204-6c84e0e1de4e',
+	amount: 1000000000,
+	receiver,
+	coinType: '0x2::sui::SUI',
+};
+
+// If you try to process the same payment twice, it will fail
+const tx1 = client.paymentKit.tx.processRegistryPayment({
+	...paymentParams,
+	sender: senderAddress,
+	registryName: 'my-registry',
+});
+
+// This will fail - same payment key
+const tx2 = client.paymentKit.tx.processRegistryPayment({
+	...paymentParams,
+	sender: senderAddress,
+	registryName: 'my-registry',
+});
+```
+
+### Changing Any Component Creates a New Key
+
+Each component affects the payment key. Changing any parameter creates a different payment. This
+means, as an example, that a `nonce` can be reused for a different payment, if the `coinType` or
+`receiver` differ.
+
+```ts
+// Original payment
+const originalNonce = crypto.randomUUID();
+
+const payment1 = {
+	nonce: originalNonce,
+	amount: 1000000000,
+	receiver,
+	coinType: '0x2::sui::SUI',
+};
+
+// Different nonce = different payment
+const payment2 = {
+	nonce: crypto.randomUUID(), // Changed
+	amount: 1000000000,
+	receiver,
+	coinType: '0x2::sui::SUI',
+};
+
+// Different amount = different payment
+const payment3 = {
+	nonce: originalNonce,
+	amount: 2000000000, // Changed
+	receiver,
+	coinType: '0x2::sui::SUI',
+};
+
+// All three are unique payments that can be processed separately
+```
+
+## Processing Registry-Based Payments
+
+Let's walk through a complete registry payment workflow:
+
+### Step 1: Create the Transaction
+
+```ts
+// Define your payment parameters
+const paymentParams = {
+	nonce: crypto.randomUUID(), // Your unique payment ID
+	coinType: '0x2::sui::SUI', // SUI token
+	amount: 1000000000, // 1 SUI (in MIST)
+	receiver,
+	sender: senderAddress, // Must match signer
+};
+
+// Create the transaction
+const tx = client.paymentKit.tx.processRegistryPayment(paymentParams);
+```
+
+### What Happens On-Chain
+
+When this transaction executes, Payment Kit:
+
+1. **Validates** the payment parameters
+2. **Checks** if a payment with this key already exists in the registry
+3. **Transfers** the coins from sender to receiver
+4. **Creates** a `PaymentRecord` dynamic field on the registry
+5. **Emits** a `PaymentReceipt` event
+
+### Step 2: Execute the Transaction
+
+```ts
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+	options: {
+		showEffects: true,
+		showEvents: true,
+		showObjectChanges: true,
+	},
+});
+
+console.log('Transaction digest:', result.digest);
+```
+
+### Step 3: Extract the Receipt
+
+```ts
+// Find the PaymentReceipt event
+const receiptEvent = result.events?.find((event) => event.type.includes('PaymentReceipt'));
+
+if (receiptEvent) {
+	const receipt = receiptEvent.parsedJson;
+
+	console.log('Payment Receipt:');
+	console.log('  Type:', receipt.payment_type); // 'Registry'
+	console.log('  Nonce:', receipt.nonce); // 'crypto.randomUUID()'
+	console.log('  Amount:', receipt.amount); // 1n * MIST_PER_SUI
+	console.log('  Receiver:', receipt.receiver); //
+	console.log('  Coin Type:', receipt.coin_type); // '0x2::sui::SUI'
+	console.log('  Timestamp:', receipt.timestamp_ms); // Unix timestamp
+}
+```
+
+### Step 4: Verify the Payment Record
+
+```ts
+// Query the payment record to confirm it exists
+const record = await client.paymentKit.getPaymentRecord({
+	nonce: crypto.randomUUID(),
+	coinType: '0x2::sui::SUI',
+	amount: 1000000000,
+	receiver,
+});
+
+if (record) {
+	console.log('Payment verified!');
+	console.log('Record ID:', record.key);
+	console.log('Transaction:', record.paymentTransactionDigest);
+	console.log('Epoch:', record.epochAtTimeOfRecord);
+}
+```
+
+## Processing Ephemeral Payments
+
+Ephemeral payments follow a simpler flow without creating persistent records:
+
+### Creating an Ephemeral Payment
+
+```ts
+// No registry needed for ephemeral payments
+const tx = client.paymentKit.tx.processEphemeralPayment({
+	nonce: crypto.randomUUID(),
+	coinType: '0x2::sui::SUI',
+	amount: 500000000, // 0.5 SUI
+	receiver,
+	sender: senderAddress,
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+	options: {
+		showEvents: true,
+	},
+});
+```
+
+### What Happens On-Chain
+
+For ephemeral payments, Payment Kit:
+
+1. **Validates** the payment parameters
+2. **Transfers** the coins from sender to receiver
+3. **Emits** a `PaymentReceipt` event
+
+**Note:** No `PaymentRecord` is created, so duplicate payments are not prevented.
+
+### Extracting the Receipt
+
+```ts
+const receiptEvent = result.events?.find((event) => event.type.includes('PaymentReceipt'));
+
+if (receiptEvent) {
+	const receipt = receiptEvent.parsedJson;
+	console.log('Payment Type:', receipt.payment_type); // 'Ephemeral'
+}
+```
+
+## Advanced Payment Scenarios
+
+### Processing Multiple Payments in One Transaction
+
+You can combine multiple payment operations in a single transaction:
+
+```ts
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+
+// Add multiple registry payments
+tx.add(
+	client.paymentKit.calls.processRegistryPayment({
+		nonce: crypto.randomUUID(),
+		coinType: '0x2::sui::SUI',
+		amount: 1000000000,
+		receiver,
+		sender: senderAddress,
+	}),
+);
+
+tx.add(
+	client.paymentKit.calls.processRegistryPayment({
+		nonce: crypto.randomUUID(),
+		coinType: '0x2::sui::SUI',
+		amount: 2000000000,
+		receiver,
+		sender: senderAddress,
+	}),
+);
+
+// Execute all payments in one transaction
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+### Working with Custom Coin Types
+
+Payment Kit works with any Sui coin type:
+
+```ts
+// Example with a custom token
+const CUSTOM_COIN = '0xabc123::my_token::MY_TOKEN';
+
+const tx = client.paymentKit.tx.processRegistryPayment({
+	nonce: crypto.randomUUID(),
+	coinType: CUSTOM_COIN,
+	amount: 1000, // Amount in the coin's smallest unit
+	receiver,
+	sender: senderAddress,
+});
+
+// Make sure the sender has enough of the custom coin
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+## Gas Considerations
+
+### Registry Payments
+
+Registry payments have higher gas costs because they:
+
+- Create a new dynamic field (first payment with unique key)
+- Write data to the registry object
+- Perform duplicate checking
+
+### Ephemeral Payments
+
+Ephemeral payments have lower gas costs because they:
+
+- Only transfer coins
+- Don't create persistent storage
+- Skip duplicate checking
+
+## Best Practices
+
+1. **Use Meaningful Nonces**: Choose nonces that help you track payments (e.g., `order-123`,
+   `invoice-456`)
+
+2. **Store Receipts Off-Chain**: Save `PaymentReceipt` events in your database for quick lookup
+
+3. **Handle Duplicate Attempts**: Gracefully handle duplicate payment attempts with proper error
+   messages
+
+4. **Verify Before Delivery**: Always verify payment records before delivering goods/services
+
+5. **Choose the Right Model**:
+   - Use registry payments for critical transactions requiring duplicate prevention
+   - Use ephemeral payments for high-frequency, low-value transactions
+
+6. **Monitor Expiration**: If using registry payments, be aware of the expiration policy and query
+   records before they expire
+
+## Next Steps
+
+- [Registry Management](./registry-management) - Learn how to create and configure custom registries

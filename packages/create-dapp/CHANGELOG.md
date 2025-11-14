@@ -1,5 +1,118 @@
 # @mysten/create-dapp
 
+## 0.5.10
+
+### Patch Changes
+
+- Updated dependencies [88bdbac]
+  - @mysten/sui@1.45.0
+  - @mysten/dapp-kit@0.19.9
+
+## 0.5.9
+
+### Patch Changes
+
+- Updated dependencies [44d9b4f]
+  - @mysten/sui@1.44.0
+  - @mysten/dapp-kit@0.19.8
+
+## 0.5.8
+
+### Patch Changes
+
+- @mysten/sui@1.43.2
+- @mysten/dapp-kit@0.19.7
+
+## 0.5.7
+
+### Patch Changes
+
+- @mysten/sui@1.43.1
+- @mysten/dapp-kit@0.19.6
+
+## 0.5.6
+
+### Patch Changes
+
+- Updated dependencies [f3b19a7]
+- Updated dependencies [bf9f85c]
+  - @mysten/sui@1.43.0
+  - @mysten/dapp-kit@0.19.5
+
+## 0.5.5
+
+### Patch Changes
+
+- Updated dependencies [98c8a27]
+  - @mysten/sui@1.42.0
+  - @mysten/dapp-kit@0.19.4
+
+## 0.5.4
+
+### Patch Changes
+
+- Updated dependencies [d554cd2]
+- Updated dependencies [04fcfbc]
+  - @mysten/sui@1.41.0
+  - @mysten/dapp-kit@0.19.3
+
+## 0.5.3
+
+### Patch Changes
+
+- Updated dependencies [f5fc0c0]
+- Updated dependencies [f5fc0c0]
+  - @mysten/dapp-kit@0.19.2
+  - @mysten/sui@1.40.0
+
+## 0.5.2
+
+### Patch Changes
+
+- Updated dependencies [a9f9035]
+  - @mysten/sui@1.39.1
+  - @mysten/dapp-kit@0.19.1
+
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies [ca92487]
+- Updated dependencies [566b9ae]
+- Updated dependencies [5ab3c0a]
+  - @mysten/sui@1.39.0
+  - @mysten/dapp-kit@0.19.0
+
+## 0.5.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
+### Patch Changes
+
+- Updated dependencies [3c1741f]
+- Updated dependencies [ea1ac70]
+  - @mysten/sui@1.38.0
+  - @mysten/dapp-kit@0.18.0
+
+## 0.4.26
+
+### Patch Changes
+
+- Updated dependencies [c689b98]
+- Updated dependencies [5b9ff1a]
+  - @mysten/sui@1.37.6
+  - @mysten/dapp-kit@0.17.7
+
+## 0.4.25
+
+### Patch Changes
+
+- Updated dependencies [3980d04]
+  - @mysten/sui@1.37.5
+  - @mysten/dapp-kit@0.17.6
+
 ## 0.4.24
 
 ### Patch Changes

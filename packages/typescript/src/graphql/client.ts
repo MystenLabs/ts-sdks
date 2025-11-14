@@ -7,7 +7,7 @@ import type { DocumentNode } from 'graphql';
 import { print } from 'graphql';
 import { Experimental_BaseClient } from '../experimental/index.js';
 import type { Experimental_SuiClientTypes } from '../experimental/index.js';
-import { GraphQLTransport } from '../experimental/transports/graphql.js';
+import { GraphQLCoreClient } from './core.js';
 import type { TypedDocumentString } from './generated/queries.js';
 
 export type GraphQLDocument<
@@ -65,7 +65,7 @@ export class SuiGraphQLClient<
 	#queries: Queries;
 	#headers: Record<string, string>;
 	#fetch: typeof fetch;
-	core: GraphQLTransport;
+	core: GraphQLCoreClient;
 
 	constructor({
 		url,
@@ -82,7 +82,7 @@ export class SuiGraphQLClient<
 		this.#queries = queries;
 		this.#headers = headers;
 		this.#fetch = (...args) => fetchFn(...args);
-		this.core = new GraphQLTransport({
+		this.core = new GraphQLCoreClient({
 			graphqlClient: this,
 			mvr,
 		});

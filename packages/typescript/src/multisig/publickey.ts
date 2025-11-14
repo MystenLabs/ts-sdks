@@ -22,18 +22,18 @@ import { toZkLoginPublicIdentifier } from '../zklogin/publickey.js';
 import { MultiSigSigner } from './signer.js';
 
 type CompressedSignature =
-	| { ED25519: number[] }
-	| { Secp256k1: number[] }
-	| { Secp256r1: number[] }
-	| { ZkLogin: number[] }
-	| { Passkey: number[] };
+	| { ED25519: Uint8Array }
+	| { Secp256k1: Uint8Array }
+	| { Secp256r1: Uint8Array }
+	| { ZkLogin: Uint8Array }
+	| { Passkey: Uint8Array };
 
 type PublicKeyEnum =
-	| { ED25519: number[] }
-	| { Secp256k1: number[] }
-	| { Secp256r1: number[] }
-	| { ZkLogin: number[] }
-	| { Passkey: number[] };
+	| { ED25519: Uint8Array }
+	| { Secp256k1: Uint8Array }
+	| { Secp256r1: Uint8Array }
+	| { ZkLogin: Uint8Array }
+	| { Passkey: Uint8Array };
 
 type PubkeyEnumWeightPair = {
 	pubKey: PublicKeyEnum;
@@ -64,7 +64,7 @@ export const MIN_SIGNER_IN_MULTISIG = 1;
  * A MultiSig public key
  */
 export class MultiSigPublicKey extends PublicKey {
-	private rawBytes: Uint8Array;
+	private rawBytes: Uint8Array<ArrayBuffer>;
 	private multisigPublicKey: MultiSigPublicKeyStruct;
 	private publicKeys: {
 		weight: number;
@@ -87,7 +87,7 @@ export class MultiSigPublicKey extends PublicKey {
 
 			this.multisigPublicKey = bcs.MultiSigPublicKey.parse(this.rawBytes);
 		} else if (value instanceof Uint8Array) {
-			this.rawBytes = value;
+			this.rawBytes = value as Uint8Array<ArrayBuffer>;
 			this.multisigPublicKey = bcs.MultiSigPublicKey.parse(this.rawBytes);
 		} else {
 			this.multisigPublicKey = value;
@@ -102,7 +102,7 @@ export class MultiSigPublicKey extends PublicKey {
 		this.publicKeys = this.multisigPublicKey.pk_map.map(({ pubKey, weight }) => {
 			const [scheme, bytes] = Object.entries(pubKey).filter(([name]) => name !== '$kind')[0] as [
 				SignatureScheme,
-				number[],
+				Uint8Array,
 			];
 			const publicKeyStr = Uint8Array.from(bytes).toString();
 
@@ -151,7 +151,7 @@ export class MultiSigPublicKey extends PublicKey {
 				const scheme = SIGNATURE_FLAG_TO_SCHEME[publicKey.flag() as SignatureFlag];
 
 				return {
-					pubKey: { [scheme]: Array.from(publicKey.toRawBytes()) } as PublicKeyEnum,
+					pubKey: { [scheme]: publicKey.toRawBytes() } as PublicKeyEnum,
 					weight,
 				};
 			}),
@@ -169,7 +169,7 @@ export class MultiSigPublicKey extends PublicKey {
 	/**
 	 * Return the byte array representation of the MultiSig public key
 	 */
-	toRawBytes(): Uint8Array {
+	toRawBytes(): Uint8Array<ArrayBuffer> {
 		return this.rawBytes;
 	}
 
@@ -277,7 +277,7 @@ export class MultiSigPublicKey extends PublicKey {
 			}
 
 			compressedSignatures[i] = {
-				[parsed.signatureScheme]: Array.from(parsed.signature.map((x: number) => Number(x))),
+				[parsed.signatureScheme]: parsed.signature,
 			} as CompressedSignature;
 
 			let publicKeyIndex;
@@ -323,7 +323,7 @@ export function parsePartialSignatures(
 	for (let i = 0; i < multisig.sigs.length; i++) {
 		const [signatureScheme, signature] = Object.entries(multisig.sigs[i]).filter(
 			([name]) => name !== '$kind',
-		)[0] as [SignatureScheme, number[]];
+		)[0] as [SignatureScheme, Uint8Array];
 		const pkIndex = asIndices(multisig.bitmap).at(i)!;
 		const pair = multisig.multisig_pk.pk_map[pkIndex];
 		const pkBytes = Uint8Array.from(Object.values(pair.pubKey)[0]);

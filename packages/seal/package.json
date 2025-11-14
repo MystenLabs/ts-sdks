@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/seal",
-	"version": "0.4.24",
+	"version": "0.9.4",
 	"description": "Seal SDK",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -27,7 +27,6 @@
 		"test": "pnpm test:typecheck && pnpm test:unit",
 		"test:typecheck": "tsc -p ./test",
 		"test:unit": "vitest run unit __tests__",
-		"prepublishOnly": "pnpm turbo build",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"eslint:check": "eslint --max-warnings=0 .",
@@ -44,16 +43,16 @@
 	},
 	"homepage": "https://github.com/MystenLabs/seal#readme",
 	"devDependencies": {
-		"@hey-api/openapi-ts": "^0.79.2",
+		"@hey-api/openapi-ts": "^0.82.5",
 		"@mysten/build-scripts": "workspace:*",
 		"@types/node": "^22.15.29",
-		"typescript": "^5.8.3",
+		"typescript": "^5.9.2",
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:*",
 		"@mysten/sui": "workspace:*",
-		"@noble/curves": "^1.9.4",
+		"@noble/curves": "=1.9.4",
 		"@noble/hashes": "^1.8.0"
 	}
 }

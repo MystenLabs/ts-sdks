@@ -47,7 +47,7 @@ export class EnokiClientError extends Error {
 				errors: { code: string; message: string; data: unknown }[];
 			};
 			errors = parsedResponse.errors;
-		} catch (e) {
+		} catch {
 			// Ignore
 		}
 		const cause = errors?.[0] ? new Error(errors[0].message) : undefined;

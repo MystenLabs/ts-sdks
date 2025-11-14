@@ -295,7 +295,7 @@ export class SlushWallet implements Wallet {
 	#getPreviouslyAuthorizedAccounts() {
 		try {
 			return getAccountsFromSession(getSessionFromStorage());
-		} catch (error) {
+		} catch {
 			return [];
 		}
 	}

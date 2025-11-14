@@ -50,17 +50,17 @@ export function useConnectWallet({
 				setConnectionStatus('connecting');
 
 				const connectResult = await wallet.features['standard:connect'].connect(connectArgs);
+				let supportedIntents = connectResult.supportedIntents;
+				if (!supportedIntents && wallet.features['sui:getCapabilities']) {
+					supportedIntents =
+						(await wallet.features['sui:getCapabilities'].getCapabilities()).supportedIntents ?? [];
+				}
 				const connectedSuiAccounts = connectResult.accounts.filter((account) =>
 					account.chains.some((chain) => chain.split(':')[0] === 'sui'),
 				);
 				const selectedAccount = getSelectedAccount(connectedSuiAccounts, accountAddress);
 
-				setWalletConnected(
-					wallet,
-					connectedSuiAccounts,
-					selectedAccount,
-					connectResult.supportedIntents,
-				);
+				setWalletConnected(wallet, connectedSuiAccounts, selectedAccount, supportedIntents);
 
 				return { accounts: connectedSuiAccounts };
 			} catch (error) {

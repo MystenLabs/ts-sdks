@@ -8,7 +8,12 @@ import type { G1Element } from './bls12381.js';
 import { G2Element } from './bls12381.js';
 import { AesGcm256, Hmac256Ctr } from './dem.js';
 import { InvalidCiphertextError, UnsupportedFeatureError } from './error.js';
-import { BonehFranklinBLS12381Services, decryptRandomness, verifyNonce } from './ibe.js';
+import {
+	BonehFranklinBLS12381Services,
+	decryptRandomness,
+	verifyNonce,
+	verifyNonceWithLE,
+} from './ibe.js';
 import { deriveKey, KeyPurpose } from './kdf.js';
 import type { KeyCacheKey } from './types.js';
 import { createFullId, equals } from './utils.js';
@@ -18,6 +23,7 @@ export interface DecryptOptions {
 	encryptedObject: typeof EncryptedObject.$inferType;
 	keys: Map<KeyCacheKey, G1Element>;
 	publicKeys?: G2Element[];
+	checkLEEncoding?: boolean;
 }
 
 /**
@@ -35,6 +41,7 @@ export async function decrypt({
 	encryptedObject,
 	keys,
 	publicKeys,
+	checkLEEncoding,
 }: DecryptOptions): Promise<Uint8Array> {
 	if (!encryptedObject.encryptedShares.BonehFranklinBLS12381) {
 		throw new UnsupportedFeatureError('Encryption mode not supported');
@@ -70,7 +77,7 @@ export async function decrypt({
 			encryptedShares[i],
 			fromHex(fullId),
 			[objectId, index],
-		);
+		) as Uint8Array<ArrayBuffer>;
 		return { index, share };
 	});
 
@@ -91,7 +98,7 @@ export async function decrypt({
 	);
 
 	// Verify that the nonce was created with the randomness.
-	if (!verifyNonce(nonce, randomness)) {
+	if (!(checkLEEncoding ? verifyNonceWithLE(nonce, randomness) : verifyNonce(nonce, randomness))) {
 		throw new InvalidCiphertextError('Invalid nonce');
 	}
 

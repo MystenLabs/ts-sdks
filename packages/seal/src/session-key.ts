@@ -17,9 +17,9 @@ import {
 import type { SealCompatibleClient } from './types.js';
 
 export const RequestFormat = bcs.struct('RequestFormat', {
-	ptb: bcs.vector(bcs.u8()),
-	encKey: bcs.vector(bcs.u8()),
-	encVerificationKey: bcs.vector(bcs.u8()),
+	ptb: bcs.byteVector(),
+	encKey: bcs.byteVector(),
+	encVerificationKey: bcs.byteVector(),
 });
 
 export type Certificate = {
@@ -164,7 +164,7 @@ export class SessionKey {
 					client: this.#suiClient,
 				});
 				this.#personalMessageSignature = personalMessageSignature;
-			} catch (e) {
+			} catch {
 				throw new InvalidPersonalMessageSignatureError('Not valid');
 			}
 		}
@@ -196,9 +196,9 @@ export class SessionKey {
 	 * its public key and its verification key.
 	 */
 	async createRequestParams(txBytes: Uint8Array): Promise<{
-		encKey: Uint8Array;
-		encKeyPk: Uint8Array;
-		encVerificationKey: Uint8Array;
+		encKey: Uint8Array<ArrayBuffer>;
+		encKeyPk: Uint8Array<ArrayBuffer>;
+		encVerificationKey: Uint8Array<ArrayBuffer>;
 		requestSignature: string;
 	}> {
 		if (this.isExpired()) {

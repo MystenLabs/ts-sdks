@@ -26,7 +26,7 @@ describe('AES encryption', () => {
 			expect(new Uint8Array(aadArray)).toEqual(testAad);
 
 			// tag is 16 bytes
-			expect(ciphertext.Aes256Gcm?.blob.length).toBe(16 + testMessage.length);
+			expect((ciphertext.Aes256Gcm?.blob as Uint8Array)?.length).toBe(16 + testMessage.length);
 
 			const decrypted = await AesGcm256.decrypt(key, ciphertext);
 			expect(decrypted).toEqual(testMessage);

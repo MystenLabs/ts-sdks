@@ -43,17 +43,38 @@ class TestPackageRegistry {
 	}
 
 	#packages: Map<string, string>;
+	#pendingPublishes: Map<string, Promise<string>>;
 
 	constructor() {
 		this.#packages = new Map();
+		this.#pendingPublishes = new Map();
 	}
 
 	async getPackage(name: string, toolbox?: TestToolbox) {
-		if (!this.#packages.has(name)) {
-			this.#packages.set(name, (await publishPackage(name, toolbox)).packageId);
+		// Return cached package if available
+		if (this.#packages.has(name)) {
+			return this.#packages.get(name)!;
 		}
 
-		return this.#packages.get(name)!;
+		// If a publish is already in progress, wait for it
+		if (this.#pendingPublishes.has(name)) {
+			return await this.#pendingPublishes.get(name)!;
+		}
+
+		// Start a new publish and track it
+		const publishPromise = (async () => {
+			try {
+				const { packageId } = await publishPackage(name, toolbox);
+				this.#packages.set(name, packageId);
+				return packageId;
+			} finally {
+				// Clean up the pending promise once done
+				this.#pendingPublishes.delete(name);
+			}
+		})();
+
+		this.#pendingPublishes.set(name, publishPromise);
+		return await publishPromise;
 	}
 }
 
@@ -168,33 +189,58 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 		toolbox = await setup();
 	}
 
-	const result = await execSuiTools([
-		'sui',
-		'move',
-		'--client.config',
-		toolbox.configPath,
-		'build',
-		'--dump-bytecode-as-base64',
-		'--path',
-		`/test-data/${packageName}`,
-	]);
+	// Retry build with exponential backoff to handle concurrent builds
+	const buildResult = await retry(
+		async () => {
+			const result = await execSuiTools([
+				'sui',
+				'move',
+				'--client.config',
+				toolbox.configPath,
+				'build',
+				'--dump-bytecode-as-base64',
+				'--path',
+				`/test-data/${packageName}`,
+			]);
 
-	if (!result.stdout.includes('{')) {
-		console.error(result.stdout);
-		throw new Error('Failed to publish package');
-	}
+			if (!result.stdout.includes('{')) {
+				// Include the actual output in the error so retry logic can check it
+				const buildOutput = result.stdout + '\n' + (result.stderr || '');
+				console.error(`Build failed for ${packageName}:`, buildOutput);
+				throw new Error(`Failed to build package: ${buildOutput}`);
+			}
 
-	let resultJson;
-	try {
-		resultJson = JSON.parse(
-			result.stdout.slice(result.stdout.indexOf('{'), result.stdout.lastIndexOf('}') + 1),
-		);
-	} catch (error) {
-		console.error(result.stdout);
-		throw new Error('Failed to publish package');
-	}
+			let resultJson;
+			try {
+				resultJson = JSON.parse(
+					result.stdout.slice(result.stdout.indexOf('{'), result.stdout.lastIndexOf('}') + 1),
+				);
+			} catch (error) {
+				console.error('Failed to parse build output:', error);
+				throw new Error(`Failed to parse build output: ${result.stdout}`);
+			}
 
-	const { modules, dependencies } = resultJson;
+			return resultJson;
+		},
+		{
+			backoff: 'EXPONENTIAL',
+			timeout: 3 * 60 * 1000, // 3 minutes total timeout
+			retries: 10,
+			retryIf: (error: unknown) => {
+				// Retry on directory conflicts (os error 39)
+				const errorMsg = (error as Error)?.message || error?.toString() || '';
+				const isDirectoryConflict =
+					errorMsg.includes('Directory not empty') || errorMsg.includes('os error 39');
+				if (isDirectoryConflict) {
+					console.warn(`Detected build directory conflict for ${packageName}, will retry...`);
+				}
+				return isDirectoryConflict;
+			},
+			logger: (msg) => console.warn(`Retrying package build for ${packageName}: ${msg}`),
+		},
+	);
+
+	const { modules, dependencies } = buildResult;
 
 	const tx = new Transaction();
 	const cap = tx.publish({
@@ -203,7 +249,7 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 	});
 
 	// Transfer the upgrade capability to the sender so they can upgrade the package later if they want.
-	tx.transferObjects([cap], tx.pure.address(await toolbox.address()));
+	tx.transferObjects([cap], tx.pure.address(toolbox.address()));
 
 	const { digest } = await toolbox.client.signAndExecuteTransaction({
 		transaction: tx,

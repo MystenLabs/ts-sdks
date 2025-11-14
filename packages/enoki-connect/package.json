@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/enoki-connect",
-	"version": "0.0.24",
+	"version": "0.1.10",
 	"description": "Enoki Connect Wallet-Standard implementation",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -14,7 +14,7 @@
 			"require": "./dist/cjs/index.js"
 		}
 	},
-	"sideEffects": false,
+	"sideEffects": true,
 	"files": [
 		"CHANGELOG.md",
 		"dist"
@@ -22,7 +22,6 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "build-package",
-		"prepublishOnly": "pnpm turbo build",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"eslint:check": "eslint --max-warnings=0 .",
@@ -41,13 +40,15 @@
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
 		"@types/node": "^22.15.29",
-		"typescript": "^5.8.3",
+		"typescript": "^5.9.2",
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {
 		"@mysten/sui": "workspace:*",
+		"@mysten/utils": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
 		"@mysten/window-wallet-core": "workspace:^",
+		"lit": "^3.3.1",
 		"mitt": "^3.0.1"
 	}
 }

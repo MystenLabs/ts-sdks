@@ -69,6 +69,7 @@ export function useSuiClientInfiniteQuery<
 		enabled,
 		queryFn: ({ pageParam }) =>
 			suiContext.client[method]({
+				// oxlint-disable-next-line no-useless-fallback-in-spread
 				...(params ?? {}),
 				cursor: pageParam,
 			} as never),

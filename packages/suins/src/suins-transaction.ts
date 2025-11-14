@@ -144,7 +144,12 @@ export class SuinsTransaction {
 		const config = this.suinsClient.config;
 		return this.transaction.moveCall({
 			target: `${config.payments.packageId}::payments::handle_base_payment`,
-			arguments: [this.transaction.object(config.suins), paymentIntent, payment],
+			arguments: [
+				this.transaction.object(config.suins),
+				this.transaction.object(config.bbb.vault),
+				paymentIntent,
+				payment,
+			],
 			typeArguments: [paymentType],
 		});
 	}
@@ -161,6 +166,7 @@ export class SuinsTransaction {
 			target: `${config.payments.packageId}::payments::handle_payment`,
 			arguments: [
 				this.transaction.object(config.suins),
+				this.transaction.object(config.bbb.vault),
 				paymentIntent,
 				payment,
 				this.transaction.object.clock(),

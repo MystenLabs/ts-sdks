@@ -60,7 +60,7 @@ describe('useSuiClientInfiniteQuery', () => {
 		queryTransactionBlocks.mockResolvedValueOnce(pages[1]);
 
 		await act(() => {
-			result.current.fetchNextPage();
+			return result.current.fetchNextPage();
 		});
 
 		await waitFor(() => expect(result.current.isFetchingNextPage).toBe(false));

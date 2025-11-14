@@ -7,13 +7,26 @@ import type { SuiNsObjectIds, SuiNsPackageIds } from './calls.js';
 
 export interface SuiNsCompatibleClient extends ClientWithCoreApi {}
 
-export interface SuiNsClientExtensionOptions {
+export interface SuiNsOptions<Name = 'suins'> {
 	packageIds?: SuiNsPackageIds;
 	objectIds: SuiNsObjectIds;
+	name?: Name;
 }
 
-export interface SuiNsClientOptions extends SuiNsClientExtensionOptions {
+export interface SuiNsClientOptions extends SuiNsOptions {
 	client: SuiNsCompatibleClient;
+}
+
+export function suins<Name extends string = 'suins'>({
+	name = 'suins' as Name,
+	...options
+}: SuiNsOptions<Name>): SuiClientRegistration<SuiNsCompatibleClient, Name, SuiNsClient> {
+	return {
+		name,
+		register: (client) => {
+			return new SuiNsClient({ client, ...options });
+		},
+	};
 }
 
 export class SuiNsClient {
@@ -32,16 +45,5 @@ export class SuiNsClient {
 			packageIds: options.packageIds,
 			objectIds: options.objectIds,
 		});
-	}
-
-	static asClientExtension(
-		options: SuiNsClientExtensionOptions,
-	): SuiClientRegistration<SuiNsCompatibleClient, 'suins', SuiNsClient> {
-		return {
-			name: 'suins',
-			register: (client) => {
-				return new SuiNsClient({ client, ...options });
-			},
-		};
 	}
 }

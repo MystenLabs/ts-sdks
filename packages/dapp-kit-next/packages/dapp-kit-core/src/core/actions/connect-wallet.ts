@@ -4,7 +4,7 @@
 import type { DAppKitStores } from '../store.js';
 import { task } from 'nanostores';
 import type { UiWallet, UiWalletAccount } from '@wallet-standard/ui';
-import type { StandardConnectInput } from '@mysten/wallet-standard';
+import type { StandardConnectInput, SuiWalletFeatures } from '@mysten/wallet-standard';
 import type { StandardConnectFeature } from '@mysten/wallet-standard';
 import { StandardConnect } from '@mysten/wallet-standard';
 import { getWalletFeature, uiWalletAccountBelongsToUiWallet } from '@wallet-standard/ui';
@@ -13,8 +13,8 @@ import {
 	getWalletForHandle_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getWalletForHandle,
 } from '@wallet-standard/ui-registry';
 import { WalletAccountNotFoundError, WalletNoAccountsConnectedError } from '../../utils/errors.js';
-import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
 import { getChain } from '../../utils/networks.js';
+import type { Networks } from '../../utils/networks.js';
 
 export type ConnectWalletArgs = {
 	/** The wallet to connect to. */
@@ -22,14 +22,14 @@ export type ConnectWalletArgs = {
 
 	/**
 	 * An optional account to set as the selected account.
-	 * @defaultValue The first authorized account.
+	 * @default The first authorized account.
 	 */
 	account?: UiWalletAccount;
 } & Omit<StandardConnectInput, 'silent'>;
 
 export function connectWalletCreator(
 	{ $baseConnection }: DAppKitStores,
-	supportedNetworks: readonly Experimental_SuiClientTypes.Network[],
+	supportedNetworks: Networks,
 ) {
 	/**
 	 * Prompts the specified wallet to connect and authorize new accounts for the current domain.
@@ -46,19 +46,11 @@ export function connectWalletCreator(
 			try {
 				$baseConnection.setKey('status', isAlreadyConnected ? 'reconnecting' : 'connecting');
 
-				const { connect } = getWalletFeature(
+				const { accounts: suiAccounts, supportedIntents } = await internalConnectWallet(
 					wallet,
-					StandardConnect,
-				) as StandardConnectFeature[typeof StandardConnect];
-
-				const result = await connect(standardConnectArgs);
-
-				const underlyingWallet = getWalletForHandle(wallet);
-				const supportedChains = supportedNetworks.map(getChain);
-
-				const suiAccounts = result.accounts
-					.filter((account) => account.chains.some((chain) => supportedChains.includes(chain)))
-					.map(getOrCreateUiWalletAccountForStandardWalletAccount.bind(null, underlyingWallet));
+					supportedNetworks,
+					standardConnectArgs,
+				);
 
 				if (!isAlreadyConnected && suiAccounts.length === 0) {
 					throw new WalletNoAccountsConnectedError('No accounts were authorized.');
@@ -73,6 +65,7 @@ export function connectWalletCreator(
 				$baseConnection.set({
 					status: 'connected',
 					currentAccount: account ?? suiAccounts[0],
+					supportedIntents: supportedIntents ?? [],
 				});
 
 				return { accounts: suiAccounts };
@@ -82,4 +75,43 @@ export function connectWalletCreator(
 			}
 		});
 	};
+}
+
+export async function internalConnectWallet(
+	wallet: UiWallet,
+	supportedNetworks: Networks,
+	args: StandardConnectInput,
+) {
+	const { connect } = getWalletFeature(
+		wallet,
+		StandardConnect,
+	) as StandardConnectFeature[typeof StandardConnect];
+
+	const result = await connect(args);
+
+	const underlyingWallet = getWalletForHandle(wallet);
+	const supportedChains = supportedNetworks.map(getChain);
+	const supportedIntents =
+		result.supportedIntents ?? (await getSupportedIntentsFromFeature(wallet));
+	const accounts = result.accounts
+		.filter((account) => account.chains.some((chain) => supportedChains.includes(chain)))
+		.map(getOrCreateUiWalletAccountForStandardWalletAccount.bind(null, underlyingWallet));
+
+	return {
+		accounts,
+		supportedIntents,
+	};
+}
+
+export async function getSupportedIntentsFromFeature(wallet: UiWallet) {
+	if (!wallet.features.includes('sui:getCapabilities')) {
+		return [];
+	}
+
+	const getCapabilitiesFeature = getWalletFeature(
+		wallet,
+		'sui:getCapabilities',
+	) as SuiWalletFeatures['sui:getCapabilities'];
+
+	return (await getCapabilitiesFeature?.getCapabilities())?.supportedIntents ?? [];
 }

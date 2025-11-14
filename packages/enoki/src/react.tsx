@@ -60,6 +60,7 @@ export function useAuthCallback() {
 	useEffect(() => {
 		if (!hash) return;
 
+		// oxlint-disable @typescript-eslint/no-floating-promises
 		(async () => {
 			try {
 				setState(await flow.handleAuthCallback(hash));

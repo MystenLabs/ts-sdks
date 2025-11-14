@@ -1,5 +1,42 @@
 # Change Log
 
+## 1.9.2
+
+### Patch Changes
+
+- 89fa2dc: Work around bug in turbopack thatbreaks uleb128 encoding in next@16
+
+## 1.9.1
+
+### Patch Changes
+
+- a37829f: Fix encoding/decoding large uleb128 values
+
+## 1.9.0
+
+### Minor Changes
+
+- f3b19a7: Use bcs.byteVector and bcs.bytes instead of bcs.vector(bcs.u8()) and bcs.fixedArrray(n,
+  bcs.u8()) to improve performance
+- f3b19a7: improve perf of bcs.byteVector
+
+## 1.8.1
+
+### Patch Changes
+
+- a17c337: Fix name in bcs error message
+
+## 1.8.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
+### Patch Changes
+
+- Updated dependencies [ea1ac70]
+  - @mysten/utils@0.2.0
+
 ## 1.7.0
 
 ### Minor Changes

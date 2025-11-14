@@ -34,8 +34,5 @@ jobs:
       - name: Run TS SDK e2e tests
         run: pnpm --filter @mysten/sui test:e2e
 
-      # - name: Run RPC/GraphQL compatibility e2e tests
-      #   run: pnpm --filter @mysten/graphql-transport test:e2e
-
       - name: Run kiosk sdk e2e tests
         run: pnpm --filter @mysten/kiosk test:e2e

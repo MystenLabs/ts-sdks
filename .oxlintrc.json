@@ -1,0 +1,56 @@
+{
+	"plugins": [
+		"eslint",
+		"typescript",
+		"unicorn",
+		"react",
+		"react-perf",
+		"oxc",
+		"import",
+		"jsdoc",
+		"node",
+		"promise"
+	],
+	"ignorePatterns": [
+		"node_modules",
+		"build",
+		"dist",
+		"coverage",
+		"apps/icons/src",
+		"next-env.d.ts",
+		"doc/book",
+		"external-crates",
+		"storybook-static",
+		".next",
+		"packages/docs/public/typedoc",
+		"packages/move-bytecode-template",
+		"packages/walrus-wasm",
+		"packages/walrus/src/node-api",
+		"packages/typescript/src/grpc/proto",
+		"packages/payment-kit/src/contracts",
+		"generated",
+		"vite-env.d.ts",
+		".git",
+		"packages/suins/examples",
+		"packages/deepbook-v3/examples",
+		"packages/utils/src/dataloader.ts"
+	],
+	"settings": {
+		"jsdoc": {
+			"tagNamePreference": {
+				"prop": "prop",
+				"cssprop": "cssprop",
+				"element": "element",
+				"slot": "slot",
+				"experimental": "experimental"
+			}
+		}
+	},
+	"rules": {
+		"no-new-array": "off",
+		"typescript/no-non-null-asserted-optional-chain": "off",
+		"@typescript-eslint/no-redundant-type-constituents": "off",
+		"@typescript-eslint/restrict-template-expressions": "off",
+		"@typescript-eslint/unbound-method": "off"
+	}
+}

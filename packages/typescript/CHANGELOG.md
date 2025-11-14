@@ -1,5 +1,108 @@
 # @mysten/sui.js
 
+## 1.45.0
+
+### Minor Changes
+
+- 88bdbac: Add TranasctionData.insertTransaction method
+
+## 1.44.0
+
+### Minor Changes
+
+- 44d9b4f: Update GraphQL client to use beta schema"
+
+## 1.43.2
+
+### Patch Changes
+
+- Updated dependencies [89fa2dc]
+  - @mysten/bcs@1.9.2
+
+## 1.43.1
+
+### Patch Changes
+
+- Updated dependencies [a37829f]
+  - @mysten/bcs@1.9.1
+
+## 1.43.0
+
+### Minor Changes
+
+- f3b19a7: Use bcs.byteVector and bcs.bytes instead of bcs.vector(bcs.u8()) and bcs.fixedArrray(n,
+  bcs.u8()) to improve performance
+- bf9f85c: deprecate asClientExtension methods
+
+### Patch Changes
+
+- Updated dependencies [f3b19a7]
+- Updated dependencies [f3b19a7]
+  - @mysten/bcs@1.9.0
+
+## 1.42.0
+
+### Minor Changes
+
+- 98c8a27: Update grpc to rc
+
+## 1.41.0
+
+### Minor Changes
+
+- d554cd2: Add new @mysten/sui/jsonRpc export
+- 04fcfbc: Add GRPC client
+
+### Patch Changes
+
+- Updated dependencies [a17c337]
+  - @mysten/bcs@1.8.1
+
+## 1.40.0
+
+### Minor Changes
+
+- f5fc0c0: Update Transaction.from to improve parsing Transaction instances from other SDK versions
+
+## 1.39.1
+
+### Patch Changes
+
+- a9f9035: Added previousTransaction to GetDynamicFieldResponse
+
+## 1.39.0
+
+### Minor Changes
+
+- ca92487: Add mvr support to more core API methods
+- 5ab3c0a: Update graphql schema and add getMoveFunction to core client API
+
+## 1.38.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
+### Patch Changes
+
+- 3c1741f: Adds `deriveObjectID` helper to calculate `derived_object` addresses.
+- Updated dependencies [ea1ac70]
+  - @mysten/utils@0.2.0
+  - @mysten/bcs@1.8.0
+
+## 1.37.6
+
+### Patch Changes
+
+- c689b98: Fix tx.object.random and tx.object.denyList helpers
+- 5b9ff1a: Lock version of poseidon-lite used
+
+## 1.37.5
+
+### Patch Changes
+
+- 3980d04: Fix bad transaction state after transaction building fails
+
 ## 1.37.4
 
 ### Patch Changes

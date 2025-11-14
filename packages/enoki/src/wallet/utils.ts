@@ -30,7 +30,7 @@ export function getWalletMetadata(wallet: Wallet | UiWallet) {
 			) as EnokiGetMetadataFeature[typeof EnokiGetMetadata];
 
 			return getMetadata();
-		} catch (error) {
+		} catch {
 			return null;
 		}
 	} else if (EnokiGetMetadata in wallet.features) {
@@ -49,7 +49,7 @@ export async function getSession(wallet: Wallet | UiWallet, input?: EnokiGetSess
 			) as EnokiGetSessionFeature[typeof EnokiGetSession];
 
 			return await getSession(input);
-		} catch (error) {
+		} catch {
 			return null;
 		}
 	} else if (EnokiGetSession in wallet.features) {

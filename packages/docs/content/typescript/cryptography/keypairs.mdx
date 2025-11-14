@@ -64,6 +64,8 @@ const address = publicKey.toSuiAddress();
 
 // method 2
 const address = keypair.getPublicKey().toSuiAddress();
+// or use `toSuiAddress()` directly
+const address = keypair.toSuiAddress();
 ```
 
 ## Verifying signatures without a key pair
@@ -85,7 +87,7 @@ const { signature } = await keypair.signPersonalMessage(message);
 
 const publicKey = await verifyPersonalMessageSignature(message, signature);
 
-if (!publicKey.verifyAddress(keypair.getPublicKey().toSuiAddress())) {
+if (!publicKey.verifyAddress(keypair.toSuiAddress())) {
 	throw new Error('Signature was valid, but was signed by a different key pair');
 }
 ```
@@ -104,7 +106,7 @@ const message = new TextEncoder().encode('hello world');
 const { signature } = await keypair.signPersonalMessage(message);
 
 await verifyPersonalMessageSignature(message, signature, {
-	address: keypair.getPublicKey().toSuiAddress(),
+	address: keypair.toSuiAddress(),
 });
 ```
 
@@ -130,7 +132,7 @@ const { signature } = await keypair.signTransaction(bytes);
 
 await verifyTransactionSignature(bytes, signature, {
 	// optionally verify that the signature is valid for a specific address
-	address: keypair.getPublicKey().toSuiAddress(),
+	address: keypair.toSuiAddress(),
 });
 ```
 
@@ -148,7 +150,7 @@ import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
 
 const publicKey = await verifyPersonalMessageSignature(message, zkSignature, {
 	client: new SuiGraphQLClient({
-		url: 'https://sui-testnet.mystenlabs.com/graphql',
+		url: 'https://graphql.testnet.sui.io/graphql',
 	}),
 });
 ```
@@ -166,7 +168,7 @@ import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
 
 const publicKey = await verifyPersonalMessageSignature(message, zkSignature, {
 	client: new SuiGraphQLClient({
-		url: 'https://sui-testnet.mystenlabs.com/graphql',
+		url: 'https://graphql.testnet.sui.io/graphql',
 	}),
 	// Pass in the expected address, and the verification method will throw an error if the signature is not valid for the provided address
 	address: '0x...expectedAddress',

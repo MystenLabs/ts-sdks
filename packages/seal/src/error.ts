@@ -58,7 +58,7 @@ export class SealAPIError extends SealError {
 			const error = JSON.parse(text)['error'];
 			const message = JSON.parse(text)['message'];
 			errorInstance = SealAPIError.#generate(error, message, requestId);
-		} catch (e) {
+		} catch {
 			// If we can't parse the response as JSON or if it doesn't have the expected format,
 			// fall back to using the status text
 			errorInstance = new GeneralError(response.statusText, requestId, response.status);

@@ -82,10 +82,26 @@ export class MoveModuleBuilder extends FileBuilder {
 		return `${await super.getHeader()}\n\n/*${await formatComment(this.summary.doc)}*/\n\n`;
 	}
 
-	includeAllFunctions() {
+	includeAllFunctions({ privateMethods = 'entry' }: { privateMethods?: 'none' | 'entry' | 'all' }) {
 		for (const [name, func] of Object.entries(this.summary.functions)) {
-			if (func.visibility !== 'Public' || func.macro_) {
+			if (func.macro_) {
 				continue;
+			}
+
+			if (func.visibility !== 'Public') {
+				switch (privateMethods) {
+					case 'none':
+						continue;
+					case 'entry':
+						if (!func.entry) {
+							continue;
+						}
+						break;
+					case 'all':
+						break;
+					default:
+						throw new Error(`Unknown privateMethods option: ${privateMethods}`);
+				}
 			}
 
 			const safeName = getSafeName(camelCase(name));
@@ -189,9 +205,7 @@ export class MoveModuleBuilder extends FileBuilder {
 	}
 
 	hasFunctions() {
-		return Object.values(this.summary.functions).some(
-			(func) => func.visibility === 'Public' && !func.macro_,
-		);
+		return this.#includedFunctions.size > 0;
 	}
 
 	hasTypesOrFunctions() {
@@ -423,7 +437,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		this.addImport('@mysten/sui/transactions', 'type Transaction');
 
 		for (const [name, func] of Object.entries(this.summary.functions)) {
-			if (func.visibility !== 'Public' || func.macro_ || !this.#includedFunctions.has(name)) {
+			if (func.macro_ || !this.#includedFunctions.has(name)) {
 				continue;
 			}
 
@@ -537,7 +551,7 @@ export class MoveModuleBuilder extends FileBuilder {
 							.join(',\n')}
 					] satisfies string[]\n`
 							: ''
-					}${hasAllParameterNames ? `const parameterNames = ${JSON.stringify(parameters.map((param) => camelCase(param.name!)))}\n` : ''}
+					}${hasAllParameterNames ? `const parameterNames = ${JSON.stringify(requiredParameters.map((param) => camelCase(param.name!)))}\n` : ''}
 					return (tx: Transaction) => tx.moveCall({
 						package: packageAddress,
 						module: '${this.summary.id.name}',

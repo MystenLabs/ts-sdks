@@ -176,14 +176,14 @@ export default class Sui {
 		payload: Buffer | Buffer[],
 		// Constant (protocol dependent) data that the ledger may want to refer to
 		// besides the payload.
-		extraData: Map<String, Buffer> = new Map<String, Buffer>(),
+		extraData: Map<string, Buffer> = new Map<string, Buffer>(),
 	): Promise<Buffer> {
 		const chunkSize = 180;
 		if (!(payload instanceof Array)) {
 			payload = [payload];
 		}
 		const parameterList: Buffer[] = [];
-		let data = new Map<String, Buffer>(extraData);
+		let data = new Map<string, Buffer>(extraData);
 		for (let j = 0; j < payload.length; j++) {
 			const chunkList: Buffer[] = [];
 			for (let i = 0; i < payload[j].length; i += chunkSize) {
@@ -224,7 +224,7 @@ export default class Sui {
 		p1: number,
 		p2: number,
 		initialPayload: Buffer,
-		data: Map<String, Buffer>,
+		data: Map<string, Buffer>,
 	): Promise<Buffer> {
 		let payload = initialPayload;
 		let result = Buffer.alloc(0);

@@ -12,19 +12,20 @@
 		"src"
 	],
 	"type": "module",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.js"
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
 		}
 	},
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "build-package",
-		"prepublishOnly": "pnpm turbo build",
+		"build": "pnpm typecheck && tsdown",
+		"typecheck": "tsc --noEmit",
+		"dev": "tsdown --watch",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"eslint:check": "eslint --max-warnings=0 .",
@@ -33,10 +34,10 @@
 		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
 	},
 	"devDependencies": {
-		"@mysten/build-scripts": "workspace:*",
 		"@types/react": "^18.3.3",
 		"react": "^18.3.1",
-		"typescript": "^5.8.3"
+		"tsdown": "^0.14.2",
+		"typescript": "^5.9.2"
 	},
 	"dependencies": {
 		"@lit/react": "^1.0.8",

@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#[allow(deprecated_usage)]
 module coin_metadata::test;
 
 use sui::coin;

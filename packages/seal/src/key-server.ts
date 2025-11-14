@@ -20,7 +20,7 @@ export type KeyServer = {
 	name: string;
 	url: string;
 	keyType: KeyServerType;
-	pk: Uint8Array;
+	pk: Uint8Array<ArrayBuffer>;
 };
 
 export enum KeyServerType {
@@ -110,7 +110,7 @@ export async function verifyKeyServer(
 			'Request-Id': requestId,
 			'Client-Sdk-Type': 'typescript',
 			'Client-Sdk-Version': PACKAGE_VERSION,
-			...(apiKeyName && apiKey ? { apiKeyName: apiKey } : {}),
+			...(apiKeyName && apiKey ? { [apiKeyName]: apiKey } : {}),
 		},
 		signal: AbortSignal.timeout(timeout),
 	});
@@ -174,9 +174,9 @@ export interface FetchKeysOptions {
 	/** The transaction bytes. */
 	transactionBytes: Uint8Array;
 	/** The ephemeral secret key. */
-	encKey: Uint8Array;
+	encKey: Uint8Array<ArrayBuffer>;
 	/** The ephemeral public key. */
-	encKeyPk: Uint8Array;
+	encKeyPk: Uint8Array<ArrayBuffer>;
 	/** The ephemeral verification key. */
 	encVerificationKey: Uint8Array;
 	/** The certificate. */
@@ -215,7 +215,7 @@ export async function fetchKeysForAllIds({
 	apiKeyName,
 	apiKey,
 	signal,
-}: FetchKeysOptions): Promise<{ fullId: string; key: Uint8Array }[]> {
+}: FetchKeysOptions): Promise<{ fullId: string; key: Uint8Array<ArrayBuffer> }[]> {
 	const body = {
 		ptb: toBase64(transactionBytes.slice(1)), // removes the byte of the transaction type version
 		enc_key: toBase64(encKeyPk),
@@ -235,7 +235,7 @@ export async function fetchKeysForAllIds({
 			'Request-Id': requestId,
 			'Client-Sdk-Type': 'typescript',
 			'Client-Sdk-Version': PACKAGE_VERSION,
-			...(apiKeyName && apiKey ? { apiKeyName: apiKey } : {}),
+			...(apiKeyName && apiKey ? { [apiKeyName]: apiKey } : {}),
 		},
 		body: JSON.stringify(body),
 		signal: combinedSignal,
@@ -244,8 +244,10 @@ export async function fetchKeysForAllIds({
 	const resp = await response.json();
 	verifyKeyServerVersion(response);
 
-	return resp.decryption_keys.map((dk: { id: Uint8Array; encrypted_key: [string, string] }) => ({
-		fullId: toHex(dk.id),
-		key: elgamalDecrypt(encKey, dk.encrypted_key.map(fromBase64) as [Uint8Array, Uint8Array]),
-	}));
+	return resp.decryption_keys.map(
+		(dk: { id: Uint8Array<ArrayBuffer>; encrypted_key: [string, string] }) => ({
+			fullId: toHex(dk.id),
+			key: elgamalDecrypt(encKey, dk.encrypted_key.map(fromBase64) as [Uint8Array, Uint8Array]),
+		}),
+	);
 }

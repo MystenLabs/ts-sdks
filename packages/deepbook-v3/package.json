@@ -2,7 +2,7 @@
 	"name": "@mysten/deepbook-v3",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "Sui Deepbook SDK",
-	"version": "0.15.16",
+	"version": "0.20.4",
 	"license": "Apache-2.0",
 	"type": "commonjs",
 	"main": "./dist/cjs/index.js",
@@ -25,7 +25,7 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "build-package",
-		"prepublishOnly": "pnpm turbo build",
+		"codegen": "pnpm sui-ts-codegen generate && pnpm lint:fix",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"eslint:check": "eslint --max-warnings=0 .",
@@ -34,18 +34,23 @@
 		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
 	},
 	"dependencies": {
-		"@mysten/sui": "workspace:*"
+		"@mysten/bcs": "workspace:*",
+		"@mysten/sui": "workspace:*",
+		"@noble/hashes": "^1.8.0",
+		"axios": "^1.12.2",
+		"axios-retry": "^4.5.0"
 	},
 	"devDependencies": {
 		"@iarna/toml": "^2.2.5",
 		"@mysten/build-scripts": "workspace:*",
+		"@mysten/codegen": "workspace:*",
 		"@types/node": "^22.15.29",
-		"tmp": "^0.2.3",
+		"tmp": "^0.2.5",
 		"ts-node": "^10.9.2",
 		"ts-retry-promise": "^0.8.1",
-		"typescript": "^5.8.3",
-		"vite": "^7.0.5",
+		"typescript": "^5.9.2",
+		"vite": "^7.1.5",
 		"vitest": "^3.2.4",
-		"wait-on": "^8.0.4"
+		"wait-on": "^9.0.1"
 	}
 }

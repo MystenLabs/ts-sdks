@@ -6,15 +6,19 @@ import { fromBase64, isSerializedBcs } from '@mysten/bcs';
 import type { InferInput } from 'valibot';
 import { is, parse } from 'valibot';
 
-import type { SuiClient } from '../client/index.js';
 import type { SignatureWithBytes, Signer } from '../cryptography/index.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 import type { TransactionArgument } from './Commands.js';
 import { Commands } from './Commands.js';
-import type { CallArg, Command } from './data/internal.js';
-import { Argument, NormalizedCallArg, ObjectRef, TransactionExpiration } from './data/internal.js';
+import type { CallArg, Command, Argument, ObjectRef } from './data/internal.js';
+import {
+	ArgumentSchema,
+	NormalizedCallArg,
+	ObjectRefSchema,
+	TransactionExpiration,
+} from './data/internal.js';
 import { serializeV1TransactionData } from './data/v1.js';
-import { SerializedTransactionDataV2 } from './data/v2.js';
+import { SerializedTransactionDataV2Schema } from './data/v2.js';
 import { Inputs } from './Inputs.js';
 import { needsTransactionResolution, resolveTransactionPlugin } from './resolve.js';
 import type {
@@ -27,10 +31,13 @@ import { createPure } from './pure.js';
 import { TransactionDataBuilder } from './TransactionData.js';
 import { getIdFromCallArg } from './utils.js';
 import { namedPackagesPlugin } from './plugins/NamedPackagesPlugin.js';
+import type { ClientWithCoreApi } from '../experimental/core.js';
 
 export type TransactionObjectArgument =
-	| Exclude<InferInput<typeof Argument>, { Input: unknown; type?: 'pure' }>
-	| ((tx: Transaction) => Exclude<InferInput<typeof Argument>, { Input: unknown; type?: 'pure' }>)
+	| Exclude<InferInput<typeof ArgumentSchema>, { Input: unknown; type?: 'pure' }>
+	| ((
+			tx: Transaction,
+	  ) => Exclude<InferInput<typeof ArgumentSchema>, { Input: unknown; type?: 'pure' }>)
 	| AsyncTransactionThunk<TransactionResultArgument>;
 
 export type TransactionResult = Extract<Argument, { Result: unknown }> &
@@ -113,7 +120,7 @@ interface SignOptions extends BuildTransactionOptions {
 	signer: Signer;
 }
 
-export function isTransaction(obj: unknown): obj is Transaction {
+export function isTransaction(obj: unknown): obj is TransactionLike {
 	return !!obj && typeof obj === 'object' && (obj as any)[TRANSACTION_BRAND] === true;
 }
 
@@ -143,13 +150,17 @@ function getGlobalPluginRegistry() {
 		}
 
 		return target[TRANSACTION_REGISTRY_KEY];
-	} catch (e) {
+	} catch {
 		return modulePluginRegistry;
 	}
 }
 
 type InputSection = (CallArg | InputSection)[];
 type CommandSection = (Command | CommandSection)[];
+
+type TransactionLike = {
+	getData(): unknown;
+};
 
 /**
  * Transaction Builder
@@ -188,11 +199,13 @@ export class Transaction {
 	 * - A string returned from `Transaction#serialize`. The serialized format must be compatible, or it will throw an error.
 	 * - A byte array (or base64-encoded bytes) containing BCS transaction data.
 	 */
-	static from(transaction: string | Uint8Array | Transaction) {
+	static from(transaction: string | Uint8Array | TransactionLike) {
 		const newTransaction = new Transaction();
 
 		if (isTransaction(transaction)) {
-			newTransaction.#data = new TransactionDataBuilder(transaction.getData());
+			newTransaction.#data = TransactionDataBuilder.restore(
+				transaction.getData() as InferInput<typeof SerializedTransactionDataV2Schema>,
+			);
 		} else if (typeof transaction !== 'string' || !transaction.startsWith('{')) {
 			newTransaction.#data = TransactionDataBuilder.fromBytes(
 				typeof transaction === 'string' ? fromBase64(transaction) : transaction,
@@ -290,7 +303,7 @@ export class Transaction {
 		this.#data.gasConfig.owner = owner;
 	}
 	setGasPayment(payments: ObjectRef[]) {
-		this.#data.gasConfig.payment = payments.map((payment) => parse(ObjectRef, payment));
+		this.#data.gasConfig.payment = payments.map((payment) => parse(ObjectRefSchema, payment));
 	}
 
 	#data: TransactionDataBuilder;
@@ -363,7 +376,7 @@ export class Transaction {
 				return this.object(this.add(value as (tx: Transaction) => TransactionObjectArgument));
 			}
 
-			if (typeof value === 'object' && is(Argument, value)) {
+			if (typeof value === 'object' && is(ArgumentSchema, value)) {
 				return value as { $kind: 'Input'; Input: number; type?: 'object' };
 			}
 
@@ -495,13 +508,13 @@ export class Transaction {
 		this.#data.mapCommandArguments(resultIndex, (arg) => {
 			if (arg.$kind === 'Result' && !this.#availableResults.has(arg.Result)) {
 				throw new Error(
-					`Result { Result: ${arg.Result} } is not available to use the current transaction`,
+					`Result { Result: ${arg.Result} } is not available to use in the current transaction`,
 				);
 			}
 
 			if (arg.$kind === 'NestedResult' && !this.#availableResults.has(arg.NestedResult[0])) {
 				throw new Error(
-					`Result { NestedResult: [${arg.NestedResult[0]}, ${arg.NestedResult[1]}] } is not available to use the current transaction`,
+					`Result { NestedResult: [${arg.NestedResult[0]}, ${arg.NestedResult[1]}] } is not available to use in the current transaction`,
 				);
 			}
 
@@ -538,10 +551,10 @@ export class Transaction {
 				return this.#resolveArgument(resolved);
 			}
 
-			return parse(Argument, resolved);
+			return parse(ArgumentSchema, resolved);
 		}
 
-		return parse(Argument, arg);
+		return parse(ArgumentSchema, arg);
 	}
 
 	// Method shorthands:
@@ -668,7 +681,7 @@ export class Transaction {
 		const fullyResolved = this.isFullyResolved();
 		return JSON.stringify(
 			parse(
-				SerializedTransactionDataV2,
+				SerializedTransactionDataV2Schema,
 				fullyResolved
 					? {
 							...this.#data.snapshot(),
@@ -720,7 +733,7 @@ export class Transaction {
 	}
 
 	/** Build the transaction to BCS bytes. */
-	async build(options: BuildTransactionOptions = {}): Promise<Uint8Array> {
+	async build(options: BuildTransactionOptions = {}): Promise<Uint8Array<ArrayBuffer>> {
 		await this.prepareForSerialization(options);
 		await this.#prepareBuild(options);
 		return this.#data.build({
@@ -731,7 +744,7 @@ export class Transaction {
 	/** Derive transaction digest */
 	async getDigest(
 		options: {
-			client?: SuiClient;
+			client?: ClientWithCoreApi;
 		} = {},
 	): Promise<string> {
 		await this.prepareForSerialization(options);
@@ -752,43 +765,45 @@ export class Transaction {
 	}
 
 	async #runPlugins(plugins: TransactionPlugin[], options: SerializeTransactionOptions) {
-		const createNext = (i: number) => {
-			if (i >= plugins.length) {
-				return () => {};
-			}
-			const plugin = plugins[i];
+		try {
+			const createNext = (i: number) => {
+				if (i >= plugins.length) {
+					return () => {};
+				}
+				const plugin = plugins[i];
 
-			return async () => {
-				const next = createNext(i + 1);
-				let calledNext = false;
-				let nextResolved = false;
+				return async () => {
+					const next = createNext(i + 1);
+					let calledNext = false;
+					let nextResolved = false;
 
-				await plugin(this.#data, options, async () => {
-					if (calledNext) {
-						throw new Error(`next() was call multiple times in TransactionPlugin ${i}`);
+					await plugin(this.#data, options, async () => {
+						if (calledNext) {
+							throw new Error(`next() was call multiple times in TransactionPlugin ${i}`);
+						}
+
+						calledNext = true;
+
+						await next();
+
+						nextResolved = true;
+					});
+
+					if (!calledNext) {
+						throw new Error(`next() was not called in TransactionPlugin ${i}`);
 					}
 
-					calledNext = true;
-
-					await next();
-
-					nextResolved = true;
-				});
-
-				if (!calledNext) {
-					throw new Error(`next() was not called in TransactionPlugin ${i}`);
-				}
-
-				if (!nextResolved) {
-					throw new Error(`next() was not awaited in TransactionPlugin ${i}`);
-				}
+					if (!nextResolved) {
+						throw new Error(`next() was not awaited in TransactionPlugin ${i}`);
+					}
+				};
 			};
-		};
 
-		await createNext(0)();
-
-		this.#inputSection = this.#data.inputs.slice();
-		this.#commandSection = this.#data.commands.slice();
+			await createNext(0)();
+		} finally {
+			this.#inputSection = this.#data.inputs.slice();
+			this.#commandSection = this.#data.commands.slice();
+		}
 	}
 
 	async #waitForPendingTasks() {
@@ -873,7 +888,7 @@ export class Transaction {
 			if (cmd.$Intent?.name === 'AsyncTransactionThunk') {
 				try {
 					cmd.$Intent.data.resultIndex = getOriginalIndex(i);
-				} catch (e) {
+				} catch {
 					// If async thunk did not return a result, this will error, but is safe to ignore
 				}
 			}

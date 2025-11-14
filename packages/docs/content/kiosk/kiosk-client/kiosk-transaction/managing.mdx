@@ -15,7 +15,7 @@ Removes an item from the Kiosk and returns a `TransactionArgument` to use it in 
 Programmable Transaction Block (PTB) call.
 
 ```typescript
-const item = '0xHeroAddress';
+const itemId = '0xHeroAddress';
 const itemType = '0x..::hero::Hero';
 
 /// Assume `kioskClient` and `cap` are supplied to the function as explained in the previous section.
@@ -24,7 +24,7 @@ const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
 
 // Take item from kiosk.
 const item = kioskTx.take({
-	itemId: item,
+	itemId,
 	itemType,
 });
 
@@ -43,7 +43,7 @@ await signAndExecuteTransaction({ tx: tx });
 Similar to `take`, but transfers the item to an address internally.
 
 ```typescript
-const item = '0xHeroAddress';
+const itemId = '0xHeroAddress';
 const itemType = '0x..::hero::Hero';
 
 /// Assume `kioskClient` and `cap` are supplied to the function as explained in the previous section.
@@ -53,7 +53,7 @@ const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
 // Take item from kiosk.
 kioskTx
 	.transfer({
-		itemId: item,
+		itemId,
 		itemType,
 		address: 'address_to_transfer_the_object',
 	})
@@ -125,7 +125,7 @@ const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
 
 kioskTx
 	.placeAndList({
-		itemId,
+		item,
 		itemType,
 		price: 100000n,
 	})
@@ -169,12 +169,7 @@ Withdraw (all or specific amount) from a kiosk.
 const tx = new Transaction();
 const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
 
-kioskTx
-	.withdraw({
-		address: 'address_to_transfer_funds',
-		amount: 100000n,
-	})
-	.finalize();
+kioskTx.withdraw('address_to_transfer_funds', 100000n).finalize();
 
 // Sign and execute transaction.
 await signAndExecuteTransaction({ tx: tx });
@@ -236,7 +231,7 @@ tx.moveCall({
 	arguments: [item],
 });
 
-kioskClient
+kioskTx
 	.return({
 		itemType,
 		item,

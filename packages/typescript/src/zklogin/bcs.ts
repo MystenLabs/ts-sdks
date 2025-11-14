@@ -19,7 +19,7 @@ export const zkLoginSignature = bcs.struct('ZkLoginSignature', {
 		addressSeed: bcs.string(),
 	}),
 	maxEpoch: bcs.u64(),
-	userSignature: bcs.vector(bcs.u8()),
+	userSignature: bcs.byteVector(),
 });
 
 export type ZkLoginSignature = InferBcsInput<typeof zkLoginSignature>;

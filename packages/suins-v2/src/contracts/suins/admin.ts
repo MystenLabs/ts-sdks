@@ -73,12 +73,48 @@ export function reserveDomain(options: ReserveDomainOptions) {
 		'u8',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['_', 'suins', 'domainName', 'noYears', 'clock'];
+	const parameterNames = ['_', 'suins', 'domainName', 'noYears'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'admin',
 			function: 'reserve_domain',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface ReserveDomainsArguments {
+	_: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	domains: RawTransactionArgument<string[]>;
+	noYears: RawTransactionArgument<number>;
+}
+export interface ReserveDomainsOptions {
+	package?: string;
+	arguments:
+		| ReserveDomainsArguments
+		| [
+				_: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string>,
+				domains: RawTransactionArgument<string[]>,
+				noYears: RawTransactionArgument<number>,
+		  ];
+}
+/** Reserve a list of domains. */
+export function reserveDomains(options: ReserveDomainsOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [
+		`${packageAddress}::suins::AdminCap`,
+		`${packageAddress}::suins::SuiNS`,
+		'vector<0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
+		'u8',
+		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
+	] satisfies string[];
+	const parameterNames = ['_', 'suins', 'domains', 'noYears'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'admin',
+			function: 'reserve_domains',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

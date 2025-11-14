@@ -15,11 +15,11 @@ describe('Party Objects', () => {
 
 	it('should correctly handle party objects', async () => {
 		const createPartyTxn = new Transaction();
-		createPartyTxn.setSender(await toolbox.address());
+		createPartyTxn.setSender(toolbox.address());
 
 		const party = createPartyTxn.moveCall({
 			target: '0x2::party::single_owner',
-			arguments: [createPartyTxn.pure.address(await toolbox.address())],
+			arguments: [createPartyTxn.pure.address(toolbox.address())],
 		});
 
 		createPartyTxn.moveCall({
@@ -48,12 +48,12 @@ describe('Party Objects', () => {
 		const partyCoin = effects!.created![0].reference.objectId;
 
 		const returnTx = new Transaction();
-		returnTx.setSender(await toolbox.address());
+		returnTx.setSender(toolbox.address());
 
 		returnTx.moveCall({
 			target: '0x2::transfer::public_transfer',
 			typeArguments: ['0x2::coin::Coin<0x2::sui::SUI>'],
-			arguments: [returnTx.object(partyCoin), returnTx.pure.address(await toolbox.address())],
+			arguments: [returnTx.object(partyCoin), returnTx.pure.address(toolbox.address())],
 		});
 
 		const { digest: returnDigest } = await toolbox.client.signAndExecuteTransaction({
@@ -73,11 +73,11 @@ describe('Party Objects', () => {
 
 	it('should correctly handle party objects only used in ptb commands', async () => {
 		const createPartyTxn = new Transaction();
-		createPartyTxn.setSender(await toolbox.address());
+		createPartyTxn.setSender(toolbox.address());
 
 		const party = createPartyTxn.moveCall({
 			target: '0x2::party::single_owner',
-			arguments: [createPartyTxn.pure.address(await toolbox.address())],
+			arguments: [createPartyTxn.pure.address(toolbox.address())],
 		});
 
 		createPartyTxn.moveCall({
@@ -106,7 +106,7 @@ describe('Party Objects', () => {
 		const partyCoin = effects!.created![0].reference;
 
 		const returnTx = new Transaction();
-		returnTx.setSender(await toolbox.address());
+		returnTx.setSender(toolbox.address());
 		returnTx.transferObjects(
 			[
 				returnTx.sharedObjectRef({

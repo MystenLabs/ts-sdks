@@ -19,9 +19,9 @@ fun init(ctx: &mut TxContext) {
     })
 }
 
-public entry fun use_clock(_clock: &Clock) {}
+public fun use_clock(_clock: &Clock) {}
 
-public entry fun list<T: key + store>(item: T, ctx: &mut TxContext) {
+public fun list<T: key + store>(item: T, ctx: &mut TxContext) {
     transfer::public_transfer(item, tx_context::sender(ctx))
 }
 
@@ -29,15 +29,15 @@ public fun return_struct<T: key + store>(item: T): T {
     item
 }
 
-public entry fun value(clock: &MutableShared) {
+public fun value(clock: &MutableShared) {
     assert!(clock.value > 10, 2);
 }
 
-public entry fun set_value(clock: &mut MutableShared) {
+public fun set_value(clock: &mut MutableShared) {
     clock.value = 20;
 }
 
-public entry fun delete_value(clock: MutableShared) {
+public fun delete_value(clock: MutableShared) {
     let MutableShared { id, value: _ } = clock;
     object::delete(id);
 }

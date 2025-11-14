@@ -555,7 +555,7 @@ export function votingEnd(options: VotingEndOptions) {
 		`${packageAddress}::staking::Staking`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['staking', 'clock'];
+	const parameterNames = ['staking'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -585,7 +585,7 @@ export function initiateEpochChange(options: InitiateEpochChangeOptions) {
 		`${packageAddress}::system::System`,
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['staking', 'system', 'clock'];
+	const parameterNames = ['staking', 'system'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -621,7 +621,7 @@ export function epochSyncDone(options: EpochSyncDoneOptions) {
 		'u32',
 		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
 	] satisfies string[];
-	const parameterNames = ['staking', 'cap', 'epoch', 'clock'];
+	const parameterNames = ['staking', 'cap', 'epoch'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

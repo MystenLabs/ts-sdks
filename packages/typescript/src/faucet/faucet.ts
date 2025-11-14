@@ -55,7 +55,7 @@ async function faucetRequest<T>({ host, path, body, headers, method }: FaucetReq
 		body: body ? JSON.stringify(body) : undefined,
 		headers: {
 			'Content-Type': 'application/json',
-			...(headers || {}),
+			...headers,
 		},
 	});
 
@@ -76,7 +76,7 @@ async function faucetRequest<T>({ host, path, body, headers, method }: FaucetReq
 }
 
 /**
- * @deprecated("Use requestSuiFromFaucetV2 instead")
+ * @deprecated "Use requestSuiFromFaucetV2 instead"
  */
 export async function requestSuiFromFaucetV0(input: {
 	host: string;
@@ -103,7 +103,7 @@ export async function requestSuiFromFaucetV0(input: {
 }
 
 /**
- * @deprecated("Use requestSuiFromFaucetV2 instead")
+ * @deprecated "Use requestSuiFromFaucetV2 instead"
  */
 export async function requestSuiFromFaucetV1(input: {
 	host: string;
@@ -154,7 +154,7 @@ export async function requestSuiFromFaucetV2(input: {
 }
 
 /**
- * @deprecated("Use requestSuiFromFaucetV2 which returns directly a success or failure status")
+ * @deprecated "Use requestSuiFromFaucetV2 which returns directly a success or failure status"
  */
 export async function getFaucetRequestStatus(input: {
 	host: string;

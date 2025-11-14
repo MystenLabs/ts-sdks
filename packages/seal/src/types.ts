@@ -20,6 +20,17 @@ export interface SealClientExtensionOptions {
 	timeout?: number;
 }
 
+export interface SealOptions<Name = 'seal'> {
+	/** Array of key server configs consisting of objectId, weight, optional API key name and API key */
+	serverConfigs: KeyServerConfig[];
+	/** Whether to verify the key servers' authenticity. */
+	verifyKeyServers?: boolean;
+	/** Timeout in milliseconds for network requests. */
+	timeout?: number;
+	// Name of the seal extension, defaults to 'seal'
+	name?: Name;
+}
+
 export interface KeyServerConfig {
 	objectId: string;
 	weight: number;
@@ -57,6 +68,8 @@ export interface DecryptOptions {
 	txBytes: Uint8Array;
 	/** Whether to check share consistency. */
 	checkShareConsistency?: boolean;
+	/** Whether to check also using an LE encoded nonce. */
+	checkLEEncoding?: boolean;
 }
 
 export interface FetchKeysOptions {

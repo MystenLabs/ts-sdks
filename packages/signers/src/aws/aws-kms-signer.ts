@@ -71,7 +71,7 @@ export class AwsKmsSigner extends Signer {
 	 * @returns A promise that resolves to the signature as a Uint8Array.
 	 * @throws Will throw an error if the public key is not initialized or if signing fails.
 	 */
-	async sign(bytes: Uint8Array): Promise<Uint8Array> {
+	async sign(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
 		const signResponse = await this.#client.runCommand('Sign', {
 			KeyId: this.#kmsKeyId,
 			Message: toBase64(bytes),
@@ -86,6 +86,7 @@ export class AwsKmsSigner extends Signer {
 	/**
 	 * Synchronous signing is not supported by AWS KMS.
 	 * @throws Always throws an error indicating synchronous signing is unsupported.
+	 * @deprecated use `sign` instead
 	 */
 	signData(): never {
 		throw new Error('KMS Signer does not support sync signing');

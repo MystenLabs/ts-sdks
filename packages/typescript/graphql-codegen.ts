@@ -12,11 +12,26 @@ const header = `
 const config: CodegenConfig = {
 	overwrite: true,
 	schema:
-		'https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/mainnet/crates/sui-graphql-rpc/schema.graphql',
+		'https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/main/crates/sui-indexer-alt-graphql/schema.graphql',
 	documents: ['src/graphql/queries/*.graphql'],
 	ignoreNoDocuments: true,
 	generates: {
 		'src/graphql/generated/queries.ts': {
+			config: {
+				scalars: {
+					BigInt: 'string',
+					Base64: 'string',
+					DateTime: 'string',
+					ObjectID: 'string',
+					SuiAddress: 'string',
+					JSON: 'unknown',
+					UInt53: 'number',
+					MoveData: '../types.js#MoveData',
+					MoveTypeLayout: '../types.js#MoveTypeLayout',
+					MoveTypeSignature: '../types.js#MoveTypeSignature',
+					OpenMoveTypeSignature: '../types.js#OpenMoveTypeSignature',
+				},
+			},
 			plugins: [
 				{
 					add: {

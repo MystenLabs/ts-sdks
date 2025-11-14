@@ -26,8 +26,8 @@ import {
 
 import { TypeTagSerializer } from '../../bcs/index.js';
 import type { StructTag as StructTagType, TypeTag as TypeTagType } from '../../bcs/types.js';
-import { JsonU64, ObjectID, safeEnum, TransactionData } from './internal.js';
-import type { Argument } from './internal.js';
+import { JsonU64, ObjectID, safeEnum, TransactionDataSchema } from './internal.js';
+import type { Argument, ArgumentSchema, TransactionData } from './internal.js';
 
 export const ObjectRef = object({
 	digest: string(),
@@ -370,7 +370,7 @@ function convertTransactionArgument(
 }
 
 export function transactionDataFromV1(data: SerializedTransactionDataV1): TransactionData {
-	return parse(TransactionData, {
+	return parse(TransactionDataSchema, {
 		version: 2,
 		sender: data.sender ?? null,
 		expiration: data.expiration
@@ -526,12 +526,12 @@ export function transactionDataFromV1(data: SerializedTransactionDataV1): Transa
 
 			throw new Error(`Unknown transaction ${Object.keys(transaction)}`);
 		}),
-	} satisfies InferInput<typeof TransactionData>);
+	} satisfies InferInput<typeof TransactionDataSchema>);
 }
 
 function parseV1TransactionArgument(
 	arg: InferOutput<typeof TransactionArgument>,
-): InferInput<typeof Argument> {
+): InferInput<typeof ArgumentSchema> {
 	switch (arg.kind) {
 		case 'GasCoin': {
 			return { GasCoin: true };

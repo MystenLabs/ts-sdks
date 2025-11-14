@@ -88,7 +88,7 @@ export class AccountMenuItem extends LitElement {
 			setTimeout(() => {
 				this._wasCopySuccessful = false;
 			}, 2000);
-		} catch (error) {
+		} catch {
 			// Do nothing here
 		}
 	}

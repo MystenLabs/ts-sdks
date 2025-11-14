@@ -1,5 +1,118 @@
 # @mysten/kiosk
 
+## 0.14.4
+
+### Patch Changes
+
+- Updated dependencies [88bdbac]
+  - @mysten/sui@1.45.0
+
+## 0.14.3
+
+### Patch Changes
+
+- Updated dependencies [44d9b4f]
+  - @mysten/sui@1.44.0
+
+## 0.14.2
+
+### Patch Changes
+
+- @mysten/sui@1.43.2
+
+## 0.14.1
+
+### Patch Changes
+
+- @mysten/sui@1.43.1
+
+## 0.14.0
+
+### Minor Changes
+
+- 75e5d23: Add `return this` in some functions in file
+  `packages/kiosk/src/client/kiosk-transaction.ts` to make it chainable. If chain calls are not
+  supported, some of the usage in the document will not be implemented: line 117 in
+  `packages/docs/content/kiosk/from-v1.mdx` and line 110 in
+  `packages/docs/content/kiosk/kiosk-client/kiosk-transaction/examples.mdx`.
+
+### Patch Changes
+
+- Updated dependencies [f3b19a7]
+- Updated dependencies [bf9f85c]
+  - @mysten/sui@1.43.0
+
+## 0.13.6
+
+### Patch Changes
+
+- Updated dependencies [98c8a27]
+  - @mysten/sui@1.42.0
+
+## 0.13.5
+
+### Patch Changes
+
+- Updated dependencies [d554cd2]
+- Updated dependencies [04fcfbc]
+  - @mysten/sui@1.41.0
+
+## 0.13.4
+
+### Patch Changes
+
+- Updated dependencies [f5fc0c0]
+  - @mysten/sui@1.40.0
+
+## 0.13.3
+
+### Patch Changes
+
+- Updated dependencies [a9f9035]
+  - @mysten/sui@1.39.1
+
+## 0.13.2
+
+### Patch Changes
+
+- Updated dependencies [ca92487]
+- Updated dependencies [5ab3c0a]
+  - @mysten/sui@1.39.0
+
+## 0.13.1
+
+### Patch Changes
+
+- 0fb5271: Fix double-slash in Kiosk imports.
+
+## 0.13.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
+### Patch Changes
+
+- Updated dependencies [3c1741f]
+- Updated dependencies [ea1ac70]
+  - @mysten/sui@1.38.0
+  - @mysten/utils@0.2.0
+
+## 0.12.26
+
+### Patch Changes
+
+- Updated dependencies [c689b98]
+- Updated dependencies [5b9ff1a]
+  - @mysten/sui@1.37.6
+
+## 0.12.25
+
+### Patch Changes
+
+- Updated dependencies [3980d04]
+  - @mysten/sui@1.37.5
+
 ## 0.12.24
 
 ### Patch Changes

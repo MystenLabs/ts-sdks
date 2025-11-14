@@ -34,6 +34,10 @@ export interface PackageInfo {
 	payments: {
 		packageId: string;
 	};
+	bbb: {
+		packageId: string;
+		vault: string;
+	};
 	registryTableId?: string;
 	pyth: {
 		pythStateId: string;

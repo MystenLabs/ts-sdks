@@ -31,7 +31,11 @@ export const mainPackage: Config = {
 			packageId: '0xb162340524e0697461c307b9dc530c17e837b0f2c6d7f787da40d29d29681e5e',
 		},
 		payments: {
-			packageId: '0x863d5f9760f302495398c8e4c6e9784bc17c44b079c826a1813715ef08cbe41a',
+			packageId: '0xdd0a4a34152a80d7841710e916a407b2a62961eee5b2188dcfdaa24194f66286',
+		},
+		bbb: {
+			packageId: '0x6268d072063a311f6f0a1db516d06d97c06a3fa6d10e797cad578937a47b3992',
+			vault: '0x869f5100c0ecc0b35c7edad87ba3d488fd291bdba4a7aae84b70d188f440f393',
 		},
 		pyth: {
 			pythStateId: '0x1f9310238ee9298fb703c3419030b35b22bb1cc37113e3bb5007c99aec79e5b8',
@@ -69,7 +73,11 @@ export const mainPackage: Config = {
 			packageId: '0x63029aae8abbefae4f4ac6c5e3e0021159ea93a94ba648681fd64caf5b40677a',
 		},
 		payments: {
-			packageId: '0x9e8b85270cf5e7ec0ae44c745abe000b6dd7d8b54ca2d367e044d8baccefc10c',
+			packageId: '0xc391c200188dd1a363ff12dcffe07eaac5cf28ad1cd8dc0fcc18f2f8625f0da2',
+		},
+		bbb: {
+			packageId: '0xed9b18147ca81c8f3f60192c8d0630574e42387cd200a6e39b3e4e07df1ce6e6',
+			vault: '0xa0b7a4dcbb85209c9096a4e0e85e43b716377c605743193abe915e9c9f3043e5',
 		},
 		pyth: {
 			pythStateId: '0x243759059f4c3111179da5878c12f68d612c21a8d54d85edc86164bb18be1c7c',

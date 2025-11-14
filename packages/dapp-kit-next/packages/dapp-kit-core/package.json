@@ -15,23 +15,24 @@
 		"web"
 	],
 	"type": "module",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.js"
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
 		},
 		"./web": {
-			"import": "./dist/esm/web/index.js",
-			"require": "./dist/cjs/web/index.js"
+			"import": "./dist/web/index.js",
+			"require": "./dist/web/index.cjs"
 		}
 	},
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "build-package",
-		"prepublishOnly": "pnpm turbo build",
+		"build": "pnpm typecheck && tsdown",
+		"typecheck": "tsc --noEmit",
+		"dev": "tsdown --watch",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"eslint:check": "eslint --max-warnings=0 .",
@@ -50,24 +51,24 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"@mysten/build-scripts": "workspace:*",
 		"@storybook/addon-essentials": "^8.6.14",
 		"@storybook/blocks": "^8.6.14",
 		"@storybook/web-components": "^8.6.12",
 		"@storybook/web-components-vite": "^8.6.12",
 		"storybook": "^8.6.12",
-		"typescript": "^5.8.3",
+		"tsdown": "^0.14.2",
+		"typescript": "^5.9.2",
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {
-		"@floating-ui/dom": "^1.7.2",
+		"@floating-ui/dom": "^1.7.4",
 		"@lit-labs/scoped-registry-mixin": "^1.0.4",
 		"@lit/task": "^1.0.3",
 		"@mysten/slush-wallet": "workspace:*",
 		"@mysten/sui": "workspace:*",
 		"@mysten/utils": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
-		"@nanostores/lit": "^0.2.2",
+		"@nanostores/lit": "^0.2.3",
 		"@wallet-standard/ui": "^1.0.1",
 		"@wallet-standard/ui-registry": "^1.0.1",
 		"@webcomponents/scoped-custom-element-registry": "^0.0.10",

@@ -34,6 +34,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 						url: '/kiosk',
 					},
 					{
+						title: 'Payment Kit',
+						description: 'Typescript SDK to leverage the Payment Kit Standard',
+						url: '/payment-kit',
+					},
+					{
 						title: 'Walrus',
 						description: 'Publish and Read blobs directly from walrus storage nodes',
 						url: '/walrus',

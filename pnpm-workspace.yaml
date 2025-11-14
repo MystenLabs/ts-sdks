@@ -1,14 +1,22 @@
+autoInstallPeers: false
+publicHoistPattern:
+  - '*storybook*'
+# Enforce that packages must be at least 2 days old before they're installed
+# This reduces the risk of supply chain attacks from newly published packages
+minimumReleaseAge: 2880
 packages:
   - 'packages/**'
   - '!**/dist/**'
   - '!**/.next/**'
+  - '!packages/typescript/test/**'
+  - '!packages/kiosk/test/**'
+  - '!packages/deepbook/test/**'
   - '!packages/codegen/tests/move/**'
   - '!packages/create-dapp/templates'
   - '!packages/typescript/scripts'
   - '!packages/typescript/transactions'
   - '!packages/typescript/cryptography'
   - '!packages/typescript/faucet'
-  - '!packages/typescript/transactions'
   - '!packages/typescript/client'
   - '!packages/typescript/verify'
   - '!packages/typescript/multisig'
@@ -32,3 +40,5 @@ packages:
   - '!packages/zksend/experimental/unified-adapter'
   - '!packages/typescript/experimental'
   - '!packages/dapp-kit-next/packages/dapp-kit-core/web'
+  - '!packages/typescript/grpc'
+  - '!packages/typescript/jsonRpc'

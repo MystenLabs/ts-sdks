@@ -14,10 +14,12 @@ export async function generateFromPackageSummary({
 	package: pkg,
 	prune,
 	outputDir,
+	privateMethods,
 }: {
 	package: PackageConfig;
 	prune: boolean;
 	outputDir: string;
+	privateMethods: 'none' | 'entry' | 'all';
 }) {
 	if (!pkg.path) {
 		throw new Error(`On-chain packages are not supported yet (got ${pkg.package})`);
@@ -36,7 +38,7 @@ export async function generateFromPackageSummary({
 		try {
 			const packageToml = await readFile(join(pkg.path, 'Move.toml'), 'utf-8');
 			packageName = parse(packageToml).package.name.toLowerCase();
-		} catch (e) {
+		} catch {
 			const message = `Package name not found in package.toml for ${pkg.path}`;
 			if (packageName) {
 				console.warn(message);
@@ -84,7 +86,7 @@ export async function generateFromPackageSummary({
 	modules.forEach((mod) => {
 		if (mod.isMainPackage || !prune) {
 			mod.builder.includeAllTypes(moduleBuilders);
-			mod.builder.includeAllFunctions();
+			mod.builder.includeAllFunctions({ privateMethods });
 		}
 	});
 

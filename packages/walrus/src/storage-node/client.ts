@@ -142,7 +142,7 @@ export class StorageNodeClient {
 		const response = await this.#request(`/v1/blobs/${blobId}/metadata`, {
 			...options,
 			method: 'PUT',
-			body,
+			body: body as Uint8Array<ArrayBuffer>,
 			headers: mergeHeaders({ 'Content-Type': 'application/octet-stream' }, options.headers),
 		});
 
@@ -186,7 +186,7 @@ export class StorageNodeClient {
 			{
 				...options,
 				method: 'PUT',
-				body,
+				body: body as Uint8Array<ArrayBuffer>,
 				headers: mergeHeaders({ 'Content-Type': 'application/octet-stream' }, options.headers),
 			},
 		);
@@ -238,7 +238,8 @@ export class StorageNodeClient {
 		let response: Response | undefined;
 
 		try {
-			response = await (0, this.#fetch)(`${nodeUrl}${path}`, {
+			const fetch = this.#fetch;
+			response = await fetch(`${nodeUrl}${path}`, {
 				...init,
 				signal: signal ? AbortSignal.any([timeoutSignal, signal]) : timeoutSignal,
 			});

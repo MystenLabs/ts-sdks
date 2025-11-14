@@ -1,30 +1,34 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { toHex } from '@mysten/bcs';
 import type { Fp2, Fp12 } from '@noble/curves/abstract/tower';
-import type { ProjPointType } from '@noble/curves/abstract/weierstrass';
+import type { WeierstrassPoint } from '@noble/curves/abstract/weierstrass';
 import { bls12_381 } from '@noble/curves/bls12-381';
+import { bytesToNumberBE, bytesToNumberLE, numberToBytesBE } from '@noble/curves/utils';
 
 export class G1Element {
-	point: ProjPointType<bigint>;
+	point: WeierstrassPoint<bigint>;
 
 	public static readonly SIZE = 48;
 
-	constructor(point: ProjPointType<bigint>) {
+	constructor(point: WeierstrassPoint<bigint>) {
 		this.point = point;
 	}
 
 	static generator(): G1Element {
-		return new G1Element(bls12_381.G1.ProjectivePoint.BASE);
+		return new G1Element(bls12_381.G1.Point.BASE);
 	}
 
 	static fromBytes(bytes: Uint8Array): G1Element {
-		return new G1Element(bls12_381.G1.ProjectivePoint.fromHex(toHex(bytes)));
+		try {
+			return new G1Element(bls12_381.G1.Point.fromBytes(bytes));
+		} catch {
+			throw new Error('Invalid G1 point');
+		}
 	}
 
-	toBytes(): Uint8Array {
-		return this.point.toRawBytes();
+	toBytes(): Uint8Array<ArrayBuffer> {
+		return this.point.toBytes() as Uint8Array<ArrayBuffer>;
 	}
 
 	multiply(scalar: Scalar): G1Element {
@@ -40,9 +44,7 @@ export class G1Element {
 	}
 
 	static hashToCurve(data: Uint8Array): G1Element {
-		return new G1Element(
-			bls12_381.G1.ProjectivePoint.fromAffine(bls12_381.G1.hashToCurve(data).toAffine()),
-		);
+		return new G1Element(bls12_381.G1.Point.fromAffine(bls12_381.G1.hashToCurve(data).toAffine()));
 	}
 
 	pairing(other: G2Element): GTElement {
@@ -51,24 +53,28 @@ export class G1Element {
 }
 
 export class G2Element {
-	point: ProjPointType<Fp2>;
+	point: WeierstrassPoint<Fp2>;
 
 	public static readonly SIZE = 96;
 
-	constructor(point: ProjPointType<Fp2>) {
+	constructor(point: WeierstrassPoint<Fp2>) {
 		this.point = point;
 	}
 
 	static generator(): G2Element {
-		return new G2Element(bls12_381.G2.ProjectivePoint.BASE);
+		return new G2Element(bls12_381.G2.Point.BASE);
 	}
 
 	static fromBytes(bytes: Uint8Array): G2Element {
-		return new G2Element(bls12_381.G2.ProjectivePoint.fromHex(toHex(bytes)));
+		try {
+			return new G2Element(bls12_381.G2.Point.fromBytes(bytes));
+		} catch {
+			throw new Error('Invalid G2 point');
+		}
 	}
 
-	toBytes(): Uint8Array {
-		return this.point.toRawBytes();
+	toBytes(): Uint8Array<ArrayBuffer> {
+		return this.point.toBytes() as Uint8Array<ArrayBuffer>;
 	}
 
 	multiply(scalar: Scalar): G2Element {
@@ -80,9 +86,7 @@ export class G2Element {
 	}
 
 	static hashToCurve(data: Uint8Array): G2Element {
-		return new G2Element(
-			bls12_381.G2.ProjectivePoint.fromAffine(bls12_381.G2.hashToCurve(data).toAffine()),
-		);
+		return new G2Element(bls12_381.G2.Point.fromAffine(bls12_381.G2.hashToCurve(data).toAffine()));
 	}
 
 	equals(other: G2Element): boolean {
@@ -99,7 +103,7 @@ export class GTElement {
 		this.element = element;
 	}
 
-	toBytes(): Uint8Array {
+	toBytes(): Uint8Array<ArrayBuffer> {
 		// This permutation reorders the 6 pairs of coefficients of the GT element for compatability with the Rust and Move implementations.
 		//
 		// The permutation P may be computed as:
@@ -138,19 +142,33 @@ export class Scalar {
 		this.scalar = scalar;
 	}
 
+	static fromBigint(scalar: bigint): Scalar {
+		if (scalar < 0n || scalar >= bls12_381.fields.Fr.ORDER) {
+			throw new Error('Scalar out of range');
+		}
+		return new Scalar(scalar);
+	}
+
 	static random(): Scalar {
-		return Scalar.fromBytes(bls12_381.utils.randomPrivateKey());
+		const randomSecretKey = bls12_381.utils.randomSecretKey();
+		return Scalar.fromBytes(randomSecretKey)!;
 	}
 
 	toBytes(): Uint8Array {
-		return new Uint8Array(bls12_381.fields.Fr.toBytes(this.scalar));
+		return numberToBytesBE(this.scalar, Scalar.SIZE);
 	}
 
 	static fromBytes(bytes: Uint8Array): Scalar {
-		return new Scalar(bls12_381.fields.Fr.fromBytes(bytes));
+		if (bytes.length !== Scalar.SIZE) {
+			throw new Error('Invalid scalar length');
+		}
+		return this.fromBigint(bytesToNumberBE(bytes));
 	}
 
-	static fromNumber(num: number): Scalar {
-		return new Scalar(BigInt(num));
+	static fromBytesLE(bytes: Uint8Array): Scalar {
+		if (bytes.length !== Scalar.SIZE) {
+			throw new Error('Invalid scalar length');
+		}
+		return this.fromBigint(bytesToNumberLE(bytes));
 	}
 }

@@ -257,7 +257,7 @@ export class Polynomial {
 /** Representation of a share of a secret. The index is a number between 1 and 255. */
 export type Share = {
 	index: number;
-	share: Uint8Array;
+	share: Uint8Array<ArrayBuffer>;
 };
 
 function toInternalShare(share: Share): InternalShare {
@@ -344,7 +344,7 @@ function validateShares(shares: Share[]): { internalShares: InternalShare[]; len
  * @param shares The shares to combine.
  * @returns The secret.
  */
-export function combine(shares: Share[]): Uint8Array {
+export function combine(shares: Share[]): Uint8Array<ArrayBuffer> {
 	const { internalShares, length } = validateShares(shares);
 
 	return new Uint8Array(

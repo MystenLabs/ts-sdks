@@ -72,7 +72,7 @@ export const BlobMetadataWithId = bcs.struct('BlobMetadataWithId', {
 });
 
 const Symbols = bcs.struct('Symbols', {
-	data: bcs.vector(bcs.u8()),
+	data: bcs.byteVector(),
 	symbol_size: bcs.u16(),
 });
 

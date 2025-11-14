@@ -34,8 +34,21 @@ import type {
 	SealClientExtensionOptions,
 	SealClientOptions,
 	SealCompatibleClient,
+	SealOptions,
 } from './types.js';
 import { createFullId, count } from './utils.js';
+
+export function seal<Name = 'seal'>({ name = 'seal' as Name, ...options }: SealOptions<Name>) {
+	return {
+		name,
+		register: (client: SealCompatibleClient) => {
+			return new SealClient({
+				suiClient: client,
+				...options,
+			});
+		},
+	};
+}
 
 export class SealClient {
 	#suiClient: SealCompatibleClient;
@@ -74,6 +87,7 @@ export class SealClient {
 		this.#timeout = options.timeout ?? 10_000;
 	}
 
+	/** @deprecated Use `seal()` instead */
 	static asClientExtension(options: SealClientExtensionOptions) {
 		return {
 			name: 'seal' as const,
@@ -119,11 +133,19 @@ export class SealClient {
 			threshold,
 			packageId,
 			id,
-			encryptionInput: this.#createEncryptionInput(demType, data, aad),
+			encryptionInput: this.#createEncryptionInput(
+				demType,
+				data as Uint8Array<ArrayBuffer>,
+				aad as Uint8Array<ArrayBuffer>,
+			),
 		});
 	}
 
-	#createEncryptionInput(type: DemType, data: Uint8Array, aad: Uint8Array): EncryptionInput {
+	#createEncryptionInput(
+		type: DemType,
+		data: Uint8Array<ArrayBuffer>,
+		aad: Uint8Array<ArrayBuffer>,
+	): EncryptionInput {
 		switch (type) {
 			case DemType.AesGcm256:
 				return new AesGcm256(data, aad);
@@ -147,9 +169,16 @@ export class SealClient {
 	 * @param sessionKey - The session key to use.
 	 * @param txBytes - The transaction bytes to use (that calls seal_approve* functions).
 	 * @param checkShareConsistency - If true, the shares are checked for consistency.
+	 * @param checkLEEncoding - If true, the encryption is also checked using an LE encoded nonce.
 	 * @returns - The decrypted plaintext corresponding to ciphertext.
 	 */
-	async decrypt({ data, sessionKey, txBytes, checkShareConsistency }: DecryptOptions) {
+	async decrypt({
+		data,
+		sessionKey,
+		txBytes,
+		checkShareConsistency,
+		checkLEEncoding,
+	}: DecryptOptions) {
 		const encryptedObject = EncryptedObject.parse(data);
 
 		this.#validateEncryptionServices(
@@ -168,9 +197,14 @@ export class SealClient {
 			const publicKeys = await this.getPublicKeys(
 				encryptedObject.services.map(([objectId, _]) => objectId),
 			);
-			return decrypt({ encryptedObject, keys: this.#cachedKeys, publicKeys });
+			return decrypt({
+				encryptedObject,
+				keys: this.#cachedKeys,
+				publicKeys,
+				checkLEEncoding: false, // We intentionally do not support other encodings here
+			});
 		}
-		return decrypt({ encryptedObject, keys: this.#cachedKeys });
+		return decrypt({ encryptedObject, keys: this.#cachedKeys, checkLEEncoding });
 	}
 
 	#weight(objectId: string) {
@@ -297,7 +331,7 @@ export class SealClient {
 	async fetchKeys({ ids, txBytes, sessionKey, threshold }: FetchKeysOptions) {
 		if (threshold > this.#totalWeight || threshold < 1) {
 			throw new InvalidThresholdError(
-				`Invalid threshold ${threshold} servers with weights ${this.#configs}`,
+				`Invalid threshold ${threshold} servers with weights ${JSON.stringify(this.#configs)}`,
 			);
 		}
 		const keyServers = await this.getKeyServers();

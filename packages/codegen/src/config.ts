@@ -27,6 +27,10 @@ export const configSchema = z.object({
 	prune: z.boolean().optional().default(true),
 	generateSummaries: z.boolean().optional().default(true),
 	packages: z.array(packageConfigSchema),
+	privateMethods: z
+		.union([z.literal('none'), z.literal('entry'), z.literal('all')])
+		.optional()
+		.default('entry'),
 });
 
 export type PackageConfig = z.infer<typeof packageConfigSchema>;
@@ -42,6 +46,7 @@ export async function loadConfig(): Promise<ParsedSuiCodegenConfig> {
 			packages: [],
 			prune: true,
 			generateSummaries: true,
+			privateMethods: 'entry',
 		};
 	}
 

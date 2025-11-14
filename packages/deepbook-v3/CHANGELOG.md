@@ -1,5 +1,150 @@
 # @mysten/deepbook-v3
 
+## 0.20.4
+
+### Patch Changes
+
+- bf5773f: Improve read only functions and add manager state function
+- d8355d7: Admin withdraw referral fees
+
+## 0.20.3
+
+### Patch Changes
+
+- a2f84a3: Update margin withdraw referral function
+- e0490df: Fix deepbook admin function
+- Updated dependencies [88bdbac]
+  - @mysten/sui@1.45.0
+
+## 0.20.2
+
+### Patch Changes
+
+- c95ff1a: Update DeepBook and margin package IDs
+
+## 0.20.1
+
+### Patch Changes
+
+- Updated dependencies [44d9b4f]
+  - @mysten/sui@1.44.0
+
+## 0.20.0
+
+### Minor Changes
+
+- 762404b: Update margin testnet package
+
+## 0.19.7
+
+### Patch Changes
+
+- Updated dependencies [89fa2dc]
+  - @mysten/bcs@1.9.2
+  - @mysten/sui@1.43.2
+
+## 0.19.6
+
+### Patch Changes
+
+- 48759a8: Update margin package on testnet
+- a05eba1: New testnet margin package, small function changes
+- Updated dependencies [a37829f]
+  - @mysten/bcs@1.9.1
+  - @mysten/sui@1.43.1
+
+## 0.19.5
+
+### Patch Changes
+
+- Updated dependencies [f3b19a7]
+- Updated dependencies [f3b19a7]
+- Updated dependencies [bf9f85c]
+  - @mysten/sui@1.43.0
+  - @mysten/bcs@1.9.0
+
+## 0.19.4
+
+### Patch Changes
+
+- Updated dependencies [98c8a27]
+  - @mysten/sui@1.42.0
+
+## 0.19.3
+
+### Patch Changes
+
+- Updated dependencies [a17c337]
+- Updated dependencies [d554cd2]
+- Updated dependencies [04fcfbc]
+  - @mysten/bcs@1.8.1
+  - @mysten/sui@1.41.0
+
+## 0.19.2
+
+### Patch Changes
+
+- Updated dependencies [f5fc0c0]
+  - @mysten/sui@1.40.0
+
+## 0.19.1
+
+### Patch Changes
+
+- Updated dependencies [a9f9035]
+  - @mysten/sui@1.39.1
+
+## 0.19.0
+
+### Minor Changes
+
+- fd91249: Margin package functionality
+
+### Patch Changes
+
+- Updated dependencies [ca92487]
+- Updated dependencies [5ab3c0a]
+  - @mysten/sui@1.39.0
+
+## 0.18.0
+
+### Minor Changes
+
+- 7d8bc08: Support core package upgrade changes on testnet
+
+## 0.17.0
+
+### Minor Changes
+
+- ea1ac70: Update dependencies and improve support for typescript 5.9
+
+### Patch Changes
+
+- Updated dependencies [3c1741f]
+- Updated dependencies [ea1ac70]
+  - @mysten/sui@1.38.0
+  - @mysten/bcs@1.8.0
+
+## 0.16.1
+
+### Patch Changes
+
+- 78bd0e9: Update codegen arg normalization for object args
+- Updated dependencies [c689b98]
+- Updated dependencies [5b9ff1a]
+  - @mysten/sui@1.37.6
+
+## 0.16.0
+
+### Minor Changes
+
+- 216a53a: Export bcs types
+
+### Patch Changes
+
+- Updated dependencies [3980d04]
+  - @mysten/sui@1.37.5
+
 ## 0.15.16
 
 ### Patch Changes

@@ -50,7 +50,7 @@ for (const { minorVersion, schema } of releasesByVersion.values()) {
 
 await addSchemaVersion(
 	'latest',
-	'https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/mainnet/crates/sui-graphql-rpc/schema.graphql',
+	'https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/main/crates/sui-indexer-alt-graphql/schema.graphql',
 );
 
 await addExportsToPackageJson([...releasesByVersion.keys(), 'latest']);

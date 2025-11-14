@@ -52,7 +52,7 @@ const kioskClient = new KioskClient({...});
 
 const id = `0xKioskId`;
 
-// You can perform actions, like querying the owned kiosks for an address.
+// You can perform actions, like querying a kiosk's contents.
 const res = await kioskClient.getKiosk({
     id,
     options: {
@@ -169,8 +169,8 @@ console.log(extension);
 const kioskClient = new KioskClient({...});
 
 const itemType = '0xAddress::hero::Hero';
-// You can perform actions, like querying the owned kiosks for an address.
-const policies = await kioskClient.getTransferPolicies(itemType)
+// You can perform actions, like querying transfer policy for type.
+const policies = await kioskClient.getTransferPolicies({ type: itemType });
 console.log(policies);
 
 /* An example output of the response
@@ -202,7 +202,7 @@ const kioskClient = new KioskClient({...});
 
 // The address that owns the transfer policies.
 const address = '0xAddress';
-// You can perform actions, like querying the owned kiosks for an address.
+// You can perform actions, like querying the owned transfer policies for an address.
 const policies = await kioskClient.getOwnedTransferPolicies({ address });
 console.log(policies);
 

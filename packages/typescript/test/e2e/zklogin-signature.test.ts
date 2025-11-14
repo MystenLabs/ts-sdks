@@ -11,7 +11,7 @@ import {
 } from '../../src/zklogin/publickey';
 import { getZkLoginSignature, parseZkLoginSignature } from '../../src/zklogin/signature';
 
-const DEFAULT_GRAPHQL_URL = import.meta.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125';
+const DEFAULT_GRAPHQL_URL = import.meta.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125/graphql';
 
 const aSignature =
 	'BQNNMTE3MDE4NjY4MTI3MDQ1MTcyMTM5MTQ2MTI3OTg2NzQ3NDg2NTc3NTU1NjY1ODY1OTc0MzQ4MTA5NDEyNDA0ODMzNDY3NjkzNjkyNjdNMTQxMjA0Mzg5OTgwNjM2OTIyOTczODYyNDk3NTQyMzA5NzI3MTUxNTM4NzY1Mzc1MzAxNjg4ODM5ODE1MTM1ODQ1ODYxNzIxOTU4NDEBMQMCTDE4Njc0NTQ1MDE2MDI1ODM4NDg4NTI3ODc3ODI3NjE5OTY1NjAxNzAxMTgyNDkyOTk1MDcwMTQ5OTkyMzA4ODY4NTI1NTY5OTgyNzNNMTQ0NjY0MTk2OTg2NzkxMTYzMTM0NzUyMTA2NTQ1NjI5NDkxMjgzNDk1OTcxMDE3NjkyNTY5NTkwMTAwMDMxODg4ODYwOTEwODAzMTACTTExMDcyOTU0NTYyOTI0NTg4NDk2MTQ4NjMyNDc0MDc4NDMyNDA2NjMzMjg4OTQ4MjU2NzE4ODA5NzE0ODYxOTg2MTE5MzAzNTI5NzYwTTE5NzkwNTE2MDEwNzg0OTM1MTAwMTUwNjE0OTg5MDk3OTA4MjMzODk5NzE4NjQ1NTM2MTMwNzI3NzczNzEzNDA3NjExMTYxMzY4MDQ2AgExATADTTEwNDIzMjg5MDUxODUzMDMzOTE1MzgwODEwNTE2MTMwMjA1NzQ3MTgyODY3NTk2NDU3MTM5OTk5MTc2NzE0NDc2NDE1MTQ4Mzc2MzUwTTIxNzg1NzE5Njk1ODQ4MDEzOTA4MDYxNDkyOTg5NzY1Nzc3Nzg4MTQyMjU1ODk3OTg2MzAwMjQxNTYxMjgwMTk2NzQ1MTc0OTM0NDU3ATExeUpwYzNNaU9pSm9kSFJ3Y3pvdkwyRmpZMjkxYm5SekxtZHZiMmRzWlM1amIyMGlMQwFmZXlKaGJHY2lPaUpTVXpJMU5pSXNJbXRwWkNJNkltSTVZV00yTURGa01UTXhabVEwWm1aa05UVTJabVl3TXpKaFlXSXhPRGc0T0RCalpHVXpZamtpTENKMGVYQWlPaUpLVjFRaWZRTTEzMzIyODk3OTMwMTYzMjE4NTMyMjY2NDMwNDA5NTEwMzk0MzE2OTg1Mjc0NzY5MTI1NjY3MjkwNjAwMzIxNTY0MjU5NDY2NTExNzExrgAAAAAAAABhAEp+O5GEAF/5tKNDdWBObNf/1uIrbOJmE+xpnlBD2Vikqhbd0zLrQ2NJyquYXp4KrvWUOl7Hso+OK0eiV97ffwucM8VdtG2hjf/RUGNO5JNUH+D/gHtE9sHe6ZEnxwZL7g==';
@@ -69,6 +69,10 @@ describe('zkLogin signature', () => {
 	});
 	it(
 		'verify personal message with zklogin',
+		{
+			// this test may be flaky, as it needs to wait for a bit for JWK to be available, but also cannot wait too long that makes max epoch expire.
+			retry: 10,
+		},
 		async () => {
 			// this test assumes the localnet epoch is smaller than 3. it will fail if localnet has ran for too long and passed epoch 3.
 			// test case generated from `sui keytool zk-login-insecure-sign-personal-message --data "hello" --max-epoch 3`
@@ -76,10 +80,11 @@ describe('zkLogin signature', () => {
 			const testSignature =
 				'BQNMODIxMjAxNjM1OTAxNDk1MDg0Mjg0MTUyNTc3NTE1NjQ4NzI2MjEzOTk0OTQ3ODkwNjkwMTc5ODI5NjEwMTkyNTI3MTY5MTU2NTE4ME0xNjE1NTM3MDU2ODcyNzI3OTgxODg5MzYwMzc1NDQwNzYxNzM3NzcxNTgwOTA2NTUwMTYyODczNjg4MjcyNTU3NTIzMjgzNDkyMzcyNgExAwJNMTE2MTk3MTE1NjYyNDg1NTk1NzUyNzE0MDEzMTI1NzE2OTg5NTkxMDA2MjM3NjM4NzY0NjM1OTEzNDY1NTY2OTM1NzI5NzQxOTE1MDlMNTIyOTU4MjE1NDQ1MzkxMDM4MzYwMzYzNjEzNTY0NDU5MTc1NTk3NDI1OTQyMDg4NjUxMzYwMTQ2Mjc0OTk5Mzg2NTA2MTkyODU2NAJNMTA5MDE5ODc3NzAyNTI5NzkzOTM2NDM4NDU1MjM1MzQ2NTQ4MjY3MTkyODUzMzA2NzQwNTk3Nzg0Nzg3NzYwODQ2Mjc4NjQyNzg0NzJMMjg0MjQxNTQ4Mjg0NjQyNzg5NzAwNjM2OTIyMDk0NDUyNjUzMzgwNzc3ODIxMzQyOTA5NTQ2NDc1ODc0MTE5NTkxMTU5NjE0MzY4MwIBMQEwA00xODg1NDIyNzM3ODk4ODA1MDA3NTM2NTExNjAxNzEzNTYxOTQ1MzA3NDcyOTcwNzE5OTgyOTA5OTA2OTUwMDk3NzgzNTcwNjY1OTU4OEw0ODU5NzY1MTQ5OTgxMDYyMTIxOTc0Njg3NTYxNzc4NDA2ODU0NzAxNjEyNzk4NTU2NTE3NzQ4OTU1NDA5NzgxMjkxNTA1MDYzNjQxATEod2lhWE56SWpvaWFIUjBjSE02THk5dllYVjBhQzV6ZFdrdWFXOGlMQwI+ZXlKcmFXUWlPaUp6ZFdrdGEyVjVMV2xrSWl3aWRIbHdJam9pU2xkVUlpd2lZV3huSWpvaVVsTXlOVFlpZlFNMjA0MzUzNjY2MDAwMzYzNzU3NDU5MjU5NjM0NTY4NjEzMDc5MjUyMDk0NzAyMTkzMzQwMTg1NjQxNTgxNDg1NDQwMzYxOTYyODQ2NDIDAAAAAAAAAGEA+XrHUDMkMaPswTIFsqIgx3yX6j7IvU1T/1yzw4kjKwjgLL0ZtPQZjc2djX7Q9pFoBdObkSZ6JZ4epiOf05q4BrnG7hYw7z5xEUSmSNsGu7IoT3J0z77lP/zuUDzBpJIA';
 			const parsed = parseSerializedZkLoginSignature(testSignature);
+			const client = new SuiGraphQLClient({
+				url: DEFAULT_GRAPHQL_URL,
+			});
 			const pk = new ZkLoginPublicIdentifier(parsed.publicKey, {
-				client: new SuiGraphQLClient({
-					url: DEFAULT_GRAPHQL_URL,
-				}),
+				client,
 			});
 
 			// verifies ok bc max_epoch 3 is within upper bound.
@@ -94,14 +99,14 @@ describe('zkLogin signature', () => {
 			const res1 = await pk.verifyPersonalMessage(fromBase64(bytes), parsed2.signature);
 			expect(res1).toBe(false);
 		},
-		{
-			// this test may be flaky, as it needs to wait for a bit for JWK to be available, but also cannot wait too long that makes max epoch expire.
-			retry: 10,
-		},
 	);
 
 	it(
 		'verify transaction data with zklogin',
+		{
+			// this test may be flaky, as it needs to wait for a bit for JWK to be available, but also cannot wait too long that makes max epoch expire.
+			retry: 10,
+		},
 		async () => {
 			// this test assumes the localnet epoch is smaller than 3. it will fail if localnet has ran for too long and passed epoch 3.
 			const bytes =
@@ -127,10 +132,6 @@ describe('zkLogin signature', () => {
 			const parsed2 = parseSerializedZkLoginSignature(testSignature2);
 			const res1 = await pk.verifyPersonalMessage(fromBase64(bytes2), parsed2.signature);
 			expect(res1).toBe(false);
-		},
-		{
-			// this test may be flaky, as it needs to wait for a bit for JWK to be available, but also cannot wait too long that makes max epoch expire.
-			retry: 10,
 		},
 	);
 });

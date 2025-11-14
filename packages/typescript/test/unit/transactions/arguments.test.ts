@@ -243,20 +243,16 @@ describe('Arguments helpers', () => {
 			      },
 			    },
 			    {
-			      "$kind": "Object",
-			      "Object": {
-			        "$kind": "SharedObject",
-			        "SharedObject": {
-			          "initialSharedVersion": 1,
-			          "mutable": false,
-			          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000008",
-			        },
+			      "$kind": "UnresolvedObject",
+			      "UnresolvedObject": {
+			        "mutable": false,
+			        "objectId": "0x0000000000000000000000000000000000000000000000000000000000000008",
 			      },
 			    },
 			    {
 			      "$kind": "UnresolvedObject",
 			      "UnresolvedObject": {
-			        "initialSharedVersion": 1,
+			        "mutable": undefined,
 			        "objectId": "0x0000000000000000000000000000000000000000000000000000000000000403",
 			      },
 			    },

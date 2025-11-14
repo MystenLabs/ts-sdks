@@ -1,5 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+// oxlintrc-disable typescript-eslint/no-redundant-type-constituents
 
 export interface OpenRpcSpec {
 	openrpc: string;

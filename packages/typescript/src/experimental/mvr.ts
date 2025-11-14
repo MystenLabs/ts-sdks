@@ -186,6 +186,11 @@ export class MvrClient implements Experimental_SuiClientTypes.MvrMethods {
 	async resolvePackage({
 		package: name,
 	}: Experimental_SuiClientTypes.MvrResolvePackageOptions): Promise<Experimental_SuiClientTypes.MvrResolvePackageResponse> {
+		if (!hasMvrName(name)) {
+			return {
+				package: name,
+			};
+		}
 		const resolved = await this.#mvrPackageDataLoader.load(name);
 		return {
 			package: resolved,
@@ -195,6 +200,12 @@ export class MvrClient implements Experimental_SuiClientTypes.MvrMethods {
 	async resolveType({
 		type,
 	}: Experimental_SuiClientTypes.MvrResolveTypeOptions): Promise<Experimental_SuiClientTypes.MvrResolveTypeResponse> {
+		if (!hasMvrName(type)) {
+			return {
+				type,
+			};
+		}
+
 		const mvrTypes = [...extractMvrTypes(type)];
 		const resolvedTypes = await this.#mvrTypeDataLoader.loadMany(mvrTypes);
 

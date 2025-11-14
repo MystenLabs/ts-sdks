@@ -15,6 +15,7 @@ describe('[Unit] $connection', () => {
 			wallet: null,
 			account: null,
 			status: 'disconnected',
+			supportedIntents: [],
 			isConnected: false,
 			isConnecting: false,
 			isReconnecting: false,
@@ -24,12 +25,14 @@ describe('[Unit] $connection', () => {
 		stores.$baseConnection.set({
 			status: 'connected',
 			currentAccount: uiWalletAccount,
+			supportedIntents: ['testIntent'],
 		});
 
 		expect(stores.$connection.get()).toStrictEqual({
 			wallet: uiWallet,
 			account: uiWalletAccount,
 			status: 'connected',
+			supportedIntents: ['testIntent'],
 			isConnected: true,
 			isConnecting: false,
 			isReconnecting: false,
@@ -47,6 +50,7 @@ describe('[Unit] $connection', () => {
 		stores.$baseConnection.set({
 			status: 'connected',
 			currentAccount: uiWalletAccount,
+			supportedIntents: [],
 		});
 
 		stores.$baseConnection.set({
@@ -58,6 +62,7 @@ describe('[Unit] $connection', () => {
 			wallet: null,
 			account: null,
 			status: 'disconnected',
+			supportedIntents: [],
 			isConnected: false,
 			isConnecting: false,
 			isReconnecting: false,
@@ -78,6 +83,7 @@ describe('[Unit] $connection', () => {
 			wallet: null,
 			account: null,
 			status: 'connecting',
+			supportedIntents: [],
 			isConnected: false,
 			isConnecting: true,
 			isReconnecting: false,
@@ -94,12 +100,14 @@ describe('[Unit] $connection', () => {
 		stores.$baseConnection.set({
 			status: 'reconnecting',
 			currentAccount: uiWalletAccount,
+			supportedIntents: [],
 		});
 
 		expect(stores.$connection.get()).toStrictEqual({
 			wallet: uiWallet,
 			account: uiWalletAccount,
 			status: 'reconnecting',
+			supportedIntents: [],
 			isConnected: false,
 			isConnecting: false,
 			isReconnecting: true,
@@ -152,12 +160,14 @@ describe('[Unit] $connection', () => {
 		stores.$baseConnection.set({
 			status: 'connected',
 			currentAccount: uiWalletAccount,
+			supportedIntents: [],
 		});
 		expect(notificationCount).toBe(3);
 
 		stores.$baseConnection.set({
 			status: 'reconnecting',
 			currentAccount: uiWalletAccount,
+			supportedIntents: [],
 		});
 		expect(notificationCount).toBe(4);
 
