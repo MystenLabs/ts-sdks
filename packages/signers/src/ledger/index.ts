@@ -11,6 +11,7 @@ import { toBase64 } from '@mysten/sui/utils';
 
 import { bcs } from '@mysten/sui/bcs';
 import { getInputObjects } from './objects.js';
+import type { Resolution } from '@mysten/ledgerjs-hw-app-sui';
 
 export { SuiMoveObject } from './bcs.js';
 export { getInputObjects } from './objects.js';
@@ -68,20 +69,24 @@ export class LedgerSigner extends Signer {
 	 * Signs the provided transaction bytes.
 	 * @returns The signed transaction bytes and signature.
 	 */
-	override async signTransaction(bytes: Uint8Array): Promise<SignatureWithBytes> {
-		const transactionOptions = await getInputObjects(
-			Transaction.from(bytes),
-			this.#suiClient,
-		).catch(() => ({
-			// Fail gracefully so network errors or serialization issues don't break transaction signing:
-			bcsObjects: [],
-		}));
+	override async signTransaction(
+		bytes: Uint8Array,
+		bcsObjects?: Uint8Array[],
+		resolution?: Resolution,
+	): Promise<SignatureWithBytes> {
+		const transactionOptions = bcsObjects
+			? { bcsObjects }
+			: await getInputObjects(Transaction.from(bytes), this.#suiClient).catch(() => ({
+					// Fail gracefully so network errors or serialization issues don't break transaction signing:
+					bcsObjects: [],
+				}));
 
 		const intentMessage = messageWithIntent('TransactionData', bytes);
 		const { signature } = await this.#ledgerClient.signTransaction(
 			this.#derivationPath,
 			intentMessage,
 			transactionOptions,
+			resolution,
 		);
 
 		return {

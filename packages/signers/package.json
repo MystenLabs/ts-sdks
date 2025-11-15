@@ -64,6 +64,7 @@
 	},
 	"dependencies": {
 		"@google-cloud/kms": "^4.5.0",
+		"@ledgerhq/devices": "^8.6.1",
 		"@mysten/ledgerjs-hw-app-sui": "workspace:*",
 		"@mysten/sui": "workspace:*",
 		"@noble/curves": "=1.9.4",
