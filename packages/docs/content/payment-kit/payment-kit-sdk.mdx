@@ -560,6 +560,121 @@ if (receiptEvent) {
 }
 ```
 
+## URI Helper Methods
+
+Payment Kit provides utility functions to create and parse Payment Kit transaction URIs for
+payments. These URIs enable standardized payment links that can be shared or embedded in
+applications.
+
+### `createPaymentTransactionUri()`
+
+Create a Sui protocol URI from payment parameters.
+
+```ts
+createPaymentTransactionUri(params: PaymentUriParams): string
+```
+
+**Parameters:**
+
+```ts
+type PaymentUriParams = {
+	receiverAddress: string; // Recipient Sui address
+	amount: bigint; // Amount in smallest unit
+	coinType: string; // Coin type (e.g., '0x2::sui::SUI')
+	nonce: string; // Unique payment identifier (max 36 characters)
+	label?: string; // Optional display label
+	message?: string; // Optional message/description
+	iconUrl?: string; // Optional icon URL
+	registryName?: string; // Optional registry name
+	registryId?: string; // Optional registry ID (mutually exclusive with registryName)
+};
+```
+
+**Returns:** `string` - Sui protocol URI (e.g.,
+`sui:0x...?amount=1000000&coinType=0x2::sui::SUI&nonce=...`)
+
+**Example:**
+
+```ts
+import { createPaymentTransactionUri } from '@mysten/payment-kit';
+
+const uri = createPaymentTransactionUri({
+	receiverAddress: '0x1234...abcd',
+	amount: 10000000n, // 0.01 SUI
+	coinType: '0x2::sui::SUI',
+	nonce: crypto.randomUUID(),
+	registryName: 'my-payment-registry',
+	label: 'Coffee Payment',
+	message: 'Payment for espresso',
+});
+
+// Result: sui:0x1234...abcd?amount=10000000&coinType=0x2::sui::SUI&nonce=...&registry=my-payment-registry&label=Coffee%20Payment&message=Payment%20for%20espresso
+```
+
+**Validation:**
+
+- Validates receiver address is a valid Sui address
+- Validates amount is positive
+- Validates coinType is a valid named type
+- Validates nonce length (max 36 characters)
+- Validates registry ID if provided (must be valid Sui object ID)
+
+**Throws:**
+
+- `PaymentKitUriError` if any parameter is invalid
+
+---
+
+### `parsePaymentTransactionUri()`
+
+Parse a Payment Kit transaction URI into its components.
+
+```ts
+parsePaymentTransactionUri(uri: string): PaymentUriParams
+```
+
+**Parameters:**
+
+- `uri: string` - Payment Kit transaction URI to parse (must start with `sui:`)
+
+**Returns:** `PaymentUriParams` - Parsed payment parameters
+
+**Example:**
+
+```ts
+import { parsePaymentTransactionUri } from '@mysten/payment-kit';
+
+const uri =
+	'sui:0x1234...abcd?amount=10000000&coinType=0x2::sui::SUI&nonce=abc123&registry=my-registry';
+
+const params = parsePaymentTransactionUri(uri);
+console.log(params.receiverAddress); // '0x1234...abcd'
+console.log(params.amount); // 10000000n
+console.log(params.coinType); // '0x2::sui::SUI'
+console.log(params.nonce); // 'abc123'
+console.log(params.registryName); // 'my-registry' (auto-detected as name, not ID)
+```
+
+**Auto-Detection:**
+
+The parser automatically determines whether the `registry` parameter is a registry ID or name:
+
+- If valid Sui object ID format → `registryId`
+- Otherwise → `registryName`
+
+**Validation:**
+
+- URI must start with `sui:`
+- Validates receiver address
+- Validates amount is positive
+- Validates coinType is valid
+- Validates nonce length
+- Requires `amount`, `coinType`, and `nonce` parameters
+
+**Throws:**
+
+- `PaymentKitUriError` if URI format is invalid or validation fails
+
 ## Error Handling
 
 ### PaymentKitClientError
