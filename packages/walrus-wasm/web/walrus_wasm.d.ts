@@ -12,37 +12,50 @@ export function bls12381_min_pk_aggregate(signatures: any): Uint8Array;
 export function bls12381_min_pk_verify_aggregate(public_keys: any, msg: Uint8Array, signature: Uint8Array): boolean;
 export class BlobEncoder {
   free(): void;
+  [Symbol.dispose](): void;
   constructor(n_shards: number);
   /**
-   * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::encode_with_metadata].
-   * Returns a tuple with a vector of [walrus_core::encoding::slivers::SliverPair]´s and a [walrus_core::metadata::VerifiedBlobMetadataWithId]`.
+   * Encode data and write BCS-encoded SliverData directly into pre-allocated buffers.
+   *
+   * Arguments:
+   * - data: Input data to encode
+   * - primary_buffers: Array of Uint8Array buffers (one per shard) for primary slivers
+   * - secondary_buffers: Array of Uint8Array buffers (one per shard) for secondary slivers
+   *
+   * Each buffer will be written with BCS-encoded SliverData.
+   *
+   * Returns: JsValue with (metadata, root_hash)
    */
-  encode_with_metadata(data: Uint8Array): any;
+  encode(data: Uint8Array, primary_buffers: Array<any>, secondary_buffers: Array<any>): any;
   /**
-   * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::compute_metadata].
-   * Returns [walrus_core::metadata::VerifiedBlobMetadataWithId].
+   * Compute metadata for data without encoding it.
+   * Returns (metadata, root_hash)
    */
   compute_metadata(data: Uint8Array): any;
   /**
-   * WASM wrapper for [walrus_core::encoding::blob_encoding::BlobEncoder::decode].
-   * The input `slivers` is expected to be a `Vec<SliverData<Primary>>`.
-   * Returns `Vec<u8>`.
+   * Decode blob from BCS-encoded SliverData buffers.
+   *
+   * Arguments:
+   * - blob_id: The blob identifier
+   * - blob_size: The original unencoded blob size in bytes
+   * - bcs_buffers: Vec<Uint8Array>, each containing BCS-encoded SliverData<Primary>
+   * - output_buffer: Uint8Array to write decoded data into (must be exactly blob_size bytes)
    */
-  decode(blob_id: any, blob_size: bigint, slivers: any): any;
+  decode(blob_id: any, blob_size: bigint, bcs_buffers: Uint8Array[], output_buffer: Uint8Array): void;
 }
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
+  readonly __wbg_blobencoder_free: (a: number, b: number) => void;
+  readonly blobencoder_new: (a: number) => [number, number, number];
+  readonly blobencoder_encode: (a: number, b: any, c: any, d: any) => [number, number, number];
+  readonly blobencoder_compute_metadata: (a: number, b: any) => [number, number, number];
+  readonly blobencoder_decode: (a: number, b: any, c: bigint, d: number, e: number, f: any) => [number, number];
   readonly bls12381_min_pk_verify: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
   readonly bls12381_min_pk_aggregate: (a: any) => [number, number, number, number];
   readonly bls12381_min_pk_verify_aggregate: (a: any, b: number, c: number, d: number, e: number) => [number, number, number];
-  readonly __wbg_blobencoder_free: (a: number, b: number) => void;
-  readonly blobencoder_new: (a: number) => [number, number, number];
-  readonly blobencoder_encode_with_metadata: (a: number, b: number, c: number) => [number, number, number];
-  readonly blobencoder_compute_metadata: (a: number, b: number, c: number) => [number, number, number];
-  readonly blobencoder_decode: (a: number, b: any, c: bigint, d: any) => [number, number, number];
   readonly rustsecp256k1_v0_8_1_context_create: (a: number) => number;
   readonly rustsecp256k1_v0_8_1_context_destroy: (a: number) => void;
   readonly rustsecp256k1_v0_8_1_default_illegal_callback_fn: (a: number, b: number) => void;
@@ -51,7 +64,7 @@ export interface InitOutput {
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_exn_store: (a: number) => void;
   readonly __externref_table_alloc: () => number;
-  readonly __wbindgen_export_4: WebAssembly.Table;
+  readonly __wbindgen_externrefs: WebAssembly.Table;
   readonly __externref_table_dealloc: (a: number) => void;
   readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __wbindgen_start: () => void;
