@@ -46,19 +46,6 @@ export class BalanceManagerContract {
 	};
 
 	/**
-	 * @description Create a new BalanceManager, manually set the owner. Returns the manager, depositCap, withdrawCap, and tradeCap.
-	 * @returns A function that takes a Transaction object
-	 */
-	createBalanceManagerWithOwnerAndCaps = (ownerAddress: string) => (tx: Transaction) => {
-		const [manager, depositCap, withdrawCap, tradeCap] = tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new_with_custom_owner_and_caps`,
-			arguments: [tx.pure.address(ownerAddress)],
-		});
-
-		return { manager, depositCap, withdrawCap, tradeCap };
-	};
-
-	/**
 	 * @description Share the BalanceManager
 	 * @param {TransactionArgument} manager The BalanceManager to share
 	 * @returns A function that takes a Transaction object
@@ -320,10 +307,10 @@ export class BalanceManagerContract {
 		});
 	};
 
-	registerManager = (managerKey: string) => (tx: Transaction) => {
+	registerBalanceManager = (managerKey: string) => (tx: Transaction) => {
 		const managerId = this.#config.getBalanceManager(managerKey).address;
 		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::register_manager`,
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::register_balance_manager`,
 			arguments: [tx.object(managerId), tx.object(this.#config.REGISTRY_ID)],
 		});
 	};

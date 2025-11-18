@@ -270,35 +270,48 @@ export class MarginAdminContract {
 	/**
 	 * @description Create a new coin type data
 	 * @param {string} coinKey The key to identify the coin
+	 * @param {number} maxConfBps The maximum confidence interval in basis points
+	 * @param {number} maxEwmaDifferenceBps The maximum EWMA difference in basis points
 	 * @returns A function that takes a Transaction object
 	 */
-	newCoinTypeData = (coinKey: string) => (tx: Transaction) => {
-		const coin = this.#config.getCoin(coinKey);
-		if (!coin.feed) {
-			throw new Error('Coin feed not found');
-		}
-		const priceFeedInput = new Uint8Array(
-			hexToBytes(coin['feed']!.startsWith('0x') ? coin.feed!.slice(2) : coin['feed']),
-		);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::oracle::new_coin_type_data`,
-			arguments: [tx.object(coin.metadataId!), tx.pure.vector('u8', priceFeedInput)],
-			typeArguments: [coin.type],
-		});
-	};
+	newCoinTypeData =
+		(coinKey: string, maxConfBps: number, maxEwmaDifferenceBps: number) => (tx: Transaction) => {
+			const coin = this.#config.getCoin(coinKey);
+			if (!coin.feed) {
+				throw new Error('Coin feed not found');
+			}
+			const priceFeedInput = new Uint8Array(
+				hexToBytes(coin['feed']!.startsWith('0x') ? coin.feed!.slice(2) : coin['feed']),
+			);
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::oracle::new_coin_type_data`,
+				arguments: [
+					tx.object(coin.metadataId!),
+					tx.pure.vector('u8', priceFeedInput),
+					tx.pure.u64(maxConfBps),
+					tx.pure.u64(maxEwmaDifferenceBps),
+				],
+				typeArguments: [coin.type],
+			});
+		};
 
 	/**
 	 * @description Create a new Pyth config
-	 * @param {string[]} coins The coins to be added to the Pyth config
+	 * @param {Array<{coinKey: string, maxConfBps: number, maxEwmaDifferenceBps: number}>} coinSetups The coins with their oracle config to be added to the Pyth config
 	 * @param {number} maxAgeSeconds The max age in seconds for the Pyth config
-	 * @param {number} maxIntervalBps The max interval in basis points for the Pyth config
 	 * @returns A function that takes a Transaction object
 	 */
 	newPythConfig =
-		(coins: string[], maxAgeSeconds: number, maxIntervalBps: number) => (tx: Transaction) => {
+		(
+			coinSetups: Array<{ coinKey: string; maxConfBps: number; maxEwmaDifferenceBps: number }>,
+			maxAgeSeconds: number,
+		) =>
+		(tx: Transaction) => {
 			const coinTypeDataList = [];
-			for (const coin of coins) {
-				coinTypeDataList.push(this.newCoinTypeData(coin)(tx));
+			for (const setup of coinSetups) {
+				coinTypeDataList.push(
+					this.newCoinTypeData(setup.coinKey, setup.maxConfBps, setup.maxEwmaDifferenceBps)(tx),
+				);
 			}
 			return tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::oracle::new_pyth_config`,
@@ -308,7 +321,6 @@ export class MarginAdminContract {
 						type: `${this.#config.MARGIN_PACKAGE_ID}::oracle::CoinTypeData`,
 					}),
 					tx.pure.u64(maxAgeSeconds),
-					tx.pure.u64(maxIntervalBps),
 				],
 			});
 		};

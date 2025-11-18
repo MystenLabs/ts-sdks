@@ -31,6 +31,7 @@ export class MarginManagerContract {
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::new`,
 			arguments: [
 				tx.object(pool.address),
+				tx.object(this.#config.REGISTRY_ID),
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
 				tx.object.clock(),
 			],
@@ -51,6 +52,7 @@ export class MarginManagerContract {
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::new_with_initializer`,
 			arguments: [
 				tx.object(pool.address),
+				tx.object(this.#config.REGISTRY_ID),
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
 				tx.object.clock(),
 			],
