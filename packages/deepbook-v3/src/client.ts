@@ -1494,6 +1494,80 @@ export class DeepBookClient {
 		};
 	}
 
+	/**
+	 * @description Get the base asset balance of a margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<string>} The base asset balance
+	 */
+	async getMarginManagerBaseBalance(
+		marginManagerKey: string,
+		decimals: number = 6,
+	): Promise<string> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
+		const tx = new Transaction();
+		tx.add(this.marginManager.baseBalance(manager.poolKey, manager.address));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		// Check if the transaction failed
+		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+			throw new Error(
+				`Failed to get margin manager base balance: ${res.effects?.status?.error || 'Unknown error'}`,
+			);
+		}
+
+		const bytes = res.results[0].returnValues[0][0];
+		const pool = this.#config.getPool(manager.poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+
+		return this.#formatTokenAmount(
+			BigInt(bcs.U64.parse(new Uint8Array(bytes))),
+			baseCoin.scalar,
+			decimals,
+		);
+	}
+
+	/**
+	 * @description Get the quote asset balance of a margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<string>} The quote asset balance
+	 */
+	async getMarginManagerQuoteBalance(
+		marginManagerKey: string,
+		decimals: number = 6,
+	): Promise<string> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
+		const tx = new Transaction();
+		tx.add(this.marginManager.quoteBalance(manager.poolKey, manager.address));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		// Check if the transaction failed
+		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+			throw new Error(
+				`Failed to get margin manager quote balance: ${res.effects?.status?.error || 'Unknown error'}`,
+			);
+		}
+
+		const bytes = res.results[0].returnValues[0][0];
+		const pool = this.#config.getPool(manager.poolKey);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+		return this.#formatTokenAmount(
+			BigInt(bcs.U64.parse(new Uint8Array(bytes))),
+			quoteCoin.scalar,
+			decimals,
+		);
+	}
+
 	// === Margin Registry Functions ===
 
 	/**
