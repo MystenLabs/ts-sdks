@@ -629,4 +629,21 @@ export class MarginManagerContract {
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};
+
+	/**
+	 * @description Get the DEEP token balance of a margin manager
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	deepBalance = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deep_balance`,
+			arguments: [tx.object(marginManagerId)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
 }

@@ -1502,7 +1502,7 @@ export class DeepBookClient {
 	 */
 	async getMarginManagerBaseBalance(
 		marginManagerKey: string,
-		decimals: number = 6,
+		decimals: number = 9,
 	): Promise<string> {
 		const manager = this.#config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
@@ -1539,7 +1539,7 @@ export class DeepBookClient {
 	 */
 	async getMarginManagerQuoteBalance(
 		marginManagerKey: string,
-		decimals: number = 6,
+		decimals: number = 9,
 	): Promise<string> {
 		const manager = this.#config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
@@ -1564,6 +1564,42 @@ export class DeepBookClient {
 		return this.#formatTokenAmount(
 			BigInt(bcs.U64.parse(new Uint8Array(bytes))),
 			quoteCoin.scalar,
+			decimals,
+		);
+	}
+
+	/**
+	 * @description Get the DEEP token balance of a margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<string>} The DEEP token balance
+	 */
+	async getMarginManagerDeepBalance(
+		marginManagerKey: string,
+		decimals: number = 6,
+	): Promise<string> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
+		const tx = new Transaction();
+		tx.add(this.marginManager.deepBalance(manager.poolKey, manager.address));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		// Check if the transaction failed
+		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+			throw new Error(
+				`Failed to get margin manager DEEP balance: ${res.effects?.status?.error || 'Unknown error'}`,
+			);
+		}
+
+		const bytes = res.results[0].returnValues[0][0];
+		const deepCoin = this.#config.getCoin('DEEP');
+
+		return this.#formatTokenAmount(
+			BigInt(bcs.U64.parse(new Uint8Array(bytes))),
+			deepCoin.scalar,
 			decimals,
 		);
 	}
