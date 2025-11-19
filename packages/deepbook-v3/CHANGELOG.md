@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.21.0
+
+### Minor Changes
+
+- ab5ff6c: New testnet core package upgrade, margin package redeployment
+
 ## 0.20.4
 
 ### Patch Changes
