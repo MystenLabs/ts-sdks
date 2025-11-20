@@ -29,7 +29,7 @@ const client = new SuiClient({
 async function uploadFile() {
 	const keypair = await getFundedKeypair();
 
-	const file = new TextEncoder().encode('Hello from the TS SDK!!!\n');
+	const file = new TextEncoder().encode('Hello from the TS SDK!!!!\n');
 
 	const { blobId, blobObject } = await client.walrus.writeBlob({
 		blob: file,
