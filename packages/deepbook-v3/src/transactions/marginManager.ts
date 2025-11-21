@@ -98,7 +98,14 @@ export class MarginManagerContract {
 		});
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
-			arguments: [tx.object(manager.address), tx.object(this.#config.MARGIN_REGISTRY_ID), coin],
+			arguments: [
+				tx.object(manager.address),
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(baseCoin.priceInfoObjectId!),
+				tx.object(quoteCoin.priceInfoObjectId!),
+				coin,
+				tx.object.clock(),
+			],
 			typeArguments: [baseCoin.type, quoteCoin.type, baseCoin.type],
 		});
 	};
@@ -120,7 +127,14 @@ export class MarginManagerContract {
 		});
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
-			arguments: [tx.object(manager.address), tx.object(this.#config.MARGIN_REGISTRY_ID), coin],
+			arguments: [
+				tx.object(manager.address),
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(baseCoin.priceInfoObjectId!),
+				tx.object(quoteCoin.priceInfoObjectId!),
+				coin,
+				tx.object.clock(),
+			],
 			typeArguments: [baseCoin.type, quoteCoin.type, quoteCoin.type],
 		});
 	};
@@ -143,7 +157,14 @@ export class MarginManagerContract {
 		});
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
-			arguments: [tx.object(manager.address), tx.object(this.#config.MARGIN_REGISTRY_ID), coin],
+			arguments: [
+				tx.object(manager.address),
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(baseCoin.priceInfoObjectId!),
+				tx.object(quoteCoin.priceInfoObjectId!),
+				coin,
+				tx.object.clock(),
+			],
 			typeArguments: [baseCoin.type, quoteCoin.type, deepCoin.type],
 		});
 	};
