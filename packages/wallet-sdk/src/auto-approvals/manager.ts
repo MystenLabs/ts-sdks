@@ -361,7 +361,8 @@ export class AutoApprovalManager {
 					throw new Error('No value available for coin type ' + change.coinType);
 				}
 
-				const convertedChange = Number(change.amount) / 10 ** coinValue.decimals * coinValue.price;
+				const convertedChange =
+					(Number(change.amount) / 10 ** coinValue.decimals) * coinValue.price;
 
 				this.#state.settings.sharedBudget += convertedChange;
 			}
