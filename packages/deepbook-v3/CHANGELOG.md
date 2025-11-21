@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.22.0
+
+### Minor Changes
+
+- 911ff24: New deposit function params and testnet package
+
 ## 0.21.0
 
 ### Minor Changes

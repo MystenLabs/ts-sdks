@@ -1,5 +1,11 @@
 # @mysten/wallet-sdk
 
+## 0.0.6
+
+### Patch Changes
+
+- a71f824: fix coin calculation in AutoApprovalManager.applyTransactionEffects
+
 ## 0.0.5
 
 ### Patch Changes
