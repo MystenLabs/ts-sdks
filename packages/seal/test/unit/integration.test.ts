@@ -65,6 +65,7 @@ const MOCK_KEY_SERVERS = new Map([
 			url: 'url1',
 			keyType: KeyServerType.BonehFranklinBLS12381,
 			pk,
+			serverType: 'Independent' as const,
 		},
 	],
 	[
@@ -75,6 +76,7 @@ const MOCK_KEY_SERVERS = new Map([
 			url: 'url2',
 			keyType: KeyServerType.BonehFranklinBLS12381,
 			pk,
+			serverType: 'Independent' as const,
 		},
 	],
 	[
@@ -85,6 +87,7 @@ const MOCK_KEY_SERVERS = new Map([
 			url: 'url3',
 			keyType: KeyServerType.BonehFranklinBLS12381,
 			pk,
+			serverType: 'Independent' as const,
 		},
 	],
 	[
@@ -95,6 +98,7 @@ const MOCK_KEY_SERVERS = new Map([
 			url: 'url4',
 			keyType: KeyServerType.BonehFranklinBLS12381,
 			pk,
+			serverType: 'Independent' as const,
 		},
 	],
 	[
@@ -105,9 +109,11 @@ const MOCK_KEY_SERVERS = new Map([
 			url: 'url5',
 			keyType: KeyServerType.BonehFranklinBLS12381,
 			pk,
+			serverType: 'Independent' as const,
 		},
 	],
 ]);
+
 describe('Integration test', () => {
 	let keypair: Ed25519Keypair;
 	let suiAddress: string;
