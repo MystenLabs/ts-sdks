@@ -41,6 +41,7 @@ describe('Seal encryption tests', () => {
 					name: 'test',
 					url: 'https://test.com',
 					keyType: 0,
+					serverType: 'Independent',
 				},
 				{
 					objectId: '0x0000000000000000000000000000000000000000000000000000000000000002',
@@ -48,6 +49,7 @@ describe('Seal encryption tests', () => {
 					name: 'test2',
 					url: 'https://test2.com',
 					keyType: 0,
+					serverType: 'Independent',
 				},
 				{
 					objectId: '0x0000000000000000000000000000000000000000000000000000000000000003',
@@ -55,6 +57,7 @@ describe('Seal encryption tests', () => {
 					name: 'test3',
 					url: 'https://test3.com',
 					keyType: 0,
+					serverType: 'Independent',
 				},
 			],
 			kemType: KemType.BonehFranklinBLS12381DemCCA,
@@ -94,6 +97,7 @@ describe('Seal encryption tests', () => {
 					name: 'test',
 					url: 'https://test.com',
 					keyType: 0,
+					serverType: 'Independent',
 				},
 				{
 					objectId: objectId2,
@@ -101,6 +105,7 @@ describe('Seal encryption tests', () => {
 					name: 'test2',
 					url: 'https://test2.com',
 					keyType: 0,
+					serverType: 'Independent',
 				},
 				{
 					objectId: objectId3,
@@ -108,6 +113,7 @@ describe('Seal encryption tests', () => {
 					name: 'test3',
 					url: 'https://test3.com',
 					keyType: 0,
+					serverType: 'Independent',
 				},
 			],
 			kemType: KemType.BonehFranklinBLS12381DemCCA,
@@ -189,6 +195,7 @@ describe('Seal encryption tests', () => {
 					name: 'test',
 					url: 'https://test.com',
 					keyType: 0,
+					serverType: 'Independent',
 				},
 				{
 					objectId: objectId2,
@@ -196,6 +203,7 @@ describe('Seal encryption tests', () => {
 					name: 'test2',
 					url: 'https://test2.com',
 					keyType: 0,
+					serverType: 'Independent',
 				},
 				{
 					objectId: objectId3,
@@ -203,6 +211,7 @@ describe('Seal encryption tests', () => {
 					name: 'test3',
 					url: 'https://test3.com',
 					keyType: 0,
+					serverType: 'Independent',
 				},
 			],
 			kemType: KemType.BonehFranklinBLS12381DemCCA,
@@ -346,6 +355,7 @@ describe('Seal encryption tests', () => {
 					name: 'test',
 					url: 'https://test.com',
 					keyType: 0,
+					serverType: 'Independent',
 				},
 			],
 			kemType: KemType.BonehFranklinBLS12381DemCCA,
@@ -395,6 +405,7 @@ describe('Seal encryption tests', () => {
 					name: 'test',
 					url: 'https://test.com',
 					keyType: 0,
+					serverType: 'Independent',
 				},
 				{
 					objectId: objectId2,
@@ -402,6 +413,7 @@ describe('Seal encryption tests', () => {
 					name: 'test2',
 					url: 'https://test2.com',
 					keyType: 0,
+					serverType: 'Independent',
 				},
 				{
 					objectId: objectId3,
@@ -409,6 +421,7 @@ describe('Seal encryption tests', () => {
 					name: 'test3',
 					url: 'https://test3.com',
 					keyType: 0,
+					serverType: 'Independent',
 				},
 			],
 			kemType: KemType.BonehFranklinBLS12381DemCCA,

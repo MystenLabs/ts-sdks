@@ -18,7 +18,7 @@ import {
 	NoAccessError,
 	toMajorityError,
 } from '../../src/error';
-import { KeyServerType } from '../../src/key-server';
+import { KeyType } from '../../src/key-server';
 import { RequestFormat, SessionKey } from '../../src/session-key';
 import { decrypt } from '../../src/decrypt';
 import { KeyCacheKey, SealCompatibleClient } from '../../src/types';
@@ -63,8 +63,9 @@ const MOCK_KEY_SERVERS = new Map([
 			name: 'server1',
 			objectId: 'server1',
 			url: 'url1',
-			keyType: KeyServerType.BonehFranklinBLS12381,
+			keyType: KeyType.BonehFranklinBLS12381,
 			pk,
+			serverType: 'Independent',
 		},
 	],
 	[
@@ -73,8 +74,9 @@ const MOCK_KEY_SERVERS = new Map([
 			name: 'server2',
 			objectId: 'server2',
 			url: 'url2',
-			keyType: KeyServerType.BonehFranklinBLS12381,
+			keyType: KeyType.BonehFranklinBLS12381,
 			pk,
+			serverType: 'Independent',
 		},
 	],
 	[
@@ -83,8 +85,9 @@ const MOCK_KEY_SERVERS = new Map([
 			name: 'server3',
 			objectId: 'server3',
 			url: 'url3',
-			keyType: KeyServerType.BonehFranklinBLS12381,
+			keyType: KeyType.BonehFranklinBLS12381,
 			pk,
+			serverType: 'Independent',
 		},
 	],
 	[
@@ -93,8 +96,9 @@ const MOCK_KEY_SERVERS = new Map([
 			name: 'server4',
 			objectId: 'server4',
 			url: 'url4',
-			keyType: KeyServerType.BonehFranklinBLS12381,
+			keyType: KeyType.BonehFranklinBLS12381,
 			pk,
+			serverType: 'Independent',
 		},
 	],
 	[
@@ -103,8 +107,9 @@ const MOCK_KEY_SERVERS = new Map([
 			name: 'server5',
 			objectId: 'server5',
 			url: 'url5',
-			keyType: KeyServerType.BonehFranklinBLS12381,
+			keyType: KeyType.BonehFranklinBLS12381,
 			pk,
+			serverType: 'Independent',
 		},
 	],
 ]);

@@ -36,6 +36,9 @@ export interface KeyServerConfig {
 	weight: number;
 	apiKeyName?: string;
 	apiKey?: string;
+	/** Must be provided if object ID is for a committee mode server since all fetch key calls go
+	 * through an aggregator. */
+	aggregatorUrl?: string;
 }
 
 export interface SealClientOptions extends SealClientExtensionOptions {

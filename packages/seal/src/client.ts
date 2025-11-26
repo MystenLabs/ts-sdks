@@ -262,6 +262,7 @@ export class SealClient {
 				await retrieveKeyServers({
 					objectIds: missingKeyServers,
 					client: this.#suiClient,
+					configs: this.#configs,
 				})
 			).forEach((keyServer) =>
 				this.#cachedPublicKeys.set(keyServer.objectId, G2Element.fromBytes(keyServer.pk)),
@@ -295,8 +296,9 @@ export class SealClient {
 
 	async #loadKeyServers(): Promise<Map<string, KeyServer>> {
 		const keyServers = await retrieveKeyServers({
-			objectIds: [...this.#configs].map(([objectId]) => objectId),
+			objectIds: [...this.#configs.keys()],
 			client: this.#suiClient,
+			configs: this.#configs,
 		});
 
 		if (keyServers.length === 0) {
@@ -306,6 +308,10 @@ export class SealClient {
 		if (this.#verifyKeyServers) {
 			await Promise.all(
 				keyServers.map(async (server) => {
+					// Skip /service verification for committee key server type since the request goes through an aggregator.
+					if (server.serverType === 'Committee') {
+						return;
+					}
 					const config = this.#configs.get(server.objectId);
 					if (!(await verifyKeyServer(server, this.#timeout, config?.apiKeyName, config?.apiKey))) {
 						throw new InvalidKeyServerError(`Key server ${server.objectId} is not valid`);
