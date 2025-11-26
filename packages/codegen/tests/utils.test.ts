@@ -256,4 +256,50 @@ describe('normalizeMoveArguments', () => {
   ]
 }"`);
 	});
+
+	it('should allow null for Option types', async () => {
+		const tx = new Transaction();
+		tx.moveCall({
+			target: '0x0::test:test',
+			arguments: normalizeMoveArguments(
+				{ optionalValue: null }, // args
+				['0x1::option::Option<u32>'], // arg types
+				['optionalValue'], // parameters' names
+			),
+		});
+
+		expect(await tx.toJSON()).toMatchInlineSnapshot(`"{
+  "version": 2,
+  "sender": null,
+  "expiration": null,
+  "gasData": {
+    "budget": null,
+    "price": null,
+    "owner": null,
+    "payment": null
+  },
+  "inputs": [
+    {
+      "Pure": {
+        "bytes": "AA=="
+      }
+    }
+  ],
+  "commands": [
+    {
+      "MoveCall": {
+        "package": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "module": "test:test",
+        "function": "",
+        "typeArguments": [],
+        "arguments": [
+          {
+            "Input": 0
+          }
+        ]
+      }
+    }
+  ]
+}"`);
+	});
 });

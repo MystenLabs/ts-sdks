@@ -60,6 +60,10 @@ export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null
 	return null;
 }
 
+function isOptionType(type: string) {
+	return type.includes('::option::Option<');
+}
+
 export function normalizeMoveArguments(args: unknown[] | object, argTypes: string[], parameterNames?: string[]) {
 	const argLen = Array.isArray(args) ? args.length : Object.keys(args).length;
 	if (parameterNames && argLen !== parameterNames.length) {
@@ -105,7 +109,7 @@ export function normalizeMoveArguments(args: unknown[] | object, argTypes: strin
 			const name = parameterNames[index];
 			arg = args[name as keyof typeof args];
 
-			if (arg == null) {
+			if (arg === undefined || (arg === null && !isOptionType(argTypes[i]))) {
 				throw new Error(\`Parameter \${name} is required\`);
 			}
 		}
