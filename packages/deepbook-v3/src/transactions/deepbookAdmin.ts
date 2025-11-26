@@ -305,4 +305,28 @@ export class DeepBookAdminContract {
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};
+
+	/**
+	 * @description Authorize the MarginApp to access protected features of DeepBook
+	 * @returns A function that takes a Transaction object
+	 */
+	authorizeMarginApp = () => (tx: Transaction) => {
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::authorize_app`,
+			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
+			typeArguments: [`${this.#config.MARGIN_PACKAGE_ID}::margin_manager::MarginApp`],
+		});
+	};
+
+	/**
+	 * @description Deauthorize the MarginApp by removing its authorization key
+	 * @returns A function that takes a Transaction object and returns a bool
+	 */
+	deauthorizeMarginApp = () => (tx: Transaction) => {
+		return tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::deauthorize_app`,
+			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
+			typeArguments: [`${this.#config.MARGIN_PACKAGE_ID}::margin_manager::MarginApp`],
+		});
+	};
 }

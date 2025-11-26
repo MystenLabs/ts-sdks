@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.45.0
+
+### Minor Changes
+
+- 88bdbac: Add TranasctionData.insertTransaction method
+
 ## 1.44.0
 
 ### Minor Changes

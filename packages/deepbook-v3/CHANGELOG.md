@@ -1,5 +1,33 @@
 # @mysten/deepbook-v3
 
+## 0.22.0
+
+### Minor Changes
+
+- 911ff24: New deposit function params and testnet package
+
+## 0.21.0
+
+### Minor Changes
+
+- ab5ff6c: New testnet core package upgrade, margin package redeployment
+
+## 0.20.4
+
+### Patch Changes
+
+- bf5773f: Improve read only functions and add manager state function
+- d8355d7: Admin withdraw referral fees
+
+## 0.20.3
+
+### Patch Changes
+
+- a2f84a3: Update margin withdraw referral function
+- e0490df: Fix deepbook admin function
+- Updated dependencies [88bdbac]
+  - @mysten/sui@1.45.0
+
 ## 0.20.2
 
 ### Patch Changes

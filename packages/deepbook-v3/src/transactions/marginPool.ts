@@ -125,9 +125,13 @@ export class MarginPoolContract {
 	 */
 	withdrawReferralFees = (coinKey: string, referralId: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		tx.moveCall({
+		return tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::withdraw_referral_fees`,
-			arguments: [tx.object(marginPool.address), tx.object(referralId), tx.object.clock()],
+			arguments: [
+				tx.object(marginPool.address),
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(referralId),
+			],
 			typeArguments: [marginPool.type],
 		});
 	};

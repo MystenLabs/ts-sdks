@@ -1136,13 +1136,13 @@ export class DeepBookClient {
 
 	/**
 	 * @description Get the owner address of a margin manager
-	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} marginManagerId The ID of the margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
 	 * @returns {Promise<string>} The owner address
 	 */
-	async getMarginManagerOwner(poolKey: string, marginManagerId: string): Promise<string> {
+	async getMarginManagerOwner(marginManagerKey: string): Promise<string> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
-		tx.add(this.marginManager.ownerByPoolKey(poolKey, marginManagerId));
+		tx.add(this.marginManager.ownerByPoolKey(manager.poolKey, manager.address));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
@@ -1155,13 +1155,13 @@ export class DeepBookClient {
 
 	/**
 	 * @description Get the DeepBook pool ID associated with a margin manager
-	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} marginManagerId The ID of the margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
 	 * @returns {Promise<string>} The DeepBook pool ID
 	 */
-	async getMarginManagerDeepbookPool(poolKey: string, marginManagerId: string): Promise<string> {
+	async getMarginManagerDeepbookPool(marginManagerKey: string): Promise<string> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
-		tx.add(this.marginManager.deepbookPool(poolKey, marginManagerId));
+		tx.add(this.marginManager.deepbookPool(manager.poolKey, manager.address));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
@@ -1174,16 +1174,13 @@ export class DeepBookClient {
 
 	/**
 	 * @description Get the margin pool ID (if any) associated with a margin manager
-	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} marginManagerId The ID of the margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
 	 * @returns {Promise<string | null>} The margin pool ID or null if no active loan
 	 */
-	async getMarginManagerMarginPoolId(
-		poolKey: string,
-		marginManagerId: string,
-	): Promise<string | null> {
+	async getMarginManagerMarginPoolId(marginManagerKey: string): Promise<string | null> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
-		tx.add(this.marginManager.marginPoolId(poolKey, marginManagerId));
+		tx.add(this.marginManager.marginPoolId(manager.poolKey, manager.address));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
@@ -1197,16 +1194,15 @@ export class DeepBookClient {
 
 	/**
 	 * @description Get borrowed shares for both base and quote assets
-	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} marginManagerId The ID of the margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
 	 * @returns {Promise<{baseShares: string, quoteShares: string}>} The borrowed shares
 	 */
 	async getMarginManagerBorrowedShares(
-		poolKey: string,
-		marginManagerId: string,
+		marginManagerKey: string,
 	): Promise<{ baseShares: string; quoteShares: string }> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
-		tx.add(this.marginManager.borrowedShares(poolKey, marginManagerId));
+		tx.add(this.marginManager.borrowedShares(manager.poolKey, manager.address));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
@@ -1223,16 +1219,13 @@ export class DeepBookClient {
 
 	/**
 	 * @description Get borrowed base shares
-	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} marginManagerId The ID of the margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
 	 * @returns {Promise<string>} The borrowed base shares
 	 */
-	async getMarginManagerBorrowedBaseShares(
-		poolKey: string,
-		marginManagerId: string,
-	): Promise<string> {
+	async getMarginManagerBorrowedBaseShares(marginManagerKey: string): Promise<string> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
-		tx.add(this.marginManager.borrowedBaseShares(poolKey, marginManagerId));
+		tx.add(this.marginManager.borrowedBaseShares(manager.poolKey, manager.address));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
@@ -1245,16 +1238,13 @@ export class DeepBookClient {
 
 	/**
 	 * @description Get borrowed quote shares
-	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} marginManagerId The ID of the margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
 	 * @returns {Promise<string>} The borrowed quote shares
 	 */
-	async getMarginManagerBorrowedQuoteShares(
-		poolKey: string,
-		marginManagerId: string,
-	): Promise<string> {
+	async getMarginManagerBorrowedQuoteShares(marginManagerKey: string): Promise<string> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
-		tx.add(this.marginManager.borrowedQuoteShares(poolKey, marginManagerId));
+		tx.add(this.marginManager.borrowedQuoteShares(manager.poolKey, manager.address));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
@@ -1267,13 +1257,13 @@ export class DeepBookClient {
 
 	/**
 	 * @description Check if margin manager has base asset debt
-	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} marginManagerId The ID of the margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
 	 * @returns {Promise<boolean>} True if has base debt, false otherwise
 	 */
-	async getMarginManagerHasBaseDebt(poolKey: string, marginManagerId: string): Promise<boolean> {
+	async getMarginManagerHasBaseDebt(marginManagerKey: string): Promise<boolean> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
-		tx.add(this.marginManager.hasBaseDebt(poolKey, marginManagerId));
+		tx.add(this.marginManager.hasBaseDebt(manager.poolKey, manager.address));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
@@ -1286,16 +1276,13 @@ export class DeepBookClient {
 
 	/**
 	 * @description Get the balance manager ID for a margin manager
-	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} marginManagerId The ID of the margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
 	 * @returns {Promise<string>} The balance manager ID
 	 */
-	async getMarginManagerBalanceManagerId(
-		poolKey: string,
-		marginManagerId: string,
-	): Promise<string> {
+	async getMarginManagerBalanceManagerId(marginManagerKey: string): Promise<string> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
-		tx.add(this.marginManager.balanceManager(poolKey, marginManagerId));
+		tx.add(this.marginManager.balanceManager(manager.poolKey, manager.address));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
@@ -1308,18 +1295,17 @@ export class DeepBookClient {
 
 	/**
 	 * @description Calculate assets (base and quote) for a margin manager
-	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} marginManagerId The ID of the margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
 	 * @param {number} decimals Number of decimal places to show (default: 6)
 	 * @returns {Promise<{baseAsset: string, quoteAsset: string}>} The base and quote assets
 	 */
 	async getMarginManagerAssets(
-		poolKey: string,
-		marginManagerId: string,
+		marginManagerKey: string,
 		decimals: number = 6,
 	): Promise<{ baseAsset: string; quoteAsset: string }> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
-		tx.add(this.marginManager.calculateAssets(poolKey, marginManagerId));
+		tx.add(this.marginManager.calculateAssets(manager.poolKey, manager.address));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
@@ -1328,7 +1314,7 @@ export class DeepBookClient {
 
 		const baseBytes = res.results![0].returnValues![0][0];
 		const quoteBytes = res.results![0].returnValues![1][0];
-		const pool = this.#config.getPool(poolKey);
+		const pool = this.#config.getPool(manager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
@@ -1350,26 +1336,25 @@ export class DeepBookClient {
 	 * @description Calculate debts (base and quote) for a margin manager
 	 * NOTE: This function automatically determines whether to use base or quote margin pool
 	 * based on hasBaseDebt. You don't need to specify the debt coin type.
-	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} marginManagerId The ID of the margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
 	 * @param {number} decimals Number of decimal places to show (default: 6)
 	 * @returns {Promise<{baseDebt: string, quoteDebt: string}>} The base and quote debts
 	 */
 	async getMarginManagerDebts(
-		poolKey: string,
-		marginManagerId: string,
+		marginManagerKey: string,
 		decimals: number = 6,
 	): Promise<{ baseDebt: string; quoteDebt: string }> {
 		// First check if the margin manager has base debt
-		const hasBaseDebt = await this.getMarginManagerHasBaseDebt(poolKey, marginManagerId);
+		const hasBaseDebt = await this.getMarginManagerHasBaseDebt(marginManagerKey);
 
-		// Get the pool configuration to determine base and quote coins
-		const pool = this.#config.getPool(poolKey);
+		// Get the manager and pool configuration
+		const manager = this.#config.getMarginManager(marginManagerKey);
+		const pool = this.#config.getPool(manager.poolKey);
 		const debtCoinKey = hasBaseDebt ? pool.baseCoin : pool.quoteCoin;
 
 		// Now call calculateDebts with the correct debt coin
 		const tx = new Transaction();
-		tx.add(this.marginManager.calculateDebts(poolKey, debtCoinKey, marginManagerId));
+		tx.add(this.marginManager.calculateDebts(manager.poolKey, debtCoinKey, manager.address));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
@@ -1400,6 +1385,223 @@ export class DeepBookClient {
 		);
 
 		return { baseDebt, quoteDebt };
+	}
+
+	/**
+	 * @description Get comprehensive state information for a margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<{
+	 *   managerId: string,
+	 *   deepbookPoolId: string,
+	 *   riskRatio: number,
+	 *   baseAsset: string,
+	 *   quoteAsset: string,
+	 *   baseDebt: string,
+	 *   quoteDebt: string,
+	 *   basePythPrice: string,
+	 *   basePythDecimals: number,
+	 *   quotePythPrice: string,
+	 *   quotePythDecimals: number
+	 * }>} Comprehensive margin manager state
+	 */
+	async getMarginManagerState(
+		marginManagerKey: string,
+		decimals: number = 6,
+	): Promise<{
+		managerId: string;
+		deepbookPoolId: string;
+		riskRatio: number;
+		baseAsset: string;
+		quoteAsset: string;
+		baseDebt: string;
+		quoteDebt: string;
+		basePythPrice: string;
+		basePythDecimals: number;
+		quotePythPrice: string;
+		quotePythDecimals: number;
+	}> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
+		const tx = new Transaction();
+		tx.add(this.marginManager.managerState(manager.poolKey, manager.address));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		// Check if the transaction failed
+		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+			throw new Error(
+				`Failed to get margin manager state: ${res.effects?.status?.error || 'Unknown error'}`,
+			);
+		}
+
+		const pool = this.#config.getPool(manager.poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+		// Parse all 11 return values
+		const managerId = normalizeSuiAddress(
+			bcs.Address.parse(new Uint8Array(res.results[0].returnValues[0][0])),
+		);
+		const deepbookPoolId = normalizeSuiAddress(
+			bcs.Address.parse(new Uint8Array(res.results[0].returnValues[1][0])),
+		);
+		const riskRatio =
+			Number(bcs.U64.parse(new Uint8Array(res.results[0].returnValues[2][0]))) / FLOAT_SCALAR;
+		const baseAsset = this.#formatTokenAmount(
+			BigInt(bcs.U64.parse(new Uint8Array(res.results[0].returnValues[3][0]))),
+			baseCoin.scalar,
+			decimals,
+		);
+		const quoteAsset = this.#formatTokenAmount(
+			BigInt(bcs.U64.parse(new Uint8Array(res.results[0].returnValues[4][0]))),
+			quoteCoin.scalar,
+			decimals,
+		);
+		const baseDebt = this.#formatTokenAmount(
+			BigInt(bcs.U64.parse(new Uint8Array(res.results[0].returnValues[5][0]))),
+			baseCoin.scalar,
+			decimals,
+		);
+		const quoteDebt = this.#formatTokenAmount(
+			BigInt(bcs.U64.parse(new Uint8Array(res.results[0].returnValues[6][0]))),
+			quoteCoin.scalar,
+			decimals,
+		);
+		const basePythPrice = bcs.U64.parse(new Uint8Array(res.results[0].returnValues[7][0]));
+		const basePythDecimals = Number(
+			bcs.u8().parse(new Uint8Array(res.results[0].returnValues[8][0])),
+		);
+		const quotePythPrice = bcs.U64.parse(new Uint8Array(res.results[0].returnValues[9][0]));
+		const quotePythDecimals = Number(
+			bcs.u8().parse(new Uint8Array(res.results[0].returnValues[10][0])),
+		);
+
+		return {
+			managerId,
+			deepbookPoolId,
+			riskRatio,
+			baseAsset,
+			quoteAsset,
+			baseDebt,
+			quoteDebt,
+			basePythPrice: basePythPrice.toString(),
+			basePythDecimals,
+			quotePythPrice: quotePythPrice.toString(),
+			quotePythDecimals,
+		};
+	}
+
+	/**
+	 * @description Get the base asset balance of a margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<string>} The base asset balance
+	 */
+	async getMarginManagerBaseBalance(
+		marginManagerKey: string,
+		decimals: number = 9,
+	): Promise<string> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
+		const tx = new Transaction();
+		tx.add(this.marginManager.baseBalance(manager.poolKey, manager.address));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		// Check if the transaction failed
+		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+			throw new Error(
+				`Failed to get margin manager base balance: ${res.effects?.status?.error || 'Unknown error'}`,
+			);
+		}
+
+		const bytes = res.results[0].returnValues[0][0];
+		const pool = this.#config.getPool(manager.poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+
+		return this.#formatTokenAmount(
+			BigInt(bcs.U64.parse(new Uint8Array(bytes))),
+			baseCoin.scalar,
+			decimals,
+		);
+	}
+
+	/**
+	 * @description Get the quote asset balance of a margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<string>} The quote asset balance
+	 */
+	async getMarginManagerQuoteBalance(
+		marginManagerKey: string,
+		decimals: number = 9,
+	): Promise<string> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
+		const tx = new Transaction();
+		tx.add(this.marginManager.quoteBalance(manager.poolKey, manager.address));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		// Check if the transaction failed
+		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+			throw new Error(
+				`Failed to get margin manager quote balance: ${res.effects?.status?.error || 'Unknown error'}`,
+			);
+		}
+
+		const bytes = res.results[0].returnValues[0][0];
+		const pool = this.#config.getPool(manager.poolKey);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+		return this.#formatTokenAmount(
+			BigInt(bcs.U64.parse(new Uint8Array(bytes))),
+			quoteCoin.scalar,
+			decimals,
+		);
+	}
+
+	/**
+	 * @description Get the DEEP token balance of a margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
+	 * @param {number} decimals Number of decimal places to show (default: 6)
+	 * @returns {Promise<string>} The DEEP token balance
+	 */
+	async getMarginManagerDeepBalance(
+		marginManagerKey: string,
+		decimals: number = 6,
+	): Promise<string> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
+		const tx = new Transaction();
+		tx.add(this.marginManager.deepBalance(manager.poolKey, manager.address));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		// Check if the transaction failed
+		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+			throw new Error(
+				`Failed to get margin manager DEEP balance: ${res.effects?.status?.error || 'Unknown error'}`,
+			);
+		}
+
+		const bytes = res.results[0].returnValues[0][0];
+		const deepCoin = this.#config.getCoin('DEEP');
+
+		return this.#formatTokenAmount(
+			BigInt(bcs.U64.parse(new Uint8Array(bytes))),
+			deepCoin.scalar,
+			decimals,
+		);
 	}
 
 	// === Margin Registry Functions ===

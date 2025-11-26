@@ -1,5 +1,23 @@
 # @mysten/signers
 
+## 0.6.0
+
+### Minor Changes
+
+- 434381d: Add support for fetching tokens from the CAL (crypto asset list) for clear signing
+
+### Patch Changes
+
+- Updated dependencies [434381d]
+  - @mysten/ledgerjs-hw-app-sui@0.7.0
+
+## 0.5.10
+
+### Patch Changes
+
+- Updated dependencies [88bdbac]
+  - @mysten/sui@1.45.0
+
 ## 0.5.9
 
 ### Patch Changes

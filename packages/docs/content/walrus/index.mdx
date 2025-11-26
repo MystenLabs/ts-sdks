@@ -14,7 +14,8 @@ To use the walrus SDK you will need to create a Client from the typescript SDK, 
 the walrus SDK.
 
 ```ts
-import { getFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { getFullnodeUrl } from '@mysten/sui/client';
 import { walrus } from '@mysten/walrus';
 
 const client = new SuiJsonRpcClient({
@@ -29,7 +30,8 @@ testnet. You can also manually configure the walrus sdk to use a different set o
 to connect to a different network or updated deployment of the walrus contracts.
 
 ```ts
-import { getFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { getFullnodeUrl } from '@mysten/sui/client';
 import { walrus } from '@mysten/walrus';
 
 const client = new SuiJsonRpcClient({
@@ -49,7 +51,8 @@ const client = new SuiJsonRpcClient({
 For some environments you may need to customize how data is fetched:
 
 ```ts
-import { getFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { getFullnodeUrl } from '@mysten/sui/client';
 import { walrus } from '@mysten/walrus';
 
 const client = new SuiJsonRpcClient({
@@ -140,7 +143,7 @@ const files = await blob.files();
 // Get files by identifier
 const [readme] = await blob.files({ identifiers: ['README.md'] });
 // Get files by tag
-const textFiles: WalrusFile[] = await blob.files({ tags: [{ 'content-type': 'text/plain' }] });
+const textFiles = await blob.files({ tags: [{ 'content-type': 'text/plain' }] });
 // Get files by quilt id
 const filesById = await blob.files({ ids: [quiltID] });
 ```
@@ -183,7 +186,7 @@ const results: {
 	id: string;
 	blobId: string;
 	blobObject: Blob.$inferType;
-}[] = client.walrus.writeFiles({
+}[] = await client.walrus.writeFiles({
 	files: [file1, file2, file3],
 	epochs: 3,
 	deletable: true,
@@ -191,8 +194,8 @@ const results: {
 });
 ```
 
-Currently the provided files will all be written into a single quilt. Future versions of the SDK may
-optimize how files are stored to be more efficient by splitting files into multiple quilts.
+Currently, the provided files will all be written into a single quilt. Future versions of the SDK
+may optimize how files are stored to be more efficient by splitting files into multiple quilts.
 
 The current quilt encoding is less efficient for single files, so writing multiple files together is
 recommended when possible. Writing raw blobs directly is also possible using the `writeBlob` API
@@ -261,7 +264,7 @@ interactions, allowing wallet popups to work properly without being blocked by t
 
 ## Writing blobs with an upload relay
 
-Writing blobs directly from a client requires a lot of requests to write data to all of the storage
+Writing blobs directly from a client requires a lot of requests to write data to all the storage
 nodes. An upload relay can be used to offload the work of these writes to a server, reducing
 complexity for the client.
 
@@ -288,7 +291,7 @@ require a tip to be included to cover the cost of writing the blob. You can conf
 (paid in MIST) and the `WalrusClient` will automatically determine the required tip for your upload
 relay, or you can manually configure the tip configuration as shown below.
 
-The tip required by an upload relay can be found using the `tip-config` endpoint: (eg.
+The tip required by an upload relay can be found using the `tip-config` endpoint: (e.g.
 `https://upload-relay.testnet.walrus.space/v1/tip-config`) and may either be a `const` or a `linear`
 tip.
 
@@ -358,7 +361,7 @@ const blob = await client.walrus.readBlob({ blobId });
 
 ### Writing Blobs
 
-Thw writeBlob method can be used to write a blob (as a `Uint8Array`) to walrus. You will need to
+The writeBlob method can be used to write a blob (as a `Uint8Array`) to walrus. You will need to
 specify how long the blob should be stored for, and if the blob should be deletable.
 
 ```ts
@@ -387,7 +390,7 @@ walrus SDK
 ## Error handling
 
 The SDK exports all the error classes for different types of errors that can be thrown. Walrus is a
-fault tolerant distributed system, where many types of errors can be recovered from. During epoch
+fault-tolerant distributed system, where many types of errors can be recovered from. During epoch
 changes there may be times when the data cached in the `WalrusClient` can become invalid. Errors
 that result from this situation will extend the `RetryableWalrusClientError` class.
 
@@ -416,9 +419,9 @@ operation to succeed, and gracefully handle cases where some nodes may be in a b
 
 ### Network errors
 
-Walrus is designed to be handle some nodes being down, and the SDK will only throw errors when it
-can't read from or write to enough storage nodes. When trying to troubleshoot problems, it can be
-challenging to figure out whats going wrong when you don't see all the individual network errors.
+Walrus is designed to handle some nodes being down, and the SDK will only throw errors when it can't
+read from or write to enough storage nodes. When trying to troubleshoot problems, it can be
+challenging to figure out what's going wrong when you don't see all the individual network errors.
 
 You can pass an `onError` option in the storageNodeClientOptions to get the individual errors from
 failed requests:
@@ -442,7 +445,7 @@ Reading and writing blobs directly from storage nodes requires a lot of requests
 will issue all requests needed to complete these operations, but does not handling all the
 complexities a robust aggregator or publisher might encounter.
 
-By default all requests are issued using the global `fetch` for whatever runtime the SDK is running
+By default, all requests are issued using the global `fetch` for whatever runtime the SDK is running
 in.
 
 This will not impose any limitations on concurrency, and will be subject to default timeouts and
@@ -451,7 +454,7 @@ behavior defined by your runtime. To customize how requests are made, you can pr
 
 ```ts
 import type { RequestInfo, RequestInit } from 'undici';
-import { Agent, fetch, setGlobalDispatcher } from 'undici';
+import { Agent, fetch } from 'undici';
 
 const client = new SuiJsonRpcClient({
 	url: getFullnodeUrl('testnet'),

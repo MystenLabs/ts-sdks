@@ -303,7 +303,7 @@ export class DeepBookContract {
 	 * @param {number} multiplier The multiplier for the referral
 	 * @returns A function that takes a Transaction object
 	 */
-	updateReferralMultiplier =
+	updateDeepbookReferralMultiplier =
 		(poolKey: string, referral: string, multiplier: number) => (tx: Transaction) => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
@@ -311,7 +311,7 @@ export class DeepBookContract {
 			const adjustedNumber = Math.round(multiplier * FLOAT_SCALAR);
 
 			tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::update_referral_multiplier`,
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::update_deepbook_referral_multiplier`,
 				arguments: [tx.object(pool.address), tx.object(referral), tx.pure.u64(adjustedNumber)],
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			});

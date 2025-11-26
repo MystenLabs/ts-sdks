@@ -15,11 +15,13 @@ import type {
 	TransactionExpiration,
 	TransactionData,
 } from './data/internal.js';
-import { TransactionDataSchema } from './data/internal.js';
+import { ArgumentSchema, TransactionDataSchema } from './data/internal.js';
 import { transactionDataFromV1 } from './data/v1.js';
 import type { SerializedTransactionDataV1 } from './data/v1.js';
 import type { SerializedTransactionDataV2Schema } from './data/v2.js';
 import { hashTypedData } from './hash.js';
+import { getIdFromCallArg, remapCommandArguments } from './utils.js';
+import type { TransactionResult } from './Transaction.js';
 function prepareSuiAddress(address: string) {
 	return normalizeSuiAddress(address).replace('0x', '');
 }
@@ -273,38 +275,158 @@ export class TransactionDataBuilder implements TransactionData {
 		}
 	}
 
-	replaceCommand(index: number, replacement: Command | Command[], resultIndex = index) {
+	replaceCommand(
+		index: number,
+		replacement: Command | Command[],
+		resultIndex: number | { Result: number } | { NestedResult: [number, number] } = index,
+	) {
 		if (!Array.isArray(replacement)) {
 			this.commands[index] = replacement;
 			return;
 		}
 
 		const sizeDiff = replacement.length - 1;
-		this.commands.splice(index, 1, ...replacement);
 
-		if (sizeDiff !== 0) {
+		this.commands.splice(index, 1, ...structuredClone(replacement));
+
+		this.mapArguments((arg, _command, commandIndex) => {
+			if (commandIndex < index + replacement.length) {
+				return arg;
+			}
+
+			if (typeof resultIndex !== 'number') {
+				if (
+					(arg.$kind === 'Result' && arg.Result === index) ||
+					(arg.$kind === 'NestedResult' && arg.NestedResult[0] === index)
+				) {
+					if (!('NestedResult' in arg) || arg.NestedResult[1] === 0) {
+						return parse(ArgumentSchema, structuredClone(resultIndex));
+					} else {
+						throw new Error(
+							`Cannot replace command ${index} with a specific result type: NestedResult[${index}, ${arg.NestedResult[1]}] references a nested element that cannot be mapped to the replacement result`,
+						);
+					}
+				}
+			}
+
+			// Handle adjustment of other references
+			switch (arg.$kind) {
+				case 'Result':
+					if (arg.Result === index && typeof resultIndex === 'number') {
+						arg.Result = resultIndex;
+					}
+					if (arg.Result > index) {
+						arg.Result += sizeDiff;
+					}
+					break;
+
+				case 'NestedResult':
+					if (arg.NestedResult[0] === index && typeof resultIndex === 'number') {
+						return {
+							$kind: 'NestedResult',
+							NestedResult: [resultIndex, arg.NestedResult[1]],
+						};
+					}
+					if (arg.NestedResult[0] > index) {
+						arg.NestedResult[0] += sizeDiff;
+					}
+					break;
+			}
+			return arg;
+		});
+	}
+
+	replaceCommandWithTransaction(
+		index: number,
+		otherTransaction: TransactionData,
+		result: TransactionResult,
+	) {
+		if (result.$kind !== 'Result' && result.$kind !== 'NestedResult') {
+			throw new Error('Result must be of kind Result or NestedResult');
+		}
+
+		this.insertTransaction(index, otherTransaction);
+
+		this.replaceCommand(
+			index + otherTransaction.commands.length,
+			[],
+			'Result' in result
+				? { NestedResult: [result.Result + index, 0] }
+				: {
+						NestedResult: [
+							(result as { NestedResult: [number, number] }).NestedResult[0] + index,
+							(result as { NestedResult: [number, number] }).NestedResult[1],
+						] as [number, number],
+					},
+		);
+	}
+
+	insertTransaction(atCommandIndex: number, otherTransaction: TransactionData) {
+		const inputMapping = new Map<number, number>();
+		const commandMapping = new Map<number, number>();
+
+		for (let i = 0; i < otherTransaction.inputs.length; i++) {
+			const otherInput = otherTransaction.inputs[i];
+			const id = getIdFromCallArg(otherInput);
+
+			let existingIndex = -1;
+			if (id !== undefined) {
+				existingIndex = this.inputs.findIndex((input) => getIdFromCallArg(input) === id);
+
+				if (
+					existingIndex !== -1 &&
+					this.inputs[existingIndex].Object?.SharedObject &&
+					otherInput.Object?.SharedObject
+				) {
+					this.inputs[existingIndex].Object!.SharedObject!.mutable =
+						this.inputs[existingIndex].Object!.SharedObject!.mutable ||
+						otherInput.Object.SharedObject.mutable;
+				}
+			}
+
+			if (existingIndex !== -1) {
+				inputMapping.set(i, existingIndex);
+			} else {
+				const newIndex = this.inputs.length;
+				this.inputs.push(otherInput);
+				inputMapping.set(i, newIndex);
+			}
+		}
+
+		for (let i = 0; i < otherTransaction.commands.length; i++) {
+			commandMapping.set(i, atCommandIndex + i);
+		}
+
+		const remappedCommands: Command[] = [];
+		for (let i = 0; i < otherTransaction.commands.length; i++) {
+			const command = structuredClone(otherTransaction.commands[i]);
+
+			remapCommandArguments(command, inputMapping, commandMapping);
+
+			remappedCommands.push(command);
+		}
+
+		this.commands.splice(atCommandIndex, 0, ...remappedCommands);
+
+		const sizeDiff = remappedCommands.length;
+		if (sizeDiff > 0) {
 			this.mapArguments((arg, _command, commandIndex) => {
-				if (commandIndex < index + replacement.length) {
+				if (
+					commandIndex >= atCommandIndex &&
+					commandIndex < atCommandIndex + remappedCommands.length
+				) {
 					return arg;
 				}
 
 				switch (arg.$kind) {
 					case 'Result':
-						if (arg.Result === index) {
-							arg.Result = resultIndex;
-						}
-
-						if (arg.Result > index) {
+						if (arg.Result >= atCommandIndex) {
 							arg.Result += sizeDiff;
 						}
 						break;
 
 					case 'NestedResult':
-						if (arg.NestedResult[0] === index) {
-							arg.NestedResult[0] = resultIndex;
-						}
-
-						if (arg.NestedResult[0] > index) {
+						if (arg.NestedResult[0] >= atCommandIndex) {
 							arg.NestedResult[0] += sizeDiff;
 						}
 						break;
