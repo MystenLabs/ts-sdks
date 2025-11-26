@@ -3,7 +3,7 @@
 import { bcs, fromBase64, fromHex, toBase64, toHex } from '@mysten/bcs';
 import { bls12_381 } from '@noble/curves/bls12-381';
 
-import { KeyServerMove, KeyServerMoveV1 } from './bcs.js';
+import { KeyServerMove, KeyServerMoveV1, KeyServerMoveV2 } from './bcs.js';
 import { InvalidKeyServerError, InvalidKeyServerVersionError, SealAPIError } from './error.js';
 import { DST_POP } from './ibe.js';
 import { PACKAGE_VERSION } from './version.js';
@@ -12,8 +12,6 @@ import type { G1Element } from './bls12381.js';
 import { flatten, Version } from './utils.js';
 import { elgamalDecrypt } from './elgamal.js';
 import type { Certificate } from './session-key.js';
-
-const EXPECTED_SERVER_VERSION = 1;
 
 export type KeyServer = {
 	objectId: string;
@@ -33,6 +31,9 @@ export const SERVER_VERSION_REQUIREMENT = new Version('0.4.1');
  * Given a list of key server object IDs, returns a list of SealKeyServer
  * from onchain state containing name, objectId, URL and pk.
  *
+ * Supports both V1 (independent servers) and V2 (independent + committee servers).
+ * For V2 committee servers, returns the aggregator URL which clients use to fetch keys.
+ *
  * @param objectIds - The key server object IDs.
  * @param client - The SuiClient to use.
  * @returns - An array of SealKeyServer.
@@ -51,39 +52,75 @@ export async function retrieveKeyServers({
 				objectId,
 			});
 			const ks = KeyServerMove.parse(await res.object.content);
-			if (
-				EXPECTED_SERVER_VERSION < Number(ks.firstVersion) ||
-				EXPECTED_SERVER_VERSION > Number(ks.lastVersion)
-			) {
+
+			// Determine which version to use (prefer V2 if available)
+			let version: number;
+			if (Number(ks.firstVersion) <= 2 && Number(ks.lastVersion) >= 2) {
+				version = 2;
+			} else if (Number(ks.firstVersion) <= 1 && Number(ks.lastVersion) >= 1) {
+				version = 1;
+			} else {
 				throw new InvalidKeyServerVersionError(
-					`Key server ${objectId} supports versions between ${ks.firstVersion} and ${ks.lastVersion} (inclusive), but SDK expects version ${EXPECTED_SERVER_VERSION}`,
+					`Key server ${objectId} supports versions between ${ks.firstVersion} and ${ks.lastVersion} (inclusive), but SDK expects version 1 or 2`,
 				);
 			}
 
-			// Then fetch the expected versioned object and parse it.
+			// Fetch the versioned object
 			const resVersionedKs = await client.core.getDynamicField({
 				parentId: objectId,
 				name: {
 					type: 'u64',
-					bcs: bcs.u64().serialize(EXPECTED_SERVER_VERSION).toBytes(),
+					bcs: bcs.u64().serialize(version).toBytes(),
 				},
 			});
 
-			const ksVersioned = KeyServerMoveV1.parse(resVersionedKs.dynamicField.value.bcs);
+			if (version === 2) {
+				// Parse V2 key server (supports both Independent and Committee modes)
+				const ksV2 = KeyServerMoveV2.parse(resVersionedKs.dynamicField.value.bcs);
 
-			if (ksVersioned.keyType !== KeyServerType.BonehFranklinBLS12381) {
-				throw new InvalidKeyServerError(
-					`Server ${objectId} has invalid key type: ${ksVersioned.keyType}`,
-				);
+				if (ksV2.keyType !== KeyServerType.BonehFranklinBLS12381) {
+					throw new InvalidKeyServerError(
+						`Server ${objectId} has invalid key type: ${ksV2.keyType}`,
+					);
+				}
+
+				// Extract URL based on server type
+				let url: string;
+				if (ksV2.serverType.$kind === 'Independent') {
+					url = ksV2.serverType.Independent.url;
+				} else if (ksV2.serverType.$kind === 'Committee') {
+					// For committee mode, use the aggregator URL
+					// The aggregator handles fetching from committee members and aggregating keys
+					url = ksV2.serverType.Committee.aggregatorUrl;
+				} else {
+					throw new InvalidKeyServerError(`Unknown server type for ${objectId}`);
+				}
+
+				return {
+					objectId,
+					name: ksV2.name,
+					url,
+					keyType: ksV2.keyType,
+					pk: new Uint8Array(ksV2.pk), // Aggregated public key for committee mode
+				};
+			} else {
+				// Parse V1 key server (backward compatibility)
+				const ksV1 = KeyServerMoveV1.parse(resVersionedKs.dynamicField.value.bcs);
+
+				if (ksV1.keyType !== KeyServerType.BonehFranklinBLS12381) {
+					throw new InvalidKeyServerError(
+						`Server ${objectId} has invalid key type: ${ksV1.keyType}`,
+					);
+				}
+
+				return {
+					objectId,
+					name: ksV1.name,
+					url: ksV1.url,
+					keyType: ksV1.keyType,
+					pk: new Uint8Array(ksV1.pk),
+				};
 			}
-
-			return {
-				objectId,
-				name: ksVersioned.name,
-				url: ksVersioned.url,
-				keyType: ksVersioned.keyType,
-				pk: new Uint8Array(ksVersioned.pk),
-			};
 		}),
 	);
 }

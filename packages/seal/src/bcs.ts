@@ -52,6 +52,45 @@ export const KeyServerMoveV1 = bcs.struct('KeyServerV1', {
 });
 
 /**
+ * The Move struct for PartialKeyServer (committee member).
+ */
+export const PartialKeyServer = bcs.struct('PartialKeyServer', {
+	partialPk: bcs.byteVector(),
+	url: bcs.string(),
+	partyId: bcs.u16(),
+});
+
+/**
+ * The Move enum for ServerType (V2).
+ */
+export const ServerType = bcs.enum('ServerType', {
+	Independent: bcs.struct('Independent', {
+		url: bcs.string(),
+	}),
+	Committee: bcs.struct('Committee', {
+		version: bcs.u32(),
+		threshold: bcs.u16(),
+		aggregatorUrl: bcs.string(),
+		partialKeyServers: bcs.vector(
+			bcs.struct('VecMapEntry', {
+				key: bcs.Address,
+				value: PartialKeyServer,
+			}),
+		),
+	}),
+});
+
+/**
+ * The Move struct for the KeyServerV2 object.
+ */
+export const KeyServerMoveV2 = bcs.struct('KeyServerV2', {
+	name: bcs.string(),
+	keyType: bcs.u8(),
+	pk: bcs.byteVector(),
+	serverType: ServerType,
+});
+
+/**
  * The Move struct for the parent object.
  */
 export const KeyServerMove = bcs.struct('KeyServer', {

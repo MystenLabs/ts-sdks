@@ -38,7 +38,7 @@ describe('key-server tests', () => {
 
 			const serialized = keyServerMove.serialize({
 				id,
-				firstVersion: BigInt(2),
+				firstVersion: BigInt(3),
 				lastVersion: BigInt(5),
 			});
 
@@ -53,7 +53,7 @@ describe('key-server tests', () => {
 		const mockSuiClient = {
 			core: {
 				getObject: mockGetObject,
-				getDynamicField: vi.fn(),
+				getDynamicField: vi.fn(), // This won't be called due to version check
 			},
 		} as unknown as SuiClient;
 
@@ -63,7 +63,7 @@ describe('key-server tests', () => {
 				client: mockSuiClient,
 			}),
 		).rejects.toThrow(
-			'Key server 0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75 supports versions between 2 and 5 (inclusive), but SDK expects version 1',
+			'Key server 0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75 supports versions between 3 and 5 (inclusive), but SDK expects version 1 or 2',
 		);
 	});
 
