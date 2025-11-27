@@ -50,6 +50,6 @@
 		"@mysten/wallet-standard": "workspace:*",
 		"@mysten/window-wallet-core": "workspace:*",
 		"mitt": "^3.0.1",
-		"valibot": "^0.36.0"
+		"valibot": "^1.2.0"
 	}
 }

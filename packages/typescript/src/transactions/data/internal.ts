@@ -27,17 +27,21 @@ import {
 import { isValidSuiAddress, normalizeSuiAddress } from '../../utils/sui-types.js';
 import type { Simplify } from '@mysten/utils';
 
+type EnumSchemaInput<T extends Record<string, GenericSchema<any>>> = EnumInputShape<
+	Simplify<{
+		[K in keyof T]: InferInput<T[K]>;
+	}>
+>;
+
+type EnumSchemaOutput<T extends Record<string, GenericSchema<any>>> = EnumOutputShape<
+	Simplify<{
+		[K in keyof T]: InferOutput<T[K]>;
+	}>
+>;
+
 type EnumSchema<T extends Record<string, GenericSchema<any>>> = GenericSchema<
-	EnumInputShape<
-		Simplify<{
-			[K in keyof T]: InferInput<T[K]>;
-		}>
-	>,
-	EnumOutputShape<
-		Simplify<{
-			[K in keyof T]: InferOutput<T[K]>;
-		}>
-	>
+	EnumSchemaInput<T>,
+	EnumSchemaOutput<T>
 >;
 
 export function safeEnum<T extends Record<string, GenericSchema<any>>>(options: T): EnumSchema<T> {
@@ -45,10 +49,13 @@ export function safeEnum<T extends Record<string, GenericSchema<any>>>(options: 
 
 	return pipe(
 		union(unionOptions),
-		transform((value) => ({
-			...value,
-			$kind: Object.keys(value)[0] as keyof typeof value,
-		})),
+		transform(
+			(value) =>
+				({
+					...value,
+					$kind: Object.keys(value)[0] as keyof typeof value,
+				}) as EnumSchemaOutput<T>,
+		),
 	) as EnumSchema<T>;
 }
 

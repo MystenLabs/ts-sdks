@@ -54,6 +54,6 @@
 		"@mysten/bcs": "workspace:*",
 		"@mysten/sui": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
-		"valibot": "^0.36.0"
+		"valibot": "^1.2.0"
 	}
 }

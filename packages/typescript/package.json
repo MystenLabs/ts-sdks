@@ -187,6 +187,6 @@
 		"gql.tada": "^1.8.13",
 		"graphql": "^16.11.0",
 		"poseidon-lite": "0.2.1",
-		"valibot": "^0.36.0"
+		"valibot": "^1.2.0"
 	}
 }

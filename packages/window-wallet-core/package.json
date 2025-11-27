@@ -45,6 +45,6 @@
 	"dependencies": {
 		"@mysten/utils": "workspace:*",
 		"jose": "^6.1.0",
-		"valibot": "^0.36.0"
+		"valibot": "^1.2.0"
 	}
 }
