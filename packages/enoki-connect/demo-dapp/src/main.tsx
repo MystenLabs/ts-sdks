@@ -17,7 +17,10 @@ import "./styles.css";
 const queryClient = new QueryClient();
 
 registerEnokiConnectWallets({
-  publicAppSlugs: ["dev-app", "dev-app-not-exists"],
+  publicAppSlugs: [
+    "demo-enoki-connect-f9v2kr7q",
+    "demo-enoki-connect-f9v2kr7q-light",
+  ],
   dappName: "Test Dapp",
 }).catch(() => {});
 
