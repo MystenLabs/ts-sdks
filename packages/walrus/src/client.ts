@@ -827,7 +827,7 @@ export class WalrusClient {
 			.filter((object) => object.idOperation === 'Created')
 			.map((object) => object.objectId);
 
-		const createdObjects = await this.#suiClient.core.listObjects({
+		const createdObjects = await this.#suiClient.core.getObjects({
 			objectIds: createdObjectIds,
 			include: { content: true },
 		});
@@ -1062,7 +1062,7 @@ export class WalrusClient {
 			.filter((object) => object.idOperation === 'Created')
 			.map((object) => object.objectId);
 
-		const createdObjects = await this.#suiClient.core.listObjects({
+		const createdObjects = await this.#suiClient.core.getObjects({
 			objectIds: createdObjectIds,
 			include: { content: true },
 		});
@@ -1096,7 +1096,7 @@ export class WalrusClient {
 			.filter((object) => object.idOperation === 'Created')
 			.map((object) => object.objectId);
 
-		const createdObjects = await this.#suiClient.core.listObjects({
+		const createdObjects = await this.#suiClient.core.getObjects({
 			objectIds: createdObjectIds,
 			include: { content: true },
 		});

@@ -38,9 +38,9 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		});
 	}
 
-	abstract listObjects<Include extends SuiClientTypes.ObjectInclude = object>(
-		options: SuiClientTypes.ListObjectsOptions<Include>,
-	): Promise<SuiClientTypes.ListObjectsResponse<Include>>;
+	abstract getObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.GetObjectsOptions<Include>,
+	): Promise<SuiClientTypes.GetObjectsResponse<Include>>;
 
 	async getObject<Include extends SuiClientTypes.ObjectInclude = object>(
 		options: SuiClientTypes.GetObjectOptions<Include>,
@@ -48,7 +48,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		const { objectId } = options;
 		const {
 			objects: [result],
-		} = await this.listObjects({
+		} = await this.getObjects({
 			objectIds: [objectId],
 			signal: options.signal,
 			include: options.include,
@@ -122,7 +122,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		const fieldId = deriveDynamicFieldID(options.parentId, normalizedNameType, options.name.bcs);
 		const {
 			objects: [fieldObject],
-		} = await this.listObjects({
+		} = await this.getObjects({
 			objectIds: [fieldId],
 			signal: options.signal,
 			include: {

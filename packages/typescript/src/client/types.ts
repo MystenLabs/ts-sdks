@@ -41,9 +41,9 @@ export namespace SuiClientTypes {
 
 	/** Object methods */
 	export interface TransportMethods {
-		listObjects: <Include extends ObjectInclude = {}>(
-			options: ListObjectsOptions<Include>,
-		) => Promise<ListObjectsResponse<Include>>;
+		getObjects: <Include extends ObjectInclude = {}>(
+			options: GetObjectsOptions<Include>,
+		) => Promise<GetObjectsResponse<Include>>;
 		listOwnedObjects: <Include extends ObjectInclude = {}>(
 			options: ListOwnedObjectsOptions<Include>,
 		) => Promise<ListOwnedObjectsResponse<Include>>;
@@ -59,7 +59,7 @@ export namespace SuiClientTypes {
 		previousTransaction?: boolean;
 	}
 
-	export interface ListObjectsOptions<Include extends ObjectInclude = {}>
+	export interface GetObjectsOptions<Include extends ObjectInclude = {}>
 		extends CoreClientMethodOptions {
 		objectIds: string[];
 		include?: Include;
@@ -100,7 +100,7 @@ export namespace SuiClientTypes {
 		name: DynamicFieldName;
 	}
 
-	export interface ListObjectsResponse<out Include extends ObjectInclude = {}> {
+	export interface GetObjectsResponse<out Include extends ObjectInclude = {}> {
 		objects: (ObjectResponse<Include> | Error)[];
 	}
 
