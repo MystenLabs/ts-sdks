@@ -1,5 +1,14 @@
 # @mysten/wallet-sdk
 
+## 0.0.7
+
+### Patch Changes
+
+- e3811f1: update valibot
+- Updated dependencies [e3811f1]
+  - @mysten/sui@1.45.1
+  - @mysten/wallet-standard@0.19.8
+
 ## 0.0.6
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @mysten/zksend
 
+## 0.14.11
+
+### Patch Changes
+
+- e3811f1: update valibot
+- Updated dependencies [e3811f1]
+  - @mysten/window-wallet-core@0.1.1
+  - @mysten/sui@1.45.1
+  - @mysten/wallet-standard@0.19.8
+
 ## 0.14.10
 
 ### Patch Changes

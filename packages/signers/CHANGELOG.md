@@ -1,5 +1,12 @@
 # @mysten/signers
 
+## 0.6.1
+
+### Patch Changes
+
+- Updated dependencies [e3811f1]
+  - @mysten/sui@1.45.1
+
 ## 0.6.0
 
 ### Minor Changes

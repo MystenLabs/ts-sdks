@@ -1,5 +1,11 @@
 # @mysten/window-wallet-core
 
+## 0.1.1
+
+### Patch Changes
+
+- e3811f1: update valibot
+
 ## 0.1.0
 
 ### Minor Changes

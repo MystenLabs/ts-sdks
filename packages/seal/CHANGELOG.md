@@ -1,5 +1,13 @@
 # @mysten/seal
 
+## 0.9.5
+
+### Patch Changes
+
+- 2a0d7e5: More input validation and add missing docs
+- Updated dependencies [e3811f1]
+  - @mysten/sui@1.45.1
+
 ## 0.9.4
 
 ### Patch Changes

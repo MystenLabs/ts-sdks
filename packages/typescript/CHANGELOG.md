@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.45.1
+
+### Patch Changes
+
+- e3811f1: update valibot
+
 ## 1.45.0
 
 ### Minor Changes
