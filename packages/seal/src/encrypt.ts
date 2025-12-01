@@ -99,7 +99,7 @@ export async function encrypt({
 			encryptedShares,
 			ciphertext,
 		}).toBytes(),
-		key: demKey,
+		key: new Uint8Array(demKey),
 	};
 }
 

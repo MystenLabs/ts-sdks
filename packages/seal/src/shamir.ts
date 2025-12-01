@@ -258,14 +258,6 @@ export class Polynomial {
 			.toReversed()
 			.reduce((sum, coefficient) => sum.mul(x).add(coefficient), GF256.zero());
 	}
-
-	/** Check if two polynomials are equal. */
-	equals(other: Polynomial): boolean {
-		if (this.coefficients.length !== other.coefficients.length) {
-			return false;
-		}
-		return this.coefficients.every((c, i) => c.equals(other.getCoefficient(i)));
-	}
 }
 
 /** Representation of a share of a secret. The index is a number between 1 and 255. */
