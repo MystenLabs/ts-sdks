@@ -27,7 +27,10 @@ export interface Secp256r1KeypairData {
  * An Secp256r1 Keypair used for signing transactions.
  */
 export class Secp256r1Keypair extends Keypair {
-	private keypair: Secp256r1KeypairData;
+	#keypair: {
+		publicKey: Uint8Array;
+		secretKey: Uint8Array;
+	};
 
 	/**
 	 * Create a new keypair instance.
@@ -38,12 +41,15 @@ export class Secp256r1Keypair extends Keypair {
 	constructor(keypair?: Secp256r1KeypairData) {
 		super();
 		if (keypair) {
-			this.keypair = keypair;
+			this.#keypair = {
+				publicKey: keypair.publicKey,
+				secretKey: keypair.secretKey,
+			};
 		} else {
 			const secretKey: Uint8Array = secp256r1.utils.randomPrivateKey();
 			const publicKey: Uint8Array = secp256r1.getPublicKey(secretKey, true);
 
-			this.keypair = { publicKey, secretKey };
+			this.#keypair = { publicKey, secretKey };
 		}
 	}
 
@@ -115,14 +121,14 @@ export class Secp256r1Keypair extends Keypair {
 	 * The public key for this keypair
 	 */
 	getPublicKey(): PublicKey {
-		return new Secp256r1PublicKey(this.keypair.publicKey);
+		return new Secp256r1PublicKey(this.#keypair.publicKey);
 	}
 
 	/**
 	 * The Bech32 secret key string for this Secp256r1 keypair
 	 */
 	getSecretKey(): string {
-		return encodeSuiPrivateKey(this.keypair.secretKey, this.getKeyScheme());
+		return encodeSuiPrivateKey(this.#keypair.secretKey, this.getKeyScheme());
 	}
 
 	/**
@@ -130,7 +136,7 @@ export class Secp256r1Keypair extends Keypair {
 	 */
 	async sign(data: Uint8Array) {
 		const msgHash = sha256(data);
-		const sig = secp256r1.sign(msgHash, this.keypair.secretKey, {
+		const sig = secp256r1.sign(msgHash, this.#keypair.secretKey, {
 			lowS: true,
 		});
 		return sig.toCompactRawBytes() as Uint8Array<ArrayBuffer>;

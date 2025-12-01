@@ -30,7 +30,10 @@ export interface Ed25519KeypairData {
  * An Ed25519 Keypair used for signing transactions.
  */
 export class Ed25519Keypair extends Keypair {
-	private keypair: Ed25519KeypairData;
+	#keypair: {
+		publicKey: Uint8Array;
+		secretKey: Uint8Array;
+	};
 
 	/**
 	 * Create a new Ed25519 keypair instance.
@@ -41,13 +44,13 @@ export class Ed25519Keypair extends Keypair {
 	constructor(keypair?: Ed25519KeypairData) {
 		super();
 		if (keypair) {
-			this.keypair = {
+			this.#keypair = {
 				publicKey: keypair.publicKey,
 				secretKey: keypair.secretKey.slice(0, 32),
 			};
 		} else {
 			const privateKey = ed25519.utils.randomPrivateKey();
-			this.keypair = {
+			this.#keypair = {
 				publicKey: ed25519.getPublicKey(privateKey),
 				secretKey: privateKey,
 			};
@@ -122,7 +125,7 @@ export class Ed25519Keypair extends Keypair {
 	 * The public key for this Ed25519 keypair
 	 */
 	getPublicKey(): Ed25519PublicKey {
-		return new Ed25519PublicKey(this.keypair.publicKey);
+		return new Ed25519PublicKey(this.#keypair.publicKey);
 	}
 
 	/**
@@ -130,7 +133,7 @@ export class Ed25519Keypair extends Keypair {
 	 */
 	getSecretKey(): string {
 		return encodeSuiPrivateKey(
-			this.keypair.secretKey.slice(0, PRIVATE_KEY_SIZE),
+			this.#keypair.secretKey.slice(0, PRIVATE_KEY_SIZE),
 			this.getKeyScheme(),
 		);
 	}
@@ -139,7 +142,7 @@ export class Ed25519Keypair extends Keypair {
 	 * Return the signature for the provided data using Ed25519.
 	 */
 	async sign(data: Uint8Array) {
-		return ed25519.sign(data, this.keypair.secretKey) as Uint8Array<ArrayBuffer>;
+		return ed25519.sign(data, this.#keypair.secretKey) as Uint8Array<ArrayBuffer>;
 	}
 
 	/**
