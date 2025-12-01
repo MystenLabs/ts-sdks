@@ -1,6 +1,5 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-/* eslint-disable @typescript-eslint/ban-types */
 
 import { Transaction } from '@mysten/sui/transactions';
 import type { Defined, Simplify, UnionToIntersection } from '../util.js';
