@@ -24,8 +24,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 						url: '/bcs',
 					},
 					{
-						title: 'Dapp Kit',
-						description: 'Build Sui dapps in React',
+						title: 'dApp Kit',
+						description: 'Build Sui dApps',
 						url: '/dapp-kit',
 					},
 					{

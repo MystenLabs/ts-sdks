@@ -1,0 +1,44 @@
+---
+title: Connect Button
+---
+
+## Usage
+
+```tsx
+<ConnectButton
+	modalOptions={{
+		filterFn: (wallet) => wallet.name !== 'Excluded Wallet',
+		sortFn: (a, b) => a.name.localeCompare(b.name),
+	}}
+/>
+```
+
+<Callout>
+	Auto-connect is enabled by default and will attempt to restore the previous wallet connection on
+	page reload. This provides a seamless user experience but can be
+	[disabled](../../../dapp-kit-instance#disabling-auto-connect) if needed.
+</Callout>
+
+## Props
+
+- **instance** (optional) - dApp Kit instance. If not provided, uses the instance from context.
+- **modalOptions** (optional) - Configuration options for the connect modal
+  - **filterFn** (optional) - Function to filter available wallets
+    - Type: `(wallet: UiWallet, index: number, array: UiWallet[]) => boolean`
+  - **sortFn** (optional) - Function to sort available wallets
+    - Type: `(a: UiWallet, b: UiWallet) => number`
+
+## Custom Button Text
+
+Use the slot to customize the button content when disconnected:
+
+```tsx
+<ConnectButton>
+	<span>🔗 Link Wallet</span>
+</ConnectButton>
+```
+
+## Server-Side Rendering (SSR)
+
+The `<ConnectButton />` component can be only client-side rendered, as wallets are detected in the
+browser. For Next.js guide see [here](../../next-js).
