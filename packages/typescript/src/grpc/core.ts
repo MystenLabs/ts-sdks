@@ -41,11 +41,11 @@ export class GrpcCoreClient extends CoreClient {
 		this.#client = client;
 	}
 
-	async listObjects<Include extends SuiClientTypes.ObjectInclude = object>(
-		options: SuiClientTypes.ListObjectsOptions<Include>,
-	): Promise<SuiClientTypes.ListObjectsResponse<Include>> {
+	async getObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.GetObjectsOptions<Include>,
+	): Promise<SuiClientTypes.GetObjectsResponse<Include>> {
 		const batches = chunk(options.objectIds, 50);
-		const results: SuiClientTypes.ListObjectsResponse<Include>['objects'] = [];
+		const results: SuiClientTypes.GetObjectsResponse<Include>['objects'] = [];
 
 		const paths = ['owner', 'object_type', 'digest', 'version', 'object_id'];
 		if (options.include?.content) {
