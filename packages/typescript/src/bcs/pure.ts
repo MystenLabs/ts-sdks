@@ -50,7 +50,6 @@ export type ShapeFromPureTypeName<T extends PureTypeName> = T extends BasePureTy
 
 type PureTypeValidationError<T extends string> = {
 	error: `Invalid Pure type name: ${T}`;
-	// eslint-disable-next-line @typescript-eslint/ban-types
 } & {};
 
 export function pureBcsSchemaFromTypeName<T extends PureTypeName>(

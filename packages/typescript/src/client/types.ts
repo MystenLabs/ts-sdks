@@ -1,6 +1,5 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-/* eslint-disable @typescript-eslint/ban-types */
 
 import type { SerializedTransactionDataV2, TransactionPlugin } from '../transactions/index.js';
 import type { ClientCache } from './cache.js';
