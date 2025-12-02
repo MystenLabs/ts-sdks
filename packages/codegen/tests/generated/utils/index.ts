@@ -64,10 +64,6 @@ export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null
 	return null;
 }
 
-function isOptionType(type: string) {
-	return type.includes('::option::Option<');
-}
-
 export function normalizeMoveArguments(
 	args: unknown[] | object,
 	argTypes: string[],
@@ -119,7 +115,7 @@ export function normalizeMoveArguments(
 			const name = parameterNames[index];
 			arg = args[name as keyof typeof args];
 
-			if (arg === undefined || (arg === null && !isOptionType(argTypes[i]))) {
+			if (arg === undefined) {
 				throw new Error(`Parameter ${name} is required`);
 			}
 		}
