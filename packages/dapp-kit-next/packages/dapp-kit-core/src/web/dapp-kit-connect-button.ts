@@ -103,7 +103,6 @@ export class DAppKitConnectButton extends ScopedRegistryHost(LitElement) {
 	}
 
 	#openModal() {
-		// oxlint-disable @typescript-eslint/no-floating-promises
 		this._modal.show();
 	}
 }
