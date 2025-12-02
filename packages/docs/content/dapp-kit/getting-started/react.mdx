@@ -104,7 +104,12 @@ function TransferButton() {
 
 		try {
 			const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-			console.log('Transaction digest:', result.digest);
+
+			if (result.FailedTransaction) {
+				throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
+			}
+
+			console.log('Transaction digest:', result.Transaction.digest);
 		} catch (error) {
 			console.error('Transaction failed:', error);
 		}

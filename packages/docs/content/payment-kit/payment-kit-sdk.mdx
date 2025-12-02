@@ -95,6 +95,11 @@ const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
 });
+
+// Check transaction status
+if (!result.status.success) {
+	throw new Error(`Payment failed: ${result.status.error}`);
+}
 ```
 
 **On-Chain Effects:**
@@ -149,6 +154,11 @@ const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
 });
+
+// Check transaction status
+if (!result.status.success) {
+	throw new Error(`Ephemeral payment failed: ${result.status.error}`);
+}
 ```
 
 **On-Chain Effects:**

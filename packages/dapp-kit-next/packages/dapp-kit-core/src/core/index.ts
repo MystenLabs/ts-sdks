@@ -21,18 +21,17 @@ import type { SwitchAccountArgs } from './actions/switch-account.js';
 import { switchAccountCreator } from './actions/switch-account.js';
 import type { SignPersonalMessageArgs } from './actions/sign-personal-message.js';
 import { signPersonalMessageCreator } from './actions/sign-personal-message.js';
-import type { SignAndExecuteTransactionArgs } from './actions/sign-and-execute-transaction.js';
+import type {
+	SignAndExecuteTransactionArgs,
+	SignAndExecuteTransactionResult,
+} from './actions/sign-and-execute-transaction.js';
 import { signAndExecuteTransactionCreator } from './actions/sign-and-execute-transaction.js';
 import type { SignTransactionArgs } from './actions/sign-transaction.js';
 import { signTransactionCreator } from './actions/sign-transaction.js';
 import { slushWebWalletInitializer } from '../wallets/slush-web.js';
 import { registerAdditionalWallets } from '../wallets/index.js';
 import { unsafeBurnerWalletInitializer } from '../wallets/unsafe-burner.js';
-import type {
-	SignedPersonalMessage,
-	SignedTransaction,
-	SuiSignAndExecuteTransactionOutput,
-} from '@mysten/wallet-standard';
+import type { SignedPersonalMessage, SignedTransaction } from '@mysten/wallet-standard';
 import type { UiWalletAccount } from '@wallet-standard/ui';
 
 export type DAppKit<
@@ -44,7 +43,7 @@ export type DAppKit<
 	signTransaction: (args: SignTransactionArgs) => Promise<SignedTransaction>;
 	signAndExecuteTransaction: (
 		args: SignAndExecuteTransactionArgs,
-	) => Promise<SuiSignAndExecuteTransactionOutput>;
+	) => Promise<SignAndExecuteTransactionResult>;
 	signPersonalMessage: (args: SignPersonalMessageArgs) => Promise<SignedPersonalMessage>;
 	connectWallet: (args: ConnectWalletArgs) => Promise<{
 		accounts: UiWalletAccount[];

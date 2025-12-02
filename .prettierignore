@@ -11,6 +11,7 @@ yarn-debug.log*
 .next/
 .source/
 .swc/
+.claude
 build/
 coverage/
 dist/

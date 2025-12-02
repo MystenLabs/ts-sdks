@@ -52,7 +52,13 @@ After you have the transaction defined, you can directly execute it with a signe
 `signAndExecuteTransaction`.
 
 ```tsx
-client.signAndExecuteTransaction({ signer: keypair, transaction: tx });
+const result = await client.signAndExecuteTransaction({ signer: keypair, transaction: tx });
+
+// IMPORTANT: Always check the transaction status
+// Transactions can execute but still fail (e.g., insufficient gas, move errors)
+if (!result.status.success) {
+	throw new Error(`Transaction failed: ${result.status.error}`);
+}
 ```
 
 ## Observing the results of a transaction
@@ -76,6 +82,12 @@ represented in future RPC calls, you can use the `waitForTransaction` method on 
 
 ```typescript
 const result = await client.signAndExecuteTransaction({ signer: keypair, transaction: tx });
+
+// Check transaction status
+if (!result.status.success) {
+	throw new Error(`Transaction failed: ${result.status.error}`);
+}
+
 await client.waitForTransaction({ digest: result.digest });
 ```
 

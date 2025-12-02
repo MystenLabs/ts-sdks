@@ -5,7 +5,11 @@ import { BaseClient } from './client.js';
 import type { ClientWithCoreApi, CoreClientOptions } from './core.js';
 import { CoreClient } from './core.js';
 import type { ClientWithExtensions, SuiClientTypes, SuiClientRegistration } from './types.js';
-export { parseTransactionBcs, parseTransactionEffectsBcs } from './utils.js';
+export {
+	extractStatusFromEffectsBcs,
+	parseTransactionBcs,
+	parseTransactionEffectsBcs,
+} from './utils.js';
 
 export {
 	BaseClient,

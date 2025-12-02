@@ -211,10 +211,15 @@ const { links, hasNextPage, cursor } = await listCreatedLinks({
 const { url, transaction } = await links[0].link.createRegenerateTransaction(addressOfLinkCreator);
 
 // Execute the transaction to regenerate the link
-await client.signAndExecuteTransaction({
+const result = await client.signAndExecuteTransaction({
 	transaction,
 	signer: keypair,
 });
+
+// Check transaction status
+if (!result.status.success) {
+	throw new Error(`Link regeneration failed: ${result.status.error}`);
+}
 ```
 
 ## Bulk link creation
@@ -240,8 +245,13 @@ const tx = await ZkSendLinkBuilder.createLinks({
 	links,
 });
 
-await client.signAndExecuteTransaction({
+const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
 });
+
+// Check transaction status
+if (!result.status.success) {
+	throw new Error(`Link creation failed: ${result.status.error}`);
+}
 ```
