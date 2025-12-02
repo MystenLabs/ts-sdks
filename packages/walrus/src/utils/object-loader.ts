@@ -20,7 +20,7 @@ export class SuiObjectDataLoader extends DataLoader<
 	>();
 	constructor(suiClient: BaseClient) {
 		super(async (ids: readonly string[]) => {
-			const { objects } = await suiClient.core.listObjects({
+			const { objects } = await suiClient.core.getObjects({
 				objectIds: ids as string[],
 				include: { content: true },
 			});
