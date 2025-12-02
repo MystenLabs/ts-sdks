@@ -1,0 +1,187 @@
+---
+title: DApp Kit Instance
+---
+
+The `createDAppKit` function is the foundation of your Sui dApp. It creates an instance that manages
+wallet connections, network configuration, and provides access to the Sui client.
+
+## Creating a dApp Kit Instance
+
+The core of the dApp Kit SDK is the `createDAppKit` function, which creates an instance that manages
+all dApp functionality:
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-core';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+};
+
+export const dAppKit = createDAppKit({
+	networks: ['testnet'],
+	createClient: (network) => new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }),
+});
+```
+
+<Callout type="info">
+	If you use the React bindings, there are two ways to ensure type safety with hooks:
+
+    1. [Register the global dAppKit type](./getting-started/react#1-create-a-dapp-kit-instance) once, and all hooks will be properly typed
+    2. Pass the dAppKit instance explicitly to each hook: `useWalletConnection({ dAppKit })`
+
+</Callout>
+
+This instance provides:
+
+- Wallet connection management
+- Network switching capabilities
+- Client access for blockchain interactions
+- State stores for reactive updates
+
+## Parameters
+
+- **autoConnect** (optional) - Enables automatically connecting to the most recently used wallet
+  account (default: `true`)
+- **networks** - A list of networks supported by the application (e.g. `['mainnet', 'testnet']`)
+- **defaultNetwork** (optional) - Initial network to use (default: first network in the array)
+- **createClient** - Creates a new client instance for the given network
+- **enableBurnerWallet** (optional) - Enable development-only burner wallet (default: `false`)
+- **storage** (optional) - Configures how the most recently connected to wallet account is stored
+  (default: `localStorage`, set to `null` to disable)
+- **storageKey** (optional) - The key to use to store the most recently connected wallet account
+  (default: `'mysten-dapp-kit:selected-wallet-and-address'`)
+- **walletInitializers** (optional) - A list of wallet initializers used for registering additional
+  wallet standard wallets.
+- **slushWalletConfig** (optional) - Configuration for Slush wallet (set to `null` to disable the
+  wallet)
+
+## Return Value
+
+```ts
+{
+    // Actions
+    connectWallet: (args: { wallet: UiWallet; account?: UiWalletAccount }) => Promise<{ accounts: UiWalletAccount[]; }>;
+    disconnectWallet: () => Promise<void>;
+    switchAccount: (args: { account: UiWalletAccount }) => Promise<void>;
+    switchNetwork: (network: string) => void;
+    signTransaction: (args: { transaction: Transaction | string; signal?: AbortSignal }) => Promise<SignedTransaction>;
+    signAndExecuteTransaction: (args: { transaction: Transaction | string; signal?: AbortSignal }) => Promise<SuiSignAndExecuteTransactionOutput>;
+    signPersonalMessage: (args: { message: Uint8Array }) => Promise<SignedPersonalMessage>;
+
+    // Properties
+    networks: string[];
+    stores:  {
+        $wallets: DAppKitStores['$compatibleWallets'];
+        $connection: DAppKitStores['$connection'];
+        $currentNetwork: ReadableAtom<TNetworks[number]>;
+        $currentClient: ReadableAtom<Client>;
+    };
+    getClient: (network?: string) => Client;
+}
+```
+
+Read more about [actions](./actions/connect-wallet) and [stores](./state).
+
+## Basic Usage
+
+```ts
+// dapp-kit.ts
+import { createDAppKit } from '@mysten/dapp-kit-core';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+};
+
+export const dAppKit = createDAppKit({
+	networks: ['testnet'],
+	createClient: (network) => new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }),
+});
+```
+
+```ts
+// connect-wallet-and-log.ts
+import type { UiWallet, UiWalletAccount } from '@mysten/dapp-kit-core';
+import { dAppKit } from './dapp-kit.ts';
+
+export async function connectWalletAndLog({
+	wallet,
+	account,
+}: {
+	wallet: UiWallet;
+	account: UiWalletAccount;
+}) {
+	const result = await dAppKit.connectWallet({
+		wallet,
+		account,
+	});
+	console.log('Connected accounts:', result.accounts);
+}
+```
+
+<Callout>
+	If you use the React bindings, see [Getting Started in React](./getting-started/react) and
+	[DAppKitProvider](./react/dapp-kit-provider).
+</Callout>
+
+## Development Configuration
+
+For development environments, enable the burner wallet:
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-core';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+export const dAppKit = createDAppKit({
+	networks: ['localnet'],
+	defaultNetwork: 'localnet',
+	createClient: () => new SuiGrpcClient({ network: 'localnet', baseUrl: 'http://127.0.0.1:9000' }),
+	enableBurnerWallet: true, // Dev-only feature
+});
+```
+
+## Auto-Connect Behavior
+
+By default, dApp Kit automatically reconnects to the previously connected wallet.
+
+### Disabling Auto-Connect
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-core';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+export const dAppKit = createDAppKit({
+	networks: ['mainnet'],
+	createClient: () =>
+		new SuiGrpcClient({ network: 'mainnet', baseUrl: 'https://fullnode.mainnet.sui.io:443' }),
+	autoConnect: false,
+});
+```
+
+## Custom Wallet Integration
+
+Add support for custom wallets using wallet initializers:
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-core';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { getWallets } from '@mysten/wallet-standard';
+import { CustomWallet } from './custom-wallet.js'; // import your custom wallet class
+
+export const dAppKit = createDAppKit({
+	networks: ['mainnet'],
+	createClient: () =>
+		new SuiGrpcClient({ network: 'mainnet', baseUrl: 'https://fullnode.mainnet.sui.io:443' }),
+	walletInitializers: [
+		{
+			id: 'Custom Wallets',
+			initialize() {
+				const wallets = [new CustomWallet()];
+				const walletsApi = getWallets();
+				return { unregister: walletsApi.register(...wallets) };
+			},
+		},
+	],
+});
+```

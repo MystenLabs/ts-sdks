@@ -1,0 +1,67 @@
+---
+title: Sign Transaction
+---
+
+The `signTransaction` action prompts the connected wallet to sign a transaction without executing
+it. This is useful when you need a signed transaction for later execution or for multi-signature
+scenarios.
+
+## Usage
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-core';
+import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
+
+const dAppKit = createDAppKit({
+	/* config */
+});
+
+const tx = new Transaction();
+// No need to manually set sender - it's done automatically
+tx.transferObjects([coinWithBalance({ balance: 123 })], '0xrecipient...');
+
+// Sign the transaction without executing it
+const { bytes, signature } = await dAppKit.signTransaction({
+	transaction: tx,
+});
+```
+
+## Parameters
+
+- **`transaction`** - `Transaction | string` - The transaction to sign. Can be either a Transaction
+  instance or base64-encoded bcs bytes for the transaction.
+- **`signal`** (optional) - `AbortSignal` - An abort signal to cancel the signing request.
+
+## Return Value
+
+Returns a `Promise` that resolves to an object containing:
+
+- **`bytes`** - `string` - The signed transaction as a base64-encoded BCS string
+- **`signature`** - `string` - The signature as a base64-encoded string
+
+```typescript
+const result = await dAppKit.signTransaction({ transaction });
+console.log('Signed transaction bytes:', result.bytes);
+console.log('Signature:', result.signature);
+```
+
+## Transaction Building
+
+When passing a Transaction instance, the action automatically:
+
+1. Sets the sender address if not already set
+2. Builds the transaction using the current network's client
+3. Converts it to the appropriate format for the wallet
+
+## Wallet Compatibility
+
+- The action transparently handles both `sui:signTransaction` and `sui:signTransactionBlock`
+  wallet-standard features
+
+```typescript
+// The action automatically detects and uses the appropriate method
+// No special configuration needed
+const result = await dAppKit.signTransaction({
+	transaction: tx,
+});
+```

@@ -1,0 +1,91 @@
+---
+title: Connect Button
+---
+
+The `<mysten-dapp-kit-connect-button>` Web Component provides a complete wallet connection UI. It
+displays a "Connect Wallet" button when no wallet is connected, and shows the connected account with
+a menu when a wallet is active.
+
+<Callout>
+	Auto-connect is enabled by default and will attempt to restore the previous wallet connection on
+	page reload. This provides a seamless user experience but can be
+	[disabled](../dapp-kit-instance#disabling-auto-connect) if needed.
+</Callout>
+
+## Basic Usage
+
+### Vanilla
+
+```html
+<mysten-dapp-kit-connect-button></mysten-dapp-kit-connect-button>
+
+<script>
+	const button = document.querySelector('mysten-dapp-kit-connect-button');
+	   button!.instance = dAppKit;
+</script>
+```
+
+### Vue
+
+```vue
+<script setup>
+import { dAppKit } from './dapp-kit.ts';
+</script>
+
+<template>
+	<mysten-dapp-kit-connect-button :instance="dAppKit" />
+</template>
+```
+
+### React
+
+DApp Kit React bindings provide a [React wrapper](../react/components/connect-button) for the
+button.
+
+## Features
+
+The connect button component automatically handles:
+
+- **Wallet Connection**: Opens a modal to select and connect a wallet
+- **Account Display**: Shows the connected account address
+- **Account Switching**: Provides a menu to switch between multiple accounts when connected
+- **Disconnection**: Includes a disconnect option in the menu
+
+## Properties
+
+- **instance** - The dApp Kit instance
+- **modalOptions** (optional) - Configuration options for the connect modal
+  - `filterFn` - Function to filter available wallets
+  - `sortFn` - Function to sort available wallets
+
+## Custom Button Text
+
+Use the default slot to customize the button text when not connected:
+
+```html
+<mysten-dapp-kit-connect-button>
+	<span>Sign In</span>
+</mysten-dapp-kit-connect-button>
+```
+
+## Modal Integration
+
+The connect button automatically manages its own modal. You don't need to add a separate
+`<mysten-dapp-kit-connect-modal>` component when using the connect button.
+
+## Connected State
+
+When a wallet is connected, the button transforms into an account menu that displays:
+
+- Account address (truncated)
+- SUI balance
+- Network indicator
+- Menu options for:
+  - Switching accounts (if multiple accounts available)
+  - Managing connection
+  - Disconnecting
+
+## Server-Side Rendering (SSR)
+
+The `<mysten-dapp-kit-connect-button>` Web Component can be only client-side rendered, as wallets
+are detected in the browser. For Next.js guide see [here](../getting-started/next-js).

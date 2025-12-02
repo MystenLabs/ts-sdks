@@ -1,0 +1,266 @@
+---
+title: Migration Guide (React)
+---
+
+This guide helps you migrate from the original `@mysten/dapp-kit` (legacy) to the new
+`@mysten/dapp-kit-react` package.
+
+## Overview
+
+The new dApp Kit SDK represents a complete rewrite with these key changes:
+
+- **Framework agnostic**: Split into `@mysten/dapp-kit-core` (framework-agnostic) and
+  `@mysten/dapp-kit-react` (React bindings)
+- **No React Query dependency**: Direct promise-based API instead of mutation hooks
+- **Web Components**: UI components built with Lit Elements for cross-framework compatibility
+- **Smaller bundle size**: No React Query dependency, lighter state management with nanostores
+- **Better SSR support**: Compatible with SSR frameworks like Next.js
+- **Cross-framework compatibility**: Core functionality can be used in vanilla JS, Vue, React, and
+  other frameworks
+
+## Step-by-Step Migration
+
+### 1. Update Dependencies
+
+Remove old packages and install the new ones:
+
+```bash
+# Remove old packages
+npm uninstall @mysten/dapp-kit @tanstack/react-query
+
+# Install new packages
+npm i @mysten/dapp-kit-react @mysten/dapp-kit-core @mysten/sui
+```
+
+### 2. Create dApp Kit Instance
+
+Create a new instance of the dApp Kit using the `createDAppKit` function and register the global
+type.
+
+```tsx
+// dapp-kit.ts
+import { createDAppKit } from '@mysten/dapp-kit-react';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+};
+
+export const dAppKit = createDAppKit({
+	networks: ['testnet'],
+	createClient(network) {
+		return new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] });
+	},
+});
+
+// global type registration necessary for the hooks to work correctly
+declare module '@mysten/dapp-kit-react' {
+	interface Register {
+		dAppKit: typeof dAppKit;
+	}
+}
+```
+
+### 3. Replace Provider Setup
+
+Replace multiple nested providers with a single unified provider.
+
+```diff
+  // App.tsx
+- import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+- import { SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
++ import { DAppKitProvider } from '@mysten/dapp-kit-react';
++ import { dAppKit } from './dapp-kit.ts';
+
+  export function App() {
+- 	const queryClient = new QueryClient();
+- 	const networkConfig = {
+- 		mainnet: { url: 'https://mainnet.sui.io:443' },
+- 		testnet: { url: 'https://testnet.sui.io:443' },
+- 	};
+-
+  	return (
+- 		<QueryClientProvider client={queryClient}>
+- 			<SuiClientProvider networks={networkConfig} defaultNetwork="mainnet">
+- 				<WalletProvider>
+- 					<App />
+- 				</WalletProvider>
+- 			</SuiClientProvider>
+- 		</QueryClientProvider>
++ 		<DAppKitProvider dAppKit={dAppKit}>
++ 			<App />
++ 		</DAppKitProvider>
+  	);
+  }
+```
+
+### 4. Update Hook Usage
+
+The new dApp Kit has a dramatically simplified hook API. Most hooks from the original version have
+been replaced with direct action calls through `useDAppKit()`.
+
+**Available hooks in the new version:**
+
+- `useDAppKit()` - Access the dAppKit instance for calling actions
+- `useCurrentClient()` - Get the blockchain client (renamed from `useSuiClient`)
+- `useCurrentAccount()` - Get the current connected account
+- `useCurrentWallet()` - Get the current connected wallet
+- `useWallets()` - Get the list of available wallets
+- `useWalletConnection()` - Get the current wallet connection status
+- `useCurrentNetwork()` - Get the current network
+
+**Removed hooks:**
+
+All wallet action hooks have been replaced with direct action calls via `useDAppKit()`:
+
+- ❌ `useConnectWallet` → Use `dAppKit.connectWallet()`
+- ❌ `useDisconnectWallet` → Use `dAppKit.disconnectWallet()`
+- ❌ `useSignTransaction` → Use `dAppKit.signTransaction()`
+- ❌ `useSignAndExecuteTransaction` → Use `dAppKit.signAndExecuteTransaction()`
+- ❌ `useSignPersonalMessage` → Use `dAppKit.signPersonalMessage()`
+- ❌ `useSwitchAccount` → Use `dAppKit.switchAccount()`
+
+All data fetching hooks have been removed (giving you flexibility to use your preferred solution):
+
+- ❌ `useSuiClientQuery` → Use `useCurrentClient()` with your data fetching solution
+- ❌ `useSuiClientMutation` → Use `useCurrentClient()` with your data fetching solution
+- ❌ `useSuiClientInfiniteQuery` → Use `useCurrentClient()` with your data fetching solution
+- ❌ `useSuiClientQueries` → Use `useCurrentClient()` with your data fetching solution
+- ❌ `useResolveSuiNSNames` → Use `useCurrentClient()` directly
+
+Other removed hooks:
+
+- ❌ `useAutoConnectWallet` → Auto-connect is enabled by default
+- ❌ `useAccounts` → Use `useWalletConnection()` to access `connection.wallet.accounts`
+- ❌ `useWalletStore` → Use specific hooks like `useWalletConnection()` instead
+
+### 5. Replace Mutation Patterns
+
+The new version uses direct promise-based calls instead of React Query mutations. This decoupling
+from TanStack Query gives you flexibility to use any state management or data fetching solution you
+prefer.
+
+```diff
+- import { useSignAndExecuteTransaction } from '@mysten/dapp-kit';
++ import { useDAppKit } from '@mysten/dapp-kit-react';
+  import type { Transaction } from '@mysten/sui/transactions';
+
+  export function ExampleComponent({ transaction }: { transaction: Transaction }) {
+- 	const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
++ 	const dAppKit = useDAppKit();
+
+  	const handleClick = async () => {
++ 		try {
+- 		await signAndExecute(
+- 			{ transaction },
+- 			{
+- 				onSuccess: (result: any) => console.log(result),
+- 				onError: (error: any) => console.error(error),
+- 			},
+- 		);
++ 			const result = await dAppKit.signAndExecuteTransaction({ transaction });
++ 			console.log(result);
++ 		} catch (error) {
++ 			console.error(error);
++ 		}
+  	};
+
+  	return <button onClick={handleClick}>Sign and Execute</button>;
+  }
+```
+
+**Optional: Integrate with TanStack Query**
+
+If you still want to use TanStack Query for state management, you can easily integrate it:
+
+```tsx
+import { useMutation } from '@tanstack/react-query';
+import { useDAppKit } from '@mysten/dapp-kit-react';
+import type { Transaction } from '@mysten/sui/transactions';
+
+export function ExampleComponent({ transaction }: { transaction: Transaction }) {
+	const dAppKit = useDAppKit();
+
+	const { mutate: signAndExecute } = useMutation({
+		mutationFn: (tx: Transaction) => dAppKit.signAndExecuteTransaction({ transaction: tx }),
+		onSuccess: (result) => console.log(result),
+		onError: (error) => console.error(error),
+	});
+
+	return <button onClick={() => signAndExecute(transaction)}>Sign and Execute</button>;
+}
+```
+
+### 6. Replace Data Fetching Patterns
+
+React Query hooks are no longer available, giving you flexibility to choose your preferred data
+fetching solution. Use standard React patterns or integrate with TanStack Query if desired.
+
+```diff
+- import { useSuiClientQuery } from '@mysten/dapp-kit';
++ import { useCurrentClient } from '@mysten/dapp-kit-react';
++ import { useState, useEffect } from 'react';
++ import type { SuiObjectData } from '@mysten/sui/client';
+
+  export function ExampleComponent({ objectId }: { objectId: string }) {
++ 	const client = useCurrentClient();
++ 	const [data, setData] = useState<SuiObjectData | null>(null);
++ 	const [isLoading, setIsLoading] = useState(true);
++ 	const [error, setError] = useState<string | null>(null);
++
+- 	const { data, isLoading, error } = useSuiClientQuery('getObject', {
+- 		id: objectId,
+- 	});
++ 	useEffect(() => {
++ 		async function getObject() {
++ 			try {
++ 				const object = await client.getObject({ id: objectId });
++ 				setData(object.data);
++ 			} catch (err: Error | unknown) {
++ 				setError((err as Error)?.message || 'Unknown error');
++ 			} finally {
++ 				setIsLoading(false);
++ 			}
++ 		}
++ 		getObject();
++ 	}, [client, objectId]);
+  	// ...
+  }
+```
+
+**Optional: Integrate with TanStack Query**
+
+If you prefer using TanStack Query for caching and state management:
+
+```tsx
+import { useQuery } from '@tanstack/react-query';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
+
+export function ExampleComponent({ objectId }: { objectId: string }) {
+	const client = useCurrentClient();
+
+	const { data, isLoading, error } = useQuery({
+		queryKey: ['object', objectId],
+		queryFn: () => client.getObject({ id: objectId }),
+	});
+	// ...
+}
+```
+
+### 7. Update The Remaining Code
+
+The following hooks from the original dApp Kit are not available anymore:
+
+- `useSuiClientQuery`
+- `useSuiClientMutation`
+- `useSuiClientInfiniteQuery`
+- `useResolveSuiNSNames`
+
+**Migration:** Use `useCurrentClient()` directly with standard React patterns or integrate your
+preferred data fetching solution.
+
+<Callout type="warning">
+	The `reportTransactionEffects` feature is planned for deprecation in the [Wallet
+	Standard](https://docs.sui.io/standards/wallet-standard) and so the dApp Kit provides no
+	replacement.
+</Callout>
