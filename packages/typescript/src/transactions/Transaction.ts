@@ -803,6 +803,7 @@ export class Transaction {
 		} finally {
 			this.#inputSection = this.#data.inputs.slice();
 			this.#commandSection = this.#data.commands.slice();
+			this.#availableResults = new Set(this.#commandSection.map((_, i) => i));
 		}
 	}
 
