@@ -1,5 +1,12 @@
 # @mysten/payment-kit
 
+## 0.0.19
+
+### Patch Changes
+
+- Updated dependencies [29e8b92]
+  - @mysten/sui@1.45.2
+
 ## 0.0.18
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 1.45.2
+
+### Patch Changes
+
+- 29e8b92: Fix available commands check after resolving intents
+
 ## 1.45.1
 
 ### Patch Changes
