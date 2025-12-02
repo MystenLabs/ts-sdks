@@ -2,7 +2,7 @@
 	"name": "@mysten/dapp-kit-core",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "Framework-agnostic toolkit for building decentralized applications on Sui.",
-	"homepage": "https://sdk.mystenlabs.com/typescript",
+	"homepage": "https://sdk.mystenlabs.com/sui",
 	"version": "0.0.1",
 	"license": "Apache-2.0",
 	"private": true,
@@ -16,7 +16,7 @@
 	],
 	"type": "module",
 	"main": "./dist/index.cjs",
-	"module": "./dist/index.js",
+	"module": "./dist/index.mjs",
 	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
