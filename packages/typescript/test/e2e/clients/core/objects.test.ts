@@ -131,7 +131,7 @@ describe('Core API - Objects', () => {
 			expect(coins.data.length).toBeGreaterThan(0);
 
 			const coinIds = coins.data.map((coin) => coin.coinObjectId);
-			const { objects } = await client.core.listObjects({ objectIds: coinIds });
+			const { objects } = await client.core.getObjects({ objectIds: coinIds });
 
 			expect(objects.length).toBe(coinIds.length);
 
@@ -150,7 +150,7 @@ describe('Core API - Objects', () => {
 
 		testWithAllClients('should handle mix of valid and invalid object IDs', async (client) => {
 			const objectIds = [testObjectId, normalizeSuiAddress('0x9999')];
-			const { objects } = await client.core.listObjects({ objectIds });
+			const { objects } = await client.core.getObjects({ objectIds });
 
 			expect(objects.length).toBe(2);
 
@@ -162,7 +162,7 @@ describe('Core API - Objects', () => {
 		});
 
 		testWithAllClients('should handle empty array', async (client) => {
-			const { objects } = await client.core.listObjects({ objectIds: [] });
+			const { objects } = await client.core.getObjects({ objectIds: [] });
 			expect(objects).toEqual([]);
 		});
 	});
@@ -285,7 +285,7 @@ describe('Core API - Objects', () => {
 
 		testWithAllClients('should handle multiple package objects', async (client) => {
 			// Fetch multiple packages including the framework
-			const { objects } = await client.core.listObjects({
+			const { objects } = await client.core.getObjects({
 				objectIds: ['0x2', testPackageId],
 			});
 
@@ -368,9 +368,9 @@ describe('Core API - Objects', () => {
 		});
 	});
 
-	describe('listObjects - Include Options', () => {
+	describe('getObjects - Include Options', () => {
 		testWithAllClients('should work with no includes', async (client) => {
-			const { objects } = await client.core.listObjects({
+			const { objects } = await client.core.getObjects({
 				objectIds: [testObjectId],
 				include: {},
 			});
@@ -387,7 +387,7 @@ describe('Core API - Objects', () => {
 		});
 
 		testWithAllClients('should include content when requested', async (client) => {
-			const { objects } = await client.core.listObjects({
+			const { objects } = await client.core.getObjects({
 				objectIds: [testObjectId],
 				include: { content: true },
 			});
@@ -404,7 +404,7 @@ describe('Core API - Objects', () => {
 		});
 
 		testWithAllClients('should include previousTransaction when requested', async (client) => {
-			const { objects } = await client.core.listObjects({
+			const { objects } = await client.core.getObjects({
 				objectIds: [testObjectId],
 				include: { previousTransaction: true },
 			});
@@ -420,7 +420,7 @@ describe('Core API - Objects', () => {
 		});
 
 		testWithAllClients('should include both content and previousTransaction', async (client) => {
-			const { objects } = await client.core.listObjects({
+			const { objects } = await client.core.getObjects({
 				objectIds: [testObjectId],
 				include: { content: true, previousTransaction: true },
 			});
