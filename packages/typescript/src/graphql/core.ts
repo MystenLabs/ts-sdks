@@ -66,11 +66,11 @@ export class GraphQLCoreClient extends CoreClient {
 		return extractedData as NonNullable<Data>;
 	}
 
-	async listObjects<Include extends SuiClientTypes.ObjectInclude = object>(
-		options: SuiClientTypes.ListObjectsOptions<Include>,
-	): Promise<SuiClientTypes.ListObjectsResponse<Include>> {
+	async getObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.GetObjectsOptions<Include>,
+	): Promise<SuiClientTypes.GetObjectsResponse<Include>> {
 		const batches = chunk(options.objectIds, 50);
-		const results: SuiClientTypes.ListObjectsResponse<Include>['objects'] = [];
+		const results: SuiClientTypes.GetObjectsResponse<Include>['objects'] = [];
 
 		for (const batch of batches) {
 			const page = await this.#graphqlQuery(
