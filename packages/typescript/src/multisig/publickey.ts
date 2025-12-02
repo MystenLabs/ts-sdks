@@ -15,7 +15,6 @@ import {
 import type { SignatureFlag, SignatureScheme } from '../cryptography/signature-scheme.js';
 import { parseSerializedSignature } from '../cryptography/signature.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
-// eslint-disable-next-line import/no-cycle
 import { publicKeyFromRawBytes } from '../verify/index.js';
 import { toZkLoginPublicIdentifier } from '../zklogin/publickey.js';
 import { MultiSigSigner } from './signer.js';
