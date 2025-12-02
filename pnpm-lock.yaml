@@ -463,6 +463,9 @@ importers:
       '@mysten/sui':
         specifier: workspace:*
         version: link:../../../../sui
+      '@nanostores/vue':
+        specifier: ^0.10.0
+        version: 0.10.0(nanostores@1.0.1)(vue@3.5.21(typescript@5.9.2))
       vue:
         specifier: ^3.5.21
         version: 3.5.21(typescript@5.9.2)
@@ -2830,6 +2833,20 @@ packages:
     peerDependencies:
       nanostores: ^0.9.0 || ^0.10.0 || ^0.11.0 || ^1.0.0
       react: '>=18.0.0'
+
+  '@nanostores/vue@0.10.0':
+    resolution: {integrity: sha512-832RAUbzRfHPs1CdqVEwfvgB2+RD/INji4Zo8bUSEfRO2pQRMMeq479gydnohGpRaa0oNwlfKo7TGFXCghq/1g==}
+    engines: {node: ^18.0.0 || >=20.0.0}
+    peerDependencies:
+      '@nanostores/logger': '>=0.2.3'
+      '@vue/devtools-api': '>=6.5.0'
+      nanostores: '>=0.9.2'
+      vue: '>=3.3.1'
+    peerDependenciesMeta:
+      '@nanostores/logger':
+        optional: true
+      '@vue/devtools-api':
+        optional: true
 
   '@napi-rs/wasm-runtime@1.0.3':
     resolution: {integrity: sha512-rZxtMsLwjdXkMUGC3WwsPwLNVqVqnTJT6MNIB6e+5fhMcSCPP0AOsNWuMQ5mdCq6HNjs/ZeWAEchpqeprqBD2Q==}
@@ -11155,6 +11172,11 @@ snapshots:
     dependencies:
       nanostores: 1.0.1
       react: 18.3.1
+
+  '@nanostores/vue@0.10.0(nanostores@1.0.1)(vue@3.5.21(typescript@5.9.2))':
+    dependencies:
+      nanostores: 1.0.1
+      vue: 3.5.21(typescript@5.9.2)
 
   '@napi-rs/wasm-runtime@1.0.3':
     dependencies:

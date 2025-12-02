@@ -5,6 +5,12 @@ title: Switch Account
 The `switchAccount` action changes the currently selected account to a different account from the
 connected wallet.
 
+<Callout type="info">
+	The "current account" is a dApp Kit concept that tracks which account is active within your
+	application. Changing the active account in the dApp does not affect the wallet itself, and wallets
+	are not notified when the active account changes.
+</Callout>
+
 <Callout>
 	Account switching is integrated into the [Connect Button](../web-components/connect-button) Web
 	Component. When a wallet is connected with multiple accounts, the button provides an account

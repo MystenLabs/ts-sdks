@@ -63,28 +63,29 @@ Use Vue's `:prop` syntax to bind dAppKit instance to Web Components:
 
 ### Store Subscriptions
 
-Subscribe to stores in `onMounted` and cleanup in `onUnmounted`:
+For reactive state management in Vue, use the `@nanostores/vue` package which provides Vue
+composables for nanostores:
+
+```bash
+npm i @nanostores/vue
+```
 
 ```vue
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { useStore } from '@nanostores/vue';
 import { dAppKit } from './dapp-kit';
 
-const connection = ref(dAppKit.stores.$connection.get());
-let unsubscribe: (() => void) | undefined;
-onMounted(() => {
-	unsubscribe = dAppKit.stores.$connection.subscribe((conn) => {
-		console.log('connection changed', conn);
-		connection.value = conn;
-	});
-});
-onUnmounted(() => {
-	unsubscribe?.();
-});
+const connection = useStore(dAppKit.stores.$connection);
 </script>
 
 <template>
-	<mysten-dapp-kit-connect-button :instance="dAppKit" />
+	<div>
+		<mysten-dapp-kit-connect-button :instance="dAppKit" />
+		<div v-if="connection.account">
+			<p>Wallet: {{ connection.wallet?.name }}</p>
+			<p>Account: {{ connection.account.address }}</p>
+		</div>
+	</div>
 </template>
 ```
 

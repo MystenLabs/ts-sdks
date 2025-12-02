@@ -91,8 +91,10 @@ console.log('Gas used:', effects.V2?.gasUsed);
 ## Wallet Compatibility
 
 - The action transparently handles both `sui:signAndExecuteTransaction` and
-  `sui:signAndExecuteTransactionBlock` features
+  `sui:signAndExecuteTransactionBlock` wallet-standard features
 - The wallet handles network submission and response
+- Some wallets (Enoki, Enoki Connect, WalletConnect) may use the dApp Kit client and execute
+  transactions within the application as an implementation detail
 
 ```typescript
 // The action automatically detects and uses the appropriate method
