@@ -127,9 +127,7 @@ export function isTransaction(obj: unknown): obj is TransactionLike {
 export type TransactionObjectInput = string | CallArg | TransactionObjectArgument;
 
 interface TransactionPluginRegistry {
-	// eslint-disable-next-line @typescript-eslint/ban-types
 	buildPlugins: Map<string | Function, TransactionPlugin>;
-	// eslint-disable-next-line @typescript-eslint/ban-types
 	serializationPlugins: Map<string | Function, TransactionPlugin>;
 }
 
