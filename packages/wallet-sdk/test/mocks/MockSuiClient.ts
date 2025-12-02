@@ -124,9 +124,9 @@ export class MockSuiClient extends CoreClient {
 		}
 	}
 
-	async listObjects<Include extends SuiClientTypes.ObjectInclude = object>(
-		options: SuiClientTypes.ListObjectsOptions<Include>,
-	): Promise<SuiClientTypes.ListObjectsResponse<Include>> {
+	async getObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.GetObjectsOptions<Include>,
+	): Promise<SuiClientTypes.GetObjectsResponse<Include>> {
 		const objects = options.objectIds.map((id): SuiClientTypes.ObjectResponse<Include> | Error => {
 			const normalizedId = normalizeSuiAddress(id);
 			const obj = this.#objects.get(normalizedId);
@@ -430,7 +430,7 @@ export class MockSuiClient extends CoreClient {
 		] as string[];
 
 		// Fetch objects using our multiGetObjects
-		const resolved = await this.listObjects({ objectIds: dedupedIds });
+		const resolved = await this.getObjects({ objectIds: dedupedIds });
 
 		const objectsById = new Map(dedupedIds.map((id, index) => [id, resolved.objects[index]]));
 
