@@ -1,0 +1,179 @@
+---
+title: Next.js
+---
+
+This guide covers integrating dApp Kit into Next.js applications, including handling server-side
+rendering (SSR).
+
+## Installation
+
+```sh npm2yarn
+npm i @mysten/dapp-kit-react @mysten/sui
+```
+
+## Setup
+
+### 1. Create a dApp Kit Instance
+
+```ts
+// app/dapp-kit.ts
+import { createDAppKit } from '@mysten/dapp-kit-react';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+} as const;
+
+export const dAppKit = createDAppKit({
+	networks: ['testnet'],
+	createClient: (network) => new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }),
+});
+
+// Register types for hook type inference
+declare module '@mysten/dapp-kit-react' {
+	interface Register {
+		dAppKit: typeof dAppKit;
+	}
+}
+```
+
+### 2. Create a Client-Only Wrapper
+
+Wallet detection only works in the browser, so dApp Kit components must be client-side rendered:
+
+```tsx
+// app/DAppKitClientProvider.tsx
+'use client';
+
+import { DAppKitProvider, ConnectButton } from '@mysten/dapp-kit-react';
+import { dAppKit } from './dapp-kit';
+
+export function DAppKitClientProvider({ children }: { children: React.ReactNode }) {
+	return <DAppKitProvider dAppKit={dAppKit}>{children}</DAppKitProvider>;
+}
+
+export { ConnectButton };
+```
+
+### 3. Use Dynamic Import in Pages
+
+Use Next.js dynamic imports with `ssr: false` to prevent server-side rendering:
+
+```tsx
+// app/page.tsx
+import dynamic from 'next/dynamic';
+
+const DAppKitClientProvider = dynamic(
+	() => import('./DAppKitClientProvider').then((mod) => mod.DAppKitClientProvider),
+	{ ssr: false },
+);
+
+const ConnectButton = dynamic(
+	() => import('./DAppKitClientProvider').then((mod) => mod.ConnectButton),
+	{ ssr: false, loading: () => <button disabled>Loading...</button> },
+);
+
+export default function Home() {
+	return (
+		<DAppKitClientProvider>
+			<main>
+				<h1>My Sui dApp</h1>
+				<ConnectButton />
+			</main>
+		</DAppKitClientProvider>
+	);
+}
+```
+
+## Alternative: Single Client Component
+
+For simpler apps, create a single client component:
+
+```tsx
+// app/WalletApp.tsx
+'use client';
+
+import {
+	DAppKitProvider,
+	ConnectButton,
+	useCurrentAccount,
+	useDAppKit,
+} from '@mysten/dapp-kit-react';
+import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
+import { dAppKit } from './dapp-kit';
+
+function WalletStatus() {
+	const account = useCurrentAccount();
+	const dAppKit = useDAppKit();
+
+	if (!account) {
+		return <p>Connect your wallet to get started</p>;
+	}
+
+	async function handleTransfer() {
+		const tx = new Transaction();
+		tx.transferObjects([coinWithBalance({ balance: 1_000_000 })], account.address);
+		const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+		alert(`Transaction: ${result.digest}`);
+	}
+
+	return (
+		<div>
+			<p>Connected: {account.address}</p>
+			<button onClick={handleTransfer}>Send Transaction</button>
+		</div>
+	);
+}
+
+export default function WalletApp() {
+	return (
+		<DAppKitProvider dAppKit={dAppKit}>
+			<ConnectButton />
+			<WalletStatus />
+		</DAppKitProvider>
+	);
+}
+```
+
+```tsx
+// app/page.tsx
+import dynamic from 'next/dynamic';
+
+const WalletApp = dynamic(() => import('./WalletApp'), {
+	ssr: false,
+	loading: () => <p>Loading wallet...</p>,
+});
+
+export default function Home() {
+	return (
+		<main>
+			<h1>My Sui dApp</h1>
+			<WalletApp />
+		</main>
+	);
+}
+```
+
+## Key Considerations
+
+### Why SSR: false?
+
+Wallets are detected via the browser's `window` object and the Wallet Standard API. This detection
+cannot happen on the server, so components that interact with wallets must be client-side only.
+
+### Hydration Errors
+
+If you see hydration errors, ensure all dApp Kit components are wrapped with `ssr: false` dynamic
+imports or are inside a `'use client'` component that's dynamically imported.
+
+## Example Application
+
+See the complete
+[Next.js example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/dapp-kit-next/examples/next-js/simple)
+on GitHub.
+
+## Next Steps
+
+- [React Hooks](/dapp-kit/react/hooks) - All available hooks
+- [React Components](/dapp-kit/react/components) - UI components
+- [Theming](/dapp-kit/theming) - Customize appearance
