@@ -25,7 +25,7 @@ describe('Session key tests', () => {
 		await sessionKey.setPersonalMessageSignature(sig.signature);
 
 		const exportedSessionKey = sessionKey.export();
-		const restoredSessionKey = await SessionKey.import(exportedSessionKey, suiClient);
+		const restoredSessionKey = SessionKey.import(exportedSessionKey, suiClient);
 
 		expect(restoredSessionKey.getAddress()).toBe(kp.getPublicKey().toSuiAddress());
 		expect(restoredSessionKey.getPackageId()).toBe(TESTNET_PACKAGE_ID);
