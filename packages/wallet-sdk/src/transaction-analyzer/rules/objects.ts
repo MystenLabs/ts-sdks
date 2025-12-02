@@ -67,7 +67,7 @@ export const objects = createAnalyzer({
 	analyze:
 		({ client }: { client: ClientWithCoreApi }) =>
 		async ({ objectIds }) => {
-			const { objects } = await client.core.listObjects({
+			const { objects } = await client.core.getObjects({
 				objectIds,
 				include: {
 					content: true,
