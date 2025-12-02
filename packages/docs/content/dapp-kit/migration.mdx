@@ -2,7 +2,7 @@
 title: Migration Guide (React)
 ---
 
-This guide helps you migrate from the original `@mysten/dapp-kit` to the new
+This guide helps you migrate from the original `@mysten/dapp-kit` (legacy) to the new
 `@mysten/dapp-kit-react` package.
 
 ## Overview
@@ -40,14 +40,16 @@ type.
 ```tsx
 // dapp-kit.ts
 import { createDAppKit } from '@mysten/dapp-kit-react';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+};
 
 export const dAppKit = createDAppKit({
-	enableBurnerWallet: import.meta.env.DEV,
-	networks: ['mainnet', 'testnet'],
-	defaultNetwork: 'testnet',
+	networks: ['testnet'],
 	createClient(network) {
-		return new SuiClient({ network, url: getFullnodeUrl(network) });
+		return new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] });
 	},
 });
 

@@ -65,6 +65,7 @@ const connection = dAppKit.stores.$connection.get();
 // - wallet: UiWallet | null
 // - account: UiWalletAccount | null
 // - status: 'connected' | 'connecting' | 'reconnecting' | 'disconnected'
+// - supportedIntents: string[]
 // - isConnected: boolean
 // - isConnecting: boolean
 // - isReconnecting: boolean
@@ -152,8 +153,8 @@ dAppKit.stores.$currentNetwork.subscribe((network) => {
 
 ## React
 
-React users can use the [provided hooks](./framework-guides/react/hooks/use-connection) instead of
-direct store access.
+React users can use the [provided hooks](./react/hooks/use-wallet-connection) instead of direct
+store access.
 
 ## Properties
 

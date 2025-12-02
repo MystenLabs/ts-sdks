@@ -1,0 +1,197 @@
+---
+title: Vue
+---
+
+This guide walks you through integrating dApp Kit into a Vue application using Web Components and
+direct store access.
+
+## Installation
+
+```sh npm2yarn
+npm i @mysten/dapp-kit-core @mysten/sui @nanostores/vue
+```
+
+## Setup
+
+### 1. Create a dApp Kit Instance
+
+```ts
+// src/dapp-kit.ts
+import { createDAppKit } from '@mysten/dapp-kit-core';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+};
+
+export const dAppKit = createDAppKit({
+	networks: ['testnet'],
+	createClient: (network) => new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }),
+});
+```
+
+### 2. Register Web Components
+
+Import the web components in your app entry point:
+
+```ts
+// src/main.ts
+import '@mysten/dapp-kit-core/web';
+import { createApp } from 'vue';
+import App from './App.vue';
+
+createApp(App).mount('#app');
+```
+
+### 3. Use the Connect Button
+
+```vue
+<script setup lang="ts">
+import { dAppKit } from './dapp-kit';
+</script>
+
+<template>
+	<div>
+		<h1>My Sui dApp</h1>
+		<mysten-dapp-kit-connect-button :instance="dAppKit" />
+	</div>
+</template>
+```
+
+### 4. Access Connection State
+
+Use `@nanostores/vue` for reactive state:
+
+```vue
+<script setup lang="ts">
+import { useStore } from '@nanostores/vue';
+import { dAppKit } from './dapp-kit';
+
+const connection = useStore(dAppKit.stores.$connection);
+const network = useStore(dAppKit.stores.$currentNetwork);
+</script>
+
+<template>
+	<div>
+		<mysten-dapp-kit-connect-button :instance="dAppKit" />
+
+		<div v-if="connection.account">
+			<p>Wallet: {{ connection.wallet?.name }}</p>
+			<p>Address: {{ connection.account.address }}</p>
+			<p>Network: {{ network }}</p>
+		</div>
+		<p v-else>Connect your wallet to get started</p>
+	</div>
+</template>
+```
+
+### 5. Execute Transactions
+
+```vue
+<script setup lang="ts">
+import { useStore } from '@nanostores/vue';
+import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
+import { dAppKit } from './dapp-kit';
+
+const connection = useStore(dAppKit.stores.$connection);
+
+async function handleTransfer() {
+	const tx = new Transaction();
+	tx.transferObjects([coinWithBalance({ balance: 1_000_000 })], connection.value.account!.address);
+
+	try {
+		const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+		alert(`Transaction: ${result.digest}`);
+	} catch (error) {
+		console.error('Transaction failed:', error);
+	}
+}
+</script>
+
+<template>
+	<div>
+		<mysten-dapp-kit-connect-button :instance="dAppKit" />
+
+		<button v-if="connection.account" @click="handleTransfer">Send Transaction</button>
+	</div>
+</template>
+```
+
+## Complete Example
+
+```vue
+<script setup lang="ts">
+import { useStore } from '@nanostores/vue';
+import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
+import { dAppKit } from './dapp-kit';
+
+const connection = useStore(dAppKit.stores.$connection);
+const network = useStore(dAppKit.stores.$currentNetwork);
+
+async function handleTransfer() {
+	if (!connection.value.account) return;
+
+	const tx = new Transaction();
+	tx.transferObjects([coinWithBalance({ balance: 1_000_000 })], connection.value.account.address);
+
+	try {
+		const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+		alert(`Transaction successful: ${result.digest}`);
+	} catch (error) {
+		console.error('Transaction failed:', error);
+	}
+}
+</script>
+
+<template>
+	<div class="app">
+		<h1>My Sui dApp</h1>
+		<mysten-dapp-kit-connect-button :instance="dAppKit" />
+
+		<div v-if="connection.account" class="wallet-info">
+			<p>Wallet: {{ connection.wallet?.name }}</p>
+			<p>Address: {{ connection.account.address }}</p>
+			<p>Network: {{ network }}</p>
+			<button @click="handleTransfer">Send Test Transaction</button>
+		</div>
+		<p v-else>Connect your wallet to get started</p>
+	</div>
+</template>
+```
+
+## Web Components
+
+Vue works with dApp Kit's Web Components through property binding:
+
+| Component | Usage |
+|-----------|-------|
+| Connect Button | `<mysten-dapp-kit-connect-button :instance="dAppKit" />` |
+| Connect Modal | `<mysten-dapp-kit-connect-modal :instance="dAppKit" :open="isOpen" />` |
+
+See [Web Components](/dapp-kit/web-components/connect-button) for full documentation.
+
+## Available Stores
+
+Access these stores via `dAppKit.stores`:
+
+| Store | Description |
+|-------|-------------|
+| `$connection` | Connection state with wallet, account, and status |
+| `$currentNetwork` | Current network string |
+| `$currentClient` | SuiClient for current network |
+| `$wallets` | List of available wallets |
+
+See [State Management](/dapp-kit/state) for full documentation.
+
+## Example Application
+
+See the complete
+[Vue example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/dapp-kit-next/examples/vue/simple)
+on GitHub.
+
+## Next Steps
+
+- [Web Components](/dapp-kit/web-components/connect-button) - Component documentation
+- [State Management](/dapp-kit/state) - Store details
+- [Actions](/dapp-kit/actions/connect-wallet) - All available actions
+- [Theming](/dapp-kit/theming) - Customize appearance

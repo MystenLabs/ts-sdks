@@ -1,6 +1,6 @@
 {
-	"title": "dApp Kit",
-	"description": "Build Sui dapps in React",
+	"title": "dApp Kit (Legacy)",
+	"description": "Build Sui dapps in React with @mysten/dapp-kit",
 	"pages": [
 		"index",
 		"create-dapp",

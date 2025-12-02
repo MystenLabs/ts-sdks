@@ -29,19 +29,15 @@ export default function App() {
 
 ```tsx
 import { createDAppKit, DAppKitProvider } from '@mysten/dapp-kit-react';
-import { SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+} as const;
 
 const dAppKit = createDAppKit({
-	networks: ['mainnet', 'testnet', 'localnet'],
-	defaultNetwork: 'testnet',
-	createClient: (network) => {
-		const connections = {
-			mainnet: { url: 'https://mainnet.sui.io:443' },
-			testnet: { url: 'https://testnet.sui.io:443' },
-			localnet: { url: 'http://localhost:9000' },
-		};
-		return new SuiClient(connections[network]);
-	},
+	networks: ['testnet'],
+	createClient: (network) => new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }),
 	autoConnect: true,
 	storage: localStorage,
 	storageKey: 'myapp_dappkit',

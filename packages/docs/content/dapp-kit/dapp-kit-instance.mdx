@@ -12,20 +12,23 @@ all dApp functionality:
 
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+};
 
 export const dAppKit = createDAppKit({
-	networks: ['mainnet', 'testnet'],
-	defaultNetwork: 'mainnet',
-	createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
+	networks: ['testnet'],
+	createClient: (network) => new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }),
 });
 ```
 
 <Callout type="info">
 	If you use the React bindings, there are two ways to ensure type safety with hooks:
 
-    1. [Register the global dAppKit type](./framework-guides/react/getting-started#create-a-dapp-kit-instance) once, and all hooks will be properly typed
-    2. Pass the dAppKit instance explicitly to each hook: `useWalletConnection({ dAppKit })
+	1. [Register the global dAppKit type](./getting-started/react#1-create-a-dapp-kit-instance) once, and all hooks will be properly typed
+	2. Pass the dAppKit instance explicitly to each hook: `useWalletConnection({ dAppKit })`
 
 </Callout>
 
@@ -85,12 +88,15 @@ Read more about [actions](./actions/connect-wallet) and [stores](./state).
 ```ts
 // dapp-kit.ts
 import { createDAppKit } from '@mysten/dapp-kit-core';
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+};
 
 export const dAppKit = createDAppKit({
-	networks: ['mainnet', 'testnet'],
-	defaultNetwork: 'mainnet',
-	createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
+	networks: ['testnet'],
+	createClient: (network) => new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }),
 });
 ```
 
@@ -115,9 +121,8 @@ export async function connectWalletAndLog({
 ```
 
 <Callout>
-	If you use the React bindings, see [Getting Started in
-	React](./framework-guides/react/getting-started) and
-	[DAppKitProvider](./framework-guides/react/dapp-kit-provider).
+	If you use the React bindings, see [Getting Started in React](./getting-started/react) and
+	[DAppKitProvider](./react/dapp-kit-provider).
 </Callout>
 
 ## Development Configuration
@@ -126,12 +131,12 @@ For development environments, enable the burner wallet:
 
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
-import { SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 export const dAppKit = createDAppKit({
 	networks: ['localnet'],
 	defaultNetwork: 'localnet',
-	createClient: () => new SuiClient({ url: 'http://localhost:9000' }),
+	createClient: () => new SuiGrpcClient({ network: 'localnet', baseUrl: 'http://127.0.0.1:9000' }),
 	enableBurnerWallet: true, // Dev-only feature
 });
 ```
@@ -144,11 +149,11 @@ By default, dApp Kit automatically reconnects to the previously connected wallet
 
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 export const dAppKit = createDAppKit({
 	networks: ['mainnet'],
-	createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
+	createClient: () => new SuiGrpcClient({ network: 'mainnet', baseUrl: 'https://fullnode.mainnet.sui.io:443' }),
 	autoConnect: false,
 });
 ```
@@ -159,13 +164,13 @@ Add support for custom wallets using wallet initializers:
 
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { getWallets } from '@mysten/wallet-standard';
 import { CustomWallet } from './custom-wallet.js'; // import your custom wallet class
 
 export const dAppKit = createDAppKit({
 	networks: ['mainnet'],
-	createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
+	createClient: () => new SuiGrpcClient({ network: 'mainnet', baseUrl: 'https://fullnode.mainnet.sui.io:443' }),
 	walletInitializers: [
 		{
 			id: 'Custom Wallets',

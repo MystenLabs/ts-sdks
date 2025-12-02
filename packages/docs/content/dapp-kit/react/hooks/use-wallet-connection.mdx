@@ -43,6 +43,7 @@ export function MyComponent() {
 	status: 'disconnected' | 'connecting' | 'reconnecting' | 'connected';
 	wallet: UiWallet | null;
 	account: UiWalletAccount | null;
+	supportedIntents: string[];
 	isConnected: boolean;
 	isConnecting: boolean;
 	isReconnecting: boolean;
