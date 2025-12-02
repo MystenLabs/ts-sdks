@@ -163,10 +163,10 @@ async function handleTransfer() {
 
 Vue works with dApp Kit's Web Components through property binding:
 
-| Component | Usage |
-|-----------|-------|
-| Connect Button | `<mysten-dapp-kit-connect-button :instance="dAppKit" />` |
-| Connect Modal | `<mysten-dapp-kit-connect-modal :instance="dAppKit" :open="isOpen" />` |
+| Component      | Usage                                                                  |
+| -------------- | ---------------------------------------------------------------------- |
+| Connect Button | `<mysten-dapp-kit-connect-button :instance="dAppKit" />`               |
+| Connect Modal  | `<mysten-dapp-kit-connect-modal :instance="dAppKit" :open="isOpen" />` |
 
 See [Web Components](/dapp-kit/web-components/connect-button) for full documentation.
 
@@ -174,12 +174,12 @@ See [Web Components](/dapp-kit/web-components/connect-button) for full documenta
 
 Access these stores via `dAppKit.stores`:
 
-| Store | Description |
-|-------|-------------|
-| `$connection` | Connection state with wallet, account, and status |
-| `$currentNetwork` | Current network string |
-| `$currentClient` | SuiClient for current network |
-| `$wallets` | List of available wallets |
+| Store             | Description                                       |
+| ----------------- | ------------------------------------------------- |
+| `$connection`     | Connection state with wallet, account, and status |
+| `$currentNetwork` | Current network string                            |
+| `$currentClient`  | SuiClient for current network                     |
+| `$wallets`        | List of available wallets                         |
 
 See [State Management](/dapp-kit/state) for full documentation.
 
