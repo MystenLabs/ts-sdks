@@ -30,8 +30,6 @@ export interface JsonRpcTransportRequestOptions {
 	signal?: AbortSignal;
 }
 
-// eslint-disable-next-line @typescript-eslint/ban-types
-
 export interface JsonRpcTransportSubscribeOptions<T> {
 	method: string;
 	unsubscribe: string;

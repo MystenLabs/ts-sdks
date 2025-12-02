@@ -1,6 +1,5 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-/* eslint-disable @typescript-eslint/ban-types */
 
 import type { Simplify, UnionToIntersection } from '@mysten/utils';
 import { ClientCache } from './cache.js';
