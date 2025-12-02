@@ -1,5 +1,5 @@
-packages/typescript/src/grpc/proto/** linguist-generated=true
-packages/typescript/src/graphql/generated/** linguist-generated=true
+packages/sui/src/grpc/proto/** linguist-generated=true
+packages/sui/src/graphql/generated/** linguist-generated=true
 packages/suins-v2/src/contracts/** linguist-generated=true
 packages/codegen/tests/generated/** linguist-generated=true
 packages/walrus/src/contracts/** linguist-generated=true

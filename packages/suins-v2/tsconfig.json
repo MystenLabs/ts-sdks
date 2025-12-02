@@ -7,5 +7,5 @@
 		"isolatedModules": true,
 		"rootDir": "src"
 	},
-	"references": [{ "path": "../typescript" }]
+	"references": [{ "path": "../sui" }]
 }

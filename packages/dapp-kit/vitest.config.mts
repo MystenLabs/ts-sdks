@@ -21,12 +21,11 @@ export default defineConfig({
 			'@mysten/wallet-standard': new URL('../wallet-standard/src', import.meta.url).pathname,
 			'@mysten/bcs': new URL('../bcs/src', import.meta.url).pathname,
 			'@mysten/utils': new URL('../utils/src', import.meta.url).pathname,
-			'@mysten/sui/keypairs/ed25519': new URL('../typescript/src/keypairs/ed25519', import.meta.url)
+			'@mysten/sui/keypairs/ed25519': new URL('../sui/src/keypairs/ed25519', import.meta.url)
 				.pathname,
-			'@mysten/sui/jsonRpc': new URL('../typescript/src/jsonRpc', import.meta.url).pathname,
-			'@mysten/sui/utils': new URL('../typescript/src/utils', import.meta.url).pathname,
-			'@mysten/sui/transactions': new URL('../typescript/src/transactions', import.meta.url)
-				.pathname,
+			'@mysten/sui/jsonRpc': new URL('../sui/src/jsonRpc', import.meta.url).pathname,
+			'@mysten/sui/utils': new URL('../sui/src/utils', import.meta.url).pathname,
+			'@mysten/sui/transactions': new URL('../sui/src/transactions', import.meta.url).pathname,
 		},
 	},
 });

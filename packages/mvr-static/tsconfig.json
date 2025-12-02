@@ -10,5 +10,5 @@
 		"rootDir": "src",
 		"emitDeclarationOnly": false
 	},
-	"references": [{ "path": "../typescript" }]
+	"references": [{ "path": "../sui" }]
 }
