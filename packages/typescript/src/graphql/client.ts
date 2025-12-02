@@ -58,7 +58,6 @@ export interface SuiGraphQLClientOptions<Queries extends Record<string, GraphQLD
 export class SuiGraphQLRequestError extends Error {}
 
 export class SuiGraphQLClient<
-	// eslint-disable-next-line @typescript-eslint/ban-types
 	Queries extends Record<string, GraphQLDocument> = {},
 > extends BaseClient {
 	#url: string;
