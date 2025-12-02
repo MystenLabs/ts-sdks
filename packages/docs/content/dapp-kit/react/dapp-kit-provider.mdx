@@ -1,0 +1,96 @@
+---
+title: DAppKitProvider
+---
+
+The `DAppKitProvider` is a React context provider that makes your dApp Kit instance available
+throughout your React application. It must wrap any components that use dApp Kit hooks.
+
+## Basic Usage
+
+```tsx
+import { dAppKit } from './dapp-kit.ts';
+
+export default function App() {
+	return (
+		<DAppKitProvider dAppKit={dAppKit}>
+			<YourApp />
+		</DAppKitProvider>
+	);
+}
+```
+
+## Props
+
+- **dAppKit**: The dApp Kit instance created with `createDAppKit`
+
+## Provider Setup Patterns
+
+### With Custom Configuration
+
+```tsx
+import { createDAppKit, DAppKitProvider } from '@mysten/dapp-kit-react';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+} as const;
+
+const dAppKit = createDAppKit({
+	networks: ['testnet'],
+	createClient: (network) => new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }),
+	autoConnect: true,
+	storage: localStorage,
+	storageKey: 'myapp_dappkit',
+});
+
+// global type registration necessary for the hooks to work correctly
+declare module '@mysten/dapp-kit-react' {
+	interface Register {
+		dAppKit: typeof dAppKit;
+	}
+}
+
+export function App() {
+	return (
+		<DAppKitProvider dAppKit={dAppKit}>
+			<YourApp />
+		</DAppKitProvider>
+	);
+}
+```
+
+## Using Hooks Inside the Provider
+
+Once your app is wrapped with `DAppKitProvider`, you can use any dApp Kit hooks in child components:
+
+```tsx
+import type { UiWallet } from '@mysten/dapp-kit-react';
+import { useDAppKit, useCurrentAccount, useCurrentNetwork } from '@mysten/dapp-kit-react';
+
+export function MyComponent({ wallet }: { wallet: UiWallet }) {
+	const dAppKit = useDAppKit();
+	const account = useCurrentAccount();
+	const network = useCurrentNetwork();
+	const handleConnect = async () => {
+		await dAppKit.connectWallet({ wallet });
+	};
+	return (
+		<div>
+			<p>Network: {network}</p>
+			<p>Account: {account?.address}</p>
+			<button onClick={handleConnect}>Connect</button>
+		</div>
+	);
+}
+```
+
+<Callout>
+	All dApp Kit hooks must be used within components that are descendants of `DAppKitProvider`. Using
+	them outside will result in an error.
+</Callout>
+
+## Server-Side Rendering (SSR)
+
+While `DAppKitProvider` itself is SSR-safe, components that interact with wallets should be
+client-side rendered, as wallets are detected in the browser. For Next.js guide see
+[here](../next-js).
