@@ -39,12 +39,11 @@ export class JSONRpcCoreClient extends CoreClient {
 		this.#jsonRpcClient = jsonRpcClient;
 	}
 
-	async listObjects<Include extends SuiClientTypes.ObjectInclude = object>(
-		options: SuiClientTypes.ListObjectsOptions<Include>,
+	async getObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.GetObjectsOptions<Include>,
 	) {
 		const batches = chunk(options.objectIds, 50);
-		const results: SuiClientTypes.ListObjectsResponse<Include>['objects'] = [];
-
+		const results: SuiClientTypes.GetObjectsResponse<Include>['objects'] = [];
 		for (const batch of batches) {
 			const objects = await this.#jsonRpcClient.multiGetObjects({
 				ids: batch,
