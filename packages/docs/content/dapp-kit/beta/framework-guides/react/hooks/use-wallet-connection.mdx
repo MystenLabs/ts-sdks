@@ -1,8 +1,9 @@
 ---
-title: useConnection
+title: useWalletConnection
 ---
 
-The `useConnection` hook provides access to the current wallet connection status and information.
+The `useWalletConnection` hook provides access to the current wallet connection status and
+information.
 
 <Callout type="warn">
 	All dApp Kit hooks must be used within components that are descendants of
@@ -12,10 +13,10 @@ The `useConnection` hook provides access to the current wallet connection status
 ## Usage
 
 ```tsx
-import { useConnection } from '@mysten/dapp-kit-react';
+import { useWalletConnection } from '@mysten/dapp-kit-react';
 
 export function MyComponent() {
-	const connection = useConnection();
+	const connection = useWalletConnection();
 
 	if (connection.status === 'disconnected') {
 		return <div>Please connect your wallet</div>;

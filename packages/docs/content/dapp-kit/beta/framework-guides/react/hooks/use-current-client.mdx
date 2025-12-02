@@ -1,8 +1,15 @@
 ---
-title: useSuiClient
+title: useCurrentClient
 ---
 
-The `useSuiClient` hook provides access to the SuiClient instance for the current network.
+The `useCurrentClient` hook provides access to the blockchain client instance for the current
+network.
+
+<Callout type="info">
+	By default, this returns a `SuiClient` instance when using the standard setup. However, the dApp
+	Kit supports any client that implements the Sui core API, making it flexible for different
+	blockchain implementations.
+</Callout>
 
 <Callout type="warn">
 	All dApp Kit hooks must be used within components that are descendants of
@@ -12,10 +19,10 @@ The `useSuiClient` hook provides access to the SuiClient instance for the curren
 ## Usage
 
 ```tsx
-import { useSuiClient } from '@mysten/dapp-kit-react';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 
 export function MyComponent() {
-	const client = useSuiClient();
+	const client = useCurrentClient();
 
 	const handleQuery = async () => {
 		const balance = await client.getBalance({

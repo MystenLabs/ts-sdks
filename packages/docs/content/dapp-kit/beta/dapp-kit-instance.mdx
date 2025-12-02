@@ -21,10 +21,12 @@ export const dAppKit = createDAppKit({
 });
 ```
 
-<Callout type="warn">
-	If you use the React bindings, it's necessary that you [register global dAppKit
-	type](./framework-guides/react/getting-started#create-a-dapp-kit-instance) for hooks to work
-	properly.
+<Callout type="info">
+	If you use the React bindings, there are two ways to ensure type safety with hooks:
+
+    1. [Register the global dAppKit type](./framework-guides/react/getting-started#create-a-dapp-kit-instance) once, and all hooks will be properly typed
+    2. Pass the dAppKit instance explicitly to each hook: `useWalletConnection({ dAppKit })
+
 </Callout>
 
 This instance provides:

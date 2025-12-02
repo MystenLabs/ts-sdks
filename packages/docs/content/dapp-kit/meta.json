@@ -2,9 +2,5 @@
 	"root": true,
 	"title": "dApp Kit",
 	"description": "Build Sui dapps in React",
-	"pages": [
-		"index",
-		"current",
-		"beta"
-	]
+	"pages": ["index", "current", "beta"]
 }

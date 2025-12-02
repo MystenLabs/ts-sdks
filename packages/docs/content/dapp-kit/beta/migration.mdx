@@ -94,24 +94,49 @@ Replace multiple nested providers with a single unified provider.
 
 ### 4. Update Hook Usage
 
-Most existing hooks continue to work with no changes needed:
+The new dApp Kit has a dramatically simplified hook API. Most hooks from the original version have
+been replaced with direct action calls through `useDAppKit()`.
 
-**No changes required:**
+**Available hooks in the new version:**
 
-- `useCurrentAccount`
-- `useSuiClient`
-- `useCurrentWallet`
+- `useDAppKit()` - Access the dAppKit instance for calling actions
+- `useCurrentClient()` - Get the blockchain client (renamed from `useSuiClient`)
+- `useCurrentAccount()` - Get the current connected account
+- `useCurrentWallet()` - Get the current connected wallet
+- `useWallets()` - Get the list of available wallets
+- `useWalletConnection()` - Get the current wallet connection status
+- `useCurrentNetwork()` - Get the current network
 
-**New hooks available:**
+**Removed hooks:**
 
-- `useDAppKit` - Access the main dAppKit instance
-- `useConnection` - Get current wallet connection
-- `useCurrentNetwork` - Get current network
+All wallet action hooks have been replaced with direct action calls via `useDAppKit()`:
+
+- ❌ `useConnectWallet` → Use `dAppKit.connectWallet()`
+- ❌ `useDisconnectWallet` → Use `dAppKit.disconnectWallet()`
+- ❌ `useSignTransaction` → Use `dAppKit.signTransaction()`
+- ❌ `useSignAndExecuteTransaction` → Use `dAppKit.signAndExecuteTransaction()`
+- ❌ `useSignPersonalMessage` → Use `dAppKit.signPersonalMessage()`
+- ❌ `useSwitchAccount` → Use `dAppKit.switchAccount()`
+
+All data fetching hooks have been removed (giving you flexibility to use your preferred solution):
+
+- ❌ `useSuiClientQuery` → Use `useCurrentClient()` with your data fetching solution
+- ❌ `useSuiClientMutation` → Use `useCurrentClient()` with your data fetching solution
+- ❌ `useSuiClientInfiniteQuery` → Use `useCurrentClient()` with your data fetching solution
+- ❌ `useSuiClientQueries` → Use `useCurrentClient()` with your data fetching solution
+- ❌ `useResolveSuiNSNames` → Use `useCurrentClient()` directly
+
+Other removed hooks:
+
+- ❌ `useAutoConnectWallet` → Auto-connect is enabled by default
+- ❌ `useAccounts` → Use `useWalletConnection()` to access `connection.wallet.accounts`
+- ❌ `useWalletStore` → Use specific hooks like `useWalletConnection()` instead
 
 ### 5. Replace Mutation Patterns
 
-The new version uses direct promise-based calls instead of React Query mutations. This decoupling from
-TanStack Query gives you flexibility to use any state management or data fetching solution you prefer.
+The new version uses direct promise-based calls instead of React Query mutations. This decoupling
+from TanStack Query gives you flexibility to use any state management or data fetching solution you
+prefer.
 
 ```diff
 - import { useSignAndExecuteTransaction } from '@mysten/dapp-kit';
@@ -171,12 +196,12 @@ fetching solution. Use standard React patterns or integrate with TanStack Query 
 
 ```diff
 - import { useSuiClientQuery } from '@mysten/dapp-kit';
-+ import { useSuiClient } from '@mysten/dapp-kit-react';
++ import { useCurrentClient } from '@mysten/dapp-kit-react';
 + import { useState, useEffect } from 'react';
 + import type { SuiObjectData } from '@mysten/sui/client';
 
   export function ExampleComponent({ objectId }: { objectId: string }) {
-+ 	const client = useSuiClient();
++ 	const client = useCurrentClient();
 + 	const [data, setData] = useState<SuiObjectData | null>(null);
 + 	const [isLoading, setIsLoading] = useState(true);
 + 	const [error, setError] = useState<string | null>(null);
@@ -207,10 +232,10 @@ If you prefer using TanStack Query for caching and state management:
 
 ```tsx
 import { useQuery } from '@tanstack/react-query';
-import { useSuiClient } from '@mysten/dapp-kit-react';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 
 export function ExampleComponent({ objectId }: { objectId: string }) {
-	const client = useSuiClient();
+	const client = useCurrentClient();
 
 	const { data, isLoading, error } = useQuery({
 		queryKey: ['object', objectId],
@@ -229,7 +254,7 @@ The following hooks from the original dApp Kit are not available anymore:
 - `useSuiClientInfiniteQuery`
 - `useResolveSuiNSNames`
 
-**Migration:** Use `useSuiClient()` directly with standard React patterns or integrate your
+**Migration:** Use `useCurrentClient()` directly with standard React patterns or integrate your
 preferred data fetching solution.
 
 <Callout type="warning">

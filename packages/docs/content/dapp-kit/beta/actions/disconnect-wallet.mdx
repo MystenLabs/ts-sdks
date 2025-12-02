@@ -16,9 +16,10 @@ The `disconnectWallet` action terminates the connection with the currently conne
 	if the wallet notification fails, the local state is always cleared to ensure a clean
 	disconnection.
 
-	Note that wallets may or may not implement the `disconnect` feature. Calling `disconnectWallet`
-	doesn't necessarily mean that the wallet accounts will be disconnected from the dApp within the
-	wallet itself - this is determined by each wallet's implementation.
+    Note that wallets may or may not implement the `disconnect` feature. Calling `disconnectWallet`
+    doesn't necessarily mean that the wallet accounts will be disconnected from the dApp within the
+    wallet itself - this is determined by each wallet's implementation.
+
 </Callout>
 
 ```typescript

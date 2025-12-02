@@ -21,7 +21,8 @@ export function App() {
 
 ## Props
 
-- **open** - Boolean to control modal visibility programmatically
+- **open** (optional) - Boolean to control modal visibility. If not provided, the modal can be
+  controlled by calling `show()` and `close()` methods directly on the component ref.
 - **instance** (optional) - dApp Kit instance. If not provided, uses the instance from context
 - **filterFn** (optional) - Function to filter available wallets
   - Type: `(wallet: UiWallet, index: number, array: UiWallet[]) => boolean`
