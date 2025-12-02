@@ -1,0 +1,54 @@
+---
+title: Connect Modal
+---
+
+## Usage
+
+```tsx
+import { useState } from 'react';
+import { ConnectModal } from '@mysten/dapp-kit-react';
+
+export function App() {
+	const [open, setOpen] = useState(false);
+	return (
+		<>
+			<button onClick={() => setOpen(true)}>Connect Wallet</button>
+			<ConnectModal open={open} />
+		</>
+	);
+}
+```
+
+## Props
+
+- **open** (optional) - Boolean to control modal visibility. If not provided, the modal can be
+  controlled by calling `show()` and `close()` methods directly on the component ref.
+- **instance** (optional) - dApp Kit instance. If not provided, uses the instance from context
+- **filterFn** (optional) - Function to filter available wallets
+  - Type: `(wallet: UiWallet, index: number, array: UiWallet[]) => boolean`
+- **sortFn** (optional) - Function to sort available wallets
+  - Type: `(a: UiWallet, b: UiWallet) => number`
+
+### Example
+
+```tsx
+<ConnectModal
+	open={open}
+	filterFn={(wallet) => wallet.name !== 'ExcludedWallet'}
+	sortFn={(a, b) => a.name.localeCompare(b.name)}
+/>
+```
+
+## Modal States
+
+The modal displays different views based on connection status:
+
+- **Wallet Selection**: Shows available wallets to choose from
+- **Connecting**: Displays loading state while connecting to selected wallet
+- **Error**: Shows error message with retry option when connection fails
+- **Request Cancelled**: Appears when user cancels the wallet connection request
+
+## Server-Side Rendering (SSR)
+
+The `<ConnectModal />` component can be only client-side rendered, as wallets are detected in the
+browser. For Next.js guide see [here](../../next-js).
