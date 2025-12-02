@@ -187,7 +187,6 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 			// Swallow unhandled rejections that might be thrown after early return
 		});
 
-		// eslint-disable-next-line no-constant-condition
 		while (true) {
 			abortSignal.throwIfAborted();
 			try {

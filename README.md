@@ -49,7 +49,7 @@ Using turbo to run e2e tests in parallel is not recommended
 
 ### Linting
 
-This repo uses `eslint` and `prettier` for linting
+This repo uses `oxlint` and `prettier` for linting
 
 ```bash
 pnpm lint
@@ -61,11 +61,11 @@ You can automatically fix many lint issues by running
 pnpm lint:fix
 ```
 
-To run eslint and prettier individually you can use the following commands:
+To run oxlint and prettier individually you can use the following commands:
 
 ```bash
 pnpm prettier:check
 pnpm prettier:fix
-pnpm eslint:check
-pnpm eslint:fix
+pnpm oxlint:check
+pnpm oxlint:fix
 ```
