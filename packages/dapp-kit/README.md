@@ -4,7 +4,7 @@ The Sui dApp Kit is a set of React components, hooks, and utilities that make it
 dApp for the Sui ecosystem. It provides hooks and components for querying data from the Sui
 blockchain, and connecting to Sui wallets.
 
-See https://sdk.mystenlabs.com/typescript for full documentation
+See https://sdk.mystenlabs.com/sui for full documentation
 
 ### Core Features
 
