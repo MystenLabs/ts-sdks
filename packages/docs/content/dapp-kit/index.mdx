@@ -2,92 +2,73 @@
 title: Sui dApp Kit
 ---
 
-The Sui dApp Kit is a set of React components, hooks, and utilities to help you build a dApp for the
-Sui ecosystem. Its hooks and components provide an interface for querying data from the Sui
-blockchain and connecting to Sui wallets.
+<Callout type="info">
+	**Migrating from @mysten/dapp-kit?** If you're currently using the legacy `@mysten/dapp-kit`
+	package, check out our [Migration Guide](/dapp-kit/migration) to upgrade to the new packages with
+	gRPC and GraphQL support.
+</Callout>
 
-### Core Features
+The Sui dApp Kit provides tools and components for building decentralized applications on the Sui
+blockchain. The SDK consists of two packages that work together:
 
-Some of the core features of the dApp Kit include:
+## Packages
 
-- Query hooks to get the information your dApp needs
-- Automatic wallet state management
-- Support for all Sui wallets
-- Pre-built React components
-- Lower level hooks for custom components
+### @mysten/dapp-kit-core
+
+Framework-agnostic core that works with vanilla JS, React, Vue, or any framework:
+
+- Action-based API for direct wallet operations
+- Web Components for universal UI elements
+- Automatic state management with nanostores
+- Smaller bundle size and improved performance
+
+### @mysten/dapp-kit-react
+
+React bindings for the core package:
+
+- React hooks for state and actions
+- React component wrappers for Web Components
+- Seamless integration with React applications
 
 ## Install
 
-To use the Sui dApp Kit in your project, run the following command in your project root:
+Choose the installation method based on your framework:
+
+### For React Applications
 
 ```sh npm2yarn
-npm i --save @mysten/dapp-kit @mysten/sui @tanstack/react-query
+npm i @mysten/dapp-kit-react @mysten/sui
 ```
 
-## Setting up providers
+### Vanilla JavaScript and other frameworks
 
-To use the hooks and components in the dApp Kit, wrap your app with the providers shown in the
-following example. The props available on the providers are covered in more detail in their
-respective pages.
-
-```tsx
-import { createNetworkConfig, SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
-import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-// Config options for the networks you want to connect to
-const { networkConfig } = createNetworkConfig({
-	localnet: { url: getJsonRpcFullnodeUrl('localnet') },
-	mainnet: { url: getJsonRpcFullnodeUrl('mainnet') },
-});
-const queryClient = new QueryClient();
-
-function App() {
-	return (
-		<QueryClientProvider client={queryClient}>
-			<SuiClientProvider networks={networkConfig} defaultNetwork="localnet">
-				<WalletProvider>
-					<YourApp />
-				</WalletProvider>
-			</SuiClientProvider>
-		</QueryClientProvider>
-	);
-}
+```sh npm2yarn
+npm i @mysten/dapp-kit-core @mysten/sui
 ```
 
-## Using UI components to connect to a wallet
+## Getting Started
 
-The dApp Kit provides a set of flexible UI components that you can use to connect and manage wallet
-accounts from your dApp. The components are built on top of
-[Radix UI](https://www.radix-ui.com/primitives) and are customizable.
+Check the framework-specific guides:
 
-To use the provided UI components, import the dApp Kit CSS stylesheet into your dApp. For more
-information regarding customization options, check out the respective documentation pages for the
-components and [themes](https://sdk.mystenlabs.com/dapp-kit/themes).
+- [React](/dapp-kit/getting-started/react)
+- [Next.js](/dapp-kit/getting-started/next-js)
+- [Vue](/dapp-kit/getting-started/vue)
 
-```tsx
-import '@mysten/dapp-kit/dist/index.css';
-```
+## Legacy Package
 
-## Using hooks to make RPC calls
+### @mysten/dapp-kit (Legacy)
 
-The dApp Kit provides a set of hooks for making RPC calls to the Sui blockchain. The hooks are thin
-wrappers around `useQuery` from `@tanstack/react-query`. For more comprehensive documentation on how
-to use these query hooks, check out the
-[react-query documentation](https://tanstack.com/query/latest/docs/react/overview).
+See the [Legacy dApp Kit documentation](/dapp-kit/legacy).
 
-```tsx
-import { useSuiClientQuery } from '@mysten/dapp-kit';
+The original React-focused version of the dApp Kit. This package provides:
 
-function MyComponent() {
-	const { data, isPending, error, refetch } = useSuiClientQuery('getOwnedObjects', {
-		owner: '0x123',
-	});
+- React hooks for wallet connection and blockchain queries
+- Pre-built UI components with Radix UI
+- Integration with TanStack React Query
+- Comprehensive wallet state management
 
-	if (isPending) {
-		return <div>Loading...</div>;
-	}
-
-	return <pre>{JSON.stringify(data, null, 2)}</pre>;
-}
-```
+<Callout type="warning">
+	**Deprecated JSON RPC Only**: This legacy package only works with the deprecated JSON RPC API and
+	will not be updated to support gRPC or GraphQL. All new projects should use
+	`@mysten/dapp-kit-core` and `@mysten/dapp-kit-react`.
+</Callout>
