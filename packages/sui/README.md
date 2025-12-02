@@ -17,7 +17,7 @@ To get started you need to install [pnpm](https://pnpm.io/), then run the follow
 # Install all dependencies
 $ pnpm install
 
-# Run `build` for the TypeScript SDK if you're in the `sdk/typescript` project
+# Run `build` for the TypeScript SDK if you're in the `sdk/sui` project
 $ pnpm run build
 
 # Run `sdk build` for the TypeScript SDK if you're in the root of `sui` repo
@@ -30,7 +30,7 @@ $ pnpm sdk build
 
 You can view the generated [Type Doc](https://typedoc.org/) for the
 [current release of the SDK](https://www.npmjs.com/package/@mysten/sui) at
-http://typescript-sdk-docs.s3-website-us-east-1.amazonaws.com/.
+https://sdk.mystenlabs.com/typedoc/index.html.
 
 For the latest docs for the `main` branch, run `pnpm doc` and open the
 [doc/index.html](doc/index.html) in your browser.
