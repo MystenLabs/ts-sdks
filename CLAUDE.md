@@ -47,8 +47,8 @@ pnpm lint
 # Auto-fix lint and formatting issues
 pnpm lint:fix
 
-# Run eslint and prettier separately
-pnpm eslint:check
+# Run oxlint and prettier separately
+pnpm oxlint:check
 pnpm prettier:check
 ```
 
@@ -93,5 +93,5 @@ pnpm changeset-version
 
 1. Changes require changesets for version management
 2. Turbo ensures dependencies are built before dependents
-3. ESLint and Prettier are enforced across the codebase
+3. OXLint and Prettier are enforced across the codebase
 4. Tests must pass before changes can be merged
