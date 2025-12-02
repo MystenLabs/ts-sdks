@@ -4,7 +4,7 @@ A collection of TypeScript SDKs for interacting with the Sui blockchain ecosyste
 
 ## Documentation
 
-For SDK documentation visit https://sdk.mystenlabs.com/typescript
+For SDK documentation visit https://sdk.mystenlabs.com/sui
 
 ## Development
 
