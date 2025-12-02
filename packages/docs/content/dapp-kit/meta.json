@@ -1,16 +1,17 @@
 {
 	"root": true,
-	"title": "Dapp Kit",
-	"description": "Build Sui dapps in React",
+	"title": "dApp Kit",
+	"description": "Build Sui dApps with @mysten/dapp-kit-core and @mysten/dapp-kit-react",
 	"pages": [
 		"index",
-		"create-dapp",
-		"sui-client-provider",
-		"rpc-hooks",
-		"wallet-provider",
-		"wallet-components",
-		"wallet-hooks",
-		"slush-wallet",
-		"themes"
+		"getting-started",
+		"dapp-kit-instance",
+		"state",
+		"actions",
+		"react",
+		"web-components",
+		"theming",
+		"migration",
+		"legacy"
 	]
 }

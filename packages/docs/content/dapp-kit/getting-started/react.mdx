@@ -1,0 +1,152 @@
+---
+title: React
+---
+
+This guide walks you through integrating dApp Kit into a React application.
+
+## Installation
+
+```sh npm2yarn
+npm i @mysten/dapp-kit-react @mysten/sui
+```
+
+## Setup
+
+### 1. Create a dApp Kit Instance
+
+Create a file to configure your dApp Kit instance:
+
+```tsx
+// dapp-kit.ts
+import { createDAppKit } from '@mysten/dapp-kit-react';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+};
+
+export const dAppKit = createDAppKit({
+	networks: ['testnet'],
+	createClient: (network) => new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }),
+});
+
+// Register types for hook type inference
+declare module '@mysten/dapp-kit-react' {
+	interface Register {
+		dAppKit: typeof dAppKit;
+	}
+}
+```
+
+### 2. Add the Provider
+
+Wrap your application with `DAppKitProvider`:
+
+```tsx
+// App.tsx
+import { DAppKitProvider, ConnectButton } from '@mysten/dapp-kit-react';
+import { dAppKit } from './dapp-kit';
+
+export default function App() {
+	return (
+		<DAppKitProvider dAppKit={dAppKit}>
+			<div>
+				<h1>My Sui dApp</h1>
+				<ConnectButton />
+				<WalletStatus />
+			</div>
+		</DAppKitProvider>
+	);
+}
+```
+
+### 3. Display Connection Status
+
+Use hooks to access wallet state:
+
+```tsx
+import { useCurrentAccount, useCurrentWallet, useCurrentNetwork } from '@mysten/dapp-kit-react';
+
+function WalletStatus() {
+	const account = useCurrentAccount();
+	const wallet = useCurrentWallet();
+	const network = useCurrentNetwork();
+
+	if (!account) {
+		return <p>Connect your wallet to get started</p>;
+	}
+
+	return (
+		<div>
+			<p>Wallet: {wallet?.name}</p>
+			<p>Address: {account.address}</p>
+			<p>Network: {network}</p>
+		</div>
+	);
+}
+```
+
+### 4. Execute Transactions
+
+Use the `useDAppKit` hook to sign and execute transactions:
+
+```tsx
+import { useDAppKit, useCurrentAccount } from '@mysten/dapp-kit-react';
+import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
+
+function TransferButton() {
+	const dAppKit = useDAppKit();
+	const account = useCurrentAccount();
+
+	async function handleTransfer() {
+		const tx = new Transaction();
+		tx.transferObjects([coinWithBalance({ balance: 1_000_000 })], 'RECIPIENT_ADDRESS');
+
+		try {
+			const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+			console.log('Transaction digest:', result.digest);
+		} catch (error) {
+			console.error('Transaction failed:', error);
+		}
+	}
+
+	return (
+		<button onClick={handleTransfer} disabled={!account}>
+			Send Transaction
+		</button>
+	);
+}
+```
+
+## Available Hooks
+
+| Hook                                                               | Description                              |
+| ------------------------------------------------------------------ | ---------------------------------------- |
+| [useDAppKit](/dapp-kit/react/hooks/use-dapp-kit)                   | Access the dApp Kit instance and actions |
+| [useWalletConnection](/dapp-kit/react/hooks/use-wallet-connection) | Full connection state with status flags  |
+| [useCurrentAccount](/dapp-kit/react/hooks/use-current-account)     | Currently selected account               |
+| [useCurrentWallet](/dapp-kit/react/hooks/use-current-wallet)       | Currently connected wallet               |
+| [useCurrentNetwork](/dapp-kit/react/hooks/use-current-network)     | Current network                          |
+| [useCurrentClient](/dapp-kit/react/hooks/use-current-client)       | SuiClient for current network            |
+| [useWallets](/dapp-kit/react/hooks/use-wallets)                    | List of available wallets                |
+
+## Components
+
+| Component                                                  | Description                       |
+| ---------------------------------------------------------- | --------------------------------- |
+| [ConnectButton](/dapp-kit/react/components/connect-button) | Complete wallet connection UI     |
+| [ConnectModal](/dapp-kit/react/components/connect-modal)   | Standalone wallet selection modal |
+| [DAppKitProvider](/dapp-kit/react/dapp-kit-provider)       | Context provider for hooks        |
+
+## Example Application
+
+See the complete
+[React example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/dapp-kit-next/examples/react/simple)
+on GitHub.
+
+## Next Steps
+
+- [DAppKitProvider](/dapp-kit/react/dapp-kit-provider) - Provider configuration
+- [Hooks Reference](/dapp-kit/react/hooks) - All available hooks
+- [Components](/dapp-kit/react/components) - UI components
+- [Theming](/dapp-kit/theming) - Customize appearance
