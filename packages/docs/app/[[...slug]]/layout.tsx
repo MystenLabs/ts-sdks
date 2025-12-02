@@ -16,7 +16,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 					{
 						title: 'Sui SDK',
 						description: 'TypeScript interfaces for Sui',
-						url: '/typescript',
+						url: '/sui',
 					},
 					{
 						title: 'BCS',
