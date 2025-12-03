@@ -16,7 +16,7 @@
 	],
 	"type": "module",
 	"main": "./dist/index.cjs",
-	"module": "./dist/index.mjs",
+	"module": "./dist/index.js",
 	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
@@ -56,7 +56,7 @@
 		"@storybook/web-components": "^8.6.12",
 		"@storybook/web-components-vite": "^8.6.12",
 		"storybook": "^8.6.12",
-		"tsdown": "^0.14.2",
+		"tsdown": "0.17.0-beta.4",
 		"typescript": "^5.9.2",
 		"vitest": "^3.2.4"
 	},

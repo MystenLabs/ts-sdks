@@ -1,5 +1,5 @@
 ---
-"@mysten/codegen": patch
+'@mysten/codegen': patch
 ---
 
 Fix hasFunctions() to respect privateMethods configuration
