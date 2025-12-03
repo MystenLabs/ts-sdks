@@ -1,5 +1,5 @@
 {
 	"private": true,
-	"import": "../dist/web/index.js",
+	"import": "../dist/web/index.mjs",
 	"main": "../dist/web/index.cjs"
 }
