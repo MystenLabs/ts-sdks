@@ -42,7 +42,7 @@
 		"fumadocs-typescript": "^4.0.6",
 		"fumadocs-ui": "15.7.10",
 		"gray-matter": "^4.0.3",
-		"next": "15.5.2",
+		"next": "^15.5.7",
 		"react": "^18.3.1",
 		"react-dom": "^18.3.1",
 		"remark": "^15.0.1",
