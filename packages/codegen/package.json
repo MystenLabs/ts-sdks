@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/codegen",
-	"version": "0.5.12",
+	"version": "0.5.13",
 	"description": "typescript codegen for sui move",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
