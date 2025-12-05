@@ -171,18 +171,20 @@ const result = await client.signAndExecuteTransaction({
 });
 
 // Check transaction status
-if (!result.status.success) {
-	throw new Error(`Payment failed: ${result.status.error}`);
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Payment failed: ${result.FailedTransaction.status.error}`);
 }
 
-console.log('Transaction digest:', result.digest);
+console.log('Transaction digest:', result.Transaction.digest);
 ```
 
 ### Step 3: Extract the Receipt
 
 ```ts
 // Find the PaymentReceipt event
-const receiptEvent = result.events?.find((event) => event.type.includes('PaymentReceipt'));
+const receiptEvent = result.Transaction.events?.find((event) =>
+	event.type.includes('PaymentReceipt'),
+);
 
 if (receiptEvent) {
 	const receipt = receiptEvent.parsedJson;
@@ -241,8 +243,8 @@ const result = await client.signAndExecuteTransaction({
 });
 
 // Check transaction status
-if (!result.status.success) {
-	throw new Error(`Ephemeral payment failed: ${result.status.error}`);
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Ephemeral payment failed: ${result.FailedTransaction.status.error}`);
 }
 ```
 
@@ -259,7 +261,9 @@ For ephemeral payments, Payment Kit:
 ### Extracting the Receipt
 
 ```ts
-const receiptEvent = result.events?.find((event) => event.type.includes('PaymentReceipt'));
+const receiptEvent = result.Transaction.events?.find((event) =>
+	event.type.includes('PaymentReceipt'),
+);
 
 if (receiptEvent) {
 	const receipt = receiptEvent.parsedJson;

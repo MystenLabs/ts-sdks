@@ -181,8 +181,8 @@ const result = await client.signAndExecuteTransaction({
 });
 
 // IMPORTANT: Always check the transaction status
-if (!result.status.success) {
-	throw new Error(`Transaction failed: ${result.status.error}`);
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
 }
 ```
 
@@ -214,12 +214,12 @@ const result = await client.signAndExecuteTransaction({
 });
 
 // Check transaction status
-if (!result.status.success) {
-	throw new Error(`Transaction failed: ${result.status.error}`);
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
 }
 
 const transaction = await client.waitForTransaction({
-	digest: result.digest,
+	digest: result.Transaction.digest,
 	options: {
 		showEffects: true,
 	},

@@ -56,8 +56,8 @@ const result = await client.signAndExecuteTransaction({ signer: keypair, transac
 
 // IMPORTANT: Always check the transaction status
 // Transactions can execute but still fail (e.g., insufficient gas, move errors)
-if (!result.status.success) {
-	throw new Error(`Transaction failed: ${result.status.error}`);
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
 }
 ```
 
@@ -84,11 +84,11 @@ represented in future RPC calls, you can use the `waitForTransaction` method on 
 const result = await client.signAndExecuteTransaction({ signer: keypair, transaction: tx });
 
 // Check transaction status
-if (!result.status.success) {
-	throw new Error(`Transaction failed: ${result.status.error}`);
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
 }
 
-await client.waitForTransaction({ digest: result.digest });
+await client.waitForTransaction({ digest: result.Transaction.digest });
 ```
 
 Once `waitForTransaction` resolves, any future RPC calls will be guaranteed to reflect the effects

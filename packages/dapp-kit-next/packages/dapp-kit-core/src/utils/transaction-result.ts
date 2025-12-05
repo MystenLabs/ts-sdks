@@ -43,6 +43,6 @@ export function buildTransactionResult(
 	};
 
 	return status.success
-		? { $kind: 'Transaction', Transaction: txResult, FailedTransaction: undefined as never }
-		: { $kind: 'FailedTransaction', Transaction: undefined as never, FailedTransaction: txResult };
+		? { $kind: 'Transaction', Transaction: txResult }
+		: { $kind: 'FailedTransaction', FailedTransaction: txResult };
 }

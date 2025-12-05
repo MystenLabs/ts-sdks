@@ -68,8 +68,8 @@ const result = await client.signAndExecuteTransaction({
 });
 
 // Check transaction status
-if (!result.status.success) {
-	throw new Error(`Payment failed: ${result.status.error}`);
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Payment failed: ${result.FailedTransaction.status.error}`);
 }
 ```
 
