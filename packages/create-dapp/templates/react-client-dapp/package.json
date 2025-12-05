@@ -12,20 +12,21 @@
     "@mysten/dapp-kit-react": "workspace:*",
     "@mysten/sui": "workspace:*",
     "@nanostores/react": "^1.0.0",
+    "@tanstack/react-query": "^5.90.11",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react-swc": "^3.11.0",
-    "prettier": "^3.6.2",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react-swc": "^4.2.2",
+    "prettier": "^3.7.3",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.9.2",
-    "vite": "^7.1.5"
+    "typescript": "^5.9.3",
+    "vite": "^7.2.6"
   }
 }

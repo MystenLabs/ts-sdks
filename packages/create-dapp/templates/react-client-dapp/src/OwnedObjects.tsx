@@ -1,5 +1,5 @@
 import { useCurrentAccount, useCurrentClient } from "@mysten/dapp-kit-react";
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -9,43 +9,22 @@ import {
 } from "./components/ui/card";
 import { Package, Loader2 } from "lucide-react";
 
-interface OwnedObject {
-  objectId?: string;
-  version?: bigint;
-  digest?: string;
-}
-
 export function OwnedObjects() {
   const account = useCurrentAccount();
   const client = useCurrentClient();
-  const [data, setData] = useState<OwnedObject[] | null>(null);
-  const [isPending, setIsPending] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!account) {
-      setData(null);
-      setIsPending(false);
-      return;
-    }
+  const { data, isPending, error } = useQuery({
+    queryKey: ["ownedObjects", account?.address],
+    queryFn: async () => {
+      if (!account) return null;
 
-    async function fetchObjects() {
-      setIsPending(true);
-      setError(null);
-      try {
-        const { response } = await client.stateService.listOwnedObjects({
-          owner: account!.address,
-        });
-        setData(response.objects ?? []);
-      } catch (err) {
-        setError((err as Error)?.message || "Unknown error");
-      } finally {
-        setIsPending(false);
-      }
-    }
-
-    fetchObjects();
-  }, [account, client]);
+      const { response } = await client.stateService.listOwnedObjects({
+        owner: account.address,
+      });
+      return response.objects ?? [];
+    },
+    enabled: !!account,
+  });
 
   if (!account) {
     return null;
@@ -62,7 +41,9 @@ export function OwnedObjects() {
       </CardHeader>
       <CardContent>
         {error ? (
-          <p className="text-destructive-foreground">Error: {error}</p>
+          <p className="text-destructive-foreground">
+            Error: {(error as Error)?.message || "Unknown error"}
+          </p>
         ) : isPending || !data ? (
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />

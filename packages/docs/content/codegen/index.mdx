@@ -2,7 +2,8 @@
 title: Sui TypeScript Codegen
 ---
 
-The `@mysten/codegen` package automatically generates type-safe TypeScript code from your Move packages, enabling seamless interaction with your smart contracts from TypeScript applications.
+The `@mysten/codegen` package automatically generates type-safe TypeScript code from your Move
+packages, enabling seamless interaction with your smart contracts from TypeScript applications.
 
 <Callout type="warn">
 
@@ -12,7 +13,8 @@ This package is currently in development and may have breaking changes.
 
 ## Features
 
-- **Type-safe Move calls**: Generate TypeScript functions with full type safety for calling your Move functions
+- **Type-safe Move calls**: Generate TypeScript functions with full type safety for calling your
+  Move functions
 - **BCS type definitions**: Automatic BCS struct definitions for parsing on-chain data
 - **Auto-completion**: IDE support with intelligent code completion for Move function arguments
 - **Package resolution**: Support for both MVR-registered packages and local packages
@@ -35,13 +37,13 @@ Create a `sui-codegen.config.ts` file in your project root:
 import type { SuiCodegenConfig } from '@mysten/codegen';
 
 const config: SuiCodegenConfig = {
-  output: './src/contracts',
-  packages: [
-    {
-      package: '@local-pkg/counter',
-      path: './move/counter',
-    },
-  ],
+	output: './src/contracts',
+	packages: [
+		{
+			package: '@local-pkg/counter',
+			path: './move/counter',
+		},
+	],
 };
 
 export default config;
@@ -53,9 +55,9 @@ Add a script to your `package.json`:
 
 ```json
 {
-  "scripts": {
-    "codegen": "sui-ts-codegen generate"
-  }
+	"scripts": {
+		"codegen": "sui-ts-codegen generate"
+	}
 }
 ```
 
@@ -71,13 +73,13 @@ This generates TypeScript code in your configured output directory (e.g., `./src
 
 The `SuiCodegenConfig` type supports the following options:
 
-| Option              | Type                           | Default   | Description                                                                                                                                                  |
-| ------------------- | ------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `output`            | `string`                       | required  | The directory where generated code will be written                                                                                                           |
-| `packages`          | `PackageConfig[]`              | required  | Array of Move packages to generate code for                                                                                                                  |
-| `prune`             | `boolean`                      | `true`    | Remove generated files that are no longer referenced                                                                                                         |
-| `generateSummaries` | `boolean`                      | `true`    | Automatically run `sui move summary` before generating code. Creates a `package_summaries` directory in your Move package which can be added to `.gitignore` |
-| `privateMethods`    | `'none' \| 'entry' \| 'all'`   | `'entry'` | Which private functions to generate: `'none'` skips all, `'entry'` generates private entry functions, `'all'` generates all functions                        |
+| Option              | Type                         | Default   | Description                                                                                                                                                  |
+| ------------------- | ---------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `output`            | `string`                     | required  | The directory where generated code will be written                                                                                                           |
+| `packages`          | `PackageConfig[]`            | required  | Array of Move packages to generate code for                                                                                                                  |
+| `prune`             | `boolean`                    | `true`    | Remove generated files that are no longer referenced                                                                                                         |
+| `generateSummaries` | `boolean`                    | `true`    | Automatically run `sui move summary` before generating code. Creates a `package_summaries` directory in your Move package which can be added to `.gitignore` |
+| `privateMethods`    | `'none' \| 'entry' \| 'all'` | `'entry'` | Which private functions to generate: `'none'` skips all, `'entry'` generates private entry functions, `'all'` generates all functions                        |
 
 ### Package Configuration
 
@@ -110,11 +112,11 @@ import * as counter from './contracts/counter/counter';
 // Increment a counter
 const tx = new Transaction();
 tx.add(
-  counter.increment({
-    arguments: {
-      counter: '0x123...', // Counter object ID
-    },
-  }),
+	counter.increment({
+		arguments: {
+			counter: '0x123...', // Counter object ID
+		},
+	}),
 );
 ```
 
@@ -126,23 +128,23 @@ Use generated BCS types to parse on-chain object data with the core API:
 import { Counter as CounterStruct } from './contracts/counter/counter';
 
 async function readCounter(id: string) {
-  const { response } = await client.ledgerService.getObject({
-    objectId: id,
-    readMask: {
-      paths: ['*'],
-    },
-  });
+	const { response } = await client.ledgerService.getObject({
+		objectId: id,
+		readMask: {
+			paths: ['*'],
+		},
+	});
 
-  if (!response.object?.contents?.value) {
-    throw new Error('Expected a move object with contents');
-  }
+	if (!response.object?.contents?.value) {
+		throw new Error('Expected a move object with contents');
+	}
 
-  // Parse with generated BCS type
-  const parsed = CounterStruct.parse(response.object.contents.value);
-  console.log('Counter value:', parsed.value);
-  console.log('Counter owner:', parsed.owner);
+	// Parse with generated BCS type
+	const parsed = CounterStruct.parse(response.object.contents.value);
+	console.log('Counter value:', parsed.value);
+	console.log('Counter owner:', parsed.owner);
 
-  return parsed;
+	return parsed;
 }
 ```
 
@@ -160,14 +162,14 @@ For local packages using `@local-pkg/*` identifiers, configure your client with 
 import { SuiClient } from '@mysten/sui/client';
 
 const client = new SuiClient({
-  url: 'https://fullnode.testnet.sui.io:443',
-  mvr: {
-    overrides: {
-      packages: {
-        '@local-pkg/counter': '0xYOUR_PACKAGE_ID',
-      },
-    },
-  },
+	url: 'https://fullnode.testnet.sui.io:443',
+	mvr: {
+		overrides: {
+			packages: {
+				'@local-pkg/counter': '0xYOUR_PACKAGE_ID',
+			},
+		},
+	},
 });
 ```
 
@@ -211,7 +213,8 @@ const { networkConfig } = createNetworkConfig({
 
 ## Related Resources
 
-- [create-dapp](/dapp-kit/getting-started/create-dapp) - Bootstrap a working dApp with codegen already configured
+- [create-dapp](/dapp-kit/getting-started/create-dapp) - Bootstrap a working dApp with codegen
+  already configured
 - [Sui Move documentation](https://docs.sui.io/concepts/sui-move-concepts)
 - [BCS documentation](/bcs)
 - [Transaction building](/sui/transaction-building/basics)

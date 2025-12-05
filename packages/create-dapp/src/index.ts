@@ -110,7 +110,6 @@ async function collectFiles(template: string, dAppName: string) {
 					const json = JSON.parse(content.toString());
 					json.name = dAppName;
 
-					// Update dependencies
 					if (json.dependencies?.['@mysten/sui']) {
 						json.dependencies['@mysten/sui'] = dependencies['@mysten/sui'];
 					}
@@ -118,7 +117,6 @@ async function collectFiles(template: string, dAppName: string) {
 						json.dependencies['@mysten/dapp-kit-react'] = dependencies['@mysten/dapp-kit-react'];
 					}
 
-					// Update devDependencies
 					if (json.devDependencies?.['@mysten/codegen']) {
 						json.devDependencies['@mysten/codegen'] = dependencies['@mysten/codegen'];
 					}

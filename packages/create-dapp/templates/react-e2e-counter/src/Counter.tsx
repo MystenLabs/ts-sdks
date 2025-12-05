@@ -3,8 +3,8 @@ import {
   useCurrentClient,
   useDAppKit,
 } from "@mysten/dapp-kit-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Transaction } from "@mysten/sui/transactions";
-import { useState, useEffect, useCallback } from "react";
 import {
   Counter as CounterStruct,
   increment,
@@ -32,65 +32,73 @@ export function Counter({ id }: { id: string }) {
   const client = useCurrentClient();
   const currentAccount = useCurrentAccount();
   const dAppKit = useDAppKit();
+  const queryClient = useQueryClient();
 
-  const [data, setData] = useState<SuiObject | null>(null);
-  const [isPending, setIsPending] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [waitingForTxn, setWaitingForTxn] = useState("");
-
-  const fetchObject = useCallback(async () => {
-    setIsPending(true);
-    setError(null);
-    try {
+  // Fetch counter object with React Query
+  const { data, isPending, error } = useQuery({
+    queryKey: ["counter", id],
+    queryFn: async () => {
       const { response } = await client.ledgerService.getObject({
         objectId: id,
         readMask: {
           paths: ["*"],
         },
       });
-      setData(response.object ?? null);
-    } catch (err) {
-      setError((err as Error)?.message || "Unknown error");
-    } finally {
-      setIsPending(false);
-    }
-  }, [client, id]);
+      return response.object ?? null;
+    },
+  });
 
-  useEffect(() => {
-    fetchObject();
-  }, [fetchObject]);
+  // Mutation for executing move calls
+  const incrementMutation = useMutation({
+    mutationFn: async () => {
+      const tx = new Transaction();
+      tx.add(increment({ arguments: { counter: id } }));
 
-  const executeMoveCall = async (method: "increment" | "reset") => {
-    setWaitingForTxn(method);
-
-    const tx = new Transaction();
-
-    if (method === "reset") {
-      tx.add(
-        setValue({
-          arguments: { counter: id, value: 0 },
-        }),
-      );
-    } else {
-      tx.add(
-        increment({
-          arguments: { counter: id },
-        }),
-      );
-    }
-
-    try {
       const result = await dAppKit.signAndExecuteTransaction({
         transaction: tx,
       });
-      await client.waitForTransaction({ digest: result.digest });
-      await fetchObject();
-    } catch (err) {
+
+      if (result.$kind === "FailedTransaction") {
+        throw new Error("Transaction failed");
+      }
+
+      await client.waitForTransaction({ digest: result.Transaction.digest });
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["counter", id] });
+    },
+    onError: (err) => {
       console.error(err);
-    } finally {
-      setWaitingForTxn("");
-    }
-  };
+    },
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      const tx = new Transaction();
+      tx.add(setValue({ arguments: { counter: id, value: 0 } }));
+
+      const result = await dAppKit.signAndExecuteTransaction({
+        transaction: tx,
+      });
+
+      if (result.$kind === "FailedTransaction") {
+        throw new Error("Transaction failed");
+      }
+
+      await client.waitForTransaction({ digest: result.Transaction.digest });
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["counter", id] });
+    },
+    onError: (err) => {
+      console.error(err);
+    },
+  });
+
+  const isAnyMutationPending =
+    incrementMutation.isPending || resetMutation.isPending;
 
   if (isPending) {
     return (
@@ -106,7 +114,9 @@ export function Counter({ id }: { id: string }) {
     return (
       <Card>
         <CardContent className="py-6">
-          <p className="text-destructive-foreground">Error: {error}</p>
+          <p className="text-destructive-foreground">
+            Error: {(error as Error)?.message || "Unknown error"}
+          </p>
         </CardContent>
       </Card>
     );
@@ -141,9 +151,9 @@ export function Counter({ id }: { id: string }) {
         </div>
         <div className="flex gap-2 justify-center">
           <Button
-            onClick={() => executeMoveCall("increment")}
-            loading={waitingForTxn === "increment"}
-            disabled={waitingForTxn !== ""}
+            onClick={() => incrementMutation.mutate()}
+            loading={incrementMutation.isPending}
+            disabled={isAnyMutationPending}
           >
             <Plus className="h-4 w-4" />
             Increment
@@ -151,9 +161,9 @@ export function Counter({ id }: { id: string }) {
           {ownedByCurrentAccount && (
             <Button
               variant="secondary"
-              onClick={() => executeMoveCall("reset")}
-              loading={waitingForTxn === "reset"}
-              disabled={waitingForTxn !== ""}
+              onClick={() => resetMutation.mutate()}
+              loading={resetMutation.isPending}
+              disabled={isAnyMutationPending}
             >
               <RotateCcw className="h-4 w-4" />
               Reset

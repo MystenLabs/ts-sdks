@@ -20,29 +20,40 @@ export function CreateCounter({
   const client = useCurrentClient();
   const dAppKit = useDAppKit();
   const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function create() {
     setIsPending(true);
+    setError(null);
 
     const tx = new Transaction();
 
     tx.add(createCounter());
 
     try {
-      const { digest } = await dAppKit.signAndExecuteTransaction({
+      const result = await dAppKit.signAndExecuteTransaction({
         transaction: tx,
       });
 
-      const { transaction } = await client.waitForTransaction({
-        digest: digest,
+      if (result.$kind === "FailedTransaction") {
+        throw new Error("Transaction failed");
+      }
+
+      const txResult = await client.waitForTransaction({
+        digest: result.Transaction.digest,
         include: {
           effects: true,
         },
       });
 
+      if (txResult.$kind === "FailedTransaction") {
+        throw new Error("Transaction failed");
+      }
+
       // Find the created object from the effects
-      const createdObject = transaction.effects?.changedObjects?.find(
-        (obj) => obj.idOperation === "Created",
+      const createdObject = txResult.Transaction.effects?.changedObjects?.find(
+        (obj: { idOperation?: string; objectId?: string }) =>
+          obj.idOperation === "Created",
       );
 
       const id = createdObject?.objectId;
@@ -54,6 +65,7 @@ export function CreateCounter({
       onCreated(id);
     } catch (err) {
       console.error(err);
+      setError(err instanceof Error ? err.message : "An error occurred");
       setIsPending(false);
     }
   }
@@ -70,6 +82,11 @@ export function CreateCounter({
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {error && (
+          <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-red-800 text-sm">
+            {error}
+          </div>
+        )}
         <Button
           size="lg"
           className="w-full"
