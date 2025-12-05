@@ -44,7 +44,7 @@ export class PaymentKitCalls {
 	 * ```
 	 */
 	processRegistryPayment = (options: ProcessRegistryPaymentOptions) => {
-		const { nonce, coinType, amount, receiver, registryName, registryId } = options;
+		const { nonce, coinType, amount, receiver, sourceCoin, registryName, registryId } = options;
 		const registryIdToUse =
 			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
 
@@ -53,10 +53,12 @@ export class PaymentKitCalls {
 				registry: registryIdToUse,
 				nonce,
 				paymentAmount: amount,
-				coin: coinWithBalance({
-					type: coinType,
-					balance: amount,
-				}),
+				coin:
+					sourceCoin ??
+					coinWithBalance({
+						type: coinType,
+						balance: amount,
+					}),
 				receiver,
 			},
 			typeArguments: [coinType],
@@ -72,16 +74,18 @@ export class PaymentKitCalls {
 	 * ```
 	 */
 	processEphemeralPayment = (options: ProcessEphemeralPaymentOptions) => {
-		const { nonce, coinType, amount, receiver } = options;
+		const { nonce, coinType, amount, receiver, sourceCoin } = options;
 
 		return processEphemeralPayment({
 			arguments: {
 				nonce: nonce,
 				paymentAmount: amount,
-				coin: coinWithBalance({
-					type: coinType,
-					balance: amount,
-				}),
+				coin:
+					sourceCoin ??
+					coinWithBalance({
+						type: coinType,
+						balance: amount,
+					}),
 				receiver,
 			},
 			typeArguments: [coinType],

@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { TransactionResult } from '@mysten/sui/transactions';
 import type { ClientWithCoreApi } from '@mysten/sui/experimental';
 
 export type PaymentKitPackageConfig = {
@@ -39,6 +40,7 @@ export interface GetPaymentRecordResponse {
 
 export type ProcessEphemeralPaymentOptions = {
 	sender: string;
+	sourceCoin?: TransactionResult;
 } & PaymentKeyArgs;
 
 export type ProcessRegistryPaymentOptions = ProcessEphemeralPaymentOptions & Registry;
