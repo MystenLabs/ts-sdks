@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClientWithCoreApi, SuiClientRegistration } from '@mysten/sui/src/experimental';
+import type { ClientWithCoreApi, SuiClientRegistration } from '@mysten/sui/client';
 import { SuiNsCalls } from './calls.js';
 import type { SuiNsObjectIds, SuiNsPackageIds } from './calls.js';
 
@@ -37,7 +37,7 @@ export class SuiNsClient {
 		this.#client = options.client;
 		if (this.#client.network !== 'mainnet' && this.#client.network !== 'testnet') {
 			if (this.#client.network === 'unknown') {
-				throw new Error('network must be defined on SuiClient');
+				throw new Error('network must be defined on SuiJsonRpcClient');
 			}
 			throw new Error('SuiNsClient only supports mainnet and testnet');
 		}

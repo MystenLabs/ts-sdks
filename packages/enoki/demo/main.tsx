@@ -8,9 +8,9 @@ import ReactDOM from 'react-dom/client';
 
 import '@mysten/dapp-kit/dist/index.css';
 
-import { getFullnodeUrl } from '../../typescript/src/client/network.ts';
 import { App } from './App.tsx';
 import { RegisterEnokiWallets } from './RegisterEnokiWallets.tsx';
+import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 
 const queryClient = new QueryClient();
 
@@ -20,9 +20,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 			<SuiClientProvider
 				networks={{
 					testnet: {
-						url: getFullnodeUrl('testnet'),
+						network: 'testnet',
+						url: getJsonRpcFullnodeUrl('testnet'),
 					},
 					localnet: {
+						network: 'localnet',
 						url: 'http://localhost:8000',
 					},
 				}}

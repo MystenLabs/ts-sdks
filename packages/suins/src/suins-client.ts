@@ -1,6 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import type { SuiClient } from '@mysten/sui/client';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import type { Transaction } from '@mysten/sui/transactions';
 import { isValidSuiNSName, normalizeSuiNSName } from '@mysten/sui/utils';
 
@@ -27,7 +27,7 @@ import type {
 /// The SuinsClient is the main entry point for the Suins SDK.
 /// It allows you to interact with SuiNS.
 export class SuinsClient {
-	client: SuiClient;
+	client: SuiJsonRpcClient;
 	network: Network;
 	config: PackageInfo;
 

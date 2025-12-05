@@ -1,14 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { SuiClientTypes } from '@mysten/sui/client';
 import type { IdentifierString } from '@mysten/wallet-standard';
 import { DAppKitError } from './errors.js';
 import type { DAppKitCompatibleClient } from '../core/types.js';
 
-export type Networks = Experimental_SuiClientTypes.Network[];
+export type Networks = SuiClientTypes.Network[];
 
-export function getChain(network: Experimental_SuiClientTypes.Network): IdentifierString {
+export function getChain(network: SuiClientTypes.Network): IdentifierString {
 	return `sui:${network}`;
 }
 

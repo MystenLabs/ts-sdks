@@ -67,14 +67,14 @@ describe('move-binary-template', () => {
 		expect(
 			template
 				.get_constants(updatedConsts)
-				.find((c) => toHex(c.value_bcs) === bcs.string().serialize('TMPL').toHex()),
+				.find((c: { value_bcs: Uint8Array }) => toHex(c.value_bcs) === bcs.string().serialize('TMPL').toHex()),
 		).toBeFalsy();
 
-		console.log(
-			template
-				.get_constants(updatedConsts)
-				.find((c) => toHex(c.value_bcs) === bcs.string().serialize('MCN').toHex()),
-		);
+		// console.log(
+		// 	template
+		// 		.get_constants(updatedConsts)
+		// 		.find((c) => toHex(c.value_bcs) === bcs.string().serialize('MCN').toHex()),
+		// );
 	});
 
 	it('should not update constants if there is an expected_value value miss-match', () => {

@@ -1,6 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import type { Keypair } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
@@ -11,7 +11,7 @@ import type { BalanceManager } from '../src/types/index.js';
 
 export class DeepBookMarketMaker extends DeepBookClient {
 	keypair: Keypair;
-	suiClient: SuiClient;
+	suiClient: SuiJsonRpcClient;
 
 	constructor(
 		keypair: string | Keypair,
@@ -32,16 +32,16 @@ export class DeepBookMarketMaker extends DeepBookClient {
 		super({
 			address: address,
 			env: env,
-			client: new SuiClient({
-				url: getFullnodeUrl(env),
+			client: new SuiJsonRpcClient({
+				url: getJsonRpcFullnodeUrl(env),
 			}),
 			balanceManagers: balanceManagers,
 			adminCap: adminCap,
 		});
 
 		this.keypair = resolvedKeypair;
-		this.suiClient = new SuiClient({
-			url: getFullnodeUrl(env),
+		this.suiClient = new SuiJsonRpcClient({
+			url: getJsonRpcFullnodeUrl(env),
 		});
 	}
 

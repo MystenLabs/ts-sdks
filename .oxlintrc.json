@@ -26,7 +26,7 @@
 		"packages/move-bytecode-template",
 		"packages/walrus-wasm",
 		"packages/walrus/src/node-api",
-		"packages/typescript/src/grpc/proto",
+		"packages/sui/src/grpc/proto",
 		"packages/payment-kit/src/contracts",
 		"generated",
 		"vite-env.d.ts",

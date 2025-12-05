@@ -26,7 +26,7 @@ import {
 } from '@mysten/wallet-standard';
 import type { Wallet } from '@mysten/wallet-standard';
 import { toBase64 } from '@mysten/utils';
-import type { ClientWithCoreApi } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import type { WalletInitializer } from './index.js';
 import { getChain } from '../utils/networks.js';
 

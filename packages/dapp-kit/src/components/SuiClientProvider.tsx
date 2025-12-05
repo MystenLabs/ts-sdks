@@ -1,19 +1,17 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { getFullnodeUrl, isSuiClient, SuiClient } from '@mysten/sui/client';
-import type { SuiClientOptions } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, isSuiJsonRpcClient, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import type { SuiJsonRpcClientOptions } from '@mysten/sui/jsonRpc';
 import { createContext, useMemo, useState } from 'react';
 
 import type { NetworkConfig } from '../hooks/networkConfig.js';
 
-type NetworkConfigs<T extends NetworkConfig | SuiClient = NetworkConfig | SuiClient> = Record<
-	string,
-	T
->;
+type NetworkConfigs<T extends NetworkConfig | SuiJsonRpcClient = NetworkConfig | SuiJsonRpcClient> =
+	Record<string, T>;
 
 export interface SuiClientProviderContext {
-	client: SuiClient;
+	client: SuiJsonRpcClient;
 	networks: NetworkConfigs;
 	network: string;
 	config: NetworkConfig | null;
@@ -23,7 +21,7 @@ export interface SuiClientProviderContext {
 export const SuiClientContext = createContext<SuiClientProviderContext | null>(null);
 
 export type SuiClientProviderProps<T extends NetworkConfigs> = {
-	createClient?: (name: keyof T, config: T[keyof T]) => SuiClient;
+	createClient?: (name: keyof T, config: T[keyof T]) => SuiJsonRpcClient;
 	children: React.ReactNode;
 	networks?: T;
 	onNetworkChange?: (network: keyof T & string) => void;
@@ -39,18 +37,18 @@ export type SuiClientProviderProps<T extends NetworkConfigs> = {
 );
 
 const DEFAULT_NETWORKS = {
-	localnet: { url: getFullnodeUrl('localnet') },
+	localnet: { url: getJsonRpcFullnodeUrl('localnet') },
 };
 
 const DEFAULT_CREATE_CLIENT = function createClient(
 	_name: string,
-	config: NetworkConfig | SuiClient,
+	config: NetworkConfig | SuiJsonRpcClient,
 ) {
-	if (isSuiClient(config)) {
+	if (isSuiJsonRpcClient(config)) {
 		return config;
 	}
 
-	return new SuiClient(config);
+	return new SuiJsonRpcClient(config);
 };
 
 export function SuiClientProvider<T extends NetworkConfigs>(props: SuiClientProviderProps<T>) {
@@ -75,9 +73,9 @@ export function SuiClientProvider<T extends NetworkConfigs>(props: SuiClientProv
 			networks,
 			network: currentNetwork,
 			config:
-				networks[currentNetwork] instanceof SuiClient
+				networks[currentNetwork] instanceof SuiJsonRpcClient
 					? null
-					: (networks[currentNetwork] as SuiClientOptions),
+					: (networks[currentNetwork] as SuiJsonRpcClientOptions),
 			selectNetwork: (newNetwork) => {
 				if (currentNetwork === newNetwork) {
 					return;

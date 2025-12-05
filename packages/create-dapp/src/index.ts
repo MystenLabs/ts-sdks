@@ -1,7 +1,5 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-/* eslint-disable @typescript-eslint/ban-types */
-/* eslint-disable no-restricted-globals */
 
 import { existsSync, statSync } from 'fs';
 import { mkdir, readdir, readFile, writeFile } from 'fs/promises';

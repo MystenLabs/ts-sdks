@@ -12,11 +12,11 @@ To use the walrus SDK you will need to create a Client from the typescript SDK, 
 the walrus SDK.
 
 ```ts
-import { getFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { walrus } from '@mysten/walrus';
 
 const client = new SuiJsonRpcClient({
-	url: getFullnodeUrl('testnet'),
+	url: getJsonRpcFullnodeUrl('testnet'),
 	// Setting network on your client is required for walrus to work correctly
 	network: 'testnet',
 }).$extend(walrus());
@@ -27,11 +27,11 @@ testnet. You can also manually configure the walrus sdk to use a different set o
 to connect to a different network or updated deployment of the walrus contracts.
 
 ```ts
-import { getFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { walrus } from '@mysten/walrus';
 
 const client = new SuiJsonRpcClient({
-	url: getFullnodeUrl('testnet'),
+	url: getJsonRpcFullnodeUrl('testnet'),
 	// Setting network on your client is required for walrus to work correctly
 	network: 'testnet',
 }).$extend(
@@ -47,11 +47,11 @@ const client = new SuiJsonRpcClient({
 For some environments you may need to customize how data is fetched:
 
 ```ts
-import { getFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { walrus } from '@mysten/walrus';
 
 const client = new SuiJsonRpcClient({
-	url: getFullnodeUrl('testnet'),
+	url: getJsonRpcFullnodeUrl('testnet'),
 	// Setting network on your client is required for walrus to work correctly
 	network: 'testnet',
 }).$extend(
@@ -267,7 +267,7 @@ To use an upload relay, you can add the `uploadRelay` option when adding the wal
 
 ```ts
 const client = new SuiJsonRpcClient({
-	url: getFullnodeUrl('testnet'),
+	url: getJsonRpcFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(
 	walrus({
@@ -296,7 +296,7 @@ A `const` will send a fixed amount for each blob written to the upload relay.
 
 ```ts
 const client = new SuiJsonRpcClient({
-	url: getFullnodeUrl('testnet'),
+	url: getJsonRpcFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(
 	walrus({
@@ -320,7 +320,7 @@ multiplier based on the size of the blob.
 
 ```ts
 const client = new SuiJsonRpcClient({
-	url: getFullnodeUrl('testnet'),
+	url: getJsonRpcFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(
 	walrus({
@@ -423,7 +423,7 @@ failed requests:
 
 ```ts
 const client = new SuiJsonRpcClient({
-	url: getFullnodeUrl('testnet'),
+	url: getJsonRpcFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(
 	walrus({
@@ -452,7 +452,7 @@ import type { RequestInfo, RequestInit } from 'undici';
 import { Agent, fetch, setGlobalDispatcher } from 'undici';
 
 const client = new SuiJsonRpcClient({
-	url: getFullnodeUrl('testnet'),
+	url: getJsonRpcFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(
 	walrus({
@@ -486,7 +486,7 @@ and then passed into the walrus client:
 import walrusWasmUrl from '@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url';
 
 const client = new SuiJsonRpcClient({
-	url: getFullnodeUrl('testnet'),
+	url: getJsonRpcFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(
 	walrus({
@@ -500,7 +500,7 @@ the wasm bindings, or load them from a CDN:
 
 ```ts
 const client = new SuiJsonRpcClient({
-	url: getFullnodeUrl('testnet'),
+	url: getJsonRpcFullnodeUrl('testnet'),
 	network: 'testnet',
 }).$extend(
 	walrus({

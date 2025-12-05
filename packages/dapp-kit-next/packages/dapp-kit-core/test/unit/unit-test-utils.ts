@@ -9,7 +9,7 @@ import {
 	TEST_NETWORKS,
 	unbindStoreListeners,
 } from '../test-utils.js';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import type { MockWalletOptions } from '../mocks/mock-wallet.js';
 import { createMockWallets } from '../mocks/mock-wallet.js';
 import { createMockAccount } from '../mocks/mock-account.js';
@@ -22,11 +22,11 @@ export function createTestStores({
 	const clients = Object.fromEntries(
 		[...TEST_NETWORKS].map((network) => [
 			network,
-			new SuiClient({ network, url: getFullnodeUrl(network) }),
+			new SuiJsonRpcClient({ network, url: getJsonRpcFullnodeUrl(network) }),
 		]),
 	);
 
-	return createStores<typeof TEST_NETWORKS, SuiClient>({
+	return createStores<typeof TEST_NETWORKS, SuiJsonRpcClient>({
 		defaultNetwork: currentNetwork,
 		getClient: (network) => clients[network as keyof typeof clients],
 	});
