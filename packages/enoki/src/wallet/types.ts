@@ -88,15 +88,18 @@ export type RegisterEnokiWalletsOptions = {
 	(
 		| ClientConfig
 		| {
-				/**
-				 * The SuiClient instance to use when building and executing transactions.
-				 */
-				client: SuiClient;
+			/**
+			 * The SuiClient instance to use when building and executing transactions.
+			 */
+			client: SuiClient;
 
-				/**
-				 * The network to use when building and executing transactions.
-				 * @default 'mainnet'
-				 */
-				network?: EnokiNetwork;
-		  }
+			/**
+			 * The network to use when building and executing transactions.
+			 * @default 'mainnet'
+			 */
+			network?: EnokiNetwork;
+		}
 	);
+
+
+export type PKCEContext = { codeChallenge: string; codeVerifier: string };
