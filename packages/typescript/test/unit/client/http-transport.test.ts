@@ -76,35 +76,41 @@ describe('SuiHTTPTransport', () => {
 		let sentMessages: unknown[] = [];
 		let subscriptionId = 100;
 		const results = new Map<string, object>();
-		const MockWebSocketConstructor = vi.fn(() => {
-			const socket = new EventEmitter() as unknown as WebSocket & EventEmitter;
-			socket.addEventListener = vi.fn(socket.addListener.bind(socket));
-			socket.close = vi.fn();
-			socket.send = vi.fn((message: string) => {
-				const data = JSON.parse(message);
-				sentMessages.push(data);
+		class MockWebSocket extends EventEmitter {
+			addEventListener: any;
+			close: any;
+			send: any;
 
-				if (data.id && data.method) {
-					setTimeout(() => {
-						socket.emit('message', {
-							data: JSON.stringify({
-								jsonrpc: '2.0',
-								id: data.id,
-								result: data.method.startsWith('subscribe') ? subscriptionId++ : {},
-								...results.get(data.method),
-							}),
+			constructor(_url?: string | URL, _protocols?: string | string[]) {
+				super();
+				const socket = this as unknown as WebSocket & EventEmitter;
+				socket.addEventListener = vi.fn(socket.addListener.bind(socket));
+				socket.close = vi.fn();
+				socket.send = vi.fn((message: string) => {
+					const data = JSON.parse(message);
+					sentMessages.push(data);
+
+					if (data.id && data.method) {
+						setTimeout(() => {
+							socket.emit('message', {
+								data: JSON.stringify({
+									jsonrpc: '2.0',
+									id: data.id,
+									result: data.method.startsWith('subscribe') ? subscriptionId++ : {},
+									...results.get(data.method),
+								}),
+							});
 						});
-					});
-				}
-			});
-			sockets.push(socket);
+					}
+				});
+				sockets.push(socket);
 
-			setTimeout(() => {
-				socket.emit('open');
-			}, 10);
-
-			return socket;
-		}) as unknown as typeof WebSocket;
+				setTimeout(() => {
+					socket.emit('open');
+				}, 10);
+			}
+		}
+		const MockWebSocketConstructor = MockWebSocket as unknown as typeof WebSocket;
 
 		beforeEach(() => {
 			subscriptionId = 100;

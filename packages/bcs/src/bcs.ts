@@ -430,8 +430,8 @@ export const bcs = {
 	 */
 	tuple<
 		const T extends readonly BcsType<any, any>[],
-		const Name extends
-			string = `(${JoinString<{ [K in keyof T]: T[K] extends BcsType<any, any, infer T> ? T : never }, ', '>})`,
+		const Name extends string =
+			`(${JoinString<{ [K in keyof T]: T[K] extends BcsType<any, any, infer T> ? T : never }, ', '>})`,
 	>(
 		fields: T,
 		options?: BcsTypeOptions<

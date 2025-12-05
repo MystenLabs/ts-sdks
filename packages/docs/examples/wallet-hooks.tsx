@@ -306,13 +306,22 @@ function withProviders(
 	Component: React.FunctionComponent<object>,
 	walletProviderProps?: Omit<ComponentProps<typeof WalletProvider>, 'children'>,
 ) {
-	// Work around server-side pre-rendering
-	const queryClient = new QueryClient();
 	const networks = {
 		mainnet: { url: getFullnodeUrl('mainnet') },
 	};
 
-	return () => {
+	return function WrappedComponent() {
+		const [queryClient] = useState(
+			() =>
+				new QueryClient({
+					defaultOptions: {
+						queries: {
+							staleTime: 60 * 1000,
+						},
+					},
+				}),
+		);
+
 		return (
 			<QueryClientProvider client={queryClient}>
 				<SuiClientProvider networks={networks}>

@@ -297,17 +297,17 @@ export interface BcsStructOptions<
 	T extends Record<string, BcsType<any>>,
 	Name extends string = string,
 > extends Omit<
-		BcsTypeOptions<
-			{
-				[K in keyof T]: T[K] extends BcsType<infer U, any> ? U : never;
-			},
-			{
-				[K in keyof T]: T[K] extends BcsType<any, infer U> ? U : never;
-			},
-			Name
-		>,
-		'name'
-	> {
+	BcsTypeOptions<
+		{
+			[K in keyof T]: T[K] extends BcsType<infer U, any> ? U : never;
+		},
+		{
+			[K in keyof T]: T[K] extends BcsType<any, infer U> ? U : never;
+		},
+		Name
+	>,
+	'name'
+> {
 	name: Name;
 	fields: T;
 }
@@ -370,17 +370,17 @@ export interface BcsEnumOptions<
 	T extends Record<string, BcsType<any> | null>,
 	Name extends string = string,
 > extends Omit<
-		BcsTypeOptions<
-			EnumOutputShape<{
-				[K in keyof T]: T[K] extends BcsType<infer U, any, any> ? U : true;
-			}>,
-			EnumInputShape<{
-				[K in keyof T]: T[K] extends BcsType<any, infer U, any> ? U : boolean | object | null;
-			}>,
-			Name
-		>,
-		'name'
-	> {
+	BcsTypeOptions<
+		EnumOutputShape<{
+			[K in keyof T]: T[K] extends BcsType<infer U, any, any> ? U : true;
+		}>,
+		EnumInputShape<{
+			[K in keyof T]: T[K] extends BcsType<any, infer U, any> ? U : boolean | object | null;
+		}>,
+		Name
+	>,
+	'name'
+> {
 	name: Name;
 	fields: T;
 }
@@ -456,27 +456,29 @@ export class BcsEnum<
 	}
 }
 
-export interface BcsTupleOptions<T extends readonly BcsType<any>[], Name extends string>
-	extends Omit<
-		BcsTypeOptions<
-			{
-				-readonly [K in keyof T]: T[K] extends BcsType<infer T, any> ? T : never;
-			},
-			{
-				[K in keyof T]: T[K] extends BcsType<any, infer T> ? T : never;
-			},
-			Name
-		>,
-		'name'
-	> {
+export interface BcsTupleOptions<
+	T extends readonly BcsType<any>[],
+	Name extends string,
+> extends Omit<
+	BcsTypeOptions<
+		{
+			-readonly [K in keyof T]: T[K] extends BcsType<infer T, any> ? T : never;
+		},
+		{
+			[K in keyof T]: T[K] extends BcsType<any, infer T> ? T : never;
+		},
+		Name
+	>,
+	'name'
+> {
 	name?: Name;
 	fields: T;
 }
 
 export class BcsTuple<
 	const T extends readonly BcsType<any>[],
-	const Name extends
-		string = `(${JoinString<{ [K in keyof T]: T[K] extends BcsType<any, any, infer T> ? T : never }, ', '>})`,
+	const Name extends string =
+		`(${JoinString<{ [K in keyof T]: T[K] extends BcsType<any, any, infer T> ? T : never }, ', '>})`,
 > extends BcsType<
 	{
 		-readonly [K in keyof T]: T[K] extends BcsType<infer T, any> ? T : never;

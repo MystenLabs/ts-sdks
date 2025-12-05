@@ -44,8 +44,8 @@
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/utils#readme",
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"typescript": "^5.9.2",
-		"vitest": "^3.2.4"
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.15"
 	},
 	"dependencies": {
 		"@scure/base": "^1.2.6"

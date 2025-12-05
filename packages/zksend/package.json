@@ -44,9 +44,9 @@
 	"homepage": "https://sdk.mystenlabs.com/zksend",
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"@types/node": "^22.15.29",
-		"typescript": "^5.9.2",
-		"vitest": "^3.2.4"
+		"@types/node": "^24.10.1",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.15"
 	},
 	"dependencies": {
 		"@mysten/sui": "workspace:*",
@@ -54,7 +54,7 @@
 		"@mysten/wallet-standard": "workspace:*",
 		"@mysten/window-wallet-core": "workspace:*",
 		"mitt": "^3.0.1",
-		"nanostores": "^1.0.1",
+		"nanostores": "^1.1.0",
 		"valibot": "^1.2.0"
 	}
 }

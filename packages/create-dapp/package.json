@@ -35,12 +35,12 @@
 	},
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"typescript": "^5.9.2"
+		"typescript": "^5.9.3"
 	},
 	"dependencies": {
 		"@mysten/dapp-kit": "workspace:*",
 		"@mysten/sui": "workspace:*",
-		"@types/node": "^22.15.29",
+		"@types/node": "^24.10.1",
 		"enquirer": "^2.4.1"
 	},
 	"sideEffects": false,

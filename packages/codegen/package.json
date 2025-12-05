@@ -53,18 +53,18 @@
 	"homepage": "https://github.com/MystenLabs/ts-sdks/blob/main/packages/codegen#readme",
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"vitest": "^3.2.4"
+		"vitest": "^4.0.15"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:*",
 		"@mysten/sui": "workspace:*",
-		"@stricli/auto-complete": "^1.2.0",
-		"@stricli/core": "^1.2.0",
-		"@types/node": "^22.15.29",
+		"@stricli/auto-complete": "^1.2.4",
+		"@stricli/core": "^1.2.4",
+		"@types/node": "^24.10.1",
 		"cosmiconfig": "^9.0.0",
-		"prettier": "^3.6.2",
+		"prettier": "^3.7.3",
 		"toml": "^3.0.0",
-		"typescript": "^5.9.2",
+		"typescript": "^5.9.3",
 		"zod": "^3.25.67"
 	}
 }

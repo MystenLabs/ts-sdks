@@ -5,7 +5,7 @@ import { bcs } from '@mysten/sui/bcs';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { expect, type Mock } from 'vitest';
+import { beforeEach, expect, type Mock, vi } from 'vitest';
 
 import {
 	WalletFeatureNotSupportedError,
@@ -17,6 +17,9 @@ import { createWalletProviderContextWrapper, registerMockWallet } from '../test-
 import { toBase58 } from '@mysten/utils';
 
 describe('useSignAndExecuteTransaction', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
 	test('throws an error when trying to sign and execute a transaction without a wallet connection', async () => {
 		const wrapper = createWalletProviderContextWrapper();
 		const { result } = renderHook(() => useSignAndExecuteTransaction(), { wrapper });

@@ -37,13 +37,13 @@
 	},
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"@types/node": "^22.15.29",
+		"@types/node": "^24.10.1",
 		"tmp": "^0.2.5",
 		"ts-node": "^10.9.2",
 		"ts-retry-promise": "^0.8.1",
-		"typescript": "^5.9.2",
-		"vite": "^7.1.5",
-		"vitest": "^3.2.4",
-		"wait-on": "^9.0.1"
+		"typescript": "^5.9.3",
+		"vite": "^7.2.6",
+		"vitest": "^4.0.15",
+		"wait-on": "^9.0.3"
 	}
 }

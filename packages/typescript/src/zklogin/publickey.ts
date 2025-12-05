@@ -16,12 +16,11 @@ import { parseZkLoginSignature } from './signature.js';
 import { normalizeZkLoginIssuer, toBigEndianBytes, toPaddedBigEndianBytes } from './utils.js';
 import type { ClientWithExtensions, Experimental_SuiClientTypes } from '../experimental/types.js';
 
-export interface ZkLoginCompatibleClient
-	extends ClientWithExtensions<{
-		core: {
-			verifyZkLoginSignature: Experimental_SuiClientTypes.TransportMethods['verifyZkLoginSignature'];
-		};
-	}> {}
+export interface ZkLoginCompatibleClient extends ClientWithExtensions<{
+	core: {
+		verifyZkLoginSignature: Experimental_SuiClientTypes.TransportMethods['verifyZkLoginSignature'];
+	};
+}> {}
 
 /**
  * A zkLogin public identifier

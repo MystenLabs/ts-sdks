@@ -33,7 +33,7 @@
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
 		"@mysten/codegen": "workspace:*",
-		"typescript": "^5.9.2"
+		"typescript": "^5.9.3"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:*",

@@ -23,7 +23,7 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
 				owner: 'MystenLabs',
 				repo: 'ts-sdks',
 				sha: 'main',
-				path: `packages/docs/content/${page.file.path}`,
+				path: `packages/docs/content/${page.path}`,
 			}}
 		>
 			<DocsTitle>{page.data.title}</DocsTitle>

@@ -39,12 +39,12 @@
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/window-wallet-core#readme",
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"typescript": "^5.9.2",
-		"vitest": "^3.2.4"
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.15"
 	},
 	"dependencies": {
 		"@mysten/utils": "workspace:*",
-		"jose": "^6.1.0",
+		"jose": "^6.1.3",
 		"valibot": "^1.2.0"
 	}
 }

@@ -3,7 +3,7 @@
 
 import { resolve } from 'path';
 import { GenericContainer, Network, PullPolicy } from 'testcontainers';
-import type { GlobalSetupContext } from 'vitest/node';
+import type { TestProject } from 'vitest/node';
 
 declare module 'vitest' {
 	export interface ProvidedContext {
@@ -20,7 +20,7 @@ const SUI_TOOLS_TAG =
 		? '06204e155ea3b35fe4c949321d70091ad0ed8437-arm64'
 		: '06204e155ea3b35fe4c949321d70091ad0ed8437');
 
-export default async function setup({ provide }: GlobalSetupContext) {
+export default async function setup(project: TestProject) {
 	console.log('Starting test containers');
 	const network = await new Network().start();
 
@@ -58,8 +58,8 @@ export default async function setup({ provide }: GlobalSetupContext) {
 		})
 		.start();
 
-	provide('faucetPort', localnet.getMappedPort(9123));
-	provide('localnetPort', localnet.getMappedPort(9000));
-	provide('graphqlPort', localnet.getMappedPort(9125));
-	provide('suiToolsContainerId', localnet.getId());
+	project.provide('faucetPort', localnet.getMappedPort(9123));
+	project.provide('localnetPort', localnet.getMappedPort(9000));
+	project.provide('graphqlPort', localnet.getMappedPort(9125));
+	project.provide('suiToolsContainerId', localnet.getId());
 }

@@ -48,12 +48,22 @@ export const UncontrolledConnectModalExample = withProviders(() => {
 });
 
 function withProviders(Component: React.FunctionComponent<object>) {
-	const queryClient = new QueryClient();
 	const networks = {
 		mainnet: { url: getFullnodeUrl('mainnet') },
 	};
 
-	return () => {
+	return function WrappedComponent() {
+		const [queryClient] = useState(
+			() =>
+				new QueryClient({
+					defaultOptions: {
+						queries: {
+							staleTime: 60 * 1000,
+						},
+					},
+				}),
+		);
+
 		return (
 			<QueryClientProvider client={queryClient}>
 				<SuiClientProvider networks={networks}>

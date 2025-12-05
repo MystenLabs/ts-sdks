@@ -35,15 +35,15 @@
 	},
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"typescript": "^5.9.2",
-		"vitest": "^3.2.4"
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.15"
 	},
 	"dependencies": {
 		"@mysten/sui": "workspace:*",
-		"@types/node": "^22.15.29",
+		"@types/node": "^24.10.1",
 		"enquirer": "^2.4.1",
-		"glob": "^11.1.0",
-		"prettier": "^3.6.2"
+		"glob": "^13.0.0",
+		"prettier": "^3.7.3"
 	},
 	"sideEffects": false,
 	"bin": "./bin/parser.js"

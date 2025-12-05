@@ -34,16 +34,16 @@
 		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
 	},
 	"devDependencies": {
-		"@types/react": "^18.3.3",
-		"react": "^18.3.1",
+		"@types/react": "^19.2.7",
+		"react": "^19.2.1",
 		"tsdown": "0.17.0-beta.4",
-		"typescript": "^5.9.2"
+		"typescript": "^5.9.3"
 	},
 	"dependencies": {
 		"@lit/react": "^1.0.8",
 		"@mysten/dapp-kit-core": "workspace:*",
 		"@nanostores/react": "^1.0.0",
-		"nanostores": "^1.0.1"
+		"nanostores": "^1.1.0"
 	},
 	"peerDependencies": {
 		"@types/react": ">=17.0.0",

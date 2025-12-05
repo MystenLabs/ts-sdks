@@ -7,6 +7,11 @@ const generator = createGenerator();
 
 export const docs = defineDocs({
 	dir: 'content',
+	docs: {
+		postprocess: {
+			includeProcessedMarkdown: true,
+		},
+	},
 });
 
 export default defineConfig({

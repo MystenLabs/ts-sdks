@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { loader } from 'fumadocs-core/source';
 
-import { docs } from '@/.source';
+import { docs } from '@/.source/server';
 
-export const source = loader({
+export const source = loader(docs.toFumadocsSource(), {
 	baseUrl: '/',
-	source: docs.toFumadocsSource(),
 });

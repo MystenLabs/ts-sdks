@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import './global.css';
 
-import { RootProvider } from 'fumadocs-ui/provider';
+import { RootProvider } from 'fumadocs-ui/provider/next';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import CloudFlareAnalytics from '@/components/CloudFlareAnalytics';

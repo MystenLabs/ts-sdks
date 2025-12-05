@@ -45,10 +45,10 @@
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
 		"@mysten/dapp-kit-react": "workspace:*",
-		"@types/node": "^22.15.29",
-		"msw": "^2.11.1",
-		"typescript": "^5.9.2",
-		"vitest": "^3.2.4"
+		"@types/node": "^24.10.1",
+		"msw": "^2.12.3",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.15"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:*",
