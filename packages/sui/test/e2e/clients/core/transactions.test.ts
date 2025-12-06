@@ -861,7 +861,14 @@ describe('Core API - Transactions', () => {
 				// We'll try to split more than the coin's balance
 				const tx = new Transaction();
 				const hugeAmount = BigInt(opCoin.balance) * 1000n; // Way more than available
-				tx.splitCoins(tx.object(opCoin.coinObjectId), [tx.pure.u64(hugeAmount)]);
+				tx.splitCoins(
+					tx.objectRef({
+						objectId: opCoin.coinObjectId,
+						version: opCoin.version,
+						digest: opCoin.digest,
+					}),
+					[tx.pure.u64(hugeAmount)],
+				);
 
 				// Manually set gas to avoid resolution issues - use a DIFFERENT coin for gas
 				tx.setSender(testAddress);
@@ -948,7 +955,7 @@ describe('Core API - Transactions', () => {
 				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 				tx.setSender(testAddress);
-				const bytes = await tx.build({});
+				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 
 				const result = await client.core.simulateTransaction({
 					transaction: bytes,

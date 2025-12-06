@@ -58,20 +58,23 @@ export namespace SuiClientTypes {
 		previousTransaction?: boolean;
 	}
 
-	export interface GetObjectsOptions<Include extends ObjectInclude = {}>
-		extends CoreClientMethodOptions {
+	export interface GetObjectsOptions<
+		Include extends ObjectInclude = {},
+	> extends CoreClientMethodOptions {
 		objectIds: string[];
 		include?: Include;
 	}
 
-	export interface GetObjectOptions<Include extends ObjectInclude = {}>
-		extends CoreClientMethodOptions {
+	export interface GetObjectOptions<
+		Include extends ObjectInclude = {},
+	> extends CoreClientMethodOptions {
 		objectId: string;
 		include?: Include;
 	}
 
-	export interface ListOwnedObjectsOptions<Include extends ObjectInclude = {}>
-		extends CoreClientMethodOptions {
+	export interface ListOwnedObjectsOptions<
+		Include extends ObjectInclude = {},
+	> extends CoreClientMethodOptions {
 		owner: string;
 		limit?: number;
 		cursor?: string | null;
@@ -79,8 +82,9 @@ export namespace SuiClientTypes {
 		include?: Include;
 	}
 
-	export interface ListCoinsOptions<Include extends ObjectInclude = {}>
-		extends CoreClientMethodOptions {
+	export interface ListCoinsOptions<
+		Include extends ObjectInclude = {},
+	> extends CoreClientMethodOptions {
 		owner: string;
 		coinType: string;
 		limit?: number;
@@ -256,26 +260,30 @@ export namespace SuiClientTypes {
 		bcs: Uint8Array;
 	}
 
-	export interface GetTransactionOptions<Include extends TransactionInclude = {}>
-		extends CoreClientMethodOptions {
+	export interface GetTransactionOptions<
+		Include extends TransactionInclude = {},
+	> extends CoreClientMethodOptions {
 		digest: string;
 		include?: Include;
 	}
 
-	export interface WaitForTransactionOptions<Include extends TransactionInclude = {}>
-		extends GetTransactionOptions<Include> {
+	export interface WaitForTransactionOptions<
+		Include extends TransactionInclude = {},
+	> extends GetTransactionOptions<Include> {
 		timeout?: number;
 	}
 
-	export interface ExecuteTransactionOptions<Include extends TransactionInclude = {}>
-		extends CoreClientMethodOptions {
+	export interface ExecuteTransactionOptions<
+		Include extends TransactionInclude = {},
+	> extends CoreClientMethodOptions {
 		transaction: Uint8Array;
 		signatures: string[];
 		include?: Include;
 	}
 
-	export interface SimulateTransactionOptions<Include extends TransactionInclude = {}>
-		extends CoreClientMethodOptions {
+	export interface SimulateTransactionOptions<
+		Include extends TransactionInclude = {},
+	> extends CoreClientMethodOptions {
 		transaction: Uint8Array;
 		include?: Include;
 	}
