@@ -354,7 +354,7 @@ export class EnokiWallet implements Wallet {
 
 	async #createSession({ network }: { network: Experimental_SuiClientTypes.Network }) {
 		const popup = window.open(
-			undefined,
+			'about:blank',
 			'_blank',
 			typeof this.#windowFeatures === 'function' ? this.#windowFeatures() : this.#windowFeatures,
 		);
