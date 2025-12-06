@@ -33,6 +33,9 @@ export interface EnokiClientConfig {
 
 	/** The API URL for Enoki. In most cases, this should not be set. */
 	apiUrl?: string;
+
+	/** The amount of epochs that you would like to have the nonce be valid for. Range: `0 <= value <= 30` */
+	additionalEpochs?: number;
 }
 
 export class EnokiClientError extends Error {
@@ -68,11 +71,13 @@ export class EnokiClient {
 	#version: string;
 	#apiUrl: string;
 	#apiKey: string;
+	#additionalEpochs: number | undefined;
 
 	constructor(config: EnokiClientConfig) {
 		this.#version = 'v1';
 		this.#apiUrl = config.apiUrl ?? DEFAULT_API_URL;
 		this.#apiKey = config.apiKey;
+		this.#additionalEpochs = config.additionalEpochs;
 	}
 
 	getApp(_input?: GetAppApiInput) {
@@ -99,13 +104,13 @@ export class EnokiClient {
 		});
 	}
 
-	createZkLoginNonce(input: CreateZkLoginNonceApiInput) {
+	createZkLoginNonce(input: Omit<CreateZkLoginNonceApiInput, 'additionalEpochs'>) {
 		return this.#fetch<CreateZkLoginNonceApiResponse>('zklogin/nonce', {
 			method: 'POST',
 			body: JSON.stringify({
 				network: input.network,
 				ephemeralPublicKey: input.ephemeralPublicKey.toSuiPublicKey(),
-				additionalEpochs: input.additionalEpochs,
+				additionalEpochs: this.#additionalEpochs,
 			}),
 		});
 	}
