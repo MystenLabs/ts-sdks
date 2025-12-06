@@ -3,6 +3,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { setup, TestToolbox } from './utils/setup';
 import { coinWithBalance, Transaction } from '../../src/transactions';
+import { SuiClientTypes } from '../../src/client';
 
 describe('Party Objects', () => {
 	let toolbox: TestToolbox;
@@ -28,22 +29,22 @@ describe('Party Objects', () => {
 			arguments: [coinWithBalance({ balance: 1 }), party],
 		});
 
-		const { digest } = await toolbox.keypair.signAndExecuteTransaction({
+		const result = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: createPartyTxn,
 			client: toolbox.jsonRpcClient,
 		});
 
-		const {
-			transaction: { effects },
-		} = await toolbox.jsonRpcClient.core.waitForTransaction({
-			digest,
+		const waitResult = await toolbox.jsonRpcClient.core.waitForTransaction({
+			digest: result.Transaction!.digest,
 			include: {
 				effects: true,
 			},
 		});
+		const effects = waitResult.Transaction!.effects;
 
-		const partyCoin = effects!.changedObjects.filter((o) => o.idOperation === 'Created')[0]
-			.objectId;
+		const partyCoin = effects!.changedObjects.filter(
+			(o: SuiClientTypes.ChangedObject) => o.idOperation === 'Created',
+		)[0].objectId;
 
 		const returnTx = new Transaction();
 		returnTx.setSender(toolbox.address());
@@ -58,19 +59,18 @@ describe('Party Objects', () => {
 			client: toolbox.jsonRpcClient,
 		});
 
-		const { digest: returnDigest } = await toolbox.keypair.signAndExecuteTransaction({
+		const returnResult = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: returnTx,
 			client: toolbox.jsonRpcClient,
 		});
 
-		const {
-			transaction: { effects: returnEffects },
-		} = await toolbox.jsonRpcClient.core.waitForTransaction({
-			digest: returnDigest,
+		const returnWaitResult = await toolbox.jsonRpcClient.core.waitForTransaction({
+			digest: returnResult.Transaction!.digest,
 			include: {
 				effects: true,
 			},
 		});
+		const returnEffects = returnWaitResult.Transaction!.effects;
 
 		expect(returnEffects!.status).toEqual({
 			error: null,
@@ -93,23 +93,24 @@ describe('Party Objects', () => {
 			arguments: [coinWithBalance({ balance: 1 }), party],
 		});
 
-		const { digest } = await toolbox.keypair.signAndExecuteTransaction({
+		const result = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: createPartyTxn,
 			client: toolbox.jsonRpcClient,
 		});
 
-		const {
-			transaction: { effects },
-		} = await toolbox.jsonRpcClient.core.waitForTransaction({
-			digest,
+		const waitResult = await toolbox.jsonRpcClient.core.waitForTransaction({
+			digest: result.Transaction!.digest,
 			include: {
 				effects: true,
 			},
 		});
+		const effects = waitResult.Transaction!.effects;
 
 		await new Promise((resolve) => setTimeout(resolve, 3000));
 
-		const partyCoin = effects!.changedObjects.filter((o) => o.idOperation === 'Created')[0];
+		const partyCoin = effects!.changedObjects.filter(
+			(o: SuiClientTypes.ChangedObject) => o.idOperation === 'Created',
+		)[0];
 
 		const returnTx = new Transaction();
 		returnTx.setSender(toolbox.address());
@@ -124,19 +125,18 @@ describe('Party Objects', () => {
 			toolbox.keypair.getPublicKey().toSuiAddress(),
 		);
 
-		const { digest: returnDigest } = await toolbox.keypair.signAndExecuteTransaction({
+		const returnResult = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: returnTx,
 			client: toolbox.jsonRpcClient,
 		});
 
-		const {
-			transaction: { effects: returnEffects },
-		} = await toolbox.jsonRpcClient.core.waitForTransaction({
-			digest: returnDigest,
+		const returnWaitResult = await toolbox.jsonRpcClient.core.waitForTransaction({
+			digest: returnResult.Transaction!.digest,
 			include: {
 				effects: true,
 			},
 		});
+		const returnEffects = returnWaitResult.Transaction!.effects;
 
 		expect(returnEffects!.status).toEqual({
 			error: null,

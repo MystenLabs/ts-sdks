@@ -238,17 +238,28 @@ async function handleRegister() {
 		owner: currentAccount.address,
 		deletable: true,
 	});
-	const { digest } = await signAndExecuteTransaction({ transaction: registerTx });
+	const result = await signAndExecuteTransaction({ transaction: registerTx });
+
+	// Check transaction status
+	if (result.$kind === 'FailedTransaction') {
+		throw new Error(`Registration failed: ${result.FailedTransaction.status.error}`);
+	}
+
 	// Step 3: Upload the data to storage nodes
 	// This can be done immediately after the register step, or as a separate step the user initiates
-	await flow.upload({ digest });
+	await flow.upload({ digest: result.Transaction.digest });
 }
 
 // Step 4: Certify the blob (triggered by user clicking a certify button after the blob is uploaded)
 async function handleCertify() {
 	const certifyTx = flow.certify();
 
-	await signAndExecuteTransaction({ transaction: certifyTx });
+	const result = await signAndExecuteTransaction({ transaction: certifyTx });
+
+	// Check transaction status
+	if (result.$kind === 'FailedTransaction') {
+		throw new Error(`Certification failed: ${result.FailedTransaction.status.error}`);
+	}
 
 	// Step 5: Get the new files
 	const files = await flow.listFiles();

@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useDAppKit, useSuiClient } from '@mysten/dapp-kit-react';
+import { useDAppKit, useCurrentClient } from '@mysten/dapp-kit-react';
 import { useState, useEffect, useCallback } from 'react';
 import { MIST_PER_SUI, parseStructTag } from '@mysten/sui/utils';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
@@ -27,7 +27,7 @@ export function WalletBalances({
 	refreshTrigger,
 }: WalletBalancesProps) {
 	const dAppKit = useDAppKit();
-	const suiClient = useSuiClient();
+	const suiClient = useCurrentClient();
 	const [isFunding, setIsFunding] = useState(false);
 	const [isReturning, setIsReturning] = useState(false);
 	const [isSwapping, setIsSwapping] = useState(false);
@@ -45,9 +45,9 @@ export function WalletBalances({
 			if (!addressToCheck) return;
 
 			const [suiBal, walBal] = await Promise.all([
-				suiClient.core.getBalance({ address: addressToCheck, coinType: '0x2::sui::SUI' }),
+				suiClient.core.getBalance({ owner: addressToCheck, coinType: '0x2::sui::SUI' }),
 				suiClient.core.getBalance({
-					address: addressToCheck,
+					owner: addressToCheck,
 					coinType: TESTNET_WAL_COIN_TYPE,
 				}),
 			]);
@@ -71,9 +71,13 @@ export function WalletBalances({
 			tx.transferObjects([coin], signer.toSuiAddress());
 
 			// Sign and execute the transaction
-			const { digest } = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+			const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+			const txDigest = result.Transaction?.digest ?? result.FailedTransaction?.digest;
+			if (!txDigest) {
+				throw new Error('Transaction failed: no digest returned');
+			}
 
-			onTransaction(digest);
+			onTransaction(txDigest);
 		} catch (error) {
 			const errorMessage = `Failed to fund keypair: ${error instanceof Error ? error.message : 'Unknown error'}`;
 			onError(errorMessage);
@@ -92,25 +96,30 @@ export function WalletBalances({
 			const tx = new Transaction();
 			tx.setSender(address);
 
-			const coins = await suiClient.core.getCoins({
-				address: signer.toSuiAddress(),
+			const coins = await suiClient.core.listCoins({
+				owner: signer.toSuiAddress(),
 				coinType: TESTNET_WAL_COIN_TYPE,
 			});
 
 			if (coins.objects.length > 0) {
 				if (coins.objects.length > 1) {
 					tx.mergeCoins(
-						coins.objects[0].id,
-						coins.objects.slice(1).map((c) => c.id),
+						coins.objects[0].objectId,
+						coins.objects.slice(1).map((c: (typeof coins.objects)[0]) => c.objectId),
 					);
 				}
-				tx.transferObjects([tx.gas, coins.objects[0].id], address);
+				tx.transferObjects([tx.gas, coins.objects[0].objectId], address);
 			}
 
-			const { digest } = await signer.signAndExecuteTransaction({
+			const result = await signer.signAndExecuteTransaction({
 				transaction: tx,
 				client: suiClient,
 			});
+
+			const digest = result.Transaction?.digest ?? result.FailedTransaction?.digest;
+			if (!digest) {
+				throw new Error('Transaction failed: no digest returned');
+			}
 
 			// Wait for transaction to be processed
 			await suiClient.core.waitForTransaction({
@@ -164,7 +173,11 @@ export function WalletBalances({
 				signatures: [signedTx.signature],
 			});
 
-			onTransaction(result.transaction.digest);
+			const txDigest = result.Transaction?.digest ?? result.FailedTransaction?.digest;
+			if (!txDigest) {
+				throw new Error('Transaction failed: no digest returned');
+			}
+			onTransaction(txDigest);
 		} catch (error) {
 			console.error('Swap failed:', error);
 			onError(`Swap failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

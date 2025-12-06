@@ -112,7 +112,7 @@ export class JSONRpcCoreClient extends CoreClient {
 
 		return {
 			objects: coins.data.map(
-				(coin): SuiClientTypes.CoinResponse<Include> => ({
+				(coin): SuiClientTypes.Coin<Include> => ({
 					objectId: coin.coinObjectId,
 					version: coin.version,
 					digest: coin.digest,
@@ -125,14 +125,14 @@ export class JSONRpcCoreClient extends CoreClient {
 									value: coin.balance,
 								},
 							}).toBytes()
-						: undefined) as SuiClientTypes.CoinResponse<Include>['content'],
+						: undefined) as SuiClientTypes.Coin<Include>['content'],
 					owner: {
 						$kind: 'AddressOwner' as const,
 						AddressOwner: options.owner,
 					},
 					previousTransaction: (options.include?.previousTransaction
 						? coin.previousTransaction
-						: undefined) as SuiClientTypes.CoinResponse<Include>['previousTransaction'],
+						: undefined) as SuiClientTypes.Coin<Include>['previousTransaction'],
 				}),
 			),
 			hasNextPage: coins.hasNextPage,
@@ -171,50 +171,48 @@ export class JSONRpcCoreClient extends CoreClient {
 	}
 	async getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
-	) {
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		const transaction = await this.#jsonRpcClient.getTransactionBlock({
 			digest: options.digest,
 			options: {
 				// showRawInput is always needed to extract signatures from SenderSignedData
 				showRawInput: true,
+				// showEffects is always needed to get status
+				showEffects: true,
 				showObjectChanges: options.include?.objectTypes ?? false,
 				showRawEffects: options.include?.effects ?? false,
 				showEvents: options.include?.events ?? false,
-				showEffects: options.include?.effects ?? false,
 				showBalanceChanges: options.include?.balanceChanges ?? false,
 			},
 			signal: options.signal,
 		});
 
-		return {
-			transaction: parseTransaction(transaction, options.include),
-		};
+		return parseTransaction(transaction, options.include);
 	}
 	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
-	) {
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		const transaction = await this.#jsonRpcClient.executeTransactionBlock({
 			transactionBlock: options.transaction,
 			signature: options.signatures,
 			options: {
 				// showRawInput is always needed to extract signatures from SenderSignedData
 				showRawInput: true,
+				// showEffects is always needed to get status
+				showEffects: true,
 				showRawEffects: options.include?.effects ?? false,
 				showEvents: options.include?.events ?? false,
 				showObjectChanges: options.include?.objectTypes ?? false,
-				showEffects: options.include?.effects ?? false,
 				showBalanceChanges: options.include?.balanceChanges ?? false,
 			},
 			signal: options.signal,
 		});
 
-		return {
-			transaction: parseTransaction(transaction, options.include),
-		};
+		return parseTransaction(transaction, options.include);
 	}
 	async simulateTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
-	) {
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		const tx = Transaction.from(options.transaction);
 		const result = await this.#jsonRpcClient.dryRunTransactionBlock({
 			transactionBlock: options.transaction,
@@ -226,38 +224,47 @@ export class JSONRpcCoreClient extends CoreClient {
 			objectChanges: result.objectChanges,
 		});
 
-		return {
-			transaction: {
-				digest: await tx.getDigest(),
-				epoch: null,
-				effects: (options.include?.effects
-					? effects
-					: undefined) as SuiClientTypes.TransactionResponse<Include>['effects'],
-				objectTypes: (options.include?.objectTypes
-					? Promise.resolve(objectTypes)
-					: undefined) as SuiClientTypes.TransactionResponse<Include>['objectTypes'],
-				signatures: [],
-				transaction: (options.include?.transaction
-					? parseTransactionBcs(options.transaction)
-					: undefined) as SuiClientTypes.TransactionResponse<Include>['transaction'],
-				balanceChanges: (options.include?.balanceChanges
-					? result.balanceChanges.map((change) => ({
-							coinType: normalizeStructTag(change.coinType),
-							address: parseOwnerAddress(change.owner)!,
-							amount: change.amount,
-						}))
-					: undefined) as SuiClientTypes.TransactionResponse<Include>['balanceChanges'],
-				events: (options.include?.events
-					? (result.events?.map((event) => ({
-							packageId: event.packageId,
-							module: event.transactionModule,
-							sender: event.sender,
-							eventType: event.type,
-							bcs: 'bcs' in event ? fromBase64(event.bcs) : new Uint8Array(),
-						})) ?? [])
-					: undefined) as SuiClientTypes.TransactionResponse<Include>['events'],
-			},
+		const transactionResult: SuiClientTypes.Transaction<Include> = {
+			digest: await tx.getDigest(),
+			epoch: null,
+			status: effects.status,
+			effects: (options.include?.effects
+				? effects
+				: undefined) as SuiClientTypes.Transaction<Include>['effects'],
+			objectTypes: (options.include?.objectTypes
+				? Promise.resolve(objectTypes)
+				: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
+			signatures: [],
+			transaction: (options.include?.transaction
+				? parseTransactionBcs(options.transaction)
+				: undefined) as SuiClientTypes.Transaction<Include>['transaction'],
+			balanceChanges: (options.include?.balanceChanges
+				? result.balanceChanges.map((change) => ({
+						coinType: normalizeStructTag(change.coinType),
+						address: parseOwnerAddress(change.owner)!,
+						amount: change.amount,
+					}))
+				: undefined) as SuiClientTypes.Transaction<Include>['balanceChanges'],
+			events: (options.include?.events
+				? (result.events?.map((event) => ({
+						packageId: event.packageId,
+						module: event.transactionModule,
+						sender: event.sender,
+						eventType: event.type,
+						bcs: 'bcs' in event ? fromBase64(event.bcs) : new Uint8Array(),
+					})) ?? [])
+				: undefined) as SuiClientTypes.Transaction<Include>['events'],
 		};
+
+		return effects.status.success
+			? {
+					$kind: 'Transaction',
+					Transaction: transactionResult,
+				}
+			: {
+					$kind: 'FailedTransaction',
+					FailedTransaction: transactionResult,
+				};
 	}
 	async getReferenceGasPrice(options?: SuiClientTypes.GetReferenceGasPriceOptions) {
 		const referenceGasPrice = await this.#jsonRpcClient.getReferenceGasPrice({
@@ -358,7 +365,7 @@ export class JSONRpcCoreClient extends CoreClient {
 function parseObject<Include extends SuiClientTypes.ObjectInclude = object>(
 	object: SuiObjectData,
 	include?: Include,
-): SuiClientTypes.ObjectResponse<Include> {
+): SuiClientTypes.Object<Include> {
 	const bcsContent =
 		object.bcs?.dataType === 'moveObject' ? fromBase64(object.bcs.bcsBytes) : undefined;
 
@@ -375,11 +382,11 @@ function parseObject<Include extends SuiClientTypes.ObjectInclude = object>(
 		type,
 		content: (include?.content
 			? bcsContent
-			: undefined) as SuiClientTypes.ObjectResponse<Include>['content'],
+			: undefined) as SuiClientTypes.Object<Include>['content'],
 		owner: parseOwner(object.owner!),
 		previousTransaction: (include?.previousTransaction
 			? (object.previousTransaction ?? undefined)
-			: undefined) as SuiClientTypes.ObjectResponse<Include>['previousTransaction'],
+			: undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
 	};
 }
 
@@ -454,7 +461,7 @@ function parseOwnerAddress(owner: ObjectOwner): string | null {
 function parseTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
 	transaction: SuiTransactionBlockResponse,
 	include?: Include,
-): SuiClientTypes.TransactionResponse<Include> {
+): SuiClientTypes.TransactionResult<Include> {
 	const objectTypes: Record<string, string> = {};
 
 	if (include?.objectTypes) {
@@ -489,16 +496,25 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 		}
 	}
 
-	return {
+	// Get status from JSON-RPC response
+	const status: SuiClientTypes.ExecutionStatus =
+		transaction.effects?.status?.status === 'success'
+			? { success: true, error: null }
+			: { success: false, error: transaction.effects?.status?.error ?? 'Unknown' };
+
+	const effectsBytes = transaction.rawEffects ? new Uint8Array(transaction.rawEffects) : null;
+
+	const result: SuiClientTypes.Transaction<Include> = {
 		digest: transaction.digest,
 		epoch: transaction.effects?.executedEpoch ?? null,
-		effects: (include?.effects
-			? parseTransactionEffectsBcs(new Uint8Array(transaction.rawEffects!))
-			: undefined) as SuiClientTypes.TransactionResponse<Include>['effects'],
+		status,
+		effects: (include?.effects && effectsBytes
+			? parseTransactionEffectsBcs(effectsBytes)
+			: undefined) as SuiClientTypes.Transaction<Include>['effects'],
 		objectTypes: (include?.objectTypes
 			? Promise.resolve(objectTypes)
-			: undefined) as SuiClientTypes.TransactionResponse<Include>['objectTypes'],
-		transaction: transactionData as SuiClientTypes.TransactionResponse<Include>['transaction'],
+			: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
+		transaction: transactionData as SuiClientTypes.Transaction<Include>['transaction'],
 		signatures,
 		balanceChanges: (include?.balanceChanges
 			? (transaction.balanceChanges?.map((change) => ({
@@ -506,7 +522,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 					address: parseOwnerAddress(change.owner)!,
 					amount: change.amount,
 				})) ?? [])
-			: undefined) as SuiClientTypes.TransactionResponse<Include>['balanceChanges'],
+			: undefined) as SuiClientTypes.Transaction<Include>['balanceChanges'],
 		events: (include?.events
 			? (transaction.events?.map((event) => ({
 					packageId: event.packageId,
@@ -515,8 +531,18 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 					eventType: event.type,
 					bcs: 'bcs' in event ? fromBase64(event.bcs) : new Uint8Array(),
 				})) ?? [])
-			: undefined) as SuiClientTypes.TransactionResponse<Include>['events'],
+			: undefined) as SuiClientTypes.Transaction<Include>['events'],
 	};
+
+	return status.success
+		? {
+				$kind: 'Transaction',
+				Transaction: result,
+			}
+		: {
+				$kind: 'FailedTransaction',
+				FailedTransaction: result,
+			};
 }
 
 function parseTransactionEffectsJson({

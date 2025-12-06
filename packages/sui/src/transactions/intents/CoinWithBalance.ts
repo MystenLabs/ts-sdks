@@ -90,7 +90,7 @@ async function resolveCoinBalance(
 		}
 	}
 
-	const coinsByType = new Map<string, SuiClientTypes.CoinResponse[]>();
+	const coinsByType = new Map<string, SuiClientTypes.Coin[]>();
 	const client = buildOptions.client;
 
 	if (!client) {
@@ -192,15 +192,13 @@ async function getCoinsOfType({
 	client: ClientWithCoreApi;
 	owner: string;
 	usedIds: Set<string>;
-}): Promise<SuiClientTypes.CoinResponse[]> {
+}): Promise<SuiClientTypes.Coin[]> {
 	let remainingBalance = balance;
-	const coins: SuiClientTypes.CoinResponse[] = [];
+	const coins: SuiClientTypes.Coin[] = [];
 
 	return loadMoreCoins();
 
-	async function loadMoreCoins(
-		cursor: string | null = null,
-	): Promise<SuiClientTypes.CoinResponse[]> {
+	async function loadMoreCoins(cursor: string | null = null): Promise<SuiClientTypes.Coin[]> {
 		const {
 			objects,
 			hasNextPage,

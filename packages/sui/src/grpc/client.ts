@@ -14,6 +14,8 @@ import { GrpcCoreClient } from './core.js';
 import type { SuiClientTypes } from '../client/index.js';
 import { BaseClient } from '../client/index.js';
 import { NameServiceClient } from './proto/sui/rpc/v2/name_service.client.js';
+import type { Transaction } from '../transactions/index.js';
+import type { Signer } from '../cryptography/keypair.js';
 
 interface SuiGrpcTransportOptions extends GrpcWebOptions {
 	transport?: never;
@@ -58,5 +60,48 @@ export class SuiGrpcClient extends BaseClient {
 			network: options.network,
 			mvr: options.mvr,
 		});
+	}
+
+	async signAndExecuteTransaction<Include extends SuiClientTypes.TransactionInclude = {}>({
+		transaction,
+		signer,
+		additionalSignatures = [],
+		...input
+	}: {
+		transaction: Uint8Array | Transaction;
+		signer: Signer;
+		additionalSignatures?: string[];
+	} & Omit<
+		SuiClientTypes.ExecuteTransactionOptions<Include>,
+		'transaction' | 'signatures'
+	>): Promise<SuiClientTypes.TransactionResult<Include>> {
+		let transactionBytes;
+
+		if (transaction instanceof Uint8Array) {
+			transactionBytes = transaction;
+		} else {
+			transaction.setSenderIfNotSet(signer.toSuiAddress());
+			transactionBytes = await transaction.build({ client: this as any });
+		}
+
+		const { signature } = await signer.signTransaction(transactionBytes);
+
+		return this.core.executeTransaction({
+			transaction: transactionBytes,
+			signatures: [signature, ...additionalSignatures],
+			...input,
+		});
+	}
+
+	async waitForTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+		input: SuiClientTypes.WaitForTransactionOptions<Include>,
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
+		return this.core.waitForTransaction(input);
+	}
+
+	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+		input: SuiClientTypes.ExecuteTransactionOptions<Include>,
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
+		return this.core.executeTransaction(input);
 	}
 }

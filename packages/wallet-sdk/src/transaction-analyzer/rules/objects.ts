@@ -7,7 +7,7 @@ import type { TransactionAnalysisIssue } from '../analyzer.js';
 
 import { data } from './core.js';
 
-export type AnalyzedObject = SuiClientTypes.ObjectResponse<{
+export type AnalyzedObject = SuiClientTypes.Object<{
 	content: true;
 }> & {
 	ownerAddress: string | null;
@@ -79,7 +79,7 @@ export const objects = createAnalyzer({
 			const foundObjects = objects.filter(
 				(
 					obj,
-				): obj is SuiClientTypes.ObjectResponse<{
+				): obj is SuiClientTypes.Object<{
 					content: true;
 				}> => {
 					if (obj instanceof Error) {

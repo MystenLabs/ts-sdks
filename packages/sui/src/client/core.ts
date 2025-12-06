@@ -77,15 +77,15 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 
 	abstract getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
-	): Promise<SuiClientTypes.GetTransactionResponse<Include>>;
+	): Promise<SuiClientTypes.TransactionResult<Include>>;
 
 	abstract executeTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
-	): Promise<SuiClientTypes.ExecuteTransactionResponse<Include>>;
+	): Promise<SuiClientTypes.TransactionResult<Include>>;
 
 	abstract simulateTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
-	): Promise<SuiClientTypes.SimulateTransactionResponse<Include>>;
+	): Promise<SuiClientTypes.TransactionResult<Include>>;
 
 	abstract getReferenceGasPrice(
 		options?: SuiClientTypes.GetReferenceGasPriceOptions,
@@ -167,13 +167,8 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		signal,
 		timeout = 60 * 1000,
 		...input
-	}: {
-		/** An optional abort signal that can be used to cancel the wait. */
-		signal?: AbortSignal;
-		/** The amount of time to wait for transaction. Defaults to one minute. */
-		timeout?: number;
-	} & SuiClientTypes.GetTransactionOptions<Include>): Promise<
-		SuiClientTypes.GetTransactionResponse<Include>
+	}: SuiClientTypes.WaitForTransactionOptions<Include>): Promise<
+		SuiClientTypes.TransactionResult<Include>
 	> {
 		const abortSignal = signal
 			? AbortSignal.any([AbortSignal.timeout(timeout), signal])

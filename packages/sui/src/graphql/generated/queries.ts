@@ -1421,6 +1421,8 @@ export type Event = {
   /**
    * Timestamp corresponding to the checkpoint this event's transaction was finalized in.
    * All events from the same transaction share the same timestamp.
+   *
+   * `null` for simulated/executed transactions as they are not included in a checkpoint.
    */
   timestamp?: Maybe<Scalars['DateTime']['output']>;
   /** The transaction that emitted this event. This information is only available for events from indexed transactions, and not from transactions that have just been executed or dry-run. */
@@ -3893,7 +3895,7 @@ export type SharedInput = {
   mutable?: Maybe<Scalars['Boolean']['output']>;
 };
 
-/** The result of simulating a transaction, including the predicted effects, events, and any errors. */
+/** The result of simulating a transaction, including the predicted effects and any errors. */
 export type SimulationResult = {
   __typename?: 'SimulationResult';
   /**
@@ -3908,12 +3910,6 @@ export type SimulationResult = {
    * `None` if the simulation was successful.
    */
   error?: Maybe<Scalars['String']['output']>;
-  /**
-   * The events that would be emitted if the transaction were executed.
-   *
-   * `None` if the simulation failed or no events would be emitted.
-   */
-  events?: Maybe<Array<Event>>;
   /** The intermediate outputs for each command of the transaction simulation, including contents of mutated references and return values. */
   outputs?: Maybe<Array<CommandResult>>;
 };
@@ -4069,7 +4065,11 @@ export type TransactionEffects = {
   objectChanges?: Maybe<ObjectChangeConnection>;
   /** Whether the transaction executed successfully or not. */
   status?: Maybe<ExecutionStatus>;
-  /** Timestamp corresponding to the checkpoint this transaction was finalized in. */
+  /**
+   * Timestamp corresponding to the checkpoint this transaction was finalized in.
+   *
+   * `null` for executed/simulated transactions that have not been included in a checkpoint.
+   */
   timestamp?: Maybe<Scalars['DateTime']['output']>;
   /** The transaction that ran to produce these effects. */
   transaction?: Maybe<Transaction>;
@@ -4586,7 +4586,7 @@ export type SimulateTransactionQueryVariables = Exact<{
 }>;
 
 
-export type SimulateTransactionQuery = { __typename?: 'Query', simulateTransaction: { __typename?: 'SimulationResult', error?: string | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', effectsBcs?: string | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<{ __typename: 'ConsensusObjectCancelled' } | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null } | { __typename: 'MutateConsensusStreamEnded' } | { __typename: 'PerEpochConfig' } | { __typename: 'ReadConsensusStreamEnded' }> } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null } | null } };
+export type SimulateTransactionQuery = { __typename?: 'Query', simulateTransaction: { __typename?: 'SimulationResult', error?: string | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<{ __typename: 'ConsensusObjectCancelled' } | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null } | { __typename: 'MutateConsensusStreamEnded' } | { __typename: 'PerEpochConfig' } | { __typename: 'ReadConsensusStreamEnded' }> } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null } | null } };
 
 export type ExecuteTransactionMutationVariables = Exact<{
   transactionDataBcs: Scalars['Base64']['input'];
@@ -4599,7 +4599,7 @@ export type ExecuteTransactionMutationVariables = Exact<{
 }>;
 
 
-export type ExecuteTransactionMutation = { __typename?: 'Mutation', executeTransaction: { __typename?: 'ExecutionResult', errors?: Array<string> | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', effectsBcs?: string | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<{ __typename: 'ConsensusObjectCancelled' } | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null } | { __typename: 'MutateConsensusStreamEnded' } | { __typename: 'PerEpochConfig' } | { __typename: 'ReadConsensusStreamEnded' }> } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null } | null } };
+export type ExecuteTransactionMutation = { __typename?: 'Mutation', executeTransaction: { __typename?: 'ExecutionResult', errors?: Array<string> | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<{ __typename: 'ConsensusObjectCancelled' } | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null } | { __typename: 'MutateConsensusStreamEnded' } | { __typename: 'PerEpochConfig' } | { __typename: 'ReadConsensusStreamEnded' }> } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null } | null } };
 
 export type GetTransactionBlockQueryVariables = Exact<{
   digest: Scalars['String']['input'];
@@ -4611,9 +4611,9 @@ export type GetTransactionBlockQueryVariables = Exact<{
 }>;
 
 
-export type GetTransactionBlockQuery = { __typename?: 'Query', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', effectsBcs?: string | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<{ __typename: 'ConsensusObjectCancelled' } | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null } | { __typename: 'MutateConsensusStreamEnded' } | { __typename: 'PerEpochConfig' } | { __typename: 'ReadConsensusStreamEnded' }> } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null };
+export type GetTransactionBlockQuery = { __typename?: 'Query', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<{ __typename: 'ConsensusObjectCancelled' } | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null } | { __typename: 'MutateConsensusStreamEnded' } | { __typename: 'PerEpochConfig' } | { __typename: 'ReadConsensusStreamEnded' }> } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null };
 
-export type Transaction_FieldsFragment = { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', effectsBcs?: string | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<{ __typename: 'ConsensusObjectCancelled' } | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null } | { __typename: 'MutateConsensusStreamEnded' } | { __typename: 'PerEpochConfig' } | { __typename: 'ReadConsensusStreamEnded' }> } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null };
+export type Transaction_FieldsFragment = { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<{ __typename: 'ConsensusObjectCancelled' } | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null } | { __typename: 'MutateConsensusStreamEnded' } | { __typename: 'PerEpochConfig' } | { __typename: 'ReadConsensusStreamEnded' }> } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null };
 
 export type VerifyZkLoginSignatureQueryVariables = Exact<{
   bytes: Scalars['Base64']['input'];
@@ -4760,6 +4760,10 @@ export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
     signatureBytes
   }
   effects {
+    status
+    executionError {
+      message
+    }
     epoch {
       epochId
     }
@@ -5120,6 +5124,10 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
     signatureBytes
   }
   effects {
+    status
+    executionError {
+      message
+    }
     epoch {
       epochId
     }
@@ -5226,6 +5234,10 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
     signatureBytes
   }
   effects {
+    status
+    executionError {
+      message
+    }
     epoch {
       epochId
     }
@@ -5324,6 +5336,10 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
     signatureBytes
   }
   effects {
+    status
+    executionError {
+      message
+    }
     epoch {
       epochId
     }

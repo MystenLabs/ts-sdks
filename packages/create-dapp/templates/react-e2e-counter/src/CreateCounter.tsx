@@ -38,7 +38,15 @@ export function CreateCounter({
             },
           });
 
-          onCreated(effects?.created?.[0]?.reference?.objectId!);
+          const id = effects?.created?.[0]?.reference?.objectId;
+
+          if (!id) {
+            throw new Error(
+              "Counter object ID not found in transaction effects",
+            );
+          }
+
+          onCreated(id);
         },
       },
     );

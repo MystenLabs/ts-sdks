@@ -42,7 +42,7 @@ export function MyComponent({ wallet }: { wallet: UiWallet }) {
     switchAccount: (args: { account: UiWalletAccount }) => Promise<void>;
     switchNetwork: (network: string) => void;
     signTransaction: (args: { transaction: Transaction | string; signal?: AbortSignal }) => Promise<SignedTransaction>;
-    signAndExecuteTransaction: (args: { transaction: Transaction | string; signal?: AbortSignal }) => Promise<SuiSignAndExecuteTransactionOutput>;
+    signAndExecuteTransaction: (args: { transaction: Transaction | string; signal?: AbortSignal }) => Promise<TransactionResult>;
     signPersonalMessage: (args: { message: Uint8Array }) => Promise<SignedPersonalMessage>;
 
     // Properties
@@ -76,7 +76,12 @@ export function TransferButton() {
 			const result = await dAppKit.signAndExecuteTransaction({
 				transaction: tx,
 			});
-			console.log('Transaction digest:', result.digest);
+
+			if (result.FailedTransaction) {
+				throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
+			}
+
+			console.log('Transaction digest:', result.Transaction.digest);
 		} catch (error) {
 			console.error('Transaction failed:', error);
 		}

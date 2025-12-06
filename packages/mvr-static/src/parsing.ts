@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { dirname, extname, isAbsolute, join } from 'path';
 import { parseArgs } from 'util';
-import type { NamedPackagesOverrides } from '@mysten/sui/src/transactions';
+import type { NamedPackagesOverrides } from '@mysten/sui/transactions';
 import { isValidNamedPackage } from '@mysten/sui/utils';
 import { prompt } from 'enquirer';
 import { glob } from 'glob';

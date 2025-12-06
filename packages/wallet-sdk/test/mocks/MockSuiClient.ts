@@ -18,10 +18,10 @@ import {
 } from './mockData.js';
 
 export class MockSuiClient extends CoreClient {
-	#objects = new Map<string, SuiClientTypes.ObjectResponse<{ content: true }>>();
+	#objects = new Map<string, SuiClientTypes.Object<{ content: true }>>();
 	#moveFunctions = new Map<string, SuiClientTypes.FunctionResponse>();
 	#gasPrice = DEFAULT_GAS_PRICE;
-	#nextDryRunResult: SuiClientTypes.SimulateTransactionResponse<any> | null = null;
+	#nextDryRunResult: SuiClientTypes.TransactionResult<any> | null = null;
 
 	constructor(network: SuiClientTypes.Network = 'testnet') {
 		super({
@@ -99,7 +99,7 @@ export class MockSuiClient extends CoreClient {
 		this.#moveFunctions.set(key, fn);
 	}
 
-	setNextDryRunResult(result: SuiClientTypes.SimulateTransactionResponse<any>): void {
+	setNextDryRunResult(result: SuiClientTypes.TransactionResult<any>): void {
 		this.#nextDryRunResult = result;
 	}
 
@@ -108,7 +108,7 @@ export class MockSuiClient extends CoreClient {
 	}
 
 	// Helper function to check if an object is owned by the given address
-	#isOwnedByAddress(obj: SuiClientTypes.ObjectResponse, address: string): boolean {
+	#isOwnedByAddress(obj: SuiClientTypes.Object, address: string): boolean {
 		switch (obj.owner.$kind) {
 			case 'AddressOwner':
 				return obj.owner.AddressOwner === address;
@@ -127,7 +127,7 @@ export class MockSuiClient extends CoreClient {
 	async getObjects<Include extends SuiClientTypes.ObjectInclude = object>(
 		options: SuiClientTypes.GetObjectsOptions<Include>,
 	): Promise<SuiClientTypes.GetObjectsResponse<Include>> {
-		const objects = options.objectIds.map((id): SuiClientTypes.ObjectResponse<Include> | Error => {
+		const objects = options.objectIds.map((id): SuiClientTypes.Object<Include> | Error => {
 			const normalizedId = normalizeSuiAddress(id);
 			const obj = this.#objects.get(normalizedId);
 
@@ -135,7 +135,7 @@ export class MockSuiClient extends CoreClient {
 				return new Error(`Object not found: ${id}`);
 			}
 
-			return obj as SuiClientTypes.ObjectResponse<Include>;
+			return obj as SuiClientTypes.Object<Include>;
 		});
 
 		return { objects };
@@ -164,7 +164,7 @@ export class MockSuiClient extends CoreClient {
 			return coinType === options.coinType;
 		});
 
-		const objects: SuiClientTypes.CoinResponse<Include>[] = coinObjects.map((obj) => {
+		const objects: SuiClientTypes.Coin<Include>[] = coinObjects.map((obj) => {
 			// Parse balance from BCS content
 			let balance = '0';
 			try {
@@ -195,7 +195,7 @@ export class MockSuiClient extends CoreClient {
 		});
 
 		return {
-			objects: ownedObjects as SuiClientTypes.ObjectResponse<Include>[],
+			objects: ownedObjects as SuiClientTypes.Object<Include>[],
 			hasNextPage: false,
 			cursor: null,
 		};
@@ -209,7 +209,7 @@ export class MockSuiClient extends CoreClient {
 			coinType: options.coinType,
 		});
 
-		const totalBalance = coins.objects.reduce((sum: bigint, coin: SuiClientTypes.CoinResponse) => {
+		const totalBalance = coins.objects.reduce((sum: bigint, coin: SuiClientTypes.Coin) => {
 			return sum + BigInt(coin.balance);
 		}, 0n);
 
@@ -268,13 +268,13 @@ export class MockSuiClient extends CoreClient {
 
 	async getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
 		_options: SuiClientTypes.GetTransactionOptions<Include>,
-	): Promise<SuiClientTypes.GetTransactionResponse<Include>> {
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		throw new Error('getTransaction not implemented in MockSuiClient');
 	}
 
 	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
 		_options: SuiClientTypes.ExecuteTransactionOptions<Include>,
-	): Promise<SuiClientTypes.ExecuteTransactionResponse<Include>> {
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		throw new Error('executeTransaction not implemented in MockSuiClient');
 	}
 
@@ -286,11 +286,11 @@ export class MockSuiClient extends CoreClient {
 
 	async simulateTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
 		_options: SuiClientTypes.SimulateTransactionOptions<Include>,
-	): Promise<SuiClientTypes.SimulateTransactionResponse<Include>> {
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		if (this.#nextDryRunResult) {
 			const result = this.#nextDryRunResult;
 			this.#nextDryRunResult = null;
-			return result as SuiClientTypes.SimulateTransactionResponse<Include>;
+			return result as SuiClientTypes.TransactionResult<Include>;
 		}
 
 		// Default dry run response - minimal valid structure

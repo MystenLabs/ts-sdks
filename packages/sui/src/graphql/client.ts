@@ -9,6 +9,8 @@ import { BaseClient } from '../client/index.js';
 import type { SuiClientTypes } from '../client/index.js';
 import { GraphQLCoreClient } from './core.js';
 import type { TypedDocumentString } from './generated/queries.js';
+import type { Transaction } from '../transactions/index.js';
+import type { Signer } from '../cryptography/keypair.js';
 
 export type GraphQLDocument<
 	Result = Record<string, unknown>,
@@ -129,5 +131,48 @@ export class SuiGraphQLClient<
 			...(options as { variables: Record<string, unknown> }),
 			query: this.#queries[query]!,
 		}) as Promise<GraphQLQueryResult<Result>>;
+	}
+
+	async signAndExecuteTransaction<Include extends SuiClientTypes.TransactionInclude = {}>({
+		transaction,
+		signer,
+		additionalSignatures = [],
+		...input
+	}: {
+		transaction: Uint8Array | Transaction;
+		signer: Signer;
+		additionalSignatures?: string[];
+	} & Omit<
+		SuiClientTypes.ExecuteTransactionOptions<Include>,
+		'transaction' | 'signatures'
+	>): Promise<SuiClientTypes.TransactionResult<Include>> {
+		let transactionBytes;
+
+		if (transaction instanceof Uint8Array) {
+			transactionBytes = transaction;
+		} else {
+			transaction.setSenderIfNotSet(signer.toSuiAddress());
+			transactionBytes = await transaction.build({ client: this as any });
+		}
+
+		const { signature } = await signer.signTransaction(transactionBytes);
+
+		return this.core.executeTransaction({
+			transaction: transactionBytes,
+			signatures: [signature, ...additionalSignatures],
+			...input,
+		});
+	}
+
+	async waitForTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+		input: SuiClientTypes.WaitForTransactionOptions<Include>,
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
+		return this.core.waitForTransaction(input);
+	}
+
+	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+		input: SuiClientTypes.ExecuteTransactionOptions<Include>,
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
+		return this.core.executeTransaction(input);
 	}
 }

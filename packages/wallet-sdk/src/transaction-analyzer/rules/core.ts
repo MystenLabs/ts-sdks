@@ -42,16 +42,12 @@ export const transactionResponse = createAnalyzer({
 	cacheKey: 'transactionResponse@1.0.0',
 	dependencies: { bytes },
 	analyze:
-		(options: {
-			client: ClientWithCoreApi;
-			transactionResponse?: SuiClientTypes.TransactionResponse;
-		}) =>
-		async ({ bytes }): Promise<AnalyzerResult<SuiClientTypes.TransactionResponse>> => {
+		(options: { client: ClientWithCoreApi; transactionResponse?: SuiClientTypes.Transaction }) =>
+		async ({ bytes }): Promise<AnalyzerResult<SuiClientTypes.Transaction>> => {
 			try {
+				const result = await options.client.core.simulateTransaction({ transaction: bytes });
 				return {
-					result:
-						options.transactionResponse ??
-						(await options.client.core.simulateTransaction({ transaction: bytes })).transaction,
+					result: options.transactionResponse ?? result.Transaction ?? result.FailedTransaction,
 				};
 			} catch {
 				return { issues: [{ message: 'Failed to dry run transaction' }] };

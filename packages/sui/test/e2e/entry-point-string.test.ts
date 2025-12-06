@@ -26,8 +26,8 @@ describe('Test Move call with strings', () => {
 			client: toolbox.grpcClient,
 		});
 
-		await toolbox.grpcClient.core.waitForTransaction({ digest: result.digest });
-		expect(result.effects?.status.success).toEqual(true);
+		await toolbox.grpcClient.core.waitForTransaction({ digest: result.Transaction!.digest });
+		expect(result.Transaction?.effects?.status.success).toEqual(true);
 	}
 
 	beforeAll(async () => {

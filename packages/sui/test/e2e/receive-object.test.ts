@@ -36,19 +36,19 @@ describe('Transfer to Object', () => {
 			arguments: [],
 		});
 		const x = await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
-		const y = x.effects?.changedObjects
-			.filter((o) => o.idOperation === 'Created')
-			.map((o) => getOwnerAddress(o))!;
-		receiveObjectId = x.effects?.changedObjects!.filter(
-			(o) =>
+		const y = x.Transaction?.effects?.changedObjects
+			.filter((o: SuiClientTypes.ChangedObject) => o.idOperation === 'Created')
+			.map((o: SuiClientTypes.ChangedObject) => getOwnerAddress(o))!;
+		receiveObjectId = x.Transaction?.effects?.changedObjects!.filter(
+			(o: SuiClientTypes.ChangedObject) =>
 				o.idOperation === 'Created' && !y.includes(o.objectId) && getOwnerAddress(o) !== undefined,
 		)[0]!;
-		parentObjectId = x.effects?.changedObjects!.filter(
-			(o) =>
+		parentObjectId = x.Transaction?.effects?.changedObjects!.filter(
+			(o: SuiClientTypes.ChangedObject) =>
 				o.idOperation === 'Created' && y.includes(o.objectId) && getOwnerAddress(o) !== undefined,
 		)[0]!;
-		const sharedObject = x.effects?.changedObjects!.filter(
-			(o) => getOwnerAddress(o) === undefined,
+		const sharedObject = x.Transaction?.effects?.changedObjects!.filter(
+			(o: SuiClientTypes.ChangedObject) => getOwnerAddress(o) === undefined,
 		)[0]!;
 		sharedObjectId = sharedObject.objectId;
 	});
@@ -127,9 +127,9 @@ async function validateTransaction(client: ClientWithCoreApi, signer: Keypair, t
 		client,
 		transaction: tx,
 	});
-	expect(localDigest).toEqual(result.digest);
-	expect(result.effects?.status.success).toEqual(true);
+	expect(localDigest).toEqual(result.Transaction!.digest);
+	expect(result.Transaction?.effects?.status.success).toEqual(true);
 
-	await client.core.waitForTransaction({ digest: result.digest });
+	await client.core.waitForTransaction({ digest: result.Transaction!.digest });
 	return result;
 }
