@@ -42,6 +42,7 @@ export function registerEnokiWallets({
 				getCurrentNetwork,
 				apiKey: config.apiKey,
 				apiUrl: config.apiUrl,
+				additionalEpochs: config.additionalEpochs,
 				clients: enokiCompatibleClients,
 			});
 		}

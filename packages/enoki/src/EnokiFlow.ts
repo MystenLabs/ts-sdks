@@ -93,6 +93,7 @@ export class EnokiFlow {
 		this.#enokiClient = new EnokiClient({
 			apiKey: config.apiKey,
 			apiUrl: config.apiUrl,
+			additionalEpochs: config.additionalEpochs,
 		});
 		this.#encryptionKey = config.apiKey;
 

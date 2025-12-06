@@ -84,7 +84,7 @@ export type RegisterEnokiWalletsOptions = {
 	 * Configuration for each OAuth provider.
 	 */
 	providers: Partial<Record<AuthProvider, AuthProviderOptions>>;
-} & Pick<EnokiWalletOptions, 'apiKey' | 'apiUrl' | 'windowFeatures'> &
+} & Pick<EnokiWalletOptions, 'apiKey' | 'apiUrl' | 'additionalEpochs' | 'windowFeatures'> &
 	(
 		| ClientConfig
 		| {
