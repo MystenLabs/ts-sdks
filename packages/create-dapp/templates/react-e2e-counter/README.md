@@ -6,13 +6,31 @@ Client dApp using the following tools:
 - [React](https://react.dev/) as the UI framework
 - [TypeScript](https://www.typescriptlang.org/) for type checking
 - [Vite](https://vitejs.dev/) for build tooling
-- [Radix UI](https://www.radix-ui.com/) for pre-built UI components
-- [`@mysten/dapp-kit`](https://sdk.mystenlabs.com/dapp-kit) for connecting to
-  wallets and loading data
+- [Tailwind CSS v4](https://tailwindcss.com/) for styling
+- [Lucide React](https://lucide.dev/) for icons
+- [`@mysten/dapp-kit-react`](https://sdk.mystenlabs.com/dapp-kit) for connecting
+  to wallets and loading data
+- [`@mysten/codegen`](https://sdk.mystenlabs.com/codegen) for generating
+  TypeScript bindings from Move code
 - [pnpm](https://pnpm.io/) for package management
 
 For a full guide on how to build this dApp from scratch, visit this
 [guide](http://docs.sui.io/guides/developer/app-examples/e2e-counter#frontend).
+
+## Project Structure
+
+```
+src/
+├── components/ui/     # Reusable UI components (Button, Card)
+├── contracts/         # Generated TypeScript bindings (via codegen)
+├── lib/utils.ts       # Utility functions (cn for classnames)
+├── App.tsx            # Main application component
+├── Counter.tsx        # Counter display and controls
+├── CreateCounter.tsx  # Counter creation component
+├── dApp-kit.ts        # dApp Kit configuration
+├── constants.ts       # Package IDs per network
+└── index.css          # Tailwind CSS with theme variables
+```
 
 ## Deploying your Move code
 
@@ -59,14 +77,29 @@ sui client publish --gas-budget 100000000 counter
 ```
 
 In the output there will be an object with a `"packageId"` property. You'll want
-to save that package ID to the `src/constants.ts` file as `PACKAGE_ID`:
+to save that package ID to the `src/constants.ts` file:
 
 ```ts
 export const TESTNET_COUNTER_PACKAGE_ID = "<YOUR_PACKAGE_ID>";
 ```
 
-Now that we have published the move code, and update the package ID, we can
-start the app.
+The package ID is mapped to the local package name `@local-pkg/counter` in
+`src/dApp-kit.ts` via MVR overrides. This allows the generated TypeScript
+bindings to resolve the package address automatically.
+
+### Generating TypeScript bindings
+
+After publishing your Move code, generate the TypeScript bindings:
+
+```bash
+pnpm codegen
+```
+
+This generates type-safe functions and BCS types in `src/contracts/` based on
+your Move modules.
+
+Now that we have published the move code, updated the package ID, and generated
+the TypeScript bindings, we can start the app.
 
 ## Starting your dApp
 
@@ -89,3 +122,17 @@ To build your app for deployment you can run
 ```bash
 pnpm build
 ```
+
+## Customizing the UI
+
+This template uses [Tailwind CSS v4](https://tailwindcss.com/docs) for styling
+with [shadcn/ui](https://ui.shadcn.com/)-style components. The UI components in
+`src/components/ui/` are based on shadcn/ui patterns and can be customized or
+extended.
+
+To add more shadcn/ui components, you can copy them from the
+[shadcn/ui components](https://ui.shadcn.com/docs/components) documentation and
+adapt them to work with your project.
+
+Theme variables are defined in `src/index.css` using Tailwind's `@theme`
+directive.

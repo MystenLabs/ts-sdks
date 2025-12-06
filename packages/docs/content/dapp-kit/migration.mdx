@@ -194,17 +194,17 @@ export function ExampleComponent({ transaction }: { transaction: Transaction }) 
 ### 6. Replace Data Fetching Patterns
 
 React Query hooks are no longer available, giving you flexibility to choose your preferred data
-fetching solution. Use standard React patterns or integrate with TanStack Query if desired.
+fetching solution. The new client uses gRPC for communication with Sui nodes. Use standard React
+patterns or integrate with TanStack Query if desired.
 
 ```diff
 - import { useSuiClientQuery } from '@mysten/dapp-kit';
 + import { useCurrentClient } from '@mysten/dapp-kit-react';
 + import { useState, useEffect } from 'react';
-+ import type { SuiObjectData } from '@mysten/sui/client';
 
   export function ExampleComponent({ objectId }: { objectId: string }) {
 + 	const client = useCurrentClient();
-+ 	const [data, setData] = useState<SuiObjectData | null>(null);
++ 	const [data, setData] = useState<{ objectId?: string; contents?: { value?: Uint8Array } } | null>(null);
 + 	const [isLoading, setIsLoading] = useState(true);
 + 	const [error, setError] = useState<string | null>(null);
 +
@@ -214,8 +214,12 @@ fetching solution. Use standard React patterns or integrate with TanStack Query 
 + 	useEffect(() => {
 + 		async function getObject() {
 + 			try {
-+ 				const object = await client.getObject({ id: objectId });
-+ 				setData(object.data);
++ 				// Use the gRPC ledgerService directly
++ 				const { response } = await client.ledgerService.getObject({
++ 					objectId,
++ 					readMask: { paths: ['*'] },
++ 				});
++ 				setData(response.object ?? null);
 + 			} catch (err: Error | unknown) {
 + 				setError((err as Error)?.message || 'Unknown error');
 + 			} finally {
@@ -241,7 +245,13 @@ export function ExampleComponent({ objectId }: { objectId: string }) {
 
 	const { data, isLoading, error } = useQuery({
 		queryKey: ['object', objectId],
-		queryFn: () => client.getObject({ id: objectId }),
+		queryFn: async () => {
+			const { response } = await client.ledgerService.getObject({
+				objectId,
+				readMask: { paths: ['*'] },
+			});
+			return response.object;
+		},
 	});
 	// ...
 }

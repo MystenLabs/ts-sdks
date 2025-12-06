@@ -3,7 +3,6 @@
 	"description": "Build Sui dapps in React with @mysten/dapp-kit",
 	"pages": [
 		"index",
-		"create-dapp",
 		"sui-client-provider",
 		"rpc-hooks",
 		"wallet-provider",

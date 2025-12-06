@@ -1,106 +1,189 @@
 import {
   useCurrentAccount,
-  useSignAndExecuteTransaction,
-  useSuiClient,
-  useSuiClientQuery,
-} from "@mysten/dapp-kit";
-import type { SuiObjectData } from "@mysten/sui/jsonRpc";
+  useCurrentClient,
+  useDAppKit,
+} from "@mysten/dapp-kit-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Transaction } from "@mysten/sui/transactions";
-import { Button, Flex, Heading, Text } from "@radix-ui/themes";
-import { useNetworkVariable } from "./networkConfig";
-import { useState } from "react";
-import ClipLoader from "react-spinners/ClipLoader";
+import {
+  Counter as CounterStruct,
+  increment,
+  setValue,
+} from "./contracts/counter/counter";
+import { Button } from "./components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./components/ui/card";
+import { Plus, RotateCcw } from "lucide-react";
+
+interface SuiObject {
+  objectId?: string;
+  version?: bigint;
+  digest?: string;
+  owner?: { kind?: number; address?: string };
+  contents?: { value?: Uint8Array };
+}
 
 export function Counter({ id }: { id: string }) {
-  const counterPackageId = useNetworkVariable("counterPackageId");
-  const suiClient = useSuiClient();
+  const client = useCurrentClient();
   const currentAccount = useCurrentAccount();
-  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
-  const { data, isPending, error, refetch } = useSuiClientQuery("getObject", {
-    id,
-    options: {
-      showContent: true,
-      showOwner: true,
+  const dAppKit = useDAppKit();
+  const queryClient = useQueryClient();
+
+  // Fetch counter object with React Query
+  const { data, isPending, error } = useQuery({
+    queryKey: ["counter", id],
+    queryFn: async () => {
+      const { response } = await client.ledgerService.getObject({
+        objectId: id,
+        readMask: {
+          paths: ["*"],
+        },
+      });
+      return response.object ?? null;
     },
   });
 
-  const [waitingForTxn, setWaitingForTxn] = useState("");
+  // Mutation for executing move calls
+  const incrementMutation = useMutation({
+    mutationFn: async () => {
+      const tx = new Transaction();
+      tx.add(increment({ arguments: { counter: id } }));
 
-  const executeMoveCall = (method: "increment" | "reset") => {
-    setWaitingForTxn(method);
-
-    const tx = new Transaction();
-
-    if (method === "reset") {
-      tx.moveCall({
-        arguments: [tx.object(id), tx.pure.u64(0)],
-        target: `${counterPackageId}::counter::set_value`,
-      });
-    } else {
-      tx.moveCall({
-        arguments: [tx.object(id)],
-        target: `${counterPackageId}::counter::increment`,
-      });
-    }
-
-    signAndExecute(
-      {
+      const result = await dAppKit.signAndExecuteTransaction({
         transaction: tx,
-      },
-      {
-        onSuccess: (tx) => {
-          suiClient.waitForTransaction({ digest: tx.digest }).then(async () => {
-            await refetch();
-            setWaitingForTxn("");
-          });
-        },
-      },
+      });
+
+      if (result.$kind === "FailedTransaction") {
+        throw new Error("Transaction failed");
+      }
+
+      await client.waitForTransaction({ digest: result.Transaction.digest });
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["counter", id] });
+    },
+    onError: (err) => {
+      console.error(err);
+    },
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      const tx = new Transaction();
+      tx.add(setValue({ arguments: { counter: id, value: 0 } }));
+
+      const result = await dAppKit.signAndExecuteTransaction({
+        transaction: tx,
+      });
+
+      if (result.$kind === "FailedTransaction") {
+        throw new Error("Transaction failed");
+      }
+
+      await client.waitForTransaction({ digest: result.Transaction.digest });
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["counter", id] });
+    },
+    onError: (err) => {
+      console.error(err);
+    },
+  });
+
+  const isAnyMutationPending =
+    incrementMutation.isPending || resetMutation.isPending;
+
+  if (isPending) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-12">
+          <div className="text-muted-foreground">Loading...</div>
+        </CardContent>
+      </Card>
     );
-  };
+  }
 
-  if (isPending) return <Text>Loading...</Text>;
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="py-6">
+          <p className="text-destructive-foreground">
+            Error: {(error as Error)?.message || "Unknown error"}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  if (error) return <Text>Error: {error.message}</Text>;
+  if (!data) {
+    return (
+      <Card>
+        <CardContent className="py-6">
+          <p className="text-muted-foreground">Counter not found</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  if (!data.data) return <Text>Not found</Text>;
-
-  const ownedByCurrentAccount =
-    getCounterFields(data.data)?.owner === currentAccount?.address;
+  const fields = getCounterFields(data);
+  const ownedByCurrentAccount = fields?.owner === currentAccount?.address;
 
   return (
-    <>
-      <Heading size="3">Counter {id}</Heading>
-
-      <Flex direction="column" gap="2">
-        <Text>Count: {getCounterFields(data.data)?.value}</Text>
-        <Flex direction="row" gap="2">
+    <Card>
+      <CardHeader>
+        <CardTitle>Counter</CardTitle>
+        <CardDescription className="font-mono text-xs break-all">
+          {id}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="text-center">
+          <span className="text-6xl font-bold tabular-nums">
+            {fields?.value ?? 0}
+          </span>
+        </div>
+        <div className="flex gap-2 justify-center">
           <Button
-            onClick={() => executeMoveCall("increment")}
-            disabled={waitingForTxn !== ""}
+            onClick={() => incrementMutation.mutate()}
+            loading={incrementMutation.isPending}
+            disabled={isAnyMutationPending}
           >
-            {waitingForTxn === "increment" ? (
-              <ClipLoader size={20} />
-            ) : (
-              "Increment"
-            )}
+            <Plus className="h-4 w-4" />
+            Increment
           </Button>
-          {ownedByCurrentAccount ? (
+          {ownedByCurrentAccount && (
             <Button
-              onClick={() => executeMoveCall("reset")}
-              disabled={waitingForTxn !== ""}
+              variant="secondary"
+              onClick={() => resetMutation.mutate()}
+              loading={resetMutation.isPending}
+              disabled={isAnyMutationPending}
             >
-              {waitingForTxn === "reset" ? <ClipLoader size={20} /> : "Reset"}
+              <RotateCcw className="h-4 w-4" />
+              Reset
             </Button>
-          ) : null}
-        </Flex>
-      </Flex>
-    </>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
-function getCounterFields(data: SuiObjectData) {
-  if (data.content?.dataType !== "moveObject") {
+
+function getCounterFields(data: SuiObject) {
+  if (!data.contents?.value) {
     return null;
   }
 
-  return data.content.fields as { value: number; owner: string };
+  try {
+    const parsed = CounterStruct.parse(data.contents.value);
+    return { value: Number(parsed.value), owner: parsed.owner };
+  } catch {
+    return null;
+  }
 }

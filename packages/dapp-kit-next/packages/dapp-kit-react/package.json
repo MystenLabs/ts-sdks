@@ -2,9 +2,8 @@
 	"name": "@mysten/dapp-kit-react",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "React bindings for @mysten/dapp-kit-core",
-	"version": "0.0.1",
+	"version": "0.0.0",
 	"license": "Apache-2.0",
-	"private": true,
 	"files": [
 		"LICENSE",
 		"README.md",
