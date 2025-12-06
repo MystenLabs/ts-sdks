@@ -156,12 +156,13 @@ export class EnokiWallet implements Wallet {
 		getCurrentNetwork,
 		apiKey,
 		apiUrl,
+		additionalEpochs,
 		clients,
 	}: EnokiWalletOptions) {
 		this.#events = mitt();
 		this.#name = name;
 		this.#icon = icon;
-		this.#enokiClient = new EnokiClient({ apiKey, apiUrl });
+		this.#enokiClient = new EnokiClient({ apiKey, apiUrl, additionalEpochs });
 		this.#state = new EnokiWalletState({ apiKey, clientId, clients });
 		this.#provider = provider;
 		this.#clientId = clientId;
