@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import type { SuiClient } from '@mysten/sui/client';
-import type { Transaction } from '@mysten/sui/transactions';
+import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 import { isValidSuiNSName, normalizeSuiNSName } from '@mysten/sui/utils';
 
 import { mainPackage } from './constants.js';
@@ -317,7 +317,7 @@ export class SuinsClient {
 		return price;
 	}
 
-	async getPriceInfoObject(tx: Transaction, feed: string) {
+	async getPriceInfoObject(tx: Transaction, feed: string, feeCoin?: TransactionObjectArgument) {
 		// Initialize connection to the Sui Price Service
 		const endpoint =
 			this.network === 'testnet'
@@ -339,7 +339,15 @@ export class SuinsClient {
 
 		const client = new SuiPythClient(this.client, pythStateId, wormholeStateId);
 
-		return await client.updatePriceFeeds(tx, priceUpdateData, priceIDs); // returns priceInfoObjectIds
+		return await client.updatePriceFeeds(tx, priceUpdateData, priceIDs, feeCoin); // returns priceInfoObjectIds
+	}
+
+	async getPythBaseUpdateFee(): Promise<number> {
+		const pythStateId = this.config.pyth.pythStateId;
+		const wormholeStateId = this.config.pyth.wormholeStateId;
+
+		const client = new SuiPythClient(this.client, pythStateId, wormholeStateId);
+		return await client.getBaseUpdateFee();
 	}
 
 	async getObjectType(objectId: string) {

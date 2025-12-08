@@ -3,7 +3,7 @@
 
 import { bcs } from '@mysten/sui/bcs';
 import type { SuiClient } from '@mysten/sui/client';
-import type { Transaction } from '@mysten/sui/transactions';
+import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 import { coinWithBalance } from '@mysten/sui/transactions';
 import { fromBase64, fromHex, parseStructTag } from '@mysten/sui/utils';
 
@@ -65,11 +65,13 @@ export class SuiPythClient {
 	 * @param tx Transaction block to add commands to.
 	 * @param updates Array of price feed updates received from the price service.
 	 * @param feedIds Array of feed IDs to update (in hex format).
+	 * @param feeCoin Optional custom SUI coin to use for Pyth oracle fees. If not provided, uses gas coin.
 	 */
 	async updatePriceFeeds(
 		tx: Transaction,
 		updates: Uint8Array[],
 		feedIds: HexString[],
+		feeCoin?: TransactionObjectArgument,
 	): Promise<ObjectId[]> {
 		const packageId = await this.getPythPackageId();
 		let priceUpdatesHotPotato;
@@ -104,13 +106,18 @@ export class SuiPythClient {
 				throw new Error(`Price feed ${feedId} not found, please create it first`);
 			}
 			priceInfoObjects.push(priceInfoObjectId);
+
+			const feePayment = feeCoin
+				? tx.splitCoins(feeCoin, [tx.pure.u64(baseUpdateFee)])[0]
+				: coinWithBalance({ balance: baseUpdateFee });
+
 			[priceUpdatesHotPotato] = tx.moveCall({
 				target: `${packageId}::pyth::update_single_price_feed`,
 				arguments: [
 					tx.object(this.pythStateId),
 					priceUpdatesHotPotato,
 					tx.object(priceInfoObjectId),
-					coinWithBalance({ balance: baseUpdateFee }),
+					feePayment,
 					tx.object.clock(),
 				],
 			});
