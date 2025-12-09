@@ -65,11 +65,11 @@ describe('Core API - Transactions', () => {
 				include: { effects: true },
 			});
 
-			expect(result.transaction.digest).toBe(executedTxDigest);
-			expect(result.transaction.effects).toBeDefined();
-			expect(result.transaction.effects?.status).toBeDefined();
-			if (result.transaction.effects && 'success' in result.transaction.effects.status) {
-				expect(result.transaction.effects.status.success).toBe(true);
+			expect(result.Transaction!.digest).toBe(executedTxDigest);
+			expect(result.Transaction!.effects).toBeDefined();
+			expect(result.Transaction!.effects?.status).toBeDefined();
+			if (result.Transaction!.effects && 'success' in result.Transaction!.effects.status) {
+				expect(result.Transaction!.effects.status.success).toBe(true);
 			}
 		});
 
@@ -79,8 +79,8 @@ describe('Core API - Transactions', () => {
 				include: { balanceChanges: true },
 			});
 
-			expect(result.transaction.balanceChanges).toBeDefined();
-			expect(Array.isArray(result.transaction.balanceChanges)).toBe(true);
+			expect(result.Transaction!.balanceChanges).toBeDefined();
+			expect(Array.isArray(result.Transaction!.balanceChanges)).toBe(true);
 		});
 
 		testWithAllClients('should verify transaction structure', async (client) => {
@@ -89,10 +89,10 @@ describe('Core API - Transactions', () => {
 				include: { effects: true },
 			});
 
-			expect(result.transaction.signatures).toBeDefined();
-			expect(Array.isArray(result.transaction.signatures)).toBe(true);
-			expect(result.transaction.effects?.changedObjects).toBeDefined();
-			expect(Array.isArray(result.transaction.effects?.changedObjects)).toBe(true);
+			expect(result.Transaction!.signatures).toBeDefined();
+			expect(Array.isArray(result.Transaction!.signatures)).toBe(true);
+			expect(result.Transaction!.effects?.changedObjects).toBeDefined();
+			expect(Array.isArray(result.Transaction!.effects?.changedObjects)).toBe(true);
 		});
 
 		testWithAllClients('should throw error for non-existent digest', async (client) => {
@@ -122,15 +122,15 @@ describe('Core API - Transactions', () => {
 				include: { effects: true },
 			});
 
-			expect(result.transaction.digest).toBeDefined();
-			expect(result.transaction.effects).toBeDefined();
-			expect(result.transaction.effects?.status).toBeDefined();
-			if (result.transaction.effects && 'success' in result.transaction.effects.status) {
-				expect(result.transaction.effects.status.success).toBe(true);
+			expect(result.Transaction!.digest).toBeDefined();
+			expect(result.Transaction!.effects).toBeDefined();
+			expect(result.Transaction!.effects?.status).toBeDefined();
+			if (result.Transaction!.effects && 'success' in result.Transaction!.effects.status) {
+				expect(result.Transaction!.effects.status.success).toBe(true);
 			}
 
 			// Wait for transaction to be indexed to avoid races with subsequent tests
-			await client.core.waitForTransaction({ digest: result.transaction.digest });
+			await client.core.waitForTransaction({ digest: result.Transaction!.digest });
 		});
 
 		testWithAllClients('should execute transaction and return balance changes', async (client) => {
@@ -147,14 +147,14 @@ describe('Core API - Transactions', () => {
 				include: { balanceChanges: true, effects: true },
 			});
 
-			expect(result.transaction.digest).toBeDefined();
-			expect(result.transaction.balanceChanges).toBeDefined();
-			expect(Array.isArray(result.transaction.balanceChanges)).toBe(true);
-			expect(result.transaction.effects?.changedObjects).toBeDefined();
-			expect(Array.isArray(result.transaction.effects?.changedObjects)).toBe(true);
+			expect(result.Transaction!.digest).toBeDefined();
+			expect(result.Transaction!.balanceChanges).toBeDefined();
+			expect(Array.isArray(result.Transaction!.balanceChanges)).toBe(true);
+			expect(result.Transaction!.effects?.changedObjects).toBeDefined();
+			expect(Array.isArray(result.Transaction!.effects?.changedObjects)).toBe(true);
 
 			// Wait for transaction to be indexed to avoid races with subsequent tests
-			await client.core.waitForTransaction({ digest: result.transaction.digest });
+			await client.core.waitForTransaction({ digest: result.Transaction!.digest });
 		});
 
 		testWithAllClients('should fail for invalid signature', async (client) => {
@@ -208,13 +208,13 @@ describe('Core API - Transactions', () => {
 				include: { effects: true, balanceChanges: true },
 			});
 
-			expect(result.transaction.effects).toBeDefined();
-			expect(result.transaction.effects?.status).toBeDefined();
-			if (result.transaction.effects && 'success' in result.transaction.effects.status) {
-				expect(result.transaction.effects.status.success).toBe(true);
+			expect(result.Transaction!.effects).toBeDefined();
+			expect(result.Transaction!.effects?.status).toBeDefined();
+			if (result.Transaction!.effects && 'success' in result.Transaction!.effects.status) {
+				expect(result.Transaction!.effects.status.success).toBe(true);
 			}
-			expect(result.transaction.balanceChanges).toBeDefined();
-			expect(Array.isArray(result.transaction.balanceChanges)).toBe(true);
+			expect(result.Transaction!.balanceChanges).toBeDefined();
+			expect(Array.isArray(result.Transaction!.balanceChanges)).toBe(true);
 		});
 
 		testWithAllClients('should estimate gas for transaction', async (client) => {
@@ -229,10 +229,10 @@ describe('Core API - Transactions', () => {
 				include: { effects: true },
 			});
 
-			expect(result.transaction.effects?.gasUsed).toBeDefined();
-			expect(result.transaction.effects?.gasUsed?.computationCost).toBeDefined();
-			expect(result.transaction.effects?.gasUsed?.storageCost).toBeDefined();
-			expect(result.transaction.effects?.gasUsed?.storageRebate).toBeDefined();
+			expect(result.Transaction!.effects?.gasUsed).toBeDefined();
+			expect(result.Transaction!.effects?.gasUsed?.computationCost).toBeDefined();
+			expect(result.Transaction!.effects?.gasUsed?.storageCost).toBeDefined();
+			expect(result.Transaction!.effects?.gasUsed?.storageRebate).toBeDefined();
 		});
 
 		testWithAllClients('should detect transaction failure in dry run', async (client) => {
@@ -306,15 +306,15 @@ describe('Core API - Transactions', () => {
 
 			// Wait for it to be indexed
 			const waitResult = await client.core.waitForTransaction({
-				digest: executeResult.transaction.digest,
+				digest: executeResult.Transaction!.digest,
 				include: { effects: true },
 			});
 
-			expect(waitResult.transaction.digest).toBe(executeResult.transaction.digest);
-			expect(waitResult.transaction.effects).toBeDefined();
-			expect(waitResult.transaction.effects?.status).toBeDefined();
-			if (waitResult.transaction.effects && 'success' in waitResult.transaction.effects.status) {
-				expect(waitResult.transaction.effects.status.success).toBe(true);
+			expect(waitResult.Transaction!.digest).toBe(executeResult.Transaction!.digest);
+			expect(waitResult.Transaction!.effects).toBeDefined();
+			expect(waitResult.Transaction!.effects?.status).toBeDefined();
+			if (waitResult.Transaction!.effects && 'success' in waitResult.Transaction!.effects.status) {
+				expect(waitResult.Transaction!.effects.status.success).toBe(true);
 			}
 		});
 
@@ -332,12 +332,12 @@ describe('Core API - Transactions', () => {
 			});
 
 			const waitResult = await client.core.waitForTransaction({
-				digest: executeResult.transaction.digest,
+				digest: executeResult.Transaction!.digest,
 				include: { balanceChanges: true },
 			});
 
-			expect(waitResult.transaction.balanceChanges).toBeDefined();
-			expect(Array.isArray(waitResult.transaction.balanceChanges)).toBe(true);
+			expect(waitResult.Transaction!.balanceChanges).toBeDefined();
+			expect(Array.isArray(waitResult.Transaction!.balanceChanges)).toBe(true);
 		});
 
 		testWithAllClients('should timeout for non-existent transaction', async (client) => {
@@ -404,12 +404,12 @@ describe('Core API - Transactions', () => {
 			});
 
 			// Verify events field exists
-			expect(result.transaction.events).toBeDefined();
-			expect(Array.isArray(result.transaction.events)).toBe(true);
-			expect(result.transaction.events?.length).toBeGreaterThan(0);
+			expect(result.Transaction!.events).toBeDefined();
+			expect(Array.isArray(result.Transaction!.events)).toBe(true);
+			expect(result.Transaction!.events?.length).toBeGreaterThan(0);
 
 			// Verify event structure
-			const event = result.transaction.events?.[0];
+			const event = result.Transaction!.events?.[0];
 			expect(event?.packageId).toBe(packageId);
 			expect(event?.module).toBe('test_objects');
 			expect(event?.sender).toBe(testAddress);
@@ -417,7 +417,7 @@ describe('Core API - Transactions', () => {
 			expect(event?.bcs).toBeInstanceOf(Uint8Array);
 
 			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({ digest: result.transaction.digest });
+			await client.core.waitForTransaction({ digest: result.Transaction!.digest });
 		});
 
 		testWithAllClients(
@@ -437,12 +437,12 @@ describe('Core API - Transactions', () => {
 					include: { events: true },
 				});
 
-				expect(result.transaction.events).toBeDefined();
-				expect(Array.isArray(result.transaction.events)).toBe(true);
-				expect(result.transaction.events?.length).toBe(0);
+				expect(result.Transaction!.events).toBeDefined();
+				expect(Array.isArray(result.Transaction!.events)).toBe(true);
+				expect(result.Transaction!.events?.length).toBe(0);
 
 				// Wait for transaction to be indexed
-				await client.core.waitForTransaction({ digest: result.transaction.digest });
+				await client.core.waitForTransaction({ digest: result.Transaction!.digest });
 			},
 		);
 
@@ -464,18 +464,20 @@ describe('Core API - Transactions', () => {
 			});
 
 			// Wait for it to be indexed
-			await client.core.waitForTransaction({ digest: executeResult.transaction.digest });
+			await client.core.waitForTransaction({
+				digest: executeResult.Transaction!.digest,
+			});
 
 			// Get the transaction and verify events are included
 			const getResult = await client.core.getTransaction({
-				digest: executeResult.transaction.digest,
+				digest: executeResult.Transaction!.digest,
 				include: { events: true },
 			});
 
-			expect(getResult.transaction.events).toBeDefined();
-			expect(Array.isArray(getResult.transaction.events)).toBe(true);
-			expect(getResult.transaction.events?.length).toBeGreaterThan(0);
-			expect(getResult.transaction.events?.[0]?.eventType).toContain('ObjectCreated');
+			expect(getResult.Transaction!.events).toBeDefined();
+			expect(Array.isArray(getResult.Transaction!.events)).toBe(true);
+			expect(getResult.Transaction!.events?.length).toBeGreaterThan(0);
+			expect(getResult.Transaction!.events?.[0]?.eventType).toContain('ObjectCreated');
 		});
 
 		testWithAllClients('should include events in simulateTransaction response', async (client) => {
@@ -493,11 +495,11 @@ describe('Core API - Transactions', () => {
 				include: { events: true },
 			});
 
-			expect(result.transaction.events).toBeDefined();
-			expect(Array.isArray(result.transaction.events)).toBe(true);
-			expect(result.transaction.events?.length).toBeGreaterThan(0);
-			expect(result.transaction.events?.[0]?.packageId).toBe(packageId);
-			expect(result.transaction.events?.[0]?.eventType).toContain('ObjectCreated');
+			expect(result.Transaction!.events).toBeDefined();
+			expect(Array.isArray(result.Transaction!.events)).toBe(true);
+			expect(result.Transaction!.events?.length).toBeGreaterThan(0);
+			expect(result.Transaction!.events?.[0]?.packageId).toBe(packageId);
+			expect(result.Transaction!.events?.[0]?.eventType).toContain('ObjectCreated');
 		});
 	});
 
@@ -508,14 +510,33 @@ describe('Core API - Transactions', () => {
 				include: {},
 			});
 
-			expect(result.transaction.digest).toBe(executedTxDigest);
+			expect(result.Transaction!.digest).toBe(executedTxDigest);
+
+			// Status should always be present even with no includes
+			expect(result.Transaction!.status).toBeDefined();
+			expect(result.Transaction!.status.success).toBe(true);
+			expect(result.Transaction!.status.error).toBeNull();
 
 			// All optional fields should be undefined when not included
-			expect(result.transaction.transaction).toBeUndefined();
-			expect(result.transaction.balanceChanges).toBeUndefined();
-			expect(result.transaction.events).toBeUndefined();
-			expect(result.transaction.effects).toBeUndefined();
+			expect(result.Transaction!.transaction).toBeUndefined();
+			expect(result.Transaction!.balanceChanges).toBeUndefined();
+			expect(result.Transaction!.events).toBeUndefined();
+			expect(result.Transaction!.effects).toBeUndefined();
 		});
+
+		testWithAllClients(
+			'should always return status even without include options',
+			async (client) => {
+				const result = await client.core.getTransaction({
+					digest: executedTxDigest,
+				});
+
+				// Status should always be present
+				expect(result.Transaction!.status).toBeDefined();
+				expect(typeof result.Transaction!.status.success).toBe('boolean');
+				expect(result.Transaction!.status.success).toBe(true);
+			},
+		);
 
 		testWithAllClients('should include transaction when requested', async (client) => {
 			const result = await client.core.getTransaction({
@@ -523,14 +544,14 @@ describe('Core API - Transactions', () => {
 				include: { transaction: true },
 			});
 
-			expect(result.transaction.digest).toBe(executedTxDigest);
-			expect(result.transaction.transaction).toBeDefined();
-			expect(result.transaction.transaction?.sender).toBe(testAddress);
+			expect(result.Transaction!.digest).toBe(executedTxDigest);
+			expect(result.Transaction!.transaction).toBeDefined();
+			expect(result.Transaction!.transaction?.sender).toBe(testAddress);
 
 			// Other optional fields should still be undefined
-			expect(result.transaction.balanceChanges).toBeUndefined();
-			expect(result.transaction.events).toBeUndefined();
-			expect(result.transaction.effects).toBeUndefined();
+			expect(result.Transaction!.balanceChanges).toBeUndefined();
+			expect(result.Transaction!.events).toBeUndefined();
+			expect(result.Transaction!.effects).toBeUndefined();
 		});
 
 		testWithAllClients('should include effects when requested', async (client) => {
@@ -539,14 +560,14 @@ describe('Core API - Transactions', () => {
 				include: { effects: true },
 			});
 
-			expect(result.transaction.digest).toBe(executedTxDigest);
-			expect(result.transaction.effects).toBeDefined();
-			expect(result.transaction.effects?.bcs).toBeInstanceOf(Uint8Array);
+			expect(result.Transaction!.digest).toBe(executedTxDigest);
+			expect(result.Transaction!.effects).toBeDefined();
+			expect(result.Transaction!.effects?.bcs).toBeInstanceOf(Uint8Array);
 
 			// Other optional fields should still be undefined
-			expect(result.transaction.transaction).toBeUndefined();
-			expect(result.transaction.balanceChanges).toBeUndefined();
-			expect(result.transaction.events).toBeUndefined();
+			expect(result.Transaction!.transaction).toBeUndefined();
+			expect(result.Transaction!.balanceChanges).toBeUndefined();
+			expect(result.Transaction!.events).toBeUndefined();
 		});
 
 		testWithAllClients('should include events when requested', async (client) => {
@@ -555,14 +576,14 @@ describe('Core API - Transactions', () => {
 				include: { events: true },
 			});
 
-			expect(result.transaction.digest).toBe(executedTxDigest);
-			expect(result.transaction.events).toBeDefined();
-			expect(Array.isArray(result.transaction.events)).toBe(true);
+			expect(result.Transaction!.digest).toBe(executedTxDigest);
+			expect(result.Transaction!.events).toBeDefined();
+			expect(Array.isArray(result.Transaction!.events)).toBe(true);
 
 			// Other optional fields should still be undefined
-			expect(result.transaction.transaction).toBeUndefined();
-			expect(result.transaction.balanceChanges).toBeUndefined();
-			expect(result.transaction.effects).toBeUndefined();
+			expect(result.Transaction!.transaction).toBeUndefined();
+			expect(result.Transaction!.balanceChanges).toBeUndefined();
+			expect(result.Transaction!.effects).toBeUndefined();
 		});
 
 		testWithAllClients('should include balanceChanges when requested', async (client) => {
@@ -571,14 +592,14 @@ describe('Core API - Transactions', () => {
 				include: { balanceChanges: true },
 			});
 
-			expect(result.transaction.digest).toBe(executedTxDigest);
-			expect(result.transaction.balanceChanges).toBeDefined();
-			expect(Array.isArray(result.transaction.balanceChanges)).toBe(true);
+			expect(result.Transaction!.digest).toBe(executedTxDigest);
+			expect(result.Transaction!.balanceChanges).toBeDefined();
+			expect(Array.isArray(result.Transaction!.balanceChanges)).toBe(true);
 
 			// Other optional fields should still be undefined
-			expect(result.transaction.transaction).toBeUndefined();
-			expect(result.transaction.events).toBeUndefined();
-			expect(result.transaction.effects).toBeUndefined();
+			expect(result.Transaction!.transaction).toBeUndefined();
+			expect(result.Transaction!.events).toBeUndefined();
+			expect(result.Transaction!.effects).toBeUndefined();
 		});
 
 		testWithAllClients('should include objectTypes when requested', async (client) => {
@@ -587,15 +608,15 @@ describe('Core API - Transactions', () => {
 				include: { objectTypes: true },
 			});
 
-			expect(result.transaction.digest).toBe(executedTxDigest);
-			const objectTypes = await result.transaction.objectTypes;
+			expect(result.Transaction!.digest).toBe(executedTxDigest);
+			const objectTypes = await result.Transaction!.objectTypes;
 			expect(objectTypes).toBeDefined();
 
 			// Other optional fields should still be undefined
-			expect(result.transaction.transaction).toBeUndefined();
-			expect(result.transaction.balanceChanges).toBeUndefined();
-			expect(result.transaction.events).toBeUndefined();
-			expect(result.transaction.effects).toBeUndefined();
+			expect(result.Transaction!.transaction).toBeUndefined();
+			expect(result.Transaction!.balanceChanges).toBeUndefined();
+			expect(result.Transaction!.events).toBeUndefined();
+			expect(result.Transaction!.effects).toBeUndefined();
 		});
 
 		testWithAllClients('should include all fields when all includes requested', async (client) => {
@@ -610,13 +631,13 @@ describe('Core API - Transactions', () => {
 				},
 			});
 
-			expect(result.transaction.digest).toBe(executedTxDigest);
-			expect(result.transaction.transaction).toBeDefined();
-			expect(result.transaction.effects).toBeDefined();
-			expect(result.transaction.effects?.bcs).toBeDefined();
-			expect(result.transaction.events).toBeDefined();
-			expect(result.transaction.balanceChanges).toBeDefined();
-			const objectTypes = await result.transaction.objectTypes;
+			expect(result.Transaction!.digest).toBe(executedTxDigest);
+			expect(result.Transaction!.transaction).toBeDefined();
+			expect(result.Transaction!.effects).toBeDefined();
+			expect(result.Transaction!.effects?.bcs).toBeDefined();
+			expect(result.Transaction!.events).toBeDefined();
+			expect(result.Transaction!.balanceChanges).toBeDefined();
+			const objectTypes = await result.Transaction!.objectTypes;
 			expect(objectTypes).toBeDefined();
 		});
 	});
@@ -636,16 +657,45 @@ describe('Core API - Transactions', () => {
 				include: {},
 			});
 
-			expect(result.transaction.digest).toBeDefined();
+			expect(result.Transaction!.digest).toBeDefined();
+
+			// Status should always be present even with no includes
+			expect(result.Transaction!.status).toBeDefined();
+			expect(result.Transaction!.status.success).toBe(true);
+			expect(result.Transaction!.status.error).toBeNull();
 
 			// All optional fields should be undefined
-			expect(result.transaction.transaction).toBeUndefined();
-			expect(result.transaction.balanceChanges).toBeUndefined();
-			expect(result.transaction.events).toBeUndefined();
-			expect(result.transaction.effects).toBeUndefined();
+			expect(result.Transaction!.transaction).toBeUndefined();
+			expect(result.Transaction!.balanceChanges).toBeUndefined();
+			expect(result.Transaction!.events).toBeUndefined();
+			expect(result.Transaction!.effects).toBeUndefined();
 
-			await client.core.waitForTransaction({ digest: result.transaction.digest });
+			await client.core.waitForTransaction({ digest: result.Transaction!.digest });
 		});
+
+		testWithAllClients(
+			'should always return status even without include options',
+			async (client) => {
+				const tx = new Transaction();
+				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+
+				tx.setSender(testAddress);
+				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+				const signature = await toolbox.keypair.signTransaction(bytes);
+
+				const result = await client.core.executeTransaction({
+					transaction: bytes,
+					signatures: [signature.signature],
+				});
+
+				// Status should always be present
+				expect(result.Transaction!.status).toBeDefined();
+				expect(typeof result.Transaction!.status.success).toBe('boolean');
+				expect(result.Transaction!.status.success).toBe(true);
+
+				await client.core.waitForTransaction({ digest: result.Transaction!.digest });
+			},
+		);
 
 		testWithAllClients('should include transaction when requested', async (client) => {
 			const tx = new Transaction();
@@ -661,13 +711,13 @@ describe('Core API - Transactions', () => {
 				include: { transaction: true },
 			});
 
-			expect(result.transaction.transaction).toBeDefined();
-			expect(result.transaction.transaction?.sender).toBe(testAddress);
-			expect(result.transaction.balanceChanges).toBeUndefined();
-			expect(result.transaction.events).toBeUndefined();
-			expect(result.transaction.effects).toBeUndefined();
+			expect(result.Transaction!.transaction).toBeDefined();
+			expect(result.Transaction!.transaction?.sender).toBe(testAddress);
+			expect(result.Transaction!.balanceChanges).toBeUndefined();
+			expect(result.Transaction!.events).toBeUndefined();
+			expect(result.Transaction!.effects).toBeUndefined();
 
-			await client.core.waitForTransaction({ digest: result.transaction.digest });
+			await client.core.waitForTransaction({ digest: result.Transaction!.digest });
 		});
 
 		testWithAllClients('should include all fields when all includes requested', async (client) => {
@@ -690,15 +740,15 @@ describe('Core API - Transactions', () => {
 				},
 			});
 
-			expect(result.transaction.transaction).toBeDefined();
-			expect(result.transaction.effects).toBeDefined();
-			expect(result.transaction.effects?.bcs).toBeDefined();
-			expect(result.transaction.events).toBeDefined();
-			expect(result.transaction.balanceChanges).toBeDefined();
-			const objectTypes = await result.transaction.objectTypes;
+			expect(result.Transaction!.transaction).toBeDefined();
+			expect(result.Transaction!.effects).toBeDefined();
+			expect(result.Transaction!.effects?.bcs).toBeDefined();
+			expect(result.Transaction!.events).toBeDefined();
+			expect(result.Transaction!.balanceChanges).toBeDefined();
+			const objectTypes = await result.Transaction!.objectTypes;
 			expect(objectTypes).toBeDefined();
 
-			await client.core.waitForTransaction({ digest: result.transaction.digest });
+			await client.core.waitForTransaction({ digest: result.Transaction!.digest });
 		});
 	});
 
@@ -715,12 +765,37 @@ describe('Core API - Transactions', () => {
 				include: {},
 			});
 
+			// Status should always be present even with no includes
+			expect(result.Transaction!.status).toBeDefined();
+			expect(result.Transaction!.status.success).toBe(true);
+			expect(result.Transaction!.status.error).toBeNull();
+
 			// All optional fields should be undefined when not included
-			expect(result.transaction.transaction).toBeUndefined();
-			expect(result.transaction.balanceChanges).toBeUndefined();
-			expect(result.transaction.events).toBeUndefined();
-			expect(result.transaction.effects).toBeUndefined();
+			expect(result.Transaction!.transaction).toBeUndefined();
+			expect(result.Transaction!.balanceChanges).toBeUndefined();
+			expect(result.Transaction!.events).toBeUndefined();
+			expect(result.Transaction!.effects).toBeUndefined();
 		});
+
+		testWithAllClients(
+			'should always return status even without include options',
+			async (client) => {
+				const tx = new Transaction();
+				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+
+				tx.setSender(testAddress);
+				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+
+				const result = await client.core.simulateTransaction({
+					transaction: bytes,
+				});
+
+				// Status should always be present
+				expect(result.Transaction!.status).toBeDefined();
+				expect(typeof result.Transaction!.status.success).toBe('boolean');
+				expect(result.Transaction!.status.success).toBe(true);
+			},
+		);
 
 		testWithAllClients('should include transaction when requested', async (client) => {
 			const tx = new Transaction();
@@ -734,10 +809,10 @@ describe('Core API - Transactions', () => {
 				include: { transaction: true },
 			});
 
-			expect(result.transaction.transaction).toBeDefined();
-			expect(result.transaction.transaction?.sender).toBe(testAddress);
-			expect(result.transaction.balanceChanges).toBeUndefined();
-			expect(result.transaction.events).toBeUndefined();
+			expect(result.Transaction!.transaction).toBeDefined();
+			expect(result.Transaction!.transaction?.sender).toBe(testAddress);
+			expect(result.Transaction!.balanceChanges).toBeUndefined();
+			expect(result.Transaction!.events).toBeUndefined();
 		});
 
 		testWithAllClients('should include all fields when all includes requested', async (client) => {
@@ -758,13 +833,145 @@ describe('Core API - Transactions', () => {
 				},
 			});
 
-			expect(result.transaction.transaction).toBeDefined();
-			expect(result.transaction.effects).toBeDefined();
-			expect(result.transaction.effects?.bcs).toBeDefined();
-			expect(result.transaction.events).toBeDefined();
-			expect(result.transaction.balanceChanges).toBeDefined();
-			const objectTypes = await result.transaction.objectTypes;
+			expect(result.Transaction!.transaction).toBeDefined();
+			expect(result.Transaction!.effects).toBeDefined();
+			expect(result.Transaction!.effects?.bcs).toBeDefined();
+			expect(result.Transaction!.events).toBeDefined();
+			expect(result.Transaction!.balanceChanges).toBeDefined();
+			const objectTypes = await result.Transaction!.objectTypes;
 			expect(objectTypes).toBeDefined();
 		});
+	});
+
+	describe('FailedTransaction handling', () => {
+		testWithAllClients(
+			'executeTransaction should return FailedTransaction for execution failures',
+			async (client) => {
+				// Get coins - we need separate coins for gas and for the operation
+				const coins = await toolbox.jsonRpcClient.getCoins({
+					owner: testAddress,
+					coinType: SUI_TYPE_ARG,
+				});
+
+				// Use first coin for gas, second coin for the failing operation
+				const gasCoin = coins.data[0];
+				const opCoin = coins.data[1];
+
+				// Create a transaction that will fail at execution time
+				// We'll try to split more than the coin's balance
+				const tx = new Transaction();
+				const hugeAmount = BigInt(opCoin.balance) * 1000n; // Way more than available
+				tx.splitCoins(
+					tx.objectRef({
+						objectId: opCoin.coinObjectId,
+						version: opCoin.version,
+						digest: opCoin.digest,
+					}),
+					[tx.pure.u64(hugeAmount)],
+				);
+
+				// Manually set gas to avoid resolution issues - use a DIFFERENT coin for gas
+				tx.setSender(testAddress);
+				tx.setGasOwner(testAddress);
+				tx.setGasPayment([
+					{
+						objectId: gasCoin.coinObjectId,
+						version: gasCoin.version,
+						digest: gasCoin.digest,
+					},
+				]);
+				tx.setGasBudget(50_000_000);
+				tx.setGasPrice(1000);
+
+				// Build without client resolution (fully resolved)
+				const bytes = await tx.build({});
+				const signature = await toolbox.keypair.signTransaction(bytes);
+
+				const result = await client.core.executeTransaction({
+					transaction: bytes,
+					signatures: [signature.signature],
+					include: { effects: true },
+				});
+
+				// Should be a FailedTransaction
+				expect(result.$kind).toBe('FailedTransaction');
+				expect(result.FailedTransaction).toBeDefined();
+				expect(result.FailedTransaction!.status.success).toBe(false);
+				expect(result.FailedTransaction!.status.error).toBeDefined();
+				expect(result.FailedTransaction!.digest).toBeDefined();
+			},
+			{ skip: ['graphql'] }, // GraphQL doesn't support transaction resolution
+		);
+
+		testWithAllClients(
+			'simulateTransaction should return FailedTransaction for execution failures',
+			async (client) => {
+				// Create a transaction that calls a function that aborts
+				// We need to fully resolve it to avoid the budget calculation failing
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::test_objects::abort_always`,
+					arguments: [],
+				});
+
+				// Manually configure gas to bypass the resolution that fails on abort
+				tx.setSender(testAddress);
+				tx.setGasOwner(testAddress);
+				tx.setGasBudget(50_000_000);
+				tx.setGasPrice(1000);
+
+				// Get a coin for gas
+				const coins = await toolbox.jsonRpcClient.getCoins({
+					owner: testAddress,
+					coinType: SUI_TYPE_ARG,
+				});
+				tx.setGasPayment([
+					{
+						objectId: coins.data[0].coinObjectId,
+						version: coins.data[0].version,
+						digest: coins.data[0].digest,
+					},
+				]);
+
+				const bytes = await tx.build({});
+
+				const result = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true },
+				});
+
+				// Should be a FailedTransaction
+				expect(result.$kind).toBe('FailedTransaction');
+				expect(result.FailedTransaction).toBeDefined();
+				expect(result.FailedTransaction!.status.success).toBe(false);
+				expect(result.FailedTransaction!.status.error).toBeDefined();
+			},
+		);
+
+		testWithAllClients(
+			'TransactionResult discriminated union allows type-safe access',
+			async (client) => {
+				const tx = new Transaction();
+				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+
+				tx.setSender(testAddress);
+				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+
+				const result = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true },
+				});
+
+				// Type-safe access pattern using discriminated union
+				if (result.$kind === 'Transaction') {
+					expect(result.Transaction!.status.success).toBe(true);
+					// Note: digest may not be available in all simulate responses (e.g., gRPC)
+					expect(result.Transaction!.effects).toBeDefined();
+				} else {
+					// This branch would handle FailedTransaction
+					expect(result.FailedTransaction.status.success).toBe(false);
+				}
+			},
+		);
 	});
 });

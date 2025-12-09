@@ -222,11 +222,12 @@ export class EnokiWallet implements Wallet {
 			client,
 		});
 
+		const tx = result.Transaction ?? result.FailedTransaction;
 		return {
 			bytes: toBase64(bytes),
-			signature: result.signatures[0],
-			digest: result.digest,
-			effects: toBase64(result.effects.bcs!),
+			signature: tx.signatures[0],
+			digest: tx.digest,
+			effects: toBase64(tx.effects.bcs!),
 		};
 	};
 

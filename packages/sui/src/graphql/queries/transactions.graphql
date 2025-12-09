@@ -58,6 +58,10 @@ fragment TRANSACTION_FIELDS on Transaction {
 		signatureBytes
 	}
 	effects {
+		status
+		executionError {
+			message
+		}
 		epoch {
 			epochId
 		}

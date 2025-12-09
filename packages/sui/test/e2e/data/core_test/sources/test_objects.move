@@ -118,4 +118,9 @@ module core_test::test_objects {
         dynamic_field::add(&mut obj2.id, b"test_field", 999u64);
         transfer::transfer(obj2, recipient);
     }
+
+    /// Function that always aborts - used for testing FailedTransaction handling
+    public fun abort_always() {
+        abort 42
+    }
 }

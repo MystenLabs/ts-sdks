@@ -23,7 +23,11 @@ const result = await dAppKit.signAndExecuteTransaction({
 	transaction: tx,
 });
 
-console.log('Transaction digest:', result.digest);
+if (result.FailedTransaction) {
+	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
+}
+
+console.log('Transaction digest:', result.Transaction.digest);
 ```
 
 ## Parameters
@@ -34,27 +38,38 @@ console.log('Transaction digest:', result.digest);
 
 ## Return Value
 
-Returns a `Promise` that resolves to an object containing:
+Returns a `Promise` that resolves to a `TransactionResult` discriminated union:
+
+```typescript
+type TransactionResult =
+	| { $kind: 'Transaction'; Transaction: Transaction }
+	| { $kind: 'FailedTransaction'; FailedTransaction: Transaction };
+```
+
+The `Transaction` object contains:
 
 - **`digest`** - `string` - The transaction digest (unique identifier for the executed transaction)
-- **`signature`** - `string` - The signature as a base64-encoded string
-- **`bytes`** - `string` - The transaction as a base64-encoded BCS string
-- **`effects`** - `string` - Transaction effects as base64-encoded BCS
+- **`signatures`** - `string[]` - The signatures as base64-encoded strings
+- **`epoch`** - `string | null` - The epoch in which the transaction was executed
+- **`status`** - `ExecutionStatus` - The execution status with `success: boolean` and
+  `error: string | null`
+- **`effects`** - `TransactionEffects | null` - The parsed transaction effects (may be `null` if
+  effects parsing fails for unknown effect versions)
+- **`transaction`** - `TransactionData` - The parsed transaction data
 
 ```typescript
 const result = await dAppKit.signAndExecuteTransaction({ transaction });
 
-// Access the transaction results
-console.log('Digest:', result.digest);
-console.log('Signature:', result.signature);
-console.log('Transaction bytes:', result.bytes);
-console.log('Effects:', result.effects);
+if (result.FailedTransaction) {
+	console.error('Transaction failed:', result.FailedTransaction.status.error);
+	return;
+}
 
-// Use the digest to query transaction details
-const txDetails = await suiClient.getTransactionBlock({
-	digest: result.digest,
-	options: { showEffects: true },
-});
+// Access the successful transaction results
+const tx = result.Transaction;
+console.log('Digest:', tx.digest);
+console.log('Signatures:', tx.signatures);
+console.log('Epoch:', tx.epoch);
 ```
 
 ## Transaction Building
@@ -65,28 +80,6 @@ When passing a Transaction instance, the action automatically:
 2. Builds the transaction using the current network's client
 3. Converts it to the appropriate format for the wallet
 4. Submits the transaction to the network
-
-## Transaction Effects
-
-The returned `effects` field contains detailed information about the transaction execution:
-
-```typescript
-import { bcs } from '@mysten/sui/bcs';
-import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
-import { fromBase64 } from '@mysten/sui/utils';
-import { dAppKit } from './dapp-kit.ts';
-
-const transaction = new Transaction();
-transaction.transferObjects([coinWithBalance({ balance: 123 })], 'recipientAddress');
-
-const result = await dAppKit.signAndExecuteTransaction({ transaction });
-
-// Decode effects to inspect transaction results
-const effects = bcs.TransactionEffects.parse(fromBase64(result.effects));
-
-console.log('Executed in epoch:', effects.V2?.executedEpoch);
-console.log('Gas used:', effects.V2?.gasUsed);
-```
 
 ## Wallet Compatibility
 

@@ -66,8 +66,13 @@ const result = await client.signAndExecuteTransaction({
 	},
 });
 
+// Check transaction status
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Registry creation failed: ${result.FailedTransaction.status.error}`);
+}
+
 console.log('Registry created!');
-console.log('Transaction:', result.digest);
+console.log('Transaction:', result.Transaction.digest);
 ```
 
 ### What Gets Created
@@ -83,7 +88,7 @@ The `RegistryAdminCap` is crucial for configuring your registry:
 
 ```ts
 // Find the admin cap in the transaction result
-const adminCapObject = result.objectChanges?.find(
+const adminCapObject = result.Transaction.objectChanges?.find(
 	(change) => change.type === 'created' && change.objectType.includes('RegistryAdminCap'),
 );
 
@@ -133,10 +138,15 @@ const tx = client.paymentKit.tx.setConfigEpochExpirationDuration({
 	adminCapId: adminCapId,
 });
 
-await client.signAndExecuteTransaction({
+const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
 });
+
+// Check transaction status
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Configuration update failed: ${result.FailedTransaction.status.error}`);
+}
 
 console.log('Expiration set to 60 epochs');
 ```

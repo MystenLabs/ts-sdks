@@ -66,7 +66,7 @@ This instance provides:
     switchAccount: (args: { account: UiWalletAccount }) => Promise<void>;
     switchNetwork: (network: string) => void;
     signTransaction: (args: { transaction: Transaction | string; signal?: AbortSignal }) => Promise<SignedTransaction>;
-    signAndExecuteTransaction: (args: { transaction: Transaction | string; signal?: AbortSignal }) => Promise<SuiSignAndExecuteTransactionOutput>;
+    signAndExecuteTransaction: (args: { transaction: Transaction | string; signal?: AbortSignal }) => Promise<TransactionResult>;
     signPersonalMessage: (args: { message: Uint8Array }) => Promise<SignedPersonalMessage>;
 
     // Properties

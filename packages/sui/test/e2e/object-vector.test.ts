@@ -22,9 +22,10 @@ describe('Test Move call with a vector of objects as input', () => {
 			transaction: tx,
 		});
 
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
-		expect(result.effects?.status.success).toEqual(true);
-		return result.effects?.changedObjects.filter((o) => o.idOperation === 'Created')[0]?.objectId!;
+		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.Transaction!.digest });
+		expect(result.Transaction?.effects?.status.success).toEqual(true);
+		return result.Transaction?.effects?.changedObjects.filter((o) => o.idOperation === 'Created')[0]
+			?.objectId!;
 	}
 
 	async function destroyObjects(objects: string[], withType = false) {
@@ -41,8 +42,8 @@ describe('Test Move call with a vector of objects as input', () => {
 			client: toolbox.grpcClient,
 			transaction: tx,
 		});
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
-		expect(result.effects?.status.success).toEqual(true);
+		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.Transaction!.digest });
+		expect(result.Transaction?.effects?.status.success).toEqual(true);
 	}
 
 	beforeEach(async () => {
@@ -77,6 +78,6 @@ describe('Test Move call with a vector of objects as input', () => {
 			client: toolbox.grpcClient,
 			transaction: tx,
 		});
-		expect(result.effects?.status.success).toEqual(true);
+		expect(result.Transaction?.effects?.status.success).toEqual(true);
 	});
 });
