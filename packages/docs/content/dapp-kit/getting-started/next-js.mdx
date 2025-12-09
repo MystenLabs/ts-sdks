@@ -114,7 +114,12 @@ function WalletStatus() {
 		const tx = new Transaction();
 		tx.transferObjects([coinWithBalance({ balance: 1_000_000 })], account.address);
 		const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-		alert(`Transaction: ${result.digest}`);
+
+		if (result.FailedTransaction) {
+			throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
+		}
+
+		alert(`Transaction: ${result.Transaction.digest}`);
 	}
 
 	return (

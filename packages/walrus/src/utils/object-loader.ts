@@ -12,12 +12,9 @@ import { Field } from './bcs.js';
 
 export class SuiObjectDataLoader extends DataLoader<
 	string,
-	SuiClientTypes.ObjectResponse<{ content: true }>
+	SuiClientTypes.Object<{ content: true }>
 > {
-	#dynamicFieldCache = new Map<
-		string,
-		Map<string, SuiClientTypes.ObjectResponse<{ content: true }>>
-	>();
+	#dynamicFieldCache = new Map<string, Map<string, SuiClientTypes.Object<{ content: true }>>>();
 	constructor(suiClient: BaseClient) {
 		super(async (ids: readonly string[]) => {
 			const { objects } = await suiClient.core.getObjects({
