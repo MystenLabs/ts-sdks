@@ -18,8 +18,8 @@ export const testnetPackageIds = {
 	DEEPBOOK_PACKAGE_ID: '0x926c446869fa175ec3b0dbf6c4f14604d86a415c1fccd8c8f823cfc46a29baed',
 	REGISTRY_ID: '0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1',
 	DEEP_TREASURY_ID: '0x69fffdae0075f8f71f4fa793549c11079266910e8905169845af1f5d00e09dcb',
-	MARGIN_PACKAGE_ID: '0xb388009b59b09cd5d219dae79dd3e5d08a5734884363e59a37f3cbe6ef613424',
-	MARGIN_REGISTRY_ID: '0x7615a4c5be6a162736299b7c09ea7e3676096df49daddcd0e3a856f1885efb6d',
+	MARGIN_PACKAGE_ID: '0xb8620c24c9ea1a4a41e79613d2b3d1d93648d1bb6f6b789a7c8f261c94110e4b',
+	MARGIN_REGISTRY_ID: '0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75',
 } satisfies DeepbookPackageIds;
 
 export const mainnetPackageIds = {
@@ -35,6 +35,9 @@ export const testnetCoins: CoinMap = {
 		address: `0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8`,
 		type: `0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8::deep::DEEP`,
 		scalar: 1000000,
+		feed: '0xe18bf5fa857d5ca8af1f6a458b26e853ecdc78fc2f3dc17f4821374ad94d8327',
+		metadataId: '0x2aed92a0dd081a6b14fa8001446803f589a004763fd7d70f33c4ec44fde4eab8',
+		priceInfoObjectId: '0xa98cbb7a97b4ce306eafdbc52a602578dea25165e6578fe6603caeb002fe02aa',
 	},
 	SUI: {
 		address: `0x0000000000000000000000000000000000000000000000000000000000000002`,
@@ -290,12 +293,16 @@ export const mainnetPools: PoolMap = {
 
 export const testnetMarginPools = {
 	SUI: {
-		address: '0x42c7802724c659264bfe5880080e74911308fc3067a2fce19dc6dcb9820d0ea3',
+		address: '0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea',
 		type: '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
 	},
 	DBUSDC: {
-		address: '0x086d154c472c942e1881cab261d7a0168a5665a589c1eeb7ddf4940157f43ce9',
+		address: '0xf08568da93834e1ee04f09902ac7b1e78d3fdf113ab4d2106c7265e95318b14d',
 		type: '0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC',
+	},
+	DEEP: {
+		address: '0x610640613f21d9e688d6f8103d17df22315c32e0c80590ce64951a1991378b55',
+		type: '0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8::deep::DEEP',
 	},
 };
 
@@ -307,6 +314,10 @@ export const mainnetMarginPools = {
 	USDC: {
 		address: '',
 		type: '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC',
+	},
+	DEEP: {
+		address: '',
+		type: '0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP',
 	},
 };
 
