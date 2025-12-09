@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.23.0
+
+### Minor Changes
+
+- 3fff516: DeepBook Core Package Upgrade (V4)
+
 ## 0.22.2
 
 ### Patch Changes
