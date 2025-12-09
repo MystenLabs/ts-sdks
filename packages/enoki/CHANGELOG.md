@@ -1,5 +1,11 @@
 # @mysten/enoki
 
+## 0.12.15
+
+### Patch Changes
+
+- 746b660: open window with `about:blank` instead of `undefined`
+
 ## 0.12.14
 
 ### Patch Changes

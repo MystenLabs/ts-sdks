@@ -1,5 +1,12 @@
 # @mysten/suins
 
+## 0.9.13
+
+### Patch Changes
+
+- 685d242: - getPriceInfoObject feeCoin param
+  - expose Pyth update fee from suins client (getPythBaseUpdateFee)
+
 ## 0.9.12
 
 ### Patch Changes
