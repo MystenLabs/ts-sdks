@@ -784,8 +784,8 @@ export class DeepBookClient {
 
 	async getPriceInfoObject(tx: Transaction, coinKey: string): Promise<string> {
 		const currentTime = Date.now();
-		const dbusdcPriceInfoObjectAge = (await this.getPriceInfoObjectAge(coinKey)) * 1000;
-		if (currentTime - dbusdcPriceInfoObjectAge < PRICE_INFO_OBJECT_MAX_AGE) {
+		const priceInfoObjectAge = (await this.getPriceInfoObjectAge(coinKey)) * 1000;
+		if (currentTime - priceInfoObjectAge < PRICE_INFO_OBJECT_MAX_AGE) {
 			return await this.#config.getCoin(coinKey).priceInfoObjectId!;
 		}
 
