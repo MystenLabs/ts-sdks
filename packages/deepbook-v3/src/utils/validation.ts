@@ -89,4 +89,3 @@ export function validateNonEmptyArray<T>(array: T[], fieldName: string): T[] {
 	}
 	return array;
 }
-
