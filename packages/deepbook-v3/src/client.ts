@@ -11,7 +11,13 @@ import { DeepBookContract } from './transactions/deepbook.js';
 import { DeepBookAdminContract } from './transactions/deepbookAdmin.js';
 import { FlashLoanContract } from './transactions/flashLoans.js';
 import { GovernanceContract } from './transactions/governance.js';
-import type { BalanceManager, Environment, MarginManager } from './types/index.js';
+import type {
+	BalanceManager,
+	Environment,
+	MarginManager,
+	CanPlaceLimitOrderParams,
+	CanPlaceMarketOrderParams,
+} from './types/index.js';
 import {
 	DEEP_SCALAR,
 	DeepBookConfig,
@@ -2156,36 +2162,12 @@ export class DeepBookClient {
 
 	/**
 	 * @description Check if a limit order can be placed
-	 * @param {string} poolKey Key of the pool
-	 * @param {string} managerKey Key of the balance manager
-	 * @param {number} price Price
-	 * @param {number} quantity Quantity
-	 * @param {boolean} isBid Is bid order
-	 * @param {boolean} payWithDeep Pay with DEEP
-	 * @param {number} expireTimestamp Expiration timestamp
+	 * @param {CanPlaceLimitOrderParams} params Parameters for checking limit order placement
 	 * @returns {Promise<boolean>} Whether order can be placed
 	 */
-	async canPlaceLimitOrder(
-		poolKey: string,
-		managerKey: string,
-		price: number,
-		quantity: number,
-		isBid: boolean,
-		payWithDeep: boolean,
-		expireTimestamp: number,
-	): Promise<boolean> {
+	async canPlaceLimitOrder(params: CanPlaceLimitOrderParams): Promise<boolean> {
 		const tx = new Transaction();
-		tx.add(
-			this.deepBook.canPlaceLimitOrder(
-				poolKey,
-				managerKey,
-				price,
-				quantity,
-				isBid,
-				payWithDeep,
-				expireTimestamp,
-			),
-		);
+		tx.add(this.deepBook.canPlaceLimitOrder(params));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
@@ -2198,22 +2180,12 @@ export class DeepBookClient {
 
 	/**
 	 * @description Check if a market order can be placed
-	 * @param {string} poolKey Key of the pool
-	 * @param {string} managerKey Key of the balance manager
-	 * @param {number} quantity Quantity
-	 * @param {boolean} isBid Is bid order
-	 * @param {boolean} payWithDeep Pay with DEEP
+	 * @param {CanPlaceMarketOrderParams} params Parameters for checking market order placement
 	 * @returns {Promise<boolean>} Whether order can be placed
 	 */
-	async canPlaceMarketOrder(
-		poolKey: string,
-		managerKey: string,
-		quantity: number,
-		isBid: boolean,
-		payWithDeep: boolean,
-	): Promise<boolean> {
+	async canPlaceMarketOrder(params: CanPlaceMarketOrderParams): Promise<boolean> {
 		const tx = new Transaction();
-		tx.add(this.deepBook.canPlaceMarketOrder(poolKey, managerKey, quantity, isBid, payWithDeep));
+		tx.add(this.deepBook.canPlaceMarketOrder(params));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),

@@ -74,6 +74,24 @@ export interface PlaceMarketOrderParams {
 	payWithDeep?: boolean;
 }
 
+export interface CanPlaceLimitOrderParams {
+	poolKey: string;
+	balanceManagerKey: string;
+	price: number;
+	quantity: number;
+	isBid: boolean;
+	payWithDeep: boolean;
+	expireTimestamp: number;
+}
+
+export interface CanPlaceMarketOrderParams {
+	poolKey: string;
+	balanceManagerKey: string;
+	quantity: number;
+	isBid: boolean;
+	payWithDeep: boolean;
+}
+
 export interface PlaceMarginLimitOrderParams {
 	poolKey: string;
 	marginManagerKey: string;

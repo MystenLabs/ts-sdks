@@ -5,6 +5,8 @@ import type { Transaction } from '@mysten/sui/transactions';
 
 import { OrderType, SelfMatchingOptions } from '../types/index.js';
 import type {
+	CanPlaceLimitOrderParams,
+	CanPlaceMarketOrderParams,
 	CreatePermissionlessPoolParams,
 	PlaceLimitOrderParams,
 	PlaceMarketOrderParams,
@@ -1389,80 +1391,63 @@ export class DeepBookContract {
 
 	/**
 	 * @description Check if a limit order can be placed
-	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} managerKey Key of the balance manager
-	 * @param {number} price Price
-	 * @param {number} quantity Quantity
-	 * @param {boolean} isBid Is bid order
-	 * @param {boolean} payWithDeep Pay with DEEP
-	 * @param {number} expireTimestamp Expiration timestamp
+	 * @param {CanPlaceLimitOrderParams} params Parameters for checking limit order validity
 	 * @returns A function that takes a Transaction object
 	 */
-	canPlaceLimitOrder =
-		(
-			poolKey: string,
-			managerKey: string,
-			price: number,
-			quantity: number,
-			isBid: boolean,
-			payWithDeep: boolean,
-			expireTimestamp: number,
-		) =>
-		(tx: Transaction) => {
-			const pool = this.#config.getPool(poolKey);
-			const manager = this.#config.getBalanceManager(managerKey);
-			const baseCoin = this.#config.getCoin(pool.baseCoin);
-			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-			const inputPrice = Math.round((price * FLOAT_SCALAR * quoteCoin.scalar) / baseCoin.scalar);
-			const inputQuantity = Math.round(quantity * baseCoin.scalar);
+	canPlaceLimitOrder = (params: CanPlaceLimitOrderParams) => (tx: Transaction) => {
+		const { poolKey, balanceManagerKey, price, quantity, isBid, payWithDeep, expireTimestamp } =
+			params;
 
-			return tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::can_place_limit_order`,
-				arguments: [
-					tx.object(pool.address),
-					tx.object(manager.address),
-					tx.pure.u64(inputPrice),
-					tx.pure.u64(inputQuantity),
-					tx.pure.bool(isBid),
-					tx.pure.bool(payWithDeep),
-					tx.pure.u64(expireTimestamp),
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
-		};
+		const pool = this.#config.getPool(poolKey);
+		const manager = this.#config.getBalanceManager(balanceManagerKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const inputPrice = Math.round((price * FLOAT_SCALAR * quoteCoin.scalar) / baseCoin.scalar);
+		const inputQuantity = Math.round(quantity * baseCoin.scalar);
+
+		return tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::can_place_limit_order`,
+			arguments: [
+				tx.object(pool.address),
+				tx.object(manager.address),
+				tx.pure.u64(inputPrice),
+				tx.pure.u64(inputQuantity),
+				tx.pure.bool(isBid),
+				tx.pure.bool(payWithDeep),
+				tx.pure.u64(expireTimestamp),
+				tx.object.clock(),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
 
 	/**
 	 * @description Check if a market order can be placed
-	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} managerKey Key of the balance manager
-	 * @param {number} quantity Quantity
-	 * @param {boolean} isBid Is bid order
-	 * @param {boolean} payWithDeep Pay with DEEP
+	 * @param {CanPlaceMarketOrderParams} params Parameters for checking market order validity
 	 * @returns A function that takes a Transaction object
 	 */
-	canPlaceMarketOrder =
-		(poolKey: string, managerKey: string, quantity: number, isBid: boolean, payWithDeep: boolean) =>
-		(tx: Transaction) => {
-			const pool = this.#config.getPool(poolKey);
-			const manager = this.#config.getBalanceManager(managerKey);
-			const baseCoin = this.#config.getCoin(pool.baseCoin);
-			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-			const inputQuantity = Math.round(quantity * baseCoin.scalar);
+	canPlaceMarketOrder = (params: CanPlaceMarketOrderParams) => (tx: Transaction) => {
+		const { poolKey, balanceManagerKey, quantity, isBid, payWithDeep } = params;
 
-			return tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::can_place_market_order`,
-				arguments: [
-					tx.object(pool.address),
-					tx.object(manager.address),
-					tx.pure.u64(inputQuantity),
-					tx.pure.bool(isBid),
-					tx.pure.bool(payWithDeep),
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
-		};
+		const pool = this.#config.getPool(poolKey);
+		const manager = this.#config.getBalanceManager(balanceManagerKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const inputQuantity = Math.round(quantity * baseCoin.scalar);
+
+		return tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::can_place_market_order`,
+			arguments: [
+				tx.object(pool.address),
+				tx.object(manager.address),
+				tx.pure.u64(inputQuantity),
+				tx.pure.bool(isBid),
+				tx.pure.bool(payWithDeep),
+				tx.object.clock(),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
 
 	/**
 	 * @description Check if market order params are valid
