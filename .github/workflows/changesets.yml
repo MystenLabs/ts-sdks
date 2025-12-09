@@ -42,4 +42,5 @@ jobs:
           publish: pnpm release
 
         env:
+          NPM_TOKEN: '' # https://github.com/changesets/changesets/issues/1152#issuecomment-3190884868
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
