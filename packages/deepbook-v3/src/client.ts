@@ -1426,6 +1426,9 @@ export class DeepBookClient {
 		basePythDecimals: number;
 		quotePythPrice: string;
 		quotePythDecimals: number;
+		currentPrice: bigint;
+		lowestTriggerAbovePrice: bigint;
+		highestTriggerBelowPrice: bigint;
 	}> {
 		const manager = this.#config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
@@ -1484,6 +1487,13 @@ export class DeepBookClient {
 		const quotePythDecimals = Number(
 			bcs.u8().parse(new Uint8Array(res.results[0].returnValues[10][0])),
 		);
+		const currentPrice = BigInt(bcs.U64.parse(new Uint8Array(res.results[0].returnValues[11][0])));
+		const lowestTriggerAbovePrice = BigInt(
+			bcs.U64.parse(new Uint8Array(res.results[0].returnValues[12][0])),
+		);
+		const highestTriggerBelowPrice = BigInt(
+			bcs.U64.parse(new Uint8Array(res.results[0].returnValues[13][0])),
+		);
 
 		return {
 			managerId,
@@ -1497,6 +1507,9 @@ export class DeepBookClient {
 			basePythDecimals,
 			quotePythPrice: quotePythPrice.toString(),
 			quotePythDecimals,
+			currentPrice,
+			lowestTriggerAbovePrice,
+			highestTriggerBelowPrice,
 		};
 	}
 
