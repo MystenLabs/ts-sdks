@@ -259,11 +259,13 @@ export class WalletConnectWallet implements Wallet {
 			include: { effects: true },
 		});
 
+		const result = tx.Transaction ?? tx.FailedTransaction;
+
 		return {
 			digest: response.digest,
-			signature: tx.transaction.signatures[0] ?? '',
+			signature: result.signatures[0] ?? '',
 			bytes: toBase64(bytes),
-			effects: tx.transaction.effects.bcs ? toBase64(tx.transaction.effects.bcs) : '',
+			effects: result.effects?.bcs ? toBase64(result.effects.bcs) : '',
 		};
 	};
 

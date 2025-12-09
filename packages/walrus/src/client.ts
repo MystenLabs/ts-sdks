@@ -1088,16 +1088,15 @@ export class WalrusClient {
 
 	async #getCreatedBlob(digest: string) {
 		const blobType = await this.getBlobType();
-		const {
-			transaction: { effects },
-		} = await this.#suiClient.core.waitForTransaction({
+		const result = await this.#suiClient.core.waitForTransaction({
 			digest,
 			include: { effects: true },
 		});
 
-		const createdObjectIds = effects?.changedObjects
-			.filter((object) => object.idOperation === 'Created')
-			.map((object) => object.objectId);
+		const tx = result.Transaction ?? result.FailedTransaction;
+		const createdObjectIds = tx.effects?.changedObjects
+			.filter((object: { idOperation: string }) => object.idOperation === 'Created')
+			.map((object: { objectId: string }) => object.objectId);
 
 		const createdObjects = await this.#suiClient.core.getObjects({
 			objectIds: createdObjectIds,
@@ -2013,14 +2012,18 @@ export class WalrusClient {
 	async #executeTransaction(transaction: Transaction, signer: Signer, action: string) {
 		transaction.setSenderIfNotSet(signer.toSuiAddress());
 
-		const { digest, effects } = await signer.signAndExecuteTransaction({
+		const result = await signer.signAndExecuteTransaction({
 			transaction,
 			client: this.#suiClient,
 		});
 
-		if (effects?.status.error) {
-			throw new WalrusClientError(`Failed to ${action} (${digest}): ${effects?.status.error}`);
+		if (result.FailedTransaction) {
+			throw new WalrusClientError(
+				`Failed to ${action} (${result.FailedTransaction.digest}): ${result.FailedTransaction.effects?.status.error}`,
+			);
 		}
+
+		const { digest, effects } = result.Transaction;
 
 		await this.#suiClient.core.waitForTransaction({
 			digest,

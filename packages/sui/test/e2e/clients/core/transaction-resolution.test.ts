@@ -608,7 +608,7 @@ describe('Core API - Transaction Resolution', () => {
 					transaction: bytes,
 					include: { effects: true },
 				});
-				expect(dryRunResult.transaction.effects?.status.success).toBe(true);
+				expect(dryRunResult.Transaction!.effects?.status.success).toBe(true);
 			},
 			{ skip: ['graphql'] },
 		);
@@ -680,7 +680,7 @@ describe('Core API - Transaction Resolution', () => {
 					transaction: bytes,
 					include: { effects: true },
 				});
-				expect(dryRunResult.transaction.effects?.status.success).toBe(true);
+				expect(dryRunResult.Transaction!.effects?.status.success).toBe(true);
 			},
 			{ skip: ['graphql'] },
 		);
