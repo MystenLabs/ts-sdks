@@ -19,7 +19,7 @@ import {
 	FLOAT_SCALAR,
 	GAS_BUDGET,
 	MAX_TIMESTAMP,
-	POOL_CREATION_FEE,
+	POOL_CREATION_FEE_DEEP,
 } from '../utils/config.js';
 
 /**
@@ -990,7 +990,7 @@ export class DeepBookContract {
 			deepCoin ??
 			coinWithBalance({
 				type: deepCoinType,
-				balance: POOL_CREATION_FEE,
+				balance: POOL_CREATION_FEE_DEEP,
 			});
 
 		tx.moveCall({

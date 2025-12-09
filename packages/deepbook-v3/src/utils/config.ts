@@ -3,8 +3,16 @@
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
 import { BalanceManagerContract } from '../transactions/balanceManager.js';
-import type { BalanceManager, Environment, MarginManager } from '../types/index.js';
+import type {
+	BalanceManager,
+	Environment,
+	MarginManager,
+	Coin,
+	Pool,
+	MarginPool,
+} from '../types/index.js';
 import type { CoinMap, PoolMap, MarginPoolMap } from './constants.js';
+import { ResourceNotFoundError, ErrorMessages } from './errors.js';
 import {
 	mainnetCoins,
 	mainnetPackageIds,
@@ -18,12 +26,17 @@ import {
 	testnetPythConfigs,
 } from './constants.js';
 
-export const FLOAT_SCALAR = 1000000000;
-export const MAX_TIMESTAMP = 1844674407370955161n;
-export const GAS_BUDGET = 0.5 * 500000000; // Adjust based on benchmarking
-export const DEEP_SCALAR = 1000000;
-export const POOL_CREATION_FEE = 500 * 1_000_000; // 500 DEEP
-export const PRICE_INFO_OBJECT_MAX_AGE = 5 * 1000; // 5 seconds
+// Constants for numerical precision and scaling
+export const FLOAT_SCALAR = 1_000_000_000; // 10^9 - Used for floating point representation
+export const DEEP_SCALAR = 1_000_000; // 10^6 - DEEP token decimal places
+
+// Time-related constants
+export const MAX_TIMESTAMP = 1_844_674_407_370_955_161n; // Maximum Unix timestamp (approximately year 2554)
+export const PRICE_INFO_OBJECT_MAX_AGE_MS = 5_000; // 5 seconds in milliseconds
+
+// Transaction and fee constants
+export const GAS_BUDGET = 250_000_000; // 0.25 SUI (0.5 * 500M MIST)
+export const POOL_CREATION_FEE_DEEP = 500_000_000; // 500 DEEP tokens (500 * 10^6)
 
 export class DeepBookConfig {
 	#coins: CoinMap;
@@ -106,28 +119,28 @@ export class DeepBookConfig {
 	}
 
 	// Getters
-	getCoin(key: string) {
+	getCoin(key: string): Coin {
 		const coin = this.#coins[key];
 		if (!coin) {
-			throw new Error(`Coin not found for key: ${key}`);
+			throw new ResourceNotFoundError('Coin', key);
 		}
 
 		return coin;
 	}
 
-	getPool(key: string) {
+	getPool(key: string): Pool {
 		const pool = this.#pools[key];
 		if (!pool) {
-			throw new Error(`Pool not found for key: ${key}`);
+			throw new ResourceNotFoundError('Pool', key);
 		}
 
 		return pool;
 	}
 
-	getMarginPool(key: string) {
+	getMarginPool(key: string): MarginPool {
 		const pool = this.#marginPools[key];
 		if (!pool) {
-			throw new Error(`Margin pool not found for key: ${key}`);
+			throw new ResourceNotFoundError('Margin pool', key);
 		}
 
 		return pool;
@@ -140,7 +153,7 @@ export class DeepBookConfig {
 	 */
 	getBalanceManager(managerKey: string): BalanceManager {
 		if (!Object.hasOwn(this.balanceManagers, managerKey)) {
-			throw new Error(`Balance manager with key ${managerKey} not found.`);
+			throw new Error(ErrorMessages.BALANCE_MANAGER_NOT_FOUND(managerKey));
 		}
 
 		return this.balanceManagers[managerKey];
@@ -153,7 +166,7 @@ export class DeepBookConfig {
 	 */
 	getMarginManager(managerKey: string): MarginManager {
 		if (!Object.hasOwn(this.marginManagers, managerKey)) {
-			throw new Error(`Margin manager with key ${managerKey} not found.`);
+			throw new Error(ErrorMessages.MARGIN_MANAGER_NOT_FOUND(managerKey));
 		}
 
 		return this.marginManagers[managerKey];

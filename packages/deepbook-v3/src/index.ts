@@ -63,6 +63,25 @@ export {
 	FLOAT_SCALAR,
 	GAS_BUDGET,
 	MAX_TIMESTAMP,
-	POOL_CREATION_FEE,
-	PRICE_INFO_OBJECT_MAX_AGE,
+	POOL_CREATION_FEE_DEEP,
+	PRICE_INFO_OBJECT_MAX_AGE_MS,
 } from './utils/config.js';
+
+// Error handling utilities
+export {
+	DeepBookError,
+	ResourceNotFoundError,
+	ConfigurationError,
+	ValidationError,
+	ErrorMessages,
+} from './utils/errors.js';
+
+// Validation utilities
+export {
+	validateRequired,
+	validateAddress,
+	validatePositiveNumber,
+	validateNonNegativeNumber,
+	validateRange,
+	validateNonEmptyArray,
+} from './utils/validation.js';

@@ -5,6 +5,7 @@ import { bcs, TypeTagSerializer, BcsStruct, BcsEnum, BcsTuple } from '@mysten/su
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import type { TransactionArgument } from '@mysten/sui/transactions';
 import { isArgument } from '@mysten/sui/transactions';
+import { ValidationError, ErrorMessages } from '../../utils/errors.js';
 
 const MOVE_STDLIB_ADDRESS = normalizeSuiAddress('0x1');
 const SUI_FRAMEWORK_ADDRESS = normalizeSuiAddress('0x2');
@@ -12,6 +13,11 @@ const SUI_SYSTEM_ADDRESS = normalizeSuiAddress('0x3');
 
 export type RawTransactionArgument<T> = T | TransactionArgument;
 
+/**
+ * @description Get the BCS schema for a given type tag
+ * @param {string | TypeTag} typeTag - The Move type tag to get the schema for
+ * @returns {BcsType<any> | null} The BCS schema if found, null otherwise
+ */
 export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null {
 	const parsedTag = typeof typeTag === 'string' ? TypeTagSerializer.parseFromStr(typeTag) : typeTag;
 
@@ -60,16 +66,22 @@ export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null
 	return null;
 }
 
+/**
+ * @description Normalize Move function arguments to TransactionArguments
+ * @param {unknown[] | object} args - The arguments to normalize
+ * @param {string[]} argTypes - The expected Move type strings for each argument
+ * @param {string[]} [parameterNames] - Optional parameter names when args is an object
+ * @returns {TransactionArgument[]} Array of normalized transaction arguments
+ * @throws {Error} If arguments are invalid or don't match expected types
+ */
 export function normalizeMoveArguments(
 	args: unknown[] | object,
 	argTypes: string[],
 	parameterNames?: string[],
-) {
+): TransactionArgument[] {
 	const argLen = Array.isArray(args) ? args.length : Object.keys(args).length;
 	if (parameterNames && argLen !== parameterNames.length) {
-		throw new Error(
-			`Invalid number of arguments, expected ${parameterNames.length}, got ${argLen}`,
-		);
+		throw new ValidationError(ErrorMessages.INVALID_ARGUMENT_COUNT(parameterNames.length, argLen));
 	}
 
 	const normalizedArgs: TransactionArgument[] = [];
@@ -99,20 +111,18 @@ export function normalizeMoveArguments(
 		let arg;
 		if (Array.isArray(args)) {
 			if (index >= args.length) {
-				throw new Error(
-					`Invalid number of arguments, expected at least ${index + 1}, got ${args.length}`,
-				);
+				throw new ValidationError(ErrorMessages.INVALID_ARGUMENT_COUNT(index + 1, args.length));
 			}
 			arg = args[index];
 		} else {
 			if (!parameterNames) {
-				throw new Error(`Expected arguments to be passed as an array`);
+				throw new ValidationError(`Expected arguments to be passed as an array`);
 			}
 			const name = parameterNames[index];
 			arg = args[name as keyof typeof args];
 
 			if (arg == null) {
-				throw new Error(`Parameter ${name} is required`);
+				throw new ValidationError(ErrorMessages.PARAMETER_REQUIRED(name));
 			}
 		}
 
@@ -135,7 +145,7 @@ export function normalizeMoveArguments(
 			continue;
 		}
 
-		throw new Error(`Invalid argument ${stringify(arg)} for type ${type}`);
+		throw new ValidationError(ErrorMessages.INVALID_ARGUMENT(stringify(arg) as string, type));
 	}
 
 	return normalizedArgs;
@@ -156,7 +166,13 @@ export class MoveTuple<
 	const Name extends string,
 > extends BcsTuple<T, Name> {}
 
-function stringify(val: unknown) {
+/**
+ * @description Convert a value to string representation for error messages
+ * @param {unknown} val - The value to stringify
+ * @returns {unknown} String representation of the value
+ * @private
+ */
+function stringify(val: unknown): unknown {
 	if (typeof val === 'object') {
 		return JSON.stringify(val, (val: unknown) => val);
 	}
