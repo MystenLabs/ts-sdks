@@ -101,7 +101,12 @@ async function handleTransfer() {
 
 	try {
 		const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-		alert(`Transaction: ${result.digest}`);
+
+		if (result.FailedTransaction) {
+			throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
+		}
+
+		alert(`Transaction: ${result.Transaction.digest}`);
 	} catch (error) {
 		console.error('Transaction failed:', error);
 	}
@@ -136,7 +141,12 @@ async function handleTransfer() {
 
 	try {
 		const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-		alert(`Transaction successful: ${result.digest}`);
+
+		if (result.FailedTransaction) {
+			throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
+		}
+
+		alert(`Transaction successful: ${result.Transaction.digest}`);
 	} catch (error) {
 		console.error('Transaction failed:', error);
 	}

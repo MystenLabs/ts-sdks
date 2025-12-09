@@ -24,6 +24,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 						url: '/bcs',
 					},
 					{
+						title: 'Codegen',
+						description: 'Generate type-safe TypeScript from Move packages',
+						url: '/codegen',
+					},
+					{
 						title: 'dApp Kit',
 						description: 'Build Sui dApps',
 						url: '/dapp-kit',

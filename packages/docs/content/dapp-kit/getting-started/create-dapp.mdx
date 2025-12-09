@@ -1,0 +1,152 @@
+---
+title: '@mysten/create-dapp'
+description: Create a Sui dApp with one command
+---
+
+`@mysten/create-dapp` is a CLI tool that scaffolds a complete Sui dApp project with best practices
+built in.
+
+## Quick Start
+
+```sh npm2yarn
+npm create @mysten/dapp
+```
+
+The CLI prompts you to choose a template and project name, then creates a ready-to-run project.
+
+## Templates
+
+### react-client-dapp
+
+A basic React dApp that demonstrates wallet connection and fetching owned objects:
+
+- Wallet connection with `ConnectButton`
+- Display connected wallet address
+- List objects owned by the connected wallet
+- Clean, modern UI with Tailwind CSS
+
+### react-e2e-counter
+
+A complete end-to-end example with Move smart contract integration:
+
+- Move counter contract in `move/counter/`
+- TypeScript bindings generated with `@mysten/codegen`
+- Create, increment, and reset counters
+- MVR (Move Registry) name resolution for package IDs
+- Full transaction signing and execution
+
+## Tech Stack
+
+Both templates include:
+
+- [React](https://react.dev/) - UI framework
+- [TypeScript](https://www.typescriptlang.org/) - Type safety
+- [Vite](https://vitejs.dev/) - Fast build tooling
+- [Tailwind CSS v4](https://tailwindcss.com/) - Utility-first styling
+- [Lucide React](https://lucide.dev/) - Modern icons
+- [`@mysten/dapp-kit-react`](/dapp-kit) - Wallet connection and blockchain interaction
+- [pnpm](https://pnpm.io/) - Package management
+
+The e2e-counter template also includes:
+
+- [`@mysten/codegen`](/codegen) - Generate TypeScript from Move code
+
+## Project Structure
+
+### react-client-dapp
+
+```
+src/
+├── components/ui/     # Reusable UI components (Card)
+├── lib/utils.ts       # Utility functions
+├── App.tsx            # Main application
+├── WalletStatus.tsx   # Wallet connection display
+├── OwnedObjects.tsx   # Object list component
+├── dApp-kit.ts        # dApp Kit configuration
+└── index.css          # Tailwind CSS theme
+```
+
+### react-e2e-counter
+
+```
+src/
+├── components/ui/     # UI components (Button, Card)
+├── contracts/         # Generated TypeScript bindings
+├── lib/utils.ts       # Utility functions
+├── App.tsx            # Main application
+├── Counter.tsx        # Counter display and controls
+├── CreateCounter.tsx  # Counter creation
+├── dApp-kit.ts        # dApp Kit configuration
+├── constants.ts       # Package IDs per network
+└── index.css          # Tailwind CSS theme
+move/
+└── counter/           # Move smart contract
+```
+
+## Using the e2e-counter Template
+
+### 1. Deploy the Move Contract
+
+First, install the [Sui CLI](https://docs.sui.io/build/install) and set up testnet:
+
+```bash
+sui client new-env --alias testnet --rpc https://fullnode.testnet.sui.io:443
+sui client switch --env testnet
+```
+
+Get testnet SUI from the [faucet](https://faucet.sui.io), then publish:
+
+```bash
+cd move
+sui client publish --gas-budget 100000000 counter
+```
+
+### 2. Configure the Package ID
+
+Copy the `packageId` from the publish output to `src/constants.ts`:
+
+```ts
+export const TESTNET_COUNTER_PACKAGE_ID = '<YOUR_PACKAGE_ID>';
+```
+
+### 3. Generate TypeScript Bindings
+
+```bash
+pnpm codegen
+```
+
+This generates type-safe functions in `src/contracts/` for interacting with your Move modules.
+
+### 4. Start Development
+
+```bash
+pnpm install
+pnpm dev
+```
+
+## Customizing the UI
+
+The templates use [Tailwind CSS v4](https://tailwindcss.com/docs) with
+[shadcn/ui](https://ui.shadcn.com/)-style components. The UI components in `src/components/ui/` can
+be customized or extended.
+
+To add more components, copy them from the
+[shadcn/ui components](https://ui.shadcn.com/docs/components) documentation and adapt them to your
+project.
+
+Theme variables are defined in `src/index.css` using Tailwind's `@theme` directive.
+
+## CLI Options
+
+You can skip prompts with command-line flags:
+
+```bash
+# Create with specific template
+npm create @mysten/dapp -- -t react-e2e-counter
+
+# Create with specific name
+npm create @mysten/dapp -- -n my-app
+
+# Create with both
+npm create @mysten/dapp -- -t react-client-dapp -n my-app
+```

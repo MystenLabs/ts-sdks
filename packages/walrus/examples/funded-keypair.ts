@@ -11,6 +11,7 @@ import { TESTNET_WALRUS_PACKAGE_CONFIG } from '../src/index.js';
 
 export async function getFundedKeypair() {
 	const suiClient = new SuiJsonRpcClient({
+		network: 'testnet',
 		url: getJsonRpcFullnodeUrl('testnet'),
 	});
 
@@ -46,6 +47,7 @@ export async function getFundedKeypair() {
 			},
 		});
 
+		// oxlint-disable-next-line no-non-null-asserted-optional-chain
 		const exchangePackageId = parseStructTag(exchange.data?.type!).address;
 
 		const wal = tx.moveCall({
