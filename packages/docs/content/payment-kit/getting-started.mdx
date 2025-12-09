@@ -74,7 +74,12 @@ const result = await client.signAndExecuteTransaction({
 	},
 });
 
-console.log('Payment processed:', result.digest);
+// Check transaction status
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Payment failed: ${result.FailedTransaction.status.error}`);
+}
+
+console.log('Payment processed:', result.Transaction.digest);
 ```
 
 ## Understanding the Payment
@@ -128,7 +133,12 @@ const result = await client.signAndExecuteTransaction({
 	signer: keypair,
 });
 
-console.log('Ephemeral payment processed:', result.digest);
+// Check transaction status
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Ephemeral payment failed: ${result.FailedTransaction.status.error}`);
+}
+
+console.log('Ephemeral payment processed:', result.Transaction.digest);
 ```
 
 Ephemeral payments:
@@ -173,7 +183,11 @@ try {
 		signer: keypair,
 	});
 
-	console.log('Success:', result.digest);
+	if (result.$kind === 'FailedTransaction') {
+		throw new Error(`Payment failed: ${result.FailedTransaction.status.error}`);
+	}
+
+	console.log('Success:', result.Transaction.digest);
 } catch (error) {
 	if (error.message.includes('Duplicate')) {
 		console.error('Payment already processed');

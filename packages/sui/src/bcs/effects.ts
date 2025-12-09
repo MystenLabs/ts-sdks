@@ -119,7 +119,7 @@ const ExecutionFailureStatus = bcs.enum('ExecutionFailureStatus', {
 	ExecutionCancelledDueToRandomnessUnavailable: null,
 });
 
-const ExecutionStatus = bcs.enum('ExecutionStatus', {
+export const ExecutionStatus = bcs.enum('ExecutionStatus', {
 	Success: null,
 	Failed: bcs.struct('ExecutionFailed', {
 		error: ExecutionFailureStatus,

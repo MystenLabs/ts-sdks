@@ -25,8 +25,8 @@ describe('Test ID as args to entry functions', () => {
 			client: toolbox.grpcClient,
 			transaction: tx,
 		});
-		await toolbox.grpcClient.core.waitForTransaction({ digest: result.digest });
-		expect(result.effects?.status.success).toEqual(true);
+		await toolbox.grpcClient.core.waitForTransaction({ digest: result.Transaction!.digest });
+		expect(result.Transaction?.effects?.status.success).toEqual(true);
 	});
 
 	it('Test ID as arg to entry functions', async () => {
@@ -39,7 +39,7 @@ describe('Test ID as args to entry functions', () => {
 			client: toolbox.grpcClient,
 			transaction: tx,
 		});
-		await toolbox.grpcClient.core.waitForTransaction({ digest: result.digest });
-		expect(result.effects?.status.success).toEqual(true);
+		await toolbox.grpcClient.core.waitForTransaction({ digest: result.Transaction!.digest });
+		expect(result.Transaction?.effects?.status.success).toEqual(true);
 	});
 });

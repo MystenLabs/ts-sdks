@@ -30,6 +30,7 @@
 		"packages/payment-kit/src/contracts",
 		"generated",
 		"vite-env.d.ts",
+		"vitest.config.*",
 		".git",
 		"packages/suins/examples",
 		"packages/deepbook-v3/examples",
@@ -51,6 +52,17 @@
 		"typescript/no-non-null-asserted-optional-chain": "off",
 		"@typescript-eslint/no-redundant-type-constituents": "off",
 		"@typescript-eslint/restrict-template-expressions": "off",
-		"@typescript-eslint/unbound-method": "off"
+		"@typescript-eslint/unbound-method": "off",
+		"import/extensions": [
+			"error",
+			"always",
+			{
+				"ignorePackages": true,
+				"js": "always",
+				"ts": "always",
+				"jsx": "always",
+				"tsx": "always"
+			}
+		]
 	}
 }
