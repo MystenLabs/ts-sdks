@@ -121,6 +121,35 @@ export interface SwapParams {
 	quoteCoin?: TransactionObjectArgument;
 }
 
+export interface SwapWithManagerParams {
+	poolKey: string;
+	balanceManagerKey: string;
+	tradeCap: string;
+	depositCap: string;
+	withdrawCap: string;
+	amount: number;
+	minOut: number;
+	baseCoin?: TransactionObjectArgument;
+	quoteCoin?: TransactionObjectArgument;
+}
+
+export interface StakeParams {
+	poolKey: string;
+	balanceManagerKey: string;
+	amount: number;
+}
+
+export interface VoteParams {
+	poolKey: string;
+	balanceManagerKey: string;
+	proposalId: string;
+}
+
+export interface FlashLoanParams {
+	poolKey: string;
+	amount: number;
+}
+
 export interface CreatePoolAdminParams {
 	baseCoinKey: string;
 	quoteCoinKey: string;
