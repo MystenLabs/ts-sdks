@@ -1,5 +1,12 @@
 # @mysten/payment-kit
 
+## 0.0.20
+
+### Patch Changes
+
+- c6d4b1b: Added `sourceCoin` transaction result chaining so a pre-computed object can be used to
+  fulfill a payment request
+
 ## 0.0.19
 
 ### Patch Changes
