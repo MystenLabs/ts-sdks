@@ -9,17 +9,6 @@ on:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Dispatch Changesets To Operations
-        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0 # pin@v3.0.0
-        with:
-          repository: MystenLabs/sui-operations
-          token: ${{ secrets.CHANGESETS_DEPLOY_DISPATCH }}
-          event-type: changesets
-          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
-
   version:
     runs-on: ubuntu-latest
     steps:
@@ -31,15 +20,19 @@ jobs:
       - name: Install Nodejs
         uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # pin@v4.0.2
         with:
-          node-version: '18'
+          node-version: '24'
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Create Release Pull Request
-        uses: changesets/action@f13b1baaa620fde937751f5d2c3572b9da32af23 # pin@v1
+      - name: Create Release Pull Request or Publish Latest Version
+        uses: changesets/action@04d574e831923498156e0b2b93152878063203a3 # pin@v1.5.3
         with:
           # Generates src/version.ts file using genVersion
           # https://github.com/changesets/action#with-version-script
           version: pnpm changeset-version
+          # Builds and publishes releases
+          # https://github.com/changesets/action?tab=readme-ov-file#with-publishing
+          publish: pnpm release
+
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

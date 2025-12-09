@@ -13,7 +13,8 @@
 		"eslint:fix": "pnpm run eslint:check --fix",
 		"lint": "pnpm run eslint:check && pnpm run prettier:check",
 		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix",
-		"build": "turbo run build"
+		"build": "turbo run build",
+		"release": "pnpm turbo run build --filter \"./packages/*\" && pnpm changeset publish"
 	},
 	"packageManager": "pnpm@10.17.0",
 	"pnpm": {
