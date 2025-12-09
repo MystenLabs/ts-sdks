@@ -12,7 +12,7 @@ packages:
   - '!packages/kiosk/test/**'
   - '!packages/deepbook/test/**'
   - '!packages/codegen/tests/move/**'
-  - '!packages/create-dapp/templates'
+  - '!packages/create-dapp/templates/*/move/**'
   - '!packages/sui/scripts'
   - '!packages/sui/transactions'
   - '!packages/sui/cryptography'

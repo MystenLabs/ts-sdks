@@ -95,6 +95,11 @@ const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
 });
+
+// Check transaction status
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Payment failed: ${result.FailedTransaction.status.error}`);
+}
 ```
 
 **On-Chain Effects:**
@@ -149,6 +154,11 @@ const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
 });
+
+// Check transaction status
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Ephemeral payment failed: ${result.FailedTransaction.status.error}`);
+}
 ```
 
 **On-Chain Effects:**
@@ -192,8 +202,8 @@ const result = await client.signAndExecuteTransaction({
 	},
 });
 
-// Extract the RegistryAdminCap from result.objectChanges
-const adminCap = result.objectChanges?.find(
+// Extract the RegistryAdminCap from result.Transaction.objectChanges
+const adminCap = result.Transaction.objectChanges?.find(
 	(change) => change.type === 'created' && change.objectType.includes('RegistryAdminCap'),
 );
 ```
@@ -550,7 +560,9 @@ const result = await client.signAndExecuteTransaction({
 	},
 });
 
-const receiptEvent = result.events?.find((event) => event.type.includes('PaymentReceipt'));
+const receiptEvent = result.Transaction.events?.find((event) =>
+	event.type.includes('PaymentReceipt'),
+);
 
 if (receiptEvent) {
 	const receipt = receiptEvent.parsedJson as PaymentReceipt;

@@ -5,10 +5,9 @@ import type { PublicKey, SignatureScheme } from '@mysten/sui/cryptography';
 import { SIGNATURE_FLAG_TO_SCHEME, Signer } from '@mysten/sui/cryptography';
 import type { DAppKit } from '../core/index.js';
 import type { Transaction } from '@mysten/sui/transactions';
-import type { SuiClientTypes } from '@mysten/sui/client';
-import { parseTransactionBcs, parseTransactionEffectsBcs } from '@mysten/sui/client';
-import { toBase64, fromBase64 } from '@mysten/sui/utils';
+import { toBase64 } from '@mysten/sui/utils';
 import { publicKeyFromSuiBytes } from '@mysten/sui/verify';
+import type { TransactionResultWithEffects } from './transaction-result.js';
 
 export class CurrentAccountSigner extends Signer {
 	#publicKeyCache = new Map<string, PublicKey>();
@@ -68,20 +67,9 @@ export class CurrentAccountSigner extends Signer {
 		transaction,
 	}: {
 		transaction: Transaction;
-	}): Promise<SuiClientTypes.TransactionResponse<{ transaction: true; effects: true }>> {
-		const { bytes, signature, digest, effects } = await this.#dAppKit.signAndExecuteTransaction({
+	}): Promise<TransactionResultWithEffects> {
+		return this.#dAppKit.signAndExecuteTransaction({
 			transaction,
 		});
-
-		return {
-			digest,
-			signatures: [signature],
-			epoch: null,
-			effects: parseTransactionEffectsBcs(fromBase64(effects)),
-			transaction: parseTransactionBcs(fromBase64(bytes)),
-			events: undefined,
-			objectTypes: undefined,
-			balanceChanges: undefined,
-		};
 	}
 }

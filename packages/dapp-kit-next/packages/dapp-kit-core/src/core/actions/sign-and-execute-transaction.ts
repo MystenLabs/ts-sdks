@@ -17,11 +17,17 @@ import { getChain } from '../../utils/networks.js';
 import { Transaction } from '@mysten/sui/transactions';
 import { tryGetAccountFeature } from '../../utils/wallets.js';
 import { bcs } from '@mysten/sui/bcs';
-import { fromBase64, toBase64 } from '@mysten/utils';
+import { fromBase64 } from '@mysten/utils';
+import {
+	buildTransactionResult,
+	type TransactionResultWithEffects,
+} from '../../utils/transaction-result.js';
 
 export type SignAndExecuteTransactionArgs = {
 	transaction: Transaction | string;
 } & Omit<SuiSignAndExecuteTransactionInput, 'account' | 'chain' | 'transaction'>;
+
+export type SignAndExecuteTransactionResult = TransactionResultWithEffects;
 
 export function signAndExecuteTransactionCreator({ $connection, $currentClient }: DAppKitStores) {
 	/**
@@ -30,7 +36,7 @@ export function signAndExecuteTransactionCreator({ $connection, $currentClient }
 	return async function signAndExecuteTransaction({
 		transaction,
 		...standardArgs
-	}: SignAndExecuteTransactionArgs) {
+	}: SignAndExecuteTransactionArgs): Promise<SignAndExecuteTransactionResult> {
 		const { account, supportedIntents } = $connection.get();
 		if (!account) {
 			throw new WalletNotConnectedError('No wallet is connected.');
@@ -58,12 +64,21 @@ export function signAndExecuteTransactionCreator({ $connection, $currentClient }
 		}) as SuiSignAndExecuteTransactionFeature[typeof SuiSignAndExecuteTransaction];
 
 		if (signAndExecuteTransactionFeature) {
-			return await signAndExecuteTransactionFeature.signAndExecuteTransaction({
+			const result = await signAndExecuteTransactionFeature.signAndExecuteTransaction({
 				...standardArgs,
 				account: underlyingAccount,
 				transaction: transactionWrapper,
 				chain,
 			});
+
+			const transactionBytes = fromBase64(result.bytes);
+			const effectsBytes = fromBase64(result.effects);
+			return buildTransactionResult(
+				result.digest,
+				result.signature,
+				transactionBytes,
+				effectsBytes,
+			);
 		}
 
 		const signAndExecuteTransactionBlockFeature = tryGetAccountFeature({
@@ -92,14 +107,9 @@ export function signAndExecuteTransactionCreator({ $connection, $currentClient }
 				},
 			] = bcs.SenderSignedData.parse(fromBase64(rawTransaction!));
 
-			const bytes = bcs.TransactionData.serialize(bcsTransaction).toBase64();
-
-			return {
-				digest,
-				signature,
-				bytes,
-				effects: toBase64(new Uint8Array(rawEffects!)),
-			};
+			const transactionBytes = bcs.TransactionData.serialize(bcsTransaction).toBytes();
+			const effectsBytes = new Uint8Array(rawEffects!);
+			return buildTransactionResult(digest, signature, transactionBytes, effectsBytes);
 		}
 
 		throw new FeatureNotSupportedError(
