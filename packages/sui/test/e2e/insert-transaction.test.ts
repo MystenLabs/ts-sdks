@@ -102,7 +102,7 @@ describe('TransactionData.insertTransaction', () => {
 		});
 
 		// Verify execution succeeded
-		expect(result.effects?.status.success).toBe(true);
+		expect(result.Transaction?.effects?.status.success).toBe(true);
 	});
 
 	it('should execute transaction with coin splits merged', async () => {
@@ -162,7 +162,7 @@ describe('TransactionData.insertTransaction', () => {
 		});
 
 		// Verify success
-		expect(result.effects?.status.success).toBe(true);
+		expect(result.Transaction?.effects?.status.success).toBe(true);
 	});
 
 	it('should deduplicate same coin object used in both transactions', async () => {
@@ -222,7 +222,7 @@ describe('TransactionData.insertTransaction', () => {
 		});
 
 		// Verify success
-		expect(result.effects?.status.success).toBe(true);
+		expect(result.Transaction?.effects?.status.success).toBe(true);
 	});
 
 	it('should upgrade shared object from immutable to mutable when merging', async () => {
@@ -288,7 +288,7 @@ describe('TransactionData.insertTransaction', () => {
 		});
 
 		// Verify success - proves the mutability upgrade worked
-		expect(result.effects?.status.success).toBe(true);
+		expect(result.Transaction?.effects?.status.success).toBe(true);
 	});
 
 	it('should execute transaction with replaceCommandWithTransaction using NestedResult resultIndex', async () => {
@@ -352,7 +352,7 @@ describe('TransactionData.insertTransaction', () => {
 		});
 
 		// Verify success
-		expect(result.effects?.status.success).toBe(true);
+		expect(result.Transaction?.effects?.status.success).toBe(true);
 	});
 
 	it('should execute transaction with replaceCommandWithTransaction using NestedResult[0,0] mapped to Result', async () => {
@@ -414,6 +414,6 @@ describe('TransactionData.insertTransaction', () => {
 		});
 
 		// Verify success
-		expect(result2.effects?.status.success).toBe(true);
+		expect(result2.Transaction?.effects?.status.success).toBe(true);
 	});
 });
