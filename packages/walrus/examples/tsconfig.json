@@ -6,6 +6,8 @@
 		"emitDeclarationOnly": false,
 		"rootDir": "..",
 		"types": ["node", "react"],
-		"jsx": "react-jsx"
+		"jsx": "react-jsx",
+		"module": "preserve",
+		"moduleResolution": "bundler"
 	}
 }

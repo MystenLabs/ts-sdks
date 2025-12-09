@@ -84,7 +84,7 @@ describe('AutoApprovalManager', () => {
 		const { signature } = await keypair.signTransaction(analysis.result.bytes);
 
 		try {
-			var { transaction } = await client.core.executeTransaction({
+			var result = await client.core.executeTransaction({
 				transaction: analysis.result?.bytes,
 				signatures: [signature],
 				include: { balanceChanges: true },
@@ -96,7 +96,7 @@ describe('AutoApprovalManager', () => {
 		}
 
 		// update state with real effects
-		manager.applyTransactionEffects(analysis, transaction);
+		manager.applyTransactionEffects(analysis, result.Transaction!);
 
 		// get state, store in local storage, etc.
 		const state = manager.export();
