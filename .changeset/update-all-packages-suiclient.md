@@ -1,7 +1,6 @@
 ---
 '@mysten/dapp-kit': minor
 '@mysten/kiosk': minor
-'@mysten/deepbook': minor
 '@mysten/deepbook-v3': minor
 '@mysten/suins': minor
 '@mysten/walrus': minor
