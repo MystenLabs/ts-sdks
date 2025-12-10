@@ -33,6 +33,13 @@
 		"lint": "pnpm run eslint:check && pnpm run prettier:check",
 		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
 	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
+	},
+	"bugs": {
+		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
+	},
 	"devDependencies": {
 		"@types/react": "^19.2.7",
 		"react": "^19.2.1",

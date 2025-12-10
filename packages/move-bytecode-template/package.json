@@ -23,6 +23,13 @@
 			"require": "./web/move_bytecode_template_bg.wasm"
 		}
 	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
+	},
+	"bugs": {
+		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
+	},
 	"scripts": {
 		"build:wasm": "pnpm build:nodejs && pnpm build:web",
 		"build:nodejs": "wasm-pack build --target nodejs --release --out-dir nodejs --no-pack && rm nodejs/.gitignore",

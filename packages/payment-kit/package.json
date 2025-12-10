@@ -19,6 +19,13 @@
 	"files": [
 		"dist"
 	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
+	},
+	"bugs": {
+		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
+	},
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "build-package",

@@ -27,6 +27,10 @@
 		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix",
 		"test": "vitest run"
 	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
+	},
 	"bugs": {
 		"url": "https://github.com/MystenLabs/mvr/issues/new"
 	},

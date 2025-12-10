@@ -55,7 +55,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/mystenlabs/suins-contracts.git"
+		"url": "git+https://github.com/mystenlabs/ts-sdks.git"
 	},
 	"bugs": {
 		"url": "https://github.com/mystenlabs/suins-contracts/issues"
