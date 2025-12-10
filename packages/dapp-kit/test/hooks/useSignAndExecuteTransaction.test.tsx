@@ -216,7 +216,7 @@ describe('useSignAndExecuteTransaction', () => {
 				dependencies: [],
 				lamportVersion: 1,
 				changedObjects: [],
-				unchangedSharedObjects: [],
+				unchangedConsensusObjects: [],
 				auxDataDigest: fakeDigest,
 			},
 		}).toBase64();

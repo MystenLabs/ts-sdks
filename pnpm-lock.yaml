@@ -615,40 +615,6 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/deepbook:
-    dependencies:
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
-    devDependencies:
-      '@mysten/build-scripts':
-        specifier: workspace:*
-        version: link:../build-scripts
-      '@types/node':
-        specifier: ^24.10.1
-        version: 24.10.1
-      tmp:
-        specifier: ^0.2.5
-        version: 0.2.5
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@swc/core@1.15.3)(@types/node@24.10.1)(typescript@5.9.3)
-      ts-retry-promise:
-        specifier: ^0.8.1
-        version: 0.8.1
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vite:
-        specifier: ^7.2.6
-        version: 7.2.6(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.1)
-      vitest:
-        specifier: ^4.0.15
-        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.2.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(lightningcss@1.30.2)(msw@2.12.3(@types/node@24.10.1)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.1)
-      wait-on:
-        specifier: ^9.0.3
-        version: 9.0.3
-
   packages/deepbook-v3:
     dependencies:
       '@mysten/bcs':
@@ -715,9 +681,6 @@ importers:
       '@mysten/dapp-kit-react':
         specifier: workspace:*
         version: link:../dapp-kit-next/packages/dapp-kit-react
-      '@mysten/deepbook':
-        specifier: workspace:*
-        version: link:../deepbook
       '@mysten/deepbook-v3':
         specifier: workspace:*
         version: link:../deepbook-v3

@@ -59,9 +59,9 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		return { object: result };
 	}
 
-	abstract listCoins<Include extends SuiClientTypes.ObjectInclude = object>(
-		options: SuiClientTypes.ListCoinsOptions<Include>,
-	): Promise<SuiClientTypes.ListCoinsResponse<Include>>;
+	abstract listCoins(
+		options: SuiClientTypes.ListCoinsOptions,
+	): Promise<SuiClientTypes.ListCoinsResponse>;
 
 	abstract listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = object>(
 		options: SuiClientTypes.ListOwnedObjectsOptions<Include>,
