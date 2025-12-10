@@ -9,7 +9,7 @@ import { is, parse } from 'valibot';
 import type { SignatureWithBytes, Signer } from '../cryptography/index.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 import type { TransactionArgument } from './Commands.js';
-import { Commands } from './Commands.js';
+import { TransactionCommands } from './Commands.js';
 import type { CallArg, Command, Argument, ObjectRef } from './data/internal.js';
 import {
 	ArgumentSchema,
@@ -551,7 +551,7 @@ export class Transaction {
 	splitCoins<
 		const Amounts extends (TransactionArgument | SerializedBcs<any> | number | string | bigint)[],
 	>(coin: TransactionObjectArgument | string, amounts: Amounts) {
-		const command = Commands.SplitCoins(
+		const command = TransactionCommands.SplitCoins(
 			typeof coin === 'string' ? this.object(coin) : this.#resolveArgument(coin),
 			amounts.map((amount) =>
 				typeof amount === 'number' || typeof amount === 'bigint' || typeof amount === 'string'
@@ -572,7 +572,7 @@ export class Transaction {
 		sources: (TransactionObjectArgument | string)[],
 	) {
 		return this.add(
-			Commands.MergeCoins(
+			TransactionCommands.MergeCoins(
 				this.object(destination),
 				sources.map((src) => this.object(src)),
 			),
@@ -580,7 +580,7 @@ export class Transaction {
 	}
 	publish({ modules, dependencies }: { modules: number[][] | string[]; dependencies: string[] }) {
 		return this.add(
-			Commands.Publish({
+			TransactionCommands.Publish({
 				modules,
 				dependencies,
 			}),
@@ -598,7 +598,7 @@ export class Transaction {
 		ticket: TransactionObjectArgument | string;
 	}) {
 		return this.add(
-			Commands.Upgrade({
+			TransactionCommands.Upgrade({
 				modules,
 				dependencies,
 				package: packageId,
@@ -623,10 +623,10 @@ export class Transaction {
 				typeArguments?: string[];
 		  }) {
 		return this.add(
-			Commands.MoveCall({
+			TransactionCommands.MoveCall({
 				...input,
 				arguments: args?.map((arg) => this.#normalizeTransactionArgument(arg)),
-			} as Parameters<typeof Commands.MoveCall>[0]),
+			} as Parameters<typeof TransactionCommands.MoveCall>[0]),
 		);
 	}
 	transferObjects(
@@ -634,7 +634,7 @@ export class Transaction {
 		address: TransactionArgument | SerializedBcs<any> | string,
 	) {
 		return this.add(
-			Commands.TransferObjects(
+			TransactionCommands.TransferObjects(
 				objects.map((obj) => this.object(obj)),
 				typeof address === 'string'
 					? this.pure.address(address)
@@ -650,7 +650,7 @@ export class Transaction {
 		type?: string;
 	}) {
 		return this.add(
-			Commands.MakeMoveVec({
+			TransactionCommands.MakeMoveVec({
 				type,
 				elements: elements.map((obj) => this.object(obj)),
 			}),
