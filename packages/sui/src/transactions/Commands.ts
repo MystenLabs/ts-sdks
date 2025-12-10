@@ -31,7 +31,7 @@ type TransactionShape<T extends Command['$kind']> = { $kind: T } & {
 /**
  * Simple helpers used to construct transactions:
  */
-export const Commands = {
+export const TransactionCommands = {
 	MoveCall(
 		input:
 			| {
