@@ -21,7 +21,7 @@ export interface Coin {
 	type: string;
 	scalar: number;
 	feed?: string;
-	metadataId?: string;
+	currencyId?: string;
 	priceInfoObjectId?: string;
 }
 

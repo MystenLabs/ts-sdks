@@ -284,9 +284,9 @@ export class MarginAdminContract {
 				hexToBytes(coin['feed']!.startsWith('0x') ? coin.feed!.slice(2) : coin['feed']),
 			);
 			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::oracle::new_coin_type_data`,
+				target: `${this.#config.MARGIN_PACKAGE_ID}::oracle::new_coin_type_data_from_currency`,
 				arguments: [
-					tx.object(coin.metadataId!),
+					tx.object(coin.currencyId!),
 					tx.pure.vector('u8', priceFeedInput),
 					tx.pure.u64(maxConfBps),
 					tx.pure.u64(maxEwmaDifferenceBps),

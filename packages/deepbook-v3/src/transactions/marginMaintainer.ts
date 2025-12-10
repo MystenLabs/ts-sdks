@@ -91,7 +91,7 @@ export class MarginMaintainerContract {
 					tx.pure.u64(supplyCap * coin.scalar),
 					tx.pure.u64(maxUtilizationRate * FLOAT_SCALAR),
 					tx.pure.u64(referralSpread * FLOAT_SCALAR),
-					tx.pure.u64(minBorrow * coin.scalar),
+					tx.pure.u64(Math.round(minBorrow * coin.scalar)),
 				],
 			});
 		};

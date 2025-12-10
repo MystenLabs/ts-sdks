@@ -18,7 +18,7 @@ export const testnetPackageIds = {
 	DEEPBOOK_PACKAGE_ID: '0x926c446869fa175ec3b0dbf6c4f14604d86a415c1fccd8c8f823cfc46a29baed',
 	REGISTRY_ID: '0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1',
 	DEEP_TREASURY_ID: '0x69fffdae0075f8f71f4fa793549c11079266910e8905169845af1f5d00e09dcb',
-	MARGIN_PACKAGE_ID: '0xb8620c24c9ea1a4a41e79613d2b3d1d93648d1bb6f6b789a7c8f261c94110e4b',
+	MARGIN_PACKAGE_ID: '0xf978cf2b601c24e40ef82b6e51512b448696b44cb014c0a1162422aa8b9cb811',
 	MARGIN_REGISTRY_ID: '0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75',
 } satisfies DeepbookPackageIds;
 
@@ -36,7 +36,7 @@ export const testnetCoins: CoinMap = {
 		type: `0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8::deep::DEEP`,
 		scalar: 1000000,
 		feed: '0xe18bf5fa857d5ca8af1f6a458b26e853ecdc78fc2f3dc17f4821374ad94d8327',
-		metadataId: '0x2aed92a0dd081a6b14fa8001446803f589a004763fd7d70f33c4ec44fde4eab8',
+		currencyId: '0xbf1b77e244f649c736a44898585cc8ac939fbb0bbdf1d8d2a183978cc312e613',
 		priceInfoObjectId: '0xa98cbb7a97b4ce306eafdbc52a602578dea25165e6578fe6603caeb002fe02aa',
 	},
 	SUI: {
@@ -44,7 +44,7 @@ export const testnetCoins: CoinMap = {
 		type: `0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI`,
 		scalar: 1000000000,
 		feed: '0x50c67b3fd225db8912a424dd4baed60ffdde625ed2feaaf283724f9608fea266',
-		metadataId: '0x587c29de216efd4219573e08a1f6964d4fa7cb714518c2c8a0f29abfa264327d',
+		currencyId: '',
 		priceInfoObjectId: '0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0',
 	},
 	DBUSDC: {
@@ -52,8 +52,16 @@ export const testnetCoins: CoinMap = {
 		type: `0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC`,
 		scalar: 1000000,
 		feed: '0x41f3625971ca2ed2263e78573fe5ce23e13d2558ed3f2e47ab0f84fb9e7ae722',
-		metadataId: '0xa68a066e8a9cf7217722a150bacb993c424e7ad42d50d204b4e482ba5aeb8e00',
+		currencyId: '0x509db0f9283c9ee4fdc5b99028a439d3639f49e9709e3d7a6de14b3bfdb0c784',
 		priceInfoObjectId: '0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81',
+	},
+	DBTC: {
+		address: `0x6502dae813dbe5e42643c119a6450a518481f03063febc7e20238e43b6ea9e86`,
+		type: `0x6502dae813dbe5e42643c119a6450a518481f03063febc7e20238e43b6ea9e86::dbtc::DBTC`,
+		scalar: 100000000,
+		feed: '0xf9c0172ba10dfa4d19088d94f5bf61d3b54d5bd7483a322a982e1373ee8ea31b',
+		currencyId: '0x3ef2afa2126704bf721b9c8495d94288f6bd090fc454fe3e1613eb765a8a348f',
+		priceInfoObjectId: '',
 	},
 	DBUSDT: {
 		address: `0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7`,
@@ -78,14 +86,14 @@ export const mainnetCoins: CoinMap = {
 		type: `0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI`,
 		scalar: 1000000000,
 		feed: '0x23d7315113f5b1d3ba7a83604c44b94d79f4fd69af77f804fc7f920a6dc65744',
-		metadataId: '0x9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3',
+		currencyId: '',
 	},
 	USDC: {
 		address: `0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7`,
 		type: `0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC`,
 		scalar: 1000000,
 		feed: '0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a',
-		metadataId: '0x69b7a7c3c200439c1b5f3b19d7d495d5966d5f08de66c69276152f8db3992ec6',
+		currencyId: '',
 	},
 	WUSDC: {
 		address: `0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf`,
@@ -196,6 +204,11 @@ export const testnetPools: PoolMap = {
 		baseCoin: 'WAL',
 		quoteCoin: 'SUI',
 	},
+	DBTC_DBUSDC: {
+		address: `0x0dce0aa771074eb83d1f4a29d48be8248d4d2190976a5241f66b43ec18fa34de`,
+		baseCoin: 'DBTC',
+		quoteCoin: 'DBUSDC',
+	},
 };
 
 export const mainnetPools: PoolMap = {
@@ -303,6 +316,10 @@ export const testnetMarginPools = {
 	DEEP: {
 		address: '0x610640613f21d9e688d6f8103d17df22315c32e0c80590ce64951a1991378b55',
 		type: '0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8::deep::DEEP',
+	},
+	DBTC: {
+		address: '0xf3440b4aafcc8b12fc4b242e9590c52873b8238a0d0e52fbf9dae61d2970796a',
+		type: '0x6502dae813dbe5e42643c119a6450a518481f03063febc7e20238e43b6ea9e86::dbtc::DBTC',
 	},
 };
 
