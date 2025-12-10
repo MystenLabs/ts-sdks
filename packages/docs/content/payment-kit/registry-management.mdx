@@ -359,7 +359,9 @@ const record = await client.paymentKit.getPaymentRecord({
 
 if (record) {
 	const recordEpoch = parseInt(record.epochAtTimeOfRecord);
-	const currentEpoch = await client.getLatestSuiSystemState().then((state) => Number(state.epoch));
+	const currentEpoch = await client.core
+		.getLatestSuiSystemState()
+		.then((state) => Number(state.epoch));
 
 	const expirationDuration = 30; // Your registry's setting
 	const canDelete = currentEpoch >= recordEpoch + expirationDuration;
@@ -402,13 +404,13 @@ const record = await client.paymentKit.getPaymentRecord({
 Here's a complete workflow for setting up a custom registry:
 
 ```ts
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { paymentKit } from '@mysten/payment-kit';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
 	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 }).$extend(paymentKit());
 
 const keypair = Ed25519Keypair.generate();
@@ -429,8 +431,13 @@ const createResult = await client.signAndExecuteTransaction({
 	},
 });
 
+// Check transaction status
+if (createResult.$kind === 'FailedTransaction') {
+	throw new Error(`Registry creation failed: ${createResult.FailedTransaction.status.error}`);
+}
+
 // Step 2: Extract the admin cap
-const adminCapObject = createResult.objectChanges?.find(
+const adminCapObject = createResult.Transaction.objectChanges?.find(
 	(change) => change.type === 'created' && change.objectType.includes('RegistryAdminCap'),
 );
 
@@ -461,10 +468,15 @@ configTx.add(
 	}),
 );
 
-await client.signAndExecuteTransaction({
+const configResult = await client.signAndExecuteTransaction({
 	transaction: configTx,
 	signer: keypair,
 });
+
+// Check transaction status
+if (configResult.$kind === 'FailedTransaction') {
+	throw new Error(`Configuration failed: ${configResult.FailedTransaction.status.error}`);
+}
 
 console.log('Registry configured!');
 console.log('Ready to process payments');
@@ -486,7 +498,12 @@ const paymentResult = await client.signAndExecuteTransaction({
 	signer: keypair,
 });
 
-console.log('First payment processed:', paymentResult.digest);
+// Check transaction status
+if (paymentResult.$kind === 'FailedTransaction') {
+	throw new Error(`Payment failed: ${paymentResult.FailedTransaction.status.error}`);
+}
+
+console.log('First payment processed:', paymentResult.Transaction.digest);
 ```
 
 ## Best Practices

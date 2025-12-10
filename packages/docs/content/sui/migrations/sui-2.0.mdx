@@ -239,3 +239,92 @@ Replace all versioned schema imports with the new unified schema export:
 - import { graphql } from '@mysten/sui/graphql/schemas/2024.1';
 + import { graphql } from '@mysten/sui/graphql/schema';
 ```
+
+## Named Packages Plugin Removed
+
+The `namedPackagesPlugin` and global plugin registry APIs have been removed. MVR (Move Registry)
+resolution is now built directly into the core client, eliminating the need for the plugin-based
+approach.
+
+**Breaking changes:**
+
+The following have been removed:
+
+- `namedPackagesPlugin` function
+- `NamedPackagesPluginOptions` type (from `@mysten/sui/transactions`)
+- `Transaction.registerGlobalSerializationPlugin()` static method
+- `Transaction.unregisterGlobalSerializationPlugin()` static method
+- `Transaction.registerGlobalBuildPlugin()` static method
+- `Transaction.unregisterGlobalBuildPlugin()` static method
+
+**What's preserved:**
+
+- Instance-level plugin methods (`addSerializationPlugin`, `addBuildPlugin`, `addIntentResolver`)
+  remain available for other use cases like object caching
+- `NamedPackagesOverrides` type is now exported from `@mysten/sui/client`
+
+**How it works now:**
+
+MVR name resolution happens automatically during transaction building. When you build a transaction,
+the SDK will detect any `.move` names (like `@org/package::module::Type`) and resolve them using the
+client's MVR resolver before building the transaction bytes. No manual plugin registration is
+required.
+
+**Migration:**
+
+If you were using the global named packages plugin:
+
+```diff
+- import { Transaction, namedPackagesPlugin } from '@mysten/sui/transactions';
+-
+- // Register the plugin globally
+- Transaction.registerGlobalSerializationPlugin(
+-   'namedPackages',
+-   namedPackagesPlugin({
+-     url: 'https://mainnet.mvr.mystenlabs.com',
+-     overrides: myOverrides,
+-   })
+- );
+
++ import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
++ import type { NamedPackagesOverrides } from '@mysten/sui/client';
++
++ // Configure MVR overrides when creating the client
++ const client = new SuiJsonRpcClient({
++   url: 'https://fullnode.mainnet.sui.io:443',
++   network: 'mainnet',
++   mvr: {
++     overrides: myOverrides,
++   },
++ });
+```
+
+If you were using the plugin with `@mysten/mvr-static`:
+
+```diff
+- import { Transaction, namedPackagesPlugin } from '@mysten/sui/transactions';
++ import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
++ import type { NamedPackagesOverrides } from '@mysten/sui/client';
+  import { getMvrCache } from './mvr.ts';
+
+- // Register plugin globally
+- Transaction.registerGlobalSerializationPlugin(
+-   'namedPackages',
+-   namedPackagesPlugin({
+-     url: 'https://mainnet.mvr.mystenlabs.com',
+-     overrides: getMvrCache('mainnet'),
+-   })
+- );
+
++ // Configure client with MVR overrides
++ const client = new SuiJsonRpcClient({
++   url: 'https://fullnode.mainnet.sui.io:443',
++   network: 'mainnet',
++   mvr: {
++     overrides: getMvrCache('mainnet'),
++   },
++ });
+```
+
+The client will now automatically resolve `.move` names in transactions using the configured
+overrides or by querying the MVR API if no override is provided.
