@@ -6,7 +6,7 @@ import { bigint, object, parse, string } from 'valibot';
 
 import { bcs } from '../../bcs/index.js';
 import { normalizeStructTag } from '../../utils/sui-types.js';
-import { Commands } from '../Commands.js';
+import { TransactionCommands } from '../Commands.js';
 import type { Argument } from '../data/internal.js';
 import { Inputs } from '../Inputs.js';
 import type { BuildTransactionOptions } from '../resolve.js';
@@ -37,7 +37,7 @@ export function coinWithBalance({
 		const coinType = type === 'gas' ? type : normalizeStructTag(type);
 
 		coinResult = tx.add(
-			Commands.Intent({
+			TransactionCommands.Intent({
 				name: COIN_WITH_BALANCE,
 				inputs: {},
 				data: {
@@ -131,7 +131,7 @@ async function resolveCoinBalance(
 		if (balance === 0n && type !== 'gas') {
 			transactionData.replaceCommand(
 				index,
-				Commands.MoveCall({ target: '0x2::coin::zero', typeArguments: [type] }),
+				TransactionCommands.MoveCall({ target: '0x2::coin::zero', typeArguments: [type] }),
 			);
 			continue;
 		}
@@ -151,14 +151,14 @@ async function resolveCoinBalance(
 			);
 
 			if (rest.length > 0) {
-				commands.push(Commands.MergeCoins(first, rest));
+				commands.push(TransactionCommands.MergeCoins(first, rest));
 			}
 
 			mergedCoins.set(type, first);
 		}
 
 		commands.push(
-			Commands.SplitCoins(mergedCoins.get(type)!, [
+			TransactionCommands.SplitCoins(mergedCoins.get(type)!, [
 				transactionData.addInput('pure', Inputs.Pure(bcs.u64().serialize(balance))),
 			]),
 		);
