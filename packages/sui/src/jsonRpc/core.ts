@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { fromBase64 } from '@mysten/bcs';
+import { fromBase64, type InferBcsInput } from '@mysten/bcs';
 
 import { bcs, TypeTagSerializer } from '../bcs/index.js';
 import type {
@@ -19,6 +19,7 @@ import { jsonRpcClientResolveTransactionPlugin } from './json-rpc-resolver.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
 import { normalizeSuiAddress, normalizeStructTag } from '../utils/sui-types.js';
+import { SUI_FRAMEWORK_ADDRESS, SUI_SYSTEM_ADDRESS } from '../utils/constants.js';
 import { CoreClient } from '../client/core.js';
 import type { SuiClientTypes } from '../client/types.js';
 import { ObjectError } from '../client/errors.js';
@@ -359,15 +360,28 @@ function serializeObjectToBcs(object: SuiObjectData): Uint8Array | undefined {
 	}
 
 	try {
-		const typeStr = object.bcs.type;
-		let moveObjectType: any;
+		// Normalize the type string to ensure consistent address formatting (0x2 vs 0x00...02)
+		const typeStr = normalizeStructTag(object.bcs.type);
+		let moveObjectType: InferBcsInput<typeof bcs.MoveObjectType>;
 
-		if (typeStr === '0x2::coin::Coin<0x2::sui::SUI>') {
+		// Normalize constants for comparison
+		const normalizedSuiFramework = normalizeSuiAddress(SUI_FRAMEWORK_ADDRESS);
+		const gasCoinType = normalizeStructTag(
+			`${SUI_FRAMEWORK_ADDRESS}::coin::Coin<${SUI_FRAMEWORK_ADDRESS}::sui::SUI>`,
+		);
+		const stakedSuiType = normalizeStructTag(`${SUI_SYSTEM_ADDRESS}::staking_pool::StakedSui`);
+		const coinPrefix = `${normalizedSuiFramework}::coin::Coin<`;
+
+		if (typeStr === gasCoinType) {
 			moveObjectType = { GasCoin: null };
-		} else if (typeStr === '0x3::staking_pool::StakedSui') {
+		} else if (typeStr === stakedSuiType) {
 			moveObjectType = { StakedSui: null };
-		} else if (typeStr.startsWith('0x2::coin::Coin<')) {
-			const innerTypeMatch = typeStr.match(/0x2::coin::Coin<(.+)>$/);
+		} else if (typeStr.startsWith(coinPrefix)) {
+			const innerTypeMatch = typeStr.match(
+				new RegExp(
+					`${normalizedSuiFramework.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}::coin::Coin<(.+)>$`,
+				),
+			);
 			if (innerTypeMatch) {
 				const innerTypeTag = TypeTagSerializer.parseFromStr(innerTypeMatch[1], true);
 				moveObjectType = { Coin: innerTypeTag };
