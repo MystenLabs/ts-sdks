@@ -7,7 +7,7 @@ export { normalizedTypeToMoveTypeSignature, getPureBcsSchema } from './serialize
 
 export { Inputs } from './Inputs.js';
 export {
-	Commands,
+	TransactionCommands,
 	type TransactionArgument,
 	type TransactionInput,
 	UpgradePolicy,

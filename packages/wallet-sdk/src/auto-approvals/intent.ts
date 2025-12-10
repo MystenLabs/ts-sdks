@@ -3,7 +3,7 @@
 
 import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
 import type { TransactionDataBuilder } from '@mysten/sui/transactions';
-import { Commands } from '@mysten/sui/transactions';
+import { TransactionCommands } from '@mysten/sui/transactions';
 
 export const OPERATION_INTENT = '@mysten/wallet-kit/AutoApprovalOperation';
 
@@ -15,7 +15,7 @@ export function operationType(operationType: string) {
 		});
 
 		const result = tx.add(
-			Commands.Intent({
+			TransactionCommands.Intent({
 				name: OPERATION_INTENT,
 				inputs: {},
 				data: { operationType },
