@@ -4,7 +4,7 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { Transaction, TransactionResult } from '../../src/transactions';
-import { Commands } from '../../src/transactions/Commands';
+import { TransactionCommands } from '../../src/transactions/Commands';
 import type { TransactionDataBuilder } from '../../src/transactions/TransactionData';
 import type { BuildTransactionOptions } from '../../src/transactions/resolve';
 import { normalizeSuiObjectId } from '../../src/utils';
@@ -82,7 +82,7 @@ describe('TransactionData.insertTransaction', () => {
 
 		// Add placeholder intent
 		mainTx.add(
-			Commands.Intent({
+			TransactionCommands.Intent({
 				name: MERGE_INTENT,
 				inputs: {},
 				data: { transactionToMerge: replacementTxData },
@@ -148,7 +148,7 @@ describe('TransactionData.insertTransaction', () => {
 
 		// Add placeholder
 		mainTx.add(
-			Commands.Intent({
+			TransactionCommands.Intent({
 				name: MERGE_INTENT,
 				inputs: {},
 				data: { transactionToMerge: replacementTx.getData() },
@@ -208,7 +208,7 @@ describe('TransactionData.insertTransaction', () => {
 
 		// Add placeholder
 		mainTx.add(
-			Commands.Intent({
+			TransactionCommands.Intent({
 				name: MERGE_INTENT,
 				inputs: {},
 				data: { transactionToMerge: replacementTx.getData() },
@@ -268,7 +268,7 @@ describe('TransactionData.insertTransaction', () => {
 
 		// Add placeholder
 		mainTx.add(
-			Commands.Intent({
+			TransactionCommands.Intent({
 				name: MERGE_INTENT,
 				inputs: {},
 				data: { transactionToMerge: replacementTx.getData() },
@@ -330,7 +330,7 @@ describe('TransactionData.insertTransaction', () => {
 
 		// Add placeholder intent that will be replaced, mapping to NestedResult[0, 1] (coin2)
 		const [placeholder] = mainTx.add(
-			Commands.Intent({
+			TransactionCommands.Intent({
 				name: PLACEHOLDER,
 				inputs: {},
 				data: {
@@ -392,7 +392,7 @@ describe('TransactionData.insertTransaction', () => {
 
 		// Add placeholder intent, mapping to NestedResult[0, 0] (the single split coin)
 		const [placeholder] = mainTx.add(
-			Commands.Intent({
+			TransactionCommands.Intent({
 				name: PLACEHOLDER,
 				inputs: {},
 				data: {
