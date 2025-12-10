@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.23.1
+
+### Patch Changes
+
+- 0ba3834: BTC setup for testnet
+
 ## 0.23.0
 
 ### Minor Changes
