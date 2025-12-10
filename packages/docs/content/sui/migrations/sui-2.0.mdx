@@ -147,6 +147,24 @@ const executeResult = await client.executeTransactionBlock({
 
 Remove the `sui:reportTransactionEffects` feature implementation from your wallet.
 
+## Commands renamed to TransactionCommands
+
+The `Commands` type exported from `@mysten/sui/transactions` has been renamed to
+`TransactionCommands` because `Commands` is a reserved keyword in React Native.
+
+**Migration:**
+
+```diff
+- import { Commands } from '@mysten/sui/transactions';
++ import { TransactionCommands } from '@mysten/sui/transactions';
+
+- const coin = tx.add(Commands.SplitCoins(tx.gas, [tx.pure.u64(100)]));
++ const coin = tx.add(TransactionCommands.SplitCoins(tx.gas, [tx.pure.u64(100)]));
+
+- tx.add(Commands.TransferObjects([coin], recipient));
++ tx.add(TransactionCommands.TransferObjects([coin], recipient));
+```
+
 ## Experimental Client API Stabilization
 
 The experimental client API has been stabilized and moved from `@mysten/sui/experimental` to
