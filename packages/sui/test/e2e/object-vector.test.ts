@@ -22,7 +22,7 @@ describe('Test Move call with a vector of objects as input', () => {
 			transaction: tx,
 		});
 
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.Transaction!.digest });
+		await toolbox.grpcClient.core.waitForTransaction({ digest: result.Transaction!.digest });
 		expect(result.Transaction?.effects?.status.success).toEqual(true);
 		return result.Transaction?.effects?.changedObjects.filter((o) => o.idOperation === 'Created')[0]
 			?.objectId!;
@@ -42,7 +42,7 @@ describe('Test Move call with a vector of objects as input', () => {
 			client: toolbox.grpcClient,
 			transaction: tx,
 		});
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.Transaction!.digest });
+		await toolbox.grpcClient.core.waitForTransaction({ digest: result.Transaction!.digest });
 		expect(result.Transaction?.effects?.status.success).toEqual(true);
 	}
 

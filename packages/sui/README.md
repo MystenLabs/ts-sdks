@@ -4,10 +4,9 @@ For more complete docs, visit the [Sui TypeScript SDK docs](https://sdk.mystenla
 
 # Sui TypeScript SDK
 
-This is the Sui TypeScript SDK built on the Sui
-[JSON RPC API](https://github.com/MystenLabs/sui/blob/main/docs/content/references/sui-api.mdx). It
-provides utility classes and functions for applications to sign transactions and interact with the
-Sui network.
+This is the Sui TypeScript SDK providing utility classes and functions for applications to sign
+transactions and interact with the Sui network. It supports multiple communication protocols
+including gRPC (recommended), GraphQL, and JSON RPC (deprecated).
 
 ## Building Locally
 
@@ -73,20 +72,25 @@ VITE_FAUCET_URL='https://faucet.devnet.sui.io:443/v2/gas' VITE_FULLNODE_URL='htt
 
 ## Connecting to Sui Network
 
-The `SuiJsonRpcClient` class provides a connection to the JSON-RPC Server and should be used for all
-read-only operations. The default URLs to connect with the RPC server are:
+The `SuiGrpcClient` class provides a connection to the Sui network via gRPC and is the recommended
+client for all operations. The default URLs to connect with the gRPC server are:
 
 - local: http://127.0.0.1:9000
-- Devnet: https://fullnode.devnet.sui.io
+- Devnet: https://fullnode.devnet.sui.io:443
+- Testnet: https://fullnode.testnet.sui.io:443
+- Mainnet: https://fullnode.mainnet.sui.io:443
 
 ```typescript
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 // create a client connected to devnet
-const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('devnet'), network: 'devnet' });
+const client = new SuiGrpcClient({
+	network: 'devnet',
+	baseUrl: 'https://fullnode.devnet.sui.io:443',
+});
 
-// get coins owned by an address
-await client.getCoins({
+// get coins owned by an address using the Core API
+await client.core.getCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
 ```
@@ -96,32 +100,33 @@ local network with a local validator, a fullnode, and a faucet server. Refer to
 [this guide](https://docs.sui.io/build/sui-local-network) for more information.
 
 ```typescript
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-// create a client connected to devnet
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('localnet'),
+// create a client connected to localnet
+const client = new SuiGrpcClient({
 	network: 'localnet',
+	baseUrl: 'http://127.0.0.1:9000',
 });
 
-// get coins owned by an address
-await client.getCoins({
+// get coins owned by an address using the Core API
+await client.core.getCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
 ```
 
-You can also construct your own SuiJsonRpcClient connections, with the URL for your own fullnode
+You can also construct your own SuiGrpcClient connections with the URL for your own fullnode:
 
 ```typescript
-import { getJsonRpcSuiJsonRpcClientrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-// create a client connected to devnet
-const client = new SuiJsonRpcClient({
-	url: 'https://fullnode.devnet.sui.io',
+// create a client connected to your own fullnode
+const client = new SuiGrpcClient({
+	network: 'devnet',
+	baseUrl: 'https://your-fullnode.example.com:443',
 });
 
-// get coins owned by an address
-await client.getCoins({
+// get coins owned by an address using the Core API
+await client.core.getCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
 ```
@@ -145,17 +150,18 @@ await requestSuiFromFaucetV2({
 For a primer for building transactions, refer to
 [this guide](https://docs.sui.io/build/prog-trans-ts-sdk).
 
-### Transfer ObjectSuiJsonRpcClient
+### Transfer Object
 
 ```typescript
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
-SuiJsonRpcClient;
+
 // Generate a new Ed25519 Keypair
 const keypair = new Ed25519Keypair();
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
 const tx = new Transaction();
@@ -172,17 +178,18 @@ console.log({ result });
 
 ### Transfer Sui
 
-To transfer `1000` MIST to anothSuiJsonRpcClients:
+To transfer `1000` MIST to another address:
 
 ```typescript
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
-SuiJsonRpcClient;
+
 // Generate a new Ed25519 Keypair
 const keypair = new Ed25519Keypair();
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
 const tx = new Transaction();
@@ -195,17 +202,18 @@ const result = await client.signAndExecuteTransaction({
 console.log({ result });
 ```
 
-### Merge coinsSuiJsonRpcClient
+### Merge coins
 
 ```typescript
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
-SuiJsonRpcClient;
+
 // Generate a new Ed25519 Keypair
 const keypair = new Ed25519Keypair();
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
 const tx = new Transaction();
@@ -219,18 +227,20 @@ const result = await client.signAndExecuteTransaction({
 console.log({ result });
 ```
 
-### Move CallSuiJsonRpcClient
+### Move Call
 
 ```typescript
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
-SuiJsonRpcClient;
+
 // Generate a new Ed25519 Keypair
 const keypair = new Ed25519Keypair();
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
+
 const packageObjectId = '0x...';
 const tx = new Transaction();
 tx.moveCall({
@@ -246,19 +256,21 @@ console.log({ result });
 
 ### Publish Modules
 
-To publish a package:SuiJsonRpcClient
+To publish a package:
 
 ```typescript
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
+import { execSync } from 'child_process';
 
-const { execSync } SuiJsonRpcClient('child_process');
 // Generate a new Ed25519 Keypair
 const keypair = new Ed25519Keypair();
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
+
 const { modules, dependencies } = JSON.parse(
 	execSync(`${cliPath} move build --dump-bytecode-as-base64 --path ${packagePath}`, {
 		encoding: 'utf-8',
@@ -282,15 +294,17 @@ console.log({ result });
 ### Get Owned Objects
 
 Fetch objects owned by the address
-`0xcc2bd176a478baea9a0de7a24cd92SuiJsonRpcClient60d5bacecb9a138ef20dbab231`
+`0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231`
 
-```typescriptSuiJsonRpcClient
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
-const objects = await client.getOwnedObjects({
+
+const objects = await client.core.getOwnedObjects({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
 ```
@@ -298,21 +312,24 @@ const objects = await client.getOwnedObjects({
 ### Get Object
 
 Fetch object details for the object with id
-`0xe19739da1a701eadc21683c5b127eSuiJsonRpcClient3e8a15a4f292f4f48b4afea3f2`
+`0xe19739da1a701eadc21683c5b127e62b553e833e8a15a4f292f4f48b4afea3f2`
 
-```typescriptSuiJsonRpcClient
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
-const txn = await client.getObject({
+
+const object = await client.core.getObject({
 	id: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 	// fetch the object content field
 	options: { showContent: true },
 });
+
 // You can also fetch multiple objects in one batch request
-const txns = await client.multiGetObjects({
+const objects = await client.core.multiGetObjects({
 	ids: [
 		'0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 		'0x9ad3de788483877fe348aef7f6ba3e52b9cfee5f52de0694d36b16a6b50c1429',
@@ -324,15 +341,17 @@ const txns = await client.multiGetObjects({
 
 ### Get Transaction
 
-Fetch transaction details from tSuiJsonRpcClientn digests:
+Fetch transaction details from transaction digests:
 
-```typescriptSuiJsonRpcClient
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
-const txn = await client.getTransactionBlock({
+
+const txn = await client.core.getTransactionBlock({
 	digest: '9XFneskU8tW7UxQf7tE5qFRfcN4FadtC2Z3HAZkgeETd=',
 	// only fetch the effects field
 	options: {
@@ -345,7 +364,7 @@ const txn = await client.getTransactionBlock({
 });
 
 // You can also fetch multiple transactions in one batch request
-const txns = await client.multiGetTransactionBlocks({
+const txns = await client.core.multiGetTransactionBlocks({
 	digests: [
 		'9XFneskU8tW7UxQf7tE5qFRfcN4FadtC2Z3HAZkgeETd=',
 		'17mn5W1CczLwitHCO9OIUbqirNrQ0cuKdyxaNe16SAME=',
@@ -392,43 +411,49 @@ client.getCheckpoint({ id: '1994010' }).then(function (checkpoint: Checkpoint) {
 ### Get Coins
 
 Fetch coins of type `0x65b0553a591d7b13376e03a408e112c706dc0909a79080c810b93b06f922c458::usdc::USDC`
-owned by an address:SuiJsonRpcClient
+owned by an address:
 
-```typescriptSuiJsonRpcClient
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
-const coins = await client.getCoins({
+
+const coins = await client.core.getCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 	coinType: '0x65b0553a591d7b13376e03a408e112c706dc0909a79080c810b93b06f922c458::usdc::USDC',
 });
 ```
 
-Fetch all coin objects owned by SuiJsonRpcClients:
+Fetch all coin objects owned by an address:
 
-```typescriptSuiJsonRpcClient
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
-const allCoins = await client.getAllCoins({
+
+const allCoins = await client.core.getAllCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
 ```
 
-Fetch the total coin balance forSuiJsonRpcClient type, owned by an address:
+Fetch the total coin balance for a coin type, owned by an address:
 
-```typescriptSuiJsonRpcClient
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
+
 // If coin type is not specified, it defaults to 0x2::sui::SUI
-const coinBalance = await client.getBalance({
+const coinBalance = await client.core.getBalance({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 	coinType: '0x65b0553a591d7b13376e03a408e112c706dc0909a79080c810b93b06f922c458::usdc::USDC',
 });
@@ -437,16 +462,18 @@ const coinBalance = await client.getBalance({
 ### Events API
 
 Querying events created by transactions sent by account
-`0xcc2bd176a478baea9a0de7a24cd92SuiJsonRpcClient60d5bacecb9a138ef20dbab231`
+`0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231`
 
-```typescriptSuiJsonRpcClient
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
-const events = client.queryEvents({
-	query: { Sender: toolbox.address() },
+
+const events = await client.core.queryEvents({
+	query: { Sender: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231' },
 	limit: 2,
 });
 ```

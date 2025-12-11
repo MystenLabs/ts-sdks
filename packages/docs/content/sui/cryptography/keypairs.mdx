@@ -116,13 +116,16 @@ Verifying transaction signatures is similar to personal message signature verifi
 use `verifyTransactionSignature`:
 
 ```typescript
-// import SuiJsonRpcClient to create a network client and the getJsonRpcFullnodeUrl helper function
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+// import SuiGrpcClient to create a network client
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { verifyTransactionSignature } from '@mysten/sui/verify';
 
-// see Network Interactions with SuiJsonRpcClient for more info on creating clients
-const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('testnet'), network: 'testnet' });
+// create a client connected to testnet
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+});
 const tx = new Transaction();
 // ... add some transactions...
 const bytes = await tx.build({ client });
