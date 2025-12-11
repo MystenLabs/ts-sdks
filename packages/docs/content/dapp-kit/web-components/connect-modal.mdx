@@ -27,12 +27,20 @@ instead.
 <mysten-dapp-kit-connect-modal></mysten-dapp-kit-connect-modal>
 
 <script>
+	import { createDAppKit } from '@mysten/dapp-kit-core';
+	import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+	const GRPC_URLS = {
+	    mainnet: 'https://fullnode.mainnet.sui.io:443',
+	    testnet: 'https://fullnode.testnet.sui.io:443',
+	};
+
 	const dAppKit = createDAppKit({
 	    enableBurnerWallet: import.meta.env.DEV,
 	    networks: ['mainnet', 'testnet'],
 	    defaultNetwork: 'testnet',
 	    createClient(network) {
-	        return new SuiClient({ network, url: getFullnodeUrl(network) });
+	        return new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] });
 	    },
 	});
 

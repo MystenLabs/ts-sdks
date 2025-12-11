@@ -485,7 +485,13 @@ export class GrpcCoreClient extends CoreClient {
 			options: BuildTransactionOptions,
 			next: () => Promise<void>,
 		) {
-			const grpcTransaction = transactionDataToGrpcTransaction(transactionData.snapshot());
+			const snapshot = transactionData.snapshot();
+			// If sender is not set, use a dummy address for resolution purposes
+			// The resolved transaction will not include the sender if it wasn't set originally
+			if (!snapshot.sender) {
+				snapshot.sender = '0x0000000000000000000000000000000000000000000000000000000000000000';
+			}
+			const grpcTransaction = transactionDataToGrpcTransaction(snapshot);
 
 			const { response } = await client.transactionExecutionService.simulateTransaction({
 				transaction: grpcTransaction,

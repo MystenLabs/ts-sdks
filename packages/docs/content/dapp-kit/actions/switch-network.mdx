@@ -14,12 +14,17 @@ configured to use.
 
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const GRPC_URLS = {
+	mainnet: 'https://fullnode.mainnet.sui.io:443',
+	testnet: 'https://fullnode.testnet.sui.io:443',
+} as const;
 
 const dAppKit = createDAppKit({
 	networks: ['mainnet', 'testnet'],
 	defaultNetwork: 'mainnet',
-	createClient: (network) => new SuiClient({ url: getFullnodeUrl(network) }),
+	createClient: (network) => new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }),
 });
 
 // Switch to a different network
