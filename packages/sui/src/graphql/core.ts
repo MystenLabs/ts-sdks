@@ -81,6 +81,7 @@ export class GraphQLCoreClient extends CoreClient {
 						objectKeys: batch.map((address) => ({ address })),
 						includeContent: options.include?.content ?? false,
 						includePreviousTransaction: options.include?.previousTransaction ?? false,
+						includeObjectBcs: options.include?.objectBcs ?? false,
 					},
 				},
 				(result) => result.multiGetObjects,
@@ -100,6 +101,8 @@ export class GraphQLCoreClient extends CoreClient {
 						const bcsContent = obj.asMoveObject?.contents?.bcs
 							? fromBase64(obj.asMoveObject.contents.bcs)
 							: undefined;
+
+						const objectBcs = obj.objectBcs ? fromBase64(obj.objectBcs) : undefined;
 
 						// Determine object type: package or Move object
 						// GraphQL already returns normalized struct tags
@@ -121,6 +124,7 @@ export class GraphQLCoreClient extends CoreClient {
 							content: bcsContent as SuiClientTypes.Object<Include>['content'],
 							previousTransaction: (obj.previousTransaction?.digest ??
 								undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
+							objectBcs: objectBcs as SuiClientTypes.Object<Include>['objectBcs'],
 						};
 					}),
 			);
@@ -145,6 +149,7 @@ export class GraphQLCoreClient extends CoreClient {
 						: undefined,
 					includeContent: options.include?.content ?? false,
 					includePreviousTransaction: options.include?.previousTransaction ?? false,
+					includeObjectBcs: options.include?.objectBcs ?? false,
 				},
 			},
 			(result) => result.address?.objects,
@@ -163,15 +168,18 @@ export class GraphQLCoreClient extends CoreClient {
 						: undefined) as SuiClientTypes.Object<Include>['content'],
 					previousTransaction: (obj.previousTransaction?.digest ??
 						undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
+					objectBcs: (obj.objectBcs
+						? fromBase64(obj.objectBcs)
+						: undefined) as SuiClientTypes.Object<Include>['objectBcs'],
 				}),
 			),
 			hasNextPage: objects.pageInfo.hasNextPage,
 			cursor: objects.pageInfo.endCursor ?? null,
 		};
 	}
-	async listCoins<Include extends SuiClientTypes.ObjectInclude = object>(
-		options: SuiClientTypes.ListCoinsOptions<Include>,
-	): Promise<SuiClientTypes.ListCoinsResponse<Include>> {
+	async listCoins(
+		options: SuiClientTypes.ListCoinsOptions,
+	): Promise<SuiClientTypes.ListCoinsResponse> {
 		const coins = await this.#graphqlQuery(
 			{
 				query: GetCoinsDocument,
@@ -180,8 +188,6 @@ export class GraphQLCoreClient extends CoreClient {
 					cursor: options.cursor,
 					first: options.limit,
 					type: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: options.coinType })).type}>`,
-					includeContent: options.include?.content ?? false,
-					includePreviousTransaction: options.include?.previousTransaction ?? false,
 				},
 			},
 			(result) => result.address?.objects,
@@ -191,18 +197,13 @@ export class GraphQLCoreClient extends CoreClient {
 			cursor: coins.pageInfo.endCursor ?? null,
 			hasNextPage: coins.pageInfo.hasNextPage,
 			objects: coins.nodes.map(
-				(coin): SuiClientTypes.Coin<Include> => ({
+				(coin): SuiClientTypes.Coin => ({
 					objectId: coin.address,
 					version: coin.version?.toString()!,
 					digest: coin.digest!,
 					owner: mapOwner(coin.owner!),
 					type: coin.contents?.type?.repr!,
 					balance: (coin.contents?.json as { balance: string })?.balance,
-					content: (coin.contents?.bcs
-						? fromBase64(coin.contents.bcs)
-						: undefined) as SuiClientTypes.Coin<Include>['content'],
-					previousTransaction: (coin.previousTransaction?.digest ??
-						undefined) as SuiClientTypes.Coin<Include>['previousTransaction'],
 				}),
 			),
 		};
