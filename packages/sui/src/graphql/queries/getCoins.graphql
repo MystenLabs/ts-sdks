@@ -6,8 +6,6 @@ query getCoins(
 	$first: Int
 	$cursor: String
 	$type: String = "0x2::coin::Coin<0x2::sui::SUI>"
-	$includeContent: Boolean = false
-	$includePreviousTransaction: Boolean = false
 ) {
 	address(address: $owner) {
 		address
@@ -21,7 +19,6 @@ query getCoins(
 					...OBJECT_OWNER_FIELDS
 				}
 				contents {
-					bcs @include(if: $includeContent)
 					json
 					type {
 						repr
@@ -30,9 +27,6 @@ query getCoins(
 				address
 				version
 				digest
-				previousTransaction @include(if: $includePreviousTransaction) {
-					digest
-				}
 			}
 		}
 	}

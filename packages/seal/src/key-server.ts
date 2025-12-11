@@ -45,7 +45,7 @@ export const SERVER_VERSION_REQUIREMENT = new Version('0.4.1');
  * For V2 committee servers, returns the aggregator URL from the config.
  *
  * @param objectIds - The key server object IDs.
- * @param client - The SuiClient to use.
+ * @param client - The Sui Client to use.
  * @param configs - The key server configurations containing aggregator URLs.
  * @returns - An array of SealKeyServer.
  */

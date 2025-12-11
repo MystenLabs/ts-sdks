@@ -21,7 +21,7 @@ export function validateRequired<T>(value: T | undefined, errorMessage: string):
 /**
  * @description Validate that a Sui address is valid
  * @param {string} address - The address to validate
- * @param {string} [fieldName='Address'] - Name of the field for error messages
+ * @param {string} [fieldName] - Name of the field for error messages (default 'Address')
  * @returns {string} The validated address
  * @throws {ValidationError} If the address is invalid
  */
