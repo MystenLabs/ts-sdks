@@ -30,6 +30,7 @@ import {
 	publishHeroPackage,
 	setupSuiClient,
 	TestToolbox,
+	type ClientType,
 } from './setup';
 
 /**
@@ -38,7 +39,20 @@ import {
  * If you wish to edit the TP, make sure to always end up having it be the same as the inital state when a case ends.
  * Alternatively, you can create a new TP for each iteration by using the TransferPolicyTransaction.
  */
-describe('Testing Kiosk SDK transaction building & querying e2e', () => {
+
+// Define client types to test
+// Note: GraphQL and gRPC might not be available in all environments, so we start with just JSON-RPC
+const clientTypesToTest: ClientType[] = ['jsonrpc'];
+
+// Add GraphQL and gRPC if their URLs are configured
+if (process.env.GRAPHQL_URL) {
+	// clientTypesToTest.push('graphql');
+}
+if (process.env.GRPC_URL) {
+	// clientTypesToTest.push('grpc');
+}
+
+describe.each(clientTypesToTest)('Kiosk SDK e2e tests (%s client)', (clientType) => {
 	let toolbox: TestToolbox;
 	let extensionsPackageId: string;
 	let heroPackageId: string;
@@ -47,7 +61,7 @@ describe('Testing Kiosk SDK transaction building & querying e2e', () => {
 	let villainType: string;
 
 	beforeAll(async () => {
-		toolbox = await setupSuiClient();
+		toolbox = await setupSuiClient(clientType);
 		extensionsPackageId = await publishExtensionsPackage(toolbox);
 		heroPackageId = await publishHeroPackage(toolbox);
 		heroType = `${heroPackageId}::hero::Hero`;
