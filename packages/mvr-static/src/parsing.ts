@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { dirname, extname, isAbsolute, join } from 'path';
 import { parseArgs } from 'util';
-import type { NamedPackagesOverrides } from '@mysten/sui/transactions';
+import type { NamedPackagesOverrides } from '@mysten/sui/client';
 import { isValidNamedPackage } from '@mysten/sui/utils';
 import { prompt } from 'enquirer';
 import { glob } from 'glob';
@@ -28,8 +28,8 @@ const WARNING_MESSAGE = `/**
  *
  * Run this script before building your project to ensure that the mvr.ts file stays up to date.
  *
- * You can use this pre-built cache when initializing your "NamedPackagesPlugin" by calling
- * \`getMvrCache("mainnet")\` or \`getMvrCache("testnet")\`
+ * You can use this pre-built cache when initializing your Sui client by calling
+ * \`getMvrCache("mainnet")\` or \`getMvrCache("testnet")\` and passing it as the \`overrides\` option.
  */
 `;
 
