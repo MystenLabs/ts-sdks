@@ -1,8 +1,8 @@
 # mvr-static
 
 The mvr-static tool is a typescript CLI tool to generate a static file for Move Registry (mvr)
-resolution. This can be used to cache all MVR names for performance & security reasons, and used in
-the `NamedPackagesPlugin` (exported from `@mysten/sui`) in your project.
+resolution. This can be used to cache all MVR names for performance & security reasons, and used
+with the Sui client's built-in MVR support.
 
 ## Usage
 
@@ -32,18 +32,21 @@ Available options:
 ### Use the static file in your project
 
 Once you have your static file, you can use it in your project by importing it and passing it to the
-`NamedPackagesPlugin` in your project.
+Sui client initialization. MVR resolution is now built into the core client.
 
 ```ts
-import { NamedPackagesPlugin } from '@mysten/sui/src/transactions';
-
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { getMvrCache } from './mvr.ts';
 
-// create a cache for your network.
-const cache = getMvrCache('mainnet');
-
-const plugin = new NamedPackagesPlugin({
-	// ...,
-	overrides: cache,
+// Create a gRPC client with MVR overrides for your network
+const client = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+	mvr: {
+		overrides: getMvrCache('mainnet'),
+	},
 });
 ```
+
+The client will now use your pre-resolved MVR names instead of making API calls, which improves
+performance and security.

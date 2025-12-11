@@ -5,7 +5,7 @@ import { describe, expect, test, beforeEach, vi, MockInstance } from 'vitest';
 import { TEST_DEFAULT_NETWORK, TEST_NETWORKS, TestWalletInitializeResult } from '../../test-utils';
 import { createMockWallets, MockWallet } from '../../mocks/mock-wallet';
 import { createDAppKit, DAppKit } from '../../../src';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { getWallets } from '@mysten/wallet-standard';
 import { createMockAccount } from '../../mocks/mock-account';
 import { UiWallet } from '@wallet-standard/ui';
@@ -20,11 +20,18 @@ describe('[Integration] disconnectWallet action', () => {
 	beforeEach(() => {
 		consoleWarnSpy?.mockReset();
 
+		const GRPC_URLS = {
+			testnet: 'https://fullnode.testnet.sui.io:443',
+			mainnet: 'https://fullnode.mainnet.sui.io:443',
+			devnet: 'https://fullnode.devnet.sui.io:443',
+			localnet: 'http://127.0.0.1:9000',
+		} as const;
+
 		dAppKit = createDAppKit({
 			networks: TEST_NETWORKS,
 			defaultNetwork: TEST_DEFAULT_NETWORK,
 			createClient(network) {
-				return new SuiJsonRpcClient({ network, url: getJsonRpcFullnodeUrl(network) });
+				return new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] });
 			},
 			walletInitializers: [
 				{

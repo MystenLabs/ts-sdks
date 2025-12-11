@@ -12,13 +12,12 @@ To use the walrus SDK you will need to create a Client from the typescript SDK, 
 the walrus SDK.
 
 ```ts
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { walrus } from '@mysten/walrus';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
-	// Setting network on your client is required for walrus to work correctly
+const client = new SuiGrpcClient({
 	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 }).$extend(walrus());
 ```
 
@@ -27,13 +26,12 @@ testnet. You can also manually configure the walrus sdk to use a different set o
 to connect to a different network or updated deployment of the walrus contracts.
 
 ```ts
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { walrus } from '@mysten/walrus';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
-	// Setting network on your client is required for walrus to work correctly
+const client = new SuiGrpcClient({
 	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 }).$extend(
 	walrus({
 		packageConfig: {
@@ -47,13 +45,12 @@ const client = new SuiJsonRpcClient({
 For some environments you may need to customize how data is fetched:
 
 ```ts
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { walrus } from '@mysten/walrus';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
-	// Setting network on your client is required for walrus to work correctly
+const client = new SuiGrpcClient({
 	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 }).$extend(
 	walrus({
 		storageNodeClientOptions: {
@@ -236,17 +233,28 @@ async function handleRegister() {
 		owner: currentAccount.address,
 		deletable: true,
 	});
-	const { digest } = await signAndExecuteTransaction({ transaction: registerTx });
+	const result = await signAndExecuteTransaction({ transaction: registerTx });
+
+	// Check transaction status
+	if (result.$kind === 'FailedTransaction') {
+		throw new Error(`Registration failed: ${result.FailedTransaction.status.error}`);
+	}
+
 	// Step 3: Upload the data to storage nodes
 	// This can be done immediately after the register step, or as a separate step the user initiates
-	await flow.upload({ digest });
+	await flow.upload({ digest: result.Transaction.digest });
 }
 
 // Step 4: Certify the blob (triggered by user clicking a certify button after the blob is uploaded)
 async function handleCertify() {
 	const certifyTx = flow.certify();
 
-	await signAndExecuteTransaction({ transaction: certifyTx });
+	const result = await signAndExecuteTransaction({ transaction: certifyTx });
+
+	// Check transaction status
+	if (result.$kind === 'FailedTransaction') {
+		throw new Error(`Certification failed: ${result.FailedTransaction.status.error}`);
+	}
 
 	// Step 5: Get the new files
 	const files = await flow.listFiles();
@@ -266,9 +274,9 @@ complexity for the client.
 To use an upload relay, you can add the `uploadRelay` option when adding the walrus extension:
 
 ```ts
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
 	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 }).$extend(
 	walrus({
 		uploadRelay: {
@@ -295,9 +303,9 @@ tip.
 A `const` will send a fixed amount for each blob written to the upload relay.
 
 ```ts
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
 	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 }).$extend(
 	walrus({
 		uploadRelay: {
@@ -319,9 +327,9 @@ A `linear` tip will send a fixed amount for each blob written to the fan out pro
 multiplier based on the size of the blob.
 
 ```ts
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
 	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 }).$extend(
 	walrus({
 		uploadRelay: {
@@ -422,9 +430,9 @@ You can pass an `onError` option in the storageNodeClientOptions to get the indi
 failed requests:
 
 ```ts
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
 	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 }).$extend(
 	walrus({
 		storageNodeClientOptions: {
@@ -451,9 +459,9 @@ behavior defined by your runtime. To customize how requests are made, you can pr
 import type { RequestInfo, RequestInit } from 'undici';
 import { Agent, fetch, setGlobalDispatcher } from 'undici';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
 	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 }).$extend(
 	walrus({
 		storageNodeClientOptions: {
@@ -485,9 +493,9 @@ and then passed into the walrus client:
 ```ts
 import walrusWasmUrl from '@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
 	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 }).$extend(
 	walrus({
 		wasmUrl: walrusWasmUrl,
@@ -499,9 +507,9 @@ If you are unable to get a url for the wasm file in your bundler or build system
 the wasm bindings, or load them from a CDN:
 
 ```ts
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
 	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 }).$extend(
 	walrus({
 		wasmUrl: 'https://unpkg.com/@mysten/walrus-wasm@latest/web/walrus_wasm_bg.wasm',

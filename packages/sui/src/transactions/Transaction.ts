@@ -126,33 +126,6 @@ export function isTransaction(obj: unknown): obj is TransactionLike {
 
 export type TransactionObjectInput = string | CallArg | TransactionObjectArgument;
 
-interface TransactionPluginRegistry {
-	buildPlugins: Map<string | Function, TransactionPlugin>;
-	serializationPlugins: Map<string | Function, TransactionPlugin>;
-}
-
-const modulePluginRegistry: TransactionPluginRegistry = {
-	buildPlugins: new Map(),
-	serializationPlugins: new Map(),
-};
-
-const TRANSACTION_REGISTRY_KEY = Symbol.for('@mysten/transaction/registry');
-function getGlobalPluginRegistry() {
-	try {
-		const target = globalThis as {
-			[TRANSACTION_REGISTRY_KEY]?: TransactionPluginRegistry;
-		};
-
-		if (!target[TRANSACTION_REGISTRY_KEY]) {
-			target[TRANSACTION_REGISTRY_KEY] = modulePluginRegistry;
-		}
-
-		return target[TRANSACTION_REGISTRY_KEY];
-	} catch {
-		return modulePluginRegistry;
-	}
-}
-
 type InputSection = (CallArg | InputSection)[];
 type CommandSection = (Command | CommandSection)[];
 
@@ -217,36 +190,6 @@ export class Transaction {
 		newTransaction.#availableResults = new Set(newTransaction.#commandSection.map((_, i) => i));
 
 		return newTransaction;
-	}
-
-	static registerGlobalSerializationPlugin(name: string, step: TransactionPlugin): void;
-	static registerGlobalSerializationPlugin(
-		stepOrStep: TransactionPlugin | string,
-		step?: TransactionPlugin,
-	) {
-		getGlobalPluginRegistry().serializationPlugins.set(
-			stepOrStep,
-			step ?? (stepOrStep as TransactionPlugin),
-		);
-	}
-
-	static unregisterGlobalSerializationPlugin(name: string) {
-		getGlobalPluginRegistry().serializationPlugins.delete(name);
-	}
-
-	static registerGlobalBuildPlugin(name: string, step: TransactionPlugin): void;
-	static registerGlobalBuildPlugin(
-		stepOrStep: TransactionPlugin | string,
-		step?: TransactionPlugin,
-	) {
-		getGlobalPluginRegistry().buildPlugins.set(
-			stepOrStep,
-			step ?? (stepOrStep as TransactionPlugin),
-		);
-	}
-
-	static unregisterGlobalBuildPlugin(name: string) {
-		getGlobalPluginRegistry().buildPlugins.delete(name);
 	}
 
 	addSerializationPlugin(step: TransactionPlugin) {
@@ -343,10 +286,9 @@ export class Transaction {
 	}
 
 	constructor() {
-		const globalPlugins = getGlobalPluginRegistry();
 		this.#data = new TransactionDataBuilder();
-		this.#buildPlugins = [...globalPlugins.buildPlugins.values()];
-		this.#serializationPlugins = [...globalPlugins.serializationPlugins.values()];
+		this.#buildPlugins = [];
+		this.#serializationPlugins = [];
 	}
 
 	/** Returns an argument for the gas coin, to be used in a transaction. */
