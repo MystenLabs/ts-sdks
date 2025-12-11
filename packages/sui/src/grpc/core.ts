@@ -54,6 +54,9 @@ export class GrpcCoreClient extends CoreClient {
 		if (options.include?.previousTransaction) {
 			paths.push('previous_transaction');
 		}
+		if (options.include?.objectBcs) {
+			paths.push('bcs');
+		}
 
 		for (const batch of batches) {
 			const response = await this.#client.ledgerService.batchGetObjects({
@@ -75,6 +78,7 @@ export class GrpcCoreClient extends CoreClient {
 					}
 
 					const bcsContent = object.result.object.contents?.value ?? undefined;
+					const objectBcs = object.result.object.bcs?.value ?? undefined;
 
 					// Package objects have type "package" which is not a struct tag, so don't normalize it
 					const objectType = object.result.object.objectType;
@@ -92,6 +96,7 @@ export class GrpcCoreClient extends CoreClient {
 						type,
 						previousTransaction: (object.result.object.previousTransaction ??
 							undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
+						objectBcs: objectBcs as SuiClientTypes.Object<Include>['objectBcs'],
 					};
 				}),
 			);
@@ -110,6 +115,9 @@ export class GrpcCoreClient extends CoreClient {
 		}
 		if (options.include?.previousTransaction) {
 			paths.push('previous_transaction');
+		}
+		if (options.include?.objectBcs) {
+			paths.push('bcs');
 		}
 
 		const response = await this.#client.stateService.listOwnedObjects({
@@ -134,6 +142,7 @@ export class GrpcCoreClient extends CoreClient {
 				type: object.objectType!,
 				previousTransaction: (object.previousTransaction ??
 					undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
+				objectBcs: object.bcs?.value as SuiClientTypes.Object<Include>['objectBcs'],
 			}),
 		);
 
@@ -143,16 +152,10 @@ export class GrpcCoreClient extends CoreClient {
 			hasNextPage: response.response.nextPageToken !== undefined,
 		};
 	}
-	async listCoins<Include extends SuiClientTypes.ObjectInclude = object>(
-		options: SuiClientTypes.ListCoinsOptions<Include>,
-	): Promise<SuiClientTypes.ListCoinsResponse<Include>> {
+	async listCoins(
+		options: SuiClientTypes.ListCoinsOptions,
+	): Promise<SuiClientTypes.ListCoinsResponse> {
 		const paths = ['owner', 'object_type', 'digest', 'version', 'object_id', 'balance'];
-		if (options.include?.content) {
-			paths.push('contents');
-		}
-		if (options.include?.previousTransaction) {
-			paths.push('previous_transaction');
-		}
 
 		const response = await this.#client.stateService.listOwnedObjects({
 			owner: options.owner,
@@ -165,16 +168,13 @@ export class GrpcCoreClient extends CoreClient {
 
 		return {
 			objects: response.response.objects.map(
-				(object): SuiClientTypes.Coin<Include> => ({
+				(object): SuiClientTypes.Coin => ({
 					objectId: object.objectId!,
 					version: object.version?.toString()!,
 					digest: object.digest!,
-					content: object.contents?.value as SuiClientTypes.Coin<Include>['content'],
 					owner: mapOwner(object.owner)!,
 					type: object.objectType!,
 					balance: object.balance?.toString()!,
-					previousTransaction: (object.previousTransaction ??
-						undefined) as SuiClientTypes.Coin<Include>['previousTransaction'],
 				}),
 			),
 			cursor: response.response.nextPageToken ? toBase64(response.response.nextPageToken) : null,
@@ -548,8 +548,8 @@ function mapOwner(owner: Owner | null | undefined): SuiClientTypes.ObjectOwner |
 		return {
 			$kind: 'ConsensusAddressOwner',
 			ConsensusAddressOwner: {
-				owner: owner.address!,
 				startVersion: owner.version?.toString()!,
+				owner: owner.address!,
 			},
 		};
 	}

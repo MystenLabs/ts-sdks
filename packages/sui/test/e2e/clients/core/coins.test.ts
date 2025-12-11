@@ -62,7 +62,6 @@ describe('Core API - Coins', () => {
 					owner: testAddress,
 					coinType: SUI_TYPE_ARG,
 					limit: 5,
-					include: { content: true, previousTransaction: true },
 				});
 
 				return res;
@@ -255,71 +254,6 @@ describe('Core API - Coins', () => {
 			for (const coin of result.objects) {
 				expect(coin.type).toContain('test_coin::TEST_COIN');
 				expect(BigInt(coin.balance)).toBeGreaterThan(0n);
-			}
-		});
-	});
-
-	describe('listCoins - Include Options', () => {
-		testWithAllClients('should work with no includes', async (client) => {
-			const result = await client.core.listCoins({
-				owner: testAddress,
-				coinType: SUI_TYPE_ARG,
-				limit: 2,
-				include: {},
-			});
-
-			expect(result.objects.length).toBeGreaterThan(0);
-			for (const coin of result.objects) {
-				expect(coin.balance).toBeDefined();
-				expect(coin.content).toBeUndefined();
-				expect(coin.previousTransaction).toBeUndefined();
-			}
-		});
-
-		testWithAllClients('should include content when requested', async (client) => {
-			const result = await client.core.listCoins({
-				owner: testAddress,
-				coinType: SUI_TYPE_ARG,
-				limit: 2,
-				include: { content: true },
-			});
-
-			expect(result.objects.length).toBeGreaterThan(0);
-			for (const coin of result.objects) {
-				const content = await coin.content;
-				expect(content).toBeInstanceOf(Uint8Array);
-				expect(coin.previousTransaction).toBeUndefined();
-			}
-		});
-
-		testWithAllClients('should include previousTransaction when requested', async (client) => {
-			const result = await client.core.listCoins({
-				owner: testAddress,
-				coinType: SUI_TYPE_ARG,
-				limit: 2,
-				include: { previousTransaction: true },
-			});
-
-			expect(result.objects.length).toBeGreaterThan(0);
-			for (const coin of result.objects) {
-				expect(coin.previousTransaction).toBeDefined();
-				expect(coin.content).toBeUndefined();
-			}
-		});
-
-		testWithAllClients('should include both content and previousTransaction', async (client) => {
-			const result = await client.core.listCoins({
-				owner: testAddress,
-				coinType: SUI_TYPE_ARG,
-				limit: 2,
-				include: { content: true, previousTransaction: true },
-			});
-
-			expect(result.objects.length).toBeGreaterThan(0);
-			for (const coin of result.objects) {
-				const content = await coin.content;
-				expect(content).toBeInstanceOf(Uint8Array);
-				expect(coin.previousTransaction).toBeDefined();
 			}
 		});
 	});

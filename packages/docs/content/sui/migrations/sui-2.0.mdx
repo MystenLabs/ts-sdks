@@ -4,6 +4,65 @@ title: Migrate to version 2.0
 
 # Migrating to @mysten/sui@2.0
 
+## BCS Schema Changes
+
+Several BCS schemas have been updated to align exactly with the Rust implementation. These changes
+affect serialization and deserialization of transaction effects and objects.
+
+### ExecutionStatus: Failed → Failure
+
+The transaction execution status variant has been renamed from `Failed` to `Failure`:
+
+```diff
+// Before
+if (effects.status.$kind === 'Success') {
+  // success
+} else {
+-  const error = effects.status.Failed.error;
++  const error = effects.status.Failure.error;
+}
+```
+
+**This affects serialization.** Any existing serialized data with `ConsensusAddressOwner` will need
+to be re-serialized.
+
+### Object BCS Schema Changes
+
+Several changes to object BCS schemas:
+
+```diff
+// Renamed Owner enum variant
+const owner = {
+-  ConsensusV2: { owner: addr, startVersion: 1 }
++  ConsensusAddressOwner: { startVersion: 1, owner: addr }
+};
+
+// Renamed Data enum variant
+const data = {
+-  MoveObject: { ... }
++  Move: { ... }
+};
+
+// Renamed exported schema
+- import { ObjectBcs } from '@mysten/sui/bcs';
++ import { bcs } from '@mysten/sui/bcs';
+- const bytes = ObjectBcs.serialize(obj);
++ const bytes = bcs.Object.serialize(obj);
+```
+
+### UnchangedSharedKind → UnchangedConsensusKind
+
+Transaction effects field renamed:
+
+```diff
+// Field name change
+- effects.unchangedSharedObjects
++ effects.unchangedConsensusObjects
+
+// Removed obsolete variants: MutateDeleted, ReadDeleted
+// New variants added: MutateConsensusStreamEnded, ReadConsensusStreamEnded, Cancelled, PerEpochConfig
+```
+
 ## ZkLogin `legacyAddress` parameter is now required
 
 The `legacyAddress` parameter is now **required** for all zkLogin address computation functions. In

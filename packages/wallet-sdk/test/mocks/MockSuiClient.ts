@@ -141,9 +141,9 @@ export class MockSuiClient extends CoreClient {
 		return { objects };
 	}
 
-	async listCoins<Include extends SuiClientTypes.ObjectInclude = object>(
-		options: SuiClientTypes.ListCoinsOptions<Include>,
-	): Promise<SuiClientTypes.ListCoinsResponse<Include>> {
+	async listCoins(
+		options: SuiClientTypes.ListCoinsOptions,
+	): Promise<SuiClientTypes.ListCoinsResponse> {
 		const coinObjects = Array.from(this.#objects.values()).filter((obj) => {
 			const parsedType = parseStructTag(obj.type);
 			const parsedCoinType = parseStructTag('0x2::coin::Coin');
@@ -164,7 +164,7 @@ export class MockSuiClient extends CoreClient {
 			return coinType === options.coinType;
 		});
 
-		const objects: SuiClientTypes.Coin<Include>[] = coinObjects.map((obj) => {
+		const objects: SuiClientTypes.Coin[] = coinObjects.map((obj) => {
 			// Parse balance from BCS content
 			let balance = '0';
 			try {
