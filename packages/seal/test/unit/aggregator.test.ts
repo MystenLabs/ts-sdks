@@ -26,11 +26,11 @@ describe('Committee Aggregator Tests', () => {
 	it('encrypt and decrypt through aggregator', { timeout: 12000 }, async () => {
 		// Committee key server configuration
 		const COMMITTEE_KEY_SERVER_OBJ_ID =
-			'0x0c9b2a1185f42bebdc16baf0a393ec5bd93bab8b0cb902b694198077b27c15da';
+			'0x0688650cf0b28882e607ae43df1e95e769f9b2f689cf90d68c715b3e08e28c70';
 		const INDEPENDENT_SERVER_OBJ_ID =
 			'0x71a3962c5d06a94d1ef5a9c0e7d63ad72cefb48acc93001eaa7ba13fab52786e';
 		// also works with 0x81aeaa8c25d2c912e1dc23b4372305b7a602c4ec4cc3e510963bc635e500aa37
-		const AGGREGATOR_URL = 'http://localhost:2027';
+		const AGGREGATOR_URL = 'http://localhost:3000';
 		const PACKAGE_ID = '0x58dce5d91278bceb65d44666ffa225ab397fc3ae9d8398c8c779c5530bd978c2'; // Testnet package with account_based policy
 
 		const testKeypair = Ed25519Keypair.generate();
@@ -58,7 +58,7 @@ describe('Committee Aggregator Tests', () => {
 
 		// Encrypt with policy and 2 servers (1 for committee, 1 for independent)
 		const { encryptedObject: encryptedBytes } = await client.encrypt({
-			threshold: 1,
+			threshold: 2,
 			packageId: PACKAGE_ID,
 			id: testAddress,
 			data: testData,
