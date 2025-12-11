@@ -10,7 +10,6 @@ packages:
   - '!**/.next/**'
   - '!packages/sui/test/**'
   - '!packages/kiosk/test/**'
-  - '!packages/deepbook/test/**'
   - '!packages/codegen/tests/move/**'
   - '!packages/create-dapp/templates/*/move/**'
   - '!packages/sui/scripts'

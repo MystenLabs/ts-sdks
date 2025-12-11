@@ -1,9 +1,9 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { fromBase64 } from '@mysten/bcs';
+import { fromBase64, type InferBcsInput } from '@mysten/bcs';
 
-import { bcs } from '../bcs/index.js';
+import { bcs, TypeTagSerializer } from '../bcs/index.js';
 import type {
 	ObjectOwner,
 	SuiMoveAbilitySet,
@@ -19,6 +19,7 @@ import { jsonRpcClientResolveTransactionPlugin } from './json-rpc-resolver.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
 import { normalizeSuiAddress, normalizeStructTag } from '../utils/sui-types.js';
+import { SUI_FRAMEWORK_ADDRESS, SUI_SYSTEM_ADDRESS } from '../utils/constants.js';
 import { CoreClient } from '../client/core.js';
 import type { SuiClientTypes } from '../client/types.js';
 import { ObjectError } from '../client/errors.js';
@@ -50,8 +51,10 @@ export class JSONRpcCoreClient extends CoreClient {
 				options: {
 					showOwner: true,
 					showType: true,
-					showBcs: options.include?.content ?? false,
-					showPreviousTransaction: options.include?.previousTransaction ?? false,
+					showBcs: options.include?.content || options.include?.objectBcs ? true : false,
+					showPreviousTransaction:
+						options.include?.previousTransaction || options.include?.objectBcs ? true : false,
+					showStorageRebate: options.include?.objectBcs ?? false,
 				},
 				signal: options.signal,
 			});
@@ -79,8 +82,10 @@ export class JSONRpcCoreClient extends CoreClient {
 			options: {
 				showOwner: true,
 				showType: true,
-				showBcs: options.include?.content ?? false,
-				showPreviousTransaction: options.include?.previousTransaction ?? false,
+				showBcs: options.include?.content || options.include?.objectBcs ? true : false,
+				showPreviousTransaction:
+					options.include?.previousTransaction || options.include?.objectBcs ? true : false,
+				showStorageRebate: options.include?.objectBcs ?? false,
 			},
 			filter: options.type ? { StructType: options.type } : null,
 			signal: options.signal,
@@ -99,9 +104,7 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
-	async listCoins<Include extends SuiClientTypes.ObjectInclude = object>(
-		options: SuiClientTypes.ListCoinsOptions<Include>,
-	) {
+	async listCoins(options: SuiClientTypes.ListCoinsOptions) {
 		const coins = await this.#jsonRpcClient.getCoins({
 			owner: options.owner,
 			coinType: options.coinType,
@@ -112,27 +115,16 @@ export class JSONRpcCoreClient extends CoreClient {
 
 		return {
 			objects: coins.data.map(
-				(coin): SuiClientTypes.Coin<Include> => ({
+				(coin): SuiClientTypes.Coin => ({
 					objectId: coin.coinObjectId,
 					version: coin.version,
 					digest: coin.digest,
 					balance: coin.balance,
 					type: normalizeStructTag(`0x2::coin::Coin<${coin.coinType}>`),
-					content: (options.include?.content
-						? Coin.serialize({
-								objectId: coin.coinObjectId,
-								balance: {
-									value: coin.balance,
-								},
-							}).toBytes()
-						: undefined) as SuiClientTypes.Coin<Include>['content'],
 					owner: {
 						$kind: 'AddressOwner' as const,
 						AddressOwner: options.owner,
 					},
-					previousTransaction: (options.include?.previousTransaction
-						? coin.previousTransaction
-						: undefined) as SuiClientTypes.Coin<Include>['previousTransaction'],
 				}),
 			),
 			hasNextPage: coins.hasNextPage,
@@ -362,12 +354,78 @@ export class JSONRpcCoreClient extends CoreClient {
 	}
 }
 
+function serializeObjectToBcs(object: SuiObjectData): Uint8Array | undefined {
+	if (object.bcs?.dataType !== 'moveObject') {
+		return undefined;
+	}
+
+	try {
+		// Normalize the type string to ensure consistent address formatting (0x2 vs 0x00...02)
+		const typeStr = normalizeStructTag(object.bcs.type);
+		let moveObjectType: InferBcsInput<typeof bcs.MoveObjectType>;
+
+		// Normalize constants for comparison
+		const normalizedSuiFramework = normalizeSuiAddress(SUI_FRAMEWORK_ADDRESS);
+		const gasCoinType = normalizeStructTag(
+			`${SUI_FRAMEWORK_ADDRESS}::coin::Coin<${SUI_FRAMEWORK_ADDRESS}::sui::SUI>`,
+		);
+		const stakedSuiType = normalizeStructTag(`${SUI_SYSTEM_ADDRESS}::staking_pool::StakedSui`);
+		const coinPrefix = `${normalizedSuiFramework}::coin::Coin<`;
+
+		if (typeStr === gasCoinType) {
+			moveObjectType = { GasCoin: null };
+		} else if (typeStr === stakedSuiType) {
+			moveObjectType = { StakedSui: null };
+		} else if (typeStr.startsWith(coinPrefix)) {
+			const innerTypeMatch = typeStr.match(
+				new RegExp(
+					`${normalizedSuiFramework.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}::coin::Coin<(.+)>$`,
+				),
+			);
+			if (innerTypeMatch) {
+				const innerTypeTag = TypeTagSerializer.parseFromStr(innerTypeMatch[1], true);
+				moveObjectType = { Coin: innerTypeTag };
+			} else {
+				throw new Error('Failed to parse Coin type');
+			}
+		} else {
+			const typeTag = TypeTagSerializer.parseFromStr(typeStr, true);
+			if (typeof typeTag !== 'object' || !('struct' in typeTag)) {
+				throw new Error('Expected struct type tag');
+			}
+			moveObjectType = { Other: typeTag.struct };
+		}
+
+		const contents = fromBase64(object.bcs.bcsBytes);
+		const owner = convertOwnerToBcs(object.owner!);
+
+		return bcs.Object.serialize({
+			data: {
+				Move: {
+					type: moveObjectType,
+					hasPublicTransfer: object.bcs.hasPublicTransfer,
+					version: object.bcs.version,
+					contents,
+				},
+			},
+			owner,
+			previousTransaction: object.previousTransaction!,
+			storageRebate: object.storageRebate!,
+		}).toBytes();
+	} catch {
+		// If serialization fails, return undefined
+		return undefined;
+	}
+}
+
 function parseObject<Include extends SuiClientTypes.ObjectInclude = object>(
 	object: SuiObjectData,
 	include?: Include,
 ): SuiClientTypes.Object<Include> {
 	const bcsContent =
 		object.bcs?.dataType === 'moveObject' ? fromBase64(object.bcs.bcsBytes) : undefined;
+
+	const objectBcs = include?.objectBcs ? serializeObjectToBcs(object) : undefined;
 
 	// Package objects have type "package" which is not a struct tag, so don't normalize it
 	const type =
@@ -387,6 +445,7 @@ function parseObject<Include extends SuiClientTypes.ObjectInclude = object>(
 		previousTransaction: (include?.previousTransaction
 			? (object.previousTransaction ?? undefined)
 			: undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
+		objectBcs: objectBcs as SuiClientTypes.Object<Include>['objectBcs'],
 	};
 }
 
@@ -427,6 +486,37 @@ function parseOwner(owner: ObjectOwner): SuiClientTypes.ObjectOwner {
 			$kind: 'Shared',
 			Shared: {
 				initialSharedVersion: owner.Shared.initial_shared_version,
+			},
+		};
+	}
+
+	throw new Error(`Unknown owner type: ${JSON.stringify(owner)}`);
+}
+
+function convertOwnerToBcs(owner: ObjectOwner) {
+	if (owner === 'Immutable') {
+		return { Immutable: null };
+	}
+
+	if ('AddressOwner' in owner) {
+		return { AddressOwner: owner.AddressOwner };
+	}
+
+	if ('ObjectOwner' in owner) {
+		return { ObjectOwner: owner.ObjectOwner };
+	}
+
+	if ('Shared' in owner) {
+		return {
+			Shared: { initialSharedVersion: owner.Shared.initial_shared_version },
+		};
+	}
+
+	if (typeof owner === 'object' && owner !== null && 'ConsensusAddressOwner' in owner) {
+		return {
+			ConsensusAddressOwner: {
+				startVersion: owner.ConsensusAddressOwner.start_version,
+				owner: owner.ConsensusAddressOwner.owner,
 			},
 		};
 	}
@@ -697,15 +787,6 @@ function parseTransactionEffectsJson({
 		},
 	};
 }
-
-const Balance = bcs.struct('Balance', {
-	value: bcs.u64(),
-});
-
-const Coin = bcs.struct('Coin', {
-	objectId: bcs.Address,
-	balance: Balance,
-});
 
 function parseNormalizedSuiMoveType(type: SuiMoveNormalizedType): SuiClientTypes.OpenSignature {
 	if (typeof type !== 'string') {
