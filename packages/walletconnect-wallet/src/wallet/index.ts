@@ -37,7 +37,7 @@ import type { InferOutput } from 'valibot';
 import { boolean, object, string } from 'valibot';
 import type { CustomCaipNetwork } from '@reown/appkit-universal-connector';
 import { UniversalConnector } from '@reown/appkit-universal-connector';
-import type { BaseClient } from '@mysten/sui/client';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 
 // -- Types --
@@ -47,7 +47,7 @@ type WalletEventsMap = {
 
 type SupportedNetwork = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 
-export type GetClient = (network: SupportedNetwork) => BaseClient;
+export type GetClient = (network: SupportedNetwork) => ClientWithCoreApi;
 type WalletMetadata = InferOutput<typeof WalletMetadataSchema>;
 
 // -- Constants --

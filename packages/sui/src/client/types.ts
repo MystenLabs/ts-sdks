@@ -46,9 +46,7 @@ export namespace SuiClientTypes {
 		listOwnedObjects: <Include extends ObjectInclude = {}>(
 			options: ListOwnedObjectsOptions<Include>,
 		) => Promise<ListOwnedObjectsResponse<Include>>;
-		listCoins: <Include extends ObjectInclude = {}>(
-			options: ListCoinsOptions<Include>,
-		) => Promise<ListCoinsResponse<Include>>;
+		listCoins: (options: ListCoinsOptions) => Promise<ListCoinsResponse>;
 		listDynamicFields: (options: ListDynamicFieldsOptions) => Promise<ListDynamicFieldsResponse>;
 		getDynamicField: (options: GetDynamicFieldOptions) => Promise<GetDynamicFieldResponse>;
 	}
@@ -56,6 +54,7 @@ export namespace SuiClientTypes {
 	export interface ObjectInclude {
 		content?: boolean;
 		previousTransaction?: boolean;
+		objectBcs?: boolean;
 	}
 
 	export interface GetObjectsOptions<
@@ -82,14 +81,11 @@ export namespace SuiClientTypes {
 		include?: Include;
 	}
 
-	export interface ListCoinsOptions<
-		Include extends ObjectInclude = {},
-	> extends CoreClientMethodOptions {
+	export interface ListCoinsOptions extends CoreClientMethodOptions {
 		owner: string;
 		coinType: string;
 		limit?: number;
 		cursor?: string | null;
-		include?: Include;
 	}
 
 	export interface ListDynamicFieldsOptions extends CoreClientMethodOptions {
@@ -117,8 +113,8 @@ export namespace SuiClientTypes {
 		cursor: string | null;
 	}
 
-	export interface ListCoinsResponse<out Include extends ObjectInclude = {}> {
-		objects: Coin<Include>[];
+	export interface ListCoinsResponse {
+		objects: Coin[];
 		hasNextPage: boolean;
 		cursor: string | null;
 	}
@@ -131,9 +127,15 @@ export namespace SuiClientTypes {
 		type: string;
 		content: Include extends { content: true } ? Uint8Array<ArrayBuffer> : undefined;
 		previousTransaction: Include extends { previousTransaction: true } ? string | null : undefined;
+		objectBcs: Include extends { objectBcs: true } ? Uint8Array<ArrayBuffer> : undefined;
 	}
 
-	export interface Coin<out Include extends ObjectInclude = {}> extends Object<Include> {
+	export interface Coin {
+		objectId: string;
+		version: string;
+		digest: string;
+		owner: ObjectOwner;
+		type: string;
 		balance: string;
 	}
 
@@ -555,8 +557,8 @@ export namespace SuiClientTypes {
 	export interface ConsensusAddressOwner {
 		$kind: 'ConsensusAddressOwner';
 		ConsensusAddressOwner: {
-			owner: string;
 			startVersion: string;
+			owner: string;
 		};
 		AddressOwner?: never;
 		ObjectOwner?: never;
@@ -604,7 +606,7 @@ export namespace SuiClientTypes {
 		inputVersion: string | null;
 		inputDigest: string | null;
 		inputOwner: ObjectOwner | null;
-		outputState: 'Unknown' | 'DoesNotExist' | 'ObjectWrite' | 'PackageWrite';
+		outputState: 'Unknown' | 'DoesNotExist' | 'ObjectWrite' | 'PackageWrite' | 'AccumulatorWriteV1';
 		outputVersion: string | null;
 		outputDigest: string | null;
 		outputOwner: ObjectOwner | null;

@@ -81,8 +81,8 @@ export function extractStatusFromEffectsBcs(
 		return { success: true, error: null };
 	}
 
-	const errorKind = status.Failed.error.$kind;
-	const errorData = status.Failed.error[errorKind];
+	const errorKind = status.Failure.error.$kind;
+	const errorData = status.Failure.error[errorKind];
 
 	const errorString =
 		errorData !== null && errorData !== undefined && typeof errorData !== 'boolean'
@@ -137,14 +137,17 @@ function parseTransactionEffectsV2({
 				outputVersion:
 					change.outputState.$kind === 'PackageWrite'
 						? change.outputState.PackageWrite?.[0]
-						: change.outputState.ObjectWrite
+						: change.outputState.$kind === 'ObjectWrite'
 							? effects.lamportVersion
 							: null,
 				outputDigest:
 					change.outputState.$kind === 'PackageWrite'
 						? change.outputState.PackageWrite?.[1]
-						: (change.outputState.ObjectWrite?.[0] ?? null),
-				outputOwner: change.outputState.ObjectWrite ? change.outputState.ObjectWrite[1] : null,
+						: change.outputState.$kind === 'ObjectWrite'
+							? (change.outputState.ObjectWrite?.[0] ?? null)
+							: null,
+				outputOwner:
+					change.outputState.$kind === 'ObjectWrite' ? change.outputState.ObjectWrite[1] : null,
 				idOperation: change.idOperation.$kind,
 			};
 		},
@@ -162,7 +165,7 @@ function parseTransactionEffectsV2({
 				: {
 						success: false,
 						// TODO: add command
-						error: effects.status.Failed.error.$kind,
+						error: effects.status.Failure.error.$kind,
 					},
 		gasUsed: effects.gasUsed,
 		transactionDigest: effects.transactionDigest,
@@ -172,15 +175,10 @@ function parseTransactionEffectsV2({
 		dependencies: effects.dependencies,
 		lamportVersion: effects.lamportVersion,
 		changedObjects,
-		unchangedConsensusObjects: effects.unchangedSharedObjects.map(
+		unchangedConsensusObjects: effects.unchangedConsensusObjects.map(
 			([objectId, object]): SuiClientTypes.UnchangedConsensusObject => {
 				return {
-					kind:
-						object.$kind === 'MutateDeleted'
-							? 'MutateConsensusStreamEnded'
-							: object.$kind === 'ReadDeleted'
-								? 'ReadConsensusStreamEnded'
-								: object.$kind,
+					kind: object.$kind,
 					objectId: objectId,
 					version:
 						object.$kind === 'ReadOnlyRoot'

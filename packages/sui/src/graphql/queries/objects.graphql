@@ -8,6 +8,7 @@ query getOwnedObjects(
 	$filter: ObjectFilter
 	$includeContent: Boolean = false
 	$includePreviousTransaction: Boolean = false
+	$includeObjectBcs: Boolean = false
 ) {
 	address(address: $owner) {
 		objects(first: $limit, after: $cursor, filter: $filter) {
@@ -26,6 +27,7 @@ query multiGetObjects(
 	$objectKeys: [ObjectKey!]!
 	$includeContent: Boolean = false
 	$includePreviousTransaction: Boolean = false
+	$includeObjectBcs: Boolean = false
 ) {
 	multiGetObjects(keys: $objectKeys) {
 		...OBJECT_FIELDS
@@ -36,6 +38,7 @@ fragment OBJECT_FIELDS on Object {
 	address
 	digest
 	version
+	objectBcs @include(if: $includeObjectBcs)
 	asMoveObject {
 		contents {
 			bcs @include(if: $includeContent)
@@ -59,6 +62,7 @@ fragment MOVE_OBJECT_FIELDS on MoveObject {
 	address
 	digest
 	version
+	objectBcs @include(if: $includeObjectBcs)
 	contents {
 		bcs @include(if: $includeContent)
 		type {
