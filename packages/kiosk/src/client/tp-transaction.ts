@@ -3,17 +3,14 @@
 
 import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 
-import {
-	attachFloorPriceRuleTx,
-	attachKioskLockRuleTx,
-	attachPersonalKioskRuleTx,
-	attachRoyaltyRuleTx,
-} from '../tx/rules/attach.js';
+import * as royaltyRule from '../contracts/kiosk/royalty_rule.js';
+import * as kioskLockRule from '../contracts/kiosk/kiosk_lock_rule.js';
+import * as personalKioskRule from '../contracts/kiosk/personal_kiosk_rule.js';
+import * as floorPriceRule from '../contracts/kiosk/floor_price_rule.js';
+import * as transferPolicyContract from '../contracts/0x2/transfer_policy.js';
 import {
 	createTransferPolicy,
-	createTransferPolicyWithoutSharing,
 	removeTransferPolicyRule,
-	shareTransferPolicy,
 	withdrawFromPolicy,
 } from '../tx/transfer-policy.js';
 import type { ObjectArgument, TransferPolicyCap } from '../types/index.js';
@@ -89,10 +86,13 @@ export class TransferPolicyTransaction {
 			const policies = await this.kioskClient.getTransferPolicies({ type });
 			if (policies.length > 0) throw new Error("There's already transfer policy for this Type.");
 		}
-		const [policy, policyCap] = createTransferPolicyWithoutSharing(
-			this.transaction,
-			type,
-			publisher,
+		const publisherArg =
+			typeof publisher === 'string' ? this.transaction.object(publisher) : publisher;
+		const [policy, policyCap] = this.transaction.add(
+			transferPolicyContract._new({
+				arguments: [publisherArg],
+				typeArguments: [type],
+			}),
 		);
 
 		this.#setup(policy, policyCap, type); // sets the client's TP to the newly created one.
@@ -109,7 +109,11 @@ export class TransferPolicyTransaction {
 		if (!this.type || !this.policyCap || !this.policy)
 			throw new Error('This function can only be called after `transferPolicyManager.create`');
 
-		shareTransferPolicy(this.transaction, this.type, this.policy as TransactionObjectArgument);
+		this.transaction.moveCall({
+			target: '0x2::transfer::public_share_object',
+			arguments: [this.policy as TransactionObjectArgument],
+			typeArguments: [`0x2::transfer_policy::TransferPolicy<${this.type}>`],
+		});
 		this.transaction.transferObjects(
 			[this.policyCap as TransactionObjectArgument],
 			this.transaction.pure.address(address),
@@ -162,17 +166,28 @@ export class TransferPolicyTransaction {
 	) {
 		this.#validateInputs();
 
-		// Hard-coding package Ids as these don't change.
-		// Also, it's hard to keep versioning as with network wipes, mainnet
-		// and testnet will conflict.
-		attachRoyaltyRuleTx(
-			this.transaction,
-			this.type!,
-			this.policy!,
-			this.policyCap!,
-			percentageBps,
-			minAmount,
-			this.kioskClient.getRulePackageId('royaltyRulePackageId'),
+		const policyArg =
+			typeof this.policy === 'string'
+				? this.transaction.object(this.policy)
+				: (this.policy as TransactionObjectArgument);
+		const policyCapArg =
+			typeof this.policyCap === 'string'
+				? this.transaction.object(this.policyCap)
+				: (this.policyCap as TransactionObjectArgument);
+
+		const packageId = this.kioskClient.getRulePackageId('royaltyRulePackageId');
+
+		this.transaction.add(
+			royaltyRule.add({
+				package: packageId,
+				arguments: {
+					policy: policyArg,
+					cap: policyCapArg,
+					amountBp: Number(percentageBps),
+					minAmount: typeof minAmount === 'string' ? BigInt(minAmount) : BigInt(minAmount),
+				},
+				typeArguments: [this.type!],
+			}),
 		);
 		return this;
 	}
@@ -184,12 +199,26 @@ export class TransferPolicyTransaction {
 	addLockRule() {
 		this.#validateInputs();
 
-		attachKioskLockRuleTx(
-			this.transaction,
-			this.type!,
-			this.policy!,
-			this.policyCap!,
-			this.kioskClient.getRulePackageId('kioskLockRulePackageId'),
+		const policyArg =
+			typeof this.policy === 'string'
+				? this.transaction.object(this.policy)
+				: (this.policy as TransactionObjectArgument);
+		const policyCapArg =
+			typeof this.policyCap === 'string'
+				? this.transaction.object(this.policyCap)
+				: (this.policyCap as TransactionObjectArgument);
+
+		const packageId = this.kioskClient.getRulePackageId('kioskLockRulePackageId');
+
+		this.transaction.add(
+			kioskLockRule.add({
+				package: packageId,
+				arguments: {
+					policy: policyArg,
+					cap: policyCapArg,
+				},
+				typeArguments: [this.type!],
+			}),
 		);
 		return this;
 	}
@@ -200,12 +229,26 @@ export class TransferPolicyTransaction {
 	addPersonalKioskRule() {
 		this.#validateInputs();
 
-		attachPersonalKioskRuleTx(
-			this.transaction,
-			this.type!,
-			this.policy!,
-			this.policyCap!,
-			this.kioskClient.getRulePackageId('personalKioskRulePackageId'),
+		const policyArg =
+			typeof this.policy === 'string'
+				? this.transaction.object(this.policy)
+				: (this.policy as TransactionObjectArgument);
+		const policyCapArg =
+			typeof this.policyCap === 'string'
+				? this.transaction.object(this.policyCap)
+				: (this.policyCap as TransactionObjectArgument);
+
+		const packageId = this.kioskClient.getRulePackageId('personalKioskRulePackageId');
+
+		this.transaction.add(
+			personalKioskRule.add({
+				package: packageId,
+				arguments: {
+					policy: policyArg,
+					cap: policyCapArg,
+				},
+				typeArguments: [this.type!],
+			}),
 		);
 		return this;
 	}
@@ -217,13 +260,27 @@ export class TransferPolicyTransaction {
 	addFloorPriceRule(minPrice: string | bigint) {
 		this.#validateInputs();
 
-		attachFloorPriceRuleTx(
-			this.transaction,
-			this.type!,
-			this.policy!,
-			this.policyCap!,
-			minPrice,
-			this.kioskClient.getRulePackageId('floorPriceRulePackageId'),
+		const policyArg =
+			typeof this.policy === 'string'
+				? this.transaction.object(this.policy)
+				: (this.policy as TransactionObjectArgument);
+		const policyCapArg =
+			typeof this.policyCap === 'string'
+				? this.transaction.object(this.policyCap)
+				: (this.policyCap as TransactionObjectArgument);
+
+		const packageId = this.kioskClient.getRulePackageId('floorPriceRulePackageId');
+
+		this.transaction.add(
+			floorPriceRule.add({
+				package: packageId,
+				arguments: {
+					policy: policyArg,
+					cap: policyCapArg,
+					floorPrice: typeof minPrice === 'string' ? BigInt(minPrice) : minPrice,
+				},
+				typeArguments: [this.type!],
+			}),
 		);
 		return this;
 	}

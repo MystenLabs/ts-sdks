@@ -7,6 +7,7 @@ Object.entries({
 	FAUCET_URL: `http://localhost:${inject('faucetPort')}`,
 	FULLNODE_URL: `http://localhost:${inject('localnetPort')}`,
 	GRAPHQL_URL: `http://localhost:${inject('graphqlPort')}/graphql`,
+	GRPC_URL: `http://localhost:${inject('grpcPort')}`,
 }).forEach(([key, value]) => {
 	process.env[key] = value;
 });

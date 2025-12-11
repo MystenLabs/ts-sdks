@@ -9,6 +9,7 @@ declare module 'vitest' {
 	export interface ProvidedContext {
 		localnetPort: number;
 		graphqlPort: number;
+		grpcPort: number;
 		faucetPort: number;
 		suiToolsContainerId: string;
 	}
@@ -60,5 +61,6 @@ export default async function setup(project: TestProject) {
 	project.provide('faucetPort', localnet.getMappedPort(9123));
 	project.provide('localnetPort', localnet.getMappedPort(9000));
 	project.provide('graphqlPort', localnet.getMappedPort(9125));
+	project.provide('grpcPort', localnet.getMappedPort(9000)); // gRPC runs on same host as JSON-RPC
 	project.provide('suiToolsContainerId', localnet.getId());
 }
