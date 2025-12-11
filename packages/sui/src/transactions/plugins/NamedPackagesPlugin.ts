@@ -1,83 +1,16 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { ClientCache } from '../../client/cache.js';
-import { MvrClient } from '../../client/mvr.js';
+import { findNamesInTransaction, replaceNames } from '../../client/mvr.js';
 import type { BuildTransactionOptions } from '../resolve.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
-import { findNamesInTransaction, replaceNames } from '../../client/mvr.js';
-import type { NamedPackagesOverrides } from '../../client/mvr.js';
-
-export type NamedPackagesPluginOptions = {
-	/**
-	 * The URL of the MVR API to use for resolving names.
-	 */
-	url: string;
-	/**
-	 * The number of names to resolve in each batch request.
-	 * Needs to be calculated based on the GraphQL query limits.
-	 */
-	pageSize?: number;
-	/**
-	 * Local overrides for the resolution plugin. Pass this to pre-populate
-	 * the cache with known packages / types (especially useful for local or CI testing).
-	 *
-	 * The type cache expects ONLY first-level types to ensure the cache is more composable.
-	 *
-	 * 	Expected format example:
-	 *  {
-	 * 		packages: {
-	 * 			'@framework/std': '0x1234',
-	 * 		},
-	 * 		types: {
-	 * 			'@framework/std::string::String': '0x1234::string::String',
-	 * 		},
-	 * 	}
-	 *
-	 */
-	overrides?: NamedPackagesOverrides;
-};
-
-// The original versions of the mvr plugin cached lookups by mutating overrides.
-// We don't want to mutate the options, but we can link our cache to the provided overrides object
-// This preserves the caching across transactions while removing the mutation side effects
-const cacheMap = new WeakMap<object, ClientCache>();
 
 /**
- * @experimental This plugin is in experimental phase and there might be breaking changes in the future
- *
- * Adds named resolution so that you can use .move names in your transactions.
- * e.g. `@org/app::type::Type` will be resolved to `0x1234::type::Type`.
- * This plugin will resolve all names & types in the transaction block.
- *
- * To install this plugin globally in your app, use:
- * ```
- * Transaction.registerGlobalSerializationPlugin("namedPackagesPlugin", namedPackagesPlugin({ suiGraphQLClient }));
- * ```
- *
- * You can also define `overrides` to pre-populate name resolutions locally (removes the GraphQL request).
+ * Internal plugin that automatically resolves MVR names in transactions.
+ * This plugin is automatically added to all transactions and uses the client's
+ * MVR resolver to convert .move names to on-chain addresses.
  */
-export const namedPackagesPlugin = (options?: NamedPackagesPluginOptions) => {
-	let mvrClient: MvrClient | undefined;
-
-	if (options) {
-		const overrides = options.overrides ?? {
-			packages: {},
-			types: {},
-		};
-
-		if (!cacheMap.has(overrides)) {
-			cacheMap.set(overrides, new ClientCache());
-		}
-
-		mvrClient = new MvrClient({
-			cache: cacheMap.get(overrides)!,
-			url: options.url,
-			pageSize: options.pageSize,
-			overrides: overrides,
-		});
-	}
-
+export function namedPackagesPlugin() {
 	return async (
 		transactionData: TransactionDataBuilder,
 		buildOptions: BuildTransactionOptions,
@@ -89,7 +22,13 @@ export const namedPackagesPlugin = (options?: NamedPackagesPluginOptions) => {
 			return next();
 		}
 
-		const resolved = await (mvrClient || getClient(buildOptions).core.mvr).resolve({
+		if (!buildOptions.client) {
+			throw new Error(
+				`Transaction contains MVR names but no client was provided to resolve them. Please pass a client to Transaction#build()`,
+			);
+		}
+
+		const resolved = await buildOptions.client.core.mvr.resolve({
 			types: names.types,
 			packages: names.packages,
 		});
@@ -98,14 +37,4 @@ export const namedPackagesPlugin = (options?: NamedPackagesPluginOptions) => {
 
 		await next();
 	};
-};
-
-export function getClient(options: BuildTransactionOptions) {
-	if (!options.client) {
-		throw new Error(
-			`No sui client passed to Transaction#build, but transaction data was not sufficient to build offline.`,
-		);
-	}
-
-	return options.client;
 }

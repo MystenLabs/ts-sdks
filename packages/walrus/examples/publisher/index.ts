@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { serve } from '@hono/node-server';
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Hono } from 'hono';
 
 import { WalrusClient } from '../../src/index.js';
 import { getFundedKeypair } from '../funded-keypair.js';
 
-const suiClient = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const suiClient = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
 const walrusClient = new WalrusClient({

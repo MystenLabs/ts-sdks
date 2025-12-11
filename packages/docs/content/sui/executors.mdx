@@ -27,16 +27,19 @@ transactions to finish before sending the next one.
 
 `SerialTransactionExecutor` can be configured with a number of options:
 
-- `client`: An instance of `SuiJsonRpcClient` used to execute transactions.
+- `client`: An instance of a Sui client (such as `SuiGrpcClient`) used to execute transactions.
 - `signer`: The signer/keypair used for signed transactions.
 - `defaultBudget`: The default budget for transactions, which will be used if the transaction does
   not specify a budget (default `50_000_000n`),
 
 ```ts
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { SerialTransactionExecutor } from '@mysten/sui/transactions';
 
-const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('devnet'), network: 'devnet' });
+const client = new SuiGrpcClient({
+	network: 'devnet',
+	baseUrl: 'https://fullnode.devnet.sui.io:443',
+});
 
 const executor = new SerialTransactionExecutor({
 	client,
@@ -68,10 +71,10 @@ will maintain a pool of gas coins, and automatically execute additional transact
 gas pool as needed.
 
 <Callout type="warn">
-	Using SuiJsonRpcClient or wallets to execute additional transactions while `ParallelTransactionExecutor`
-	is in use may consume/combine gas coins in the gasPool, causing transactions to fail. This may
-	also result in the coins becoming locked for the remainder of the current epoch, preventing them
-	from being used in future transactions.
+	Using other client methods or wallets to execute additional transactions while
+	`ParallelTransactionExecutor` is in use may consume/combine gas coins in the gasPool, causing
+	transactions to fail. This may also result in the coins becoming locked for the remainder of the
+	current epoch, preventing them from being used in future transactions.
 
     Running multiple instances of `ParallelTransactionExecutor` using the same `sourceCoins` will
     result in the same issues.
