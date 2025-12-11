@@ -28,7 +28,7 @@ describe('extractStatusFromEffectsBcs', () => {
 				dependencies: [],
 				lamportVersion: 1n,
 				changedObjects: [],
-				unchangedSharedObjects: [],
+				unchangedConsensusObjects: [],
 				auxDataDigest: null,
 			},
 		}).toBytes();
@@ -39,7 +39,7 @@ describe('extractStatusFromEffectsBcs', () => {
 		return bcs.TransactionEffects.serialize({
 			V2: {
 				status: {
-					Failed: {
+					Failure: {
 						error: { InsufficientGas: true },
 						command: null,
 					},
@@ -57,7 +57,7 @@ describe('extractStatusFromEffectsBcs', () => {
 				dependencies: [],
 				lamportVersion: 1n,
 				changedObjects: [],
-				unchangedSharedObjects: [],
+				unchangedConsensusObjects: [],
 				auxDataDigest: null,
 			},
 		}).toBytes();
@@ -103,7 +103,7 @@ describe('extractStatusFromEffectsBcs', () => {
 		return bcs.TransactionEffects.serialize({
 			V1: {
 				status: {
-					Failed: {
+					Failure: {
 						error: { InsufficientGas: true },
 						command: null,
 					},
@@ -143,7 +143,7 @@ describe('extractStatusFromEffectsBcs', () => {
 		return bcs.TransactionEffects.serialize({
 			V2: {
 				status: {
-					Failed: {
+					Failure: {
 						error: {
 							MoveObjectTooBig: {
 								objectSize: 1000000n,
@@ -166,7 +166,7 @@ describe('extractStatusFromEffectsBcs', () => {
 				dependencies: [],
 				lamportVersion: 1n,
 				changedObjects: [],
-				unchangedSharedObjects: [],
+				unchangedConsensusObjects: [],
 				auxDataDigest: null,
 			},
 		}).toBytes();
