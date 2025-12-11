@@ -27,17 +27,18 @@ describe('Core API - MVR (Move Registry)', () => {
 
 	beforeAll(async () => {
 		// MVR requires testnet as it's not available in localnet
-		const testnetUrl = 'https://fullnode.testnet.sui.io';
+		const testnetJsonRpcUrl = 'https://fullnode.testnet.sui.io';
+		const testnetGrpcUrl = 'https://fullnode.testnet.sui.io:443';
 
 		jsonRpcClient = new SuiJsonRpcClient({
 			network: 'testnet',
 			transport: new JsonRpcHTTPTransport({
-				url: testnetUrl,
+				url: testnetJsonRpcUrl,
 			}),
 		});
 		grpcClient = new SuiGrpcClient({
 			network: 'testnet',
-			baseUrl: testnetUrl,
+			baseUrl: testnetGrpcUrl,
 		});
 		graphqlClient = new SuiGraphQLClient({
 			network: 'testnet',

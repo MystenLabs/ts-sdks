@@ -159,10 +159,11 @@ If your package is registered on MVR, the generated code works without additiona
 For local packages using `@local-pkg/*` identifiers, configure your client with package overrides:
 
 ```typescript
-import { SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const client = new SuiClient({
-	url: 'https://fullnode.testnet.sui.io:443',
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 	mvr: {
 		overrides: {
 			packages: {
@@ -175,40 +176,38 @@ const client = new SuiClient({
 
 ### With dApp Kit
 
-Configure package overrides when creating your network config:
+Configure package overrides when creating your dApp Kit instance:
 
 ```typescript
-import { createNetworkConfig } from '@mysten/dapp-kit-core';
-import { SuiClient } from '@mysten/sui/client';
+import { createDAppKit } from '@mysten/dapp-kit-core';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const { networkConfig } = createNetworkConfig({
-  testnet: {
-    url: 'https://fullnode.testnet.sui.io:443',
-    variables: {
-      counterPackageId: '0xYOUR_PACKAGE_ID',
-    },
-  },
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+};
+
+const PACKAGE_IDS = {
+	testnet: {
+		counter: '0xYOUR_PACKAGE_ID',
+	},
+};
+
+const dAppKit = createDAppKit({
+	networks: ['testnet'],
+	createClient: (network) => {
+		return new SuiGrpcClient({
+			network,
+			baseUrl: GRPC_URLS[network],
+			mvr: {
+				overrides: {
+					packages: {
+						'@local-pkg/counter': PACKAGE_IDS[network].counter,
+					},
+				},
+			},
+		});
+	},
 });
-
-// In your provider setup
-<DAppKitProvider
-  networks={networkConfig}
-  defaultNetwork="testnet"
-  createClient={(network, config) => {
-    return new SuiClient({
-      url: config.url,
-      mvr: {
-        overrides: {
-          packages: {
-            '@local-pkg/counter': config.variables.counterPackageId,
-          },
-        },
-      },
-    });
-  }}
->
-  <App />
-</DAppKitProvider>
 ```
 
 ## Related Resources

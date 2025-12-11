@@ -5,12 +5,16 @@ import type { Meta, StoryObj } from '@storybook/web-components';
 import { html } from 'lit';
 import type { DAppKitConnectModal } from './dapp-kit-connect-modal.js';
 import { createDAppKit } from '../core/index.js';
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+};
 
 const dAppKit = createDAppKit({
 	networks: ['testnet'],
 	createClient(network) {
-		return new SuiJsonRpcClient({ network, url: getJsonRpcFullnodeUrl(network) });
+		return new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] });
 	},
 });
 
