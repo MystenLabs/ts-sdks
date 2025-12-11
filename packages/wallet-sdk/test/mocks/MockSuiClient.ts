@@ -284,21 +284,27 @@ export class MockSuiClient extends CoreClient {
 		throw new Error('defaultNameServiceName not implemented in MockSuiClient');
 	}
 
-	async simulateTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = object>(
 		_options: SuiClientTypes.SimulateTransactionOptions<Include>,
-	): Promise<SuiClientTypes.TransactionResult<Include>> {
+	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		if (this.#nextDryRunResult) {
 			const result = this.#nextDryRunResult;
 			this.#nextDryRunResult = null;
-			return result as SuiClientTypes.TransactionResult<Include>;
+			return {
+				$kind: 'Transaction',
+				Transaction: (result as any).transaction,
+				commandResults: undefined,
+			} as any;
 		}
 
 		// Default dry run response - minimal valid structure
 		return {
-			transaction: {
+			$kind: 'Transaction',
+			Transaction: {
 				digest: 'mockTransactionDigest',
 				signatures: [],
 				epoch: '1',
+				status: { success: true, error: null },
 				effects: {
 					bcs: new Uint8Array(),
 					version: 1,
@@ -340,6 +346,7 @@ export class MockSuiClient extends CoreClient {
 				balanceChanges: undefined,
 				events: undefined,
 			},
+			commandResults: undefined,
 		} as any;
 	}
 

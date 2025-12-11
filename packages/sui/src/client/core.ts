@@ -83,9 +83,9 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>>;
 
-	abstract simulateTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	abstract simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = object>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
-	): Promise<SuiClientTypes.TransactionResult<Include>>;
+	): Promise<SuiClientTypes.SimulateTransactionResult<Include>>;
 
 	abstract getReferenceGasPrice(
 		options?: SuiClientTypes.GetReferenceGasPriceOptions,

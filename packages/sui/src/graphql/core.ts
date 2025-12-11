@@ -298,9 +298,9 @@ export class GraphQLCoreClient extends CoreClient {
 
 		return parseTransaction(result.effects?.transaction!, options.include);
 	}
-	async simulateTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = object>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
-	): Promise<SuiClientTypes.TransactionResult<Include>> {
+	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		const result = await this.#graphqlQuery(
 			{
 				query: SimulateTransactionDocument,
@@ -315,6 +315,7 @@ export class GraphQLCoreClient extends CoreClient {
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
+					includeCommandResults: options.include?.commandResults ?? false,
 				},
 			},
 			(result) => result.simulateTransaction,
@@ -324,7 +325,35 @@ export class GraphQLCoreClient extends CoreClient {
 			throw new Error(result.error);
 		}
 
-		return parseTransaction(result.effects?.transaction!, options.include);
+		const transactionResult = parseTransaction(result.effects?.transaction!, options.include);
+
+		const commandResults =
+			options.include?.commandResults && result.outputs
+				? result.outputs.map((output) => ({
+						returnValues: (output.returnValues ?? []).map((rv) => ({
+							bcs: rv.value?.bcs ? fromBase64(rv.value.bcs) : null,
+						})),
+						mutatedReferences: (output.mutatedReferences ?? []).map((mr) => ({
+							bcs: mr.value?.bcs ? fromBase64(mr.value.bcs) : null,
+						})),
+					}))
+				: undefined;
+
+		if (transactionResult.$kind === 'Transaction') {
+			return {
+				$kind: 'Transaction',
+				Transaction: transactionResult.Transaction,
+				commandResults:
+					commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
+			};
+		} else {
+			return {
+				$kind: 'FailedTransaction',
+				FailedTransaction: transactionResult.FailedTransaction,
+				commandResults:
+					commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
+			};
+		}
 	}
 	async getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
 		const result = await this.#graphqlQuery(
