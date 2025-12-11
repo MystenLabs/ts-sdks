@@ -3,8 +3,9 @@
 
 import { bcs } from '@mysten/bcs';
 
-import { Address, ObjectDigest, Owner, SuiObjectRef } from './bcs.js';
+import { Address, ObjectDigest, Owner, SuiObjectRef, TypeTag } from './bcs.js';
 
+// Rust: crates/sui-types/src/execution_status.rs (PackageUpgradeError enum)
 const PackageUpgradeError = bcs.enum('PackageUpgradeError', {
 	UnableToFetchPackage: bcs.struct('UnableToFetchPackage', { packageId: Address }),
 	NotAPackage: bcs.struct('NotAPackage', { objectId: Address }),
@@ -17,10 +18,12 @@ const PackageUpgradeError = bcs.enum('PackageUpgradeError', {
 	}),
 });
 
+// Rust: move-core-types/src/language_storage.rs
 const ModuleId = bcs.struct('ModuleId', {
 	address: Address,
 	name: bcs.string(),
 });
+// Rust: crates/sui-types/src/execution_status.rs
 const MoveLocation = bcs.struct('MoveLocation', {
 	module: ModuleId,
 	function: bcs.u16(),
@@ -28,6 +31,7 @@ const MoveLocation = bcs.struct('MoveLocation', {
 	functionName: bcs.option(bcs.string()),
 });
 
+// Rust: crates/sui-types/src/execution_status.rs
 const CommandArgumentError = bcs.enum('CommandArgumentError', {
 	TypeMismatch: null,
 	InvalidBCSBytes: null,
@@ -44,13 +48,22 @@ const CommandArgumentError = bcs.enum('CommandArgumentError', {
 	InvalidObjectByValue: null,
 	InvalidObjectByMutRef: null,
 	SharedObjectOperationNotAllowed: null,
+	InvalidArgumentArity: null,
+	InvalidTransferObject: null,
+	InvalidMakeMoveVecNonObjectArgument: null,
+	ArgumentWithoutValue: null,
+	CannotMoveBorrowedValue: null,
+	CannotWriteToExtendedReference: null,
+	InvalidReferenceArgument: null,
 });
 
+// Rust: crates/sui-types/src/execution_status.rs
 const TypeArgumentError = bcs.enum('TypeArgumentError', {
 	TypeNotFound: null,
 	ConstraintNotSatisfied: null,
 });
 
+// Rust: crates/sui-types/src/execution_status.rs
 const ExecutionFailureStatus = bcs.enum('ExecutionFailureStatus', {
 	InsufficientGas: null,
 	InvalidGasObject: null,
@@ -108,7 +121,7 @@ const ExecutionFailureStatus = bcs.enum('ExecutionFailureStatus', {
 	ExecutionCancelledDueToSharedObjectCongestion: bcs.struct(
 		'ExecutionCancelledDueToSharedObjectCongestion',
 		{
-			congestedObjects: bcs.vector(Address),
+			congested_objects: bcs.vector(Address),
 		},
 	),
 	AddressDeniedForCoin: bcs.struct('AddressDeniedForCoin', {
@@ -117,16 +130,31 @@ const ExecutionFailureStatus = bcs.enum('ExecutionFailureStatus', {
 	}),
 	CoinTypeGlobalPause: bcs.struct('CoinTypeGlobalPause', { coinType: bcs.string() }),
 	ExecutionCancelledDueToRandomnessUnavailable: null,
+	MoveVectorElemTooBig: bcs.struct('MoveVectorElemTooBig', {
+		valueSize: bcs.u64(),
+		maxScaledSize: bcs.u64(),
+	}),
+	MoveRawValueTooBig: bcs.struct('MoveRawValueTooBig', {
+		valueSize: bcs.u64(),
+		maxScaledSize: bcs.u64(),
+	}),
+	InvalidLinkage: null,
+	InsufficientBalanceForWithdraw: null,
+	NonExclusiveWriteInputObjectModified: bcs.struct('NonExclusiveWriteInputObjectModified', {
+		id: Address,
+	}),
 });
 
+// Rust: crates/sui-types/src/execution_status.rs
 export const ExecutionStatus = bcs.enum('ExecutionStatus', {
 	Success: null,
-	Failed: bcs.struct('ExecutionFailed', {
+	Failure: bcs.struct('Failure', {
 		error: ExecutionFailureStatus,
 		command: bcs.option(bcs.u64()),
 	}),
 });
 
+// Rust: crates/sui-types/src/gas.rs
 const GasCostSummary = bcs.struct('GasCostSummary', {
 	computationCost: bcs.u64(),
 	storageCost: bcs.u64(),
@@ -134,6 +162,7 @@ const GasCostSummary = bcs.struct('GasCostSummary', {
 	nonRefundableStorageFee: bcs.u64(),
 });
 
+// Rust: crates/sui-types/src/effects/effects_v1.rs
 const TransactionEffectsV1 = bcs.struct('TransactionEffectsV1', {
 	status: ExecutionStatus,
 	executedEpoch: bcs.u64(),
@@ -152,40 +181,75 @@ const TransactionEffectsV1 = bcs.struct('TransactionEffectsV1', {
 	dependencies: bcs.vector(ObjectDigest),
 });
 
+// Rust: crates/sui-types/src/base_types.rs
 const VersionDigest = bcs.tuple([bcs.u64(), ObjectDigest]);
 
+// Rust: crates/sui-types/src/effects/object_change.rs
 const ObjectIn = bcs.enum('ObjectIn', {
 	NotExist: null,
 	Exist: bcs.tuple([VersionDigest, Owner]),
 });
 
+// Rust: crates/sui-types/src/effects/object_change.rs
+const AccumulatorAddress = bcs.struct('AccumulatorAddress', {
+	address: Address,
+	// TODO: ask why this is the name
+	ty: TypeTag,
+});
+
+// Rust: crates/sui-types/src/effects/object_change.rs
+const AccumulatorOperation = bcs.enum('AccumulatorOperation', {
+	Merge: null,
+	Split: null,
+});
+
+// Rust: crates/sui-types/src/effects/object_change.rs
+const AccumulatorValue = bcs.enum('AccumulatorValue', {
+	Integer: bcs.u64(),
+	IntegerTuple: bcs.tuple([bcs.u64(), bcs.u64()]),
+	// NonEmpty<(u64, Digest)> in Rust - vector must have at least one element
+	EventDigest: bcs.vector(bcs.tuple([bcs.u64(), ObjectDigest])),
+});
+
+// Rust: crates/sui-types/src/effects/object_change.rs
+const AccumulatorWriteV1 = bcs.struct('AccumulatorWriteV1', {
+	address: AccumulatorAddress,
+	operation: AccumulatorOperation,
+	value: AccumulatorValue,
+});
+
+// Rust: crates/sui-types/src/effects/object_change.rs
 const ObjectOut = bcs.enum('ObjectOut', {
 	NotExist: null,
 	ObjectWrite: bcs.tuple([ObjectDigest, Owner]),
 	PackageWrite: VersionDigest,
+	AccumulatorWriteV1: AccumulatorWriteV1,
 });
 
+// Rust: crates/sui-types/src/effects/mod.rs
 const IDOperation = bcs.enum('IDOperation', {
 	None: null,
 	Created: null,
 	Deleted: null,
 });
 
+// Rust: crates/sui-types/src/effects/object_change.rs
 const EffectsObjectChange = bcs.struct('EffectsObjectChange', {
 	inputState: ObjectIn,
 	outputState: ObjectOut,
 	idOperation: IDOperation,
 });
 
-const UnchangedSharedKind = bcs.enum('UnchangedSharedKind', {
+// Rust: crates/sui-types/src/effects/effects_v2.rs
+const UnchangedConsensusKind = bcs.enum('UnchangedConsensusKind', {
 	ReadOnlyRoot: VersionDigest,
-	// TODO: these have been renamed to MutateConsensusStreamEnded and ReadConsensusStreamEnded
-	MutateDeleted: bcs.u64(),
-	ReadDeleted: bcs.u64(),
+	MutateConsensusStreamEnded: bcs.u64(),
+	ReadConsensusStreamEnded: bcs.u64(),
 	Cancelled: bcs.u64(),
 	PerEpochConfig: null,
 });
 
+// Rust: crates/sui-types/src/effects/effects_v2.rs
 const TransactionEffectsV2 = bcs.struct('TransactionEffectsV2', {
 	status: ExecutionStatus,
 	executedEpoch: bcs.u64(),
@@ -196,10 +260,11 @@ const TransactionEffectsV2 = bcs.struct('TransactionEffectsV2', {
 	dependencies: bcs.vector(ObjectDigest),
 	lamportVersion: bcs.u64(),
 	changedObjects: bcs.vector(bcs.tuple([Address, EffectsObjectChange])),
-	unchangedSharedObjects: bcs.vector(bcs.tuple([Address, UnchangedSharedKind])),
+	unchangedConsensusObjects: bcs.vector(bcs.tuple([Address, UnchangedConsensusKind])),
 	auxDataDigest: bcs.option(ObjectDigest),
 });
 
+// Rust: crates/sui-types/src/effects/mod.rs
 export const TransactionEffects = bcs.enum('TransactionEffects', {
 	V1: TransactionEffectsV1,
 	V2: TransactionEffectsV2,

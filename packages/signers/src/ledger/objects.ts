@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Transaction } from '@mysten/sui/transactions';
-import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
-import { SuiMoveObject } from './bcs.js';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 
-export const getInputObjects = async (transaction: Transaction, client: SuiJsonRpcClient) => {
+export const getInputObjects = async (transaction: Transaction, client: ClientWithCoreApi) => {
 	const data = transaction.getData();
 
 	const gasObjectIds = data.gasData.payment?.map((object) => object.objectId) ?? [];
@@ -17,40 +16,17 @@ export const getInputObjects = async (transaction: Transaction, client: SuiJsonR
 		})
 		.filter((objectId): objectId is string => !!objectId);
 
-	const objects = await client.multiGetObjects({
-		ids: [...gasObjectIds, ...inputObjectIds],
-		options: {
-			showBcs: true,
-			showPreviousTransaction: true,
-			showStorageRebate: true,
-			showOwner: true,
+	const response = await client.core.getObjects({
+		objectIds: [...gasObjectIds, ...inputObjectIds],
+		include: {
+			objectBcs: true,
 		},
 	});
 
-	// NOTE: We should probably get rid of this manual serialization logic in favor of using the
-	// already serialized object bytes from the GraphQL API once there is more mainstream support
-	// for it + we can enforce the transport type on the Sui client.
-	const bcsObjects = objects
-		.map((object) => {
-			if (object.error || !object.data || object.data.bcs?.dataType !== 'moveObject') {
-				return null;
-			}
-
-			return SuiMoveObject.serialize({
-				data: {
-					MoveObject: {
-						type: object.data.bcs.type,
-						hasPublicTransfer: object.data.bcs.hasPublicTransfer,
-						version: object.data.bcs.version,
-						contents: object.data.bcs.bcsBytes,
-					},
-				},
-				owner: object.data.owner!,
-				previousTransaction: object.data.previousTransaction!,
-				storageRebate: object.data.storageRebate!,
-			}).toBytes();
-		})
-		.filter((bcsBytes): bcsBytes is Uint8Array<ArrayBuffer> => !!bcsBytes);
+	const bcsObjects = response.objects
+		.filter((obj): obj is Exclude<typeof obj, Error> => !(obj instanceof Error))
+		.map((object) => object.objectBcs)
+		.filter((bytes): bytes is Uint8Array<ArrayBuffer> => !!bytes);
 
 	return { bcsObjects };
 };
