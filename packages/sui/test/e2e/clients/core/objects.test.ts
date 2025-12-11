@@ -219,6 +219,19 @@ describe('Core API - Objects', () => {
 			}
 		});
 
+		testWithAllClients('should filter by struct type without type parameters', async (client) => {
+			const result = await client.core.listOwnedObjects({
+				owner: testAddress,
+				type: '0x2::coin::Coin',
+			});
+
+			expect(result.objects.length).toBeGreaterThan(0);
+
+			for (const obj of result.objects) {
+				expect(obj.type).toMatch(/^0x0*2::coin::Coin</);
+			}
+		});
+
 		testWithAllClients('should paginate owned objects', async (client) => {
 			// Get first page with limit
 			const firstPage = await client.core.listOwnedObjects({

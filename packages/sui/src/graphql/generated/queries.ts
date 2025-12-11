@@ -4629,6 +4629,7 @@ export type SimulateTransactionQueryVariables = Exact<{
   includeEvents?: InputMaybe<Scalars['Boolean']['input']>;
   includeBalanceChanges?: InputMaybe<Scalars['Boolean']['input']>;
   includeObjectTypes?: InputMaybe<Scalars['Boolean']['input']>;
+  includeCommandResults?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
@@ -4638,7 +4639,7 @@ export type SimulateTransactionQuery = { __typename?: 'Query', simulateTransacti
               | { __typename: 'MutateConsensusStreamEnded' }
               | { __typename: 'PerEpochConfig' }
               | { __typename: 'ReadConsensusStreamEnded' }
-            > } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null } | null } };
+            > } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null } | null, outputs?: Array<{ __typename?: 'CommandResult', returnValues?: Array<{ __typename?: 'CommandOutput', value?: { __typename?: 'MoveValue', bcs?: string | null } | null }> | null, mutatedReferences?: Array<{ __typename?: 'CommandOutput', value?: { __typename?: 'MoveValue', bcs?: string | null } | null }> | null }> | null } };
 
 export type ExecuteTransactionMutationVariables = Exact<{
   transactionDataBcs: Scalars['Base64']['input'];
@@ -5177,12 +5178,24 @@ fragment OBJECT_OWNER_FIELDS on Owner {
   }
 }`) as unknown as TypedDocumentString<MultiGetObjectsQuery, MultiGetObjectsQueryVariables>;
 export const SimulateTransactionDocument = new TypedDocumentString(`
-    query simulateTransaction($transaction: JSON!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false) {
+    query simulateTransaction($transaction: JSON!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeCommandResults: Boolean = false) {
   simulateTransaction(transaction: $transaction) {
     error
     effects {
       transaction {
         ...TRANSACTION_FIELDS
+      }
+    }
+    outputs @include(if: $includeCommandResults) {
+      returnValues {
+        value {
+          bcs
+        }
+      }
+      mutatedReferences {
+        value {
+          bcs
+        }
       }
     }
   }
