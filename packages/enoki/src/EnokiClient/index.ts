@@ -104,13 +104,13 @@ export class EnokiClient {
 		});
 	}
 
-	createZkLoginNonce(input: Omit<CreateZkLoginNonceApiInput, 'additionalEpochs'>) {
+	createZkLoginNonce(input: CreateZkLoginNonceApiInput) {
 		return this.#fetch<CreateZkLoginNonceApiResponse>('zklogin/nonce', {
 			method: 'POST',
 			body: JSON.stringify({
 				network: input.network,
 				ephemeralPublicKey: input.ephemeralPublicKey.toSuiPublicKey(),
-				additionalEpochs: this.#additionalEpochs,
+				additionalEpochs: input.additionalEpochs ?? this.#additionalEpochs,
 			}),
 		});
 	}
