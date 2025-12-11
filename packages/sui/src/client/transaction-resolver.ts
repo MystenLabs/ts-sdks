@@ -194,7 +194,6 @@ export function transactionDataToGrpcTransaction(data: TransactionData): GrpcTra
 
 	const transaction: GrpcTransaction = {
 		version: 1,
-		sender: data.sender || undefined,
 		kind: {
 			data: {
 				oneofKind: 'programmableTransaction',
@@ -206,6 +205,12 @@ export function transactionDataToGrpcTransaction(data: TransactionData): GrpcTra
 		},
 	};
 
+	if (data.sender) {
+		transaction.sender = data.sender;
+	}
+
+	const gasOwner = data.gasData.owner ?? data.sender;
+
 	transaction.gasPayment = {
 		objects: data.gasData.payment
 			? data.gasData.payment.map((ref) => ({
@@ -214,10 +219,13 @@ export function transactionDataToGrpcTransaction(data: TransactionData): GrpcTra
 					digest: ref.digest,
 				}))
 			: [],
-		owner: data.gasData.owner ?? data.sender ?? undefined,
 		price: data.gasData.price ? BigInt(data.gasData.price) : undefined,
 		budget: data.gasData.budget ? BigInt(data.gasData.budget) : undefined,
 	};
+
+	if (gasOwner) {
+		transaction.gasPayment.owner = gasOwner;
+	}
 
 	if (data.expiration) {
 		if ('None' in data.expiration) {

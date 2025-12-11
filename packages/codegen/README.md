@@ -32,7 +32,7 @@ export default config;
 
 The `package` field should be the MVR name for your move package. If you have not registered your
 package on MVR yet, you can use the `@local-pkg` scope, and set up an override in your
-`SuiJsonRpcClient` to resolve it to the correct address.
+`SuiGrpcClient` to resolve it to the correct address.
 
 ## Generating code
 
@@ -65,16 +65,18 @@ or by adding something the following script to your package.json and running `pn
 }
 ```
 
-## Setting up SuiJsonRpcClient
+## Setting up Sui Client with MVR
 
 If your package is registered on MVR, the generated code should work without additional
-configuration. If you are using a `@local-pkg` name, you will need to configure your
-`SuiJsonRpcClient` to resolver the package name correctly:
+configuration. If you are using a `@local-pkg` name, you will need to configure your `SuiGrpcClient`
+to resolve the package name correctly:
 
 ```ts
-const client = new SuiJsonRpcClient({
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const client = new SuiGrpcClient({
 	network: 'testnet',
-	url: testnetRpcUrl,
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 	mvr: {
 		overrides: {
 			packages: {
@@ -85,39 +87,39 @@ const client = new SuiJsonRpcClient({
 });
 ```
 
-If you are using `dapp-kit`, you may need to set up your network config and `SuiClientProvider`:
+If you are using `dapp-kit-core`, you can configure package overrides when creating your dApp Kit
+instance:
 
 ```ts
-const { networkConfig, useNetworkVariable, useNetworkVariables } = createNetworkConfig({
-	testnet: {
-		url: getJsonRpcFullnodeUrl('testnet'),
-		variables: {
-			yourPackageId: YOUR_TESTNET_PACKAGE_ID,
-		},
-	},
-});
-```
+import { createDAppKit } from '@mysten/dapp-kit-core';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-```tsx
-<SuiClientProvider
-	networks={networkConfig}
-	defaultNetwork="testnet"
-	createClient={(network, config) => {
-		return new SuiJsonRpcClient({
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+};
+
+const PACKAGE_IDS = {
+	testnet: {
+		yourPackage: YOUR_TESTNET_PACKAGE_ID,
+	},
+};
+
+const dAppKit = createDAppKit({
+	networks: ['testnet'],
+	createClient: (network) => {
+		return new SuiGrpcClient({
 			network,
-			url: config.url,
+			baseUrl: GRPC_URLS[network],
 			mvr: {
 				overrides: {
 					packages: {
-						'@local-pkg/your-package': config.variables.yourPackageId,
+						'@local-pkg/your-package': PACKAGE_IDS[network].yourPackage,
 					},
 				},
 			},
 		});
-	}}
->
-	<App />
-</SuiClientProvider>
+	},
+});
 ```
 
 ## Calling Move Functions
