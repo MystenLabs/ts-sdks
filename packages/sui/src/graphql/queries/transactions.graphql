@@ -8,12 +8,25 @@ query simulateTransaction(
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false
 	$includeObjectTypes: Boolean = false
+	$includeCommandResults: Boolean = false
 ) {
 	simulateTransaction(transaction: $transaction) {
 		error
 		effects {
 			transaction {
 				...TRANSACTION_FIELDS
+			}
+		}
+		outputs @include(if: $includeCommandResults) {
+			returnValues {
+				value {
+					bcs
+				}
+			}
+			mutatedReferences {
+				value {
+					bcs
+				}
 			}
 		}
 	}
