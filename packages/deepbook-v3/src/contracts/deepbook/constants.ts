@@ -1,6 +1,7 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
-import type { Transaction } from '@mysten/sui/transactions';
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
+import { type Transaction } from '@mysten/sui/transactions';
 export interface CurrentVersionOptions {
 	package?: string;
 	arguments?: [];
@@ -443,6 +444,45 @@ export function defaultAdditionalTakerFee(options: DefaultAdditionalTakerFeeOpti
 			function: 'default_additional_taker_fee',
 		});
 }
+export interface MaxEwmaAlphaOptions {
+	package?: string;
+	arguments?: [];
+}
+export function maxEwmaAlpha(options: MaxEwmaAlphaOptions = {}) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'constants',
+			function: 'max_ewma_alpha',
+		});
+}
+export interface MaxZScoreThresholdOptions {
+	package?: string;
+	arguments?: [];
+}
+export function maxZScoreThreshold(options: MaxZScoreThresholdOptions = {}) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'constants',
+			function: 'max_z_score_threshold',
+		});
+}
+export interface MaxAdditionalTakerFeeOptions {
+	package?: string;
+	arguments?: [];
+}
+export function maxAdditionalTakerFee(options: MaxAdditionalTakerFeeOptions = {}) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'constants',
+			function: 'max_additional_taker_fee',
+		});
+}
 export interface EwmaDfKeyOptions {
 	package?: string;
 	arguments?: [];
@@ -454,5 +494,57 @@ export function ewmaDfKey(options: EwmaDfKeyOptions = {}) {
 			package: packageAddress,
 			module: 'constants',
 			function: 'ewma_df_key',
+		});
+}
+export interface ReferralDfKeyOptions {
+	package?: string;
+	arguments?: [];
+}
+export function referralDfKey(options: ReferralDfKeyOptions = {}) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'constants',
+			function: 'referral_df_key',
+		});
+}
+export interface ReferralMaxMultiplierOptions {
+	package?: string;
+	arguments?: [];
+}
+export function referralMaxMultiplier(options: ReferralMaxMultiplierOptions = {}) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'constants',
+			function: 'referral_max_multiplier',
+		});
+}
+export interface ReferralMultiplierOptions {
+	package?: string;
+	arguments?: [];
+}
+export function referralMultiplier(options: ReferralMultiplierOptions = {}) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'constants',
+			function: 'referral_multiplier',
+		});
+}
+export interface MaxBalanceManagersOptions {
+	package?: string;
+	arguments?: [];
+}
+export function maxBalanceManagers(options: MaxBalanceManagersOptions = {}) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'constants',
+			function: 'max_balance_managers',
 		});
 }
