@@ -2,15 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createDAppKit } from '@mysten/dapp-kit-react';
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { walrus } from '../../src/index.js';
+
+const GRPC_URLS = {
+	testnet: 'https://fullnode.testnet.sui.io:443',
+} as const;
 
 export const dAppKit = createDAppKit({
 	networks: ['testnet'],
 	defaultNetwork: 'testnet',
 	autoConnect: true,
 	createClient(network) {
-		return new SuiJsonRpcClient({ network, url: getJsonRpcFullnodeUrl(network) }).$extend(
+		return new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }).$extend(
 			walrus({
 				name: 'walrusWithRelay',
 
