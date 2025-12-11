@@ -11,7 +11,7 @@ config();
 (async () => {
 	const privateKey = process.env.PRIVATE_KEY;
 	if (!privateKey) {
-		throw new Error('Private key not found');
+		throw new Error('Private key not found. Set PRIVATE_KEY environment variable.');
 	}
 
 	// Initialize with balance managers if created
@@ -30,12 +30,12 @@ config();
 
 	const tx = new Transaction();
 
-	// Read only call
-	console.log(await mmClient.checkManagerBalance('MANAGER_1', 'SUI'));
-	console.log(await mmClient.getLevel2Range('SUI_DBUSDC', 0.1, 100, true));
+	// Read only calls - access via client.deepbook
+	console.log(await mmClient.client.deepbook.checkManagerBalance('MANAGER_1', 'SUI'));
+	console.log(await mmClient.client.deepbook.getLevel2Range('SUI_DBUSDC', 0.1, 100, true));
 
 	// // Balance manager contract call
-	// mmClient.balanceManager.depositIntoManager('MANAGER_1', 'SUI', 10)(tx);
+	// mmClient.client.deepbook.balanceManager.depositIntoManager('MANAGER_1', 'SUI', 10)(tx);
 
 	// // Example PTB call
 	// mmClient.placeLimitOrderExample(tx);
