@@ -68,6 +68,7 @@ export const ObjectArg = bcs.enum('ObjectArg', {
 	Receiving: SuiObjectRef,
 });
 
+// Rust: crates/sui-types/src/object.rs
 export const Owner = bcs.enum('Owner', {
 	AddressOwner: Address,
 	ObjectOwner: Address,
@@ -76,8 +77,8 @@ export const Owner = bcs.enum('Owner', {
 	}),
 	Immutable: null,
 	ConsensusAddressOwner: bcs.struct('ConsensusAddressOwner', {
-		owner: Address,
 		startVersion: bcs.u64(),
+		owner: Address,
 	}),
 });
 
@@ -318,4 +319,57 @@ export const PasskeyAuthenticator = bcs.struct('PasskeyAuthenticator', {
 	authenticatorData: bcs.byteVector(),
 	clientDataJson: bcs.string(),
 	userSignature: bcs.byteVector(),
+});
+
+// Rust: crates/sui-types/src/object.rs
+export const MoveObjectType = bcs.enum('MoveObjectType', {
+	Other: StructTag,
+	GasCoin: null,
+	StakedSui: null,
+	Coin: TypeTag,
+	AccumulatorBalanceWrapper: null,
+});
+
+// Rust: crates/sui-types/src/object.rs
+export const TypeOrigin = bcs.struct('TypeOrigin', {
+	moduleName: bcs.string(),
+	datatypeName: bcs.string(),
+	package: Address,
+});
+
+// Rust: crates/sui-types/src/object.rs
+export const UpgradeInfo = bcs.struct('UpgradeInfo', {
+	upgradedId: Address,
+	upgradedVersion: bcs.u64(),
+});
+
+// Rust: crates/sui-types/src/object.rs
+export const MovePackage = bcs.struct('MovePackage', {
+	id: Address,
+	version: bcs.u64(),
+	moduleMap: bcs.map(bcs.string(), bcs.byteVector()),
+	typeOriginTable: bcs.vector(TypeOrigin),
+	linkageTable: bcs.map(Address, UpgradeInfo),
+});
+
+// Rust: crates/sui-types/src/object.rs
+export const MoveObject = bcs.struct('MoveObject', {
+	type: MoveObjectType,
+	hasPublicTransfer: bcs.bool(),
+	version: bcs.u64(),
+	contents: bcs.byteVector(),
+});
+
+// Rust: crates/sui-types/src/object.rs
+export const Data = bcs.enum('Data', {
+	Move: MoveObject,
+	Package: MovePackage,
+});
+
+// Rust: crates/sui-types/src/object.rs
+export const ObjectInner = bcs.struct('ObjectInner', {
+	data: Data,
+	owner: Owner,
+	previousTransaction: ObjectDigest,
+	storageRebate: bcs.u64(),
 });

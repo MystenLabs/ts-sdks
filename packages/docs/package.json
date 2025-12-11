@@ -19,7 +19,6 @@
 		"@mysten/dapp-kit": "workspace:*",
 		"@mysten/dapp-kit-core": "workspace:*",
 		"@mysten/dapp-kit-react": "workspace:*",
-		"@mysten/deepbook": "workspace:*",
 		"@mysten/deepbook-v3": "workspace:*",
 		"@mysten/enoki": "workspace:*",
 		"@mysten/enoki-connect": "workspace:*",
