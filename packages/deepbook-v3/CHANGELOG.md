@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.23.2
+
+### Patch Changes
+
+- 4ace43a: Update DEEP testnet feed
+
 ## 0.23.1
 
 ### Patch Changes
