@@ -35,9 +35,9 @@ export const testnetCoins: CoinMap = {
 		address: `0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8`,
 		type: `0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8::deep::DEEP`,
 		scalar: 1000000,
-		feed: '0xe18bf5fa857d5ca8af1f6a458b26e853ecdc78fc2f3dc17f4821374ad94d8327',
+		feed: '0x99137a18354efa7fb6840889d059fdb04c46a6ce21be97ab60d9ad93e91ac758', // DEEP uses HFT feed on testnet
 		currencyId: '0xbf1b77e244f649c736a44898585cc8ac939fbb0bbdf1d8d2a183978cc312e613',
-		priceInfoObjectId: '0xa98cbb7a97b4ce306eafdbc52a602578dea25165e6578fe6603caeb002fe02aa',
+		priceInfoObjectId: '0x3d52fffa2cd9e54b39bb36d282bdda560b15b8b4fdf4766a3c58499ef172bafc',
 	},
 	SUI: {
 		address: `0x0000000000000000000000000000000000000000000000000000000000000002`,
