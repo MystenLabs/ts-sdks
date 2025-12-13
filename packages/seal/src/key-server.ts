@@ -34,7 +34,7 @@ export const SERVER_VERSION_REQUIREMENT = new Version('0.4.1');
  * from onchain state containing name, objectId, URL and pk.
  *
  * @param objectIds - The key server object IDs.
- * @param client - The SuiClient to use.
+ * @param client - The Sui client to use (SuiGrpcClient, SuiGraphQLClient, or SuiJsonRpcClient).
  * @returns - An array of SealKeyServer.
  */
 export async function retrieveKeyServers({
@@ -49,8 +49,9 @@ export async function retrieveKeyServers({
 			// First get the KeyServer object and validate it.
 			const res = await client.core.getObject({
 				objectId,
+				include: { content: true },
 			});
-			const ks = KeyServerMove.parse(await res.object.content);
+			const ks = KeyServerMove.parse(res.object.content);
 			if (
 				EXPECTED_SERVER_VERSION < Number(ks.firstVersion) ||
 				EXPECTED_SERVER_VERSION > Number(ks.lastVersion)

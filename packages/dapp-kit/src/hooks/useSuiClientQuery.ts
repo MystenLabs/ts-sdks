@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SuiClient } from '@mysten/sui/client';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import type {
 	UndefinedInitialDataOptions,
 	UseQueryOptions,
@@ -14,19 +14,21 @@ import type { PartialBy } from '../types/utilityTypes.js';
 import { useSuiClientContext } from './useSuiClient.js';
 
 export type SuiRpcMethodName = {
-	[K in keyof SuiClient]: SuiClient[K] extends ((input: any) => Promise<any>) | (() => Promise<any>)
+	[K in keyof SuiJsonRpcClient]: SuiJsonRpcClient[K] extends
+		| ((input: any) => Promise<any>)
+		| (() => Promise<any>)
 		? K
 		: never;
-}[keyof SuiClient];
+}[keyof SuiJsonRpcClient];
 
 export type SuiRpcMethods = {
-	[K in SuiRpcMethodName]: SuiClient[K] extends (input: infer P) => Promise<infer R>
+	[K in SuiRpcMethodName]: SuiJsonRpcClient[K] extends (input: infer P) => Promise<infer R>
 		? {
 				name: K;
 				result: R;
 				params: P;
 			}
-		: SuiClient[K] extends () => Promise<infer R>
+		: SuiJsonRpcClient[K] extends () => Promise<infer R>
 			? {
 					name: K;
 					result: R;
@@ -41,7 +43,7 @@ export type UseSuiClientQueryOptions<T extends keyof SuiRpcMethods, TData> = Par
 >;
 
 export type GetSuiClientQueryOptions<T extends keyof SuiRpcMethods> = {
-	client: SuiClient;
+	client: SuiJsonRpcClient;
 	network: string;
 	method: T;
 	options?: PartialBy<

@@ -218,11 +218,9 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 		const typeArgs = type.type_arguments.map((type) => renderTypeSignature(type.argument, options));
 
 		if (typeArgs.length === 0) {
-			// eslint-disable-next-line no-template-curly-in-string
 			return `${address === options.resolveAddress(options.summary.id.address) ? '${packageAddress}' : address}::${type.module.name}::${type.name}`;
 		}
 
-		// eslint-disable-next-line no-template-curly-in-string
 		return `${address === options.resolveAddress(options.summary.id.address) ? '${packageAddress}' : address}::${type.module.name}::${type.name}<${typeArgs.join(', ')}>`;
 	}
 

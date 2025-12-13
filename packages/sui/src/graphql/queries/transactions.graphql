@@ -1,0 +1,149 @@
+# Copyright (c) Mysten Labs, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+query simulateTransaction(
+	$transaction: JSON!
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+) {
+	simulateTransaction(transaction: $transaction) {
+		error
+		effects {
+			transaction {
+				...TRANSACTION_FIELDS
+			}
+		}
+	}
+}
+
+mutation executeTransaction(
+	$transactionDataBcs: Base64!
+	$signatures: [Base64!]!
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+) {
+	executeTransaction(transactionDataBcs: $transactionDataBcs, signatures: $signatures) {
+		errors
+		effects {
+			transaction {
+				...TRANSACTION_FIELDS
+			}
+		}
+	}
+}
+
+query getTransactionBlock(
+	$digest: String!
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+) {
+	transaction(digest: $digest) {
+		...TRANSACTION_FIELDS
+	}
+}
+
+fragment TRANSACTION_FIELDS on Transaction {
+	digest
+	transactionBcs @include(if: $includeTransaction)
+	signatures {
+		signatureBytes
+	}
+	effects {
+		status
+		executionError {
+			message
+		}
+		epoch {
+			epochId
+		}
+		effectsBcs @include(if: $includeEffects)
+		unchangedConsensusObjects @include(if: $includeObjectTypes) {
+			nodes {
+				__typename
+				... on ConsensusObjectRead {
+					object {
+						asMoveObject {
+							address
+							contents {
+								type {
+									repr
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		objectChanges @include(if: $includeObjectTypes) {
+			nodes {
+				address
+				inputState {
+					version
+					asMoveObject {
+						address
+						contents {
+							type {
+								repr
+							}
+						}
+					}
+				}
+				outputState {
+					asMoveObject {
+						address
+						contents {
+							type {
+								repr
+							}
+						}
+					}
+				}
+			}
+		}
+		balanceChanges(first: 50) @include(if: $includeBalanceChanges) {
+			pageInfo {
+				hasNextPage
+			}
+			nodes {
+				owner {
+					address
+				}
+				coinType {
+					repr
+				}
+				amount
+			}
+		}
+		events(first: 50) @include(if: $includeEvents) {
+			pageInfo {
+				hasNextPage
+			}
+			nodes {
+				transactionModule {
+					package {
+						address
+					}
+					name
+				}
+				sender {
+					address
+				}
+				contents {
+					type {
+						repr
+					}
+					bcs
+				}
+			}
+		}
+	}
+}

@@ -10,5 +10,5 @@
 		"rootDir": "src",
 		"emitDeclarationOnly": false
 	},
-	"references": [{ "path": "../typescript" }, { "path": "../dapp-kit" }]
+	"references": [{ "path": "../sui" }, { "path": "../dapp-kit" }]
 }

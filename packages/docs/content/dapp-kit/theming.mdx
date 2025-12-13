@@ -1,0 +1,201 @@
+---
+title: Theming
+---
+
+The dApp Kit web components use a theming system compatible with
+[shadcn/ui](https://ui.shadcn.com/docs/theming). Components are customized using CSS custom
+properties (CSS variables), allowing you to match them to your application's design system.
+
+<Callout type="info">
+	**shadcn/ui Compatibility**: The dApp Kit uses the same CSS custom property naming convention as
+	shadcn/ui. If your application already uses shadcn/ui themes, the dApp Kit components will
+	automatically inherit your theme. You can also use [shadcn/ui's theme
+	builder](https://ui.shadcn.com/themes) to create custom themes.
+</Callout>
+
+## CSS Custom Properties
+
+All dApp Kit web components support the following CSS custom properties:
+
+### Colors
+
+These color variables follow the shadcn/ui naming convention. Colors can be defined using any valid
+CSS color format (hex, rgb, hsl, oklch, etc.).
+
+- **`--background`** - Background color of the component. Used as the default background for UI
+  elements.
+- **`--foreground`** - Foreground color of the component. Used as the default text color.
+- **`--primary`** - Primary color used for interactive elements such as buttons and links.
+- **`--primary-foreground`** - Text or icon color placed on top of primary elements.
+- **`--secondary`** - Secondary color used for less prominent interactive elements.
+- **`--secondary-foreground`** - Text or icon color placed on top of secondary elements.
+- **`--border`** - Border color for UI elements.
+- **`--accent`** - Accent color used for highlights and decorative elements.
+- **`--accent-foreground`** - Text or icon color placed on top of accent elements.
+- **`--muted`** - Background color for subtle or muted UI elements (e.g., placeholders, disabled
+  states).
+- **`--muted-foreground`** - Text or icon color for muted UI elements.
+- **`--popover`** - Background color for floating elements such as popovers, dropdowns, or tooltips.
+- **`--popover-foreground`** - Text or icon color inside popover elements.
+- **`--ring`** - Color used for focus rings (visible focus indicators on interactive elements).
+
+### Typography
+
+- **`--font-sans`** - Font family used for text content.
+- **`--font-weight-medium`** - Medium font weight for text (typically used for buttons and
+  interactive elements).
+- **`--font-weight-semibold`** - Semibold font weight for text (typically used for headings or
+  emphasized text).
+
+### Layout
+
+- **`--radius`** - Border radius used for UI elements.
+
+## Usage
+
+### Global Theming
+
+Apply custom properties to affect all dApp Kit components:
+
+```css
+:root {
+	--primary: #4f46e5;
+	--primary-foreground: #ffffff;
+	--background: #ffffff;
+	--foreground: #0f172a;
+	--border: #e2e8f0;
+	--radius: 0.5rem;
+	--font-sans: 'Inter', sans-serif;
+}
+```
+
+### Component-Specific Theming
+
+Target specific components:
+
+```css
+mysten-dapp-kit-connect-button {
+	--primary: #10b981;
+	--primary-foreground: #ffffff;
+	--radius: 0.75rem;
+}
+
+mysten-dapp-kit-connect-modal {
+	--background: #f8fafc;
+	--popover: #ffffff;
+}
+```
+
+### Dark Mode
+
+Implement dark mode by overriding the custom properties:
+
+```css
+:root {
+	--background: #ffffff;
+	--foreground: #0f172a;
+	--primary: #4f46e5;
+	--border: #e2e8f0;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--background: #0f172a;
+		--foreground: #f1f5f9;
+		--primary: #818cf8;
+		--border: #334155;
+	}
+}
+```
+
+Or use a class-based approach:
+
+```css
+.light-theme {
+	--background: #ffffff;
+	--foreground: #0f172a;
+}
+
+.dark-theme {
+	--background: #0f172a;
+	--foreground: #f1f5f9;
+}
+```
+
+```tsx
+<div className={isDark ? 'dark-theme' : 'light-theme'}>
+	<ConnectButton />
+</div>
+```
+
+## Example: Complete Theme
+
+Here's a complete theme example matching a custom design system:
+
+```css
+:root {
+	/* Colors */
+	--background: hsl(0 0% 100%);
+	--foreground: hsl(222.2 84% 4.9%);
+	--primary: hsl(221.2 83.2% 53.3%);
+	--primary-foreground: hsl(210 40% 98%);
+	--secondary: hsl(210 40% 96.1%);
+	--secondary-foreground: hsl(222.2 47.4% 11.2%);
+	--accent: hsl(210 40% 96.1%);
+	--accent-foreground: hsl(222.2 47.4% 11.2%);
+	--muted: hsl(210 40% 96.1%);
+	--muted-foreground: hsl(215.4 16.3% 46.9%);
+	--border: hsl(214.3 31.8% 91.4%);
+	--popover: hsl(0 0% 100%);
+	--popover-foreground: hsl(222.2 84% 4.9%);
+	--ring: hsl(221.2 83.2% 53.3%);
+
+	/* Typography */
+	--font-sans:
+		system-ui, -apple-system, 'Segoe UI', 'Roboto', 'Ubuntu', 'Cantarell', 'Noto Sans', sans-serif;
+	--font-weight-medium: 500;
+	--font-weight-semibold: 600;
+
+	/* Layout */
+	--radius: 0.5rem;
+}
+```
+
+## Framework Integration
+
+### React
+
+```tsx
+import { ConnectButton } from '@mysten/dapp-kit-react';
+import './theme.css'; // Your theme CSS file
+
+export function App() {
+	return <ConnectButton />;
+}
+```
+
+### Vue
+
+```vue
+<template>
+	<mysten-dapp-kit-connect-button :instance="dAppKit" />
+</template>
+
+<style>
+@import './theme.css';
+</style>
+```
+
+### Vanilla JavaScript
+
+```html
+<!doctype html>
+<html>
+	<head>
+		<link rel="stylesheet" href="theme.css" />
+	</head>
+	<body>
+		<mysten-dapp-kit-connect-button></mysten-dapp-kit-connect-button>
+	</body>
+</html>
+```

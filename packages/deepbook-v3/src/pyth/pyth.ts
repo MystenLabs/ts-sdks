@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '@mysten/sui/bcs';
-import type { SuiClient } from '@mysten/sui/client';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import type { Transaction } from '@mysten/sui/transactions';
 import { coinWithBalance } from '@mysten/sui/transactions';
 import { fromBase64, fromHex, parseStructTag } from '@mysten/sui/utils';
@@ -31,11 +31,11 @@ export class SuiPythClient {
 	#priceFeedObjectIdCache: Map<HexString, Promise<ObjectId>> = new Map();
 	#priceTableInfo?: Promise<{ id: ObjectId; fieldType: ObjectId }>;
 	#baseUpdateFee?: Promise<number>;
-	provider: SuiClient;
+	provider: SuiJsonRpcClient;
 	pythStateId: ObjectId;
 	wormholeStateId: ObjectId;
 
-	constructor(provider: SuiClient, pythStateId: ObjectId, wormholeStateId: ObjectId) {
+	constructor(provider: SuiJsonRpcClient, pythStateId: ObjectId, wormholeStateId: ObjectId) {
 		this.provider = provider;
 		this.pythStateId = pythStateId;
 		this.wormholeStateId = wormholeStateId;

@@ -37,7 +37,7 @@ import type { InferOutput } from 'valibot';
 import { boolean, object, string } from 'valibot';
 import type { CustomCaipNetwork } from '@reown/appkit-universal-connector';
 import { UniversalConnector } from '@reown/appkit-universal-connector';
-import type { Experimental_BaseClient } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 
 // -- Types --
@@ -47,7 +47,7 @@ type WalletEventsMap = {
 
 type SupportedNetwork = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 
-export type GetClient = (network: SupportedNetwork) => Experimental_BaseClient;
+export type GetClient = (network: SupportedNetwork) => ClientWithCoreApi;
 type WalletMetadata = InferOutput<typeof WalletMetadataSchema>;
 
 // -- Constants --
@@ -256,13 +256,16 @@ export class WalletConnectWallet implements Wallet {
 
 		const tx = await client.core.waitForTransaction({
 			digest: response.digest,
+			include: { effects: true },
 		});
+
+		const result = tx.Transaction ?? tx.FailedTransaction;
 
 		return {
 			digest: response.digest,
-			signature: tx.transaction.signatures[0] ?? '',
+			signature: result.signatures[0] ?? '',
 			bytes: toBase64(bytes),
-			effects: tx.transaction.effects.bcs ? toBase64(tx.transaction.effects.bcs) : '',
+			effects: result.effects?.bcs ? toBase64(result.effects.bcs) : '',
 		};
 	};
 
