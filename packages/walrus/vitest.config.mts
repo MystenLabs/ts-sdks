@@ -3,4 +3,16 @@
 
 import { defineConfig } from 'vitest/config';
 
-export default defineConfig({});
+export default defineConfig({
+	test: {
+		testTimeout: 30000,
+	},
+	resolve: {
+		alias: {
+			'@mysten/bcs': new URL('../bcs/src', import.meta.url).pathname,
+			'@mysten/sui': new URL('../typescript/src', import.meta.url).pathname,
+			'@mysten/utils': new URL('../utils/src', import.meta.url).pathname,
+			'@mysten/walrus-wasm': new URL('../walrus-wasm/src', import.meta.url).pathname,
+		},
+	},
+});

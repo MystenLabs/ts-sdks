@@ -68,14 +68,13 @@ export function computeSymbolSize(
 	let maxVal = Math.ceil((Math.max(...blobsSizes) / (nColumns / blobsSizes.length)) * nRows);
 
 	while (minVal < maxVal) {
-		const mid = (minVal + maxVal) / 2;
+		const mid = Math.floor((minVal + maxVal) / 2);
 		if (canBlobsFitIntoMatrix(blobsSizes, nColumns, mid * nRows)) {
 			maxVal = mid;
 		} else {
 			minVal = mid + 1;
 		}
 	}
-
 	const symbolSize =
 		Math.ceil(minVal / REQUIRED_ALIGNMENT_BY_ENCODING_TYPE[encodingType]) *
 		REQUIRED_ALIGNMENT_BY_ENCODING_TYPE[encodingType];
