@@ -13,7 +13,7 @@ describe('Dynamic Fields Reading API', () => {
 
 	beforeAll(async () => {
 		toolbox = await setup();
-		packageId = await toolbox.getPackage('dynamic_fields');
+		packageId = await toolbox.getPackage('dynamic_fields', { normalized: false });
 
 		await toolbox.jsonRpcClient
 			.getOwnedObjects({

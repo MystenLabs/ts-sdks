@@ -20,7 +20,7 @@ describe('coinWithBalance', () => {
 
 	beforeAll(async () => {
 		[toolbox, publishToolbox] = await Promise.all([setup(), setup()]);
-		packageId = await publishToolbox.getPackage('coin_metadata');
+		packageId = await publishToolbox.getPackage('coin_metadata', { normalized: false });
 		testType = normalizeSuiAddress(packageId) + '::test::TEST';
 		testTypeZero = normalizeSuiAddress(packageId) + '::test_zero::TEST_ZERO';
 	});
