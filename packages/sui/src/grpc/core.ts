@@ -30,6 +30,7 @@ import {
 import {
 	applyGrpcResolvedTransaction,
 	transactionDataToGrpcTransaction,
+	transactionToGrpcTransaction,
 } from '../client/transaction-resolver.js';
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
@@ -290,9 +291,9 @@ export class GrpcCoreClient extends CoreClient {
 
 		return parseTransaction(response.transaction!, options.include);
 	}
-	async simulateTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = object>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
-	): Promise<SuiClientTypes.TransactionResult<Include>> {
+	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		const paths = [
 			'transaction.digest',
 			'transaction.transaction.digest',
@@ -314,19 +315,54 @@ export class GrpcCoreClient extends CoreClient {
 		if (options.include?.objectTypes) {
 			paths.push('transaction.objects');
 		}
+		if (options.include?.commandResults) {
+			paths.push('command_outputs');
+		}
 
 		const { response } = await this.#client.transactionExecutionService.simulateTransaction({
-			transaction: {
-				bcs: {
-					value: options.transaction,
-				},
-			},
+			transaction:
+				options.transaction instanceof Uint8Array
+					? {
+							bcs: {
+								value: options.transaction,
+							},
+						}
+					: transactionToGrpcTransaction(options.transaction),
 			readMask: {
 				paths,
 			},
 		});
 
-		return parseTransaction(response.transaction!, options.include);
+		const transactionResult = parseTransaction(response.transaction!, options.include);
+
+		// Add command results if requested
+		const commandResults =
+			options.include?.commandResults && response.commandOutputs
+				? response.commandOutputs.map((output) => ({
+						returnValues: (output.returnValues ?? []).map((rv) => ({
+							bcs: rv.value?.value ?? null,
+						})),
+						mutatedReferences: (output.mutatedByRef ?? []).map((mr) => ({
+							bcs: mr.value?.value ?? null,
+						})),
+					}))
+				: undefined;
+
+		if (transactionResult.$kind === 'Transaction') {
+			return {
+				$kind: 'Transaction',
+				Transaction: transactionResult.Transaction,
+				commandResults:
+					commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
+			};
+		} else {
+			return {
+				$kind: 'FailedTransaction',
+				FailedTransaction: transactionResult.FailedTransaction,
+				commandResults:
+					commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
+			};
+		}
 	}
 	async getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
 		const response = await this.#client.ledgerService.getEpoch({});
