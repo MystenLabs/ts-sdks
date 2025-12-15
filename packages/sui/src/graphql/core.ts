@@ -31,6 +31,7 @@ import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { parseTransactionBcs, parseTransactionEffectsBcs } from '../client/utils.js';
 import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.js';
+import { transactionToGrpcJson } from '../client/transaction-resolver.js';
 
 export class GraphQLCoreClient extends CoreClient {
 	#graphqlClient: SuiGraphQLClient;
@@ -298,23 +299,27 @@ export class GraphQLCoreClient extends CoreClient {
 
 		return parseTransaction(result.effects?.transaction!, options.include);
 	}
-	async simulateTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = object>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
-	): Promise<SuiClientTypes.TransactionResult<Include>> {
+	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		const result = await this.#graphqlQuery(
 			{
 				query: SimulateTransactionDocument,
 				variables: {
-					transaction: {
-						bcs: {
-							value: toBase64(options.transaction),
-						},
-					},
+					transaction:
+						options.transaction instanceof Uint8Array
+							? {
+									bcs: {
+										value: toBase64(options.transaction),
+									},
+								}
+							: transactionToGrpcJson(options.transaction),
 					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
+					includeCommandResults: options.include?.commandResults ?? false,
 				},
 			},
 			(result) => result.simulateTransaction,
@@ -324,7 +329,35 @@ export class GraphQLCoreClient extends CoreClient {
 			throw new Error(result.error);
 		}
 
-		return parseTransaction(result.effects?.transaction!, options.include);
+		const transactionResult = parseTransaction(result.effects?.transaction!, options.include);
+
+		const commandResults =
+			options.include?.commandResults && result.outputs
+				? result.outputs.map((output) => ({
+						returnValues: (output.returnValues ?? []).map((rv) => ({
+							bcs: rv.value?.bcs ? fromBase64(rv.value.bcs) : null,
+						})),
+						mutatedReferences: (output.mutatedReferences ?? []).map((mr) => ({
+							bcs: mr.value?.bcs ? fromBase64(mr.value.bcs) : null,
+						})),
+					}))
+				: undefined;
+
+		if (transactionResult.$kind === 'Transaction') {
+			return {
+				$kind: 'Transaction',
+				Transaction: transactionResult.Transaction,
+				commandResults:
+					commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
+			};
+		} else {
+			return {
+				$kind: 'FailedTransaction',
+				FailedTransaction: transactionResult.FailedTransaction,
+				commandResults:
+					commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
+			};
+		}
 	}
 	async getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
 		const result = await this.#graphqlQuery(
@@ -613,13 +646,17 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 				})) ?? [])
 			: undefined) as SuiClientTypes.Transaction<Include>['balanceChanges'],
 		events: (include?.events
-			? (transaction.effects?.events?.nodes.map((event) => ({
-					packageId: event.transactionModule?.package?.address!,
-					module: event.transactionModule?.name!,
-					sender: event.sender?.address!,
-					eventType: event.contents?.type?.repr!,
-					bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
-				})) ?? [])
+			? (transaction.effects?.events?.nodes.map((event) => {
+					const eventType = event.contents?.type?.repr!;
+					const [packageId, module] = eventType.split('::');
+					return {
+						packageId,
+						module,
+						sender: event.sender?.address!,
+						eventType,
+						bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
+					};
+				}) ?? [])
 			: undefined) as SuiClientTypes.Transaction<Include>['events'],
 	};
 

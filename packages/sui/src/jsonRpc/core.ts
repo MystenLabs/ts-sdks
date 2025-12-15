@@ -11,6 +11,7 @@ import type {
 	SuiMoveVisibility,
 	SuiObjectChange,
 	SuiObjectData,
+	SuiObjectDataFilter,
 	SuiTransactionBlockResponse,
 	TransactionEffects,
 } from './types/index.js';
@@ -25,6 +26,8 @@ import type { SuiClientTypes } from '../client/types.js';
 import { ObjectError } from '../client/errors.js';
 import { parseTransactionBcs, parseTransactionEffectsBcs } from '../client/index.js';
 import type { SuiJsonRpcClient } from './client.js';
+
+const MAX_GAS = 50_000_000_000;
 
 export class JSONRpcCoreClient extends CoreClient {
 	#jsonRpcClient: SuiJsonRpcClient;
@@ -75,6 +78,18 @@ export class JSONRpcCoreClient extends CoreClient {
 	async listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = object>(
 		options: SuiClientTypes.ListOwnedObjectsOptions<Include>,
 	) {
+		let filter: SuiObjectDataFilter | null = null;
+		if (options.type) {
+			const parts = options.type.split('::');
+			if (parts.length === 1) {
+				filter = { Package: options.type };
+			} else if (parts.length === 2) {
+				filter = { MoveModule: { package: parts[0], module: parts[1] } };
+			} else {
+				filter = { StructType: options.type };
+			}
+		}
+
 		const objects = await this.#jsonRpcClient.getOwnedObjects({
 			owner: options.owner,
 			limit: options.limit,
@@ -87,7 +102,7 @@ export class JSONRpcCoreClient extends CoreClient {
 					options.include?.previousTransaction || options.include?.objectBcs ? true : false,
 				showStorageRebate: options.include?.objectBcs ?? false,
 			},
-			filter: options.type ? { StructType: options.type } : null,
+			filter,
 			signal: options.signal,
 		});
 
@@ -202,12 +217,30 @@ export class JSONRpcCoreClient extends CoreClient {
 
 		return parseTransaction(transaction, options.include);
 	}
-	async simulateTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = object>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
-	): Promise<SuiClientTypes.TransactionResult<Include>> {
+	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		const tx = Transaction.from(options.transaction);
+
+		const data =
+			options.transaction instanceof Uint8Array
+				? null
+				: TransactionDataBuilder.restore(options.transaction.getData());
+
+		const transactionBytes = data
+			? data.build({
+					overrides: {
+						gasData: {
+							budget: data.gasData.budget ?? String(MAX_GAS),
+							price: data.gasData.price ?? String(await this.#jsonRpcClient.getReferenceGasPrice()),
+							payment: data.gasData.payment ?? [],
+						},
+					},
+				})
+			: (options.transaction as Uint8Array);
+
 		const result = await this.#jsonRpcClient.dryRunTransactionBlock({
-			transactionBlock: options.transaction,
+			transactionBlock: transactionBytes,
 			signal: options.signal,
 		});
 
@@ -216,8 +249,8 @@ export class JSONRpcCoreClient extends CoreClient {
 			objectChanges: result.objectChanges,
 		});
 
-		const transactionResult: SuiClientTypes.Transaction<Include> = {
-			digest: await tx.getDigest(),
+		const transactionData: SuiClientTypes.Transaction<Include> = {
+			digest: TransactionDataBuilder.getDigestFromBytes(transactionBytes),
 			epoch: null,
 			status: effects.status,
 			effects: (options.include?.effects
@@ -228,7 +261,15 @@ export class JSONRpcCoreClient extends CoreClient {
 				: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 			signatures: [],
 			transaction: (options.include?.transaction
-				? parseTransactionBcs(options.transaction)
+				? parseTransactionBcs(
+						options.transaction instanceof Uint8Array
+							? options.transaction
+							: await options.transaction
+									.build({
+										client: this,
+									})
+									.catch(() => null as never),
+					)
 				: undefined) as SuiClientTypes.Transaction<Include>['transaction'],
 			balanceChanges: (options.include?.balanceChanges
 				? result.balanceChanges.map((change) => ({
@@ -248,14 +289,41 @@ export class JSONRpcCoreClient extends CoreClient {
 				: undefined) as SuiClientTypes.Transaction<Include>['events'],
 		};
 
+		let commandResults: SuiClientTypes.CommandResult[] | undefined;
+		if (options.include?.commandResults) {
+			try {
+				const sender = tx.getData().sender ?? normalizeSuiAddress('0x0');
+				const devInspectResult = await this.#jsonRpcClient.devInspectTransactionBlock({
+					sender,
+					transactionBlock: tx,
+					signal: options.signal,
+				});
+
+				if (devInspectResult.results) {
+					commandResults = devInspectResult.results.map((result) => ({
+						returnValues: (result.returnValues ?? []).map(([bytes]) => ({
+							bcs: new Uint8Array(bytes),
+						})),
+						mutatedReferences: (result.mutableReferenceOutputs ?? []).map(([, bytes]) => ({
+							bcs: new Uint8Array(bytes),
+						})),
+					}));
+				}
+			} catch {}
+		}
+
 		return effects.status.success
 			? {
 					$kind: 'Transaction',
-					Transaction: transactionResult,
+					Transaction: transactionData,
+					commandResults:
+						commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
 				}
 			: {
 					$kind: 'FailedTransaction',
-					FailedTransaction: transactionResult,
+					FailedTransaction: transactionData,
+					commandResults:
+						commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
 				};
 	}
 	async getReferenceGasPrice(options?: SuiClientTypes.GetReferenceGasPriceOptions) {
