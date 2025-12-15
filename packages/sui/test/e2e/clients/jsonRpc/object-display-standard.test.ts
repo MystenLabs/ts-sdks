@@ -12,7 +12,7 @@ describe('Test Object Display Standard', () => {
 
 	beforeAll(async () => {
 		toolbox = await setup();
-		packageId = await toolbox.getPackage('display_test');
+		packageId = await toolbox.getPackage('display_test', { normalized: false });
 	});
 
 	it('Test getting Display fields with error object', async () => {

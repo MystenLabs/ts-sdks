@@ -13,7 +13,7 @@ describe('CoinRead API', () => {
 
 	beforeAll(async () => {
 		[toolbox, publishToolbox] = await Promise.all([setup(), setup()]);
-		packageId = await publishToolbox.getPackage('coin_metadata');
+		packageId = await publishToolbox.getPackage('coin_metadata', { normalized: false });
 		testType = packageId + '::test::TEST';
 	});
 
