@@ -1,7 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SerializedTransactionDataV2, TransactionPlugin } from '../transactions/index.js';
+import type {
+	SerializedTransactionDataV2,
+	TransactionPlugin,
+	Transaction as TransactionInstance,
+} from '../transactions/index.js';
 import type { ClientCache } from './cache.js';
 import type { BaseClient } from './client.js';
 
@@ -212,9 +216,9 @@ export namespace SuiClientTypes {
 		executeTransaction: <Include extends TransactionInclude = {}>(
 			options: ExecuteTransactionOptions<Include>,
 		) => Promise<TransactionResult<Include>>;
-		simulateTransaction: <Include extends TransactionInclude = {}>(
+		simulateTransaction: <Include extends SimulateTransactionInclude = {}>(
 			options: SimulateTransactionOptions<Include>,
-		) => Promise<TransactionResult<Include>>;
+		) => Promise<SimulateTransactionResult<Include>>;
 		resolveTransactionPlugin: () => TransactionPlugin;
 	}
 
@@ -244,12 +248,39 @@ export namespace SuiClientTypes {
 				FailedTransaction: Transaction<Include>;
 		  };
 
+	export type SimulateTransactionResult<Include extends SimulateTransactionInclude = {}> =
+		| {
+				$kind: 'Transaction';
+				Transaction: Transaction<Include>;
+				FailedTransaction?: never;
+				commandResults: Include extends { commandResults: true } ? CommandResult[] : undefined;
+		  }
+		| {
+				$kind: 'FailedTransaction';
+				Transaction?: never;
+				FailedTransaction: Transaction<Include>;
+				commandResults: Include extends { commandResults: true } ? CommandResult[] : undefined;
+		  };
+
 	export interface TransactionInclude {
 		balanceChanges?: boolean;
 		effects?: boolean;
 		events?: boolean;
 		objectTypes?: boolean;
 		transaction?: boolean;
+	}
+
+	export interface SimulateTransactionInclude extends TransactionInclude {
+		commandResults?: boolean;
+	}
+
+	export interface CommandResult {
+		returnValues: CommandOutput[];
+		mutatedReferences: CommandOutput[];
+	}
+
+	export interface CommandOutput {
+		bcs: Uint8Array;
 	}
 
 	export interface BalanceChange {
@@ -284,9 +315,9 @@ export namespace SuiClientTypes {
 	}
 
 	export interface SimulateTransactionOptions<
-		Include extends TransactionInclude = {},
+		Include extends SimulateTransactionInclude = {},
 	> extends CoreClientMethodOptions {
-		transaction: Uint8Array;
+		transaction: Uint8Array | TransactionInstance;
 		include?: Include;
 	}
 
