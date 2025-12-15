@@ -22,19 +22,33 @@ export async function generateFromPackageSummary({
 	privateMethods: 'none' | 'entry' | 'all';
 }) {
 	if (!pkg.path) {
-		throw new Error(`On-chain packages are not supported yet (got ${pkg.package})`);
+		throw new Error(`Package path is required (got ${pkg.package})`);
 	}
 
-	const summaryDir = join(pkg.path, 'package_summaries');
+	// Check for on-chain package summary (directly in path) or local package summary (in package_summaries subdirectory)
+	const localSummaryDir = join(pkg.path, 'package_summaries');
+	const isOnChainPackage = existsSync(join(pkg.path, 'root_package_metadata.json'));
+	const summaryDir = isOnChainPackage ? pkg.path : localSummaryDir;
 
-	if (!existsSync(summaryDir)) {
+	if (!existsSync(summaryDir) || !existsSync(join(summaryDir, 'address_mapping.json'))) {
 		throw new Error(`Package summary directory not found: ${summaryDir}`);
 	}
 
 	let packageName = pkg.packageName!;
+	let mainPackageAddress: string | undefined;
 	const mvrNameOrAddress = pkg.package;
 
-	if (!pkg.packageName) {
+	if (isOnChainPackage) {
+		// For on-chain packages, get the main package address from root_package_metadata.json
+		const metadata = JSON.parse(
+			await readFile(join(pkg.path, 'root_package_metadata.json'), 'utf-8'),
+		);
+		mainPackageAddress = metadata.root_package_id;
+		// Use the package name provided or fall back to the full address
+		if (!packageName) {
+			packageName = mainPackageAddress!;
+		}
+	} else if (!pkg.packageName) {
 		try {
 			const packageToml = await readFile(join(pkg.path, 'Move.toml'), 'utf-8');
 			packageName = parse(packageToml).package.name.toLowerCase();
@@ -48,10 +62,6 @@ export async function generateFromPackageSummary({
 		}
 	}
 
-	if (!existsSync(summaryDir)) {
-		throw new Error(`Package summary directory not found: ${summaryDir}`);
-	}
-
 	const addressMappings: Record<string, string> = JSON.parse(
 		await readFile(join(summaryDir, 'address_mapping.json'), 'utf-8'),
 	);
@@ -59,21 +69,33 @@ export async function generateFromPackageSummary({
 	const packages = (await readdir(summaryDir)).filter((file) =>
 		statSync(join(summaryDir, file)).isDirectory(),
 	);
+
+	// For on-chain packages, the main package is identified by the root_package_id
+	// For local packages, it's identified by the packageName
+	const isMainPackage = (pkgDir: string) => {
+		if (isOnChainPackage) {
+			return pkgDir === mainPackageAddress;
+		}
+		return pkgDir === packageName;
+	};
+
 	const modules = (
 		await Promise.all(
-			packages.map(async (pkg) => {
-				const modules = await readdir(join(summaryDir, pkg));
+			packages.map(async (pkgDir) => {
+				const moduleFiles = await readdir(join(summaryDir, pkgDir));
 				return Promise.all(
-					modules.map(async (mod) => ({
-						package: pkg,
-						isMainPackage: pkg === packageName,
-						module: basename(mod, '.json'),
-						builder: await MoveModuleBuilder.fromSummaryFile(
-							join(summaryDir, pkg, mod),
-							addressMappings,
-							pkg === packageName ? mvrNameOrAddress : undefined,
-						),
-					})),
+					moduleFiles
+						.filter((f) => f.endsWith('.json'))
+						.map(async (mod) => ({
+							package: pkgDir,
+							isMainPackage: isMainPackage(pkgDir),
+							module: basename(mod, '.json'),
+							builder: await MoveModuleBuilder.fromSummaryFile(
+								join(summaryDir, pkgDir, mod),
+								addressMappings,
+								isMainPackage(pkgDir) ? mvrNameOrAddress : undefined,
+							),
+						})),
 				);
 			}),
 		)
