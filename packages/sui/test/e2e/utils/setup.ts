@@ -24,7 +24,7 @@ import {
 } from '../../../src/faucet/index.js';
 import { Ed25519Keypair } from '../../../src/keypairs/ed25519/index.js';
 import { Transaction, UpgradePolicy } from '../../../src/transactions/index.js';
-import { SUI_TYPE_ARG } from '../../../src/utils/index.js';
+import { SUI_TYPE_ARG, normalizeSuiAddress } from '../../../src/utils/index.js';
 import type { ClientWithCoreApi } from '../../../src/client/core.js';
 
 const DEFAULT_FAUCET_URL = import.meta.env.FAUCET_URL ?? getFaucetHost('localnet');
@@ -57,27 +57,38 @@ class TestPackageRegistry {
 		this.#pendingPublishes = new Map();
 	}
 
-	async getPackage(name: string, toolbox?: TestToolbox) {
+	async getPackage(
+		name: string,
+		toolbox?: TestToolbox,
+		options?: { normalized?: boolean },
+	): Promise<string> {
+		const { normalized = true } = options ?? {};
+
+		let packageId: string;
 		if (this.#packages.has(name)) {
-			return this.#packages.get(name)!;
+			packageId = this.#packages.get(name)!;
+		} else if (this.#pendingPublishes.has(name)) {
+			packageId = await this.#pendingPublishes.get(name)!;
+		} else {
+			const publishPromise = (async () => {
+				try {
+					const { packageId } = await publishPackage(name, toolbox);
+					this.#packages.set(name, packageId);
+					return packageId;
+				} finally {
+					this.#pendingPublishes.delete(name);
+				}
+			})();
+
+			this.#pendingPublishes.set(name, publishPromise);
+			packageId = await publishPromise;
 		}
 
-		if (this.#pendingPublishes.has(name)) {
-			return await this.#pendingPublishes.get(name)!;
+		if (normalized) {
+			return packageId;
 		}
-
-		const publishPromise = (async () => {
-			try {
-				const { packageId } = await publishPackage(name, toolbox);
-				this.#packages.set(name, packageId);
-				return packageId;
-			} finally {
-				this.#pendingPublishes.delete(name);
-			}
-		})();
-
-		this.#pendingPublishes.set(name, publishPromise);
-		return await publishPromise;
+		// Strip leading zeros for JSON RPC compatibility
+		return packageId.replace(/^(0x)(0+)/, '0x');
 	}
 }
 
@@ -127,8 +138,8 @@ export class TestToolbox {
 		return (await this.jsonRpcClient.getLatestSuiSystemState()).activeValidators;
 	}
 
-	public async getPackage(path: string) {
-		return this.registry.getPackage(path, this);
+	public async getPackage(path: string, options?: { normalized?: boolean }) {
+		return this.registry.getPackage(path, this, options);
 	}
 
 	async mintNft(name: string = 'Test NFT') {
@@ -363,9 +374,11 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 
 			expect(publishTxn.effects?.status.status).toEqual('success');
 
-			const packageId = ((publishTxn.objectChanges?.filter(
-				(a) => a.type === 'published',
-			) as SuiObjectChangePublished[]) ?? [])[0]?.packageId.replace(/^(0x)(0+)/, '0x') as string;
+			const packageId = normalizeSuiAddress(
+				((publishTxn.objectChanges?.filter(
+					(a) => a.type === 'published',
+				) as SuiObjectChangePublished[]) ?? [])[0]?.packageId,
+			);
 
 			expect(packageId).toBeTypeOf('string');
 
