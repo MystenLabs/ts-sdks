@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { getSourceSymbols } from '../../../src/utils/index.js';
-import { computeSymbolSize } from '../../../src/utils/quilts.js';
+import { getSourceSymbols } from '../../src/utils/index.js';
+import { computeSymbolSize } from '../../src/utils/quilts.js';
 
 describe('computeSymbolSize', () => {
 	const numShards = 1000;

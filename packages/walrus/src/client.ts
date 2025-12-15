@@ -739,10 +739,14 @@ export class WalrusClient {
 	async storageCost(size: number, epochs: number) {
 		const systemState = await this.systemState();
 		const encodedSize = encodedBlobLength(size, systemState.committee.n_shards);
+		return this.#storageCostFromEncodedSize(encodedSize, epochs);
+	}
+
+	async #storageCostFromEncodedSize(encodedSize: number, epochs: number) {
+		const systemState = await this.systemState();
 		const storageUnits = storageUnitsFromSize(encodedSize);
 		const storageCost =
 			BigInt(storageUnits) * BigInt(systemState.storage_price_per_unit_size) * BigInt(epochs);
-		BigInt(epochs);
 
 		const writeCost = BigInt(storageUnits) * BigInt(systemState.write_price_per_unit_size);
 
@@ -1388,7 +1392,10 @@ export class WalrusClient {
 				return;
 			}
 
-			const { storageCost } = await this.storageCost(Number(blob.storage.storage_size), numEpochs);
+			const { storageCost } = await this.#storageCostFromEncodedSize(
+				Number(blob.storage.storage_size),
+				numEpochs,
+			);
 			const walrusPackageId = await this.#getWalrusPackageId();
 
 			return tx.add(

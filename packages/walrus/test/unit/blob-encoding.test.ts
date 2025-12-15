@@ -3,7 +3,7 @@
 
 import { describe, expect, it, beforeAll, afterEach } from 'vitest';
 
-import { getWasmBindings } from '../../../src/wasm.js';
+import { getWasmBindings } from '../../src/wasm.js';
 
 // Helper to create deterministic test data
 function createTestBlob(size: number, seed: number = 0): Uint8Array {
@@ -40,10 +40,7 @@ describe('blob encoding round-trips', () => {
 		it('should round-trip a small blob', () => {
 			const originalData = createTestBlob(100, 1);
 
-			const { sliverPairs, blobId } = wasm.encodeBlob(numShards, originalData);
-
-			// Extract primary slivers from sliver pairs - use the structure as-is
-			const primarySlivers = sliverPairs.map((pair: any) => pair.primary);
+			const { primarySlivers, blobId } = wasm.encodeBlob(numShards, originalData);
 
 			const decoded = wasm.decodePrimarySlivers(
 				blobId,
@@ -60,9 +57,7 @@ describe('blob encoding round-trips', () => {
 		it('should round-trip a medium blob', () => {
 			const originalData = createTestBlob(10000, 42);
 
-			const { sliverPairs, blobId } = wasm.encodeBlob(numShards, originalData);
-
-			const primarySlivers = sliverPairs.map((pair: any) => pair.primary);
+			const { primarySlivers, blobId } = wasm.encodeBlob(numShards, originalData);
 
 			const decoded = wasm.decodePrimarySlivers(
 				blobId,
@@ -79,9 +74,7 @@ describe('blob encoding round-trips', () => {
 		it('should round-trip a larger blob', () => {
 			const originalData = createTestBlob(100000, 123);
 
-			const { sliverPairs, blobId } = wasm.encodeBlob(numShards, originalData);
-
-			const primarySlivers = sliverPairs.map((pair: any) => pair.primary);
+			const { primarySlivers, blobId } = wasm.encodeBlob(numShards, originalData);
 
 			const decoded = wasm.decodePrimarySlivers(
 				blobId,
@@ -160,40 +153,39 @@ describe('blob encoding round-trips', () => {
 	});
 
 	describe('sliver structure', () => {
-		it('should produce correct number of sliver pairs', () => {
+		it('should produce correct number of slivers', () => {
 			const data = createTestBlob(1000, 5);
 
-			const { sliverPairs, blobId } = wasm.encodeBlob(numShards, data);
+			const { primarySlivers, secondarySlivers, blobId } = wasm.encodeBlob(numShards, data);
 
 			expect(blobId).toMatchInlineSnapshot(`"xOyQIKpbFfUifGbAAMh-YYNCLGOMgtdLItu-UHb5tF0"`);
-			expect(sliverPairs.length).toMatchInlineSnapshot(`1000`);
+			expect(primarySlivers.length).toMatchInlineSnapshot(`1000`);
+			expect(secondarySlivers.length).toMatchInlineSnapshot(`1000`);
 		});
 
 		it('should produce slivers with primary and secondary components', () => {
 			const data = createTestBlob(1000, 5);
 
-			const { sliverPairs } = wasm.encodeBlob(numShards, data);
+			const { primarySlivers, secondarySlivers } = wasm.encodeBlob(numShards, data);
 
-			for (const pair of sliverPairs) {
-				expect(pair.primary).toBeDefined();
-				expect(pair.secondary).toBeDefined();
-				expect(pair.primary.symbols).toBeDefined();
-				expect(pair.secondary.symbols).toBeDefined();
+			for (let i = 0; i < primarySlivers.length; i++) {
+				expect(primarySlivers[i]).toBeInstanceOf(Uint8Array);
+				expect(secondarySlivers[i]).toBeInstanceOf(Uint8Array);
 			}
 		});
 
 		it('should produce consistent sliver hashes', () => {
 			const data = createTestBlob(500, 55);
 
-			const { sliverPairs, blobId } = wasm.encodeBlob(numShards, data);
+			const { primarySlivers, blobId } = wasm.encodeBlob(numShards, data);
 
 			expect(blobId).toMatchInlineSnapshot(`"OAbh4OKSH3UAplgPok8_sz0C54IabPrOD4HR7-WyUZI"`);
-			// Hash first few primary slivers for snapshot - symbols.data contains the actual bytes
-			const firstPrimaryHash = hashBytes(new Uint8Array(sliverPairs[0].primary.symbols.data));
-			const secondPrimaryHash = hashBytes(new Uint8Array(sliverPairs[1].primary.symbols.data));
+			// Hash first few primary slivers for snapshot (now BCS-serialized buffers)
+			const firstPrimaryHash = hashBytes(primarySlivers[0]);
+			const secondPrimaryHash = hashBytes(primarySlivers[1]);
 
-			expect(firstPrimaryHash).toMatchInlineSnapshot(`"43a344bf"`);
-			expect(secondPrimaryHash).toMatchInlineSnapshot(`"f8bce2c5"`);
+			expect(firstPrimaryHash).toMatchInlineSnapshot(`"041b81c1"`);
+			expect(secondPrimaryHash).toMatchInlineSnapshot(`"c940b2e8"`);
 		});
 	});
 
@@ -201,9 +193,7 @@ describe('blob encoding round-trips', () => {
 		it('should handle single byte', () => {
 			const data = new Uint8Array([42]);
 
-			const { sliverPairs, blobId } = wasm.encodeBlob(numShards, data);
-
-			const primarySlivers = sliverPairs.map((pair: any) => pair.primary);
+			const { primarySlivers, blobId } = wasm.encodeBlob(numShards, data);
 
 			const decoded = wasm.decodePrimarySlivers(blobId, numShards, data.length, primarySlivers);
 
@@ -217,9 +207,7 @@ describe('blob encoding round-trips', () => {
 			for (const size of [64, 256, 1024, 4096]) {
 				const data = createTestBlob(size, size);
 
-				const { sliverPairs, blobId } = wasm.encodeBlob(numShards, data);
-
-				const primarySlivers = sliverPairs.map((pair: any) => pair.primary);
+				const { primarySlivers, blobId } = wasm.encodeBlob(numShards, data);
 
 				const decoded = wasm.decodePrimarySlivers(blobId, numShards, data.length, primarySlivers);
 
@@ -254,9 +242,7 @@ describe('blob encoding round-trips', () => {
 		it('should handle all-zeros data', () => {
 			const data = new Uint8Array(1000);
 
-			const { sliverPairs, blobId } = wasm.encodeBlob(numShards, data);
-
-			const primarySlivers = sliverPairs.map((pair: any) => pair.primary);
+			const { primarySlivers, blobId } = wasm.encodeBlob(numShards, data);
 
 			const decoded = wasm.decodePrimarySlivers(blobId, numShards, data.length, primarySlivers);
 
@@ -267,9 +253,7 @@ describe('blob encoding round-trips', () => {
 		it('should handle all-255 data', () => {
 			const data = new Uint8Array(1000).fill(255);
 
-			const { sliverPairs, blobId } = wasm.encodeBlob(numShards, data);
-
-			const primarySlivers = sliverPairs.map((pair: any) => pair.primary);
+			const { primarySlivers, blobId } = wasm.encodeBlob(numShards, data);
 
 			const decoded = wasm.decodePrimarySlivers(blobId, numShards, data.length, primarySlivers);
 

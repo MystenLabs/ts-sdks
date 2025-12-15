@@ -3,12 +3,15 @@
 
 import { describe, expect, it, beforeAll, afterEach } from 'vitest';
 
-import { blobIdFromInt } from '../../../src/utils/bcs.js';
-import { getSourceSymbols, getSizes } from '../../../src/utils/index.js';
-import { encodeQuilt, encodeQuiltPatchId } from '../../../src/utils/quilts.js';
-import { BlobReader } from '../../../src/files/readers/blob.js';
-import { getWasmBindings } from '../../../src/wasm.js';
-import type { WalrusClient } from '../../../src/client.js';
+import { blobIdFromInt } from '../../src/utils/bcs.js';
+import {
+	getSourceSymbols,
+	sliverPairIndexFromSecondarySliverIndex,
+} from '../../src/utils/index.js';
+import { encodeQuilt, encodeQuiltPatchId } from '../../src/utils/quilts.js';
+import { BlobReader } from '../../src/files/readers/blob.js';
+import { getWasmBindings } from '../../src/wasm.js';
+import type { WalrusClient } from '../../src/client.js';
 
 // Helper to create deterministic test data
 function createTestBlob(size: number, seed: number = 0): Uint8Array {
@@ -59,8 +62,6 @@ function createMockClient({
 	secondarySliverMode,
 }: MockClientOptions): MockClientResult {
 	const encoded = wasm.encodeBlob(numShards, quiltBytes);
-	const { symbolSize, columnSize } = getSizes(quiltBytes.length, numShards);
-	const { primarySymbols, secondarySymbols } = getSourceSymbols(numShards);
 	const calls: MockClientCalls = {
 		readBlob: 0,
 		getBlobMetadata: 0,
@@ -70,12 +71,11 @@ function createMockClient({
 	const client = {
 		async readBlob() {
 			calls.readBlob++;
-			const primarySlivers = encoded.sliverPairs.map((pair: any) => pair.primary);
 			return wasm.decodePrimarySlivers(
 				encoded.blobId,
 				numShards,
 				quiltBytes.length,
-				primarySlivers,
+				encoded.primarySlivers,
 			);
 		},
 		async getBlobMetadata() {
@@ -94,28 +94,9 @@ function createMockClient({
 				throw new Error('Secondary sliver read failed');
 			}
 
-			// Extract raw column data from quilt bytes
-			// The quilt is laid out as a matrix where:
-			// - Each row has secondarySymbols columns
-			// - Each cell is symbolSize bytes
-			// - Column N contains the Nth symbol from each row
-			const columnData = new Uint8Array(columnSize);
-			const rowSize = symbolSize * secondarySymbols;
-
-			for (let row = 0; row < primarySymbols; row++) {
-				const rowStart = row * rowSize;
-				const symbolStart = rowStart + index * symbolSize;
-				const destStart = row * symbolSize;
-
-				if (symbolStart + symbolSize <= quiltBytes.length) {
-					columnData.set(quiltBytes.subarray(symbolStart, symbolStart + symbolSize), destStart);
-				} else if (symbolStart < quiltBytes.length) {
-					// Partial symbol at end of quilt
-					columnData.set(quiltBytes.subarray(symbolStart), destStart);
-				}
-			}
-
-			return { symbols: { data: columnData } };
+			// Map secondary sliver index to sliver pair index (same mapping as WalrusClient)
+			const sliverPairIndex = sliverPairIndexFromSecondarySliverIndex(index, numShards);
+			return encoded.secondarySlivers[sliverPairIndex];
 		},
 	} as unknown as WalrusClient;
 
