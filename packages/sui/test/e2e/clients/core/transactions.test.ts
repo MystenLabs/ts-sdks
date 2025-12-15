@@ -1167,6 +1167,10 @@ describe('Core API - Transactions', () => {
 					include: { effects: true },
 				});
 
+				await client.core.waitForTransaction({
+					digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
+				});
+
 				// Should be a FailedTransaction
 				expect(result.$kind).toBe('FailedTransaction');
 				expect(result.FailedTransaction).toBeDefined();
