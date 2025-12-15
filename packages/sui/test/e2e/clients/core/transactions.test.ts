@@ -287,6 +287,82 @@ describe('Core API - Transactions', () => {
 
 			expect(balanceAfter.balance.balance).toBe(balanceBefore.balance.balance);
 		});
+
+		testWithAllClients('should simulate unserialized Transaction instance', async (client) => {
+			const tx = new Transaction();
+			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+			tx.setSender(testAddress);
+
+			// Pass Transaction instance directly (not built bytes)
+			const result = await client.core.simulateTransaction({
+				transaction: tx,
+				include: { effects: true, balanceChanges: true },
+			});
+
+			expect(result.Transaction!.status.success).toBe(true);
+			expect(result.Transaction!.effects).toBeDefined();
+			expect(result.Transaction!.effects?.status.success).toBe(true);
+			expect(result.Transaction!.balanceChanges).toBeDefined();
+			expect(Array.isArray(result.Transaction!.balanceChanges)).toBe(true);
+		});
+
+		testWithAllClients(
+			'should simulate unserialized Transaction with Move call',
+			async (client) => {
+				const tx = new Transaction();
+				const [obj] = tx.moveCall({
+					target: `${packageId}::test_objects::create_simple_object`,
+					arguments: [tx.pure.u64(42)],
+				});
+				tx.transferObjects([obj], tx.pure.address(testAddress));
+				tx.setSender(testAddress);
+
+				// Pass Transaction instance directly
+				const result = await client.core.simulateTransaction({
+					transaction: tx,
+					include: { effects: true, events: true, commandResults: true },
+				});
+
+				expect(result.Transaction!.status.success).toBe(true);
+				expect(result.Transaction!.effects).toBeDefined();
+				expect(result.Transaction!.events).toBeDefined();
+				expect(result.commandResults).toBeDefined();
+				expect(result.commandResults!.length).toBe(2); // MoveCall + TransferObjects
+			},
+		);
+
+		testWithAllClients(
+			'should produce same results for serialized and unserialized transactions',
+			async (client) => {
+				const tx = new Transaction();
+				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+				tx.setSender(testAddress);
+
+				// Simulate with unserialized Transaction
+				const unserializedResult = await client.core.simulateTransaction({
+					transaction: tx,
+					include: { effects: true },
+				});
+
+				// Build and simulate with bytes
+				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+				const serializedResult = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true },
+				});
+
+				// Results should match
+				expect(unserializedResult.Transaction!.status.success).toBe(
+					serializedResult.Transaction!.status.success,
+				);
+				expect(unserializedResult.Transaction!.effects?.gasUsed?.computationCost).toBe(
+					serializedResult.Transaction!.effects?.gasUsed?.computationCost,
+				);
+				expect(unserializedResult.Transaction!.effects?.gasUsed?.storageCost).toBe(
+					serializedResult.Transaction!.effects?.gasUsed?.storageCost,
+				);
+			},
+		);
 	});
 
 	describe('waitForTransaction', () => {
@@ -402,6 +478,10 @@ describe('Core API - Transactions', () => {
 				signatures: [signature.signature],
 				include: { events: true },
 			});
+			// Wait for transaction to be indexed
+			await client.core.waitForTransaction({
+				digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
+			});
 
 			// Verify events field exists
 			expect(result.Transaction!.events).toBeDefined();
@@ -415,9 +495,6 @@ describe('Core API - Transactions', () => {
 			expect(event?.sender).toBe(testAddress);
 			expect(event?.eventType).toContain('ObjectCreated');
 			expect(event?.bcs).toBeInstanceOf(Uint8Array);
-
-			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({ digest: result.Transaction!.digest });
 		});
 
 		testWithAllClients(
@@ -437,12 +514,14 @@ describe('Core API - Transactions', () => {
 					include: { events: true },
 				});
 
+				// Wait for transaction to be indexed
+				await client.core.waitForTransaction({
+					digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
+				});
+
 				expect(result.Transaction!.events).toBeDefined();
 				expect(Array.isArray(result.Transaction!.events)).toBe(true);
 				expect(result.Transaction!.events?.length).toBe(0);
-
-				// Wait for transaction to be indexed
-				await client.core.waitForTransaction({ digest: result.Transaction!.digest });
 			},
 		);
 
@@ -657,6 +736,11 @@ describe('Core API - Transactions', () => {
 				include: {},
 			});
 
+			// Wait for transaction to be indexed
+			await client.core.waitForTransaction({
+				digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
+			});
+
 			expect(result.Transaction!.digest).toBeDefined();
 
 			// Status should always be present even with no includes
@@ -669,8 +753,6 @@ describe('Core API - Transactions', () => {
 			expect(result.Transaction!.balanceChanges).toBeUndefined();
 			expect(result.Transaction!.events).toBeUndefined();
 			expect(result.Transaction!.effects).toBeUndefined();
-
-			await client.core.waitForTransaction({ digest: result.Transaction!.digest });
 		});
 
 		testWithAllClients(
@@ -688,12 +770,15 @@ describe('Core API - Transactions', () => {
 					signatures: [signature.signature],
 				});
 
+				// Wait for transaction to be indexed
+				await client.core.waitForTransaction({
+					digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
+				});
+
 				// Status should always be present
 				expect(result.Transaction!.status).toBeDefined();
 				expect(typeof result.Transaction!.status.success).toBe('boolean');
 				expect(result.Transaction!.status.success).toBe(true);
-
-				await client.core.waitForTransaction({ digest: result.Transaction!.digest });
 			},
 		);
 
@@ -711,13 +796,16 @@ describe('Core API - Transactions', () => {
 				include: { transaction: true },
 			});
 
+			// Wait for transaction to be indexed
+			await client.core.waitForTransaction({
+				digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
+			});
+
 			expect(result.Transaction!.transaction).toBeDefined();
 			expect(result.Transaction!.transaction?.sender).toBe(testAddress);
 			expect(result.Transaction!.balanceChanges).toBeUndefined();
 			expect(result.Transaction!.events).toBeUndefined();
 			expect(result.Transaction!.effects).toBeUndefined();
-
-			await client.core.waitForTransaction({ digest: result.Transaction!.digest });
 		});
 
 		testWithAllClients('should include all fields when all includes requested', async (client) => {
@@ -739,6 +827,10 @@ describe('Core API - Transactions', () => {
 					objectTypes: true,
 				},
 			});
+			// Wait for transaction to be indexed
+			await client.core.waitForTransaction({
+				digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
+			});
 
 			expect(result.Transaction!.transaction).toBeDefined();
 			expect(result.Transaction!.effects).toBeDefined();
@@ -747,8 +839,6 @@ describe('Core API - Transactions', () => {
 			expect(result.Transaction!.balanceChanges).toBeDefined();
 			const objectTypes = await result.Transaction!.objectTypes;
 			expect(objectTypes).toBeDefined();
-
-			await client.core.waitForTransaction({ digest: result.Transaction!.digest });
 		});
 	});
 
@@ -843,6 +933,204 @@ describe('Core API - Transactions', () => {
 		});
 	});
 
+	describe('simulateTransaction - Command Results', () => {
+		testWithAllClients('should return commandResults when requested', async (client) => {
+			// Call a Move function that returns a value and transfer it
+			const tx = new Transaction();
+			const [obj] = tx.moveCall({
+				target: `${packageId}::test_objects::create_simple_object`,
+				arguments: [tx.pure.u64(42)],
+			});
+			tx.transferObjects([obj], tx.pure.address(testAddress));
+
+			tx.setSender(testAddress);
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+
+			const result = await client.core.simulateTransaction({
+				transaction: bytes,
+				include: { commandResults: true },
+			});
+
+			expect(result.commandResults).toBeDefined();
+			expect(Array.isArray(result.commandResults)).toBe(true);
+			expect(result.commandResults!.length).toBe(2); // MoveCall + TransferObjects
+
+			// First command (MoveCall) should return a value (the created object)
+			const firstCommand = result.commandResults![0];
+			expect(firstCommand.returnValues).toBeDefined();
+			expect(Array.isArray(firstCommand.returnValues)).toBe(true);
+			expect(firstCommand.returnValues.length).toBe(1);
+
+			// Return value should have BCS bytes
+			const firstReturnValue = firstCommand.returnValues[0];
+			expect(firstReturnValue.bcs).toBeInstanceOf(Uint8Array);
+			expect(firstReturnValue.bcs.length).toBeGreaterThan(0);
+		});
+
+		testWithAllClients('should not include commandResults when not requested', async (client) => {
+			const tx = new Transaction();
+			const [obj] = tx.moveCall({
+				target: `${packageId}::test_objects::create_simple_object`,
+				arguments: [tx.pure.u64(42)],
+			});
+			tx.transferObjects([obj], tx.pure.address(testAddress));
+
+			tx.setSender(testAddress);
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+
+			const result = await client.core.simulateTransaction({
+				transaction: bytes,
+				include: { effects: true },
+			});
+
+			expect(result.Transaction!.effects).toBeDefined();
+			expect(result.commandResults).toBeUndefined();
+		});
+
+		testWithAllClients('should return commandResults for multiple commands', async (client) => {
+			const tx = new Transaction();
+
+			// Command 1: Create object with value 10
+			const [obj1] = tx.moveCall({
+				target: `${packageId}::test_objects::create_simple_object`,
+				arguments: [tx.pure.u64(10)],
+			});
+
+			// Command 2: Create object with value 20
+			const [obj2] = tx.moveCall({
+				target: `${packageId}::test_objects::create_simple_object`,
+				arguments: [tx.pure.u64(20)],
+			});
+
+			// Command 3: SplitCoins (returns a coin)
+			const [coin] = tx.splitCoins(tx.gas, [1000]);
+
+			// Command 4: Transfer all created objects
+			tx.transferObjects([obj1, obj2, coin], tx.pure.address(testAddress));
+
+			tx.setSender(testAddress);
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+
+			const result = await client.core.simulateTransaction({
+				transaction: bytes,
+				include: { commandResults: true },
+			});
+
+			expect(result.commandResults).toBeDefined();
+			expect(result.commandResults!.length).toBe(4); // 2 MoveCalls + SplitCoins + TransferObjects
+
+			// Each command should have results
+			for (const commandResult of result.commandResults!) {
+				expect(commandResult.returnValues).toBeDefined();
+				expect(Array.isArray(commandResult.returnValues)).toBe(true);
+				expect(commandResult.mutatedReferences).toBeDefined();
+				expect(Array.isArray(commandResult.mutatedReferences)).toBe(true);
+			}
+		});
+
+		testWithAllClients(
+			'should handle mutatedReferences for commands that mutate objects',
+			async (client) => {
+				const tx = new Transaction();
+
+				// SplitCoins mutates the gas coin and returns a new coin
+				const [coin] = tx.splitCoins(tx.gas, [1000]);
+				tx.transferObjects([coin], tx.pure.address(testAddress));
+
+				tx.setSender(testAddress);
+				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+
+				const result = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { commandResults: true },
+				});
+
+				expect(result.commandResults).toBeDefined();
+				const firstCommand = result.commandResults![0];
+
+				// SplitCoins returns a coin
+				expect(firstCommand.returnValues.length).toBeGreaterThan(0);
+				expect(firstCommand.returnValues[0].bcs).toBeInstanceOf(Uint8Array);
+
+				// SplitCoins mutates the source coin (gas coin)
+				expect(firstCommand.mutatedReferences).toBeDefined();
+				expect(Array.isArray(firstCommand.mutatedReferences)).toBe(true);
+			},
+		);
+
+		testWithAllClients('should work with commandResults and other includes', async (client) => {
+			const tx = new Transaction();
+			const [obj] = tx.moveCall({
+				target: `${packageId}::test_objects::create_simple_object`,
+				arguments: [tx.pure.u64(42)],
+			});
+			tx.transferObjects([obj], tx.pure.address(testAddress));
+
+			tx.setSender(testAddress);
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+
+			const result = await client.core.simulateTransaction({
+				transaction: bytes,
+				include: {
+					commandResults: true,
+					effects: true,
+					events: true,
+					balanceChanges: true,
+				},
+			});
+
+			// All requested fields should be present
+			expect(result.commandResults).toBeDefined();
+			expect(result.Transaction!.effects).toBeDefined();
+			expect(result.Transaction!.events).toBeDefined();
+			expect(result.Transaction!.balanceChanges).toBeDefined();
+		});
+
+		testWithAllClients(
+			'commandResults should be available even for failed transactions',
+			async (client) => {
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::test_objects::abort_always`,
+					arguments: [],
+				});
+
+				// Manually configure gas to bypass resolution failures
+				tx.setSender(testAddress);
+				tx.setGasOwner(testAddress);
+				tx.setGasBudget(50_000_000);
+				tx.setGasPrice(1000);
+
+				const coins = await toolbox.jsonRpcClient.getCoins({
+					owner: testAddress,
+					coinType: SUI_TYPE_ARG,
+				});
+				tx.setGasPayment([
+					{
+						objectId: coins.data[0].coinObjectId,
+						version: coins.data[0].version,
+						digest: coins.data[0].digest,
+					},
+				]);
+
+				const bytes = await tx.build({});
+
+				const result = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { commandResults: true, effects: true },
+				});
+
+				// Should be a FailedTransaction
+				expect(result.$kind).toBe('FailedTransaction');
+				expect(result.FailedTransaction!.status.success).toBe(false);
+
+				// Command results should still be available (though the command failed)
+				expect(result.commandResults).toBeDefined();
+			},
+			{ skip: ['jsonrpc'] }, // JSON-RPC devInspect fails for aborting transactions
+		);
+	});
+
 	describe('FailedTransaction handling', () => {
 		testWithAllClients(
 			'executeTransaction should return FailedTransaction for execution failures',
@@ -891,6 +1179,10 @@ describe('Core API - Transactions', () => {
 					transaction: bytes,
 					signatures: [signature.signature],
 					include: { effects: true },
+				});
+
+				await client.core.waitForTransaction({
+					digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
 				});
 
 				// Should be a FailedTransaction
