@@ -287,6 +287,82 @@ describe('Core API - Transactions', () => {
 
 			expect(balanceAfter.balance.balance).toBe(balanceBefore.balance.balance);
 		});
+
+		testWithAllClients('should simulate unserialized Transaction instance', async (client) => {
+			const tx = new Transaction();
+			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+			tx.setSender(testAddress);
+
+			// Pass Transaction instance directly (not built bytes)
+			const result = await client.core.simulateTransaction({
+				transaction: tx,
+				include: { effects: true, balanceChanges: true },
+			});
+
+			expect(result.Transaction!.status.success).toBe(true);
+			expect(result.Transaction!.effects).toBeDefined();
+			expect(result.Transaction!.effects?.status.success).toBe(true);
+			expect(result.Transaction!.balanceChanges).toBeDefined();
+			expect(Array.isArray(result.Transaction!.balanceChanges)).toBe(true);
+		});
+
+		testWithAllClients(
+			'should simulate unserialized Transaction with Move call',
+			async (client) => {
+				const tx = new Transaction();
+				const [obj] = tx.moveCall({
+					target: `${packageId}::test_objects::create_simple_object`,
+					arguments: [tx.pure.u64(42)],
+				});
+				tx.transferObjects([obj], tx.pure.address(testAddress));
+				tx.setSender(testAddress);
+
+				// Pass Transaction instance directly
+				const result = await client.core.simulateTransaction({
+					transaction: tx,
+					include: { effects: true, events: true, commandResults: true },
+				});
+
+				expect(result.Transaction!.status.success).toBe(true);
+				expect(result.Transaction!.effects).toBeDefined();
+				expect(result.Transaction!.events).toBeDefined();
+				expect(result.commandResults).toBeDefined();
+				expect(result.commandResults!.length).toBe(2); // MoveCall + TransferObjects
+			},
+		);
+
+		testWithAllClients(
+			'should produce same results for serialized and unserialized transactions',
+			async (client) => {
+				const tx = new Transaction();
+				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+				tx.setSender(testAddress);
+
+				// Simulate with unserialized Transaction
+				const unserializedResult = await client.core.simulateTransaction({
+					transaction: tx,
+					include: { effects: true },
+				});
+
+				// Build and simulate with bytes
+				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+				const serializedResult = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true },
+				});
+
+				// Results should match
+				expect(unserializedResult.Transaction!.status.success).toBe(
+					serializedResult.Transaction!.status.success,
+				);
+				expect(unserializedResult.Transaction!.effects?.gasUsed?.computationCost).toBe(
+					serializedResult.Transaction!.effects?.gasUsed?.computationCost,
+				);
+				expect(unserializedResult.Transaction!.effects?.gasUsed?.storageCost).toBe(
+					serializedResult.Transaction!.effects?.gasUsed?.storageCost,
+				);
+			},
+		);
 	});
 
 	describe('waitForTransaction', () => {

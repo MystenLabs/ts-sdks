@@ -31,6 +31,7 @@ import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { parseTransactionBcs, parseTransactionEffectsBcs } from '../client/utils.js';
 import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.js';
+import { transactionToGrpcJson } from '../client/transaction-resolver.js';
 
 export class GraphQLCoreClient extends CoreClient {
 	#graphqlClient: SuiGraphQLClient;
@@ -305,11 +306,14 @@ export class GraphQLCoreClient extends CoreClient {
 			{
 				query: SimulateTransactionDocument,
 				variables: {
-					transaction: {
-						bcs: {
-							value: toBase64(options.transaction),
-						},
-					},
+					transaction:
+						options.transaction instanceof Uint8Array
+							? {
+									bcs: {
+										value: toBase64(options.transaction),
+									},
+								}
+							: transactionToGrpcJson(options.transaction),
 					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,

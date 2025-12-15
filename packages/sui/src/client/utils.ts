@@ -35,9 +35,15 @@ const MinimalTransactionEffectsNoError = bcs.enum('MinimalTransactionEffectsNoEr
 	V2: MinimalEffectsNoError,
 });
 
-export function parseTransactionBcs(bytes: Uint8Array): SuiClientTypes.TransactionData {
+export function parseTransactionBcs(
+	bytes: Uint8Array,
+	onlyTransactionKind = false,
+): SuiClientTypes.TransactionData {
 	return {
-		...TransactionDataBuilder.fromBytes(bytes).snapshot(),
+		...(onlyTransactionKind
+			? TransactionDataBuilder.fromKindBytes(bytes)
+			: TransactionDataBuilder.fromBytes(bytes)
+		).snapshot(),
 		bcs: bytes,
 	};
 }

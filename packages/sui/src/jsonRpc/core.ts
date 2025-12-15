@@ -27,6 +27,8 @@ import { ObjectError } from '../client/errors.js';
 import { parseTransactionBcs, parseTransactionEffectsBcs } from '../client/index.js';
 import type { SuiJsonRpcClient } from './client.js';
 
+const MAX_GAS = 50_000_000_000;
+
 export class JSONRpcCoreClient extends CoreClient {
 	#jsonRpcClient: SuiJsonRpcClient;
 
@@ -219,8 +221,26 @@ export class JSONRpcCoreClient extends CoreClient {
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		const tx = Transaction.from(options.transaction);
+
+		const data =
+			options.transaction instanceof Uint8Array
+				? null
+				: TransactionDataBuilder.restore(options.transaction.getData());
+
+		const transactionBytes = data
+			? data.build({
+					overrides: {
+						gasData: {
+							budget: data.gasData.budget ?? String(MAX_GAS),
+							price: data.gasData.price ?? String(await this.#jsonRpcClient.getReferenceGasPrice()),
+							payment: data.gasData.payment ?? [],
+						},
+					},
+				})
+			: (options.transaction as Uint8Array);
+
 		const result = await this.#jsonRpcClient.dryRunTransactionBlock({
-			transactionBlock: options.transaction,
+			transactionBlock: transactionBytes,
 			signal: options.signal,
 		});
 
@@ -230,7 +250,7 @@ export class JSONRpcCoreClient extends CoreClient {
 		});
 
 		const transactionData: SuiClientTypes.Transaction<Include> = {
-			digest: await tx.getDigest(),
+			digest: TransactionDataBuilder.getDigestFromBytes(transactionBytes),
 			epoch: null,
 			status: effects.status,
 			effects: (options.include?.effects
@@ -241,7 +261,15 @@ export class JSONRpcCoreClient extends CoreClient {
 				: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 			signatures: [],
 			transaction: (options.include?.transaction
-				? parseTransactionBcs(options.transaction)
+				? parseTransactionBcs(
+						options.transaction instanceof Uint8Array
+							? options.transaction
+							: await options.transaction
+									.build({
+										client: this,
+									})
+									.catch(() => null as never),
+					)
 				: undefined) as SuiClientTypes.Transaction<Include>['transaction'],
 			balanceChanges: (options.include?.balanceChanges
 				? result.balanceChanges.map((change) => ({

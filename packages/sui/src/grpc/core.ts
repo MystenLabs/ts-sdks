@@ -30,6 +30,7 @@ import {
 import {
 	applyGrpcResolvedTransaction,
 	transactionDataToGrpcTransaction,
+	transactionToGrpcTransaction,
 } from '../client/transaction-resolver.js';
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
@@ -319,11 +320,14 @@ export class GrpcCoreClient extends CoreClient {
 		}
 
 		const { response } = await this.#client.transactionExecutionService.simulateTransaction({
-			transaction: {
-				bcs: {
-					value: options.transaction,
-				},
-			},
+			transaction:
+				options.transaction instanceof Uint8Array
+					? {
+							bcs: {
+								value: options.transaction,
+							},
+						}
+					: transactionToGrpcTransaction(options.transaction),
 			readMask: {
 				paths,
 			},

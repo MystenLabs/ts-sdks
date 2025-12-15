@@ -1,7 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SerializedTransactionDataV2, TransactionPlugin } from '../transactions/index.js';
+import type {
+	SerializedTransactionDataV2,
+	TransactionPlugin,
+	Transaction as TransactionInstance,
+} from '../transactions/index.js';
 import type { ClientCache } from './cache.js';
 import type { BaseClient } from './client.js';
 
@@ -313,7 +317,7 @@ export namespace SuiClientTypes {
 	export interface SimulateTransactionOptions<
 		Include extends SimulateTransactionInclude = {},
 	> extends CoreClientMethodOptions {
-		transaction: Uint8Array;
+		transaction: Uint8Array | TransactionInstance;
 		include?: Include;
 	}
 
