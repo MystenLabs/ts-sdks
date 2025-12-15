@@ -1,5 +1,18 @@
 # @mysten/walrus
 
+## 0.9.0
+
+### Minor Changes
+
+- 412ceb9: Upgrade wasm module to use pre-allocated array buffers and avoid decoding SliverData
+
+### Patch Changes
+
+- 06d915f: Fix extending blobs
+- 06d915f: Fix bug that could lead to infinite loop when encoding quilts
+- Updated dependencies [412ceb9]
+  - @mysten/walrus-wasm@0.2.0
+
 ## 0.8.6
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @mysten/walrus-wasm
 
+## 0.2.0
+
+### Minor Changes
+
+- 412ceb9: Write directly to JS array buffers instead of copying
+
 ## 0.1.1
 
 ### Patch Changes

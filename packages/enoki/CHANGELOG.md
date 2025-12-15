@@ -1,5 +1,11 @@
 # @mysten/enoki
 
+## 0.13.0
+
+### Minor Changes
+
+- 95c02d8: Add `additionalEpochs` as part of the configuration to generate zkLogin nonce
+
 ## 0.12.15
 
 ### Patch Changes
