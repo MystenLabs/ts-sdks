@@ -197,33 +197,6 @@ function passArrayJsValueToWasm0(array, malloc) {
     WASM_VECTOR_LEN = array.length;
     return ptr;
 }
-
-function passArray8ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 1, 1) >>> 0;
-    getUint8ArrayMemory0().set(arg, ptr / 1);
-    WASM_VECTOR_LEN = arg.length;
-    return ptr;
-}
-/**
- * @param {Uint8Array} signature
- * @param {Uint8Array} public_key
- * @param {Uint8Array} msg
- * @returns {boolean}
- */
-export function bls12381_min_pk_verify(signature, public_key, msg) {
-    const ptr0 = passArray8ToWasm0(signature, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ptr1 = passArray8ToWasm0(public_key, wasm.__wbindgen_malloc);
-    const len1 = WASM_VECTOR_LEN;
-    const ptr2 = passArray8ToWasm0(msg, wasm.__wbindgen_malloc);
-    const len2 = WASM_VECTOR_LEN;
-    const ret = wasm.bls12381_min_pk_verify(ptr0, len0, ptr1, len1, ptr2, len2);
-    if (ret[2]) {
-        throw takeFromExternrefTable0(ret[1]);
-    }
-    return ret[0] !== 0;
-}
-
 /**
  * Aggregate a list of signatures.
  * The signatures must be of the type Vec<Vec<u8>> with each signature being a 96 bytes long serialized signature.
@@ -240,6 +213,12 @@ export function bls12381_min_pk_aggregate(signatures) {
     return v1;
 }
 
+function passArray8ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 1, 1) >>> 0;
+    getUint8ArrayMemory0().set(arg, ptr / 1);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
 /**
  * Verify an aggregate signature.
  * @param {any} public_keys
@@ -253,6 +232,26 @@ export function bls12381_min_pk_verify_aggregate(public_keys, msg, signature) {
     const ptr1 = passArray8ToWasm0(signature, wasm.__wbindgen_malloc);
     const len1 = WASM_VECTOR_LEN;
     const ret = wasm.bls12381_min_pk_verify_aggregate(public_keys, ptr0, len0, ptr1, len1);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return ret[0] !== 0;
+}
+
+/**
+ * @param {Uint8Array} signature
+ * @param {Uint8Array} public_key
+ * @param {Uint8Array} msg
+ * @returns {boolean}
+ */
+export function bls12381_min_pk_verify(signature, public_key, msg) {
+    const ptr0 = passArray8ToWasm0(signature, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray8ToWasm0(public_key, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passArray8ToWasm0(msg, wasm.__wbindgen_malloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ret = wasm.bls12381_min_pk_verify(ptr0, len0, ptr1, len1, ptr2, len2);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -277,6 +276,22 @@ export class BlobEncoder {
         wasm.__wbg_blobencoder_free(ptr, 0);
     }
     /**
+     * Compute metadata for data without encoding it.
+     * Returns only the essential fields needed for blob registration:
+     * (blob_id, root_hash, unencoded_length, encoding_type)
+     *
+     * This avoids serializing all 2k sliver hashes across the JS/WASM boundary.
+     * @param {Uint8Array} data
+     * @returns {any}
+     */
+    compute_metadata(data) {
+        const ret = wasm.blobencoder_compute_metadata(this.__wbg_ptr, data);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
      * @param {number} n_shards
      */
     constructor(n_shards) {
@@ -287,6 +302,27 @@ export class BlobEncoder {
         this.__wbg_ptr = ret[0] >>> 0;
         BlobEncoderFinalization.register(this, this.__wbg_ptr, this);
         return this;
+    }
+    /**
+     * Decode blob from BCS-encoded SliverData buffers.
+     *
+     * Arguments:
+     * - blob_id: The blob identifier
+     * - blob_size: The original unencoded blob size in bytes
+     * - bcs_buffers: Vec<Uint8Array>, each containing BCS-encoded SliverData<Primary>
+     * - output_buffer: Uint8Array to write decoded data into (must be exactly blob_size bytes)
+     * @param {any} blob_id
+     * @param {bigint} blob_size
+     * @param {Uint8Array[]} bcs_buffers
+     * @param {Uint8Array} output_buffer
+     */
+    decode(blob_id, blob_size, bcs_buffers, output_buffer) {
+        const ptr0 = passArrayJsValueToWasm0(bcs_buffers, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.blobencoder_decode(this.__wbg_ptr, blob_id, blob_size, ptr0, len0, output_buffer);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
     }
     /**
      * Encode data and write BCS-encoded SliverData directly into pre-allocated buffers.
@@ -310,40 +346,6 @@ export class BlobEncoder {
             throw takeFromExternrefTable0(ret[1]);
         }
         return takeFromExternrefTable0(ret[0]);
-    }
-    /**
-     * Compute metadata for data without encoding it.
-     * Returns (metadata, root_hash)
-     * @param {Uint8Array} data
-     * @returns {any}
-     */
-    compute_metadata(data) {
-        const ret = wasm.blobencoder_compute_metadata(this.__wbg_ptr, data);
-        if (ret[2]) {
-            throw takeFromExternrefTable0(ret[1]);
-        }
-        return takeFromExternrefTable0(ret[0]);
-    }
-    /**
-     * Decode blob from BCS-encoded SliverData buffers.
-     *
-     * Arguments:
-     * - blob_id: The blob identifier
-     * - blob_size: The original unencoded blob size in bytes
-     * - bcs_buffers: Vec<Uint8Array>, each containing BCS-encoded SliverData<Primary>
-     * - output_buffer: Uint8Array to write decoded data into (must be exactly blob_size bytes)
-     * @param {any} blob_id
-     * @param {bigint} blob_size
-     * @param {Uint8Array[]} bcs_buffers
-     * @param {Uint8Array} output_buffer
-     */
-    decode(blob_id, blob_size, bcs_buffers, output_buffer) {
-        const ptr0 = passArrayJsValueToWasm0(bcs_buffers, wasm.__wbindgen_malloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.blobencoder_decode(this.__wbg_ptr, blob_id, blob_size, ptr0, len0, output_buffer);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
     }
 }
 if (Symbol.dispose) BlobEncoder.prototype[Symbol.dispose] = BlobEncoder.prototype.free;

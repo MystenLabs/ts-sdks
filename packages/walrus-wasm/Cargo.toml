@@ -2,7 +2,7 @@
 name = "walrus-wasm"
 version = "0.1.0"
 authors = ["jonaslindstrom"]
-edition = "2018"
+edition = "2024"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -15,7 +15,7 @@ bcs = "0.1"
 wasm-bindgen = "0.2.84"
 js-sys = "0.3"
 fastcrypto = { git = "https://github.com/mystenlabs/fastcrypto.git", rev = "f519333aefa238384f813af74bbb58c68cc38ee7", features = ["wasm"]}
-walrus-core = { git = "ssh://git@github.com/mystenlabs/walrus.git", branch = "mlegner/wal-1008-investigate-high-memory-usage-when-storing-blobs", package = "walrus-core" }
+walrus-core = { git = "ssh://git@github.com/mystenlabs/walrus.git", branch = "main", package = "walrus-core" }
 serde-wasm-bindgen = "0.4"
 reed-solomon-simd = "3.0.1"
 

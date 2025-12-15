@@ -363,7 +363,10 @@ export class WalrusClient {
 		}
 
 		const bindings = await this.#wasmBindings();
-		const { blobId, metadata, rootHash } = bindings.computeMetadata(shardCount, bytes);
+		const { blobId, rootHash, unencodedLength, encodingType } = bindings.computeMetadata(
+			shardCount,
+			bytes,
+		);
 		let sha256Hash: Promise<Uint8Array> | undefined;
 		const nonce = crypto.getRandomValues(new Uint8Array(32));
 
@@ -371,12 +374,8 @@ export class WalrusClient {
 			rootHash,
 			blobId,
 			metadata: {
-				encodingType: metadata.V1.encoding_type,
-				hashes: Array.from(metadata.V1.hashes).map((hashes) => ({
-					primaryHash: hashes.primary_hash,
-					secondaryHash: hashes.secondary_hash,
-				})),
-				unencodedLength: metadata.V1.unencoded_length,
+				encodingType,
+				unencodedLength,
 			},
 			nonce,
 			blobDigest: () => {

@@ -1,6 +1,8 @@
 use core::num::NonZeroU16;
 use js_sys::{Array, Uint8Array};
-use walrus_core::encoding::{EncodingConfig, EncodingFactory, Primary, SliverData};
+use walrus_core::encoding::{
+    EncodingConfig, EncodingConfigEnum, EncodingFactory, Primary, SliverData,
+};
 use walrus_core::metadata::{BlobMetadata, BlobMetadataApi};
 use walrus_core::{BlobId, EncodingType};
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -8,7 +10,7 @@ use wasm_bindgen::{JsCast, JsError, JsValue};
 
 #[wasm_bindgen]
 pub struct BlobEncoder {
-    config: EncodingConfig,
+    encoder: EncodingConfigEnum,
 }
 
 #[wasm_bindgen]
@@ -18,7 +20,8 @@ impl BlobEncoder {
         let config = EncodingConfig::new(
             NonZeroU16::new(n_shards).ok_or(JsError::new("n_shards must be greater than 0"))?,
         );
-        Ok(Self { config })
+        let encoder = config.get_for_type(EncodingType::RS2);
+        Ok(Self { encoder })
     }
 
     /// Encode data and write BCS-encoded SliverData directly into pre-allocated buffers.
@@ -39,8 +42,7 @@ impl BlobEncoder {
         secondary_buffers: &Array,
     ) -> Result<JsValue, JsError> {
         let data_vec = data.to_vec();
-        let encoder = self.config.get_for_type(EncodingType::RS2);
-        let (sliver_pairs, metadata) = encoder.encode_with_metadata(data_vec)?;
+        let (sliver_pairs, metadata) = self.encoder.encode_with_metadata(data_vec)?;
 
         // Validate buffer counts
         if primary_buffers.length() != sliver_pairs.len() as u32 {
@@ -83,16 +85,28 @@ impl BlobEncoder {
     }
 
     /// Compute metadata for data without encoding it.
-    /// Returns (metadata, root_hash)
+    /// Returns only the essential fields needed for blob registration:
+    /// (blob_id, root_hash, unencoded_length, encoding_type)
+    ///
+    /// This avoids serializing all 2k sliver hashes across the JS/WASM boundary.
     #[wasm_bindgen]
     pub fn compute_metadata(&self, data: &Uint8Array) -> Result<JsValue, JsError> {
         let data_vec = data.to_vec();
-        let encoder = self.config.get_for_type(EncodingType::RS2);
-        let metadata = encoder.compute_metadata(&data_vec)?;
-        let root_hash = match metadata.metadata() {
-            BlobMetadata::V1(inner) => inner.compute_root_hash(),
+        let metadata = self.encoder.compute_metadata(&data_vec)?;
+        let blob_id = metadata.blob_id();
+        let (root_hash, unencoded_length, encoding_type) = match metadata.metadata() {
+            BlobMetadata::V1(inner) => (
+                inner.compute_root_hash(),
+                inner.unencoded_length,
+                inner.encoding_type,
+            ),
         };
-        Ok(serde_wasm_bindgen::to_value(&(metadata, root_hash))?)
+        Ok(serde_wasm_bindgen::to_value(&(
+            blob_id,
+            root_hash,
+            unencoded_length,
+            encoding_type,
+        ))?)
     }
 
     /// Decode blob from BCS-encoded SliverData buffers.
@@ -135,8 +149,7 @@ impl BlobEncoder {
             sliver_data.push(sliver);
         }
 
-        let decoder = self.config.get_for_type(EncodingType::RS2);
-        let decoded = decoder.decode(blob_size, sliver_data)?;
+        let decoded = self.encoder.decode(blob_size, sliver_data)?;
         output_buffer.copy_from(&decoded[..]);
 
         Ok(())

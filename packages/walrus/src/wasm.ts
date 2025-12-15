@@ -10,7 +10,7 @@ import init, {
 
 import type { StorageConfirmation } from './storage-node/types.js';
 import type { EncodingType, ProtocolMessageCertificate } from './types.js';
-import type { BlobMetadata, BlobMetadataWithId } from './utils/bcs.js';
+import type { BlobMetadata } from './utils/bcs.js';
 import { BlobId, blobIdFromBytes } from './utils/bcs.js';
 import { getSourceSymbols } from './utils/index.js';
 
@@ -103,18 +103,19 @@ export async function getWasmBindings(url?: string) {
 		nShards: number,
 		bytes: Uint8Array,
 		encodingType: EncodingType = 'RS2',
-	): typeof BlobMetadataWithId.$inferInput & { blobId: string; rootHash: Uint8Array } {
+	): { blobId: string; rootHash: Uint8Array; unencodedLength: bigint; encodingType: EncodingType } {
 		const encoder = new BlobEncoder(nShards);
-		const [metadata, rootHash] = encoder.compute_metadata(bytes);
+		const [blobId, rootHash, unencodedLength, encType] = encoder.compute_metadata(bytes);
 
 		if (encodingType !== 'RS2') {
 			throw new Error(`Unsupported encoding type: ${encodingType}`);
 		}
 
 		return {
-			...metadata,
-			blobId: blobIdFromBytes(new Uint8Array(metadata.blob_id)),
+			blobId: blobIdFromBytes(new Uint8Array(blobId)),
 			rootHash: new Uint8Array(rootHash.Digest),
+			unencodedLength: BigInt(unencodedLength),
+			encodingType: encType as EncodingType,
 		};
 	}
 

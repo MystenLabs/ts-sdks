@@ -163,31 +163,24 @@ describe('BlobEncoder', () => {
 
 		const encoder = new BlobEncoder(nShards);
 
-		// Compute metadata only
-		const [metadata, rootHash] = encoder.compute_metadata(inputData);
+		// Compute metadata only - returns (blob_id, root_hash, unencoded_length, encoding_type)
+		const [blobId, rootHash, unencodedLength, encodingType] = encoder.compute_metadata(inputData);
 
-		// Verify metadata structure
-		expect(metadata).toBeDefined();
-		expect(metadata.blob_id).toBeDefined();
-
-		// Convert to Uint8Array if needed (wasm-bindgen may return Array)
-		const blobIdBytes = metadata.blob_id instanceof Uint8Array ? metadata.blob_id : new Uint8Array(metadata.blob_id);
+		// Verify blob_id
+		expect(blobId).toBeDefined();
+		const blobIdBytes = blobId instanceof Uint8Array ? blobId : new Uint8Array(blobId);
 		expect(blobIdBytes.length).toBe(32); // u256 = 32 bytes
-
-		expect(metadata.metadata).toBeDefined();
-		expect(metadata.metadata.V1).toBeDefined();
-		// wasm-bindgen may return number for u64 values that fit in JS number
-		expect(Number(metadata.metadata.V1.unencoded_length)).toBe(blobSize);
 
 		// Verify root hash
 		expect(rootHash).toBeDefined();
 		const rootHashBytes = rootHash.Digest instanceof Uint8Array ? rootHash.Digest : new Uint8Array(rootHash.Digest);
 		expect(rootHashBytes.length).toBe(32);
 
-		// Verify metadata.metadata.V1.hashes array exists
-		expect(metadata.metadata.V1.hashes).toBeDefined();
-		expect(Array.isArray(metadata.metadata.V1.hashes)).toBe(true);
-		expect(metadata.metadata.V1.hashes.length).toBe(nShards);
+		// Verify unencoded_length
+		expect(Number(unencodedLength)).toBe(blobSize);
+
+		// Verify encoding_type (RS2)
+		expect(encodingType).toBe('RS2');
 	});
 
 	it('should produce deterministic blob IDs for known inputs', async () => {
@@ -195,29 +188,29 @@ describe('BlobEncoder', () => {
 
 		// Test with empty blob
 		const emptyData = new Uint8Array(0);
-		const [emptyMetadata] = encoder.compute_metadata(emptyData);
-		const emptyBlobId = Buffer.from(emptyMetadata.blob_id).toString('hex');
+		const [emptyBlobId] = encoder.compute_metadata(emptyData);
+		const emptyBlobIdHex = Buffer.from(emptyBlobId).toString('hex');
 
 		// Empty blob should always produce the same blob ID
-		const [emptyMetadata2] = encoder.compute_metadata(emptyData);
-		const emptyBlobId2 = Buffer.from(emptyMetadata2.blob_id).toString('hex');
-		expect(emptyBlobId).toBe(emptyBlobId2);
+		const [emptyBlobId2] = encoder.compute_metadata(emptyData);
+		const emptyBlobIdHex2 = Buffer.from(emptyBlobId2).toString('hex');
+		expect(emptyBlobIdHex).toBe(emptyBlobIdHex2);
 
 		// Verify against known static value (for nShards=1000)
-		expect(emptyBlobId).toBe('dc63d02f71d936716137f17b97901af97d553ad00ac08b20f73b9693c47cd6fe');
+		expect(emptyBlobIdHex).toBe('dc63d02f71d936716137f17b97901af97d553ad00ac08b20f73b9693c47cd6fe');
 
 		// Test with simple known data
 		const testData = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-		const [testMetadata] = encoder.compute_metadata(testData);
-		const testBlobId = Buffer.from(testMetadata.blob_id).toString('hex');
+		const [testBlobId] = encoder.compute_metadata(testData);
+		const testBlobIdHex = Buffer.from(testBlobId).toString('hex');
 
 		// Same input should always produce the same blob ID
-		const [testMetadata2] = encoder.compute_metadata(testData);
-		const testBlobId2 = Buffer.from(testMetadata2.blob_id).toString('hex');
-		expect(testBlobId).toBe(testBlobId2);
+		const [testBlobId2] = encoder.compute_metadata(testData);
+		const testBlobIdHex2 = Buffer.from(testBlobId2).toString('hex');
+		expect(testBlobIdHex).toBe(testBlobIdHex2);
 
 		// Verify against known static value (for nShards=1000)
-		expect(testBlobId).toBe('865ca48479104a9bdc136f7d6730b7f3920012eccb4e99ba8540b9363766e093');
+		expect(testBlobIdHex).toBe('865ca48479104a9bdc136f7d6730b7f3920012eccb4e99ba8540b9363766e093');
 	});
 
 	it('should produce consistent metadata for the same input', async () => {
@@ -232,17 +225,17 @@ describe('BlobEncoder', () => {
 		const encoder = new BlobEncoder(nShards);
 
 		// Compute metadata twice
-		const [metadata1, rootHash1] = encoder.compute_metadata(inputData);
-		const [metadata2, rootHash2] = encoder.compute_metadata(inputData);
+		const [blobId1, rootHash1, unencodedLength1] = encoder.compute_metadata(inputData);
+		const [blobId2, rootHash2, unencodedLength2] = encoder.compute_metadata(inputData);
 
 		// Blob IDs should match
-		expect(metadata1.blob_id).toEqual(metadata2.blob_id);
+		expect(blobId1).toEqual(blobId2);
 
 		// Root hashes should match
 		expect(rootHash1.Digest).toEqual(rootHash2.Digest);
 
 		// Unencoded lengths should match
-		expect(metadata1.metadata.V1.unencoded_length).toBe(metadata2.metadata.V1.unencoded_length);
+		expect(unencodedLength1).toBe(unencodedLength2);
 	});
 
 	it('should fail decode with wrong buffer size', () => {
