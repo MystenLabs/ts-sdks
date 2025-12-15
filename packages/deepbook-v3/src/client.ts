@@ -32,6 +32,7 @@ import { MarginManagerContract } from './transactions/marginManager.js';
 import { MarginRegistryContract } from './transactions/marginRegistry.js';
 import { SuiPriceServiceConnection } from './pyth/pyth.js';
 import { SuiPythClient } from './pyth/pyth.js';
+import { PriceInfoObject } from './contracts/pyth/price_info.js';
 import { PoolProxyContract } from './transactions/poolProxy.js';
 
 export interface DeepBookCompatibleClient extends ClientWithCoreApi {}
@@ -136,15 +137,11 @@ export class DeepBookClient {
 		const coin = this.#config.getCoin(coinKey);
 
 		tx.add(this.balanceManager.checkManagerBalance(managerKey, coinKey));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
 
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const parsed_balance = bcs.U64.parse(bytes);
 		const balanceNumber = Number(parsed_balance);
@@ -165,15 +162,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 
 		tx.add(this.deepBook.whitelisted(poolKey));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const whitelisted = bcs.Bool.parse(bytes);
@@ -195,15 +187,10 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getQuoteQuantityOut(poolKey, baseQuantity));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
 		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
@@ -231,15 +218,10 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getBaseQuantityOut(poolKey, quoteQuantity));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
 		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
@@ -268,15 +250,10 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getQuantityOut(poolKey, baseQuantity, quoteQuantity));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
 		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
@@ -301,15 +278,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 
 		tx.add(this.deepBook.accountOpenOrders(poolKey, managerKey));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const order_ids = res.commandResults![0].returnValues[0].bcs;
 
@@ -326,15 +298,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 
 		tx.add(this.deepBook.getOrder(poolKey, orderId));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		try {
 			const orderInformation = res.commandResults![0].returnValues[0].bcs;
@@ -353,15 +320,10 @@ export class DeepBookClient {
 	async getOrderNormalized(poolKey: string, orderId: string) {
 		const tx = new Transaction();
 		tx.add(this.deepBook.getOrder(poolKey, orderId));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		try {
 			const orderInformation = res.commandResults![0].returnValues[0].bcs;
@@ -406,15 +368,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 
 		tx.add(this.deepBook.getOrders(poolKey, orderIds));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		try {
 			const orderInformation = res.commandResults![0].returnValues[0].bcs;
@@ -440,15 +397,10 @@ export class DeepBookClient {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
 		tx.add(this.deepBook.getLevel2Range(poolKey, priceLow, priceHigh, isBid));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const prices = res.commandResults![0].returnValues[0].bcs;
 		const parsed_prices = bcs.vector(bcs.u64()).parse(new Uint8Array(prices));
@@ -479,15 +431,10 @@ export class DeepBookClient {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
 		tx.add(this.deepBook.getLevel2TicksFromMid(poolKey, ticks));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bid_prices = res.commandResults![0].returnValues[0].bcs;
 		const bid_parsed_prices = bcs.vector(bcs.u64()).parse(new Uint8Array(bid_prices));
@@ -528,15 +475,10 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.vaultBalances(poolKey));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const baseInVault = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
 		const quoteInVault = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
@@ -559,15 +501,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.getPoolIdByAssets(baseType, quoteType));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const address = bcs.Address.parse(res.commandResults![0].returnValues[0].bcs);
 
@@ -587,15 +524,10 @@ export class DeepBookClient {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const parsed_mid_price = Number(bcs.U64.parse(bytes));
@@ -614,15 +546,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 
 		tx.add(this.deepBook.poolTradeParams(poolKey));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const takerFee = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
 		const makerFee = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
@@ -647,15 +574,10 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.poolBookParams(poolKey));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const tickSize = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
 		const lotSize = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
@@ -681,15 +603,10 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.account(poolKey, managerKey));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const accountInformation = res.commandResults![0].returnValues[0].bcs;
 		const accountInfo = Account.parse(new Uint8Array(accountInformation));
@@ -735,15 +652,10 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.lockedBalance(poolKey, balanceManagerKey));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const baseLocked = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
 		const quoteLocked = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
@@ -770,15 +682,10 @@ export class DeepBookClient {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const deepCoin = this.#config.getCoin('DEEP');
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const poolDeepPriceBytes = res.commandResults![0].returnValues[0].bcs;
 		const poolDeepPrice = OrderDeepPrice.parse(new Uint8Array(poolDeepPriceBytes));
@@ -822,15 +729,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.getBalanceManagerIds(owner));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const vecOfAddresses = bcs.vector(bcs.Address).parse(new Uint8Array(bytes));
@@ -847,15 +749,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.balanceManager.referralOwner(referral));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const owner = bcs.Address.parse(bytes);
@@ -880,15 +777,10 @@ export class DeepBookClient {
 
 		tx.add(this.deepBook.getReferralBalances(poolKey, referral));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		// The function returns three u64 values: (base, quote, deep)
 		const baseBytes = res.commandResults![0].returnValues[0].bcs;
@@ -943,7 +835,7 @@ export class DeepBookClient {
 	/**
 	 * @description Get the age of the price info object for a specific coin
 	 * @param {string} coinKey Key of the coin
-	 * @returns {Promise<string>} The arrival time of the price info object
+	 * @returns {Promise<number>} The arrival time of the price info object
 	 */
 	async getPriceInfoObjectAge(coinKey: string) {
 		const priceInfoObjectId = this.#config.getCoin(coinKey).priceInfoObjectId!;
@@ -958,9 +850,8 @@ export class DeepBookClient {
 			throw new Error(`Price info object not found for ${coinKey}`);
 		}
 
-		// For now, return null as we need to implement proper BCS parsing
-		// TODO: Implement proper BCS parsing for price info object from res.object.content
-		return null;
+		const priceInfoObject = PriceInfoObject.parse(res.object.content);
+		return Number(priceInfoObject.price_info.arrival_time);
 	}
 
 	// === Margin Pool View Methods ===
@@ -974,15 +865,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.getId(coinKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.Address.parse(bytes);
@@ -998,15 +884,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.deepbookPoolAllowed(coinKey, deepbookPoolId));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
@@ -1022,15 +903,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.totalSupply(coinKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const rawAmount = BigInt(bcs.U64.parse(bytes));
@@ -1048,15 +924,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.supplyShares(coinKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const rawShares = BigInt(bcs.U64.parse(bytes));
@@ -1074,15 +945,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.totalBorrow(coinKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const rawAmount = BigInt(bcs.U64.parse(bytes));
@@ -1100,15 +966,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.borrowShares(coinKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const rawShares = BigInt(bcs.U64.parse(bytes));
@@ -1125,15 +986,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.lastUpdateTimestamp(coinKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return Number(bcs.U64.parse(bytes));
@@ -1149,15 +1005,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.supplyCap(coinKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const rawAmount = BigInt(bcs.U64.parse(bytes));
@@ -1174,15 +1025,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.maxUtilizationRate(coinKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const rawRate = Number(bcs.U64.parse(bytes));
@@ -1198,15 +1044,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.protocolSpread(coinKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const rawSpread = Number(bcs.U64.parse(bytes));
@@ -1223,15 +1064,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.minBorrow(coinKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const rawAmount = BigInt(bcs.U64.parse(bytes));
@@ -1248,15 +1084,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.interestRate(coinKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const rawRate = Number(bcs.U64.parse(bytes));
@@ -1278,15 +1109,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.userSupplyShares(coinKey, supplierCapId));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const rawShares = BigInt(bcs.U64.parse(bytes));
@@ -1309,15 +1135,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.userSupplyAmount(coinKey, supplierCapId));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const rawAmount = BigInt(bcs.U64.parse(bytes));
@@ -1337,15 +1158,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.ownerByPoolKey(manager.poolKey, manager.address));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return normalizeSuiAddress(bcs.Address.parse(bytes));
@@ -1361,15 +1177,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.deepbookPool(manager.poolKey, manager.address));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return normalizeSuiAddress(bcs.Address.parse(bytes));
@@ -1385,15 +1196,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.marginPoolId(manager.poolKey, manager.address));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const option = bcs.option(bcs.Address).parse(new Uint8Array(bytes));
@@ -1412,15 +1218,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.borrowedShares(manager.poolKey, manager.address));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const baseBytes = res.commandResults![0].returnValues[0].bcs;
 		const quoteBytes = res.commandResults![0].returnValues[1].bcs;
@@ -1440,15 +1241,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.borrowedBaseShares(manager.poolKey, manager.address));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.U64.parse(bytes).toString();
@@ -1464,15 +1260,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.borrowedQuoteShares(manager.poolKey, manager.address));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.U64.parse(bytes).toString();
@@ -1488,15 +1279,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.hasBaseDebt(manager.poolKey, manager.address));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
@@ -1512,15 +1298,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.balanceManager(manager.poolKey, manager.address));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return normalizeSuiAddress(bcs.Address.parse(bytes));
@@ -1540,15 +1321,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.calculateAssets(manager.poolKey, manager.address));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const baseBytes = res.commandResults![0].returnValues[0].bcs;
 		const quoteBytes = res.commandResults![0].returnValues[1].bcs;
@@ -1594,20 +1370,17 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.calculateDebts(manager.poolKey, debtCoinKey, manager.address));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
 
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
+		const effects = (res.Transaction ?? res.FailedTransaction).effects;
 
 		// Check if the transaction failed
 		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
 			throw new Error(
-				`Failed to get margin manager debts: ${res.Transaction.effects?.status?.error || 'Unknown error'}`,
+				`Failed to get margin manager debts: ${effects?.status?.error || 'Unknown error'}`,
 			);
 		}
 
@@ -1671,20 +1444,17 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.managerState(manager.poolKey, manager.address));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
 
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
+		const effects = (res.Transaction ?? res.FailedTransaction).effects;
 
 		// Check if the transaction failed
 		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
 			throw new Error(
-				`Failed to get margin manager state: ${res.Transaction.effects?.status?.error || 'Unknown error'}`,
+				`Failed to get margin manager state: ${effects?.status?.error || 'Unknown error'}`,
 			);
 		}
 
@@ -1769,20 +1539,17 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.baseBalance(manager.poolKey, manager.address));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
 
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
+		const effects = (res.Transaction ?? res.FailedTransaction).effects;
 
 		// Check if the transaction failed
 		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
 			throw new Error(
-				`Failed to get margin manager base balance: ${res.Transaction.effects?.status?.error || 'Unknown error'}`,
+				`Failed to get margin manager base balance: ${effects?.status?.error || 'Unknown error'}`,
 			);
 		}
 
@@ -1807,20 +1574,17 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.quoteBalance(manager.poolKey, manager.address));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
 
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
+		const effects = (res.Transaction ?? res.FailedTransaction).effects;
 
 		// Check if the transaction failed
 		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
 			throw new Error(
-				`Failed to get margin manager quote balance: ${res.Transaction.effects?.status?.error || 'Unknown error'}`,
+				`Failed to get margin manager quote balance: ${effects?.status?.error || 'Unknown error'}`,
 			);
 		}
 
@@ -1845,20 +1609,17 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.deepBalance(manager.poolKey, manager.address));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
 
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
+		const effects = (res.Transaction ?? res.FailedTransaction).effects;
 
 		// Check if the transaction failed
 		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
 			throw new Error(
-				`Failed to get margin manager DEEP balance: ${res.Transaction.effects?.status?.error || 'Unknown error'}`,
+				`Failed to get margin manager DEEP balance: ${effects?.status?.error || 'Unknown error'}`,
 			);
 		}
 
@@ -1879,15 +1640,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.poolEnabled(poolKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.Bool.parse(bytes);
@@ -1902,15 +1658,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.getMarginManagerIds(owner));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const vecSet = VecSet(bcs.Address).parse(new Uint8Array(bytes));
@@ -1926,15 +1677,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.baseMarginPoolId(poolKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const id = bcs.Address.parse(bytes);
@@ -1950,15 +1696,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.quoteMarginPoolId(poolKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const id = bcs.Address.parse(bytes);
@@ -1974,15 +1715,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.minWithdrawRiskRatio(poolKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const ratio = Number(bcs.U64.parse(bytes));
@@ -1998,15 +1734,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.minBorrowRiskRatio(poolKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const ratio = Number(bcs.U64.parse(bytes));
@@ -2022,15 +1753,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.liquidationRiskRatio(poolKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const ratio = Number(bcs.U64.parse(bytes));
@@ -2046,15 +1772,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.targetLiquidationRiskRatio(poolKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const ratio = Number(bcs.U64.parse(bytes));
@@ -2070,15 +1791,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.userLiquidationReward(poolKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const reward = Number(bcs.U64.parse(bytes));
@@ -2094,15 +1810,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.poolLiquidationReward(poolKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const reward = Number(bcs.U64.parse(bytes));
@@ -2117,15 +1828,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.allowedMaintainers());
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const vecSet = VecSet(bcs.Address).parse(new Uint8Array(bytes));
@@ -2140,15 +1846,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.allowedPauseCaps());
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const vecSet = VecSet(bcs.Address).parse(new Uint8Array(bytes));
@@ -2164,15 +1865,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.stablePool(poolKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
@@ -2187,15 +1883,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.registeredPool(poolKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
@@ -2214,15 +1905,10 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getQuoteQuantityOutInputFee(poolKey, baseQuantity));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
 		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
@@ -2249,15 +1935,10 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getBaseQuantityOutInputFee(poolKey, quoteQuantity));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
 		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
@@ -2285,15 +1966,10 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getQuantityOutInputFee(poolKey, baseQuantity, quoteQuantity));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
 		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
@@ -2322,15 +1998,10 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getBaseQuantityIn(poolKey, targetQuoteQuantity, payWithDeep));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const baseIn = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
 		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
@@ -2357,15 +2028,10 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getQuoteQuantityIn(poolKey, targetBaseQuantity, payWithDeep));
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
 		const quoteIn = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
@@ -2388,15 +2054,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.getAccountOrderDetails(poolKey, managerKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		try {
 			const orderInformation = res.commandResults![0].returnValues[0].bcs;
@@ -2417,15 +2078,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.getOrderDeepRequired(poolKey, baseQuantity, price));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const deepRequiredTaker = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
 		const deepRequiredMaker = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
@@ -2446,15 +2102,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.accountExists(poolKey, managerKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
@@ -2469,15 +2120,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.poolTradeParamsNext(poolKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const takerFee = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
 		const makerFee = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
@@ -2499,15 +2145,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.quorum(poolKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const quorum = Number(bcs.U64.parse(bytes));
@@ -2523,15 +2164,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.poolId(poolKey));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return normalizeSuiAddress(bcs.Address.parse(bytes));
@@ -2546,15 +2182,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.canPlaceLimitOrder(params));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
@@ -2569,15 +2200,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.canPlaceMarketOrder(params));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
@@ -2593,15 +2219,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.checkMarketOrderParams(poolKey, quantity));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
@@ -2624,15 +2245,10 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.checkLimitOrderParams(poolKey, price, quantity, expireTimestamp));
 
-		const txBytes = await tx.build({ client: this.#client.core });
 		const res = await this.#client.core.simulateTransaction({
-			transaction: txBytes,
+			transaction: tx,
 			include: { commandResults: true, effects: true },
 		});
-
-		if (res.$kind === 'FailedTransaction') {
-			throw new Error('Transaction simulation failed');
-		}
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));

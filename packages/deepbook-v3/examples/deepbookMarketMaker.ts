@@ -1,5 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+import type { ClientWithExtensions } from '@mysten/sui/client';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import type { Keypair } from '@mysten/sui/cryptography';
@@ -16,7 +17,7 @@ const GRPC_URLS = {
 
 export class DeepBookMarketMaker {
 	keypair: Keypair;
-	client: SuiGrpcClient & { deepbook: DeepBookClient };
+	client: ClientWithExtensions<{ deepbook: DeepBookClient }>;
 
 	constructor(
 		keypair: string | Keypair,
@@ -53,13 +54,9 @@ export class DeepBookMarketMaker {
 	};
 
 	signAndExecute = async (tx: Transaction) => {
-		return this.client.signAndExecuteTransaction({
+		return this.keypair.signAndExecuteTransaction({
 			transaction: tx,
-			signer: this.keypair,
-			include: {
-				effects: true,
-				objectChanges: true,
-			},
+			client: this.client,
 		});
 	};
 
