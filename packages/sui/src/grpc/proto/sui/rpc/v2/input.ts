@@ -10,7 +10,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 import { MessageType } from '@protobuf-ts/runtime';
-import { Value } from '../../../google/protobuf/struct.js';
+import { Value } from '../../../google/protobuf/struct';
 /**
  * An input to a user transaction.
  *

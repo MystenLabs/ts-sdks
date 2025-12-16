@@ -1,12 +1,12 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /** Registry holds all created pools. */
 
-import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 import * as versioned from './deps/sui/versioned.js';
 import * as vec_set from './deps/sui/vec_set.js';
@@ -53,6 +53,99 @@ export const StableCoinKey = new MoveStruct({
 		dummy_field: bcs.bool(),
 	},
 });
+export const BalanceManagerKey = new MoveStruct({
+	name: `${$moduleName}::BalanceManagerKey`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
+});
+export const AppKey = new MoveStruct({
+	name: `${$moduleName}::AppKey`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
+});
+export interface AuthorizeAppArguments {
+	self: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+}
+export interface AuthorizeAppOptions {
+	package?: string;
+	arguments:
+		| AuthorizeAppArguments
+		| [self: RawTransactionArgument<string>, AdminCap: RawTransactionArgument<string>];
+	typeArguments: [string];
+}
+/** Authorize an application to access protected features of the DeepBook. */
+export function authorizeApp(options: AuthorizeAppOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		`${packageAddress}::registry::Registry`,
+		`${packageAddress}::registry::DeepbookAdminCap`,
+	] satisfies string[];
+	const parameterNames = ['self', 'AdminCap'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'authorize_app',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface DeauthorizeAppArguments {
+	self: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+}
+export interface DeauthorizeAppOptions {
+	package?: string;
+	arguments:
+		| DeauthorizeAppArguments
+		| [self: RawTransactionArgument<string>, AdminCap: RawTransactionArgument<string>];
+	typeArguments: [string];
+}
+/** Deauthorize an application by removing its authorization key. */
+export function deauthorizeApp(options: DeauthorizeAppOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		`${packageAddress}::registry::Registry`,
+		`${packageAddress}::registry::DeepbookAdminCap`,
+	] satisfies string[];
+	const parameterNames = ['self', 'AdminCap'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'deauthorize_app',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface AssertAppIsAuthorizedArguments {
+	self: RawTransactionArgument<string>;
+}
+export interface AssertAppIsAuthorizedOptions {
+	package?: string;
+	arguments: AssertAppIsAuthorizedArguments | [self: RawTransactionArgument<string>];
+	typeArguments: [string];
+}
+/**
+ * Assert that an application is authorized to access protected features of
+ * DeepBook.
+ */
+export function assertAppIsAuthorized(options: AssertAppIsAuthorizedOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [`${packageAddress}::registry::Registry`] satisfies string[];
+	const parameterNames = ['self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'assert_app_is_authorized',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
 export interface SetTreasuryAddressArguments {
 	self: RawTransactionArgument<string>;
 	treasuryAddress: RawTransactionArgument<string>;
@@ -212,6 +305,55 @@ export function removeStablecoin(options: RemoveStablecoinOptions) {
 			function: 'remove_stablecoin',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
+		});
+}
+export interface InitBalanceManagerMapArguments {
+	self: RawTransactionArgument<string>;
+	Cap: RawTransactionArgument<string>;
+}
+export interface InitBalanceManagerMapOptions {
+	package?: string;
+	arguments:
+		| InitBalanceManagerMapArguments
+		| [self: RawTransactionArgument<string>, Cap: RawTransactionArgument<string>];
+}
+/** Adds the BalanceManagerKey dynamic field to the registry */
+export function initBalanceManagerMap(options: InitBalanceManagerMapOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		`${packageAddress}::registry::Registry`,
+		`${packageAddress}::registry::DeepbookAdminCap`,
+	] satisfies string[];
+	const parameterNames = ['self', 'Cap'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'init_balance_manager_map',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface GetBalanceManagerIdsArguments {
+	self: RawTransactionArgument<string>;
+	owner: RawTransactionArgument<string>;
+}
+export interface GetBalanceManagerIdsOptions {
+	package?: string;
+	arguments:
+		| GetBalanceManagerIdsArguments
+		| [self: RawTransactionArgument<string>, owner: RawTransactionArgument<string>];
+}
+/** Get the balance manager IDs for a given owner */
+export function getBalanceManagerIds(options: GetBalanceManagerIdsOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [`${packageAddress}::registry::Registry`, 'address'] satisfies string[];
+	const parameterNames = ['self', 'owner'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'get_balance_manager_ids',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
 export interface IsStablecoinArguments {

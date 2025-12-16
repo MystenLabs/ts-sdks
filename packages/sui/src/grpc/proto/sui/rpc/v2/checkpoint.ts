@@ -10,11 +10,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 import { MessageType } from '@protobuf-ts/runtime';
-import { ObjectSet } from './object.js';
-import { ExecutedTransaction } from './executed_transaction.js';
-import { CheckpointContents } from './checkpoint_contents.js';
-import { ValidatorAggregatedSignature } from './signature.js';
-import { CheckpointSummary } from './checkpoint_summary.js';
+import { ObjectSet } from './object';
+import { ExecutedTransaction } from './executed_transaction';
+import { CheckpointContents } from './checkpoint_contents';
+import { ValidatorAggregatedSignature } from './signature';
+import { CheckpointSummary } from './checkpoint_summary';
 /**
  * @generated from protobuf message sui.rpc.v2.Checkpoint
  */
