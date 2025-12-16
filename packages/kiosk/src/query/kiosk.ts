@@ -286,7 +286,7 @@ export async function fetchKioskExtension(
 		type: extensionType,
 		isEnabled: extension.is_enabled,
 		permissions: extension.permissions.toString(),
-		storageId: extension.storage.id.id,
+		storageId: extension.storage.id,
 		storageSize: Number(extension.storage.size),
 	};
 }

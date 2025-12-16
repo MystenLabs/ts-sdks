@@ -27,7 +27,7 @@ export async function getKioskObject(client: ClientWithCoreApi, id: string): Pro
 	const parsed = KioskStruct.parse(object.content);
 
 	return {
-		id: parsed.id.id,
+		id: parsed.id,
 		profits: parsed.profits.value.toString(),
 		owner: parsed.owner,
 		itemCount: parsed.item_count,
