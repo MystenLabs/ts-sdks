@@ -11,7 +11,7 @@
 //
 import { ServiceType } from '@protobuf-ts/runtime-rpc';
 import { MessageType } from '@protobuf-ts/runtime';
-import { Timestamp } from '../../../google/protobuf/timestamp.js';
+import { Timestamp } from '../../../google/protobuf/timestamp';
 /**
  * @generated from protobuf message sui.rpc.v2.LookupNameRequest
  */

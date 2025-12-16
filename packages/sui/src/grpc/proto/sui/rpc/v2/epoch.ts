@@ -10,10 +10,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 import { MessageType } from '@protobuf-ts/runtime';
-import { ProtocolConfig } from './protocol_config.js';
-import { Timestamp } from '../../../google/protobuf/timestamp.js';
-import { SystemState } from './system_state.js';
-import { ValidatorCommittee } from './signature.js';
+import { ProtocolConfig } from './protocol_config';
+import { Timestamp } from '../../../google/protobuf/timestamp';
+import { SystemState } from './system_state';
+import { ValidatorCommittee } from './signature';
 /**
  * @generated from protobuf message sui.rpc.v2.Epoch
  */

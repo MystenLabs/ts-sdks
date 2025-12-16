@@ -1,5 +1,6 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * State module represents the current state of the pool. It maintains all the
@@ -70,5 +71,15 @@ export const RebateEvent = new MoveStruct({
 		balance_manager_id: bcs.Address,
 		epoch: bcs.u64(),
 		claim_amount: bcs.u64(),
+	},
+});
+export const TakerFeePenaltyApplied = new MoveStruct({
+	name: `${$moduleName}::TakerFeePenaltyApplied`,
+	fields: {
+		pool_id: bcs.Address,
+		balance_manager_id: bcs.Address,
+		order_id: bcs.u128(),
+		taker_fee_without_penalty: bcs.u64(),
+		taker_fee: bcs.u64(),
 	},
 });

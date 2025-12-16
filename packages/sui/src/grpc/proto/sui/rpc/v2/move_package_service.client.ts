@@ -11,16 +11,16 @@
 //
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import type { ServiceInfo } from '@protobuf-ts/runtime-rpc';
-import { MovePackageService } from './move_package_service.js';
-import type { ListPackageVersionsResponse } from './move_package_service.js';
-import type { ListPackageVersionsRequest } from './move_package_service.js';
-import type { GetFunctionResponse } from './move_package_service.js';
-import type { GetFunctionRequest } from './move_package_service.js';
-import type { GetDatatypeResponse } from './move_package_service.js';
-import type { GetDatatypeRequest } from './move_package_service.js';
+import { MovePackageService } from './move_package_service';
+import type { ListPackageVersionsResponse } from './move_package_service';
+import type { ListPackageVersionsRequest } from './move_package_service';
+import type { GetFunctionResponse } from './move_package_service';
+import type { GetFunctionRequest } from './move_package_service';
+import type { GetDatatypeResponse } from './move_package_service';
+import type { GetDatatypeRequest } from './move_package_service';
 import { stackIntercept } from '@protobuf-ts/runtime-rpc';
-import type { GetPackageResponse } from './move_package_service.js';
-import type { GetPackageRequest } from './move_package_service.js';
+import type { GetPackageResponse } from './move_package_service';
+import type { GetPackageRequest } from './move_package_service';
 import type { UnaryCall } from '@protobuf-ts/runtime-rpc';
 import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
 /**

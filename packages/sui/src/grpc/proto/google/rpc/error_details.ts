@@ -21,7 +21,7 @@
 // limitations under the License.
 //
 import { MessageType } from '@protobuf-ts/runtime';
-import { Duration } from '../protobuf/duration.js';
+import { Duration } from '../protobuf/duration';
 /**
  * Describes the cause of the error with structured details.
  *
