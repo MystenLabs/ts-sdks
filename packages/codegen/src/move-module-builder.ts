@@ -298,7 +298,9 @@ export class MoveModuleBuilder extends FileBuilder {
 
 		this.exports.push(name);
 
-		const params = struct.type_parameters.filter((param) => !param.phantom);
+		const params = struct.type_parameters
+			.map((param, i) => ({ param, originalIndex: i }))
+			.filter(({ param }) => !param.phantom);
 		const structName = `\${$moduleName}::${name}`;
 
 		if (params.length === 0) {
@@ -312,9 +314,9 @@ export class MoveModuleBuilder extends FileBuilder {
 		} else {
 			this.addImport('@mysten/sui/bcs', 'type BcsType');
 
-			const typeParams = `...typeParameters: [${params.map((param, i) => param.name ?? `T${i}`).join(', ')}]`;
-			const typeGenerics = `${params.map((param, i) => `${param.name ?? `T${i}`} extends BcsType<any>`).join(', ')}`;
-			const nameGenerics = `${params.map((param, i) => `\${typeParameters[${i}].name as ${param.name ?? `T${i}`}['name']}`).join(', ')}`;
+			const typeParams = `...typeParameters: [${params.map(({ param, originalIndex }) => param.name ?? `T${originalIndex}`).join(', ')}]`;
+			const typeGenerics = `${params.map(({ param, originalIndex }) => `${param.name ?? `T${originalIndex}`} extends BcsType<any>`).join(', ')}`;
+			const nameGenerics = `${params.map(({ param, originalIndex }, i) => `\${typeParameters[${i}].name as ${param.name ?? `T${originalIndex}`}['name']}`).join(', ')}`;
 
 			this.statements.push(
 				...(await withComment(
@@ -400,7 +402,9 @@ export class MoveModuleBuilder extends FileBuilder {
 			],
 		});
 
-		const params = enumDef.type_parameters.filter((param) => !param.phantom);
+		const params = enumDef.type_parameters
+			.map((param, i) => ({ param, originalIndex: i }))
+			.filter(({ param }) => !param.phantom);
 
 		if (params.length === 0) {
 			this.statements.push(
@@ -412,9 +416,9 @@ export class MoveModuleBuilder extends FileBuilder {
 		} else {
 			this.addImport('@mysten/sui/bcs', 'type BcsType');
 
-			const typeParams = `...typeParameters: [${params.map((param, i) => param.name ?? `T${i}`).join(', ')}]`;
-			const typeGenerics = `${params.map((param, i) => `${param.name ?? `T${i}`} extends BcsType<any>`).join(', ')}`;
-			const nameGenerics = `${params.map((param, i) => `\${typeParameters[${i}].name as ${param.name ?? `T${i}`}['name']}`).join(', ')}`;
+			const typeParams = `...typeParameters: [${params.map(({ param, originalIndex }) => param.name ?? `T${originalIndex}`).join(', ')}]`;
+			const typeGenerics = `${params.map(({ param, originalIndex }) => `${param.name ?? `T${originalIndex}`} extends BcsType<any>`).join(', ')}`;
+			const nameGenerics = `${params.map(({ param, originalIndex }, i) => `\${typeParameters[${i}].name as ${param.name ?? `T${originalIndex}`}['name']}`).join(', ')}`;
 
 			this.statements.push(
 				...(await withComment(
@@ -486,18 +490,21 @@ export class MoveModuleBuilder extends FileBuilder {
 				this.addImport('@mysten/sui/bcs', 'type BcsType');
 			}
 
-			const filteredTypeParameters = func.type_parameters.filter(
-				(param, i) =>
-					usedTypeParameters.has(i) || (param.name && usedTypeParameters.has(param.name)),
-			);
+			const filteredTypeParameters = func.type_parameters
+				.map((param, i) => ({ param, originalIndex: i }))
+				.filter(
+					({ param, originalIndex }) =>
+						usedTypeParameters.has(originalIndex) ||
+						(param.name && usedTypeParameters.has(param.name)),
+				);
 
 			const genericTypes =
 				filteredTypeParameters.length > 0
-					? `<${filteredTypeParameters.map((param, i) => `${param.name ?? `T${i}`} extends BcsType<any>`).join(', ')}>`
+					? `<${filteredTypeParameters.map(({ param, originalIndex }) => `${param.name ?? `T${originalIndex}`} extends BcsType<any>`).join(', ')}>`
 					: '';
 			const genericTypeArgs =
 				filteredTypeParameters.length > 0
-					? `<${filteredTypeParameters.map((param, i) => `${param.name ?? `T${i}`}`).join(', ')}>`
+					? `<${filteredTypeParameters.map(({ param, originalIndex }) => `${param.name ?? `T${originalIndex}`}`).join(', ')}>`
 					: '';
 
 			const argumentsInterface = this.getUnusedName(
