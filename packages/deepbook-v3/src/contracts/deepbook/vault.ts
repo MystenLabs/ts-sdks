@@ -1,5 +1,6 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * The vault holds all of the assets for this pool. At the end of all transaction

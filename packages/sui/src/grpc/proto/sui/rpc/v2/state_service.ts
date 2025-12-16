@@ -11,9 +11,9 @@
 //
 import { ServiceType } from '@protobuf-ts/runtime-rpc';
 import { MessageType } from '@protobuf-ts/runtime';
-import { Bcs } from './bcs.js';
-import { Object } from './object.js';
-import { FieldMask } from '../../../google/protobuf/field_mask.js';
+import { Bcs } from './bcs';
+import { Object } from './object';
+import { FieldMask } from '../../../google/protobuf/field_mask';
 /**
  * Request message for `NodeService.GetCoinInfo`.
  *

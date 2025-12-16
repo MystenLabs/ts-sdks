@@ -1,5 +1,6 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * A module that allows claiming names of a set length for free by presenting an
@@ -10,11 +11,14 @@
  * / deactivation happens through PTBs.
  */
 
-import { MoveTuple, MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
-import type { BcsType } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
+import {
+	MoveTuple,
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+} from '../utils/index.js';
+import { bcs, type BcsType } from '@mysten/sui/bcs';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as pricing_config from './deps/suins/pricing_config.js';
 import * as linked_table from './deps/sui/linked_table.js';
 const $moduleName = '@suins/discounts::free_claims';

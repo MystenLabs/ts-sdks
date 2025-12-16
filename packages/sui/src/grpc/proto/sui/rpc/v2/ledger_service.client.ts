@@ -11,22 +11,22 @@
 //
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import type { ServiceInfo } from '@protobuf-ts/runtime-rpc';
-import { LedgerService } from './ledger_service.js';
-import type { GetEpochResponse } from './ledger_service.js';
-import type { GetEpochRequest } from './ledger_service.js';
-import type { GetCheckpointResponse } from './ledger_service.js';
-import type { GetCheckpointRequest } from './ledger_service.js';
-import type { BatchGetTransactionsResponse } from './ledger_service.js';
-import type { BatchGetTransactionsRequest } from './ledger_service.js';
-import type { GetTransactionResponse } from './ledger_service.js';
-import type { GetTransactionRequest } from './ledger_service.js';
-import type { BatchGetObjectsResponse } from './ledger_service.js';
-import type { BatchGetObjectsRequest } from './ledger_service.js';
-import type { GetObjectResponse } from './ledger_service.js';
-import type { GetObjectRequest } from './ledger_service.js';
+import { LedgerService } from './ledger_service';
+import type { GetEpochResponse } from './ledger_service';
+import type { GetEpochRequest } from './ledger_service';
+import type { GetCheckpointResponse } from './ledger_service';
+import type { GetCheckpointRequest } from './ledger_service';
+import type { BatchGetTransactionsResponse } from './ledger_service';
+import type { BatchGetTransactionsRequest } from './ledger_service';
+import type { GetTransactionResponse } from './ledger_service';
+import type { GetTransactionRequest } from './ledger_service';
+import type { BatchGetObjectsResponse } from './ledger_service';
+import type { BatchGetObjectsRequest } from './ledger_service';
+import type { GetObjectResponse } from './ledger_service';
+import type { GetObjectRequest } from './ledger_service';
 import { stackIntercept } from '@protobuf-ts/runtime-rpc';
-import type { GetServiceInfoResponse } from './ledger_service.js';
-import type { GetServiceInfoRequest } from './ledger_service.js';
+import type { GetServiceInfoResponse } from './ledger_service';
+import type { GetServiceInfoRequest } from './ledger_service';
 import type { UnaryCall } from '@protobuf-ts/runtime-rpc';
 import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
 /**
