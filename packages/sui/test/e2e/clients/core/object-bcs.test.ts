@@ -4,26 +4,41 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { setup, TestToolbox, createTestWithAllClients } from '../../utils/setup.js';
 import { bcs } from '../../../../src/bcs/index.js';
-import { SUI_TYPE_ARG } from '../../../../src/utils/index.js';
+import { Transaction } from '../../../../src/transactions/index.js';
 
 describe('Core API - Object BCS Serialization', () => {
 	let toolbox: TestToolbox;
 	let testObjectId: string;
+	let setupTxDigest: string;
 
 	const testWithAllClients = createTestWithAllClients(() => toolbox);
 
 	beforeAll(async () => {
 		toolbox = await setup();
 
-		// Get a coin object to test with
-		const coins = await toolbox.jsonRpcClient.core.listCoins({
-			owner: toolbox.address(),
-			limit: 1,
-			coinType: SUI_TYPE_ARG,
+		const tx = new Transaction();
+		const [coin] = tx.splitCoins(tx.gas, [1000]);
+		tx.transferObjects([coin], toolbox.address());
+
+		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+			transaction: tx,
+			signer: toolbox.keypair,
+			options: { showObjectChanges: true },
 		});
 
-		expect(coins.objects.length).toBeGreaterThan(0);
-		testObjectId = coins.objects[0].objectId;
+		setupTxDigest = result.digest;
+
+		const createdCoin = result.objectChanges?.find(
+			(change) => change.type === 'created' && change.objectType.includes('Coin'),
+		);
+		expect(createdCoin).toBeDefined();
+		testObjectId = (createdCoin as { objectId: string }).objectId;
+
+		await Promise.all([
+			toolbox.jsonRpcClient.core.waitForTransaction({ digest: setupTxDigest }),
+
+			toolbox.graphqlClient.core.waitForTransaction({ digest: setupTxDigest }),
+		]);
 	});
 
 	describe('Cross-client consistency', () => {
