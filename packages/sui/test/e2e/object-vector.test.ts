@@ -1,11 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { Transaction } from '../../src/transactions';
 import { SUI_FRAMEWORK_ADDRESS } from '../../src/utils';
-import { publishPackage, setup, TestToolbox } from './utils/setup';
+import { setup, TestToolbox } from './utils/setup';
 
 describe('Test Move call with a vector of objects as input', () => {
 	let toolbox: TestToolbox;
@@ -46,10 +46,13 @@ describe('Test Move call with a vector of objects as input', () => {
 		expect(result.Transaction?.effects?.status.success).toEqual(true);
 	}
 
+	beforeAll(async () => {
+		const initToolbox = await setup();
+		packageId = await initToolbox.getPackage('test_data');
+	});
+
 	beforeEach(async () => {
 		toolbox = await setup();
-
-		({ packageId } = await publishPackage('entry_point_vector'));
 	});
 
 	it('Test object vector', async () => {

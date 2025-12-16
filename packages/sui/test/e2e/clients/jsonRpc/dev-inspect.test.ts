@@ -14,7 +14,7 @@ describe('Test dev inspect', () => {
 
 	beforeAll(async () => {
 		toolbox = await setup();
-		packageId = await toolbox.getPackage('serializer', { normalized: false });
+		packageId = await toolbox.getPackage('test_data', { normalized: false });
 	});
 
 	it('Dev inspect split + transfer', async () => {

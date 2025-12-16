@@ -14,7 +14,7 @@ describe('Core API - Move Functions', () => {
 	beforeAll(async () => {
 		toolbox = await setup();
 		// Use entry_point_types package which has well-defined functions
-		testPackageId = await toolbox.getPackage('entry_point_types');
+		testPackageId = await toolbox.getPackage('test_data');
 	});
 
 	describe('getMoveFunction', () => {
