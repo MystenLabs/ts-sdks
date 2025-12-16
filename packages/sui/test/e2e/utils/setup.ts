@@ -26,6 +26,7 @@ import { Ed25519Keypair } from '../../../src/keypairs/ed25519/index.js';
 import { Transaction, UpgradePolicy } from '../../../src/transactions/index.js';
 import { SUI_TYPE_ARG, normalizeSuiAddress } from '../../../src/utils/index.js';
 import type { ClientWithCoreApi } from '../../../src/client/core.js';
+import type { PrePublishedPackage } from './prePublish.js';
 
 const DEFAULT_FAUCET_URL = import.meta.env.FAUCET_URL ?? getFaucetHost('localnet');
 const DEFAULT_FULLNODE_URL = import.meta.env.FULLNODE_URL ?? getJsonRpcFullnodeUrl('localnet');
@@ -39,65 +40,15 @@ export const DEFAULT_RECIPIENT_2 =
 export const DEFAULT_GAS_BUDGET = 10000000;
 export const DEFAULT_SEND_AMOUNT = 1000;
 
-class TestPackageRegistry {
-	static registries: Map<string, TestPackageRegistry> = new Map();
-
-	static forUrl(url: string) {
-		if (!this.registries.has(url)) {
-			this.registries.set(url, new TestPackageRegistry());
-		}
-		return this.registries.get(url)!;
-	}
-
-	#packages: Map<string, string>;
-	#pendingPublishes: Map<string, Promise<string>>;
-
-	constructor() {
-		this.#packages = new Map();
-		this.#pendingPublishes = new Map();
-	}
-
-	async getPackage(
-		name: string,
-		toolbox?: TestToolbox,
-		options?: { normalized?: boolean },
-	): Promise<string> {
-		const { normalized = true } = options ?? {};
-
-		let packageId: string;
-		if (this.#packages.has(name)) {
-			packageId = this.#packages.get(name)!;
-		} else if (this.#pendingPublishes.has(name)) {
-			packageId = await this.#pendingPublishes.get(name)!;
-		} else {
-			const publishPromise = (async () => {
-				try {
-					const { packageId } = await publishPackage(name, toolbox);
-					this.#packages.set(name, packageId);
-					return packageId;
-				} finally {
-					this.#pendingPublishes.delete(name);
-				}
-			})();
-
-			this.#pendingPublishes.set(name, publishPromise);
-			packageId = await publishPromise;
-		}
-
-		if (normalized) {
-			return packageId;
-		}
-		// Strip leading zeros for JSON RPC compatibility
-		return packageId.replace(/^(0x)(0+)/, '0x');
-	}
-}
+const prePublishedPackages = inject('prePublishedPackages') as
+	| Record<string, PrePublishedPackage>
+	| undefined;
 
 export class TestToolbox {
 	keypair: Ed25519Keypair;
 	jsonRpcClient: SuiJsonRpcClient;
 	grpcClient: SuiGrpcClient;
 	graphqlClient: SuiGraphQLClient;
-	registry: TestPackageRegistry;
 	configPath: string;
 
 	constructor(keypair: Ed25519Keypair, url: string = DEFAULT_FULLNODE_URL, configPath: string) {
@@ -119,7 +70,6 @@ export class TestToolbox {
 			network: 'localnet',
 			url: `http://127.0.0.1:${graphqlPort}/graphql`,
 		});
-		this.registry = TestPackageRegistry.forUrl(url);
 		this.configPath = configPath;
 	}
 
@@ -138,12 +88,33 @@ export class TestToolbox {
 		return (await this.jsonRpcClient.getLatestSuiSystemState()).activeValidators;
 	}
 
-	public async getPackage(path: string, options?: { normalized?: boolean }) {
-		return this.registry.getPackage(path, this, options);
+	public getPackage(name: string, options?: { normalized?: boolean }): string {
+		const { normalized = true } = options ?? {};
+
+		const info = prePublishedPackages?.[name];
+		if (!info) {
+			throw new Error(
+				`Package "${name}" not found. Add it to PACKAGES_TO_PREPUBLISH in prePublish.ts`,
+			);
+		}
+
+		if (normalized) {
+			return info.packageId;
+		}
+		// Strip leading zeros for JSON RPC compatibility
+		return info.packageId.replace(/^(0x)(0+)/, '0x');
 	}
 
-	async mintNft(name: string = 'Test NFT') {
-		const packageId = await this.getPackage('demo-bear');
+	/**
+	 * Get a shared object ID from a pre-published package.
+	 * Returns undefined if the package wasn't pre-published or doesn't have the specified shared object.
+	 */
+	public getSharedObject(packageName: string, typeName: string): string | undefined {
+		return prePublishedPackages?.[packageName]?.sharedObjects?.[typeName];
+	}
+
+	mintNft(name: string = 'Test NFT') {
+		const packageId = this.getPackage('test_data');
 		return (tx: Transaction) => {
 			return tx.moveCall({
 				target: `${packageId}::demo_bear::new`,

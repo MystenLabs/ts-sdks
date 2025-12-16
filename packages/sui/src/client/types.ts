@@ -230,9 +230,7 @@ export namespace SuiClientTypes {
 		balanceChanges: Include extends { balanceChanges: true } ? BalanceChange[] : undefined;
 		effects: Include extends { effects: true } ? TransactionEffects : undefined;
 		events: Include extends { events: true } ? Event[] : undefined;
-		objectTypes: Include extends { objectTypes: true }
-			? PromiseLike<Record<string, string>>
-			: undefined;
+		objectTypes: Include extends { objectTypes: true } ? Record<string, string> : undefined;
 		transaction: Include extends { transaction: true } ? TransactionData : undefined;
 	}
 

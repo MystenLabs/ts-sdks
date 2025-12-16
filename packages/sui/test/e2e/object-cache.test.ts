@@ -19,7 +19,7 @@ describe('CachingTransactionExecutor', { retry: 3 }, async () => {
 
 	beforeAll(async () => {
 		toolbox = await setup();
-		rawPackageId = await toolbox.getPackage('tto', { normalized: false });
+		rawPackageId = await toolbox.getPackage('test_data', { normalized: false });
 		packageId = normalizeSuiAddress(rawPackageId);
 	});
 

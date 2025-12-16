@@ -20,7 +20,7 @@ describe('Core API - Transactions', () => {
 		testAddress = toolbox.address();
 
 		// Publish the test package to get event-emitting functions
-		packageId = await toolbox.getPackage('core_test');
+		packageId = await toolbox.getPackage('test_data');
 
 		// Execute a simple transaction to use in getTransaction tests
 		const tx = new Transaction();
@@ -53,7 +53,6 @@ describe('Core API - Transactions', () => {
 						effects: true,
 						events: true,
 						balanceChanges: true,
-						objectTypes: true,
 					},
 				}),
 			);
@@ -688,7 +687,7 @@ describe('Core API - Transactions', () => {
 			});
 
 			expect(result.Transaction!.digest).toBe(executedTxDigest);
-			const objectTypes = await result.Transaction!.objectTypes;
+			const objectTypes = result.Transaction!.objectTypes;
 			expect(objectTypes).toBeDefined();
 
 			// Other optional fields should still be undefined
@@ -716,7 +715,7 @@ describe('Core API - Transactions', () => {
 			expect(result.Transaction!.effects?.bcs).toBeDefined();
 			expect(result.Transaction!.events).toBeDefined();
 			expect(result.Transaction!.balanceChanges).toBeDefined();
-			const objectTypes = await result.Transaction!.objectTypes;
+			const objectTypes = result.Transaction!.objectTypes;
 			expect(objectTypes).toBeDefined();
 		});
 	});
@@ -837,7 +836,7 @@ describe('Core API - Transactions', () => {
 			expect(result.Transaction!.effects?.bcs).toBeDefined();
 			expect(result.Transaction!.events).toBeDefined();
 			expect(result.Transaction!.balanceChanges).toBeDefined();
-			const objectTypes = await result.Transaction!.objectTypes;
+			const objectTypes = result.Transaction!.objectTypes;
 			expect(objectTypes).toBeDefined();
 		});
 	});
@@ -928,7 +927,7 @@ describe('Core API - Transactions', () => {
 			expect(result.Transaction!.effects?.bcs).toBeDefined();
 			expect(result.Transaction!.events).toBeDefined();
 			expect(result.Transaction!.balanceChanges).toBeDefined();
-			const objectTypes = await result.Transaction!.objectTypes;
+			const objectTypes = result.Transaction!.objectTypes;
 			expect(objectTypes).toBeDefined();
 		});
 	});
@@ -1131,48 +1130,214 @@ describe('Core API - Transactions', () => {
 		);
 	});
 
+	describe('objectTypes', () => {
+		testWithAllClients(
+			'should return object types for created objects in executeTransaction',
+			async (client) => {
+				const tx = new Transaction();
+				const [bear] = tx.moveCall({
+					target: `${packageId}::demo_bear::new`,
+					arguments: [tx.pure.string('Test Bear')],
+				});
+				tx.transferObjects([bear], tx.pure.address(testAddress));
+
+				tx.setSender(testAddress);
+				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+				const signature = await toolbox.keypair.signTransaction(bytes);
+
+				const result = await client.core.executeTransaction({
+					transaction: bytes,
+					signatures: [signature.signature],
+					include: { objectTypes: true, effects: true },
+				});
+
+				// Wait for transaction to be indexed
+				await client.core.waitForTransaction({
+					digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
+				});
+
+				expect(result.Transaction).toBeDefined();
+				const objectTypes = result.Transaction!.objectTypes;
+				expect(objectTypes).toBeDefined();
+
+				// Should have at least one object type (the DemoBear)
+				const types = Object.values(objectTypes!);
+				expect(types.length).toBeGreaterThan(0);
+
+				// Find the DemoBear type
+				const demoBearType = types.find((t) => t.includes('demo_bear::DemoBear'));
+				expect(demoBearType).toBeDefined();
+			},
+		);
+
+		testWithAllClients(
+			'should return object types for created objects in getTransaction',
+			async (client) => {
+				// First execute a transaction that creates an object
+				const tx = new Transaction();
+				const [bear] = tx.moveCall({
+					target: `${packageId}::demo_bear::new`,
+					arguments: [tx.pure.string('Test Bear for Get')],
+				});
+				tx.transferObjects([bear], tx.pure.address(testAddress));
+
+				tx.setSender(testAddress);
+				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+				const signature = await toolbox.keypair.signTransaction(bytes);
+
+				const executeResult = await client.core.executeTransaction({
+					transaction: bytes,
+					signatures: [signature.signature],
+				});
+
+				// Wait for transaction to be indexed
+				await client.core.waitForTransaction({
+					digest: executeResult.Transaction!.digest,
+				});
+
+				// Now get the transaction with objectTypes
+				const result = await client.core.getTransaction({
+					digest: executeResult.Transaction!.digest,
+					include: { objectTypes: true },
+				});
+
+				expect(result.Transaction).toBeDefined();
+				const objectTypes = result.Transaction!.objectTypes;
+				expect(objectTypes).toBeDefined();
+
+				// Should have at least one object type (the DemoBear)
+				const types = Object.values(objectTypes!);
+				expect(types.length).toBeGreaterThan(0);
+
+				// Find the DemoBear type
+				const demoBearType = types.find((t) => t.includes('demo_bear::DemoBear'));
+				expect(demoBearType).toBeDefined();
+			},
+		);
+
+		testWithAllClients(
+			'should return object types for created objects in simulateTransaction',
+			async (client) => {
+				const tx = new Transaction();
+				const [bear] = tx.moveCall({
+					target: `${packageId}::demo_bear::new`,
+					arguments: [tx.pure.string('Test Bear for Simulate')],
+				});
+				tx.transferObjects([bear], tx.pure.address(testAddress));
+
+				tx.setSender(testAddress);
+				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+
+				const result = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { objectTypes: true },
+				});
+
+				expect(result.Transaction).toBeDefined();
+				const objectTypes = result.Transaction!.objectTypes;
+				expect(objectTypes).toBeDefined();
+
+				// Should have at least one object type (the DemoBear)
+				const types = Object.values(objectTypes!);
+				expect(types.length).toBeGreaterThan(0);
+
+				// Find the DemoBear type
+				const demoBearType = types.find((t) => t.includes('demo_bear::DemoBear'));
+				expect(demoBearType).toBeDefined();
+			},
+		);
+
+		testWithAllClients('should return object types for coin operations', async (client) => {
+			const tx = new Transaction();
+			const [coin] = tx.splitCoins(tx.gas, [1000]);
+			tx.transferObjects([coin], tx.pure.address(testAddress));
+
+			tx.setSender(testAddress);
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const signature = await toolbox.keypair.signTransaction(bytes);
+
+			const result = await client.core.executeTransaction({
+				transaction: bytes,
+				signatures: [signature.signature],
+				include: { objectTypes: true, effects: true },
+			});
+
+			// Wait for transaction to be indexed
+			await client.core.waitForTransaction({
+				digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
+			});
+
+			expect(result.Transaction).toBeDefined();
+			const objectTypes = result.Transaction!.objectTypes;
+			expect(objectTypes).toBeDefined();
+
+			// Should have SUI coin types (address format varies by client)
+			const types = Object.values(objectTypes!);
+			const suiCoinType = types.find(
+				(t) => t.includes('::coin::Coin<') && t.includes('::sui::SUI>'),
+			);
+			expect(suiCoinType).toBeDefined();
+		});
+
+		testWithAllClients('objectTypes map should have object IDs as keys', async (client) => {
+			const tx = new Transaction();
+			const [bear] = tx.moveCall({
+				target: `${packageId}::demo_bear::new`,
+				arguments: [tx.pure.string('Test Bear Keys')],
+			});
+			tx.transferObjects([bear], tx.pure.address(testAddress));
+
+			tx.setSender(testAddress);
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const signature = await toolbox.keypair.signTransaction(bytes);
+
+			const result = await client.core.executeTransaction({
+				transaction: bytes,
+				signatures: [signature.signature],
+				include: { objectTypes: true, effects: true },
+			});
+
+			// Wait for transaction to be indexed
+			await client.core.waitForTransaction({
+				digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
+			});
+
+			const objectTypes = result.Transaction!.objectTypes;
+			expect(objectTypes).toBeDefined();
+
+			// All keys should be valid object IDs (hex strings starting with 0x)
+			const keys = Object.keys(objectTypes!);
+			for (const key of keys) {
+				expect(key).toMatch(/^0x[a-f0-9]+$/i);
+			}
+
+			// The effects changedObjects should have matching IDs
+			const changedObjectIds = result.Transaction!.effects?.changedObjects.map((o) => o.objectId);
+			for (const key of keys) {
+				expect(changedObjectIds).toContain(key);
+			}
+		});
+	});
+
 	describe('FailedTransaction handling', () => {
 		testWithAllClients(
 			'executeTransaction should return FailedTransaction for execution failures',
 			async (client) => {
-				// Get coins - we need separate coins for gas and for the operation
-				const coins = await toolbox.jsonRpcClient.getCoins({
-					owner: testAddress,
-					coinType: SUI_TYPE_ARG,
+				// Create a transaction that calls a function that aborts
+				// We need to fully resolve it to avoid the budget calculation failing
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::test_objects::abort_always`,
+					arguments: [],
 				});
 
-				// Use first coin for gas, second coin for the failing operation
-				const gasCoin = coins.data[0];
-				const opCoin = coins.data[1];
-
-				// Create a transaction that will fail at execution time
-				// We'll try to split more than the coin's balance
-				const tx = new Transaction();
-				const hugeAmount = BigInt(opCoin.balance) * 1000n; // Way more than available
-				tx.splitCoins(
-					tx.objectRef({
-						objectId: opCoin.coinObjectId,
-						version: opCoin.version,
-						digest: opCoin.digest,
-					}),
-					[tx.pure.u64(hugeAmount)],
-				);
-
-				// Manually set gas to avoid resolution issues - use a DIFFERENT coin for gas
+				// Manually configure gas to bypass the resolution that fails on abort
 				tx.setSender(testAddress);
 				tx.setGasOwner(testAddress);
-				tx.setGasPayment([
-					{
-						objectId: gasCoin.coinObjectId,
-						version: gasCoin.version,
-						digest: gasCoin.digest,
-					},
-				]);
 				tx.setGasBudget(50_000_000);
 				tx.setGasPrice(1000);
 
-				// Build without client resolution (fully resolved)
-				const bytes = await tx.build({});
+				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
 				const signature = await toolbox.keypair.signTransaction(bytes);
 
 				const result = await client.core.executeTransaction({
