@@ -8,7 +8,7 @@ import { TransactionCommands } from '../../src/transactions/Commands';
 import type { TransactionDataBuilder } from '../../src/transactions/TransactionData';
 import type { BuildTransactionOptions } from '../../src/transactions/resolve';
 import { normalizeSuiObjectId } from '../../src/utils';
-import { publishPackage, setup, TestToolbox } from './utils/setup';
+import { setup, TestToolbox } from './utils/setup';
 
 export const SUI_CLOCK_OBJECT_ID = normalizeSuiObjectId('0x6');
 
@@ -18,17 +18,9 @@ describe('TransactionData.insertTransaction', () => {
 	let sharedObjectId: string;
 
 	beforeAll(async () => {
-		const { packageId: pkgId, publishTxn } = await publishPackage('serializer');
-		packageId = pkgId;
-
-		// Find the shared object created during publish
-		const sharedObject = publishTxn.effects?.created!.filter(
-			(o) =>
-				typeof o.owner === 'object' &&
-				'Shared' in o.owner &&
-				o.owner.Shared.initial_shared_version !== undefined,
-		)[0];
-		sharedObjectId = sharedObject!.reference.objectId;
+		const initToolbox = await setup();
+		packageId = await initToolbox.getPackage('test_data');
+		sharedObjectId = initToolbox.getSharedObject('test_data', 'MutableShared')!;
 	});
 
 	beforeEach(async () => {

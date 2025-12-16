@@ -1,8 +1,0 @@
-[package]
-name = "id_entry_args"
-version = "0.0.1"
-edition = "2024.beta"
-
-
-[addresses]
-id_entry_args =  "0x0"

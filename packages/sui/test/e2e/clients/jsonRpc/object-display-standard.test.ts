@@ -4,6 +4,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { SuiObjectData } from '../../../../src/jsonRpc';
+import { Transaction } from '../../../../src/transactions';
 import { setup, TestToolbox } from '../../utils/setup';
 
 describe('Test Object Display Standard', () => {
@@ -12,7 +13,20 @@ describe('Test Object Display Standard', () => {
 
 	beforeAll(async () => {
 		toolbox = await setup();
-		packageId = await toolbox.getPackage('display_test', { normalized: false });
+		packageId = await toolbox.getPackage('test_data', { normalized: false });
+
+		// Create a Boar object owned by this test address
+		const tx = new Transaction();
+		tx.moveCall({
+			target: `${packageId}::boars::create_boar`,
+			arguments: [tx.pure.address(toolbox.address())],
+		});
+
+		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+			transaction: tx,
+			signer: toolbox.keypair,
+		});
+		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
 	});
 
 	it('Test getting Display fields with error object', async () => {
@@ -23,6 +37,7 @@ describe('Test Object Display Standard', () => {
 				filter: { StructType: `${packageId}::boars::Boar` },
 			})
 		).data;
+		expect(resp.length).toBeGreaterThan(0);
 		const data = resp[0].data as SuiObjectData;
 		const boarId = data.objectId;
 		const display = (

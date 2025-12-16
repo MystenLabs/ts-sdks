@@ -19,40 +19,30 @@ describe('Core API - Coins', () => {
 		testAddress = toolbox.address();
 
 		// Get the package ID for custom coin tests
-		testPackageId = await toolbox.getPackage('core_test');
+		testPackageId = await toolbox.getPackage('test_data');
 
-		// Mint custom coins before tests run
-		if (!testAddress) {
-			throw new Error('testAddress is undefined');
+		// Mint custom TEST_COIN coins using the shared TreasuryCap
+		const treasuryCapId = toolbox.getSharedObject('test_data', 'TreasuryCap<TEST_COIN>');
+		if (!treasuryCapId) {
+			throw new Error('TreasuryCap<TEST_COIN> not found in pre-published package');
 		}
 
-		const ownedObjects = await toolbox.jsonRpcClient.core.listOwnedObjects({
-			owner: testAddress,
+		const tx = new Transaction();
+		const [coin] = tx.moveCall({
+			target: `${testPackageId}::test_coin::mint`,
+			arguments: [tx.object(treasuryCapId), tx.pure.u64(1000000)],
+		});
+		tx.transferObjects([coin], tx.pure.address(testAddress));
+
+		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+			transaction: tx,
+			signer: toolbox.keypair,
+			options: {
+				showEffects: true,
+			},
 		});
 
-		const treasuryCap = ownedObjects.objects.find(
-			(obj) =>
-				obj.type && obj.type.includes('TreasuryCap') && obj.type.includes('test_coin::TEST_COIN'),
-		);
-
-		if (treasuryCap) {
-			const tx = new Transaction();
-			const [coin] = tx.moveCall({
-				target: `${testPackageId}::test_coin::mint`,
-				arguments: [tx.object(treasuryCap.objectId), tx.pure.u64(1000000)],
-			});
-			tx.transferObjects([coin], tx.pure.address(testAddress));
-
-			const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
-				transaction: tx,
-				signer: toolbox.keypair,
-				options: {
-					showEffects: true,
-				},
-			});
-
-			await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
-		}
+		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
 	});
 
 	describe('getCoins', () => {

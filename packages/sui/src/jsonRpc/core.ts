@@ -257,7 +257,7 @@ export class JSONRpcCoreClient extends CoreClient {
 				? effects
 				: undefined) as SuiClientTypes.Transaction<Include>['effects'],
 			objectTypes: (options.include?.objectTypes
-				? Promise.resolve(objectTypes)
+				? objectTypes
 				: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 			signatures: [],
 			transaction: (options.include?.transaction
@@ -625,7 +625,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 	if (include?.objectTypes) {
 		transaction.objectChanges?.forEach((change) => {
 			if (change.type !== 'published') {
-				objectTypes[change.objectId] = change.objectType;
+				objectTypes[change.objectId] = normalizeStructTag(change.objectType);
 			}
 		});
 	}
@@ -670,7 +670,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 			? parseTransactionEffectsBcs(effectsBytes)
 			: undefined) as SuiClientTypes.Transaction<Include>['effects'],
 		objectTypes: (include?.objectTypes
-			? Promise.resolve(objectTypes)
+			? objectTypes
 			: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 		transaction: transactionData as SuiClientTypes.Transaction<Include>['transaction'],
 		signatures,
@@ -751,7 +751,7 @@ function parseTransactionEffectsJson({
 					outputOwner: parseOwner(change.recipient),
 					idOperation: 'None',
 				});
-				objectTypes[change.objectId] = change.objectType;
+				objectTypes[change.objectId] = normalizeStructTag(change.objectType);
 				break;
 			case 'mutated':
 				changedObjects.push({
@@ -766,7 +766,7 @@ function parseTransactionEffectsJson({
 					outputOwner: parseOwner(change.owner),
 					idOperation: 'None',
 				});
-				objectTypes[change.objectId] = change.objectType;
+				objectTypes[change.objectId] = normalizeStructTag(change.objectType);
 				break;
 			case 'deleted':
 				changedObjects.push({
@@ -781,7 +781,7 @@ function parseTransactionEffectsJson({
 					outputOwner: null,
 					idOperation: 'Deleted',
 				});
-				objectTypes[change.objectId] = change.objectType;
+				objectTypes[change.objectId] = normalizeStructTag(change.objectType);
 				break;
 			case 'wrapped':
 				changedObjects.push({
@@ -803,7 +803,7 @@ function parseTransactionEffectsJson({
 					},
 					idOperation: 'None',
 				});
-				objectTypes[change.objectId] = change.objectType;
+				objectTypes[change.objectId] = normalizeStructTag(change.objectType);
 				break;
 			case 'created':
 				changedObjects.push({
@@ -818,7 +818,7 @@ function parseTransactionEffectsJson({
 					outputOwner: parseOwner(change.owner),
 					idOperation: 'Created',
 				});
-				objectTypes[change.objectId] = change.objectType;
+				objectTypes[change.objectId] = normalizeStructTag(change.objectType);
 				break;
 		}
 	});

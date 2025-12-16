@@ -234,7 +234,8 @@ export class GrpcCoreClient extends CoreClient {
 			paths.push('events');
 		}
 		if (options.include?.objectTypes) {
-			paths.push('objects');
+			paths.push('effects.changed_objects.object_type');
+			paths.push('effects.changed_objects.object_id');
 		}
 
 		const { response } = await this.#client.ledgerService.getTransaction({
@@ -267,7 +268,8 @@ export class GrpcCoreClient extends CoreClient {
 			paths.push('events');
 		}
 		if (options.include?.objectTypes) {
-			paths.push('objects');
+			paths.push('effects.changed_objects.object_type');
+			paths.push('effects.changed_objects.object_id');
 		}
 
 		const { response } = await this.#client.transactionExecutionService.executeTransaction({
@@ -313,7 +315,9 @@ export class GrpcCoreClient extends CoreClient {
 			paths.push('transaction.events');
 		}
 		if (options.include?.objectTypes) {
-			paths.push('transaction.objects');
+			// Use effects.changed_objects to match JSON-RPC behavior (which uses objectChanges)
+			paths.push('transaction.effects.changed_objects.object_type');
+			paths.push('transaction.effects.changed_objects.object_id');
 		}
 		if (options.include?.commandResults) {
 			paths.push('command_outputs');
@@ -764,9 +768,9 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 ): SuiClientTypes.TransactionResult<Include> {
 	const objectTypes: Record<string, string> = {};
 	if (include?.objectTypes) {
-		transaction.objects?.objects.forEach((object) => {
-			if (object.objectId && object.objectType) {
-				objectTypes[object.objectId] = object.objectType;
+		transaction.effects?.changedObjects?.forEach((change) => {
+			if (change.objectId && change.objectType) {
+				objectTypes[change.objectId] = change.objectType;
 			}
 		});
 	}
@@ -820,7 +824,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 		status,
 		effects: effects as SuiClientTypes.Transaction<Include>['effects'],
 		objectTypes: (include?.objectTypes
-			? Promise.resolve(objectTypes)
+			? objectTypes
 			: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 		transaction: transactionData as SuiClientTypes.Transaction<Include>['transaction'],
 		signatures: transaction.signatures?.map((sig) => toBase64(sig.bcs?.value!)) ?? [],
