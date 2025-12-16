@@ -11,7 +11,7 @@ describe('Test Coin Metadata', () => {
 
 	beforeAll(async () => {
 		toolbox = await setup();
-		packageId = await toolbox.getPackage('coin_metadata', { normalized: false });
+		packageId = await toolbox.getPackage('test_data', { normalized: false });
 	});
 
 	it('Test accessing coin metadata', async () => {

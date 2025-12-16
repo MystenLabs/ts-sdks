@@ -17,7 +17,7 @@ describe('Core API - Dynamic Fields', () => {
 	beforeAll(async () => {
 		toolbox = await setup();
 		testAddress = toolbox.address();
-		testPackageId = await toolbox.getPackage('core_test');
+		testPackageId = await toolbox.getPackage('test_data');
 
 		// Create an object with dynamic fields
 		const tx = new Transaction();

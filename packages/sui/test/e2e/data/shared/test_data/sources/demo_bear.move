@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-module demo::demo_bear;
+module test_data::demo_bear;
 
 use std::string::{String, utf8};
 use sui::display;

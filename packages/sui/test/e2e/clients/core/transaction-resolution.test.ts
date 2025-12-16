@@ -291,7 +291,7 @@ describe('Core API - Transaction Resolution', () => {
 			'should correctly resolve and execute transaction with Pure inputs (Move call)',
 			async (client) => {
 				// Publish test package with Move functions that take Pure arguments
-				const packageId = await toolbox.getPackage('core_test');
+				const packageId = await toolbox.getPackage('test_data');
 
 				const tx = new Transaction();
 				// Call Move function with Pure u64 argument
@@ -334,7 +334,7 @@ describe('Core API - Transaction Resolution', () => {
 		);
 
 		it('gRPC conversion helpers round-trip: verify structure preservation', async () => {
-			const packageId = await toolbox.getPackage('core_test');
+			const packageId = await toolbox.getPackage('test_data');
 
 			// Create a transaction with multiple input types and commands
 			const tx = new Transaction();
@@ -511,7 +511,7 @@ describe('Core API - Transaction Resolution', () => {
 			'should resolve UnresolvedObject to correct type (receiving object)',
 			async (client) => {
 				// Setup: publish tto package and create parent/child objects for receiving
-				const packageId = await toolbox.getPackage('tto');
+				const packageId = await toolbox.getPackage('test_data');
 
 				// Create parent and child objects
 				const setupTx = new Transaction();
@@ -617,7 +617,7 @@ describe('Core API - Transaction Resolution', () => {
 			'should resolve UnresolvedObject to correct type (shared object)',
 			async (client) => {
 				// Setup: create a shared object
-				const packageId = await toolbox.getPackage('core_test');
+				const packageId = await toolbox.getPackage('test_data');
 
 				const setupTx = new Transaction();
 				setupTx.moveCall({

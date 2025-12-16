@@ -4,7 +4,7 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { bcs } from '../../src/bcs';
-import { SuiObjectChangeCreated, SuiTransactionBlockResponse } from '../../src/jsonRpc';
+import { SuiObjectChangeCreated } from '../../src/jsonRpc';
 import type { Keypair } from '../../src/cryptography';
 import { Transaction } from '../../src/transactions';
 import { normalizeSuiObjectId, SUI_SYSTEM_STATE_OBJECT_ID } from '../../src/utils';
@@ -23,18 +23,12 @@ export const SUI_CLOCK_OBJECT_ID = normalizeSuiObjectId('0x6');
 describe('Transaction Builders', () => {
 	let toolbox: TestToolbox;
 	let packageId: string;
-	let publishTxn: SuiTransactionBlockResponse;
 	let sharedObjectId: string;
 
 	beforeAll(async () => {
-		({ packageId, publishTxn } = await publishPackage('serializer'));
-		const sharedObject = publishTxn.effects?.created!.filter(
-			(o) =>
-				typeof o.owner === 'object' &&
-				'Shared' in o.owner &&
-				o.owner.Shared.initial_shared_version !== undefined,
-		)[0];
-		sharedObjectId = sharedObject!.reference.objectId;
+		const initToolbox = await setup();
+		packageId = await initToolbox.getPackage('test_data');
+		sharedObjectId = initToolbox.getSharedObject('test_data', 'MutableShared')!;
 	});
 
 	beforeEach(async () => {
@@ -135,14 +129,37 @@ describe('Transaction Builders', () => {
 	});
 
 	it('Move Shared Object Call by Value', async () => {
+		// Create a new MutableShared object for this test since we'll delete it
+		// (we don't want to delete the shared one that other tests use)
+		const createTx = new Transaction();
+		createTx.moveCall({
+			target: `${packageId}::serializer_tests::create_mutable_shared`,
+		});
+		const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+			transaction: createTx,
+			signer: toolbox.keypair,
+		});
+		const createResult = await toolbox.jsonRpcClient.waitForTransaction({
+			digest,
+			options: { showEffects: true },
+		});
+
+		// Get the newly created shared object ID
+		const createdObj = createResult.effects?.created?.find(
+			(o) => typeof o.owner === 'object' && 'Shared' in o.owner,
+		);
+		expect(createdObj).toBeDefined();
+		const newSharedObjectId = createdObj!.reference.objectId;
+
+		// Now test delete_value with the new object
 		const tx = new Transaction();
 		tx.moveCall({
 			target: `${packageId}::serializer_tests::value`,
-			arguments: [tx.object(sharedObjectId)],
+			arguments: [tx.object(newSharedObjectId)],
 		});
 		tx.moveCall({
 			target: `${packageId}::serializer_tests::delete_value`,
-			arguments: [tx.object(sharedObjectId)],
+			arguments: [tx.object(newSharedObjectId)],
 		});
 		await validateTransaction(toolbox.grpcClient, toolbox.keypair, tx);
 	});

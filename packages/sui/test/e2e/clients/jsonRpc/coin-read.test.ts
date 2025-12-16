@@ -3,6 +3,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { Transaction } from '../../../../src/transactions';
 import { setup, TestToolbox } from '../../utils/setup';
 
 describe('CoinRead API', () => {
@@ -13,8 +14,39 @@ describe('CoinRead API', () => {
 
 	beforeAll(async () => {
 		[toolbox, publishToolbox] = await Promise.all([setup(), setup()]);
-		packageId = await publishToolbox.getPackage('coin_metadata', { normalized: false });
+		packageId = await publishToolbox.getPackage('test_data', { normalized: false });
 		testType = packageId + '::test::TEST';
+
+		// Get the TreasuryCap shared object to mint TEST coins
+		const treasuryCapId = publishToolbox.getSharedObject('test_data', 'TreasuryCap<TEST>');
+		if (!treasuryCapId) {
+			throw new Error('TreasuryCap not found in pre-published package');
+		}
+
+		// Mint TEST coins to publishToolbox address (2 coins: 5 and 6 = 11 total)
+		const mintTx = new Transaction();
+		mintTx.moveCall({
+			target: `${packageId}::test::mint`,
+			arguments: [
+				mintTx.object(treasuryCapId),
+				mintTx.pure.u64(5),
+				mintTx.pure.address(publishToolbox.address()),
+			],
+		});
+		mintTx.moveCall({
+			target: `${packageId}::test::mint`,
+			arguments: [
+				mintTx.object(treasuryCapId),
+				mintTx.pure.u64(6),
+				mintTx.pure.address(publishToolbox.address()),
+			],
+		});
+
+		const { digest } = await publishToolbox.jsonRpcClient.signAndExecuteTransaction({
+			transaction: mintTx,
+			signer: publishToolbox.keypair,
+		});
+		await publishToolbox.jsonRpcClient.waitForTransaction({ digest });
 	});
 
 	it('Get coins with/without type', async () => {
@@ -76,6 +108,6 @@ describe('CoinRead API', () => {
 		const testSupply = await toolbox.jsonRpcClient.getTotalSupply({
 			coinType: testType,
 		});
-		expect(Number(testSupply.value)).toEqual(11);
+		expect(Number(testSupply.value)).toBeGreaterThanOrEqual(11);
 	});
 });

@@ -2,28 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '@mysten/bcs';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { SuiTransactionBlockResponse } from '../../src/jsonRpc';
 import { Transaction } from '../../src/transactions';
 import { TransactionDataBuilder } from '../../src/transactions/TransactionData';
 import { SUI_SYSTEM_STATE_OBJECT_ID } from '../../src/utils';
-import { publishPackage, setup, TestToolbox } from './utils/setup';
+import { setup, TestToolbox } from './utils/setup';
 
 let toolbox: TestToolbox;
 let packageId: string;
-let publishTxn: SuiTransactionBlockResponse;
 let sharedObjectId: string;
+
 beforeAll(async () => {
+	const initToolbox = await setup();
+	packageId = await initToolbox.getPackage('test_data');
+	sharedObjectId = initToolbox.getSharedObject('test_data', 'MutableShared')!;
+});
+
+beforeEach(async () => {
 	toolbox = await setup();
-	({ packageId, publishTxn } = await publishPackage('serializer'));
-	const sharedObject = publishTxn.effects?.created!.filter(
-		(o) =>
-			typeof o.owner === 'object' &&
-			'Shared' in o.owner &&
-			o.owner.Shared.initial_shared_version !== undefined,
-	)[0];
-	sharedObjectId = sharedObject!.reference.objectId;
 });
 
 describe('Transaction bcs Serialization and deserialization', () => {
