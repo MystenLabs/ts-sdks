@@ -57,22 +57,3 @@ export function withdrawFromPolicy(
 
 	return profits;
 }
-
-/**
- * Remove a rule from a transfer policy.
- */
-export function removeTransferPolicyRule(
-	tx: Transaction,
-	itemType: string,
-	ruleType: string,
-	configType: string,
-	policy: ObjectArgument,
-	policyCap: ObjectArgument,
-) {
-	tx.add(
-		transferPolicy.removeRule({
-			arguments: [policy, policyCap],
-			typeArguments: [itemType, ruleType, configType],
-		}),
-	);
-}

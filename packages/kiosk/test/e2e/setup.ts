@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import path from 'path';
+import type {
+	DevInspectResults,
+	SuiObjectChangePublished,
+	SuiTransactionBlockResponse,
+} from '@mysten/sui/jsonRpc';
 import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
-import { SuiGrpcClient } from '@mysten/sui/grpc';
-import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import { FaucetRateLimitError, getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
@@ -19,26 +21,15 @@ import { KioskTransaction } from '../../src/index.js';
 
 const DEFAULT_FAUCET_URL = process.env.FAUCET_URL ?? getFaucetHost('localnet');
 const DEFAULT_FULLNODE_URL = process.env.FULLNODE_URL ?? getJsonRpcFullnodeUrl('localnet');
-const DEFAULT_GRAPHQL_URL = process.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125/graphql';
-const DEFAULT_GRPC_URL = process.env.GRPC_URL ?? 'http://127.0.0.1:12347';
-
-export type ClientType = 'jsonrpc' | 'graphql' | 'grpc';
 
 export class TestToolbox {
 	keypair: Ed25519Keypair;
-	client: ClientWithCoreApi;
-	clientType: ClientType;
+	client: SuiJsonRpcClient;
 	configPath: string;
 
-	constructor(
-		keypair: Ed25519Keypair,
-		client: ClientWithCoreApi,
-		clientType: ClientType,
-		configPath: string,
-	) {
+	constructor(keypair: Ed25519Keypair, client: SuiJsonRpcClient, configPath: string) {
 		this.keypair = keypair;
 		this.client = client;
-		this.clientType = clientType;
 		this.configPath = configPath;
 	}
 
@@ -47,42 +38,22 @@ export class TestToolbox {
 	}
 
 	public async getActiveValidators() {
-		// Use JSON-RPC client for system state as it's the most reliable
-		if ('getLatestSuiSystemState' in this.client) {
-			return (await (this.client as SuiJsonRpcClient).getLatestSuiSystemState()).activeValidators;
-		}
-		// For other client types, we would need to implement GraphQL/gRPC queries
-		throw new Error(`getActiveValidators not supported for ${this.clientType} client`);
+		return (await this.client.getLatestSuiSystemState()).activeValidators;
 	}
 }
 
-export function getClient(type: ClientType = 'jsonrpc'): ClientWithCoreApi {
-	switch (type) {
-		case 'jsonrpc':
-			return new SuiJsonRpcClient({
-				network: 'localnet',
-				url: DEFAULT_FULLNODE_URL,
-			});
-		case 'graphql':
-			return new SuiGraphQLClient({
-				network: 'localnet',
-				url: DEFAULT_GRAPHQL_URL,
-			});
-		case 'grpc':
-			return new SuiGrpcClient({
-				network: 'localnet',
-				baseUrl: DEFAULT_GRPC_URL,
-			});
-		default:
-			throw new Error(`Unknown client type: ${type}`);
-	}
+export function getClient(): SuiJsonRpcClient {
+	return new SuiJsonRpcClient({
+		network: 'localnet',
+		url: DEFAULT_FULLNODE_URL,
+	});
 }
 
 // TODO: expose these testing utils from @mysten/sui
-export async function setupSuiClient(clientType: ClientType = 'jsonrpc') {
+export async function setupSuiClient() {
 	const keypair = Ed25519Keypair.generate();
 	const address = keypair.getPublicKey().toSuiAddress();
-	const client = getClient(clientType);
+	const client = getClient();
 	await retry(() => requestSuiFromFaucetV2({ host: DEFAULT_FAUCET_URL, recipient: address }), {
 		backoff: 'EXPONENTIAL',
 		// overall timeout in 60 seconds
@@ -96,7 +67,7 @@ export async function setupSuiClient(clientType: ClientType = 'jsonrpc') {
 	await execSuiTools(['mkdir', '-p', configDir]);
 	const configPath = path.join(configDir, 'client.yaml');
 	await execSuiTools(['sui', 'client', '--yes', '--client.config', configPath]);
-	return new TestToolbox(keypair, client, clientType, configPath);
+	return new TestToolbox(keypair, client, configPath);
 }
 
 export async function publishPackage(packageName: string, toolbox?: TestToolbox) {
@@ -134,21 +105,21 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 	// Transfer the upgrade capability to the sender so they can upgrade the package later if they want.
 	tx.transferObjects([cap], tx.pure.address(toolbox.address()));
 
-	const publishTxn = await toolbox.keypair.signAndExecuteTransaction({
+	const { digest } = await toolbox.client.signAndExecuteTransaction({
 		transaction: tx,
-		client: toolbox.client,
+		signer: toolbox.keypair,
 	});
 
-	// Wait for the transaction to be indexed
-	const txn = publishTxn.Transaction ?? publishTxn.FailedTransaction;
-	await toolbox.client.core.waitForTransaction({ digest: txn!.digest });
-	expect(txn?.status.success).toEqual(true);
+	const publishTxn = await toolbox.client.waitForTransaction({
+		digest: digest,
+		options: { showObjectChanges: true, showEffects: true },
+	});
 
-	// Find the published package from changedObjects
-	const publishedPackage = txn?.effects?.changedObjects.find(
-		(obj) => obj.outputState === 'PackageWrite',
-	);
-	const packageId = publishedPackage?.objectId.replace(/^(0x)(0+)/, '0x') as string;
+	expect(publishTxn.effects?.status.status).toEqual('success');
+
+	const packageId = ((publishTxn.objectChanges?.filter(
+		(a) => a.type === 'published',
+	) as SuiObjectChangePublished[]) ?? [])[0]?.packageId.replace(/^(0x)(0+)/, '0x') as string;
 
 	expect(packageId).toBeTypeOf('string');
 
@@ -212,32 +183,22 @@ export async function createPersonalKiosk(toolbox: TestToolbox, kioskClient: Kio
 	await executeTransaction(toolbox, tx);
 }
 
-type TransactionResultWithEffectsAndTypes = SuiClientTypes.TransactionResult<{
-	effects: true;
-	objectTypes: true;
-}>;
-
-function getCreatedObjectIdByType(res: TransactionResultWithEffectsAndTypes, type: string): string {
-	const txn = res.Transaction ?? res.FailedTransaction;
-	const createdObject = txn?.effects?.changedObjects.find(
-		(obj) =>
-			obj.idOperation === 'Created' &&
-			obj.outputState === 'ObjectWrite' &&
-			txn.objectTypes?.[obj.objectId]?.endsWith(type),
-	);
-	if (!createdObject) {
-		throw new Error(`No created object found with type ending in ${type}`);
-	}
-	return createdObject.objectId;
+function getCreatedObjectIdByType(res: SuiTransactionBlockResponse, type: string): string {
+	return res.objectChanges?.filter(
+		(x) => x.type === 'created' && x.objectType.endsWith(type),
+		//@ts-ignore-next-line
+	)[0].objectId;
 }
 
 export async function getPublisherObject(toolbox: TestToolbox): Promise<string> {
-	const res = await toolbox.client.core.listOwnedObjects({
+	const res = await toolbox.client.getOwnedObjects({
+		filter: {
+			StructType: '0x2::package::Publisher',
+		},
 		owner: toolbox.address(),
-		type: '0x2::package::Publisher',
 	});
 
-	const publisherObj = res.objects[0]?.objectId;
+	const publisherObj = res.data[0].data?.objectId;
 	expect(publisherObj).not.toBeUndefined();
 
 	return publisherObj ?? '';
@@ -246,34 +207,30 @@ export async function getPublisherObject(toolbox: TestToolbox): Promise<string> 
 export async function executeTransaction(
 	toolbox: TestToolbox,
 	tx: Transaction,
-): Promise<TransactionResultWithEffectsAndTypes> {
-	tx.setSenderIfNotSet(toolbox.keypair.toSuiAddress());
-	const bytes = await tx.build({ client: toolbox.client });
-	const { signature } = await toolbox.keypair.signTransaction(bytes);
-
-	const resp = await toolbox.client.core.executeTransaction({
-		transaction: bytes,
-		signatures: [signature],
-		include: {
-			effects: true,
-			objectTypes: true,
+): Promise<SuiTransactionBlockResponse> {
+	const resp = await toolbox.client.signAndExecuteTransaction({
+		signer: toolbox.keypair,
+		transaction: tx,
+		options: {
+			showEffects: true,
+			showEvents: true,
+			showObjectChanges: true,
 		},
 	});
-
-	const txn = resp.Transaction ?? resp.FailedTransaction;
-	// Wait for the transaction to be indexed
-	await toolbox.client.core.waitForTransaction({ digest: txn!.digest });
-	expect(txn?.status.success).toEqual(true);
+	await toolbox.client.waitForTransaction({
+		digest: resp.digest,
+	});
+	expect(resp.effects?.status.status).toEqual('success');
 	return resp;
 }
 
-export async function simulateTransaction(
+export async function devInspectTransaction(
 	toolbox: TestToolbox,
 	tx: Transaction,
-): Promise<SuiClientTypes.SimulateTransactionResult<{ commandResults: true }>> {
-	return await toolbox.client.core.simulateTransaction({
-		transaction: tx,
-		include: { commandResults: true },
+): Promise<DevInspectResults> {
+	return await toolbox.client.devInspectTransactionBlock({
+		transactionBlock: tx,
+		sender: toolbox.address(),
 	});
 }
 
