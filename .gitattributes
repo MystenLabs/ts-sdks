@@ -7,3 +7,4 @@ packages/walrus-wasm/web/** linguist-generated=true
 packages/walrus-wasm/nodejs/** linguist-generated=true
 packages/deepbook-v3/src/contracts/** linguist-generated=true
 packages/payment-kit/src/contracts/** linguist-generated=true
+packages/kiosk/src/contracts/** linguist-generated=true

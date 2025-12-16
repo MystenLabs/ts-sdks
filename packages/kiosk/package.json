@@ -32,6 +32,7 @@
 	},
 	"scripts": {
 		"build": "build-package",
+		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
 		"test": "echo 'No unit tests for kiosk SDK'",
 		"pre-commit": "pnpm prettier:fix && pnpm lint && pnpm build",
 		"prettier:check": "prettier -c --ignore-unknown .",
@@ -43,11 +44,13 @@
 		"test:e2e": "vitest run e2e"
 	},
 	"dependencies": {
+		"@mysten/bcs": "workspace:*",
 		"@mysten/sui": "workspace:*",
 		"@mysten/utils": "workspace:*"
 	},
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
+		"@mysten/codegen": "workspace:*",
 		"cross-env": "^10.1.0",
 		"tmp": "^0.2.5",
 		"ts-retry-promise": "^0.8.1",
