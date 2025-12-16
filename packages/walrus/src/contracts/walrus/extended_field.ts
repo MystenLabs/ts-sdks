@@ -1,13 +1,17 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /** Module: extended_field */
 
-import { MoveStruct, MoveTuple, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
-import type { BcsType } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
+import {
+	MoveStruct,
+	MoveTuple,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+} from '../utils/index.js';
+import { bcs, type BcsType } from '@mysten/sui/bcs';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as object from './deps/sui/object.js';
 const $moduleName = '@local-pkg/walrus::extended_field';
 export const ExtendedField = new MoveStruct({

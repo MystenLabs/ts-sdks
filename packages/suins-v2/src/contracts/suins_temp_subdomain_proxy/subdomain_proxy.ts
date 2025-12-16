@@ -1,5 +1,6 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * A `temporary` proxy used to proxy subdomain requests because we can't use
@@ -11,9 +12,8 @@
  * This package will stop being used when we've implemented references in PTBs.
  */
 
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+import { type Transaction } from '@mysten/sui/transactions';
+import { normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 export interface NewArguments {
 	suins: RawTransactionArgument<string>;
 	subdomain: RawTransactionArgument<string>;

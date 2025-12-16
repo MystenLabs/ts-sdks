@@ -1,10 +1,9 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
-import { MoveEnum, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
-import type { BcsType } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
+import { MoveEnum, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import { bcs, type BcsType } from '@mysten/sui/bcs';
+import { type Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/walrus::auth';
 /**
  * Authentication for either a sender or an object. Unlike the `Authorized` type,

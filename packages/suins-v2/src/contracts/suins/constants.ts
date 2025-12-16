@@ -1,5 +1,6 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * Module to wrap all constants used across the project. A singleton and not meant
@@ -9,7 +10,7 @@
  * place of storing constants and proving convenient APIs for reading.
  */
 
-import type { Transaction } from '@mysten/sui/transactions';
+import { type Transaction } from '@mysten/sui/transactions';
 export interface SuiTldOptions {
 	package?: string;
 	arguments?: [];

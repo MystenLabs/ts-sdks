@@ -1,5 +1,6 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * A module that allows purchasing names in a different price by presenting a
@@ -10,11 +11,9 @@
  * / deactivation happens through PTBs.
  */
 
-import { MoveTuple, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
-import type { BcsType } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
+import { MoveTuple, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import { bcs, type BcsType } from '@mysten/sui/bcs';
+import { type Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@suins/discounts::discounts';
 export const RegularDiscountsApp = new MoveTuple({
 	name: `${$moduleName}::RegularDiscountsApp`,

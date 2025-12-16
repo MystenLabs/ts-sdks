@@ -11,18 +11,18 @@
 //
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import type { ServiceInfo } from '@protobuf-ts/runtime-rpc';
-import { StateService } from './state_service.js';
-import type { ListBalancesResponse } from './state_service.js';
-import type { ListBalancesRequest } from './state_service.js';
-import type { GetBalanceResponse } from './state_service.js';
-import type { GetBalanceRequest } from './state_service.js';
-import type { GetCoinInfoResponse } from './state_service.js';
-import type { GetCoinInfoRequest } from './state_service.js';
-import type { ListOwnedObjectsResponse } from './state_service.js';
-import type { ListOwnedObjectsRequest } from './state_service.js';
+import { StateService } from './state_service';
+import type { ListBalancesResponse } from './state_service';
+import type { ListBalancesRequest } from './state_service';
+import type { GetBalanceResponse } from './state_service';
+import type { GetBalanceRequest } from './state_service';
+import type { GetCoinInfoResponse } from './state_service';
+import type { GetCoinInfoRequest } from './state_service';
+import type { ListOwnedObjectsResponse } from './state_service';
+import type { ListOwnedObjectsRequest } from './state_service';
 import { stackIntercept } from '@protobuf-ts/runtime-rpc';
-import type { ListDynamicFieldsResponse } from './state_service.js';
-import type { ListDynamicFieldsRequest } from './state_service.js';
+import type { ListDynamicFieldsResponse } from './state_service';
+import type { ListDynamicFieldsRequest } from './state_service';
 import type { UnaryCall } from '@protobuf-ts/runtime-rpc';
 import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
 /**
