@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-module tto::tto;
+module test_data::tto;
 
 use sui::transfer::Receiving;
 
@@ -26,7 +26,7 @@ public fun start(ctx: &mut TxContext) {
 
 public fun receiver(parent: &mut A, x: Receiving<B>) {
     let b = transfer::receive(&mut parent.id, x);
-    transfer::public_transfer(b, @tto);
+    transfer::public_transfer(b, @test_data);
 }
 
 public fun deleter(parent: &mut A, x: Receiving<B>) {

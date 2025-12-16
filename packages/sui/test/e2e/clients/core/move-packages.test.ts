@@ -13,7 +13,7 @@ describe('Core API - Move Packages', () => {
 
 	beforeAll(async () => {
 		toolbox = await setup();
-		packageId = await toolbox.getPackage('core_test');
+		packageId = await toolbox.getPackage('test_data');
 	});
 
 	describe('getMoveFunction', () => {

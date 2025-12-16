@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-module id_entry_args::test;
+module test_data::id_test;
 
 public fun test_id(id: ID, _ctx: &mut TxContext) {
     assert!(

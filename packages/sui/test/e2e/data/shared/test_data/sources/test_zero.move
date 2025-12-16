@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[allow(deprecated_usage)]
-module coin_metadata::test_zero;
+module test_data::test_zero;
 
 use sui::coin;
 use sui::url;
