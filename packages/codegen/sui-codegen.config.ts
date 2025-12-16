@@ -22,6 +22,10 @@ const config: SuiCodegenConfig = {
 			package: '@local-pkg/walrus',
 			path: './tests/move/walrus',
 		},
+		{
+			package: '@local-pkg/conflict_test',
+			path: './tests/move/conflict_test',
+		},
 	],
 };
 
