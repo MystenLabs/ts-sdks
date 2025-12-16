@@ -25,7 +25,7 @@ describe('Transfer to Object', () => {
 
 	beforeAll(async () => {
 		toolbox = await setup();
-		packageId = await toolbox.getPackage('tto');
+		packageId = await toolbox.getPackage('test_data');
 	});
 
 	beforeEach(async () => {

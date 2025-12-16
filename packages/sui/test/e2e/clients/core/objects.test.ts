@@ -26,15 +26,17 @@ describe('Core API - Objects', () => {
 		testAddress = toolbox.address();
 
 		// Publish test package
-		testPackageId = await toolbox.getPackage('core_test');
+		testPackageId = await toolbox.getPackage('test_data');
 
-		// Create a test object
+		// Create multiple test objects to ensure pagination tests work
 		const tx = new Transaction();
-		const [obj] = tx.moveCall({
-			target: `${testPackageId}::test_objects::create_simple_object`,
-			arguments: [tx.pure.u64(42)],
-		});
-		tx.transferObjects([obj], tx.pure.address(testAddress));
+		for (let i = 0; i < 5; i++) {
+			const [obj] = tx.moveCall({
+				target: `${testPackageId}::test_objects::create_simple_object`,
+				arguments: [tx.pure.u64(42)],
+			});
+			tx.transferObjects([obj], tx.pure.address(testAddress));
+		}
 
 		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 			transaction: tx,
@@ -50,7 +52,7 @@ describe('Core API - Objects', () => {
 			digest: result.digest,
 		});
 
-		// Get the created object ID
+		// Get the first created object ID for individual object tests
 		const createdObject = result.objectChanges?.find(
 			(change) => change.type === 'created' && change.objectType.includes('SimpleObject'),
 		);

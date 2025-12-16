@@ -4,6 +4,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { SuiObjectData } from '../../../../src/jsonRpc';
+import { Transaction } from '../../../../src/transactions';
 import { setup, TestToolbox } from '../../utils/setup';
 
 describe('Dynamic Fields Reading API', () => {
@@ -13,18 +14,29 @@ describe('Dynamic Fields Reading API', () => {
 
 	beforeAll(async () => {
 		toolbox = await setup();
-		packageId = await toolbox.getPackage('dynamic_fields', { normalized: false });
+		packageId = await toolbox.getPackage('test_data', { normalized: false });
 
-		await toolbox.jsonRpcClient
-			.getOwnedObjects({
-				owner: toolbox.address(),
-				options: { showType: true },
-				filter: { StructType: `${packageId}::dynamic_fields_test::Test` },
-			})
-			.then(function (objects) {
-				const data = objects.data[0].data as SuiObjectData;
-				parentObjectId = data.objectId;
-			});
+		// Create Test object with dynamic fields owned by this test address
+		const tx = new Transaction();
+		tx.moveCall({
+			target: `${packageId}::dynamic_fields_test::create_test_with_fields`,
+			arguments: [tx.pure.address(toolbox.address())],
+		});
+
+		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+			transaction: tx,
+			signer: toolbox.keypair,
+		});
+		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
+
+		// Now get the Test object we created
+		const objects = await toolbox.jsonRpcClient.getOwnedObjects({
+			owner: toolbox.address(),
+			options: { showType: true },
+			filter: { StructType: `${packageId}::dynamic_fields_test::Test` },
+		});
+		const data = objects.data[0].data as SuiObjectData;
+		parentObjectId = data.objectId;
 	});
 
 	it('get all dynamic fields', async () => {

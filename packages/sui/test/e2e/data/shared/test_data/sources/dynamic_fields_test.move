@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-module dynamic_fields::dynamic_fields_test;
+module test_data::dynamic_fields_test;
 
 use sui::dynamic_field as dfield;
 use sui::dynamic_object_field as dof;
@@ -18,7 +18,9 @@ public struct Test2 has key, store {
     id: UID,
 }
 
-fun init(ctx: &mut TxContext) {
+/// Create a Test object with dynamic fields - public function for tests
+/// Transfers the Test object with attached dynamic fields to the recipient
+public fun create_test_with_fields(recipient: address, ctx: &mut TxContext) {
     let mut test = Test {
         id: object::new(ctx),
     };
@@ -32,8 +34,7 @@ fun init(ctx: &mut TxContext) {
     };
 
     dfield::add(&mut test.id, object::id(&test1), test1);
-
     dof::add(&mut test.id, object::id(&test2), test2);
 
-    transfer::transfer(test, tx_context::sender(ctx))
+    transfer::transfer(test, recipient)
 }

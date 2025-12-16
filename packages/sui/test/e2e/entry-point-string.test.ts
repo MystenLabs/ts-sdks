@@ -5,7 +5,7 @@ import { bcs } from '@mysten/bcs';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { Transaction } from '../../src/transactions';
-import { publishPackage, setup, TestToolbox } from './utils/setup';
+import { setup, TestToolbox } from './utils/setup';
 
 describe('Test Move call with strings', () => {
 	let toolbox: TestToolbox;
@@ -32,8 +32,7 @@ describe('Test Move call with strings', () => {
 
 	beforeAll(async () => {
 		toolbox = await setup();
-
-		({ packageId } = await publishPackage('entry_point_types'));
+		packageId = await toolbox.getPackage('test_data');
 	});
 
 	it('Test ascii', async () => {

@@ -5,12 +5,16 @@ import { resolve } from 'path';
 import { GenericContainer, Network, PullPolicy } from 'testcontainers';
 import type { TestProject } from 'vitest/node';
 
+import type { PrePublishedPackage } from './prePublish.js';
+import { prePublishPackages } from './prePublish.js';
+
 declare module 'vitest' {
 	export interface ProvidedContext {
 		localnetPort: number;
 		graphqlPort: number;
 		faucetPort: number;
 		suiToolsContainerId: string;
+		prePublishedPackages: Record<string, PrePublishedPackage>;
 	}
 }
 
@@ -58,8 +62,21 @@ export default async function setup(project: TestProject) {
 		})
 		.start();
 
-	project.provide('faucetPort', localnet.getMappedPort(9123));
-	project.provide('localnetPort', localnet.getMappedPort(9000));
-	project.provide('graphqlPort', localnet.getMappedPort(9125));
-	project.provide('suiToolsContainerId', localnet.getId());
+	const faucetPort = localnet.getMappedPort(9123);
+	const localnetPort = localnet.getMappedPort(9000);
+	const graphqlPort = localnet.getMappedPort(9125);
+	const containerId = localnet.getId();
+
+	project.provide('faucetPort', faucetPort);
+	project.provide('localnetPort', localnetPort);
+	project.provide('graphqlPort', graphqlPort);
+	project.provide('suiToolsContainerId', containerId);
+
+	// Pre-publish shared packages
+	const prePublished = await prePublishPackages({
+		fullnodeUrl: `http://127.0.0.1:${localnetPort}`,
+		faucetUrl: `http://127.0.0.1:${faucetPort}`,
+		containerId,
+	});
+	project.provide('prePublishedPackages', prePublished);
 }

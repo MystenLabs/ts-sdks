@@ -1,12 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-module display_test::boars;
+module test_data::boars;
 
 use std::string::{utf8, String};
 use sui::display;
 use sui::package;
-use sui::tx_context::sender;
 use sui::url::{Self, Url};
 
 /// For when a witness type passed is not an OTW.
@@ -29,6 +28,18 @@ public struct Boar has key, store {
 
 public struct Metadata has store {
     age: u64,
+}
+
+/// Shared Publisher object created during init
+public struct SharedPublisher has key {
+    id: UID,
+    publisher: package::Publisher,
+}
+
+/// Shared Display object created during init
+public struct SharedDisplay has key {
+    id: UID,
+    display: display::Display<Boar>,
 }
 
 fun init(otw: BOARS, ctx: &mut TxContext) {
@@ -70,9 +81,20 @@ fun init(otw: BOARS, ctx: &mut TxContext) {
     );
 
     display::update_version(&mut display);
-    transfer::public_transfer(display, sender(ctx));
-    transfer::public_transfer(pub, sender(ctx));
 
+    // Share Publisher and Display so tests can use them
+    transfer::share_object(SharedPublisher {
+        id: object::new(ctx),
+        publisher: pub,
+    });
+    transfer::share_object(SharedDisplay {
+        id: object::new(ctx),
+        display,
+    });
+}
+
+/// Create a new Boar object - public function for tests to create their own Boars
+public fun create_boar(recipient: address, ctx: &mut TxContext) {
     let boar = Boar {
         id: object::new(ctx),
         img_url: utf8(b"first.png"),
@@ -83,10 +105,10 @@ fun init(otw: BOARS, ctx: &mut TxContext) {
         metadata: Metadata {
             age: 10,
         },
-        buyer: sender(ctx),
+        buyer: recipient,
         full_url: url::new_unsafe_from_bytes(
             b"https://get-a-boar.fullurl.com/",
         ),
     };
-    transfer::transfer(boar, sender(ctx))
+    transfer::transfer(boar, recipient)
 }

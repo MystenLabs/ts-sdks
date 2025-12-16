@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-module entry_point_types::entry_point_types;
+module test_data::entry_point_types;
 
 use std::ascii;
 use std::string;

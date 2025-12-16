@@ -20,9 +20,33 @@ describe('coinWithBalance', () => {
 
 	beforeAll(async () => {
 		[toolbox, publishToolbox] = await Promise.all([setup(), setup()]);
-		packageId = await publishToolbox.getPackage('coin_metadata', { normalized: false });
+		packageId = await publishToolbox.getPackage('test_data', { normalized: false });
 		testType = normalizeSuiAddress(packageId) + '::test::TEST';
 		testTypeZero = normalizeSuiAddress(packageId) + '::test_zero::TEST_ZERO';
+
+		// Get the TreasuryCap shared object to mint TEST coins
+		const treasuryCapId = publishToolbox.getSharedObject('test_data', 'TreasuryCap<TEST>');
+		if (!treasuryCapId) {
+			throw new Error('TreasuryCap not found in pre-published package');
+		}
+
+		// Mint TEST coins to publishToolbox address for coin tests
+		// Need enough for: 1 + 2 + 1 (custom coin test) = 4 total
+		const mintTx = new Transaction();
+		mintTx.moveCall({
+			target: `${packageId}::test::mint`,
+			arguments: [
+				mintTx.object(treasuryCapId),
+				mintTx.pure.u64(10), // enough for multiple test runs
+				mintTx.pure.address(publishToolbox.address()),
+			],
+		});
+
+		const { digest } = await publishToolbox.jsonRpcClient.signAndExecuteTransaction({
+			transaction: mintTx,
+			signer: publishToolbox.keypair,
+		});
+		await publishToolbox.jsonRpcClient.waitForTransaction({ digest });
 	});
 
 	it('works with sui', async () => {
