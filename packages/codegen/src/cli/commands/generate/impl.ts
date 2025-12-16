@@ -15,6 +15,7 @@ export interface SubdirCommandFlags {
 	noPrune?: boolean;
 	noSummaries?: boolean;
 	network?: 'mainnet' | 'testnet';
+	importExtension?: '.js' | '.ts' | 'none';
 }
 
 export default async function generate(
@@ -75,11 +76,19 @@ export default async function generate(
 				stdio: 'inherit',
 			});
 		}
+		const importExtension =
+			flags.importExtension === undefined
+				? config.importExtension
+				: flags.importExtension === 'none'
+					? ''
+					: flags.importExtension;
+
 		await generateFromPackageSummary({
 			package: pkg,
 			prune: flags.noPrune === undefined ? config.prune : !flags.noPrune,
 			outputDir: flags.outputDir ?? config.output,
 			privateMethods: config.privateMethods,
+			importExtension,
 		});
 	}
 }

@@ -13,12 +13,25 @@ export class FileBuilder {
 	starImports: Map<string, string> = new Map();
 	protected reservedNames: Set<string> = new Set();
 
-	addImport(module: string, name: string) {
+	addImport(module: string, name: string): string {
 		if (!this.imports.has(module)) {
 			this.imports.set(module, new Set());
 		}
 
+		const isTypeImport = name.startsWith('type ');
+		const baseName = isTypeImport ? name.slice(5) : name;
+
+		if (this.reservedNames.has(baseName)) {
+			const alias = this.getUnusedName(baseName);
+			const aliasedImport = isTypeImport
+				? `type ${baseName} as ${alias}`
+				: `${baseName} as ${alias}`;
+			this.imports.get(module)!.add(aliasedImport);
+			return alias;
+		}
+
 		this.imports.get(module)!.add(name);
+		return baseName;
 	}
 
 	addStarImport(module: string, name: string) {

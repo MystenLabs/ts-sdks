@@ -38,6 +38,12 @@ export const generateCommand = buildCommand({
 				optional: true,
 				brief: 'Network to generate for (default: testnet)',
 			},
+			importExtension: {
+				kind: 'enum',
+				values: ['.js', '.ts', 'none'],
+				optional: true,
+				brief: 'File extension for import statements (default: .js)',
+			},
 		},
 		aliases: {
 			o: 'outputDir',
