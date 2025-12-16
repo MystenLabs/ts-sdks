@@ -11,9 +11,9 @@
 //
 import { ServiceType } from '@protobuf-ts/runtime-rpc';
 import { MessageType } from '@protobuf-ts/runtime';
-import { FunctionDescriptor } from './move_package.js';
-import { DatatypeDescriptor } from './move_package.js';
-import { Package } from './move_package.js';
+import { FunctionDescriptor } from './move_package';
+import { DatatypeDescriptor } from './move_package';
+import { Package } from './move_package';
 /**
  * @generated from protobuf message sui.rpc.v2.GetPackageRequest
  */

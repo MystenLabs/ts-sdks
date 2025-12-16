@@ -11,13 +11,13 @@
 //
 import { ServiceType } from '@protobuf-ts/runtime-rpc';
 import { MessageType } from '@protobuf-ts/runtime';
-import { Epoch } from './epoch.js';
-import { Checkpoint } from './checkpoint.js';
-import { ExecutedTransaction } from './executed_transaction.js';
-import { Status } from '../../../google/rpc/status.js';
-import { Object } from './object.js';
-import { FieldMask } from '../../../google/protobuf/field_mask.js';
-import { Timestamp } from '../../../google/protobuf/timestamp.js';
+import { Epoch } from './epoch';
+import { Checkpoint } from './checkpoint';
+import { ExecutedTransaction } from './executed_transaction';
+import { Status } from '../../../google/rpc/status';
+import { Object } from './object';
+import { FieldMask } from '../../../google/protobuf/field_mask';
+import { Timestamp } from '../../../google/protobuf/timestamp';
 /**
  * @generated from protobuf message sui.rpc.v2.GetServiceInfoRequest
  */

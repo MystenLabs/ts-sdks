@@ -11,13 +11,13 @@
 //
 import { ServiceType } from '@protobuf-ts/runtime-rpc';
 import { MessageType } from '@protobuf-ts/runtime';
-import { Value } from '../../../google/protobuf/struct.js';
-import { Bcs } from './bcs.js';
-import { Argument } from './argument.js';
-import { ExecutedTransaction } from './executed_transaction.js';
-import { FieldMask } from '../../../google/protobuf/field_mask.js';
-import { UserSignature } from './signature.js';
-import { Transaction } from './transaction.js';
+import { Value } from '../../../google/protobuf/struct';
+import { Bcs } from './bcs';
+import { Argument } from './argument';
+import { ExecutedTransaction } from './executed_transaction';
+import { FieldMask } from '../../../google/protobuf/field_mask';
+import { UserSignature } from './signature';
+import { Transaction } from './transaction';
 /**
  * @generated from protobuf message sui.rpc.v2.ExecuteTransactionRequest
  */
