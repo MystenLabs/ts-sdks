@@ -1,7 +1,0 @@
-[package]
-name = "display_test"
-version = "0.0.1"
-edition = "2024.beta"
-
-[addresses]
-display_test =  "0x0"

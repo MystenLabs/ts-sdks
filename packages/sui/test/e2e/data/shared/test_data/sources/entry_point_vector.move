@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[allow(lint(self_transfer))]
-module entry_point_vector::entry_point_vector;
+module test_data::entry_point_vector;
 
 public struct Obj has key, store {
     id: UID,

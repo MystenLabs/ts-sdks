@@ -632,7 +632,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 			: undefined) as SuiClientTypes.Transaction<Include>['effects'],
 		epoch: transaction.effects?.epoch?.epochId?.toString() ?? null,
 		objectTypes: (include?.objectTypes
-			? Promise.resolve(objectTypes)
+			? objectTypes
 			: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 		transaction: (include?.transaction
 			? parseTransactionBcs(fromBase64(transaction.transactionBcs!))
