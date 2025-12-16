@@ -940,6 +940,9 @@ importers:
 
   packages/kiosk:
     dependencies:
+      '@mysten/bcs':
+        specifier: workspace:*
+        version: link:../bcs
       '@mysten/sui':
         specifier: workspace:*
         version: link:../sui
@@ -950,6 +953,9 @@ importers:
       '@mysten/build-scripts':
         specifier: workspace:*
         version: link:../build-scripts
+      '@mysten/codegen':
+        specifier: workspace:*
+        version: link:../codegen
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
