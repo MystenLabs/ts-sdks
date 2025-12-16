@@ -271,27 +271,22 @@ export async function fetchKioskExtension(
 	kioskId: string,
 	extensionType: string,
 ): Promise<KioskExtension | null> {
-	try {
-		const { dynamicField } = await client.core.getDynamicField({
-			parentId: kioskId,
-			name: {
-				type: `0x2::kiosk_extension::ExtensionKey<${extensionType}>`,
-				bcs: ExtensionKey.serialize({ dummy_field: false }).toBytes(),
-			},
-		});
+	const { dynamicField } = await client.core.getDynamicField({
+		parentId: kioskId,
+		name: {
+			type: `0x2::kiosk_extension::ExtensionKey<${extensionType}>`,
+			bcs: ExtensionKey.serialize({ dummy_field: false }).toBytes(),
+		},
+	});
 
-		// Parse BCS to get the Extension struct from the dynamic field value
-		const extension = Extension.parse(dynamicField.value.bcs);
+	const extension = Extension.parse(dynamicField.value.bcs);
 
-		return {
-			objectId: dynamicField.fieldId,
-			type: extensionType,
-			isEnabled: extension.is_enabled,
-			permissions: extension.permissions.toString(),
-			storageId: extension.storage.id.id,
-			storageSize: Number(extension.storage.size),
-		};
-	} catch {
-		return null;
-	}
+	return {
+		objectId: dynamicField.fieldId,
+		type: extensionType,
+		isEnabled: extension.is_enabled,
+		permissions: extension.permissions.toString(),
+		storageId: extension.storage.id.id,
+		storageSize: Number(extension.storage.size),
+	};
 }

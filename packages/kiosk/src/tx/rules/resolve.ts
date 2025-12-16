@@ -47,7 +47,6 @@ export async function resolveRoyaltyRule(params: RuleResolvingParams) {
 
 	let amount: TransactionArgument | bigint | null = null;
 
-	// Use simulateTransaction to get the return value - works with all client types
 	try {
 		feeTx.setSender(tx.getData().sender || normalizeSuiAddress('0x0'));
 		const txBytes = await feeTx.build({ client: kioskClient.client });
@@ -57,7 +56,6 @@ export async function resolveRoyaltyRule(params: RuleResolvingParams) {
 			include: { commandResults: true },
 		});
 
-		// Extract the return value from the first command
 		if (result.commandResults && result.commandResults.length > 0) {
 			const returnedAmount = result.commandResults[0]?.returnValues?.[0]?.bcs;
 			if (returnedAmount) {
@@ -113,7 +111,6 @@ export function resolveKioskLockRule(params: RuleResolvingParams) {
 
 	if (!kioskId || !kioskCap) throw new Error('Missing Owned Kiosk or Owned Kiosk Cap');
 
-	// Lock the item in the kiosk using the generated function
 	tx.add(
 		kiosk.lock({
 			arguments: [kioskId, kioskCap, policyId, purchasedItem],

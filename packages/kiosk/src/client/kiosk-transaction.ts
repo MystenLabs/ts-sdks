@@ -125,7 +125,7 @@ export class KioskTransaction {
 	createAndShare(address: string) {
 		this.#validateFinalizedStatus();
 		const cap = createKioskAndShare(this.transaction);
-		this.transaction.transferObjects([cap], this.transaction.pure.address(address));
+		this.transaction.transferObjects([cap], address);
 		return this;
 	}
 
@@ -152,7 +152,7 @@ export class KioskTransaction {
 			throw new Error('You can only call `shareAndTransferCap` on a non-personal kiosk.');
 		this.#setPendingStatuses({ transfer: false });
 		this.share();
-		this.transaction.transferObjects([this.kioskCap!], this.transaction.pure.address(address));
+		this.transaction.transferObjects([this.kioskCap!], address);
 		return this;
 	}
 
@@ -164,7 +164,7 @@ export class KioskTransaction {
 		this.#validateKioskIsSet();
 		const [itemObj, promise] = this.transaction.add(
 			kioskContract.borrowVal({
-				arguments: [this.kiosk!, this.kioskCap!, this.transaction.pure.id(itemId)],
+				arguments: [this.kiosk!, this.kioskCap!, itemId],
 				typeArguments: [itemType],
 			}),
 		);
@@ -184,7 +184,7 @@ export class KioskTransaction {
 		this.#validateKioskIsSet();
 		const [itemObj, promise] = this.transaction.add(
 			kioskContract.borrowVal({
-				arguments: [this.kiosk!, this.kioskCap!, this.transaction.pure.id(itemId)],
+				arguments: [this.kiosk!, this.kioskCap!, itemId],
 				typeArguments: [itemType],
 			}),
 		);
@@ -214,19 +214,13 @@ export class KioskTransaction {
 	 */
 	withdraw(address: string, amount?: string | bigint | number) {
 		this.#validateKioskIsSet();
-		const amountArg = amount
-			? typeof amount === 'string'
-				? BigInt(amount)
-				: typeof amount === 'number'
-					? BigInt(amount)
-					: amount
-			: null;
+
 		const [coin] = this.transaction.add(
 			kioskContract.withdraw({
-				arguments: [this.kiosk!, this.kioskCap!, amountArg],
+				arguments: [this.kiosk!, this.kioskCap!, amount == null ? null : BigInt(amount)],
 			}),
 		);
-		this.transaction.transferObjects([coin], this.transaction.pure.address(address));
+		this.transaction.transferObjects([coin], address);
 		return this;
 	}
 
@@ -277,7 +271,7 @@ export class KioskTransaction {
 		const priceArg = typeof price === 'string' ? BigInt(price) : price;
 		this.transaction.add(
 			kioskContract.list({
-				arguments: [this.kiosk!, this.kioskCap!, this.transaction.pure.id(itemId), priceArg],
+				arguments: [this.kiosk!, this.kioskCap!, itemId, priceArg],
 				typeArguments: [itemType],
 			}),
 		);
@@ -293,7 +287,7 @@ export class KioskTransaction {
 		this.#validateKioskIsSet();
 		this.transaction.add(
 			kioskContract.delist({
-				arguments: [this.kiosk!, this.kioskCap!, this.transaction.pure.id(itemId)],
+				arguments: [this.kiosk!, this.kioskCap!, itemId],
 				typeArguments: [itemType],
 			}),
 		);
@@ -310,7 +304,7 @@ export class KioskTransaction {
 		this.#validateKioskIsSet();
 		const [item] = this.transaction.add(
 			kioskContract.take({
-				arguments: [this.kiosk!, this.kioskCap!, this.transaction.pure.id(itemId)],
+				arguments: [this.kiosk!, this.kioskCap!, itemId],
 				typeArguments: [itemType],
 			}),
 		);
@@ -327,7 +321,7 @@ export class KioskTransaction {
 	transfer({ itemType, itemId, address }: ItemId & { address: string }) {
 		this.#validateKioskIsSet();
 		const item = this.take({ itemType, itemId });
-		this.transaction.transferObjects([item], this.transaction.pure.address(address));
+		this.transaction.transferObjects([item], address);
 		return this;
 	}
 
@@ -380,14 +374,12 @@ export class KioskTransaction {
 		TransactionObjectArgument,
 	] {
 		// Split the coin for the amount of the listing.
-		const coin = this.transaction.splitCoins(this.transaction.gas, [
-			this.transaction.pure.u64(price),
-		]);
+		const [coin] = this.transaction.splitCoins(this.transaction.gas, [price]);
 		const kioskArg =
 			typeof sellerKiosk === 'string' ? this.transaction.object(sellerKiosk) : sellerKiosk;
 		const [item, transferRequest] = this.transaction.add(
 			kioskContract.purchase({
-				arguments: [kioskArg, this.transaction.pure.id(itemId), coin],
+				arguments: [kioskArg, itemId, coin],
 				typeArguments: [itemType],
 			}),
 		);
