@@ -11,8 +11,8 @@
 //
 import { ServiceType } from '@protobuf-ts/runtime-rpc';
 import { MessageType } from '@protobuf-ts/runtime';
-import { Checkpoint } from './checkpoint.js';
-import { FieldMask } from '../../../google/protobuf/field_mask.js';
+import { Checkpoint } from './checkpoint';
+import { FieldMask } from '../../../google/protobuf/field_mask';
 /**
  * Request message for SubscriptionService.SubscribeCheckpoints
  *

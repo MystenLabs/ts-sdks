@@ -1,8 +1,8 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
-import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
-import type { Transaction } from '@mysten/sui/transactions';
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@suins/core::registry';
 export const Registry = new MoveStruct({

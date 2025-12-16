@@ -11,12 +11,12 @@
 //
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import type { ServiceInfo } from '@protobuf-ts/runtime-rpc';
-import { TransactionExecutionService } from './transaction_execution_service.js';
-import type { SimulateTransactionResponse } from './transaction_execution_service.js';
-import type { SimulateTransactionRequest } from './transaction_execution_service.js';
+import { TransactionExecutionService } from './transaction_execution_service';
+import type { SimulateTransactionResponse } from './transaction_execution_service';
+import type { SimulateTransactionRequest } from './transaction_execution_service';
 import { stackIntercept } from '@protobuf-ts/runtime-rpc';
-import type { ExecuteTransactionResponse } from './transaction_execution_service.js';
-import type { ExecuteTransactionRequest } from './transaction_execution_service.js';
+import type { ExecuteTransactionResponse } from './transaction_execution_service';
+import type { ExecuteTransactionRequest } from './transaction_execution_service';
 import type { UnaryCall } from '@protobuf-ts/runtime-rpc';
 import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
 /**

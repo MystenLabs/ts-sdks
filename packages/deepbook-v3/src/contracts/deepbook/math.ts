@@ -1,8 +1,8 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
+import { type Transaction } from '@mysten/sui/transactions';
+import { normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 export interface MulArguments {
 	x: RawTransactionArgument<number | bigint>;
 	y: RawTransactionArgument<number | bigint>;
@@ -146,7 +146,7 @@ export interface MedianOptions {
 	package?: string;
 	arguments: MedianArguments | [v: RawTransactionArgument<number | bigint[]>];
 }
-/** given a vector of u64, return the median */
+/** given a vector of u128, return the median */
 export function median(options: MedianOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = ['vector<u128>'] satisfies string[];

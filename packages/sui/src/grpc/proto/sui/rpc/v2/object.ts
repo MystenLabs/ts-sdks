@@ -10,10 +10,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 import { MessageType } from '@protobuf-ts/runtime';
-import { Value } from '../../../google/protobuf/struct.js';
-import { Package } from './move_package.js';
-import { Owner } from './owner.js';
-import { Bcs } from './bcs.js';
+import { Value } from '../../../google/protobuf/struct';
+import { Package } from './move_package';
+import { Owner } from './owner';
+import { Bcs } from './bcs';
 /**
  * An object on the Sui blockchain.
  *
