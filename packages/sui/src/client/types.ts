@@ -168,6 +168,18 @@ export namespace SuiClientTypes {
 		};
 	}
 
+	export interface GetDynamicObjectFieldOptions<
+		Include extends ObjectInclude = {},
+	> extends CoreClientMethodOptions {
+		parentId: string;
+		name: DynamicFieldName;
+		include?: Include;
+	}
+
+	export interface GetDynamicObjectFieldResponse<out Include extends ObjectInclude = {}> {
+		object: Object<Include>;
+	}
+
 	export interface DynamicFieldName {
 		type: string;
 		bcs: Uint8Array;
