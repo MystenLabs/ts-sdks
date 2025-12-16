@@ -7,7 +7,7 @@ import { MoveModuleBuilder } from './move-module-builder.js';
 import { existsSync, statSync } from 'node:fs';
 import { utilsContent } from './generate-utils.js';
 import { parse } from 'toml';
-import type { PackageConfig } from './config.js';
+import type { ImportExtension, PackageConfig } from './config.js';
 export { type SuiCodegenConfig } from './config.js';
 
 export async function generateFromPackageSummary({
@@ -15,11 +15,13 @@ export async function generateFromPackageSummary({
 	prune,
 	outputDir,
 	privateMethods,
+	importExtension = '.js',
 }: {
 	package: PackageConfig;
 	prune: boolean;
 	outputDir: string;
 	privateMethods: 'none' | 'entry' | 'all';
+	importExtension?: ImportExtension;
 }) {
 	if (!pkg.path) {
 		throw new Error(`Package path is required (got ${pkg.package})`);
@@ -94,6 +96,7 @@ export async function generateFromPackageSummary({
 								join(summaryDir, pkgDir, mod),
 								addressMappings,
 								isMainPackage(pkgDir) ? mvrNameOrAddress : undefined,
+								importExtension,
 							),
 						})),
 				);
