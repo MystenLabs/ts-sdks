@@ -22,6 +22,9 @@ export const localPackageSchema = z.object({
 
 export const packageConfigSchema = z.union([onChainPackageSchema, localPackageSchema]);
 
+export const importExtensionSchema = z.union([z.literal('.js'), z.literal('.ts'), z.literal('')]);
+export type ImportExtension = z.infer<typeof importExtensionSchema>;
+
 export const configSchema = z.object({
 	output: z.string(),
 	prune: z.boolean().optional().default(true),
@@ -31,6 +34,7 @@ export const configSchema = z.object({
 		.union([z.literal('none'), z.literal('entry'), z.literal('all')])
 		.optional()
 		.default('entry'),
+	importExtension: importExtensionSchema.optional().default('.js'),
 });
 
 export type PackageConfig = z.infer<typeof packageConfigSchema>;
@@ -47,6 +51,7 @@ export async function loadConfig(): Promise<ParsedSuiCodegenConfig> {
 			prune: true,
 			generateSummaries: true,
 			privateMethods: 'entry',
+			importExtension: '.js',
 		};
 	}
 
