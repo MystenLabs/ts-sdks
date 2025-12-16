@@ -5,6 +5,16 @@ import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
 import { cosmiconfig } from 'cosmiconfig';
 import * as z from 'zod/v4';
 
+export const moduleIncludeSchema = z.object({
+	types: z.array(z.string()).optional(),
+	functions: z.array(z.string()).optional(),
+});
+
+export const packageIncludeSchema = z.union([
+	z.array(z.string()),
+	z.record(z.string(), moduleIncludeSchema),
+]);
+
 export const onChainPackageSchema = z.object({
 	package: z.string().refine((name) => isValidNamedPackage(name) || isValidSuiObjectId(name), {
 		message: 'Invalid package name or package ID',
@@ -12,15 +22,20 @@ export const onChainPackageSchema = z.object({
 	packageName: z.string(),
 	path: z.never().optional(),
 	network: z.enum(['mainnet', 'testnet']),
+	include: packageIncludeSchema.optional(),
 });
 
 export const localPackageSchema = z.object({
 	path: z.string(),
 	package: z.string(),
 	packageName: z.string().optional(),
+	include: packageIncludeSchema.optional(),
 });
 
 export const packageConfigSchema = z.union([onChainPackageSchema, localPackageSchema]);
+
+export type ModuleInclude = z.infer<typeof moduleIncludeSchema>;
+export type PackageInclude = z.infer<typeof packageIncludeSchema>;
 
 export const importExtensionSchema = z.union([z.literal('.js'), z.literal('.ts'), z.literal('')]);
 export type ImportExtension = z.infer<typeof importExtensionSchema>;

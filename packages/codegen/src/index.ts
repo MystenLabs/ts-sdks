@@ -7,7 +7,7 @@ import { MoveModuleBuilder } from './move-module-builder.js';
 import { existsSync, statSync } from 'node:fs';
 import { utilsContent } from './generate-utils.js';
 import { parse } from 'toml';
-import type { ImportExtension, PackageConfig } from './config.js';
+import type { ImportExtension, PackageConfig, PackageInclude } from './config.js';
 export { type SuiCodegenConfig } from './config.js';
 
 export async function generateFromPackageSummary({
@@ -108,11 +108,43 @@ export async function generateFromPackageSummary({
 		modules.map((mod) => [`${mod.package}::${mod.module}`, mod.builder]),
 	);
 
+	const include: PackageInclude | undefined = 'include' in pkg ? pkg.include : undefined;
+
 	modules.forEach((mod) => {
-		if (mod.isMainPackage || !prune) {
+		if (!mod.isMainPackage && prune) {
+			return;
+		}
+
+		// If include is an array, it specifies which modules to include
+		if (Array.isArray(include)) {
+			if (!include.includes(mod.module)) {
+				return;
+			}
 			mod.builder.includeAllTypes(moduleBuilders);
 			mod.builder.includeAllFunctions({ privateMethods });
+			return;
 		}
+
+		// If include is a record, it specifies types/functions per module
+		if (include && mod.module in include) {
+			const moduleInclude = include[mod.module];
+			if (moduleInclude.types) {
+				mod.builder.includeTypes(moduleInclude.types, moduleBuilders);
+			}
+			if (moduleInclude.functions) {
+				mod.builder.includeFunctions({ names: moduleInclude.functions, privateMethods });
+			}
+			return;
+		}
+
+		// If include is specified but this module isn't in it, skip
+		if (include) {
+			return;
+		}
+
+		// Default: include everything
+		mod.builder.includeAllTypes(moduleBuilders);
+		mod.builder.includeAllFunctions({ privateMethods });
 	});
 
 	await generateUtils({ outputDir });
