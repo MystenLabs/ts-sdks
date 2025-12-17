@@ -56,6 +56,7 @@ export class DeepBookConfig {
 	DEEP_TREASURY_ID: string;
 	MARGIN_PACKAGE_ID: string;
 	MARGIN_REGISTRY_ID: string;
+	LIQUIDATION_PACKAGE_ID: string;
 	adminCap?: string;
 	marginAdminCap?: string;
 	marginMaintainerCap?: string;
@@ -102,6 +103,7 @@ export class DeepBookConfig {
 			this.DEEP_TREASURY_ID = mainnetPackageIds.DEEP_TREASURY_ID;
 			this.MARGIN_PACKAGE_ID = mainnetPackageIds.MARGIN_PACKAGE_ID;
 			this.MARGIN_REGISTRY_ID = mainnetPackageIds.MARGIN_REGISTRY_ID;
+			this.LIQUIDATION_PACKAGE_ID = mainnetPackageIds.LIQUIDATION_PACKAGE_ID;
 			this.pyth = mainnetPythConfigs;
 		} else {
 			this.#coins = coins || testnetCoins;
@@ -112,6 +114,7 @@ export class DeepBookConfig {
 			this.DEEP_TREASURY_ID = testnetPackageIds.DEEP_TREASURY_ID;
 			this.MARGIN_PACKAGE_ID = testnetPackageIds.MARGIN_PACKAGE_ID;
 			this.MARGIN_REGISTRY_ID = testnetPackageIds.MARGIN_REGISTRY_ID;
+			this.LIQUIDATION_PACKAGE_ID = testnetPackageIds.LIQUIDATION_PACKAGE_ID;
 			this.pyth = testnetPythConfigs;
 		}
 
