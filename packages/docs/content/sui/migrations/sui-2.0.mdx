@@ -387,3 +387,67 @@ If you were using the plugin with `@mysten/mvr-static`:
 
 The client will now automatically resolve `.move` names in transactions using the configured
 overrides or by querying the MVR API if no override is provided.
+
+## Transaction Executors Now Accept Any Client
+
+The transaction executor classes now accept any client implementing the `ClientWithCoreApi`
+interface instead of requiring `SuiJsonRpcClient` specifically. This enables using executors with
+gRPC and GraphQL clients.
+
+**Affected classes:**
+
+- `CachingTransactionExecutor`
+- `SerialTransactionExecutor`
+- `ParallelTransactionExecutor`
+
+**Breaking changes:**
+
+- Constructor `client` parameter type changed from `SuiJsonRpcClient` to `ClientWithCoreApi`
+- Return type of `executeTransaction()` changed: `data` property renamed to `result` and uses core
+  API types (`SuiClientTypes.TransactionResult`)
+- The second parameter of `executeTransaction()` changed from JSON-RPC options to core API include
+  options
+
+**Migration:**
+
+Update executor usage to handle the new return type:
+
+```diff
+import { SerialTransactionExecutor } from '@mysten/sui/transactions';
+- import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
++ // Works with any client: SuiJsonRpcClient, SuiGrpcClient, or SuiGraphQLClient
+
+const executor = new SerialTransactionExecutor({
+-   client: jsonRpcClient,
++   client, // Any ClientWithCoreApi-compatible client
+    signer,
+});
+
+const result = await executor.executeTransaction(tx);
+
+// Accessing the digest (unchanged)
+console.log(result.digest);
+
+// Accessing the effects (unchanged - base64 encoded BCS)
+console.log(result.effects);
+
+// Accessing the full transaction result (changed)
+- console.log(result.data.effects?.status.status);
++ const tx = result.result.$kind === 'Transaction'
++   ? result.result.Transaction
++   : result.result.FailedTransaction;
++ console.log(tx.status.success);
+```
+
+If you need specific JSON-RPC response options, you can now use the `include` parameter:
+
+```diff
+- const result = await executor.executeTransaction(tx, {
+-   showEffects: true,
+-   showEvents: true,
+- });
++ const result = await executor.executeTransaction(tx, {
++   effects: true,
++   events: true,
++ });
+```
