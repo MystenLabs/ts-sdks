@@ -163,13 +163,16 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		};
 	}
 
-	async waitForTransaction<Include extends SuiClientTypes.TransactionInclude = object>({
-		signal,
-		timeout = 60 * 1000,
-		...input
-	}: SuiClientTypes.WaitForTransactionOptions<Include>): Promise<
-		SuiClientTypes.TransactionResult<Include>
-	> {
+	async waitForTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+		options: SuiClientTypes.WaitForTransactionOptions<Include>,
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
+		const { signal, timeout = 60 * 1000, include } = options;
+
+		const digest =
+			'result' in options && options.result
+				? (options.result.Transaction ?? options.result.FailedTransaction)!.digest
+				: options.digest;
+
 		const abortSignal = signal
 			? AbortSignal.any([AbortSignal.timeout(timeout), signal])
 			: AbortSignal.timeout(timeout);
@@ -186,7 +189,8 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 			abortSignal.throwIfAborted();
 			try {
 				return await this.getTransaction({
-					...input,
+					digest,
+					include,
 					signal: abortSignal,
 				});
 			} catch {

@@ -271,7 +271,7 @@ async function validateTransaction(client: ClientWithCoreApi, signer: Keypair, t
 		client,
 		transaction: tx,
 	});
-	await client.core.waitForTransaction({ digest: result.Transaction!.digest });
+	await client.core.waitForTransaction({ result });
 	expect(localDigest).toEqual(result.Transaction!.digest);
 	expect(result.Transaction?.effects?.status.success).toEqual(true);
 }

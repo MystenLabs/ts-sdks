@@ -122,9 +122,7 @@ export function WalletBalances({
 			}
 
 			// Wait for transaction to be processed
-			await suiClient.core.waitForTransaction({
-				digest,
-			});
+			await suiClient.core.waitForTransaction({ result });
 
 			onTransaction(digest);
 		} catch (error) {

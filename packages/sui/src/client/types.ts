@@ -298,10 +298,24 @@ export namespace SuiClientTypes {
 		include?: Include;
 	}
 
-	export interface WaitForTransactionOptions<
+	export type WaitForTransactionOptions<Include extends TransactionInclude = {}> =
+		| WaitForTransactionByDigest<Include>
+		| WaitForTransactionByResult<Include>;
+
+	export interface WaitForTransactionByDigest<
 		Include extends TransactionInclude = {},
 	> extends GetTransactionOptions<Include> {
 		timeout?: number;
+		result?: never;
+	}
+
+	export interface WaitForTransactionByResult<
+		Include extends TransactionInclude = {},
+	> extends CoreClientMethodOptions {
+		result: TransactionResult<any>;
+		include?: Include;
+		timeout?: number;
+		digest?: never;
 	}
 
 	export interface ExecuteTransactionOptions<
