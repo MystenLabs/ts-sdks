@@ -84,12 +84,11 @@
 
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import * as object from './object.js';
 const $moduleName = '0x2::kiosk';
 export const KioskOwnerCap = new MoveStruct({
 	name: `${$moduleName}::KioskOwnerCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		for: bcs.Address,
 	},
 });
