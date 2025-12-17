@@ -5,14 +5,13 @@
 	"description": "Walrus SDK",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
-	"type": "commonjs",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.js"
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
 		}
 	},
 	"sideEffects": false,
@@ -22,7 +21,7 @@
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "build-package",
+		"build": "rm -rf dist && tsc --noEmit && tsdown",
 		"test": "NODE_OPTIONS='--expose-gc' vitest run",
 		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
 		"prettier:check": "prettier -c --ignore-unknown .",
@@ -44,7 +43,6 @@
 	"homepage": "https://sdk.mystenlabs.com/walrus",
 	"devDependencies": {
 		"@hono/node-server": "^1.19.6",
-		"@mysten/build-scripts": "workspace:*",
 		"@mysten/codegen": "workspace:*",
 		"@mysten/dapp-kit-core": "workspace:*",
 		"@mysten/dapp-kit-react": "workspace:*",

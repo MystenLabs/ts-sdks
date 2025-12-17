@@ -3,9 +3,9 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { SuiObjectData } from '../../../../src/jsonRpc';
-import { Transaction } from '../../../../src/transactions';
-import { setup, TestToolbox } from '../../utils/setup';
+import { SuiObjectData } from '../../../../src/jsonRpc/index.js';
+import { Transaction } from '../../../../src/transactions/index.js';
+import { setup, TestToolbox } from '../../utils/setup.js';
 
 describe('Dynamic Fields Reading API', () => {
 	let toolbox: TestToolbox;

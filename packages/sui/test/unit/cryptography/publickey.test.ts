@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { toBase64 } from '@mysten/bcs';
-import { blake2b } from '@noble/hashes/blake2b';
-import { bytesToHex } from '@noble/hashes/utils';
+import { blake2b } from '@noble/hashes/blake2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
-import { bytesEqual, PublicKey } from '../../../src/cryptography/publickey';
-import { Ed25519Keypair, Ed25519PublicKey } from '../../../src/keypairs/ed25519';
-import { Secp256k1Keypair } from '../../../src/keypairs/secp256k1';
-import { Secp256r1Keypair } from '../../../src/keypairs/secp256r1';
+import { bytesEqual, PublicKey } from '../../../src/cryptography/publickey.js';
+import { Ed25519Keypair, Ed25519PublicKey } from '../../../src/keypairs/ed25519/index.js';
+import { Secp256k1Keypair } from '../../../src/keypairs/secp256k1/index.js';
+import { Secp256r1Keypair } from '../../../src/keypairs/secp256r1/index.js';
 import { normalizeSuiAddress, SUI_ADDRESS_LENGTH } from '../../../src/utils/sui-types.js';
 
 describe('Publickey', () => {

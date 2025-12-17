@@ -3,8 +3,8 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { Transaction } from '../../src/transactions';
-import { setup, TestToolbox } from './utils/setup';
+import { Transaction } from '../../src/transactions/index.js';
+import { setup, TestToolbox } from './utils/setup.js';
 
 describe('Test ID as args to entry functions', () => {
 	let toolbox: TestToolbox;

@@ -3,8 +3,8 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { SuiGasData } from '../../../../src/jsonRpc';
-import { setup, TestToolbox } from '../../utils/setup';
+import { SuiGasData } from '../../../../src/jsonRpc/index.js';
+import { setup, TestToolbox } from '../../utils/setup.js';
 
 describe('Invoke any RPC endpoint', () => {
 	let toolbox: TestToolbox;

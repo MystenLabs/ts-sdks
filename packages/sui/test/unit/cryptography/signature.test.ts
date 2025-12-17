@@ -4,17 +4,17 @@
 import { fromBase64, toBase64 } from '@mysten/bcs';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { bcs } from '../../../src/bcs';
-import { PublicKey } from '../../../src/cryptography/publickey';
+import { bcs } from '../../../src/bcs/index.js';
+import { PublicKey } from '../../../src/cryptography/publickey.js';
 import {
 	parseSerializedSignature,
 	SerializeSignatureInput,
 	toSerializedSignature,
-} from '../../../src/cryptography/signature';
-import { Ed25519Keypair, Ed25519PublicKey } from '../../../src/keypairs/ed25519';
-import { Secp256k1Keypair } from '../../../src/keypairs/secp256k1';
-import { Secp256r1Keypair } from '../../../src/keypairs/secp256r1';
-import { MultiSigPublicKey, parsePartialSignatures } from '../../../src/multisig';
+} from '../../../src/cryptography/signature.js';
+import { Ed25519Keypair, Ed25519PublicKey } from '../../../src/keypairs/ed25519/index.js';
+import { Secp256k1Keypair } from '../../../src/keypairs/secp256k1/index.js';
+import { Secp256r1Keypair } from '../../../src/keypairs/secp256r1/index.js';
+import { MultiSigPublicKey, parsePartialSignatures } from '../../../src/multisig/index.js';
 
 describe('Signature', () => {
 	let k1: Ed25519Keypair,

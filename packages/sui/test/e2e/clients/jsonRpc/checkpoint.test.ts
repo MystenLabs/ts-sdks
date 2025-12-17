@@ -3,7 +3,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { setup, TestToolbox } from '../../utils/setup';
+import { setup, TestToolbox } from '../../utils/setup.js';
 
 describe('Checkpoints Reading API', () => {
 	let toolbox: TestToolbox;

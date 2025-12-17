@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { combine, GF256, interpolate, Polynomial, split } from '../../src/shamir';
+import { combine, GF256, interpolate, Polynomial, split } from '../../src/shamir.js';
 import { fromHex } from '@mysten/bcs';
 
 const DEFAULT_SECRET = new Uint8Array([

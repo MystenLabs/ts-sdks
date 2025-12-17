@@ -1,11 +1,10 @@
 {
-	"extends": "../tsconfig.esm.json",
+	"extends": "../tsconfig.json",
 	"include": ["./**/*", "../src"],
 	"compilerOptions": {
 		"target": "es2024",
 		"rootDir": "..",
 		"noEmit": true,
-		"moduleResolution": "Node",
 		"emitDeclarationOnly": false,
 		"resolveJsonModule": true
 	}

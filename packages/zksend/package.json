@@ -4,29 +4,23 @@
 	"description": "TODO: Write Description",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
-	"type": "commonjs",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.js"
-		},
-		"./experimental/unified-adapter": {
-			"import": "./dist/esm/experimental/index.js",
-			"require": "./dist/cjs/experimental/index.js"
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
 		}
 	},
 	"sideEffects": false,
 	"files": [
 		"CHANGELOG.md",
-		"dist",
-		"experimental"
+		"dist"
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "build-package",
+		"build": "rm -rf dist && tsc --noEmit && tsdown",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"oxlint:check": "oxlint  .",
@@ -43,7 +37,6 @@
 	},
 	"homepage": "https://sdk.mystenlabs.com/zksend",
 	"devDependencies": {
-		"@mysten/build-scripts": "workspace:*",
 		"@types/node": "^24.10.1",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.15"
