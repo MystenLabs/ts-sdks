@@ -10,9 +10,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 import { MessageType } from '@protobuf-ts/runtime';
-import { JwkId } from './jwk';
-import { SignatureScheme } from './signature_scheme';
-import { Bcs } from './bcs';
+import { JwkId } from './jwk.js';
+import { SignatureScheme } from './signature_scheme.js';
+import { Bcs } from './bcs.js';
 /**
  * A signature from a user.
  *

@@ -3,10 +3,10 @@
 
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
-import { analyze } from '../../src/transaction-analyzer/analyzer';
-import { commands } from '../../src/transaction-analyzer/rules/commands';
-import { MockSuiClient } from '../mocks/MockSuiClient';
-import { DEFAULT_SENDER, TEST_COIN_1_ID, TEST_COIN_2_ID } from '../mocks/mockData';
+import { analyze } from '../../src/transaction-analyzer/analyzer.js';
+import { commands } from '../../src/transaction-analyzer/rules/commands.js';
+import { MockSuiClient } from '../mocks/MockSuiClient.js';
+import { DEFAULT_SENDER, TEST_COIN_1_ID, TEST_COIN_2_ID } from '../mocks/mockData.js';
 
 describe('TransactionAnalyzer - Commands Rule', () => {
 	it('should analyze all types of commands in a single transaction', async () => {

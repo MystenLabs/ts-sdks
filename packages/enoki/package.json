@@ -4,18 +4,17 @@
 	"description": "TODO: Description",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
-	"type": "commonjs",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.js"
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
 		},
 		"./react": {
-			"import": "./dist/esm/react.js",
-			"require": "./dist/cjs/react.js"
+			"types": "./dist/react.d.mts",
+			"import": "./dist/react.mjs"
 		}
 	},
 	"files": [
@@ -25,7 +24,7 @@
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "build-package",
+		"build": "rm -rf dist && tsc --noEmit && tsdown",
 		"demo": "vite ./demo",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
@@ -43,7 +42,6 @@
 	},
 	"homepage": "https://docs.enoki.mystenlabs.com",
 	"devDependencies": {
-		"@mysten/build-scripts": "workspace:*",
 		"@mysten/dapp-kit-react": "workspace:*",
 		"@types/node": "^24.10.1",
 		"@types/react": "^19.2.7",
@@ -57,11 +55,11 @@
 	"dependencies": {
 		"@mysten/signers": "workspace:*",
 		"@mysten/sui": "workspace:*",
+		"@mysten/utils": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
 		"@nanostores/react": "^1.0.0",
 		"@wallet-standard/ui": "^1.0.1",
 		"idb-keyval": "^6.2.2",
-		"mitt": "^3.0.1",
 		"nanostores": "^1.1.0"
 	},
 	"peerDependencies": {

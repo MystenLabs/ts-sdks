@@ -4,11 +4,11 @@
 import { DeviceModelId } from '@ledgerhq/devices';
 import { LatestFirmwareVersionRequired, UpdateYourApp } from '@ledgerhq/errors';
 import { loadPKI } from '@ledgerhq/hw-bolos';
-import type Transport from '@ledgerhq/hw-transport';
-import { TransportStatusError } from '@ledgerhq/hw-transport';
+import Transport, { TransportStatusError } from '@ledgerhq/hw-transport';
 import calService from '@ledgerhq/ledger-cal-service';
 import sha256 from 'fast-sha256';
 import semver from 'semver';
+
 import type { DescriptorInput } from './descriptor.js';
 import { buildDescriptor } from './descriptor.js';
 

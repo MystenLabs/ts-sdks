@@ -12,13 +12,18 @@
 		"dist",
 		"src"
 	],
-	"type": "commonjs",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
+		}
+	},
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "tsc --build",
+		"build": "rm -rf dist && tsc --noEmit && tsdown",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"oxlint:check": "oxlint  .",
@@ -38,7 +43,6 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"@mysten/build-scripts": "workspace:*",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.15"
 	},

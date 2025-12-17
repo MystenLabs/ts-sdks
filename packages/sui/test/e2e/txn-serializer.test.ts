@@ -4,10 +4,10 @@
 import { bcs } from '@mysten/bcs';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { Transaction } from '../../src/transactions';
-import { TransactionDataBuilder } from '../../src/transactions/TransactionData';
-import { SUI_SYSTEM_STATE_OBJECT_ID } from '../../src/utils';
-import { setup, TestToolbox } from './utils/setup';
+import { Transaction } from '../../src/transactions/index.js';
+import { TransactionDataBuilder } from '../../src/transactions/TransactionData.js';
+import { SUI_SYSTEM_STATE_OBJECT_ID } from '../../src/utils/index.js';
+import { setup, TestToolbox } from './utils/setup.js';
 
 let toolbox: TestToolbox;
 let packageId: string;

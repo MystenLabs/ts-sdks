@@ -24,11 +24,13 @@ import {
 import { bcs } from './bcs.js';
 import { BcsReader } from './reader.js';
 import type {
+	Encoding,
 	EnumInputShape,
 	EnumOutputShape,
 	EnumOutputShapeWithKeys,
 	InferBcsInput,
 	InferBcsType,
+	JoinString,
 } from './types.js';
 import { decodeStr, encodeStr, splitGenericParameters } from './utils.js';
 import type { BcsWriterOptions } from './writer.js';
@@ -61,4 +63,6 @@ export {
 	type EnumOutputShape,
 	type EnumInputShape,
 	type EnumOutputShapeWithKeys,
+	type Encoding,
+	type JoinString,
 };

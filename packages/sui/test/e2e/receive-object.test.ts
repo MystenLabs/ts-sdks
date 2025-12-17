@@ -3,10 +3,10 @@
 
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import type { Keypair } from '../../src/cryptography';
-import { Transaction } from '../../src/transactions';
-import { setup, TestToolbox } from './utils/setup';
-import { ClientWithCoreApi, SuiClientTypes } from '../../src/client';
+import type { Keypair } from '../../src/cryptography/index.js';
+import { Transaction } from '../../src/transactions/index.js';
+import { setup, TestToolbox } from './utils/setup.js';
+import { ClientWithCoreApi, SuiClientTypes } from '../../src/client/index.js';
 
 function getOwnerAddress(o: SuiClientTypes.ChangedObject): string | undefined {
 	return (

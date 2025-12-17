@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
-import { Transaction } from '../../../src/transactions';
+import { Transaction } from '../../../src/transactions/index.js';
 
 describe('System objects with mutable parameter', () => {
 	it('system object without options returns UnresolvedObject', () => {

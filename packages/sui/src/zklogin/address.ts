@@ -1,8 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { blake2b } from '@noble/hashes/blake2b';
-import { bytesToHex } from '@noble/hashes/utils';
+import { blake2b } from '@noble/hashes/blake2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 
 import { SIGNATURE_SCHEME_TO_FLAG } from '../cryptography/signature-scheme.js';
 import { normalizeSuiAddress, SUI_ADDRESS_LENGTH } from '../utils/index.js';

@@ -34,6 +34,7 @@
 		]
 	},
 	"devDependencies": {
+		"@arethetypeswrong/cli": "^0.18.1",
 		"@changesets/cli": "^2.29.8",
 		"@ianvs/prettier-plugin-sort-imports": "^4.7.0",
 		"@manypkg/cli": "^0.25.1",
@@ -45,6 +46,7 @@
 		"prettier": "^3.7.3",
 		"prettier-plugin-tailwindcss": "^0.7.2",
 		"testcontainers": "^11.9.0",
+		"tsdown": "^0.18.0",
 		"tsx": "^4.21.0",
 		"turbo": "^2.6.1",
 		"typescript": "^5.9.3"

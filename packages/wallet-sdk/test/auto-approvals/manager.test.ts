@@ -10,7 +10,7 @@ import {
 	AutoApprovalManager,
 	AutoApprovalPolicy,
 	operationType,
-} from '../../src';
+} from '../../src/index.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { MIST_PER_SUI } from '@mysten/sui/utils';
 

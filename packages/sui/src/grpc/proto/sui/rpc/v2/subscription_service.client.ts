@@ -11,10 +11,10 @@
 //
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import type { ServiceInfo } from '@protobuf-ts/runtime-rpc';
-import { SubscriptionService } from './subscription_service';
+import { SubscriptionService } from './subscription_service.js';
 import { stackIntercept } from '@protobuf-ts/runtime-rpc';
-import type { SubscribeCheckpointsResponse } from './subscription_service';
-import type { SubscribeCheckpointsRequest } from './subscription_service';
+import type { SubscribeCheckpointsResponse } from './subscription_service.js';
+import type { SubscribeCheckpointsRequest } from './subscription_service.js';
 import type { ServerStreamingCall } from '@protobuf-ts/runtime-rpc';
 import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
 /**
