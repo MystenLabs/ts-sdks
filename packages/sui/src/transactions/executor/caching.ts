@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '../../bcs/index.js';
-import type { ExecuteTransactionBlockParams, SuiJsonRpcClient } from '../../jsonRpc/index.js';
+import type { ClientWithCoreApi } from '../../client/core.js';
+import { coreClientResolveTransactionPlugin } from '../../client/core-resolver.js';
+import type { SuiClientTypes } from '../../client/types.js';
 import type { Signer } from '../../cryptography/keypair.js';
 import type { BuildTransactionOptions } from '../resolve.js';
 import type { ObjectCacheOptions } from '../ObjectCache.js';
@@ -10,8 +12,14 @@ import { ObjectCache } from '../ObjectCache.js';
 import type { Transaction } from '../Transaction.js';
 import { isTransaction } from '../Transaction.js';
 
+export interface ExecuteTransactionOptions<Include extends SuiClientTypes.TransactionInclude = {}> {
+	transaction: Transaction | Uint8Array;
+	signatures: string[];
+	include?: Include;
+}
+
 export class CachingTransactionExecutor {
-	#client: SuiJsonRpcClient;
+	#client: ClientWithCoreApi;
 	#lastDigest: string | null = null;
 	cache: ObjectCache;
 
@@ -19,7 +27,7 @@ export class CachingTransactionExecutor {
 		client,
 		...options
 	}: ObjectCacheOptions & {
-		client: SuiJsonRpcClient;
+		client: ClientWithCoreApi;
 	}) {
 		this.#client = client;
 		this.cache = new ObjectCache(options);
@@ -42,59 +50,59 @@ export class CachingTransactionExecutor {
 		...options
 	}: { transaction: Transaction } & BuildTransactionOptions) {
 		transaction.addBuildPlugin(this.cache.asPlugin());
+		transaction.addBuildPlugin(coreClientResolveTransactionPlugin);
 		return transaction.build({
 			client: this.#client,
 			...options,
 		});
 	}
 
-	async executeTransaction({
+	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>({
 		transaction,
-		options,
-		...input
-	}: {
-		transaction: Transaction | Uint8Array;
-	} & Omit<ExecuteTransactionBlockParams, 'transactionBlock'>) {
+		signatures,
+		include,
+	}: ExecuteTransactionOptions<Include>): Promise<
+		SuiClientTypes.TransactionResult<Include & { effects: true }>
+	> {
 		const bytes = isTransaction(transaction)
 			? await this.buildTransaction({ transaction })
 			: transaction;
 
-		const results = await this.#client.executeTransactionBlock({
-			...input,
-			transactionBlock: bytes,
-			options: {
-				...options,
-				showRawEffects: true,
+		const results = await this.#client.core.executeTransaction({
+			transaction: bytes,
+			signatures,
+			include: {
+				...include,
+				effects: true,
 			},
 		});
 
-		if (results.rawEffects) {
-			const effects = bcs.TransactionEffects.parse(Uint8Array.from(results.rawEffects));
+		const tx = results.$kind === 'Transaction' ? results.Transaction : results.FailedTransaction;
+		if (tx.effects?.bcs) {
+			const effects = bcs.TransactionEffects.parse(tx.effects.bcs);
 			await this.applyEffects(effects);
 		}
 
-		return results;
+		return results as SuiClientTypes.TransactionResult<Include & { effects: true }>;
 	}
 
-	async signAndExecuteTransaction({
-		options,
+	async signAndExecuteTransaction<Include extends SuiClientTypes.TransactionInclude = {}>({
+		include,
 		transaction,
-		...input
+		signer,
 	}: {
 		transaction: Transaction;
-
 		signer: Signer;
-	} & Omit<ExecuteTransactionBlockParams, 'transactionBlock' | 'signature'>) {
-		transaction.setSenderIfNotSet(input.signer.toSuiAddress());
+		include?: Include;
+	}): Promise<SuiClientTypes.TransactionResult<Include & { effects: true }>> {
+		transaction.setSenderIfNotSet(signer.toSuiAddress());
 		const bytes = await this.buildTransaction({ transaction });
-		const { signature } = await input.signer.signTransaction(bytes);
-		const results = await this.executeTransaction({
+		const { signature } = await signer.signTransaction(bytes);
+		return this.executeTransaction({
 			transaction: bytes,
-			signature,
-			options,
+			signatures: [signature],
+			include,
 		});
-
-		return results;
 	}
 
 	async applyEffects(effects: typeof bcs.TransactionEffects.$inferType) {
@@ -104,7 +112,7 @@ export class CachingTransactionExecutor {
 
 	async waitForLastTransaction() {
 		if (this.#lastDigest) {
-			await this.#client.waitForTransaction({ digest: this.#lastDigest });
+			await this.#client.core.waitForTransaction({ digest: this.#lastDigest });
 			this.#lastDigest = null;
 		}
 	}

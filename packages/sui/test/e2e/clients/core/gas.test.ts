@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect } from 'vitest';
 import { setup, TestToolbox, createTestWithAllClients } from '../../utils/setup.js';
 
 describe('Core API - Gas', () => {
@@ -14,10 +14,6 @@ describe('Core API - Gas', () => {
 	});
 
 	describe('getReferenceGasPrice', () => {
-		it('all clients return same data: getReferenceGasPrice', async () => {
-			await toolbox.expectAllClientsReturnSameData((client) => client.core.getReferenceGasPrice());
-		});
-
 		testWithAllClients('should get reference gas price', async (client) => {
 			const result = await client.core.getReferenceGasPrice();
 

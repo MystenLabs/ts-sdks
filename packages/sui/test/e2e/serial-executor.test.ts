@@ -3,7 +3,6 @@
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { bcs } from '../../src/bcs/index.js';
 import { Ed25519Keypair } from '../../src/keypairs/ed25519/index.js';
 import { SerialTransactionExecutor, Transaction } from '../../src/transactions/index.js';
 import { setup, TestToolbox } from './utils/setup.js';
@@ -13,12 +12,12 @@ let executor: SerialTransactionExecutor;
 beforeAll(async () => {
 	toolbox = await setup();
 	executor = new SerialTransactionExecutor({
-		client: toolbox.jsonRpcClient,
+		client: toolbox.grpcClient,
 		signer: toolbox.keypair,
 	});
 
-	vi.spyOn(toolbox.jsonRpcClient, 'multiGetObjects');
-	vi.spyOn(toolbox.jsonRpcClient, 'getCoins');
+	vi.spyOn(toolbox.grpcClient.core, 'getObjects');
+	vi.spyOn(toolbox.grpcClient.core, 'listCoins');
 });
 
 afterEach(async () => {
@@ -29,7 +28,7 @@ afterAll(() => {
 	vi.restoreAllMocks();
 });
 
-describe('SerialExecutor', { retry: 3 }, () => {
+describe('SerialExecutor', () => {
 	beforeEach(async () => {
 		vi.clearAllMocks();
 		await executor.resetCache();
@@ -39,18 +38,16 @@ describe('SerialExecutor', { retry: 3 }, () => {
 		const txb = new Transaction();
 		const [coin] = txb.splitCoins(txb.gas, [1]);
 		txb.transferObjects([coin], toolbox.address());
-		expect(toolbox.jsonRpcClient.getCoins).toHaveBeenCalledTimes(0);
+		expect(toolbox.grpcClient.core.listCoins).toHaveBeenCalledTimes(0);
 
 		const result = await executor.executeTransaction(txb);
+		const effects = (result.Transaction ?? result.FailedTransaction).effects!;
 
-		const effects = bcs.TransactionEffects.fromBase64(result.effects);
+		const newCoinId = effects.changedObjects.find(
+			(obj) => obj.objectId !== effects.gasObject?.objectId && obj.outputState === 'ObjectWrite',
+		)?.objectId!;
 
-		const newCoinId = effects.V2?.changedObjects.find(
-			([_id, { outputState }], index) =>
-				index !== effects.V2.gasObjectIndex && outputState.ObjectWrite,
-		)?.[0]!;
-
-		expect(toolbox.jsonRpcClient.getCoins).toHaveBeenCalledTimes(1);
+		expect(toolbox.grpcClient.core.listCoins).toHaveBeenCalledTimes(1);
 
 		const txb2 = new Transaction();
 		txb2.transferObjects([newCoinId], toolbox.address());
@@ -65,10 +62,12 @@ describe('SerialExecutor', { retry: 3 }, () => {
 			executor.executeTransaction(txb4),
 		]);
 
-		expect(results[0].digest).not.toEqual(results[1].digest);
-		expect(results[1].digest).not.toEqual(results[2].digest);
-		expect(toolbox.jsonRpcClient.multiGetObjects).toHaveBeenCalledTimes(0);
-		expect(toolbox.jsonRpcClient.getCoins).toHaveBeenCalledTimes(1);
+		const digests = results.map((r) => (r.Transaction ?? r.FailedTransaction).digest);
+
+		expect(digests[0]).not.toEqual(digests[1]);
+		expect(digests[1]).not.toEqual(digests[2]);
+		expect(toolbox.grpcClient.core.getObjects).toHaveBeenCalledTimes(0);
+		expect(toolbox.grpcClient.core.listCoins).toHaveBeenCalledTimes(1);
 	});
 
 	it('Resets cache on errors', async () => {
@@ -77,34 +76,36 @@ describe('SerialExecutor', { retry: 3 }, () => {
 		txb.transferObjects([coin], toolbox.address());
 
 		const result = await executor.executeTransaction(txb);
-		const effects = bcs.TransactionEffects.fromBase64(result.effects);
+		const resultTx = result.Transaction ?? result.FailedTransaction;
+		const effects = resultTx.effects!;
 
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
+		await toolbox.grpcClient.core.waitForTransaction({ digest: resultTx.digest });
 
-		const newCoinId = effects.V2?.changedObjects.find(
-			([_id, { outputState }], index) =>
-				index !== effects.V2.gasObjectIndex && outputState.ObjectWrite,
-		)?.[0]!;
+		const newCoinId = effects.changedObjects.find(
+			(obj) => obj.objectId !== effects.gasObject?.objectId && obj.outputState === 'ObjectWrite',
+		)?.objectId!;
 
-		expect(toolbox.jsonRpcClient.getCoins).toHaveBeenCalledTimes(1);
+		expect(toolbox.grpcClient.core.listCoins).toHaveBeenCalledTimes(1);
 
 		const txb2 = new Transaction();
 		txb2.transferObjects([newCoinId], toolbox.address());
 		const txb3 = new Transaction();
 		txb3.transferObjects([newCoinId], new Ed25519Keypair().toSuiAddress());
 
-		const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const txb2Result = await toolbox.grpcClient.signAndExecuteTransaction({
 			signer: toolbox.keypair,
 			transaction: txb2,
 		});
+		const txb2Tx = txb2Result.Transaction ?? txb2Result.FailedTransaction;
 
 		await expect(() => executor.executeTransaction(txb3)).rejects.toThrowError();
-		await toolbox.jsonRpcClient.waitForTransaction({ digest });
+		await toolbox.grpcClient.core.waitForTransaction({ digest: txb2Tx.digest });
 
-		// // Transaction should succeed after cache reset/error
+		// Transaction should succeed after cache reset/error
 		const result2 = await executor.executeTransaction(txb3);
+		const result2Tx = result2.Transaction ?? result2.FailedTransaction;
 
-		expect(result2.digest).not.toEqual(result.digest);
-		expect(bcs.TransactionEffects.fromBase64(result2.effects).V2?.status.Success).toEqual(true);
+		expect(result2Tx.digest).not.toEqual(resultTx.digest);
+		expect(result2Tx.status.success).toEqual(true);
 	});
 });

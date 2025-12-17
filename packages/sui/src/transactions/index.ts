@@ -29,8 +29,6 @@ export type {
 	GasData,
 	CallArg,
 	Command,
-	OpenMoveTypeSignature,
-	OpenMoveTypeSignatureBody,
 } from './data/internal.js';
 
 export { TransactionDataBuilder } from './TransactionData.js';

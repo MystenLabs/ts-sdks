@@ -4520,6 +4520,11 @@ export type GetCoinsQuery = { __typename?: 'Query', address: { __typename?: 'Add
           | { __typename: 'Shared', initialSharedVersion?: number | null }
          | null, contents?: { __typename?: 'MoveValue', json?: unknown | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } };
 
+export type GetCurrentSystemStateQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetCurrentSystemStateQuery = { __typename?: 'Query', epoch?: { __typename?: 'Epoch', epochId: number, referenceGasPrice?: string | null, startTimestamp?: string | null, systemStateVersion?: number | null, protocolConfigs?: { __typename?: 'ProtocolConfigs', protocolVersion: number } | null, systemParameters?: { __typename?: 'SystemParameters', durationMs?: string | null, stakeSubsidyStartEpoch?: number | null, maxValidatorCount?: number | null, minValidatorJoiningStake?: string | null, validatorLowStakeThreshold?: string | null, validatorLowStakeGracePeriod?: string | null } | null, safeMode?: { __typename?: 'SafeMode', enabled?: boolean | null, gasSummary?: { __typename?: 'GasCostSummary', computationCost?: number | null, storageCost?: number | null, storageRebate?: number | null, nonRefundableStorageFee?: number | null } | null } | null, storageFund?: { __typename?: 'StorageFund', totalObjectStorageRebates?: string | null, nonRefundableBalance?: string | null } | null, systemStakeSubsidy?: { __typename?: 'StakeSubsidy', balance?: string | null, distributionCounter?: number | null, currentDistributionAmount?: string | null, periodLength?: number | null, decreaseRate?: number | null } | null } | null };
+
 export type GetDynamicFieldsQueryVariables = Exact<{
   parentId: Scalars['SuiAddress']['input'];
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -5001,6 +5006,47 @@ export const GetCoinsDocument = new TypedDocumentString(`
     }
   }
 }`) as unknown as TypedDocumentString<GetCoinsQuery, GetCoinsQueryVariables>;
+export const GetCurrentSystemStateDocument = new TypedDocumentString(`
+    query getCurrentSystemState {
+  epoch {
+    epochId
+    referenceGasPrice
+    startTimestamp
+    systemStateVersion
+    protocolConfigs {
+      protocolVersion
+    }
+    systemParameters {
+      durationMs
+      stakeSubsidyStartEpoch
+      maxValidatorCount
+      minValidatorJoiningStake
+      validatorLowStakeThreshold
+      validatorLowStakeGracePeriod
+    }
+    safeMode {
+      enabled
+      gasSummary {
+        computationCost
+        storageCost
+        storageRebate
+        nonRefundableStorageFee
+      }
+    }
+    storageFund {
+      totalObjectStorageRebates
+      nonRefundableBalance
+    }
+    systemStakeSubsidy {
+      balance
+      distributionCounter
+      currentDistributionAmount
+      periodLength
+      decreaseRate
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<GetCurrentSystemStateQuery, GetCurrentSystemStateQueryVariables>;
 export const GetDynamicFieldsDocument = new TypedDocumentString(`
     query getDynamicFields($parentId: SuiAddress!, $first: Int, $cursor: String) {
   address(address: $parentId) {
