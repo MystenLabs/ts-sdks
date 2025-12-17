@@ -821,12 +821,9 @@ importers:
       '@mysten/build-scripts':
         specifier: workspace:*
         version: link:../build-scripts
-      '@mysten/dapp-kit':
+      '@mysten/dapp-kit-react':
         specifier: workspace:*
-        version: link:../dapp-kit
-      '@tanstack/react-query':
-        specifier: ^5.90.11
-        version: 5.90.11(react@19.2.1)
+        version: link:../dapp-kit-next/packages/dapp-kit-react
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
