@@ -44,8 +44,7 @@
 	"homepage": "https://docs.enoki.mystenlabs.com",
 	"devDependencies": {
 		"@mysten/build-scripts": "workspace:*",
-		"@mysten/dapp-kit": "workspace:*",
-		"@tanstack/react-query": "^5.90.11",
+		"@mysten/dapp-kit-react": "workspace:*",
 		"@types/node": "^24.10.1",
 		"@types/react": "^19.2.7",
 		"@types/react-dom": "^19.2.3",

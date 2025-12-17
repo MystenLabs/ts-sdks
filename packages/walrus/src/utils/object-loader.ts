@@ -4,7 +4,6 @@
 import type { BcsType } from '@mysten/bcs';
 import { pureBcsSchemaFromTypeName } from '@mysten/sui/bcs';
 import type { PureTypeName, ShapeFromPureTypeName } from '@mysten/sui/bcs';
-import type { SuiObjectData } from '@mysten/sui/jsonRpc';
 import type { BaseClient, SuiClientTypes } from '@mysten/sui/client';
 import { deriveDynamicFieldID } from '@mysten/sui/utils';
 import DataLoader from 'dataloader';
@@ -26,7 +25,7 @@ export class SuiObjectDataLoader extends DataLoader<
 		});
 	}
 
-	override async load<T = SuiObjectData>(id: string, schema?: BcsType<T, any>): Promise<T> {
+	override async load<T = SuiClientTypes.Object<{ content: true }>>(id: string, schema?: BcsType<T, any>): Promise<T> {
 		const data = await super.load(id);
 
 		if (schema) {
@@ -36,7 +35,7 @@ export class SuiObjectDataLoader extends DataLoader<
 		return data as T;
 	}
 
-	override async loadMany<T = SuiObjectData>(
+	override async loadMany<T = SuiClientTypes.Object<{ content: true }>>(
 		ids: string[],
 		schema?: BcsType<T, any>,
 	): Promise<(T | Error)[]> {
