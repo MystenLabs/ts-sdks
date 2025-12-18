@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
 import { Account, Order, OrderDeepPrice, VecSet } from './types/bcs.js';
-import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import type { ClientWithCoreApi, SuiClientRegistration } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
@@ -32,13 +32,45 @@ import { MarginManagerContract } from './transactions/marginManager.js';
 import { MarginRegistryContract } from './transactions/marginRegistry.js';
 import { SuiPriceServiceConnection } from './pyth/pyth.js';
 import { SuiPythClient } from './pyth/pyth.js';
+import { PriceInfoObject } from './contracts/pyth/price_info.js';
 import { PoolProxyContract } from './transactions/poolProxy.js';
+
+export interface DeepBookCompatibleClient extends ClientWithCoreApi {}
+
+export interface DeepBookOptions<Name = 'deepbook'> {
+	address: string;
+	env: Environment;
+	balanceManagers?: { [key: string]: BalanceManager };
+	marginManagers?: { [key: string]: MarginManager };
+	coins?: CoinMap;
+	pools?: PoolMap;
+	adminCap?: string;
+	marginAdminCap?: string;
+	marginMaintainerCap?: string;
+	name?: Name;
+}
+
+export interface DeepBookClientOptions extends DeepBookOptions {
+	client: DeepBookCompatibleClient;
+}
+
+export function deepbook<Name extends string = 'deepbook'>({
+	name = 'deepbook' as Name,
+	...options
+}: DeepBookOptions<Name>): SuiClientRegistration<DeepBookCompatibleClient, Name, DeepBookClient> {
+	return {
+		name,
+		register: (client) => {
+			return new DeepBookClient({ client, ...options });
+		},
+	};
+}
 
 /**
  * DeepBookClient class for managing DeepBook operations.
  */
 export class DeepBookClient {
-	client: SuiJsonRpcClient;
+	#client: DeepBookCompatibleClient;
 	#config: DeepBookConfig;
 	#address: string;
 	balanceManager: BalanceManagerContract;
@@ -54,16 +86,7 @@ export class DeepBookClient {
 	poolProxy: PoolProxyContract;
 
 	/**
-	 * @param {SuiJsonRpcClient} client SuiJsonRpcClient instance
-	 * @param {string} address Address of the client
-	 * @param {Environment} env Environment configuration
-	 * @param {Object.<string, BalanceManager>} [balanceManagers] Optional initial BalanceManager map
-	 * @param {Object.<string, MarginManager>} [marginManagers] Optional initial MarginManager map
-	 * @param {CoinMap} [coins] Optional initial CoinMap
-	 * @param {PoolMap} [pools] Optional initial PoolMap
-	 * @param {string} [adminCap] Optional admin capability
-	 * @param {string} [marginAdminCap] Optional margin admin capability
-	 * @param {string} [marginMaintainerCap] Optional margin maintainer capability
+	 * Creates a new DeepBookClient instance
 	 */
 	constructor({
 		client,
@@ -76,19 +99,8 @@ export class DeepBookClient {
 		adminCap,
 		marginAdminCap,
 		marginMaintainerCap,
-	}: {
-		client: SuiJsonRpcClient;
-		address: string;
-		env: Environment;
-		balanceManagers?: { [key: string]: BalanceManager };
-		marginManagers?: { [key: string]: MarginManager };
-		coins?: CoinMap;
-		pools?: PoolMap;
-		adminCap?: string;
-		marginAdminCap?: string;
-		marginMaintainerCap?: string;
-	}) {
-		this.client = client;
+	}: DeepBookClientOptions) {
+		this.#client = client;
 		this.#address = normalizeSuiAddress(address);
 		this.#config = new DeepBookConfig({
 			address: this.#address,
@@ -125,13 +137,13 @@ export class DeepBookClient {
 		const coin = this.#config.getCoin(coinKey);
 
 		tx.add(this.balanceManager.checkManagerBalance(managerKey, coinKey));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: this.#address,
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const parsed_balance = bcs.U64.parse(new Uint8Array(bytes));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const parsed_balance = bcs.U64.parse(bytes);
 		const balanceNumber = Number(parsed_balance);
 		const adjusted_balance = balanceNumber / coin.scalar;
 
@@ -150,13 +162,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 
 		tx.add(this.deepBook.whitelisted(poolKey));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const whitelisted = bcs.Bool.parse(new Uint8Array(bytes));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const whitelisted = bcs.Bool.parse(bytes);
 
 		return whitelisted;
 	}
@@ -175,14 +187,14 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getQuoteQuantityOut(poolKey, baseQuantity));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const baseOut = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![0][0])));
-		const quoteOut = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![1][0])));
-		const deepRequired = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![2][0])));
+		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
+		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
+		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
 
 		return {
 			baseQuantity,
@@ -206,14 +218,14 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getBaseQuantityOut(poolKey, quoteQuantity));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const baseOut = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![0][0])));
-		const quoteOut = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![1][0])));
-		const deepRequired = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![2][0])));
+		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
+		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
+		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
 
 		return {
 			quoteQuantity: quoteQuantity,
@@ -238,14 +250,14 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getQuantityOut(poolKey, baseQuantity, quoteQuantity));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const baseOut = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![0][0])));
-		const quoteOut = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![1][0])));
-		const deepRequired = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![2][0])));
+		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
+		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
+		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
 
 		return {
 			baseQuantity,
@@ -266,12 +278,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 
 		tx.add(this.deepBook.accountOpenOrders(poolKey, managerKey));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const order_ids = res.results![0].returnValues![0][0];
+		const order_ids = res.commandResults![0].returnValues[0].bcs;
 
 		return VecSet(bcs.u128()).parse(new Uint8Array(order_ids)).contents;
 	}
@@ -286,13 +298,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 
 		tx.add(this.deepBook.getOrder(poolKey, orderId));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
 		try {
-			const orderInformation = res.results![0].returnValues![0][0];
+			const orderInformation = res.commandResults![0].returnValues[0].bcs;
 			return Order.parse(new Uint8Array(orderInformation));
 		} catch {
 			return null;
@@ -308,13 +320,13 @@ export class DeepBookClient {
 	async getOrderNormalized(poolKey: string, orderId: string) {
 		const tx = new Transaction();
 		tx.add(this.deepBook.getOrder(poolKey, orderId));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
 		try {
-			const orderInformation = res.results![0].returnValues![0][0];
+			const orderInformation = res.commandResults![0].returnValues[0].bcs;
 			const orderInfo = Order.parse(new Uint8Array(orderInformation));
 
 			if (!orderInfo) {
@@ -356,13 +368,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 
 		tx.add(this.deepBook.getOrders(poolKey, orderIds));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
 		try {
-			const orderInformation = res.results![0].returnValues![0][0];
+			const orderInformation = res.commandResults![0].returnValues[0].bcs;
 			return bcs.vector(Order).parse(new Uint8Array(orderInformation));
 		} catch {
 			return null;
@@ -385,14 +397,14 @@ export class DeepBookClient {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
 		tx.add(this.deepBook.getLevel2Range(poolKey, priceLow, priceHigh, isBid));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const prices = res.results![0].returnValues![0][0];
+		const prices = res.commandResults![0].returnValues[0].bcs;
 		const parsed_prices = bcs.vector(bcs.u64()).parse(new Uint8Array(prices));
-		const quantities = res.results![0].returnValues![1][0];
+		const quantities = res.commandResults![0].returnValues[1].bcs;
 		const parsed_quantities = bcs.vector(bcs.u64()).parse(new Uint8Array(quantities));
 
 		return {
@@ -419,19 +431,19 @@ export class DeepBookClient {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
 		tx.add(this.deepBook.getLevel2TicksFromMid(poolKey, ticks));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bid_prices = res.results![0].returnValues![0][0];
+		const bid_prices = res.commandResults![0].returnValues[0].bcs;
 		const bid_parsed_prices = bcs.vector(bcs.u64()).parse(new Uint8Array(bid_prices));
-		const bid_quantities = res.results![0].returnValues![1][0];
+		const bid_quantities = res.commandResults![0].returnValues[1].bcs;
 		const bid_parsed_quantities = bcs.vector(bcs.u64()).parse(new Uint8Array(bid_quantities));
 
-		const ask_prices = res.results![0].returnValues![2][0];
+		const ask_prices = res.commandResults![0].returnValues[2].bcs;
 		const ask_parsed_prices = bcs.vector(bcs.u64()).parse(new Uint8Array(ask_prices));
-		const ask_quantities = res.results![0].returnValues![3][0];
+		const ask_quantities = res.commandResults![0].returnValues[3].bcs;
 		const ask_parsed_quantities = bcs.vector(bcs.u64()).parse(new Uint8Array(ask_quantities));
 
 		return {
@@ -463,14 +475,14 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.vaultBalances(poolKey));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const baseInVault = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![0][0])));
-		const quoteInVault = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![1][0])));
-		const deepInVault = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![2][0])));
+		const baseInVault = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
+		const quoteInVault = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
+		const deepInVault = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
 
 		return {
 			base: Number((baseInVault / baseScalar).toFixed(9)),
@@ -489,12 +501,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.getPoolIdByAssets(baseType, quoteType));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const address = bcs.Address.parse(new Uint8Array(res.results![0].returnValues![0][0]));
+		const address = bcs.Address.parse(res.commandResults![0].returnValues[0].bcs);
 
 		return address;
 	}
@@ -512,13 +524,13 @@ export class DeepBookClient {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const parsed_mid_price = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const parsed_mid_price = Number(bcs.U64.parse(bytes));
 		const adjusted_mid_price =
 			(parsed_mid_price * baseCoin.scalar) / quoteCoin.scalar / FLOAT_SCALAR;
 
@@ -534,16 +546,14 @@ export class DeepBookClient {
 		const tx = new Transaction();
 
 		tx.add(this.deepBook.poolTradeParams(poolKey));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const takerFee = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![0][0])));
-		const makerFee = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![1][0])));
-		const stakeRequired = Number(
-			bcs.U64.parse(new Uint8Array(res.results![0].returnValues![2][0])),
-		);
+		const takerFee = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
+		const makerFee = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
+		const stakeRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
 
 		return {
 			takerFee: Number(takerFee / FLOAT_SCALAR),
@@ -564,14 +574,14 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.poolBookParams(poolKey));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const tickSize = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![0][0])));
-		const lotSize = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![1][0])));
-		const minSize = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![2][0])));
+		const tickSize = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
+		const lotSize = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
+		const minSize = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
 
 		return {
 			tickSize: Number((tickSize * baseScalar) / quoteScalar / FLOAT_SCALAR),
@@ -593,12 +603,12 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.account(poolKey, managerKey));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const accountInformation = res.results![0].returnValues![0][0];
+		const accountInformation = res.commandResults![0].returnValues[0].bcs;
 		const accountInfo = Account.parse(new Uint8Array(accountInformation));
 
 		return {
@@ -642,14 +652,14 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.lockedBalance(poolKey, balanceManagerKey));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const baseLocked = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![0][0])));
-		const quoteLocked = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![1][0])));
-		const deepLocked = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![2][0])));
+		const baseLocked = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
+		const quoteLocked = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
+		const deepLocked = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
 
 		return {
 			base: Number((baseLocked / baseScalar).toFixed(9)),
@@ -672,12 +682,12 @@ export class DeepBookClient {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const deepCoin = this.#config.getCoin('DEEP');
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const poolDeepPriceBytes = res.results![0].returnValues![0][0];
+		const poolDeepPriceBytes = res.commandResults![0].returnValues[0].bcs;
 		const poolDeepPrice = OrderDeepPrice.parse(new Uint8Array(poolDeepPriceBytes));
 
 		if (poolDeepPrice.asset_is_base) {
@@ -719,12 +729,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.getBalanceManagerIds(owner));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const vecOfAddresses = bcs.vector(bcs.Address).parse(new Uint8Array(bytes));
 
 		return vecOfAddresses.map((id: string) => normalizeSuiAddress(id));
@@ -739,13 +749,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.balanceManager.referralOwner(referral));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const owner = bcs.Address.parse(new Uint8Array(bytes));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const owner = bcs.Address.parse(bytes);
 
 		return owner;
 	}
@@ -767,19 +777,19 @@ export class DeepBookClient {
 
 		tx.add(this.deepBook.getReferralBalances(poolKey, referral));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
 		// The function returns three u64 values: (base, quote, deep)
-		const baseBytes = res.results![0].returnValues![0][0];
-		const quoteBytes = res.results![0].returnValues![1][0];
-		const deepBytes = res.results![0].returnValues![2][0];
+		const baseBytes = res.commandResults![0].returnValues[0].bcs;
+		const quoteBytes = res.commandResults![0].returnValues[1].bcs;
+		const deepBytes = res.commandResults![0].returnValues[2].bcs;
 
-		const baseBalance = Number(bcs.U64.parse(new Uint8Array(baseBytes)));
-		const quoteBalance = Number(bcs.U64.parse(new Uint8Array(quoteBytes)));
-		const deepBalance = Number(bcs.U64.parse(new Uint8Array(deepBytes)));
+		const baseBalance = Number(bcs.U64.parse(baseBytes));
+		const quoteBalance = Number(bcs.U64.parse(quoteBytes));
+		const deepBalance = Number(bcs.U64.parse(deepBytes));
 
 		return {
 			base: baseBalance / baseScalar,
@@ -790,8 +800,11 @@ export class DeepBookClient {
 
 	async getPriceInfoObject(tx: Transaction, coinKey: string): Promise<string> {
 		const currentTime = Date.now();
-		const priceInfoObjectAge = (await this.getPriceInfoObjectAge(coinKey)) * 1000;
-		if (currentTime - priceInfoObjectAge < PRICE_INFO_OBJECT_MAX_AGE_MS) {
+		const priceInfoObjectAge = await this.getPriceInfoObjectAge(coinKey);
+		if (
+			priceInfoObjectAge &&
+			currentTime - priceInfoObjectAge * 1000 < PRICE_INFO_OBJECT_MAX_AGE_MS
+		) {
 			return await this.#config.getCoin(coinKey).priceInfoObjectId!;
 		}
 
@@ -814,7 +827,7 @@ export class DeepBookClient {
 		const wormholeStateId = this.#config.pyth.wormholeStateId;
 		const pythStateId = this.#config.pyth.pythStateId;
 
-		const client = new SuiPythClient(this.client, pythStateId, wormholeStateId);
+		const client = new SuiPythClient(this.#client, pythStateId, wormholeStateId);
 
 		return (await client.updatePriceFeeds(tx, priceUpdateData, priceIDs))[0]; // returns priceInfoObjectIds
 	}
@@ -822,28 +835,23 @@ export class DeepBookClient {
 	/**
 	 * @description Get the age of the price info object for a specific coin
 	 * @param {string} coinKey Key of the coin
-	 * @returns {Promise<string>} The arrival time of the price info object
+	 * @returns {Promise<number>} The arrival time of the price info object
 	 */
 	async getPriceInfoObjectAge(coinKey: string) {
 		const priceInfoObjectId = this.#config.getCoin(coinKey).priceInfoObjectId!;
-		const res = await this.client.getObject({
-			id: priceInfoObjectId,
-			options: {
-				showContent: true,
+		const res = await this.#client.core.getObject({
+			objectId: priceInfoObjectId,
+			include: {
+				content: true,
 			},
 		});
 
-		if (!res.data?.content) {
+		if (!res.object?.content) {
 			throw new Error(`Price info object not found for ${coinKey}`);
 		}
 
-		// Type guard to check if content has fields property
-		if ('fields' in res.data.content) {
-			const fields = res.data.content.fields as any;
-			return fields.price_info?.fields?.arrival_time;
-		} else {
-			throw new Error(`Invalid price info object structure for ${coinKey}`);
-		}
+		const priceInfoObject = PriceInfoObject.parse(res.object.content);
+		return Number(priceInfoObject.price_info.arrival_time);
 	}
 
 	// === Margin Pool View Methods ===
@@ -857,13 +865,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.getId(coinKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		return bcs.Address.parse(new Uint8Array(bytes));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		return bcs.Address.parse(bytes);
 	}
 
 	/**
@@ -876,12 +884,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.deepbookPoolAllowed(coinKey, deepbookPoolId));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
 	}
 
@@ -895,13 +903,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.totalSupply(coinKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const rawAmount = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const rawAmount = BigInt(bcs.U64.parse(bytes));
 		const coin = this.#config.getCoin(coinKey);
 		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
 	}
@@ -916,13 +924,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.supplyShares(coinKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const rawShares = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const rawShares = BigInt(bcs.U64.parse(bytes));
 		const coin = this.#config.getCoin(coinKey);
 		return this.#formatTokenAmount(rawShares, coin.scalar, decimals);
 	}
@@ -937,13 +945,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.totalBorrow(coinKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const rawAmount = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const rawAmount = BigInt(bcs.U64.parse(bytes));
 		const coin = this.#config.getCoin(coinKey);
 		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
 	}
@@ -958,13 +966,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.borrowShares(coinKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const rawShares = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const rawShares = BigInt(bcs.U64.parse(bytes));
 		const coin = this.#config.getCoin(coinKey);
 		return this.#formatTokenAmount(rawShares, coin.scalar, decimals);
 	}
@@ -978,13 +986,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.lastUpdateTimestamp(coinKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		return Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		return Number(bcs.U64.parse(bytes));
 	}
 
 	/**
@@ -997,13 +1005,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.supplyCap(coinKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const rawAmount = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const rawAmount = BigInt(bcs.U64.parse(bytes));
 		const coin = this.#config.getCoin(coinKey);
 		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
 	}
@@ -1017,13 +1025,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.maxUtilizationRate(coinKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const rawRate = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const rawRate = Number(bcs.U64.parse(bytes));
 		return rawRate / FLOAT_SCALAR;
 	}
 
@@ -1036,13 +1044,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.protocolSpread(coinKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const rawSpread = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const rawSpread = Number(bcs.U64.parse(bytes));
 		return rawSpread / FLOAT_SCALAR;
 	}
 
@@ -1056,13 +1064,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.minBorrow(coinKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const rawAmount = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const rawAmount = BigInt(bcs.U64.parse(bytes));
 		const coin = this.#config.getCoin(coinKey);
 		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
 	}
@@ -1076,13 +1084,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.interestRate(coinKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const rawRate = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const rawRate = Number(bcs.U64.parse(bytes));
 		return rawRate / FLOAT_SCALAR;
 	}
 
@@ -1101,13 +1109,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.userSupplyShares(coinKey, supplierCapId));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const rawShares = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const rawShares = BigInt(bcs.U64.parse(bytes));
 		const coin = this.#config.getCoin(coinKey);
 		return this.#formatTokenAmount(rawShares, coin.scalar, decimals);
 	}
@@ -1127,13 +1135,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginPool.userSupplyAmount(coinKey, supplierCapId));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const rawAmount = BigInt(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const rawAmount = BigInt(bcs.U64.parse(bytes));
 		const coin = this.#config.getCoin(coinKey);
 		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
 	}
@@ -1150,13 +1158,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.ownerByPoolKey(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		return normalizeSuiAddress(bcs.Address.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		return normalizeSuiAddress(bcs.Address.parse(bytes));
 	}
 
 	/**
@@ -1169,13 +1177,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.deepbookPool(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		return normalizeSuiAddress(bcs.Address.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		return normalizeSuiAddress(bcs.Address.parse(bytes));
 	}
 
 	/**
@@ -1188,12 +1196,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.marginPoolId(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const option = bcs.option(bcs.Address).parse(new Uint8Array(bytes));
 		return option ? normalizeSuiAddress(option) : null;
 	}
@@ -1210,15 +1218,15 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.borrowedShares(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const baseBytes = res.results![0].returnValues![0][0];
-		const quoteBytes = res.results![0].returnValues![1][0];
-		const baseShares = bcs.U64.parse(new Uint8Array(baseBytes)).toString();
-		const quoteShares = bcs.U64.parse(new Uint8Array(quoteBytes)).toString();
+		const baseBytes = res.commandResults![0].returnValues[0].bcs;
+		const quoteBytes = res.commandResults![0].returnValues[1].bcs;
+		const baseShares = bcs.U64.parse(baseBytes).toString();
+		const quoteShares = bcs.U64.parse(quoteBytes).toString();
 
 		return { baseShares, quoteShares };
 	}
@@ -1233,13 +1241,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.borrowedBaseShares(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		return bcs.U64.parse(new Uint8Array(bytes)).toString();
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		return bcs.U64.parse(bytes).toString();
 	}
 
 	/**
@@ -1252,13 +1260,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.borrowedQuoteShares(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		return bcs.U64.parse(new Uint8Array(bytes)).toString();
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		return bcs.U64.parse(bytes).toString();
 	}
 
 	/**
@@ -1271,12 +1279,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.hasBaseDebt(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
 	}
 
@@ -1290,13 +1298,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.balanceManager(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		return normalizeSuiAddress(bcs.Address.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		return normalizeSuiAddress(bcs.Address.parse(bytes));
 	}
 
 	/**
@@ -1313,24 +1321,24 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.calculateAssets(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const baseBytes = res.results![0].returnValues![0][0];
-		const quoteBytes = res.results![0].returnValues![1][0];
+		const baseBytes = res.commandResults![0].returnValues[0].bcs;
+		const quoteBytes = res.commandResults![0].returnValues[1].bcs;
 		const pool = this.#config.getPool(manager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
 		const baseAsset = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(new Uint8Array(baseBytes))),
+			BigInt(bcs.U64.parse(baseBytes)),
 			baseCoin.scalar,
 			decimals,
 		);
 		const quoteAsset = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(new Uint8Array(quoteBytes))),
+			BigInt(bcs.U64.parse(quoteBytes)),
 			quoteCoin.scalar,
 			decimals,
 		);
@@ -1362,30 +1370,32 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.calculateDebts(manager.poolKey, debtCoinKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
+		const effects = (res.Transaction ?? res.FailedTransaction).effects;
+
 		// Check if the transaction failed
-		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
 			throw new Error(
-				`Failed to get margin manager debts: ${res.effects?.status?.error || 'Unknown error'}`,
+				`Failed to get margin manager debts: ${effects?.status?.error || 'Unknown error'}`,
 			);
 		}
 
 		// The Move function returns a tuple (u64, u64), so returnValues has 2 elements
-		const baseBytes = res.results[0].returnValues[0][0];
-		const quoteBytes = res.results[0].returnValues[1][0];
+		const baseBytes = res.commandResults[0].returnValues[0].bcs;
+		const quoteBytes = res.commandResults[0].returnValues[1].bcs;
 		const debtCoin = this.#config.getCoin(debtCoinKey);
 
 		const baseDebt = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(new Uint8Array(baseBytes))),
+			BigInt(bcs.U64.parse(baseBytes)),
 			debtCoin.scalar,
 			decimals,
 		);
 		const quoteDebt = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(new Uint8Array(quoteBytes))),
+			BigInt(bcs.U64.parse(quoteBytes)),
 			debtCoin.scalar,
 			decimals,
 		);
@@ -1434,15 +1444,17 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.managerState(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
+		const effects = (res.Transaction ?? res.FailedTransaction).effects;
+
 		// Check if the transaction failed
-		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
 			throw new Error(
-				`Failed to get margin manager state: ${res.effects?.status?.error || 'Unknown error'}`,
+				`Failed to get margin manager state: ${effects?.status?.error || 'Unknown error'}`,
 			);
 		}
 
@@ -1452,47 +1464,47 @@ export class DeepBookClient {
 
 		// Parse all 11 return values
 		const managerId = normalizeSuiAddress(
-			bcs.Address.parse(new Uint8Array(res.results[0].returnValues[0][0])),
+			bcs.Address.parse(res.commandResults[0].returnValues[0].bcs),
 		);
 		const deepbookPoolId = normalizeSuiAddress(
-			bcs.Address.parse(new Uint8Array(res.results[0].returnValues[1][0])),
+			bcs.Address.parse(res.commandResults[0].returnValues[1].bcs),
 		);
 		const riskRatio =
-			Number(bcs.U64.parse(new Uint8Array(res.results[0].returnValues[2][0]))) / FLOAT_SCALAR;
+			Number(bcs.U64.parse(res.commandResults[0].returnValues[2].bcs)) / FLOAT_SCALAR;
 		const baseAsset = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(new Uint8Array(res.results[0].returnValues[3][0]))),
+			BigInt(bcs.U64.parse(res.commandResults[0].returnValues[3].bcs)),
 			baseCoin.scalar,
 			decimals,
 		);
 		const quoteAsset = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(new Uint8Array(res.results[0].returnValues[4][0]))),
+			BigInt(bcs.U64.parse(res.commandResults[0].returnValues[4].bcs)),
 			quoteCoin.scalar,
 			decimals,
 		);
 		const baseDebt = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(new Uint8Array(res.results[0].returnValues[5][0]))),
+			BigInt(bcs.U64.parse(res.commandResults[0].returnValues[5].bcs)),
 			baseCoin.scalar,
 			decimals,
 		);
 		const quoteDebt = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(new Uint8Array(res.results[0].returnValues[6][0]))),
+			BigInt(bcs.U64.parse(res.commandResults[0].returnValues[6].bcs)),
 			quoteCoin.scalar,
 			decimals,
 		);
-		const basePythPrice = bcs.U64.parse(new Uint8Array(res.results[0].returnValues[7][0]));
+		const basePythPrice = bcs.U64.parse(res.commandResults[0].returnValues[7].bcs);
 		const basePythDecimals = Number(
-			bcs.u8().parse(new Uint8Array(res.results[0].returnValues[8][0])),
+			bcs.u8().parse(new Uint8Array(res.commandResults[0].returnValues[8].bcs)),
 		);
-		const quotePythPrice = bcs.U64.parse(new Uint8Array(res.results[0].returnValues[9][0]));
+		const quotePythPrice = bcs.U64.parse(res.commandResults[0].returnValues[9].bcs);
 		const quotePythDecimals = Number(
-			bcs.u8().parse(new Uint8Array(res.results[0].returnValues[10][0])),
+			bcs.u8().parse(new Uint8Array(res.commandResults[0].returnValues[10].bcs)),
 		);
-		const currentPrice = BigInt(bcs.U64.parse(new Uint8Array(res.results[0].returnValues[11][0])));
+		const currentPrice = BigInt(bcs.U64.parse(res.commandResults[0].returnValues[11].bcs));
 		const lowestTriggerAbovePrice = BigInt(
-			bcs.U64.parse(new Uint8Array(res.results[0].returnValues[12][0])),
+			bcs.U64.parse(res.commandResults[0].returnValues[12].bcs),
 		);
 		const highestTriggerBelowPrice = BigInt(
-			bcs.U64.parse(new Uint8Array(res.results[0].returnValues[13][0])),
+			bcs.U64.parse(res.commandResults[0].returnValues[13].bcs),
 		);
 
 		return {
@@ -1527,27 +1539,25 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.baseBalance(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
+		const effects = (res.Transaction ?? res.FailedTransaction).effects;
+
 		// Check if the transaction failed
-		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
 			throw new Error(
-				`Failed to get margin manager base balance: ${res.effects?.status?.error || 'Unknown error'}`,
+				`Failed to get margin manager base balance: ${effects?.status?.error || 'Unknown error'}`,
 			);
 		}
 
-		const bytes = res.results[0].returnValues[0][0];
+		const bytes = res.commandResults[0].returnValues[0].bcs;
 		const pool = this.#config.getPool(manager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 
-		return this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(new Uint8Array(bytes))),
-			baseCoin.scalar,
-			decimals,
-		);
+		return this.#formatTokenAmount(BigInt(bcs.U64.parse(bytes)), baseCoin.scalar, decimals);
 	}
 
 	/**
@@ -1564,27 +1574,25 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.quoteBalance(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
+		const effects = (res.Transaction ?? res.FailedTransaction).effects;
+
 		// Check if the transaction failed
-		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
 			throw new Error(
-				`Failed to get margin manager quote balance: ${res.effects?.status?.error || 'Unknown error'}`,
+				`Failed to get margin manager quote balance: ${effects?.status?.error || 'Unknown error'}`,
 			);
 		}
 
-		const bytes = res.results[0].returnValues[0][0];
+		const bytes = res.commandResults[0].returnValues[0].bcs;
 		const pool = this.#config.getPool(manager.poolKey);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		return this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(new Uint8Array(bytes))),
-			quoteCoin.scalar,
-			decimals,
-		);
+		return this.#formatTokenAmount(BigInt(bcs.U64.parse(bytes)), quoteCoin.scalar, decimals);
 	}
 
 	/**
@@ -1601,26 +1609,24 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.deepBalance(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
+		const effects = (res.Transaction ?? res.FailedTransaction).effects;
+
 		// Check if the transaction failed
-		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
 			throw new Error(
-				`Failed to get margin manager DEEP balance: ${res.effects?.status?.error || 'Unknown error'}`,
+				`Failed to get margin manager DEEP balance: ${effects?.status?.error || 'Unknown error'}`,
 			);
 		}
 
-		const bytes = res.results[0].returnValues[0][0];
+		const bytes = res.commandResults[0].returnValues[0].bcs;
 		const deepCoin = this.#config.getCoin('DEEP');
 
-		return this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(new Uint8Array(bytes))),
-			deepCoin.scalar,
-			decimals,
-		);
+		return this.#formatTokenAmount(BigInt(bcs.U64.parse(bytes)), deepCoin.scalar, decimals);
 	}
 
 	// === Margin Registry Functions ===
@@ -1634,13 +1640,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.poolEnabled(poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		return bcs.Bool.parse(new Uint8Array(bytes));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		return bcs.Bool.parse(bytes);
 	}
 
 	/**
@@ -1652,12 +1658,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.getMarginManagerIds(owner));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const vecSet = VecSet(bcs.Address).parse(new Uint8Array(bytes));
 		return vecSet.contents.map((id) => normalizeSuiAddress(id));
 	}
@@ -1671,13 +1677,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.baseMarginPoolId(poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const id = bcs.Address.parse(new Uint8Array(bytes));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const id = bcs.Address.parse(bytes);
 		return '0x' + id;
 	}
 
@@ -1690,13 +1696,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.quoteMarginPoolId(poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const id = bcs.Address.parse(new Uint8Array(bytes));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const id = bcs.Address.parse(bytes);
 		return '0x' + id;
 	}
 
@@ -1709,13 +1715,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.minWithdrawRiskRatio(poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const ratio = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const ratio = Number(bcs.U64.parse(bytes));
 		return ratio / FLOAT_SCALAR;
 	}
 
@@ -1728,13 +1734,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.minBorrowRiskRatio(poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const ratio = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const ratio = Number(bcs.U64.parse(bytes));
 		return ratio / FLOAT_SCALAR;
 	}
 
@@ -1747,13 +1753,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.liquidationRiskRatio(poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const ratio = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const ratio = Number(bcs.U64.parse(bytes));
 		return ratio / FLOAT_SCALAR;
 	}
 
@@ -1766,13 +1772,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.targetLiquidationRiskRatio(poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const ratio = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const ratio = Number(bcs.U64.parse(bytes));
 		return ratio / FLOAT_SCALAR;
 	}
 
@@ -1785,13 +1791,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.userLiquidationReward(poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const reward = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const reward = Number(bcs.U64.parse(bytes));
 		return reward / FLOAT_SCALAR;
 	}
 
@@ -1804,13 +1810,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.poolLiquidationReward(poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const reward = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const reward = Number(bcs.U64.parse(bytes));
 		return reward / FLOAT_SCALAR;
 	}
 
@@ -1822,12 +1828,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.allowedMaintainers());
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const vecSet = VecSet(bcs.Address).parse(new Uint8Array(bytes));
 		return vecSet.contents.map((id) => normalizeSuiAddress(id));
 	}
@@ -1840,12 +1846,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginRegistry.allowedPauseCaps());
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		const bytes = res.commandResults![0].returnValues[0].bcs;
 		const vecSet = VecSet(bcs.Address).parse(new Uint8Array(bytes));
 		return vecSet.contents.map((id) => normalizeSuiAddress(id));
 	}
@@ -1859,12 +1865,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.stablePool(poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
 	}
 
@@ -1877,12 +1883,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.registeredPool(poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
 	}
 
@@ -1899,14 +1905,14 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getQuoteQuantityOutInputFee(poolKey, baseQuantity));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const baseOut = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![0][0])));
-		const quoteOut = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![1][0])));
-		const deepRequired = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![2][0])));
+		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
+		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
+		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
 
 		return {
 			baseQuantity,
@@ -1929,14 +1935,14 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getBaseQuantityOutInputFee(poolKey, quoteQuantity));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const baseOut = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![0][0])));
-		const quoteOut = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![1][0])));
-		const deepRequired = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![2][0])));
+		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
+		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
+		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
 
 		return {
 			quoteQuantity,
@@ -1960,14 +1966,14 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getQuantityOutInputFee(poolKey, baseQuantity, quoteQuantity));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const baseOut = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![0][0])));
-		const quoteOut = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![1][0])));
-		const deepRequired = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![2][0])));
+		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
+		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
+		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
 
 		return {
 			baseQuantity,
@@ -1992,14 +1998,14 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getBaseQuantityIn(poolKey, targetQuoteQuantity, payWithDeep));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const baseIn = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![0][0])));
-		const quoteOut = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![1][0])));
-		const deepRequired = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![2][0])));
+		const baseIn = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
+		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
+		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
 
 		return {
 			baseIn: Number((baseIn / baseScalar).toFixed(9)),
@@ -2022,14 +2028,14 @@ export class DeepBookClient {
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
 		tx.add(this.deepBook.getQuoteQuantityIn(poolKey, targetBaseQuantity, payWithDeep));
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const baseOut = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![0][0])));
-		const quoteIn = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![1][0])));
-		const deepRequired = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![2][0])));
+		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
+		const quoteIn = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
+		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
 
 		return {
 			baseOut: Number((baseOut / baseScalar).toFixed(9)),
@@ -2048,13 +2054,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.getAccountOrderDetails(poolKey, managerKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
 		try {
-			const orderInformation = res.results![0].returnValues![0][0];
+			const orderInformation = res.commandResults![0].returnValues[0].bcs;
 			return bcs.vector(Order).parse(new Uint8Array(orderInformation));
 		} catch {
 			return [];
@@ -2072,17 +2078,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.getOrderDeepRequired(poolKey, baseQuantity, price));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const deepRequiredTaker = Number(
-			bcs.U64.parse(new Uint8Array(res.results![0].returnValues![0][0])),
-		);
-		const deepRequiredMaker = Number(
-			bcs.U64.parse(new Uint8Array(res.results![0].returnValues![1][0])),
-		);
+		const deepRequiredTaker = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
+		const deepRequiredMaker = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
 
 		return {
 			deepRequiredTaker: Number((deepRequiredTaker / DEEP_SCALAR).toFixed(9)),
@@ -2100,12 +2102,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.accountExists(poolKey, managerKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
 	}
 
@@ -2118,16 +2120,14 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.poolTradeParamsNext(poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const takerFee = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![0][0])));
-		const makerFee = Number(bcs.U64.parse(new Uint8Array(res.results![0].returnValues![1][0])));
-		const stakeRequired = Number(
-			bcs.U64.parse(new Uint8Array(res.results![0].returnValues![2][0])),
-		);
+		const takerFee = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
+		const makerFee = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
+		const stakeRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
 
 		return {
 			takerFee: takerFee / FLOAT_SCALAR,
@@ -2145,13 +2145,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.quorum(poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const quorum = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const quorum = Number(bcs.U64.parse(bytes));
 		return quorum / DEEP_SCALAR;
 	}
 
@@ -2164,13 +2164,13 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.poolId(poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		return normalizeSuiAddress(bcs.Address.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		return normalizeSuiAddress(bcs.Address.parse(bytes));
 	}
 
 	/**
@@ -2182,12 +2182,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.canPlaceLimitOrder(params));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
 	}
 
@@ -2200,12 +2200,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.canPlaceMarketOrder(params));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
 	}
 
@@ -2219,12 +2219,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.checkMarketOrderParams(poolKey, quantity));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
 	}
 
@@ -2245,12 +2245,12 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.deepBook.checkLimitOrderParams(poolKey, price, quantity, expireTimestamp));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		const bytes = res.commandResults![0].returnValues[0].bcs;
 		return bcs.bool().parse(new Uint8Array(bytes));
 	}
 
