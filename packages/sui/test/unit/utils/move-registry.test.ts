@@ -3,7 +3,7 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { isValidNamedPackage, isValidNamedType } from '../../../src/utils';
+import { isValidNamedPackage, isValidNamedType } from '../../../src/utils/index.js';
 
 describe('isValidNamedPackage', () => {
 	test('Valid/Invalid .move names', () => {

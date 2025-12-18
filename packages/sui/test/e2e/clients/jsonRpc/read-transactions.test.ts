@@ -3,9 +3,9 @@
 
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { SuiTransactionBlockResponse } from '../../../../src/jsonRpc';
-import { Transaction } from '../../../../src/transactions';
-import { executePaySuiNTimes, setup, TestToolbox } from '../../utils/setup';
+import { SuiTransactionBlockResponse } from '../../../../src/jsonRpc/index.js';
+import { Transaction } from '../../../../src/transactions/index.js';
+import { executePaySuiNTimes, setup, TestToolbox } from '../../utils/setup.js';
 
 describe('Transaction Reading API', () => {
 	let toolbox: TestToolbox;

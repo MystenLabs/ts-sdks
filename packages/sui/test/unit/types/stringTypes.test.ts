@@ -7,7 +7,7 @@ import {
 	isValidSuiAddress,
 	isValidTransactionDigest,
 	normalizeSuiAddress,
-} from '../../../src/utils';
+} from '../../../src/utils/index.js';
 
 describe('String type guards', () => {
 	function expectAll<T>(data: T[], check: (value: T) => any, expected: any) {

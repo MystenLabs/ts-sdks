@@ -38,7 +38,6 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"@mysten/build-scripts": "workspace:*",
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {

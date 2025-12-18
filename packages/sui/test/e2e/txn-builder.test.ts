@@ -3,11 +3,11 @@
 
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { bcs } from '../../src/bcs';
-import { SuiObjectChangeCreated } from '../../src/jsonRpc';
-import type { Keypair } from '../../src/cryptography';
-import { Transaction } from '../../src/transactions';
-import { normalizeSuiObjectId, SUI_SYSTEM_STATE_OBJECT_ID } from '../../src/utils';
+import { bcs } from '../../src/bcs/index.js';
+import { SuiObjectChangeCreated } from '../../src/jsonRpc/index.js';
+import type { Keypair } from '../../src/cryptography/index.js';
+import { Transaction } from '../../src/transactions/index.js';
+import { normalizeSuiObjectId, SUI_SYSTEM_STATE_OBJECT_ID } from '../../src/utils/index.js';
 import {
 	DEFAULT_GAS_BUDGET,
 	DEFAULT_RECIPIENT,
@@ -15,8 +15,8 @@ import {
 	setup,
 	TestToolbox,
 	upgradePackage,
-} from './utils/setup';
-import { ClientWithCoreApi } from '../../src/client';
+} from './utils/setup.js';
+import { ClientWithCoreApi } from '../../src/client/index.js';
 
 export const SUI_CLOCK_OBJECT_ID = normalizeSuiObjectId('0x6');
 

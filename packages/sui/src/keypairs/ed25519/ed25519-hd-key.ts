@@ -5,8 +5,8 @@
 // with @noble/hashes to be browser compatible.
 
 import { fromHex } from '@mysten/bcs';
-import { hmac } from '@noble/hashes/hmac';
-import { sha512 } from '@noble/hashes/sha512';
+import { hmac } from '@noble/hashes/hmac.js';
+import { sha512 } from '@noble/hashes/sha2.js';
 
 type Hex = string;
 type Path = string;
@@ -24,7 +24,7 @@ const pathRegex = new RegExp("^m(\\/[0-9]+')+$");
 const replaceDerive = (val: string): string => val.replace("'", '');
 
 const getMasterKeyFromSeed = (seed: Hex): Keys => {
-	const h = hmac.create(sha512, ED25519_CURVE);
+	const h = hmac.create(sha512, new TextEncoder().encode(ED25519_CURVE));
 	const I = h.update(fromHex(seed)).digest();
 	const IL = I.slice(0, 32);
 	const IR = I.slice(32);

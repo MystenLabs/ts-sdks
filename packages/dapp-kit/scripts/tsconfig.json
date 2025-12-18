@@ -1,0 +1,9 @@
+{
+	"extends": "../../../tsconfig.shared.json",
+	"include": ["."],
+	"compilerOptions": {
+		"noEmit": true,
+		"rootDir": ".",
+		"types": ["node"]
+	}
+}

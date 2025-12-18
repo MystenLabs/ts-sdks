@@ -4,7 +4,7 @@
 import { toBase58 } from '@mysten/bcs';
 import { describe, expect, it } from 'vitest';
 
-import { Transaction } from '../../../src/transactions';
+import { Transaction } from '../../../src/transactions/index.js';
 
 describe('Transaction inputs', () => {
 	it('can use tx methods for creating inputs', async () => {

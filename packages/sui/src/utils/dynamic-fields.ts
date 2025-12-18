@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { toHex } from '@mysten/bcs';
-import { blake2b } from '@noble/hashes/blake2b';
+import { blake2b } from '@noble/hashes/blake2.js';
 
 import type { TypeTag } from '../bcs/bcs.js';
 import { bcs } from '../bcs/index.js';

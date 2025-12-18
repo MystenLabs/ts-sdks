@@ -3,13 +3,13 @@
 import { fromBase64 } from '@mysten/bcs';
 import { describe, expect, it } from 'vitest';
 
-import { SuiGraphQLClient } from '../../src/graphql';
-import { Ed25519Keypair } from '../../src/keypairs/ed25519';
-import { Secp256k1Keypair } from '../../src/keypairs/secp256k1';
-import { Secp256r1Keypair } from '../../src/keypairs/secp256r1';
-import { MultiSigPublicKey } from '../../src/multisig/publickey';
-import { verifyPersonalMessageSignature } from '../../src/verify';
-import { getClient } from './utils/setup';
+import { SuiGraphQLClient } from '../../src/graphql/index.js';
+import { Ed25519Keypair } from '../../src/keypairs/ed25519/index.js';
+import { Secp256k1Keypair } from '../../src/keypairs/secp256k1/index.js';
+import { Secp256r1Keypair } from '../../src/keypairs/secp256r1/index.js';
+import { MultiSigPublicKey } from '../../src/multisig/publickey.js';
+import { verifyPersonalMessageSignature } from '../../src/verify/index.js';
+import { getClient } from './utils/setup.js';
 
 const DEFAULT_GRAPHQL_URL = import.meta.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125/graphql';
 

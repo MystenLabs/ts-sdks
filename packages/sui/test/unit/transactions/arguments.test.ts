@@ -4,7 +4,7 @@
 import { toBase58 } from '@mysten/bcs';
 import { describe, expect, it } from 'vitest';
 
-import { Arguments, Transaction } from '../../../src/transactions';
+import { Arguments, Transaction } from '../../../src/transactions/index.js';
 
 describe('Arguments helpers', () => {
 	it('can use Arguments for building a transaction', async () => {

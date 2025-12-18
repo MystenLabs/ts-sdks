@@ -18,3 +18,4 @@ dist/
 build/
 target/
 next-env.d.ts
+.env

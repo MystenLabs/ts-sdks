@@ -2,24 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fromBase64 } from '@mysten/bcs';
-import { blake2b } from '@noble/hashes/blake2b';
-import { bytesToHex } from '@noble/hashes/utils';
+import { blake2b } from '@noble/hashes/blake2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
-import { messageWithIntent } from '../../../src/cryptography/intent';
-import { PublicKey } from '../../../src/cryptography/publickey';
+import { messageWithIntent } from '../../../src/cryptography/intent.js';
+import { PublicKey } from '../../../src/cryptography/publickey.js';
 import { SIGNATURE_SCHEME_TO_FLAG } from '../../../src/cryptography/signature-scheme.js';
 import { parseSerializedSignature } from '../../../src/cryptography/signature.js';
-import { Ed25519Keypair, Ed25519PublicKey } from '../../../src/keypairs/ed25519';
-import { Secp256k1Keypair } from '../../../src/keypairs/secp256k1';
-import { Secp256r1Keypair } from '../../../src/keypairs/secp256r1';
+import { Ed25519Keypair, Ed25519PublicKey } from '../../../src/keypairs/ed25519/index.js';
+import { Secp256k1Keypair } from '../../../src/keypairs/secp256k1/index.js';
+import { Secp256r1Keypair } from '../../../src/keypairs/secp256r1/index.js';
 import {
 	MAX_SIGNER_IN_MULTISIG,
 	MultiSigPublicKey,
 	MultiSigStruct,
 	parsePartialSignatures,
-} from '../../../src/multisig/publickey';
+} from '../../../src/multisig/publickey.js';
 import { normalizeSuiAddress } from '../../../src/utils/sui-types.js';
 
 describe('Publickey', () => {

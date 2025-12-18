@@ -3,9 +3,9 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { Transaction } from '../../../../src/transactions';
-import { normalizeSuiAddress, SUI_TYPE_ARG } from '../../../../src/utils';
-import { setup, TestToolbox } from '../../utils/setup';
+import { Transaction } from '../../../../src/transactions/index.js';
+import { normalizeSuiAddress, SUI_TYPE_ARG } from '../../../../src/utils/index.js';
+import { setup, TestToolbox } from '../../utils/setup.js';
 
 describe('Object Reading API', () => {
 	let toolbox: TestToolbox;
