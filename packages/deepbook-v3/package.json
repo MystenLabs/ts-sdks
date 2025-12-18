@@ -50,6 +50,7 @@
 		"@iarna/toml": "^2.2.5",
 		"@mysten/codegen": "workspace:*",
 		"@types/node": "^24.10.1",
+		"dotenv": "^17.2.3",
 		"tmp": "^0.2.5",
 		"ts-node": "^10.9.2",
 		"ts-retry-promise": "^0.8.1",
