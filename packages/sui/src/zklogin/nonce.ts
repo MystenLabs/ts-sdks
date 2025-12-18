@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { toHex } from '@mysten/bcs';
-import { randomBytes } from '@noble/hashes/utils';
+import { randomBytes } from '@noble/hashes/utils.js';
 import { base64urlnopad } from '@scure/base';
 
 import type { PublicKey } from '../cryptography/publickey.js';

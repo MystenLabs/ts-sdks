@@ -4,7 +4,7 @@
 import { toBase58 } from '@mysten/bcs';
 import { describe, expect, it } from 'vitest';
 
-import { Inputs, Transaction } from '../../../src/transactions';
+import { Inputs, Transaction } from '../../../src/transactions/index.js';
 
 describe('V1 JSON serialization', () => {
 	it('can serialize and deserialize transactions', async () => {

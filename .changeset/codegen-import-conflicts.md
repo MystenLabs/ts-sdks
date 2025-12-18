@@ -1,5 +1,5 @@
 ---
-"@mysten/codegen": minor
+'@mysten/codegen': minor
 ---
 
 Add automatic import aliasing to resolve naming conflicts and configurable import extensions.
@@ -9,10 +9,12 @@ When Move contracts define structs, enums, or functions with names that conflict
 
 **Import Extension Configuration:**
 Added `importExtension` option to control file extensions in generated import statements:
+
 - Config file: `importExtension: '.js' | '.ts' | ''`
 - CLI: `--import-extension .js|.ts|none`
 
 This allows compatibility with different bundler/runtime configurations:
+
 - `.js` (default): ESM compatible for Node.js
 - `.ts`: For Bun, Deno, or bundlers that handle .ts imports directly
 - `''` (none): For bundlers that don't require extensions

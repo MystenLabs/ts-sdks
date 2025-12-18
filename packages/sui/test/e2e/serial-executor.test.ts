@@ -3,10 +3,10 @@
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { bcs } from '../../src/bcs';
-import { Ed25519Keypair } from '../../src/keypairs/ed25519';
-import { SerialTransactionExecutor, Transaction } from '../../src/transactions';
-import { setup, TestToolbox } from './utils/setup';
+import { bcs } from '../../src/bcs/index.js';
+import { Ed25519Keypair } from '../../src/keypairs/ed25519/index.js';
+import { SerialTransactionExecutor, Transaction } from '../../src/transactions/index.js';
+import { setup, TestToolbox } from './utils/setup.js';
 
 let toolbox: TestToolbox;
 let executor: SerialTransactionExecutor;

@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { G1Element, Scalar } from '../../src/bls12381';
-import { elgamalDecrypt, generateSecretKey, toPublicKey } from '../../src/elgamal';
+import { G1Element, Scalar } from '../../src/bls12381.js';
+import { elgamalDecrypt, generateSecretKey, toPublicKey } from '../../src/elgamal.js';
 
 describe('ElGamal encryption', () => {
 	it('should generate valid key pair', () => {

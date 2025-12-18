@@ -3,14 +3,14 @@
 
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
-import { analyze } from '../../src/transaction-analyzer/analyzer';
+import { analyze } from '../../src/transaction-analyzer/analyzer.js';
 import {
 	objectIds,
 	objects,
 	ownedObjects,
 	objectsById,
-} from '../../src/transaction-analyzer/rules/objects';
-import { MockSuiClient } from '../mocks/MockSuiClient';
+} from '../../src/transaction-analyzer/rules/objects.js';
+import { MockSuiClient } from '../mocks/MockSuiClient.js';
 import {
 	DEFAULT_SENDER,
 	TEST_COIN_1_ID,
@@ -18,7 +18,7 @@ import {
 	TEST_NFT_ID,
 	TEST_PARENT_OWNED_COIN_ID,
 	TEST_CONSENSUS_COIN_ID,
-} from '../mocks/mockData';
+} from '../mocks/mockData.js';
 
 describe('TransactionAnalyzer - Objects Rule', () => {
 	it('should analyze all object types in a single transaction', async () => {

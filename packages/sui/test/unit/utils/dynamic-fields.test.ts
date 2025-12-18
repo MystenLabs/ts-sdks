@@ -3,8 +3,8 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { bcs } from '../../../src/bcs';
-import { deriveDynamicFieldID } from '../../../src/utils';
+import { bcs } from '../../../src/bcs/index.js';
+import { deriveDynamicFieldID } from '../../../src/utils/index.js';
 
 describe('dynamic field utils', () => {
 	test('deriveDynamicFieldID', () => {

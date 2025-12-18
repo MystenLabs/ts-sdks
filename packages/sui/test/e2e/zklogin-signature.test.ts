@@ -4,13 +4,13 @@
 import { fromBase64 } from '@mysten/bcs';
 import { describe, expect, it, test } from 'vitest';
 
-import { SuiGraphQLClient } from '../../src/graphql';
+import { SuiGraphQLClient } from '../../src/graphql/index.js';
 import {
 	parseSerializedZkLoginSignature,
 	ZkLoginPublicIdentifier,
-} from '../../src/zklogin/publickey';
-import { getZkLoginSignature, parseZkLoginSignature } from '../../src/zklogin/signature';
-import { execSuiTools, setup } from './utils/setup';
+} from '../../src/zklogin/publickey.js';
+import { getZkLoginSignature, parseZkLoginSignature } from '../../src/zklogin/signature.js';
+import { execSuiTools, setup } from './utils/setup.js';
 
 const DEFAULT_GRAPHQL_URL = import.meta.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125/graphql';
 

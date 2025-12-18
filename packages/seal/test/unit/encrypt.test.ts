@@ -4,15 +4,15 @@
 import { fromHex, toHex } from '@mysten/bcs';
 import { describe, expect, it } from 'vitest';
 
-import { EncryptedObject } from '../../src/bcs';
-import { G1Element, G2Element, Scalar } from '../../src/bls12381';
-import { decrypt } from '../../src/decrypt';
-import { AesGcm256, Hmac256Ctr } from '../../src/dem';
-import { encrypt, KemType } from '../../src/encrypt';
-import { BonehFranklinBLS12381Services } from '../../src/ibe';
-import { hashToG1, kdf } from '../../src/kdf';
-import { KeyCacheKey } from '../../src/types';
-import { createFullId } from '../../src/utils';
+import { EncryptedObject } from '../../src/bcs.js';
+import { G1Element, G2Element, Scalar } from '../../src/bls12381.js';
+import { decrypt } from '../../src/decrypt.js';
+import { AesGcm256, Hmac256Ctr } from '../../src/dem.js';
+import { encrypt, KemType } from '../../src/encrypt.js';
+import { BonehFranklinBLS12381Services } from '../../src/ibe.js';
+import { hashToG1, kdf } from '../../src/kdf.js';
+import { KeyCacheKey } from '../../src/types.js';
+import { createFullId } from '../../src/utils.js';
 
 describe('Seal encryption tests', () => {
 	function generateKeyPair(): [Scalar, G2Element] {

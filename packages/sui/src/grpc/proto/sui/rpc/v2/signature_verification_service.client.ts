@@ -11,10 +11,10 @@
 //
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import type { ServiceInfo } from '@protobuf-ts/runtime-rpc';
-import { SignatureVerificationService } from './signature_verification_service';
+import { SignatureVerificationService } from './signature_verification_service.js';
 import { stackIntercept } from '@protobuf-ts/runtime-rpc';
-import type { VerifySignatureResponse } from './signature_verification_service';
-import type { VerifySignatureRequest } from './signature_verification_service';
+import type { VerifySignatureResponse } from './signature_verification_service.js';
+import type { VerifySignatureRequest } from './signature_verification_service.js';
 import type { UnaryCall } from '@protobuf-ts/runtime-rpc';
 import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
 /**

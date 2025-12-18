@@ -6,8 +6,8 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { SealClient } from '../../src';
-import { EncryptedObject } from '../../src/bcs';
+import { SealClient } from '../../src/index.js';
+import { EncryptedObject } from '../../src/bcs.js';
 import {
 	ExpiredSessionKeyError,
 	GeneralError,
@@ -17,15 +17,15 @@ import {
 	InvalidThresholdError,
 	NoAccessError,
 	toMajorityError,
-} from '../../src/error';
-import { KeyType } from '../../src/key-server';
-import { RequestFormat, SessionKey } from '../../src/session-key';
-import { decrypt } from '../../src/decrypt';
-import { KeyCacheKey, SealCompatibleClient } from '../../src/types';
-import { G1Element } from '../../src/bls12381';
-import { createFullId } from '../../src/utils';
+} from '../../src/error.js';
+import { KeyType } from '../../src/key-server.js';
+import { RequestFormat, SessionKey } from '../../src/session-key.js';
+import { decrypt } from '../../src/decrypt.js';
+import { KeyCacheKey, SealCompatibleClient } from '../../src/types.js';
+import { G1Element } from '../../src/bls12381.js';
+import { createFullId } from '../../src/utils.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { seal } from '../../src/client';
+import { seal } from '../../src/client.js';
 
 /**
  * Helper function
