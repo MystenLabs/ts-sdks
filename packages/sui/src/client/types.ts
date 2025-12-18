@@ -88,7 +88,8 @@ export namespace SuiClientTypes {
 
 	export interface ListCoinsOptions extends CoreClientMethodOptions {
 		owner: string;
-		coinType: string;
+		/** Defaults to `0x2::sui::SUI` */
+		coinType?: string;
 		limit?: number;
 		cursor?: string | null;
 	}
@@ -185,7 +186,8 @@ export namespace SuiClientTypes {
 
 	export interface GetBalanceOptions extends CoreClientMethodOptions {
 		owner: string;
-		coinType: string;
+		/** Defaults to `0x2::sui::SUI` */
+		coinType?: string;
 	}
 
 	export interface CoinBalance {

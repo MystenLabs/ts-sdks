@@ -3,6 +3,7 @@
 
 import { CoreClient } from '../client/core.js';
 import type { SuiClientTypes } from '../client/types.js';
+import { SUI_TYPE_ARG } from '../utils/constants.js';
 import type { GraphQLQueryOptions, SuiGraphQLClient } from './client.js';
 import type {
 	Object_Owner_FieldsFragment,
@@ -181,6 +182,7 @@ export class GraphQLCoreClient extends CoreClient {
 	async listCoins(
 		options: SuiClientTypes.ListCoinsOptions,
 	): Promise<SuiClientTypes.ListCoinsResponse> {
+		const coinType = options.coinType ?? SUI_TYPE_ARG;
 		const coins = await this.#graphqlQuery(
 			{
 				query: GetCoinsDocument,
@@ -188,7 +190,7 @@ export class GraphQLCoreClient extends CoreClient {
 					owner: options.owner,
 					cursor: options.cursor,
 					first: options.limit,
-					type: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: options.coinType })).type}>`,
+					type: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: coinType })).type}>`,
 				},
 			},
 			(result) => result.address?.objects,
@@ -213,12 +215,13 @@ export class GraphQLCoreClient extends CoreClient {
 	async getBalance(
 		options: SuiClientTypes.GetBalanceOptions,
 	): Promise<SuiClientTypes.GetBalanceResponse> {
+		const coinType = options.coinType ?? SUI_TYPE_ARG;
 		const result = await this.#graphqlQuery(
 			{
 				query: GetBalanceDocument,
 				variables: {
 					owner: options.owner,
-					type: (await this.mvr.resolveType({ type: options.coinType })).type,
+					type: (await this.mvr.resolveType({ type: coinType })).type,
 				},
 			},
 			(result) => result.address?.balance,
@@ -226,7 +229,7 @@ export class GraphQLCoreClient extends CoreClient {
 
 		return {
 			balance: {
-				coinType: result.coinType?.repr ?? options.coinType,
+				coinType: result.coinType?.repr ?? coinType,
 				balance: result.totalBalance ?? '0',
 			},
 		};

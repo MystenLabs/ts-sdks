@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { TypeTagSerializer } from '../bcs/type-tag-serializer.js';
-import type { Transaction, TransactionPlugin } from '../transactions/index.js';
+import type { TransactionPlugin } from '../transactions/index.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { normalizeStructTag, parseStructTag, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
 import { BaseClient } from './client.js';
@@ -208,8 +208,8 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		if (transaction instanceof Uint8Array) {
 			transactionBytes = transaction;
 		} else {
-			(transaction as Transaction).setSenderIfNotSet(signer.toSuiAddress());
-			transactionBytes = await (transaction as Transaction).build({ client: this });
+			transaction.setSenderIfNotSet(signer.toSuiAddress());
+			transactionBytes = await transaction.build({ client: this });
 		}
 
 		const { signature } = await signer.signTransaction(transactionBytes);
