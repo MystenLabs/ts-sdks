@@ -46,7 +46,7 @@
 		"prettier": "^3.7.3",
 		"prettier-plugin-tailwindcss": "^0.7.2",
 		"testcontainers": "^11.9.0",
-		"tsdown": "^0.18.0",
+		"tsdown": "0.17.0-beta.4",
 		"tsx": "^4.21.0",
 		"turbo": "^2.6.1",
 		"typescript": "^5.9.3"
