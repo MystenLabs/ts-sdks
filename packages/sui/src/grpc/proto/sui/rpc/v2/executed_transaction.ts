@@ -10,13 +10,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 import { MessageType } from '@protobuf-ts/runtime';
-import { ObjectSet } from './object';
-import { BalanceChange } from './balance_change';
-import { Timestamp } from '../../../google/protobuf/timestamp';
-import { TransactionEvents } from './event';
-import { TransactionEffects } from './effects';
-import { UserSignature } from './signature';
-import { Transaction } from './transaction';
+import { ObjectSet } from './object.js';
+import { BalanceChange } from './balance_change.js';
+import { Timestamp } from '../../../google/protobuf/timestamp.js';
+import { TransactionEvents } from './event.js';
+import { TransactionEffects } from './effects.js';
+import { UserSignature } from './signature.js';
+import { Transaction } from './transaction.js';
 /**
  * @generated from protobuf message sui.rpc.v2.ExecutedTransaction
  */

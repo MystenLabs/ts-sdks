@@ -4,8 +4,11 @@
 import { toBase64, toHex } from '@mysten/bcs';
 import { describe, expect, it } from 'vitest';
 
-import { Secp256k1PublicKey } from '../../../src/keypairs/secp256k1/publickey';
-import { INVALID_SECP256K1_PUBLIC_KEY, VALID_SECP256K1_PUBLIC_KEY } from './secp256k1-keypair.test';
+import { Secp256k1PublicKey } from '../../../src/keypairs/secp256k1/publickey.js';
+import {
+	INVALID_SECP256K1_PUBLIC_KEY,
+	VALID_SECP256K1_PUBLIC_KEY,
+} from './secp256k1-keypair.test.js';
 
 // Test case generated against CLI:
 // cargo build --bin sui

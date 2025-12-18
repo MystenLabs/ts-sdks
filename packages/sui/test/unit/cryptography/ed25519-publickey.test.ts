@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { Ed25519PublicKey } from '../../../src/keypairs/ed25519';
+import { Ed25519PublicKey } from '../../../src/keypairs/ed25519/index.js';
 
 // Test case generated against CLI:
 // cargo build --bin sui

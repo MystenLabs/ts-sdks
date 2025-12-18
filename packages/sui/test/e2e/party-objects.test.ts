@@ -1,9 +1,9 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { beforeAll, describe, expect, it } from 'vitest';
-import { setup, TestToolbox } from './utils/setup';
-import { coinWithBalance, Transaction } from '../../src/transactions';
-import { SuiClientTypes } from '../../src/client';
+import { setup, TestToolbox } from './utils/setup.js';
+import { coinWithBalance, Transaction } from '../../src/transactions/index.js';
+import { SuiClientTypes } from '../../src/client/index.js';
 
 describe('Party Objects', () => {
 	let toolbox: TestToolbox;

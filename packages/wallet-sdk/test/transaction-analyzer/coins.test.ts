@@ -3,16 +3,16 @@
 
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
-import { analyze } from '../../src/transaction-analyzer/analyzer';
-import { coins, gasCoins } from '../../src/transaction-analyzer/rules/coins';
-import { MockSuiClient } from '../mocks/MockSuiClient';
+import { analyze } from '../../src/transaction-analyzer/analyzer.js';
+import { coins, gasCoins } from '../../src/transaction-analyzer/rules/coins.js';
+import { MockSuiClient } from '../mocks/MockSuiClient.js';
 import {
 	DEFAULT_SENDER,
 	createAddressOwner,
 	TEST_COIN_1_ID,
 	TEST_COIN_2_ID,
 	TEST_NFT_ID,
-} from '../mocks/mockData';
+} from '../mocks/mockData.js';
 
 describe('TransactionAnalyzer - Coins Rule', () => {
 	it('should analyze all coin-related functionality in a single transaction', async () => {

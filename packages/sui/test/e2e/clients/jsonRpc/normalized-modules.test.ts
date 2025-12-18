@@ -3,7 +3,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { setup, TestToolbox } from '../../utils/setup';
+import { setup, TestToolbox } from '../../utils/setup.js';
 
 const DEFAULT_PACKAGE = '0x2';
 const DEFAULT_MODULE = 'coin';

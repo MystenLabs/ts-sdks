@@ -4,16 +4,16 @@
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
-import { analyze } from '../../src/transaction-analyzer/analyzer';
-import { inputs } from '../../src/transaction-analyzer/rules/inputs';
+import { analyze } from '../../src/transaction-analyzer/analyzer.js';
+import { inputs } from '../../src/transaction-analyzer/rules/inputs.js';
 import { bcs } from '@mysten/sui/bcs';
-import { MockSuiClient } from '../mocks/MockSuiClient';
+import { MockSuiClient } from '../mocks/MockSuiClient.js';
 import {
 	DEFAULT_SENDER,
 	TEST_COIN_1_ID,
 	TEST_SHARED_OBJECT_ID,
 	TEST_NFT_ID,
-} from '../mocks/mockData';
+} from '../mocks/mockData.js';
 
 describe('TransactionAnalyzer - Inputs Rule', () => {
 	it('should analyze all input types in a single transaction', async () => {

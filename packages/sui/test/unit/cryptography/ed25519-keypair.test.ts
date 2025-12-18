@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fromBase64, toBase58 } from '@mysten/bcs';
-import { ed25519 } from '@noble/curves/ed25519';
+import { ed25519 } from '@noble/curves/ed25519.js';
 import { describe, expect, it } from 'vitest';
 
-import { decodeSuiPrivateKey } from '../../../src/cryptography/keypair';
-import { Ed25519Keypair } from '../../../src/keypairs/ed25519';
-import { Transaction } from '../../../src/transactions';
-import { verifyPersonalMessageSignature, verifyTransactionSignature } from '../../../src/verify';
+import { decodeSuiPrivateKey } from '../../../src/cryptography/keypair.js';
+import { Ed25519Keypair } from '../../../src/keypairs/ed25519/index.js';
+import { Transaction } from '../../../src/transactions/index.js';
+import {
+	verifyPersonalMessageSignature,
+	verifyTransactionSignature,
+} from '../../../src/verify/index.js';
 
 const VALID_SECRET_KEY = 'mdqVWeFekT7pqy5T49+tV12jO0m+ESW7ki4zSU9JiCg=';
 const PRIVATE_KEY_SIZE = 32;

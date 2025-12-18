@@ -4,14 +4,13 @@
 	"description": "Sui Deepbook SDK",
 	"version": "0.27.0",
 	"license": "Apache-2.0",
-	"type": "commonjs",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.js"
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
 		}
 	},
 	"files": [
@@ -20,7 +19,7 @@
 		"src"
 	],
 	"engines": {
-		"node": ">=18"
+		"node": ">=22"
 	},
 	"repository": {
 		"type": "git",
@@ -31,7 +30,7 @@
 	},
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "build-package",
+		"build": "rm -rf dist && tsc --noEmit && tsdown",
 		"codegen": "pnpm sui-ts-codegen generate && pnpm lint:fix",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
@@ -43,13 +42,12 @@
 	"dependencies": {
 		"@mysten/bcs": "workspace:*",
 		"@mysten/sui": "workspace:*",
-		"@noble/hashes": "^1.8.0",
+		"@noble/hashes": "^2.0.1",
 		"axios": "^1.13.2",
 		"axios-retry": "^4.5.0"
 	},
 	"devDependencies": {
 		"@iarna/toml": "^2.2.5",
-		"@mysten/build-scripts": "workspace:*",
 		"@mysten/codegen": "workspace:*",
 		"@types/node": "^24.10.1",
 		"tmp": "^0.2.5",

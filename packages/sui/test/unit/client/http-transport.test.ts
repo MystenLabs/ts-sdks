@@ -4,8 +4,8 @@
 import EventEmitter from 'node:events';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { JsonRpcHTTPTransport } from '../../../src/jsonRpc';
-import { PACKAGE_VERSION, TARGETED_RPC_VERSION } from '../../../src/version';
+import { JsonRpcHTTPTransport } from '../../../src/jsonRpc/index.js';
+import { PACKAGE_VERSION, TARGETED_RPC_VERSION } from '../../../src/version.js';
 
 describe('JsonRpcHTTPTransport', () => {
 	describe('rpc requests', () => {

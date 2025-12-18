@@ -6,16 +6,16 @@ import path from 'path';
 import { fromBase64 } from '@mysten/bcs';
 import { describe, expect, it } from 'vitest';
 
-import { decodeSuiPrivateKey } from '../../src/cryptography';
-import { Ed25519Keypair } from '../../src/keypairs/ed25519';
-import { MultiSigPublicKey } from '../../src/multisig/publickey';
-import { Transaction } from '../../src/transactions';
-import { getZkLoginSignature } from '../../src/zklogin';
+import { decodeSuiPrivateKey } from '../../src/cryptography/index.js';
+import { Ed25519Keypair } from '../../src/keypairs/ed25519/index.js';
+import { MultiSigPublicKey } from '../../src/multisig/publickey.js';
+import { Transaction } from '../../src/transactions/index.js';
+import { getZkLoginSignature } from '../../src/zklogin/index.js';
 import {
 	parseSerializedZkLoginSignature,
 	toZkLoginPublicIdentifier,
-} from '../../src/zklogin/publickey';
-import { DEFAULT_RECIPIENT, execSuiTools, setup, setupWithFundedAddress } from './utils/setup';
+} from '../../src/zklogin/publickey.js';
+import { DEFAULT_RECIPIENT, execSuiTools, setup, setupWithFundedAddress } from './utils/setup.js';
 
 describe('MultiSig with zklogin signature', () => {
 	it('Execute tx with multisig with 1 sig and 1 zkLogin sig combined', async () => {

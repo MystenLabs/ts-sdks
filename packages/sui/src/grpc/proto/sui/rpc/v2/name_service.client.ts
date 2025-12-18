@@ -11,12 +11,12 @@
 //
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import type { ServiceInfo } from '@protobuf-ts/runtime-rpc';
-import { NameService } from './name_service';
-import type { ReverseLookupNameResponse } from './name_service';
-import type { ReverseLookupNameRequest } from './name_service';
+import { NameService } from './name_service.js';
+import type { ReverseLookupNameResponse } from './name_service.js';
+import type { ReverseLookupNameRequest } from './name_service.js';
 import { stackIntercept } from '@protobuf-ts/runtime-rpc';
-import type { LookupNameResponse } from './name_service';
-import type { LookupNameRequest } from './name_service';
+import type { LookupNameResponse } from './name_service.js';
+import type { LookupNameRequest } from './name_service.js';
 import type { UnaryCall } from '@protobuf-ts/runtime-rpc';
 import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
 /**

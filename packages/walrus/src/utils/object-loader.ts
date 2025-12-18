@@ -25,7 +25,10 @@ export class SuiObjectDataLoader extends DataLoader<
 		});
 	}
 
-	override async load<T = SuiClientTypes.Object<{ content: true }>>(id: string, schema?: BcsType<T, any>): Promise<T> {
+	override async load<T = SuiClientTypes.Object<{ content: true }>>(
+		id: string,
+		schema?: BcsType<T, any>,
+	): Promise<T> {
 		const data = await super.load(id);
 
 		if (schema) {

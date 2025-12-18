@@ -12,27 +12,21 @@
 		"dist",
 		"src"
 	],
-	"type": "commonjs",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.js"
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.mjs"
 		},
-		"./dist/index.css": {
-			"import": "./dist/esm/index.css",
-			"require": "./dist/cjs/index.css"
-		}
+		"./dist/index.css": "./dist/index.css"
 	},
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "build-dapp-kit",
+		"build": "tsx scripts/build.ts",
 		"test": "pnpm test:typecheck && pnpm vitest run",
 		"test:typecheck": "tsc -b ./test",
-		"size": "size-limit",
-		"analyze": "size-limit --why",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"oxlint:check": "oxlint  .",
@@ -50,33 +44,26 @@
 	"publishConfig": {
 		"access": "public"
 	},
-	"size-limit": [
-		{
-			"path": "dist/esm/index.js",
-			"limit": "100 KB"
-		},
-		{
-			"path": "dist/cjs/index.js",
-			"limit": "100 KB"
-		}
-	],
 	"devDependencies": {
-		"@mysten/build-scripts": "workspace:*",
-		"@size-limit/preset-small-lib": "^12.0.0",
 		"@tanstack/react-query": "^5.90.11",
 		"@testing-library/dom": "^10.4.1",
 		"@testing-library/jest-dom": "^6.9.1",
 		"@testing-library/react": "^16.3.0",
 		"@testing-library/user-event": "^14.6.1",
+		"@types/node": "^24.10.1",
+		"@types/postcss-prefix-selector": "^1.16.3",
 		"@types/react": "^19.2.7",
 		"@types/react-dom": "^19.2.3",
 		"@vanilla-extract/esbuild-plugin": "^2.3.20",
 		"@vanilla-extract/vite-plugin": "^5.1.3",
+		"autoprefixer": "^10.4.21",
+		"esbuild": "^0.27.0",
 		"happy-dom": "^20.0.11",
 		"jsdom": "^27.2.0",
+		"postcss": "^8.5.6",
+		"postcss-prefix-selector": "^2.1.1",
 		"react": "^19.2.1",
 		"react-dom": "^19.2.1",
-		"size-limit": "^12.0.0",
 		"typescript": "^5.9.3",
 		"vite": "^7.2.6",
 		"vitest": "^4.0.15"
