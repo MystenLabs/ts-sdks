@@ -151,6 +151,21 @@ function vector<T extends BcsType<any>, Name extends string = `vector<${T['name'
 	});
 }
 
+/**
+ * Compares two byte arrays using lexicographic ordering.
+ * This matches Rust's Ord implementation for Vec<u8>/[u8] which is used for BTreeMap key ordering.
+ * Comparison is done byte-by-byte first, then by length if all compared bytes are equal.
+ */
+export function compareBcsBytes(a: Uint8Array, b: Uint8Array): number {
+	for (let i = 0; i < Math.min(a.length, b.length); i++) {
+		if (a[i] !== b[i]) {
+			return a[i] - b[i];
+		}
+	}
+
+	return a.length - b.length;
+}
+
 function map<K extends BcsType<any>, V extends BcsType<any>>(
 	keyType: K,
 	valueType: V,
@@ -171,17 +186,27 @@ function map<K extends BcsType<any>, V extends BcsType<any>>(
 	Map<InferBcsInput<K>, InferBcsInput<V>>,
 	`Map<${K['name']}, ${V['name']}>`
 > {
-	return bcs.vector(bcs.tuple([keyType, valueType])).transform({
+	return new BcsType({
 		name: `Map<${keyType.name}, ${valueType.name}>`,
-		input: (value: Map<InferBcsInput<K>, InferBcsInput<V>>) => {
-			return [...value.entries()];
-		},
-		output: (value) => {
+		read: (reader) => {
+			const length = reader.readULEB();
 			const result = new Map<InferBcsType<K>, InferBcsType<V>>();
-			for (const [key, val] of value) {
-				result.set(key, val);
+			for (let i = 0; i < length; i++) {
+				result.set(keyType.read(reader), valueType.read(reader));
 			}
 			return result;
+		},
+		write: (value, writer) => {
+			const entries = [...value.entries()].map(
+				([key, val]) => [keyType.serialize(key).toBytes(), val] as const,
+			);
+			entries.sort(([a], [b]) => compareBcsBytes(a, b));
+
+			writer.writeULEB(entries.length);
+			for (const [keyBytes, val] of entries) {
+				writer.writeBytes(keyBytes);
+				valueType.write(val, writer);
+			}
 		},
 	});
 }

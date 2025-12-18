@@ -21,7 +21,7 @@ import {
 	isSerializedBcs,
 	SerializedBcs,
 } from './bcs-type.js';
-import { bcs } from './bcs.js';
+import { bcs, compareBcsBytes } from './bcs.js';
 import { BcsReader } from './reader.js';
 import type {
 	EnumInputShape,
@@ -61,4 +61,5 @@ export {
 	type EnumOutputShape,
 	type EnumInputShape,
 	type EnumOutputShapeWithKeys,
+	compareBcsBytes,
 };

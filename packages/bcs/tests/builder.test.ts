@@ -251,6 +251,85 @@ describe('bcs', () => {
 		});
 	});
 
+	describe('map', () => {
+		test('map entries are sorted by serialized key bytes', () => {
+			// Create a map with keys in non-sorted order
+			const unsortedMap = new Map([
+				['zebra', 1],
+				['apple', 2],
+				['mango', 3],
+			]);
+
+			const mapType = bcs.map(bcs.string(), bcs.u8());
+			const serialized = mapType.serialize(unsortedMap);
+
+			// Parse it back and verify the order
+			const parsed = mapType.parse(serialized.toBytes());
+
+			// The keys should be in sorted order (by BCS bytes, which for strings is length-prefixed)
+			const keys = [...parsed.keys()];
+			expect(keys).toEqual(['apple', 'mango', 'zebra']);
+		});
+
+		test('map with numeric keys sorts by BCS byte representation', () => {
+			const unsortedMap = new Map([
+				[256, 'b'], // BCS: 0001 (2 bytes, little-endian)
+				[1, 'a'], // BCS: 01 (1 byte) - but u16 is fixed 2 bytes: 0100
+				[65535, 'c'], // BCS: ffff
+			]);
+
+			const mapType = bcs.map(bcs.u16(), bcs.string());
+			const serialized = mapType.serialize(unsortedMap);
+			const parsed = mapType.parse(serialized.toBytes());
+
+			// u16 is fixed-width, so sort is purely byte-by-byte
+			// 1 = 0x0100, 256 = 0x0001, 65535 = 0xffff
+			// Sorted: 0x0001 (256), 0x0100 (1), 0xffff (65535)
+			const keys = [...parsed.keys()];
+			expect(keys).toEqual([256, 1, 65535]);
+		});
+
+		test('map with string keys of different lengths', () => {
+			// BCS strings are length-prefixed, shorter strings sort first
+			const unsortedMap = new Map([
+				['abc', 1],
+				['a', 2],
+				['ab', 3],
+			]);
+
+			const mapType = bcs.map(bcs.string(), bcs.u8());
+			const serialized = mapType.serialize(unsortedMap);
+			const parsed = mapType.parse(serialized.toBytes());
+
+			// Shorter strings sort first because BCS prefixes length
+			const keys = [...parsed.keys()];
+			expect(keys).toEqual(['a', 'ab', 'abc']);
+		});
+
+		test('empty map', () => {
+			const emptyMap = new Map<string, number>();
+			const mapType = bcs.map(bcs.string(), bcs.u8());
+			const serialized = mapType.serialize(emptyMap);
+
+			expect(toHex(serialized.toBytes())).toBe('00'); // Just the length prefix
+			expect(mapType.parse(serialized.toBytes())).toEqual(new Map());
+		});
+
+		test('map round-trip preserves values', () => {
+			const originalMap = new Map([
+				['key1', 'value1'],
+				['key2', 'value2'],
+			]);
+
+			const mapType = bcs.map(bcs.string(), bcs.string());
+			const serialized = mapType.serialize(originalMap);
+			const parsed = mapType.parse(serialized.toBytes());
+
+			expect(parsed.get('key1')).toBe('value1');
+			expect(parsed.get('key2')).toBe('value2');
+		});
+	});
+
 	describe('transform', () => {
 		const stringU8 = bcs.u8().transform({
 			input: (val: string) => parseInt(val),
