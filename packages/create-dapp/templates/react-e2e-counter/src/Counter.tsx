@@ -62,7 +62,7 @@ export function Counter({ id }: { id: string }) {
         throw new Error("Transaction failed");
       }
 
-      await client.waitForTransaction({ digest: result.Transaction.digest });
+      await client.waitForTransaction({ result });
       return result;
     },
     onSuccess: () => {
@@ -86,7 +86,7 @@ export function Counter({ id }: { id: string }) {
         throw new Error("Transaction failed");
       }
 
-      await client.waitForTransaction({ digest: result.Transaction.digest });
+      await client.waitForTransaction({ result });
       return result;
     },
     onSuccess: () => {

@@ -170,7 +170,7 @@ async function publishSinglePackage(options: {
 	});
 
 	const publishTxn = await client.waitForTransaction({
-		digest: (result.Transaction ?? result.FailedTransaction!).digest,
+		result,
 		include: { effects: true, objectTypes: true },
 	});
 
