@@ -9,4 +9,5 @@ export {
 	type SuiGraphQLClientOptions,
 	SuiGraphQLClient,
 	SuiGraphQLRequestError,
+	isSuiGraphQLClient,
 } from './client.js';

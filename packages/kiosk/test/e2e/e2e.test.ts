@@ -362,7 +362,6 @@ describe('Testing Kiosk SDK transaction building & querying e2e', () => {
 				withKioskFields: true, // this flag also returns the `kiosk` object in the response, which includes the base setup
 				withListingPrices: true, // this flag returns the listing prices for listed items.
 				withObjects: true, // this flag enables fetching of the objects within the kiosk (`multiGetObjects`).
-				objectOptions: { showDisplay: true, showContent: true }, // works with `withObjects` flag, specifies the options of the fetching.
 			},
 		});
 
