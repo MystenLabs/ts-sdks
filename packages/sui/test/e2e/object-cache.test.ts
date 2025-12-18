@@ -3,11 +3,11 @@
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { OwnedObjectRef } from '../../src/jsonRpc';
-import { Transaction } from '../../src/transactions';
-import { CachingTransactionExecutor } from '../../src/transactions/executor/caching';
-import { normalizeSuiAddress } from '../../src/utils';
-import { setup, TestToolbox } from './utils/setup';
+import { OwnedObjectRef } from '../../src/jsonRpc/index.js';
+import { Transaction } from '../../src/transactions/index.js';
+import { CachingTransactionExecutor } from '../../src/transactions/executor/caching.js';
+import { normalizeSuiAddress } from '../../src/utils/index.js';
+import { setup, TestToolbox } from './utils/setup.js';
 
 describe('CachingTransactionExecutor', { retry: 3 }, async () => {
 	let toolbox: TestToolbox;

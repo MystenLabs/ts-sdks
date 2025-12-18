@@ -4,7 +4,7 @@
 import { bcs } from '@mysten/bcs';
 import { describe, expect, test } from 'vitest';
 
-import { Transaction } from '../../../src/transactions';
+import { Transaction } from '../../../src/transactions/index.js';
 
 describe('tx.pure serialization', () => {
 	test('serialized pure values', () => {

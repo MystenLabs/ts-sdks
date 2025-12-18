@@ -20,6 +20,5 @@
 		"noUnusedParameters": true,
 		"noFallthroughCasesInSwitch": true
 	},
-	"include": ["."],
-	"references": [{ "path": "../tsconfig.json" }, { "path": "../../sui/" }]
+	"include": ["."]
 }

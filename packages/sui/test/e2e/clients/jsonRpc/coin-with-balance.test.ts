@@ -4,12 +4,12 @@
 import { fromHex, toBase64 } from '@mysten/bcs';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { bcs } from '../../../../src/bcs';
-import { Ed25519Keypair } from '../../../../src/keypairs/ed25519';
-import { Transaction } from '../../../../src/transactions';
-import { coinWithBalance } from '../../../../src/transactions/intents/CoinWithBalance';
-import { normalizeSuiAddress } from '../../../../src/utils';
-import { setup, TestToolbox } from '../../utils/setup';
+import { bcs } from '../../../../src/bcs/index.js';
+import { Ed25519Keypair } from '../../../../src/keypairs/ed25519/index.js';
+import { Transaction } from '../../../../src/transactions/index.js';
+import { coinWithBalance } from '../../../../src/transactions/intents/CoinWithBalance.js';
+import { normalizeSuiAddress } from '../../../../src/utils/index.js';
+import { setup, TestToolbox } from '../../utils/setup.js';
 
 describe('coinWithBalance', () => {
 	let toolbox: TestToolbox;

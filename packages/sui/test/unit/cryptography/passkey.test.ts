@@ -1,20 +1,20 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { secp256r1 } from '@noble/curves/p256';
-import { blake2b } from '@noble/hashes/blake2b';
+import { p256 as secp256r1 } from '@noble/curves/nist.js';
+import { blake2b } from '@noble/hashes/blake2.js';
 import { describe, expect, it } from 'vitest';
 
-import { bcs } from '../../../src/bcs';
-import { messageWithIntent } from '../../../src/cryptography';
-import { PasskeyKeypair } from '../../../src/keypairs/passkey';
-import { findCommonPublicKey } from '../../../src/keypairs/passkey/keypair';
+import { bcs } from '../../../src/bcs/index.js';
+import { messageWithIntent } from '../../../src/cryptography/index.js';
+import { PasskeyKeypair } from '../../../src/keypairs/passkey/index.js';
+import { findCommonPublicKey } from '../../../src/keypairs/passkey/keypair.js';
 import {
 	parseSerializedPasskeySignature,
 	PasskeyPublicKey,
-} from '../../../src/keypairs/passkey/publickey';
-import { fromBase64 } from '../../../src/utils';
-import { createMockPasskeyKeypair, MockPasskeySigner } from './test-utils';
+} from '../../../src/keypairs/passkey/publickey.js';
+import { fromBase64 } from '../../../src/utils/index.js';
+import { createMockPasskeyKeypair, MockPasskeySigner } from './test-utils.js';
 
 describe('passkey signer E2E testing', () => {
 	it('should retrieve the correct sui address', async () => {
@@ -26,7 +26,7 @@ describe('passkey signer E2E testing', () => {
 	});
 
 	it('should sign a personal message and verify against pubkey', async () => {
-		const sk = secp256r1.utils.randomPrivateKey();
+		const sk = secp256r1.utils.randomSecretKey();
 		const pk = secp256r1.getPublicKey(sk);
 		const authenticatorData = new Uint8Array([
 			88, 14, 103, 167, 58, 122, 146, 250, 216, 102, 207, 153, 185, 74, 182, 103, 89, 162, 151, 100,
@@ -64,7 +64,7 @@ describe('passkey signer E2E testing', () => {
 	});
 
 	it('should sign a transaction and verify against pubkey', async () => {
-		const sk = secp256r1.utils.randomPrivateKey();
+		const sk = secp256r1.utils.randomSecretKey();
 		const pk = secp256r1.getPublicKey(sk);
 		const authenticatorData = new Uint8Array([
 			88, 14, 103, 167, 58, 122, 146, 250, 216, 102, 207, 153, 185, 74, 182, 103, 89, 162, 151, 100,
@@ -184,7 +184,7 @@ describe('passkey signer E2E testing', () => {
 	});
 
 	it('should sign and recover to an unique public key', async () => {
-		const sk = secp256r1.utils.randomPrivateKey();
+		const sk = secp256r1.utils.randomSecretKey();
 		const pk = secp256r1.getPublicKey(sk);
 		const authenticatorData = new Uint8Array([]);
 		const signer = await createMockPasskeyKeypair({

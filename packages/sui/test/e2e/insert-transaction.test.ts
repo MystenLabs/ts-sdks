@@ -3,12 +3,12 @@
 
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { Transaction, TransactionResult } from '../../src/transactions';
-import { TransactionCommands } from '../../src/transactions/Commands';
-import type { TransactionDataBuilder } from '../../src/transactions/TransactionData';
-import type { BuildTransactionOptions } from '../../src/transactions/resolve';
-import { normalizeSuiObjectId } from '../../src/utils';
-import { setup, TestToolbox } from './utils/setup';
+import { Transaction, TransactionResult } from '../../src/transactions/index.js';
+import { TransactionCommands } from '../../src/transactions/Commands.js';
+import type { TransactionDataBuilder } from '../../src/transactions/TransactionData.js';
+import type { BuildTransactionOptions } from '../../src/transactions/resolve.js';
+import { normalizeSuiObjectId } from '../../src/utils/index.js';
+import { setup, TestToolbox } from './utils/setup.js';
 
 export const SUI_CLOCK_OBJECT_ID = normalizeSuiObjectId('0x6');
 

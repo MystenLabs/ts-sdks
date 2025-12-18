@@ -5,14 +5,13 @@
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"sideEffects": false,
-	"type": "commonjs",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.js"
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
 		}
 	},
 	"files": [
@@ -22,8 +21,7 @@
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"dev": "pnpm build --watch",
-		"build": "build-package",
+		"build": "rm -rf dist && tsc --noEmit && tsdown",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"oxlint:check": "oxlint  .",
@@ -43,11 +41,10 @@
 	},
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/utils#readme",
 	"devDependencies": {
-		"@mysten/build-scripts": "workspace:*",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.15"
 	},
 	"dependencies": {
-		"@scure/base": "^1.2.6"
+		"@scure/base": "^2.0.0"
 	}
 }

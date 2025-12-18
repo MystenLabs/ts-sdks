@@ -1,12 +1,8 @@
 {
-	"extends": "../../../build-scripts/tsconfig.shared.json",
+	"extends": "../../../../tsconfig.shared.json",
 	"include": ["src", "src/hooks"],
 	"compilerOptions": {
-		"module": "CommonJS",
-		"outDir": "dist/cjs",
-		"isolatedModules": true,
-		"jsx": "react-jsx",
-		"rootDir": "src"
-	},
-	"references": [{ "path": "../dapp-kit-core" }]
+		"noEmit": true,
+		"jsx": "react-jsx"
+	}
 }

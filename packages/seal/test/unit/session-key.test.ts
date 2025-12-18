@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
-import { SessionKey } from '../../src/session-key';
+import { SessionKey } from '../../src/session-key.js';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { UserError } from '../../src/error';
+import { UserError } from '../../src/error.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 describe('Session key tests', () => {

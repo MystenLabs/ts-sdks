@@ -29,10 +29,8 @@ import {
 	SUI_MAINNET_CHAIN,
 	SUI_TESTNET_CHAIN,
 } from '@mysten/wallet-standard';
-import type { Emitter } from 'mitt';
-import mitt from 'mitt';
 import { DappPostMessageChannel, decodeJwtSession } from '@mysten/window-wallet-core';
-import { promiseWithResolvers } from '@mysten/utils';
+import { mitt, promiseWithResolvers, type Emitter } from '@mysten/utils';
 
 import '../components/modal.js';
 
