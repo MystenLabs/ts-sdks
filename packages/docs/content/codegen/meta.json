@@ -1,0 +1,6 @@
+{
+	"root": true,
+	"title": "TypeScript Codegen",
+	"description": "Generate type-safe TypeScript code from Sui Move packages",
+	"pages": ["index"]
+}

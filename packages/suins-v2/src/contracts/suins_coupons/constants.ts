@@ -1,6 +1,7 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
-import type { Transaction } from '@mysten/sui/transactions';
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
+import { type Transaction } from '@mysten/sui/transactions';
 export interface PercentageDiscountTypeOptions {
 	package?: string;
 	arguments?: [];

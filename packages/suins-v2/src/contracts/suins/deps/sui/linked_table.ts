@@ -1,13 +1,13 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * Similar to `sui::table` but the values are linked together, allowing for ordered
  * insertion and removal
  */
 
-import { bcs } from '@mysten/sui/bcs';
-import type { BcsType } from '@mysten/sui/bcs';
+import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct } from '../../../utils/index.js';
 import * as object from './object.js';
 const $moduleName = '0x2::linked_table';

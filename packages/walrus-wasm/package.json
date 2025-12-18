@@ -6,11 +6,11 @@
   "version": "0.2.0",
   "private": false,
   "main": "index.js",
-  "types": "./web/walrus_wasm.d.ts",
+  "types": "./index.d.mts",
   "repository": {
-		"type": "git",
-		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
-	},
+    "type": "git",
+    "url": "git+https://github.com/MystenLabs/ts-sdks.git"
+  },
   "scripts": {
     "build:wasm": "pnpm build:nodejs && pnpm build:web",
     "build:nodejs": "wasm-pack build --target nodejs --release --out-dir nodejs --no-pack && rm nodejs/.gitignore",
@@ -19,8 +19,11 @@
   },
   "exports": {
     ".": {
-      "types": "./web/walrus_wasm.d.ts",
-      "browser": "./web/walrus_wasm.js",
+      "browser": {
+        "types": "./web/walrus_wasm.d.ts",
+        "import": "./web/walrus_wasm.js"
+      },
+      "types": "./index.d.mts",
       "import": "./index.mjs",
       "require": "./index.js"
     },

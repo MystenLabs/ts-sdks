@@ -3,16 +3,16 @@
 
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
-import { analyze } from '../../src/transaction-analyzer/analyzer';
+import { analyze } from '../../src/transaction-analyzer/analyzer.js';
 import { coinValues } from '../../src/transaction-analyzer/rules/coin-value.js';
-import { MockSuiClient } from '../mocks/MockSuiClient';
+import { MockSuiClient } from '../mocks/MockSuiClient.js';
 import {
 	DEFAULT_SENDER,
 	createAddressOwner,
 	TEST_COIN_1_ID,
 	TEST_USDC_COIN_ID,
 	TEST_WETH_COIN_ID,
-} from '../mocks/mockData';
+} from '../mocks/mockData.js';
 
 describe('TransactionAnalyzer - Coin Value Rule', () => {
 	// Mock price provider function

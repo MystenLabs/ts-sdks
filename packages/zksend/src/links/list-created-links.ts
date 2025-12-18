@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '@mysten/sui/bcs';
-import type { SuiClient } from '@mysten/sui/client';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
-import { graphql } from '@mysten/sui/graphql/schemas/latest';
+import { graphql } from '@mysten/sui/graphql/schema';
 import { fromBase64, normalizeSuiAddress } from '@mysten/sui/utils';
 
 import { ZkSendLink } from './claim.js';
@@ -50,10 +50,11 @@ export async function listCreatedLinks({
 	host?: string;
 	path?: string;
 	claimApi?: string;
-	client?: SuiClient;
+	client?: SuiJsonRpcClient;
 	fetch?: typeof fetch;
 }) {
 	const gqlClient = new SuiGraphQLClient({
+		network: network || 'mainnet',
 		url:
 			network === 'testnet'
 				? 'https://graphql.testnet.sui.io/graphql'

@@ -4,12 +4,12 @@
 import type {
 	DynamicFieldInfo,
 	PaginationArguments,
-	SuiClient,
+	SuiJsonRpcClient,
 	SuiObjectData,
 	SuiObjectDataFilter,
 	SuiObjectDataOptions,
 	SuiObjectResponse,
-} from '@mysten/sui/client';
+} from '@mysten/sui/jsonRpc';
 import {
 	fromBase64,
 	normalizeStructTag,
@@ -24,7 +24,7 @@ import { chunk } from '@mysten/utils';
 
 const DEFAULT_QUERY_LIMIT = 50;
 
-export async function getKioskObject(client: SuiClient, id: string): Promise<Kiosk> {
+export async function getKioskObject(client: SuiJsonRpcClient, id: string): Promise<Kiosk> {
 	const queryRes = await client.getObject({ id, options: { showBcs: true } });
 
 	if (!queryRes || queryRes.error || !queryRes.data) {
@@ -159,7 +159,7 @@ export function attachLockedItems(kioskData: KioskData, lockedItemIds: string[])
  * RPC calls that allow filtering of Type / batch fetching of spec
  */
 export async function getAllDynamicFields(
-	client: SuiClient,
+	client: SuiJsonRpcClient,
 	parentId: string,
 	pagination: PaginationArguments<string>,
 ) {
@@ -187,7 +187,7 @@ export async function getAllDynamicFields(
  * Requests are sent using `Promise.all`.
  */
 export async function getAllObjects(
-	client: SuiClient,
+	client: SuiJsonRpcClient,
 	ids: string[],
 	options: SuiObjectDataOptions,
 	limit: number = DEFAULT_QUERY_LIMIT,
@@ -217,7 +217,7 @@ export async function getAllOwnedObjects({
 	limit = DEFAULT_QUERY_LIMIT,
 	options = { showType: true, showContent: true },
 }: {
-	client: SuiClient;
+	client: SuiJsonRpcClient;
 	owner: string;
 	filter?: SuiObjectDataFilter;
 	options?: SuiObjectDataOptions;

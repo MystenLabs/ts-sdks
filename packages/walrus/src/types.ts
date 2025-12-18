@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Signer } from '@mysten/sui/cryptography';
-import type { ClientWithCoreApi } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 
 import type { StorageNodeInfo } from './contracts/walrus/storage_node.js';
@@ -30,16 +30,6 @@ export interface WalrusPackageConfig {
 	stakingPoolId: string;
 	exchangeIds?: string[];
 }
-
-type SuiClientOrRpcUrl =
-	| {
-			suiClient: ClientWithCoreApi;
-			suiRpcUrl?: never;
-	  }
-	| {
-			suiRpcUrl: string;
-			suiClient?: never;
-	  };
 
 type WalrusNetworkOrPackageConfig =
 	| {
@@ -89,18 +79,17 @@ interface BaseWalrusClientConfig {
  * This is used to configure the Walrus client to use a specific storage node client options, network, and Sui client or RPC URL.
  */
 export type WalrusClientConfig = BaseWalrusClientConfig &
-	WalrusNetworkOrPackageConfig &
-	SuiClientOrRpcUrl;
+	WalrusNetworkOrPackageConfig & {
+		suiClient: ClientWithCoreApi;
+	};
 
 export type WalrusOptions<Name = 'walrus'> = BaseWalrusClientConfig & {
 	packageConfig?: WalrusPackageConfig;
-	network?: 'mainnet' | 'testnet';
 	name?: Name;
 };
 
 export type WalrusClientExtensionOptions = BaseWalrusClientConfig & {
 	packageConfig?: WalrusPackageConfig;
-	network?: 'mainnet' | 'testnet';
 };
 
 export type WalrusClientRequestOptions = Pick<RequestOptions, 'signal'>;

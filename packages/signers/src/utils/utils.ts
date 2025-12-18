@@ -1,8 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { secp256r1 } from '@noble/curves/p256';
-import { secp256k1 } from '@noble/curves/secp256k1';
+import { p256 as secp256r1 } from '@noble/curves/nist.js';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { ASN1Construction, ASN1TagClass, DERElement } from 'asn1-ts';
 
 /** The total number of bits in the DER bit string for the uncompressed public key. */
@@ -70,14 +70,22 @@ export function getConcatenatedSignature(signature: Uint8Array, keyScheme: strin
 	const [r, s] = derElement.toJSON() as [string, string];
 
 	switch (keyScheme) {
-		case 'Secp256k1':
-			return new secp256k1.Signature(BigInt(r), BigInt(s))
-				.normalizeS()
-				.toCompactRawBytes() as Uint8Array<ArrayBuffer>;
-		case 'Secp256r1':
-			return new secp256r1.Signature(BigInt(r), BigInt(s))
-				.normalizeS()
-				.toCompactRawBytes() as Uint8Array<ArrayBuffer>;
+		case 'Secp256k1': {
+			const sig = new secp256k1.Signature(BigInt(r), BigInt(s));
+			const normalized = sig.hasHighS()
+				? new secp256k1.Signature(sig.r, secp256k1.Point.Fn.neg(sig.s))
+				: sig;
+
+			return normalized.toBytes('compact') as Uint8Array<ArrayBuffer>;
+		}
+		case 'Secp256r1': {
+			const sig = new secp256r1.Signature(BigInt(r), BigInt(s));
+			const normalized = sig.hasHighS()
+				? new secp256r1.Signature(sig.r, secp256r1.Point.Fn.neg(sig.s))
+				: sig;
+
+			return normalized.toBytes('compact') as Uint8Array<ArrayBuffer>;
+		}
 		default:
 			throw new Error('Unsupported key scheme');
 	}

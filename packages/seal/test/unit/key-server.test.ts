@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fromBase64 } from '@mysten/bcs';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { bcs } from '@mysten/sui/bcs';
 
@@ -14,7 +14,7 @@ import {
 } from '../../src/key-server.js';
 import { Version } from '../../src/utils.js';
 
-// Data for mock response from SuiClient
+// Data for mock response from SuiGrpcClient
 const pk = fromBase64(
 	'oEC1VIuwQo+6FZiVwHCAy/3HbvAbuIyiztXIWwd4LgmXCh9WhOKg3T0+Mb62y9fqAsSaN5SybG09n/3JnkmEzJgdDXLpM8KvMwkha/cBHp6Cx7aCdogvGLoOp/RadyHb',
 );
@@ -49,13 +49,13 @@ describe('key-server tests', () => {
 			};
 		});
 
-		// Mock SuiClient
+		// Mock SuiGrpcClient
 		const mockSuiClient = {
 			core: {
 				getObject: mockGetObject,
 				getDynamicField: vi.fn(),
 			},
-		} as unknown as SuiClient;
+		} as unknown as SuiGrpcClient;
 
 		await expect(
 			retrieveKeyServers({
@@ -76,7 +76,10 @@ describe('key-server tests', () => {
 			// Mock fetch with exact response from the real service
 			const keyServers = await retrieveKeyServers({
 				objectIds: [id],
-				client: new SuiClient({ url: getFullnodeUrl('testnet') }),
+				client: new SuiGrpcClient({
+					network: 'testnet',
+					baseUrl: 'https://fullnode.testnet.sui.io:443',
+				}),
 			});
 			vi.clearAllMocks();
 			const headers = new Headers();
