@@ -1,17 +1,23 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import type { ClientWithExtensions } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import type { Keypair } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import type { Transaction } from '@mysten/sui/transactions';
 
-import { DeepBookClient } from '../src/index.js'; // Adjust path according to new structure
+import { deepbook, type DeepBookClient } from '../src/index.js'; // Adjust path according to new structure
 import type { BalanceManager } from '../src/types/index.js';
 
-export class DeepBookMarketMaker extends DeepBookClient {
+const GRPC_URLS = {
+	mainnet: 'https://fullnode.mainnet.sui.io:443',
+	testnet: 'https://fullnode.testnet.sui.io:443',
+} as const;
+
+export class DeepBookMarketMaker {
 	keypair: Keypair;
-	suiClient: SuiJsonRpcClient;
+	client: ClientWithExtensions<{ deepbook: DeepBookClient }>;
 
 	constructor(
 		keypair: string | Keypair,
@@ -29,37 +35,28 @@ export class DeepBookMarketMaker extends DeepBookClient {
 
 		const address = resolvedKeypair.toSuiAddress();
 
-		super({
-			address: address,
-			env: env,
-			client: new SuiJsonRpcClient({
-				url: getJsonRpcFullnodeUrl(env),
-			}),
-			balanceManagers: balanceManagers,
-			adminCap: adminCap,
-		});
-
 		this.keypair = resolvedKeypair;
-		this.suiClient = new SuiJsonRpcClient({
-			url: getJsonRpcFullnodeUrl(env),
-		});
+		this.client = new SuiGrpcClient({ network: env, baseUrl: GRPC_URLS[env] }).$extend(
+			deepbook({
+				address: address,
+				env: env,
+				balanceManagers: balanceManagers,
+				adminCap: adminCap,
+			}),
+		);
 	}
 
 	static #getSignerFromPK = (privateKey: string) => {
-		const { schema, secretKey } = decodeSuiPrivateKey(privateKey);
-		if (schema === 'ED25519') return Ed25519Keypair.fromSecretKey(secretKey);
+		const { scheme, secretKey } = decodeSuiPrivateKey(privateKey);
+		if (scheme === 'ED25519') return Ed25519Keypair.fromSecretKey(secretKey);
 
-		throw new Error(`Unsupported schema: ${schema}`);
+		throw new Error(`Unsupported scheme: ${scheme}`);
 	};
 
 	signAndExecute = async (tx: Transaction) => {
-		return this.suiClient.signAndExecuteTransaction({
+		return this.keypair.signAndExecuteTransaction({
 			transaction: tx,
-			signer: this.keypair,
-			options: {
-				showEffects: true,
-				showObjectChanges: true,
-			},
+			client: this.client,
 		});
 	};
 
@@ -74,11 +71,13 @@ export class DeepBookMarketMaker extends DeepBookClient {
 	// Return 1 DEEP to DEEP_SUI pool
 	flashLoanExample = async (tx: Transaction) => {
 		const borrowAmount = 1;
-		const [deepCoin, flashLoan] = tx.add(this.flashLoans.borrowBaseAsset('DEEP_SUI', borrowAmount));
+		const [deepCoin, flashLoan] = tx.add(
+			this.client.deepbook.flashLoans.borrowBaseAsset('DEEP_SUI', borrowAmount),
+		);
 
 		// Execute trade using borrowed DEEP
 		const [baseOut, quoteOut, deepOut] = tx.add(
-			this.deepBook.swapExactQuoteForBase({
+			this.client.deepbook.deepBook.swapExactQuoteForBase({
 				poolKey: 'SUI_DBUSDC',
 				amount: 0.5,
 				deepAmount: 1,
@@ -91,7 +90,7 @@ export class DeepBookMarketMaker extends DeepBookClient {
 
 		// Execute second trade to get back DEEP for repayment
 		const [baseOut2, quoteOut2, deepOut2] = tx.add(
-			this.deepBook.swapExactQuoteForBase({
+			this.client.deepbook.deepBook.swapExactQuoteForBase({
 				poolKey: 'DEEP_SUI',
 				amount: 10,
 				deepAmount: 0,
@@ -103,14 +102,19 @@ export class DeepBookMarketMaker extends DeepBookClient {
 
 		// Return borrowed DEEP
 		const loanRemain = tx.add(
-			this.flashLoans.returnBaseAsset('DEEP_SUI', borrowAmount, baseOut2, flashLoan),
+			this.client.deepbook.flashLoans.returnBaseAsset(
+				'DEEP_SUI',
+				borrowAmount,
+				baseOut2,
+				flashLoan,
+			),
 		);
 		tx.transferObjects([loanRemain], this.getActiveAddress());
 	};
 
 	placeLimitOrderExample = (tx: Transaction) => {
 		tx.add(
-			this.deepBook.placeLimitOrder({
+			this.client.deepbook.deepBook.placeLimitOrder({
 				poolKey: 'SUI_DBUSDC',
 				balanceManagerKey: 'MANAGER_1',
 				clientOrderId: '123456789',

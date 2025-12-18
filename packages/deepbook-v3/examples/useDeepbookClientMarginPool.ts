@@ -1,26 +1,34 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { DeepBookClient } from '../src/client.js';
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+import { deepbook } from '../src/client.js';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const GRPC_URLS = {
+	mainnet: 'https://fullnode.mainnet.sui.io:443',
+	testnet: 'https://fullnode.testnet.sui.io:443',
+} as const;
 
 (async () => {
-	const dbClient = new DeepBookClient({
-		client: new SuiClient({
-			url: getFullnodeUrl('testnet'),
+	const env = 'testnet';
+	const client = new SuiGrpcClient({ network: env, baseUrl: GRPC_URLS[env] }).$extend(
+		deepbook({
+			address: '0x0',
+			env: env,
 		}),
-		address: '0x0',
-		env: 'testnet',
-	});
+	);
 
 	console.log('=== Testing DeepBook Client Functions ===\n');
 
 	// Original read-only calls
 	console.log('--- Original Functions ---');
 	try {
-		console.log('Manager Balance (SUI):', await dbClient.checkManagerBalance('MANAGER_1', 'SUI'));
+		console.log(
+			'Manager Balance (SUI):',
+			await client.deepbook.checkManagerBalance('MANAGER_1', 'SUI'),
+		);
 		console.log(
 			'Level 2 Range (SUI_DBUSDC):',
-			await dbClient.getLevel2Range('SUI_DBUSDC', 0.1, 100, true),
+			await client.deepbook.getLevel2Range('SUI_DBUSDC', 0.1, 100, true),
 		);
 	} catch (error) {
 		console.log('Error with original functions:', (error as Error).message);
@@ -36,53 +44,61 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 	try {
 		// Test basic margin pool info
 		console.log('\n1. Basic Margin Pool Information:');
-		const marginPoolId = await dbClient.getMarginPoolId(coinKey);
+		const marginPoolId = await client.deepbook.getMarginPoolId(coinKey);
 		console.log(`Margin Pool ID (${coinKey}):`, marginPoolId);
 
-		const isAllowed = await dbClient.isDeepbookPoolAllowed(coinKey, testDeepbookPoolId);
+		const isAllowed = await client.deepbook.isDeepbookPoolAllowed(coinKey, testDeepbookPoolId);
 		console.log(`Deepbook Pool Allowed (${coinKey}):`, isAllowed);
 
 		// Test supply/borrow statistics
 		console.log('\n2. Supply/Borrow Statistics:');
-		const totalSupply = await dbClient.getMarginPoolTotalSupply(coinKey, 6);
+		const totalSupply = await client.deepbook.getMarginPoolTotalSupply(coinKey, 6);
 		console.log(`Total Supply (${coinKey}):`, totalSupply);
 
-		const supplyShares = await dbClient.getMarginPoolSupplyShares(coinKey, 6);
+		const supplyShares = await client.deepbook.getMarginPoolSupplyShares(coinKey, 6);
 		console.log(`Supply Shares (${coinKey}):`, supplyShares);
 
-		const totalBorrow = await dbClient.getMarginPoolTotalBorrow(coinKey, 6);
+		const totalBorrow = await client.deepbook.getMarginPoolTotalBorrow(coinKey, 6);
 		console.log(`Total Borrow (${coinKey}):`, totalBorrow);
 
-		const borrowShares = await dbClient.getMarginPoolBorrowShares(coinKey, 6);
+		const borrowShares = await client.deepbook.getMarginPoolBorrowShares(coinKey, 6);
 		console.log(`Borrow Shares (${coinKey}):`, borrowShares);
 
 		// Test timestamps and configuration
 		console.log('\n3. Timestamps and Configuration:');
-		const lastUpdate = await dbClient.getMarginPoolLastUpdateTimestamp(coinKey);
+		const lastUpdate = await client.deepbook.getMarginPoolLastUpdateTimestamp(coinKey);
 		console.log(`Last Update Timestamp (${coinKey}):`, new Date(lastUpdate).toISOString());
 
-		const supplyCap = await dbClient.getMarginPoolSupplyCap(coinKey, 6);
+		const supplyCap = await client.deepbook.getMarginPoolSupplyCap(coinKey, 6);
 		console.log(`Supply Cap (${coinKey}):`, supplyCap);
 
-		const maxUtilization = await dbClient.getMarginPoolMaxUtilizationRate(coinKey);
+		const maxUtilization = await client.deepbook.getMarginPoolMaxUtilizationRate(coinKey);
 		console.log(`Max Utilization Rate (${coinKey}):`, `${(maxUtilization * 100).toFixed(2)}%`);
 
-		const protocolSpread = await dbClient.getMarginPoolProtocolSpread(coinKey);
+		const protocolSpread = await client.deepbook.getMarginPoolProtocolSpread(coinKey);
 		console.log(`Protocol Spread (${coinKey}):`, `${(protocolSpread * 100).toFixed(4)}%`);
 
-		const minBorrow = await dbClient.getMarginPoolMinBorrow(coinKey, 6);
+		const minBorrow = await client.deepbook.getMarginPoolMinBorrow(coinKey, 6);
 		console.log(`Min Borrow (${coinKey}):`, minBorrow);
 
-		const interestRate = await dbClient.getMarginPoolInterestRate(coinKey);
+		const interestRate = await client.deepbook.getMarginPoolInterestRate(coinKey);
 		console.log(`Interest Rate (${coinKey}):`, `${(interestRate * 100).toFixed(4)}%`);
 
 		// Test user-specific functions (these might fail if supplier cap doesn't exist)
 		console.log("\n4. User-Specific Functions (may fail if supplier cap doesn't exist):");
 		try {
-			const userSupplyShares = await dbClient.getUserSupplyShares(coinKey, testSupplierCapId, 6);
+			const userSupplyShares = await client.deepbook.getUserSupplyShares(
+				coinKey,
+				testSupplierCapId,
+				6,
+			);
 			console.log(`User Supply Shares (${coinKey}):`, userSupplyShares);
 
-			const userSupplyAmount = await dbClient.getUserSupplyAmount(coinKey, testSupplierCapId, 6);
+			const userSupplyAmount = await client.deepbook.getUserSupplyAmount(
+				coinKey,
+				testSupplierCapId,
+				6,
+			);
 			console.log(`User Supply Amount (${coinKey}):`, userSupplyAmount);
 		} catch (userError) {
 			console.log(
@@ -96,66 +112,68 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 		const dbusdcCoinKey = 'DBUSDC';
 		try {
 			// Basic information
-			const dbusdcMarginPoolId = await dbClient.getMarginPoolId(dbusdcCoinKey);
+			const dbusdcMarginPoolId = await client.deepbook.getMarginPoolId(dbusdcCoinKey);
 			console.log(`Margin Pool ID (${dbusdcCoinKey}):`, dbusdcMarginPoolId);
 
-			const dbusdcIsAllowed = await dbClient.isDeepbookPoolAllowed(
+			const dbusdcIsAllowed = await client.deepbook.isDeepbookPoolAllowed(
 				dbusdcCoinKey,
 				testDeepbookPoolId,
 			);
 			console.log(`Deepbook Pool Allowed (${dbusdcCoinKey}):`, dbusdcIsAllowed);
 
 			// Supply/Borrow Statistics
-			const dbusdcTotalSupply = await dbClient.getMarginPoolTotalSupply(dbusdcCoinKey, 6);
+			const dbusdcTotalSupply = await client.deepbook.getMarginPoolTotalSupply(dbusdcCoinKey, 6);
 			console.log(`Total Supply (${dbusdcCoinKey}):`, dbusdcTotalSupply);
 
-			const dbusdcSupplyShares = await dbClient.getMarginPoolSupplyShares(dbusdcCoinKey, 6);
+			const dbusdcSupplyShares = await client.deepbook.getMarginPoolSupplyShares(dbusdcCoinKey, 6);
 			console.log(`Supply Shares (${dbusdcCoinKey}):`, dbusdcSupplyShares);
 
-			const dbusdcTotalBorrow = await dbClient.getMarginPoolTotalBorrow(dbusdcCoinKey, 6);
+			const dbusdcTotalBorrow = await client.deepbook.getMarginPoolTotalBorrow(dbusdcCoinKey, 6);
 			console.log(`Total Borrow (${dbusdcCoinKey}):`, dbusdcTotalBorrow);
 
-			const dbusdcBorrowShares = await dbClient.getMarginPoolBorrowShares(dbusdcCoinKey, 6);
+			const dbusdcBorrowShares = await client.deepbook.getMarginPoolBorrowShares(dbusdcCoinKey, 6);
 			console.log(`Borrow Shares (${dbusdcCoinKey}):`, dbusdcBorrowShares);
 
 			// Timestamps and Configuration
-			const dbusdcLastUpdate = await dbClient.getMarginPoolLastUpdateTimestamp(dbusdcCoinKey);
+			const dbusdcLastUpdate =
+				await client.deepbook.getMarginPoolLastUpdateTimestamp(dbusdcCoinKey);
 			console.log(
 				`Last Update Timestamp (${dbusdcCoinKey}):`,
 				new Date(dbusdcLastUpdate).toISOString(),
 			);
 
-			const dbusdcSupplyCap = await dbClient.getMarginPoolSupplyCap(dbusdcCoinKey, 6);
+			const dbusdcSupplyCap = await client.deepbook.getMarginPoolSupplyCap(dbusdcCoinKey, 6);
 			console.log(`Supply Cap (${dbusdcCoinKey}):`, dbusdcSupplyCap);
 
-			const dbusdcMaxUtilization = await dbClient.getMarginPoolMaxUtilizationRate(dbusdcCoinKey);
+			const dbusdcMaxUtilization =
+				await client.deepbook.getMarginPoolMaxUtilizationRate(dbusdcCoinKey);
 			console.log(
 				`Max Utilization Rate (${dbusdcCoinKey}):`,
 				`${(dbusdcMaxUtilization * 100).toFixed(2)}%`,
 			);
 
-			const dbusdcProtocolSpread = await dbClient.getMarginPoolProtocolSpread(dbusdcCoinKey);
+			const dbusdcProtocolSpread = await client.deepbook.getMarginPoolProtocolSpread(dbusdcCoinKey);
 			console.log(
 				`Protocol Spread (${dbusdcCoinKey}):`,
 				`${(dbusdcProtocolSpread * 100).toFixed(4)}%`,
 			);
 
-			const dbusdcMinBorrow = await dbClient.getMarginPoolMinBorrow(dbusdcCoinKey, 6);
+			const dbusdcMinBorrow = await client.deepbook.getMarginPoolMinBorrow(dbusdcCoinKey, 6);
 			console.log(`Min Borrow (${dbusdcCoinKey}):`, dbusdcMinBorrow);
 
-			const dbusdcInterestRate = await dbClient.getMarginPoolInterestRate(dbusdcCoinKey);
+			const dbusdcInterestRate = await client.deepbook.getMarginPoolInterestRate(dbusdcCoinKey);
 			console.log(`Interest Rate (${dbusdcCoinKey}):`, `${(dbusdcInterestRate * 100).toFixed(4)}%`);
 
 			// User-specific functions (may fail if supplier cap doesn't exist)
 			try {
-				const dbusdcUserSupplyShares = await dbClient.getUserSupplyShares(
+				const dbusdcUserSupplyShares = await client.deepbook.getUserSupplyShares(
 					dbusdcCoinKey,
 					testSupplierCapId,
 					6,
 				);
 				console.log(`User Supply Shares (${dbusdcCoinKey}):`, dbusdcUserSupplyShares);
 
-				const dbusdcUserSupplyAmount = await dbClient.getUserSupplyAmount(
+				const dbusdcUserSupplyAmount = await client.deepbook.getUserSupplyAmount(
 					dbusdcCoinKey,
 					testSupplierCapId,
 					6,
