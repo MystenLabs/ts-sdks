@@ -4,12 +4,11 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './object.js';
 const $moduleName = '0x2::zklogin_verified_issuer';
 export const VerifiedIssuer = new MoveStruct({
 	name: `${$moduleName}::VerifiedIssuer`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		owner: bcs.Address,
 		issuer: bcs.string(),
 	},

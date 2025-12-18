@@ -40,14 +40,14 @@ async function uploadFile() {
 		signer: keypair,
 	});
 
-	console.log('created blob', blobObject.id.id);
+	console.log('created blob', blobObject.id);
 
 	await walrusClient.executeDeleteBlobTransaction({
 		signer: keypair,
-		blobObjectId: blobObject.id.id,
+		blobObjectId: blobObject.id,
 	});
 
-	console.log('deleted blob', blobObject.id.id);
+	console.log('deleted blob', blobObject.id);
 }
 
 uploadFile().catch(console.error);

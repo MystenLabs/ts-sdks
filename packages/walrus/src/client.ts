@@ -739,7 +739,7 @@ export class WalrusClient {
 						reserveSpace({
 							package: walrusPackageId,
 							arguments: {
-								self: systemObject.id.id,
+								self: systemObject.id,
 								storageAmount: encodedSize,
 								epochsAhead: epochs,
 								payment: coin,
@@ -1877,7 +1877,7 @@ export class WalrusClient {
 				attributes,
 			});
 
-			const blobObjectId = suiBlobObject.blob.id.id;
+			const blobObjectId = suiBlobObject.blob.id;
 
 			const confirmations = await this.writeEncodedBlobToNodes({
 				blobId,
@@ -1939,12 +1939,12 @@ export class WalrusClient {
 				txDigest: registerResult.digest,
 				signal,
 				deletable,
-				blobObjectId: registerResult.blob.id.id,
+				blobObjectId: registerResult.blob.id,
 				encodingType: metadata.metadata.encodingType as EncodingType,
 			});
 
 			const certificate = result.certificate;
-			const blobObjectId = registerResult.blob.id.id;
+			const blobObjectId = registerResult.blob.id;
 
 			await this.executeCertifyBlobTransaction({
 				signer,
@@ -2272,7 +2272,7 @@ export class WalrusClient {
 							blob: data!,
 							nonce: meta.nonce,
 							txDigest: digest,
-							blobObjectId: blobObject.id.id,
+							blobObjectId: blobObject.id,
 							deletable,
 							encodingType: meta.metadata.encodingType as EncodingType,
 						})
@@ -2289,7 +2289,7 @@ export class WalrusClient {
 				deletable,
 				confirmations: await this.writeEncodedBlobToNodes({
 					blobId: metadata.blobId,
-					objectId: blobObject.id.id,
+					objectId: blobObject.id,
 					metadata: meta.metadata,
 					sliversByNode: meta.sliversByNode,
 					deletable,
@@ -2312,14 +2312,14 @@ export class WalrusClient {
 				transaction: confirmations
 					? this.certifyBlobTransaction({
 							blobId: metadata.blobId,
-							blobObjectId: blobObject.id.id,
+							blobObjectId: blobObject.id,
 							confirmations,
 							deletable,
 						})
 					: this.certifyBlobTransaction({
 							certificate,
 							blobId: metadata.blobId,
-							blobObjectId: blobObject.id.id,
+							blobObjectId: blobObject.id,
 							deletable,
 						}),
 			};
@@ -2454,7 +2454,7 @@ export class WalrusClient {
 							blob: data!,
 							nonce: meta.nonce,
 							txDigest: digest,
-							blobObjectId: blobObject.id.id,
+							blobObjectId: blobObject.id,
 							deletable,
 							encodingType: meta.metadata.encodingType as EncodingType,
 						})
@@ -2470,7 +2470,7 @@ export class WalrusClient {
 				deletable,
 				confirmations: await this.writeEncodedBlobToNodes({
 					blobId: metadata.blobId,
-					objectId: blobObject.id.id,
+					objectId: blobObject.id,
 					metadata: meta.metadata,
 					sliversByNode: meta.sliversByNode,
 					deletable,
@@ -2491,14 +2491,14 @@ export class WalrusClient {
 				transaction: confirmations
 					? this.certifyBlobTransaction({
 							blobId: metadata.blobId,
-							blobObjectId: blobObject.id.id,
+							blobObjectId: blobObject.id,
 							confirmations,
 							deletable,
 						})
 					: this.certifyBlobTransaction({
 							certificate,
 							blobId: metadata.blobId,
-							blobObjectId: blobObject.id.id,
+							blobObjectId: blobObject.id,
 							deletable,
 						}),
 			};

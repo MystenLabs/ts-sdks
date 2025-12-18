@@ -9,7 +9,6 @@ import {
 } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './object.js';
 import * as type_name from './deps/0x0000000000000000000000000000000000000000000000000000000000000001/type_name.js';
 import * as balance from './balance.js';
 import * as vec_map from './vec_map.js';
@@ -18,7 +17,7 @@ const $moduleName = '0x2::coin_registry';
 export const CoinRegistry = new MoveStruct({
 	name: `${$moduleName}::CoinRegistry`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 	},
 });
 export const ExtraField = new MoveStruct({
@@ -43,7 +42,7 @@ export const LegacyMetadataKey = new MoveStruct({
 export const MetadataCap = new MoveStruct({
 	name: `${$moduleName}::MetadataCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 	},
 });
 export const Borrow = new MoveStruct({
@@ -86,7 +85,7 @@ export const MetadataCapState = new MoveEnum({
 export const Currency = new MoveStruct({
 	name: `${$moduleName}::Currency`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		decimals: bcs.u8(),
 		name: bcs.string(),
 		symbol: bcs.string(),

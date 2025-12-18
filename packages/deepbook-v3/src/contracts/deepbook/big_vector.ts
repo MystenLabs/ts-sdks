@@ -20,12 +20,11 @@
 
 import { MoveStruct } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import * as object from './deps/sui/object.js';
 const $moduleName = '@deepbook/core::big_vector';
 export const BigVector = new MoveStruct({
 	name: `${$moduleName}::BigVector`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		/** How deep the tree structure is. */
 		depth: bcs.u8(),
 		/**

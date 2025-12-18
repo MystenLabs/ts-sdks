@@ -4,13 +4,12 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './object.js';
 import * as vec_map from './vec_map.js';
 const $moduleName = '0x2::display';
 export const Display = new MoveStruct({
 	name: `${$moduleName}::Display`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		fields: vec_map.VecMap(bcs.string(), bcs.string()),
 		version: bcs.u16(),
 	},

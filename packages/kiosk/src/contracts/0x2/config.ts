@@ -2,13 +2,12 @@
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
 import { MoveStruct } from '../utils/index.js';
-import { type BcsType, bcs } from '@mysten/sui/bcs';
-import * as object from './object.js';
+import { bcs, type BcsType } from '@mysten/sui/bcs';
 const $moduleName = '0x2::config';
 export const Config = new MoveStruct({
 	name: `${$moduleName}::Config`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 	},
 });
 export function SettingData<T0 extends BcsType<any>>(...typeParameters: [T0]) {

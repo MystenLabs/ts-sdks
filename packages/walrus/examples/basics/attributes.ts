@@ -35,14 +35,14 @@ async function uploadFile() {
 	console.log(blobId);
 
 	const attributes = await walrusClient.readBlobAttributes({
-		blobObjectId: blobObject.id.id,
+		blobObjectId: blobObject.id,
 	});
 
 	console.log(attributes);
 
 	await walrusClient.executeWriteBlobAttributesTransaction({
 		signer: keypair,
-		blobObjectId: blobObject.id.id,
+		blobObjectId: blobObject.id,
 		attributes: {
 			contentLength: null,
 			updated: 'true',
@@ -50,7 +50,7 @@ async function uploadFile() {
 	});
 
 	const updatedAttributes = await walrusClient.readBlobAttributes({
-		blobObjectId: blobObject.id.id,
+		blobObjectId: blobObject.id,
 	});
 
 	console.log(updatedAttributes);

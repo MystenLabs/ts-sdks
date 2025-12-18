@@ -12,14 +12,14 @@
  */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 import * as suins_registration from './suins_registration.js';
 const $moduleName = '@suins/core::subdomain_registration';
 export const SubDomainRegistration = new MoveStruct({
 	name: `${$moduleName}::SubDomainRegistration`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		nft: suins_registration.SuinsRegistration,
 	},
 });

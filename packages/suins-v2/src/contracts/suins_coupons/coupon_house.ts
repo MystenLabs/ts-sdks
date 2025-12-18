@@ -17,7 +17,6 @@ import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from 
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as data from './data.js';
-import * as object from './deps/sui/object.js';
 const $moduleName = '@suins/coupons::coupon_house';
 export const CouponsApp = new MoveStruct({
 	name: `${$moduleName}::CouponsApp`,
@@ -36,7 +35,7 @@ export const CouponHouse = new MoveStruct({
 	fields: {
 		data: data.Data,
 		version: bcs.u8(),
-		storage: object.UID,
+		storage: bcs.Address,
 	},
 });
 export interface SetupArguments {

@@ -39,7 +39,7 @@ async function writeAndExtendBlob() {
 	});
 
 	await client.walrus.executeExtendBlobTransaction({
-		blobObjectId: blobObject.id.id,
+		blobObjectId: blobObject.id,
 		epochs: 2, // Extend by 2 more epochs
 		signer: keypair,
 	});
