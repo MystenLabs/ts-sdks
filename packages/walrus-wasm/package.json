@@ -8,9 +8,9 @@
   "main": "index.js",
   "types": "./index.d.mts",
   "repository": {
-		"type": "git",
-		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
-	},
+    "type": "git",
+    "url": "git+https://github.com/MystenLabs/ts-sdks.git"
+  },
   "scripts": {
     "build:wasm": "pnpm build:nodejs && pnpm build:web",
     "build:nodejs": "wasm-pack build --target nodejs --release --out-dir nodejs --no-pack && rm nodejs/.gitignore",
