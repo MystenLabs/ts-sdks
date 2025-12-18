@@ -26,6 +26,7 @@
 		"src"
 	],
 	"scripts": {
+		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
 		"prettier:check": "prettier -c --ignore-unknown .",
@@ -45,6 +46,7 @@
 		"axios-retry": "^4.5.0"
 	},
 	"devDependencies": {
+		"@mysten/codegen": "workspace:*",
 		"@types/tmp": "^0.2.6",
 		"ts-retry-promise": "^0.8.1",
 		"typescript": "^5.9.3",
