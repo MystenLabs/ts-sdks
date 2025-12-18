@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit-react';
+import { useCurrentAccount, useCurrentClient } from '@mysten/dapp-kit-react';
 import { useState, useEffect, useCallback } from 'react';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import type { BenchmarkSettings } from '../components/BenchmarkSettings.js';
@@ -10,7 +10,7 @@ import '../dapp-kit.js';
 
 export function useBenchmark() {
 	const currentAccount = useCurrentAccount();
-	const suiClient = useSuiClient();
+	const suiClient = useCurrentClient();
 	const [isRunning, setIsRunning] = useState(false);
 	const [results, setResults] = useState<BenchmarkResult[]>([]);
 	const [currentStatus, setCurrentStatus] = useState('');
@@ -147,10 +147,14 @@ export function useBenchmark() {
 
 					// Sign transaction
 					const startRegisterTime = performance.now();
-					const { digest: registerDigest } = await keypair.signAndExecuteTransaction({
+					const registerResult = await keypair.signAndExecuteTransaction({
 						transaction: registerTx,
 						client: suiClient,
 					});
+					if (registerResult.FailedTransaction) {
+						throw new Error('Register transaction failed');
+					}
+					const registerDigest = registerResult.Transaction.digest;
 					const registerTime = performance.now() - startRegisterTime;
 
 					// Step 3: Upload
