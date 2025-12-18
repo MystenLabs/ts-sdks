@@ -22,7 +22,6 @@ export const MAX_SYMBOL_SIZE_BY_ENCODING_TYPE = {
 	RedStuff: 2 ** 16 - 1,
 };
 
-// TODO: this name is kinda bad
 export function encodedBlobLength(
 	unencodedLength: number,
 	nShards: number,

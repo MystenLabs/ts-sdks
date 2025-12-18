@@ -1,7 +1,7 @@
 {
 	"name": "@mysten/zksend",
 	"version": "0.14.12",
-	"description": "TODO: Write Description",
+	"description": "Create claimable links for transferring coins and NFTs",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"type": "module",
