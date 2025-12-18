@@ -2,22 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fromBase64, toBase58, toBase64 } from '@mysten/bcs';
-import { secp256r1 } from '@noble/curves/p256';
+import { p256 as secp256r1 } from '@noble/curves/nist.js';
 import { beforeAll, describe, expect, it, test } from 'vitest';
 
-import { bcs } from '../../../src/bcs';
-import { parseSerializedSignature, SIGNATURE_SCHEME_TO_FLAG } from '../../../src/cryptography';
-import { SignatureWithBytes } from '../../../src/cryptography/keypair';
-import { PublicKey } from '../../../src/cryptography/publickey';
-import { Ed25519Keypair, Ed25519PublicKey } from '../../../src/keypairs/ed25519';
-import { Secp256k1Keypair } from '../../../src/keypairs/secp256k1';
-import { Secp256r1Keypair } from '../../../src/keypairs/secp256r1';
-import { PasskeyKeypair } from '../../../src/keypairs/passkey';
-import { MultiSigPublicKey, MultiSigSigner, parsePartialSignatures } from '../../../src/multisig';
-import { Transaction } from '../../../src/transactions';
-import { verifyPersonalMessageSignature, verifyTransactionSignature } from '../../../src/verify';
-import { toZkLoginPublicIdentifier } from '../../../src/zklogin/publickey';
-import { MockPasskeySigner } from './test-utils';
+import { bcs } from '../../../src/bcs/index.js';
+import {
+	parseSerializedSignature,
+	SIGNATURE_SCHEME_TO_FLAG,
+} from '../../../src/cryptography/index.js';
+import { SignatureWithBytes } from '../../../src/cryptography/keypair.js';
+import { PublicKey } from '../../../src/cryptography/publickey.js';
+import { Ed25519Keypair, Ed25519PublicKey } from '../../../src/keypairs/ed25519/index.js';
+import { Secp256k1Keypair } from '../../../src/keypairs/secp256k1/index.js';
+import { Secp256r1Keypair } from '../../../src/keypairs/secp256r1/index.js';
+import { PasskeyKeypair } from '../../../src/keypairs/passkey/index.js';
+import {
+	MultiSigPublicKey,
+	MultiSigSigner,
+	parsePartialSignatures,
+} from '../../../src/multisig/index.js';
+import { Transaction } from '../../../src/transactions/index.js';
+import {
+	verifyPersonalMessageSignature,
+	verifyTransactionSignature,
+} from '../../../src/verify/index.js';
+import { toZkLoginPublicIdentifier } from '../../../src/zklogin/publickey.js';
+import { MockPasskeySigner } from './test-utils.js';
 
 describe('Multisig scenarios', () => {
 	it('multisig address creation and combine sigs using Secp256r1Keypair', async () => {
@@ -682,7 +692,7 @@ describe('MultisigKeypair', () => {
 		const pk3 = k3.getPublicKey();
 
 		// Create Passkey keypair
-		const sk = secp256r1.utils.randomPrivateKey();
+		const sk = secp256r1.utils.randomSecretKey();
 		const pk = secp256r1.getPublicKey(sk);
 		const authenticatorData = new Uint8Array([
 			88, 14, 103, 167, 58, 122, 146, 250, 216, 102, 207, 153, 185, 74, 182, 103, 89, 162, 151, 100,

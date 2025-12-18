@@ -3,7 +3,7 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { isValidSuiNSName, normalizeSuiNSName } from '../../../src/utils';
+import { isValidSuiNSName, normalizeSuiNSName } from '../../../src/utils/index.js';
 
 describe('isValidSuiNSName', () => {
 	test('valid SuiNS names', () => {

@@ -4,14 +4,13 @@
 	"description": "Seal SDK",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
-	"type": "commonjs",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.js"
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
 		}
 	},
 	"sideEffects": false,
@@ -21,7 +20,7 @@
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "node genversion.mjs && build-package",
+		"build": "node genversion.mjs && rm -rf dist && tsc --noEmit && tsdown",
 		"codegen:version": "node genversion.mjs",
 		"vitest": "vitest",
 		"test": "pnpm test:typecheck && pnpm test:unit",
@@ -44,7 +43,6 @@
 	"homepage": "https://github.com/MystenLabs/seal#readme",
 	"devDependencies": {
 		"@hey-api/openapi-ts": "^0.88.0",
-		"@mysten/build-scripts": "workspace:*",
 		"@types/node": "^24.10.1",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.15"
@@ -52,7 +50,7 @@
 	"dependencies": {
 		"@mysten/bcs": "workspace:*",
 		"@mysten/sui": "workspace:*",
-		"@noble/curves": "=1.9.4",
-		"@noble/hashes": "^1.8.0"
+		"@noble/curves": "^2.0.1",
+		"@noble/hashes": "^2.0.1"
 	}
 }

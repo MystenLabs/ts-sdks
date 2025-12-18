@@ -10,11 +10,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 import { MessageType } from '@protobuf-ts/runtime';
-import { Owner } from './owner';
-import { ObjectReference } from './object_reference';
-import { GasCostSummary } from './gas_cost_summary';
-import { ExecutionStatus } from './execution_status';
-import { Bcs } from './bcs';
+import { Owner } from './owner.js';
+import { ObjectReference } from './object_reference.js';
+import { GasCostSummary } from './gas_cost_summary.js';
+import { ExecutionStatus } from './execution_status.js';
+import { Bcs } from './bcs.js';
 /**
  * The effects of executing a transaction.
  *

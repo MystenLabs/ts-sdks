@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs, toBase64 } from '@mysten/bcs';
-import { blake2b } from '@noble/hashes/blake2b';
+import { blake2b } from '@noble/hashes/blake2.js';
 import { bech32 } from '@scure/base';
 
 import type { IntentScope } from './intent.js';

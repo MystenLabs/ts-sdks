@@ -3,8 +3,8 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { bcs, TypeTagSerializer } from '../../../src/bcs';
-import { deriveObjectID } from '../../../src/utils/derived-objects';
+import { bcs, TypeTagSerializer } from '../../../src/bcs/index.js';
+import { deriveObjectID } from '../../../src/utils/derived-objects.js';
 
 // Snapshots are recreated from `derived_object_tests.move` file,
 // as well as `sui-types/derived-object.rs` file.

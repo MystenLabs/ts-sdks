@@ -3,11 +3,11 @@
 
 import { afterEach, afterAll, beforeAll, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
-import { bcs } from '../../src/bcs';
-import { SuiJsonRpcClient } from '../../src/jsonRpc';
-import { Ed25519Keypair } from '../../src/keypairs/ed25519';
-import { ParallelTransactionExecutor, Transaction } from '../../src/transactions';
-import { setup, TestToolbox } from './utils/setup';
+import { bcs } from '../../src/bcs/index.js';
+import { SuiJsonRpcClient } from '../../src/jsonRpc/index.js';
+import { Ed25519Keypair } from '../../src/keypairs/ed25519/index.js';
+import { ParallelTransactionExecutor, Transaction } from '../../src/transactions/index.js';
+import { setup, TestToolbox } from './utils/setup.js';
 
 let toolbox: TestToolbox;
 let executor: ParallelTransactionExecutor;

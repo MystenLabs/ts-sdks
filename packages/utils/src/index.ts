@@ -8,3 +8,10 @@ export type { Simplify, UnionToIntersection } from './types.js';
 export { chunk } from './chunk.js';
 export { promiseWithResolvers, type PromiseWithResolvers } from './with-resolver.js';
 export { DataLoader } from './dataloader.js';
+export {
+	default as mitt,
+	type Emitter,
+	type EventHandlerMap,
+	type Handler,
+	type WildcardHandler,
+} from './mitt.js';

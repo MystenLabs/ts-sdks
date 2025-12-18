@@ -31,8 +31,7 @@ import {
 	SuiSignPersonalMessage,
 	SuiSignTransaction,
 } from '@mysten/wallet-standard';
-import type { Emitter } from 'mitt';
-import mitt from 'mitt';
+import { mitt, type Emitter } from '@mysten/utils';
 import type { InferOutput } from 'valibot';
 import { boolean, object, string } from 'valibot';
 import type { CustomCaipNetwork } from '@reown/appkit-universal-connector';
@@ -189,7 +188,8 @@ export class WalletConnectWallet implements Wallet {
 			metadata: {
 				name: this.#walletName,
 				description: 'WalletConnect',
-				icon: this.#icon,
+				url: 'https://walletconnect.org',
+				icons: [this.#icon],
 			},
 			networks: [
 				{

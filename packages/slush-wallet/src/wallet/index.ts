@@ -23,8 +23,7 @@ import type {
 	WalletIcon,
 } from '@mysten/wallet-standard';
 import { getWallets, ReadonlyWalletAccount, SUI_CHAINS } from '@mysten/wallet-standard';
-import type { Emitter } from 'mitt';
-import mitt from 'mitt';
+import { mitt, type Emitter } from '@mysten/utils';
 import type { InferOutput } from 'valibot';
 import { boolean, object, parse, string } from 'valibot';
 import { DappPostMessageChannel, decodeJwtSession } from '@mysten/window-wallet-core';

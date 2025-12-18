@@ -3,7 +3,7 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { extractClaimValue } from '../../../src/zklogin/jwt-utils';
+import { extractClaimValue } from '../../../src/zklogin/jwt-utils.js';
 
 describe('jwt-utils', () => {
 	test('extracts claim value successfully', () => {

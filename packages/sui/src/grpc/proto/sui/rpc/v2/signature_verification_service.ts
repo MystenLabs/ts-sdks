@@ -11,9 +11,9 @@
 //
 import { ServiceType } from '@protobuf-ts/runtime-rpc';
 import { MessageType } from '@protobuf-ts/runtime';
-import { ActiveJwk } from './transaction';
-import { UserSignature } from './signature';
-import { Bcs } from './bcs';
+import { ActiveJwk } from './transaction.js';
+import { UserSignature } from './signature.js';
+import { Bcs } from './bcs.js';
 /**
  * @generated from protobuf message sui.rpc.v2.VerifySignatureRequest
  */

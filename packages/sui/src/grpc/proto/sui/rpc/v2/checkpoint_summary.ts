@@ -10,10 +10,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 import { MessageType } from '@protobuf-ts/runtime';
-import { ValidatorCommitteeMember } from './signature';
-import { Timestamp } from '../../../google/protobuf/timestamp';
-import { GasCostSummary } from './gas_cost_summary';
-import { Bcs } from './bcs';
+import { ValidatorCommitteeMember } from './signature.js';
+import { Timestamp } from '../../../google/protobuf/timestamp.js';
+import { GasCostSummary } from './gas_cost_summary.js';
+import { Bcs } from './bcs.js';
 /**
  * A header for a checkpoint on the Sui blockchain.
  *
