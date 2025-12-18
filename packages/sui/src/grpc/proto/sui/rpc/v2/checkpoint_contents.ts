@@ -10,8 +10,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 import { MessageType } from '@protobuf-ts/runtime';
-import { UserSignature } from './signature';
-import { Bcs } from './bcs';
+import { UserSignature } from './signature.js';
+import { Bcs } from './bcs.js';
 /**
  * The committed to contents of a checkpoint.
  *

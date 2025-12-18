@@ -10,15 +10,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 import { MessageType } from '@protobuf-ts/runtime';
-import { Duration } from '../../../google/protobuf/duration';
-import { Jwk } from './jwk';
-import { JwkId } from './jwk';
-import { Object } from './object';
-import { Timestamp } from '../../../google/protobuf/timestamp';
-import { Argument } from './argument';
-import { Input } from './input';
-import { ObjectReference } from './object_reference';
-import { Bcs } from './bcs';
+import { Duration } from '../../../google/protobuf/duration.js';
+import { Jwk } from './jwk.js';
+import { JwkId } from './jwk.js';
+import { Object } from './object.js';
+import { Timestamp } from '../../../google/protobuf/timestamp.js';
+import { Argument } from './argument.js';
+import { Input } from './input.js';
+import { ObjectReference } from './object_reference.js';
+import { Bcs } from './bcs.js';
 /**
  * A transaction.
  *

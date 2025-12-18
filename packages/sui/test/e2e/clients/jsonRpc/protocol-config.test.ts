@@ -3,7 +3,7 @@
 
 import { expect, it } from 'vitest';
 
-import { setup } from '../../utils/setup';
+import { setup } from '../../utils/setup.js';
 
 it('can fetch protocol config', async () => {
 	const toolbox = await setup();

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { messageWithIntent } from '../../../src/cryptography/intent';
+import { messageWithIntent } from '../../../src/cryptography/intent.js';
 
 describe('Intent', () => {
 	it('`messageWithIntent()` should combine intent with message correctly', async () => {

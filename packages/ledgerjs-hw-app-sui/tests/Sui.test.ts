@@ -4,7 +4,7 @@
 import { openTransportReplayer, RecordStore } from '@ledgerhq/hw-transport-mocker';
 import { expect, test } from 'vitest';
 
-import Sui from '../src/Sui';
+import Sui from '../src/Sui.js';
 
 test('Sui init', async () => {
 	const transport = await openTransportReplayer(RecordStore.fromString(''));

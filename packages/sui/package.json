@@ -29,77 +29,77 @@
 		"zklogin"
 	],
 	"engines": {
-		"node": ">=18"
+		"node": ">=22"
 	},
-	"type": "commonjs",
+	"type": "module",
 	"exports": {
 		"./bcs": {
-			"import": "./dist/esm/bcs/index.js",
-			"require": "./dist/cjs/bcs/index.js"
+			"types": "./dist/bcs/index.d.mts",
+			"import": "./dist/bcs/index.mjs"
 		},
 		"./client": {
-			"import": "./dist/esm/client/index.js",
-			"require": "./dist/cjs/client/index.js"
+			"types": "./dist/client/index.d.mts",
+			"import": "./dist/client/index.mjs"
 		},
 		"./cryptography": {
-			"import": "./dist/esm/cryptography/index.js",
-			"require": "./dist/cjs/cryptography/index.js"
+			"types": "./dist/cryptography/index.d.mts",
+			"import": "./dist/cryptography/index.mjs"
 		},
 		"./faucet": {
-			"import": "./dist/esm/faucet/index.js",
-			"require": "./dist/cjs/faucet/index.js"
+			"types": "./dist/faucet/index.d.mts",
+			"import": "./dist/faucet/index.mjs"
 		},
 		"./graphql": {
-			"import": "./dist/esm/graphql/index.js",
-			"require": "./dist/cjs/graphql/index.js"
+			"types": "./dist/graphql/index.d.mts",
+			"import": "./dist/graphql/index.mjs"
 		},
 		"./grpc": {
-			"import": "./dist/esm/grpc/index.js",
-			"require": "./dist/cjs/grpc/index.js"
+			"types": "./dist/grpc/index.d.mts",
+			"import": "./dist/grpc/index.mjs"
 		},
 		"./jsonRpc": {
-			"import": "./dist/esm/jsonRpc/index.js",
-			"require": "./dist/cjs/jsonRpc/index.js"
+			"types": "./dist/jsonRpc/index.d.mts",
+			"import": "./dist/jsonRpc/index.mjs"
 		},
 		"./keypairs/ed25519": {
-			"import": "./dist/esm/keypairs/ed25519/index.js",
-			"require": "./dist/cjs/keypairs/ed25519/index.js"
+			"types": "./dist/keypairs/ed25519/index.d.mts",
+			"import": "./dist/keypairs/ed25519/index.mjs"
 		},
 		"./keypairs/secp256k1": {
-			"import": "./dist/esm/keypairs/secp256k1/index.js",
-			"require": "./dist/cjs/keypairs/secp256k1/index.js"
+			"types": "./dist/keypairs/secp256k1/index.d.mts",
+			"import": "./dist/keypairs/secp256k1/index.mjs"
 		},
 		"./keypairs/secp256r1": {
-			"import": "./dist/esm/keypairs/secp256r1/index.js",
-			"require": "./dist/cjs/keypairs/secp256r1/index.js"
+			"types": "./dist/keypairs/secp256r1/index.d.mts",
+			"import": "./dist/keypairs/secp256r1/index.mjs"
 		},
 		"./keypairs/passkey": {
-			"import": "./dist/esm/keypairs/passkey/index.js",
-			"require": "./dist/cjs/keypairs/passkey/index.js"
+			"types": "./dist/keypairs/passkey/index.d.mts",
+			"import": "./dist/keypairs/passkey/index.mjs"
 		},
 		"./multisig": {
-			"import": "./dist/esm/multisig/index.js",
-			"require": "./dist/cjs/multisig/index.js"
+			"types": "./dist/multisig/index.d.mts",
+			"import": "./dist/multisig/index.mjs"
 		},
 		"./transactions": {
-			"import": "./dist/esm/transactions/index.js",
-			"require": "./dist/cjs/transactions/index.js"
+			"types": "./dist/transactions/index.d.mts",
+			"import": "./dist/transactions/index.mjs"
 		},
 		"./utils": {
-			"import": "./dist/esm/utils/index.js",
-			"require": "./dist/cjs/utils/index.js"
+			"types": "./dist/utils/index.d.mts",
+			"import": "./dist/utils/index.mjs"
 		},
 		"./verify": {
-			"import": "./dist/esm/verify/index.js",
-			"require": "./dist/cjs/verify/index.js"
+			"types": "./dist/verify/index.d.mts",
+			"import": "./dist/verify/index.mjs"
 		},
 		"./zklogin": {
-			"import": "./dist/esm/zklogin/index.js",
-			"require": "./dist/cjs/zklogin/index.js"
+			"types": "./dist/zklogin/index.d.mts",
+			"import": "./dist/zklogin/index.mjs"
 		},
 		"./graphql/schema": {
-			"import": "./dist/esm/graphql/schema/index.js",
-			"require": "./dist/cjs/graphql/schema/index.js"
+			"types": "./dist/graphql/schema/index.d.mts",
+			"import": "./dist/graphql/schema/index.mjs"
 		}
 	},
 	"scripts": {
@@ -107,11 +107,11 @@
 		"codegen": "pnpm codegen:graphql && pnpm codegen:grpc && pnpm lint:fix",
 		"codegen:graphql": "graphql-codegen --config graphql-codegen.ts",
 		"codegen:version": "node genversion.mjs",
-		"codegen:grpc": "rm -rf src/grpc/proto && mkdir src/grpc/proto && pnpm codegen:grpc-protoc && pnpm codegen:grpc-header",
-		"codegen:grpc-protoc": "protoc --ts_out ./src/grpc/proto --ts_opt force_server_none --ts_opt optimize_code_size --ts_opt ts_nocheck -I ../../../sui-apis/proto -I ../../../sui-apis/proto ../../../sui-apis/proto/sui/rpc/v2/*.proto ../../../sui-apis/proto/google/*/*.proto",
+		"codegen:grpc": "rm -rf src/grpc/proto && mkdir src/grpc/proto && pnpm codegen:grpc-protoc && pnpm codegen:grpc-header && pnpm codegen:grpc-extensions",
+		"codegen:grpc-protoc": "protoc --ts_out ./src/grpc/proto --ts_opt force_server_none --ts_opt optimize_code_size -I ../../../sui-apis/proto -I ../../../sui-apis/proto ../../../sui-apis/proto/sui/rpc/v2/*.proto ../../../sui-apis/proto/google/*/*.proto",
 		"codegen:grpc-header": "find src/grpc/proto -type f -exec sh -c 'echo \"// Copyright (c) Mysten Labs, Inc.\\n// SPDX-License-Identifier: Apache-2.0\\n\" | cat - {} > temp && mv temp {}' \\;",
-		"build": "node genversion.mjs && pnpm build:package",
-		"build:package": "build-package",
+		"codegen:grpc-extensions": "find src/grpc/proto -name '*.ts' | xargs sed -i '' -E \"s/from '(\\\\.+\\\\/[^']+)'/from '\\\\1.js'/g\"",
+		"build": "rm -rf dist && node genversion.mjs && tsc --noEmit && tsdown",
 		"vitest": "vitest",
 		"test": "pnpm test:typecheck && pnpm test:unit",
 		"test:typecheck": "tsc -p ./test",
@@ -146,7 +146,6 @@
 		"@graphql-codegen/typescript-document-nodes": "5.0.6",
 		"@graphql-codegen/typescript-operations": "^5.0.6",
 		"@iarna/toml": "^2.2.5",
-		"@mysten/build-scripts": "workspace:^",
 		"@parcel/watcher": "^2.5.1",
 		"@types/node": "^24.10.1",
 		"@types/tmp": "^0.2.6",
@@ -167,14 +166,14 @@
 		"@graphql-typed-document-node/core": "^3.2.0",
 		"@mysten/bcs": "workspace:*",
 		"@mysten/utils": "workspace:*",
-		"@noble/curves": "=1.9.4",
-		"@noble/hashes": "^1.8.0",
+		"@noble/curves": "^2.0.1",
+		"@noble/hashes": "^2.0.1",
 		"@protobuf-ts/grpcweb-transport": "^2.11.1",
 		"@protobuf-ts/runtime": "^2.11.1",
 		"@protobuf-ts/runtime-rpc": "^2.11.1",
-		"@scure/base": "^1.2.6",
-		"@scure/bip32": "^1.7.0",
-		"@scure/bip39": "^1.6.0",
+		"@scure/base": "^2.0.0",
+		"@scure/bip32": "^2.0.1",
+		"@scure/bip39": "^2.0.1",
 		"gql.tada": "^1.9.0",
 		"graphql": "^16.12.0",
 		"poseidon-lite": "0.2.1",

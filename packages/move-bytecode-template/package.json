@@ -3,19 +3,23 @@
 	"version": "0.3.0",
 	"description": "Move Binary Format implementation in WASM",
 	"main": "index.js",
-	"types": "./web/move_bytecode_template.d.ts",
+	"types": "./index.d.mts",
 	"files": [
 		"nodejs",
 		"web",
 		"index.js",
-		"index.mjs"
+		"index.mjs",
+		"index.d.mts"
 	],
 	"exports": {
 		".": {
-			"browser": "./web/move_bytecode_template.js",
+			"browser": {
+				"types": "./web/move_bytecode_template.d.ts",
+				"import": "./web/move_bytecode_template.js"
+			},
+			"types": "./index.d.mts",
 			"import": "./index.mjs",
-			"require": "./index.js",
-			"types": "./web/move_bytecode_template.d.ts"
+			"require": "./index.js"
 		},
 		"./web/move_bytecode_template_bg.wasm": {
 			"browser": "./web/move_bytecode_template_bg.wasm",
@@ -40,7 +44,6 @@
 	"license": "Apache-2.0",
 	"devDependencies": {
 		"@mysten/bcs": "workspace:*",
-		"@mysten/build-scripts": "workspace:*",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.15"
 	}

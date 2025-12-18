@@ -5,14 +5,13 @@
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"sideEffects": false,
-	"type": "commonjs",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.js"
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
 		}
 	},
 	"files": [
@@ -21,13 +20,13 @@
 		"src"
 	],
 	"bin": {
-		"sui-ts-codegen": "dist/cjs/bin/cli.js",
-		"__sui-ts-codegen_bash_complete": "dist/cjs/bin/bash-complete.js"
+		"sui-ts-codegen": "dist/bin/cli.mjs",
+		"__sui-ts-codegen_bash_complete": "dist/bin/bash-complete.mjs"
 	},
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"dev": "pnpm build --watch",
-		"build": "build-package",
+		"build": "rm -rf dist && tsc --noEmit && tsdown",
 		"codegen": "pnpm tsx src/bin/cli.ts generate && pnpm lint:fix",
 		"test": "vitest run",
 		"test:watch": "vitest",
@@ -52,7 +51,6 @@
 	},
 	"homepage": "https://github.com/MystenLabs/ts-sdks/blob/main/packages/codegen#readme",
 	"devDependencies": {
-		"@mysten/build-scripts": "workspace:*",
 		"vitest": "^4.0.15"
 	},
 	"dependencies": {

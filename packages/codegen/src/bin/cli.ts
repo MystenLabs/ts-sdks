@@ -9,18 +9,12 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 async function getVersion() {
-	let dirname;
-
-	try {
-		dirname = __dirname;
-	} catch {
-		// @ts-ignore
-		dirname = import.meta.dirname;
-	}
+	// @ts-ignore
+	const dirname = import.meta.dirname;
 
 	const packageJsonPath = resolve(
 		dirname,
-		dirname.endsWith('src/bin') ? '../../package.json' : '../../../package.json',
+		dirname.endsWith('src/bin') ? '../../package.json' : '../../package.json',
 	);
 	const packageJson: { version: string } = JSON.parse(await readFile(packageJsonPath, 'utf-8'));
 	return packageJson.version;

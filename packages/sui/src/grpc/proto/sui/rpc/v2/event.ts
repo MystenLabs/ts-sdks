@@ -10,8 +10,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 import { MessageType } from '@protobuf-ts/runtime';
-import { Value } from '../../../google/protobuf/struct';
-import { Bcs } from './bcs';
+import { Value } from '../../../google/protobuf/struct.js';
+import { Bcs } from './bcs.js';
 /**
  * Events emitted during the successful execution of a transaction.
  *

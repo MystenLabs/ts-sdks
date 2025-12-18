@@ -3,9 +3,9 @@
 
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { Transaction } from '../../src/transactions';
-import { SUI_FRAMEWORK_ADDRESS } from '../../src/utils';
-import { setup, TestToolbox } from './utils/setup';
+import { Transaction } from '../../src/transactions/index.js';
+import { SUI_FRAMEWORK_ADDRESS } from '../../src/utils/index.js';
+import { setup, TestToolbox } from './utils/setup.js';
 
 describe('Test Move call with a vector of objects as input', () => {
 	let toolbox: TestToolbox;

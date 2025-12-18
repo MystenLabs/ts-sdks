@@ -3,14 +3,14 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { toZkLoginPublicIdentifier } from '../../../src/zklogin';
+import { toZkLoginPublicIdentifier } from '../../../src/zklogin/index.js';
 import {
 	computeZkLoginAddressFromSeed,
 	jwtToAddress,
 	lengthChecks,
 	MAX_HEADER_LEN_B64,
 	MAX_PADDED_UNSIGNED_JWT_LEN,
-} from '../../../src/zklogin/address';
+} from '../../../src/zklogin/address.js';
 
 describe('zkLogin address', () => {
 	test('generates the correct address', () => {

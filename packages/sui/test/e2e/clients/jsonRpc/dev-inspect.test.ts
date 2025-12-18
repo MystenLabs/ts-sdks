@@ -3,10 +3,10 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { SuiJsonRpcClient } from '../../../../src/jsonRpc';
-import { Keypair } from '../../../../src/cryptography';
-import { Transaction } from '../../../../src/transactions';
-import { setup, TestToolbox } from '../../utils/setup';
+import { SuiJsonRpcClient } from '../../../../src/jsonRpc/index.js';
+import { Keypair } from '../../../../src/cryptography/index.js';
+import { Transaction } from '../../../../src/transactions/index.js';
+import { setup, TestToolbox } from '../../utils/setup.js';
 
 describe('Test dev inspect', () => {
 	let toolbox: TestToolbox;

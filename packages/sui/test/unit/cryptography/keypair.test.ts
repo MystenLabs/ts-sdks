@@ -5,10 +5,10 @@ import { toBase64 } from '@mysten/bcs';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
-import { PublicKey } from '../../../src/cryptography/publickey';
-import { Ed25519Keypair, Ed25519PublicKey } from '../../../src/keypairs/ed25519';
-import { Secp256k1Keypair } from '../../../src/keypairs/secp256k1';
-import { Secp256r1Keypair } from '../../../src/keypairs/secp256r1';
+import { PublicKey } from '../../../src/cryptography/publickey.js';
+import { Ed25519Keypair, Ed25519PublicKey } from '../../../src/keypairs/ed25519/index.js';
+import { Secp256k1Keypair } from '../../../src/keypairs/secp256k1/index.js';
+import { Secp256r1Keypair } from '../../../src/keypairs/secp256r1/index.js';
 
 describe('Keypair', () => {
 	let k1: Ed25519Keypair,
