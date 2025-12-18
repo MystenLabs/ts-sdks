@@ -6,6 +6,7 @@ import type {
 	TransactionPlugin,
 	Transaction as TransactionInstance,
 } from '../transactions/index.js';
+import type { Signer } from '../cryptography/keypair.js';
 import type { ClientCache } from './cache.js';
 import type { BaseClient } from './client.js';
 
@@ -309,6 +310,15 @@ export namespace SuiClientTypes {
 	> extends CoreClientMethodOptions {
 		transaction: Uint8Array;
 		signatures: string[];
+		include?: Include;
+	}
+
+	export interface SignAndExecuteTransactionOptions<
+		Include extends TransactionInclude = {},
+	> extends CoreClientMethodOptions {
+		transaction: Uint8Array | TransactionInstance;
+		signer: Signer;
+		additionalSignatures?: string[];
 		include?: Include;
 	}
 
