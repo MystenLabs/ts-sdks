@@ -1,10 +1,9 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { toBase64 } from '@mysten/bcs';
-
 import type { bcs } from '../../bcs/index.js';
-import type { SuiJsonRpcClient, SuiTransactionBlockResponseOptions } from '../../jsonRpc/index.js';
+import type { ClientWithCoreApi } from '../../client/core.js';
+import type { SuiClientTypes } from '../../client/types.js';
 import type { Signer } from '../../cryptography/keypair.js';
 import type { ObjectCacheOptions } from '../ObjectCache.js';
 import { isTransaction, Transaction } from '../Transaction.js';
@@ -22,7 +21,7 @@ export class SerialTransactionExecutor {
 		defaultGasBudget = 50_000_000n,
 		...options
 	}: Omit<ObjectCacheOptions, 'address'> & {
-		client: SuiJsonRpcClient;
+		client: ClientWithCoreApi;
 		signer: Signer;
 		/** The gasBudget to use if the transaction has not defined it's own gasBudget, defaults to `50_000_000n` */
 		defaultGasBudget?: bigint;
@@ -83,34 +82,27 @@ export class SerialTransactionExecutor {
 		return this.#cache.waitForLastTransaction();
 	}
 
-	executeTransaction(
+	executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		transaction: Transaction | Uint8Array,
-		options?: SuiTransactionBlockResponseOptions,
+		include?: Include,
 		additionalSignatures: string[] = [],
-	) {
+	): Promise<SuiClientTypes.TransactionResult<Include & { effects: true }>> {
 		return this.#queue.runTask(async () => {
 			const bytes = isTransaction(transaction)
 				? await this.#buildTransaction(transaction)
 				: transaction;
 
 			const { signature } = await this.#signer.signTransaction(bytes);
-			const results = await this.#cache
+			return this.#cache
 				.executeTransaction({
-					signature: [signature, ...additionalSignatures],
+					signatures: [signature, ...additionalSignatures],
 					transaction: bytes,
-					options,
+					include,
 				})
 				.catch(async (error) => {
 					await this.resetCache();
 					throw error;
 				});
-
-			const effectsBytes = Uint8Array.from(results.rawEffects!);
-			return {
-				digest: results.digest,
-				effects: toBase64(effectsBytes),
-				data: results,
-			};
 		});
 	}
 }

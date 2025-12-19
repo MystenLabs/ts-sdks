@@ -26,6 +26,7 @@ import {
 
 import { isValidSuiAddress, normalizeSuiAddress } from '../../utils/sui-types.js';
 import type { Simplify } from '@mysten/utils';
+import type { SuiClientTypes } from '../../client/types.js';
 
 type EnumSchemaInput<T extends Record<string, GenericSchema<any>>> = EnumInputShape<
 	Simplify<{
@@ -136,54 +137,31 @@ export const StructTagSchema = object({
 });
 export type StructTag = InferOutput<typeof StructTagSchema>;
 
-// https://github.com/MystenLabs/sui/blob/cea8742e810142a8145fd83c4c142d61e561004a/crates/sui-graphql-rpc/schema/current_progress_schema.graphql#L1614-L1627
-export type OpenMoveTypeSignatureBody =
-	| 'address'
-	| 'bool'
-	| 'u8'
-	| 'u16'
-	| 'u32'
-	| 'u64'
-	| 'u128'
-	| 'u256'
-	| { vector: OpenMoveTypeSignatureBody }
-	| {
-			datatype: {
-				package: string;
-				module: string;
-				type: string;
-				typeParameters: OpenMoveTypeSignatureBody[];
-			};
-	  }
-	| { typeParameter: number };
-
-export const OpenMoveTypeSignatureBodySchema: GenericSchema<OpenMoveTypeSignatureBody> = union([
-	literal('address'),
-	literal('bool'),
-	literal('u8'),
-	literal('u16'),
-	literal('u32'),
-	literal('u64'),
-	literal('u128'),
-	literal('u256'),
-	object({ vector: lazy(() => OpenMoveTypeSignatureBodySchema) }),
+export const OpenSignatureBodySchema: GenericSchema<SuiClientTypes.OpenSignatureBody> = union([
+	object({ $kind: literal('address') }),
+	object({ $kind: literal('bool') }),
+	object({ $kind: literal('u8') }),
+	object({ $kind: literal('u16') }),
+	object({ $kind: literal('u32') }),
+	object({ $kind: literal('u64') }),
+	object({ $kind: literal('u128') }),
+	object({ $kind: literal('u256') }),
+	object({ $kind: literal('unknown') }),
+	object({ $kind: literal('vector'), vector: lazy(() => OpenSignatureBodySchema) }),
 	object({
+		$kind: literal('datatype'),
 		datatype: object({
-			package: string(),
-			module: string(),
-			type: string(),
-			typeParameters: array(lazy(() => OpenMoveTypeSignatureBodySchema)),
+			typeName: string(),
+			typeParameters: array(lazy(() => OpenSignatureBodySchema)),
 		}),
 	}),
-	object({ typeParameter: pipe(number(), integer()) }),
+	object({ $kind: literal('typeParameter'), index: pipe(number(), integer()) }),
 ]);
 
-// https://github.com/MystenLabs/sui/blob/cea8742e810142a8145fd83c4c142d61e561004a/crates/sui-graphql-rpc/schema/current_progress_schema.graphql#L1609-L1612
-export const OpenMoveTypeSignatureSchema = object({
-	ref: nullable(union([literal('&'), literal('&mut')])),
-	body: OpenMoveTypeSignatureBodySchema,
+export const OpenSignatureSchema = object({
+	reference: nullable(union([literal('mutable'), literal('immutable'), literal('unknown')])),
+	body: OpenSignatureBodySchema,
 });
-export type OpenMoveTypeSignature = InferOutput<typeof OpenMoveTypeSignatureSchema>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L707-L718
 const ProgrammableMoveCallSchema = object({
@@ -193,7 +171,7 @@ const ProgrammableMoveCallSchema = object({
 	// snake case in rust
 	typeArguments: array(string()),
 	arguments: array(ArgumentSchema),
-	_argumentTypes: optional(nullable(array(OpenMoveTypeSignatureSchema))),
+	_argumentTypes: optional(nullable(array(OpenSignatureSchema))),
 });
 export type ProgrammableMoveCall = InferOutput<typeof ProgrammableMoveCallSchema>;
 
@@ -242,7 +220,7 @@ export type Command<Arg = Argument> = EnumOutputShape<{
 		function: string;
 		typeArguments: string[];
 		arguments: Arg[];
-		_argumentTypes?: OpenMoveTypeSignature[] | null;
+		_argumentTypes?: SuiClientTypes.OpenSignature[] | null;
 	};
 	TransferObjects: {
 		objects: Arg[];

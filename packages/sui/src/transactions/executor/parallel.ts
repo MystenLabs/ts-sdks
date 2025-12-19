@@ -1,22 +1,17 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { toBase64 } from '@mysten/bcs';
 import { promiseWithResolvers } from '@mysten/utils';
-import { bcs } from '../../bcs/index.js';
 import type { SuiObjectRef } from '../../bcs/types.js';
-import type {
-	SuiJsonRpcClient,
-	SuiTransactionBlockResponse,
-	SuiTransactionBlockResponseOptions,
-} from '../../jsonRpc/index.js';
+import type { ClientWithCoreApi } from '../../client/core.js';
+import { coreClientResolveTransactionPlugin } from '../../client/core-resolver.js';
+import type { SuiClientTypes } from '../../client/types.js';
 import type { Signer } from '../../cryptography/index.js';
 import type { ObjectCacheOptions } from '../ObjectCache.js';
 import { Transaction } from '../Transaction.js';
 import { TransactionDataBuilder } from '../TransactionData.js';
 import { CachingTransactionExecutor } from './caching.js';
 import { ParallelQueue, SerialQueue } from './queue.js';
-import { getGasCoinFromEffects } from './serial.js';
 
 const PARALLEL_EXECUTOR_DEFAULTS = {
 	coinBatchSize: 20,
@@ -26,7 +21,7 @@ const PARALLEL_EXECUTOR_DEFAULTS = {
 	epochBoundaryWindow: 1_000,
 } satisfies Omit<ParallelTransactionExecutorOptions, 'signer' | 'client'>;
 export interface ParallelTransactionExecutorOptions extends Omit<ObjectCacheOptions, 'address'> {
-	client: SuiJsonRpcClient;
+	client: ClientWithCoreApi;
 	signer: Signer;
 	/** The number of coins to create in a batch when refilling the gas pool */
 	coinBatchSize?: number;
@@ -56,7 +51,7 @@ interface CoinWithBalance {
 }
 export class ParallelTransactionExecutor {
 	#signer: Signer;
-	#client: SuiJsonRpcClient;
+	#client: ClientWithCoreApi;
 	#coinBatchSize: number;
 	#initialCoinBalance: bigint;
 	#minimumCoinBalance: bigint;
@@ -108,21 +103,18 @@ export class ParallelTransactionExecutor {
 		await this.#updateCache(() => this.#waitForLastDigest());
 	}
 
-	async executeTransaction(
+	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		transaction: Transaction,
-		options?: SuiTransactionBlockResponseOptions,
+		include?: Include,
 		additionalSignatures: string[] = [],
-	) {
-		const { promise, resolve, reject } = promiseWithResolvers<{
-			digest: string;
-			effects: string;
-			data: SuiTransactionBlockResponse;
-		}>();
+	): Promise<SuiClientTypes.TransactionResult<Include & { effects: true }>> {
+		const { promise, resolve, reject } =
+			promiseWithResolvers<SuiClientTypes.TransactionResult<Include & { effects: true }>>();
 		const usedObjects = await this.#getUsedObjects(transaction);
 
 		const execute = () => {
 			this.#executeQueue.runTask(() => {
-				const promise = this.#execute(transaction, usedObjects, options, additionalSignatures);
+				const promise = this.#execute(transaction, usedObjects, include, additionalSignatures);
 
 				return promise.then(resolve, reject);
 			});
@@ -183,12 +175,12 @@ export class ParallelTransactionExecutor {
 		return usedObjects;
 	}
 
-	async #execute(
+	async #execute<Include extends SuiClientTypes.TransactionInclude = {}>(
 		transaction: Transaction,
 		usedObjects: Set<string>,
-		options?: SuiTransactionBlockResponseOptions,
+		include?: Include,
 		additionalSignatures: string[] = [],
-	) {
+	): Promise<SuiClientTypes.TransactionResult<Include & { effects: true }>> {
 		let gasCoin!: CoinWithBalance;
 		try {
 			transaction.setSenderIfNotSet(this.#signer.toSuiAddress());
@@ -223,58 +215,60 @@ export class ParallelTransactionExecutor {
 
 			const results = await this.#cache.executeTransaction({
 				transaction: bytes,
-				signature: [signature, ...additionalSignatures],
-				options: {
-					...options,
-					showEffects: true,
-				},
+				signatures: [signature, ...additionalSignatures],
+				include,
 			});
 
-			const effectsBytes = Uint8Array.from(results.rawEffects!);
-			const effects = bcs.TransactionEffects.parse(effectsBytes);
+			const tx = results.$kind === 'Transaction' ? results.Transaction : results.FailedTransaction;
+			const effects = tx.effects!;
+			const gasObject = effects.gasObject;
+			const gasUsed = effects.gasUsed;
 
-			const gasResult = getGasCoinFromEffects(effects);
-			const gasUsed = effects.V2?.gasUsed;
+			if (gasCoin && gasUsed && gasObject) {
+				const gasOwner = gasObject.outputOwner?.AddressOwner ?? gasObject.outputOwner?.ObjectOwner;
 
-			if (gasCoin && gasUsed && gasResult.owner === this.#signer.toSuiAddress()) {
-				const totalUsed =
-					BigInt(gasUsed.computationCost) +
-					BigInt(gasUsed.storageCost) +
-					BigInt(gasUsed.storageCost) -
-					BigInt(gasUsed.storageRebate);
-				const remainingBalance = gasCoin.balance - totalUsed;
+				if (gasOwner === this.#signer.toSuiAddress()) {
+					const totalUsed =
+						BigInt(gasUsed.computationCost) +
+						BigInt(gasUsed.storageCost) +
+						BigInt(gasUsed.storageCost) -
+						BigInt(gasUsed.storageRebate);
+					const remainingBalance = gasCoin.balance - totalUsed;
 
-				let usesGasCoin = false;
-				new TransactionDataBuilder(transaction.getData()).mapArguments((arg) => {
-					if (arg.$kind === 'GasCoin') {
-						usesGasCoin = true;
-					}
+					let usesGasCoin = false;
+					new TransactionDataBuilder(transaction.getData()).mapArguments((arg) => {
+						if (arg.$kind === 'GasCoin') {
+							usesGasCoin = true;
+						}
 
-					return arg;
-				});
-
-				if (!usesGasCoin && remainingBalance >= this.#minimumCoinBalance) {
-					this.#coinPool.push({
-						id: gasResult.ref.objectId,
-						version: gasResult.ref.version,
-						digest: gasResult.ref.digest,
-						balance: remainingBalance,
+						return arg;
 					});
-				} else {
-					if (!this.#sourceCoins) {
-						this.#sourceCoins = new Map();
+
+					const gasRef = {
+						objectId: gasObject.objectId,
+						version: gasObject.outputVersion!,
+						digest: gasObject.outputDigest!,
+					};
+
+					if (!usesGasCoin && remainingBalance >= this.#minimumCoinBalance) {
+						this.#coinPool.push({
+							id: gasRef.objectId,
+							version: gasRef.version,
+							digest: gasRef.digest,
+							balance: remainingBalance,
+						});
+					} else {
+						if (!this.#sourceCoins) {
+							this.#sourceCoins = new Map();
+						}
+						this.#sourceCoins.set(gasRef.objectId, gasRef);
 					}
-					this.#sourceCoins.set(gasResult.ref.objectId, gasResult.ref);
 				}
 			}
 
-			this.#lastDigest = results.digest;
+			this.#lastDigest = tx.digest;
 
-			return {
-				digest: results.digest,
-				effects: toBase64(effectsBytes),
-				data: results,
-			};
+			return results as SuiClientTypes.TransactionResult<Include & { effects: true }>;
 		} catch (error) {
 			if (gasCoin) {
 				if (!this.#sourceCoins) {
@@ -324,7 +318,7 @@ export class ParallelTransactionExecutor {
 		const digest = this.#lastDigest;
 		if (digest) {
 			this.#lastDigest = null;
-			await this.#client.waitForTransaction({ digest });
+			await this.#client.core.waitForTransaction({ digest });
 		}
 	}
 
@@ -359,16 +353,15 @@ export class ParallelTransactionExecutor {
 			await new Promise((resolve) => setTimeout(resolve, timeToNextEpoch));
 		}
 
-		const state = await this.#client.getLatestSuiSystemState();
+		const { systemState } = await this.#client.core.getCurrentSystemState();
 
 		this.#gasPrice = {
-			price: BigInt(state.referenceGasPrice),
+			price: BigInt(systemState.referenceGasPrice),
 			expiration:
-				Number.parseInt(state.epochStartTimestampMs, 10) +
-				Number.parseInt(state.epochDurationMs, 10),
+				Number(systemState.epochStartTimestampMs) + Number(systemState.parameters.epochDurationMs),
 		};
 
-		return this.#getGasPrice();
+		return this.#gasPrice.price;
 	}
 
 	async #refillCoinPool() {
@@ -397,16 +390,16 @@ export class ParallelTransactionExecutor {
 			}
 
 			if (ids.length > 0) {
-				const coins = await this.#client.multiGetObjects({
-					ids,
+				const { objects } = await this.#client.core.getObjects({
+					objectIds: ids,
 				});
 				refs.push(
-					...coins
-						.filter((coin): coin is typeof coin & { data: object } => coin.data !== null)
-						.map(({ data }) => ({
-							objectId: data.objectId,
-							version: data.version,
-							digest: data.digest,
+					...objects
+						.filter((obj): obj is SuiClientTypes.Object => !(obj instanceof Error))
+						.map((obj) => ({
+							objectId: obj.objectId,
+							version: obj.version,
+							digest: obj.digest,
 						})),
 				);
 			}
@@ -416,33 +409,40 @@ export class ParallelTransactionExecutor {
 		}
 
 		const amounts = new Array(batchSize).fill(this.#initialCoinBalance);
-		const results = txb.splitCoins(txb.gas, amounts);
+		const splitResults = txb.splitCoins(txb.gas, amounts);
 		const coinResults = [];
 		for (let i = 0; i < amounts.length; i++) {
-			coinResults.push(results[i]);
+			coinResults.push(splitResults[i]);
 		}
 		txb.transferObjects(coinResults, address);
 
 		await this.waitForLastTransaction();
 
-		const result = await this.#client.signAndExecuteTransaction({
-			transaction: txb,
-			signer: this.#signer,
-			options: {
-				showRawEffects: true,
-			},
+		txb.addBuildPlugin(coreClientResolveTransactionPlugin);
+		const bytes = await txb.build({ client: this.#client });
+		const { signature } = await this.#signer.signTransaction(bytes);
+
+		const result = await this.#client.core.executeTransaction({
+			transaction: bytes,
+			signatures: [signature],
+			include: { effects: true },
 		});
 
-		const effects = bcs.TransactionEffects.parse(Uint8Array.from(result.rawEffects!));
-		effects.V2?.changedObjects.forEach(([id, { outputState }], i) => {
-			if (i === effects.V2?.gasObjectIndex || !outputState.ObjectWrite) {
+		const tx = result.$kind === 'Transaction' ? result.Transaction : result.FailedTransaction;
+		const effects = tx.effects!;
+
+		effects.changedObjects.forEach((changedObj) => {
+			if (
+				changedObj.objectId === effects.gasObject?.objectId ||
+				changedObj.outputState !== 'ObjectWrite'
+			) {
 				return;
 			}
 
 			this.#coinPool.push({
-				id,
-				version: effects.V2!.lamportVersion,
-				digest: outputState.ObjectWrite[0],
+				id: changedObj.objectId,
+				version: changedObj.outputVersion!,
+				digest: changedObj.outputDigest!,
 				balance: BigInt(this.#initialCoinBalance),
 			});
 		});
@@ -451,9 +451,13 @@ export class ParallelTransactionExecutor {
 			this.#sourceCoins = new Map();
 		}
 
-		const gasObject = getGasCoinFromEffects(effects).ref;
-		this.#sourceCoins!.set(gasObject.objectId, gasObject);
+		const gasObject = effects.gasObject!;
+		this.#sourceCoins!.set(gasObject.objectId, {
+			objectId: gasObject.objectId,
+			version: gasObject.outputVersion!,
+			digest: gasObject.outputDigest!,
+		});
 
-		await this.#client.waitForTransaction({ digest: result.digest });
+		await this.#client.core.waitForTransaction({ digest: tx.digest });
 	}
 }

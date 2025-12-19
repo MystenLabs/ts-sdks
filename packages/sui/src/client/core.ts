@@ -91,6 +91,10 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options?: SuiClientTypes.GetReferenceGasPriceOptions,
 	): Promise<SuiClientTypes.GetReferenceGasPriceResponse>;
 
+	abstract getCurrentSystemState(
+		options?: SuiClientTypes.GetCurrentSystemStateOptions,
+	): Promise<SuiClientTypes.GetCurrentSystemStateResponse>;
+
 	abstract listDynamicFields(
 		options: SuiClientTypes.ListDynamicFieldsOptions,
 	): Promise<SuiClientTypes.ListDynamicFieldsResponse>;

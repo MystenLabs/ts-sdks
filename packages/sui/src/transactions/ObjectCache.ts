@@ -3,7 +3,7 @@
 
 import type { bcs } from '../bcs/index.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
-import type { OpenMoveTypeSignature } from './data/internal.js';
+import type { SuiClientTypes } from '../client/types.js';
 import type { TransactionPlugin } from './resolve.js';
 
 export interface ObjectCacheEntry {
@@ -18,7 +18,7 @@ export interface MoveFunctionCacheEntry {
 	package: string;
 	module: string;
 	function: string;
-	parameters: OpenMoveTypeSignature[];
+	parameters: SuiClientTypes.OpenSignature[];
 }
 
 export interface CacheEntryTypes {
