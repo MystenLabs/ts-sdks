@@ -3,7 +3,12 @@
 
 import { parse } from 'valibot';
 
-import { normalizeSuiAddress, normalizeSuiObjectId, SUI_TYPE_ARG } from '../utils/index.js';
+import {
+	normalizeSuiAddress,
+	normalizeSuiObjectId,
+	SUI_FRAMEWORK_ADDRESS,
+	SUI_TYPE_ARG,
+} from '../utils/index.js';
 import { ObjectRefSchema } from '../transactions/data/internal.js';
 import type { CallArg, Command, OpenMoveTypeSignature } from '../transactions/data/internal.js';
 import { Inputs } from '../transactions/Inputs.js';
@@ -413,7 +418,7 @@ function isReceivingType(type: OpenMoveTypeSignature): boolean {
 	}
 
 	return (
-		type.body.datatype.package === '0x2' &&
+		normalizeSuiAddress(type.body.datatype.package) === SUI_FRAMEWORK_ADDRESS &&
 		type.body.datatype.module === 'transfer' &&
 		type.body.datatype.type === 'Receiving'
 	);

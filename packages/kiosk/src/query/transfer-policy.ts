@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
-import { fromBase64, isValidSuiAddress } from '@mysten/sui/utils';
+import { fromBase64, isValidSuiAddress, SUI_FRAMEWORK_ADDRESS } from '@mysten/sui/utils';
 
 import '../bcs.js';
 
@@ -114,7 +114,7 @@ export async function queryOwnedTransferPolicies(
 			{
 				MoveModule: {
 					module: 'transfer_policy',
-					package: '0x2',
+					package: SUI_FRAMEWORK_ADDRESS,
 				},
 			},
 		],

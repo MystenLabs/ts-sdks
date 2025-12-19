@@ -10,8 +10,10 @@ import type { TransactionArgument } from '@mysten/sui/transactions';
 
 import type { ObjectArgument } from './index.js';
 
+import { SUI_FRAMEWORK_ADDRESS } from '@mysten/sui/utils';
+
 /** The Kiosk module. */
-export const KIOSK_MODULE = '0x2::kiosk';
+export const KIOSK_MODULE = `${SUI_FRAMEWORK_ADDRESS}::kiosk`;
 
 /** The Kiosk type. */
 export const KIOSK_TYPE = `${KIOSK_MODULE}::Kiosk`;

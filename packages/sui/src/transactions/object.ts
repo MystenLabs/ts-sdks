@@ -3,6 +3,13 @@
 
 import type { Transaction, TransactionObjectInput } from './Transaction.js';
 import { Inputs } from './Inputs.js';
+import {
+	MOVE_STDLIB_ADDRESS,
+	SUI_CLOCK_OBJECT_ID,
+	SUI_DENY_LIST_OBJECT_ID,
+	SUI_RANDOM_OBJECT_ID,
+	SUI_SYSTEM_STATE_OBJECT_ID,
+} from '../utils/index.js';
 
 export function createObjectMethods<T>(makeObject: (value: TransactionObjectInput) => T) {
 	function object(value: TransactionObjectInput) {
@@ -15,7 +22,7 @@ export function createObjectMethods<T>(makeObject: (value: TransactionObjectInpu
 		if (mutable !== undefined) {
 			return object(
 				Inputs.SharedObjectRef({
-					objectId: '0x5',
+					objectId: SUI_SYSTEM_STATE_OBJECT_ID,
 					initialSharedVersion: 1,
 					mutable,
 				}),
@@ -25,7 +32,7 @@ export function createObjectMethods<T>(makeObject: (value: TransactionObjectInpu
 		return object({
 			$kind: 'UnresolvedObject',
 			UnresolvedObject: {
-				objectId: '0x5',
+				objectId: SUI_SYSTEM_STATE_OBJECT_ID,
 				initialSharedVersion: 1,
 			},
 		});
@@ -33,7 +40,7 @@ export function createObjectMethods<T>(makeObject: (value: TransactionObjectInpu
 	object.clock = () =>
 		object(
 			Inputs.SharedObjectRef({
-				objectId: '0x6',
+				objectId: SUI_CLOCK_OBJECT_ID,
 				initialSharedVersion: 1,
 				mutable: false,
 			}),
@@ -42,7 +49,7 @@ export function createObjectMethods<T>(makeObject: (value: TransactionObjectInpu
 		object({
 			$kind: 'UnresolvedObject',
 			UnresolvedObject: {
-				objectId: '0x8',
+				objectId: SUI_RANDOM_OBJECT_ID,
 				mutable: false,
 			},
 		});
@@ -50,7 +57,7 @@ export function createObjectMethods<T>(makeObject: (value: TransactionObjectInpu
 		return object({
 			$kind: 'UnresolvedObject',
 			UnresolvedObject: {
-				objectId: '0x403',
+				objectId: SUI_DENY_LIST_OBJECT_ID,
 				mutable: options?.mutable,
 			},
 		});
@@ -60,7 +67,7 @@ export function createObjectMethods<T>(makeObject: (value: TransactionObjectInpu
 		(tx: Transaction) =>
 			tx.moveCall({
 				typeArguments: [type],
-				target: `0x1::option::${value === null ? 'none' : 'some'}`,
+				target: `${MOVE_STDLIB_ADDRESS}::option::${value === null ? 'none' : 'some'}`,
 				arguments: value === null ? [] : [tx.object(value)],
 			});
 
