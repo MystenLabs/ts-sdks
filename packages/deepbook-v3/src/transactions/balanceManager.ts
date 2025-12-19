@@ -278,34 +278,36 @@ export class BalanceManagerContract {
 		};
 
 	/**
-	 * @description Set the referral for the BalanceManager
+	 * @description Set the referral for the BalanceManager for a specific pool
 	 * @param {string} managerKey The name of the BalanceManager
-	 * @param {string} referral The referral to set the BalanceManager to
+	 * @param {string} referral The referral (DeepBookPoolReferral) to set the BalanceManager to
 	 * @param {TransactionArgument} tradeCap The tradeCap for permission checking
 	 * @returns A function that takes a Transaction object
 	 */
-	setReferral =
+	setBalanceManagerReferral =
 		(managerKey: string, referral: string, tradeCap: TransactionArgument) => (tx: Transaction) => {
 			const managerId = this.#config.getBalanceManager(managerKey).address;
 			tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::set_referral`,
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::set_balance_manager_referral`,
 				arguments: [tx.object(managerId), tx.object(referral), tradeCap],
 			});
 		};
 
 	/**
-	 * @description Unset the referral for the BalanceManager
+	 * @description Unset the referral for the BalanceManager for a specific pool
 	 * @param {string} managerKey The name of the BalanceManager
+	 * @param {string} poolId The ID of the pool to unset the referral for
 	 * @param {TransactionArgument} tradeCap The tradeCap for permission checking
 	 * @returns A function that takes a Transaction object
 	 */
-	unsetReferral = (managerKey: string, tradeCap: TransactionArgument) => (tx: Transaction) => {
-		const managerId = this.#config.getBalanceManager(managerKey).address;
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::unset_referral`,
-			arguments: [tx.object(managerId), tradeCap],
-		});
-	};
+	unsetBalanceManagerReferral =
+		(managerKey: string, poolId: string, tradeCap: TransactionArgument) => (tx: Transaction) => {
+			const managerId = this.#config.getBalanceManager(managerKey).address;
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::unset_balance_manager_referral`,
+				arguments: [tx.object(managerId), tx.pure.id(poolId), tradeCap],
+			});
+		};
 
 	registerBalanceManager = (managerKey: string) => (tx: Transaction) => {
 		const managerId = this.#config.getBalanceManager(managerKey).address;
@@ -342,14 +344,40 @@ export class BalanceManagerContract {
 	};
 
 	/**
-	 * @description Get the owner of the referral
-	 * @param {string} referral_id The ID of the referral to get the owner of
+	 * @description Get the owner of the referral (DeepBookPoolReferral)
+	 * @param {string} referralId The ID of the referral to get the owner of
 	 * @returns A function that takes a Transaction object
 	 */
-	referralOwner = (referral_id: string) => (tx: Transaction) => {
+	balanceManagerReferralOwner = (referralId: string) => (tx: Transaction) => {
 		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::referral_owner`,
-			arguments: [tx.object(referral_id)],
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance_manager_referral_owner`,
+			arguments: [tx.object(referralId)],
+		});
+	};
+
+	/**
+	 * @description Get the pool ID associated with a referral (DeepBookPoolReferral)
+	 * @param {string} referralId The ID of the referral to get the pool ID of
+	 * @returns A function that takes a Transaction object
+	 */
+	balanceManagerReferralPoolId = (referralId: string) => (tx: Transaction) => {
+		return tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance_manager_referral_pool_id`,
+			arguments: [tx.object(referralId)],
+		});
+	};
+
+	/**
+	 * @description Get the referral ID from the balance manager for a specific pool
+	 * @param {string} managerKey The name of the BalanceManager
+	 * @param {string} poolId The ID of the pool to get the referral for
+	 * @returns A function that takes a Transaction object
+	 */
+	getBalanceManagerReferralId = (managerKey: string, poolId: string) => (tx: Transaction) => {
+		const managerId = this.#config.getBalanceManager(managerKey).address;
+		return tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::get_balance_manager_referral_id`,
+			arguments: [tx.object(managerId), tx.pure.id(poolId)],
 		});
 	};
 }

@@ -731,13 +731,13 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description Get the owner of the referral
+	 * @description Get the owner of the referral (DeepBookPoolReferral)
 	 * @param {string} referral The ID of the referral to get the owner of
 	 * @returns {Promise<string>} The owner of the referral
 	 */
-	async referralOwner(referral: string) {
+	async balanceManagerReferralOwner(referral: string) {
 		const tx = new Transaction();
-		tx.add(this.balanceManager.referralOwner(referral));
+		tx.add(this.balanceManager.balanceManagerReferralOwner(referral));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
@@ -751,12 +751,12 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description Get the referral balances for a pool and referral
+	 * @description Get the referral balances for a pool and referral (DeepBookPoolReferral)
 	 * @param {string} poolKey Key of the pool
 	 * @param {string} referral The referral ID to get balances for
 	 * @returns {Promise<{ base: number, quote: number, deep: number }>} Object with base, quote, and deep balances
 	 */
-	async getReferralBalances(
+	async getPoolReferralBalances(
 		poolKey: string,
 		referral: string,
 	): Promise<{ base: number; quote: number; deep: number }> {
@@ -765,7 +765,7 @@ export class DeepBookClient {
 		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
-		tx.add(this.deepBook.getReferralBalances(poolKey, referral));
+		tx.add(this.deepBook.getPoolReferralBalances(poolKey, referral));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),

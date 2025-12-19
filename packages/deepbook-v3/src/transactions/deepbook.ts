@@ -350,12 +350,13 @@ export class DeepBookContract {
 	};
 
 	/**
-	 * @description Update the referral multiplier for a pool
+	 * @description Update the referral multiplier for a pool (DeepBookPoolReferral)
 	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} referral The referral (DeepBookPoolReferral) to update
 	 * @param {number} multiplier The multiplier for the referral
 	 * @returns A function that takes a Transaction object
 	 */
-	updateDeepbookReferralMultiplier =
+	updatePoolReferralMultiplier =
 		(poolKey: string, referral: string, multiplier: number) => (tx: Transaction) => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
@@ -363,25 +364,25 @@ export class DeepBookContract {
 			const adjustedNumber = Math.round(multiplier * FLOAT_SCALAR);
 
 			tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::update_deepbook_referral_multiplier`,
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::update_pool_referral_multiplier`,
 				arguments: [tx.object(pool.address), tx.object(referral), tx.pure.u64(adjustedNumber)],
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			});
 		};
 
 	/**
-	 * @description Claim the rewards for a referral
+	 * @description Claim the rewards for a referral (DeepBookPoolReferral)
 	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} referral The referral to claim the rewards for
+	 * @param {string} referral The referral (DeepBookPoolReferral) to claim the rewards for
 	 * @returns A function that takes a Transaction object
 	 */
-	claimReferralRewards = (poolKey: string, referral: string) => (tx: Transaction) => {
+	claimPoolReferralRewards = (poolKey: string, referral: string) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
 		const [baseRewards, quoteRewards, deepRewards] = tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::claim_referral_rewards`,
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::claim_pool_referral_rewards`,
 			arguments: [tx.object(pool.address), tx.object(referral)],
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
@@ -1108,18 +1109,36 @@ export class DeepBookContract {
 	};
 
 	/**
-	 * @description Get the balances for a referral
+	 * @description Get the balances for a referral (DeepBookPoolReferral)
 	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} referral The referral to get the balances for
+	 * @param {string} referral The referral (DeepBookPoolReferral) to get the balances for
 	 * @returns A function that takes a Transaction object
 	 */
-	getReferralBalances = (poolKey: string, referral: string) => (tx: Transaction) => {
+	getPoolReferralBalances = (poolKey: string, referral: string) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
 		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_referral_balances`,
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_pool_referral_balances`,
+			arguments: [tx.object(pool.address), tx.object(referral)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Get the multiplier for a referral (DeepBookPoolReferral)
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} referral The referral (DeepBookPoolReferral) to get the multiplier for
+	 * @returns A function that takes a Transaction object
+	 */
+	poolReferralMultiplier = (poolKey: string, referral: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+		return tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::pool_referral_multiplier`,
 			arguments: [tx.object(pool.address), tx.object(referral)],
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
