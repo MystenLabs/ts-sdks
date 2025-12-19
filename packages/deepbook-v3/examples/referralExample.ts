@@ -150,12 +150,24 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	// 	tx.object(balanceManagers.BALANCE_MANAGER_1.tradeCap),
 	// )(tx);
 
-	// --- Margin Pool Referral Functions ---
+	// --- Margin Manager Referral Functions ---
 
-	// // 6. Mint a supply referral for a margin pool
+	// // 6. Set a referral for a margin manager (DeepBookPoolReferral)
+	// dbClient.marginManager.setMarginManagerReferral(
+	// 	'MARGIN_MANAGER_1',
+	// 	suiDbusdcDeepbookReferral,
+	// )(tx);
+
+	// // 7. Unset a referral for a margin manager
+	// dbClient.marginManager.unsetMarginManagerReferral(
+	// 	'MARGIN_MANAGER_1',
+	// 	'SUI_DBUSDC',
+	// )(tx);
+
+	// // 8. Mint a supply referral for a margin pool
 	// dbClient.marginPool.mintSupplyReferral('SUI')(tx);
 
-	// // 7. Withdraw referral fees from a margin pool (requires SupplyReferral object)
+	// // 9. Withdraw referral fees from a margin pool (requires SupplyReferral object)
 	// const suiSupplyReferral = '0xaed597fe1a05b9838b198a3dfa2cdd191b6fa7b319f4c3fc676c7b7348cec194';
 	// const referralFees = dbClient.marginPool.withdrawReferralFees('SUI', suiSupplyReferral)(tx);
 	// tx.transferObjects([referralFees], getActiveAddress());
