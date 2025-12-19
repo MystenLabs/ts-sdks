@@ -744,7 +744,11 @@ export class DeepBookClient {
 			transactionBlock: tx,
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		if (res.error || !res.results || res.results.length === 0) {
+			throw new Error(`Failed to get referral owner: ${res.error || 'No results returned'}`);
+		}
+
+		const bytes = res.results[0].returnValues![0][0];
 		const owner = bcs.Address.parse(new Uint8Array(bytes));
 
 		return owner;
@@ -786,6 +790,34 @@ export class DeepBookClient {
 			quote: quoteBalance / quoteScalar,
 			deep: deepBalance / DEEP_SCALAR,
 		};
+	}
+
+	/**
+	 * @description Get the referral ID from a balance manager for a specific pool
+	 * @param {string} managerKey Key of the balance manager
+	 * @param {string} poolKey Key of the pool to get the referral for
+	 * @returns {Promise<string | null>} The referral ID or null if not set
+	 */
+	async getBalanceManagerReferralId(managerKey: string, poolKey: string): Promise<string | null> {
+		const tx = new Transaction();
+		tx.add(this.balanceManager.getBalanceManagerReferralId(managerKey, poolKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		try {
+			const bytes = res.results![0].returnValues![0][0];
+			// The result is an Option<ID>, which is a vector with 0 or 1 element
+			const optionId = bcs.vector(bcs.Address).parse(new Uint8Array(bytes));
+			if (optionId.length === 0) {
+				return null;
+			}
+			return normalizeSuiAddress(optionId[0]);
+		} catch {
+			return null;
+		}
 	}
 
 	async getPriceInfoObject(tx: Transaction, coinKey: string): Promise<string> {

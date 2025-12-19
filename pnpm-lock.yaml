@@ -338,8 +338,6 @@ importers:
         specifier: ^7.2.6
         version: 7.2.6(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.1)
 
-  packages/create-dapp/templates/react-e2e-counter/move/counter/build/counter/debug_info/dependencies/Sui: {}
-
   packages/dapp-kit:
     dependencies:
       '@mysten/slush-wallet':

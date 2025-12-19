@@ -370,11 +370,12 @@ export class BalanceManagerContract {
 	/**
 	 * @description Get the referral ID from the balance manager for a specific pool
 	 * @param {string} managerKey The name of the BalanceManager
-	 * @param {string} poolId The ID of the pool to get the referral for
+	 * @param {string} poolKey Key of the pool to get the referral for
 	 * @returns A function that takes a Transaction object
 	 */
-	getBalanceManagerReferralId = (managerKey: string, poolId: string) => (tx: Transaction) => {
+	getBalanceManagerReferralId = (managerKey: string, poolKey: string) => (tx: Transaction) => {
 		const managerId = this.#config.getBalanceManager(managerKey).address;
+		const poolId = this.#config.getPool(poolKey).address;
 		return tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::get_balance_manager_referral_id`,
 			arguments: [tx.object(managerId), tx.pure.id(poolId)],
