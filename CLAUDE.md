@@ -95,3 +95,54 @@ pnpm changeset-version
 2. Turbo ensures dependencies are built before dependents
 3. OXLint and Prettier are enforced across the codebase
 4. Tests must pass before changes can be merged
+
+## External Resources
+
+Several packages depend on external repositories and remote schemas. These are used for code generation and type definitions.
+
+### Local Sibling Repositories (relative to ts-sdks)
+
+| Path                 | Description                        | Used By                                                     |
+| -------------------- | ---------------------------------- | ----------------------------------------------------------- |
+| `../sui`             | Main Sui blockchain implementation | Reference for gRPC, GraphQL, and JSON-RPC implementations   |
+| `../sui-apis`        | Protocol buffer definitions        | `@mysten/sui` gRPC codegen (`packages/sui/src/grpc/proto/`) |
+| `../suins-contracts` | SuiNS Move contracts               | `@mysten/suins-v2` codegen                                  |
+| `../sui-payment-kit` | Payment kit Move contracts         | `@mysten/payment-kit` codegen                               |
+| `../walrus`          | Walrus storage contracts           | `@mysten/walrus` codegen                                    |
+| `../deepbookv3`      | DeepBook v3 DEX contracts          | `@mysten/deepbook-v3` codegen                               |
+| `../apps/kiosk`      | Kiosk Move contracts (optional)    | `@mysten/kiosk` codegen                                     |
+
+### Remote Resources (fetched from GitHub)
+
+| URL                                                         | Description           | Used By                                |
+| ----------------------------------------------------------- | --------------------- | -------------------------------------- |
+| `MystenLabs/sui/.../sui-indexer-alt-graphql/schema.graphql` | GraphQL schema        | `@mysten/sui` GraphQL codegen          |
+| `MystenLabs/sui/.../sui-open-rpc/spec/openrpc.json`         | JSON-RPC OpenRPC spec | `@mysten/sui` JSON-RPC type generation |
+| `MystenLabs/sui/Cargo.toml`                                 | Sui version info      | `@mysten/sui` version generation       |
+
+### On-chain Resources
+
+Some packages fetch contract ABIs directly from Sui networks:
+
+- `@mysten/kiosk`: Sui framework kiosk types (0x2) from testnet
+- `@mysten/deepbook-v3`: Pyth oracle package from testnet
+
+### Codegen Commands
+
+```bash
+# Generate gRPC types from ../sui-apis proto files
+pnpm --filter @mysten/sui codegen:grpc
+
+# Fetch latest GraphQL schema from remote (updates schema.graphql)
+pnpm --filter @mysten/sui update-graphql-schema
+
+# Generate GraphQL types from schema (updates queries.ts)
+pnpm --filter @mysten/sui codegen:graphql
+
+# Generate Move contract bindings (various packages)
+pnpm --filter @mysten/suins-v2 codegen
+pnpm --filter @mysten/payment-kit codegen
+pnpm --filter @mysten/walrus codegen
+pnpm --filter @mysten/deepbook-v3 codegen
+pnpm --filter @mysten/kiosk codegen
+```

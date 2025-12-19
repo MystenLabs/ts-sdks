@@ -14,9 +14,9 @@ import { Duration } from '../../../google/protobuf/duration.js';
 import { Jwk } from './jwk.js';
 import { JwkId } from './jwk.js';
 import { Object } from './object.js';
-import { Timestamp } from '../../../google/protobuf/timestamp.js';
 import { Argument } from './argument.js';
 import { Input } from './input.js';
+import { Timestamp } from '../../../google/protobuf/timestamp.js';
 import { ObjectReference } from './object_reference.js';
 import { Bcs } from './bcs.js';
 /**
@@ -104,9 +104,47 @@ export interface TransactionExpiration {
 	 */
 	kind?: TransactionExpiration_TransactionExpirationKind;
 	/**
+	 * Maximum epoch in which a transaction can be executed. The provided maximal epoch
+	 * must be greater than or equal to the current epoch for a transaction to execute.
+	 *
 	 * @generated from protobuf field: optional uint64 epoch = 2;
 	 */
 	epoch?: bigint;
+	/**
+	 * Minimal epoch in which a transaction can be executed. The provided minimal epoch
+	 * must be less than or equal to the current epoch for a transaction to execute.
+	 *
+	 * @generated from protobuf field: optional uint64 min_epoch = 3;
+	 */
+	minEpoch?: bigint;
+	/**
+	 * Minimal UNIX timestamp in which a transaction can be executed. The
+	 * provided minimal timestamp must be less than or equal to the current
+	 * clock.
+	 *
+	 * @generated from protobuf field: optional google.protobuf.Timestamp min_timestamp = 4;
+	 */
+	minTimestamp?: Timestamp;
+	/**
+	 * Maximum UNIX timestamp in which a transaction can be executed. The
+	 * provided maximal timestamp must be greater than or equal to the current
+	 * clock.
+	 *
+	 * @generated from protobuf field: optional google.protobuf.Timestamp max_timestamp = 5;
+	 */
+	maxTimestamp?: Timestamp;
+	/**
+	 * ChainId of the network this transaction is intended for in order to prevent cross-chain replay
+	 *
+	 * @generated from protobuf field: optional string chain = 6;
+	 */
+	chain?: string;
+	/**
+	 * User-provided uniqueness identifier to differentiate otherwise identical transactions
+	 *
+	 * @generated from protobuf field: optional uint32 nonce = 7;
+	 */
+	nonce?: number;
 }
 /**
  * @generated from protobuf enum sui.rpc.v2.TransactionExpiration.TransactionExpirationKind
@@ -129,6 +167,20 @@ export enum TransactionExpiration_TransactionExpirationKind {
 	 * @generated from protobuf enum value: EPOCH = 2;
 	 */
 	EPOCH = 2,
+	/**
+	 * This variant enables gas payments from address balances.
+	 *
+	 * When transactions use address balances for gas payment instead of explicit gas coins,
+	 * we lose the natural transaction uniqueness and replay prevention that comes from
+	 * mutation of gas coin objects.
+	 *
+	 * By bounding expiration and providing a nonce, validators must only retain
+	 * executed digests for the maximum possible expiry range to differentiate
+	 * retries from unique transactions with otherwise identical inputs.
+	 *
+	 * @generated from protobuf enum value: VALID_DURING = 3;
+	 */
+	VALID_DURING = 3,
 }
 /**
  * Transaction type.
@@ -1042,6 +1094,12 @@ export enum EndOfEpochTransactionKind_Kind {
 	 * @generated from protobuf enum value: DISPLAY_REGISTRY_CREATE = 11;
 	 */
 	DISPLAY_REGISTRY_CREATE = 11,
+	/**
+	 * Create and initialize the Address Alias State object.
+	 *
+	 * @generated from protobuf enum value: ADDRESS_ALIAS_STATE_CREATE = 12;
+	 */
+	ADDRESS_ALIAS_STATE_CREATE = 12,
 }
 /**
  * Expire old JWKs.
@@ -1223,6 +1281,18 @@ class TransactionExpiration$Type extends MessageType<TransactionExpiration> {
 				T: 4 /*ScalarType.UINT64*/,
 				L: 0 /*LongType.BIGINT*/,
 			},
+			{
+				no: 3,
+				name: 'min_epoch',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{ no: 4, name: 'min_timestamp', kind: 'message', T: () => Timestamp },
+			{ no: 5, name: 'max_timestamp', kind: 'message', T: () => Timestamp },
+			{ no: 6, name: 'chain', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 7, name: 'nonce', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
 		]);
 	}
 }

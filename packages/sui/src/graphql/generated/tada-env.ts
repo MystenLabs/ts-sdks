@@ -577,6 +577,22 @@ const introspection = {
       },
       {
         "kind": "OBJECT",
+        "name": "AddressAliasStateCreateTransaction",
+        "fields": [
+          {
+            "name": "_",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
         "name": "AddressOwner",
         "fields": [
           {
@@ -3248,6 +3264,10 @@ const introspection = {
           {
             "kind": "OBJECT",
             "name": "AccumulatorRootCreateTransaction"
+          },
+          {
+            "kind": "OBJECT",
+            "name": "AddressAliasStateCreateTransaction"
           },
           {
             "kind": "OBJECT",
@@ -10912,21 +10932,6 @@ const introspection = {
             "type": {
               "kind": "SCALAR",
               "name": "String"
-            },
-            "args": [],
-            "isDeprecated": false
-          },
-          {
-            "name": "events",
-            "type": {
-              "kind": "LIST",
-              "ofType": {
-                "kind": "NON_NULL",
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "Event"
-                }
-              }
             },
             "args": [],
             "isDeprecated": false

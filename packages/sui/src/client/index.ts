@@ -7,6 +7,7 @@ import { CoreClient } from './core.js';
 import type { ClientWithExtensions, SuiClientTypes, SuiClientRegistration } from './types.js';
 export {
 	extractStatusFromEffectsBcs,
+	formatMoveAbortMessage,
 	parseTransactionBcs,
 	parseTransactionEffectsBcs,
 } from './utils.js';
