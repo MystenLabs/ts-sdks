@@ -58,6 +58,21 @@ export interface Input {
 	 */
 	mutable?: boolean;
 	/**
+	 * NOTE: For backwards compatibility purposes the addition of the new
+	 * `NON_EXCLUSIVE_WRITE` mutability variant requires providing a new field.
+	 * The old `mutable` field will continue to be populated and respected as an
+	 * input for the time being.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.Input.Mutability mutability = 7;
+	 */
+	mutability?: Input_Mutability;
+	/**
+	 * Fund Reservation information if `kind` is `FUNDS_WITHDRAWAL`.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.FundsWithdrawal funds_withdrawal = 8;
+	 */
+	fundsWithdrawal?: FundsWithdrawal;
+	/**
 	 * A literal value
 	 *
 	 * INPUT ONLY
@@ -98,6 +113,71 @@ export enum Input_InputKind {
 	 * @generated from protobuf enum value: RECEIVING = 4;
 	 */
 	RECEIVING = 4,
+	/**
+	 * Reservation to withdraw balance from a funds accumulator
+	 *
+	 * @generated from protobuf enum value: FUNDS_WITHDRAWAL = 5;
+	 */
+	FUNDS_WITHDRAWAL = 5,
+}
+/**
+ * @generated from protobuf enum sui.rpc.v2.Input.Mutability
+ */
+export enum Input_Mutability {
+	/**
+	 * @generated from protobuf enum value: MUTABILITY_UNKNOWN = 0;
+	 */
+	MUTABILITY_UNKNOWN = 0,
+	/**
+	 * @generated from protobuf enum value: IMMUTABLE = 1;
+	 */
+	IMMUTABLE = 1,
+	/**
+	 * @generated from protobuf enum value: MUTABLE = 2;
+	 */
+	MUTABLE = 2,
+	/**
+	 * Non-exclusive write is used to allow multiple transactions to
+	 * simultaneously add disjoint dynamic fields to an object.
+	 * (Currently only used by settlement transactions).
+	 *
+	 * @generated from protobuf enum value: NON_EXCLUSIVE_WRITE = 3;
+	 */
+	NON_EXCLUSIVE_WRITE = 3,
+}
+/**
+ * @generated from protobuf message sui.rpc.v2.FundsWithdrawal
+ */
+export interface FundsWithdrawal {
+	/**
+	 * @generated from protobuf field: optional uint64 amount = 1;
+	 */
+	amount?: bigint;
+	/**
+	 * @generated from protobuf field: optional string coin_type = 2;
+	 */
+	coinType?: string;
+	/**
+	 * @generated from protobuf field: optional sui.rpc.v2.FundsWithdrawal.Source source = 3;
+	 */
+	source?: FundsWithdrawal_Source;
+}
+/**
+ * @generated from protobuf enum sui.rpc.v2.FundsWithdrawal.Source
+ */
+export enum FundsWithdrawal_Source {
+	/**
+	 * @generated from protobuf enum value: SOURCE_UNKNOWN = 0;
+	 */
+	SOURCE_UNKNOWN = 0,
+	/**
+	 * @generated from protobuf enum value: SENDER = 1;
+	 */
+	SENDER = 1,
+	/**
+	 * @generated from protobuf enum value: SPONSOR = 2;
+	 */
+	SPONSOR = 2,
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class Input$Type extends MessageType<Input> {
@@ -122,6 +202,14 @@ class Input$Type extends MessageType<Input> {
 			},
 			{ no: 5, name: 'digest', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 			{ no: 6, name: 'mutable', kind: 'scalar', opt: true, T: 8 /*ScalarType.BOOL*/ },
+			{
+				no: 7,
+				name: 'mutability',
+				kind: 'enum',
+				opt: true,
+				T: () => ['sui.rpc.v2.Input.Mutability', Input_Mutability],
+			},
+			{ no: 8, name: 'funds_withdrawal', kind: 'message', T: () => FundsWithdrawal },
 			{ no: 1000, name: 'literal', kind: 'message', T: () => Value },
 		]);
 	}
@@ -130,3 +218,30 @@ class Input$Type extends MessageType<Input> {
  * @generated MessageType for protobuf message sui.rpc.v2.Input
  */
 export const Input = new Input$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class FundsWithdrawal$Type extends MessageType<FundsWithdrawal> {
+	constructor() {
+		super('sui.rpc.v2.FundsWithdrawal', [
+			{
+				no: 1,
+				name: 'amount',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{ no: 2, name: 'coin_type', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{
+				no: 3,
+				name: 'source',
+				kind: 'enum',
+				opt: true,
+				T: () => ['sui.rpc.v2.FundsWithdrawal.Source', FundsWithdrawal_Source],
+			},
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.FundsWithdrawal
+ */
+export const FundsWithdrawal = new FundsWithdrawal$Type();

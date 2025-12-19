@@ -132,7 +132,7 @@ export class TestToolbox {
 	 * @param options - Options to skip the test entirely
 	 */
 	async expectAllClientsReturnSameData<T>(
-		queryFn: (client: ClientWithCoreApi) => Promise<T>,
+		queryFn: (client: ClientWithCoreApi, kind: 'jsonrpc' | 'grpc' | 'graphql') => Promise<T>,
 		normalize?: (result: T) => T,
 		options?: { skip?: boolean },
 	) {
@@ -142,9 +142,9 @@ export class TestToolbox {
 		}
 
 		const [jsonRpcResult, grpcResult, graphqlResult] = await Promise.all([
-			queryFn(this.jsonRpcClient),
-			queryFn(this.grpcClient),
-			queryFn(this.graphqlClient),
+			queryFn(this.jsonRpcClient, 'jsonrpc'),
+			queryFn(this.grpcClient, 'grpc'),
+			queryFn(this.graphqlClient, 'graphql'),
 		]);
 
 		const normalizedJson = normalize ? normalize(jsonRpcResult) : jsonRpcResult;
@@ -176,7 +176,7 @@ export function createTestWithAllClients(
 ) {
 	return function testWithAllClients(
 		testName: string,
-		testFn: (client: ClientWithCoreApi) => Promise<void>,
+		testFn: (client: ClientWithCoreApi, kind: 'jsonrpc' | 'grpc' | 'graphql') => Promise<void>,
 		options?: { skip?: Array<'jsonrpc' | 'grpc' | 'graphql'> | boolean },
 	) {
 		// If skip is true, skip all tests
@@ -206,7 +206,7 @@ export function createTestWithAllClients(
 
 		if (!skipArray.includes('jsonrpc')) {
 			it(`[JSON RPC] ${testName}`, async () => {
-				await testFn(clients().jsonRpc);
+				await testFn(clients().jsonRpc, 'jsonrpc');
 			});
 		} else {
 			test.skip(`[JSON RPC] ${testName}`, () => {});
@@ -214,7 +214,7 @@ export function createTestWithAllClients(
 
 		if (!skipArray.includes('grpc')) {
 			it(`[gRPC] ${testName}`, async () => {
-				await testFn(clients().grpc);
+				await testFn(clients().grpc, 'grpc');
 			});
 		} else {
 			test.skip(`[gRPC] ${testName}`, () => {});
@@ -222,7 +222,7 @@ export function createTestWithAllClients(
 
 		if (!skipArray.includes('graphql')) {
 			it(`[GraphQL] ${testName}`, async () => {
-				await testFn(clients().graphql);
+				await testFn(clients().graphql, 'graphql');
 			});
 		} else {
 			test.skip(`[GraphQL] ${testName}`, () => {});
