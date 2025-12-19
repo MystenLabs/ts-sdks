@@ -852,12 +852,11 @@ export class DeepBookClient {
 
 		try {
 			const bytes = res.results![0].returnValues![0][0];
-			// The result is an Option<ID>, which is a vector with 0 or 1 element
-			const optionId = bcs.vector(bcs.Address).parse(new Uint8Array(bytes));
-			if (optionId.length === 0) {
+			const optionId = bcs.option(bcs.Address).parse(new Uint8Array(bytes));
+			if (optionId === null) {
 				return null;
 			}
-			return normalizeSuiAddress(optionId[0]);
+			return normalizeSuiAddress(optionId);
 		} catch {
 			return null;
 		}
