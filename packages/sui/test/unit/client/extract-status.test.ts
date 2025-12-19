@@ -186,8 +186,13 @@ describe('extractStatusFromEffectsBcs', () => {
 			const status = extractStatusFromEffectsBcs(effectsBytes);
 
 			expect(status.success).toBe(false);
-			// Simple error without data - just the kind
-			expect(status.error).toBe('InsufficientGas');
+			// ExecutionError object with $kind and message
+			expect(status.error).toEqual({
+				$kind: 'Unknown',
+				message: 'InsufficientGas',
+				command: undefined,
+				Unknown: null,
+			});
 		});
 
 		it('should extract failure status with error data as JSON', () => {
@@ -195,10 +200,16 @@ describe('extractStatusFromEffectsBcs', () => {
 			const status = extractStatusFromEffectsBcs(effectsBytes);
 
 			expect(status.success).toBe(false);
-			// Error with data - serialized as JSON
-			expect(status.error).toBe(
-				'MoveObjectTooBig({"objectSize":"1000000","maxObjectSize":"500000"})',
-			);
+			// ExecutionError object with structured size error data
+			expect(status.error).toMatchObject({
+				$kind: 'SizeError',
+				message: 'MoveObjectTooBig({"objectSize":"1000000","maxObjectSize":"500000"})',
+				SizeError: {
+					name: 'ObjectTooBig',
+					size: 1000000,
+					maxSize: 500000,
+				},
+			});
 		});
 	});
 
@@ -216,8 +227,13 @@ describe('extractStatusFromEffectsBcs', () => {
 			const status = extractStatusFromEffectsBcs(effectsBytes);
 
 			expect(status.success).toBe(false);
-			// We get the detailed error type from the ExecutionStatus BCS type
-			expect(status.error).toBe('InsufficientGas');
+			// ExecutionError object with $kind and message
+			expect(status.error).toEqual({
+				$kind: 'Unknown',
+				message: 'InsufficientGas',
+				command: undefined,
+				Unknown: null,
+			});
 		});
 	});
 

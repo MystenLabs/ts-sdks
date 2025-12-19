@@ -124,3 +124,13 @@ entry fun setup_test_data(recipient: address, ctx: &mut TxContext) {
 public fun abort_always() {
     abort 42
 }
+
+/// Error constant for clever error testing
+#[error]
+const ETestCleverError: vector<u8> = b"Test clever error message";
+
+/// Function that aborts with a clever error constant
+/// Used for testing clever error parsing in the SDK
+public fun abort_with_clever_error() {
+    abort ETestCleverError
+}

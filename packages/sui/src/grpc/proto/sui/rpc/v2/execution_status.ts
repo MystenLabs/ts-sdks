@@ -365,17 +365,39 @@ export enum ExecutionError_ExecutionErrorKind {
 	 */
 	EXECUTION_CANCELED_DUE_TO_RANDOMNESS_UNAVAILABLE = 37,
 	/**
+	 * Move vector element (passed to MakeMoveVec) with size {value_size} is larger \
+	 * than the maximum size {max_scaled_size}. Note that this maximum is scaled based on the \
+	 * type of the vector element.
+	 *
 	 * @generated from protobuf enum value: MOVE_VECTOR_ELEM_TOO_BIG = 38;
 	 */
 	MOVE_VECTOR_ELEM_TOO_BIG = 38,
 	/**
+	 * Move value (possibly an upgrade ticket or a dev-inspect value) with size {value_size} \
+	 * is larger than the maximum size  {max_scaled_size}. Note that this maximum is scaled based \
+	 * on the type of the value.
+	 *
 	 * @generated from protobuf enum value: MOVE_RAW_VALUE_TOO_BIG = 39;
 	 */
 	MOVE_RAW_VALUE_TOO_BIG = 39,
 	/**
+	 * A valid linkage was unable to be determined for the transaction or one of its commands.
+	 *
 	 * @generated from protobuf enum value: INVALID_LINKAGE = 40;
 	 */
 	INVALID_LINKAGE = 40,
+	/**
+	 * Insufficient funds for transaction withdrawal
+	 *
+	 * @generated from protobuf enum value: INSUFFICIENT_FUNDS_FOR_WITHDRAW = 41;
+	 */
+	INSUFFICIENT_FUNDS_FOR_WITHDRAW = 41,
+	/**
+	 * An input object with non-exclusive write mutability was modified
+	 *
+	 * @generated from protobuf enum value: NON_EXCLUSIVE_WRITE_INPUT_OBJECT_MODIFIED = 42;
+	 */
+	NON_EXCLUSIVE_WRITE_INPUT_OBJECT_MODIFIED = 42,
 }
 /**
  * @generated from protobuf message sui.rpc.v2.MoveAbort
@@ -661,6 +683,50 @@ export enum CommandArgumentError_CommandArgumentErrorKind {
 	 * @generated from protobuf enum value: INVALID_ARGUMENT_ARITY = 13;
 	 */
 	INVALID_ARGUMENT_ARITY = 13,
+	/**
+	 * Object passed to TransferObject does not have public transfer, i.e. the `store` ability
+	 *
+	 * @generated from protobuf enum value: INVALID_TRANSFER_OBJECT = 14;
+	 */
+	INVALID_TRANSFER_OBJECT = 14,
+	/**
+	 * First argument to MakeMoveVec is not an object. If no type is specified for MakeMoveVec,
+	 * all arguments must be the same object type.
+	 *
+	 * @generated from protobuf enum value: INVALID_MAKE_MOVE_VEC_NON_OBJECT_ARGUMENT = 15;
+	 */
+	INVALID_MAKE_MOVE_VEC_NON_OBJECT_ARGUMENT = 15,
+	/**
+	 * Specified argument location does not have a value and cannot be used
+	 *
+	 * @generated from protobuf enum value: ARGUMENT_WITHOUT_VALUE = 16;
+	 */
+	ARGUMENT_WITHOUT_VALUE = 16,
+	/**
+	 * Cannot move a borrowed value. The value's type does resulted in this argument usage being
+	 * inferred as a move. This is likely due to the type not having the `copy` ability; although
+	 * in rare cases, it could also be this is the last usage of a value without the `drop`
+	 * ability.
+	 *
+	 * @generated from protobuf enum value: CANNOT_MOVE_BORROWED_VALUE = 17;
+	 */
+	CANNOT_MOVE_BORROWED_VALUE = 17,
+	/**
+	 * Cannot write to an argument location that is still borrowed, and where that borrow is an
+	 * extension of that reference. This is likely due to this argument being used in a Move call
+	 * that returns a reference, and that reference is used in a later command.
+	 *
+	 * @generated from protobuf enum value: CANNOT_WRITE_TO_EXTENDED_REFERENCE = 18;
+	 */
+	CANNOT_WRITE_TO_EXTENDED_REFERENCE = 18,
+	/**
+	 * The argument specified cannot be used as a reference argument in the Move call. Either the
+	 * argument is a mutable reference and it conflicts with another argument to the call, or the
+	 * argument is mutable and another reference extends it and will be used in a later command.
+	 *
+	 * @generated from protobuf enum value: INVALID_REFERENCE_ARGUMENT = 19;
+	 */
+	INVALID_REFERENCE_ARGUMENT = 19,
 }
 /**
  * An error with upgrading a package.
