@@ -90,7 +90,7 @@ const client = new SuiGrpcClient({
 });
 
 // get coins owned by an address using the Core API
-await client.core.getCoins({
+await client.getCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
 ```
@@ -109,7 +109,7 @@ const client = new SuiGrpcClient({
 });
 
 // get coins owned by an address using the Core API
-await client.core.getCoins({
+await client.getCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
 ```
@@ -126,7 +126,7 @@ const client = new SuiGrpcClient({
 });
 
 // get coins owned by an address using the Core API
-await client.core.getCoins({
+await client.getCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
 ```
@@ -304,7 +304,7 @@ const client = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
-const objects = await client.core.getOwnedObjects({
+const objects = await client.getOwnedObjects({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
 ```
@@ -322,14 +322,14 @@ const client = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
-const object = await client.core.getObject({
+const object = await client.getObject({
 	id: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 	// fetch the object content field
 	options: { showContent: true },
 });
 
 // You can also fetch multiple objects in one batch request
-const objects = await client.core.multiGetObjects({
+const objects = await client.multiGetObjects({
 	ids: [
 		'0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 		'0x9ad3de788483877fe348aef7f6ba3e52b9cfee5f52de0694d36b16a6b50c1429',
@@ -351,7 +351,7 @@ const client = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
-const txn = await client.core.getTransactionBlock({
+const txn = await client.getTransactionBlock({
 	digest: '9XFneskU8tW7UxQf7tE5qFRfcN4FadtC2Z3HAZkgeETd=',
 	// only fetch the effects field
 	options: {
@@ -364,7 +364,7 @@ const txn = await client.core.getTransactionBlock({
 });
 
 // You can also fetch multiple transactions in one batch request
-const txns = await client.core.multiGetTransactionBlocks({
+const txns = await client.multiGetTransactionBlocks({
 	digests: [
 		'9XFneskU8tW7UxQf7tE5qFRfcN4FadtC2Z3HAZkgeETd=',
 		'17mn5W1CczLwitHCO9OIUbqirNrQ0cuKdyxaNe16SAME=',
@@ -421,7 +421,7 @@ const client = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
-const coins = await client.core.getCoins({
+const coins = await client.getCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 	coinType: '0x65b0553a591d7b13376e03a408e112c706dc0909a79080c810b93b06f922c458::usdc::USDC',
 });
@@ -437,7 +437,7 @@ const client = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
-const allCoins = await client.core.getAllCoins({
+const allCoins = await client.getAllCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
 ```
@@ -453,7 +453,7 @@ const client = new SuiGrpcClient({
 });
 
 // If coin type is not specified, it defaults to 0x2::sui::SUI
-const coinBalance = await client.core.getBalance({
+const coinBalance = await client.getBalance({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 	coinType: '0x65b0553a591d7b13376e03a408e112c706dc0909a79080c810b93b06f922c458::usdc::USDC',
 });
@@ -472,7 +472,7 @@ const client = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
-const events = await client.core.queryEvents({
+const events = await client.queryEvents({
 	query: { Sender: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231' },
 	limit: 2,
 });

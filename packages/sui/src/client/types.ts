@@ -6,6 +6,7 @@ import type {
 	TransactionPlugin,
 	Transaction as TransactionInstance,
 } from '../transactions/index.js';
+import type { Signer } from '../cryptography/keypair.js';
 import type { ClientCache } from './cache.js';
 import type { BaseClient } from './client.js';
 
@@ -87,7 +88,8 @@ export namespace SuiClientTypes {
 
 	export interface ListCoinsOptions extends CoreClientMethodOptions {
 		owner: string;
-		coinType: string;
+		/** Defaults to `0x2::sui::SUI` */
+		coinType?: string;
 		limit?: number;
 		cursor?: string | null;
 	}
@@ -184,7 +186,8 @@ export namespace SuiClientTypes {
 
 	export interface GetBalanceOptions extends CoreClientMethodOptions {
 		owner: string;
-		coinType: string;
+		/** Defaults to `0x2::sui::SUI` */
+		coinType?: string;
 	}
 
 	export interface CoinBalance {
@@ -309,6 +312,15 @@ export namespace SuiClientTypes {
 	> extends CoreClientMethodOptions {
 		transaction: Uint8Array;
 		signatures: string[];
+		include?: Include;
+	}
+
+	export interface SignAndExecuteTransactionOptions<
+		Include extends TransactionInclude = {},
+	> extends CoreClientMethodOptions {
+		transaction: Uint8Array | TransactionInstance;
+		signer: Signer;
+		additionalSignatures?: string[];
 		include?: Include;
 	}
 

@@ -71,7 +71,7 @@ const balance = (balance) => {
 };
 
 // store the JSON representation for the SUI the address owns before using faucet
-const suiBefore = await suiClient.core.getBalance({
+const suiBefore = await suiClient.getBalance({
 	owner: MY_ADDRESS,
 });
 
@@ -83,7 +83,7 @@ await requestSuiFromFaucetV2({
 });
 
 // store the JSON representation for the SUI the address owns after using faucet
-const suiAfter = await suiClient.core.getBalance({
+const suiAfter = await suiClient.getBalance({
 	owner: MY_ADDRESS,
 });
 
@@ -103,8 +103,8 @@ node index.js
 
 The code imports the `requestSuiFromFaucetV2` function from the SDK and calls it to mint SUI for the
 provided address. The code also imports `SuiGrpcClient` to create a new client on the Sui network
-that it uses to query the address via the Core API and output the amount of SUI the address owns
-before and after using the faucet. You can check the total SUI for your address using the Sui Wallet
+that it uses to query the address and output the amount of SUI the address owns before and after
+using the faucet. You can check the total SUI for your address using the Sui Wallet
 or Sui Client CLI.
 
 <Callout type="info">

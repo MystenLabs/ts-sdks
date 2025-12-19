@@ -58,7 +58,7 @@ async function uploadFile() {
 
 	await flow.encode();
 
-	const { digest } = await client.signAndExecuteTransaction({
+	const registerResult = await client.signAndExecuteTransaction({
 		transaction: flow.register({
 			deletable: true,
 			epochs: 3,
@@ -67,7 +67,11 @@ async function uploadFile() {
 		signer: keypair,
 	});
 
-	await flow.upload({ digest });
+	if (registerResult.FailedTransaction) {
+		throw new Error('Register transaction failed');
+	}
+
+	await flow.upload({ digest: registerResult.Transaction.digest });
 
 	await client.signAndExecuteTransaction({
 		transaction: flow.certify(),
