@@ -296,13 +296,14 @@ export class BalanceManagerContract {
 	/**
 	 * @description Unset the referral for the BalanceManager for a specific pool
 	 * @param {string} managerKey The name of the BalanceManager
-	 * @param {string} poolId The ID of the pool to unset the referral for
+	 * @param {string} poolKey The key of the pool to unset the referral for
 	 * @param {TransactionArgument} tradeCap The tradeCap for permission checking
 	 * @returns A function that takes a Transaction object
 	 */
 	unsetBalanceManagerReferral =
-		(managerKey: string, poolId: string, tradeCap: TransactionArgument) => (tx: Transaction) => {
+		(managerKey: string, poolKey: string, tradeCap: TransactionArgument) => (tx: Transaction) => {
 			const managerId = this.#config.getBalanceManager(managerKey).address;
+			const poolId = this.#config.getPool(poolKey).address;
 			tx.moveCall({
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::unset_balance_manager_referral`,
 				arguments: [tx.object(managerId), tx.pure.id(poolId), tradeCap],

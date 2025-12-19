@@ -793,6 +793,27 @@ export class DeepBookClient {
 	}
 
 	/**
+	 * @description Get the pool ID associated with a referral (DeepBookPoolReferral)
+	 * @param {string} referral The referral (DeepBookPoolReferral) to get the pool ID for
+	 * @returns {Promise<string>} The pool ID
+	 */
+	async balanceManagerReferralPoolId(referral: string): Promise<string> {
+		const tx = new Transaction();
+
+		tx.add(this.balanceManager.balanceManagerReferralPoolId(referral));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const poolId = bcs.Address.parse(new Uint8Array(bytes));
+
+		return normalizeSuiAddress(poolId);
+	}
+
+	/**
 	 * @description Get the multiplier for a referral (DeepBookPoolReferral)
 	 * @param {string} poolKey Key of the pool
 	 * @param {string} referral The referral (DeepBookPoolReferral) to get the multiplier for
