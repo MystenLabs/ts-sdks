@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.24.0
+
+### Minor Changes
+
+- 749318e: Improved referral system
+
 ## 0.23.2
 
 ### Patch Changes
