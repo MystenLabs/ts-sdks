@@ -53,7 +53,6 @@ export async function decrypt({
 	const inKeystore = encryptedObject.services
 		.map((_, i) => i)
 		.filter((i) => keys.has(`${fullId}:${encryptedObject.services[i][0]}`));
-
 	if (inKeystore.length < encryptedObject.threshold) {
 		throw new Error('Not enough shares. Please fetch more keys.');
 	}
