@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { execSync } from 'child_process';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { Transaction } from '@mysten/sui/transactions';
 
 import { DeepBookClient } from '../src/index.js'; // Adjust path according to new structure
 
@@ -52,65 +53,58 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 		marginMaintainerCap,
 	});
 
-	// const tx = new Transaction();
+	const tx = new Transaction();
 
 	// --- DeepBook Pool Referral Functions ---
 
 	// // 1. Mint a new referral for a pool (multiplier determines fee share)
-	// dbClient.deepBook.mintReferral('SUI_DBUSDC', 1)(tx);
-	// dbClient.deepBook.mintReferral('DEEP_SUI', 0.5)(tx);
+	dbClient.deepBook.mintReferral('SUI_DBUSDC', 1)(tx);
+	dbClient.deepBook.mintReferral('DEEP_SUI', 0.5)(tx);
 
 	// // 2. Update the multiplier for an existing referral
-	// dbClient.deepBook.updatePoolReferralMultiplier(
-	// 	'SUI_DBUSDC',
-	// 	suiDbusdcDeepbookReferral,
-	// 	0.75,
-	// )(tx);
+	dbClient.deepBook.updatePoolReferralMultiplier('SUI_DBUSDC', suiDbusdcDeepbookReferral, 0.75)(tx);
 
 	// // 3. Claim referral rewards (returns base, quote, and deep coins)
-	// const { baseRewards, quoteRewards, deepRewards } = dbClient.deepBook.claimPoolReferralRewards(
-	// 	'SUI_DBUSDC',
-	// 	suiDbusdcDeepbookReferral,
-	// )(tx);
-	// tx.transferObjects([baseRewards, quoteRewards, deepRewards], getActiveAddress());
+	const { baseRewards, quoteRewards, deepRewards } = dbClient.deepBook.claimPoolReferralRewards(
+		'SUI_DBUSDC',
+		suiDbusdcDeepbookReferral,
+	)(tx);
+	tx.transferObjects([baseRewards, quoteRewards, deepRewards], getActiveAddress());
 
 	// --- Balance Manager Referral Functions ---
 
 	// // 4. Set a referral for a balance manager (requires tradeCap)
-	// dbClient.balanceManager.setBalanceManagerReferral(
-	// 	'BALANCE_MANAGER_1',
-	// 	suiDbusdcDeepbookReferral,
-	// 	tx.object(balanceManagers.BALANCE_MANAGER_1.tradeCap),
-	// )(tx);
+	dbClient.balanceManager.setBalanceManagerReferral(
+		'BALANCE_MANAGER_1',
+		suiDbusdcDeepbookReferral,
+		tx.object(balanceManagers.BALANCE_MANAGER_1.tradeCap),
+	)(tx);
 
 	// // 5. Unset a referral for a balance manager (requires poolKey and tradeCap)
-	// dbClient.balanceManager.unsetBalanceManagerReferral(
-	// 	'BALANCE_MANAGER_1',
-	// 	'SUI_DBUSDC',
-	// 	tx.object(balanceManagers.BALANCE_MANAGER_1.tradeCap),
-	// )(tx);
+	dbClient.balanceManager.unsetBalanceManagerReferral(
+		'BALANCE_MANAGER_1',
+		'SUI_DBUSDC',
+		tx.object(balanceManagers.BALANCE_MANAGER_1.tradeCap),
+	)(tx);
 
 	// --- Margin Manager Referral Functions ---
 
 	// // 6. Set a referral for a margin manager (DeepBookPoolReferral)
-	// dbClient.marginManager.setMarginManagerReferral(
-	// 	'MARGIN_MANAGER_1',
-	// 	suiDbusdcDeepbookReferral,
-	// )(tx);
+	dbClient.marginManager.setMarginManagerReferral(
+		'MARGIN_MANAGER_1',
+		suiDbusdcDeepbookReferral,
+	)(tx);
 
 	// // 7. Unset a referral for a margin manager
-	// dbClient.marginManager.unsetMarginManagerReferral(
-	// 	'MARGIN_MANAGER_1',
-	// 	'SUI_DBUSDC',
-	// )(tx);
+	dbClient.marginManager.unsetMarginManagerReferral('MARGIN_MANAGER_1', 'SUI_DBUSDC')(tx);
 
 	// // 8. Mint a supply referral for a margin pool
-	// dbClient.marginPool.mintSupplyReferral('SUI')(tx);
+	dbClient.marginPool.mintSupplyReferral('SUI')(tx);
 
 	// // 9. Withdraw referral fees from a margin pool (requires SupplyReferral object)
-	// const suiSupplyReferral = '0xaed597fe1a05b9838b198a3dfa2cdd191b6fa7b319f4c3fc676c7b7348cec194';
-	// const referralFees = dbClient.marginPool.withdrawReferralFees('SUI', suiSupplyReferral)(tx);
-	// tx.transferObjects([referralFees], getActiveAddress());
+	const suiSupplyReferral = '0xaed597fe1a05b9838b198a3dfa2cdd191b6fa7b319f4c3fc676c7b7348cec194';
+	const referralFees = dbClient.marginPool.withdrawReferralFees('SUI', suiSupplyReferral)(tx);
+	tx.transferObjects([referralFees], getActiveAddress());
 
 	// ==========================================
 	// Read-only Functions
