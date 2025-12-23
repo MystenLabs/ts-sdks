@@ -734,32 +734,36 @@ export class DeepBookClient {
 	}
 
 	/**
-	 * @description Get the owner of the referral
+	 * @description Get the owner of the referral (DeepBookPoolReferral)
 	 * @param {string} referral The ID of the referral to get the owner of
 	 * @returns {Promise<string>} The owner of the referral
 	 */
-	async referralOwner(referral: string) {
+	async balanceManagerReferralOwner(referral: string) {
 		const tx = new Transaction();
-		tx.add(this.balanceManager.referralOwner(referral));
+		tx.add(this.balanceManager.balanceManagerReferralOwner(referral));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
 			transactionBlock: tx,
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
+		if (res.error || !res.results || res.results.length === 0) {
+			throw new Error(`Failed to get referral owner: ${res.error || 'No results returned'}`);
+		}
+
+		const bytes = res.results[0].returnValues![0][0];
 		const owner = bcs.Address.parse(new Uint8Array(bytes));
 
 		return owner;
 	}
 
 	/**
-	 * @description Get the referral balances for a pool and referral
+	 * @description Get the referral balances for a pool and referral (DeepBookPoolReferral)
 	 * @param {string} poolKey Key of the pool
 	 * @param {string} referral The referral ID to get balances for
 	 * @returns {Promise<{ base: number, quote: number, deep: number }>} Object with base, quote, and deep balances
 	 */
-	async getReferralBalances(
+	async getPoolReferralBalances(
 		poolKey: string,
 		referral: string,
 	): Promise<{ base: number; quote: number; deep: number }> {
@@ -768,7 +772,7 @@ export class DeepBookClient {
 		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
 
-		tx.add(this.deepBook.getReferralBalances(poolKey, referral));
+		tx.add(this.deepBook.getPoolReferralBalances(poolKey, referral));
 
 		const res = await this.client.devInspectTransactionBlock({
 			sender: normalizeSuiAddress(this.#address),
@@ -789,6 +793,76 @@ export class DeepBookClient {
 			quote: quoteBalance / quoteScalar,
 			deep: deepBalance / DEEP_SCALAR,
 		};
+	}
+
+	/**
+	 * @description Get the pool ID associated with a referral (DeepBookPoolReferral)
+	 * @param {string} referral The referral (DeepBookPoolReferral) to get the pool ID for
+	 * @returns {Promise<string>} The pool ID
+	 */
+	async balanceManagerReferralPoolId(referral: string): Promise<string> {
+		const tx = new Transaction();
+
+		tx.add(this.balanceManager.balanceManagerReferralPoolId(referral));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const poolId = bcs.Address.parse(new Uint8Array(bytes));
+
+		return normalizeSuiAddress(poolId);
+	}
+
+	/**
+	 * @description Get the multiplier for a referral (DeepBookPoolReferral)
+	 * @param {string} poolKey Key of the pool
+	 * @param {string} referral The referral (DeepBookPoolReferral) to get the multiplier for
+	 * @returns {Promise<number>} The multiplier value
+	 */
+	async poolReferralMultiplier(poolKey: string, referral: string): Promise<number> {
+		const tx = new Transaction();
+
+		tx.add(this.deepBook.poolReferralMultiplier(poolKey, referral));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		const bytes = res.results![0].returnValues![0][0];
+		const multiplier = Number(bcs.U64.parse(new Uint8Array(bytes)));
+
+		return multiplier / FLOAT_SCALAR;
+	}
+
+	/**
+	 * @description Get the referral ID from a balance manager for a specific pool
+	 * @param {string} managerKey Key of the balance manager
+	 * @param {string} poolKey Key of the pool to get the referral for
+	 * @returns {Promise<string | null>} The referral ID or null if not set
+	 */
+	async getBalanceManagerReferralId(managerKey: string, poolKey: string): Promise<string | null> {
+		const tx = new Transaction();
+		tx.add(this.balanceManager.getBalanceManagerReferralId(managerKey, poolKey));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		try {
+			const bytes = res.results![0].returnValues![0][0];
+			const optionId = bcs.option(bcs.Address).parse(new Uint8Array(bytes));
+			if (optionId === null) {
+				return null;
+			}
+			return normalizeSuiAddress(optionId);
+		} catch {
+			return null;
+		}
 	}
 
 	async getPriceInfoObject(tx: Transaction, coinKey: string): Promise<string> {

@@ -410,6 +410,44 @@ export class MarginManagerContract {
 			});
 		};
 
+	/**
+	 * @description Set the referral for a margin manager (DeepBookPoolReferral)
+	 * @param {string} managerKey The key to identify the margin manager
+	 * @param {string} referral The referral (DeepBookPoolReferral) to set
+	 * @returns A function that takes a Transaction object
+	 */
+	setMarginManagerReferral = (managerKey: string, referral: string) => (tx: Transaction) => {
+		const manager = this.#config.getMarginManager(managerKey);
+		const pool = this.#config.getPool(manager.poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::set_margin_manager_referral`,
+			arguments: [tx.object(manager.address), tx.object(referral)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Unset the referral for a margin manager
+	 * @param {string} managerKey The key to identify the margin manager
+	 * @param {string} poolKey The key of the pool to unset the referral for
+	 * @returns A function that takes a Transaction object
+	 */
+	unsetMarginManagerReferral = (managerKey: string, poolKey: string) => (tx: Transaction) => {
+		const manager = this.#config.getMarginManager(managerKey);
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::unset_margin_manager_referral`,
+			arguments: [tx.object(manager.address), tx.pure.id(pool.address)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
 	// === Read-Only Functions ===
 
 	/**
