@@ -30,6 +30,7 @@ import { MarginMaintainerContract } from './transactions/marginMaintainer.js';
 import { MarginPoolContract } from './transactions/marginPool.js';
 import { MarginManagerContract } from './transactions/marginManager.js';
 import { MarginRegistryContract } from './transactions/marginRegistry.js';
+import { MarginLiquidationsContract } from './transactions/marginLiquidations.js';
 import { SuiPriceServiceConnection } from './pyth/pyth.js';
 import { SuiPythClient } from './pyth/pyth.js';
 import { PoolProxyContract } from './transactions/poolProxy.js';
@@ -51,6 +52,7 @@ export class DeepBookClient {
 	marginPool: MarginPoolContract;
 	marginManager: MarginManagerContract;
 	marginRegistry: MarginRegistryContract;
+	marginLiquidations: MarginLiquidationsContract;
 	poolProxy: PoolProxyContract;
 
 	/**
@@ -111,6 +113,7 @@ export class DeepBookClient {
 		this.marginPool = new MarginPoolContract(this.#config);
 		this.marginManager = new MarginManagerContract(this.#config);
 		this.marginRegistry = new MarginRegistryContract(this.#config);
+		this.marginLiquidations = new MarginLiquidationsContract(this.#config);
 		this.poolProxy = new PoolProxyContract(this.#config);
 	}
 

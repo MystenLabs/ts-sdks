@@ -12,6 +12,7 @@ export interface DeepbookPackageIds {
 	DEEP_TREASURY_ID: string;
 	MARGIN_PACKAGE_ID: string;
 	MARGIN_REGISTRY_ID: string;
+	LIQUIDATION_PACKAGE_ID: string;
 }
 
 export const testnetPackageIds = {
@@ -20,6 +21,7 @@ export const testnetPackageIds = {
 	DEEP_TREASURY_ID: '0x69fffdae0075f8f71f4fa793549c11079266910e8905169845af1f5d00e09dcb',
 	MARGIN_PACKAGE_ID: '0x3d02a90ae1d2eff63ca8ae9bfd89ffa0f7e12d780563259c8271833c270ae842',
 	MARGIN_REGISTRY_ID: '0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75',
+	LIQUIDATION_PACKAGE_ID: '0x9cb448cb14012e7f6d60d95fffe311dec200d76580226c1cbb85a5b3fb308858',
 } satisfies DeepbookPackageIds;
 
 export const mainnetPackageIds = {
@@ -28,6 +30,7 @@ export const mainnetPackageIds = {
 	DEEP_TREASURY_ID: '0x032abf8948dda67a271bcc18e776dbbcfb0d58c8d288a700ff0d5521e57a1ffe',
 	MARGIN_PACKAGE_ID: '',
 	MARGIN_REGISTRY_ID: '',
+	LIQUIDATION_PACKAGE_ID: '',
 } satisfies DeepbookPackageIds;
 
 export const testnetCoins: CoinMap = {
