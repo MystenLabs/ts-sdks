@@ -87,21 +87,12 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	// Example liquidation vault ID (replace with actual vault ID after creation)
 	const liquidationVaultId = '0x4ca01c55a788a78e9e3375a1790241e1065f222f9fa60505784a6833ea01b5bc';
 
-	// Example margin managers to potentially liquidate
-	const marginManagers = {
-		MARGIN_MANAGER_1: {
-			address: '0x70a5f28a2400fca515adce1262da0b45ba8f3d1e48f1f2a9568aa29642b5c104',
-			poolKey: 'SUI_DBUSDC',
-		},
-	};
-
 	const dbClient = new DeepBookClient({
 		address: getActiveAddress(),
 		env: env,
 		client: new SuiClient({
 			url: getFullnodeUrl(env),
 		}),
-		marginManagers,
 	});
 
 	const stateRes = await fetch(
@@ -211,13 +202,4 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 			await new Promise((resolve) => setTimeout(resolve, 2000));
 		}
 	}
-
-	// === Read-Only Operations ===
-
-	// 7. Check vault balance for a specific coin type
-	// const tx = new Transaction();
-	// dbClient.marginLiquidations.balance(liquidationVaultId, 'SUI')(tx);
-	// dbClient.marginLiquidations.balance(liquidationVaultId, 'DBUSDC')(tx);
-	// const res = await signAndExecute(tx, env);
-	// console.dir(res, { depth: null });
 })();
