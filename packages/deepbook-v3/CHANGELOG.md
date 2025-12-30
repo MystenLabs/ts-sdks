@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.25.0
+
+### Minor Changes
+
+- 74b9509: Liquidation Logic
+
 ## 0.24.0
 
 ### Minor Changes
