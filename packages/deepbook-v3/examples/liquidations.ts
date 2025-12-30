@@ -14,6 +14,10 @@ import { Transaction } from '@mysten/sui/transactions';
 
 import { DeepBookClient } from '../src/index.js';
 
+// Configuration
+const RISK_RATIO_THRESHOLD = 50; // Only liquidate managers with risk_ratio below this value
+const BATCH_SIZE = 100; // Max managers per transaction
+
 const SUI = process.env.SUI_BINARY ?? `sui`;
 
 export const getActiveAddress = () => {
@@ -78,10 +82,10 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	const env = 'testnet';
 
 	// Liquidation Admin Cap
-	const liquidationAdminCap = '0xc245aa1bb6c6ae346d9566246403cf53b597147bdd51f20ecf8e947c42b15fa0';
+	// const liquidationAdminCap = '0x1d24d891295b62f3a4d67be48a419478fe3cbc4c9c4dfba0c7037fa79f2cf161';
 
 	// Example liquidation vault ID (replace with actual vault ID after creation)
-	const liquidationVaultId = '0xffe82b00de73b5815d35f2ee432f42f1420425286b95c9b395cd51109f56b148';
+	const liquidationVaultId = '0x4ca01c55a788a78e9e3375a1790241e1065f222f9fa60505784a6833ea01b5bc';
 
 	// Example margin managers to potentially liquidate
 	const marginManagers = {
@@ -100,25 +104,34 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 		marginManagers,
 	});
 
-	const tx = new Transaction();
-
-	const res = await fetch('https://deepbook-indexer.testnet.mystenlabs.com/margin_manager_states');
-	const data = await res.json();
-	console.log(data);
+	const stateRes = await fetch(
+		`https://deepbook-indexer.${env}.mystenlabs.com/margin_manager_states`,
+	);
+	const data = await stateRes.json();
 
 	// === Liquidation Vault Admin Operations ===
 
 	// 1. Create a new liquidation vault
+	// const tx = new Transaction();
 	// dbClient.marginLiquidations.createLiquidationVault(liquidationAdminCap)(tx);
+	// const res = await signAndExecute(tx, env);
+	// console.dir(res, { depth: null });
 
 	// 2. Deposit SUI into the liquidation vault (for liquidating base debt)
-	dbClient.marginLiquidations.deposit(liquidationVaultId, liquidationAdminCap, 'SUI', 10)(tx);
-	dbClient.marginLiquidations.deposit(liquidationVaultId, liquidationAdminCap, 'DEEP', 100)(tx);
+	// const tx = new Transaction();
+	// dbClient.marginLiquidations.deposit(liquidationVaultId, liquidationAdminCap, 'SUI', 10)(tx);
+	// dbClient.marginLiquidations.deposit(liquidationVaultId, liquidationAdminCap, 'DEEP', 100)(tx);
+	// const res = await signAndExecute(tx, env);
+	// console.dir(res, { depth: null });
 
 	// 3. Deposit DBUSDC into the liquidation vault (for liquidating quote debt)
+	// const tx = new Transaction();
 	// dbClient.marginLiquidations.deposit(liquidationVaultId, liquidationAdminCap, 'DBUSDC', 10000)(tx);
+	// const res = await signAndExecute(tx, env);
+	// console.dir(res, { depth: null });
 
 	// 4. Withdraw SUI from the liquidation vault
+	// const tx = new Transaction();
 	// const withdrawnCoin = dbClient.marginLiquidations.withdraw(
 	// 	liquidationVaultId,
 	// 	liquidationAdminCap,
@@ -126,39 +139,85 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	// 	0.1,
 	// )(tx);
 	// tx.transferObjects([withdrawnCoin], getActiveAddress());
+	// const res = await signAndExecute(tx, env);
+	// console.dir(res, { depth: null });
 
 	// === Liquidation Operations ===
 
-	// 5. Liquidate a margin manager with base debt
-	// Note: Requires Pyth price updates before liquidation
-	// await dbClient.getPriceInfoObject(tx, 'SUI');
-	// await dbClient.getPriceInfoObject(tx, 'DBUSDC');
-	// await dbClient.getPriceInfoObject(tx, 'DEEP');
-	// await dbClient.getPriceInfoObject(tx, 'DBTC');
-	// dbClient.marginLiquidations.liquidateBase(
-	// 	liquidationVaultId,
-	// 	marginManagers.MARGIN_MANAGER_1.address,
-	// 	'SUI_DBUSDC',
-	// 	9, // repay 10 SUI
-	// )(tx);
+	// Filter managers below threshold (data is sorted by risk_ratio ascending)
+	const managersToLiquidate = [];
+	for (const manager of data) {
+		const riskRatio = parseFloat(manager.risk_ratio);
+		if (riskRatio >= RISK_RATIO_THRESHOLD) {
+			break;
+		}
+		managersToLiquidate.push(manager);
+	}
 
-	// 6. Liquidate a margin manager with quote debt
-	// await dbClient.getPriceInfoObject(tx, 'SUI');
-	// await dbClient.getPriceInfoObject(tx, 'DBUSDC');
-	// dbClient.marginLiquidations.liquidateQuote(
-	// 	liquidationVaultId,
-	// 	marginManagers.MARGIN_MANAGER_1.address,
-	// 	'SUI_DBUSDC',
-	// 	100, // repay 100 DBUSDC
-	// )(tx);
+	if (managersToLiquidate.length === 0) {
+		console.log(`No managers with risk_ratio < ${RISK_RATIO_THRESHOLD} to liquidate`);
+		return;
+	}
+
+	console.log(`Found ${managersToLiquidate.length} managers to liquidate`);
+
+	// Process in batches
+	for (let i = 0; i < managersToLiquidate.length; i += BATCH_SIZE) {
+		const batch = managersToLiquidate.slice(i, i + BATCH_SIZE);
+		const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+		const totalBatches = Math.ceil(managersToLiquidate.length / BATCH_SIZE);
+
+		console.log(`Processing batch ${batchNum}/${totalBatches} (${batch.length} managers)`);
+
+		const tx = new Transaction();
+
+		// Get price info objects for all supported assets
+		await dbClient.getPriceInfoObject(tx, 'SUI');
+		await dbClient.getPriceInfoObject(tx, 'DBUSDC');
+		await dbClient.getPriceInfoObject(tx, 'DEEP');
+		await dbClient.getPriceInfoObject(tx, 'DBTC');
+
+		// Add all liquidation calls for this batch
+		for (const manager of batch) {
+			const poolKey = `${manager.base_asset_symbol}_${manager.quote_asset_symbol}`;
+			const baseDebt = parseFloat(manager.base_debt);
+			const quoteDebt = parseFloat(manager.quote_debt);
+
+			console.log(
+				`  Liquidating ${manager.margin_manager_id} (risk: ${manager.risk_ratio}, pool: ${poolKey})`,
+			);
+
+			if (quoteDebt > 0) {
+				dbClient.marginLiquidations.liquidateQuote(
+					liquidationVaultId,
+					manager.margin_manager_id,
+					poolKey,
+				)(tx);
+			} else if (baseDebt > 0) {
+				dbClient.marginLiquidations.liquidateBase(
+					liquidationVaultId,
+					manager.margin_manager_id,
+					poolKey,
+				)(tx);
+			}
+		}
+
+		const res = await signAndExecute(tx, env);
+		console.dir(res, { depth: null });
+
+		// Sleep 2 seconds before next batch (if there are more batches)
+		if (i + BATCH_SIZE < managersToLiquidate.length) {
+			console.log('Sleeping 2 seconds before next batch...');
+			await new Promise((resolve) => setTimeout(resolve, 2000));
+		}
+	}
 
 	// === Read-Only Operations ===
 
 	// 7. Check vault balance for a specific coin type
+	// const tx = new Transaction();
 	// dbClient.marginLiquidations.balance(liquidationVaultId, 'SUI')(tx);
 	// dbClient.marginLiquidations.balance(liquidationVaultId, 'DBUSDC')(tx);
-
-	// Execute transaction
 	// const res = await signAndExecute(tx, env);
 	// console.dir(res, { depth: null });
 })();
