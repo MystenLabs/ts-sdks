@@ -1,5 +1,15 @@
 # @mysten/deepbook-v3
 
+## 0.26.0
+
+### Minor Changes
+
+- ef523b8: Take Profit Stop Loss support
+
+### Patch Changes
+
+- 396fb3f: Bump margin package for testing
+
 ## 0.25.0
 
 ### Minor Changes
