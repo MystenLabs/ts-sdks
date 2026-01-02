@@ -59,7 +59,7 @@ export type {
 	PendingLimitOrderParams,
 	PendingMarketOrderParams,
 	AddConditionalOrderParams,
-} from './transactions/marginTPSL.js';
+} from './types/index.js';
 
 // Enums for trading
 export { OrderType, SelfMatchingOptions } from './types/index.js';

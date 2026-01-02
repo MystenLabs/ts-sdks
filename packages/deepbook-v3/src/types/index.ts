@@ -115,6 +115,33 @@ export interface PlaceMarginMarketOrderParams {
 	payWithDeep?: boolean;
 }
 
+export interface PendingLimitOrderParams {
+	clientOrderId: string;
+	orderType?: OrderType;
+	selfMatchingOption?: SelfMatchingOptions;
+	price: number;
+	quantity: number;
+	isBid: boolean;
+	payWithDeep?: boolean;
+	expireTimestamp?: number | bigint;
+}
+
+export interface PendingMarketOrderParams {
+	clientOrderId: string;
+	selfMatchingOption?: SelfMatchingOptions;
+	quantity: number;
+	isBid: boolean;
+	payWithDeep?: boolean;
+}
+
+export interface AddConditionalOrderParams {
+	marginManagerKey: string;
+	conditionalOrderId: string;
+	triggerBelowPrice: boolean;
+	triggerPrice: number;
+	pendingOrder: PendingLimitOrderParams | PendingMarketOrderParams;
+}
+
 export interface ProposalParams {
 	poolKey: string;
 	balanceManagerKey: string;

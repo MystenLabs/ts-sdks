@@ -3,44 +3,13 @@
 import type { Transaction } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
+import type {
+	PendingLimitOrderParams,
+	PendingMarketOrderParams,
+	AddConditionalOrderParams,
+} from '../types/index.js';
 import { OrderType, SelfMatchingOptions } from '../types/index.js';
 import { MAX_TIMESTAMP, FLOAT_SCALAR } from '../utils/config.js';
-
-/**
- * Parameters for creating a pending limit order used in conditional orders.
- */
-export interface PendingLimitOrderParams {
-	clientOrderId: string;
-	orderType?: OrderType;
-	selfMatchingOption?: SelfMatchingOptions;
-	price: number;
-	quantity: number;
-	isBid: boolean;
-	payWithDeep?: boolean;
-	expireTimestamp?: number | bigint;
-}
-
-/**
- * Parameters for creating a pending market order used in conditional orders.
- */
-export interface PendingMarketOrderParams {
-	clientOrderId: string;
-	selfMatchingOption?: SelfMatchingOptions;
-	quantity: number;
-	isBid: boolean;
-	payWithDeep?: boolean;
-}
-
-/**
- * Parameters for adding a conditional order.
- */
-export interface AddConditionalOrderParams {
-	marginManagerKey: string;
-	conditionalOrderId: string;
-	triggerBelowPrice: boolean;
-	triggerPrice: number;
-	pendingOrder: PendingLimitOrderParams | PendingMarketOrderParams;
-}
 
 /**
  * MarginTPSLContract class for managing Take Profit / Stop Loss operations.
