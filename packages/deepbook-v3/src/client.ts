@@ -34,6 +34,7 @@ import { MarginLiquidationsContract } from './transactions/marginLiquidations.js
 import { SuiPriceServiceConnection } from './pyth/pyth.js';
 import { SuiPythClient } from './pyth/pyth.js';
 import { PoolProxyContract } from './transactions/poolProxy.js';
+import { MarginTPSLContract } from './transactions/marginTPSL.js';
 
 /**
  * DeepBookClient class for managing DeepBook operations.
@@ -54,6 +55,7 @@ export class DeepBookClient {
 	marginRegistry: MarginRegistryContract;
 	marginLiquidations: MarginLiquidationsContract;
 	poolProxy: PoolProxyContract;
+	marginTPSL: MarginTPSLContract;
 
 	/**
 	 * @param {SuiClient} client SuiClient instance
@@ -115,6 +117,7 @@ export class DeepBookClient {
 		this.marginRegistry = new MarginRegistryContract(this.#config);
 		this.marginLiquidations = new MarginLiquidationsContract(this.#config);
 		this.poolProxy = new PoolProxyContract(this.#config);
+		this.marginTPSL = new MarginTPSLContract(this.#config);
 	}
 
 	/**
@@ -1698,6 +1701,86 @@ export class DeepBookClient {
 			deepCoin.scalar,
 			decimals,
 		);
+	}
+
+	// === Margin TPSL (Take Profit / Stop Loss) Read-Only Functions ===
+
+	/**
+	 * @description Get all conditional order IDs for a margin manager
+	 * @param {string} marginManagerKey The key to identify the margin manager
+	 * @returns {Promise<string[]>} Array of conditional order IDs
+	 */
+	async getConditionalOrderIds(marginManagerKey: string): Promise<string[]> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
+		const tx = new Transaction();
+		tx.add(this.marginTPSL.conditionalOrderIds(manager.poolKey, manager.address));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+			throw new Error(
+				`Failed to get conditional order IDs: ${res.effects?.status?.error || 'Unknown error'}`,
+			);
+		}
+
+		const bytes = res.results[0].returnValues[0][0];
+		const orderIds = bcs.vector(bcs.u64()).parse(new Uint8Array(bytes));
+		return orderIds.map((id) => id.toString());
+	}
+
+	/**
+	 * @description Get the lowest trigger price for trigger_above orders
+	 * Returns MAX_U64 if there are no trigger_above orders
+	 * @param {string} marginManagerKey The key to identify the margin manager
+	 * @returns {Promise<bigint>} The lowest trigger above price
+	 */
+	async getLowestTriggerAbovePrice(marginManagerKey: string): Promise<bigint> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
+		const tx = new Transaction();
+		tx.add(this.marginTPSL.lowestTriggerAbovePrice(manager.poolKey, manager.address));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+			throw new Error(
+				`Failed to get lowest trigger above price: ${res.effects?.status?.error || 'Unknown error'}`,
+			);
+		}
+
+		const bytes = res.results[0].returnValues[0][0];
+		return BigInt(bcs.U64.parse(new Uint8Array(bytes)));
+	}
+
+	/**
+	 * @description Get the highest trigger price for trigger_below orders
+	 * Returns 0 if there are no trigger_below orders
+	 * @param {string} marginManagerKey The key to identify the margin manager
+	 * @returns {Promise<bigint>} The highest trigger below price
+	 */
+	async getHighestTriggerBelowPrice(marginManagerKey: string): Promise<bigint> {
+		const manager = this.#config.getMarginManager(marginManagerKey);
+		const tx = new Transaction();
+		tx.add(this.marginTPSL.highestTriggerBelowPrice(manager.poolKey, manager.address));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+			throw new Error(
+				`Failed to get highest trigger below price: ${res.effects?.status?.error || 'Unknown error'}`,
+			);
+		}
+
+		const bytes = res.results[0].returnValues[0][0];
+		return BigInt(bcs.U64.parse(new Uint8Array(bytes)));
 	}
 
 	// === Margin Registry Functions ===
