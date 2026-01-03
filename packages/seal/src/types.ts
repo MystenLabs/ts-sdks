@@ -36,6 +36,9 @@ export interface KeyServerConfig {
 	weight: number;
 	apiKeyName?: string;
 	apiKey?: string;
+	/** Must be provided for committee mode server. The SDK calls to the aggregator URL which fans
+	 * out to all committee servers. */
+	aggregatorUrl?: string;
 }
 
 export interface SealClientOptions extends SealClientExtensionOptions {
