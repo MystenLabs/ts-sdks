@@ -14,8 +14,14 @@ export type { DAppKitProviderProps } from './components/DAppKitProvider.js';
 
 export { useDAppKit } from './hooks/useDAppKit.js';
 export { useWallets } from './hooks/useWallets.js';
+export type { UseWalletsOptions } from './hooks/useWallets.js';
 export { useConnection } from './hooks/useConnection.js';
+export type { UseConnectionOptions } from './hooks/useConnection.js';
 export { useCurrentAccount } from './hooks/useCurrentAccount.js';
+export type { UseCurrentAccountOptions } from './hooks/useCurrentAccount.js';
 export { useCurrentWallet } from './hooks/useCurrentWallet.js';
+export type { UseCurrentWalletOptions } from './hooks/useCurrentWallet.js';
 export { useSuiClient } from './hooks/useSuiClient.js';
+export type { UseSuiClientOptions } from './hooks/useSuiClient.js';
 export { useCurrentNetwork } from './hooks/useCurrentNetwork.js';
+export type { UseCurrentNetworkOptions } from './hooks/useCurrentNetwork.js';
