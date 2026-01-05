@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.26.1
+
+### Patch Changes
+
+- 6b8f03d: LZWBTC coin
+
 ## 0.26.0
 
 ### Minor Changes
