@@ -170,6 +170,11 @@ export const mainnetCoins: CoinMap = {
 		type: `0x1a8f4bc33f8ef7fbc851f156857aa65d397a6a6fd27a7ac2ca717b51f2fd9489::alkimi::ALKIMI`,
 		scalar: 1000000000,
 	},
+	LZWBTC: {
+		address: `0x0041f9f9344cac094454cd574e333c4fdb132d7bcc9379bcd4aab485b2a63942`,
+		type: `0x0041f9f9344cac094454cd574e333c4fdb132d7bcc9379bcd4aab485b2a63942::wbtc::WBTC`,
+		scalar: 100000000,
+	},
 	// This coin is experimental
 	WGIGA: {
 		address: `0xec32640add6d02a1d5f0425d72705eb76d9de7edfd4f34e0dba68e62ecceb05b`,
