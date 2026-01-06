@@ -20,35 +20,32 @@ export async function getFundedKeypair() {
 	);
 	console.log(keypair.toSuiAddress());
 
-	const balance = await suiClient.core.getBalance({
+	const { balance } = await suiClient.getBalance({
 		owner: keypair.toSuiAddress(),
 	});
 
-	if (BigInt(balance.totalBalance) < MIST_PER_SUI) {
+	if (BigInt(balance.balance) < MIST_PER_SUI) {
 		await requestSuiFromFaucetV2({
 			host: getFaucetHost('testnet'),
 			recipient: keypair.toSuiAddress(),
 		});
 	}
 
-	const walBalance = await suiClient.core.getBalance({
+	const walBalance = await suiClient.getBalance({
 		owner: keypair.toSuiAddress(),
 		coinType: `0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL`,
 	});
-	console.log('wal balance:', walBalance.totalBalance);
+	console.log('wal balance:', walBalance.balance);
 
-	if (Number(walBalance.totalBalance) < Number(MIST_PER_SUI) / 2) {
+	if (Number(walBalance.balance) < Number(MIST_PER_SUI) / 2) {
 		const tx = new Transaction();
 
-		const exchange = await suiClient.core.getObject({
-			id: TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0],
-			options: {
-				showType: true,
-			},
+		const exchange = await suiClient.getObject({
+			objectId: TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0],
 		});
 
 		// oxlint-disable-next-line no-non-null-asserted-optional-chain
-		const exchangePackageId = parseStructTag(exchange.data?.type!).address;
+		const exchangePackageId = parseStructTag(exchange.object.type).address;
 
 		const wal = tx.moveCall({
 			package: exchangePackageId,
@@ -64,19 +61,16 @@ export async function getFundedKeypair() {
 
 		tx.transferObjects([wal], keypair.toSuiAddress());
 
-		const { digest } = await suiClient.signAndExecuteTransaction({
+		const result = await suiClient.signAndExecuteTransaction({
 			transaction: tx,
 			signer: keypair,
 		});
 
-		const { effects } = await suiClient.core.waitForTransaction({
-			digest,
-			options: {
-				showEffects: true,
-			},
+		await suiClient.waitForTransaction({
+			digest: (result.Transaction ?? result.FailedTransaction).digest,
 		});
 
-		console.log(effects);
+		console.log((result.Transaction ?? result.FailedTransaction).effects);
 	}
 
 	return keypair;
