@@ -20,6 +20,7 @@ import type { BuildTransactionOptions } from '../transactions/index.js';
 import { TransactionDataBuilder } from '../transactions/index.js';
 import { bcs } from '../bcs/index.js';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
+import { SUI_TYPE_ARG } from '../utils/constants.js';
 import type { OpenSignature, OpenSignatureBody } from './proto/sui/rpc/v2/move_package.js';
 import {
 	Ability,
@@ -157,10 +158,11 @@ export class GrpcCoreClient extends CoreClient {
 		options: SuiClientTypes.ListCoinsOptions,
 	): Promise<SuiClientTypes.ListCoinsResponse> {
 		const paths = ['owner', 'object_type', 'digest', 'version', 'object_id', 'balance'];
+		const coinType = options.coinType ?? SUI_TYPE_ARG;
 
 		const response = await this.#client.stateService.listOwnedObjects({
 			owner: options.owner,
-			objectType: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: options.coinType })).type}>`,
+			objectType: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: coinType })).type}>`,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
 			readMask: {
 				paths,
@@ -186,15 +188,16 @@ export class GrpcCoreClient extends CoreClient {
 	async getBalance(
 		options: SuiClientTypes.GetBalanceOptions,
 	): Promise<SuiClientTypes.GetBalanceResponse> {
+		const coinType = options.coinType ?? SUI_TYPE_ARG;
 		const result = await this.#client.stateService.getBalance({
 			owner: options.owner,
-			coinType: (await this.mvr.resolveType({ type: options.coinType })).type,
+			coinType: (await this.mvr.resolveType({ type: coinType })).type,
 		});
 
 		return {
 			balance: {
 				balance: result.response.balance?.balance?.toString() ?? '0',
-				coinType: result.response.balance?.coinType ?? options.coinType,
+				coinType: result.response.balance?.coinType ?? coinType,
 			},
 		};
 	}

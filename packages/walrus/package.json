@@ -22,7 +22,8 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
-		"test": "NODE_OPTIONS='--expose-gc' vitest run",
+		"test": "pnpm test:examples && NODE_OPTIONS='--expose-gc' vitest run",
+		"test:examples": "tsc --project examples/tsconfig.json --noEmit",
 		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
