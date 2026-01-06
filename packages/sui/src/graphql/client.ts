@@ -58,9 +58,10 @@ export interface SuiGraphQLClientOptions<Queries extends Record<string, GraphQLD
 
 export class SuiGraphQLRequestError extends Error {}
 
-export class SuiGraphQLClient<
-	Queries extends Record<string, GraphQLDocument> = {},
-> extends BaseClient implements SuiClientTypes.TransportMethods {
+export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = {}>
+	extends BaseClient
+	implements SuiClientTypes.TransportMethods
+{
 	#url: string;
 	#queries: Queries;
 	#headers: Record<string, string>;
