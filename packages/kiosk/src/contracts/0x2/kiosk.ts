@@ -4,13 +4,12 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './object.js';
 import * as balance from './balance.js';
 const $moduleName = '0x2::kiosk';
 export const Kiosk = new MoveStruct({
 	name: `${$moduleName}::Kiosk`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		profits: balance.Balance,
 		owner: bcs.Address,
 		item_count: bcs.u32(),
@@ -20,14 +19,14 @@ export const Kiosk = new MoveStruct({
 export const KioskOwnerCap = new MoveStruct({
 	name: `${$moduleName}::KioskOwnerCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		for: bcs.Address,
 	},
 });
 export const PurchaseCap = new MoveStruct({
 	name: `${$moduleName}::PurchaseCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		kiosk_id: bcs.Address,
 		item_id: bcs.Address,
 		min_price: bcs.u64(),

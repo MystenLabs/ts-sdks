@@ -7,12 +7,11 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 const $moduleName = '@local-pkg/walrus::system';
 export const System = new MoveStruct({
 	name: `${$moduleName}::System`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		version: bcs.u64(),
 		package_id: bcs.Address,
 		new_package_id: bcs.option(bcs.Address),

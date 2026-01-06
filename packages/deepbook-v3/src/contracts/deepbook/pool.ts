@@ -7,7 +7,6 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 import * as versioned from './deps/sui/versioned.js';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as book from './book.js';
@@ -19,7 +18,7 @@ const $moduleName = '@deepbook/core::pool';
 export const Pool = new MoveStruct({
 	name: `${$moduleName}::Pool`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		inner: versioned.Versioned,
 	},
 });

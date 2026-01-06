@@ -15,7 +15,6 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 import * as bag from './deps/sui/bag.js';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as type_name from './deps/std/type_name.js';
@@ -23,7 +22,7 @@ const $moduleName = '@deepbook/core::balance_manager';
 export const BalanceManager = new MoveStruct({
 	name: `${$moduleName}::BalanceManager`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		owner: bcs.Address,
 		balances: bag.Bag,
 		allow_listed: vec_set.VecSet(bcs.Address),
@@ -54,28 +53,28 @@ export const BalanceKey = new MoveStruct({
 export const TradeCap = new MoveStruct({
 	name: `${$moduleName}::TradeCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		balance_manager_id: bcs.Address,
 	},
 });
 export const DepositCap = new MoveStruct({
 	name: `${$moduleName}::DepositCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		balance_manager_id: bcs.Address,
 	},
 });
 export const WithdrawCap = new MoveStruct({
 	name: `${$moduleName}::WithdrawCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		balance_manager_id: bcs.Address,
 	},
 });
 export const DeepBookReferral = new MoveStruct({
 	name: `${$moduleName}::DeepBookReferral`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		owner: bcs.Address,
 	},
 });
