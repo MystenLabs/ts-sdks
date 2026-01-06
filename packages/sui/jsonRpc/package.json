@@ -1,6 +1,0 @@
-{
-	"private": true,
-	"import": "../dist/esm/jsonRpc/index.js",
-	"main": "../dist/cjs/jsonRpc/index.js",
-	"sideEffects": false
-}
