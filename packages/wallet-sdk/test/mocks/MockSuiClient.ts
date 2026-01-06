@@ -3,7 +3,12 @@
 
 import type { SuiClientTypes } from '@mysten/sui/client';
 import { CoreClient } from '@mysten/sui/client';
-import { normalizeSuiAddress, normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
+import {
+	normalizeSuiAddress,
+	normalizeStructTag,
+	parseStructTag,
+	SUI_FRAMEWORK_ADDRESS,
+} from '@mysten/sui/utils';
 import type { TransactionPlugin } from '@mysten/sui/transactions';
 import { Inputs } from '@mysten/sui/transactions';
 import {
@@ -215,7 +220,7 @@ export class MockSuiClient extends CoreClient {
 
 		return {
 			balance: {
-				coinType: options.coinType,
+				coinType: options.coinType ?? `${SUI_FRAMEWORK_ADDRESS}::sui::SUI`,
 				balance: totalBalance.toString(),
 			},
 		};
