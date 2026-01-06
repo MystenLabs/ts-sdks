@@ -6,7 +6,6 @@
 
 import { MoveStruct, MoveEnum } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import * as object from './deps/sui/object.js';
 import * as storage_node from './storage_node.js';
 import * as pending_values from './pending_values.js';
 import * as table from './deps/sui/table.js';
@@ -37,7 +36,7 @@ export const PoolState = new MoveEnum({
 export const StakingPool = new MoveStruct({
 	name: `${$moduleName}::StakingPool`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		/** The current state of the pool. */
 		state: PoolState,
 		/** Current epoch's pool parameters. */

@@ -4,13 +4,12 @@
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './object.js';
 const $moduleName = '0x2::linked_table';
 export function LinkedTable<T0 extends BcsType<any>>(...typeParameters: [T0]) {
 	return new MoveStruct({
 		name: `${$moduleName}::LinkedTable<${typeParameters[0].name as T0['name']}>`,
 		fields: {
-			id: object.UID,
+			id: bcs.Address,
 			size: bcs.u64(),
 			head: bcs.option(typeParameters[0]),
 			tail: bcs.option(typeParameters[0]),

@@ -4,7 +4,6 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './object.js';
 import * as balance from './balance.js';
 import * as vec_map from './vec_map.js';
 import * as vec_set from './vec_set.js';
@@ -13,21 +12,21 @@ const $moduleName = '0x2::token';
 export const Token = new MoveStruct({
 	name: `${$moduleName}::Token`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		balance: balance.Balance,
 	},
 });
 export const TokenPolicyCap = new MoveStruct({
 	name: `${$moduleName}::TokenPolicyCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		for: bcs.Address,
 	},
 });
 export const TokenPolicy = new MoveStruct({
 	name: `${$moduleName}::TokenPolicy`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		spent_balance: balance.Balance,
 		rules: vec_map.VecMap(bcs.string(), vec_set.VecSet(type_name.TypeName)),
 	},

@@ -12,12 +12,11 @@ import {
 } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 const $moduleName = '@local-pkg/walrus::extended_field';
 export const ExtendedField = new MoveStruct({
 	name: `${$moduleName}::ExtendedField`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 	},
 });
 export const Key = new MoveTuple({ name: `${$moduleName}::Key`, fields: [bcs.bool()] });
