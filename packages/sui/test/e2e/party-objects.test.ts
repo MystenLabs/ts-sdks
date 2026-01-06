@@ -35,7 +35,7 @@ describe('Party Objects', () => {
 		});
 
 		const waitResult = await toolbox.jsonRpcClient.core.waitForTransaction({
-			digest: result.Transaction!.digest,
+			result,
 			include: {
 				effects: true,
 			},
@@ -65,7 +65,7 @@ describe('Party Objects', () => {
 		});
 
 		const returnWaitResult = await toolbox.jsonRpcClient.core.waitForTransaction({
-			digest: returnResult.Transaction!.digest,
+			result: returnResult,
 			include: {
 				effects: true,
 			},
@@ -99,7 +99,7 @@ describe('Party Objects', () => {
 		});
 
 		const waitResult = await toolbox.jsonRpcClient.core.waitForTransaction({
-			digest: result.Transaction!.digest,
+			result,
 			include: {
 				effects: true,
 			},
@@ -131,7 +131,7 @@ describe('Party Objects', () => {
 		});
 
 		const returnWaitResult = await toolbox.jsonRpcClient.core.waitForTransaction({
-			digest: returnResult.Transaction!.digest,
+			result: returnResult,
 			include: {
 				effects: true,
 			},
