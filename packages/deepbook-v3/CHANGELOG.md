@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.26.2
+
+### Patch Changes
+
+- 882d988: Add LZWBTC_USDC pool to SDK
+
 ## 0.26.1
 
 ### Patch Changes
