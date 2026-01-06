@@ -10,13 +10,12 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 import * as kiosk from './deps/sui/kiosk.js';
 const $moduleName = '@local-pkg/kiosk::personal_kiosk';
 export const PersonalKioskCap = new MoveStruct({
 	name: `${$moduleName}::PersonalKioskCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		cap: bcs.option(kiosk.KioskOwnerCap),
 	},
 });

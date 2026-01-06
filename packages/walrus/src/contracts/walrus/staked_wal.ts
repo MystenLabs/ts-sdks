@@ -19,7 +19,6 @@ import {
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/walrus::staked_wal';
 /**
@@ -41,7 +40,7 @@ export const StakedWalState = new MoveEnum({
 export const StakedWal = new MoveStruct({
 	name: `${$moduleName}::StakedWal`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		/** Whether the staked WAL is active or withdrawing. */
 		state: StakedWalState,
 		/** ID of the staking pool. */

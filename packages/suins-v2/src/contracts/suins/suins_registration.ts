@@ -16,13 +16,12 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 import * as domain_1 from './domain.js';
 const $moduleName = '@suins/core::suins_registration';
 export const SuinsRegistration = new MoveStruct({
 	name: `${$moduleName}::SuinsRegistration`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		/** The parsed domain. */
 		domain: domain_1.Domain,
 		/** The domain name that the NFT is for. */

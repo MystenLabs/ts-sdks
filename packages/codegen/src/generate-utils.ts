@@ -52,7 +52,7 @@ export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null
 			}
 		}
 
-		if (pkg === SUI_FRAMEWORK_ADDRESS && structTag.module === 'object' && structTag.name === 'ID') {
+		if (pkg === SUI_FRAMEWORK_ADDRESS && structTag.module === 'object' && (structTag.name === 'ID' || structTag.name === 'UID')) {
 			return bcs.Address;
 		}
 	}

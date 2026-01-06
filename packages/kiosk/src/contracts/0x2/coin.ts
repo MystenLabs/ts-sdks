@@ -4,21 +4,20 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './object.js';
 import * as balance_1 from './balance.js';
 import * as url from './url.js';
 const $moduleName = '0x2::coin';
 export const Coin = new MoveStruct({
 	name: `${$moduleName}::Coin`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		balance: balance_1.Balance,
 	},
 });
 export const CoinMetadata = new MoveStruct({
 	name: `${$moduleName}::CoinMetadata`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		decimals: bcs.u8(),
 		name: bcs.string(),
 		symbol: bcs.string(),
@@ -29,7 +28,7 @@ export const CoinMetadata = new MoveStruct({
 export const RegulatedCoinMetadata = new MoveStruct({
 	name: `${$moduleName}::RegulatedCoinMetadata`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		coin_metadata_object: bcs.Address,
 		deny_cap_object: bcs.Address,
 	},
@@ -37,14 +36,14 @@ export const RegulatedCoinMetadata = new MoveStruct({
 export const TreasuryCap = new MoveStruct({
 	name: `${$moduleName}::TreasuryCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		total_supply: balance_1.Supply,
 	},
 });
 export const DenyCapV2 = new MoveStruct({
 	name: `${$moduleName}::DenyCapV2`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		allow_global_pause: bcs.bool(),
 	},
 });
@@ -57,7 +56,7 @@ export const CurrencyCreated = new MoveStruct({
 export const DenyCap = new MoveStruct({
 	name: `${$moduleName}::DenyCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 	},
 });
 export interface TotalSupplyOptions {

@@ -4,12 +4,11 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './object.js';
 const $moduleName = '0x2::bag';
 export const Bag = new MoveStruct({
 	name: `${$moduleName}::Bag`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		size: bcs.u64(),
 	},
 });
