@@ -44,10 +44,10 @@ async function startServer() {
 		return c.json({
 			newlyCreated: {
 				...blobObject,
-				id: blobObject.id.id,
+				id: blobObject.id,
 				storage: {
 					...blobObject.storage,
-					id: blobObject.storage.id.id,
+					id: blobObject.storage.id,
 				},
 			},
 			resourceOperation: {

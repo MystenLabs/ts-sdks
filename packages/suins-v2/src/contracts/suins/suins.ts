@@ -30,19 +30,18 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@suins/core::suins';
 export const AdminCap = new MoveStruct({
 	name: `${$moduleName}::AdminCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 	},
 });
 export const SuiNS = new MoveStruct({
 	name: `${$moduleName}::SuiNS`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		/**
 		 * The total balance of the SuiNS. Can be added to by authorized apps. Can be
 		 * withdrawn only by the application Admin.

@@ -202,7 +202,7 @@ function isPureDataType(type: Datatype, options: RenderTypeSignatureOptions) {
 	}
 
 	if (address === SUI_FRAMEWORK_ADDRESS) {
-		if (type.module.name === 'object' && type.name === 'ID') {
+		if (type.module.name === 'object' && (type.name === 'ID' || type.name === 'UID')) {
 			return true;
 		}
 	}
@@ -251,7 +251,7 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 	}
 
 	if (address === SUI_FRAMEWORK_ADDRESS) {
-		if (type.module.name === 'object' && type.name === 'ID') {
+		if (type.module.name === 'object' && (type.name === 'ID' || type.name === 'UID')) {
 			switch (options.format) {
 				case 'typescriptArg':
 					return 'string';

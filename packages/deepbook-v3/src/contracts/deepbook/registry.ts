@@ -7,7 +7,6 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 import * as versioned from './deps/sui/versioned.js';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as bag from './deps/sui/bag.js';
@@ -22,13 +21,13 @@ export const REGISTRY = new MoveStruct({
 export const DeepbookAdminCap = new MoveStruct({
 	name: `${$moduleName}::DeepbookAdminCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 	},
 });
 export const Registry = new MoveStruct({
 	name: `${$moduleName}::Registry`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		inner: versioned.Versioned,
 	},
 });

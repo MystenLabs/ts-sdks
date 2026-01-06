@@ -21,13 +21,12 @@
 
 import { MoveStruct, MoveTuple } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import * as object from './deps/sui/object.js';
 import * as object_bag from './deps/sui/object_bag.js';
 const $moduleName = '@local-pkg/walrus::display';
 export const ObjectDisplay = new MoveStruct({
 	name: `${$moduleName}::ObjectDisplay`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		inner: object_bag.ObjectBag,
 	},
 });

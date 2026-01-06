@@ -5,16 +5,16 @@ import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from 
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 const $moduleName = '0x2::object';
-export const UID = new MoveStruct({
-	name: `${$moduleName}::UID`,
-	fields: {
-		id: bcs.Address,
-	},
-});
 export const ID = new MoveStruct({
 	name: `${$moduleName}::ID`,
 	fields: {
 		bytes: bcs.Address,
+	},
+});
+export const UID = new MoveStruct({
+	name: `${$moduleName}::UID`,
+	fields: {
+		id: bcs.Address,
 	},
 });
 export interface IdToBytesOptions {
