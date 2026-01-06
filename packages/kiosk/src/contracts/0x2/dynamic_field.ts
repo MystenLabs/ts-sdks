@@ -1,10 +1,9 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { type BcsType } from '@mysten/sui/bcs';
+import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './object.js';
 const $moduleName = '0x2::dynamic_field';
 export function Field<T0 extends BcsType<any>, T1 extends BcsType<any>>(
 	...typeParameters: [T0, T1]
@@ -12,7 +11,7 @@ export function Field<T0 extends BcsType<any>, T1 extends BcsType<any>>(
 	return new MoveStruct({
 		name: `${$moduleName}::Field<${typeParameters[0].name as T0['name']}, ${typeParameters[1].name as T1['name']}>`,
 		fields: {
-			id: object.UID,
+			id: bcs.Address,
 			name: typeParameters[0],
 			value: typeParameters[1],
 		},

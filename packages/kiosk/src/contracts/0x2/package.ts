@@ -4,12 +4,11 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './object.js';
 const $moduleName = '0x2::package';
 export const Publisher = new MoveStruct({
 	name: `${$moduleName}::Publisher`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		package: bcs.string(),
 		module_name: bcs.string(),
 	},
@@ -17,7 +16,7 @@ export const Publisher = new MoveStruct({
 export const UpgradeCap = new MoveStruct({
 	name: `${$moduleName}::UpgradeCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		package: bcs.Address,
 		version: bcs.u64(),
 		policy: bcs.u8(),
