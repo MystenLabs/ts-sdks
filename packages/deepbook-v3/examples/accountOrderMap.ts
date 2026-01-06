@@ -1,8 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-import { DeepBookClient } from '../src/index.js'; // Adjust import source accordingly
+import { deepbook } from '../src/index.js'; // Adjust import source accordingly
+
+const GRPC_URLS = {
+	mainnet: 'https://fullnode.mainnet.sui.io:443',
+	testnet: 'https://fullnode.testnet.sui.io:443',
+} as const;
 
 /// Example to get [price, quantity] for a balance manager
 /// Bids sorted in descending order and asks sorted in ascending order
@@ -16,25 +21,24 @@ import { DeepBookClient } from '../src/index.js'; // Adjust import source accord
 		},
 	};
 
-	const dbClient = new DeepBookClient({
-		address: '0x0',
-		env: env,
-		client: new SuiJsonRpcClient({
-			url: getJsonRpcFullnodeUrl(env),
+	const client = new SuiGrpcClient({ network: env, baseUrl: GRPC_URLS[env] }).$extend(
+		deepbook({
+			address: '0x0',
+			env: env,
+			balanceManagers: balanceManagers,
 		}),
-		balanceManagers: balanceManagers,
-	});
+	);
 
 	const pools = ['SUI_USDC', 'DEEP_SUI', 'DEEP_USDC', 'WUSDT_USDC', 'WUSDC_USDC', 'BETH_USDC']; // Update pools as needed
 	const manager = 'MANAGER_1'; // Update the manager accordingly
 	console.log('Manager:', manager);
 	for (const pool of pools) {
-		const orders = await dbClient.accountOpenOrders(pool, manager);
+		const orders = await client.deepbook.accountOpenOrders(pool, manager);
 		const bidOrdersMap = new Map<number, number>();
 		const askOrdersMap = new Map<number, number>();
 
 		for (const orderId of orders) {
-			const order = await dbClient.getOrderNormalized(pool, orderId);
+			const order = await client.deepbook.getOrderNormalized(pool, orderId);
 			if (!order) {
 				continue;
 			}

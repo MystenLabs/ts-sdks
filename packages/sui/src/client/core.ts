@@ -198,4 +198,30 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 			}
 		}
 	}
+
+	async signAndExecuteTransaction<Include extends SuiClientTypes.TransactionInclude = {}>({
+		transaction,
+		signer,
+		additionalSignatures = [],
+		...input
+	}: SuiClientTypes.SignAndExecuteTransactionOptions<Include>): Promise<
+		SuiClientTypes.TransactionResult<Include>
+	> {
+		let transactionBytes;
+
+		if (transaction instanceof Uint8Array) {
+			transactionBytes = transaction;
+		} else {
+			transaction.setSenderIfNotSet(signer.toSuiAddress());
+			transactionBytes = await transaction.build({ client: this });
+		}
+
+		const { signature } = await signer.signTransaction(transactionBytes);
+
+		return this.executeTransaction({
+			transaction: transactionBytes,
+			signatures: [signature, ...additionalSignatures],
+			...input,
+		});
+	}
 }

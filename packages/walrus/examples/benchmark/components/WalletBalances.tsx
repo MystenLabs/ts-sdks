@@ -45,8 +45,8 @@ export function WalletBalances({
 			if (!addressToCheck) return;
 
 			const [suiBal, walBal] = await Promise.all([
-				suiClient.core.getBalance({ owner: addressToCheck, coinType: '0x2::sui::SUI' }),
-				suiClient.core.getBalance({
+				suiClient.getBalance({ owner: addressToCheck, coinType: '0x2::sui::SUI' }),
+				suiClient.getBalance({
 					owner: addressToCheck,
 					coinType: TESTNET_WAL_COIN_TYPE,
 				}),
@@ -96,7 +96,7 @@ export function WalletBalances({
 			const tx = new Transaction();
 			tx.setSender(address);
 
-			const coins = await suiClient.core.listCoins({
+			const coins = await suiClient.listCoins({
 				owner: signer.toSuiAddress(),
 				coinType: TESTNET_WAL_COIN_TYPE,
 			});
@@ -122,7 +122,7 @@ export function WalletBalances({
 			}
 
 			// Wait for transaction to be processed
-			await suiClient.core.waitForTransaction({ result });
+			await suiClient.waitForTransaction({ result });
 
 			onTransaction(digest);
 		} catch (error) {
@@ -144,7 +144,7 @@ export function WalletBalances({
 			const tx = new Transaction();
 			tx.setSender(address);
 
-			const { object: exchange } = await suiClient.core.getObject({
+			const { object: exchange } = await suiClient.getObject({
 				objectId: TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0],
 			});
 
@@ -166,7 +166,7 @@ export function WalletBalances({
 			// Sign and execute with the keypair
 			const txBytes = await tx.build({ client: suiClient });
 			const signedTx = await signer.signTransaction(txBytes);
-			const result = await suiClient.core.executeTransaction({
+			const result = await suiClient.executeTransaction({
 				transaction: txBytes,
 				signatures: [signedTx.signature],
 			});

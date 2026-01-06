@@ -27,6 +27,7 @@ export {
 	SUI_TYPE_ARG,
 	SUI_SYSTEM_STATE_OBJECT_ID,
 	SUI_RANDOM_OBJECT_ID,
+	SUI_DENY_LIST_OBJECT_ID,
 } from './constants.js';
 
 export { isValidNamedPackage, isValidNamedType } from './move-registry.js';

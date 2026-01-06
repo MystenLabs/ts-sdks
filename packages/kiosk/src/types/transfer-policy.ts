@@ -7,8 +7,10 @@ import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transac
 import type { KioskClient } from '../client/kiosk-client.js';
 import type { ObjectArgument } from './index.js';
 
+import { SUI_FRAMEWORK_ADDRESS } from '@mysten/sui/utils';
+
 /** The Transfer Policy module. */
-export const TRANSFER_POLICY_MODULE = '0x2::transfer_policy';
+export const TRANSFER_POLICY_MODULE = `${SUI_FRAMEWORK_ADDRESS}::transfer_policy`;
 
 /** Name of the event emitted when a TransferPolicy for T is created. */
 export const TRANSFER_POLICY_CREATED_EVENT = `${TRANSFER_POLICY_MODULE}::TransferPolicyCreated`;
