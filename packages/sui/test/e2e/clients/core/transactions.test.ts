@@ -129,7 +129,7 @@ describe('Core API - Transactions', () => {
 			}
 
 			// Wait for transaction to be indexed to avoid races with subsequent tests
-			await client.core.waitForTransaction({ digest: result.Transaction!.digest });
+			await client.core.waitForTransaction({ result });
 		});
 
 		testWithAllClients('should execute transaction and return balance changes', async (client) => {
@@ -153,7 +153,7 @@ describe('Core API - Transactions', () => {
 			expect(Array.isArray(result.Transaction!.effects?.changedObjects)).toBe(true);
 
 			// Wait for transaction to be indexed to avoid races with subsequent tests
-			await client.core.waitForTransaction({ digest: result.Transaction!.digest });
+			await client.core.waitForTransaction({ result });
 		});
 
 		testWithAllClients('should fail for invalid signature', async (client) => {
@@ -478,9 +478,7 @@ describe('Core API - Transactions', () => {
 				include: { events: true },
 			});
 			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({
-				digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
-			});
+			await client.core.waitForTransaction({ result });
 
 			// Verify events field exists
 			expect(result.Transaction!.events).toBeDefined();
@@ -514,9 +512,7 @@ describe('Core API - Transactions', () => {
 				});
 
 				// Wait for transaction to be indexed
-				await client.core.waitForTransaction({
-					digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
-				});
+				await client.core.waitForTransaction({ result });
 
 				expect(result.Transaction!.events).toBeDefined();
 				expect(Array.isArray(result.Transaction!.events)).toBe(true);
@@ -736,9 +732,7 @@ describe('Core API - Transactions', () => {
 			});
 
 			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({
-				digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
-			});
+			await client.core.waitForTransaction({ result });
 
 			expect(result.Transaction!.digest).toBeDefined();
 
@@ -770,9 +764,7 @@ describe('Core API - Transactions', () => {
 				});
 
 				// Wait for transaction to be indexed
-				await client.core.waitForTransaction({
-					digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
-				});
+				await client.core.waitForTransaction({ result });
 
 				// Status should always be present
 				expect(result.Transaction!.status).toBeDefined();
@@ -796,9 +788,7 @@ describe('Core API - Transactions', () => {
 			});
 
 			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({
-				digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
-			});
+			await client.core.waitForTransaction({ result });
 
 			expect(result.Transaction!.transaction).toBeDefined();
 			expect(result.Transaction!.transaction?.sender).toBe(testAddress);
@@ -827,9 +817,7 @@ describe('Core API - Transactions', () => {
 				},
 			});
 			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({
-				digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
-			});
+			await client.core.waitForTransaction({ result });
 
 			expect(result.Transaction!.transaction).toBeDefined();
 			expect(result.Transaction!.effects).toBeDefined();
@@ -1152,9 +1140,7 @@ describe('Core API - Transactions', () => {
 				});
 
 				// Wait for transaction to be indexed
-				await client.core.waitForTransaction({
-					digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
-				});
+				await client.core.waitForTransaction({ result });
 
 				expect(result.Transaction).toBeDefined();
 				const objectTypes = result.Transaction!.objectTypes;
@@ -1263,9 +1249,7 @@ describe('Core API - Transactions', () => {
 			});
 
 			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({
-				digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
-			});
+			await client.core.waitForTransaction({ result });
 
 			expect(result.Transaction).toBeDefined();
 			const objectTypes = result.Transaction!.objectTypes;
@@ -1298,9 +1282,7 @@ describe('Core API - Transactions', () => {
 			});
 
 			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({
-				digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
-			});
+			await client.core.waitForTransaction({ result });
 
 			const objectTypes = result.Transaction!.objectTypes;
 			expect(objectTypes).toBeDefined();
@@ -1346,9 +1328,7 @@ describe('Core API - Transactions', () => {
 					include: { effects: true },
 				});
 
-				await client.core.waitForTransaction({
-					digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
-				});
+				await client.core.waitForTransaction({ result });
 
 				// Should be a FailedTransaction
 				expect(result.$kind).toBe('FailedTransaction');

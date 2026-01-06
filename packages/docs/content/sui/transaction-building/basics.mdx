@@ -88,7 +88,7 @@ if (result.$kind === 'FailedTransaction') {
 	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
 }
 
-await client.waitForTransaction({ digest: result.Transaction.digest });
+await client.waitForTransaction({ result });
 ```
 
 Once `waitForTransaction` resolves, any future RPC calls will be guaranteed to reflect the effects
