@@ -1,17 +1,16 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCurrentAccount, useDAppKit, useSuiClient } from '@mysten/dapp-kit-react';
+import { useCurrentAccount, useDAppKit, useCurrentClient } from '@mysten/dapp-kit-react';
 import { useState, useRef } from 'react';
 
-import type { WalrusClient, WriteFilesFlow } from '../../src/index.js';
+import type { WriteFilesFlow } from '../../src/index.js';
 import { WalrusFile } from '../../src/index.js';
-import type { SuiGrpcClient } from '@mysten/sui/grpc';
 
 export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void }) {
 	const dAppKit = useDAppKit();
 	const currentAccount = useCurrentAccount();
-	const suiClient = useSuiClient() as SuiGrpcClient & { walrus: WalrusClient };
+	const suiClient = useCurrentClient();
 	const flowRef = useRef<WriteFilesFlow | null>(null);
 	const [state, setState] = useState<
 		| 'empty'
@@ -39,7 +38,7 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 		setState('encoding');
 
 		const arrayBuffer = await file.arrayBuffer();
-		const flow = suiClient.walrus.writeFilesFlow({
+		const flow = suiClient.walrusWithRelay.writeFilesFlow({
 			files: [
 				WalrusFile.from({
 					contents: new Uint8Array(arrayBuffer),
@@ -78,12 +77,15 @@ export function FileUpload({ onComplete }: { onComplete: (ids: string[]) => void
 			deletable: true,
 		});
 
-		const { digest } = await dAppKit.signAndExecuteTransaction({
+		const registerResult = await dAppKit.signAndExecuteTransaction({
 			transaction: registerBlobTransaction,
 		});
+		if (registerResult.FailedTransaction) {
+			throw new Error('Register transaction failed');
+		}
 		setState('uploading');
 
-		await flowRef.current.upload({ digest });
+		await flowRef.current.upload({ digest: registerResult.Transaction.digest });
 
 		setState('uploaded');
 	}

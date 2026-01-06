@@ -34,7 +34,7 @@ app.get('/v1/blobs/:id', async (c) => {
 
 	try {
 		const blob = await walrusClient.readBlob({ blobId });
-		cache.set(blobId, new Blob([blob]));
+		cache.set(blobId, new Blob([blob.slice()]));
 
 		return c.body(blob.buffer as ArrayBuffer);
 	} catch (error) {
