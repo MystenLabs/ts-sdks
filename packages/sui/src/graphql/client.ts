@@ -9,8 +9,7 @@ import { BaseClient } from '../client/index.js';
 import type { SuiClientTypes } from '../client/index.js';
 import { GraphQLCoreClient } from './core.js';
 import type { TypedDocumentString } from './generated/queries.js';
-import type { Transaction } from '../transactions/index.js';
-import type { Signer } from '../cryptography/keypair.js';
+import type { TransactionPlugin } from '../transactions/index.js';
 
 export type GraphQLDocument<
 	Result = Record<string, unknown>,
@@ -61,12 +60,15 @@ export class SuiGraphQLRequestError extends Error {}
 
 export class SuiGraphQLClient<
 	Queries extends Record<string, GraphQLDocument> = {},
-> extends BaseClient {
+> extends BaseClient implements SuiClientTypes.TransportMethods {
 	#url: string;
 	#queries: Queries;
 	#headers: Record<string, string>;
 	#fetch: typeof fetch;
 	core: GraphQLCoreClient;
+	get mvr(): SuiClientTypes.MvrMethods {
+		return this.core.mvr;
+	}
 
 	constructor({
 		url,
@@ -133,46 +135,103 @@ export class SuiGraphQLClient<
 		}) as Promise<GraphQLQueryResult<Result>>;
 	}
 
-	async signAndExecuteTransaction<Include extends SuiClientTypes.TransactionInclude = {}>({
-		transaction,
-		signer,
-		additionalSignatures = [],
-		...input
-	}: {
-		transaction: Uint8Array | Transaction;
-		signer: Signer;
-		additionalSignatures?: string[];
-	} & Omit<
-		SuiClientTypes.ExecuteTransactionOptions<Include>,
-		'transaction' | 'signatures'
-	>): Promise<SuiClientTypes.TransactionResult<Include>> {
-		let transactionBytes;
-
-		if (transaction instanceof Uint8Array) {
-			transactionBytes = transaction;
-		} else {
-			transaction.setSenderIfNotSet(signer.toSuiAddress());
-			transactionBytes = await transaction.build({ client: this as any });
-		}
-
-		const { signature } = await signer.signTransaction(transactionBytes);
-
-		return this.core.executeTransaction({
-			transaction: transactionBytes,
-			signatures: [signature, ...additionalSignatures],
-			...input,
-		});
+	getObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
+		input: SuiClientTypes.GetObjectsOptions<Include>,
+	): Promise<SuiClientTypes.GetObjectsResponse<Include>> {
+		return this.core.getObjects(input);
 	}
 
-	async waitForTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+	getObject<Include extends SuiClientTypes.ObjectInclude = {}>(
+		input: SuiClientTypes.GetObjectOptions<Include>,
+	): Promise<SuiClientTypes.GetObjectResponse<Include>> {
+		return this.core.getObject(input);
+	}
+
+	listCoins(input: SuiClientTypes.ListCoinsOptions): Promise<SuiClientTypes.ListCoinsResponse> {
+		return this.core.listCoins(input);
+	}
+
+	listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
+		input: SuiClientTypes.ListOwnedObjectsOptions<Include>,
+	): Promise<SuiClientTypes.ListOwnedObjectsResponse<Include>> {
+		return this.core.listOwnedObjects(input);
+	}
+
+	getBalance(input: SuiClientTypes.GetBalanceOptions): Promise<SuiClientTypes.GetBalanceResponse> {
+		return this.core.getBalance(input);
+	}
+
+	listBalances(
+		input: SuiClientTypes.ListBalancesOptions,
+	): Promise<SuiClientTypes.ListBalancesResponse> {
+		return this.core.listBalances(input);
+	}
+
+	getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+		input: SuiClientTypes.GetTransactionOptions<Include>,
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
+		return this.core.getTransaction(input);
+	}
+
+	executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+		input: SuiClientTypes.ExecuteTransactionOptions<Include>,
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
+		return this.core.executeTransaction(input);
+	}
+
+	signAndExecuteTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+		input: SuiClientTypes.SignAndExecuteTransactionOptions<Include>,
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
+		return this.core.signAndExecuteTransaction(input);
+	}
+
+	waitForTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		input: SuiClientTypes.WaitForTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		return this.core.waitForTransaction(input);
 	}
 
-	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
-		input: SuiClientTypes.ExecuteTransactionOptions<Include>,
-	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		return this.core.executeTransaction(input);
+	simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
+		input: SuiClientTypes.SimulateTransactionOptions<Include>,
+	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
+		return this.core.simulateTransaction(input);
+	}
+
+	getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
+		return this.core.getReferenceGasPrice();
+	}
+
+	listDynamicFields(
+		input: SuiClientTypes.ListDynamicFieldsOptions,
+	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
+		return this.core.listDynamicFields(input);
+	}
+
+	getDynamicField(
+		input: SuiClientTypes.GetDynamicFieldOptions,
+	): Promise<SuiClientTypes.GetDynamicFieldResponse> {
+		return this.core.getDynamicField(input);
+	}
+
+	getMoveFunction(
+		input: SuiClientTypes.GetMoveFunctionOptions,
+	): Promise<SuiClientTypes.GetMoveFunctionResponse> {
+		return this.core.getMoveFunction(input);
+	}
+
+	resolveTransactionPlugin(): TransactionPlugin {
+		return this.core.resolveTransactionPlugin();
+	}
+
+	verifyZkLoginSignature(
+		input: SuiClientTypes.VerifyZkLoginSignatureOptions,
+	): Promise<SuiClientTypes.ZkLoginVerifyResponse> {
+		return this.core.verifyZkLoginSignature(input);
+	}
+
+	defaultNameServiceName(
+		input: SuiClientTypes.DefaultNameServiceNameOptions,
+	): Promise<SuiClientTypes.DefaultNameServiceNameResponse> {
+		return this.core.defaultNameServiceName(input);
 	}
 }
