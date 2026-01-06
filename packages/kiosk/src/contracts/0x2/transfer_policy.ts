@@ -6,7 +6,6 @@ import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as vec_set from './vec_set.js';
 import * as type_name from './deps/0x0000000000000000000000000000000000000000000000000000000000000001/type_name.js';
-import * as object from './object.js';
 import * as balance from './balance.js';
 const $moduleName = '0x2::transfer_policy';
 export const TransferRequest = new MoveStruct({
@@ -21,7 +20,7 @@ export const TransferRequest = new MoveStruct({
 export const TransferPolicy = new MoveStruct({
 	name: `${$moduleName}::TransferPolicy`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		balance: balance.Balance,
 		rules: vec_set.VecSet(type_name.TypeName),
 	},
@@ -29,7 +28,7 @@ export const TransferPolicy = new MoveStruct({
 export const TransferPolicyCap = new MoveStruct({
 	name: `${$moduleName}::TransferPolicyCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		policy_id: bcs.Address,
 	},
 });

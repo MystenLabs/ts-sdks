@@ -3,14 +3,13 @@
  **************************************************************/
 import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import * as object from './object.js';
 import * as bag from './bag.js';
 import * as table from './table.js';
 const $moduleName = '0x2::deny_list';
 export const DenyList = new MoveStruct({
 	name: `${$moduleName}::DenyList`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		lists: bag.Bag,
 	},
 });
@@ -49,7 +48,7 @@ export const PerTypeConfigCreated = new MoveStruct({
 export const PerTypeList = new MoveStruct({
 	name: `${$moduleName}::PerTypeList`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		denied_count: table.Table,
 		denied_addresses: table.Table,
 	},
