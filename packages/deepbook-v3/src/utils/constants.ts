@@ -312,6 +312,11 @@ export const mainnetPools: PoolMap = {
 		baseCoin: 'ALKIMI',
 		quoteCoin: 'SUI',
 	},
+	LZWBTC_USDC: {
+		address: `0xf5142aafa24866107df628bf92d0358c7da6acc46c2f10951690fd2b8570f117`,
+		baseCoin: 'LZWBTC',
+		quoteCoin: 'USDC',
+	},
 };
 
 export const testnetMarginPools = {
