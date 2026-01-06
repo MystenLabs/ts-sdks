@@ -1,6 +1,7 @@
 # `@mysten/enoki`
 
-zkLogin authentication and sponsored transactions. Enable users to sign in with Google, Twitch, Facebook, and other OAuth providers, and execute transactions without gas fees.
+zkLogin authentication and sponsored transactions. Enable users to sign in with Google, Twitch,
+Facebook, and other OAuth providers, and execute transactions without gas fees.
 
 ## Features
 
@@ -23,8 +24,8 @@ npm install @mysten/enoki
 import { registerEnokiWallets } from '@mysten/enoki';
 
 registerEnokiWallets({
-  apiKey: 'your-enoki-api-key',
-  providers: ['google', 'twitch', 'facebook'],
+	apiKey: 'your-enoki-api-key',
+	providers: ['google', 'twitch', 'facebook'],
 });
 ```
 
@@ -36,15 +37,15 @@ import { useEnokiFlow } from '@mysten/enoki/react';
 
 // In your app setup
 registerEnokiWallets({
-  apiKey: 'your-enoki-api-key',
-  providers: ['google'],
+	apiKey: 'your-enoki-api-key',
+	providers: ['google'],
 });
 
 // In your component
 function LoginButton() {
-  const { login } = useEnokiFlow();
+	const { login } = useEnokiFlow();
 
-  return <button onClick={() => login('google')}>Sign in with Google</button>;
+	return <button onClick={() => login('google')}>Sign in with Google</button>;
 }
 ```
 
@@ -54,20 +55,20 @@ function LoginButton() {
 import { EnokiClient } from '@mysten/enoki';
 
 const client = new EnokiClient({
-  apiKey: 'your-enoki-api-key',
+	apiKey: 'your-enoki-api-key',
 });
 
 // Create a sponsored transaction
 const sponsored = await client.createSponsoredTransaction({
-  network: 'mainnet',
-  sender: '0x...',
-  transactionKindBytes: '...',
+	network: 'mainnet',
+	sender: '0x...',
+	transactionKindBytes: '...',
 });
 
 // Execute it
 await client.executeSponsoredTransaction({
-  digest: sponsored.digest,
-  signature: '...',
+	digest: sponsored.digest,
+	signature: '...',
 });
 ```
 
