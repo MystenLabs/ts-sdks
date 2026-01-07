@@ -9,12 +9,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { MIST_PER_SUI, toBase64 } from '@mysten/sui/utils';
 import { beforeAll, describe, expect, test } from 'vitest';
 
-import {
-	getSentTransactionsWithLinks,
-	listCreatedLinks,
-	ZkSendLink,
-	ZkSendLinkBuilder,
-} from './index.js';
+import { ZkSendLink, ZkSendLinkBuilder } from './index.js';
 
 export const DEMO_BEAR_CONFIG = {
 	packageId: '0xab8ed19f16874f9b8b66b0b6e325ee064848b1a7fdcb1c2f0478b17ad8574e65',
@@ -145,15 +140,11 @@ describe('Contract links', () => {
 
 		await client.waitForTransaction({ digest });
 
-		const {
-			data: [
-				{
-					links: [lostLink],
-				},
-			],
-		} = await getSentTransactionsWithLinks({
-			address: keypair.toSuiAddress(),
+		const lostLink = new ZkSendLink({
 			network: 'testnet',
+			address: linkKp.toSuiAddress(),
+			isContractLink: true,
+			client,
 		});
 
 		const { url, transaction } = await lostLink.createRegenerateTransaction(keypair.toSuiAddress());
@@ -235,15 +226,11 @@ describe('Contract links', () => {
 
 		await client.waitForTransaction({ digest });
 
-		const {
-			data: [
-				{
-					links: [lostLink],
-				},
-			],
-		} = await getSentTransactionsWithLinks({
-			address: keypair.toSuiAddress(),
+		const lostLink = new ZkSendLink({
 			network: 'testnet',
+			address: linkKp.toSuiAddress(),
+			isContractLink: true,
+			client,
 		});
 
 		const { digest: claimDigest } = await lostLink.claimAssets(keypair.toSuiAddress(), {
@@ -588,26 +575,8 @@ describe('Non contract links', () => {
 			waitForTransaction: true,
 		});
 
-		// wait for graphql indexing
+		// wait for indexing
 		await new Promise((resolve) => setTimeout(resolve, 3000));
-
-		const createdLinks = await listCreatedLinks({
-			network: 'testnet',
-			address: keypair.toSuiAddress(),
-		});
-
-		expect(createdLinks.links[0]?.link.address).toEqual(link.keypair.toSuiAddress());
-
-		expect(createdLinks.links[0].claimed).toEqual(false);
-		expect(createdLinks.links[0].assets).toMatchObject({
-			balances: [
-				{
-					coinType: '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
-					amount: 100n,
-				},
-			],
-			nfts: [expect.any(Object), expect.any(Object), expect.any(Object)],
-		});
 
 		const claimLink = await ZkSendLink.fromUrl(linkUrl, {
 			network: 'testnet',
