@@ -96,6 +96,10 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options?: SuiClientTypes.GetCurrentSystemStateOptions,
 	): Promise<SuiClientTypes.GetCurrentSystemStateResponse>;
 
+	abstract getChainIdentifier(
+		options?: SuiClientTypes.GetChainIdentifierOptions,
+	): Promise<SuiClientTypes.GetChainIdentifierResponse>;
+
 	abstract listDynamicFields(
 		options: SuiClientTypes.ListDynamicFieldsOptions,
 	): Promise<SuiClientTypes.ListDynamicFieldsResponse>;

@@ -21,7 +21,15 @@ import {
 	unknown,
 } from 'valibot';
 
-import { BCSBytes, JsonU64, ObjectID, ObjectRefSchema, SuiAddress } from './internal.js';
+import {
+	BCSBytes,
+	FundsWithdrawalArgSchema,
+	JsonU64,
+	ObjectID,
+	ObjectRefSchema,
+	SuiAddress,
+	ValidDuringSchema,
+} from './internal.js';
 import type { Simplify } from '@mysten/utils';
 
 function enumUnion<T extends Record<string, GenericSchema<any>>>(options: T) {
@@ -128,11 +136,13 @@ const CallArg = enumUnion({
 		initialSharedVersion: optional(nullable(JsonU64)),
 		mutable: optional(nullable(boolean())),
 	}),
+	FundsWithdrawal: FundsWithdrawalArgSchema,
 });
 
 const TransactionExpiration = enumUnion({
 	None: literal(true),
 	Epoch: JsonU64,
+	ValidDuring: ValidDuringSchema,
 });
 
 export const SerializedTransactionDataV2Schema = object({

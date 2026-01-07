@@ -17,7 +17,7 @@ import {
 } from '../grpc/proto/sui/rpc/v2/transaction.js';
 import type { ObjectReference } from '../grpc/proto/sui/rpc/v2/object_reference.js';
 import type { Input } from '../grpc/proto/sui/rpc/v2/input.js';
-import { Input_InputKind } from '../grpc/proto/sui/rpc/v2/input.js';
+import { FundsWithdrawal_Source, Input_InputKind } from '../grpc/proto/sui/rpc/v2/input.js';
 import type { Command } from '../grpc/proto/sui/rpc/v2/transaction.js';
 import type { Argument } from '../grpc/proto/sui/rpc/v2/argument.js';
 import { Argument_ArgumentKind } from '../grpc/proto/sui/rpc/v2/argument.js';
@@ -75,6 +75,24 @@ function callArgToGrpcInput(arg: CallArg): Input {
 
 		case 'UnresolvedPure':
 			throw new Error('UnresolvedPure arguments must be resolved before converting to gRPC format');
+
+		case 'FundsWithdrawal': {
+			const withdrawal = arg.FundsWithdrawal;
+			return {
+				kind: Input_InputKind.FUNDS_WITHDRAWAL,
+				fundsWithdrawal: {
+					amount:
+						withdrawal.reservation.$kind === 'MaxAmountU64'
+							? BigInt(withdrawal.reservation.MaxAmountU64)
+							: undefined,
+					coinType: withdrawal.typeArg.$kind === 'Balance' ? withdrawal.typeArg.Balance : undefined,
+					source:
+						withdrawal.withdrawFrom.$kind === 'Sponsor'
+							? FundsWithdrawal_Source.SPONSOR
+							: FundsWithdrawal_Source.SENDER,
+				},
+			};
+		}
 
 		default:
 			throw new Error(`Unknown CallArg kind: ${JSON.stringify(arg)}`);
@@ -240,10 +258,19 @@ export function transactionDataToGrpcTransaction(data: TransactionData): GrpcTra
 			transaction.expiration = {
 				kind: TransactionExpiration_TransactionExpirationKind.NONE,
 			};
-		} else if ('Epoch' in data.expiration) {
+		} else if (data.expiration.$kind === 'Epoch') {
 			transaction.expiration = {
 				kind: TransactionExpiration_TransactionExpirationKind.EPOCH,
 				epoch: BigInt(data.expiration.Epoch),
+			};
+		} else if (data.expiration.$kind === 'ValidDuring') {
+			const validDuring = data.expiration.ValidDuring;
+			transaction.expiration = {
+				kind: TransactionExpiration_TransactionExpirationKind.VALID_DURING,
+				minEpoch: validDuring.minEpoch != null ? BigInt(validDuring.minEpoch) : undefined,
+				epoch: validDuring.maxEpoch != null ? BigInt(validDuring.maxEpoch) : undefined,
+				chain: validDuring.chain,
+				nonce: validDuring.nonce,
 			};
 		}
 	}
