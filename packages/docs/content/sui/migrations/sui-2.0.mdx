@@ -387,3 +387,66 @@ If you were using the plugin with `@mysten/mvr-static`:
 
 The client will now automatically resolve `.move` names in transactions using the configured
 overrides or by querying the MVR API if no override is provided.
+
+## zkSend SDK Migration
+
+The `@mysten/zksend` SDK has been updated to use a client extension pattern with the new core API,
+enabling compatibility with gRPC, GraphQL, and JSON RPC transports.
+
+### Breaking Changes
+
+- **Client extension pattern**: The zkSend SDK now uses a client extension pattern
+  (`client.$extend(zksend())`).
+- **Non-contract links removed**: Only contract-based links are now supported. The `contract` option
+  no longer accepts `null`.
+- **`isContractLink` removed**: The `isContractLink` option has been removed from `ZkSendLink`.
+- **`calculateGas` removed**: The `calculateGas` option has been removed from
+  `CreateZkSendLinkOptions`.
+- **Data fetching helpers removed**: `getAssetsFromTransaction`, `isOwner`, and `ownedAfterChange`
+  are no longer exported.
+
+### Migration
+
+Update your code to use the client extension pattern:
+
+```diff
+- import { ZkSendLinkBuilder, ZkSendLink } from '@mysten/zksend';
++ import { zksend } from '@mysten/zksend';
++ import { SuiGrpcClient } from '@mysten/sui/grpc';
+
++ const client = new SuiGrpcClient({
++   baseUrl: 'https://fullnode.testnet.sui.io:443',
++   network: 'testnet',
++ }).$extend(zksend());
+
+- // Creating a link builder
+- const builder = new ZkSendLinkBuilder({
+-   client,
+-   sender: address,
+-   network: 'testnet',
+- });
++ // Creating a link builder
++ const link = client.zksend.linkBuilder({
++   sender: address,
++ });
+
+- // Loading a link
+- const link = new ZkSendLink({
+-   client,
+-   keypair,
+-   network: 'testnet',
+- });
++ // Loading a link by address or keypair
++ const link = await client.zksend.loadLink({
++   address: linkAddress,
++   // or: keypair: linkKeypair,
++ });
+
+- // Or load from URL
+- const link = await ZkSendLink.fromUrl(url, {
+-   client,
+-   network: 'testnet',
+- });
++ // Load from URL
++ const link = await client.zksend.loadLinkFromUrl(url);
+```
