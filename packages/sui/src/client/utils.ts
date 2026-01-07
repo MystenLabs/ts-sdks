@@ -8,10 +8,16 @@ import { ExecutionStatus } from '../bcs/effects.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import type { SuiClientTypes } from './types.js';
 
+const ordinalRules = new Intl.PluralRules('en-US', { type: 'ordinal' });
+const ordinalSuffixes = new Map([
+	['one', 'st'],
+	['two', 'nd'],
+	['few', 'rd'],
+	['other', 'th'],
+]);
+
 export function formatOrdinal(n: number): string {
-	const suffix = ['th', 'st', 'nd', 'rd'];
-	const v = n % 100;
-	return n + (suffix[(v - 20) % 10] || suffix[v] || suffix[0]);
+	return `${n}${ordinalSuffixes.get(ordinalRules.select(n))}`;
 }
 
 export function formatMoveAbortMessage(options: {
@@ -30,40 +36,36 @@ export function formatMoveAbortMessage(options: {
 	};
 }): string {
 	const { command, location, abortCode, cleverError } = options;
+	const parts: string[] = [];
 
-	let locationStr = '';
+	if (command != null) {
+		parts.push(`Error in ${formatOrdinal(command + 1)} command`);
+	}
+
 	if (location?.package && location?.module) {
 		const pkg = location.package.startsWith('0x') ? location.package : `0x${location.package}`;
-		locationStr = `${pkg}::${location.module}`;
-		if (location.functionName) {
-			locationStr += `::${location.functionName}`;
+		const locationParts = [pkg, location.module, location.functionName].filter(Boolean);
+		const locationStr = [`from '${locationParts.join('::')}'`];
+
+		if (cleverError?.lineNumber != null) {
+			locationStr.push(`(line ${cleverError.lineNumber})`);
+		} else if (location.instruction != null) {
+			locationStr.push(`(instruction ${location.instruction})`);
 		}
+
+		parts.push(locationStr.join(' '));
 	}
 
-	let positionStr = '';
-	if (cleverError?.lineNumber != null) {
-		positionStr = ` (line ${cleverError.lineNumber})`;
-	} else if (location?.instruction != null) {
-		positionStr = ` (instruction ${location.instruction})`;
-	}
-
-	const commandStr = command != null ? `Error in ${formatOrdinal(command + 1)} command, ` : '';
-
-	let abortInfo = '';
 	if (cleverError?.constantName) {
-		abortInfo = `abort '${cleverError.constantName}'`;
-		if (cleverError.value) {
-			abortInfo += `: ${cleverError.value}`;
-		}
+		const abortStr = cleverError.value
+			? `abort '${cleverError.constantName}': ${cleverError.value}`
+			: `abort '${cleverError.constantName}'`;
+		parts.push(abortStr);
 	} else {
-		abortInfo = `abort code: ${abortCode}`;
+		parts.push(`abort code: ${abortCode}`);
 	}
 
-	if (locationStr) {
-		return `${commandStr}from '${locationStr}'${positionStr}, ${abortInfo}`;
-	}
-
-	return `${commandStr}${abortInfo}`;
+	return parts.join(', ');
 }
 
 // Minimal BCS types for extracting just the status from transaction effects.
