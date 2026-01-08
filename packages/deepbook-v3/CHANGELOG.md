@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.26.3
+
+### Patch Changes
+
+- 9bb895e: Revoke TradeCap
+
 ## 0.26.2
 
 ### Patch Changes
