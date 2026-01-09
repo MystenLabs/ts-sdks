@@ -27,10 +27,15 @@ export interface LinkBuilderOptions {
 	keypair?: Keypair;
 }
 
-export interface LoadLinkOptions {
-	address?: string;
-	keypair?: Keypair;
-}
+export type LoadLinkOptions =
+	| {
+			address: string;
+			keypair?: never;
+	  }
+	| {
+			keypair: Keypair;
+			address?: never;
+	  };
 
 function getDefaultContractIds(clientNetwork: string): ZkBagContractOptions {
 	if (clientNetwork === 'mainnet' || clientNetwork === 'testnet') {
@@ -87,20 +92,15 @@ export class ZkSendClient {
 	 * Get a link without loading its assets (synchronous)
 	 */
 	getLink(options: LoadLinkOptions): ZkSendLink {
-		if (!options.address && !options.keypair) {
-			throw new Error('Either address or keypair must be provided');
-		}
-
 		return new ZkSendLink({
 			client: this.#client,
-			address: options.address,
-			keypair: options.keypair,
 			network: this.#network,
 			host: this.#host,
 			path: this.#path,
 			claimApi: this.#claimApi,
 			contract: this.#contract,
-		} as any);
+			...options,
+		});
 	}
 
 	/**
