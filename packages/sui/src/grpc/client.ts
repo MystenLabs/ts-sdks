@@ -30,6 +30,14 @@ export type SuiGrpcClientOptions = {
 	| SuiGrpcTransportOptions
 );
 
+const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiGrpcClient') as never;
+
+export function isSuiGrpcClient(client: unknown): client is SuiGrpcClient {
+	return (
+		typeof client === 'object' && client !== null && (client as any)[SUI_CLIENT_BRAND] === true
+	);
+}
+
 export class SuiGrpcClient extends BaseClient implements SuiClientTypes.TransportMethods {
 	core: GrpcCoreClient;
 	get mvr(): SuiClientTypes.MvrMethods {
@@ -42,6 +50,10 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 	movePackageService: MovePackageServiceClient;
 	signatureVerificationService: SignatureVerificationServiceClient;
 	nameService: NameServiceClient;
+
+	get [SUI_CLIENT_BRAND]() {
+		return true;
+	}
 
 	constructor(options: SuiGrpcClientOptions) {
 		super({ network: options.network });

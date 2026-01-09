@@ -1,15 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type {
-	PaginatedObjectsResponse,
-	PaginationArguments,
-	SuiJsonRpcClient,
-	SuiObjectData,
-	SuiObjectResponse,
-} from '@mysten/sui/jsonRpc';
+import type { PaginationArguments } from '@mysten/sui/jsonRpc';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import { isValidSuiAddress } from '@mysten/sui/utils';
 
+import { Extension, ExtensionKey } from '../contracts/0x2/kiosk_extension.js';
 import type {
 	FetchKioskOptions,
 	KioskExtension,
@@ -27,9 +23,10 @@ import {
 	getAllObjects,
 	getKioskObject,
 } from '../utils.js';
+import { PersonalKioskCap } from '../contracts/kiosk/personal_kiosk.js';
 
 export async function fetchKiosk(
-	client: SuiJsonRpcClient,
+	client: ClientWithCoreApi,
 	kioskId: string,
 	pagination: PaginationArguments<string>,
 	options: FetchKioskOptions,
@@ -51,14 +48,8 @@ export async function fetchKiosk(
 	// For listings we usually seek the DF value (price) / exclusivity.
 	const [kiosk, listingObjects, items] = await Promise.all([
 		options.withKioskFields ? getKioskObject(client, kioskId) : Promise.resolve(undefined),
-		options.withListingPrices
-			? getAllObjects(client, kioskData.listingIds, {
-					showContent: true,
-				})
-			: Promise.resolve([]),
-		options.withObjects
-			? getAllObjects(client, kioskData.itemIds, options.objectOptions || { showDisplay: true })
-			: Promise.resolve([]),
+		options.withListingPrices ? getAllObjects(client, kioskData.listingIds) : Promise.resolve([]),
+		options.withObjects ? getAllObjects(client, kioskData.itemIds) : Promise.resolve([]),
 	]);
 
 	if (options.withKioskFields) kioskData.kiosk = kiosk;
@@ -68,10 +59,7 @@ export async function fetchKiosk(
 	attachLockedItems(kioskData, lockedItemIds);
 
 	// Attach the objects for the queried items.
-	attachObjects(
-		kioskData,
-		items.filter((x) => !!x.data).map((x) => x.data!),
-	);
+	attachObjects(kioskData, items);
 
 	return {
 		data: kioskData,
@@ -91,7 +79,7 @@ const DEFAULT_PAGE_SIZE = 50;
 const PERSON_KIOSK_CURSOR = 'personal';
 const OWNED_KIOSKS_CURSOR = 'owned';
 export async function getOwnedKiosks(
-	client: SuiJsonRpcClient,
+	client: ClientWithCoreApi,
 	address: string,
 	options?: {
 		pagination?: PaginationArguments<string>;
@@ -115,19 +103,36 @@ export async function getOwnedKiosks(
 	];
 
 	if (options?.personalKioskType && cursorType === PERSON_KIOSK_CURSOR) {
+		const personalResult = await client.core.listOwnedObjects({
+			owner: address,
+			type: options.personalKioskType,
+			cursor,
+			limit,
+			include: {
+				content: true,
+			},
+		});
+
+		const personalKioskData = personalResult.objects
+			.filter((obj) => !(obj instanceof Error))
+			.map((obj) => {
+				return { obj, kioskId: PersonalKioskCap.parse(obj.content).cap?.for };
+			})
+			.filter(
+				(
+					item,
+				): item is {
+					obj: SuiClientTypes.Object<{ content: true }>;
+					kioskId: string;
+				} => item.kioskId !== undefined,
+			);
+
 		const personalKioskResponse = formatOwnedKioskResponse(
-			await client.getOwnedObjects({
-				owner: address,
-				filter: {
-					StructType: options.personalKioskType,
-				},
-				options: {
-					showContent: true,
-					showType: true,
-				},
-				cursor,
-				limit,
-			}),
+			{
+				data: personalKioskData,
+				hasNextPage: personalResult.hasNextPage,
+				nextCursor: personalResult.cursor,
+			},
 			PERSON_KIOSK_CURSOR,
 		);
 
@@ -148,18 +153,38 @@ export async function getOwnedKiosks(
 			};
 		}
 
+		const ownedResult = await client.core.listOwnedObjects({
+			owner: address,
+			type: KIOSK_OWNER_CAP,
+			cursor: null,
+			limit: remainingLimit,
+			include: {
+				content: true,
+			},
+		});
+
+		const { KioskOwnerCap: KioskOwnerCapParser } = await import('../contracts/0x2/kiosk.js');
+
+		const ownedKioskData = ownedResult.objects
+			.filter((obj) => !(obj instanceof Error))
+			.map((obj) => {
+				return { obj, kioskId: KioskOwnerCapParser.parse(obj.content).for };
+			})
+			.filter(
+				(
+					item,
+				): item is {
+					obj: SuiClientTypes.Object<{ content: true }>;
+					kioskId: string;
+				} => item.kioskId !== undefined,
+			);
+
 		const ownedKiosksResponse = formatOwnedKioskResponse(
-			await client.getOwnedObjects({
-				owner: address,
-				filter: {
-					StructType: KIOSK_OWNER_CAP,
-				},
-				options: {
-					showContent: true,
-					showType: true,
-				},
-				limit: remainingLimit,
-			}),
+			{
+				data: ownedKioskData,
+				hasNextPage: ownedResult.hasNextPage,
+				nextCursor: ownedResult.cursor,
+			},
 			OWNED_KIOSKS_CURSOR,
 		);
 
@@ -174,91 +199,94 @@ export async function getOwnedKiosks(
 		};
 	}
 
+	const result = await client.core.listOwnedObjects({
+		owner: address,
+		type: KIOSK_OWNER_CAP,
+		cursor: cursor || null,
+		limit,
+		include: {
+			content: true,
+		},
+	});
+
+	const { KioskOwnerCap: KioskOwnerCapParser } = await import('../contracts/0x2/kiosk.js');
+
+	const ownedKioskData = result.objects
+		.filter((obj) => !(obj instanceof Error))
+		.map((obj) => {
+			return { obj, kioskId: KioskOwnerCapParser.parse(obj.content).for };
+		})
+		.filter(
+			(
+				item,
+			): item is {
+				obj: SuiClientTypes.Object<{ content: true }>;
+				kioskId: string;
+			} => item.kioskId !== undefined,
+		);
+
 	return formatOwnedKioskResponse(
-		await client.getOwnedObjects({
-			owner: address,
-			filter: {
-				StructType: KIOSK_OWNER_CAP,
-			},
-			options: {
-				showContent: true,
-				showType: true,
-			},
-			// cursor might be an empty string if the number of personal kiosks was a multiple of the limit.
-			cursor: cursor ? cursor : null,
-			limit,
-		}),
+		{
+			data: ownedKioskData,
+			hasNextPage: result.hasNextPage,
+			nextCursor: result.cursor,
+		},
 		OWNED_KIOSKS_CURSOR,
 	);
 }
 
 function formatOwnedKioskResponse(
-	response: PaginatedObjectsResponse,
+	response: {
+		data: {
+			obj: SuiClientTypes.Object<{ content: true }>;
+			kioskId: string;
+		}[];
+		hasNextPage: boolean;
+		nextCursor: string | null;
+	},
 	cursorType: string,
 ): OwnedKiosks {
 	const { data, hasNextPage, nextCursor } = response;
-	// get kioskIds from the OwnerCaps.
-	const kioskIdList = data?.map((x: SuiObjectResponse) => {
-		const fields =
-			x.data?.content?.dataType === 'moveObject'
-				? (x.data.content.fields as unknown as
-						| {
-								cap: { fields: { for: string } };
-								for?: never;
-						  }
-						| {
-								cap?: never;
-								for: string;
-						  })
-				: null;
-		return fields?.cap ? fields?.cap?.fields?.for : (fields?.for as string);
-	});
-
-	// clean up data that might have an error in them.
-	// only return valid objects.
-	const filteredData = data.filter((x) => 'data' in x).map((x) => x.data) as SuiObjectData[];
 
 	return {
 		nextCursor: nextCursor ? `${cursorType}:${nextCursor}` : nextCursor,
 		hasNextPage,
-		kioskOwnerCaps: filteredData.map((x, idx) => ({
-			isPersonal: x.type !== KIOSK_OWNER_CAP,
-			digest: x.digest,
-			version: x.version,
-			objectId: x.objectId,
-			kioskId: kioskIdList[idx],
-		})),
-		kioskIds: kioskIdList,
+		kioskOwnerCaps: data.map((item) => {
+			const isPersonal = item.obj.type?.includes('PersonalKioskCap') || false;
+			return {
+				isPersonal,
+				digest: item.obj.digest,
+				version: item.obj.version,
+				objectId: item.obj.objectId,
+				kioskId: item.kioskId,
+			};
+		}),
+		kioskIds: data.map((item) => item.kioskId),
 	};
 }
 
 // Get a kiosk extension data for a given kioskId and extensionType.
 export async function fetchKioskExtension(
-	client: SuiJsonRpcClient,
+	client: ClientWithCoreApi,
 	kioskId: string,
 	extensionType: string,
 ): Promise<KioskExtension | null> {
-	const extension = await client.getDynamicFieldObject({
+	const { dynamicField } = await client.core.getDynamicField({
 		parentId: kioskId,
 		name: {
 			type: `0x2::kiosk_extension::ExtensionKey<${extensionType}>`,
-			value: {
-				dummy_field: false,
-			},
+			bcs: ExtensionKey.serialize({ dummy_field: false }).toBytes(),
 		},
 	});
 
-	if (!extension.data) return null;
-
-	const fields = (extension?.data?.content as { fields: { [k: string]: any } })?.fields?.value
-		?.fields;
+	const extension = Extension.parse(dynamicField.value.bcs);
 
 	return {
-		objectId: extension.data.objectId,
+		objectId: dynamicField.fieldId,
 		type: extensionType,
-		isEnabled: fields?.is_enabled,
-		permissions: fields?.permissions,
-		storageId: fields?.storage?.fields?.id?.id,
-		storageSize: fields?.storage?.fields?.size,
+		isEnabled: extension.is_enabled,
+		permissions: extension.permissions.toString(),
+		storageId: extension.storage.id,
+		storageSize: Number(extension.storage.size),
 	};
 }
