@@ -1,0 +1,42 @@
+# Copyright (c) Mysten Labs, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+query getCurrentSystemState {
+	epoch {
+		epochId
+		referenceGasPrice
+		startTimestamp
+		systemStateVersion
+		protocolConfigs {
+			protocolVersion
+		}
+		systemParameters {
+			durationMs
+			stakeSubsidyStartEpoch
+			maxValidatorCount
+			minValidatorJoiningStake
+			validatorLowStakeThreshold
+			validatorLowStakeGracePeriod
+		}
+		safeMode {
+			enabled
+			gasSummary {
+				computationCost
+				storageCost
+				storageRebate
+				nonRefundableStorageFee
+			}
+		}
+		storageFund {
+			totalObjectStorageRebates
+			nonRefundableBalance
+		}
+		systemStakeSubsidy {
+			balance
+			distributionCounter
+			currentDistributionAmount
+			periodLength
+			decreaseRate
+		}
+	}
+}

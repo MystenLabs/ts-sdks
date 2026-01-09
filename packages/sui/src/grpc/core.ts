@@ -372,10 +372,95 @@ export class GrpcCoreClient extends CoreClient {
 		}
 	}
 	async getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
-		const response = await this.#client.ledgerService.getEpoch({});
+		const response = await this.#client.ledgerService.getEpoch({
+			readMask: {
+				paths: ['reference_gas_price'],
+			},
+		});
 
 		return {
-			referenceGasPrice: response.response.epoch?.referenceGasPrice?.toString()!,
+			referenceGasPrice: response.response.epoch?.referenceGasPrice?.toString() ?? '',
+		};
+	}
+
+	async getCurrentSystemState(): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
+		const response = await this.#client.ledgerService.getEpoch({
+			readMask: {
+				paths: [
+					'system_state.version',
+					'system_state.epoch',
+					'system_state.protocol_version',
+					'system_state.reference_gas_price',
+					'system_state.epoch_start_timestamp_ms',
+					'system_state.safe_mode',
+					'system_state.safe_mode_storage_rewards',
+					'system_state.safe_mode_computation_rewards',
+					'system_state.safe_mode_storage_rebates',
+					'system_state.safe_mode_non_refundable_storage_fee',
+					'system_state.parameters',
+					'system_state.storage_fund',
+					'system_state.stake_subsidy',
+				],
+			},
+		});
+
+		const epoch = response.response.epoch;
+		const systemState = epoch?.systemState;
+		if (!systemState) {
+			throw new Error('System state not found in response');
+		}
+
+		const startMs = epoch?.start?.seconds
+			? Number(epoch.start.seconds) * 1000 + Math.floor((epoch.start.nanos || 0) / 1_000_000)
+			: systemState.epochStartTimestampMs
+				? Number(systemState.epochStartTimestampMs)
+				: (null as never);
+
+		return {
+			systemState: {
+				systemStateVersion: systemState.version?.toString() ?? (null as never),
+				epoch: systemState.epoch?.toString() ?? (null as never),
+				protocolVersion: systemState.protocolVersion?.toString() ?? (null as never),
+				referenceGasPrice: systemState.referenceGasPrice?.toString() ?? (null as never),
+				epochStartTimestampMs: startMs.toString(),
+				safeMode: systemState.safeMode ?? false,
+				safeModeStorageRewards: systemState.safeModeStorageRewards?.toString() ?? (null as never),
+				safeModeComputationRewards:
+					systemState.safeModeComputationRewards?.toString() ?? (null as never),
+				safeModeStorageRebates: systemState.safeModeStorageRebates?.toString() ?? (null as never),
+				safeModeNonRefundableStorageFee:
+					systemState.safeModeNonRefundableStorageFee?.toString() ?? (null as never),
+				parameters: {
+					epochDurationMs: systemState.parameters?.epochDurationMs?.toString() ?? (null as never),
+					stakeSubsidyStartEpoch:
+						systemState.parameters?.stakeSubsidyStartEpoch?.toString() ?? (null as never),
+					maxValidatorCount:
+						systemState.parameters?.maxValidatorCount?.toString() ?? (null as never),
+					minValidatorJoiningStake:
+						systemState.parameters?.minValidatorJoiningStake?.toString() ?? (null as never),
+					validatorLowStakeThreshold:
+						systemState.parameters?.validatorLowStakeThreshold?.toString() ?? (null as never),
+					validatorLowStakeGracePeriod:
+						systemState.parameters?.validatorLowStakeGracePeriod?.toString() ?? (null as never),
+				},
+				storageFund: {
+					totalObjectStorageRebates:
+						systemState.storageFund?.totalObjectStorageRebates?.toString() ?? (null as never),
+					nonRefundableBalance:
+						systemState.storageFund?.nonRefundableBalance?.toString() ?? (null as never),
+				},
+				stakeSubsidy: {
+					balance: systemState.stakeSubsidy?.balance?.toString() ?? (null as never),
+					distributionCounter:
+						systemState.stakeSubsidy?.distributionCounter?.toString() ?? (null as never),
+					currentDistributionAmount:
+						systemState.stakeSubsidy?.currentDistributionAmount?.toString() ?? (null as never),
+					stakeSubsidyPeriodLength:
+						systemState.stakeSubsidy?.stakeSubsidyPeriodLength?.toString() ?? (null as never),
+					stakeSubsidyDecreaseRate:
+						systemState.stakeSubsidy?.stakeSubsidyDecreaseRate ?? (null as never),
+				},
+			},
 		};
 	}
 
