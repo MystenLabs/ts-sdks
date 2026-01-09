@@ -534,6 +534,17 @@ export class JSONRpcCoreClient extends CoreClient {
 			},
 		};
 	}
+
+	async getChainIdentifier(
+		_options?: SuiClientTypes.GetChainIdentifierOptions,
+	): Promise<SuiClientTypes.GetChainIdentifierResponse> {
+		return this.cache.read(['chainIdentifier'], async () => {
+			const checkpoint = await this.#jsonRpcClient.getCheckpoint({ id: '0' });
+			return {
+				chainIdentifier: checkpoint.digest,
+			};
+		});
+	}
 }
 
 function serializeObjectToBcs(object: SuiObjectData): Uint8Array | undefined {
