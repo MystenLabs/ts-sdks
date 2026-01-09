@@ -68,9 +68,9 @@ export async function resolveTransactionPlugin(
 
 function validate(transactionData: TransactionDataBuilder) {
 	transactionData.inputs.forEach((input, index) => {
-		if (input.$kind !== 'Object' && input.$kind !== 'Pure') {
+		if (input.$kind !== 'Object' && input.$kind !== 'Pure' && input.$kind !== 'FundsWithdrawal') {
 			throw new Error(
-				`Input at index ${index} has not been resolved.  Expected a Pure or Object input, but found ${JSON.stringify(
+				`Input at index ${index} has not been resolved.  Expected a Pure, Object, or FundsWithdrawal input, but found ${JSON.stringify(
 					input,
 				)}`,
 			);

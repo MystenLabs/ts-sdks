@@ -82,6 +82,30 @@ export const Owner = bcs.enum('Owner', {
 	}),
 });
 
+// Rust: crates/sui-types/src/transaction.rs
+export const Reservation = bcs.enum('Reservation', {
+	EntireBalance: null,
+	MaxAmountU64: bcs.u64(),
+});
+
+// Rust: crates/sui-types/src/transaction.rs
+export const WithdrawalType = bcs.enum('WithdrawalType', {
+	Balance: bcs.lazy(() => TypeTag),
+});
+
+// Rust: crates/sui-types/src/transaction.rs
+export const WithdrawFrom = bcs.enum('WithdrawFrom', {
+	Sender: null,
+	Sponsor: null,
+});
+
+// Rust: crates/sui-types/src/transaction.rs
+export const FundsWithdrawal = bcs.struct('FundsWithdrawal', {
+	reservation: Reservation,
+	typeArg: WithdrawalType,
+	withdrawFrom: WithdrawFrom,
+});
+
 export const CallArg = bcs.enum('CallArg', {
 	Pure: bcs.struct('Pure', {
 		bytes: bcs.byteVector().transform({
@@ -90,6 +114,7 @@ export const CallArg = bcs.enum('CallArg', {
 		}),
 	}),
 	Object: ObjectArg,
+	FundsWithdrawal: FundsWithdrawal,
 });
 
 const InnerTypeTag: BcsType<TypeTagType, TypeTagType> = bcs.enum('TypeTag', {
@@ -211,9 +236,20 @@ export const TransactionKind = bcs.enum('TransactionKind', {
 	ConsensusCommitPrologue: null,
 });
 
+// Rust: crates/sui-types/src/transaction.rs
+export const ValidDuring = bcs.struct('ValidDuring', {
+	minEpoch: bcs.option(bcs.u64()),
+	maxEpoch: bcs.option(bcs.u64()),
+	minTimestamp: bcs.option(bcs.u64()),
+	maxTimestamp: bcs.option(bcs.u64()),
+	chain: ObjectDigest,
+	nonce: bcs.u32(),
+});
+
 export const TransactionExpiration = bcs.enum('TransactionExpiration', {
 	None: null,
 	Epoch: unsafe_u64(),
+	ValidDuring: ValidDuring,
 });
 
 export const StructTag = bcs.struct('StructTag', {

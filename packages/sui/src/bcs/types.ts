@@ -42,6 +42,18 @@ export function isPureArg(arg: any): arg is PureArg {
 	return (arg as PureArg).Pure !== undefined;
 }
 
+type Reservation = { EntireBalance: null } | { MaxAmountU64: number | string };
+type WithdrawalTypeArg = { Balance: TypeTag };
+type WithdrawFrom = { Sender: null } | { Sponsor: null };
+type FundsWithdrawalArg = {
+	reservation: Reservation;
+	typeArg: WithdrawalTypeArg;
+	withdrawFrom: WithdrawFrom;
+};
+type FundsWithdrawalCallArg = {
+	FundsWithdrawal: FundsWithdrawalArg;
+};
+
 /**
  * An argument for the transaction. It is a 'meant' enum which expects to have
  * one of the optional properties. If not, the BCS error will be thrown while
@@ -65,7 +77,7 @@ export function isPureArg(arg: any): arg is PureArg {
  * For `Pure` arguments BCS is required. You must encode the values with BCS according
  * to the type required by the called function. Pure accepts only serialized values
  */
-export type CallArg = PureArg | ObjectCallArg;
+export type CallArg = PureArg | ObjectCallArg | FundsWithdrawalCallArg;
 
 /**
  * Kind of a TypeTag which is represented by a Move type identifier.
@@ -105,9 +117,21 @@ export type GasData = {
 	budget: number;
 };
 
+type ValidDuring = {
+	minEpoch: { None: null } | { Some: number | string };
+	maxEpoch: { None: null } | { Some: number | string };
+	minTimestamp: { None: null } | { Some: number | string };
+	maxTimestamp: { None: null } | { Some: number | string };
+	chain: string;
+	nonce: number;
+};
+
 /**
  * TransactionExpiration
  *
  * Indications the expiration time for a transaction.
  */
-export type TransactionExpiration = { None: null } | { Epoch: number };
+export type TransactionExpiration =
+	| { None: null }
+	| { Epoch: number }
+	| { ValidDuring: ValidDuring };

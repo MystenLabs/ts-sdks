@@ -41,18 +41,31 @@ export async function coreClientResolveTransactionPlugin(
 	await resolveObjectReferences(transactionData, client);
 
 	if (!options.onlyTransactionKind) {
-		await setGasPrice(transactionData, client);
-		await setGasBudget(transactionData, client);
-		await setGasPayment(transactionData, client);
+		await setGasData(transactionData, client);
 	}
 
 	return await next();
 }
 
-async function setGasPrice(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
+interface SystemStateData {
+	epoch: string;
+	referenceGasPrice: string;
+}
+
+async function setGasData(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
+	let systemState: SystemStateData | null = null;
+
 	if (!transactionData.gasData.price) {
-		const { referenceGasPrice } = await client.core.getReferenceGasPrice();
-		transactionData.gasData.price = referenceGasPrice;
+		const response = await client.core.getCurrentSystemState();
+		systemState = response.systemState;
+		transactionData.gasData.price = systemState.referenceGasPrice;
+	}
+
+	await setGasBudget(transactionData, client);
+	await setGasPayment(transactionData, client);
+
+	if (!transactionData.expiration) {
+		await setExpiration(transactionData, client, systemState);
 	}
 }
 
@@ -131,6 +144,41 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Cl
 			parse(ObjectRefSchema, payment),
 		);
 	}
+}
+
+async function setExpiration(
+	transactionData: TransactionDataBuilder,
+	client: ClientWithCoreApi,
+	existingSystemState: SystemStateData | null,
+) {
+	const hasOwnedInputs = transactionData.inputs.some((input) => {
+		return input.Object?.ImmOrOwnedObject || input.Object?.Receiving;
+	});
+
+	const hasGasPayment =
+		transactionData.gasData.payment && transactionData.gasData.payment.length > 0;
+
+	if (hasOwnedInputs || hasGasPayment) {
+		return;
+	}
+
+	const [systemState, { chainIdentifier }] = await Promise.all([
+		existingSystemState ?? client.core.getCurrentSystemState().then((r) => r.systemState),
+		client.core.getChainIdentifier(),
+	]);
+	const currentEpoch = BigInt(systemState.epoch);
+
+	transactionData.expiration = {
+		$kind: 'ValidDuring',
+		ValidDuring: {
+			minEpoch: String(currentEpoch),
+			maxEpoch: String(currentEpoch + 1n),
+			minTimestamp: null,
+			maxTimestamp: null,
+			chain: chainIdentifier,
+			nonce: (Math.random() * 0x100000000) >>> 0,
+		},
+	};
 }
 
 async function resolveObjectReferences(

@@ -361,6 +361,14 @@ export class MockSuiClient extends CoreClient {
 		return { referenceGasPrice: this.#gasPrice };
 	}
 
+	async getChainIdentifier(
+		_options?: SuiClientTypes.GetChainIdentifierOptions,
+	): Promise<SuiClientTypes.GetChainIdentifierResponse> {
+		return {
+			chainIdentifier: 'mock-chain-identifier',
+		};
+	}
+
 	async getCurrentSystemState(
 		_options?: SuiClientTypes.GetCurrentSystemStateOptions,
 	): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {

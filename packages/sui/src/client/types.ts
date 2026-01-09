@@ -382,6 +382,19 @@ export namespace SuiClientTypes {
 		systemState: SystemStateInfo;
 	}
 
+	export interface GetChainIdentifierOptions extends CoreClientMethodOptions {}
+
+	export interface TransportMethods {
+		getChainIdentifier?: (
+			options?: GetChainIdentifierOptions,
+		) => Promise<GetChainIdentifierResponse>;
+	}
+
+	/** The 32-byte genesis checkpoint digest (uniquely identifies the network), base58 encoded. */
+	export interface GetChainIdentifierResponse {
+		chainIdentifier: string;
+	}
+
 	export interface SystemStateInfo {
 		systemStateVersion: string;
 		epoch: string;
