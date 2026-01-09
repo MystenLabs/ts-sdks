@@ -987,6 +987,7 @@ export type SuiEndOfEpochTransactionKind =
 	| 'CoinRegistryCreate'
 	| 'DisplayRegistryCreate'
 	| 'AddressAliasStateCreate'
+	| 'WriteAccumulatorStorageCost'
 	| {
 			ChangeEpoch: SuiChangeEpoch;
 	  }

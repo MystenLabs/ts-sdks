@@ -376,11 +376,25 @@ export interface Balance {
 	 */
 	coinType?: string;
 	/**
-	 * Shows the total balance of the coin in its smallest unit.
+	 * The total balance of `coin_type` in its smallest unit.
+	 * This is the sum of all spendable amounts of `coin_type` (`address_balance`
+	 * and `coin_balance`).
 	 *
 	 * @generated from protobuf field: optional uint64 balance = 3;
 	 */
 	balance?: bigint;
+	/**
+	 * The balance of `Balance<T>` in this address's Address Balance.
+	 *
+	 * @generated from protobuf field: optional uint64 address_balance = 4;
+	 */
+	addressBalance?: bigint;
+	/**
+	 * The balance of all `Coin<T>` objects owned by this address.
+	 *
+	 * @generated from protobuf field: optional uint64 coin_balance = 5;
+	 */
+	coinBalance?: bigint;
 }
 /**
  * Request message for `NodeService.ListDynamicFields`
@@ -766,6 +780,22 @@ class Balance$Type extends MessageType<Balance> {
 			{
 				no: 3,
 				name: 'balance',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{
+				no: 4,
+				name: 'address_balance',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{
+				no: 5,
+				name: 'coin_balance',
 				kind: 'scalar',
 				opt: true,
 				T: 4 /*ScalarType.UINT64*/,
