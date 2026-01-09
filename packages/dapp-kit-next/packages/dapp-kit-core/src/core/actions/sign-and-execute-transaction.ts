@@ -12,6 +12,7 @@ import type {
 	SuiSignAndExecuteTransactionInput,
 } from '@mysten/wallet-standard';
 import { getWalletAccountForUiWalletAccount_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getWalletAccountForUiWalletAccount } from '@wallet-standard/ui-registry';
+import type { UiWalletAccount } from '@wallet-standard/ui';
 import { FeatureNotSupportedError, WalletNotConnectedError } from '../../utils/errors.js';
 import { getChain } from '../../utils/networks.js';
 import { Transaction } from '@mysten/sui/transactions';
@@ -23,28 +24,39 @@ import {
 	type TransactionResultWithEffects,
 } from '../../utils/transaction-result.js';
 
-export type SignAndExecuteTransactionArgs = {
+export type SignAndExecuteTransactionArgs<TNetwork = string> = {
 	transaction: Transaction | string;
+	network?: TNetwork;
+	account?: UiWalletAccount;
 } & Omit<SuiSignAndExecuteTransactionInput, 'account' | 'chain' | 'transaction'>;
 
 export type SignAndExecuteTransactionResult = TransactionResultWithEffects;
 
-export function signAndExecuteTransactionCreator({ $connection, $currentClient }: DAppKitStores) {
+export function signAndExecuteTransactionCreator<TNetwork extends string = string>(
+	{ $connection, $currentClient }: DAppKitStores,
+	getClient: (
+		network: TNetwork,
+	) => DAppKitStores['$currentClient'] extends { get: () => infer C } ? C : never,
+) {
 	/**
 	 * Prompts the specified wallet account to sign and execute a transaction.
 	 */
 	return async function signAndExecuteTransaction({
 		transaction,
+		network,
+		account: accountOverride,
 		...standardArgs
-	}: SignAndExecuteTransactionArgs): Promise<SignAndExecuteTransactionResult> {
-		const { account, supportedIntents } = $connection.get();
+	}: SignAndExecuteTransactionArgs<TNetwork>): Promise<SignAndExecuteTransactionResult> {
+		const connection = $connection.get();
+		const account = accountOverride ?? connection.account;
 		if (!account) {
 			throw new WalletNotConnectedError('No wallet is connected.');
 		}
 
 		const underlyingAccount = getWalletAccountForUiWalletAccount(account);
-		const suiClient = $currentClient.get();
+		const suiClient = network ? getClient(network) : $currentClient.get();
 		const chain = getChain(suiClient.network);
+		const supportedIntents = [...connection.supportedIntents];
 
 		const transactionWrapper = {
 			toJSON: async () => {

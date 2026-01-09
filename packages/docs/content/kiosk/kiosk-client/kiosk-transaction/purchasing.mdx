@@ -22,9 +22,8 @@ const item = {
 	sellerKiosk: '0xSellerKiosk',
 };
 
-// Assume `kioskClient` and `cap` are supplied to the function as explained in the previous section.
 const tx = new Transaction();
-const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
+const kioskTx = new KioskTransaction({ transaction: tx, kioskClient: client.kiosk, cap });
 
 await kioskTx.purchaseAndResolve({
 	itemType: item.itemType,
@@ -40,41 +39,40 @@ await signAndExecuteTransaction({ tx: tx });
 ```
 
 > The function queries for a TransferPolicy for that item, and if a policy is found, it
-> automatically resolves all the rules, one by one. You can add a custom rule resolver in the
-> `KioskClient` instance, with instructions on how to resolve a custom rule. Read more in the next
-> section.
+> automatically resolves all the rules, one by one. You can add a custom rule resolver to the kiosk
+> extension, with instructions on how to resolve a custom rule. Read more in the next section.
 
 ## Supporting a custom rule
 
 You can use the `purchaseAndResolve` function to support a custom rule.
 
 ```typescript
-const kioskClient = new KioskClient({...});
+// Assuming client is set up with .$extend(kiosk())
 const myCustomRule = {
-		rule: `0xMyRuleAddress::game_rule::Rule`,
-		packageId: `0xMyRuleAddress`,
-        // The resolving function. This is called when calling the `purchaseAndResolve`.
-		resolveRuleFunction: (params: RuleResolvingParams) => {
-            // By knowing the params we have here, we can extract the variables we need to resolve this rule.
-            const { transaction, itemType, packageId, extraArgs, transferRequest } = params;
-            const { gamePass } = extraArgs;
-            if(!gamePass) throw new Error("GamePass not supplied");
+	rule: `0xMyRuleAddress::game_rule::Rule`,
+	packageId: `0xMyRuleAddress`,
+	// The resolving function. This is called when calling the `purchaseAndResolve`.
+	resolveRuleFunction: (params: RuleResolvingParams) => {
+		// By knowing the params we have here, we can extract the variables we need to resolve this rule.
+		const { transaction, itemType, packageId, extraArgs, transferRequest } = params;
+		const { gamePass } = extraArgs;
+		if (!gamePass) throw new Error('GamePass not supplied');
 
-            // Calls the game's rule prove function, which could, for example
-            // allow rules to resolve only if the holder has a gamePass object.
-            transaction.moveCall({
-                target: `${packageId}::game_rule::prove_pass`,
-                typeArguments: [itemType],
-                arguments: [transferRequest, transaction.object(gamePass)],
-            });
-        },
+		// Calls the game's rule prove function, which could, for example
+		// allow rules to resolve only if the holder has a gamePass object.
+		transaction.moveCall({
+			target: `${packageId}::game_rule::prove_pass`,
+			typeArguments: [itemType],
+			arguments: [transferRequest, transaction.object(gamePass)],
+		});
+	},
 };
 // This allows rules resolution from the `purchaseAndResolve` function.
-kioskClient.addRuleResolver(myCustomRule);
+client.kiosk.addRuleResolver(myCustomRule);
 
-// Assume `cap` is supplied to the function as explained in the introduction section.
+// Assume `cap` is obtained from client.kiosk.getOwnedKiosks()
 const tx = new Transaction();
-const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
+const kioskTx = new KioskTransaction({ transaction: tx, kioskClient: client.kiosk, cap });
 
 await kioskTx.purchaseAndResolve({
 	itemType: item.itemType,
@@ -82,8 +80,8 @@ await kioskTx.purchaseAndResolve({
 	price: item.price,
 	sellerKiosk: item.sellerKiosk,
 	extraArgs: {
-		gamePass: '0xMyGamePassObjectId'
-	}
+		gamePass: '0xMyGamePassObjectId',
+	},
 });
 
 kioskTx.finalize();
@@ -107,6 +105,6 @@ type RuleResolvingParams = {
 	purchasedItem: TransactionObjectArgument;
 	packageId: string;
 	extraArgs: Record<string, any>; // extraParams contains more possible {key, values} to pass for custom rules.
-	kioskClient: KioskClient;
+	kioskClient: KioskClient; // This is the client.kiosk extension
 };
 ```

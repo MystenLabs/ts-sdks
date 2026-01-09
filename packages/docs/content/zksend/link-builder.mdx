@@ -17,19 +17,19 @@ title: Creating zkSend Links
 
 ## Create a link
 
-You can start creating your own zkSend link using the `ZkSendLinkBuilder` class. This class
-constructor takes an object with the following options:
-
-- **`sender`** (required) - Required. The address of the sender / creator of the link.
-- **`client`** (optional) - The `@mysten/sui` client used to fetch data to construct the link. If
-  not provided, a default client will be used.
-- **`network`** (optional) - The Sui network that the link will be created for. Defaults to
-  `mainnet`.
+You can start creating your own zkSend link using the `linkBuilder` method on the zkSend client
+extension:
 
 ```ts
-import { ZkSendLinkBuilder } from '@mysten/zksend';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { zksend } from '@mysten/zksend';
 
-const link = new ZkSendLinkBuilder({
+const client = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+}).$extend(zksend());
+
+const link = client.zksend.linkBuilder({
 	sender: '0x...',
 });
 ```
@@ -70,9 +70,11 @@ You can create objects to add to links in the same transaction the link is creat
 - **`type`** (required) - The move type of the object you are adding
 
 ```ts
+import { Transaction } from '@mysten/sui/transactions';
+
 const tx = new Transaction();
 
-const link = new ZkSendLinkBuilder({
+const link = client.zksend.linkBuilder({
 	sender: '0x...',
 });
 
@@ -127,13 +129,11 @@ await link.create({
 
 ## Claiming a link
 
-To claim a link via the SDK you can use the `ZkSendLink` class:
+To claim a link via the SDK you can use the `loadLinkFromUrl` method:
 
 ```ts
-import { ZkSendLink } from '@mysten/zksend';
-
-// create a link instance from a URL
-const link = await ZkSendLink.fromUrl('https://zksend.com/claim#$abc...');
+// Load a link instance from a URL
+const link = await client.zksend.loadLinkFromUrl('https://zksend.com/claim#$abc...');
 
 // list what claimable assets the link has
 const { nfts, balances } = link.assets;
@@ -165,14 +165,13 @@ if (result.$kind === 'FailedTransaction') {
 
 ## Bulk link creation
 
-To create multiple links in a single transaction, you can use `ZkSendLinkBuilder.createLinks`:
+To create multiple links in a single transaction, you can use `client.zksend.createLinks`:
 
 ```ts
 const links = [];
 
 for (let i = 0; i < 10; i++) {
-	const link = new ZkSendLinkBuilder({
-		client,
+	const link = client.zksend.linkBuilder({
 		sender: keypair.toSuiAddress(),
 	});
 
@@ -182,7 +181,7 @@ for (let i = 0; i < 10; i++) {
 
 const urls = links.map((link) => link.getLink());
 
-const tx = await ZkSendLinkBuilder.createLinks({
+const tx = await client.zksend.createLinks({
 	links,
 });
 

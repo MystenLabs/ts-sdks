@@ -8,10 +8,9 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import {
 	KioskClient,
 	KioskTransaction,
-	Network,
 	percentageToBasisPoints,
 	TransferPolicyTransaction,
-} from '../../src';
+} from '../../src/index.js';
 import {
 	existingKioskManagementFlow,
 	prepareHeroRuleset,
@@ -19,7 +18,7 @@ import {
 	purchaseFlow,
 	purchaseOnNewKiosk,
 	testLockItemFlow,
-} from './helper';
+} from './helper.js';
 import {
 	createKiosk,
 	createPersonalKiosk,
@@ -30,7 +29,7 @@ import {
 	publishHeroPackage,
 	setupSuiClient,
 	TestToolbox,
-} from './setup';
+} from './setup.js';
 
 /**
  * Important: We have 2 types so we can easily test transfer policy management without interference.
@@ -55,7 +54,7 @@ describe('Testing Kiosk SDK transaction building & querying e2e', () => {
 
 		kioskClient = new KioskClient({
 			client: toolbox.client,
-			network: Network.CUSTOM,
+			network: 'localnet',
 			packageIds: {
 				kioskLockRulePackageId: extensionsPackageId,
 				royaltyRulePackageId: extensionsPackageId,

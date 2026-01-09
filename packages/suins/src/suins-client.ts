@@ -1,6 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import type { ClientWithCoreApi } from '@mysten/sui/client';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 import { isValidSuiNSName, normalizeSuiNSName } from '@mysten/sui/utils';
 
@@ -10,7 +10,6 @@ import { SuiPriceServiceConnection, SuiPythClient } from './pyth/pyth.js';
 import type {
 	CoinTypeDiscount,
 	NameRecord,
-	Network,
 	PackageInfo,
 	SuinsClientConfig,
 	SuinsPriceList,
@@ -22,16 +21,55 @@ import { NameRecord as NameRecordBcs } from './contracts/suins/name_record.js';
 import { PricingConfig, RenewalConfig } from './contracts/suins/pricing_config.js';
 import { PaymentsConfig } from './contracts/suins_payments/payments.js';
 
+export type SuinsExtensionOptions<Name extends string = 'suins'> = {
+	name?: Name;
+	packageInfo?: PackageInfo;
+};
+
+/**
+ * Creates a SuiNS client extension that can be used with `client.$extend()`.
+ *
+ * @example
+ * ```ts
+ * import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+ * import { suins } from '@mysten/suins';
+ *
+ * const client = new SuiJsonRpcClient({
+ *   url: getJsonRpcFullnodeUrl('mainnet'),
+ *   network: 'mainnet',
+ * }).$extend(suins());
+ *
+ * const nameRecord = await client.suins.getNameRecord('example.sui');
+ * ```
+ */
+export function suins<const Name extends string = 'suins'>({
+	name = 'suins' as Name,
+	packageInfo,
+}: SuinsExtensionOptions<Name> = {}) {
+	return {
+		name,
+		register: (client: ClientWithCoreApi) => {
+			return new SuinsClient({
+				client,
+				network: client.network,
+				packageInfo,
+			});
+		},
+	};
+}
+
 export class SuinsClient {
 	client: ClientWithCoreApi;
-	network: Network;
+	network: SuiClientTypes.Network;
 	config: PackageInfo;
 
 	constructor(config: SuinsClientConfig) {
 		this.client = config.client;
 		this.network = config.network || 'mainnet';
 
-		if (this.network === 'mainnet') {
+		if (config.packageInfo) {
+			this.config = config.packageInfo;
+		} else if (this.network === 'mainnet') {
 			this.config = mainPackage.mainnet;
 		} else if (this.network === 'testnet') {
 			this.config = mainPackage.testnet;

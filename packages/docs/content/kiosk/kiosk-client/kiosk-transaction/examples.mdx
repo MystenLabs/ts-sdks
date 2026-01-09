@@ -19,78 +19,77 @@ Assume that the mint function of the contract is:
 ### When the user has a kiosk
 
 ```typescript
-// Assume that we have created the client somewhere else.
-const kioskClient = new KioskClient({...});
 const connectedAddress = '0xAnAddress';
 
 // This function should run when the user connects the wallet.
-// We should re-use the same `KioskClient` instance throughout our dApp.
+// We should re-use the same client instance throughout our dApp.
 const getCap = async () => {
-    let { kioskOwnerCaps } = await kioskClient.getOwnedKiosks(connectedAddress);
-    // Assume that the user has only 1 kiosk.
-    // Here, you need to do some more checks in a realistic scenario.
-    // And possibly give the user in our dApp a kiosk selector to choose which one they want to interact with (if they own more than one).
-    return kioskOwnerCaps[0];
-}
+	let { kioskOwnerCaps } = await client.kiosk.getOwnedKiosks({ address: connectedAddress });
+	// Assume that the user has only 1 kiosk.
+	// Here, you need to do some more checks in a realistic scenario.
+	// And possibly give the user in our dApp a kiosk selector to choose which one they want to interact with (if they own more than one).
+	return kioskOwnerCaps[0];
+};
 
 // The mint function could be like the following.
 const mint = async () => {
-    const tx = new Transaction();
-    const kioskTx = new KioskTransaction({ kioskClient, transaction: tx, cap: await getCap() });
+	const tx = new Transaction();
+	const kioskTx = new KioskTransaction({
+		kioskClient: client.kiosk,
+		transaction: tx,
+		cap: await getCap(),
+	});
 
-    // Assume it costs one SUI
-    let coin = tx.splitCoins(tx.gas, [1_000_000_000]);
+	// Assume it costs one SUI
+	let coin = tx.splitCoins(tx.gas, [1_000_000_000]);
 
-    // A function that mints directly into the kiosk.
-     tx.moveCall({
-            target: '0xMyGame::hero::mint',
-            arguments: [
-                coin, // the payment
-                kioskTx.getKiosk(), // our kiosk that the hero will be placed in.
-                kioskTx.getKioskCap() // our kiosk cap, so that the function can place or lock it.
-            ]
-    });
+	// A function that mints directly into the kiosk.
+	tx.moveCall({
+		target: '0xMyGame::hero::mint',
+		arguments: [
+			coin, // the payment
+			kioskTx.getKiosk(), // our kiosk that the hero will be placed in.
+			kioskTx.getKioskCap(), // our kiosk cap, so that the function can place or lock it.
+		],
+	});
 
-    kioskTx.finalize();
+	kioskTx.finalize();
 
-    // Sign and execute transaction.
-    await signAndExecuteTransaction({ tx: tx });
-}
+	// Sign and execute transaction.
+	await signAndExecuteTransaction({ tx: tx });
+};
 ```
 
 ### When the user doesn't have a kiosk (silent creation)
 
 ```typescript
-// Assume the client exists somewhere else.
-const kioskClient = new KioskClient({...});
-
 // Our mint function.
 const mint = async () => {
-    const tx = new Transaction();
-    const kioskTx = new KioskTransaction({ kioskClient, transaction: tx });
+	const tx = new Transaction();
+	const kioskTx = new KioskTransaction({ kioskClient: client.kiosk, transaction: tx });
 
-    // Creates a kiosk.
-    kioskTx.create();
+	// Creates a kiosk.
+	kioskTx.create();
 
-    // We'll assume it costs 1 SUI
-    let coin = tx.splitCoins(tx.gas, [1_000_000_000]);
+	// We'll assume it costs 1 SUI
+	let coin = tx.splitCoins(tx.gas, [1_000_000_000]);
 
-    // A function that mints directly into the kiosk.
-     tx.moveCall({
-            target: '0xMyGame::hero::mint',
-            arguments: [
-                coin, // the payment
-                kioskTx.getKiosk(), // our kiosk that the hero will be placed in.
-                kioskTx.getKioskCap() // our kiosk cap, so that the function can place or lock it.
-            ]
-    });
+	// A function that mints directly into the kiosk.
+	tx.moveCall({
+		target: '0xMyGame::hero::mint',
+		arguments: [
+			coin, // the payment
+			kioskTx.getKiosk(), // our kiosk that the hero will be placed in.
+			kioskTx.getKioskCap(), // our kiosk cap, so that the function can place or lock it.
+		],
+	});
 
-    kioskTx.shareAndTransferCap('0xAddressToTransferCapTo');
-    kioskTx.finalize();
+	kioskTx.shareAndTransferCap('0xAddressToTransferCapTo');
+	kioskTx.finalize();
 
-    // Sign and execute transaction.
-    await signAndExecuteTransaction({ tx: tx });
-}
+	// Sign and execute transaction.
+	await signAndExecuteTransaction({ tx: tx });
+};
 ```
 
 ## Borrowing an item from kiosk to do an action
@@ -100,7 +99,7 @@ const mint = async () => {
 const levelUp = async (object) => {
 	const tx = new Transaction();
 
-	new KioskTransaction({ kioskClient, transaction: tx, cap })
+	new KioskTransaction({ kioskClient: client.kiosk, transaction: tx, cap })
 		.borrowTx(object, (item) => {
 			tx.moveCall({
 				target: '0xMyGame::hero::level_up',
