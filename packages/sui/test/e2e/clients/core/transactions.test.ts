@@ -1337,7 +1337,6 @@ describe('Core API - Transactions', () => {
 				expect(result.FailedTransaction!.status.error).toBeDefined();
 				expect(result.FailedTransaction!.digest).toBeDefined();
 			},
-			{ skip: ['graphql'] }, // GraphQL doesn't support transaction resolution
 		);
 
 		testWithAllClients(

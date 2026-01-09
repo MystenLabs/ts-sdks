@@ -361,6 +361,12 @@ export class MockSuiClient extends CoreClient {
 		return { referenceGasPrice: this.#gasPrice };
 	}
 
+	async getCurrentSystemState(
+		_options?: SuiClientTypes.GetCurrentSystemStateOptions,
+	): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
+		throw new Error('getCurrentSystemState not implemented in MockSuiClient');
+	}
+
 	async listDynamicFields(
 		_options: SuiClientTypes.ListDynamicFieldsOptions,
 	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
