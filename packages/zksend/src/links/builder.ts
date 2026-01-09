@@ -1,26 +1,25 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
-import type { CoinStruct } from '@mysten/sui/jsonRpc';
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import type { Keypair, Signer } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import type { TransactionObjectArgument, TransactionObjectInput } from '@mysten/sui/transactions';
+import type { TransactionObjectArgument } from '@mysten/sui/transactions';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, normalizeSuiAddress, SUI_TYPE_ARG, toBase64 } from '@mysten/sui/utils';
 
 import type { ZkBagContractOptions } from './zk-bag.js';
 import { getContractIds, ZkBag } from './zk-bag.js';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 
 export interface ZkSendLinkBuilderOptions {
 	host?: string;
 	path?: string;
 	keypair?: Keypair;
-	network?: 'mainnet' | 'testnet';
-	client?: SuiJsonRpcClient;
+	network?: string;
+	client: ClientWithCoreApi;
 	sender: string;
-	contract?: ZkBagContractOptions | null;
+	contract?: ZkBagContractOptions;
 }
 
 const DEFAULT_ZK_SEND_LINK_OPTIONS = {
@@ -33,11 +32,6 @@ const SUI_COIN_TYPE = normalizeStructTag(SUI_TYPE_ARG);
 
 export interface CreateZkSendLinkOptions {
 	transaction?: Transaction;
-	calculateGas?: (options: {
-		balances: Map<string, bigint>;
-		objects: TransactionObjectInput[];
-		gasEstimateFromDryRun: bigint;
-	}) => Promise<bigint> | bigint;
 }
 
 export class ZkSendLinkBuilder {
@@ -48,33 +42,33 @@ export class ZkSendLinkBuilder {
 	}[] = [];
 	balances = new Map<string, bigint>();
 	sender: string;
-	network: 'mainnet' | 'testnet';
+	network: string;
 	#host: string;
 	#path: string;
 	keypair: Keypair;
-	#client: SuiJsonRpcClient;
-	#coinsByType = new Map<string, CoinStruct[]>();
-	#contract?: ZkBag<ZkBagContractOptions>;
+	#client: ClientWithCoreApi;
+	#coinsByType = new Map<string, SuiClientTypes.Coin[]>();
+	#contract: ZkBag<ZkBagContractOptions>;
 
 	constructor({
 		host = DEFAULT_ZK_SEND_LINK_OPTIONS.host,
 		path = DEFAULT_ZK_SEND_LINK_OPTIONS.path,
 		keypair = new Ed25519Keypair(),
-		network = DEFAULT_ZK_SEND_LINK_OPTIONS.network,
-		client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl(network), network }),
+		network,
+		client,
 		sender,
-		contract = getContractIds(network),
+		contract,
 	}: ZkSendLinkBuilderOptions) {
+		const resolvedNetwork = network ?? client.network;
+		const resolvedContract = contract ?? getContractIds(resolvedNetwork as 'mainnet' | 'testnet');
 		this.#host = host;
 		this.#path = path;
 		this.keypair = keypair;
 		this.#client = client;
 		this.sender = normalizeSuiAddress(sender);
-		this.network = network;
+		this.network = resolvedNetwork;
 
-		if (contract) {
-			this.#contract = new ZkBag(contract.packageId, contract);
-		}
+		this.#contract = new ZkBag(resolvedContract.packageId, resolvedContract);
 	}
 
 	addClaimableMist(amount: bigint) {
@@ -97,9 +91,8 @@ export class ZkSendLinkBuilder {
 	getLink(): string {
 		const link = new URL(this.#host);
 		link.pathname = this.#path;
-		link.hash = `${this.#contract ? '$' : ''}${toBase64(
-			decodeSuiPrivateKey(this.keypair.getSecretKey()).secretKey,
-		)}`;
+		// NOTE: The $ prefix here is intentional, and not a typo, it is used to designate a contract-based link
+		link.hash = `$${toBase64(decodeSuiPrivateKey(this.keypair.getSecretKey()).secretKey)}`;
 
 		if (this.network !== 'mainnet') {
 			link.searchParams.set('network', this.network);
@@ -117,32 +110,24 @@ export class ZkSendLinkBuilder {
 	}) {
 		const tx = await this.createSendTransaction(options);
 
-		const result = await this.#client.signAndExecuteTransaction({
-			transaction: await tx.build({ client: this.#client }),
-			signer,
-			options: {
-				showEffects: true,
-			},
+		const result = await signer.signAndExecuteTransaction({
+			transaction: tx,
+			client: this.#client,
 		});
 
-		if (result.effects?.status.status !== 'success') {
-			throw new Error(`Transaction failed: ${result.effects?.status.error ?? 'Unknown error'}`);
+		if (result.FailedTransaction) {
+			throw new Error(
+				`Transaction failed: ${result.FailedTransaction.effects.status.error ?? 'Unknown error'}`,
+			);
 		}
 
 		if (options.waitForTransaction) {
-			await this.#client.waitForTransaction({ digest: result.digest });
+			await this.#client.core.waitForTransaction({ result });
 		}
 
 		return result;
 	}
-	async createSendTransaction({
-		transaction = new Transaction(),
-		calculateGas,
-	}: CreateZkSendLinkOptions = {}) {
-		if (!this.#contract) {
-			return this.#createSendTransactionWithoutContract({ transaction, calculateGas });
-		}
-
+	async createSendTransaction({ transaction = new Transaction() }: CreateZkSendLinkOptions = {}) {
 		transaction.setSenderIfNotSet(this.sender);
 
 		return ZkSendLinkBuilder.createLinks({
@@ -172,25 +157,22 @@ export class ZkSendLinkBuilder {
 		const objectIDs = [...this.objectIds];
 		const refsWithType = this.objectRefs.concat(
 			(objectIDs.length > 0
-				? await this.#client.multiGetObjects({
-						ids: objectIDs,
-						options: {
-							showType: true,
-						},
+				? await this.#client.core.getObjects({
+						objectIds: objectIDs,
 					})
-				: []
-			).map((res, i) => {
-				if (!res.data || res.error) {
-					throw new Error(`Failed to load object ${objectIDs[i]} (${res.error?.code})`);
+				: { objects: [] }
+			).objects.map((res, i) => {
+				if (res instanceof Error) {
+					throw new Error(`Failed to load object ${objectIDs[i]} (${res.message})`);
 				}
 
 				return {
 					ref: tx.objectRef({
-						version: res.data.version,
-						digest: res.data.digest,
-						objectId: res.data.objectId,
+						version: res.version,
+						digest: res.digest,
+						objectId: res.objectId,
 					}),
-					type: res.data.type!,
+					type: res.type,
 				};
 			}),
 		);
@@ -203,7 +185,7 @@ export class ZkSendLinkBuilder {
 					type: `0x2::coin::Coin<${coinType}>`,
 				} as never);
 			} else {
-				const coins = (await this.#getCoinsByType(coinType)).map((coin) => coin.coinObjectId);
+				const coins = (await this.#getCoinsByType(coinType)).map((coin) => coin.objectId);
 
 				if (coins.length > 1) {
 					tx.mergeCoins(coins[0], coins.slice(1));
@@ -219,117 +201,53 @@ export class ZkSendLinkBuilder {
 		return refsWithType;
 	}
 
-	async #createSendTransactionWithoutContract({
-		transaction: tx = new Transaction(),
-		calculateGas,
-	}: CreateZkSendLinkOptions = {}) {
-		const gasEstimateFromDryRun = await this.#estimateClaimGasFee();
-		const baseGasAmount = calculateGas
-			? await calculateGas({
-					balances: this.balances,
-					objects: [...this.objectIds],
-					gasEstimateFromDryRun,
-				})
-			: gasEstimateFromDryRun * 2n;
-
-		// Ensure that rounded gas is not less than the calculated gas
-		const gasWithBuffer = baseGasAmount + 1013n;
-		// Ensure that gas amount ends in 987
-		const roundedGasAmount = gasWithBuffer - (gasWithBuffer % 1000n) - 13n;
-
-		const address = this.keypair.toSuiAddress();
-		const objectsToTransfer = (await this.#objectsToTransfer(tx)).map((obj) => obj.ref);
-		const [gas] = tx.splitCoins(tx.gas, [roundedGasAmount]);
-		objectsToTransfer.push(gas);
-
-		tx.setSenderIfNotSet(this.sender);
-		tx.transferObjects(objectsToTransfer, address);
-
-		return tx;
-	}
-
-	async #estimateClaimGasFee(): Promise<bigint> {
-		const tx = new Transaction();
-		tx.setSender(this.sender);
-		tx.setGasPayment([]);
-		tx.transferObjects([tx.gas], this.keypair.toSuiAddress());
-
-		const idsToTransfer = [...this.objectIds];
-
-		for (const [coinType] of this.balances) {
-			const coins = await this.#getCoinsByType(coinType);
-
-			if (!coins.length) {
-				throw new Error(`Sending account does not contain any coins of type ${coinType}`);
-			}
-
-			idsToTransfer.push(coins[0].coinObjectId);
-		}
-
-		if (idsToTransfer.length > 0) {
-			tx.transferObjects(
-				idsToTransfer.map((id) => tx.object(id)),
-				this.keypair.toSuiAddress(),
-			);
-		}
-
-		const result = await this.#client.dryRunTransactionBlock({
-			transactionBlock: await tx.build({ client: this.#client }),
-		});
-
-		return (
-			BigInt(result.effects.gasUsed.computationCost) +
-			BigInt(result.effects.gasUsed.storageCost) -
-			BigInt(result.effects.gasUsed.storageRebate)
-		);
-	}
-
 	async #getCoinsByType(coinType: string) {
 		if (this.#coinsByType.has(coinType)) {
 			return this.#coinsByType.get(coinType)!;
 		}
 
-		const coins = await this.#client.getCoins({
+		const coins = await this.#client.core.listCoins({
 			coinType,
 			owner: this.sender,
 		});
 
-		this.#coinsByType.set(coinType, coins.data);
+		this.#coinsByType.set(coinType, coins.objects);
 
-		return coins.data;
+		return coins.objects;
 	}
 
 	static async createLinks({
 		links,
 		network = 'mainnet',
-		client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl(network), network }),
+		client,
 		transaction = new Transaction(),
-		contract: contractIds = getContractIds(network),
+		contract: contractIds,
 	}: {
 		transaction?: Transaction;
-		client?: SuiJsonRpcClient;
-		network?: 'mainnet' | 'testnet';
+		client: ClientWithCoreApi;
+		network?: string;
 		links: ZkSendLinkBuilder[];
 		contract?: ZkBagContractOptions;
 	}) {
-		const contract = new ZkBag(contractIds.packageId, contractIds);
+		const resolvedContractIds = contractIds ?? getContractIds(network as 'mainnet' | 'testnet');
+		const contract = new ZkBag(resolvedContractIds.packageId, resolvedContractIds);
 		const store = transaction.object(contract.ids.bagStoreId);
 
-		const coinsByType = new Map<string, CoinStruct[]>();
+		const coinsByType = new Map<string, SuiClientTypes.Coin[]>();
 		const allIds = links.flatMap((link) => [...link.objectIds]);
 		const sender = links[0].sender;
 		transaction.setSenderIfNotSet(sender);
 
 		await Promise.all(
 			[...new Set(links.flatMap((link) => [...link.balances.keys()]))].map(async (coinType) => {
-				const coins = await client.getCoins({
+				const coins = await client.core.listCoins({
 					coinType,
 					owner: sender,
 				});
 
 				coinsByType.set(
 					coinType,
-					coins.data.filter((coin) => !allIds.includes(coin.coinObjectId)),
+					coins.objects.filter((coin) => !allIds.includes(coin.objectId)),
 				);
 			}),
 		);
@@ -348,24 +266,22 @@ export class ZkSendLinkBuilder {
 			const chunk = allIds.slice(offset, offset + pageSize);
 			offset += pageSize;
 
-			const objects = await client.multiGetObjects({
-				ids: chunk,
-				options: {
-					showType: true,
-				},
+			const objects = await client.core.getObjects({
+				objectIds: chunk,
 			});
 
-			for (const [i, res] of objects.entries()) {
-				if (!res.data || res.error) {
-					throw new Error(`Failed to load object ${chunk[i]} (${res.error?.code})`);
+			for (const [i, res] of objects.objects.entries()) {
+				if (res instanceof Error) {
+					throw new Error(`Failed to load object ${chunk[i]} (${res.message})`);
 				}
+
 				objectRefs.set(chunk[i], {
 					ref: transaction.objectRef({
-						version: res.data.version,
-						digest: res.data.digest,
-						objectId: res.data.objectId,
+						version: res.version,
+						digest: res.digest,
+						objectId: res.objectId,
 					}),
-					type: res.data.type!,
+					type: res.type!,
 				});
 			}
 		}
@@ -381,7 +297,7 @@ export class ZkSendLinkBuilder {
 
 			const [first, ...rest] = coins.map((coin) =>
 				transaction.objectRef({
-					objectId: coin.coinObjectId,
+					objectId: coin.objectId,
 					version: coin.version,
 					digest: coin.digest,
 				}),
