@@ -74,6 +74,20 @@ fragment TRANSACTION_FIELDS on Transaction {
 		status
 		executionError {
 			message
+			abortCode
+			identifier
+			constant
+			sourceLineNumber
+			instructionOffset
+			module {
+				name
+				package {
+					address
+				}
+			}
+			function {
+				name
+			}
 		}
 		epoch {
 			epochId

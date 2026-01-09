@@ -4638,7 +4638,7 @@ export type SimulateTransactionQueryVariables = Exact<{
 }>;
 
 
-export type SimulateTransactionQuery = { __typename?: 'Query', simulateTransaction: { __typename?: 'SimulationResult', error?: string | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<
+export type SimulateTransactionQuery = { __typename?: 'Query', simulateTransaction: { __typename?: 'SimulationResult', error?: string | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<
               | { __typename: 'ConsensusObjectCancelled' }
               | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }
               | { __typename: 'MutateConsensusStreamEnded' }
@@ -4657,7 +4657,7 @@ export type ExecuteTransactionMutationVariables = Exact<{
 }>;
 
 
-export type ExecuteTransactionMutation = { __typename?: 'Mutation', executeTransaction: { __typename?: 'ExecutionResult', errors?: Array<string> | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<
+export type ExecuteTransactionMutation = { __typename?: 'Mutation', executeTransaction: { __typename?: 'ExecutionResult', errors?: Array<string> | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<
               | { __typename: 'ConsensusObjectCancelled' }
               | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }
               | { __typename: 'MutateConsensusStreamEnded' }
@@ -4675,7 +4675,7 @@ export type GetTransactionBlockQueryVariables = Exact<{
 }>;
 
 
-export type GetTransactionBlockQuery = { __typename?: 'Query', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<
+export type GetTransactionBlockQuery = { __typename?: 'Query', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<
           | { __typename: 'ConsensusObjectCancelled' }
           | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }
           | { __typename: 'MutateConsensusStreamEnded' }
@@ -4683,7 +4683,7 @@ export type GetTransactionBlockQuery = { __typename?: 'Query', transaction?: { _
           | { __typename: 'ReadConsensusStreamEnded' }
         > } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null };
 
-export type Transaction_FieldsFragment = { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<
+export type Transaction_FieldsFragment = { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<
         | { __typename: 'ConsensusObjectCancelled' }
         | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }
         | { __typename: 'MutateConsensusStreamEnded' }
@@ -4841,6 +4841,20 @@ export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
     status
     executionError {
       message
+      abortCode
+      identifier
+      constant
+      sourceLineNumber
+      instructionOffset
+      module {
+        name
+        package {
+          address
+        }
+      }
+      function {
+        name
+      }
     }
     epoch {
       epochId
@@ -5256,6 +5270,20 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
     status
     executionError {
       message
+      abortCode
+      identifier
+      constant
+      sourceLineNumber
+      instructionOffset
+      module {
+        name
+        package {
+          address
+        }
+      }
+      function {
+        name
+      }
     }
     epoch {
       epochId
@@ -5366,6 +5394,20 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
     status
     executionError {
       message
+      abortCode
+      identifier
+      constant
+      sourceLineNumber
+      instructionOffset
+      module {
+        name
+        package {
+          address
+        }
+      }
+      function {
+        name
+      }
     }
     epoch {
       epochId
@@ -5468,6 +5510,20 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
     status
     executionError {
       message
+      abortCode
+      identifier
+      constant
+      sourceLineNumber
+      instructionOffset
+      module {
+        name
+        package {
+          address
+        }
+      }
+      function {
+        name
+      }
     }
     epoch {
       epochId

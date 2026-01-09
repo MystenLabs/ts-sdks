@@ -74,9 +74,12 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Cli
 	});
 
 	if (simulateResult.$kind === 'FailedTransaction') {
+		const errorMessage = simulateResult.FailedTransaction.status.error?.message ?? 'Unknown error';
 		throw new Error(
-			`Dry run failed, could not automatically determine a budget: ${simulateResult.FailedTransaction.status.error}`,
-			{ cause: simulateResult },
+			`Simulation failed, could not automatically determine a budget: ${errorMessage}`,
+			{
+				cause: simulateResult,
+			},
 		);
 	}
 
