@@ -8,6 +8,7 @@ import { normalizeStructTag, parseStructTag, SUI_ADDRESS_LENGTH } from '../utils
 import { BaseClient } from './client.js';
 import type { ClientWithExtensions, SuiClientTypes } from './types.js';
 import { MvrClient } from './mvr.js';
+import { bcs } from '../bcs/index.js';
 
 export type ClientWithCoreApi = ClientWithExtensions<{
 	core: CoreClient;
@@ -165,6 +166,34 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 				},
 			},
 		};
+	}
+
+	async getDynamicObjectField<Include extends SuiClientTypes.ObjectInclude = object>(
+		options: SuiClientTypes.GetDynamicObjectFieldOptions<Include>,
+	): Promise<SuiClientTypes.GetDynamicObjectFieldResponse<Include>> {
+		const resolvedNameType = (
+			await this.core.mvr.resolveType({
+				type: options.name.type,
+			})
+		).type;
+		const wrappedType = `0x2::dynamic_object_field::Wrapper<${resolvedNameType}>`;
+
+		const { dynamicField } = await this.getDynamicField({
+			parentId: options.parentId,
+			name: {
+				type: wrappedType,
+				bcs: options.name.bcs,
+			},
+			signal: options.signal,
+		});
+
+		const { object } = await this.getObject({
+			objectId: bcs.Address.parse(dynamicField.value.bcs),
+			signal: options.signal,
+			include: options.include,
+		});
+
+		return { object };
 	}
 
 	async waitForTransaction<Include extends SuiClientTypes.TransactionInclude = object>(

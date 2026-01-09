@@ -14,6 +14,13 @@ import { isNestedSubName, isSubName, zeroCoin } from './helpers.js';
 import type { SuinsClient } from './suins-client.js';
 import type { DiscountInfo, ReceiptParams, RegistrationParams, RenewalParams } from './types.js';
 
+import * as payment from './contracts/suins/payment.js';
+import * as controller from './contracts/suins/controller.js';
+import * as paymentsModule from './contracts/suins_payments/payments.js';
+import * as couponHouse from './contracts/suins_coupons/coupon_house.js';
+import * as discounts from './contracts/suins_discounts/discounts.js';
+import * as freeClaims from './contracts/suins_discounts/free_claims.js';
+
 export class SuinsTransaction {
 	suinsClient: SuinsClient;
 	transaction: Transaction;
@@ -100,22 +107,22 @@ export class SuinsTransaction {
 
 	initRegistration(domain: string): TransactionObjectArgument {
 		const config = this.suinsClient.config;
-		return this.transaction.moveCall({
-			target: `${config.packageId}::payment::init_registration`,
-			arguments: [this.transaction.object(config.suins), this.transaction.pure.string(domain)],
-		});
+		return this.transaction.add(
+			payment.initRegistration({
+				package: config.packageId,
+				arguments: { suins: config.suins, domain },
+			}),
+		);
 	}
 
 	initRenewal(nft: TransactionObjectInput, years: number): TransactionObjectArgument {
 		const config = this.suinsClient.config;
-		return this.transaction.moveCall({
-			target: `${config.packageId}::payment::init_renewal`,
-			arguments: [
-				this.transaction.object(config.suins),
-				this.transaction.object(nft),
-				this.transaction.pure.u8(years),
-			],
-		});
+		return this.transaction.add(
+			payment.initRenewal({
+				package: config.packageId,
+				arguments: { suins: config.suins, nft: this.transaction.object(nft), years },
+			}),
+		);
 	}
 
 	calculatePrice(
@@ -124,65 +131,71 @@ export class SuinsTransaction {
 		priceInfoObjectId: string,
 	): TransactionObjectArgument {
 		const config = this.suinsClient.config;
-		return this.transaction.moveCall({
-			target: `${config.payments.packageId}::payments::calculate_price`,
-			arguments: [
-				this.transaction.object(config.suins),
-				baseAmount,
-				this.transaction.object.clock(),
-				this.transaction.object(priceInfoObjectId),
-			],
-			typeArguments: [paymentType],
-		});
+		return this.transaction.add(
+			paymentsModule.calculatePrice({
+				package: config.payments.packageId,
+				arguments: {
+					suins: config.suins,
+					baseAmount,
+					priceInfoObject: priceInfoObjectId,
+				},
+				typeArguments: [paymentType],
+			}),
+		);
 	}
 
 	handleBasePayment(
 		paymentIntent: TransactionObjectArgument,
-		payment: TransactionObjectArgument,
+		paymentArg: TransactionObjectArgument,
 		paymentType: string,
 	): TransactionObjectArgument {
 		const config = this.suinsClient.config;
-		return this.transaction.moveCall({
-			target: `${config.payments.packageId}::payments::handle_base_payment`,
-			arguments: [
-				this.transaction.object(config.suins),
-				this.transaction.object(config.bbb.vault),
-				paymentIntent,
-				payment,
-			],
-			typeArguments: [paymentType],
-		});
+		return this.transaction.add(
+			paymentsModule.handleBasePayment({
+				package: config.payments.packageId,
+				arguments: {
+					suins: config.suins,
+					bbbVault: config.bbb.vault,
+					intent: paymentIntent,
+					payment: paymentArg,
+				},
+				typeArguments: [paymentType],
+			}),
+		);
 	}
 
 	handlePayment(
 		paymentIntent: TransactionObjectArgument,
-		payment: TransactionObjectArgument,
+		paymentArg: TransactionObjectArgument,
 		paymentType: string,
 		priceInfoObjectId: string,
 		maxAmount: bigint = MAX_U64,
 	): TransactionObjectArgument {
 		const config = this.suinsClient.config;
-		return this.transaction.moveCall({
-			target: `${config.payments.packageId}::payments::handle_payment`,
-			arguments: [
-				this.transaction.object(config.suins),
-				this.transaction.object(config.bbb.vault),
-				paymentIntent,
-				payment,
-				this.transaction.object.clock(),
-				this.transaction.object(priceInfoObjectId),
-				this.transaction.pure.u64(maxAmount),
-			],
-			typeArguments: [paymentType],
-		});
+		return this.transaction.add(
+			paymentsModule.handlePayment({
+				package: config.payments.packageId,
+				arguments: {
+					suins: config.suins,
+					bbbVault: config.bbb.vault,
+					intent: paymentIntent,
+					payment: paymentArg,
+					priceInfoObject: priceInfoObjectId,
+					userPriceGuard: maxAmount,
+				},
+				typeArguments: [paymentType],
+			}),
+		);
 	}
 
 	finalizeRegister(receipt: TransactionObjectArgument): TransactionObjectArgument {
 		const config = this.suinsClient.config;
-		return this.transaction.moveCall({
-			target: `${config.packageId}::payment::register`,
-			arguments: [receipt, this.transaction.object(config.suins), this.transaction.object.clock()],
-		});
+		return this.transaction.add(
+			payment.register({
+				package: config.packageId,
+				arguments: { receipt, suins: config.suins },
+			}),
+		);
 	}
 
 	finalizeRenew(
@@ -190,15 +203,12 @@ export class SuinsTransaction {
 		nft: TransactionObjectInput,
 	): TransactionObjectArgument {
 		const config = this.suinsClient.config;
-		return this.transaction.moveCall({
-			target: `${config.packageId}::payment::renew`,
-			arguments: [
-				receipt,
-				this.transaction.object(config.suins),
-				this.transaction.object(nft),
-				this.transaction.object.clock(),
-			],
-		});
+		return this.transaction.add(
+			payment.renew({
+				package: config.packageId,
+				arguments: { receipt, suins: config.suins, nft: this.transaction.object(nft) },
+			}),
+		);
 	}
 
 	calculatePriceAfterDiscount(
@@ -206,11 +216,13 @@ export class SuinsTransaction {
 		paymentType: string,
 	): TransactionObjectArgument {
 		const config = this.suinsClient.config;
-		return this.transaction.moveCall({
-			target: `${config.payments.packageId}::payments::calculate_price_after_discount`,
-			arguments: [this.transaction.object(config.suins), paymentIntent],
-			typeArguments: [paymentType],
-		});
+		return this.transaction.add(
+			paymentsModule.calculatePriceAfterDiscount({
+				package: config.payments.packageId,
+				arguments: { suins: config.suins, intent: paymentIntent },
+				typeArguments: [paymentType],
+			}),
+		);
 	}
 
 	generateReceipt(params: ReceiptParams): TransactionObjectArgument {
@@ -250,15 +262,12 @@ export class SuinsTransaction {
 	 */
 	applyCoupon(intent: TransactionObjectArgument, couponCode: string): TransactionObjectArgument {
 		const config = this.suinsClient.config;
-		return this.transaction.moveCall({
-			target: `${config.coupons.packageId}::coupon_house::apply_coupon`,
-			arguments: [
-				this.transaction.object(config.suins),
-				intent,
-				this.transaction.pure.string(couponCode),
-				this.transaction.object.clock(),
-			],
-		});
+		return this.transaction.add(
+			couponHouse.applyCoupon({
+				package: config.coupons.packageId,
+				arguments: { suins: config.suins, intent, couponCode },
+			}),
+		);
 	}
 
 	/**
@@ -268,27 +277,31 @@ export class SuinsTransaction {
 		const config = this.suinsClient.config;
 
 		if (discountInfo.isFreeClaim) {
-			this.transaction.moveCall({
-				target: `${config.discountsPackage.packageId}::free_claims::free_claim`,
-				arguments: [
-					this.transaction.object(config.discountsPackage.discountHouseId),
-					this.transaction.object(config.suins),
-					intent,
-					this.transaction.object(discountInfo.discountNft),
-				],
-				typeArguments: [discountInfo.type],
-			});
+			this.transaction.add(
+				freeClaims.freeClaim({
+					package: config.discountsPackage.packageId,
+					arguments: {
+						self: config.discountsPackage.discountHouseId,
+						suins: config.suins,
+						intent,
+						object: this.transaction.object(discountInfo.discountNft),
+					},
+					typeArguments: [discountInfo.type],
+				}),
+			);
 		} else {
-			this.transaction.moveCall({
-				target: `${config.discountsPackage.packageId}::discounts::apply_percentage_discount`,
-				arguments: [
-					this.transaction.object(config.discountsPackage.discountHouseId),
-					intent,
-					this.transaction.object(config.suins),
-					this.transaction.object(discountInfo.discountNft),
-				],
-				typeArguments: [discountInfo.type],
-			});
+			this.transaction.add(
+				discounts.applyPercentageDiscount({
+					package: config.discountsPackage.packageId,
+					arguments: {
+						self: config.discountsPackage.discountHouseId,
+						intent,
+						suins: config.suins,
+						_: this.transaction.object(discountInfo.discountNft),
+					},
+					typeArguments: [discountInfo.type],
+				}),
+			);
 		}
 	}
 
@@ -431,13 +444,15 @@ export class SuinsTransaction {
 		if (!isValidSuiNSName(name)) throw new Error('Invalid SuiNS name');
 		if (!this.suinsClient.config.suins) throw new Error('SuiNS Object ID not found');
 
-		this.transaction.moveCall({
-			target: `${this.suinsClient.config.packageId}::controller::set_reverse_lookup`,
-			arguments: [
-				this.transaction.object(this.suinsClient.config.suins),
-				this.transaction.pure.string(normalizeSuiNSName(name, 'dot')),
-			],
-		});
+		this.transaction.add(
+			controller.setReverseLookup({
+				package: this.suinsClient.config.packageId,
+				arguments: {
+					suins: this.suinsClient.config.suins,
+					domainName: normalizeSuiNSName(name, 'dot'),
+				},
+			}),
+		);
 	}
 
 	/**
@@ -541,15 +556,26 @@ export class SuinsTransaction {
 	burnExpired({ nft, isSubname }: { nft: TransactionObjectInput; isSubname?: boolean }) {
 		if (!this.suinsClient.config.suins) throw new Error('SuiNS Object ID not found');
 
-		this.transaction.moveCall({
-			target: `${this.suinsClient.config.packageId}::controller::${
-				isSubname ? 'burn_expired_subname' : 'burn_expired'
-			}`, // Update this
-			arguments: [
-				this.transaction.object(this.suinsClient.config.suins),
-				this.transaction.object(nft),
-				this.transaction.object(SUI_CLOCK_OBJECT_ID),
-			],
-		});
+		if (isSubname) {
+			this.transaction.add(
+				controller.burnExpiredSubname({
+					package: this.suinsClient.config.packageId,
+					arguments: {
+						suins: this.suinsClient.config.suins,
+						nft: this.transaction.object(nft),
+					},
+				}),
+			);
+		} else {
+			this.transaction.add(
+				controller.burnExpired({
+					package: this.suinsClient.config.packageId,
+					arguments: {
+						suins: this.suinsClient.config.suins,
+						nft: this.transaction.object(nft),
+					},
+				}),
+			);
+		}
 	}
 }
