@@ -10,6 +10,24 @@
  * /crates/sui-open-rpc/spec/openrpc.json
  */
 
+export interface AccumulatorEvent {
+	accumulatorObj: string;
+	address: string;
+	operation: AccumulatorOperation;
+	ty: string;
+	value: AccumulatorValue;
+}
+export type AccumulatorOperation = 'merge' | 'split';
+export type AccumulatorValue =
+	| {
+			integer: string;
+	  }
+	| {
+			integerTuple: [string, string];
+	  }
+	| {
+			eventDigest: [string, string][];
+	  };
 export interface Balance {
 	coinObjectCount: number;
 	coinType: string;
@@ -59,9 +77,13 @@ export interface Checkpoint {
 	/** Validator Signature */
 	validatorSignature: string;
 }
-export type CheckpointCommitment = {
-	ECMHLiveObjectSetDigest: ECMHLiveObjectSetDigest;
-};
+export type CheckpointCommitment =
+	| {
+			ECMHLiveObjectSetDigest: ECMHLiveObjectSetDigest;
+	  }
+	| {
+			CheckpointArtifactsDigest: string;
+	  };
 export type CheckpointId = string | string;
 /** A claim consists of value and index_mod_4. */
 export interface Claim {
@@ -98,7 +120,6 @@ export type CompressedSignature =
 	| {
 			Passkey: string;
 	  };
-/** Uses an enum to allow for future expansion of the ConsensusDeterminedVersionAssignments. */
 export type ConsensusDeterminedVersionAssignments =
 	| {
 			CancelledTransactions: [string, [string, string][]][];
@@ -929,6 +950,12 @@ export type SuiCallArg =
 			type: 'pure';
 			value: unknown;
 			valueType?: string | null;
+	  }
+	| {
+			reservation: SuiReservation;
+			type: 'fundsWithdrawal';
+			typeArg: SuiWithdrawalTypeArg;
+			withdrawFrom: SuiWithdrawFrom;
 	  };
 export interface SuiChangeEpoch {
 	computation_charge: string;
@@ -957,6 +984,9 @@ export type SuiEndOfEpochTransactionKind =
 	| 'CoinDenyListStateCreate'
 	| 'StoreExecutionTimeObservations'
 	| 'AccumulatorRootCreate'
+	| 'CoinRegistryCreate'
+	| 'DisplayRegistryCreate'
+	| 'AddressAliasStateCreate'
 	| {
 			ChangeEpoch: SuiChangeEpoch;
 	  }
@@ -1132,6 +1162,11 @@ export interface MoveCallSuiTransaction {
 	/** The type arguments to the function. */
 	type_arguments?: string[];
 }
+export type SuiReservation =
+	| 'entireBalance'
+	| {
+			maxAmountU64: string;
+	  };
 /**
  * This is the JSON-RPC type for the SUI system state object. It flattens all fields to make them
  * top-level fields such that it as minimum dependencies to the internal data structures of the SUI
@@ -1339,6 +1374,10 @@ export interface SuiValidatorSummary {
 	workerAddress: string;
 	workerPubkeyBytes: string;
 }
+export type SuiWithdrawFrom = 'sender' | 'sponsor';
+export type SuiWithdrawalTypeArg = {
+	balance: string;
+};
 export interface CoinSupply {
 	value: string;
 }
@@ -1365,6 +1404,7 @@ export type TransactionEffects =
 	{
 		/** The abort error populated if the transaction failed with an abort code. */
 		abortError?: SuiMoveAbort | null;
+		accumulatorEvents?: AccumulatorEvent[];
 		/** ObjectRef and owner of new objects created. */
 		created?: OwnedObjectRef[];
 		/** Object Refs of objects now deleted (the old refs). */

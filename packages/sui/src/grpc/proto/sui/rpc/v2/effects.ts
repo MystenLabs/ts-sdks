@@ -175,6 +175,12 @@ export interface ChangedObject {
 	 */
 	outputOwner?: Owner;
 	/**
+	 * The contents of the accumulator write when `output_state` is `OUTPUT_OBJECT_STATE_ACCUMULATOR_WRITE`
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.AccumulatorWrite accumulator_write = 12;
+	 */
+	accumulatorWrite?: AccumulatorWrite;
+	/**
 	 * What happened to an `ObjectId` during execution.
 	 *
 	 * @generated from protobuf field: optional sui.rpc.v2.ChangedObject.IdOperation id_operation = 10;
@@ -225,6 +231,10 @@ export enum ChangedObject_OutputObjectState {
 	 * @generated from protobuf enum value: OUTPUT_OBJECT_STATE_PACKAGE_WRITE = 3;
 	 */
 	PACKAGE_WRITE = 3,
+	/**
+	 * @generated from protobuf enum value: OUTPUT_OBJECT_STATE_ACCUMULATOR_WRITE = 4;
+	 */
+	ACCUMULATOR_WRITE = 4,
 }
 /**
  * @generated from protobuf enum sui.rpc.v2.ChangedObject.IdOperation
@@ -246,6 +256,44 @@ export enum ChangedObject_IdOperation {
 	 * @generated from protobuf enum value: DELETED = 3;
 	 */
 	DELETED = 3,
+}
+/**
+ * @generated from protobuf message sui.rpc.v2.AccumulatorWrite
+ */
+export interface AccumulatorWrite {
+	/**
+	 * @generated from protobuf field: optional string address = 1;
+	 */
+	address?: string;
+	/**
+	 * @generated from protobuf field: optional string accumulator_type = 2;
+	 */
+	accumulatorType?: string;
+	/**
+	 * @generated from protobuf field: optional sui.rpc.v2.AccumulatorWrite.AccumulatorOperation operation = 3;
+	 */
+	operation?: AccumulatorWrite_AccumulatorOperation;
+	/**
+	 * @generated from protobuf field: optional uint64 value = 5;
+	 */
+	value?: bigint;
+}
+/**
+ * @generated from protobuf enum sui.rpc.v2.AccumulatorWrite.AccumulatorOperation
+ */
+export enum AccumulatorWrite_AccumulatorOperation {
+	/**
+	 * @generated from protobuf enum value: ACCUMULATOR_OPERATION_UNKNOWN = 0;
+	 */
+	ACCUMULATOR_OPERATION_UNKNOWN = 0,
+	/**
+	 * @generated from protobuf enum value: MERGE = 1;
+	 */
+	MERGE = 1,
+	/**
+	 * @generated from protobuf enum value: SPLIT = 2;
+	 */
+	SPLIT = 2,
 }
 /**
  * A consensus object that wasn't changed during execution.
@@ -442,6 +490,7 @@ class ChangedObject$Type extends MessageType<ChangedObject> {
 			},
 			{ no: 8, name: 'output_digest', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 			{ no: 9, name: 'output_owner', kind: 'message', T: () => Owner },
+			{ no: 12, name: 'accumulator_write', kind: 'message', T: () => AccumulatorWrite },
 			{
 				no: 10,
 				name: 'id_operation',
@@ -457,6 +506,37 @@ class ChangedObject$Type extends MessageType<ChangedObject> {
  * @generated MessageType for protobuf message sui.rpc.v2.ChangedObject
  */
 export const ChangedObject = new ChangedObject$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class AccumulatorWrite$Type extends MessageType<AccumulatorWrite> {
+	constructor() {
+		super('sui.rpc.v2.AccumulatorWrite', [
+			{ no: 1, name: 'address', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 2, name: 'accumulator_type', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{
+				no: 3,
+				name: 'operation',
+				kind: 'enum',
+				opt: true,
+				T: () => [
+					'sui.rpc.v2.AccumulatorWrite.AccumulatorOperation',
+					AccumulatorWrite_AccumulatorOperation,
+				],
+			},
+			{
+				no: 5,
+				name: 'value',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.AccumulatorWrite
+ */
+export const AccumulatorWrite = new AccumulatorWrite$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class UnchangedConsensusObject$Type extends MessageType<UnchangedConsensusObject> {
 	constructor() {

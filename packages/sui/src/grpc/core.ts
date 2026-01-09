@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { CoreClientOptions, SuiClientTypes } from '../client/index.js';
-import { CoreClient } from '../client/index.js';
+import { CoreClient, formatMoveAbortMessage } from '../client/index.js';
 import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2/owner.js';
 import { Owner_OwnerKind } from './proto/sui/rpc/v2/owner.js';
@@ -10,12 +10,22 @@ import { DynamicField_DynamicFieldKind } from './proto/sui/rpc/v2/state_service.
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import type { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import type { TransactionEffects } from './proto/sui/rpc/v2/effects.js';
-import { UnchangedConsensusObject_UnchangedConsensusObjectKind } from './proto/sui/rpc/v2/effects.js';
 import {
+	UnchangedConsensusObject_UnchangedConsensusObjectKind,
 	ChangedObject_IdOperation,
 	ChangedObject_InputObjectState,
 	ChangedObject_OutputObjectState,
 } from './proto/sui/rpc/v2/effects.js';
+import type {
+	ExecutionError as GrpcExecutionError,
+	MoveAbort as GrpcMoveAbort,
+} from './proto/sui/rpc/v2/execution_status.js';
+import {
+	ExecutionError_ExecutionErrorKind,
+	CommandArgumentError_CommandArgumentErrorKind,
+	TypeArgumentError_TypeArgumentErrorKind,
+	PackageUpgradeError_PackageUpgradeErrorKind,
+} from './proto/sui/rpc/v2/execution_status.js';
 import type { BuildTransactionOptions } from '../transactions/index.js';
 import { TransactionDataBuilder } from '../transactions/index.js';
 import { bcs } from '../bcs/index.js';
@@ -621,13 +631,24 @@ export class GrpcCoreClient extends CoreClient {
 			}
 			const grpcTransaction = transactionDataToGrpcTransaction(snapshot);
 
-			const { response } = await client.transactionExecutionService.simulateTransaction({
-				transaction: grpcTransaction,
-				doGasSelection: !options.onlyTransactionKind,
-				readMask: {
-					paths: ['transaction.transaction.bcs', 'transaction.transaction'],
-				},
-			});
+			let response;
+			try {
+				const result = await client.transactionExecutionService.simulateTransaction({
+					transaction: grpcTransaction,
+					doGasSelection: !options.onlyTransactionKind,
+					readMask: {
+						paths: ['transaction.transaction.bcs', 'transaction.transaction'],
+					},
+				});
+				response = result.response;
+			} catch (error) {
+				// https://github.com/timostamm/protobuf-ts/pull/739
+				if (error instanceof Error && error.message) {
+					const decodedMessage = decodeURIComponent(error.message);
+					throw new Error(decodedMessage, { cause: error });
+				}
+				throw error;
+			}
 
 			if (!response.transaction?.transaction) {
 				throw new Error('simulateTransaction did not return resolved transaction data');
@@ -687,6 +708,183 @@ function mapOwner(owner: Owner | null | undefined): SuiClientTypes.ObjectOwner |
 	);
 }
 
+function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.ExecutionError {
+	const message = error.description ?? 'Unknown error';
+	const command = error.command != null ? Number(error.command) : undefined;
+	const details = error.errorDetails;
+
+	switch (details?.oneofKind) {
+		case 'abort': {
+			const abort = details.abort;
+			const cleverError = abort.cleverError;
+			return {
+				$kind: 'MoveAbort',
+				message: formatMoveAbortMessage({
+					command,
+					location: abort.location,
+					abortCode: String(abort.abortCode ?? 0n),
+					cleverError: cleverError
+						? {
+								lineNumber:
+									cleverError.lineNumber != null ? Number(cleverError.lineNumber) : undefined,
+								constantName: cleverError.constantName,
+								value:
+									cleverError.value?.oneofKind === 'rendered'
+										? cleverError.value.rendered
+										: undefined,
+							}
+						: undefined,
+				}),
+				command,
+				MoveAbort: parseMoveAbort(abort),
+			};
+		}
+
+		case 'sizeError':
+			return {
+				$kind: 'SizeError',
+				message,
+				command,
+				SizeError: {
+					name: mapErrorName(error.kind),
+					size: Number(details.sizeError.size ?? 0n),
+					maxSize: Number(details.sizeError.maxSize ?? 0n),
+				},
+			};
+
+		case 'commandArgumentError':
+			return {
+				$kind: 'CommandArgumentError',
+				message,
+				command,
+				CommandArgumentError: {
+					argument: details.commandArgumentError.argument ?? 0,
+					name: mapErrorName(details.commandArgumentError.kind),
+				},
+			};
+
+		case 'typeArgumentError':
+			return {
+				$kind: 'TypeArgumentError',
+				message,
+				command,
+				TypeArgumentError: {
+					typeArgument: details.typeArgumentError.typeArgument ?? 0,
+					name: mapErrorName(details.typeArgumentError.kind),
+				},
+			};
+
+		case 'packageUpgradeError':
+			return {
+				$kind: 'PackageUpgradeError',
+				message,
+				command,
+				PackageUpgradeError: {
+					name: mapErrorName(details.packageUpgradeError.kind),
+					packageId: details.packageUpgradeError.packageId,
+					digest: details.packageUpgradeError.digest,
+				},
+			};
+
+		case 'indexError':
+			return {
+				$kind: 'IndexError',
+				message,
+				command,
+				IndexError: {
+					index: details.indexError.index,
+					subresult: details.indexError.subresult,
+				},
+			};
+
+		case 'coinDenyListError':
+			return {
+				$kind: 'CoinDenyListError',
+				message,
+				command,
+				CoinDenyListError: {
+					name: mapErrorName(error.kind),
+					coinType: details.coinDenyListError.coinType!,
+					address: details.coinDenyListError.address,
+				},
+			};
+
+		case 'congestedObjects':
+			return {
+				$kind: 'CongestedObjects',
+				message,
+				command,
+				CongestedObjects: {
+					name: mapErrorName(error.kind),
+					objects: details.congestedObjects.objects,
+				},
+			};
+
+		case 'objectId':
+			return {
+				$kind: 'ObjectIdError',
+				message,
+				command,
+				ObjectIdError: {
+					name: mapErrorName(error.kind),
+					objectId: details.objectId,
+				},
+			};
+
+		default:
+			return {
+				$kind: 'Unknown',
+				message,
+				command,
+				Unknown: null,
+			};
+	}
+}
+
+function parseMoveAbort(abort: GrpcMoveAbort): SuiClientTypes.MoveAbort {
+	return {
+		abortCode: String(abort.abortCode ?? 0n),
+		location: { ...abort.location },
+		cleverError: abort.cleverError
+			? {
+					errorCode:
+						abort.cleverError.errorCode != null ? Number(abort.cleverError.errorCode) : undefined,
+					lineNumber:
+						abort.cleverError.lineNumber != null ? Number(abort.cleverError.lineNumber) : undefined,
+					constantName: abort.cleverError.constantName,
+					constantType: abort.cleverError.constantType,
+					value:
+						abort.cleverError.value?.oneofKind === 'rendered'
+							? abort.cleverError.value.rendered
+							: abort.cleverError.value?.oneofKind === 'raw'
+								? toBase64(abort.cleverError.value.raw)
+								: undefined,
+				}
+			: undefined,
+	};
+}
+
+function mapErrorName(
+	kind:
+		| ExecutionError_ExecutionErrorKind
+		| CommandArgumentError_CommandArgumentErrorKind
+		| TypeArgumentError_TypeArgumentErrorKind
+		| PackageUpgradeError_PackageUpgradeErrorKind
+		| undefined,
+): string {
+	if (kind == null) {
+		return 'Unknown';
+	}
+	const name = CommandArgumentError_CommandArgumentErrorKind[kind];
+	if (!name || name.endsWith('_UNKNOWN')) {
+		return 'Unknown';
+	}
+	return name
+		.split('_')
+		.map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+		.join('');
+}
+
 function mapIdOperation(
 	operation: ChangedObject_IdOperation | undefined,
 ): null | 'Created' | 'Deleted' | 'Unknown' | 'None' {
@@ -728,7 +926,7 @@ function mapInputObjectState(
 
 function mapOutputObjectState(
 	state: ChangedObject_OutputObjectState | undefined,
-): null | 'ObjectWrite' | 'PackageWrite' | 'DoesNotExist' | 'Unknown' {
+): null | 'ObjectWrite' | 'PackageWrite' | 'DoesNotExist' | 'AccumulatorWriteV1' | 'Unknown' {
 	if (state == null) {
 		return null;
 	}
@@ -739,6 +937,8 @@ function mapOutputObjectState(
 			return 'PackageWrite';
 		case ChangedObject_OutputObjectState.DOES_NOT_EXIST:
 			return 'DoesNotExist';
+		case ChangedObject_OutputObjectState.ACCUMULATOR_WRITE:
+			return 'AccumulatorWriteV1';
 		case ChangedObject_OutputObjectState.UNKNOWN:
 			return 'Unknown';
 		default:
@@ -807,10 +1007,7 @@ export function parseTransactionEffects({
 				}
 			: {
 					success: false,
-					// TODO: parse errors properly
-					error: JSON.stringify(effects.status?.error, (_k, v) =>
-						typeof v === 'bigint' ? v.toString() : v,
-					),
+					error: parseGrpcExecutionError(effects.status!.error!),
 				},
 		gasUsed: {
 			computationCost: effects.gasUsed?.computationCost?.toString()!,
@@ -903,7 +1100,13 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 		? { success: true, error: null }
 		: {
 				success: false,
-				error: transaction.effects?.status?.error?.description ?? 'Transaction failed',
+				error: transaction.effects?.status?.error
+					? parseGrpcExecutionError(transaction.effects.status.error)
+					: {
+							$kind: 'Unknown',
+							message: 'Transaction failed',
+							Unknown: null,
+						},
 			};
 
 	const result: SuiClientTypes.Transaction<Include> = {

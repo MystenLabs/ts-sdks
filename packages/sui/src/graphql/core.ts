@@ -9,6 +9,10 @@ import type {
 	Object_Owner_FieldsFragment,
 	Transaction_FieldsFragment,
 } from './generated/queries.js';
+
+type GraphQLExecutionError = NonNullable<
+	NonNullable<Transaction_FieldsFragment['effects']>['executionError']
+>;
 import {
 	DefaultSuinsNameDocument,
 	ExecuteTransactionDocument,
@@ -691,7 +695,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 			? { success: true, error: null }
 			: {
 					success: false,
-					error: transaction.effects?.executionError?.message ?? 'ExecutionFailed',
+					error: parseGraphQLExecutionError(transaction.effects?.executionError),
 				};
 
 	const result: SuiClientTypes.Transaction<Include> = {
@@ -747,6 +751,73 @@ function parseNormalizedSuiMoveType(type: OpenMoveTypeSignature): SuiClientTypes
 	return {
 		reference,
 		body: parseNormalizedSuiMoveTypeBody(type.body),
+	};
+}
+
+function parseGraphQLExecutionError(
+	executionError: GraphQLExecutionError | null | undefined,
+): SuiClientTypes.ExecutionError {
+	const message = executionError?.message ?? 'Transaction failed';
+	const name = mapGraphQLExecutionErrorKind(executionError);
+
+	if (name === 'MoveAbort' && executionError?.abortCode != null) {
+		return {
+			$kind: 'MoveAbort',
+			message,
+			MoveAbort: {
+				abortCode: executionError.abortCode!,
+				location: parseGraphQLMoveLocation(executionError),
+				cleverError: parseGraphQLCleverError(executionError),
+			},
+		};
+	}
+
+	return {
+		$kind: 'Unknown',
+		message,
+		Unknown: null,
+	};
+}
+
+function mapGraphQLExecutionErrorKind(
+	executionError: GraphQLExecutionError | null | undefined,
+): string {
+	if (executionError?.abortCode != null) {
+		return 'MoveAbort';
+	}
+
+	const match = executionError?.message?.match(/^(\w+)/);
+	return match?.[1] ?? 'Unknown';
+}
+
+function parseGraphQLMoveLocation(
+	executionError: GraphQLExecutionError,
+): SuiClientTypes.MoveLocation | undefined {
+	const hasLocation = executionError.module?.package?.address && executionError.module?.name;
+	if (!hasLocation) {
+		return undefined;
+	}
+
+	return {
+		package: executionError.module?.package?.address,
+		module: executionError.module?.name,
+		functionName: executionError.function?.name,
+		instruction: executionError.instructionOffset ?? undefined,
+	};
+}
+
+function parseGraphQLCleverError(
+	executionError: GraphQLExecutionError,
+): SuiClientTypes.CleverError | undefined {
+	const hasCleverError = executionError.identifier || executionError.constant;
+	if (!hasCleverError) {
+		return undefined;
+	}
+
+	return {
+		constantName: executionError.identifier ?? undefined,
+		value: executionError.constant ?? undefined,
+		lineNumber: executionError.sourceLineNumber ?? undefined,
 	};
 }
 

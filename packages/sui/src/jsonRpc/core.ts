@@ -5,8 +5,10 @@ import { fromBase64, type InferBcsInput } from '@mysten/bcs';
 
 import { bcs, TypeTagSerializer } from '../bcs/index.js';
 import type {
+	ExecutionStatus as JsonRpcExecutionStatus,
 	ObjectOwner,
 	SuiMoveAbilitySet,
+	SuiMoveAbort,
 	SuiMoveNormalizedType,
 	SuiMoveVisibility,
 	SuiObjectChange,
@@ -24,10 +26,79 @@ import { SUI_FRAMEWORK_ADDRESS, SUI_SYSTEM_ADDRESS } from '../utils/constants.js
 import { CoreClient } from '../client/core.js';
 import type { SuiClientTypes } from '../client/types.js';
 import { ObjectError } from '../client/errors.js';
-import { parseTransactionBcs, parseTransactionEffectsBcs } from '../client/index.js';
+import {
+	formatMoveAbortMessage,
+	parseTransactionBcs,
+	parseTransactionEffectsBcs,
+} from '../client/index.js';
 import type { SuiJsonRpcClient } from './client.js';
 
 const MAX_GAS = 50_000_000_000;
+
+function parseJsonRpcExecutionStatus(
+	status: JsonRpcExecutionStatus,
+	abortError?: SuiMoveAbort | null,
+): SuiClientTypes.ExecutionStatus {
+	if (status.status === 'success') {
+		return { success: true, error: null };
+	}
+
+	const rawMessage = status.error ?? 'Unknown';
+
+	if (abortError) {
+		const commandMatch = rawMessage.match(/in command (\d+)/);
+		const command = commandMatch ? parseInt(commandMatch[1], 10) : undefined;
+
+		const instructionMatch = rawMessage.match(/instruction:\s*(\d+)/);
+		const instruction = instructionMatch ? parseInt(instructionMatch[1], 10) : undefined;
+
+		const moduleParts = abortError.module_id?.split('::') ?? [];
+		const pkg = moduleParts[0] ? normalizeSuiAddress(moduleParts[0]) : undefined;
+		const module = moduleParts[1];
+
+		return {
+			success: false,
+			error: {
+				$kind: 'MoveAbort',
+				message: formatMoveAbortMessage({
+					command,
+					location:
+						pkg && module
+							? {
+									package: pkg,
+									module,
+									functionName: abortError.function ?? undefined,
+									instruction,
+								}
+							: undefined,
+					abortCode: String(abortError.error_code ?? 0),
+					cleverError: abortError.line != null ? { lineNumber: abortError.line } : undefined,
+				}),
+				command,
+				MoveAbort: {
+					abortCode: String(abortError.error_code ?? 0),
+					location: abortError.module_id
+						? {
+								package: normalizeSuiAddress(abortError.module_id.split('::')[0] ?? ''),
+								module: abortError.module_id.split('::')[1] ?? '',
+								functionName: abortError.function ?? undefined,
+								instruction,
+							}
+						: undefined,
+				},
+			},
+		};
+	}
+
+	return {
+		success: false,
+		error: {
+			$kind: 'Unknown',
+			message: rawMessage,
+			Unknown: null,
+		},
+	};
+}
 
 export class JSONRpcCoreClient extends CoreClient {
 	#jsonRpcClient: SuiJsonRpcClient;
@@ -698,10 +769,16 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 	}
 
 	// Get status from JSON-RPC response
-	const status: SuiClientTypes.ExecutionStatus =
-		transaction.effects?.status?.status === 'success'
-			? { success: true, error: null }
-			: { success: false, error: transaction.effects?.status?.error ?? 'Unknown' };
+	const status: SuiClientTypes.ExecutionStatus = transaction.effects?.status
+		? parseJsonRpcExecutionStatus(transaction.effects.status, transaction.effects.abortError)
+		: {
+				success: false,
+				error: {
+					$kind: 'Unknown',
+					message: 'Unknown',
+					Unknown: null,
+				},
+			};
 
 	const effectsBytes = transaction.rawEffects ? new Uint8Array(transaction.rawEffects) : null;
 
@@ -871,10 +948,7 @@ function parseTransactionEffectsJson({
 		effects: {
 			bcs: bytes ?? null,
 			version: 2,
-			status:
-				effects.status.status === 'success'
-					? { success: true, error: null }
-					: { success: false, error: effects.status.error! },
+			status: parseJsonRpcExecutionStatus(effects.status, effects.abortError),
 			gasUsed: effects.gasUsed,
 			transactionDigest: effects.transactionDigest,
 			gasObject: {
