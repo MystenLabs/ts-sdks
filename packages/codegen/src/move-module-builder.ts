@@ -117,7 +117,27 @@ export class MoveModuleBuilder extends FileBuilder {
 	}
 
 	includeAllFunctions({ privateMethods = 'entry' }: { privateMethods?: 'none' | 'entry' | 'all' }) {
-		for (const [name, func] of Object.entries(this.summary.functions)) {
+		this.includeFunctions({
+			names: Object.keys(this.summary.functions),
+			privateMethods,
+		});
+	}
+
+	includeFunctions({
+		names,
+		privateMethods = 'entry',
+	}: {
+		names: string[];
+		privateMethods?: 'none' | 'entry' | 'all';
+	}) {
+		for (const name of names) {
+			const func = this.summary.functions[name];
+			if (!func) {
+				throw new Error(
+					`Function ${name} not found in ${this.summary.id.address}::${this.summary.id.name}`,
+				);
+			}
+
 			if (func.macro_) {
 				continue;
 			}
@@ -212,9 +232,17 @@ export class MoveModuleBuilder extends FileBuilder {
 		this.#orderedTypes.push(name);
 	}
 
+	includeTypes(names: string[], moduleBuilders: Record<string, MoveModuleBuilder>) {
+		for (const name of names) {
+			this.includeType(name, moduleBuilders);
+		}
+	}
+
 	includeAllTypes(moduleBuilders: Record<string, MoveModuleBuilder>) {
-		Object.keys(this.summary.structs).forEach((name) => this.includeType(name, moduleBuilders));
-		Object.keys(this.summary.enums).forEach((name) => this.includeType(name, moduleBuilders));
+		this.includeTypes(
+			[...Object.keys(this.summary.structs), ...Object.keys(this.summary.enums)],
+			moduleBuilders,
+		);
 	}
 
 	async renderBCSTypes() {
