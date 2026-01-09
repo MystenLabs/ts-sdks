@@ -67,6 +67,24 @@ export interface CheckpointedTransactionInfo {
 	 * @generated from protobuf field: repeated sui.rpc.v2.UserSignature signatures = 3;
 	 */
 	signatures: UserSignature[];
+	/**
+	 * The `AddressAliases` object version, if any, that was used to verify the
+	 * UserSignature at the same position in `signatures`.
+	 *
+	 * This field is present when CheckpointContents.version is >= 2.
+	 *
+	 * @generated from protobuf field: repeated sui.rpc.v2.AddressAliasesVersion address_aliases_versions = 4;
+	 */
+	addressAliasesVersions: AddressAliasesVersion[];
+}
+/**
+ * @generated from protobuf message sui.rpc.v2.AddressAliasesVersion
+ */
+export interface AddressAliasesVersion {
+	/**
+	 * @generated from protobuf field: optional uint64 version = 1;
+	 */
+	version?: bigint;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class CheckpointContents$Type extends MessageType<CheckpointContents> {
@@ -102,6 +120,13 @@ class CheckpointedTransactionInfo$Type extends MessageType<CheckpointedTransacti
 				repeat: 1 /*RepeatType.PACKED*/,
 				T: () => UserSignature,
 			},
+			{
+				no: 4,
+				name: 'address_aliases_versions',
+				kind: 'message',
+				repeat: 1 /*RepeatType.PACKED*/,
+				T: () => AddressAliasesVersion,
+			},
 		]);
 	}
 }
@@ -109,3 +134,22 @@ class CheckpointedTransactionInfo$Type extends MessageType<CheckpointedTransacti
  * @generated MessageType for protobuf message sui.rpc.v2.CheckpointedTransactionInfo
  */
 export const CheckpointedTransactionInfo = new CheckpointedTransactionInfo$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class AddressAliasesVersion$Type extends MessageType<AddressAliasesVersion> {
+	constructor() {
+		super('sui.rpc.v2.AddressAliasesVersion', [
+			{
+				no: 1,
+				name: 'version',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.AddressAliasesVersion
+ */
+export const AddressAliasesVersion = new AddressAliasesVersion$Type();
