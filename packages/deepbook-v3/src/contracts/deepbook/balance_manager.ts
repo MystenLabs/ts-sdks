@@ -12,7 +12,12 @@
  * Generally, a high frequency trading engine will trade as the default owner.
  */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	MoveTuple,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as bag from './deps/sui/bag.js';
@@ -50,6 +55,10 @@ export const BalanceKey = new MoveStruct({
 		dummy_field: bcs.bool(),
 	},
 });
+export const ReferralKey = new MoveTuple({
+	name: `${$moduleName}::ReferralKey`,
+	fields: [bcs.Address],
+});
 export const TradeCap = new MoveStruct({
 	name: `${$moduleName}::TradeCap`,
 	fields: {
@@ -76,6 +85,14 @@ export const DeepBookReferral = new MoveStruct({
 	fields: {
 		id: bcs.Address,
 		owner: bcs.Address,
+	},
+});
+export const DeepBookPoolReferral = new MoveStruct({
+	name: `${$moduleName}::DeepBookPoolReferral`,
+	fields: {
+		id: bcs.Address,
+		owner: bcs.Address,
+		pool_id: bcs.Address,
 	},
 });
 export const DeepBookReferralCreatedEvent = new MoveStruct({
@@ -195,21 +212,20 @@ export function newWithCustomOwnerCaps(options: NewWithCustomOwnerCapsOptions) {
 		});
 }
 export interface SetReferralArguments {
-	balanceManager: RawTransactionArgument<string>;
-	referral: RawTransactionArgument<string>;
-	tradeCap: RawTransactionArgument<string>;
+	BalanceManager: RawTransactionArgument<string>;
+	Referral: RawTransactionArgument<string>;
+	TradeCap: RawTransactionArgument<string>;
 }
 export interface SetReferralOptions {
 	package?: string;
 	arguments:
 		| SetReferralArguments
 		| [
-				balanceManager: RawTransactionArgument<string>,
-				referral: RawTransactionArgument<string>,
-				tradeCap: RawTransactionArgument<string>,
+				BalanceManager: RawTransactionArgument<string>,
+				Referral: RawTransactionArgument<string>,
+				TradeCap: RawTransactionArgument<string>,
 		  ];
 }
-/** Set the referral for the balance manager. */
 export function setReferral(options: SetReferralOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [
@@ -217,7 +233,7 @@ export function setReferral(options: SetReferralOptions) {
 		`${packageAddress}::balance_manager::DeepBookReferral`,
 		`${packageAddress}::balance_manager::TradeCap`,
 	] satisfies string[];
-	const parameterNames = ['balanceManager', 'referral', 'tradeCap'];
+	const parameterNames = ['BalanceManager', 'Referral', 'TradeCap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -226,29 +242,92 @@ export function setReferral(options: SetReferralOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface UnsetReferralArguments {
+export interface SetBalanceManagerReferralArguments {
 	balanceManager: RawTransactionArgument<string>;
+	referral: RawTransactionArgument<string>;
 	tradeCap: RawTransactionArgument<string>;
+}
+export interface SetBalanceManagerReferralOptions {
+	package?: string;
+	arguments:
+		| SetBalanceManagerReferralArguments
+		| [
+				balanceManager: RawTransactionArgument<string>,
+				referral: RawTransactionArgument<string>,
+				tradeCap: RawTransactionArgument<string>,
+		  ];
+}
+/** Set the referral for the balance manager. */
+export function setBalanceManagerReferral(options: SetBalanceManagerReferralOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		`${packageAddress}::balance_manager::BalanceManager`,
+		`${packageAddress}::balance_manager::DeepBookPoolReferral`,
+		`${packageAddress}::balance_manager::TradeCap`,
+	] satisfies string[];
+	const parameterNames = ['balanceManager', 'referral', 'tradeCap'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'balance_manager',
+			function: 'set_balance_manager_referral',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface UnsetReferralArguments {
+	BalanceManager: RawTransactionArgument<string>;
+	TradeCap: RawTransactionArgument<string>;
 }
 export interface UnsetReferralOptions {
 	package?: string;
 	arguments:
 		| UnsetReferralArguments
-		| [balanceManager: RawTransactionArgument<string>, tradeCap: RawTransactionArgument<string>];
+		| [BalanceManager: RawTransactionArgument<string>, TradeCap: RawTransactionArgument<string>];
 }
-/** Unset the referral for the balance manager. */
 export function unsetReferral(options: UnsetReferralOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [
 		`${packageAddress}::balance_manager::BalanceManager`,
 		`${packageAddress}::balance_manager::TradeCap`,
 	] satisfies string[];
-	const parameterNames = ['balanceManager', 'tradeCap'];
+	const parameterNames = ['BalanceManager', 'TradeCap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'balance_manager',
 			function: 'unset_referral',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface UnsetBalanceManagerReferralArguments {
+	balanceManager: RawTransactionArgument<string>;
+	poolId: RawTransactionArgument<string>;
+	tradeCap: RawTransactionArgument<string>;
+}
+export interface UnsetBalanceManagerReferralOptions {
+	package?: string;
+	arguments:
+		| UnsetBalanceManagerReferralArguments
+		| [
+				balanceManager: RawTransactionArgument<string>,
+				poolId: RawTransactionArgument<string>,
+				tradeCap: RawTransactionArgument<string>,
+		  ];
+}
+/** Unset the referral for the balance manager. */
+export function unsetBalanceManagerReferral(options: UnsetBalanceManagerReferralOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		`${packageAddress}::balance_manager::BalanceManager`,
+		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
+		`${packageAddress}::balance_manager::TradeCap`,
+	] satisfies string[];
+	const parameterNames = ['balanceManager', 'poolId', 'tradeCap'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'balance_manager',
+			function: 'unset_balance_manager_referral',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -618,22 +697,47 @@ export function registerBalanceManager(options: RegisterBalanceManagerOptions) {
 		});
 }
 export interface GetReferralIdArguments {
-	balanceManager: RawTransactionArgument<string>;
+	BalanceManager: RawTransactionArgument<string>;
 }
 export interface GetReferralIdOptions {
 	package?: string;
-	arguments: GetReferralIdArguments | [balanceManager: RawTransactionArgument<string>];
+	arguments: GetReferralIdArguments | [BalanceManager: RawTransactionArgument<string>];
 }
-/** Get the referral id from the balance manager. */
 export function getReferralId(options: GetReferralIdOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [`${packageAddress}::balance_manager::BalanceManager`] satisfies string[];
-	const parameterNames = ['balanceManager'];
+	const parameterNames = ['BalanceManager'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'balance_manager',
 			function: 'get_referral_id',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface GetBalanceManagerReferralIdArguments {
+	balanceManager: RawTransactionArgument<string>;
+	poolId: RawTransactionArgument<string>;
+}
+export interface GetBalanceManagerReferralIdOptions {
+	package?: string;
+	arguments:
+		| GetBalanceManagerReferralIdArguments
+		| [balanceManager: RawTransactionArgument<string>, poolId: RawTransactionArgument<string>];
+}
+/** Get the referral id from the balance manager. */
+export function getBalanceManagerReferralId(options: GetBalanceManagerReferralIdOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		`${packageAddress}::balance_manager::BalanceManager`,
+		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
+	] satisfies string[];
+	const parameterNames = ['balanceManager', 'poolId'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'balance_manager',
+			function: 'get_balance_manager_referral_id',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -703,23 +807,65 @@ export function id(options: IdOptions) {
 		});
 }
 export interface ReferralOwnerArguments {
-	referral: RawTransactionArgument<string>;
+	Referral: RawTransactionArgument<string>;
 }
 export interface ReferralOwnerOptions {
 	package?: string;
-	arguments: ReferralOwnerArguments | [referral: RawTransactionArgument<string>];
+	arguments: ReferralOwnerArguments | [Referral: RawTransactionArgument<string>];
 }
 export function referralOwner(options: ReferralOwnerOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [
 		`${packageAddress}::balance_manager::DeepBookReferral`,
 	] satisfies string[];
-	const parameterNames = ['referral'];
+	const parameterNames = ['Referral'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'balance_manager',
 			function: 'referral_owner',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface BalanceManagerReferralOwnerArguments {
+	referral: RawTransactionArgument<string>;
+}
+export interface BalanceManagerReferralOwnerOptions {
+	package?: string;
+	arguments: BalanceManagerReferralOwnerArguments | [referral: RawTransactionArgument<string>];
+}
+export function balanceManagerReferralOwner(options: BalanceManagerReferralOwnerOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		`${packageAddress}::balance_manager::DeepBookPoolReferral`,
+	] satisfies string[];
+	const parameterNames = ['referral'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'balance_manager',
+			function: 'balance_manager_referral_owner',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface BalanceManagerReferralPoolIdArguments {
+	referral: RawTransactionArgument<string>;
+}
+export interface BalanceManagerReferralPoolIdOptions {
+	package?: string;
+	arguments: BalanceManagerReferralPoolIdArguments | [referral: RawTransactionArgument<string>];
+}
+export function balanceManagerReferralPoolId(options: BalanceManagerReferralPoolIdOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		`${packageAddress}::balance_manager::DeepBookPoolReferral`,
+	] satisfies string[];
+	const parameterNames = ['referral'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'balance_manager',
+			function: 'balance_manager_referral_pool_id',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

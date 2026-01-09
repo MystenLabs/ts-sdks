@@ -79,7 +79,7 @@ const { response } = await grpcClient.transactionExecutionService.executeTransac
 
 // IMPORTANT: Always check the transaction status
 if (!response.finality?.effects?.status?.success) {
-	const error = response.finality?.effects?.status?.error;
+	const error = response.finality?.effects?.status?.error?.message;
 	throw new Error(`Transaction failed: ${error || 'Unknown error'}`);
 }
 ```

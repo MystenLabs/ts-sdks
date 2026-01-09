@@ -237,7 +237,7 @@ async function handleRegister() {
 
 	// Check transaction status
 	if (result.$kind === 'FailedTransaction') {
-		throw new Error(`Registration failed: ${result.FailedTransaction.status.error}`);
+		throw new Error(`Registration failed: ${result.FailedTransaction.status.error?.message}`);
 	}
 
 	// Step 3: Upload the data to storage nodes
@@ -253,7 +253,7 @@ async function handleCertify() {
 
 	// Check transaction status
 	if (result.$kind === 'FailedTransaction') {
-		throw new Error(`Certification failed: ${result.FailedTransaction.status.error}`);
+		throw new Error(`Certification failed: ${result.FailedTransaction.status.error?.message}`);
 	}
 
 	// Step 5: Get the new files

@@ -24,7 +24,7 @@ const result = await dAppKit.signAndExecuteTransaction({
 });
 
 if (result.FailedTransaction) {
-	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
+	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
 }
 
 console.log('Transaction digest:', result.Transaction.digest);
@@ -61,7 +61,7 @@ The `Transaction` object contains:
 const result = await dAppKit.signAndExecuteTransaction({ transaction });
 
 if (result.FailedTransaction) {
-	console.error('Transaction failed:', result.FailedTransaction.status.error);
+	console.error('Transaction failed:', result.FailedTransaction.status.error?.message);
 	return;
 }
 
