@@ -21,18 +21,32 @@ export const e2eLiveNetworkDryRunFlow = async (network: 'mainnet' | 'testnet') =
 	const renewalPriceList = await suinsClient.getRenewalPriceList();
 	const coinDiscount = await suinsClient.getCoinTypeDiscount();
 
-	// Expected lists
-	const expectedPriceList = new Map([
-		[[3, 3], 500000000],
-		[[4, 4], 100000000],
-		[[5, 63], 10000000],
-	]);
+	// Expected lists - mainnet and testnet have different prices
+	const expectedPriceList =
+		network === 'mainnet'
+			? new Map([
+					[[3, 3], 500000000],
+					[[4, 4], 100000000],
+					[[5, 63], 10000000],
+				])
+			: new Map([
+					[[3, 3], 50000000],
+					[[4, 4], 10000000],
+					[[5, 63], 1000000],
+				]);
 
-	const expectedRenewalPriceList = new Map([
-		[[3, 3], 150000000],
-		[[4, 4], 50000000],
-		[[5, 63], 5000000],
-	]);
+	const expectedRenewalPriceList =
+		network === 'mainnet'
+			? new Map([
+					[[3, 3], 150000000],
+					[[4, 4], 50000000],
+					[[5, 63], 5000000],
+				])
+			: new Map([
+					[[3, 3], 15000000],
+					[[4, 4], 5000000],
+					[[5, 63], 500000],
+				]);
 
 	const expectedCoinDiscount = new Map([
 		[suinsClient.config.coins.USDC.type.slice(2), 0],
