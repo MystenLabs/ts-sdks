@@ -741,7 +741,7 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const vecOfAddresses = bcs.vector(bcs.Address).parse(new Uint8Array(bytes));
+		const vecOfAddresses = bcs.vector(bcs.Address).parse(bytes);
 
 		return vecOfAddresses.map((id: string) => normalizeSuiAddress(id));
 	}
@@ -814,13 +814,13 @@ export class DeepBookClient {
 
 		tx.add(this.balanceManager.balanceManagerReferralPoolId(referral));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const poolId = bcs.Address.parse(new Uint8Array(bytes));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const poolId = bcs.Address.parse(bytes);
 
 		return normalizeSuiAddress(poolId);
 	}
@@ -836,13 +836,13 @@ export class DeepBookClient {
 
 		tx.add(this.deepBook.poolReferralMultiplier(poolKey, referral));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		const bytes = res.results![0].returnValues![0][0];
-		const multiplier = Number(bcs.U64.parse(new Uint8Array(bytes)));
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const multiplier = Number(bcs.U64.parse(bytes));
 
 		return multiplier / FLOAT_SCALAR;
 	}
@@ -857,14 +857,14 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.balanceManager.getBalanceManagerReferralId(managerKey, poolKey));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
 		try {
-			const bytes = res.results![0].returnValues![0][0];
-			const optionId = bcs.option(bcs.Address).parse(new Uint8Array(bytes));
+			const bytes = res.commandResults![0].returnValues[0].bcs;
+			const optionId = bcs.option(bcs.Address).parse(bytes);
 			if (optionId === null) {
 				return null;
 			}
@@ -966,7 +966,7 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(new Uint8Array(bytes));
+		return bcs.bool().parse(bytes);
 	}
 
 	/**
@@ -1278,7 +1278,7 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const option = bcs.option(bcs.Address).parse(new Uint8Array(bytes));
+		const option = bcs.option(bcs.Address).parse(bytes);
 		return option ? normalizeSuiAddress(option) : null;
 	}
 
@@ -1361,7 +1361,7 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(new Uint8Array(bytes));
+		return bcs.bool().parse(bytes);
 	}
 
 	/**
@@ -1451,13 +1451,14 @@ export class DeepBookClient {
 			include: { commandResults: true, effects: true },
 		});
 
-		const effects = (res.Transaction ?? res.FailedTransaction).effects;
-
-		// Check if the transaction failed
-		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
+		if (res.FailedTransaction) {
 			throw new Error(
-				`Failed to get margin manager debts: ${effects?.status?.error || 'Unknown error'}`,
+				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
 			);
+		}
+
+		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
+			throw new Error(`Failed to get margin manager debts: ${'Unknown error'}`);
 		}
 
 		// The Move function returns a tuple (u64, u64), so returnValues has 2 elements
@@ -1525,13 +1526,14 @@ export class DeepBookClient {
 			include: { commandResults: true, effects: true },
 		});
 
-		const effects = (res.Transaction ?? res.FailedTransaction).effects;
-
-		// Check if the transaction failed
-		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
+		if (res.FailedTransaction) {
 			throw new Error(
-				`Failed to get margin manager state: ${effects?.status?.error || 'Unknown error'}`,
+				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
 			);
+		}
+
+		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
+			throw new Error(`Failed to get margin manager state: Unknown error`);
 		}
 
 		const pool = this.#config.getPool(manager.poolKey);
@@ -1620,13 +1622,14 @@ export class DeepBookClient {
 			include: { commandResults: true, effects: true },
 		});
 
-		const effects = (res.Transaction ?? res.FailedTransaction).effects;
-
-		// Check if the transaction failed
-		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
+		if (res.FailedTransaction) {
 			throw new Error(
-				`Failed to get margin manager base balance: ${effects?.status?.error || 'Unknown error'}`,
+				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
 			);
+		}
+
+		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
+			throw new Error(`Failed to get margin manager base balance: Unknown error`);
 		}
 
 		const bytes = res.commandResults[0].returnValues[0].bcs;
@@ -1655,13 +1658,14 @@ export class DeepBookClient {
 			include: { commandResults: true, effects: true },
 		});
 
-		const effects = (res.Transaction ?? res.FailedTransaction).effects;
-
-		// Check if the transaction failed
-		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
+		if (res.FailedTransaction) {
 			throw new Error(
-				`Failed to get margin manager quote balance: ${effects?.status?.error || 'Unknown error'}`,
+				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
 			);
+		}
+
+		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
+			throw new Error(`Failed to get margin manager quote balance: Unknown error`);
 		}
 
 		const bytes = res.commandResults[0].returnValues[0].bcs;
@@ -1690,13 +1694,14 @@ export class DeepBookClient {
 			include: { commandResults: true, effects: true },
 		});
 
-		const effects = (res.Transaction ?? res.FailedTransaction).effects;
-
-		// Check if the transaction failed
-		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
+		if (res.FailedTransaction) {
 			throw new Error(
-				`Failed to get margin manager DEEP balance: ${effects?.status?.error || 'Unknown error'}`,
+				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
 			);
+		}
+
+		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
+			throw new Error(`Failed to get margin manager DEEP balance: Unknown error`);
 		}
 
 		const bytes = res.commandResults[0].returnValues[0].bcs;
@@ -1717,19 +1722,23 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginTPSL.conditionalOrderIds(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+		if (res.FailedTransaction) {
 			throw new Error(
-				`Failed to get conditional order IDs: ${res.effects?.status?.error || 'Unknown error'}`,
+				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
 			);
 		}
 
-		const bytes = res.results[0].returnValues[0][0];
-		const orderIds = bcs.vector(bcs.u64()).parse(new Uint8Array(bytes));
+		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
+			throw new Error(`Failed to get conditional order IDs: Unknown error`);
+		}
+
+		const bytes = res.commandResults[0].returnValues[0].bcs;
+		const orderIds = bcs.vector(bcs.u64()).parse(bytes);
 		return orderIds.map((id) => id.toString());
 	}
 
@@ -1744,19 +1753,23 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginTPSL.lowestTriggerAbovePrice(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+		if (res.FailedTransaction) {
 			throw new Error(
-				`Failed to get lowest trigger above price: ${res.effects?.status?.error || 'Unknown error'}`,
+				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
 			);
 		}
 
-		const bytes = res.results[0].returnValues[0][0];
-		return BigInt(bcs.U64.parse(new Uint8Array(bytes)));
+		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
+			throw new Error(`Failed to get lowest trigger above price: Unknown error`);
+		}
+
+		const bytes = res.commandResults[0].returnValues[0].bcs;
+		return BigInt(bcs.U64.parse(bytes));
 	}
 
 	/**
@@ -1770,19 +1783,23 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginTPSL.highestTriggerBelowPrice(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
-		if (!res.results || !res.results[0] || !res.results[0].returnValues) {
+		if (res.FailedTransaction) {
 			throw new Error(
-				`Failed to get highest trigger below price: ${res.effects?.status?.error || 'Unknown error'}`,
+				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
 			);
 		}
 
-		const bytes = res.results[0].returnValues[0][0];
-		return BigInt(bcs.U64.parse(new Uint8Array(bytes)));
+		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
+			throw new Error(`Failed to get highest trigger below price: Unknown error`);
+		}
+
+		const bytes = res.commandResults[0].returnValues[0].bcs;
+		return BigInt(bcs.U64.parse(bytes));
 	}
 
 	// === Margin Registry Functions ===
@@ -1820,7 +1837,7 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const vecSet = VecSet(bcs.Address).parse(new Uint8Array(bytes));
+		const vecSet = VecSet(bcs.Address).parse(bytes);
 		return vecSet.contents.map((id) => normalizeSuiAddress(id));
 	}
 
@@ -1990,7 +2007,7 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const vecSet = VecSet(bcs.Address).parse(new Uint8Array(bytes));
+		const vecSet = VecSet(bcs.Address).parse(bytes);
 		return vecSet.contents.map((id) => normalizeSuiAddress(id));
 	}
 
@@ -2008,7 +2025,7 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const vecSet = VecSet(bcs.Address).parse(new Uint8Array(bytes));
+		const vecSet = VecSet(bcs.Address).parse(bytes);
 		return vecSet.contents.map((id) => normalizeSuiAddress(id));
 	}
 
@@ -2027,7 +2044,7 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(new Uint8Array(bytes));
+		return bcs.bool().parse(bytes);
 	}
 
 	/**
@@ -2045,7 +2062,7 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(new Uint8Array(bytes));
+		return bcs.bool().parse(bytes);
 	}
 
 	/**
@@ -2264,7 +2281,7 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(new Uint8Array(bytes));
+		return bcs.bool().parse(bytes);
 	}
 
 	/**
@@ -2344,7 +2361,7 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(new Uint8Array(bytes));
+		return bcs.bool().parse(bytes);
 	}
 
 	/**
@@ -2362,7 +2379,7 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(new Uint8Array(bytes));
+		return bcs.bool().parse(bytes);
 	}
 
 	/**
@@ -2381,7 +2398,7 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(new Uint8Array(bytes));
+		return bcs.bool().parse(bytes);
 	}
 
 	/**
@@ -2407,7 +2424,7 @@ export class DeepBookClient {
 		});
 
 		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(new Uint8Array(bytes));
+		return bcs.bool().parse(bytes);
 	}
 
 	/**

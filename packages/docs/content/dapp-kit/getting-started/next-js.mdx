@@ -116,7 +116,7 @@ function WalletStatus() {
 		const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 
 		if (result.FailedTransaction) {
-			throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
+			throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
 		}
 
 		alert(`Transaction: ${result.Transaction.digest}`);

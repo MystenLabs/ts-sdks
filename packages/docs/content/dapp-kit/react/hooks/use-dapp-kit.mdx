@@ -78,7 +78,7 @@ export function TransferButton() {
 			});
 
 			if (result.FailedTransaction) {
-				throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
+				throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
 			}
 
 			console.log('Transaction digest:', result.Transaction.digest);
