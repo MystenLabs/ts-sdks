@@ -16,7 +16,7 @@ import type {
 	TransactionEffects,
 } from './types/index.js';
 import { Transaction } from '../transactions/Transaction.js';
-import { jsonRpcClientResolveTransactionPlugin } from './json-rpc-resolver.js';
+import { coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
 import { normalizeSuiAddress, normalizeStructTag } from '../utils/sui-types.js';
@@ -330,8 +330,51 @@ export class JSONRpcCoreClient extends CoreClient {
 		const referenceGasPrice = await this.#jsonRpcClient.getReferenceGasPrice({
 			signal: options?.signal,
 		});
+
 		return {
 			referenceGasPrice: String(referenceGasPrice),
+		};
+	}
+
+	async getCurrentSystemState(
+		options?: SuiClientTypes.GetCurrentSystemStateOptions,
+	): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
+		const systemState = await this.#jsonRpcClient.getLatestSuiSystemState({
+			signal: options?.signal,
+		});
+
+		return {
+			systemState: {
+				systemStateVersion: systemState.systemStateVersion,
+				epoch: systemState.epoch,
+				protocolVersion: systemState.protocolVersion,
+				referenceGasPrice: systemState.referenceGasPrice?.toString() ?? (null as never),
+				epochStartTimestampMs: systemState.epochStartTimestampMs,
+				safeMode: systemState.safeMode,
+				safeModeStorageRewards: systemState.safeModeStorageRewards,
+				safeModeComputationRewards: systemState.safeModeComputationRewards,
+				safeModeStorageRebates: systemState.safeModeStorageRebates,
+				safeModeNonRefundableStorageFee: systemState.safeModeNonRefundableStorageFee,
+				parameters: {
+					epochDurationMs: systemState.epochDurationMs,
+					stakeSubsidyStartEpoch: systemState.stakeSubsidyStartEpoch,
+					maxValidatorCount: systemState.maxValidatorCount,
+					minValidatorJoiningStake: systemState.minValidatorJoiningStake,
+					validatorLowStakeThreshold: systemState.validatorLowStakeThreshold,
+					validatorLowStakeGracePeriod: systemState.validatorLowStakeGracePeriod,
+				},
+				storageFund: {
+					totalObjectStorageRebates: systemState.storageFundTotalObjectStorageRebates,
+					nonRefundableBalance: systemState.storageFundNonRefundableBalance,
+				},
+				stakeSubsidy: {
+					balance: systemState.stakeSubsidyBalance,
+					distributionCounter: systemState.stakeSubsidyDistributionCounter,
+					currentDistributionAmount: systemState.stakeSubsidyCurrentDistributionAmount,
+					stakeSubsidyPeriodLength: systemState.stakeSubsidyPeriodLength,
+					stakeSubsidyDecreaseRate: systemState.stakeSubsidyDecreaseRate,
+				},
+			},
 		};
 	}
 
@@ -390,7 +433,7 @@ export class JSONRpcCoreClient extends CoreClient {
 	}
 
 	resolveTransactionPlugin() {
-		return jsonRpcClientResolveTransactionPlugin(this.#jsonRpcClient);
+		return coreClientResolveTransactionPlugin;
 	}
 
 	async getMoveFunction(

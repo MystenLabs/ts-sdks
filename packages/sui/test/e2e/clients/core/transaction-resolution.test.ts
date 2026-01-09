@@ -32,260 +32,218 @@ describe('Core API - Transaction Resolution', () => {
 	});
 
 	describe('Object Resolution', () => {
-		testWithAllClients(
-			'should resolve object ID to full reference',
-			async (client) => {
-				const coins = await client.core.listCoins({ owner: testAddress, coinType: SUI_TYPE_ARG });
-				expect(coins.objects.length).toBeGreaterThan(0);
+		testWithAllClients('should resolve object ID to full reference', async (client) => {
+			const coins = await client.core.listCoins({ owner: testAddress, coinType: SUI_TYPE_ARG });
+			expect(coins.objects.length).toBeGreaterThan(0);
 
-				const tx = new Transaction();
-				tx.transferObjects([tx.object(coins.objects[0].objectId)], testAddress);
-				tx.setSender(testAddress);
+			const tx = new Transaction();
+			tx.transferObjects([tx.object(coins.objects[0].objectId)], testAddress);
+			tx.setSender(testAddress);
 
-				// Build with client - performs resolution
-				const bytes = await tx.build({ client });
+			// Build with client - performs resolution
+			const bytes = await tx.build({ client });
 
-				// Verify object was resolved with version and digest
-				const parsed = bcs.TransactionData.parse(bytes);
-				const objInput =
-					parsed.V1?.kind.ProgrammableTransaction?.inputs[0].Object?.ImmOrOwnedObject;
-				expect(objInput?.objectId).toBeDefined();
-				expect(objInput?.version).toBeDefined();
-				expect(objInput?.digest).toBeDefined();
+			// Verify object was resolved with version and digest
+			const parsed = bcs.TransactionData.parse(bytes);
+			const objInput = parsed.V1?.kind.ProgrammableTransaction?.inputs[0].Object?.ImmOrOwnedObject;
+			expect(objInput?.objectId).toBeDefined();
+			expect(objInput?.version).toBeDefined();
+			expect(objInput?.digest).toBeDefined();
 
-				// Second build without client should succeed (already resolved)
-				const bytes2 = await tx.build();
-				expect(bytes2).toEqual(bytes);
-			},
-			{ skip: ['graphql'] },
-		);
+			// Second build without client should succeed (already resolved)
+			const bytes2 = await tx.build();
+			expect(bytes2).toEqual(bytes);
+		});
 
-		testWithAllClients(
-			'should NOT overwrite explicit object version/digest',
-			async (client) => {
-				const coins = await client.core.listCoins({ owner: testAddress, coinType: SUI_TYPE_ARG });
-				const coin = coins.objects[0];
+		testWithAllClients('should NOT overwrite explicit object version/digest', async (client) => {
+			const coins = await client.core.listCoins({ owner: testAddress, coinType: SUI_TYPE_ARG });
+			const coin = coins.objects[0];
 
-				const tx = new Transaction();
-				// Explicitly provide full reference
-				tx.transferObjects(
-					[tx.objectRef({ objectId: coin.objectId, version: coin.version, digest: coin.digest })],
-					testAddress,
-				);
-				tx.setSender(testAddress);
+			const tx = new Transaction();
+			// Explicitly provide full reference
+			tx.transferObjects(
+				[tx.objectRef({ objectId: coin.objectId, version: coin.version, digest: coin.digest })],
+				testAddress,
+			);
+			tx.setSender(testAddress);
 
-				const bytes = await tx.build({ client });
+			const bytes = await tx.build({ client });
 
-				// Verify explicit values were preserved
-				const parsed = bcs.TransactionData.parse(bytes);
-				const objInput =
-					parsed.V1?.kind.ProgrammableTransaction?.inputs[0].Object?.ImmOrOwnedObject;
-				expect(objInput?.version).toBe(coin.version);
-				expect(objInput?.digest).toBe(coin.digest);
-			},
-			{ skip: ['graphql'] },
-		);
+			// Verify explicit values were preserved
+			const parsed = bcs.TransactionData.parse(bytes);
+			const objInput = parsed.V1?.kind.ProgrammableTransaction?.inputs[0].Object?.ImmOrOwnedObject;
+			expect(objInput?.version).toBe(coin.version);
+			expect(objInput?.digest).toBe(coin.digest);
+		});
 	});
 
 	describe('Shared Objects', () => {
-		testWithAllClients(
-			'should handle explicit shared object',
-			async (client) => {
-				const CLOCK_OBJECT_ID = '0x6';
+		testWithAllClients('should handle explicit shared object', async (client) => {
+			const CLOCK_OBJECT_ID = '0x6';
 
-				const tx = new Transaction();
-				const clock = tx.sharedObjectRef({
-					objectId: CLOCK_OBJECT_ID,
-					mutable: false,
-					initialSharedVersion: '1',
-				});
-				tx.moveCall({
-					target: '0x2::clock::timestamp_ms',
-					arguments: [clock],
-				});
-				tx.setSender(testAddress);
+			const tx = new Transaction();
+			const clock = tx.sharedObjectRef({
+				objectId: CLOCK_OBJECT_ID,
+				mutable: false,
+				initialSharedVersion: '1',
+			});
+			tx.moveCall({
+				target: '0x2::clock::timestamp_ms',
+				arguments: [clock],
+			});
+			tx.setSender(testAddress);
 
-				const bytes = await tx.build({ client });
+			const bytes = await tx.build({ client });
 
-				// Verify shared object properties
-				const parsed = bcs.TransactionData.parse(bytes);
-				const objInput = parsed.V1?.kind.ProgrammableTransaction?.inputs[0].Object?.SharedObject;
-				expect(objInput?.mutable).toBe(false);
-				expect(objInput?.initialSharedVersion).toBe('1');
+			// Verify shared object properties
+			const parsed = bcs.TransactionData.parse(bytes);
+			const objInput = parsed.V1?.kind.ProgrammableTransaction?.inputs[0].Object?.SharedObject;
+			expect(objInput?.mutable).toBe(false);
+			expect(objInput?.initialSharedVersion).toBe('1');
 
-				// Second build without client should work
-				const bytes2 = await tx.build();
-				expect(bytes2).toEqual(bytes);
-			},
-			{ skip: ['graphql'] },
-		);
+			// Second build without client should work
+			const bytes2 = await tx.build();
+			expect(bytes2).toEqual(bytes);
+		});
 	});
 
 	describe('Gas Resolution', () => {
-		testWithAllClients(
-			'should resolve gas budget when not set',
-			async (client) => {
-				const tx = new Transaction();
-				const coin = tx.splitCoins(tx.gas, [1000]);
-				tx.transferObjects([coin], testAddress);
-				tx.setSender(testAddress);
+		testWithAllClients('should resolve gas budget when not set', async (client) => {
+			const tx = new Transaction();
+			const coin = tx.splitCoins(tx.gas, [1000]);
+			tx.transferObjects([coin], testAddress);
+			tx.setSender(testAddress);
 
-				const bytes = await tx.build({ client });
+			const bytes = await tx.build({ client });
 
-				// Verify budget was set
-				const parsed = bcs.TransactionData.parse(bytes);
-				expect(parsed.V1?.gasData.budget).toBeDefined();
-				expect(Number(parsed.V1?.gasData.budget)).toBeGreaterThan(0);
+			// Verify budget was set
+			const parsed = bcs.TransactionData.parse(bytes);
+			expect(parsed.V1?.gasData.budget).toBeDefined();
+			expect(Number(parsed.V1?.gasData.budget)).toBeGreaterThan(0);
 
-				// Second build without client should work
-				const bytes2 = await tx.build();
-				expect(bytes2).toEqual(bytes);
-			},
-			{ skip: ['graphql'] },
-		);
+			// Second build without client should work
+			const bytes2 = await tx.build();
+			expect(bytes2).toEqual(bytes);
+		});
 
-		testWithAllClients(
-			'should NOT overwrite explicit gas budget',
-			async (client) => {
-				const explicitBudget = 10000000;
+		testWithAllClients('should NOT overwrite explicit gas budget', async (client) => {
+			const explicitBudget = 10000000;
 
-				const tx = new Transaction();
-				const coin = tx.splitCoins(tx.gas, [1000]);
-				tx.transferObjects([coin], testAddress);
-				tx.setSender(testAddress);
-				tx.setGasBudget(explicitBudget); // Explicit
+			const tx = new Transaction();
+			const coin = tx.splitCoins(tx.gas, [1000]);
+			tx.transferObjects([coin], testAddress);
+			tx.setSender(testAddress);
+			tx.setGasBudget(explicitBudget); // Explicit
 
-				const bytes = await tx.build({ client });
+			const bytes = await tx.build({ client });
 
-				// Verify explicit budget preserved
-				const parsed = bcs.TransactionData.parse(bytes);
-				expect(String(parsed.V1?.gasData.budget)).toBe(String(explicitBudget));
-			},
-			{ skip: ['graphql'] },
-		);
+			// Verify explicit budget preserved
+			const parsed = bcs.TransactionData.parse(bytes);
+			expect(String(parsed.V1?.gasData.budget)).toBe(String(explicitBudget));
+		});
 
-		testWithAllClients(
-			'should resolve gas price when not set',
-			async (client) => {
-				const tx = new Transaction();
-				const coin = tx.splitCoins(tx.gas, [1000]);
-				tx.transferObjects([coin], testAddress);
-				tx.setSender(testAddress);
+		testWithAllClients('should resolve gas price when not set', async (client) => {
+			const tx = new Transaction();
+			const coin = tx.splitCoins(tx.gas, [1000]);
+			tx.transferObjects([coin], testAddress);
+			tx.setSender(testAddress);
 
-				const bytes = await tx.build({ client });
+			const bytes = await tx.build({ client });
 
-				// Verify price was set
-				const parsed = bcs.TransactionData.parse(bytes);
-				expect(parsed.V1?.gasData.price).toBeDefined();
-				expect(Number(parsed.V1?.gasData.price)).toBeGreaterThan(0);
+			// Verify price was set
+			const parsed = bcs.TransactionData.parse(bytes);
+			expect(parsed.V1?.gasData.price).toBeDefined();
+			expect(Number(parsed.V1?.gasData.price)).toBeGreaterThan(0);
 
-				// Second build without client should work
-				const bytes2 = await tx.build();
-				expect(bytes2).toEqual(bytes);
-			},
-			{ skip: ['graphql'] },
-		);
+			// Second build without client should work
+			const bytes2 = await tx.build();
+			expect(bytes2).toEqual(bytes);
+		});
 
-		testWithAllClients(
-			'should NOT overwrite explicit gas price',
-			async (client) => {
-				const refPrice = await client.core.getReferenceGasPrice();
-				const explicitPrice = refPrice.referenceGasPrice;
+		testWithAllClients('should NOT overwrite explicit gas price', async (client) => {
+			const refPrice = await client.core.getReferenceGasPrice();
+			const explicitPrice = refPrice.referenceGasPrice;
 
-				const tx = new Transaction();
-				const coin = tx.splitCoins(tx.gas, [1000]);
-				tx.transferObjects([coin], testAddress);
-				tx.setSender(testAddress);
-				tx.setGasPrice(explicitPrice); // Explicit
+			const tx = new Transaction();
+			const coin = tx.splitCoins(tx.gas, [1000]);
+			tx.transferObjects([coin], testAddress);
+			tx.setSender(testAddress);
+			tx.setGasPrice(explicitPrice); // Explicit
 
-				const bytes = await tx.build({ client });
+			const bytes = await tx.build({ client });
 
-				// Verify explicit price preserved
-				const parsed = bcs.TransactionData.parse(bytes);
-				expect(String(parsed.V1?.gasData.price)).toBe(String(explicitPrice));
-			},
-			{ skip: ['graphql'] },
-		);
+			// Verify explicit price preserved
+			const parsed = bcs.TransactionData.parse(bytes);
+			expect(String(parsed.V1?.gasData.price)).toBe(String(explicitPrice));
+		});
 
-		testWithAllClients(
-			'should resolve gas payment when not set',
-			async (client) => {
-				const tx = new Transaction();
-				const coin = tx.splitCoins(tx.gas, [1000]);
-				tx.transferObjects([coin], testAddress);
-				tx.setSender(testAddress);
+		testWithAllClients('should resolve gas payment when not set', async (client) => {
+			const tx = new Transaction();
+			const coin = tx.splitCoins(tx.gas, [1000]);
+			tx.transferObjects([coin], testAddress);
+			tx.setSender(testAddress);
 
-				const bytes = await tx.build({ client });
+			const bytes = await tx.build({ client });
 
-				// Verify payment was set
-				const parsed = bcs.TransactionData.parse(bytes);
-				expect(parsed.V1?.gasData.payment).toBeDefined();
-				expect(parsed.V1?.gasData.payment?.length).toBeGreaterThan(0);
+			// Verify payment was set
+			const parsed = bcs.TransactionData.parse(bytes);
+			expect(parsed.V1?.gasData.payment).toBeDefined();
+			expect(parsed.V1?.gasData.payment?.length).toBeGreaterThan(0);
 
-				// Second build without client should work
-				const bytes2 = await tx.build();
-				expect(bytes2).toEqual(bytes);
-			},
-			{ skip: ['graphql'] },
-		);
+			// Second build without client should work
+			const bytes2 = await tx.build();
+			expect(bytes2).toEqual(bytes);
+		});
 
-		testWithAllClients(
-			'should NOT overwrite explicit gas payment',
-			async (client) => {
-				const coins = await client.core.listCoins({ owner: testAddress, coinType: SUI_TYPE_ARG });
-				expect(coins.objects.length).toBeGreaterThan(0);
+		testWithAllClients('should NOT overwrite explicit gas payment', async (client) => {
+			const coins = await client.core.listCoins({ owner: testAddress, coinType: SUI_TYPE_ARG });
+			expect(coins.objects.length).toBeGreaterThan(0);
 
-				const explicitGasCoin = coins.objects[0];
-				const tx = new Transaction();
-				tx.setSender(testAddress);
-				tx.setGasPayment([
-					{
-						objectId: explicitGasCoin.objectId,
-						version: explicitGasCoin.version,
-						digest: explicitGasCoin.digest,
-					},
-				]); // Explicit
-				const coin = tx.splitCoins(tx.gas, [1000]);
-				tx.transferObjects([coin], testAddress);
+			const explicitGasCoin = coins.objects[0];
+			const tx = new Transaction();
+			tx.setSender(testAddress);
+			tx.setGasPayment([
+				{
+					objectId: explicitGasCoin.objectId,
+					version: explicitGasCoin.version,
+					digest: explicitGasCoin.digest,
+				},
+			]); // Explicit
+			const coin = tx.splitCoins(tx.gas, [1000]);
+			tx.transferObjects([coin], testAddress);
 
-				const bytes = await tx.build({ client });
+			const bytes = await tx.build({ client });
 
-				// Verify explicit gas coin preserved
-				const parsed = bcs.TransactionData.parse(bytes);
-				expect(parsed.V1?.gasData.payment?.[0].objectId).toBe(explicitGasCoin.objectId);
-			},
-			{ skip: ['graphql'] },
-		);
+			// Verify explicit gas coin preserved
+			const parsed = bcs.TransactionData.parse(bytes);
+			expect(parsed.V1?.gasData.payment?.[0].objectId).toBe(explicitGasCoin.objectId);
+		});
 	});
 
 	describe('Transaction Execution', () => {
-		testWithAllClients(
-			'resolved transaction should execute successfully',
-			async (client) => {
-				const tx = new Transaction();
-				const coin = tx.splitCoins(tx.gas, [1000]);
-				tx.transferObjects([coin], testAddress);
-				tx.setSender(testAddress);
+		testWithAllClients('resolved transaction should execute successfully', async (client) => {
+			const tx = new Transaction();
+			const coin = tx.splitCoins(tx.gas, [1000]);
+			tx.transferObjects([coin], testAddress);
+			tx.setSender(testAddress);
 
-				// Resolve using test client
-				const bytes = await tx.build({ client });
-				expect(bytes).toBeDefined();
+			// Resolve using test client
+			const bytes = await tx.build({ client });
+			expect(bytes).toBeDefined();
 
-				// Execute resolved transaction (use JSON RPC client for signing since gRPC doesn't support it)
-				const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
-					transaction: tx,
-					signer: toolbox.keypair,
-					options: {
-						showEffects: true,
-					},
-				});
-				expect(result.effects?.status.status).toBe('success');
+			// Execute resolved transaction (use JSON RPC client for signing since gRPC doesn't support it)
+			const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				transaction: tx,
+				signer: toolbox.keypair,
+				options: {
+					showEffects: true,
+				},
+			});
+			expect(result.effects?.status.status).toBe('success');
 
-				// Wait for indexing
-				await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
-			},
-			{ skip: ['graphql'] },
-		);
+			// Wait for indexing
+			await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
+		});
 
 		testWithAllClients(
 			'should correctly resolve and execute transaction with Pure inputs (Move call)',
@@ -330,7 +288,6 @@ describe('Core API - Transaction Resolution', () => {
 				// Wait for indexing
 				await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
 			},
-			{ skip: ['graphql'] },
 		);
 
 		it('gRPC conversion helpers round-trip: verify structure preservation', async () => {
@@ -426,7 +383,6 @@ describe('Core API - Transaction Resolution', () => {
 				expect(snapshotAfterFull.gasData.payment).not.toBeNull();
 				expect(snapshotAfterFull.gasData.price).not.toBeNull();
 			},
-			{ skip: ['graphql'] },
 		);
 
 		testWithAllClients(
@@ -453,7 +409,6 @@ describe('Core API - Transaction Resolution', () => {
 				expect(parsed.V1?.expiration).toBeDefined();
 				expect(parsed.V1?.expiration.None).toBe(true);
 			},
-			{ skip: ['graphql'] },
 		);
 
 		testWithAllClients(
@@ -502,7 +457,6 @@ describe('Core API - Transaction Resolution', () => {
 				const kind = bcs.TransactionKind.parse(kindBytes);
 				expect(kind.ProgrammableTransaction).toBeDefined();
 			},
-			{ skip: ['graphql'] },
 		);
 	});
 
@@ -610,7 +564,6 @@ describe('Core API - Transaction Resolution', () => {
 				});
 				expect(dryRunResult.Transaction!.effects?.status.success).toBe(true);
 			},
-			{ skip: ['graphql'] },
 		);
 
 		testWithAllClients(
@@ -682,7 +635,6 @@ describe('Core API - Transaction Resolution', () => {
 				});
 				expect(dryRunResult.Transaction!.effects?.status.success).toBe(true);
 			},
-			{ skip: ['graphql'] },
 		);
 	});
 });

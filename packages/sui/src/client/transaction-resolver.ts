@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fromBase64 } from '@mysten/bcs';
+
 import type { bcs } from '../bcs/index.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
-import type { TransactionData } from '../transactions/data/internal.js';
+import type {
+	CallArg,
+	Command as BcsCommand,
+	TransactionData,
+} from '../transactions/data/internal.js';
 import type { Transaction as GrpcTransaction } from '../grpc/proto/sui/rpc/v2/transaction.js';
 import {
 	Transaction as GrpcTransactionType,
@@ -14,7 +19,6 @@ import type { ObjectReference } from '../grpc/proto/sui/rpc/v2/object_reference.
 import type { Input } from '../grpc/proto/sui/rpc/v2/input.js';
 import { Input_InputKind } from '../grpc/proto/sui/rpc/v2/input.js';
 import type { Command } from '../grpc/proto/sui/rpc/v2/transaction.js';
-import type { CallArg, Command as BcsCommand } from '../transactions/data/internal.js';
 import type { Argument } from '../grpc/proto/sui/rpc/v2/argument.js';
 import { Argument_ArgumentKind } from '../grpc/proto/sui/rpc/v2/argument.js';
 import { Transaction } from '../transactions/Transaction.js';

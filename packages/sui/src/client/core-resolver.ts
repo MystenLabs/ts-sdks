@@ -3,24 +3,16 @@
 
 import { parse } from 'valibot';
 
-import {
-	normalizeSuiAddress,
-	normalizeSuiObjectId,
-	SUI_FRAMEWORK_ADDRESS,
-	SUI_TYPE_ARG,
-} from '../utils/index.js';
+import { normalizeSuiAddress, normalizeSuiObjectId, SUI_TYPE_ARG } from '../utils/index.js';
+import type { ClientWithCoreApi } from './core.js';
 import { ObjectRefSchema } from '../transactions/data/internal.js';
-import type { CallArg, Command, OpenMoveTypeSignature } from '../transactions/data/internal.js';
+import type { CallArg, Command } from '../transactions/data/internal.js';
+import type { SuiClientTypes } from './types.js';
 import { Inputs } from '../transactions/Inputs.js';
-import {
-	getPureBcsSchema,
-	isTxContext,
-	normalizedTypeToMoveTypeSignature,
-} from '../transactions/serializer.js';
+import { getPureBcsSchema, isTxContext } from '../transactions/serializer.js';
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
 import type { BuildTransactionOptions } from '../transactions/index.js';
-import type { SuiJsonRpcClient } from './client.js';
 
 // The maximum objects that can be fetched at once using multiGetObjects.
 const MAX_OBJECTS_PER_FETCH = 50;
@@ -29,38 +21,48 @@ const MAX_OBJECTS_PER_FETCH = 50;
 const GAS_SAFE_OVERHEAD = 1000n;
 const MAX_GAS = 50_000_000_000;
 
-export function jsonRpcClientResolveTransactionPlugin(client: SuiJsonRpcClient) {
-	return async function resolveTransactionData(
-		transactionData: TransactionDataBuilder,
-		options: BuildTransactionOptions,
-		next: () => Promise<void>,
-	) {
-		await normalizeInputs(transactionData, client);
-		await resolveObjectReferences(transactionData, client);
-
-		if (!options.onlyTransactionKind) {
-			await setGasPrice(transactionData, client);
-			await setGasBudget(transactionData, client);
-			await setGasPayment(transactionData, client);
-		}
-
-		return await next();
-	};
+function getClient(options: BuildTransactionOptions): ClientWithCoreApi {
+	if (!options.client) {
+		throw new Error(
+			`No sui client passed to Transaction#build, but transaction data was not sufficient to build offline.`,
+		);
+	}
+	return options.client;
 }
 
-async function setGasPrice(transactionData: TransactionDataBuilder, client: SuiJsonRpcClient) {
+export async function coreClientResolveTransactionPlugin(
+	transactionData: TransactionDataBuilder,
+	options: BuildTransactionOptions,
+	next: () => Promise<void>,
+) {
+	const client = getClient(options);
+
+	await normalizeInputs(transactionData, client);
+	await resolveObjectReferences(transactionData, client);
+
+	if (!options.onlyTransactionKind) {
+		await setGasPrice(transactionData, client);
+		await setGasBudget(transactionData, client);
+		await setGasPayment(transactionData, client);
+	}
+
+	return await next();
+}
+
+async function setGasPrice(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
 	if (!transactionData.gasData.price) {
-		transactionData.gasData.price = String(await client.getReferenceGasPrice());
+		const { referenceGasPrice } = await client.core.getReferenceGasPrice();
+		transactionData.gasData.price = referenceGasPrice;
 	}
 }
 
-async function setGasBudget(transactionData: TransactionDataBuilder, client: SuiJsonRpcClient) {
+async function setGasBudget(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
 	if (transactionData.gasData.budget) {
 		return;
 	}
 
-	const dryRunResult = await client.dryRunTransactionBlock({
-		transactionBlock: transactionData.build({
+	const simulateResult = await client.core.simulateTransaction({
+		transaction: transactionData.build({
 			overrides: {
 				gasData: {
 					budget: String(MAX_GAS),
@@ -68,24 +70,23 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Sui
 				},
 			},
 		}),
+		include: { effects: true },
 	});
 
-	if (dryRunResult.effects.status.status !== 'success') {
+	if (simulateResult.$kind === 'FailedTransaction') {
 		throw new Error(
-			`Dry run failed, could not automatically determine a budget: ${dryRunResult.effects.status.error}`,
-			{ cause: dryRunResult },
+			`Dry run failed, could not automatically determine a budget: ${simulateResult.FailedTransaction.status.error}`,
+			{ cause: simulateResult },
 		);
 	}
 
+	const gasUsed = simulateResult.Transaction.effects!.gasUsed;
 	const safeOverhead = GAS_SAFE_OVERHEAD * BigInt(transactionData.gasData.price || 1n);
 
-	const baseComputationCostWithOverhead =
-		BigInt(dryRunResult.effects.gasUsed.computationCost) + safeOverhead;
+	const baseComputationCostWithOverhead = BigInt(gasUsed.computationCost) + safeOverhead;
 
 	const gasBudget =
-		baseComputationCostWithOverhead +
-		BigInt(dryRunResult.effects.gasUsed.storageCost) -
-		BigInt(dryRunResult.effects.gasUsed.storageRebate);
+		baseComputationCostWithOverhead + BigInt(gasUsed.storageCost) - BigInt(gasUsed.storageRebate);
 
 	transactionData.gasData.budget = String(
 		gasBudget > baseComputationCostWithOverhead ? gasBudget : baseComputationCostWithOverhead,
@@ -93,19 +94,19 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Sui
 }
 
 // The current default is just picking _all_ coins we can which may not be ideal.
-async function setGasPayment(transactionData: TransactionDataBuilder, client: SuiJsonRpcClient) {
+async function setGasPayment(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
 	if (!transactionData.gasData.payment) {
-		const coins = await client.getCoins({
+		const coins = await client.core.listCoins({
 			owner: transactionData.gasData.owner || transactionData.sender!,
 			coinType: SUI_TYPE_ARG,
 		});
 
-		const paymentCoins = coins.data
+		const paymentCoins = coins.objects
 			// Filter out coins that are also used as input:
 			.filter((coin) => {
 				const matchingInput = transactionData.inputs.find((input) => {
 					if (input.Object?.ImmOrOwnedObject) {
-						return coin.coinObjectId === input.Object.ImmOrOwnedObject.objectId;
+						return coin.objectId === input.Object.ImmOrOwnedObject.objectId;
 					}
 
 					return false;
@@ -114,7 +115,7 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Su
 				return !matchingInput;
 			})
 			.map((coin) => ({
-				objectId: coin.coinObjectId,
+				objectId: coin.objectId,
 				digest: coin.digest,
 				version: coin.version,
 			}));
@@ -131,7 +132,7 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Su
 
 async function resolveObjectReferences(
 	transactionData: TransactionDataBuilder,
-	client: SuiJsonRpcClient,
+	client: ClientWithCoreApi,
 ) {
 	// Keep track of the object references that will need to be resolved at the end of the transaction.
 	// We keep the input by-reference to avoid needing to re-resolve it:
@@ -151,14 +152,13 @@ async function resolveObjectReferences(
 	const objectChunks = dedupedIds.length ? chunk(dedupedIds, MAX_OBJECTS_PER_FETCH) : [];
 	const resolved = (
 		await Promise.all(
-			objectChunks.map((chunk) =>
-				client.multiGetObjects({
-					ids: chunk,
-					options: { showOwner: true },
+			objectChunks.map((chunkIds) =>
+				client.core.getObjects({
+					objectIds: chunkIds,
 				}),
 			),
 		)
-	).flat();
+	).flatMap((result) => result.objects);
 
 	const responsesById = new Map(
 		dedupedIds.map((id, index) => {
@@ -167,31 +167,31 @@ async function resolveObjectReferences(
 	);
 
 	const invalidObjects = Array.from(responsesById)
-		.filter(([_, obj]) => obj.error)
-		.map(([_, obj]) => JSON.stringify(obj.error));
+		.filter(([_, obj]) => obj instanceof Error)
+		.map(([_, obj]) => (obj as Error).message);
 
 	if (invalidObjects.length) {
 		throw new Error(`The following input objects are invalid: ${invalidObjects.join(', ')}`);
 	}
 
 	const objects = resolved.map((object) => {
-		if (object.error || !object.data) {
-			throw new Error(`Failed to fetch object: ${object.error}`);
+		if (object instanceof Error) {
+			throw new Error(`Failed to fetch object: ${object.message}`);
 		}
-		const owner = object.data.owner;
+		const owner = object.owner;
 		const initialSharedVersion =
 			owner && typeof owner === 'object'
-				? 'Shared' in owner
-					? owner.Shared.initial_shared_version
-					: 'ConsensusAddressOwner' in owner
-						? owner.ConsensusAddressOwner.start_version
+				? owner.$kind === 'Shared'
+					? owner.Shared.initialSharedVersion
+					: owner.$kind === 'ConsensusAddressOwner'
+						? owner.ConsensusAddressOwner.startVersion
 						: null
 				: null;
 
 		return {
-			objectId: object.data.objectId,
-			digest: object.data.digest,
-			version: object.data.version,
+			objectId: object.objectId,
+			digest: object.digest,
+			version: object.version,
 			initialSharedVersion,
 		};
 	});
@@ -238,7 +238,7 @@ async function resolveObjectReferences(
 	}
 }
 
-async function normalizeInputs(transactionData: TransactionDataBuilder, client: SuiJsonRpcClient) {
+async function normalizeInputs(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
 	const { inputs, commands } = transactionData;
 	const moveCallsToResolve: Extract<Command, { MoveCall: unknown }>['MoveCall'][] = [];
 	const moveFunctionsToResolve = new Set<string>();
@@ -275,21 +275,18 @@ async function normalizeInputs(transactionData: TransactionDataBuilder, client: 
 		}
 	});
 
-	const moveFunctionParameters = new Map<string, OpenMoveTypeSignature[]>();
+	const moveFunctionParameters = new Map<string, SuiClientTypes.OpenSignature[]>();
 	if (moveFunctionsToResolve.size > 0) {
 		await Promise.all(
 			[...moveFunctionsToResolve].map(async (functionName) => {
-				const [packageId, moduleId, functionId] = functionName.split('::');
-				const def = await client.getNormalizedMoveFunction({
-					package: packageId,
-					module: moduleId,
-					function: functionId,
+				const [packageId, moduleName, name] = functionName.split('::');
+				const { function: def } = await client.core.getMoveFunction({
+					packageId,
+					moduleName,
+					name,
 				});
 
-				moveFunctionParameters.set(
-					functionName,
-					def.parameters.map((param) => normalizedTypeToMoveTypeSignature(param)),
-				);
+				moveFunctionParameters.set(functionName, def.parameters);
 			}),
 		);
 	}
@@ -383,7 +380,8 @@ function isUsedAsMutable(transactionData: TransactionDataBuilder, index: number)
 	transactionData.getInputUses(index, (arg, tx) => {
 		if (tx.MoveCall && tx.MoveCall._argumentTypes) {
 			const argIndex = tx.MoveCall.arguments.indexOf(arg);
-			usedAsMutable = tx.MoveCall._argumentTypes[argIndex].ref !== '&' || usedAsMutable;
+			usedAsMutable =
+				tx.MoveCall._argumentTypes[argIndex].reference !== 'immutable' || usedAsMutable;
 		}
 
 		if (
@@ -412,14 +410,13 @@ function isUsedAsReceiving(transactionData: TransactionDataBuilder, index: numbe
 	return usedAsReceiving;
 }
 
-function isReceivingType(type: OpenMoveTypeSignature): boolean {
-	if (typeof type.body !== 'object' || !('datatype' in type.body)) {
+const RECEIVING_TYPE =
+	'0x0000000000000000000000000000000000000000000000000000000000000002::transfer::Receiving';
+
+function isReceivingType(type: SuiClientTypes.OpenSignature): boolean {
+	if (type.body.$kind !== 'datatype') {
 		return false;
 	}
 
-	return (
-		normalizeSuiAddress(type.body.datatype.package) === SUI_FRAMEWORK_ADDRESS &&
-		type.body.datatype.module === 'transfer' &&
-		type.body.datatype.type === 'Receiving'
-	);
+	return type.body.datatype.typeName === RECEIVING_TYPE;
 }
