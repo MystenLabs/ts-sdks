@@ -1,12 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type {
-	PaginatedObjectsResponse,
-	SuiObjectData,
-	SuiObjectDataOptions,
-} from '@mysten/sui/jsonRpc';
 import type { TransactionArgument } from '@mysten/sui/transactions';
+import { SuiClientTypes } from '@mysten/sui/client';
 
 import type { ObjectArgument } from './index.js';
 
@@ -107,8 +103,8 @@ export type KioskItem = {
 	listing?: KioskListing;
 	/** The ID of the kiosk the item is placed in */
 	kioskId: string;
-	/** Optional Kiosk Data */
-	data?: SuiObjectData;
+	/** Optional Kiosk Data (core API object) */
+	data?: SuiClientTypes.Object;
 };
 
 /** The overview type returned from `getKiosk` */
@@ -151,16 +147,16 @@ export type FetchKioskOptions = {
 	withKioskFields?: boolean;
 	/** Include the listing prices. */
 	withListingPrices?: boolean;
-	/** Include the objects for the Items in the kiosk. Defaults to `display` only. */
+	/** Include the objects for the Items in the kiosk. */
 	withObjects?: boolean;
-	/** Pass the data options for the objects, when fetching, in case you want to query other details. */
-	objectOptions?: SuiObjectDataOptions;
 };
 
 export type OwnedKiosks = {
 	kioskOwnerCaps: KioskOwnerCap[];
 	kioskIds: string[];
-} & Omit<PaginatedObjectsResponse, 'data'>;
+	nextCursor: string | null;
+	hasNextPage: boolean;
+};
 
 export type KioskOwnerCap = {
 	isPersonal?: boolean;
