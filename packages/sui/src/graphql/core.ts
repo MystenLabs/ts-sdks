@@ -16,6 +16,7 @@ import {
 	GetAllBalancesDocument,
 	GetBalanceDocument,
 	GetCoinsDocument,
+	GetCurrentSystemStateDocument,
 	GetDynamicFieldsDocument,
 	GetMoveFunctionDocument,
 	GetOwnedObjectsDocument,
@@ -33,6 +34,7 @@ import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { parseTransactionBcs, parseTransactionEffectsBcs } from '../client/utils.js';
 import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.js';
 import { transactionToGrpcJson } from '../client/transaction-resolver.js';
+import { coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
 
 export class GraphQLCoreClient extends CoreClient {
 	#graphqlClient: SuiGraphQLClient;
@@ -371,7 +373,72 @@ export class GraphQLCoreClient extends CoreClient {
 		);
 
 		return {
-			referenceGasPrice: result,
+			referenceGasPrice: result ?? '',
+		};
+	}
+
+	async getCurrentSystemState(): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
+		const result = await this.#graphqlQuery(
+			{
+				query: GetCurrentSystemStateDocument,
+			},
+			(result) => result.epoch,
+		);
+
+		if (!result) {
+			throw new Error('Epoch data not found in response');
+		}
+
+		const startMs = result.startTimestamp
+			? new Date(result.startTimestamp).getTime().toString()
+			: (null as never);
+
+		return {
+			systemState: {
+				systemStateVersion: result.systemStateVersion?.toString() ?? (null as never),
+				epoch: result.epochId?.toString() ?? (null as never),
+				protocolVersion: result.protocolConfigs?.protocolVersion?.toString() ?? (null as never),
+				referenceGasPrice: result.referenceGasPrice ?? (null as never),
+				epochStartTimestampMs: startMs,
+				safeMode: result.safeMode?.enabled ?? false,
+				safeModeStorageRewards:
+					result.safeMode?.gasSummary?.storageCost?.toString() ?? (null as never),
+				safeModeComputationRewards:
+					result.safeMode?.gasSummary?.computationCost?.toString() ?? (null as never),
+				safeModeStorageRebates:
+					result.safeMode?.gasSummary?.storageRebate?.toString() ?? (null as never),
+				safeModeNonRefundableStorageFee:
+					result.safeMode?.gasSummary?.nonRefundableStorageFee?.toString() ?? (null as never),
+				parameters: {
+					epochDurationMs: result.systemParameters?.durationMs?.toString() ?? (null as never),
+					stakeSubsidyStartEpoch:
+						result.systemParameters?.stakeSubsidyStartEpoch?.toString() ?? (null as never),
+					maxValidatorCount:
+						result.systemParameters?.maxValidatorCount?.toString() ?? (null as never),
+					minValidatorJoiningStake:
+						result.systemParameters?.minValidatorJoiningStake?.toString() ?? (null as never),
+					validatorLowStakeThreshold:
+						result.systemParameters?.validatorLowStakeThreshold?.toString() ?? (null as never),
+					validatorLowStakeGracePeriod:
+						result.systemParameters?.validatorLowStakeGracePeriod?.toString() ?? (null as never),
+				},
+				storageFund: {
+					totalObjectStorageRebates:
+						result.storageFund?.totalObjectStorageRebates?.toString() ?? (null as never),
+					nonRefundableBalance:
+						result.storageFund?.nonRefundableBalance?.toString() ?? (null as never),
+				},
+				stakeSubsidy: {
+					balance: result.systemStakeSubsidy?.balance?.toString() ?? (null as never),
+					distributionCounter:
+						result.systemStakeSubsidy?.distributionCounter?.toString() ?? (null as never),
+					currentDistributionAmount:
+						result.systemStakeSubsidy?.currentDistributionAmount?.toString() ?? (null as never),
+					stakeSubsidyPeriodLength:
+						result.systemStakeSubsidy?.periodLength?.toString() ?? (null as never),
+					stakeSubsidyDecreaseRate: result.systemStakeSubsidy?.decreaseRate ?? (null as never),
+				},
+			},
 		};
 	}
 
@@ -529,8 +596,8 @@ export class GraphQLCoreClient extends CoreClient {
 		};
 	}
 
-	resolveTransactionPlugin(): never {
-		throw new Error('GraphQL client does not support transaction resolution yet');
+	resolveTransactionPlugin() {
+		return coreClientResolveTransactionPlugin;
 	}
 }
 export type GraphQLResponseErrors = Array<{

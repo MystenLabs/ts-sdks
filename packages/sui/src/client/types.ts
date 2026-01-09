@@ -369,6 +369,56 @@ export namespace SuiClientTypes {
 		referenceGasPrice: string;
 	}
 
+	export interface GetCurrentSystemStateOptions extends CoreClientMethodOptions {}
+
+	export interface TransportMethods {
+		getCurrentSystemState?: (
+			options?: GetCurrentSystemStateOptions,
+		) => Promise<GetCurrentSystemStateResponse>;
+	}
+
+	export interface GetCurrentSystemStateResponse {
+		systemState: SystemStateInfo;
+	}
+
+	export interface SystemStateInfo {
+		systemStateVersion: string;
+		epoch: string;
+		protocolVersion: string;
+		referenceGasPrice: string;
+		epochStartTimestampMs: string;
+		safeMode: boolean;
+		safeModeStorageRewards: string;
+		safeModeComputationRewards: string;
+		safeModeStorageRebates: string;
+		safeModeNonRefundableStorageFee: string;
+		parameters: SystemParameters;
+		storageFund: StorageFund;
+		stakeSubsidy: StakeSubsidy;
+	}
+
+	export interface SystemParameters {
+		epochDurationMs: string;
+		stakeSubsidyStartEpoch: string;
+		maxValidatorCount: string;
+		minValidatorJoiningStake: string;
+		validatorLowStakeThreshold: string;
+		validatorLowStakeGracePeriod: string;
+	}
+
+	export interface StorageFund {
+		totalObjectStorageRebates: string;
+		nonRefundableBalance: string;
+	}
+
+	export interface StakeSubsidy {
+		balance: string;
+		distributionCounter: string;
+		currentDistributionAmount: string;
+		stakeSubsidyPeriodLength: string;
+		stakeSubsidyDecreaseRate: number;
+	}
+
 	/** ZkLogin methods */
 	export interface VerifyZkLoginSignatureOptions extends CoreClientMethodOptions {
 		bytes: string;
