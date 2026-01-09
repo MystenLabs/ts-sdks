@@ -7,9 +7,7 @@
 		"install",
 		"hello-sui",
 		"faucet",
-		"sui-client",
-		"graphql",
-		"grpc",
+		"clients",
 		"transaction-building",
 		"cryptography",
 		"utils",
@@ -17,7 +15,7 @@
 		"zklogin",
 		"executors",
 		"plugins",
-		"owned-object-pool",
+		"sdk-building",
 		"migrations"
 	]
 }

@@ -1,0 +1,33 @@
+---
+title: '@mysten/deepbook-v3'
+---
+
+This package now exports a client extension that integrates with Sui clients.
+
+```diff
+- import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+- import { DeepBookClient } from '@mysten/deepbook-v3';
++ import { SuiGrpcClient } from '@mysten/sui/grpc'; // or SuiJsonRpcClient, SuiGraphQLClient
++ import { deepbook } from '@mysten/deepbook-v3';
+
+- const suiClient = new SuiClient({ url: getFullnodeUrl('mainnet') });
+- const deepBookClient = new DeepBookClient({
+-   client: suiClient,
+-   address: myAddress,
+-   env: 'mainnet',
+-   balanceManagers: { ... },
+- });
++ const client = new SuiGrpcClient({
++   baseUrl: 'https://fullnode.mainnet.sui.io:443',
++   network: 'mainnet',
++ }).$extend(
++   deepbook({
++     address: myAddress,
++     env: 'mainnet',
++     balanceManagers: { ... },
++   }),
++ );
+
+- await deepBookClient.checkManagerBalance(manager, asset);
++ await client.deepbook.checkManagerBalance(manager, asset);
+```

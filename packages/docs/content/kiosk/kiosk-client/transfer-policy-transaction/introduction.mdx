@@ -12,38 +12,39 @@ Similar to `KioskTransaction`, you can either create a new transfer policy, or u
 
 ## Using an existing transfer policy
 
-If you have already retrieved a transfer policy from `kioskClient.getOwnedTransferPolicies()`, or
-`kioskClient.getOwnedTransferPoliciesByType()`, you can pass a `TransferPolicyCap` result when
+If you have already retrieved a transfer policy from `client.kiosk.getOwnedTransferPolicies()`, or
+`client.kiosk.getOwnedTransferPoliciesByType()`, you can pass a `TransferPolicyCap` result when
 instantiating.
 
 ```typescript
-// Initialized somewhere in the app.
-const kioskClient = new KioskClient({...});
-
 // You could have more than one cap, since we can create more than one transfer policy.
-const heroPolicyCaps = await kioskClient.getOwnedTransferPoliciesByType({
-    type: `${packageId}::hero::Hero`,
-    address: '0xConnectedAddress',
+const heroPolicyCaps = await client.kiosk.getOwnedTransferPoliciesByType({
+	type: `${packageId}::hero::Hero`,
+	address: '0xConnectedAddress',
 });
 
 const tx = new Transaction();
 // You can choose to use any of the caps you have. For this example, use the first one.
-const tpTx = new TransferPolicyTransaction({ kioskClient, transaction: tx, cap: heroPolicyCaps[0] });
+const tpTx = new TransferPolicyTransaction({
+	kioskClient: client.kiosk,
+	transaction: tx,
+	cap: heroPolicyCaps[0],
+});
 
 // A demonstration of using all the available rule add/remove functions.
 // You can chain these commands.
 tpTx
-    .addFloorPriceRule(10n)
-    .addLockRule()
-    .addRoyaltyRule(percentageToBasisPoints(10), 0)
-    .addPersonalKioskRule()
-    // .removeFloorPriceRule()
-    // .removeLockRule()
-    // .removeRoyaltyRule()
-    // .removePersonalKioskRule()
+	.addFloorPriceRule(10n)
+	.addLockRule()
+	.addRoyaltyRule(percentageToBasisPoints(10), 0)
+	.addPersonalKioskRule();
+// .removeFloorPriceRule()
+// .removeLockRule()
+// .removeRoyaltyRule()
+// .removePersonalKioskRule()
 
 // Sign and execute transaction.
-await signAndExecuteTransaction({tx: tx});
+await signAndExecuteTransaction({ tx: tx });
 ```
 
 ## Creating a new transfer policy
@@ -55,7 +56,7 @@ in the same PTB.
 const publisher = '0xPackagePublisherObject';
 const tx = new Transaction();
 
-const tpTx = new TransferPolicyTransaction({ kioskClient, transaction: tx });
+const tpTx = new TransferPolicyTransaction({ kioskClient: client.kiosk, transaction: tx });
 
 // This is an async call, as the SDK protects from accidentally creating
 // a second transfer policy.
