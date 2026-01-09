@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { EnumOutputShape } from '@mysten/bcs';
 import type {
 	SerializedTransactionDataV2,
 	TransactionPlugin,
@@ -728,6 +729,7 @@ export namespace SuiClientTypes {
 		outputDigest: string | null;
 		outputOwner: ObjectOwner | null;
 		idOperation: 'Unknown' | 'None' | 'Created' | 'Deleted';
+		// TODO: add accumulatorWrite field once its widely available
 	}
 
 	export interface GasCostSummary {
@@ -744,8 +746,7 @@ export namespace SuiClientTypes {
 		  }
 		| {
 				success: false;
-				// TODO: this should probably be typed better: https://github.com/bmwill/sui/blob/646a2c819346dc140cc649eb9fea368fb14f96e5/crates/sui-rpc-api/proto/sui/rpc/v2beta/execution_status.proto#L22
-				error: string;
+				error: ExecutionError;
 		  };
 
 	export interface UnchangedConsensusObject {
@@ -760,12 +761,93 @@ export namespace SuiClientTypes {
 		version: string | null;
 		digest: string | null;
 	}
-}
 
-export interface Event {
-	packageId: string;
-	module: string;
-	sender: string;
-	eventType: string;
-	bcs: Uint8Array;
+	export interface Event {
+		packageId: string;
+		module: string;
+		sender: string;
+		eventType: string;
+		bcs: Uint8Array;
+	}
+
+	export interface MoveAbort {
+		abortCode: string;
+		location?: MoveLocation;
+		cleverError?: CleverError;
+	}
+
+	export interface MoveLocation {
+		package?: string;
+		module?: string;
+		function?: number;
+		functionName?: string;
+		instruction?: number;
+	}
+
+	export interface CleverError {
+		errorCode?: number;
+		lineNumber?: number;
+		constantName?: string;
+		constantType?: string;
+		value?: string;
+	}
+
+	export interface SizeError {
+		name: string;
+		size: number;
+		maxSize: number;
+	}
+
+	export interface CommandArgumentError {
+		argument: number;
+		name: string;
+	}
+
+	export interface TypeArgumentError {
+		typeArgument: number;
+		name: string;
+	}
+
+	export interface PackageUpgradeError {
+		name: string;
+		packageId?: string;
+		digest?: string;
+	}
+
+	export interface CoinDenyListError {
+		name: string;
+		coinType: string;
+		address?: string;
+	}
+
+	export interface CongestedObjects {
+		name: string;
+		objects: string[];
+	}
+
+	export interface IndexError {
+		index?: number;
+		subresult?: number;
+	}
+
+	export interface ObjectIdError {
+		name?: string;
+		objectId: string;
+	}
+
+	export type ExecutionError = {
+		message: string;
+		command?: number;
+	} & EnumOutputShape<{
+		MoveAbort: MoveAbort;
+		SizeError: SizeError;
+		CommandArgumentError: CommandArgumentError;
+		TypeArgumentError: TypeArgumentError;
+		PackageUpgradeError: PackageUpgradeError;
+		IndexError: IndexError;
+		CoinDenyListError: CoinDenyListError;
+		CongestedObjects: CongestedObjects;
+		ObjectIdError: ObjectIdError;
+		Unknown: null;
+	}>;
 }
