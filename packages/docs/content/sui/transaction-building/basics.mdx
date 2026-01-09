@@ -57,7 +57,7 @@ const result = await client.signAndExecuteTransaction({ signer: keypair, transac
 // IMPORTANT: Always check the transaction status
 // Transactions can execute but still fail (e.g., insufficient gas, move errors)
 if (result.$kind === 'FailedTransaction') {
-	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
+	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
 }
 ```
 
@@ -85,7 +85,7 @@ const result = await client.signAndExecuteTransaction({ signer: keypair, transac
 
 // Check transaction status
 if (result.$kind === 'FailedTransaction') {
-	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error}`);
+	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
 }
 
 await client.waitForTransaction({ result });

@@ -441,7 +441,7 @@ console.log(result.effects);
 
 If you need specific JSON-RPC response options, you can now use the `include` parameter:
 
-```diff
+````diff
 - const result = await executor.executeTransaction(tx, {
 -   showEffects: true,
 -   showEvents: true,
@@ -512,7 +512,7 @@ Update your code to use the client extension pattern:
 - });
 + // Load from URL
 + const link = await client.zksend.loadLinkFromUrl(url);
-```
+````
 
 ## @mysten/suins: ClientWithCoreApi Support
 

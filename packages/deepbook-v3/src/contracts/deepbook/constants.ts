@@ -496,19 +496,6 @@ export function ewmaDfKey(options: EwmaDfKeyOptions = {}) {
 			function: 'ewma_df_key',
 		});
 }
-export interface ReferralDfKeyOptions {
-	package?: string;
-	arguments?: [];
-}
-export function referralDfKey(options: ReferralDfKeyOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'referral_df_key',
-		});
-}
 export interface ReferralMaxMultiplierOptions {
 	package?: string;
 	arguments?: [];
@@ -546,5 +533,18 @@ export function maxBalanceManagers(options: MaxBalanceManagersOptions = {}) {
 			package: packageAddress,
 			module: 'constants',
 			function: 'max_balance_managers',
+		});
+}
+export interface ReferralDfKeyOptions {
+	package?: string;
+	arguments?: [];
+}
+export function referralDfKey(options: ReferralDfKeyOptions = {}) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'constants',
+			function: 'referral_df_key',
 		});
 }

@@ -201,7 +201,7 @@ export class ZkSendLink {
 
 		if (result.FailedTransaction) {
 			throw new Error(
-				`Claim transaction failed: ${result.FailedTransaction.effects.status.error ?? 'Unknown error'}`,
+				`Claim transaction failed: ${result.FailedTransaction.status.error?.message ?? 'Unknown error'}`,
 			);
 		}
 
