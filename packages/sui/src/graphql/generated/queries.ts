@@ -144,7 +144,7 @@ export type ActiveJwkEdge = {
   node: ActiveJwk;
 };
 
-export type Address = IAddressable & {
+export type Address = IAddressable & Node & {
   __typename?: 'Address';
   /** The Address' identifier, a 32-byte number represented as a 64-character hex string, with a lead "0x". */
   address: Scalars['SuiAddress']['output'];
@@ -179,6 +179,8 @@ export type Address = IAddressable & {
    * Returns `null` if a dynamic object field with that name could not be found attached to the object with this address.
    */
   dynamicObjectField?: Maybe<DynamicField>;
+  /** The address's globally unique identifier, which can be passed to `Query.node` to refetch it. */
+  id: Scalars['ID']['output'];
   /**
    * Fetch the total balances keyed by coin types (e.g. `0x2::sui::SUI`) owned by this address.
    *
@@ -451,7 +453,7 @@ export type ChangeEpochTransactionSystemPackagesArgs = {
 };
 
 /** Checkpoints contain finalized transactions and are used for node synchronization and global transaction ordering. */
-export type Checkpoint = {
+export type Checkpoint = Node & {
   __typename?: 'Checkpoint';
   /**
    * A commitment by the committee at each checkpoint on the artifacts of the checkpoint.
@@ -466,6 +468,8 @@ export type Checkpoint = {
   digest?: Maybe<Scalars['String']['output']>;
   /** The epoch that this checkpoint is part of. */
   epoch?: Maybe<Epoch>;
+  /** The checkpoint's globally unique identifier, which can be passed to `Query.node` to refetch it. */
+  id: Scalars['ID']['output'];
   /** The total number of transactions in the network by the end of this checkpoint. */
   networkTotalTransactions?: Maybe<Scalars['UInt53']['output']>;
   /** The digest of the previous checkpoint's summary. */
@@ -893,7 +897,7 @@ export type DisplayRegistryCreateTransaction = {
  * - Dynamic fields can store any value that has `store`. Objects stored in this kind of field will be considered wrapped (not accessible via its ID by external tools like explorers, wallets, etc. accessing storage).
  * - Dynamic object fields can only store objects (values that have the `key` ability, and an `id: UID` as its first field) that have `store`, but they will still be directly accessible off-chain via their ID after being attached as a field.
  */
-export type DynamicField = IAddressable & IMoveObject & IObject & {
+export type DynamicField = IAddressable & IMoveObject & IObject & Node & {
   __typename?: 'DynamicField';
   /** The DynamicField's ID. */
   address: Scalars['SuiAddress']['output'];
@@ -935,6 +939,8 @@ export type DynamicField = IAddressable & IMoveObject & IObject & {
    * Both these operations require the object to have both the `key` and `store` abilities.
    */
   hasPublicTransfer?: Maybe<Scalars['Boolean']['output']>;
+  /** The dynamic field's globally unique identifier, which can be passed to `Query.node` to refetch it. */
+  id: Scalars['ID']['output'];
   /** The Base64-encoded BCS serialize of this object, as a `MoveObject`. */
   moveObjectBcs?: Maybe<Scalars['Base64']['output']>;
   /**
@@ -1253,7 +1259,7 @@ export type EndOfEpochTransactionKindEdge = {
  * - system package versions,
  * - validators in the committee.
  */
-export type Epoch = {
+export type Epoch = Node & {
   __typename?: 'Epoch';
   /** The epoch's corresponding checkpoints. */
   checkpoints?: Maybe<CheckpointConnection>;
@@ -1276,6 +1282,8 @@ export type Epoch = {
    * This fund is used to redistribute storage fees from past transactions to future validators.
    */
   fundSize?: Maybe<Scalars['BigInt']['output']>;
+  /** The epoch's globally unique identifier, which can be passed to `Query.node` to refetch it. */
+  id: Scalars['ID']['output'];
   /**
    * A commitment by the committee at the end of epoch on the contents of the live object set at that time.
    * This can be used to verify state snapshots.
@@ -1319,7 +1327,11 @@ export type Epoch = {
   totalStakeRewards?: Maybe<Scalars['BigInt']['output']>;
   /** The amount added to total gas fees to make up the total stake rewards (or `null` if the epoch has not finished yet). */
   totalStakeSubsidies?: Maybe<Scalars['BigInt']['output']>;
-  /** The total number of transaction blocks in this epoch (or `null` if the epoch has not finished yet). */
+  /**
+   * The total number of transaction blocks in this epoch.
+   *
+   * If the epoch has not finished yet, this number is computed based on the number of transactions at the latest known checkpoint.
+   */
   totalTransactions?: Maybe<Scalars['UInt53']['output']>;
   /**
    * The transactions in this epoch, optionally filtered by transaction filters.
@@ -1697,6 +1709,8 @@ export type IAddressableObjectsArgs = {
 export type IMoveDatatype = {
   /** Abilities on this datatype definition. */
   abilities?: Maybe<Array<MoveAbility>>;
+  /** The datatype's fully-qualified name, including package address, module name, and datatype name. */
+  fullyQualifiedName: Scalars['String']['output'];
   /** The module that this datatype is defined in */
   module: MoveModule;
   /** The datatype's unqualified name */
@@ -1918,6 +1932,8 @@ export type MoveDatatype = IMoveDatatype & {
   asMoveEnum?: Maybe<MoveEnum>;
   /** Attempts to convert the `MoveDatatype` to a `MoveStruct`. */
   asMoveStruct?: Maybe<MoveStruct>;
+  /** The datatype's fully-qualified name, including package address, module name, and datatype name. */
+  fullyQualifiedName: Scalars['String']['output'];
   /** The module that this datatype is defined in. */
   module: MoveModule;
   /** The datatype's unqualified name. */
@@ -1967,6 +1983,8 @@ export type MoveEnum = IMoveDatatype & {
   __typename?: 'MoveEnum';
   /** Abilities on this enum definition. */
   abilities?: Maybe<Array<MoveAbility>>;
+  /** The enum's fully-qualified name, including package address, module name, and datatype name. */
+  fullyQualifiedName: Scalars['String']['output'];
   /** The module that this enum is defined in. */
   module: MoveModule;
   /** The enum's unqualified name. */
@@ -2031,6 +2049,8 @@ export type MoveField = {
 /** A function defined in a Move module. */
 export type MoveFunction = {
   __typename?: 'MoveFunction';
+  /** The function's fully-qualified name, including package address, module name, and function name. */
+  fullyQualifiedName: Scalars['String']['output'];
   /** Whether the function is marked `entry` or not. */
   isEntry?: Maybe<Scalars['Boolean']['output']>;
   /** The module that this function is defined in. */
@@ -2100,6 +2120,8 @@ export type MoveModule = {
   fileFormatVersion?: Maybe<Scalars['Int']['output']>;
   /** Modules that this module considers friends. These modules can call `public(package)` functions in this module. */
   friends?: Maybe<MoveModuleConnection>;
+  /** The module's fully-qualified name, including its package address. */
+  fullyQualifiedName: Scalars['String']['output'];
   /** The function named `name` in this module. */
   function?: Maybe<MoveFunction>;
   /** Paginate through this module's function definitions. */
@@ -2239,7 +2261,7 @@ export type MoveModuleEdge = {
 };
 
 /** A MoveObject is a kind of Object that reprsents data stored on-chain. */
-export type MoveObject = IAddressable & IMoveObject & IObject & {
+export type MoveObject = IAddressable & IMoveObject & IObject & Node & {
   __typename?: 'MoveObject';
   /** The MoveObject's ID. */
   address: Scalars['SuiAddress']['output'];
@@ -2285,6 +2307,8 @@ export type MoveObject = IAddressable & IMoveObject & IObject & {
    * Both these operations require the object to have both the `key` and `store` abilities.
    */
   hasPublicTransfer?: Maybe<Scalars['Boolean']['output']>;
+  /** The Move object's globally unique identifier, which can be passed to `Query.node` to refetch it. */
+  id: Scalars['ID']['output'];
   /** The Base64-encoded BCS serialize of this object, as a `MoveObject`. */
   moveObjectBcs?: Maybe<Scalars['Base64']['output']>;
   /**
@@ -2453,7 +2477,7 @@ export type MoveObjectEdge = {
 };
 
 /** A MovePackage is a kind of Object that represents code that has been published on-chain. It exposes information about its modules, type definitions, functions, and dependencies. */
-export type MovePackage = IAddressable & IObject & {
+export type MovePackage = IAddressable & IObject & Node & {
   __typename?: 'MovePackage';
   /** The MovePackage's ID. */
   address: Scalars['SuiAddress']['output'];
@@ -2469,6 +2493,8 @@ export type MovePackage = IAddressable & IObject & {
   defaultSuinsName?: Maybe<Scalars['String']['output']>;
   /** 32-byte hash that identifies the package's contents, encoded in Base58. */
   digest?: Maybe<Scalars['String']['output']>;
+  /** The package's globally unique identifier, which can be passed to `Query.node` to refetch it. */
+  id: Scalars['ID']['output'];
   /** The transitive dependencies of this package. */
   linkage?: Maybe<Array<Linkage>>;
   /** The module named `name` in this package. */
@@ -2664,6 +2690,8 @@ export type MoveStruct = IMoveDatatype & {
    * Field types reference type parameters by their index in the defining struct's `typeParameters` list.
    */
   fields?: Maybe<Array<MoveField>>;
+  /** The struct's fully-qualified name, including package address, module name, and datatype name. */
+  fullyQualifiedName: Scalars['String']['output'];
   /** The module that this struct is defined in. */
   module: MoveModule;
   /** The struct's unqualified name. */
@@ -2785,12 +2813,18 @@ export type MutationExecuteTransactionArgs = {
   transactionDataBcs: Scalars['Base64']['input'];
 };
 
+/** An interface implemented by types that can be uniquely identified by a globally unique `ID`, following the GraphQL Global Object Identification specification. */
+export type Node = {
+  /** The node's globally unique identifier, which can be passed to `Query.node` to refetch it. */
+  id: Scalars['ID']['output'];
+};
+
 /**
  * An Object on Sui is either a typed value (a Move Object) or a Package (modules containing functions and types).
  *
  * Every object on Sui is identified by a unique address, and has a version number that increases with every modification. Objects also hold metadata detailing their current owner (who can sign for access to the object and whether that access can modify and/or delete the object), and the digest of the last transaction that modified the object.
  */
-export type Object = IAddressable & IObject & {
+export type Object = IAddressable & IObject & Node & {
   __typename?: 'Object';
   /** The Object's ID. */
   address: Scalars['SuiAddress']['output'];
@@ -2824,6 +2858,8 @@ export type Object = IAddressable & IObject & {
    * Returns `null` if a dynamic object field with that name could not be found attached to this object.
    */
   dynamicObjectField?: Maybe<DynamicField>;
+  /** The object's globally unique identifier, which can be passed to `Query.node` to refetch it. */
+  id: Scalars['ID']['output'];
   /**
    * Fetch the total balances keyed by coin types (e.g. `0x2::sui::SUI`) owned by this address.
    *
@@ -3425,6 +3461,8 @@ export type Query = {
    * Returns a list of types that is guaranteed to be the same length as `keys`. If a type in `keys` could not be found, its corresponding entry in the result will be `null`.
    */
   multiGetTypes: Array<Maybe<MoveType>>;
+  /** Fetch a `Node` by its globally unique `ID`. Returns `null` if the node cannot be found (e.g., the underlying data was pruned or never existed). */
+  node?: Maybe<Node>;
   /**
    * Fetch an object by its address.
    *
@@ -3615,6 +3653,11 @@ export type QueryMultiGetTransactionsArgs = {
 
 export type QueryMultiGetTypesArgs = {
   keys: Array<Scalars['String']['input']>;
+};
+
+
+export type QueryNodeArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -4002,7 +4045,7 @@ export type SystemParameters = {
 };
 
 /** Description of a transaction, the unit of activity on Sui. */
-export type Transaction = {
+export type Transaction = Node & {
   __typename?: 'Transaction';
   /** A 32-byte hash that uniquely identifies the transaction contents, encoded in Base58. */
   digest: Scalars['String']['output'];
@@ -4012,6 +4055,8 @@ export type Transaction = {
   expiration?: Maybe<Epoch>;
   /** The gas input field provides information on what objects were used as gas as well as the owner of the gas object(s) and information on the gas price and budget. */
   gasInput?: Maybe<GasInput>;
+  /** The transaction's globally unique identifier, which can be passed to `Query.node` to refetch it. */
+  id: Scalars['ID']['output'];
   /** The type of this transaction as well as the commands and/or parameters comprising the transaction of this kind. */
   kind?: Maybe<TransactionKind>;
   /** The address corresponding to the public key that signed this transaction. System transactions do not have senders. */
@@ -4020,6 +4065,8 @@ export type Transaction = {
   signatures: Array<UserSignature>;
   /** The Base64-encoded BCS serialization of this transaction, as a `TransactionData`. */
   transactionBcs?: Maybe<Scalars['Base64']['output']>;
+  /** The transaction as a JSON blob, matching the gRPC proto format (excluding BCS). */
+  transactionJson?: Maybe<Scalars['JSON']['output']>;
 };
 
 /** An argument to a programmable transaction command. */
@@ -4063,6 +4110,8 @@ export type TransactionEffects = {
   effectsBcs?: Maybe<Scalars['Base64']['output']>;
   /** A 32-byte hash that uniquely identifies the effects contents, encoded in Base58. */
   effectsDigest?: Maybe<Scalars['String']['output']>;
+  /** The effects as a JSON blob, matching the gRPC proto format (excluding BCS). */
+  effectsJson?: Maybe<Scalars['JSON']['output']>;
   /** The epoch this transaction was finalized in. */
   epoch?: Maybe<Epoch>;
   /** Events emitted by this transaction. */
