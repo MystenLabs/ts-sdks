@@ -1289,22 +1289,21 @@ export function updateReferralMultiplier(options: UpdateReferralMultiplierOption
 		});
 }
 export interface UpdateDeepbookReferralMultiplierArguments {
-	self: RawTransactionArgument<string>;
-	referral: RawTransactionArgument<string>;
-	multiplier: RawTransactionArgument<number | bigint>;
+	Self: RawTransactionArgument<string>;
+	Referral: RawTransactionArgument<string>;
+	Multiplier: RawTransactionArgument<number | bigint>;
 }
 export interface UpdateDeepbookReferralMultiplierOptions {
 	package?: string;
 	arguments:
 		| UpdateDeepbookReferralMultiplierArguments
 		| [
-				self: RawTransactionArgument<string>,
-				referral: RawTransactionArgument<string>,
-				multiplier: RawTransactionArgument<number | bigint>,
+				Self: RawTransactionArgument<string>,
+				Referral: RawTransactionArgument<string>,
+				Multiplier: RawTransactionArgument<number | bigint>,
 		  ];
 	typeArguments: [string, string];
 }
-/** Update the multiplier for the referral. */
 export function updateDeepbookReferralMultiplier(options: UpdateDeepbookReferralMultiplierOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [
@@ -1312,7 +1311,7 @@ export function updateDeepbookReferralMultiplier(options: UpdateDeepbookReferral
 		`${packageAddress}::balance_manager::DeepBookReferral`,
 		'u64',
 	] satisfies string[];
-	const parameterNames = ['self', 'referral', 'multiplier'];
+	const parameterNames = ['Self', 'Referral', 'Multiplier'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1322,30 +1321,91 @@ export function updateDeepbookReferralMultiplier(options: UpdateDeepbookReferral
 			typeArguments: options.typeArguments,
 		});
 }
-export interface ClaimReferralRewardsArguments {
+export interface UpdatePoolReferralMultiplierArguments {
 	self: RawTransactionArgument<string>;
 	referral: RawTransactionArgument<string>;
+	multiplier: RawTransactionArgument<number | bigint>;
+}
+export interface UpdatePoolReferralMultiplierOptions {
+	package?: string;
+	arguments:
+		| UpdatePoolReferralMultiplierArguments
+		| [
+				self: RawTransactionArgument<string>,
+				referral: RawTransactionArgument<string>,
+				multiplier: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string, string];
+}
+/** Update the multiplier for the referral. */
+export function updatePoolReferralMultiplier(options: UpdatePoolReferralMultiplierOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
+		`${packageAddress}::balance_manager::DeepBookPoolReferral`,
+		'u64',
+	] satisfies string[];
+	const parameterNames = ['self', 'referral', 'multiplier'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'update_pool_referral_multiplier',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface ClaimReferralRewardsArguments {
+	Self: RawTransactionArgument<string>;
+	Referral: RawTransactionArgument<string>;
 }
 export interface ClaimReferralRewardsOptions {
 	package?: string;
 	arguments:
 		| ClaimReferralRewardsArguments
-		| [self: RawTransactionArgument<string>, referral: RawTransactionArgument<string>];
+		| [Self: RawTransactionArgument<string>, Referral: RawTransactionArgument<string>];
 	typeArguments: [string, string];
 }
-/** Claim the rewards for the referral. */
 export function claimReferralRewards(options: ClaimReferralRewardsOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [
 		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
 		`${packageAddress}::balance_manager::DeepBookReferral`,
 	] satisfies string[];
-	const parameterNames = ['self', 'referral'];
+	const parameterNames = ['Self', 'Referral'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
 			function: 'claim_referral_rewards',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface ClaimPoolReferralRewardsArguments {
+	self: RawTransactionArgument<string>;
+	referral: RawTransactionArgument<string>;
+}
+export interface ClaimPoolReferralRewardsOptions {
+	package?: string;
+	arguments:
+		| ClaimPoolReferralRewardsArguments
+		| [self: RawTransactionArgument<string>, referral: RawTransactionArgument<string>];
+	typeArguments: [string, string];
+}
+/** Claim the rewards for the referral. */
+export function claimPoolReferralRewards(options: ClaimPoolReferralRewardsOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
+		`${packageAddress}::balance_manager::DeepBookPoolReferral`,
+	] satisfies string[];
+	const parameterNames = ['self', 'referral'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'claim_pool_referral_rewards',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
@@ -2738,14 +2798,14 @@ export function id(options: IdOptions) {
 		});
 }
 export interface GetReferralBalancesArguments {
-	self: RawTransactionArgument<string>;
-	referral: RawTransactionArgument<string>;
+	Self: RawTransactionArgument<string>;
+	Referral: RawTransactionArgument<string>;
 }
 export interface GetReferralBalancesOptions {
 	package?: string;
 	arguments:
 		| GetReferralBalancesArguments
-		| [self: RawTransactionArgument<string>, referral: RawTransactionArgument<string>];
+		| [Self: RawTransactionArgument<string>, Referral: RawTransactionArgument<string>];
 	typeArguments: [string, string];
 }
 export function getReferralBalances(options: GetReferralBalancesOptions) {
@@ -2754,12 +2814,66 @@ export function getReferralBalances(options: GetReferralBalancesOptions) {
 		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
 		`${packageAddress}::balance_manager::DeepBookReferral`,
 	] satisfies string[];
-	const parameterNames = ['self', 'referral'];
+	const parameterNames = ['Self', 'Referral'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
 			function: 'get_referral_balances',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface GetPoolReferralBalancesArguments {
+	self: RawTransactionArgument<string>;
+	referral: RawTransactionArgument<string>;
+}
+export interface GetPoolReferralBalancesOptions {
+	package?: string;
+	arguments:
+		| GetPoolReferralBalancesArguments
+		| [self: RawTransactionArgument<string>, referral: RawTransactionArgument<string>];
+	typeArguments: [string, string];
+}
+export function getPoolReferralBalances(options: GetPoolReferralBalancesOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
+		`${packageAddress}::balance_manager::DeepBookPoolReferral`,
+	] satisfies string[];
+	const parameterNames = ['self', 'referral'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'get_pool_referral_balances',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface PoolReferralMultiplierArguments {
+	self: RawTransactionArgument<string>;
+	referral: RawTransactionArgument<string>;
+}
+export interface PoolReferralMultiplierOptions {
+	package?: string;
+	arguments:
+		| PoolReferralMultiplierArguments
+		| [self: RawTransactionArgument<string>, referral: RawTransactionArgument<string>];
+	typeArguments: [string, string];
+}
+export function poolReferralMultiplier(options: PoolReferralMultiplierOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
+		`${packageAddress}::balance_manager::DeepBookPoolReferral`,
+	] satisfies string[];
+	const parameterNames = ['self', 'referral'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'pool_referral_multiplier',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});

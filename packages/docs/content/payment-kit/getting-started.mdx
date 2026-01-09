@@ -76,7 +76,7 @@ const result = await client.signAndExecuteTransaction({
 
 // Check transaction status
 if (result.$kind === 'FailedTransaction') {
-	throw new Error(`Payment failed: ${result.FailedTransaction.status.error}`);
+	throw new Error(`Payment failed: ${result.FailedTransaction.status.error?.message}`);
 }
 
 console.log('Payment processed:', result.Transaction.digest);
@@ -135,7 +135,7 @@ const result = await client.signAndExecuteTransaction({
 
 // Check transaction status
 if (result.$kind === 'FailedTransaction') {
-	throw new Error(`Ephemeral payment failed: ${result.FailedTransaction.status.error}`);
+	throw new Error(`Ephemeral payment failed: ${result.FailedTransaction.status.error?.message}`);
 }
 
 console.log('Ephemeral payment processed:', result.Transaction.digest);
@@ -184,7 +184,7 @@ try {
 	});
 
 	if (result.$kind === 'FailedTransaction') {
-		throw new Error(`Payment failed: ${result.FailedTransaction.status.error}`);
+		throw new Error(`Payment failed: ${result.FailedTransaction.status.error?.message}`);
 	}
 
 	console.log('Success:', result.Transaction.digest);
