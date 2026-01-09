@@ -1,6 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import type { TransactionObjectArgument, TransactionObjectInput } from '@mysten/sui/transactions';
 
 // Interfaces
@@ -101,7 +101,7 @@ export type ReceiptParams = {
 };
 
 export type SuinsClientConfig = {
-	client: SuiJsonRpcClient;
+	client: ClientWithCoreApi;
 	network?: Network;
 	config?: Config;
 };

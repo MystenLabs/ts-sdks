@@ -450,3 +450,51 @@ Update your code to use the client extension pattern:
 + // Load from URL
 + const link = await client.zksend.loadLinkFromUrl(url);
 ```
+
+## @mysten/suins: ClientWithCoreApi Support
+
+The `@mysten/suins` package now uses the transport-agnostic `ClientWithCoreApi` interface, allowing
+it to work with any Sui client implementation (JSON-RPC, GraphQL, or gRPC).
+
+**Breaking changes:**
+
+- `SuinsClient` now requires a client implementing `ClientWithCoreApi` instead of `SuiClient`
+- Internal package ID resolution now correctly extracts `upgrade_cap.package` from state objects
+
+**Migration:**
+
+Update your imports and client initialization:
+
+```diff
+- import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
++ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+  import { SuinsClient } from '@mysten/suins';
+
+- const suiClient = new SuiClient({ url: getFullnodeUrl('mainnet') });
++ const suiClient = new SuiJsonRpcClient({
++   url: getJsonRpcFullnodeUrl('mainnet'),
++   network: 'mainnet',
++ });
+
+  const suinsClient = new SuinsClient({
+    client: suiClient,
+    network: 'mainnet',
+  });
+```
+
+You can also use GraphQL or gRPC clients:
+
+```ts
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { SuinsClient } from '@mysten/suins';
+
+const graphqlClient = new SuiGraphQLClient({
+	url: 'https://sui-mainnet.mystenlabs.com/graphql',
+	network: 'mainnet',
+});
+
+const suinsClient = new SuinsClient({
+	client: graphqlClient,
+	network: 'mainnet',
+});
+```
