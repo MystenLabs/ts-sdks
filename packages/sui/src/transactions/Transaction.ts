@@ -600,6 +600,35 @@ export class Transaction {
 	}
 
 	/**
+	 * Create a FundsWithdrawal input for withdrawing Balance<T> from an address balance accumulator.
+	 * This is used for gas payments from address balances.
+	 *
+	 * @param options.amount - The Amount to withdraw (u64).
+	 * @param options.type - The balance type (e.g., "0x2::sui::SUI"). Defaults to SUI.
+	 */
+	withdrawal({ amount, type }: { amount: number | bigint | string; type?: string | null }): {
+		$kind: 'Input';
+		Input: number;
+		type?: 'object';
+	} {
+		const input: CallArg = {
+			$kind: 'FundsWithdrawal',
+			FundsWithdrawal: {
+				// TODO: support entire balance withdrawals once supported
+				reservation: { $kind: 'MaxAmountU64', MaxAmountU64: String(amount) },
+				typeArg: { $kind: 'Balance', Balance: type ?? '0x2::sui::SUI' },
+				withdrawFrom:
+					// fromSponsor === true
+					// 	? { $kind: 'Sponsor', Sponsor: true } :
+					// TODO: currently only supporting withdrawals from sender
+					{ $kind: 'Sender', Sender: true },
+			},
+		};
+
+		return this.#addInput('object', input);
+	}
+
+	/**
 	 * @deprecated Use toJSON instead.
 	 * For synchronous serialization, you can use `getData()`
 	 * */

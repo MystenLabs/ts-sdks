@@ -19,6 +19,7 @@ import {
 	ExecutionStatus,
 	GetAllBalancesDocument,
 	GetBalanceDocument,
+	GetChainIdentifierDocument,
 	GetCoinsDocument,
 	GetCurrentSystemStateDocument,
 	GetDynamicFieldsDocument,
@@ -598,6 +599,25 @@ export class GraphQLCoreClient extends CoreClient {
 					moveFunction.return?.map(({ signature }) => parseNormalizedSuiMoveType(signature)) ?? [],
 			},
 		};
+	}
+
+	async getChainIdentifier(
+		_options?: SuiClientTypes.GetChainIdentifierOptions,
+	): Promise<SuiClientTypes.GetChainIdentifierResponse> {
+		return this.cache.read(['chainIdentifier'], async () => {
+			const checkpoint = await this.#graphqlQuery(
+				{
+					query: GetChainIdentifierDocument,
+				},
+				(result) => result.checkpoint,
+			);
+			if (!checkpoint?.digest) {
+				throw new Error('Genesis checkpoint digest not found');
+			}
+			return {
+				chainIdentifier: checkpoint.digest,
+			};
+		});
 	}
 
 	resolveTransactionPlugin() {

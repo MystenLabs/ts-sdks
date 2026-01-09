@@ -1220,7 +1220,7 @@ export type EndOfEpochTransactionTransactionsArgs = {
   last?: InputMaybe<Scalars['Int']['input']>;
 };
 
-export type EndOfEpochTransactionKind = AccumulatorRootCreateTransaction | AddressAliasStateCreateTransaction | AuthenticatorStateCreateTransaction | AuthenticatorStateExpireTransaction | BridgeCommitteeInitTransaction | BridgeStateCreateTransaction | ChangeEpochTransaction | CoinDenyListStateCreateTransaction | CoinRegistryCreateTransaction | DisplayRegistryCreateTransaction | RandomnessStateCreateTransaction | StoreExecutionTimeObservationsTransaction;
+export type EndOfEpochTransactionKind = AccumulatorRootCreateTransaction | AddressAliasStateCreateTransaction | AuthenticatorStateCreateTransaction | AuthenticatorStateExpireTransaction | BridgeCommitteeInitTransaction | BridgeStateCreateTransaction | ChangeEpochTransaction | CoinDenyListStateCreateTransaction | CoinRegistryCreateTransaction | DisplayRegistryCreateTransaction | RandomnessStateCreateTransaction | StoreExecutionTimeObservationsTransaction | WriteAccumulatorStorageCostTransaction;
 
 export type EndOfEpochTransactionKindConnection = {
   __typename?: 'EndOfEpochTransactionKindConnection';
@@ -3493,6 +3493,9 @@ export type Query = {
    * `{"bcs": {"value": "<base64>"}}`
    *
    * Unlike `executeTransaction`, this does not require signatures since the transaction is not committed to the blockchain. This allows for previewing transaction effects, estimating gas costs, and testing transaction logic without spending gas or requiring valid signatures.
+   *
+   * - `checksEnabled`: If true, enables transaction validation checks during simulation. Defaults to true.
+   * - `doGasSelection`: If true, enables automatic gas coin selection and budget estimation. Defaults to false.
    */
   simulateTransaction: SimulationResult;
   /** Look-up an account by its SuiNS name, assuming it has a valid, unexpired name registration. */
@@ -3674,6 +3677,8 @@ export type QueryProtocolConfigsArgs = {
 
 
 export type QuerySimulateTransactionArgs = {
+  checksEnabled?: InputMaybe<Scalars['Boolean']['input']>;
+  doGasSelection?: InputMaybe<Scalars['Boolean']['input']>;
   transaction: Scalars['JSON']['input'];
 };
 
@@ -4470,6 +4475,13 @@ export type VersionFilter = {
   beforeVersion?: InputMaybe<Scalars['UInt53']['input']>;
 };
 
+/** System transaction for writing the pre-computed storage cost for accumulator objects. */
+export type WriteAccumulatorStorageCostTransaction = {
+  __typename?: 'WriteAccumulatorStorageCostTransaction';
+  /** A workaround to define an empty variant of a GraphQL union. */
+  _?: Maybe<Scalars['Boolean']['output']>;
+};
+
 /** An enum that specifies the intent scope to be used to parse the bytes for signature verification. */
 export enum ZkLoginIntentScope {
   /** Indicates that the bytes are to be parsed as a personal message. */
@@ -4503,6 +4515,11 @@ export type GetBalanceQueryVariables = Exact<{
 
 
 export type GetBalanceQuery = { __typename?: 'Query', address: { __typename?: 'Address', balance?: { __typename?: 'Balance', totalBalance?: string | null, coinType?: { __typename?: 'MoveType', repr: string } | null } | null } };
+
+export type GetChainIdentifierQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetChainIdentifierQuery = { __typename?: 'Query', checkpoint?: { __typename?: 'Checkpoint', digest?: string | null } | null };
 
 export type GetCoinsQueryVariables = Exact<{
   owner: Scalars['SuiAddress']['input'];
@@ -4972,6 +4989,13 @@ export const GetBalanceDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<GetBalanceQuery, GetBalanceQueryVariables>;
+export const GetChainIdentifierDocument = new TypedDocumentString(`
+    query getChainIdentifier {
+  checkpoint(sequenceNumber: 0) {
+    digest
+  }
+}
+    `) as unknown as TypedDocumentString<GetChainIdentifierQuery, GetChainIdentifierQueryVariables>;
 export const GetCoinsDocument = new TypedDocumentString(`
     query getCoins($owner: SuiAddress!, $first: Int, $cursor: String, $type: String = "0x2::coin::Coin<0x2::sui::SUI>") {
   address(address: $owner) {

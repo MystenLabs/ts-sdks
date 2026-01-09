@@ -79,6 +79,13 @@ export const JsonU64 = pipe(
 		}
 	}, 'Invalid u64'),
 );
+
+export const U32 = pipe(
+	number(),
+	integer(),
+	check((val) => val >= 0 && val < 2 ** 32, 'Invalid u32'),
+);
+
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/base_types.rs#L138
 // Implemented as a tuple in rust
 export const ObjectRefSchema = object({
@@ -267,6 +274,34 @@ export const ObjectArgSchema = safeEnum({
 	Receiving: ObjectRefSchema,
 });
 
+// Rust: crates/sui-types/src/transaction.rs
+export const ReservationSchema = safeEnum({
+	EntireBalance: literal(true),
+	MaxAmountU64: JsonU64,
+});
+export type Reservation = InferOutput<typeof ReservationSchema>;
+
+// Rust: crates/sui-types/src/transaction.rs
+export const WithdrawalTypeArgSchema = safeEnum({
+	Balance: string(),
+});
+export type WithdrawalTypeArg = InferOutput<typeof WithdrawalTypeArgSchema>;
+
+// Rust: crates/sui-types/src/transaction.rs
+export const WithdrawFromSchema = safeEnum({
+	Sender: literal(true),
+	Sponsor: literal(true),
+});
+export type WithdrawFrom = InferOutput<typeof WithdrawFromSchema>;
+
+// Rust: crates/sui-types/src/transaction.rs
+export const FundsWithdrawalArgSchema = object({
+	reservation: ReservationSchema,
+	typeArg: WithdrawalTypeArgSchema,
+	withdrawFrom: WithdrawFromSchema,
+});
+export type FundsWithdrawalArg = InferOutput<typeof FundsWithdrawalArgSchema>;
+
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L75-L80
 const CallArgSchema = safeEnum({
 	Object: ObjectArgSchema,
@@ -283,6 +318,7 @@ const CallArgSchema = safeEnum({
 		initialSharedVersion: optional(nullable(JsonU64)),
 		mutable: optional(nullable(boolean())),
 	}),
+	FundsWithdrawal: FundsWithdrawalArgSchema,
 });
 export type CallArg = InferOutput<typeof CallArgSchema>;
 
@@ -293,9 +329,21 @@ export const NormalizedCallArg = safeEnum({
 	}),
 });
 
+// Rust: crates/sui-types/src/transaction.rs
+export const ValidDuringSchema = object({
+	minEpoch: nullable(JsonU64),
+	maxEpoch: nullable(JsonU64),
+	minTimestamp: nullable(JsonU64),
+	maxTimestamp: nullable(JsonU64),
+	chain: string(),
+	nonce: U32,
+});
+export type ValidDuring = InferOutput<typeof ValidDuringSchema>;
+
 export const TransactionExpiration = safeEnum({
 	None: literal(true),
 	Epoch: JsonU64,
+	ValidDuring: ValidDuringSchema,
 });
 
 export type TransactionExpiration = InferOutput<typeof TransactionExpiration>;
