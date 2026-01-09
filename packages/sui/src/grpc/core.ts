@@ -616,6 +616,20 @@ export class GrpcCoreClient extends CoreClient {
 		};
 	}
 
+	async getChainIdentifier(
+		_options?: SuiClientTypes.GetChainIdentifierOptions,
+	): Promise<SuiClientTypes.GetChainIdentifierResponse> {
+		return this.cache.read(['chainIdentifier'], async () => {
+			const { response } = await this.#client.ledgerService.getServiceInfo({});
+			if (!response.chainId) {
+				throw new Error('Chain identifier not found in service info');
+			}
+			return {
+				chainIdentifier: response.chainId,
+			};
+		});
+	}
+
 	resolveTransactionPlugin() {
 		const client = this.#client;
 		return async function resolveTransactionData(

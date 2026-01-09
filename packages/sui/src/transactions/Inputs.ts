@@ -5,7 +5,13 @@ import { toBase64 } from '@mysten/bcs';
 import type { SerializedBcs } from '@mysten/bcs';
 
 import { normalizeSuiAddress } from '../utils/sui-types.js';
-import type { CallArg, ObjectRef } from './data/internal.js';
+import type {
+	CallArg,
+	ObjectRef,
+	Reservation,
+	WithdrawalTypeArg,
+	WithdrawFrom,
+} from './data/internal.js';
 
 function Pure(data: Uint8Array | SerializedBcs<any>): Extract<CallArg, { Pure: unknown }> {
 	return {
@@ -62,6 +68,24 @@ export const Inputs = {
 					version,
 					objectId: normalizeSuiAddress(objectId),
 				},
+			},
+		};
+	},
+	FundsWithdrawal({
+		reservation,
+		typeArg,
+		withdrawFrom,
+	}: {
+		reservation: Reservation;
+		typeArg: WithdrawalTypeArg;
+		withdrawFrom: WithdrawFrom;
+	}): Extract<CallArg, { FundsWithdrawal: unknown }> {
+		return {
+			$kind: 'FundsWithdrawal',
+			FundsWithdrawal: {
+				reservation,
+				typeArg,
+				withdrawFrom,
 			},
 		};
 	},

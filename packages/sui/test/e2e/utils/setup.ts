@@ -256,8 +256,7 @@ export async function setupWithFundedAddress(
 	configPath: string,
 	{ rpcURL }: { graphQLURL?: string; rpcURL?: string } = {},
 ) {
-	const client = getClient(rpcURL ?? DEFAULT_FULLNODE_URL);
-	await retry(
+	const faucetResponse = await retry(
 		async () => await requestSuiFromFaucetV2({ host: DEFAULT_FAUCET_URL, recipient: address }),
 		{
 			backoff: 'EXPONENTIAL',
@@ -269,23 +268,21 @@ export async function setupWithFundedAddress(
 		},
 	);
 
-	await retry(
-		async () => {
-			const balance = await client.getBalance({ owner: address });
-
-			if (balance.totalBalance === '0') {
-				throw new Error('Balance is still 0');
-			}
-		},
-		{
-			backoff: () => 3000,
-			timeout: 60 * 1000,
-			retryIf: () => true,
-		},
-	);
-
+	// Create toolbox early so we can wait on all clients
 	await execSuiTools(['sui', 'client', '--yes', '--client.config', configPath]);
-	return new TestToolbox(keypair, rpcURL, configPath);
+	const toolbox = new TestToolbox(keypair, rpcURL, configPath);
+
+	// Wait for the faucet transaction on all clients to ensure indexers have caught up
+	const digest = faucetResponse.coins_sent?.[0]?.transferTxDigest;
+	if (digest) {
+		await Promise.all([
+			toolbox.jsonRpcClient.core.waitForTransaction({ digest }),
+			toolbox.grpcClient.core.waitForTransaction({ digest }),
+			toolbox.graphqlClient.core.waitForTransaction({ digest }),
+		]);
+	}
+
+	return toolbox;
 }
 
 export async function publishPackage(packageName: string, toolbox?: TestToolbox) {
