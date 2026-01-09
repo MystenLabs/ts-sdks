@@ -1,7 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { bcs } from '@mysten/sui/bcs';
 import type { Argument, Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
+
+export const ZkBagStruct = bcs.struct('ZkBag', {
+	id: bcs.Address,
+	owner: bcs.Address,
+	item_ids: bcs.vector(bcs.Address),
+});
 
 export interface ZkBagContractOptions {
 	packageId: string;
