@@ -1,133 +1,167 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
-import { fromBase64, isValidSuiAddress, SUI_FRAMEWORK_ADDRESS } from '@mysten/sui/utils';
+import { isValidSuiAddress } from '@mysten/sui/utils';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 
-import '../bcs.js';
-
-import { TransferPolicyType } from '../bcs.js';
+import {
+	TransferPolicyCap as TransferPolicyCapStruct,
+	TransferPolicy as TransferPolicyStruct,
+} from '../contracts/0x2/transfer_policy.js';
 import type { TransferPolicy, TransferPolicyCap } from '../types/index.js';
 import {
 	TRANSFER_POLICY_CAP_TYPE,
 	TRANSFER_POLICY_CREATED_EVENT,
 	TRANSFER_POLICY_TYPE,
 } from '../types/index.js';
-import { getAllOwnedObjects, parseTransferPolicyCapObject } from '../utils.js';
+import { queryEvents } from './client-utils.js';
 
 /**
- * Searches the `TransferPolicy`-s for the given type. The seach is performed via
+ * Searches the `TransferPolicy`-s for the given type. The search is performed via
  * the `TransferPolicyCreated` event. The policy can either be owned or shared,
  * and the caller needs to filter the results accordingly (ie single owner can not
  * be accessed by anyone but the owner).
  *
- * @param provider
- * @param type
+ * This method requires event querying support (JSON-RPC or GraphQL clients).
+ * gRPC clients do not support event querying and will throw an error.
+ *
+ * @param client - The Sui client (must support event querying)
+ * @param type - The type of the asset (e.g., "0x123::nft::NFT")
+ * @throws Error if the client doesn't support event querying
  */
 export async function queryTransferPolicy(
-	client: SuiJsonRpcClient,
+	client: ClientWithCoreApi,
 	type: string,
 ): Promise<TransferPolicy[]> {
-	// console.log('event type: %s', `${TRANSFER_POLICY_CREATED_EVENT}<${type}>`);
-	const { data } = await client.queryEvents({
-		query: {
-			MoveEventType: `${TRANSFER_POLICY_CREATED_EVENT}<${type}>`,
-		},
+	const data = await queryEvents(client, `${TRANSFER_POLICY_CREATED_EVENT}<${type}>`);
+
+	const search = data.map((event) => event.json as { id: string });
+
+	const { objects } = await client.core.getObjects({
+		objectIds: search.map((policy: { id: string }) => policy.id),
+		include: { content: true },
 	});
 
-	const search = data.map((event) => event.parsedJson as { id: string });
-	const policies = await client.multiGetObjects({
-		ids: search.map((policy) => policy.id),
-		options: { showBcs: true, showOwner: true },
-	});
-
-	return policies
-		.filter((policy) => !!policy && 'data' in policy)
-		.map(({ data: policy }) => {
-			// should never happen; policies are objects and fetched via an event.
-			// policies are filtered for null and undefined above.
-			if (!policy || !policy.bcs || !('bcsBytes' in policy.bcs)) {
-				throw new Error(`Invalid policy: ${policy?.objectId}, expected object, got package`);
+	return objects
+		.filter((obj) => !(obj instanceof Error) && obj.content)
+		.map((obj) => {
+			if (obj instanceof Error) {
+				throw obj;
 			}
 
-			const parsed = TransferPolicyType.parse(fromBase64(policy.bcs.bcsBytes));
+			if (!obj.content) {
+				throw new Error(`Invalid policy: ${obj.objectId}, expected object with content`);
+			}
+
+			const parsed = TransferPolicyStruct.parse(obj.content);
 
 			return {
-				id: policy?.objectId,
+				id: obj.objectId,
 				type: `${TRANSFER_POLICY_TYPE}<${type}>`,
-				owner: policy?.owner!,
-				rules: parsed.rules,
-				balance: parsed.balance,
+				owner: obj.owner,
+				rules: parsed.rules.contents.map((rule) => rule.name),
+				balance: parsed.balance.value.toString(),
 			} as TransferPolicy;
 		});
 }
 
 /**
- * A function to fetch all the user's kiosk Caps
- * And a list of the kiosk address ids.
- * Returns a list of `kioskOwnerCapIds` and `kioskIds`.
- * Extra options allow pagination.
- * @returns TransferPolicyCap Object ID | undefined if not found.
+ * Fetches all TransferPolicyCap objects owned by an address for a specific type.
+ *
+ * @param client - The Sui client
+ * @param address - The owner address
+ * @param type - The type of the asset
+ * @returns Array of TransferPolicyCap objects
  */
 export async function queryTransferPolicyCapsByType(
-	client: SuiJsonRpcClient,
+	client: ClientWithCoreApi,
 	address: string,
 	type: string,
 ): Promise<TransferPolicyCap[]> {
 	if (!isValidSuiAddress(address)) return [];
 
-	const filter = {
-		MatchAll: [
-			{
-				StructType: `${TRANSFER_POLICY_CAP_TYPE}<${type}>`,
-			},
-		],
-	};
+	const policies = [];
+	let hasNextPage = true;
+	let cursor: string | null = null;
 
-	// fetch owned kiosk caps, paginated.
-	const data = await getAllOwnedObjects({
-		client,
-		filter,
-		owner: address,
-	});
+	while (hasNextPage) {
+		const result: Awaited<ReturnType<typeof client.core.listOwnedObjects>> =
+			await client.core.listOwnedObjects({
+				owner: address,
+				type: `${TRANSFER_POLICY_CAP_TYPE}<${type}>`,
+				cursor,
+				limit: 50,
+				include: {
+					content: true,
+				},
+			});
 
-	return data
-		.map((item) => parseTransferPolicyCapObject(item))
-		.filter((item) => !!item) as TransferPolicyCap[];
+		for (const obj of result.objects) {
+			if (obj.content) {
+				policies.push({
+					policyId: TransferPolicyCapStruct.parse(obj.content).policy_id,
+					policyCapId: obj.objectId,
+					type,
+				});
+			}
+		}
+
+		hasNextPage = result.hasNextPage;
+		cursor = result.cursor;
+	}
+
+	return policies;
 }
 
 /**
- * A function to fetch all the user's kiosk Caps
- * And a list of the kiosk address ids.
- * Returns a list of `kioskOwnerCapIds` and `kioskIds`.
- * Extra options allow pagination.
- * @returns TransferPolicyCap Object ID | undefined if not found.
+ * Fetches all TransferPolicyCap objects owned by an address (all types).
+ *
+ * Uses struct-level filtering (without type parameters) to efficiently query
+ * only TransferPolicyCap objects. This matches all generic instantiations
+ * (e.g., TransferPolicyCap<T> for any T) and is supported natively by all clients.
+ *
+ * @param client - The Sui client
+ * @param address - The owner address
+ * @returns Array of TransferPolicyCap objects or undefined if address is invalid
  */
 export async function queryOwnedTransferPolicies(
-	client: SuiJsonRpcClient,
+	client: ClientWithCoreApi,
 	address: string,
 ): Promise<TransferPolicyCap[] | undefined> {
 	if (!isValidSuiAddress(address)) return;
 
-	const filter = {
-		MatchAll: [
-			{
-				MoveModule: {
-					module: 'transfer_policy',
-					package: SUI_FRAMEWORK_ADDRESS,
-				},
-			},
-		],
-	};
-
-	// fetch all owned kiosk caps, paginated.
-	const data = await getAllOwnedObjects({ client, owner: address, filter });
-
+	let hasNextPage = true;
+	let cursor: string | null = null;
 	const policies: TransferPolicyCap[] = [];
 
-	for (const item of data) {
-		const data = parseTransferPolicyCapObject(item);
-		if (data) policies.push(data);
+	while (hasNextPage) {
+		const result: Awaited<ReturnType<typeof client.core.listOwnedObjects>> =
+			await client.core.listOwnedObjects({
+				owner: address,
+				type: TRANSFER_POLICY_CAP_TYPE,
+				cursor,
+				limit: 50,
+				include: {
+					content: true,
+				},
+			});
+
+		// All results are TransferPolicyCap objects, extract the type parameter
+		for (const obj of result.objects) {
+			if (obj.content) {
+				// Extract the type parameter T from "0x2::transfer_policy::TransferPolicyCap<T>"
+				const objectType = obj.type!.replace(`${TRANSFER_POLICY_CAP_TYPE}<`, '').slice(0, -1);
+
+				policies.push({
+					policyId: TransferPolicyCapStruct.parse(obj.content).policy_id,
+					policyCapId: obj.objectId,
+					type: objectType,
+				});
+			}
+		}
+
+		hasNextPage = result.hasNextPage;
+		cursor = result.cursor;
 	}
 
 	return policies;

@@ -58,6 +58,14 @@ export interface SuiGraphQLClientOptions<Queries extends Record<string, GraphQLD
 
 export class SuiGraphQLRequestError extends Error {}
 
+const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiGraphQLClient') as never;
+
+export function isSuiGraphQLClient(client: unknown): client is SuiGraphQLClient {
+	return (
+		typeof client === 'object' && client !== null && (client as any)[SUI_CLIENT_BRAND] === true
+	);
+}
+
 export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = {}>
 	extends BaseClient
 	implements SuiClientTypes.TransportMethods
@@ -69,6 +77,10 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	core: GraphQLCoreClient;
 	get mvr(): SuiClientTypes.MvrMethods {
 		return this.core.mvr;
+	}
+
+	get [SUI_CLIENT_BRAND]() {
+		return true;
 	}
 
 	constructor({

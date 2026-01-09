@@ -1,7 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { PaginationArguments, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import type { PaginationArguments } from '@mysten/sui/jsonRpc';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 
 import {
 	FLOOR_PRICE_RULE_ADDRESS,
@@ -33,7 +34,7 @@ import type {
  * If you pass packageIds, all functionality will be managed using these packages.
  */
 export class KioskClient {
-	client: SuiJsonRpcClient;
+	client: ClientWithCoreApi;
 	network: Network;
 	rules: TransferPolicyRule[];
 	packageIds?: BaseRulePackageIds;
