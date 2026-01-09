@@ -117,7 +117,7 @@ export class ZkSendLinkBuilder {
 
 		if (result.FailedTransaction) {
 			throw new Error(
-				`Transaction failed: ${result.FailedTransaction.effects.status.error ?? 'Unknown error'}`,
+				`Transaction failed: ${result.FailedTransaction.status.error?.message ?? 'Unknown error'}`,
 			);
 		}
 

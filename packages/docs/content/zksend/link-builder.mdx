@@ -159,7 +159,7 @@ const result = await client.signAndExecuteTransaction({
 
 // Check transaction status
 if (result.$kind === 'FailedTransaction') {
-	throw new Error(`Link regeneration failed: ${result.FailedTransaction.status.error}`);
+	throw new Error(`Link regeneration failed: ${result.FailedTransaction.status.error?.message}`);
 }
 ```
 
@@ -193,6 +193,6 @@ const result = await client.signAndExecuteTransaction({
 
 // Check transaction status
 if (result.$kind === 'FailedTransaction') {
-	throw new Error(`Link creation failed: ${result.FailedTransaction.status.error}`);
+	throw new Error(`Link creation failed: ${result.FailedTransaction.status.error?.message}`);
 }
 ```

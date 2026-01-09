@@ -5,7 +5,6 @@ import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from 
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as price_feed from './price_feed.js';
-import * as object from './deps/0x0000000000000000000000000000000000000000000000000000000000000002/object.js';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::price_info';
 export const PriceInfo = new MoveStruct({
@@ -19,7 +18,7 @@ export const PriceInfo = new MoveStruct({
 export const PriceInfoObject = new MoveStruct({
 	name: `${$moduleName}::PriceInfoObject`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		price_info: PriceInfo,
 	},
 });

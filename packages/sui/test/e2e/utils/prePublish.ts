@@ -176,7 +176,7 @@ async function publishSinglePackage(options: {
 
 	if (publishTxn.FailedTransaction) {
 		throw new Error(
-			`Publish transaction failed for ${packagePath}: ${JSON.stringify(publishTxn.FailedTransaction.status.error)}`,
+			`Publish transaction failed for ${packagePath}: ${publishTxn.FailedTransaction.status.error?.message}`,
 		);
 	}
 

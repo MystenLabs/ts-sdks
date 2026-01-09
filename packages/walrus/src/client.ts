@@ -2019,7 +2019,7 @@ export class WalrusClient {
 
 		if (result.FailedTransaction) {
 			throw new WalrusClientError(
-				`Failed to ${action} (${result.FailedTransaction.digest}): ${result.FailedTransaction.effects?.status.error}`,
+				`Failed to ${action} (${result.FailedTransaction.digest}): ${result.FailedTransaction.status.error?.message}`,
 			);
 		}
 
