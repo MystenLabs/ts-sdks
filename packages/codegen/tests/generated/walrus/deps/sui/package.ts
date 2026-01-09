@@ -11,12 +11,11 @@
 
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import * as object from './object.js';
 const $moduleName = '0x2::package';
 export const Publisher = new MoveStruct({
 	name: `${$moduleName}::Publisher`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		package: bcs.string(),
 		module_name: bcs.string(),
 	},
@@ -24,7 +23,7 @@ export const Publisher = new MoveStruct({
 export const UpgradeCap = new MoveStruct({
 	name: `${$moduleName}::UpgradeCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		/** (Mutable) ID of the package that can be upgraded. */
 		package: bcs.Address,
 		/**

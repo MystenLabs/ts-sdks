@@ -1,6 +1,0 @@
-{
-	"private": true,
-	"import": "../dist/esm/grpc/index.js",
-	"main": "../dist/cjs/grpc/index.js",
-	"sideEffects": false
-}

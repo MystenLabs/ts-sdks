@@ -1,10 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Fp2, Fp12 } from '@noble/curves/abstract/tower';
-import type { WeierstrassPoint } from '@noble/curves/abstract/weierstrass';
-import { bls12_381 } from '@noble/curves/bls12-381';
-import { bytesToNumberBE, bytesToNumberLE, numberToBytesBE } from '@noble/curves/utils';
+import type { Fp2, Fp12 } from '@noble/curves/abstract/tower.js';
+import type { WeierstrassPoint } from '@noble/curves/abstract/weierstrass.js';
+import { bls12_381 } from '@noble/curves/bls12-381.js';
+import { bytesToNumberBE, bytesToNumberLE, numberToBytesBE } from '@noble/curves/utils.js';
 
 export class G1Element {
 	point: WeierstrassPoint<bigint>;

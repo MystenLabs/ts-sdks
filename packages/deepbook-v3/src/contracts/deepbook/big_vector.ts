@@ -1,5 +1,6 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * BigVector is an arbitrary sized vector-like data structure, implemented using an
@@ -18,14 +19,12 @@
  */
 
 import { MoveStruct } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
-import type { BcsType } from '@mysten/sui/bcs';
-import * as object from './deps/sui/object.js';
+import { bcs, type BcsType } from '@mysten/sui/bcs';
 const $moduleName = '@deepbook/core::big_vector';
 export const BigVector = new MoveStruct({
 	name: `${$moduleName}::BigVector`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		/** How deep the tree structure is. */
 		depth: bcs.u8(),
 		/**

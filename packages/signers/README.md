@@ -174,12 +174,15 @@ cryptographic operations.
 import Transport from '@ledgerhq/hw-transport-node-hid';
 import SuiLedgerClient from '@mysten/ledgerjs-hw-app-sui';
 import { LedgerSigner } from '@mysten/signers/ledger';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Transaction } from '@mysten/sui/transactions';
 
 const transport = await Transport.open(undefined);
 const ledgerClient = new SuiLedgerClient(transport);
-const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
+const suiClient = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+});
 
 const signer = await LedgerSigner.fromDerivationPath(
 	"m/44'/784'/0'/0'/0'",

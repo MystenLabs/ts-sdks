@@ -26,7 +26,7 @@ import {
 } from '@mysten/wallet-standard';
 import type { Wallet } from '@mysten/wallet-standard';
 import { toBase64 } from '@mysten/utils';
-import type { ClientWithCoreApi } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import type { WalletInitializer } from './index.js';
 import { getChain } from '../utils/networks.js';
 
@@ -154,11 +154,12 @@ export class UnsafeBurnerWallet implements Wallet {
 			client,
 		});
 
+		const tx = result.Transaction ?? result.FailedTransaction;
 		return {
 			bytes: toBase64(bytes),
-			signature: result.signatures[0],
-			digest: result.digest,
-			effects: toBase64(result.effects.bcs!),
+			signature: tx.signatures[0],
+			digest: tx.digest,
+			effects: toBase64(tx.effects.bcs!),
 		};
 	};
 }

@@ -4,41 +4,41 @@
 import type { BcsType } from '@mysten/bcs';
 import { pureBcsSchemaFromTypeName } from '@mysten/sui/bcs';
 import type { PureTypeName, ShapeFromPureTypeName } from '@mysten/sui/bcs';
-import type { SuiObjectData } from '@mysten/sui/client';
-import type {
-	Experimental_BaseClient,
-	Experimental_SuiClientTypes,
-} from '@mysten/sui/experimental';
+import type { BaseClient, SuiClientTypes } from '@mysten/sui/client';
 import { deriveDynamicFieldID } from '@mysten/sui/utils';
 import DataLoader from 'dataloader';
 import { Field } from './bcs.js';
 
 export class SuiObjectDataLoader extends DataLoader<
 	string,
-	Experimental_SuiClientTypes.ObjectResponse
+	SuiClientTypes.Object<{ content: true }>
 > {
-	#dynamicFieldCache = new Map<string, Map<string, Experimental_SuiClientTypes.ObjectResponse>>();
-	constructor(suiClient: Experimental_BaseClient) {
+	#dynamicFieldCache = new Map<string, Map<string, SuiClientTypes.Object<{ content: true }>>>();
+	constructor(suiClient: BaseClient) {
 		super(async (ids: readonly string[]) => {
 			const { objects } = await suiClient.core.getObjects({
 				objectIds: ids as string[],
+				include: { content: true },
 			});
 
 			return objects;
 		});
 	}
 
-	override async load<T = SuiObjectData>(id: string, schema?: BcsType<T, any>): Promise<T> {
+	override async load<T = SuiClientTypes.Object<{ content: true }>>(
+		id: string,
+		schema?: BcsType<T, any>,
+	): Promise<T> {
 		const data = await super.load(id);
 
 		if (schema) {
-			return schema.parse(await data.content);
+			return schema.parse(data.content);
 		}
 
 		return data as T;
 	}
 
-	override async loadMany<T = SuiObjectData>(
+	override async loadMany<T = SuiClientTypes.Object<{ content: true }>>(
 		ids: string[],
 		schema?: BcsType<T, any>,
 	): Promise<(T | Error)[]> {
@@ -48,15 +48,13 @@ export class SuiObjectDataLoader extends DataLoader<
 			return data as (T | Error)[];
 		}
 
-		return Promise.all(
-			data.map(async (d) => {
-				if (d instanceof Error) {
-					return d;
-				}
+		return data.map((d) => {
+			if (d instanceof Error) {
+				return d;
+			}
 
-				return schema.parse(await d.content);
-			}),
-		);
+			return schema.parse(d.content);
+		});
 	}
 
 	async loadManyOrThrow<T>(ids: string[], schema: BcsType<T, any>): Promise<T[]> {

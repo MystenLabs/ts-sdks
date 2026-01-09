@@ -3,7 +3,7 @@
 
 import { fromBase64, toBase64 } from '@mysten/bcs';
 import type { InferBcsType } from '@mysten/bcs';
-import type { SuiMoveNormalizedType } from '@mysten/sui/client';
+import type { SuiMoveNormalizedType } from '@mysten/sui/jsonRpc';
 
 import type { Committee } from '../contracts/walrus/committee.js';
 import type { EncodingType } from '../types.js';
@@ -22,7 +22,6 @@ export const MAX_SYMBOL_SIZE_BY_ENCODING_TYPE = {
 	RedStuff: 2 ** 16 - 1,
 };
 
-// TODO: this name is kinda bad
 export function encodedBlobLength(
 	unencodedLength: number,
 	nShards: number,

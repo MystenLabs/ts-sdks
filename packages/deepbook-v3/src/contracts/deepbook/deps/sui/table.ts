@@ -1,5 +1,6 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * A table is a map-like collection. But unlike a traditional collection, it's keys
@@ -23,13 +24,12 @@
 
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import * as object from './object.js';
 const $moduleName = '0x2::table';
 export const Table = new MoveStruct({
 	name: `${$moduleName}::Table`,
 	fields: {
 		/** the ID of this table */
-		id: object.UID,
+		id: bcs.Address,
 		/** the number of key-value pairs in the table */
 		size: bcs.u64(),
 	},

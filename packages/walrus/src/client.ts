@@ -3,9 +3,8 @@
 
 import type { InferBcsType } from '@mysten/bcs';
 import { bcs } from '@mysten/bcs';
-import { SuiClient } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
-import type { ClientCache, ClientWithCoreApi } from '@mysten/sui/experimental';
+import type { ClientCache, ClientWithCoreApi } from '@mysten/sui/client';
 import type { TransactionObjectArgument, TransactionResult } from '@mysten/sui/transactions';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
@@ -78,7 +77,6 @@ import type {
 	StorageNode,
 	StorageWithSizeOptions,
 	WalrusClientConfig,
-	WalrusClientExtensionOptions,
 	WalrusPackageConfig,
 	WriteBlobAttributesOptions,
 	WriteBlobOptions,
@@ -128,14 +126,13 @@ import { retry } from './utils/retry.js';
 
 export function walrus<const Name = 'walrus'>({
 	packageConfig,
-	network,
 	name = 'walrus' as Name,
 	...options
 }: WalrusOptions<Name> = {}) {
 	return {
 		name,
 		register: (client: ClientWithCoreApi) => {
-			const walrusNetwork = network || client.network;
+			const walrusNetwork = client.network;
 
 			if (walrusNetwork !== 'mainnet' && walrusNetwork !== 'testnet') {
 				throw new WalrusClientError('Walrus client only supports mainnet and testnet');
@@ -197,48 +194,13 @@ export class WalrusClient {
 			this.#uploadRelayClient = new UploadRelayClient(this.#uploadRelayConfig);
 		}
 
-		this.#suiClient =
-			config.suiClient ??
-			new SuiClient({
-				url: config.suiRpcUrl,
-			});
+		this.#suiClient = config.suiClient;
 
 		this.#storageNodeClient = new StorageNodeClient(config.storageNodeClientOptions);
 		this.#objectLoader = new SuiObjectDataLoader(this.#suiClient);
 		this.#cache = this.#suiClient.cache.scope('@mysten/walrus');
 	}
 
-	/** @deprecated use `walrus()` instead */
-	static experimental_asClientExtension({
-		packageConfig,
-		network,
-		...options
-	}: WalrusClientExtensionOptions = {}) {
-		return {
-			name: 'walrus' as const,
-			register: (client: ClientWithCoreApi) => {
-				const walrusNetwork = network || client.network;
-
-				if (walrusNetwork !== 'mainnet' && walrusNetwork !== 'testnet') {
-					throw new WalrusClientError('Walrus client only supports mainnet and testnet');
-				}
-
-				return new WalrusClient(
-					packageConfig
-						? {
-								packageConfig,
-								suiClient: client,
-								...options,
-							}
-						: {
-								network: walrusNetwork as 'mainnet' | 'testnet',
-								suiClient: client,
-								...options,
-							},
-				);
-			},
-		};
-	}
 	/** The Move type for a WAL coin */
 	#walType() {
 		return this.#cache.read(['walType'], async () => {
@@ -777,7 +739,7 @@ export class WalrusClient {
 						reserveSpace({
 							package: walrusPackageId,
 							arguments: {
-								self: systemObject.id.id,
+								self: systemObject.id,
 								storageAmount: encodedSize,
 								epochsAhead: epochs,
 								payment: coin,
@@ -866,10 +828,11 @@ export class WalrusClient {
 
 		const createdObjectIds = effects?.changedObjects
 			.filter((object) => object.idOperation === 'Created')
-			.map((object) => object.id);
+			.map((object) => object.objectId);
 
 		const createdObjects = await this.#suiClient.core.getObjects({
 			objectIds: createdObjectIds,
+			include: { content: true },
 		});
 
 		const suiBlobObject = createdObjects.objects.find(
@@ -884,7 +847,7 @@ export class WalrusClient {
 
 		return {
 			digest,
-			storage: Storage.parse(await suiBlobObject.content),
+			storage: Storage.parse(suiBlobObject.content),
 		};
 	}
 
@@ -1100,10 +1063,11 @@ export class WalrusClient {
 
 		const createdObjectIds = effects?.changedObjects
 			.filter((object) => object.idOperation === 'Created')
-			.map((object) => object.id);
+			.map((object) => object.objectId);
 
 		const createdObjects = await this.#suiClient.core.getObjects({
 			objectIds: createdObjectIds,
+			include: { content: true },
 		});
 
 		const suiBlobObject = createdObjects.objects.find(
@@ -1118,24 +1082,25 @@ export class WalrusClient {
 
 		return {
 			digest,
-			blob: Blob.parse(await suiBlobObject.content),
+			blob: Blob.parse(suiBlobObject.content),
 		};
 	}
 
 	async #getCreatedBlob(digest: string) {
 		const blobType = await this.getBlobType();
-		const {
-			transaction: { effects },
-		} = await this.#suiClient.core.waitForTransaction({
+		const result = await this.#suiClient.core.waitForTransaction({
 			digest,
+			include: { effects: true },
 		});
 
-		const createdObjectIds = effects?.changedObjects
-			.filter((object) => object.idOperation === 'Created')
-			.map((object) => object.id);
+		const tx = result.Transaction ?? result.FailedTransaction;
+		const createdObjectIds = tx.effects?.changedObjects
+			.filter((object: { idOperation: string }) => object.idOperation === 'Created')
+			.map((object: { objectId: string }) => object.objectId);
 
 		const createdObjects = await this.#suiClient.core.getObjects({
 			objectIds: createdObjectIds,
+			include: { content: true },
 		});
 
 		const suiBlobObject = createdObjects.objects.find(
@@ -1148,7 +1113,7 @@ export class WalrusClient {
 			);
 		}
 
-		return Blob.parse(await suiBlobObject.content);
+		return Blob.parse(suiBlobObject.content);
 	}
 
 	async certificateFromConfirmations({
@@ -1912,7 +1877,7 @@ export class WalrusClient {
 				attributes,
 			});
 
-			const blobObjectId = suiBlobObject.blob.id.id;
+			const blobObjectId = suiBlobObject.blob.id;
 
 			const confirmations = await this.writeEncodedBlobToNodes({
 				blobId,
@@ -1974,12 +1939,12 @@ export class WalrusClient {
 				txDigest: registerResult.digest,
 				signal,
 				deletable,
-				blobObjectId: registerResult.blob.id.id,
+				blobObjectId: registerResult.blob.id,
 				encodingType: metadata.metadata.encodingType as EncodingType,
 			});
 
 			const certificate = result.certificate;
-			const blobObjectId = registerResult.blob.id.id;
+			const blobObjectId = registerResult.blob.id;
 
 			await this.executeCertifyBlobTransaction({
 				signer,
@@ -2047,14 +2012,18 @@ export class WalrusClient {
 	async #executeTransaction(transaction: Transaction, signer: Signer, action: string) {
 		transaction.setSenderIfNotSet(signer.toSuiAddress());
 
-		const { digest, effects } = await signer.signAndExecuteTransaction({
+		const result = await signer.signAndExecuteTransaction({
 			transaction,
 			client: this.#suiClient,
 		});
 
-		if (effects?.status.error) {
-			throw new WalrusClientError(`Failed to ${action} (${digest}): ${effects?.status.error}`);
+		if (result.FailedTransaction) {
+			throw new WalrusClientError(
+				`Failed to ${action} (${result.FailedTransaction.digest}): ${result.FailedTransaction.status.error?.message}`,
+			);
 		}
+
+		const { digest, effects } = result.Transaction;
 
 		await this.#suiClient.core.waitForTransaction({
 			digest,
@@ -2303,7 +2272,7 @@ export class WalrusClient {
 							blob: data!,
 							nonce: meta.nonce,
 							txDigest: digest,
-							blobObjectId: blobObject.id.id,
+							blobObjectId: blobObject.id,
 							deletable,
 							encodingType: meta.metadata.encodingType as EncodingType,
 						})
@@ -2320,7 +2289,7 @@ export class WalrusClient {
 				deletable,
 				confirmations: await this.writeEncodedBlobToNodes({
 					blobId: metadata.blobId,
-					objectId: blobObject.id.id,
+					objectId: blobObject.id,
 					metadata: meta.metadata,
 					sliversByNode: meta.sliversByNode,
 					deletable,
@@ -2343,14 +2312,14 @@ export class WalrusClient {
 				transaction: confirmations
 					? this.certifyBlobTransaction({
 							blobId: metadata.blobId,
-							blobObjectId: blobObject.id.id,
+							blobObjectId: blobObject.id,
 							confirmations,
 							deletable,
 						})
 					: this.certifyBlobTransaction({
 							certificate,
 							blobId: metadata.blobId,
-							blobObjectId: blobObject.id.id,
+							blobObjectId: blobObject.id,
 							deletable,
 						}),
 			};
@@ -2485,7 +2454,7 @@ export class WalrusClient {
 							blob: data!,
 							nonce: meta.nonce,
 							txDigest: digest,
-							blobObjectId: blobObject.id.id,
+							blobObjectId: blobObject.id,
 							deletable,
 							encodingType: meta.metadata.encodingType as EncodingType,
 						})
@@ -2501,7 +2470,7 @@ export class WalrusClient {
 				deletable,
 				confirmations: await this.writeEncodedBlobToNodes({
 					blobId: metadata.blobId,
-					objectId: blobObject.id.id,
+					objectId: blobObject.id,
 					metadata: meta.metadata,
 					sliversByNode: meta.sliversByNode,
 					deletable,
@@ -2522,14 +2491,14 @@ export class WalrusClient {
 				transaction: confirmations
 					? this.certifyBlobTransaction({
 							blobId: metadata.blobId,
-							blobObjectId: blobObject.id.id,
+							blobObjectId: blobObject.id,
 							confirmations,
 							deletable,
 						})
 					: this.certifyBlobTransaction({
 							certificate,
 							blobId: metadata.blobId,
-							blobObjectId: blobObject.id.id,
+							blobObjectId: blobObject.id,
 							deletable,
 						}),
 			};

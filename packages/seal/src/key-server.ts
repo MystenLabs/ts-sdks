@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { bcs, fromBase64, fromHex, toBase64, toHex } from '@mysten/bcs';
-import { bls12_381 } from '@noble/curves/bls12-381';
+import { bls12_381 } from '@noble/curves/bls12-381.js';
 
 import { KeyServerMove, KeyServerMoveV1 } from './bcs.js';
 import { InvalidKeyServerError, InvalidKeyServerVersionError, SealAPIError } from './error.js';
@@ -34,7 +34,7 @@ export const SERVER_VERSION_REQUIREMENT = new Version('0.4.1');
  * from onchain state containing name, objectId, URL and pk.
  *
  * @param objectIds - The key server object IDs.
- * @param client - The SuiClient to use.
+ * @param client - The Sui client to use (SuiGrpcClient, SuiGraphQLClient, or SuiJsonRpcClient).
  * @returns - An array of SealKeyServer.
  */
 export async function retrieveKeyServers({
@@ -49,8 +49,9 @@ export async function retrieveKeyServers({
 			// First get the KeyServer object and validate it.
 			const res = await client.core.getObject({
 				objectId,
+				include: { content: true },
 			});
-			const ks = KeyServerMove.parse(await res.object.content);
+			const ks = KeyServerMove.parse(res.object.content);
 			if (
 				EXPECTED_SERVER_VERSION < Number(ks.firstVersion) ||
 				EXPECTED_SERVER_VERSION > Number(ks.lastVersion)
@@ -123,7 +124,11 @@ export async function verifyKeyServer(
 		return false;
 	}
 	const fullMsg = flatten([DST_POP, server.pk, fromHex(server.objectId)]);
-	return bls12_381.verifyShortSignature(fromBase64(serviceResponse.pop), fullMsg, server.pk);
+	return bls12_381.shortSignatures.verify(
+		fromBase64(serviceResponse.pop),
+		bls12_381.shortSignatures.hash(fullMsg),
+		server.pk,
+	);
 }
 
 /**

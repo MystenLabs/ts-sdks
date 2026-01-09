@@ -16,7 +16,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 					{
 						title: 'Sui SDK',
 						description: 'TypeScript interfaces for Sui',
-						url: '/typescript',
+						url: '/sui',
 					},
 					{
 						title: 'BCS',
@@ -24,8 +24,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 						url: '/bcs',
 					},
 					{
-						title: 'Dapp Kit',
-						description: 'Build Sui dapps in React',
+						title: 'Codegen',
+						description: 'Generate type-safe TypeScript from Move packages',
+						url: '/codegen',
+					},
+					{
+						title: 'dApp Kit',
+						description: 'Build Sui dApps',
 						url: '/dapp-kit',
 					},
 					{

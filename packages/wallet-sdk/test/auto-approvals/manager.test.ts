@@ -10,8 +10,8 @@ import {
 	AutoApprovalManager,
 	AutoApprovalPolicy,
 	operationType,
-} from '../../src';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+} from '../../src/index.js';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { MIST_PER_SUI } from '@mysten/sui/utils';
 
 const policy: AutoApprovalPolicy = {
@@ -29,7 +29,10 @@ const policy: AutoApprovalPolicy = {
 describe('AutoApprovalManager', () => {
 	test.skip('placeholder example', async () => {
 		const keypair = new Ed25519Keypair();
-		const client = new SuiClient({ url: getFullnodeUrl('testnet') });
+		const client = new SuiGrpcClient({
+			network: 'testnet',
+			baseUrl: 'https://fullnode.testnet.sui.io:443',
+		});
 
 		const tx = new Transaction();
 		tx.add(operationType('test-operation'));
@@ -81,9 +84,10 @@ describe('AutoApprovalManager', () => {
 		const { signature } = await keypair.signTransaction(analysis.result.bytes);
 
 		try {
-			var { transaction } = await client.core.executeTransaction({
+			var result = await client.core.executeTransaction({
 				transaction: analysis.result?.bytes,
 				signatures: [signature],
+				include: { balanceChanges: true },
 			});
 		} catch (e) {
 			// revert deductions on failure
@@ -92,7 +96,7 @@ describe('AutoApprovalManager', () => {
 		}
 
 		// update state with real effects
-		manager.applyTransactionEffects(analysis, transaction);
+		manager.applyTransactionEffects(analysis, result.Transaction!);
 
 		// get state, store in local storage, etc.
 		const state = manager.export();

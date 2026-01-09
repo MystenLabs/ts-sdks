@@ -1,6 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 import { MIST_PER_SUI, normalizeSuiAddress } from '@mysten/sui/utils';
 import { expect } from 'vitest';
@@ -8,7 +8,7 @@ import { expect } from 'vitest';
 import { ALLOWED_METADATA, SuinsClient, SuinsTransaction } from '../src/index.js';
 
 export const e2eLiveNetworkDryRunFlow = async (network: 'mainnet' | 'testnet') => {
-	const client = new SuiClient({ url: getFullnodeUrl(network) });
+	const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl(network), network });
 
 	const sender = normalizeSuiAddress('0x2');
 	const suinsClient = new SuinsClient({
@@ -21,18 +21,32 @@ export const e2eLiveNetworkDryRunFlow = async (network: 'mainnet' | 'testnet') =
 	const renewalPriceList = await suinsClient.getRenewalPriceList();
 	const coinDiscount = await suinsClient.getCoinTypeDiscount();
 
-	// Expected lists
-	const expectedPriceList = new Map([
-		[[3, 3], 500000000],
-		[[4, 4], 100000000],
-		[[5, 63], 10000000],
-	]);
+	// Expected lists - mainnet and testnet have different prices
+	const expectedPriceList =
+		network === 'mainnet'
+			? new Map([
+					[[3, 3], 500000000],
+					[[4, 4], 100000000],
+					[[5, 63], 10000000],
+				])
+			: new Map([
+					[[3, 3], 50000000],
+					[[4, 4], 10000000],
+					[[5, 63], 1000000],
+				]);
 
-	const expectedRenewalPriceList = new Map([
-		[[3, 3], 150000000],
-		[[4, 4], 50000000],
-		[[5, 63], 5000000],
-	]);
+	const expectedRenewalPriceList =
+		network === 'mainnet'
+			? new Map([
+					[[3, 3], 150000000],
+					[[4, 4], 50000000],
+					[[5, 63], 5000000],
+				])
+			: new Map([
+					[[3, 3], 15000000],
+					[[4, 4], 5000000],
+					[[5, 63], 500000],
+				]);
 
 	const expectedCoinDiscount = new Map([
 		[suinsClient.config.coins.USDC.type.slice(2), 0],

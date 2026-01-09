@@ -7,7 +7,6 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 const $moduleName = '@local-pkg/wal::wal';
 export const WAL = new MoveStruct({
 	name: `${$moduleName}::WAL`,
@@ -18,7 +17,7 @@ export const WAL = new MoveStruct({
 export const ProtectedTreasury = new MoveStruct({
 	name: `${$moduleName}::ProtectedTreasury`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 	},
 });
 export const TreasuryCapKey = new MoveStruct({

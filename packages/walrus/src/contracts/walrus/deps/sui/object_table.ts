@@ -1,5 +1,6 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * Similar to `sui::table`, an `ObjectTable<K, V>` is a map-like collection. But
@@ -11,13 +12,12 @@
 
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import * as object from './object.js';
 const $moduleName = '0x2::object_table';
 export const ObjectTable = new MoveStruct({
 	name: `${$moduleName}::ObjectTable`,
 	fields: {
 		/** the ID of this table */
-		id: object.UID,
+		id: bcs.Address,
 		/** the number of key-value pairs in the table */
 		size: bcs.u64(),
 	},

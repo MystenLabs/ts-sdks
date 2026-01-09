@@ -1,5 +1,6 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * Module: `staked_wal`
@@ -10,11 +11,14 @@
  * performed via the `withdraw_stake` method in the `staking_pool`.
  */
 
-import { MoveEnum, MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveEnum,
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/walrus::staked_wal';
 /**
@@ -36,7 +40,7 @@ export const StakedWalState = new MoveEnum({
 export const StakedWal = new MoveStruct({
 	name: `${$moduleName}::StakedWal`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		/** Whether the staked WAL is active or withdrawing. */
 		state: StakedWalState,
 		/** ID of the staking pool. */

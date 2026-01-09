@@ -1,16 +1,15 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
-import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as storage_resource from './storage_resource.js';
 const $moduleName = '@local-pkg/walrus::blob';
 export const Blob = new MoveStruct({
 	name: `${$moduleName}::Blob`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		registered_epoch: bcs.u32(),
 		blob_id: bcs.u256(),
 		size: bcs.u64(),

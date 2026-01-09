@@ -13,6 +13,7 @@
 	"dependencies": {
 		"@mysten/dapp-kit-core": "workspace:*",
 		"@mysten/sui": "workspace:*",
+		"@nanostores/vue": "^0.10.0",
 		"vue": "^3.5.25"
 	},
 	"devDependencies": {

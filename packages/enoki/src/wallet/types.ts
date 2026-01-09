@@ -1,12 +1,12 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SuiClient } from '@mysten/sui/client';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import type { StandardEventsListeners, Wallet } from '@mysten/wallet-standard';
 
 import type { EnokiClientConfig } from '../EnokiClient/index.js';
 import type { AuthProvider, EnokiNetwork } from '../EnokiClient/type.js';
-import type { ClientWithCoreApi, Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import type { ZkLoginSignatureInputs } from '@mysten/sui/zklogin';
 import type { UseStore } from 'idb-keyval';
 import type { WritableAtom } from 'nanostores';
@@ -43,7 +43,7 @@ type ClientConfig = {
 	/**
 	 * A function that returns the current network that the application is acting on.
 	 */
-	getCurrentNetwork: () => Experimental_SuiClientTypes.Network;
+	getCurrentNetwork: () => SuiClientTypes.Network;
 };
 
 export type EnokiWalletOptions = {
@@ -89,9 +89,9 @@ export type RegisterEnokiWalletsOptions = {
 		| ClientConfig
 		| {
 				/**
-				 * The SuiClient instance to use when building and executing transactions.
+				 * The SuiJsonRpcClient instance to use when building and executing transactions.
 				 */
-				client: SuiClient;
+				client: SuiJsonRpcClient;
 
 				/**
 				 * The network to use when building and executing transactions.

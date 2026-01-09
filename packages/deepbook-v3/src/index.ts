@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Main client and configuration
-export { DeepBookClient } from './client.js';
+export { DeepBookClient, deepbook } from './client.js';
+export type { DeepBookCompatibleClient, DeepBookOptions, DeepBookClientOptions } from './client.js';
 export { DeepBookConfig } from './utils/config.js';
 
 // Core contract classes

@@ -3,7 +3,7 @@
 
 import type { Transaction } from '@mysten/sui/transactions';
 import { TransactionDataBuilder } from '@mysten/sui/transactions';
-import type { ClientWithCoreApi, Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import type { AnalyzerResult } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
 
@@ -42,16 +42,12 @@ export const transactionResponse = createAnalyzer({
 	cacheKey: 'transactionResponse@1.0.0',
 	dependencies: { bytes },
 	analyze:
-		(options: {
-			client: ClientWithCoreApi;
-			transactionResponse?: Experimental_SuiClientTypes.TransactionResponse;
-		}) =>
-		async ({ bytes }): Promise<AnalyzerResult<Experimental_SuiClientTypes.TransactionResponse>> => {
+		(options: { client: ClientWithCoreApi; transactionResponse?: SuiClientTypes.Transaction }) =>
+		async ({ bytes }): Promise<AnalyzerResult<SuiClientTypes.Transaction>> => {
 			try {
+				const result = await options.client.core.simulateTransaction({ transaction: bytes });
 				return {
-					result:
-						options.transactionResponse ??
-						(await options.client.core.dryRunTransaction({ transaction: bytes })).transaction,
+					result: options.transactionResponse ?? result.Transaction ?? result.FailedTransaction,
 				};
 			} catch {
 				return { issues: [{ message: 'Failed to dry run transaction' }] };

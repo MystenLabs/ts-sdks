@@ -5,14 +5,13 @@
 	"description": "Walrus SDK",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
-	"type": "commonjs",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.js"
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
 		}
 	},
 	"sideEffects": false,
@@ -22,15 +21,16 @@
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "build-package",
-		"test": "NODE_OPTIONS='--expose-gc' vitest run",
+		"build": "rm -rf dist && tsc --noEmit && tsdown",
+		"test": "pnpm test:examples && NODE_OPTIONS='--expose-gc' vitest run",
+		"test:examples": "tsc --project examples/tsconfig.json --noEmit",
 		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
-		"eslint:check": "eslint --max-warnings=0 .",
-		"eslint:fix": "pnpm run eslint:check --fix",
-		"lint": "pnpm run eslint:check && pnpm run prettier:check",
-		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix",
+		"oxlint:check": "oxlint  .",
+		"oxlint:fix": "oxlint --fix",
+		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
 		"dev:write-from-wallet": "vite examples/write-from-wallet",
 		"dev:benchmark": "vite examples/benchmark"
 	},
@@ -44,7 +44,6 @@
 	"homepage": "https://sdk.mystenlabs.com/walrus",
 	"devDependencies": {
 		"@hono/node-server": "^1.19.6",
-		"@mysten/build-scripts": "workspace:*",
 		"@mysten/codegen": "workspace:*",
 		"@mysten/dapp-kit-core": "workspace:*",
 		"@mysten/dapp-kit-react": "workspace:*",

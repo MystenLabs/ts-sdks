@@ -1,0 +1,98 @@
+---
+title: Sign and Execute Transaction
+---
+
+The `signAndExecuteTransaction` action prompts the connected wallet to sign and immediately execute
+a transaction on the Sui network. This is the most common way to execute transactions in your dApp.
+
+## Usage
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-core';
+import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
+
+const dAppKit = createDAppKit({
+	/* config */
+});
+
+const tx = new Transaction();
+// No need to manually set sender - it's done automatically
+tx.transferObjects([coinWithBalance({ balance: 123 })], '0xrecipient...');
+
+const result = await dAppKit.signAndExecuteTransaction({
+	transaction: tx,
+});
+
+if (result.FailedTransaction) {
+	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
+}
+
+console.log('Transaction digest:', result.Transaction.digest);
+```
+
+## Parameters
+
+- **`transaction`** - `Transaction | string` - The transaction to sign and execute. Can be either a
+  Transaction instance or base64-encoded bcs bytes for the transaction.
+- **`signal`** (optional) - `AbortSignal` - An abort signal to cancel the transaction request.
+
+## Return Value
+
+Returns a `Promise` that resolves to a `TransactionResult` discriminated union:
+
+```typescript
+type TransactionResult =
+	| { $kind: 'Transaction'; Transaction: Transaction }
+	| { $kind: 'FailedTransaction'; FailedTransaction: Transaction };
+```
+
+The `Transaction` object contains:
+
+- **`digest`** - `string` - The transaction digest (unique identifier for the executed transaction)
+- **`signatures`** - `string[]` - The signatures as base64-encoded strings
+- **`epoch`** - `string | null` - The epoch in which the transaction was executed
+- **`status`** - `ExecutionStatus` - The execution status with `success: boolean` and
+  `error: string | null`
+- **`effects`** - `TransactionEffects | null` - The parsed transaction effects (may be `null` if
+  effects parsing fails for unknown effect versions)
+- **`transaction`** - `TransactionData` - The parsed transaction data
+
+```typescript
+const result = await dAppKit.signAndExecuteTransaction({ transaction });
+
+if (result.FailedTransaction) {
+	console.error('Transaction failed:', result.FailedTransaction.status.error?.message);
+	return;
+}
+
+// Access the successful transaction results
+const tx = result.Transaction;
+console.log('Digest:', tx.digest);
+console.log('Signatures:', tx.signatures);
+console.log('Epoch:', tx.epoch);
+```
+
+## Transaction Building
+
+When passing a Transaction instance, the action automatically:
+
+1. Sets the sender address if not already set
+2. Builds the transaction using the current network's client
+3. Converts it to the appropriate format for the wallet
+4. Submits the transaction to the network
+
+## Wallet Compatibility
+
+- The action transparently handles both `sui:signAndExecuteTransaction` and
+  `sui:signAndExecuteTransactionBlock` wallet-standard features
+- The wallet handles network submission and response
+- Some wallets (Enoki, Enoki Connect, WalletConnect) may use the dApp Kit client and execute
+  transactions within the application as an implementation detail
+
+```typescript
+// The action automatically detects and uses the appropriate method
+// No special configuration needed
+const result = await dAppKit.signAndExecuteTransaction({
+	transaction: tx,
+});
+```

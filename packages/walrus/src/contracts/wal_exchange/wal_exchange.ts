@@ -1,13 +1,12 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /** Module: wal_exchange */
 
-import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/wal_exchange::wal_exchange';
 export const ExchangeRate = new MoveStruct({
@@ -20,7 +19,7 @@ export const ExchangeRate = new MoveStruct({
 export const Exchange = new MoveStruct({
 	name: `${$moduleName}::Exchange`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		wal: balance.Balance,
 		sui: balance.Balance,
 		rate: ExchangeRate,
@@ -30,7 +29,7 @@ export const Exchange = new MoveStruct({
 export const AdminCap = new MoveStruct({
 	name: `${$moduleName}::AdminCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 	},
 });
 export interface NewExchangeRateArguments {

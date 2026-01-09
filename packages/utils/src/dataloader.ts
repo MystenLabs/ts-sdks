@@ -1,7 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/** Copied from https://github.com/graphql/dataloader/blob/a10773043d41a56bde4219c155fcf5633e6c9bcb/src/index.js */
+/**
+ * DataLoader - A generic utility for batching and caching data fetches.
+ *
+ * Vendored from: https://github.com/graphql/dataloader
+ * Commit: a10773043d41a56bde4219c155fcf5633e6c9bcb
+ * License: MIT
+ * Copyright (c) GraphQL Contributors
+ */
 
 /**
  * A `DataLoader` creates a public API for loading data from a particular

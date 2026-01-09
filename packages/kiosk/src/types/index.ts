@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SuiClient } from '@mysten/sui/client';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import type { TransactionObjectArgument } from '@mysten/sui/transactions';
 
 import type { BaseRulePackageIds } from '../constants.js';
@@ -29,7 +29,7 @@ export enum Network {
  * The Client Options for Both KioskClient & TransferPolicyManager.
  */
 export type KioskClientOptions = {
-	client: SuiClient;
+	client: ClientWithCoreApi;
 	network: Network;
 	packageIds?: BaseRulePackageIds;
 };

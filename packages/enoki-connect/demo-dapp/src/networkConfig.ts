@@ -1,18 +1,21 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { getFullnodeUrl } from "@mysten/sui/client";
+import { getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 import { createNetworkConfig } from "@mysten/dapp-kit";
 
 const { networkConfig, useNetworkVariable, useNetworkVariables } =
   createNetworkConfig({
     devnet: {
-      url: getFullnodeUrl("devnet"),
+      network: "devnet",
+      url: getJsonRpcFullnodeUrl("devnet"),
     },
     testnet: {
-      url: getFullnodeUrl("testnet"),
+      network: "testnet",
+      url: getJsonRpcFullnodeUrl("testnet"),
     },
     mainnet: {
-      url: getFullnodeUrl("mainnet"),
+      network: "mainnet",
+      url: getJsonRpcFullnodeUrl("mainnet"),
     },
   });
 

@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Agent, setGlobalDispatcher } from 'undici';
 
 import { WalrusClient } from '../../src/client.js';
@@ -15,8 +15,9 @@ setGlobalDispatcher(
 	}),
 );
 
-const suiClient = new SuiClient({
-	url: getFullnodeUrl('testnet'),
+const suiClient = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
 const walrusClient = new WalrusClient({
@@ -39,14 +40,14 @@ async function uploadFile() {
 		signer: keypair,
 	});
 
-	console.log('created blob', blobObject.id.id);
+	console.log('created blob', blobObject.id);
 
 	await walrusClient.executeDeleteBlobTransaction({
 		signer: keypair,
-		blobObjectId: blobObject.id.id,
+		blobObjectId: blobObject.id,
 	});
 
-	console.log('deleted blob', blobObject.id.id);
+	console.log('deleted blob', blobObject.id);
 }
 
 uploadFile().catch(console.error);

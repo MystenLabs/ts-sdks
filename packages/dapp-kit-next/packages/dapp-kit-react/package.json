@@ -2,9 +2,8 @@
 	"name": "@mysten/dapp-kit-react",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "React bindings for @mysten/dapp-kit-core",
-	"version": "0.0.1",
+	"version": "0.0.0",
 	"license": "Apache-2.0",
-	"private": true,
 	"files": [
 		"LICENSE",
 		"README.md",
@@ -28,10 +27,10 @@
 		"dev": "tsdown --watch",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
-		"eslint:check": "eslint --max-warnings=0 .",
-		"eslint:fix": "pnpm run eslint:check --fix",
-		"lint": "pnpm run eslint:check && pnpm run prettier:check",
-		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
+		"oxlint:check": "oxlint  .",
+		"oxlint:fix": "oxlint --fix",
+		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
 	},
 	"repository": {
 		"type": "git",

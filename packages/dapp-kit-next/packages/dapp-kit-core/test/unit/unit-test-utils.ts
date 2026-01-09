@@ -9,10 +9,17 @@ import {
 	TEST_NETWORKS,
 	unbindStoreListeners,
 } from '../test-utils.js';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import type { MockWalletOptions } from '../mocks/mock-wallet.js';
 import { createMockWallets } from '../mocks/mock-wallet.js';
 import { createMockAccount } from '../mocks/mock-account.js';
+
+const GRPC_URLS = {
+	devnet: 'https://fullnode.devnet.sui.io:443',
+	testnet: 'https://fullnode.testnet.sui.io:443',
+	localnet: 'http://127.0.0.1:9000',
+	mainnet: 'https://fullnode.mainnet.sui.io:443',
+};
 
 export function createTestStores({
 	currentNetwork = TEST_DEFAULT_NETWORK,
@@ -22,11 +29,11 @@ export function createTestStores({
 	const clients = Object.fromEntries(
 		[...TEST_NETWORKS].map((network) => [
 			network,
-			new SuiClient({ network, url: getFullnodeUrl(network) }),
+			new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }),
 		]),
 	);
 
-	return createStores<typeof TEST_NETWORKS, SuiClient>({
+	return createStores<typeof TEST_NETWORKS, SuiGrpcClient>({
 		defaultNetwork: currentNetwork,
 		getClient: (network) => clients[network as keyof typeof clients],
 	});
