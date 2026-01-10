@@ -43,6 +43,7 @@ import {
 	transactionDataToGrpcTransaction,
 	transactionToGrpcTransaction,
 } from '../client/transaction-resolver.js';
+import { coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
 }
@@ -208,6 +209,8 @@ export class GrpcCoreClient extends CoreClient {
 			balance: {
 				balance: result.response.balance?.balance?.toString() ?? '0',
 				coinType: result.response.balance?.coinType ?? coinType,
+				coinBalance: result.response.balance?.coinBalance?.toString() ?? '0',
+				addressBalance: result.response.balance?.addressBalance?.toString() ?? '0',
 			},
 		};
 	}
@@ -227,6 +230,8 @@ export class GrpcCoreClient extends CoreClient {
 			balances: result.response.balances.map((balance) => ({
 				balance: balance.balance?.toString() ?? '0',
 				coinType: balance.coinType!,
+				coinBalance: balance.coinBalance?.toString() ?? '0',
+				addressBalance: balance.addressBalance?.toString() ?? '0',
 			})),
 		};
 	}
@@ -637,6 +642,17 @@ export class GrpcCoreClient extends CoreClient {
 			options: BuildTransactionOptions,
 			next: () => Promise<void>,
 		) {
+			// Check if transaction has FundsWithdrawal inputs - these are not supported
+			// by gRPC SimulateTransaction and need to be resolved via the core resolver
+			const hasFundsWithdrawal = transactionData.inputs.some(
+				(input) => input.$kind === 'FundsWithdrawal',
+			);
+
+			if (hasFundsWithdrawal) {
+				// Use core resolver for transactions with FundsWithdrawal inputs
+				return await coreClientResolveTransactionPlugin(transactionData, options, next);
+			}
+
 			const snapshot = transactionData.snapshot();
 			// If sender is not set, use a dummy address for resolution purposes
 			// The resolved transaction will not include the sender if it wasn't set originally

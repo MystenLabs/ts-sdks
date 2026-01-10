@@ -91,6 +91,7 @@ async function resolveCoinBalance(
 	}
 
 	const coinsByType = new Map<string, SuiClientTypes.Coin[]>();
+	const addressBalanceByType = new Map<string, bigint>();
 	const client = buildOptions.client;
 
 	if (!client) {
@@ -99,24 +100,32 @@ async function resolveCoinBalance(
 		);
 	}
 
-	await Promise.all(
-		[...coinTypes].map(async (coinType) => {
-			coinsByType.set(
+	await Promise.all([
+		...[...coinTypes].map(async (coinType) => {
+			const { coins, addressBalance } = await getCoinsAndBalanceOfType({
 				coinType,
-				await getCoinsOfType({
-					coinType,
-					balance: totalByType.get(coinType)!,
-					client,
-					owner: transactionData.sender!,
-					usedIds,
-				}),
-			);
+				balance: totalByType.get(coinType)!,
+				client,
+				owner: transactionData.sender!,
+				usedIds,
+			});
+
+			coinsByType.set(coinType, coins);
+			addressBalanceByType.set(coinType, addressBalance);
 		}),
-	);
+		totalByType.has('gas')
+			? await client.core
+					.getBalance({
+						owner: transactionData.sender!,
+						coinType: SUI_TYPE,
+					})
+					.then(({ balance }) => {
+						addressBalanceByType.set('gas', BigInt(balance.addressBalance));
+					})
+			: null,
+	]);
 
 	const mergedCoins = new Map<string, Argument>();
-
-	mergedCoins.set('gas', { $kind: 'GasCoin', GasCoin: true });
 
 	for (const [index, transaction] of transactionData.commands.entries()) {
 		if (transaction.$kind !== '$Intent' || transaction.$Intent.name !== COIN_WITH_BALANCE) {
@@ -128,44 +137,123 @@ async function resolveCoinBalance(
 			balance: bigint;
 		};
 
-		if (balance === 0n && type !== 'gas') {
+		if (balance === 0n) {
 			transactionData.replaceCommand(
 				index,
-				TransactionCommands.MoveCall({ target: '0x2::coin::zero', typeArguments: [type] }),
+				TransactionCommands.MoveCall({
+					target: '0x2::coin::zero',
+					typeArguments: [type === 'gas' ? SUI_TYPE : type],
+				}),
 			);
 			continue;
 		}
 
 		const commands = [];
 
-		if (!mergedCoins.has(type)) {
-			const [first, ...rest] = coinsByType.get(type)!.map((coin) =>
-				transactionData.addInput(
-					'object',
-					Inputs.ObjectRef({
-						objectId: coin.objectId,
-						digest: coin.digest,
-						version: coin.version,
-					}),
-				),
+		if (addressBalanceByType.get(type)! >= totalByType.get(type)!) {
+			commands.push(
+				TransactionCommands.MoveCall({
+					target: '0x2::coin::redeem_funds',
+					typeArguments: [type === 'gas' ? SUI_TYPE : type],
+					arguments: [
+						transactionData.addInput(
+							'withdrawal',
+							Inputs.FundsWithdrawal({
+								reservation: {
+									$kind: 'MaxAmountU64',
+									MaxAmountU64: String(balance),
+								},
+								typeArg: {
+									$kind: 'Balance',
+									Balance: type === 'gas' ? SUI_TYPE : type,
+								},
+								withdrawFrom: {
+									$kind: 'Sender',
+									Sender: true,
+								},
+							}),
+						),
+					],
+				}),
 			);
+		} else {
+			if (!mergedCoins.has(type)) {
+				const addressBalance = addressBalanceByType.get(type) ?? 0n;
+				const coinType = type === 'gas' ? SUI_TYPE : type;
 
-			if (rest.length > 0) {
-				commands.push(TransactionCommands.MergeCoins(first, rest));
+				let baseCoin: Argument;
+				let restCoins: Argument[];
+
+				if (type === 'gas') {
+					baseCoin = { $kind: 'GasCoin', GasCoin: true };
+					restCoins = [];
+				} else {
+					[baseCoin, ...restCoins] = coinsByType.get(type)!.map((coin) =>
+						transactionData.addInput(
+							'object',
+							Inputs.ObjectRef({
+								objectId: coin.objectId,
+								digest: coin.digest,
+								version: coin.version,
+							}),
+						),
+					);
+				}
+
+				if (addressBalance > 0n) {
+					commands.push(
+						TransactionCommands.MoveCall({
+							target: '0x2::coin::redeem_funds',
+							typeArguments: [coinType],
+							arguments: [
+								transactionData.addInput(
+									'withdrawal',
+									Inputs.FundsWithdrawal({
+										reservation: {
+											$kind: 'MaxAmountU64',
+											MaxAmountU64: String(addressBalance),
+										},
+										typeArg: {
+											$kind: 'Balance',
+											Balance: coinType,
+										},
+										withdrawFrom: {
+											$kind: 'Sender',
+											Sender: true,
+										},
+									}),
+								),
+							],
+						}),
+					);
+
+					commands.push(
+						TransactionCommands.MergeCoins(baseCoin, [
+							{ $kind: 'Result', Result: index + commands.length - 1 },
+							...restCoins,
+						]),
+					);
+				} else if (restCoins.length > 0) {
+					commands.push(TransactionCommands.MergeCoins(baseCoin, restCoins));
+				}
+
+				mergedCoins.set(type, baseCoin);
 			}
 
-			mergedCoins.set(type, first);
+			commands.push(
+				TransactionCommands.SplitCoins(mergedCoins.get(type)!, [
+					transactionData.addInput('pure', Inputs.Pure(bcs.u64().serialize(balance))),
+				]),
+			);
 		}
-
-		commands.push(
-			TransactionCommands.SplitCoins(mergedCoins.get(type)!, [
-				transactionData.addInput('pure', Inputs.Pure(bcs.u64().serialize(balance))),
-			]),
-		);
 
 		transactionData.replaceCommand(index, commands);
 
-		transactionData.mapArguments((arg) => {
+		transactionData.mapArguments((arg, _command, commandIndex) => {
+			if (commandIndex >= index && commandIndex < index + commands.length) {
+				return arg;
+			}
+
 			if (arg.$kind === 'Result' && arg.Result === index) {
 				return {
 					$kind: 'NestedResult',
@@ -180,7 +268,7 @@ async function resolveCoinBalance(
 	return next();
 }
 
-async function getCoinsOfType({
+async function getCoinsAndBalanceOfType({
 	coinType,
 	balance,
 	client,
@@ -192,11 +280,36 @@ async function getCoinsOfType({
 	client: ClientWithCoreApi;
 	owner: string;
 	usedIds: Set<string>;
-}): Promise<SuiClientTypes.Coin[]> {
+}): Promise<{
+	coins: SuiClientTypes.Coin[];
+	balance: bigint;
+	addressBalance: bigint;
+	coinBalance: bigint;
+}> {
 	let remainingBalance = balance;
 	const coins: SuiClientTypes.Coin[] = [];
+	const balanceRequest = client.core.getBalance({ owner, coinType }).then(({ balance }) => {
+		remainingBalance -= BigInt(balance.addressBalance);
 
-	return loadMoreCoins();
+		return balance;
+	});
+
+	const [allCoins, balanceResponse] = await Promise.all([loadMoreCoins(), balanceRequest]);
+
+	if (BigInt(balanceResponse.balance) < balance) {
+		throw new Error(
+			`Insufficient balance of ${coinType} for owner ${owner}. Required: ${balance}, Available: ${
+				balance - remainingBalance
+			}`,
+		);
+	}
+
+	return {
+		coins: allCoins,
+		balance: BigInt(balanceResponse.coinBalance),
+		addressBalance: BigInt(balanceResponse.addressBalance),
+		coinBalance: BigInt(balanceResponse.coinBalance),
+	};
 
 	async function loadMoreCoins(cursor: string | null = null): Promise<SuiClientTypes.Coin[]> {
 		const {
@@ -209,25 +322,29 @@ async function getCoinsOfType({
 			cursor,
 		});
 
-		for (const coin of objects) {
-			if (usedIds.has(coin.objectId)) {
-				continue;
+		await balanceRequest;
+
+		if (remainingBalance > 0n) {
+			for (const coin of objects) {
+				if (usedIds.has(coin.objectId)) {
+					continue;
+				}
+
+				const coinBalance = BigInt(coin.balance);
+
+				coins.push(coin);
+				remainingBalance -= coinBalance;
+
+				if (remainingBalance <= 0) {
+					break;
+				}
 			}
 
-			const coinBalance = BigInt(coin.balance);
-
-			coins.push(coin);
-			remainingBalance -= coinBalance;
-
-			if (remainingBalance <= 0) {
-				return coins;
+			if (hasNextPage) {
+				return loadMoreCoins(nextCursor);
 			}
 		}
 
-		if (hasNextPage) {
-			return loadMoreCoins(nextCursor);
-		}
-
-		throw new Error(`Not enough coins of type ${coinType} to satisfy requested balance`);
+		return coins;
 	}
 }
