@@ -203,13 +203,15 @@ export namespace SuiClientTypes {
 		coinType?: string;
 	}
 
-	export interface CoinBalance {
+	export interface Balance {
 		coinType: string;
 		balance: string;
+		coinBalance: string;
+		addressBalance: string;
 	}
 
 	export interface GetBalanceResponse {
-		balance: CoinBalance;
+		balance: Balance;
 	}
 
 	export interface ListBalancesOptions extends CoreClientMethodOptions {
@@ -219,7 +221,7 @@ export namespace SuiClientTypes {
 	}
 
 	export interface ListBalancesResponse {
-		balances: CoinBalance[];
+		balances: Balance[];
 		hasNextPage: boolean;
 		cursor: string | null;
 	}
