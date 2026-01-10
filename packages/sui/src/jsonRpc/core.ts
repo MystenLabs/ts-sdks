@@ -229,6 +229,9 @@ export class JSONRpcCoreClient extends CoreClient {
 			balance: {
 				coinType: normalizeStructTag(balance.coinType),
 				balance: balance.totalBalance,
+				// TODO: support address balances
+				coinBalance: balance.totalBalance,
+				addressBalance: '0',
 			},
 		};
 	}
@@ -242,6 +245,9 @@ export class JSONRpcCoreClient extends CoreClient {
 			balances: balances.map((balance) => ({
 				coinType: normalizeStructTag(balance.coinType),
 				balance: balance.totalBalance,
+				// TODO: support address balances
+				coinBalance: balance.totalBalance,
+				addressBalance: '0',
 			})),
 			hasNextPage: false,
 			cursor: null,

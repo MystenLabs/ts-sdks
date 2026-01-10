@@ -238,6 +238,9 @@ export class GraphQLCoreClient extends CoreClient {
 			balance: {
 				coinType: result.coinType?.repr ?? coinType,
 				balance: result.totalBalance ?? '0',
+				// TODO: support address balances
+				coinBalance: result.totalBalance ?? '0',
+				addressBalance: '0',
 			},
 		};
 	}
@@ -258,6 +261,9 @@ export class GraphQLCoreClient extends CoreClient {
 			balances: balances.nodes.map((balance) => ({
 				coinType: balance.coinType?.repr!,
 				balance: balance.totalBalance!,
+				// TODO: support address balances
+				coinBalance: balance.totalBalance!,
+				addressBalance: '0',
 			})),
 		};
 	}
