@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.26.6
+
+### Patch Changes
+
+- 7e33816: MarginPoolCap as transaction param
+
 ## 0.26.5
 
 ### Patch Changes
