@@ -8,11 +8,7 @@ import type {
 } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
-import type {
-	MarginPoolConfigParams,
-	MarginPoolConfigWithRateLimitParams,
-	InterestConfigParams,
-} from '../types/index.js';
+import type { MarginPoolConfigParams, InterestConfigParams } from '../types/index.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
 
 /**
@@ -63,7 +59,7 @@ export class MarginMaintainerContract {
 	/**
 	 * @description Create a new protocol config
 	 * @param {string} coinKey The key to identify the coin
-	 * @param {MarginPoolConfigParams} marginPoolConfig The configuration for the margin pool
+	 * @param {MarginPoolConfigParams} marginPoolConfig The configuration for the margin pool (with optional rate limit)
 	 * @param {InterestConfigParams} interestConfig The configuration for the interest
 	 * @returns A function that takes a Transaction object
 	 */
@@ -74,7 +70,18 @@ export class MarginMaintainerContract {
 			interestConfig: InterestConfigParams,
 		) =>
 		(tx: Transaction) => {
-			const marginPoolConfigObject = this.newMarginPoolConfig(coinKey, marginPoolConfig)(tx);
+			const hasRateLimit =
+				marginPoolConfig.rateLimitCapacity !== undefined &&
+				marginPoolConfig.rateLimitRefillRatePerMs !== undefined &&
+				marginPoolConfig.rateLimitEnabled !== undefined;
+			const marginPoolConfigObject = hasRateLimit
+				? this.newMarginPoolConfigWithRateLimit(coinKey, {
+						...marginPoolConfig,
+						rateLimitCapacity: marginPoolConfig.rateLimitCapacity!,
+						rateLimitRefillRatePerMs: marginPoolConfig.rateLimitRefillRatePerMs!,
+						rateLimitEnabled: marginPoolConfig.rateLimitEnabled!,
+					})(tx)
+				: this.newMarginPoolConfig(coinKey, marginPoolConfig)(tx);
 			const interestConfigObject = this.newInterestConfig(interestConfig)(tx);
 			return tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_protocol_config`,
@@ -106,11 +113,20 @@ export class MarginMaintainerContract {
 	/**
 	 * @description Create a new margin pool config with rate limit
 	 * @param {string} coinKey The key to identify the coin
-	 * @param {MarginPoolConfigWithRateLimitParams} marginPoolConfig The configuration for the margin pool with rate limit
+	 * @param {MarginPoolConfigParams} marginPoolConfig The configuration for the margin pool with rate limit
 	 * @returns A function that takes a Transaction object
 	 */
 	newMarginPoolConfigWithRateLimit =
-		(coinKey: string, marginPoolConfig: MarginPoolConfigWithRateLimitParams) =>
+		(
+			coinKey: string,
+			marginPoolConfig: Required<
+				Pick<
+					MarginPoolConfigParams,
+					'rateLimitCapacity' | 'rateLimitRefillRatePerMs' | 'rateLimitEnabled'
+				>
+			> &
+				MarginPoolConfigParams,
+		) =>
 		(tx: Transaction) => {
 			const coin = this.#config.getCoin(coinKey);
 			const {

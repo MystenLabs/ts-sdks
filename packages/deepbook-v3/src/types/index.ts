@@ -234,12 +234,9 @@ export interface MarginPoolConfigParams {
 	maxUtilizationRate: number;
 	referralSpread: number;
 	minBorrow: number;
-}
-
-export interface MarginPoolConfigWithRateLimitParams extends MarginPoolConfigParams {
-	rateLimitCapacity: number;
-	rateLimitRefillRatePerMs: number;
-	rateLimitEnabled: boolean;
+	rateLimitCapacity?: number;
+	rateLimitRefillRatePerMs?: number;
+	rateLimitEnabled?: boolean;
 }
 
 export interface InterestConfigParams {
