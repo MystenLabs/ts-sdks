@@ -6,6 +6,7 @@
 	"pages": [
 		"agent-prompt",
 		"sui",
+		"json-rpc-migration",
 		"dapp-kit",
 		"kiosk",
 		"zksend",

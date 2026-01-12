@@ -10,17 +10,18 @@ and significant internal refactoring to improve maintainability.
 
 ## Quick Reference
 
-| Package                                                       | Key Changes                                                                              |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| [@mysten/sui](/sui/migrations/v2/sui)                         | Client API stabilization, SuiClient removal, BCS schema alignment, transaction executors |
-| [@mysten/dapp-kit](/sui/migrations/v2/dapp-kit)               | Complete rewrite with framework-agnostic core                                            |
-| [@mysten/kiosk](/sui/migrations/v2/kiosk)                     | Client extension pattern, low-level helpers removed, KioskTransaction pattern            |
-| [@mysten/zksend](/sui/migrations/v2/zksend)                   | Client extension pattern                                                                 |
-| [@mysten/suins](/sui/migrations/v2/suins)                     | Client extension pattern                                                                 |
-| [@mysten/deepbook-v3](/sui/migrations/v2/deepbook-v3)         | Client extension pattern                                                                 |
-| [@mysten/walrus](/sui/migrations/v2/walrus)                   | Client extension pattern, requires client instead of RPC URL                             |
-| [@mysten/seal](/sui/migrations/v2/seal)                       | Client extension pattern                                                                 |
-| [@mysten/wallet-standard](/sui/migrations/v2/wallet-builders) | Removal of reportTransactionEffects, new core API response format                        |
+| Package                                                            | Key Changes                                                                              |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| [@mysten/sui](/sui/migrations/sui-2.0/sui)                         | Client API stabilization, SuiClient removal, BCS schema alignment, transaction executors |
+| [@mysten/dapp-kit](/sui/migrations/sui-2.0/dapp-kit)               | Complete rewrite with framework-agnostic core                                            |
+| [@mysten/kiosk](/sui/migrations/sui-2.0/kiosk)                     | Client extension pattern, low-level helpers removed, KioskTransaction pattern            |
+| [@mysten/zksend](/sui/migrations/sui-2.0/zksend)                   | Client extension pattern                                                                 |
+| [@mysten/suins](/sui/migrations/sui-2.0/suins)                     | Client extension pattern                                                                 |
+| [@mysten/deepbook-v3](/sui/migrations/sui-2.0/deepbook-v3)         | Client extension pattern                                                                 |
+| [@mysten/walrus](/sui/migrations/sui-2.0/walrus)                   | Client extension pattern, requires client instead of RPC URL                             |
+| [@mysten/seal](/sui/migrations/sui-2.0/seal)                       | Client extension pattern                                                                 |
+| [@mysten/wallet-standard](/sui/migrations/sui-2.0/wallet-builders) | Removal of reportTransactionEffects, new core API response format                        |
+| [Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration) | Migrate from deprecated JSON-RPC to gRPC and GraphQL                                  |
 
 ## Common Migration Patterns
 
@@ -93,18 +94,24 @@ const grpcClient = new SuiGrpcClient({ baseUrl, network: 'mainnet' });
 
 For detailed migration instructions, see the SDK-specific guides:
 
-- **[@mysten/sui](/sui/migrations/v2/sui)** - Core SDK changes including client API, BCS schemas,
-  transactions, zkLogin, and GraphQL
-- **[@mysten/dapp-kit](/sui/migrations/v2/dapp-kit)** - Complete migration guide for the new dApp
-  Kit architecture
-- **[@mysten/kiosk](/sui/migrations/v2/kiosk)** - Kiosk SDK now exports a client extension,
+- **[@mysten/sui](/sui/migrations/sui-2.0/sui)** - Core SDK changes including client API, BCS
+  schemas, transactions, zkLogin, and GraphQL
+- **[@mysten/dapp-kit](/sui/migrations/sui-2.0/dapp-kit)** - Complete migration guide for the new
+  dApp Kit architecture
+- **[@mysten/kiosk](/sui/migrations/sui-2.0/kiosk)** - Kiosk SDK now exports a client extension,
   low-level helpers removed
-- **[@mysten/zksend](/sui/migrations/v2/zksend)** - zkSend SDK now exports a client extension
-- **[@mysten/suins](/sui/migrations/v2/suins)** - SuiNS now exports a client extension
-- **[@mysten/deepbook-v3](/sui/migrations/v2/deepbook-v3)** - DeepBook DEX now exports a client
+- **[@mysten/zksend](/sui/migrations/sui-2.0/zksend)** - zkSend SDK now exports a client extension
+- **[@mysten/suins](/sui/migrations/sui-2.0/suins)** - SuiNS now exports a client extension
+- **[@mysten/deepbook-v3](/sui/migrations/sui-2.0/deepbook-v3)** - DeepBook DEX now exports a client
   extension
-- **[@mysten/walrus](/sui/migrations/v2/walrus)** - Walrus storage now exports a client extension
-- **[@mysten/seal](/sui/migrations/v2/seal)** - Seal encryption now exports a client extension
+- **[@mysten/walrus](/sui/migrations/sui-2.0/walrus)** - Walrus storage now exports a client
+  extension
+- **[@mysten/seal](/sui/migrations/sui-2.0/seal)** - Seal encryption now exports a client extension
+
+## Transport Migration
+
+- **[Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration)** - Migrate from the
+  deprecated JSON-RPC client to gRPC and GraphQL
 
 ## Ecosystem Migration Guides
 

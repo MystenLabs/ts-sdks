@@ -40,9 +40,9 @@ export type DAppKit<
 > = {
 	networks: TNetworks;
 	getClient: (network?: TNetworks[number]) => Client;
-	signTransaction: (args: SignTransactionArgs<TNetworks[number]>) => Promise<SignedTransaction>;
+	signTransaction: (args: SignTransactionArgs) => Promise<SignedTransaction>;
 	signAndExecuteTransaction: (
-		args: SignAndExecuteTransactionArgs<TNetworks[number]>,
+		args: SignAndExecuteTransactionArgs,
 	) => Promise<SignAndExecuteTransactionResult>;
 	signPersonalMessage: (args: SignPersonalMessageArgs) => Promise<SignedPersonalMessage>;
 	connectWallet: (args: ConnectWalletArgs) => Promise<{
@@ -102,8 +102,8 @@ export function createDAppKit<
 	return {
 		networks,
 		getClient,
-		signTransaction: signTransactionCreator(stores, getClient),
-		signAndExecuteTransaction: signAndExecuteTransactionCreator(stores, getClient),
+		signTransaction: signTransactionCreator(stores),
+		signAndExecuteTransaction: signAndExecuteTransactionCreator(stores),
 		signPersonalMessage: signPersonalMessageCreator(stores),
 		connectWallet: connectWalletCreator(stores, networks),
 		disconnectWallet: disconnectWalletCreator(stores),

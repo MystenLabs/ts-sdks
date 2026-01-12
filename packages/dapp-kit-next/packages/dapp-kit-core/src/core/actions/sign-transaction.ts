@@ -9,43 +9,28 @@ import type {
 	SuiSignTransactionInput,
 } from '@mysten/wallet-standard';
 import { getWalletAccountForUiWalletAccount_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getWalletAccountForUiWalletAccount } from '@wallet-standard/ui-registry';
-import type { UiWalletAccount } from '@wallet-standard/ui';
 import { FeatureNotSupportedError, WalletNotConnectedError } from '../../utils/errors.js';
 import { getChain } from '../../utils/networks.js';
 import { Transaction } from '@mysten/sui/transactions';
 import { tryGetAccountFeature } from '../../utils/wallets.js';
 
-export type SignTransactionArgs<TNetwork = string> = {
+export type SignTransactionArgs = {
 	transaction: Transaction | string;
-	network?: TNetwork;
-	account?: UiWalletAccount;
 } & Omit<SuiSignTransactionInput, 'account' | 'chain' | 'transaction'>;
 
-export function signTransactionCreator<TNetwork extends string = string>(
-	{ $connection, $currentClient }: DAppKitStores,
-	getClient: (
-		network: TNetwork,
-	) => DAppKitStores['$currentClient'] extends { get: () => infer C } ? C : never,
-) {
+export function signTransactionCreator({ $connection, $currentClient }: DAppKitStores) {
 	/**
 	 * Prompts the specified wallet account to sign a transaction.
 	 */
-	return async function signTransaction({
-		transaction,
-		network,
-		account: accountOverride,
-		...standardArgs
-	}: SignTransactionArgs<TNetwork>) {
-		const connection = $connection.get();
-		const account = accountOverride ?? connection.account;
+	return async function signTransaction({ transaction, ...standardArgs }: SignTransactionArgs) {
+		const { account, supportedIntents } = $connection.get();
 		if (!account) {
 			throw new WalletNotConnectedError('No wallet is connected.');
 		}
 
 		const underlyingAccount = getWalletAccountForUiWalletAccount(account);
-		const suiClient = network ? getClient(network) : $currentClient.get();
+		const suiClient = $currentClient.get();
 		const chain = getChain(suiClient.network);
-		const supportedIntents = [...connection.supportedIntents];
 
 		const transactionWrapper = {
 			toJSON: async () => {

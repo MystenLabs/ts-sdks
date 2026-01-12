@@ -23,7 +23,7 @@ This package now exports a client extension that integrates with Sui clients.
 + }).$extend(
 +   deepbook({
 +     address: myAddress,
-+     env: 'mainnet',
++     // network is auto-detected from the client
 +     balanceManagers: { ... },
 +   }),
 + );
