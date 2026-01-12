@@ -276,7 +276,6 @@ export const ObjectArgSchema = safeEnum({
 
 // Rust: crates/sui-types/src/transaction.rs
 export const ReservationSchema = safeEnum({
-	EntireBalance: literal(true),
 	MaxAmountU64: JsonU64,
 });
 export type Reservation = InferOutput<typeof ReservationSchema>;
