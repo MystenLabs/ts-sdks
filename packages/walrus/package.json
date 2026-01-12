@@ -44,9 +44,10 @@
 	"homepage": "https://sdk.mystenlabs.com/walrus",
 	"devDependencies": {
 		"@hono/node-server": "^1.19.6",
-		"@mysten/codegen": "workspace:*",
-		"@mysten/dapp-kit-core": "workspace:*",
-		"@mysten/dapp-kit-react": "workspace:*",
+		"@mysten/codegen": "workspace:^",
+		"@mysten/dapp-kit-core": "workspace:^",
+		"@mysten/dapp-kit-react": "workspace:^",
+		"@mysten/sui": "workspace:^",
 		"@tanstack/react-query": "^5.90.11",
 		"@types/node": "^24.10.1",
 		"@types/react": "^19.2.7",
@@ -61,10 +62,12 @@
 		"vitest": "^4.0.15"
 	},
 	"dependencies": {
-		"@mysten/bcs": "workspace:*",
-		"@mysten/sui": "workspace:*",
-		"@mysten/utils": "workspace:*",
-		"@mysten/walrus-wasm": "workspace:*",
+		"@mysten/bcs": "workspace:^",
+		"@mysten/utils": "workspace:^",
+		"@mysten/walrus-wasm": "workspace:^",
 		"dataloader": "^2.2.3"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
 	}
 }

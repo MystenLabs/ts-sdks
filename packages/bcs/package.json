@@ -60,7 +60,7 @@
 		"vitest": "^4.0.15"
 	},
 	"dependencies": {
-		"@mysten/utils": "workspace:*",
+		"@mysten/utils": "workspace:^",
 		"@scure/base": "^2.0.0"
 	}
 }

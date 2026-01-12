@@ -42,7 +42,8 @@
 	},
 	"homepage": "https://docs.enoki.mystenlabs.com",
 	"devDependencies": {
-		"@mysten/dapp-kit-react": "workspace:*",
+		"@mysten/dapp-kit-react": "workspace:^",
+		"@mysten/sui": "workspace:^",
 		"@types/node": "^24.10.1",
 		"@types/react": "^19.2.7",
 		"@types/react-dom": "^19.2.3",
@@ -53,16 +54,16 @@
 		"vite": "^7.2.6"
 	},
 	"dependencies": {
-		"@mysten/signers": "workspace:*",
-		"@mysten/sui": "workspace:*",
-		"@mysten/utils": "workspace:*",
-		"@mysten/wallet-standard": "workspace:*",
+		"@mysten/signers": "workspace:^",
+		"@mysten/utils": "workspace:^",
+		"@mysten/wallet-standard": "workspace:^",
 		"@nanostores/react": "^1.0.0",
 		"@wallet-standard/ui": "^1.0.1",
 		"idb-keyval": "^6.2.2",
 		"nanostores": "^1.1.0"
 	},
 	"peerDependencies": {
+		"@mysten/sui": "workspace:^",
 		"@types/react": ">=17.0.0",
 		"react": ">=17.0.0"
 	},
