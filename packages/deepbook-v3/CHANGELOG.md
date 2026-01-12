@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.26.5
+
+### Patch Changes
+
+- 678dda6: Mainnet margin IDs
+
 ## 0.26.4
 
 ### Patch Changes
