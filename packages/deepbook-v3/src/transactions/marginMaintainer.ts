@@ -8,7 +8,11 @@ import type {
 } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
-import type { MarginPoolConfigParams, InterestConfigParams } from '../types/index.js';
+import type {
+	MarginPoolConfigParams,
+	MarginPoolConfigWithRateLimitParams,
+	InterestConfigParams,
+} from '../types/index.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
 
 /**
@@ -95,6 +99,39 @@ export class MarginMaintainerContract {
 					tx.pure.u64(maxUtilizationRate * FLOAT_SCALAR),
 					tx.pure.u64(referralSpread * FLOAT_SCALAR),
 					tx.pure.u64(Math.round(minBorrow * coin.scalar)),
+				],
+			});
+		};
+
+	/**
+	 * @description Create a new margin pool config with rate limit
+	 * @param {string} coinKey The key to identify the coin
+	 * @param {MarginPoolConfigWithRateLimitParams} marginPoolConfig The configuration for the margin pool with rate limit
+	 * @returns A function that takes a Transaction object
+	 */
+	newMarginPoolConfigWithRateLimit =
+		(coinKey: string, marginPoolConfig: MarginPoolConfigWithRateLimitParams) =>
+		(tx: Transaction) => {
+			const coin = this.#config.getCoin(coinKey);
+			const {
+				supplyCap,
+				maxUtilizationRate,
+				referralSpread,
+				minBorrow,
+				rateLimitCapacity,
+				rateLimitRefillRatePerMs,
+				rateLimitEnabled,
+			} = marginPoolConfig;
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_margin_pool_config_with_rate_limit`,
+				arguments: [
+					tx.pure.u64(supplyCap * coin.scalar),
+					tx.pure.u64(maxUtilizationRate * FLOAT_SCALAR),
+					tx.pure.u64(referralSpread * FLOAT_SCALAR),
+					tx.pure.u64(Math.round(minBorrow * coin.scalar)),
+					tx.pure.u64(Math.round(rateLimitCapacity * coin.scalar)),
+					tx.pure.u64(Math.round(rateLimitRefillRatePerMs * coin.scalar)),
+					tx.pure.bool(rateLimitEnabled),
 				],
 			});
 		};

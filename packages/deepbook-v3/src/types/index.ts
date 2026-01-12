@@ -236,6 +236,12 @@ export interface MarginPoolConfigParams {
 	minBorrow: number;
 }
 
+export interface MarginPoolConfigWithRateLimitParams extends MarginPoolConfigParams {
+	rateLimitCapacity: number;
+	rateLimitRefillRatePerMs: number;
+	rateLimitEnabled: boolean;
+}
+
 export interface InterestConfigParams {
 	baseRate: number;
 	baseSlope: number;
