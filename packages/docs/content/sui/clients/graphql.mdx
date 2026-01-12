@@ -2,22 +2,28 @@
 title: SuiGraphQLClient
 ---
 
-<Callout type="warn">
-	SuiGraphQLClient is still in development and may change rapidly as it is being developed.
-</Callout>
+The `SuiGraphQLClient` enables type-safe GraphQL queries against the Sui GraphQL API.
 
-<Callout type="info">
-	The `SuiGraphQLClient` can be used for reading and writing data directly, but deeper integration
-	into other SDKs is not ready yet. In a future release, GraphQL clients will be able to be passed
-	into any Mysten SDK method that currently accepts a JSON-RPC client.
-</Callout>
-
-To support GraphQL Queries, the Typescript SDK includes the `SuiGraphQLClient` which can help you
-write and execute GraphQL queries against the Sui GraphQL API that are type-safe and easy to use.
 For more details on the Sui GraphQL API, see the
 [GraphQL reference](https://docs.sui.io/references/sui-graphql).
 
-## Writing your first query
+The `SuiGraphQLClient` implements all the the [Core API](/sui/clients/core) methods:
+
+```typescript
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
+
+const client = new SuiGraphQLClient({
+	url: 'https://sui-mainnet.mystenlabs.com/graphql',
+	network: 'mainnet',
+});
+
+const { object } = await client.getObject({ objectId: '0x...' });
+```
+
+## Custom GraphQL queries
+
+To query anything no in the Core API, you can use the `query` method to execute custom GraphQL
+queries.
 
 We'll start by creating our client, and executing a very basic query:
 

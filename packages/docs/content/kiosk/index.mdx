@@ -13,8 +13,10 @@ npm i @mysten/kiosk
 
 ## About
 
-To use the Kiosk SDK, you must create a `KioskClient` instance. This instance is used to hold the
-state of `SuiJsonRpcClient`, `Network`, and the rules and package IDs for interacting with Mysten
-Kiosk extension.
+The Kiosk SDK exports a client extension that integrates with Sui clients. Add it to your client
+using `$extend(kiosk())` to access kiosk functionality via `client.kiosk`.
 
-- [Read more about `KioskClient`](/kiosk/kiosk-client/introduction)
+> **Note:** The Kiosk SDK requires `SuiJsonRpcClient` or `SuiGraphQLClient`. It does not work with
+> `SuiGrpcClient` because it uses event queries that are not available in gRPC.
+
+- [Read more about setting up the Kiosk client extension](/kiosk/kiosk-client/introduction)
