@@ -21,7 +21,7 @@ export class DeepBookMarketMaker {
 
 	constructor(
 		keypair: string | Keypair,
-		env: 'testnet' | 'mainnet',
+		network: 'testnet' | 'mainnet',
 		balanceManagers?: { [key: string]: BalanceManager },
 		adminCap?: string,
 	) {
@@ -36,10 +36,9 @@ export class DeepBookMarketMaker {
 		const address = resolvedKeypair.toSuiAddress();
 
 		this.keypair = resolvedKeypair;
-		this.client = new SuiGrpcClient({ network: env, baseUrl: GRPC_URLS[env] }).$extend(
+		this.client = new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }).$extend(
 			deepbook({
 				address: address,
-				env: env,
 				balanceManagers: balanceManagers,
 				adminCap: adminCap,
 			}),

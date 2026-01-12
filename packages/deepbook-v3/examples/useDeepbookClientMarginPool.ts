@@ -9,11 +9,10 @@ const GRPC_URLS = {
 } as const;
 
 (async () => {
-	const env = 'testnet';
-	const client = new SuiGrpcClient({ network: env, baseUrl: GRPC_URLS[env] }).$extend(
+	const network = 'testnet';
+	const client = new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }).$extend(
 		deepbook({
 			address: '0x0',
-			env: env,
 		}),
 	);
 

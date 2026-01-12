@@ -252,8 +252,6 @@ export interface Config {
 	DEEP_TREASURY_ID: string;
 }
 
-export type Environment = 'mainnet' | 'testnet';
-
 /**
  * Parameters for depositing into a margin manager.
  * Either `amount` (number) or `coin` (TransactionArgument) must be provided, but not both.
