@@ -37,11 +37,11 @@
 		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
 	},
 	"devDependencies": {
-		"@mysten/codegen": "workspace:*",
+		"@mysten/codegen": "workspace:^",
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
-		"@mysten/bcs": "workspace:*",
-		"@mysten/sui": "workspace:*"
+		"@mysten/bcs": "workspace:^",
+		"@mysten/sui": "workspace:^"
 	}
 }
