@@ -7,18 +7,19 @@ title: Advanced Examples
 For these examples, assume you have the following data and functions available:
 
 ```typescript
+import { kiosk, KioskTransaction } from '@mysten/kiosk';
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+
 // a constant for bullshark's type.
 const bullsharkType = `${packageId}::suifrens::SuiFren<${packageId}::bullshark::Bullshark>`;
 // a constant for capy's type.
 const capyType = `${packageId}::suifrens::SuiFren<${packageId}::capy::Capy>`;
 
-// initialize a kioskClient.
-const kioskClient = new KioskClient({
-	client: new SuiJsonRpcClient({
-		url: getJsonRpcFullnodeUrl('mainnet'),
-	}),
-	network: Network.MAINNET,
-});
+// initialize the client with the kiosk extension.
+const client = new SuiJsonRpcClient({
+	url: getJsonRpcFullnodeUrl('mainnet'),
+	network: 'mainnet',
+}).$extend(kiosk());
 ```
 
 ## Minting a SuiFren
@@ -27,13 +28,13 @@ This example demonstrates how to mint a SuiFren.
 
 ```typescript
 async function mintFren(address: string) {
-	const { kioskOwnerCaps } = await kioskClient.getOwnedKiosks({ address });
+	const { kioskOwnerCaps } = await client.kiosk.getOwnedKiosks({ address });
 
 	// Choose the first kiosk for simplicity. We could have extra logic here (e.g. let the user choose, pick a personal one, etc).
 	const cap = kioskOwnerCaps[0];
 
 	const tx = new Transaction();
-	const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
+	const kioskTx = new KioskTransaction({ transaction: tx, kioskClient: client.kiosk, cap });
 
 	// We're mixing the logic here. If the cap is undefined, we create a new kiosk.
 	if (!cap) kioskTx.create();
@@ -63,7 +64,7 @@ This example demonstrates how to use the Kiosk SDK to mix two `bullsharks`.
 // We're mixing two frens.
 async function mixFrens(firstFrenObjectId: string, secondFrenObjectId: string, cap: KioskOwnerCap) {
 	const tx = new Transaction();
-	const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
+	const kioskTx = new KioskTransaction({ transaction: tx, kioskClient: client.kiosk, cap });
 
 	// borrow both frens.
 	const [fren1, promise1] = kioskTx.borrow({

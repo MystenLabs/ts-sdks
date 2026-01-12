@@ -8,5 +8,22 @@ to create your own zkSend Claim Links, with support for any publicly transferrab
 ## Installation
 
 ```sh npm2yarn
-npm i @mysten/zksend
+npm i @mysten/zksend @mysten/sui
 ```
+
+## Setup
+
+To use the zkSend SDK, create a Sui client and extend it with the zkSend extension:
+
+```ts
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { zksend } from '@mysten/zksend';
+
+const client = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+}).$extend(zksend());
+```
+
+The zkSend SDK supports mainnet and testnet networks. The extension automatically configures the
+correct contract IDs based on the client's network.
