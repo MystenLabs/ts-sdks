@@ -65,7 +65,7 @@ importers:
   packages/bcs:
     dependencies:
       '@mysten/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       '@scure/base':
         specifier: ^2.0.0
@@ -87,10 +87,10 @@ importers:
   packages/codegen:
     dependencies:
       '@mysten/bcs':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../bcs
       '@mysten/sui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../sui
       '@stricli/auto-complete':
         specifier: ^1.2.4
@@ -124,13 +124,13 @@ importers:
   packages/create-dapp:
     dependencies:
       '@mysten/codegen':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../codegen
       '@mysten/dapp-kit-react':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../dapp-kit-next/packages/dapp-kit-react
       '@mysten/sui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../sui
       '@types/node':
         specifier: ^24.10.1
@@ -146,10 +146,10 @@ importers:
   packages/create-dapp/templates/react-client-dapp:
     dependencies:
       '@mysten/dapp-kit-react':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../dapp-kit-next/packages/dapp-kit-react
       '@mysten/sui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../sui
       '@nanostores/react':
         specifier: ^1.0.0
@@ -201,10 +201,10 @@ importers:
   packages/create-dapp/templates/react-e2e-counter:
     dependencies:
       '@mysten/dapp-kit-react':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../dapp-kit-next/packages/dapp-kit-react
       '@mysten/sui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../sui
       '@nanostores/react':
         specifier: ^1.0.0
@@ -229,7 +229,7 @@ importers:
         version: 2.6.0
     devDependencies:
       '@mysten/codegen':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../codegen
       '@tailwindcss/vite':
         specifier: ^4.0.0
@@ -259,16 +259,13 @@ importers:
   packages/dapp-kit:
     dependencies:
       '@mysten/slush-wallet':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../slush-wallet
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
       '@mysten/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       '@mysten/wallet-standard':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../wallet-standard
       '@radix-ui/react-dialog':
         specifier: ^1.1.15
@@ -295,6 +292,9 @@ importers:
         specifier: ^4.5.4
         version: 4.5.5(@types/react@19.2.7)(react@19.2.1)
     devDependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@tanstack/react-query':
         specifier: ^5.90.11
         version: 5.90.11(react@19.2.1)
@@ -365,10 +365,10 @@ importers:
   packages/dapp-kit-next/examples/next-js/simple:
     dependencies:
       '@mysten/dapp-kit-react':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/dapp-kit-react
       '@mysten/sui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../../sui
       next:
         specifier: ^16.0.10
@@ -396,10 +396,10 @@ importers:
   packages/dapp-kit-next/examples/react/simple:
     dependencies:
       '@mysten/dapp-kit-react':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/dapp-kit-react
       '@mysten/sui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../../sui
       '@nanostores/react':
         specifier: ^1.0.0
@@ -433,10 +433,10 @@ importers:
   packages/dapp-kit-next/examples/vanilla/simple:
     dependencies:
       '@mysten/dapp-kit-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/dapp-kit-core
       '@mysten/sui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../../sui
     devDependencies:
       typescript:
@@ -449,10 +449,10 @@ importers:
   packages/dapp-kit-next/examples/vue/simple:
     dependencies:
       '@mysten/dapp-kit-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/dapp-kit-core
       '@mysten/sui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../../sui
       '@nanostores/vue':
         specifier: ^0.10.0
@@ -498,16 +498,13 @@ importers:
         specifier: ^1.0.3
         version: 1.0.3
       '@mysten/slush-wallet':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../slush-wallet
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../../../sui
       '@mysten/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../utils
       '@mysten/wallet-standard':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../wallet-standard
       '@nanostores/lit':
         specifier: ^0.2.3
@@ -528,6 +525,9 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
     devDependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../../../sui
       '@storybook/addon-essentials':
         specifier: ^8.6.14
         version: 8.6.14(@types/react@19.2.7)(storybook@8.6.14(bufferutil@4.0.9)(prettier@3.7.4)(utf-8-validate@5.0.10))
@@ -559,7 +559,7 @@ importers:
         specifier: ^1.0.8
         version: 1.0.8(@types/react@19.2.7)
       '@mysten/dapp-kit-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../dapp-kit-core
       '@nanostores/react':
         specifier: ^1.0.0
@@ -584,11 +584,8 @@ importers:
   packages/deepbook-v3:
     dependencies:
       '@mysten/bcs':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../bcs
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
       '@noble/hashes':
         specifier: ^2.0.1
         version: 2.0.1
@@ -603,8 +600,11 @@ importers:
         specifier: ^2.2.5
         version: 2.2.5
       '@mysten/codegen':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../codegen
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
@@ -636,58 +636,58 @@ importers:
   packages/docs:
     dependencies:
       '@mysten/bcs':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../bcs
       '@mysten/dapp-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../dapp-kit
       '@mysten/dapp-kit-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../dapp-kit-next/packages/dapp-kit-core
       '@mysten/dapp-kit-react':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../dapp-kit-next/packages/dapp-kit-react
       '@mysten/deepbook-v3':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../deepbook-v3
       '@mysten/enoki':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../enoki
       '@mysten/enoki-connect':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../enoki-connect
       '@mysten/kiosk':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../kiosk
       '@mysten/payment-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../payment-kit
       '@mysten/seal':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../seal
       '@mysten/signers':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../signers
       '@mysten/slush-wallet':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../slush-wallet
       '@mysten/sui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../sui
       '@mysten/suins':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../suins
       '@mysten/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       '@mysten/wallet-standard':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../wallet-standard
       '@mysten/walrus':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../walrus
       '@mysten/zksend':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../zksend
       '@tanstack/react-query':
         specifier: ^5.90.11
@@ -769,16 +769,13 @@ importers:
   packages/enoki:
     dependencies:
       '@mysten/signers':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../signers
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
       '@mysten/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       '@mysten/wallet-standard':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../wallet-standard
       '@nanostores/react':
         specifier: ^1.0.0
@@ -794,8 +791,11 @@ importers:
         version: 1.1.0
     devDependencies:
       '@mysten/dapp-kit-react':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../dapp-kit-next/packages/dapp-kit-react
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
@@ -823,14 +823,11 @@ importers:
 
   packages/enoki-connect:
     dependencies:
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
       '@mysten/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       '@mysten/wallet-standard':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../wallet-standard
       '@mysten/window-wallet-core':
         specifier: workspace:^
@@ -839,6 +836,9 @@ importers:
         specifier: ^3.3.1
         version: 3.3.1
     devDependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
@@ -852,16 +852,16 @@ importers:
   packages/enoki-connect/demo-dapp:
     dependencies:
       '@mysten/dapp-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../dapp-kit
       '@mysten/enoki-connect':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:..
       '@mysten/sui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../sui
       '@mysten/wallet-standard':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../wallet-standard
       '@radix-ui/colors':
         specifier: ^3.0.0
@@ -904,18 +904,18 @@ importers:
   packages/kiosk:
     dependencies:
       '@mysten/bcs':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../bcs
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
       '@mysten/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
     devDependencies:
       '@mysten/codegen':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../codegen
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
@@ -983,7 +983,7 @@ importers:
   packages/move-bytecode-template:
     devDependencies:
       '@mysten/bcs':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../bcs
       typescript:
         specifier: ^5.9.3
@@ -995,7 +995,7 @@ importers:
   packages/mvr-static:
     dependencies:
       '@mysten/sui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../sui
       '@types/node':
         specifier: ^24.10.1
@@ -1020,14 +1020,14 @@ importers:
   packages/payment-kit:
     dependencies:
       '@mysten/bcs':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../bcs
       '@mysten/sui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../sui
     devDependencies:
       '@mysten/codegen':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../codegen
       typescript:
         specifier: ^5.9.3
@@ -1036,11 +1036,8 @@ importers:
   packages/seal:
     dependencies:
       '@mysten/bcs':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../bcs
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
       '@noble/curves':
         specifier: ^2.0.1
         version: 2.0.1
@@ -1051,6 +1048,9 @@ importers:
       '@hey-api/openapi-ts':
         specifier: ^0.88.0
         version: 0.88.0(typescript@5.9.3)
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
@@ -1067,11 +1067,8 @@ importers:
         specifier: ^4.5.0
         version: 4.5.0
       '@mysten/ledgerjs-hw-app-sui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../ledgerjs-hw-app-sui
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
       '@noble/curves':
         specifier: ^2.0.1
         version: 2.0.1
@@ -1082,6 +1079,9 @@ importers:
         specifier: ^8.0.2
         version: 8.0.2
     devDependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
@@ -1097,22 +1097,22 @@ importers:
 
   packages/slush-wallet:
     dependencies:
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
       '@mysten/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       '@mysten/wallet-standard':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../wallet-standard
       '@mysten/window-wallet-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../window-wallet-core
       valibot:
         specifier: ^1.2.0
         version: 1.2.0(typescript@5.9.3)
     devDependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
@@ -1129,10 +1129,10 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0(graphql@16.12.0)
       '@mysten/bcs':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../bcs
       '@mysten/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       '@noble/curves':
         specifier: ^2.0.1
@@ -1243,9 +1243,6 @@ importers:
 
   packages/suins:
     dependencies:
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
       axios:
         specifier: ^1.13.2
         version: 1.13.2
@@ -1254,8 +1251,11 @@ importers:
         version: 4.5.0(axios@1.13.2)
     devDependencies:
       '@mysten/codegen':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../codegen
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@types/tmp':
         specifier: ^0.2.6
         version: 0.2.6
@@ -1288,21 +1288,21 @@ importers:
   packages/wallet-sdk:
     dependencies:
       '@mysten/bcs':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../bcs
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
       '@mysten/wallet-standard':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../wallet-standard
       valibot:
         specifier: ^1.2.0
         version: 1.2.0(typescript@5.9.3)
     devDependencies:
       '@mysten/dapp-kit-react':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../dapp-kit-next/packages/dapp-kit-react
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
@@ -1318,13 +1318,13 @@ importers:
 
   packages/wallet-standard:
     dependencies:
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
       '@wallet-standard/core':
         specifier: 1.1.1
         version: 1.1.1
     devDependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -1334,14 +1334,11 @@ importers:
 
   packages/walletconnect-wallet:
     dependencies:
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
       '@mysten/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       '@mysten/wallet-standard':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../wallet-standard
       '@reown/appkit-universal-connector':
         specifier: 1.8.14
@@ -1350,6 +1347,9 @@ importers:
         specifier: ^1.2.0
         version: 1.2.0(typescript@5.9.3)
     devDependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
@@ -1363,16 +1363,16 @@ importers:
   packages/walletconnect-wallet/demo-dapp:
     dependencies:
       '@mysten/dapp-kit':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../dapp-kit
       '@mysten/sui':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../sui
       '@mysten/wallet-standard':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../wallet-standard
       '@mysten/walletconnect-wallet':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:..
       '@radix-ui/colors':
         specifier: ^3.0.0
@@ -1415,16 +1415,13 @@ importers:
   packages/walrus:
     dependencies:
       '@mysten/bcs':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../bcs
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
       '@mysten/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       '@mysten/walrus-wasm':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../walrus-wasm
       dataloader:
         specifier: ^2.2.3
@@ -1434,14 +1431,17 @@ importers:
         specifier: ^1.19.6
         version: 1.19.6(hono@4.10.7)
       '@mysten/codegen':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../codegen
       '@mysten/dapp-kit-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../dapp-kit-next/packages/dapp-kit-core
       '@mysten/dapp-kit-react':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../dapp-kit-next/packages/dapp-kit-react
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@tanstack/react-query':
         specifier: ^5.90.11
         version: 5.90.11(react@19.2.1)
@@ -1482,7 +1482,7 @@ importers:
   packages/walrus-wasm:
     devDependencies:
       '@mysten/bcs':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../bcs
       vite:
         specifier: ^7.2.6
@@ -1494,7 +1494,7 @@ importers:
   packages/window-wallet-core:
     dependencies:
       '@mysten/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       jose:
         specifier: ^6.1.3
@@ -1512,17 +1512,14 @@ importers:
 
   packages/zksend:
     dependencies:
-      '@mysten/sui':
-        specifier: workspace:*
-        version: link:../sui
       '@mysten/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       '@mysten/wallet-standard':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../wallet-standard
       '@mysten/window-wallet-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../window-wallet-core
       mitt:
         specifier: ^3.0.1
@@ -1534,6 +1531,9 @@ importers:
         specifier: ^1.2.0
         version: 1.2.0(typescript@5.9.3)
     devDependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1

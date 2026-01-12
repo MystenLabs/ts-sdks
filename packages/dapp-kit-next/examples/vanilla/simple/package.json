@@ -9,8 +9,8 @@
 		"preview": "vite preview"
 	},
 	"dependencies": {
-		"@mysten/dapp-kit-core": "workspace:*",
-		"@mysten/sui": "workspace:*"
+		"@mysten/dapp-kit-core": "workspace:^",
+		"@mysten/sui": "workspace:^"
 	},
 	"devDependencies": {
 		"typescript": "^5.9.3",

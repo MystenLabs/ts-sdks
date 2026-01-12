@@ -42,16 +42,19 @@
 	},
 	"homepage": "https://github.com/MystenLabs/ts-sdks/packages/wallet-sdk#readme",
 	"devDependencies": {
-		"@mysten/dapp-kit-react": "workspace:*",
+		"@mysten/dapp-kit-react": "workspace:^",
+		"@mysten/sui": "workspace:^",
 		"@types/node": "^24.10.1",
 		"msw": "^2.12.3",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.15"
 	},
 	"dependencies": {
-		"@mysten/bcs": "workspace:*",
-		"@mysten/sui": "workspace:*",
-		"@mysten/wallet-standard": "workspace:*",
+		"@mysten/bcs": "workspace:^",
+		"@mysten/wallet-standard": "workspace:^",
 		"valibot": "^1.2.0"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
 	}
 }

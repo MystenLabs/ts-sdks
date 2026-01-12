@@ -43,12 +43,12 @@
 		"test:e2e": "vitest run e2e"
 	},
 	"dependencies": {
-		"@mysten/bcs": "workspace:*",
-		"@mysten/sui": "workspace:*",
-		"@mysten/utils": "workspace:*"
+		"@mysten/bcs": "workspace:^",
+		"@mysten/utils": "workspace:^"
 	},
 	"devDependencies": {
-		"@mysten/codegen": "workspace:*",
+		"@mysten/codegen": "workspace:^",
+		"@mysten/sui": "workspace:^",
 		"cross-env": "^10.1.0",
 		"tmp": "^0.2.5",
 		"ts-retry-promise": "^0.8.1",
@@ -56,5 +56,8 @@
 		"vite": "^7.2.6",
 		"vitest": "^4.0.15",
 		"wait-on": "^9.0.3"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
 	}
 }

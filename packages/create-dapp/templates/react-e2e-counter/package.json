@@ -10,8 +10,8 @@
     "codegen": "rm -rf src/contracts && sui-ts-codegen generate"
   },
   "dependencies": {
-    "@mysten/dapp-kit-react": "workspace:*",
-    "@mysten/sui": "workspace:*",
+    "@mysten/dapp-kit-react": "workspace:^",
+    "@mysten/sui": "workspace:^",
     "@nanostores/react": "^1.0.0",
     "@tanstack/react-query": "^5.90.11",
     "clsx": "^2.1.1",
@@ -21,7 +21,7 @@
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
-    "@mysten/codegen": "workspace:*",
+    "@mysten/codegen": "workspace:^",
     "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
