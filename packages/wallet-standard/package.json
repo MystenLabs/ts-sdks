@@ -38,11 +38,14 @@
 		"json-schema": "typescript-json-schema src/types.ts SerializedTransactionDataV2 --required --strictNullChecks > serialized-transaction-data-v2.schema.json && prettier -w serialized-transaction-data-v2.schema.json"
 	},
 	"dependencies": {
-		"@mysten/sui": "workspace:*",
 		"@wallet-standard/core": "1.1.1"
 	},
 	"devDependencies": {
+		"@mysten/sui": "workspace:^",
 		"typescript": "^5.9.3",
 		"typescript-json-schema": "^0.67.0"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
 	}
 }

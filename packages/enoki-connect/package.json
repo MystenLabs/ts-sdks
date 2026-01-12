@@ -37,15 +37,18 @@
 	},
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/enoki-connect#readme",
 	"devDependencies": {
+		"@mysten/sui": "workspace:^",
 		"@types/node": "^24.10.1",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.15"
 	},
 	"dependencies": {
-		"@mysten/sui": "workspace:*",
-		"@mysten/utils": "workspace:*",
-		"@mysten/wallet-standard": "workspace:*",
+		"@mysten/utils": "workspace:^",
+		"@mysten/wallet-standard": "workspace:^",
 		"@mysten/window-wallet-core": "workspace:^",
 		"lit": "^3.3.1"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
 	}
 }

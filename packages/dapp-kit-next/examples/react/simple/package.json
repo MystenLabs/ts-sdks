@@ -9,8 +9,8 @@
 		"preview": "vite preview"
 	},
 	"dependencies": {
-		"@mysten/dapp-kit-react": "workspace:*",
-		"@mysten/sui": "workspace:*",
+		"@mysten/dapp-kit-react": "workspace:^",
+		"@mysten/sui": "workspace:^",
 		"@nanostores/react": "^1.0.0",
 		"react": "^19.2.1",
 		"react-dom": "^19.2.1"
