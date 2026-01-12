@@ -40,15 +40,15 @@
 		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
 	},
 	"dependencies": {
-		"@mysten/bcs": "workspace:*",
-		"@mysten/sui": "workspace:*",
+		"@mysten/bcs": "workspace:^",
 		"@noble/hashes": "^2.0.1",
 		"axios": "^1.13.2",
 		"axios-retry": "^4.5.0"
 	},
 	"devDependencies": {
 		"@iarna/toml": "^2.2.5",
-		"@mysten/codegen": "workspace:*",
+		"@mysten/codegen": "workspace:^",
+		"@mysten/sui": "workspace:^",
 		"@types/node": "^24.10.1",
 		"dotenv": "^17.2.3",
 		"tmp": "^0.2.5",
@@ -58,5 +58,8 @@
 		"vite": "^7.2.6",
 		"vitest": "^4.0.15",
 		"wait-on": "^9.0.3"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
 	}
 }

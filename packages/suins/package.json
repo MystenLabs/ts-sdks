@@ -41,17 +41,20 @@
 		"node": ">=16"
 	},
 	"dependencies": {
-		"@mysten/sui": "workspace:*",
 		"axios": "^1.13.2",
 		"axios-retry": "^4.5.0"
 	},
 	"devDependencies": {
-		"@mysten/codegen": "workspace:*",
+		"@mysten/codegen": "workspace:^",
+		"@mysten/sui": "workspace:^",
 		"@types/tmp": "^0.2.6",
 		"ts-retry-promise": "^0.8.1",
 		"typescript": "^5.9.3",
 		"vite": "^7.2.6",
 		"vitest": "^4.0.15"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
 	},
 	"repository": {
 		"type": "git",
