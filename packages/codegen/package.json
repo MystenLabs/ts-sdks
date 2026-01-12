@@ -54,8 +54,8 @@
 		"vitest": "^4.0.15"
 	},
 	"dependencies": {
-		"@mysten/bcs": "workspace:*",
-		"@mysten/sui": "workspace:*",
+		"@mysten/bcs": "workspace:^",
+		"@mysten/sui": "workspace:^",
 		"@stricli/auto-complete": "^1.2.4",
 		"@stricli/core": "^1.2.4",
 		"@types/node": "^24.10.1",

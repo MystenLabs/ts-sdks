@@ -47,7 +47,7 @@
 	},
 	"dependencies": {
 		"@lit/react": "^1.0.8",
-		"@mysten/dapp-kit-core": "workspace:*",
+		"@mysten/dapp-kit-core": "workspace:^",
 		"@nanostores/react": "^1.0.0",
 		"nanostores": "^1.1.0"
 	},

@@ -47,7 +47,7 @@
 		"vitest": "^4.0.15"
 	},
 	"dependencies": {
-		"@mysten/sui": "workspace:*",
+		"@mysten/sui": "workspace:^",
 		"@types/node": "^24.10.1",
 		"enquirer": "^2.4.1",
 		"glob": "^13.0.0",

@@ -43,7 +43,7 @@
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"license": "Apache-2.0",
 	"devDependencies": {
-		"@mysten/bcs": "workspace:*",
+		"@mysten/bcs": "workspace:^",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.15"
 	}
