@@ -84,7 +84,6 @@ export const Owner = bcs.enum('Owner', {
 
 // Rust: crates/sui-types/src/transaction.rs
 export const Reservation = bcs.enum('Reservation', {
-	EntireBalance: null,
 	MaxAmountU64: bcs.u64(),
 });
 
