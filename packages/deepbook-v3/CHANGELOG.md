@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.26.4
+
+### Patch Changes
+
+- 86d1c96: Mainnet feed and currency IDs
+
 ## 0.26.3
 
 ### Patch Changes
