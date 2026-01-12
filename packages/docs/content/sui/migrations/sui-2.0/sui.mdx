@@ -1,0 +1,328 @@
+---
+title: '@mysten/sui'
+---
+
+## Removal of SuiClient Exports
+
+The `@mysten/sui/client` export path has been removed. All JSON-RPC client functionality is now
+exported from `@mysten/sui/jsonRpc`.
+
+**Removed exports:**
+
+- `SuiClient` (use `SuiJsonRpcClient` instead)
+- `SuiClientOptions` (use `SuiJsonRpcClientOptions` instead)
+- `isSuiClient` (use `isSuiJsonRpcClient` instead)
+- `SuiTransport` (use `JsonRpcTransport` instead)
+- `SuiTransportRequestOptions` (use `JsonRpcTransportRequestOptions` instead)
+- `SuiTransportSubscribeOptions` (use `JsonRpcTransportSubscribeOptions` instead)
+- `SuiHTTPTransportOptions` (use `JsonRpcHTTPTransportOptions` instead)
+- `SuiHTTPTransport` (use `JsonRpcHTTPTransport` instead)
+- `getFullnodeUrl` (use `getJsonRpcFullnodeUrl` instead)
+- All JSON-RPC types (now exported from `@mysten/sui/jsonRpc`)
+
+**Migration:**
+
+```diff
+- import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
++ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+
+- const client = new SuiClient({
+-   url: getFullnodeUrl('devnet'),
++ const client = new SuiJsonRpcClient({
++   url: getJsonRpcFullnodeUrl('devnet'),
+    network: 'devnet',
+  });
+```
+
+## Network Parameter Required
+
+When creating a new `SuiGraphQLClient` or `SuiJsonRpcClient`, you must now provide a `network`
+parameter:
+
+```ts
+const client = new SuiGraphQLClient({
+	url: 'https://...',
+	network: 'mainnet', // Required
+});
+
+const client = new SuiJsonRpcClient({
+	url: 'https://...',
+	network: 'mainnet', // Required
+});
+```
+
+## BCS Schema Changes
+
+Several BCS schemas in `@mysten/sui/bcs` have been updated to align exactly with the Rust
+implementation. These changes affect serialization and deserialization of transaction effects and
+objects.
+
+### ExecutionStatus Changes
+
+**BCS Schema** (when parsing raw effects): The variant was renamed from `Failed` to `Failure`:
+
+```diff
+- effects.status.Failed.error
++ effects.status.Failure.error
+```
+
+**Core API** (gRPC/GraphQL responses): Uses a simplified structure with a `success` boolean:
+
+```typescript
+// Core API returns this structure
+const result = await client.core.getTransaction({ digest, include: { effects: true } });
+const tx = result.Transaction ?? result.FailedTransaction;
+
+if (tx.effects.status.success) {
+	// Transaction succeeded
+} else {
+	const error = tx.effects.status.error;
+}
+```
+
+### Object BCS Schema Changes
+
+Several changes to object BCS schemas:
+
+```diff
+// Renamed Owner enum variant
+const owner = {
+-  ConsensusV2: { owner: addr, startVersion: 1 }
++  ConsensusAddressOwner: { startVersion: 1, owner: addr }
+};
+
+// Renamed Data enum variant
+const data = {
+-  MoveObject: { ... }
++  Move: { ... }
+};
+
+// Renamed exported schema
+- import { ObjectBcs } from '@mysten/sui/bcs';
++ import { bcs } from '@mysten/sui/bcs';
+- const bytes = ObjectBcs.serialize(obj);
++ const bytes = bcs.Object.serialize(obj);
+```
+
+**This affects serialization.** Any existing serialized data with `ConsensusV2` will need to be
+re-serialized with the new `ConsensusAddressOwner` variant.
+
+### UnchangedSharedKind to UnchangedConsensusKind
+
+Transaction effects field renamed:
+
+```diff
+// Field name change
+- effects.unchangedSharedObjects
++ effects.unchangedConsensusObjects
+```
+
+**Removed variants:** `MutateDeleted`, `ReadDeleted`
+
+**New variants:** `MutateConsensusStreamEnded`, `ReadConsensusStreamEnded`, `Cancelled`,
+`PerEpochConfig`
+
+## Experimental Client API Stabilization
+
+The experimental client API has been stabilized and moved from `@mysten/sui/experimental` to
+`@mysten/sui/client`. All `Experimental_` prefixes have been removed.
+
+**Breaking changes:**
+
+- The `@mysten/sui/experimental` module has been removed
+- All `Experimental_` prefixed types and classes have been renamed
+- Client types namespace changed from `Experimental_SuiClientTypes` to `SuiClientTypes`
+
+**Migration:**
+
+```diff
+- import {
+-   Experimental_BaseClient,
+-   Experimental_CoreClient,
+-   type Experimental_SuiClientTypes,
+-   type Experimental_CoreClientOptions,
+- } from '@mysten/sui/experimental';
++ import {
++   BaseClient,
++   CoreClient,
++   type SuiClientTypes,
++   type CoreClientOptions,
++ } from '@mysten/sui/client';
+
+// Update class extensions
+- class MyClient extends Experimental_CoreClient {
++ class MyClient extends CoreClient {
+    async getObjects(
+-     options: Experimental_SuiClientTypes.GetObjectsOptions,
+-   ): Promise<Experimental_SuiClientTypes.GetObjectsResponse> {
++     options: SuiClientTypes.GetObjectsOptions,
++   ): Promise<SuiClientTypes.GetObjectsResponse> {
+      // ...
+    }
+  }
+```
+
+**Common renames:**
+
+| Old Name                         | New Name            |
+| -------------------------------- | ------------------- |
+| `Experimental_BaseClient`        | `BaseClient`        |
+| `Experimental_CoreClient`        | `CoreClient`        |
+| `Experimental_SuiClientTypes`    | `SuiClientTypes`    |
+| `Experimental_CoreClientOptions` | `CoreClientOptions` |
+
+## Commands Renamed to TransactionCommands
+
+The `Commands` type exported from `@mysten/sui/transactions` has been renamed to
+`TransactionCommands` because `Commands` is a reserved keyword in React Native.
+
+```diff
+- import { Commands } from '@mysten/sui/transactions';
++ import { TransactionCommands } from '@mysten/sui/transactions';
+
+- const coin = tx.add(Commands.SplitCoins(tx.gas, [tx.pure.u64(100)]));
++ const coin = tx.add(TransactionCommands.SplitCoins(tx.gas, [tx.pure.u64(100)]));
+
+- tx.add(Commands.TransferObjects([coin], recipient));
++ tx.add(TransactionCommands.TransferObjects([coin], recipient));
+```
+
+## GraphQL Schema Consolidation
+
+The SDK now exports a single unified GraphQL schema instead of multiple versioned schemas.
+
+**Removed exports:**
+
+- `@mysten/sui/graphql/schemas/2024.1`
+- `@mysten/sui/graphql/schemas/2024.4`
+- `@mysten/sui/graphql/schemas/latest`
+
+**Migration:**
+
+```diff
+- import { graphql } from '@mysten/sui/graphql/schemas/latest';
+- import { graphql } from '@mysten/sui/graphql/schemas/2024.4';
+- import { graphql } from '@mysten/sui/graphql/schemas/2024.1';
++ import { graphql } from '@mysten/sui/graphql/schema';
+```
+
+## Named Packages Plugin Removed
+
+The `namedPackagesPlugin` and global plugin registry APIs have been removed. MVR (Move Registry)
+resolution is now built directly into the core client.
+
+**Removed:**
+
+- `namedPackagesPlugin` function
+- `NamedPackagesPluginOptions` type (from `@mysten/sui/transactions`)
+- `Transaction.registerGlobalSerializationPlugin()` static method
+- `Transaction.unregisterGlobalSerializationPlugin()` static method
+- `Transaction.registerGlobalBuildPlugin()` static method
+- `Transaction.unregisterGlobalBuildPlugin()` static method
+
+**How it works now:**
+
+MVR name resolution happens automatically during transaction building. The SDK detects `.move` names
+(like `@org/package::module::Type`) and resolves them using the client's MVR resolver.
+
+**Migration:**
+
+```diff
+- import { Transaction, namedPackagesPlugin } from '@mysten/sui/transactions';
+-
+- Transaction.registerGlobalSerializationPlugin(
+-   'namedPackages',
+-   namedPackagesPlugin({
+-     url: 'https://mainnet.mvr.mystenlabs.com',
+-     overrides: myOverrides,
+-   })
+- );
+
++ import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
++ import type { NamedPackagesOverrides } from '@mysten/sui/client';
++
++ const client = new SuiJsonRpcClient({
++   url: 'https://fullnode.mainnet.sui.io:443',
++   network: 'mainnet',
++   mvr: {
++     overrides: myOverrides,
++   },
++ });
+```
+
+## Transaction Executors Now Accept Any Client
+
+The transaction executor classes now accept any client implementing `ClientWithCoreApi` instead of
+requiring `SuiJsonRpcClient` specifically.
+
+**Affected classes:**
+
+- `CachingTransactionExecutor`
+- `SerialTransactionExecutor`
+- `ParallelTransactionExecutor`
+
+**Breaking changes:**
+
+- Constructor `client` parameter type changed from `SuiJsonRpcClient` to `ClientWithCoreApi`
+- Return type of `executeTransaction()`: `data` property renamed to `result`
+- The second parameter changed from JSON-RPC options to core API include options
+
+**Migration:**
+
+```diff
+import { SerialTransactionExecutor } from '@mysten/sui/transactions';
+- import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
++ // Works with any client: SuiJsonRpcClient, SuiGrpcClient, or SuiGraphQLClient
+
+const executor = new SerialTransactionExecutor({
+-   client: jsonRpcClient,
++   client, // Any ClientWithCoreApi-compatible client
+    signer,
+});
+
+const result = await executor.executeTransaction(tx);
+
+// Accessing the transaction result (changed)
+- console.log(result.data.effects?.status.status);
++ const tx = result.Transaction ?? result.FailedTransaction;
++ console.log(tx.effects.status.success);
+```
+
+Include options have also changed:
+
+```diff
+- const result = await executor.executeTransaction(tx, {
+-   showEffects: true,
+-   showEvents: true,
+- });
++ const result = await executor.executeTransaction(tx, {
++   effects: true,
++   events: true,
++ });
+```
+
+## ZkLogin Changes
+
+### legacyAddress Parameter Required
+
+The `legacyAddress` parameter is now **required** for all zkLogin address computation functions.
+
+**Migration (to preserve existing behavior):**
+
+```diff
+// computeZkLoginAddressFromSeed (previous default: true)
+- computeZkLoginAddressFromSeed(seed, iss)
++ computeZkLoginAddressFromSeed(seed, iss, true)
+
+// jwtToAddress (previous default: false)
+- jwtToAddress(jwt, userSalt)
++ jwtToAddress(jwt, userSalt, false)
+
+// computeZkLoginAddress (previous default: false)
+- computeZkLoginAddress({ claimName, claimValue, iss, aud, userSalt })
++ computeZkLoginAddress({ claimName, claimValue, iss, aud, userSalt, legacyAddress: false })
+
+// toZkLoginPublicIdentifier (no previous default)
+- toZkLoginPublicIdentifier(addressSeed, iss)
++ toZkLoginPublicIdentifier(addressSeed, iss, { legacyAddress: false })
+```
