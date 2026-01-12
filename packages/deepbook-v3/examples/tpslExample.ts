@@ -12,10 +12,10 @@
  */
 
 import { execSync } from 'child_process';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Transaction } from '@mysten/sui/transactions';
 
-import { DeepBookClient, OrderType, SelfMatchingOptions } from '../src/index.js';
+import { deepbook, OrderType, SelfMatchingOptions } from '../src/index.js';
 
 const SUI = process.env.SUI_BINARY ?? `sui`;
 
@@ -23,13 +23,16 @@ export const getActiveAddress = () => {
 	return execSync(`${SUI} client active-address`, { encoding: 'utf8' }).trim();
 };
 
-export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
+const GRPC_URLS = {
+	mainnet: 'https://fullnode.mainnet.sui.io:443',
+	testnet: 'https://fullnode.testnet.sui.io:443',
+} as const;
 
 (async () => {
 	// ============================================================================
 	// CONFIGURATION
 	// ============================================================================
-	const env = 'testnet';
+	const network = 'testnet';
 
 	// Configure margin managers - update these with your actual margin manager addresses
 	const marginManagers = {
@@ -39,14 +42,12 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 		},
 	};
 
-	const dbClient = new DeepBookClient({
-		address: getActiveAddress(),
-		env: env,
-		client: new SuiClient({
-			url: getFullnodeUrl(env),
+	const client = new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }).$extend(
+		deepbook({
+			address: getActiveAddress(),
+			marginManagers,
 		}),
-		marginManagers,
-	});
+	);
 
 	// ============================================================================
 	// SECTION 1: READ-ONLY FUNCTIONS
@@ -57,7 +58,7 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 
 	// 1.1 Get all conditional order IDs for a margin manager
 	try {
-		const conditionalOrderIds = await dbClient.getConditionalOrderIds('MARGIN_MANAGER_1');
+		const conditionalOrderIds = await client.deepbook.getConditionalOrderIds('MARGIN_MANAGER_1');
 		console.log('Conditional Order IDs:', conditionalOrderIds);
 	} catch (error) {
 		console.log('Error getting conditional order IDs:', error);
@@ -66,7 +67,7 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	// 1.2 Get the lowest trigger price for trigger_above orders (take profit for shorts)
 	// Returns MAX_U64 if there are no trigger_above orders
 	try {
-		const lowestTriggerAbove = await dbClient.getLowestTriggerAbovePrice('MARGIN_MANAGER_1');
+		const lowestTriggerAbove = await client.deepbook.getLowestTriggerAbovePrice('MARGIN_MANAGER_1');
 		console.log('Lowest Trigger Above Price:', lowestTriggerAbove.toString());
 	} catch (error) {
 		console.log('Error getting lowest trigger above price:', error);
@@ -75,7 +76,8 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	// 1.3 Get the highest trigger price for trigger_below orders (stop loss for longs)
 	// Returns 0 if there are no trigger_below orders
 	try {
-		const highestTriggerBelow = await dbClient.getHighestTriggerBelowPrice('MARGIN_MANAGER_1');
+		const highestTriggerBelow =
+			await client.deepbook.getHighestTriggerBelowPrice('MARGIN_MANAGER_1');
 		console.log('Highest Trigger Below Price:', highestTriggerBelow.toString());
 	} catch (error) {
 		console.log('Error getting highest trigger below price:', error);
@@ -83,7 +85,7 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 
 	// 1.4 Get manager state which includes TPSL trigger prices
 	try {
-		const managerState = await dbClient.getMarginManagerState('MARGIN_MANAGER_1');
+		const managerState = await client.deepbook.getMarginManagerState('MARGIN_MANAGER_1');
 		console.log('Manager State:', {
 			managerId: managerState.managerId,
 			riskRatio: managerState.riskRatio,
@@ -105,8 +107,8 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	const tx = new Transaction();
 
 	// Update Pyth price feeds (required for TPSL operations)
-	await dbClient.getPriceInfoObject(tx, 'SUI');
-	await dbClient.getPriceInfoObject(tx, 'DBUSDC');
+	await client.deepbook.getPriceInfoObject(tx, 'SUI');
+	await client.deepbook.getPriceInfoObject(tx, 'DBUSDC');
 
 	// ----------------------------------------------------------------------------
 	// 2.1 Add a Stop Loss order (trigger when price drops BELOW threshold)
@@ -115,7 +117,7 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	console.log('Adding Stop Loss order (trigger below price)...');
 
 	// Stop Loss with a limit order
-	dbClient.marginTPSL.addConditionalOrder({
+	client.deepbook.marginTPSL.addConditionalOrder({
 		marginManagerKey: 'MARGIN_MANAGER_1',
 		conditionalOrderId: '1001', // Unique ID for this conditional order
 		triggerBelowPrice: true, // Trigger when price goes BELOW trigger price
@@ -134,7 +136,7 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	})(tx);
 
 	// Stop Loss with a market order (simpler, but may have slippage)
-	dbClient.marginTPSL.addConditionalOrder({
+	client.deepbook.marginTPSL.addConditionalOrder({
 		marginManagerKey: 'MARGIN_MANAGER_1',
 		conditionalOrderId: '1002',
 		triggerBelowPrice: true,
@@ -156,7 +158,7 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	console.log('Adding Take Profit order (trigger above price)...');
 
 	// Take Profit with a limit order
-	dbClient.marginTPSL.addConditionalOrder({
+	client.deepbook.marginTPSL.addConditionalOrder({
 		marginManagerKey: 'MARGIN_MANAGER_1',
 		conditionalOrderId: '1003',
 		triggerBelowPrice: false, // Trigger when price goes ABOVE trigger price
@@ -174,7 +176,7 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	})(tx);
 
 	// Take Profit with a market order
-	dbClient.marginTPSL.addConditionalOrder({
+	client.deepbook.marginTPSL.addConditionalOrder({
 		marginManagerKey: 'MARGIN_MANAGER_1',
 		conditionalOrderId: '1004',
 		triggerBelowPrice: false,
@@ -193,14 +195,14 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	// ----------------------------------------------------------------------------
 	console.log('Canceling a specific conditional order...');
 
-	dbClient.marginTPSL.cancelConditionalOrder('MARGIN_MANAGER_1', '1002')(tx);
+	client.deepbook.marginTPSL.cancelConditionalOrder('MARGIN_MANAGER_1', '1002')(tx);
 
 	// ----------------------------------------------------------------------------
 	// 2.4 Cancel all conditional orders for a margin manager
 	// ----------------------------------------------------------------------------
 	console.log('Canceling all conditional orders...');
 
-	dbClient.marginTPSL.cancelAllConditionalOrders('MARGIN_MANAGER_1')(tx);
+	client.deepbook.marginTPSL.cancelAllConditionalOrders('MARGIN_MANAGER_1')(tx);
 
 	// ----------------------------------------------------------------------------
 	// 2.5 Execute conditional orders that have been triggered
@@ -210,7 +212,7 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	console.log('Executing triggered conditional orders...');
 
 	// Execute up to 10 triggered orders
-	dbClient.marginTPSL.executeConditionalOrders('MARGIN_MANAGER_1', 10)(tx);
+	client.deepbook.marginTPSL.executeConditionalOrders('MARGIN_MANAGER_1', 10)(tx);
 
 	// ============================================================================
 	// SECTION 3: USING HELPER FUNCTIONS DIRECTLY (Advanced Usage)
@@ -222,18 +224,18 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	const tx2 = new Transaction();
 
 	// Update Pyth price feeds
-	await dbClient.getPriceInfoObject(tx2, 'SUI');
-	await dbClient.getPriceInfoObject(tx2, 'DBUSDC');
+	await client.deepbook.getPriceInfoObject(tx2, 'SUI');
+	await client.deepbook.getPriceInfoObject(tx2, 'DBUSDC');
 
 	// 3.1 Create a condition manually
-	const condition = dbClient.marginTPSL.newCondition(
+	const condition = client.deepbook.marginTPSL.newCondition(
 		'SUI_DBUSDC', // Pool key for price calculation
 		true, // triggerBelowPrice
 		4.0, // triggerPrice
 	)(tx2);
 
 	// 3.2 Create a pending limit order manually
-	const pendingLimitOrder = dbClient.marginTPSL.newPendingLimitOrder('SUI_DBUSDC', {
+	const pendingLimitOrder = client.deepbook.marginTPSL.newPendingLimitOrder('SUI_DBUSDC', {
 		clientOrderId: '3001',
 		orderType: OrderType.IMMEDIATE_OR_CANCEL,
 		selfMatchingOption: SelfMatchingOptions.SELF_MATCHING_ALLOWED,
@@ -245,7 +247,7 @@ export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 	})(tx2);
 
 	// 3.3 Create a pending market order manually
-	const pendingMarketOrder = dbClient.marginTPSL.newPendingMarketOrder('SUI_DBUSDC', {
+	const pendingMarketOrder = client.deepbook.marginTPSL.newPendingMarketOrder('SUI_DBUSDC', {
 		clientOrderId: '3002',
 		selfMatchingOption: SelfMatchingOptions.SELF_MATCHING_ALLOWED,
 		quantity: 2,

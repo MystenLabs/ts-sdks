@@ -11,7 +11,7 @@ const GRPC_URLS = {
 
 /// Example to get open orders for a balance manager for all pools
 (async () => {
-	const env = 'mainnet';
+	const network = 'mainnet';
 
 	const balanceManagers = {
 		MANAGER_1: {
@@ -20,10 +20,9 @@ const GRPC_URLS = {
 		},
 	};
 
-	const client = new SuiGrpcClient({ network: env, baseUrl: GRPC_URLS[env] }).$extend(
+	const client = new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }).$extend(
 		deepbook({
 			address: '0x0',
-			env: env,
 			balanceManagers: balanceManagers,
 		}),
 	);

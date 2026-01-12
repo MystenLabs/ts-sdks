@@ -9,7 +9,7 @@ const GRPC_URLS = {
 } as const;
 
 (async () => {
-	const env = 'testnet';
+	const network = 'testnet';
 
 	// Configure margin managers with their addresses and pool keys
 	const marginManagers = {
@@ -19,10 +19,9 @@ const GRPC_URLS = {
 		},
 	};
 
-	const client = new SuiGrpcClient({ network: env, baseUrl: GRPC_URLS[env] }).$extend(
+	const client = new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }).$extend(
 		deepbook({
 			address: '0x0',
-			env: env,
 			marginManagers: marginManagers,
 		}),
 	);
