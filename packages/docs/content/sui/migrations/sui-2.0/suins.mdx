@@ -1,0 +1,45 @@
+---
+title: '@mysten/suins'
+---
+
+This package now exports a client extension that integrates with Sui clients.
+
+```diff
+- import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+- import { SuinsClient } from '@mysten/suins';
++ import { SuiGrpcClient } from '@mysten/sui/grpc'; // or SuiJsonRpcClient, SuiGraphQLClient
++ import { suins } from '@mysten/suins';
+
+- const suiClient = new SuiClient({ url: getFullnodeUrl('mainnet') });
+- const suinsClient = new SuinsClient({
+-   client: suiClient,
+-   network: 'mainnet',
+- });
++ const client = new SuiGrpcClient({
++   baseUrl: 'https://fullnode.mainnet.sui.io:443',
++   network: 'mainnet',
++ }).$extend(suins());
+
+- const nameRecord = await suinsClient.getNameRecord('example.sui');
++ const nameRecord = await client.suins.getNameRecord('example.sui');
+```
+
+## Custom Package IDs
+
+For custom deployments or networks other than mainnet/testnet, you can provide custom package info:
+
+```ts
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { suins, type PackageInfo } from '@mysten/suins';
+
+const customPackageInfo: PackageInfo = {
+	packageId: '0x...',
+	packageIdV1: '0x...',
+	// ... other required fields
+};
+
+const client = new SuiGrpcClient({
+	baseUrl: 'http://localhost:9000',
+	network: 'localnet',
+}).$extend(suins({ packageInfo: customPackageInfo }));
+```

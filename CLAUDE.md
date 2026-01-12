@@ -106,7 +106,7 @@ Several packages depend on external repositories and remote schemas. These are u
 | -------------------- | ---------------------------------- | ----------------------------------------------------------- |
 | `../sui`             | Main Sui blockchain implementation | Reference for gRPC, GraphQL, and JSON-RPC implementations   |
 | `../sui-apis`        | Protocol buffer definitions        | `@mysten/sui` gRPC codegen (`packages/sui/src/grpc/proto/`) |
-| `../suins-contracts` | SuiNS Move contracts               | `@mysten/suins-v2` codegen                                  |
+| `../suins-contracts` | SuiNS Move contracts               | `@mysten/suins` codegen                                     |
 | `../sui-payment-kit` | Payment kit Move contracts         | `@mysten/payment-kit` codegen                               |
 | `../walrus`          | Walrus storage contracts           | `@mysten/walrus` codegen                                    |
 | `../deepbookv3`      | DeepBook v3 DEX contracts          | `@mysten/deepbook-v3` codegen                               |
@@ -140,7 +140,6 @@ pnpm --filter @mysten/sui update-graphql-schema
 pnpm --filter @mysten/sui codegen:graphql
 
 # Generate Move contract bindings (various packages)
-pnpm --filter @mysten/suins-v2 codegen
 pnpm --filter @mysten/payment-kit codegen
 pnpm --filter @mysten/walrus codegen
 pnpm --filter @mysten/deepbook-v3 codegen

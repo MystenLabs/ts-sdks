@@ -2,49 +2,55 @@
 title: Kiosk Client
 ---
 
-Kiosk Client is the base for all Kiosk SDK functionality.
+The Kiosk SDK exports a client extension that provides all Kiosk functionality.
 
-> We recommend you keep only one instance of `KioskClient` throughout your dApp or script. For
-> example, in react, you'd use a context to provide the client.
+> We recommend you keep only one client instance throughout your dApp or script. For example, in
+> React, you'd use a context to provide the client.
 
-## Creating a kiosk client
+> **Note:** The Kiosk SDK requires `SuiJsonRpcClient` or `SuiGraphQLClient`. It does not work with
+> `SuiGrpcClient` because it uses event queries that are not available in gRPC.
 
-You can follow the example to create a `KioskClient`. The client currently supports `MAINNET` and
-`TESTNET`. View next section for usage in other networks.
+## Setting up the kiosk extension
+
+Add the kiosk extension to your Sui client using `$extend()`. The extension currently supports
+`mainnet` and `testnet`. See the next section for usage on other networks.
 
 _Mysten Kiosk rules and extensions are not supported in Devnet due to network wipes (that would
 require constantly changing the package IDs)._
 
 ```typescript
-import { KioskClient, Network } from '@mysten/kiosk';
+import { kiosk } from '@mysten/kiosk';
 import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 
-// We need a Sui Client. You can re-use the SuiJsonRpcClient of your project
-// (it's not recommended to create a new one).
-const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('testnet'), network: 'testnet' });
+const client = new SuiJsonRpcClient({
+	url: getJsonRpcFullnodeUrl('testnet'),
+	network: 'testnet',
+}).$extend(kiosk());
 
-// Now we can use it to create a kiosk Client.
-const kioskClient = new KioskClient({
-	client,
-	network: Network.TESTNET,
-});
+// Now you can use client.kiosk for all kiosk operations
+const { kioskOwnerCaps } = await client.kiosk.getOwnedKiosks({ address: '0x...' });
 ```
 
-### Using KioskClient on devnet or localnet
+### Using the kiosk extension on devnet or localnet
 
-To use all the functionality of Kiosk SDK outside of `MAINNET` and `TESTNET`, use `Network.CUSTOM`
-as the network, and pass the `packageIds` for the rules and extensions you want to use.
+To use all the functionality of Kiosk SDK outside of `mainnet` and `testnet`, pass the `packageIds`
+for the rules and extensions you want to use.
 
 ```typescript
-// constructing it for custom network use.
-const kioskClient = new KioskClient({
-	client,
-	network: Network.CUSTOM,
-	packageIds: {
-		kioskLockRulePackageId: '0x...',
-		royaltyRulePackageId: '0x...',
-		personalKioskRulePackageId: '0x...',
-		floorPriceRulePackageId: '0x...',
-	},
-});
+import { kiosk } from '@mysten/kiosk';
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+
+const client = new SuiJsonRpcClient({
+	url: getJsonRpcFullnodeUrl('devnet'),
+	network: 'devnet',
+}).$extend(
+	kiosk({
+		packageIds: {
+			kioskLockRulePackageId: '0x...',
+			royaltyRulePackageId: '0x...',
+			personalKioskRulePackageId: '0x...',
+			floorPriceRulePackageId: '0x...',
+		},
+	}),
+);
 ```

@@ -2,19 +2,10 @@
 title: SuiGrpcClient
 ---
 
-<Callout type="warn">
-	SuiGrpcClient is still in development and may change rapidly as it is being developed.
-</Callout>
+The `SuiGrpcClient` provides access to the Full Node gRPC API.
 
-<Callout type="info">
-	The `SuiGrpcClient` can be used for reading and writing data directly, but deeper integration into
-	other SDKs is not ready yet. In a future release, gRPC clients will be able to be passed into any
-	Mysten SDK method that currently accepts a JSON-RPC client.
-</Callout>
-
-The Typescript SDK includes the `SuiGrpcClient` which provides access to the Sui gRPC API. The gRPC
-client offers improved performance and type-safe access to Sui blockchain data through protocol
-buffers.
+For more complete details on what is available through this API see the
+[gRPC API docs](https://docs.sui.io/concepts/data-access/grpc-overview).
 
 ## Creating a gRPC client
 
@@ -60,7 +51,25 @@ const grpcClient = new SuiGrpcClient({
 The `SuiGrpcClient` exposes several service clients for lower-level access to the gRPC API. These
 service clients are generated using [protobuf-ts](https://github.com/timostamm/protobuf-ts), which
 provides type-safe gRPC clients for TypeScript. For more details on how to use gRPC with Sui, see
-the [gRPC overview](https://docs.sui.io/concepts/grpc-overview).
+the [gRPC overview](https://docs.sui.io/concepts/data-access/grpc-overview).
+
+### With the core API
+
+The gRPC client implements all the [`core`](../core) API methods:
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+const grpcClient = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+});
+// Get coins owned by an address
+await grpcClient.getCoins({
+	owner: '<OWNER_ADDRESS>',
+});
+```
+
+To query additional data not available in the core API, you can use the service clients directly:
 
 ### Transaction Execution Service
 
