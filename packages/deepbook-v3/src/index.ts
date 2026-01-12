@@ -34,7 +34,6 @@ export type {
 	Pool,
 	MarginManager,
 	MarginPool,
-	Environment,
 	Config,
 } from './types/index.js';
 

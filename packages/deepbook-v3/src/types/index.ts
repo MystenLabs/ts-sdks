@@ -251,5 +251,3 @@ export interface Config {
 	REGISTRY_ID: string;
 	DEEP_TREASURY_ID: string;
 }
-
-export type Environment = 'mainnet' | 'testnet';
