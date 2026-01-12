@@ -201,6 +201,9 @@ export function toZkLoginPublicIdentifier(
 	iss: string,
 	options: { client?: ClientWithCoreApi; legacyAddress: boolean },
 ): ZkLoginPublicIdentifier {
+	if (options.legacyAddress === undefined) {
+		throw new Error('legacyAddress parameter must be specified');
+	}
 	// Consists of iss_bytes_len || iss_bytes || padded_32_byte_address_seed.
 	const addressSeedBytesBigEndian = options.legacyAddress
 		? toBigEndianBytes(addressSeed, 32)

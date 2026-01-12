@@ -1,0 +1,97 @@
+---
+title: '@mysten/zksend'
+---
+
+This package now exports a client extension that integrates with Sui clients, enabling compatibility
+with gRPC, GraphQL, and JSON RPC transports.
+
+## Breaking Changes
+
+- **Client extension**: The zkSend SDK is now a client extension (`client.$extend(zksend())`)
+- **Non-contract links removed**: Only contract-based links are now supported. The `contract` option
+  no longer accepts `null`
+- **`isContractLink` removed**: The `isContractLink` option has been removed from `ZkSendLink`
+- **`calculateGas` removed**: The `calculateGas` option has been removed from
+  `CreateZkSendLinkOptions`
+- **Data fetching helpers removed**: `getAssetsFromTransaction`, `isOwner`, and `ownedAfterChange`
+  are no longer exported
+
+## Migration
+
+Update your code to use the client extension:
+
+```diff
+- import { ZkSendLinkBuilder, ZkSendLink } from '@mysten/zksend';
++ import { zksend } from '@mysten/zksend';
++ import { SuiGrpcClient } from '@mysten/sui/grpc'; // or SuiJsonRpcClient, SuiGraphQLClient
+
++ const client = new SuiGrpcClient({
++   baseUrl: 'https://fullnode.testnet.sui.io:443',
++   network: 'testnet',
++ }).$extend(zksend());
+```
+
+### Creating a Link Builder
+
+```diff
+- const builder = new ZkSendLinkBuilder({
+-   client,
+-   sender: address,
+-   network: 'testnet',
+- });
++ const link = client.zksend.linkBuilder({
++   sender: address,
++ });
+```
+
+### Loading a Link
+
+```diff
+- const link = new ZkSendLink({
+-   client,
+-   keypair,
+-   network: 'testnet',
+- });
++ const link = await client.zksend.loadLink({
++   address: linkAddress,
++   // or: keypair: linkKeypair,
++ });
+```
+
+### Loading from URL
+
+```diff
+- const link = await ZkSendLink.fromUrl(url, {
+-   client,
+-   network: 'testnet',
+- });
++ const link = await client.zksend.loadLinkFromUrl(url);
+```
+
+## Complete Example
+
+```ts
+import { zksend } from '@mysten/zksend';
+import { SuiGrpcClient } from '@mysten/sui/grpc'; // or SuiJsonRpcClient, SuiGraphQLClient
+
+// Create client with zkSend extension
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+	network: 'testnet',
+}).$extend(zksend());
+
+// Create a new link
+const linkBuilder = client.zksend.linkBuilder({
+	sender: myAddress,
+});
+
+// Add assets to the link
+linkBuilder.addSui(1_000_000_000n); // 1 SUI
+
+// Create the transaction
+const { tx, link } = await linkBuilder.build();
+
+// Later, load an existing link
+const existingLink = await client.zksend.loadLinkFromUrl(linkUrl);
+const assets = await existingLink.getAssets();
+```

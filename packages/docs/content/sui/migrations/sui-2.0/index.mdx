@@ -1,0 +1,123 @@
+---
+title: Migrate to 2.0
+---
+
+This guide covers the breaking changes across the latest release of all the `@mysten/*` packages.
+
+The primary goal of this release is to support the new GRPC and GraphQL Aps across all the mysten
+SDKs. These releases also include removals of deprecated APIs, some renaming for better consistency,
+and significant internal refactoring to improve maintainability.
+
+## Quick Reference
+
+| Package                                                            | Key Changes                                                                              |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| [@mysten/sui](/sui/migrations/sui-2.0/sui)                         | Client API stabilization, SuiClient removal, BCS schema alignment, transaction executors |
+| [@mysten/dapp-kit](/sui/migrations/sui-2.0/dapp-kit)               | Complete rewrite with framework-agnostic core                                            |
+| [@mysten/kiosk](/sui/migrations/sui-2.0/kiosk)                     | Client extension pattern, low-level helpers removed, KioskTransaction pattern            |
+| [@mysten/zksend](/sui/migrations/sui-2.0/zksend)                   | Client extension pattern                                                                 |
+| [@mysten/suins](/sui/migrations/sui-2.0/suins)                     | Client extension pattern                                                                 |
+| [@mysten/deepbook-v3](/sui/migrations/sui-2.0/deepbook-v3)         | Client extension pattern                                                                 |
+| [@mysten/walrus](/sui/migrations/sui-2.0/walrus)                   | Client extension pattern, requires client instead of RPC URL                             |
+| [@mysten/seal](/sui/migrations/sui-2.0/seal)                       | Client extension pattern                                                                 |
+| [@mysten/wallet-standard](/sui/migrations/sui-2.0/wallet-builders) | Removal of reportTransactionEffects, new core API response format                        |
+| [Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration) | Migrate from deprecated JSON-RPC to gRPC and GraphQL                                  |
+
+## Common Migration Patterns
+
+### Client Migration
+
+The most common change across all SDKs is migrating from `SuiClient` to `SuiJsonRpcClient`:
+
+```diff
+- import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
++ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+
+- const client = new SuiClient({ url: getFullnodeUrl('mainnet') });
++ const client = new SuiJsonRpcClient({
++   url: getJsonRpcFullnodeUrl('mainnet'),
++   network: 'mainnet',
++ });
+```
+
+We also recommend moving from the deprecated JSON RPC Apis to the new gRPC API as soon as possible:
+
+```diff
+- import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
++ import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+- const client = new SuiJsonRpcClient({ url, network: 'mainnet' });
++ const client = new SuiGrpcClient({ baseUrl, network: 'mainnet' });
+```
+
+The gRPC runs on full nodes so in most cases you should be able to use the same URLs when migrating
+to gRPC.
+
+### Network Parameter Required
+
+All client constructors now require an explicit `network` parameter:
+
+```ts
+const client = new SuiJsonRpcClient({
+	url: getJsonRpcFullnodeUrl('mainnet'),
+	network: 'mainnet', // Required
+});
+
+const graphqlClient = new SuiGraphQLClient({
+	url: 'https://sui-mainnet.mystenlabs.com/graphql',
+	network: 'mainnet', // Required
+});
+
+const grpcClient = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+	network: 'mainnet', // Required
+});
+```
+
+### ClientWithCoreApi Interface
+
+Many SDK methods now accept any client implementing `ClientWithCoreApi`, enabling use with JSON-RPC,
+GraphQL, or gRPC transports:
+
+```ts
+import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+// All of these work with APIs that accept ClientWithCoreApi
+const jsonRpcClient = new SuiJsonRpcClient({ url, network: 'mainnet' });
+const graphqlClient = new SuiGraphQLClient({ url, network: 'mainnet' });
+const grpcClient = new SuiGrpcClient({ baseUrl, network: 'mainnet' });
+```
+
+## Package-Specific Guides
+
+For detailed migration instructions, see the SDK-specific guides:
+
+- **[@mysten/sui](/sui/migrations/sui-2.0/sui)** - Core SDK changes including client API, BCS
+  schemas, transactions, zkLogin, and GraphQL
+- **[@mysten/dapp-kit](/sui/migrations/sui-2.0/dapp-kit)** - Complete migration guide for the new
+  dApp Kit architecture
+- **[@mysten/kiosk](/sui/migrations/sui-2.0/kiosk)** - Kiosk SDK now exports a client extension,
+  low-level helpers removed
+- **[@mysten/zksend](/sui/migrations/sui-2.0/zksend)** - zkSend SDK now exports a client extension
+- **[@mysten/suins](/sui/migrations/sui-2.0/suins)** - SuiNS now exports a client extension
+- **[@mysten/deepbook-v3](/sui/migrations/sui-2.0/deepbook-v3)** - DeepBook DEX now exports a client
+  extension
+- **[@mysten/walrus](/sui/migrations/sui-2.0/walrus)** - Walrus storage now exports a client
+  extension
+- **[@mysten/seal](/sui/migrations/sui-2.0/seal)** - Seal encryption now exports a client extension
+
+## Transport Migration
+
+- **[Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration)** - Migrate from the
+  deprecated JSON-RPC client to gRPC and GraphQL
+
+## Ecosystem Migration Guides
+
+For wallet builders and SDK maintainers building on the Sui ecosystem:
+
+- **[Wallet Builders](/sui/migrations/v2/wallet-builders)** - Guide for wallet implementations
+  adapting to `reportTransactionEffects` removal and new core API response format
+- **[SDK Maintainers](/sui/migrations/v2/sdk-maintainers)** - Guide for SDK authors migrating to
+  `ClientWithCoreApi` and the new transport-agnostic architecture

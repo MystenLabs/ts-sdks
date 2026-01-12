@@ -1,0 +1,20 @@
+{
+	"index": {
+		"title": "Overview",
+		"root": true
+	},
+	"pages": [
+		"agent-prompt",
+		"sui",
+		"json-rpc-migration",
+		"dapp-kit",
+		"kiosk",
+		"zksend",
+		"suins",
+		"deepbook-v3",
+		"walrus",
+		"seal",
+		"wallet-builders",
+		"sdk-maintainers"
+	]
+}

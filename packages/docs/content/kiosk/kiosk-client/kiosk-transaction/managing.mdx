@@ -2,7 +2,7 @@
 title: Managing Owned Kiosk
 ---
 
-`KioskClient` helps in managing a kiosk.
+The kiosk extension (`client.kiosk`) helps in managing a kiosk.
 
 You need to follow the steps explained in the [Kiosk Transaction section](#kiosk-transaction) to
 create a `KioskTransaction`.
@@ -18,9 +18,8 @@ Programmable Transaction Block (PTB) call.
 const itemId = '0xHeroAddress';
 const itemType = '0x..::hero::Hero';
 
-/// Assume `kioskClient` and `cap` are supplied to the function as explained in the previous section.
 const tx = new Transaction();
-const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
+const kioskTx = new KioskTransaction({ transaction: tx, kioskClient: client.kiosk, cap });
 
 // Take item from kiosk.
 const item = kioskTx.take({
@@ -46,9 +45,8 @@ Similar to `take`, but transfers the item to an address internally.
 const itemId = '0xHeroAddress';
 const itemType = '0x..::hero::Hero';
 
-/// Assume `kioskClient` and `cap` are supplied to the function as explained in the previous section.
 const tx = new Transaction();
-const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
+const kioskTx = new KioskTransaction({ transaction: tx, kioskClient: client.kiosk, cap });
 
 // Take item from kiosk.
 kioskTx
@@ -71,9 +69,8 @@ Places an item in the kiosk.
 const item = '0xHeroAddress';
 const itemType = '0x..::hero::Hero';
 
-/// Assume `kioskClient` and `cap` are supplied to the function as explained in the previous section.
 const tx = new Transaction();
-const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
+const kioskTx = new KioskTransaction({ transaction: tx, kioskClient: client.kiosk, cap });
 
 kioskTx
 	.place({
@@ -94,9 +91,8 @@ Lists an item for sale (the item must be in the kiosk).
 const itemId = '0xHeroAddress';
 const itemType = '0x..::hero::Hero';
 
-// Assume `kioskClient` and `cap` are supplied to the function as explained in the previous section.
 const tx = new Transaction();
-const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
+const kioskTx = new KioskTransaction({ transaction: tx, kioskClient: client.kiosk, cap });
 
 kioskTx
 	.list({
@@ -119,9 +115,8 @@ a short hand for `place()` and `list()`.
 const item = '0xHeroAddress';
 const itemType = '0x..::hero::Hero';
 
-// Assume `kioskClient` and `cap` are supplied to the function as explained in the previous section.
 const tx = new Transaction();
-const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
+const kioskTx = new KioskTransaction({ transaction: tx, kioskClient: client.kiosk, cap });
 
 kioskTx
 	.placeAndList({
@@ -143,9 +138,8 @@ Removes the listing, keeping the item placed in the kiosk.
 const itemId = '0xHeroAddress';
 const itemType = '0x..::hero::Hero';
 
-/// assume `kioskClient` and `cap` are supplied to the function as explained in the previous section.
 const tx = new Transaction();
-const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
+const kioskTx = new KioskTransaction({ transaction: tx, kioskClient: client.kiosk, cap });
 
 kioskTx
 	.delist({
@@ -165,9 +159,8 @@ Withdraw (all or specific amount) from a kiosk.
 `amount`: Can be empty, which will withdraw all the funds.
 
 ```typescript
-// Assume `kioskClient` and `cap` are supplied to the function as explained in the previous section.
 const tx = new Transaction();
-const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
+const kioskTx = new KioskTransaction({ transaction: tx, kioskClient: client.kiosk, cap });
 
 kioskTx.withdraw('address_to_transfer_funds', 100000n).finalize();
 
@@ -184,9 +177,8 @@ ownerCap. The return of the item happens automatically after the execution of th
 const itemId = '0xHeroAddress';
 const itemType = '0x..::hero::Hero';
 
-/// assume `kioskClient` and `cap` are supplied to the function as explained in the previous section.
 const tx = new Transaction();
-const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
+const kioskTx = new KioskTransaction({ transaction: tx, kioskClient: client.kiosk, cap });
 
 kioskTx
 	.borrowTx(
@@ -217,9 +209,8 @@ with the `item` and the `Promise`.
 const itemId = '0xHeroAddress';
 const itemType = '0x..::hero::Hero';
 
-// Assume `kioskClient` and `cap` are supplied to the function as explained in the previous section.
 const tx = new Transaction();
-const kioskTx = new KioskTransaction({ transaction: tx, kioskClient, cap });
+const kioskTx = new KioskTransaction({ transaction: tx, kioskClient: client.kiosk, cap });
 
 const [item, promise] = kioskTx.borrow({
 	itemId,
