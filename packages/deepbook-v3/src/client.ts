@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
 import { Account, Order, OrderDeepPrice, VecSet } from './types/bcs.js';
-import type { ClientWithCoreApi, SuiClientRegistration } from '@mysten/sui/client';
+import type { ClientWithCoreApi, SuiClientRegistration, SuiClientTypes } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
@@ -13,7 +13,6 @@ import { FlashLoanContract } from './transactions/flashLoans.js';
 import { GovernanceContract } from './transactions/governance.js';
 import type {
 	BalanceManager,
-	Environment,
 	MarginManager,
 	CanPlaceLimitOrderParams,
 	CanPlaceMarketOrderParams,
@@ -41,7 +40,6 @@ export interface DeepBookCompatibleClient extends ClientWithCoreApi {}
 
 export interface DeepBookOptions<Name = 'deepbook'> {
 	address: string;
-	env: Environment;
 	balanceManagers?: { [key: string]: BalanceManager };
 	marginManagers?: { [key: string]: MarginManager };
 	coins?: CoinMap;
@@ -54,6 +52,7 @@ export interface DeepBookOptions<Name = 'deepbook'> {
 
 export interface DeepBookClientOptions extends DeepBookOptions {
 	client: DeepBookCompatibleClient;
+	network: SuiClientTypes.Network;
 }
 
 export function deepbook<Name extends string = 'deepbook'>({
@@ -63,7 +62,11 @@ export function deepbook<Name extends string = 'deepbook'>({
 	return {
 		name,
 		register: (client) => {
-			return new DeepBookClient({ client, ...options });
+			return new DeepBookClient({
+				client,
+				network: client.network,
+				...options,
+			});
 		},
 	};
 }
@@ -95,7 +98,7 @@ export class DeepBookClient {
 	constructor({
 		client,
 		address,
-		env,
+		network,
 		balanceManagers,
 		marginManagers,
 		coins,
@@ -108,7 +111,7 @@ export class DeepBookClient {
 		this.#address = normalizeSuiAddress(address);
 		this.#config = new DeepBookConfig({
 			address: this.#address,
-			env,
+			network,
 			balanceManagers,
 			marginManagers,
 			coins,
@@ -886,7 +889,7 @@ export class DeepBookClient {
 
 		// Initialize connection to the Sui Price Service
 		const endpoint =
-			this.#config.env === 'testnet'
+			this.#config.network === 'testnet'
 				? 'https://hermes-beta.pyth.network'
 				: 'https://hermes.pyth.network';
 		const connection = new SuiPriceServiceConnection(endpoint);
