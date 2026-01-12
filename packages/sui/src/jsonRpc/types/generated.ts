@@ -1163,11 +1163,9 @@ export interface MoveCallSuiTransaction {
 	/** The type arguments to the function. */
 	type_arguments?: string[];
 }
-export type SuiReservation =
-	| 'entireBalance'
-	| {
-			maxAmountU64: string;
-	  };
+export type SuiReservation = {
+	maxAmountU64: string;
+};
 /**
  * This is the JSON-RPC type for the SUI system state object. It flattens all fields to make them
  * top-level fields such that it as minimum dependencies to the internal data structures of the SUI
