@@ -42,7 +42,7 @@ export function isPureArg(arg: any): arg is PureArg {
 	return (arg as PureArg).Pure !== undefined;
 }
 
-type Reservation = { EntireBalance: null } | { MaxAmountU64: number | string };
+type Reservation = { MaxAmountU64: number | string };
 type WithdrawalTypeArg = { Balance: TypeTag };
 type WithdrawFrom = { Sender: null } | { Sponsor: null };
 type FundsWithdrawalArg = {
