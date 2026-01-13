@@ -1007,6 +1007,40 @@ const introspection = {
         "interfaces": []
       },
       {
+        "kind": "OBJECT",
+        "name": "BalanceWithdraw",
+        "fields": [
+          {
+            "name": "reservation",
+            "type": {
+              "kind": "UNION",
+              "name": "WithdrawalReservation"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "type",
+            "type": {
+              "kind": "OBJECT",
+              "name": "MoveType"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "withdrawFrom",
+            "type": {
+              "kind": "ENUM",
+              "name": "WithdrawFrom"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
         "kind": "SCALAR",
         "name": "Base64"
       },
@@ -11089,6 +11123,15 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "maxRichQueries",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
             "name": "maxTransactionPayloadSize",
             "type": {
               "kind": "SCALAR",
@@ -11727,6 +11770,15 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "balanceChangesJson",
+            "type": {
+              "kind": "SCALAR",
+              "name": "JSON"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
             "name": "checkpoint",
             "type": {
               "kind": "OBJECT",
@@ -12059,6 +12111,10 @@ const introspection = {
         "kind": "UNION",
         "name": "TransactionInput",
         "possibleTypes": [
+          {
+            "kind": "OBJECT",
+            "name": "BalanceWithdraw"
+          },
           {
             "kind": "OBJECT",
             "name": "OwnedOrImmutable"
@@ -13289,6 +13345,46 @@ const introspection = {
           }
         ],
         "isOneOf": false
+      },
+      {
+        "kind": "ENUM",
+        "name": "WithdrawFrom",
+        "enumValues": [
+          {
+            "name": "SENDER",
+            "isDeprecated": false
+          },
+          {
+            "name": "SPONSOR",
+            "isDeprecated": false
+          }
+        ]
+      },
+      {
+        "kind": "OBJECT",
+        "name": "WithdrawMaxAmountU64",
+        "fields": [
+          {
+            "name": "amount",
+            "type": {
+              "kind": "SCALAR",
+              "name": "BigInt"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "UNION",
+        "name": "WithdrawalReservation",
+        "possibleTypes": [
+          {
+            "kind": "OBJECT",
+            "name": "WithdrawMaxAmountU64"
+          }
+        ]
       },
       {
         "kind": "OBJECT",
