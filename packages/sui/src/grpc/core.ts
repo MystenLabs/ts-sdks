@@ -42,6 +42,7 @@ import {
 	applyGrpcResolvedTransaction,
 	transactionDataToGrpcTransaction,
 	transactionToGrpcTransaction,
+	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
 import { coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
 export interface GrpcCoreClientOptions extends CoreClientOptions {
@@ -240,6 +241,14 @@ export class GrpcCoreClient extends CoreClient {
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
 		if (options.include?.transaction) {
+			paths.push(
+				'transaction.sender',
+				'transaction.gas_payment',
+				'transaction.expiration',
+				'transaction.kind',
+			);
+		}
+		if (options.include?.bcs) {
 			paths.push('transaction.bcs');
 		}
 		if (options.include?.balanceChanges) {
@@ -274,6 +283,14 @@ export class GrpcCoreClient extends CoreClient {
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
 		if (options.include?.transaction) {
+			paths.push(
+				'transaction.sender',
+				'transaction.gas_payment',
+				'transaction.expiration',
+				'transaction.kind',
+			);
+		}
+		if (options.include?.bcs) {
 			paths.push('transaction.bcs');
 		}
 		if (options.include?.balanceChanges) {
@@ -321,6 +338,14 @@ export class GrpcCoreClient extends CoreClient {
 			'transaction.effects.status',
 		];
 		if (options.include?.transaction) {
+			paths.push(
+				'transaction.transaction.sender',
+				'transaction.transaction.gas_payment',
+				'transaction.transaction.expiration',
+				'transaction.transaction.kind',
+			);
+		}
+		if (options.include?.bcs) {
 			paths.push('transaction.transaction.bcs');
 		}
 		if (options.include?.balanceChanges) {
@@ -667,7 +692,12 @@ export class GrpcCoreClient extends CoreClient {
 					transaction: grpcTransaction,
 					doGasSelection: !options.onlyTransactionKind,
 					readMask: {
-						paths: ['transaction.transaction.bcs', 'transaction.transaction'],
+						paths: [
+							'transaction.transaction.sender',
+							'transaction.transaction.gas_payment',
+							'transaction.transaction.expiration',
+							'transaction.transaction.kind',
+						],
 					},
 				});
 				response = result.response;
@@ -1093,32 +1123,23 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 	let transactionData: SuiClientTypes.TransactionData | undefined;
 	if (include?.transaction) {
 		const tx = transaction.transaction;
-		const bytes = tx?.bcs?.value;
 
-		if (!bytes) {
-			throw new Error('Transaction BCS bytes are required but missing from gRPC response');
+		if (!tx) {
+			throw new Error('Transaction data is required but missing from gRPC response');
 		}
 
-		const txData = bcs.TransactionData.parse(bytes);
-		const data = TransactionDataBuilder.restore({
-			version: 2,
-			sender: txData.V1.sender,
-			expiration: txData.V1.expiration,
-			gasData: txData.V1.gasData,
-			inputs: txData.V1.kind.ProgrammableTransaction!.inputs,
-			commands: txData.V1.kind.ProgrammableTransaction!.commands,
-		});
-
+		const resolved = grpcTransactionToTransactionData(tx);
 		transactionData = {
-			gasData: data.gasData,
-			sender: data.sender,
-			expiration: data.expiration,
-			commands: data.commands,
-			inputs: data.inputs,
-			version: data.version,
-			bcs: bytes,
+			gasData: resolved.gasData,
+			sender: resolved.sender,
+			expiration: resolved.expiration,
+			commands: resolved.commands,
+			inputs: resolved.inputs,
+			version: resolved.version,
 		};
 	}
+
+	const bcsBytes = include?.bcs ? transaction.transaction?.bcs?.value : undefined;
 
 	const effects = include?.effects
 		? parseTransactionEffects({
@@ -1148,6 +1169,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 			? objectTypes
 			: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 		transaction: transactionData as SuiClientTypes.Transaction<Include>['transaction'],
+		bcs: bcsBytes as SuiClientTypes.Transaction<Include>['bcs'],
 		signatures: transaction.signatures?.map((sig) => toBase64(sig.bcs?.value!)) ?? [],
 		balanceChanges: (include?.balanceChanges
 			? (transaction.balanceChanges?.map((change) => ({

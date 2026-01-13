@@ -3,6 +3,8 @@
 
 query defaultSuinsName($address: SuiAddress!) {
 	address(address: $address) {
-		defaultSuinsName
+		defaultNameRecord {
+			domain
+		}
 	}
 }

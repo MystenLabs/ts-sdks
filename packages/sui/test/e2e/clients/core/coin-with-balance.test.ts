@@ -1393,8 +1393,8 @@ describe('coinWithBalance', () => {
 				await client.core.waitForTransaction({ digest: depositResult.Transaction.digest });
 
 				const receiver = new Ed25519Keypair();
-				const requestAmount1 = 3n;
-				const requestAmount2 = 2n;
+				const requestAmount1 = 10n;
+				const requestAmount2 = 5n;
 				const totalAmount = requestAmount1 + requestAmount2;
 
 				const tx = new Transaction();

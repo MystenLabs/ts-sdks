@@ -28,6 +28,7 @@ import {
 	GetReferenceGasPriceDocument,
 	GetTransactionBlockDocument,
 	MultiGetObjectsDocument,
+	ResolveTransactionDocument,
 	SimulateTransactionDocument,
 	VerifyZkLoginSignatureDocument,
 	ZkLoginIntentScope,
@@ -36,10 +37,18 @@ import { ObjectError } from '../client/errors.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
-import { parseTransactionBcs, parseTransactionEffectsBcs } from '../client/utils.js';
+import { parseTransactionEffectsBcs } from '../client/utils.js';
 import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.js';
-import { transactionToGrpcJson } from '../client/transaction-resolver.js';
-import { coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
+import {
+	transactionDataToGrpcTransaction,
+	transactionToGrpcJson,
+	grpcTransactionToTransactionData,
+} from '../client/transaction-resolver.js';
+import { BalanceChange as BalanceChangeType } from '../grpc/proto/sui/rpc/v2/balance_change.js';
+import { TransactionEffects as TransactionEffectsType } from '../grpc/proto/sui/rpc/v2/effects.js';
+import { Transaction as GrpcTransactionType } from '../grpc/proto/sui/rpc/v2/transaction.js';
+import { TransactionDataBuilder } from '../transactions/TransactionData.js';
+import type { BuildTransactionOptions } from '../transactions/index.js';
 
 export class GraphQLCoreClient extends CoreClient {
 	#graphqlClient: SuiGraphQLClient;
@@ -280,6 +289,7 @@ export class GraphQLCoreClient extends CoreClient {
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
+					includeBcs: options.include?.bcs ?? false,
 				},
 			},
 			(result) => result.transaction,
@@ -301,6 +311,7 @@ export class GraphQLCoreClient extends CoreClient {
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
+					includeBcs: options.include?.bcs ?? false,
 				},
 			},
 			(result) => result.executeTransaction,
@@ -336,6 +347,7 @@ export class GraphQLCoreClient extends CoreClient {
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeCommandResults: options.include?.commandResults ?? false,
+					includeBcs: options.include?.bcs ?? false,
 				},
 			},
 			(result) => result.simulateTransaction,
@@ -404,50 +416,86 @@ export class GraphQLCoreClient extends CoreClient {
 			? new Date(result.startTimestamp).getTime().toString()
 			: (null as never);
 
+		// Parse the system state JSON from the MoveValue
+		const systemStateJson = result.systemState?.json as
+			| {
+					system_state_version?: string | number;
+					safe_mode?: boolean;
+					safe_mode_storage_rewards?: string;
+					safe_mode_computation_rewards?: string;
+					safe_mode_storage_rebates?: string | number;
+					safe_mode_non_refundable_storage_fee?: string | number;
+					parameters?: {
+						epoch_duration_ms?: string | number;
+						stake_subsidy_start_epoch?: string | number;
+						max_validator_count?: string | number;
+						min_validator_joining_stake?: string | number;
+						validator_low_stake_threshold?: string | number;
+						validator_low_stake_grace_period?: string | number;
+					};
+					storage_fund?: {
+						total_object_storage_rebates?: string;
+						non_refundable_balance?: string;
+					};
+					stake_subsidy?: {
+						balance?: string;
+						distribution_counter?: string | number;
+						current_distribution_amount?: string | number;
+						stake_subsidy_period_length?: string | number;
+						stake_subsidy_decrease_rate?: number;
+					};
+			  }
+			| undefined;
+
 		return {
 			systemState: {
-				systemStateVersion: result.systemStateVersion?.toString() ?? (null as never),
+				systemStateVersion: systemStateJson?.system_state_version?.toString() ?? (null as never),
 				epoch: result.epochId?.toString() ?? (null as never),
 				protocolVersion: result.protocolConfigs?.protocolVersion?.toString() ?? (null as never),
 				referenceGasPrice: result.referenceGasPrice ?? (null as never),
 				epochStartTimestampMs: startMs,
-				safeMode: result.safeMode?.enabled ?? false,
-				safeModeStorageRewards:
-					result.safeMode?.gasSummary?.storageCost?.toString() ?? (null as never),
+				safeMode: systemStateJson?.safe_mode ?? false,
+				safeModeStorageRewards: systemStateJson?.safe_mode_storage_rewards ?? (null as never),
 				safeModeComputationRewards:
-					result.safeMode?.gasSummary?.computationCost?.toString() ?? (null as never),
+					systemStateJson?.safe_mode_computation_rewards ?? (null as never),
 				safeModeStorageRebates:
-					result.safeMode?.gasSummary?.storageRebate?.toString() ?? (null as never),
+					systemStateJson?.safe_mode_storage_rebates?.toString() ?? (null as never),
 				safeModeNonRefundableStorageFee:
-					result.safeMode?.gasSummary?.nonRefundableStorageFee?.toString() ?? (null as never),
+					systemStateJson?.safe_mode_non_refundable_storage_fee?.toString() ?? (null as never),
 				parameters: {
-					epochDurationMs: result.systemParameters?.durationMs?.toString() ?? (null as never),
+					epochDurationMs:
+						systemStateJson?.parameters?.epoch_duration_ms?.toString() ?? (null as never),
 					stakeSubsidyStartEpoch:
-						result.systemParameters?.stakeSubsidyStartEpoch?.toString() ?? (null as never),
+						systemStateJson?.parameters?.stake_subsidy_start_epoch?.toString() ?? (null as never),
 					maxValidatorCount:
-						result.systemParameters?.maxValidatorCount?.toString() ?? (null as never),
+						systemStateJson?.parameters?.max_validator_count?.toString() ?? (null as never),
 					minValidatorJoiningStake:
-						result.systemParameters?.minValidatorJoiningStake?.toString() ?? (null as never),
+						systemStateJson?.parameters?.min_validator_joining_stake?.toString() ?? (null as never),
 					validatorLowStakeThreshold:
-						result.systemParameters?.validatorLowStakeThreshold?.toString() ?? (null as never),
+						systemStateJson?.parameters?.validator_low_stake_threshold?.toString() ??
+						(null as never),
 					validatorLowStakeGracePeriod:
-						result.systemParameters?.validatorLowStakeGracePeriod?.toString() ?? (null as never),
+						systemStateJson?.parameters?.validator_low_stake_grace_period?.toString() ??
+						(null as never),
 				},
 				storageFund: {
 					totalObjectStorageRebates:
-						result.storageFund?.totalObjectStorageRebates?.toString() ?? (null as never),
+						systemStateJson?.storage_fund?.total_object_storage_rebates ?? (null as never),
 					nonRefundableBalance:
-						result.storageFund?.nonRefundableBalance?.toString() ?? (null as never),
+						systemStateJson?.storage_fund?.non_refundable_balance ?? (null as never),
 				},
 				stakeSubsidy: {
-					balance: result.systemStakeSubsidy?.balance?.toString() ?? (null as never),
+					balance: systemStateJson?.stake_subsidy?.balance ?? (null as never),
 					distributionCounter:
-						result.systemStakeSubsidy?.distributionCounter?.toString() ?? (null as never),
+						systemStateJson?.stake_subsidy?.distribution_counter?.toString() ?? (null as never),
 					currentDistributionAmount:
-						result.systemStakeSubsidy?.currentDistributionAmount?.toString() ?? (null as never),
+						systemStateJson?.stake_subsidy?.current_distribution_amount?.toString() ??
+						(null as never),
 					stakeSubsidyPeriodLength:
-						result.systemStakeSubsidy?.periodLength?.toString() ?? (null as never),
-					stakeSubsidyDecreaseRate: result.systemStakeSubsidy?.decreaseRate ?? (null as never),
+						systemStateJson?.stake_subsidy?.stake_subsidy_period_length?.toString() ??
+						(null as never),
+					stakeSubsidyDecreaseRate:
+						systemStateJson?.stake_subsidy?.stake_subsidy_decrease_rate ?? (null as never),
 				},
 			},
 		};
@@ -535,7 +583,7 @@ export class GraphQLCoreClient extends CoreClient {
 					address: options.address,
 				},
 			},
-			(result) => result.address?.defaultSuinsName ?? null,
+			(result) => result.address?.defaultNameRecord?.domain ?? null,
 		);
 
 		return {
@@ -627,7 +675,61 @@ export class GraphQLCoreClient extends CoreClient {
 	}
 
 	resolveTransactionPlugin() {
-		return coreClientResolveTransactionPlugin;
+		const graphqlClient = this.#graphqlClient;
+		return async function resolveTransactionData(
+			transactionData: TransactionDataBuilder,
+			options: BuildTransactionOptions,
+			next: () => Promise<void>,
+		) {
+			const snapshot = transactionData.snapshot();
+			// If sender is not set, use a dummy address for resolution purposes
+			if (!snapshot.sender) {
+				snapshot.sender = '0x0000000000000000000000000000000000000000000000000000000000000000';
+			}
+			const grpcTransaction = transactionDataToGrpcTransaction(snapshot);
+			const transactionJson = GrpcTransactionType.toJson(grpcTransaction);
+
+			const { data, errors } = await graphqlClient.query({
+				query: ResolveTransactionDocument,
+				variables: {
+					transaction: transactionJson,
+					doGasSelection: !options.onlyTransactionKind,
+				},
+			});
+
+			handleGraphQLErrors(errors);
+
+			if (data?.simulateTransaction?.error) {
+				throw new Error(`Transaction resolution failed: ${data.simulateTransaction.error}`);
+			}
+
+			const resolvedTransactionBcs =
+				data?.simulateTransaction?.effects?.transaction?.transactionBcs;
+
+			if (!resolvedTransactionBcs) {
+				throw new Error('simulateTransaction did not return resolved transaction data');
+			}
+
+			const resolvedBuilder = TransactionDataBuilder.fromBytes(fromBase64(resolvedTransactionBcs));
+			const resolved = resolvedBuilder.snapshot();
+
+			if (options.onlyTransactionKind) {
+				transactionData.applyResolvedData({
+					...resolved,
+					gasData: {
+						budget: null,
+						owner: null,
+						payment: null,
+						price: null,
+					},
+					expiration: null,
+				});
+			} else {
+				transactionData.applyResolvedData(resolved);
+			}
+
+			return await next();
+		};
 	}
 }
 export type GraphQLResponseErrors = Array<{
@@ -688,31 +790,46 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 	const objectTypes: Record<string, string> = {};
 
 	if (include?.objectTypes) {
-		transaction.effects?.unchangedConsensusObjects?.nodes.forEach((node) => {
-			if (node.__typename === 'ConsensusObjectRead') {
-				const type = node.object?.asMoveObject?.contents?.type?.repr;
-				const address = node.object?.asMoveObject?.address;
+		const effectsJson = transaction.effects?.effectsJson;
+		if (effectsJson) {
+			const effects = TransactionEffectsType.fromJson(
+				effectsJson as Parameters<typeof TransactionEffectsType.fromJson>[0],
+			);
+			effects.changedObjects?.forEach((change) => {
+				if (change.objectId && change.objectType) {
+					objectTypes[change.objectId] = change.objectType;
+				}
+			});
+		}
 
-				if (type && address) {
-					objectTypes[address] = type;
+		const objectChanges = transaction.effects?.objectChanges?.nodes;
+		if (objectChanges) {
+			for (const change of objectChanges) {
+				const type = change.outputState?.asMoveObject?.contents?.type?.repr;
+				if (change.address && type) {
+					objectTypes[change.address] = type;
 				}
 			}
-		});
-
-		transaction.effects?.objectChanges?.nodes.forEach((node) => {
-			const address = node.address;
-			const type =
-				node.inputState?.asMoveObject?.contents?.type?.repr ??
-				node.outputState?.asMoveObject?.contents?.type?.repr;
-
-			if (address && type) {
-				objectTypes[address] = type;
-			}
-		});
+		}
 	}
 
-	if (transaction.effects?.balanceChanges?.pageInfo.hasNextPage) {
-		throw new Error('Pagination for balance changes is not supported');
+	let balanceChanges: SuiClientTypes.BalanceChange[] | undefined;
+	if (include?.balanceChanges) {
+		const balanceChangesJson = transaction.effects?.balanceChangesJson;
+		if (Array.isArray(balanceChangesJson)) {
+			balanceChanges = balanceChangesJson.map((json) => {
+				const change = BalanceChangeType.fromJson(
+					json as Parameters<typeof BalanceChangeType.fromJson>[0],
+				);
+				return {
+					coinType: change.coinType!,
+					address: change.address!,
+					amount: change.amount!,
+				};
+			});
+		} else {
+			balanceChanges = [];
+		}
 	}
 
 	// Get status from GraphQL response
@@ -724,6 +841,25 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 					error: parseGraphQLExecutionError(transaction.effects?.executionError),
 				};
 
+	let transactionData: SuiClientTypes.TransactionData | undefined;
+	if (include?.transaction && transaction.transactionJson) {
+		const grpcTx = GrpcTransactionType.fromJson(
+			transaction.transactionJson as Parameters<typeof GrpcTransactionType.fromJson>[0],
+		);
+		const resolved = grpcTransactionToTransactionData(grpcTx);
+		transactionData = {
+			gasData: resolved.gasData,
+			sender: resolved.sender,
+			expiration: resolved.expiration,
+			commands: resolved.commands,
+			inputs: resolved.inputs,
+			version: resolved.version,
+		};
+	}
+
+	const bcsBytes =
+		include?.bcs && transaction.transactionBcs ? fromBase64(transaction.transactionBcs) : undefined;
+
 	const result: SuiClientTypes.Transaction<Include> = {
 		digest: transaction.digest!,
 		status,
@@ -734,17 +870,10 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 		objectTypes: (include?.objectTypes
 			? objectTypes
 			: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
-		transaction: (include?.transaction
-			? parseTransactionBcs(fromBase64(transaction.transactionBcs!))
-			: undefined) as SuiClientTypes.Transaction<Include>['transaction'],
+		transaction: transactionData as SuiClientTypes.Transaction<Include>['transaction'],
+		bcs: bcsBytes as SuiClientTypes.Transaction<Include>['bcs'],
 		signatures: transaction.signatures.map((sig) => sig.signatureBytes!),
-		balanceChanges: (include?.balanceChanges
-			? (transaction.effects?.balanceChanges?.nodes.map((change) => ({
-					coinType: change?.coinType?.repr!,
-					address: change.owner?.address!,
-					amount: change.amount!,
-				})) ?? [])
-			: undefined) as SuiClientTypes.Transaction<Include>['balanceChanges'],
+		balanceChanges: balanceChanges as SuiClientTypes.Transaction<Include>['balanceChanges'],
 		events: (include?.events
 			? (transaction.effects?.events?.nodes.map((event) => {
 					const eventType = event.contents?.type?.repr!;

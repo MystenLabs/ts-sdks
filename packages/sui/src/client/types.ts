@@ -250,6 +250,7 @@ export namespace SuiClientTypes {
 		events: Include extends { events: true } ? Event[] : undefined;
 		objectTypes: Include extends { objectTypes: true } ? Record<string, string> : undefined;
 		transaction: Include extends { transaction: true } ? TransactionData : undefined;
+		bcs: Include extends { bcs: true } ? Uint8Array : undefined;
 	}
 
 	export type TransactionResult<Include extends TransactionInclude = {}> =
@@ -284,6 +285,7 @@ export namespace SuiClientTypes {
 		events?: boolean;
 		objectTypes?: boolean;
 		transaction?: boolean;
+		bcs?: boolean;
 	}
 
 	export interface SimulateTransactionInclude extends TransactionInclude {
@@ -305,9 +307,7 @@ export namespace SuiClientTypes {
 		amount: string;
 	}
 
-	export interface TransactionData extends SerializedTransactionDataV2 {
-		bcs: Uint8Array;
-	}
+	export interface TransactionData extends SerializedTransactionDataV2 {}
 
 	export interface GetTransactionOptions<
 		Include extends TransactionInclude = {},

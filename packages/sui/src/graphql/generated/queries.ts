@@ -148,6 +148,12 @@ export type Address = IAddressable & Node & {
   __typename?: 'Address';
   /** The Address' identifier, a 32-byte number represented as a 64-character hex string, with a lead "0x". */
   address: Scalars['SuiAddress']['output'];
+  /**
+   * Fetch the address as it was at a different root version, or checkpoint.
+   *
+   * If no additional bound is provided, the address is fetched at the latest checkpoint known to the RPC.
+   */
+  addressAt?: Maybe<Address>;
   /** Attempts to fetch the object at this address. */
   asObject?: Maybe<Object>;
   /**
@@ -159,8 +165,8 @@ export type Address = IAddressable & Node & {
   balance?: Maybe<Balance>;
   /** Total balance across coins owned by this address, grouped by coin type. */
   balances?: Maybe<BalanceConnection>;
-  /** The domain explicitly configured as the default SuiNS name for this address. */
-  defaultSuinsName?: Maybe<Scalars['String']['output']>;
+  /** The domain explicitly configured as the default Name Service name for this address. */
+  defaultNameRecord?: Maybe<NameRecord>;
   /**
    * Access a dynamic field on an object using its type and BCS-encoded name.
    *
@@ -208,6 +214,12 @@ export type Address = IAddressable & Node & {
    * Similar behavior to the `transactions` in Query but supporting the additional `AddressTransactionRelationship` filter, which defaults to `SENT`.
    */
   transactions?: Maybe<TransactionConnection>;
+};
+
+
+export type AddressAddressAtArgs = {
+  checkpoint?: InputMaybe<Scalars['UInt53']['input']>;
+  rootVersion?: InputMaybe<Scalars['UInt53']['input']>;
 };
 
 
@@ -280,6 +292,24 @@ export type AddressAliasStateCreateTransaction = {
   __typename?: 'AddressAliasStateCreateTransaction';
   /** A workaround to define an empty variant of a GraphQL union. */
   _?: Maybe<Scalars['Boolean']['output']>;
+};
+
+/**
+ * Identifies a specific version of an address.
+ *
+ * Exactly one of `address` or `name` must be specified. Additionally, at most one of `rootVersion` or `atCheckpoint` can be specified. If neither bound is provided, the address is fetched at the checkpoint being viewed.
+ *
+ * See `Query.address` for more details.
+ */
+export type AddressKey = {
+  /** The address. */
+  address?: InputMaybe<Scalars['SuiAddress']['input']>;
+  /** If specified, sets a checkpoint bound for this address. */
+  atCheckpoint?: InputMaybe<Scalars['UInt53']['input']>;
+  /** A SuiNS name to resolve to an address. */
+  name?: InputMaybe<Scalars['String']['input']>;
+  /** If specified, sets a root version bound for this address. */
+  rootVersion?: InputMaybe<Scalars['UInt53']['input']>;
 };
 
 /** Object is exclusively owned by a single address, and is mutable. */
@@ -398,6 +428,17 @@ export type BalanceEdge = {
   cursor: Scalars['String']['output'];
   /** The item at the end of the edge */
   node: Balance;
+};
+
+/** Input for withdrawing funds from an accumulator. */
+export type BalanceWithdraw = {
+  __typename?: 'BalanceWithdraw';
+  /** How much to withdraw from the accumulator. */
+  reservation?: Maybe<WithdrawalReservation>;
+  /** The type of the funds accumulator to withdraw from (e.g. `0x2::balance::Balance<0x2::sui::SUI>`). */
+  type?: Maybe<MoveType>;
+  /** The account to withdraw funds from. */
+  withdrawFrom?: Maybe<WithdrawFrom>;
 };
 
 /** System transaction for initializing bridge committee. */
@@ -541,6 +582,12 @@ export type CoinMetadata = IAddressable & IMoveObject & IObject & {
   __typename?: 'CoinMetadata';
   /** The CoinMetadata's ID. */
   address: Scalars['SuiAddress']['output'];
+  /**
+   * Fetch the address as it was at a different root version, or checkpoint.
+   *
+   * If no additional bound is provided, the address is fetched at the latest checkpoint known to the RPC.
+   */
+  addressAt?: Maybe<Address>;
   /** Whether the `DenyCap` can be used to enable a global pause that behaves as if all addresses were added to the deny list. `null` indicates that it is not known whether the currency can be paused or not. This field is only populated on currencies held in the Coin Registry. To determine whether a legacy currency can be paused, check the contents of its `DenyCap`, if it can be found. */
   allowGlobalPause?: Maybe<Scalars['Boolean']['output']>;
   /**
@@ -555,8 +602,8 @@ export type CoinMetadata = IAddressable & IMoveObject & IObject & {
   contents?: Maybe<MoveValue>;
   /** Number of decimal places the coin uses. */
   decimals?: Maybe<Scalars['Int']['output']>;
-  /** The domain explicitly configured as the default SuiNS name for this address. */
-  defaultSuinsName?: Maybe<Scalars['String']['output']>;
+  /** The domain explicitly configured as the default Name Service name for this address. */
+  defaultNameRecord?: Maybe<NameRecord>;
   /** If the currency is regulated, this object represents the capability to modify the deny list. If a capability is known but wrapped, its address can be fetched but other fields will not be accessible. */
   denyCap?: Maybe<MoveObject>;
   /** Description of the coin. */
@@ -639,6 +686,13 @@ export type CoinMetadata = IAddressable & IMoveObject & IObject & {
   symbol?: Maybe<Scalars['String']['output']>;
   /** The version of this object that this content comes from. */
   version?: Maybe<Scalars['UInt53']['output']>;
+};
+
+
+/** An object representing metadata about a coin type. */
+export type CoinMetadataAddressAtArgs = {
+  checkpoint?: InputMaybe<Scalars['UInt53']['input']>;
+  rootVersion?: InputMaybe<Scalars['UInt53']['input']>;
 };
 
 
@@ -902,6 +956,12 @@ export type DynamicField = IAddressable & IMoveObject & IObject & Node & {
   /** The DynamicField's ID. */
   address: Scalars['SuiAddress']['output'];
   /**
+   * Fetch the address as it was at a different root version, or checkpoint.
+   *
+   * If no additional bound is provided, the address is fetched at the latest checkpoint known to the RPC.
+   */
+  addressAt?: Maybe<Address>;
+  /**
    * Fetch the total balance for coins with marker type `coinType` (e.g. `0x2::sui::SUI`), owned by this address.
    *
    * If the address does not own any coins of that type, a balance of zero is returned.
@@ -911,8 +971,8 @@ export type DynamicField = IAddressable & IMoveObject & IObject & Node & {
   balances?: Maybe<BalanceConnection>;
   /** The structured representation of the object's contents. */
   contents?: Maybe<MoveValue>;
-  /** The domain explicitly configured as the default SuiNS name for this address. */
-  defaultSuinsName?: Maybe<Scalars['String']['output']>;
+  /** The domain explicitly configured as the default Name Service name for this address. */
+  defaultNameRecord?: Maybe<NameRecord>;
   /** 32-byte hash that identifies the object's contents, encoded in Base58. */
   digest?: Maybe<Scalars['String']['output']>;
   /**
@@ -985,6 +1045,20 @@ export type DynamicField = IAddressable & IMoveObject & IObject & Node & {
   value?: Maybe<DynamicFieldValue>;
   /** The version of this object that this content comes from. */
   version?: Maybe<Scalars['UInt53']['output']>;
+};
+
+
+/**
+ * Dynamic fields are heterogenous fields that can be added or removed from an object at runtime. Their names are arbitrary Move values that have `copy`, `drop`, and `store`.
+ *
+ * There are two sub-types of dynamic fields:
+ *
+ * - Dynamic fields can store any value that has `store`. Objects stored in this kind of field will be considered wrapped (not accessible via its ID by external tools like explorers, wallets, etc. accessing storage).
+ * - Dynamic object fields can only store objects (values that have the `key` ability, and an `id: UID` as its first field) that have `store`, but they will still be directly accessible off-chain via their ID after being attached as a field.
+ */
+export type DynamicFieldAddressAtArgs = {
+  checkpoint?: InputMaybe<Scalars['UInt53']['input']>;
+  rootVersion?: InputMaybe<Scalars['UInt53']['input']>;
 };
 
 
@@ -1199,12 +1273,18 @@ export type DynamicFieldEdge = {
   node: DynamicField;
 };
 
-/** A description of a dynamic field's name. */
+/**
+ * A description of a dynamic field's name.
+ *
+ * Names can either be given as serialized `bcs` accompanied by its `type`, or as a Display v2 `literal` expression. Other combinations of inputs are not supported.
+ */
 export type DynamicFieldName = {
   /** The Base64-encoded BCS serialization of the dynamic field's 'name'. */
-  bcs: Scalars['Base64']['input'];
+  bcs?: InputMaybe<Scalars['Base64']['input']>;
+  /** The name represented as a Display v2 literal expression. */
+  literal?: InputMaybe<Scalars['String']['input']>;
   /** The type of the dynamic field's name, like 'u64' or '0x2::kiosk::Listing'. */
-  type: Scalars['String']['input'];
+  type?: InputMaybe<Scalars['String']['input']>;
 };
 
 /** The value of a dynamic field (`MoveValue`) or dynamic object field (`MoveObject`). */
@@ -1295,26 +1375,12 @@ export type Epoch = Node & {
   protocolConfigs?: Maybe<ProtocolConfigs>;
   /** The minimum gas price that a quorum of validators are guaranteed to sign a transaction for in this epoch. */
   referenceGasPrice?: Maybe<Scalars['BigInt']['output']>;
-  /** Information about whether this epoch was started in safe mode, which happens if the full epoch change logic fails. */
-  safeMode?: Maybe<SafeMode>;
   /** The timestamp associated with the first checkpoint in the epoch. */
   startTimestamp?: Maybe<Scalars['DateTime']['output']>;
-  /**
-   * SUI set aside to account for objects stored on-chain, at the start of the epoch.
-   * This is also used for storage rebates.
-   */
-  storageFund?: Maybe<StorageFund>;
   /** The system packages used by all transactions in this epoch. */
   systemPackages?: Maybe<MovePackageConnection>;
-  /** Details of the system that are decided during genesis. */
-  systemParameters?: Maybe<SystemParameters>;
-  /** Parameters related to the subsidy that supplements staking rewards */
-  systemStakeSubsidy?: Maybe<StakeSubsidy>;
-  /**
-   * The value of the `version` field of `0x5`, the `0x3::sui::SuiSystemState` object.
-   * This version changes whenever the fields contained in the system state object (held in a dynamic field attached to `0x5`) change.
-   */
-  systemStateVersion?: Maybe<Scalars['UInt53']['output']>;
+  /** The contents of the system state inner object at the start of this epoch. */
+  systemState?: Maybe<MoveValue>;
   /**
    * The total number of checkpoints in this epoch.
    *
@@ -1635,6 +1701,12 @@ export type GenesisTransactionObjectsArgs = {
 export type IAddressable = {
   address: Scalars['SuiAddress']['output'];
   /**
+   * Fetch the address as it was at a different root version, or checkpoint.
+   *
+   * If no additional bound is provided, the address is fetched at the latest checkpoint known to the RPC.
+   */
+  addressAt?: Maybe<Address>;
+  /**
    * Fetch the total balance for coins with marker type `coinType` (e.g. `0x2::sui::SUI`), owned by this address.
    *
    * If the address does not own any coins of that type, a balance of zero is returned.
@@ -1642,8 +1714,8 @@ export type IAddressable = {
   balance?: Maybe<Balance>;
   /** Total balance across coins owned by this address, grouped by coin type. */
   balances?: Maybe<BalanceConnection>;
-  /** The domain explicitly configured as the default SuiNS name for this address. */
-  defaultSuinsName?: Maybe<Scalars['String']['output']>;
+  /** The domain explicitly configured as the default Name Service name for this address. */
+  defaultNameRecord?: Maybe<NameRecord>;
   /**
    * Fetch the total balances keyed by coin types (e.g. `0x2::sui::SUI`) owned by this address.
    *
@@ -1652,6 +1724,17 @@ export type IAddressable = {
   multiGetBalances?: Maybe<Array<Balance>>;
   /** Objects owned by this address, optionally filtered by type. */
   objects?: Maybe<MoveObjectConnection>;
+};
+
+
+/**
+ * Interface implemented by GraphQL types representing entities that are identified by an address.
+ *
+ * An address uniquely represents either the public key of an account, or an object's ID, but never both. It is not possible to determine which type an address represents up-front. If an object is wrapped, its contents will not be accessible via its address, but it will still be possible to access other objects it owns.
+ */
+export type IAddressableAddressAtArgs = {
+  checkpoint?: InputMaybe<Scalars['UInt53']['input']>;
+  rootVersion?: InputMaybe<Scalars['UInt53']['input']>;
 };
 
 
@@ -2265,6 +2348,12 @@ export type MoveObject = IAddressable & IMoveObject & IObject & Node & {
   __typename?: 'MoveObject';
   /** The MoveObject's ID. */
   address: Scalars['SuiAddress']['output'];
+  /**
+   * Fetch the address as it was at a different root version, or checkpoint.
+   *
+   * If no additional bound is provided, the address is fetched at the latest checkpoint known to the RPC.
+   */
+  addressAt?: Maybe<Address>;
   /** Attempts to convert the object into a CoinMetadata. */
   asCoinMetadata?: Maybe<CoinMetadata>;
   /** Attempts to convert the object into a DynamicField. */
@@ -2279,8 +2368,8 @@ export type MoveObject = IAddressable & IMoveObject & IObject & Node & {
   balances?: Maybe<BalanceConnection>;
   /** The structured representation of the object's contents. */
   contents?: Maybe<MoveValue>;
-  /** The domain explicitly configured as the default SuiNS name for this address. */
-  defaultSuinsName?: Maybe<Scalars['String']['output']>;
+  /** The domain explicitly configured as the default Name Service name for this address. */
+  defaultNameRecord?: Maybe<NameRecord>;
   /** 32-byte hash that identifies the object's contents, encoded in Base58. */
   digest?: Maybe<Scalars['String']['output']>;
   /**
@@ -2353,6 +2442,13 @@ export type MoveObject = IAddressable & IMoveObject & IObject & Node & {
   storageRebate?: Maybe<Scalars['BigInt']['output']>;
   /** The version of this object that this content comes from. */
   version?: Maybe<Scalars['UInt53']['output']>;
+};
+
+
+/** A MoveObject is a kind of Object that reprsents data stored on-chain. */
+export type MoveObjectAddressAtArgs = {
+  checkpoint?: InputMaybe<Scalars['UInt53']['input']>;
+  rootVersion?: InputMaybe<Scalars['UInt53']['input']>;
 };
 
 
@@ -2482,6 +2578,12 @@ export type MovePackage = IAddressable & IObject & Node & {
   /** The MovePackage's ID. */
   address: Scalars['SuiAddress']['output'];
   /**
+   * Fetch the address as it was at a different root version, or checkpoint.
+   *
+   * If no additional bound is provided, the address is fetched at the latest checkpoint known to the RPC.
+   */
+  addressAt?: Maybe<Address>;
+  /**
    * Fetch the total balance for coins with marker type `coinType` (e.g. `0x2::sui::SUI`), owned by this address.
    *
    * If the address does not own any coins of that type, a balance of zero is returned.
@@ -2489,8 +2591,8 @@ export type MovePackage = IAddressable & IObject & Node & {
   balance?: Maybe<Balance>;
   /** Total balance across coins owned by this address, grouped by coin type. */
   balances?: Maybe<BalanceConnection>;
-  /** The domain explicitly configured as the default SuiNS name for this address. */
-  defaultSuinsName?: Maybe<Scalars['String']['output']>;
+  /** The domain explicitly configured as the default Name Service name for this address. */
+  defaultNameRecord?: Maybe<NameRecord>;
   /** 32-byte hash that identifies the package's contents, encoded in Base58. */
   digest?: Maybe<Scalars['String']['output']>;
   /** The package's globally unique identifier, which can be passed to `Query.node` to refetch it. */
@@ -2526,9 +2628,9 @@ export type MovePackage = IAddressable & IObject & Node & {
   /** The object's owner kind. */
   owner?: Maybe<Owner>;
   /**
-   * Fetch the package with the same original ID, at a different version, root version bound, or checkpoint.
+   * Fetch the package with the same original ID, at a different version, or checkpoint.
    *
-   * If no additional bound is provided, the latest version of this package is fetched at the latest checkpoint.
+   * If no additional bound is provided, the package is fetched at the latest checkpoint known to the RPC.
    */
   packageAt?: Maybe<MovePackage>;
   /** The Base64-encoded BCS serialization of this package, as a `MovePackage`. */
@@ -2547,6 +2649,13 @@ export type MovePackage = IAddressable & IObject & Node & {
   typeOrigins?: Maybe<Array<TypeOrigin>>;
   /** The version of this package that this content comes from. */
   version?: Maybe<Scalars['UInt53']['output']>;
+};
+
+
+/** A MovePackage is a kind of Object that represents code that has been published on-chain. It exposes information about its modules, type definitions, functions, and dependencies. */
+export type MovePackageAddressAtArgs = {
+  checkpoint?: InputMaybe<Scalars['UInt53']['input']>;
+  rootVersion?: InputMaybe<Scalars['UInt53']['input']>;
 };
 
 
@@ -2741,6 +2850,16 @@ export type MoveType = {
 
 export type MoveValue = {
   __typename?: 'MoveValue';
+  /**
+   * Attempts to treat this value as an `Address`.
+   *
+   * If the value is of type `address` or `0x2::object::ID`, it is interpreted as an address pointer, and it is scoped to the current checkpoint.
+   *
+   * If the value is of type `0x2::object::UID`, it is interpreted as a wrapped object whose version is bounded by the root version of the current value. Such values do not support nested owned object queries, but `Address.addressAt` can be used to re-scope it to a checkpoint (defaults to the current checkpoint), instead of a root version, allowing owned object queries.
+   *
+   * Values of other types cannot be interpreted as addresses, and `null` is returned.
+   */
+  asAddress?: Maybe<Address>;
   /** The BCS representation of this value, Base64-encoded. */
   bcs?: Maybe<Scalars['Base64']['output']>;
   /**
@@ -2749,6 +2868,18 @@ export type MoveValue = {
    * Returns `null` if the value's type does not have an associated `Display` template.
    */
   display?: Maybe<Display>;
+  /**
+   * Extract a nested value at the given path.
+   *
+   * `path` is a Display v2 'chain' expression, allowing access to nested, named and positional fields, vector indices, VecMap keys, and dynamic (object) field accesses.
+   */
+  extract?: Maybe<MoveValue>;
+  /**
+   * Render a single Display v2 format string against this value.
+   *
+   * Returns `null` if the value does not have a valid type, or if any of the expressions in the format string fail to evaluate (e.g. field does not exist).
+   */
+  format?: Maybe<Scalars['JSON']['output']>;
   /**
    * Representation of a Move value in JSON, where:
    *
@@ -2765,6 +2896,16 @@ export type MoveValue = {
   json?: Maybe<Scalars['JSON']['output']>;
   /** The value's type. */
   type?: Maybe<MoveType>;
+};
+
+
+export type MoveValueExtractArgs = {
+  path: Scalars['String']['input'];
+};
+
+
+export type MoveValueFormatArgs = {
+  format: Scalars['String']['input'];
 };
 
 /**
@@ -2813,6 +2954,34 @@ export type MutationExecuteTransactionArgs = {
   transactionDataBcs: Scalars['Base64']['input'];
 };
 
+/** A Name Service NameRecord representing a domain name registration. */
+export type NameRecord = {
+  __typename?: 'NameRecord';
+  /** On-chain representation of the underlying Name Service `NameRecord` Move value. */
+  contents: MoveValue;
+  /** The domain name this record is for. */
+  domain: Scalars['String']['output'];
+  /**
+   * The Name Service Name Record of the parent domain, if this is a subdomain.
+   *
+   * Returns `null` if this is not a subdomain.
+   */
+  parent?: Maybe<NameRecord>;
+  /**
+   * The address this domain points to.
+   *
+   * `rootVersion` and `atCheckpoint` control how the target `Address` is scoped. If neither is provided, the `Address` is scoped to the latest checkpoint known to the RPC.
+   */
+  target?: Maybe<Address>;
+};
+
+
+/** A Name Service NameRecord representing a domain name registration. */
+export type NameRecordTargetArgs = {
+  atCheckpoint?: InputMaybe<Scalars['UInt53']['input']>;
+  rootVersion?: InputMaybe<Scalars['UInt53']['input']>;
+};
+
 /** An interface implemented by types that can be uniquely identified by a globally unique `ID`, following the GraphQL Global Object Identification specification. */
 export type Node = {
   /** The node's globally unique identifier, which can be passed to `Query.node` to refetch it. */
@@ -2828,6 +2997,12 @@ export type Object = IAddressable & IObject & Node & {
   __typename?: 'Object';
   /** The Object's ID. */
   address: Scalars['SuiAddress']['output'];
+  /**
+   * Fetch the address as it was at a different root version, or checkpoint.
+   *
+   * If no additional bound is provided, the address is fetched at the latest checkpoint known to the RPC.
+   */
+  addressAt?: Maybe<Address>;
   /** Attempts to convert the object into a MoveObject. */
   asMoveObject?: Maybe<MoveObject>;
   /** Attempts to convert the object into a MovePackage. */
@@ -2840,8 +3015,8 @@ export type Object = IAddressable & IObject & Node & {
   balance?: Maybe<Balance>;
   /** Total balance across coins owned by this address, grouped by coin type. */
   balances?: Maybe<BalanceConnection>;
-  /** The domain explicitly configured as the default SuiNS name for this address. */
-  defaultSuinsName?: Maybe<Scalars['String']['output']>;
+  /** The domain explicitly configured as the default Name Service name for this address. */
+  defaultNameRecord?: Maybe<NameRecord>;
   /** 32-byte hash that identifies the object's contents, encoded in Base58. */
   digest?: Maybe<Scalars['String']['output']>;
   /**
@@ -2882,7 +3057,7 @@ export type Object = IAddressable & IObject & Node & {
   /**
    * Fetch the object with the same ID, at a different version, root version bound, or checkpoint.
    *
-   * If no additional bound is provided, the latest version of this object is fetched at the latest checkpoint.
+   * If no additional bound is provided, the object is fetched at the latest checkpoint known to the RPC.
    */
   objectAt?: Maybe<Object>;
   /** The Base64-encoded BCS serialization of this object, as an `Object`. */
@@ -2903,6 +3078,17 @@ export type Object = IAddressable & IObject & Node & {
   storageRebate?: Maybe<Scalars['BigInt']['output']>;
   /** The version of this object that this content comes from. */
   version?: Maybe<Scalars['UInt53']['output']>;
+};
+
+
+/**
+ * An Object on Sui is either a typed value (a Move Object) or a Package (modules containing functions and types).
+ *
+ * Every object on Sui is identified by a unique address, and has a version number that increases with every modification. Objects also hold metadata detailing their current owner (who can sign for access to the object and whether that access can modify and/or delete the object), and the digest of the last transaction that modified the object.
+ */
+export type ObjectAddressAtArgs = {
+  checkpoint?: InputMaybe<Scalars['UInt53']['input']>;
+  rootVersion?: InputMaybe<Scalars['UInt53']['input']>;
 };
 
 
@@ -3231,7 +3417,7 @@ export type PackageCheckpointFilter = {
 /**
  * Identifies a specific version of a package.
  *
- * The `address` field must be specified, as well as at most one of `version`, or `atCheckpoint`. If neither is provided, the package is fetched at the current checkpoint.
+ * The `address` field must be specified, as well as at most one of `version`, or `atCheckpoint`. If neither is provided, the package is fetched at the checkpoint being viewed.
  *
  * See `Query.package` for more details.
  */
@@ -3382,15 +3568,21 @@ export type Query = {
   /**
    * Look-up an account by its SuiAddress.
    *
-   * If `rootVersion` is specified, nested dynamic field accesses will be fetched at or before this version. This can be used to fetch a child or ancestor object bounded by its root object's version, when its immediate parent is wrapped, or a value in a dynamic object field. For any wrapped or child (object-owned) object, its root object can be defined recursively as:
+   * If `rootVersion` is specified, nested dynamic field accesses will be fetched at or before this version. This can be used to fetch a child or descendant object bounded by its root object's version, when its immediate parent is wrapped, or a value in a dynamic object field. For any wrapped or child (object-owned) object, its root object can be defined recursively as:
    *
    * - The root object of the object it is wrapped in, if it is wrapped.
    * - The root object of its owner, if it is owned by another object.
    * - The object itself, if it is not object-owned or wrapped.
    *
    * Specifying a `rootVersion` disables nested queries for paginating owned objects or dynamic fields (these queries are only supported at checkpoint boundaries).
+   *
+   * If `atCheckpoint` is specified, the address will be fetched at the latest version as of this checkpoint. This will fail if the provided checkpoint is after the RPC's latest checkpoint.
+   *
+   * If none of the above are specified, the address is fetched at the checkpoint being viewed.
+   *
+   * If the address is fetched by name and the name does not resolve to an address (e.g. the name does not exist or has expired), `null` is returned.
    */
-  address: Address;
+  address?: Maybe<Address>;
   /** First four bytes of the network's genesis checkpoint digest (uniquely identifies the network), hex-encoded. */
   chainIdentifier: Scalars['String']['output'];
   /**
@@ -3417,6 +3609,12 @@ export type Query = {
   epochs?: Maybe<EpochConnection>;
   /** Paginate events that are emitted in the network, optionally filtered by event filters. */
   events?: Maybe<EventConnection>;
+  /**
+   * Fetch addresses by their keys.
+   *
+   * Returns a list of addresses that is guaranteed to be the same length as `keys`. If an address in `keys` is fetched by name and the name does not resolve to an address, its corresponding entry in the result will be `null`.
+   */
+  multiGetAddresses: Array<Maybe<Address>>;
   /**
    * Fetch checkpoints by their sequence numbers.
    *
@@ -3461,6 +3659,12 @@ export type Query = {
    * Returns a list of types that is guaranteed to be the same length as `keys`. If a type in `keys` could not be found, its corresponding entry in the result will be `null`.
    */
   multiGetTypes: Array<Maybe<MoveType>>;
+  /**
+   * Look-up a Name Service NameRecord by its domain name.
+   *
+   * Returns `null` if the record does not exist or has expired.
+   */
+  nameRecord?: Maybe<NameRecord>;
   /** Fetch a `Node` by its globally unique `ID`. Returns `null` if the node cannot be found (e.g., the underlying data was pruned or never existed). */
   node?: Maybe<Node>;
   /**
@@ -3478,7 +3682,7 @@ export type Query = {
    *
    * If `atCheckpoint` is specified, the object will be fetched at the latest version as of this checkpoint. This will fail if the provided checkpoint is after the RPC's latest checkpoint.
    *
-   * If none of the above are specified, the object is fetched at the latest checkpoint.
+   * If none of the above are specified, the object is fetched at the checkpoint being viewed.
    *
    * It is an error to specify more than one of `version`, `rootVersion`, or `atCheckpoint`.
    *
@@ -3502,7 +3706,7 @@ export type Query = {
    *
    * If `atCheckpoint` is specified, the package loaded is the one with the largest version among all packages sharing an original ID with the package at `address` and was published at or before `atCheckpoint`.
    *
-   * If neither are specified, the package is fetched at the latest checkpoint.
+   * If neither are specified, the package is fetched at the checkpoint being viewed.
    *
    * It is an error to specify both `version` and `atCheckpoint`, and `null` will be returned if the package cannot be found as of the latest checkpoint, or the address points to an object that is not a package.
    *
@@ -3536,8 +3740,6 @@ export type Query = {
    * - `doGasSelection`: If true, enables automatic gas coin selection and budget estimation. Defaults to false.
    */
   simulateTransaction: SimulationResult;
-  /** Look-up an account by its SuiNS name, assuming it has a valid, unexpired name registration. */
-  suinsName?: Maybe<Address>;
   /**
    * Fetch a transaction by its digest.
    *
@@ -3575,7 +3777,9 @@ export type Query = {
 
 
 export type QueryAddressArgs = {
-  address: Scalars['SuiAddress']['input'];
+  address?: InputMaybe<Scalars['SuiAddress']['input']>;
+  atCheckpoint?: InputMaybe<Scalars['UInt53']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
   rootVersion?: InputMaybe<Scalars['UInt53']['input']>;
 };
 
@@ -3621,6 +3825,11 @@ export type QueryEventsArgs = {
 };
 
 
+export type QueryMultiGetAddressesArgs = {
+  keys: Array<AddressKey>;
+};
+
+
 export type QueryMultiGetCheckpointsArgs = {
   keys: Array<Scalars['UInt53']['input']>;
 };
@@ -3653,6 +3862,11 @@ export type QueryMultiGetTransactionsArgs = {
 
 export type QueryMultiGetTypesArgs = {
   keys: Array<Scalars['String']['input']>;
+};
+
+
+export type QueryNameRecordArgs = {
+  name: Scalars['String']['input'];
 };
 
 
@@ -3723,12 +3937,6 @@ export type QuerySimulateTransactionArgs = {
   checksEnabled?: InputMaybe<Scalars['Boolean']['input']>;
   doGasSelection?: InputMaybe<Scalars['Boolean']['input']>;
   transaction: Scalars['JSON']['input'];
-};
-
-
-export type QuerySuinsNameArgs = {
-  address: Scalars['String']['input'];
-  rootVersion?: InputMaybe<Scalars['UInt53']['input']>;
 };
 
 
@@ -3806,17 +4014,6 @@ export enum RegulatedState {
   Unregulated = 'UNREGULATED'
 }
 
-export type SafeMode = {
-  __typename?: 'SafeMode';
-  /**
-   * Whether safe mode was used for the last epoch change.
-   * The system will retry a full epoch change on every epoch boundary and automatically reset this flag if so.
-   */
-  enabled?: Maybe<Scalars['Boolean']['output']>;
-  /** Accumulated fees for computation and cost that have not been added to the various reward pools, because the full epoch change did not happen. */
-  gasSummary?: Maybe<GasCostSummary>;
-};
-
 export type ServiceConfig = {
   __typename?: 'ServiceConfig';
   /** Range of checkpoints for which data is available for a query type, field and optional filter. If filter is not provided, the strictest retention range for the query and type is returned. */
@@ -3831,6 +4028,10 @@ export type ServiceConfig = {
   maxDisassembledModuleSize?: Maybe<Scalars['Int']['output']>;
   /** Maximum depth of nested field access supported in display outputs. */
   maxDisplayFieldDepth?: Maybe<Scalars['Int']['output']>;
+  /** Maximum number of components in a Display v2 format string. */
+  maxDisplayFormatNodes?: Maybe<Scalars['Int']['output']>;
+  /** Maximum number of objects that can be loaded while evaluating a display. */
+  maxDisplayObjectLoads?: Maybe<Scalars['Int']['output']>;
   /** Maximum output size of a display output. */
   maxDisplayOutputSize?: Maybe<Scalars['Int']['output']>;
   /** Maximum budget in bytes to spend when outputting a structured `MoveValue`. */
@@ -3891,6 +4092,8 @@ export type ServiceConfig = {
   maxQueryNodes?: Maybe<Scalars['Int']['output']>;
   /** Maximum size in bytes of a single GraphQL request, excluding the elements covered by `maxTransactionPayloadSize`. */
   maxQueryPayloadSize?: Maybe<Scalars['Int']['output']>;
+  /** Maximum number of paginated fields that can return results in a single request. Queries on paginated fields that exceed this limit will return an error. */
+  maxRichQueries?: Maybe<Scalars['Int']['output']>;
   /**
    * Maximum size in bytes allowed for the `txBytes` and `signatures` parameters of an `executeTransaction` or `simulateTransaction` field, or the `bytes` and `signature` parameters of a `verifyZkLoginSignature` field.
    *
@@ -3978,36 +4181,6 @@ export type SplitCoinsCommand = {
   coin?: Maybe<TransactionArgument>;
 };
 
-/** Parameters that control the distribution of the stake subsidy. */
-export type StakeSubsidy = {
-  __typename?: 'StakeSubsidy';
-  /** SUI set aside for stake subsidies -- reduces over time as stake subsidies are paid out over time. */
-  balance?: Maybe<Scalars['BigInt']['output']>;
-  /** Amount of stake subsidy deducted from the balance per distribution -- decays over time. */
-  currentDistributionAmount?: Maybe<Scalars['BigInt']['output']>;
-  /** Percentage of the current distribution amount to deduct at the end of the current subsidy period, expressed in basis points. */
-  decreaseRate?: Maybe<Scalars['Int']['output']>;
-  /**
-   * Number of times stake subsidies have been distributed.
-   * Subsidies are distributed with other staking rewards, at the end of the epoch.
-   */
-  distributionCounter?: Maybe<Scalars['Int']['output']>;
-  /** Maximum number of stake subsidy distributions that occur with the same distribution amount (before the amount is reduced). */
-  periodLength?: Maybe<Scalars['Int']['output']>;
-};
-
-/** SUI set aside to account for objects stored on-chain. */
-export type StorageFund = {
-  __typename?: 'StorageFund';
-  /**
-   * The portion of the storage fund that will never be refunded through storage rebates.
-   * The system maintains an invariant that the sum of all storage fees into the storage fund is equal to the sum of all storage rebates out, the total storage rebates remaining, and the non-refundable balance.
-   */
-  nonRefundableBalance?: Maybe<Scalars['BigInt']['output']>;
-  /** Sum of storage rebates of live objects on chain. */
-  totalObjectStorageRebates?: Maybe<Scalars['BigInt']['output']>;
-};
-
 /** System transaction for storing execution time observations. */
 export type StoreExecutionTimeObservationsTransaction = {
   __typename?: 'StoreExecutionTimeObservationsTransaction';
@@ -4022,27 +4195,6 @@ export enum SupplyState {
   /** The supply can neither increase nor decrease. */
   Fixed = 'FIXED'
 }
-
-/** Details of the system that are decided during genesis. */
-export type SystemParameters = {
-  __typename?: 'SystemParameters';
-  /** Target duration of an epoch, in milliseconds. */
-  durationMs?: Maybe<Scalars['BigInt']['output']>;
-  /** The maximum number of active validators that the system supports. */
-  maxValidatorCount?: Maybe<Scalars['Int']['output']>;
-  /** The minimum number of active validators that the system supports. */
-  minValidatorCount?: Maybe<Scalars['Int']['output']>;
-  /** Minimum stake needed to become a new validator. */
-  minValidatorJoiningStake?: Maybe<Scalars['BigInt']['output']>;
-  /** The epoch at which stake subsidies start being paid out. */
-  stakeSubsidyStartEpoch?: Maybe<Scalars['UInt53']['output']>;
-  /** The number of epochs that a validator has to recover from having less than `validatorLowStakeThreshold` stake. */
-  validatorLowStakeGracePeriod?: Maybe<Scalars['BigInt']['output']>;
-  /** Validators with stake below this threshold will enter the grace period (see `validatorLowStakeGracePeriod`), after which they are removed from the active validator set. */
-  validatorLowStakeThreshold?: Maybe<Scalars['BigInt']['output']>;
-  /** Validators with stake below this threshold will be removed from the active validator set at the next epoch boundary, without a grace period. */
-  validatorVeryLowStakeThreshold?: Maybe<Scalars['BigInt']['output']>;
-};
 
 /** Description of a transaction, the unit of activity on Sui. */
 export type Transaction = Node & {
@@ -4096,6 +4248,8 @@ export type TransactionEffects = {
   __typename?: 'TransactionEffects';
   /** The effect this transaction had on the balances (sum of coin values per coin type) of addresses and objects. */
   balanceChanges?: Maybe<BalanceChangeConnection>;
+  /** The balance changes as a JSON array, matching the gRPC proto format. */
+  balanceChangesJson?: Maybe<Scalars['JSON']['output']>;
   /** The checkpoint this transaction was finalized in. */
   checkpoint?: Maybe<Checkpoint>;
   /** Transactions whose outputs this transaction depends upon. */
@@ -4210,7 +4364,7 @@ export type TransactionFilter = {
 };
 
 /** Input argument to a Programmable Transaction Block (PTB) command. */
-export type TransactionInput = OwnedOrImmutable | Pure | Receiving | SharedInput;
+export type TransactionInput = BalanceWithdraw | MoveValue | OwnedOrImmutable | Pure | Receiving | SharedInput;
 
 export type TransactionInputConnection = {
   __typename?: 'TransactionInputConnection';
@@ -4319,112 +4473,14 @@ export type UserSignature = {
   signatureBytes?: Maybe<Scalars['Base64']['output']>;
 };
 
-export type Validator = IAddressable & {
+export type Validator = {
   __typename?: 'Validator';
-  /** The validator's address. */
-  address: Scalars['SuiAddress']['output'];
   /** The number of epochs for which this validator has been below the low stake threshold. */
   atRisk?: Maybe<Scalars['UInt53']['output']>;
-  /**
-   * Fetch the total balance for coins with marker type `coinType` (e.g. `0x2::sui::SUI`), owned by this address.
-   *
-   * If the address does not own any coins of that type, a balance of zero is returned.
-   */
-  balance?: Maybe<Balance>;
-  /** Total balance across coins owned by this address, grouped by coin type. */
-  balances?: Maybe<BalanceConnection>;
-  /** The fee charged by the validator for staking services. */
-  commissionRate?: Maybe<Scalars['Int']['output']>;
-  /** Validator's set of credentials such as public keys, network addresses and others. */
-  credentials?: Maybe<ValidatorCredentials>;
-  /** The domain explicitly configured as the default SuiNS name for this address. */
-  defaultSuinsName?: Maybe<Scalars['String']['output']>;
-  /** Validator's description. */
-  description?: Maybe<Scalars['String']['output']>;
-  /** Number of exchange rates in the table. */
-  exchangeRatesSize?: Maybe<Scalars['UInt53']['output']>;
-  /**
-   * A wrapped object containing the validator's exchange rates. This is a table from epoch number to `PoolTokenExchangeRate` value.
-   * The exchange rate is used to determine the amount of SUI tokens that each past SUI staker can withdraw in the future.
-   */
-  exchangeRatesTable?: Maybe<Address>;
-  /** The reference gas price for this epoch. */
-  gasPrice?: Maybe<Scalars['BigInt']['output']>;
-  /** Validator's url containing their custom image. */
-  imageUrl?: Maybe<Scalars['String']['output']>;
-  /**
-   * Fetch the total balances keyed by coin types (e.g. `0x2::sui::SUI`) owned by this address.
-   *
-   * Returns `None` when no checkpoint is set in scope (e.g. execution scope).
-   * If the address does not own any coins of a given type, a balance of zero is returned for that type.
-   */
-  multiGetBalances?: Maybe<Array<Balance>>;
-  /** Validator's name. */
-  name?: Maybe<Scalars['String']['output']>;
-  /** The proposed next epoch fee for the validator's staking services. */
-  nextEpochCommissionRate?: Maybe<Scalars['Int']['output']>;
-  /** Validator's set of credentials for the next epoch. */
-  nextEpochCredentials?: Maybe<ValidatorCredentials>;
-  /** The validator's gas price quote for the next epoch. */
-  nextEpochGasPrice?: Maybe<Scalars['BigInt']['output']>;
-  /** The total number of SUI tokens in this pool plus the pending stake amount for this epoch. */
-  nextEpochStake?: Maybe<Scalars['BigInt']['output']>;
-  /** Objects owned by this object, optionally filtered by type. */
-  objects?: Maybe<MoveObjectConnection>;
-  /**
-   * The validator's current valid `Cap` object. Validators can delegate the operation ability to another address.
-   * The address holding this `Cap` object can then update the reference gas price and tallying rule on behalf of the validator.
-   */
-  operationCap?: Maybe<MoveObject>;
-  /** Pending pool token withdrawn during the current epoch, emptied at epoch boundaries. */
-  pendingPoolTokenWithdraw?: Maybe<Scalars['BigInt']['output']>;
-  /** Pending stake amount for this epoch. */
-  pendingStake?: Maybe<Scalars['BigInt']['output']>;
-  /** Pending stake withdrawn during the current epoch, emptied at epoch boundaries. */
-  pendingTotalSuiWithdraw?: Maybe<Scalars['BigInt']['output']>;
-  /** Total number of pool tokens issued by the pool. */
-  poolTokenBalance?: Maybe<Scalars['BigInt']['output']>;
-  /** Validator's homepage URL. */
-  projectUrl?: Maybe<Scalars['String']['output']>;
+  /** On-chain representation of the underlying `0x3::validator::Validator` value. */
+  contents?: Maybe<MoveValue>;
   /** Other validators this validator has reported. */
   reportRecords?: Maybe<ValidatorConnection>;
-  /** The epoch stake rewards will be added here at the end of each epoch. */
-  rewardsPool?: Maybe<Scalars['BigInt']['output']>;
-  /** The epoch at which this pool became active. */
-  stakingPoolActivationEpoch?: Maybe<Scalars['UInt53']['output']>;
-  /** The ID of this validator's `0x3::staking_pool::StakingPool`. */
-  stakingPoolId: Scalars['SuiAddress']['output'];
-  /** The total number of SUI tokens in this pool. */
-  stakingPoolSuiBalance?: Maybe<Scalars['BigInt']['output']>;
-  /** The voting power of this validator in basis points (e.g., 100 = 1% voting power). */
-  votingPower?: Maybe<Scalars['Int']['output']>;
-};
-
-
-export type ValidatorBalanceArgs = {
-  coinType: Scalars['String']['input'];
-};
-
-
-export type ValidatorBalancesArgs = {
-  after?: InputMaybe<Scalars['String']['input']>;
-  before?: InputMaybe<Scalars['String']['input']>;
-  first?: InputMaybe<Scalars['Int']['input']>;
-  last?: InputMaybe<Scalars['Int']['input']>;
-};
-
-
-export type ValidatorMultiGetBalancesArgs = {
-  keys: Array<Scalars['String']['input']>;
-};
-
-
-export type ValidatorObjectsArgs = {
-  after?: InputMaybe<Scalars['String']['input']>;
-  before?: InputMaybe<Scalars['String']['input']>;
-  filter?: InputMaybe<ObjectFilter>;
-  first?: InputMaybe<Scalars['Int']['input']>;
-  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -4455,19 +4511,6 @@ export type ValidatorConnection = {
   pageInfo: PageInfo;
 };
 
-/** The credentials related fields associated with a validator. */
-export type ValidatorCredentials = {
-  __typename?: 'ValidatorCredentials';
-  netAddress?: Maybe<Scalars['String']['output']>;
-  networkPubKey?: Maybe<Scalars['Base64']['output']>;
-  p2PAddress?: Maybe<Scalars['String']['output']>;
-  primaryAddress?: Maybe<Scalars['String']['output']>;
-  proofOfPossession?: Maybe<Scalars['Base64']['output']>;
-  protocolPubKey?: Maybe<Scalars['Base64']['output']>;
-  workerAddress?: Maybe<Scalars['String']['output']>;
-  workerPubKey?: Maybe<Scalars['Base64']['output']>;
-};
-
 /** An edge in a connection. */
 export type ValidatorEdge = {
   __typename?: 'ValidatorEdge';
@@ -4480,31 +4523,10 @@ export type ValidatorEdge = {
 /** Representation of `0x3::validator_set::ValidatorSet`. */
 export type ValidatorSet = {
   __typename?: 'ValidatorSet';
-  /** The current list of active validators. */
+  /** The validators currently in the committee for this validator set. */
   activeValidators?: Maybe<ValidatorConnection>;
-  /** Object ID of the `Table` storing the inactive staking pools. */
-  inactivePoolsId?: Maybe<Scalars['SuiAddress']['output']>;
-  /** Size of the inactive pools `Table`. */
-  inactivePoolsSize?: Maybe<Scalars['Int']['output']>;
-  /** Object ID of the wrapped object `TableVec` storing the pending active validators. */
-  pendingActiveValidatorsId?: Maybe<Scalars['SuiAddress']['output']>;
-  /** Size of the pending active validators table. */
-  pendingActiveValidatorsSize?: Maybe<Scalars['Int']['output']>;
-  /** Validators that are pending removal from the active validator set, expressed as indices in to `activeValidators`. */
-  pendingRemovals?: Maybe<Array<Scalars['Int']['output']>>;
-  /**
-   * Object ID of the `Table` storing the mapping from staking pool ids to the addresses of the corresponding validators.
-   * This is needed because a validator's address can potentially change but the object ID of its pool will not.
-   */
-  stakingPoolMappingsId?: Maybe<Scalars['SuiAddress']['output']>;
-  /** Size of the stake pool mappings `Table`. */
-  stakingPoolMappingsSize?: Maybe<Scalars['Int']['output']>;
-  /** Total amount of stake for all active validators at the beginning of the epoch. */
-  totalStake?: Maybe<Scalars['BigInt']['output']>;
-  /** Object ID of the `Table` storing the validator candidates. */
-  validatorCandidatesId?: Maybe<Scalars['SuiAddress']['output']>;
-  /** Size of the validator candidates `Table`. */
-  validatorCandidatesSize?: Maybe<Scalars['Int']['output']>;
+  /** On-chain representation of the underlying `0x3::validator_set::ValidatorSet` value. */
+  contents?: Maybe<MoveValue>;
 };
 
 
@@ -4523,6 +4545,22 @@ export type VersionFilter = {
   /** Filter to versions that are strictly older than this one, defaults to fetching up to the latest version (inclusive). */
   beforeVersion?: InputMaybe<Scalars['UInt53']['input']>;
 };
+
+/** The account to withdraw funds from. */
+export enum WithdrawFrom {
+  /** The funds are withdrawn from the transaction sender's account. */
+  Sender = 'SENDER',
+  /** The funds are withdrawn from the sponsor's account. */
+  Sponsor = 'SPONSOR'
+}
+
+export type WithdrawMaxAmountU64 = {
+  __typename?: 'WithdrawMaxAmountU64';
+  amount?: Maybe<Scalars['BigInt']['output']>;
+};
+
+/** Reservation details for a withdrawal. */
+export type WithdrawalReservation = WithdrawMaxAmountU64;
 
 /** System transaction for writing the pre-computed storage cost for accumulator objects. */
 export type WriteAccumulatorStorageCostTransaction = {
@@ -4555,7 +4593,7 @@ export type GetAllBalancesQueryVariables = Exact<{
 }>;
 
 
-export type GetAllBalancesQuery = { __typename?: 'Query', address: { __typename?: 'Address', balances?: { __typename?: 'BalanceConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Balance', totalBalance?: string | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null } };
+export type GetAllBalancesQuery = { __typename?: 'Query', address?: { __typename?: 'Address', balances?: { __typename?: 'BalanceConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Balance', totalBalance?: string | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null } | null };
 
 export type GetBalanceQueryVariables = Exact<{
   owner: Scalars['SuiAddress']['input'];
@@ -4563,7 +4601,7 @@ export type GetBalanceQueryVariables = Exact<{
 }>;
 
 
-export type GetBalanceQuery = { __typename?: 'Query', address: { __typename?: 'Address', balance?: { __typename?: 'Balance', totalBalance?: string | null, coinType?: { __typename?: 'MoveType', repr: string } | null } | null } };
+export type GetBalanceQuery = { __typename?: 'Query', address?: { __typename?: 'Address', balance?: { __typename?: 'Balance', totalBalance?: string | null, coinType?: { __typename?: 'MoveType', repr: string } | null } | null } | null };
 
 export type GetChainIdentifierQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -4578,18 +4616,18 @@ export type GetCoinsQueryVariables = Exact<{
 }>;
 
 
-export type GetCoinsQuery = { __typename?: 'Query', address: { __typename?: 'Address', address: string, objects?: { __typename?: 'MoveObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'MoveObject', address: string, version?: number | null, digest?: string | null, owner?:
+export type GetCoinsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', address: string, objects?: { __typename?: 'MoveObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'MoveObject', address: string, version?: number | null, digest?: string | null, owner?:
           | { __typename: 'AddressOwner', address?: { __typename?: 'Address', address: string } | null }
           | { __typename: 'ConsensusAddressOwner', startVersion?: number | null, address?: { __typename?: 'Address', address: string } | null }
           | { __typename: 'Immutable' }
           | { __typename: 'ObjectOwner', address?: { __typename?: 'Address', address: string } | null }
           | { __typename: 'Shared', initialSharedVersion?: number | null }
-         | null, contents?: { __typename?: 'MoveValue', json?: unknown | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } };
+         | null, contents?: { __typename?: 'MoveValue', json?: unknown | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null };
 
 export type GetCurrentSystemStateQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetCurrentSystemStateQuery = { __typename?: 'Query', epoch?: { __typename?: 'Epoch', epochId: number, referenceGasPrice?: string | null, startTimestamp?: string | null, systemStateVersion?: number | null, protocolConfigs?: { __typename?: 'ProtocolConfigs', protocolVersion: number } | null, systemParameters?: { __typename?: 'SystemParameters', durationMs?: string | null, stakeSubsidyStartEpoch?: number | null, maxValidatorCount?: number | null, minValidatorJoiningStake?: string | null, validatorLowStakeThreshold?: string | null, validatorLowStakeGracePeriod?: string | null } | null, safeMode?: { __typename?: 'SafeMode', enabled?: boolean | null, gasSummary?: { __typename?: 'GasCostSummary', computationCost?: number | null, storageCost?: number | null, storageRebate?: number | null, nonRefundableStorageFee?: number | null } | null } | null, storageFund?: { __typename?: 'StorageFund', totalObjectStorageRebates?: string | null, nonRefundableBalance?: string | null } | null, systemStakeSubsidy?: { __typename?: 'StakeSubsidy', balance?: string | null, distributionCounter?: number | null, currentDistributionAmount?: string | null, periodLength?: number | null, decreaseRate?: number | null } | null } | null };
+export type GetCurrentSystemStateQuery = { __typename?: 'Query', epoch?: { __typename?: 'Epoch', epochId: number, referenceGasPrice?: string | null, startTimestamp?: string | null, protocolConfigs?: { __typename?: 'ProtocolConfigs', protocolVersion: number } | null, systemState?: { __typename?: 'MoveValue', json?: unknown | null } | null } | null };
 
 export type GetDynamicFieldsQueryVariables = Exact<{
   parentId: Scalars['SuiAddress']['input'];
@@ -4598,10 +4636,10 @@ export type GetDynamicFieldsQueryVariables = Exact<{
 }>;
 
 
-export type GetDynamicFieldsQuery = { __typename?: 'Query', address: { __typename?: 'Address', dynamicFields?: { __typename?: 'DynamicFieldConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'DynamicField', name?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null, value?:
+export type GetDynamicFieldsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', dynamicFields?: { __typename?: 'DynamicFieldConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'DynamicField', name?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null, value?:
           | { __typename: 'MoveObject', contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null }
           | { __typename: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null }
-         | null }> } | null } };
+         | null }> } | null } | null };
 
 export type GetMoveFunctionQueryVariables = Exact<{
   package: Scalars['SuiAddress']['input'];
@@ -4622,7 +4660,7 @@ export type DefaultSuinsNameQueryVariables = Exact<{
 }>;
 
 
-export type DefaultSuinsNameQuery = { __typename?: 'Query', address: { __typename?: 'Address', defaultSuinsName?: string | null } };
+export type DefaultSuinsNameQuery = { __typename?: 'Query', address?: { __typename?: 'Address', defaultNameRecord?: { __typename?: 'NameRecord', domain: string } | null } | null };
 
 export type GetOwnedObjectsQueryVariables = Exact<{
   owner: Scalars['SuiAddress']['input'];
@@ -4635,13 +4673,13 @@ export type GetOwnedObjectsQueryVariables = Exact<{
 }>;
 
 
-export type GetOwnedObjectsQuery = { __typename?: 'Query', address: { __typename?: 'Address', objects?: { __typename?: 'MoveObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'MoveObject', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null, owner?:
+export type GetOwnedObjectsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', objects?: { __typename?: 'MoveObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'MoveObject', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null, owner?:
           | { __typename: 'AddressOwner', address?: { __typename?: 'Address', address: string } | null }
           | { __typename: 'ConsensusAddressOwner', startVersion?: number | null, address?: { __typename?: 'Address', address: string } | null }
           | { __typename: 'Immutable' }
           | { __typename: 'ObjectOwner', address?: { __typename?: 'Address', address: string } | null }
           | { __typename: 'Shared', initialSharedVersion?: number | null }
-         | null, previousTransaction?: { __typename?: 'Transaction', digest: string } | null }> } | null } };
+         | null, previousTransaction?: { __typename?: 'Transaction', digest: string } | null }> } | null } | null };
 
 export type MultiGetObjectsQueryVariables = Exact<{
   objectKeys: Array<ObjectKey> | ObjectKey;
@@ -4701,16 +4739,11 @@ export type SimulateTransactionQueryVariables = Exact<{
   includeBalanceChanges?: InputMaybe<Scalars['Boolean']['input']>;
   includeObjectTypes?: InputMaybe<Scalars['Boolean']['input']>;
   includeCommandResults?: InputMaybe<Scalars['Boolean']['input']>;
+  includeBcs?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
-export type SimulateTransactionQuery = { __typename?: 'Query', simulateTransaction: { __typename?: 'SimulationResult', error?: string | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<
-              | { __typename: 'ConsensusObjectCancelled' }
-              | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }
-              | { __typename: 'MutateConsensusStreamEnded' }
-              | { __typename: 'PerEpochConfig' }
-              | { __typename: 'ReadConsensusStreamEnded' }
-            > } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null } | null, outputs?: Array<{ __typename?: 'CommandResult', returnValues?: Array<{ __typename?: 'CommandOutput', value?: { __typename?: 'MoveValue', bcs?: string | null } | null }> | null, mutatedReferences?: Array<{ __typename?: 'CommandOutput', value?: { __typename?: 'MoveValue', bcs?: string | null } | null }> | null }> | null } };
+export type SimulateTransactionQuery = { __typename?: 'Query', simulateTransaction: { __typename?: 'SimulationResult', error?: string | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionJson?: unknown | null, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, effectsJson?: unknown | null, balanceChangesJson?: unknown | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null } | null, outputs?: Array<{ __typename?: 'CommandResult', returnValues?: Array<{ __typename?: 'CommandOutput', value?: { __typename?: 'MoveValue', bcs?: string | null } | null }> | null, mutatedReferences?: Array<{ __typename?: 'CommandOutput', value?: { __typename?: 'MoveValue', bcs?: string | null } | null }> | null }> | null } };
 
 export type ExecuteTransactionMutationVariables = Exact<{
   transactionDataBcs: Scalars['Base64']['input'];
@@ -4720,16 +4753,11 @@ export type ExecuteTransactionMutationVariables = Exact<{
   includeEvents?: InputMaybe<Scalars['Boolean']['input']>;
   includeBalanceChanges?: InputMaybe<Scalars['Boolean']['input']>;
   includeObjectTypes?: InputMaybe<Scalars['Boolean']['input']>;
+  includeBcs?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
-export type ExecuteTransactionMutation = { __typename?: 'Mutation', executeTransaction: { __typename?: 'ExecutionResult', errors?: Array<string> | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<
-              | { __typename: 'ConsensusObjectCancelled' }
-              | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }
-              | { __typename: 'MutateConsensusStreamEnded' }
-              | { __typename: 'PerEpochConfig' }
-              | { __typename: 'ReadConsensusStreamEnded' }
-            > } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null } | null } };
+export type ExecuteTransactionMutation = { __typename?: 'Mutation', executeTransaction: { __typename?: 'ExecutionResult', errors?: Array<string> | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionJson?: unknown | null, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, effectsJson?: unknown | null, balanceChangesJson?: unknown | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null } | null } };
 
 export type GetTransactionBlockQueryVariables = Exact<{
   digest: Scalars['String']['input'];
@@ -4738,24 +4766,21 @@ export type GetTransactionBlockQueryVariables = Exact<{
   includeEvents?: InputMaybe<Scalars['Boolean']['input']>;
   includeBalanceChanges?: InputMaybe<Scalars['Boolean']['input']>;
   includeObjectTypes?: InputMaybe<Scalars['Boolean']['input']>;
+  includeBcs?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
-export type GetTransactionBlockQuery = { __typename?: 'Query', transaction?: { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<
-          | { __typename: 'ConsensusObjectCancelled' }
-          | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }
-          | { __typename: 'MutateConsensusStreamEnded' }
-          | { __typename: 'PerEpochConfig' }
-          | { __typename: 'ReadConsensusStreamEnded' }
-        > } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null };
+export type GetTransactionBlockQuery = { __typename?: 'Query', transaction?: { __typename?: 'Transaction', digest: string, transactionJson?: unknown | null, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, effectsJson?: unknown | null, balanceChangesJson?: unknown | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null };
 
-export type Transaction_FieldsFragment = { __typename?: 'Transaction', digest: string, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, unchangedConsensusObjects?: { __typename?: 'UnchangedConsensusObjectConnection', nodes: Array<
-        | { __typename: 'ConsensusObjectCancelled' }
-        | { __typename: 'ConsensusObjectRead', object?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }
-        | { __typename: 'MutateConsensusStreamEnded' }
-        | { __typename: 'PerEpochConfig' }
-        | { __typename: 'ReadConsensusStreamEnded' }
-      > } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, inputState?: { __typename?: 'Object', version?: number | null, asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, balanceChanges?: { __typename?: 'BalanceChangeConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'BalanceChange', amount?: string | null, owner?: { __typename?: 'Address', address: string } | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null };
+export type Transaction_FieldsFragment = { __typename?: 'Transaction', digest: string, transactionJson?: unknown | null, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, effectsJson?: unknown | null, balanceChangesJson?: unknown | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null };
+
+export type ResolveTransactionQueryVariables = Exact<{
+  transaction: Scalars['JSON']['input'];
+  doGasSelection?: InputMaybe<Scalars['Boolean']['input']>;
+}>;
+
+
+export type ResolveTransactionQuery = { __typename?: 'Query', simulateTransaction: { __typename?: 'SimulationResult', error?: string | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', transactionBcs?: string | null } | null } | null } };
 
 export type VerifyZkLoginSignatureQueryVariables = Exact<{
   bytes: Scalars['Base64']['input'];
@@ -4899,7 +4924,8 @@ export const Move_Object_FieldsFragmentDoc = new TypedDocumentString(`
 export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
     fragment TRANSACTION_FIELDS on Transaction {
   digest
-  transactionBcs @include(if: $includeTransaction)
+  transactionJson @include(if: $includeTransaction)
+  transactionBcs @include(if: $includeBcs)
   signatures {
     signatureBytes
   }
@@ -4926,40 +4952,12 @@ export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
       epochId
     }
     effectsBcs @include(if: $includeEffects)
-    unchangedConsensusObjects @include(if: $includeObjectTypes) {
-      nodes {
-        __typename
-        ... on ConsensusObjectRead {
-          object {
-            asMoveObject {
-              address
-              contents {
-                type {
-                  repr
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    objectChanges @include(if: $includeObjectTypes) {
+    effectsJson @include(if: $includeObjectTypes)
+    objectChanges(first: 50) @include(if: $includeObjectTypes) {
       nodes {
         address
-        inputState {
-          version
-          asMoveObject {
-            address
-            contents {
-              type {
-                repr
-              }
-            }
-          }
-        }
         outputState {
           asMoveObject {
-            address
             contents {
               type {
                 repr
@@ -4969,20 +4967,7 @@ export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
         }
       }
     }
-    balanceChanges(first: 50) @include(if: $includeBalanceChanges) {
-      pageInfo {
-        hasNextPage
-      }
-      nodes {
-        owner {
-          address
-        }
-        coinType {
-          repr
-        }
-        amount
-      }
-    }
+    balanceChangesJson @include(if: $includeBalanceChanges)
     events(first: 50) @include(if: $includeEvents) {
       pageInfo {
         hasNextPage
@@ -5099,37 +5084,11 @@ export const GetCurrentSystemStateDocument = new TypedDocumentString(`
     epochId
     referenceGasPrice
     startTimestamp
-    systemStateVersion
     protocolConfigs {
       protocolVersion
     }
-    systemParameters {
-      durationMs
-      stakeSubsidyStartEpoch
-      maxValidatorCount
-      minValidatorJoiningStake
-      validatorLowStakeThreshold
-      validatorLowStakeGracePeriod
-    }
-    safeMode {
-      enabled
-      gasSummary {
-        computationCost
-        storageCost
-        storageRebate
-        nonRefundableStorageFee
-      }
-    }
-    storageFund {
-      totalObjectStorageRebates
-      nonRefundableBalance
-    }
-    systemStakeSubsidy {
-      balance
-      distributionCounter
-      currentDistributionAmount
-      periodLength
-      decreaseRate
+    systemState {
+      json
     }
   }
 }
@@ -5201,7 +5160,9 @@ export const GetReferenceGasPriceDocument = new TypedDocumentString(`
 export const DefaultSuinsNameDocument = new TypedDocumentString(`
     query defaultSuinsName($address: SuiAddress!) {
   address(address: $address) {
-    defaultSuinsName
+    defaultNameRecord {
+      domain
+    }
   }
 }
     `) as unknown as TypedDocumentString<DefaultSuinsNameQuery, DefaultSuinsNameQueryVariables>;
@@ -5311,7 +5272,7 @@ fragment OBJECT_OWNER_FIELDS on Owner {
   }
 }`) as unknown as TypedDocumentString<MultiGetObjectsQuery, MultiGetObjectsQueryVariables>;
 export const SimulateTransactionDocument = new TypedDocumentString(`
-    query simulateTransaction($transaction: JSON!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeCommandResults: Boolean = false) {
+    query simulateTransaction($transaction: JSON!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeCommandResults: Boolean = false, $includeBcs: Boolean = false) {
   simulateTransaction(transaction: $transaction) {
     error
     effects {
@@ -5335,7 +5296,8 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
 }
     fragment TRANSACTION_FIELDS on Transaction {
   digest
-  transactionBcs @include(if: $includeTransaction)
+  transactionJson @include(if: $includeTransaction)
+  transactionBcs @include(if: $includeBcs)
   signatures {
     signatureBytes
   }
@@ -5362,40 +5324,12 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
       epochId
     }
     effectsBcs @include(if: $includeEffects)
-    unchangedConsensusObjects @include(if: $includeObjectTypes) {
-      nodes {
-        __typename
-        ... on ConsensusObjectRead {
-          object {
-            asMoveObject {
-              address
-              contents {
-                type {
-                  repr
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    objectChanges @include(if: $includeObjectTypes) {
+    effectsJson @include(if: $includeObjectTypes)
+    objectChanges(first: 50) @include(if: $includeObjectTypes) {
       nodes {
         address
-        inputState {
-          version
-          asMoveObject {
-            address
-            contents {
-              type {
-                repr
-              }
-            }
-          }
-        }
         outputState {
           asMoveObject {
-            address
             contents {
               type {
                 repr
@@ -5405,20 +5339,7 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
         }
       }
     }
-    balanceChanges(first: 50) @include(if: $includeBalanceChanges) {
-      pageInfo {
-        hasNextPage
-      }
-      nodes {
-        owner {
-          address
-        }
-        coinType {
-          repr
-        }
-        amount
-      }
-    }
+    balanceChangesJson @include(if: $includeBalanceChanges)
     events(first: 50) @include(if: $includeEvents) {
       pageInfo {
         hasNextPage
@@ -5444,7 +5365,7 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
   }
 }`) as unknown as TypedDocumentString<SimulateTransactionQuery, SimulateTransactionQueryVariables>;
 export const ExecuteTransactionDocument = new TypedDocumentString(`
-    mutation executeTransaction($transactionDataBcs: Base64!, $signatures: [Base64!]!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false) {
+    mutation executeTransaction($transactionDataBcs: Base64!, $signatures: [Base64!]!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeBcs: Boolean = false) {
   executeTransaction(
     transactionDataBcs: $transactionDataBcs
     signatures: $signatures
@@ -5459,7 +5380,8 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
 }
     fragment TRANSACTION_FIELDS on Transaction {
   digest
-  transactionBcs @include(if: $includeTransaction)
+  transactionJson @include(if: $includeTransaction)
+  transactionBcs @include(if: $includeBcs)
   signatures {
     signatureBytes
   }
@@ -5486,40 +5408,12 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
       epochId
     }
     effectsBcs @include(if: $includeEffects)
-    unchangedConsensusObjects @include(if: $includeObjectTypes) {
-      nodes {
-        __typename
-        ... on ConsensusObjectRead {
-          object {
-            asMoveObject {
-              address
-              contents {
-                type {
-                  repr
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    objectChanges @include(if: $includeObjectTypes) {
+    effectsJson @include(if: $includeObjectTypes)
+    objectChanges(first: 50) @include(if: $includeObjectTypes) {
       nodes {
         address
-        inputState {
-          version
-          asMoveObject {
-            address
-            contents {
-              type {
-                repr
-              }
-            }
-          }
-        }
         outputState {
           asMoveObject {
-            address
             contents {
               type {
                 repr
@@ -5529,20 +5423,7 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
         }
       }
     }
-    balanceChanges(first: 50) @include(if: $includeBalanceChanges) {
-      pageInfo {
-        hasNextPage
-      }
-      nodes {
-        owner {
-          address
-        }
-        coinType {
-          repr
-        }
-        amount
-      }
-    }
+    balanceChangesJson @include(if: $includeBalanceChanges)
     events(first: 50) @include(if: $includeEvents) {
       pageInfo {
         hasNextPage
@@ -5568,14 +5449,15 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
   }
 }`) as unknown as TypedDocumentString<ExecuteTransactionMutation, ExecuteTransactionMutationVariables>;
 export const GetTransactionBlockDocument = new TypedDocumentString(`
-    query getTransactionBlock($digest: String!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false) {
+    query getTransactionBlock($digest: String!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeBcs: Boolean = false) {
   transaction(digest: $digest) {
     ...TRANSACTION_FIELDS
   }
 }
     fragment TRANSACTION_FIELDS on Transaction {
   digest
-  transactionBcs @include(if: $includeTransaction)
+  transactionJson @include(if: $includeTransaction)
+  transactionBcs @include(if: $includeBcs)
   signatures {
     signatureBytes
   }
@@ -5602,40 +5484,12 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
       epochId
     }
     effectsBcs @include(if: $includeEffects)
-    unchangedConsensusObjects @include(if: $includeObjectTypes) {
-      nodes {
-        __typename
-        ... on ConsensusObjectRead {
-          object {
-            asMoveObject {
-              address
-              contents {
-                type {
-                  repr
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    objectChanges @include(if: $includeObjectTypes) {
+    effectsJson @include(if: $includeObjectTypes)
+    objectChanges(first: 50) @include(if: $includeObjectTypes) {
       nodes {
         address
-        inputState {
-          version
-          asMoveObject {
-            address
-            contents {
-              type {
-                repr
-              }
-            }
-          }
-        }
         outputState {
           asMoveObject {
-            address
             contents {
               type {
                 repr
@@ -5645,20 +5499,7 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
         }
       }
     }
-    balanceChanges(first: 50) @include(if: $includeBalanceChanges) {
-      pageInfo {
-        hasNextPage
-      }
-      nodes {
-        owner {
-          address
-        }
-        coinType {
-          repr
-        }
-        amount
-      }
-    }
+    balanceChangesJson @include(if: $includeBalanceChanges)
     events(first: 50) @include(if: $includeEvents) {
       pageInfo {
         hasNextPage
@@ -5683,6 +5524,18 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
     }
   }
 }`) as unknown as TypedDocumentString<GetTransactionBlockQuery, GetTransactionBlockQueryVariables>;
+export const ResolveTransactionDocument = new TypedDocumentString(`
+    query resolveTransaction($transaction: JSON!, $doGasSelection: Boolean = true) {
+  simulateTransaction(transaction: $transaction, doGasSelection: $doGasSelection) {
+    error
+    effects {
+      transaction {
+        transactionBcs
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ResolveTransactionQuery, ResolveTransactionQueryVariables>;
 export const VerifyZkLoginSignatureDocument = new TypedDocumentString(`
     query verifyZkLoginSignature($bytes: Base64!, $signature: Base64!, $intentScope: ZkLoginIntentScope!, $author: SuiAddress!) {
   verifyZkLoginSignature(
