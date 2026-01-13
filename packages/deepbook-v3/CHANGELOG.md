@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.26.9
+
+### Patch Changes
+
+- 4e8fdb5: Margin Pool IDs
+
 ## 0.26.8
 
 ### Patch Changes
