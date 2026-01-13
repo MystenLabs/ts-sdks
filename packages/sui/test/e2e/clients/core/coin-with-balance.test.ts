@@ -975,6 +975,8 @@ describe('coinWithBalance', () => {
 					include: { balanceChanges: true },
 				});
 
+				await client.core.waitForTransaction({ result });
+
 				expect(result.$kind).toBe('Transaction');
 				if (result.$kind !== 'Transaction') throw new Error('Transaction failed');
 
@@ -985,7 +987,7 @@ describe('coinWithBalance', () => {
 					)?.amount,
 				).toBe(String(totalAmount));
 			},
-			{ skip: ['jsonrpc', 'graphql'] },
+			{ skip: ['graphql'] },
 		);
 
 		testWithAllClients(
@@ -1163,6 +1165,8 @@ describe('coinWithBalance', () => {
 					include: { balanceChanges: true },
 				});
 
+				await client.core.waitForTransaction({ result });
+
 				expect(result.$kind).toBe('Transaction');
 				if (result.$kind !== 'Transaction') throw new Error('Transaction failed');
 
@@ -1173,7 +1177,7 @@ describe('coinWithBalance', () => {
 					)?.amount,
 				).toBe(String(totalAmount));
 			},
-			{ skip: ['jsonrpc', 'graphql'] },
+			{ skip: ['graphql'] },
 		);
 
 		testWithAllClients(
@@ -1346,6 +1350,8 @@ describe('coinWithBalance', () => {
 					include: { balanceChanges: true },
 				});
 
+				await client.core.waitForTransaction({ result });
+
 				expect(result.$kind).toBe('Transaction');
 				if (result.$kind !== 'Transaction') throw new Error('Transaction failed');
 
@@ -1356,7 +1362,7 @@ describe('coinWithBalance', () => {
 					)?.amount,
 				).toBe(String(totalAmount));
 			},
-			{ skip: ['jsonrpc', 'graphql'] },
+			{ skip: ['graphql'] },
 		);
 
 		testWithAllClients(
@@ -1556,6 +1562,8 @@ describe('coinWithBalance', () => {
 					include: { balanceChanges: true },
 				});
 
+				await client.core.waitForTransaction({ result });
+
 				expect(result.$kind).toBe('Transaction');
 				if (result.$kind !== 'Transaction') throw new Error('Transaction failed');
 
@@ -1566,7 +1574,7 @@ describe('coinWithBalance', () => {
 					)?.amount,
 				).toBe(String(totalAmount));
 			},
-			{ skip: ['jsonrpc', 'graphql'] },
+			{ skip: ['graphql'] },
 		);
 	});
 });

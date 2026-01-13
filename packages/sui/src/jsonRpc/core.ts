@@ -225,13 +225,15 @@ export class JSONRpcCoreClient extends CoreClient {
 			signal: options.signal,
 		});
 
+		const addressBalance = balance.fundsInAddressBalance ?? '0';
+		const coinBalance = String(BigInt(balance.totalBalance) - BigInt(addressBalance));
+
 		return {
 			balance: {
 				coinType: normalizeStructTag(balance.coinType),
 				balance: balance.totalBalance,
-				// TODO: support address balances
-				coinBalance: balance.totalBalance,
-				addressBalance: '0',
+				coinBalance,
+				addressBalance,
 			},
 		};
 	}
@@ -242,13 +244,16 @@ export class JSONRpcCoreClient extends CoreClient {
 		});
 
 		return {
-			balances: balances.map((balance) => ({
-				coinType: normalizeStructTag(balance.coinType),
-				balance: balance.totalBalance,
-				// TODO: support address balances
-				coinBalance: balance.totalBalance,
-				addressBalance: '0',
-			})),
+			balances: balances.map((balance) => {
+				const addressBalance = balance.fundsInAddressBalance ?? '0';
+				const coinBalance = String(BigInt(balance.totalBalance) - BigInt(addressBalance));
+				return {
+					coinType: normalizeStructTag(balance.coinType),
+					balance: balance.totalBalance,
+					coinBalance,
+					addressBalance,
+				};
+			}),
 			hasNextPage: false,
 			cursor: null,
 		};
