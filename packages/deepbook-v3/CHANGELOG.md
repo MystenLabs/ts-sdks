@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.26.7
+
+### Patch Changes
+
+- ce90642: Protocol config function updates
+
 ## 0.26.6
 
 ### Patch Changes
