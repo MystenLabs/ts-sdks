@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.26.8
+
+### Patch Changes
+
+- ce8ccf2: New package IDs
+
 ## 0.26.7
 
 ### Patch Changes
