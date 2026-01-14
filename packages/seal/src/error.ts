@@ -31,6 +31,8 @@ export class SealAPIError extends SealError {
 				return new ExpiredSessionKeyError(requestId);
 			case 'InvalidSDKVersion':
 				return new InvalidSDKVersionError(requestId);
+			case 'InvalidSDKType':
+				return new InvalidSDKTypeError(requestId);
 			case 'DeprecatedSDKVersion':
 				return new DeprecatedSDKVersionError(requestId);
 			case 'InvalidParameter':
@@ -129,6 +131,12 @@ export class UnsupportedPackageIdError extends SealAPIError {
 export class InvalidSDKVersionError extends SealAPIError {
 	constructor(requestId?: string) {
 		super('SDK version is invalid', requestId);
+	}
+}
+
+export class InvalidSDKTypeError extends SealAPIError {
+	constructor(requestId?: string) {
+		super('SDK type is invalid', requestId);
 	}
 }
 
