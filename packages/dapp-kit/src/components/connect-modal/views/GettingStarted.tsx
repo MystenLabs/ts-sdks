@@ -24,7 +24,7 @@ export function GettingStarted() {
 				<div className={styles.installButtonContainer}>
 					<Button variant="outline" asChild>
 						<a
-							href="https://chrome.google.com/webstore/detail/sui-wallet/opcgpfmipidbgpenhmajoajpbobppdil"
+							href="https://chromewebstore.google.com/detail/slush-%E2%80%94-a-sui-wallet/opcgpfmipidbgpenhmajoajpbobppdi"
 							target="_blank"
 							rel="noreferrer"
 						>
