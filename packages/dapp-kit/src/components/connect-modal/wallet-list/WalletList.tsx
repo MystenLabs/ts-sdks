@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { WalletWithRequiredFeatures } from '@mysten/wallet-standard';
+import { SLUSH_WALLET_NAME, SLUSH_WALLET_ICON } from '@mysten/slush-wallet';
 
 import { getWalletUniqueIdentifier } from '../../../utils/walletUtils.js';
-import { SuiIcon } from '../../icons/SuiIcon.js';
 import * as styles from './WalletList.css.js';
 import { WalletListItem } from './WalletListItem.js';
 
@@ -35,8 +35,8 @@ export function WalletList({
 				))
 			) : (
 				<WalletListItem
-					name="Sui Wallet"
-					icon={<SuiIcon />}
+					name={SLUSH_WALLET_NAME}
+					icon={SLUSH_WALLET_ICON}
 					onClick={onPlaceholderClick}
 					isSelected
 				/>
