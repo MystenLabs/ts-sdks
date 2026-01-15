@@ -1,6 +1,9 @@
 ---
 name: Seal Integration tests
 on:
+  push:
+    branches:
+      - debug-seal-timeout
   pull_request:
   workflow_dispatch:
   repository_dispatch:
