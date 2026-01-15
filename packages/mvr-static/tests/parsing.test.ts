@@ -4,7 +4,7 @@
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 
-import { crossNetworkResolution, findNames } from '../src/parsing';
+import { crossNetworkResolution, findNames } from '../src/parsing.js';
 
 describe.concurrent('Parsing of project files', () => {
 	it('should find all the function calls and types in a file', async () => {

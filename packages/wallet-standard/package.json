@@ -43,7 +43,7 @@
 	"devDependencies": {
 		"@mysten/sui": "workspace:^",
 		"typescript": "^5.9.3",
-		"typescript-json-schema": "^0.67.0"
+		"typescript-json-schema": "^0.67.1"
 	},
 	"peerDependencies": {
 		"@mysten/sui": "workspace:^"

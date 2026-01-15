@@ -4,8 +4,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { ConnectButton } from '../../src/components/ConnectButton';
-import { createWalletProviderContextWrapper } from '../test-utils';
+import { ConnectButton } from '../../src/components/ConnectButton.js';
+import { createWalletProviderContextWrapper } from '../test-utils.js';
 
 describe('ConnectButton', () => {
 	test('clicking the button opens the connect modal', async () => {

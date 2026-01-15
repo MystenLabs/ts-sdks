@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, test, beforeEach, vi, MockInstance } from 'vitest';
-import { TEST_DEFAULT_NETWORK, TEST_NETWORKS, TestWalletInitializeResult } from '../../test-utils';
-import { createMockWallets, MockWallet } from '../../mocks/mock-wallet';
-import { createDAppKit, DAppKit } from '../../../src';
+import {
+	TEST_DEFAULT_NETWORK,
+	TEST_NETWORKS,
+	TestWalletInitializeResult,
+} from '../../test-utils.js';
+import { createMockWallets, MockWallet } from '../../mocks/mock-wallet.js';
+import { createDAppKit, DAppKit } from '../../../src/index.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { getWallets } from '@mysten/wallet-standard';
-import { createMockAccount } from '../../mocks/mock-account';
+import { createMockAccount } from '../../mocks/mock-account.js';
 import { UiWallet } from '@wallet-standard/ui';
 
 describe('[Integration] disconnectWallet action', () => {
