@@ -41,6 +41,13 @@
 				"GOOGLE_APPLICATION_CREDENTIALS"
 			]
 		},
+		// Avoid running CPU intesive tests in parallel
+		"@mysten/walrus#test": {
+			"dependsOn": ["^build", "build", "@mysten/walrus-wasm#test"]
+		},
+		"@mysten/seal#test": {
+			"dependsOn": ["^build", "build", "@mysten/walrus#test"]
+		},
 		"test:e2e": {
 			"dependsOn": ["^build", "build"],
 			"inputs": [
