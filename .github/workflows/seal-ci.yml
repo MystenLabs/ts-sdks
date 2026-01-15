@@ -29,12 +29,12 @@ jobs:
       - name: Build Seal dependencies
         run: pnpm turbo build --filter @mysten/seal
 
-      - name: Run integration tests with timing output (5 iterations)
+      - name: Run full test suite (5 iterations)
         run: |
           cd packages/seal
           for i in 1 2 3 4 5; do
             echo "==================== ITERATION $i ===================="
-            pnpm vitest run test/unit/integration.test.ts --reporter=verbose --no-file-parallelism 2>&1 | tee -a test-output.log
+            pnpm test:unit 2>&1 | tee -a test-output.log
             echo ""
           done
 
