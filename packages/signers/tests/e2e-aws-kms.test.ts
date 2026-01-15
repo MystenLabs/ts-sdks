@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { AwsKmsSigner } from '../src/aws/aws-kms-signer';
+import { AwsKmsSigner } from '../src/aws/aws-kms-signer.js';
 
 const { E2E_AWS_KMS_TEST_ENABLE } = process.env;
 

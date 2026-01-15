@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { GcpKmsSigner } from '../src/gcp/gcp-kms-client';
+import { GcpKmsSigner } from '../src/gcp/gcp-kms-client.js';
 
 const { E2E_GCP_KMS_TEST_ENABLE } = process.env;
 

@@ -40,9 +40,9 @@
 		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
 	},
 	"devDependencies": {
-		"@types/react": "^19.2.7",
-		"react": "^19.2.1",
-		"tsdown": "0.17.0-beta.4",
+		"@types/react": "^19.2.8",
+		"react": "^19.2.3",
+		"tsdown": "0.20.0-beta.1",
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {

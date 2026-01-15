@@ -1,0 +1,12 @@
+diff --git a/package.json b/package.json
+index eff98221b0849d3e27774e7b7a1c66134e40ff12..907cbdfc3b58920208f00d7729abff3e9b0771aa 100644
+--- a/package.json
++++ b/package.json
+@@ -50,6 +50,7 @@
+     "types": "./dist/index.d.mts",
+     "version": "11.0.4",
+     "exports": {
++        ".": "./dist/index.mjs",
+         "./functional": "./dist/functional.mjs"
+     }
+ }

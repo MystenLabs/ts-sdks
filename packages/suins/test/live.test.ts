@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { e2eLiveNetworkDryRunFlow } from './pre-built';
+import { e2eLiveNetworkDryRunFlow } from './pre-built.js';
 
 describe('it should work on live networks', () => {
 	it('should work on mainnet', async () => {
