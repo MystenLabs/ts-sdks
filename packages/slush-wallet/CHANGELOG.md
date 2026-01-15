@@ -1,5 +1,11 @@
 # @mysten/slush-wallet
 
+## 0.3.0
+
+### Minor Changes
+
+- b827dfd: Replace references to Sui Wallet and set Slush as the default wallet in WalletList.tsx
+
 ## 0.2.12
 
 ### Patch Changes

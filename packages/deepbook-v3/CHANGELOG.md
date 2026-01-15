@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.27.0
+
+### Minor Changes
+
+- 080f16c: Price Info Objects for mainnet
+
 ## 0.26.9
 
 ### Patch Changes
