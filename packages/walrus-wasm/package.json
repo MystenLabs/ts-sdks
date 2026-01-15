@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@mysten/bcs": "workspace:^",
-    "vite": "^7.2.6",
-    "vitest": "^4.0.15"
+    "vite": "^7.3.1",
+    "vitest": "^4.0.17"
   }
 }

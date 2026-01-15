@@ -3,7 +3,7 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { BcsReader, BcsWriter, toBase58, toBase64, toHex } from '../src';
+import { BcsReader, BcsWriter, toBase58, toBase64, toHex } from '../src/index.js';
 import { BcsType } from '../src/bcs-type.js';
 import { bcs } from '../src/bcs.js';
 

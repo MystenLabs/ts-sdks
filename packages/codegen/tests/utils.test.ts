@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { normalizeMoveArguments } from './generated/utils';
+import { normalizeMoveArguments } from './generated/utils/index.js';
 import { Transaction } from '@mysten/sui/transactions';
 
 const CLOCK_TYPE_ARG =
