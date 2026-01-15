@@ -26,5 +26,14 @@ jobs:
       - name: Build Seal dependencies
         run: pnpm turbo build --filter @mysten/seal
 
-      - name: Run integration tests
-        run: pnpm --filter @mysten/seal test:unit
+      - name: Run integration tests with timing output
+        run: |
+          cd packages/seal
+          pnpm vitest run test/unit/integration.test.ts --reporter=verbose --no-file-parallelism 2>&1 | tee test-output.log
+
+      - name: Upload test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seal-test-output
+          path: packages/seal/test-output.log

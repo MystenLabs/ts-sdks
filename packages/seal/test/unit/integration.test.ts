@@ -143,32 +143,54 @@ describe('Integration test', () => {
 		whitelistId = '0x5809c296d41e0d6177e8cf956010c1d2387299892bb9122ca4ba4ffd165e05cb';
 	});
 
+	// Helper to measure time
+	function timeMs(start: number): string {
+		return `${(performance.now() - start).toFixed(0)}ms`;
+	}
+
 	// Helper function to run the scenario with different server configs
 	async function runScenario(
 		objectIds: { objectId: string; weight: number; apiKeyName?: string; apiKey?: string }[],
+		scenarioName: string,
 	) {
+		const totalStart = performance.now();
+		console.log(`\n========== [${scenarioName}] Starting scenario ==========`);
+		console.log(`Environment: CI=${process.env.CI}, GITHUB_ACTIONS=${process.env.GITHUB_ACTIONS}`);
+		console.log(`Server object IDs: ${objectIds.map((o) => o.objectId).join(', ')}`);
+
 		// Both whitelists contain address 0xb743cafeb5da4914cef0cf0a32400c9adfedc5cdb64209f9e740e56d23065100
 		const whitelistId2 = '0xf770c0cdd00388c31ecfb815dd9cb41d6dcbebb1a6f766c02027c3bdcfdb2a21';
 		const data = new Uint8Array([1, 2, 3]);
 		const data2 = new Uint8Array([4, 5, 6]);
 
+		let start = performance.now();
+		console.log(`[${scenarioName}] Creating SealClient with verifyKeyServers=true...`);
 		const client = new SealClient({
 			suiClient,
 			serverConfigs: objectIds,
 			verifyKeyServers: true,
 		});
+		console.log(`[${scenarioName}] SealClient created (constructor only): ${timeMs(start)}`);
 
+		start = performance.now();
+		console.log(`[${scenarioName}] Encrypting first object...`);
 		const { encryptedObject: encryptedBytes } = await client.encrypt({
 			threshold: objectIds.length,
 			packageId: TESTNET_PACKAGE_ID,
 			id: whitelistId,
 			data,
 		});
+		console.log(`[${scenarioName}] First encrypt completed: ${timeMs(start)}`);
 
+		start = performance.now();
+		console.log(`[${scenarioName}] Building first transaction...`);
 		const txBytes = await constructTxBytes(TESTNET_PACKAGE_ID, 'allowlist', suiClient, [
 			whitelistId,
 		]);
+		console.log(`[${scenarioName}] First tx build completed: ${timeMs(start)}`);
 
+		start = performance.now();
+		console.log(`[${scenarioName}] Creating SessionKey...`);
 		const sessionKey = await SessionKey.create({
 			address: suiAddress,
 			packageId: TESTNET_PACKAGE_ID,
@@ -176,16 +198,22 @@ describe('Integration test', () => {
 			signer: keypair,
 			suiClient,
 		});
+		console.log(`[${scenarioName}] SessionKey created: ${timeMs(start)}`);
 
+		start = performance.now();
+		console.log(`[${scenarioName}] Decrypting first object...`);
 		// decrypt the object encrypted to whitelist 1.
 		const decryptedBytes = await client.decrypt({
 			data: encryptedBytes,
 			sessionKey,
 			txBytes,
 		});
+		console.log(`[${scenarioName}] First decrypt completed: ${timeMs(start)}`);
 
 		expect(decryptedBytes).toEqual(data);
 
+		start = performance.now();
+		console.log(`[${scenarioName}] Encrypting second object...`);
 		// encrypt a different object to whitelist 2.
 		const { encryptedObject: encryptedBytes2 } = await client.encrypt({
 			threshold: objectIds.length,
@@ -193,15 +221,22 @@ describe('Integration test', () => {
 			id: whitelistId2,
 			data: data2,
 		});
+		console.log(`[${scenarioName}] Second encrypt completed: ${timeMs(start)}`);
 
+		start = performance.now();
+		console.log(`[${scenarioName}] Building second transaction...`);
 		// construct a ptb that contains two seal_approve
 		// for whitelist 1 and 2.
 		const txBytes2 = await constructTxBytes(TESTNET_PACKAGE_ID, 'allowlist', suiClient, [
 			whitelistId,
 			whitelistId2,
 		]);
+		console.log(`[${scenarioName}] Second tx build completed: ${timeMs(start)}`);
 
 		const encryptedObject2 = EncryptedObject.parse(encryptedBytes2);
+
+		start = performance.now();
+		console.log(`[${scenarioName}] Fetching keys for both IDs...`);
 		// fetch keys for both ids.
 		await client.fetchKeys({
 			ids: [whitelistId, whitelistId2],
@@ -209,16 +244,22 @@ describe('Integration test', () => {
 			sessionKey,
 			threshold: encryptedObject2.threshold,
 		});
+		console.log(`[${scenarioName}] fetchKeys completed: ${timeMs(start)}`);
 
+		start = performance.now();
+		console.log(`[${scenarioName}] Decrypting second object (should use cache)...`);
 		// decrypt should hit the cached key and no need to fetch again
 		const decryptedBytes2 = await client.decrypt({
 			data: encryptedBytes2,
 			sessionKey,
 			txBytes: txBytes2,
 		});
+		console.log(`[${scenarioName}] Second decrypt completed: ${timeMs(start)}`);
 
 		expect(decryptedBytes2).toEqual(data2);
 
+		start = performance.now();
+		console.log(`[${scenarioName}] Encrypting third object (threshold=1)...`);
 		// Encrypt with threshold 1.
 		const { encryptedObject: encryptedBytes3 } = await client.encrypt({
 			threshold: 1,
@@ -226,6 +267,10 @@ describe('Integration test', () => {
 			id: whitelistId,
 			data,
 		});
+		console.log(`[${scenarioName}] Third encrypt completed: ${timeMs(start)}`);
+
+		start = performance.now();
+		console.log(`[${scenarioName}] Creating second SealClient (verifyKeyServers=false)...`);
 		// Create a new client with just one server.
 		// Decryption of encryptedObject3 will work but since checkShareConsistency is true, the client will have to fetch the public key from the second key server.
 		const client2 = new SealClient({
@@ -233,18 +278,25 @@ describe('Integration test', () => {
 			serverConfigs: objectIds.slice(0, 1),
 			verifyKeyServers: false,
 		});
+		console.log(`[${scenarioName}] Second SealClient created: ${timeMs(start)}`);
+
+		start = performance.now();
+		console.log(`[${scenarioName}] Decrypting third object with checkShareConsistency=true...`);
 		const decryptedBytes3 = await client2.decrypt({
 			data: encryptedBytes3,
 			sessionKey,
 			txBytes: txBytes2,
 			checkShareConsistency: true,
 		});
+		console.log(`[${scenarioName}] Third decrypt completed: ${timeMs(start)}`);
 		expect(decryptedBytes3).toEqual(data);
+
+		console.log(`========== [${scenarioName}] TOTAL TIME: ${timeMs(totalStart)} ==========\n`);
 	}
 
 	it(
 		'[testnet servers] whitelist example encrypt and decrypt scenarios',
-		{ timeout: 12000 },
+		{ timeout: 60000 }, // Increased timeout to capture timing data
 		async () => {
 			const TESTNET_URLS = [
 				'0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75',
@@ -255,15 +307,15 @@ describe('Integration test', () => {
 				objectId: server,
 				weight: 1,
 			}));
-			await runScenario(testnetObjectIds);
+			await runScenario(testnetObjectIds, 'testnet-servers');
 		},
 	);
 
 	it(
 		'[ci servers] whitelist example encrypt and decrypt scenarios',
-		{ timeout: 12000 },
+		{ timeout: 60000 }, // Increased timeout to capture timing data
 		async () => {
-			await runScenario(objectIds);
+			await runScenario(objectIds, 'ci-servers');
 		},
 	);
 
