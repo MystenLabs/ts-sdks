@@ -193,17 +193,6 @@ async function setExpiration(
 	client: ClientWithCoreApi,
 	existingSystemState: SystemStateData | null,
 ) {
-	const hasOwnedInputs = transactionData.inputs.some((input) => {
-		return input.Object?.ImmOrOwnedObject || input.Object?.Receiving;
-	});
-
-	const hasGasPayment =
-		transactionData.gasData.payment && transactionData.gasData.payment.length > 0;
-
-	if (hasOwnedInputs || hasGasPayment) {
-		return;
-	}
-
 	const [systemState, { chainIdentifier }] = await Promise.all([
 		existingSystemState ?? client.core.getCurrentSystemState().then((r) => r.systemState),
 		client.core.getChainIdentifier(),

@@ -214,10 +214,10 @@ export class SuiJsonRpcClient extends BaseClient {
 			signal: signal,
 		});
 
-		// Filter out fake address balance coins (identified by their magic digest)
-		// result.data = result.data.filter((coin) => !isCoinReservationDigest(coin.digest));
-
-		return result;
+		return {
+			...result,
+			data: result.data.filter((coin) => !isCoinReservationDigest(coin.digest)),
+		};
 	}
 
 	/**
@@ -234,10 +234,10 @@ export class SuiJsonRpcClient extends BaseClient {
 			signal: input.signal,
 		});
 
-		// Filter out fake address balance coins (identified by their magic digest)
-		// result.data = result.data.filter((coin) => !isCoinReservationDigest(coin.digest));
-
-		return result;
+		return {
+			...result,
+			data: result.data.filter((coin) => !isCoinReservationDigest(coin.digest)),
+		};
 	}
 
 	/**
