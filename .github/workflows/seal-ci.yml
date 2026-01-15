@@ -26,17 +26,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Seal dependencies
-        run: pnpm turbo build --filter @mysten/seal
+      - name: Build all packages
+        run: pnpm turbo build
 
-      - name: Run full test suite (5 iterations)
+      - name: Run full turbo test suite (simulates real CI)
         run: |
-          cd packages/seal
-          for i in 1 2 3 4 5; do
-            echo "==================== ITERATION $i ===================="
-            pnpm test:unit 2>&1 | tee -a test-output.log
-            echo ""
-          done
+          echo "==================== Running full turbo test (like real CI) ===================="
+          pnpm turbo test 2>&1 | tee test-output.log
 
       - name: Upload test output
         if: always()
