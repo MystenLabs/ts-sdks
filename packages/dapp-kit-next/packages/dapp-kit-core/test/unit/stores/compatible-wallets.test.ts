@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect } from 'vitest';
-import { setDefaultUnitTestEnvWithUnmockedStores } from '../unit-test-utils';
-import { createMockAccount } from '../../mocks/mock-account';
-import type { MockWalletOptions } from '../../mocks/mock-wallet';
+import { setDefaultUnitTestEnvWithUnmockedStores } from '../unit-test-utils.js';
+import { createMockAccount } from '../../mocks/mock-account.js';
+import type { MockWalletOptions } from '../../mocks/mock-wallet.js';
 import {
 	StandardConnect,
 	SuiSignTransaction,
 	SuiSignTransactionBlock,
 } from '@mysten/wallet-standard';
-import { excludeUiWalletsByName } from '../../test-utils';
+import { excludeUiWalletsByName } from '../../test-utils.js';
 
 describe('[Unit] $compatibleWallets', () => {
 	test('Regular Sui wallets are compatible', () => {

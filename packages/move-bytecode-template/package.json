@@ -45,6 +45,6 @@
 	"devDependencies": {
 		"@mysten/bcs": "workspace:^",
 		"typescript": "^5.9.3",
-		"vitest": "^4.0.15"
+		"vitest": "^4.0.17"
 	}
 }

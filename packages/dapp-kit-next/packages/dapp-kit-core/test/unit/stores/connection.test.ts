@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect } from 'vitest';
-import { setDefaultUnitTestEnvWithUnmockedStores } from '../unit-test-utils';
+import { setDefaultUnitTestEnvWithUnmockedStores } from '../unit-test-utils.js';
 
 describe('[Unit] $connection', () => {
 	test('Connected', () => {

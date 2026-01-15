@@ -39,9 +39,9 @@
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/slush-wallet#readme",
 	"devDependencies": {
 		"@mysten/sui": "workspace:^",
-		"@types/node": "^24.10.1",
+		"@types/node": "^25.0.8",
 		"typescript": "^5.9.3",
-		"vitest": "^4.0.15"
+		"vitest": "^4.0.17"
 	},
 	"dependencies": {
 		"@mysten/utils": "workspace:^",

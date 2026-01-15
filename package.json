@@ -21,7 +21,11 @@
 		"overrides": {
 			"async": "3.2.2",
 			"axios@>=1.0.0 <1.12.0": ">=1.12.0",
-			"@eslint/plugin-kit@<0.3.4": "0.3.4"
+			"@eslint/plugin-kit@<0.3.4": "0.3.4",
+			"h3@<=1.15.4": ">=1.15.5"
+		},
+		"patchedDependencies": {
+			"asn1-ts@11.0.4": "patches/asn1-ts@11.0.4.patch"
 		}
 	},
 	"engines": {
@@ -38,17 +42,17 @@
 		"@changesets/cli": "^2.29.8",
 		"@ianvs/prettier-plugin-sort-imports": "^4.7.0",
 		"@manypkg/cli": "^0.25.1",
-		"@testcontainers/postgresql": "^11.9.0",
+		"@testcontainers/postgresql": "^11.11.0",
 		"concurrently": "^9.2.1",
 		"graphql-config": "^5.1.5",
-		"oxlint": "^1.31.0",
-		"oxlint-tsgolint": "^0.8.3",
-		"prettier": "^3.7.3",
+		"oxlint": "^1.39.0",
+		"oxlint-tsgolint": "^0.11.0",
+		"prettier": "^3.7.4",
 		"prettier-plugin-tailwindcss": "^0.7.2",
-		"testcontainers": "^11.9.0",
-		"tsdown": "0.17.0-beta.4",
+		"testcontainers": "^11.11.0",
+		"tsdown": "0.20.0-beta.1",
 		"tsx": "^4.21.0",
-		"turbo": "^2.6.1",
+		"turbo": "^2.7.4",
 		"typescript": "^5.9.3"
 	}
 }

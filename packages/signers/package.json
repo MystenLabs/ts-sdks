@@ -57,17 +57,17 @@
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/signers#readme",
 	"devDependencies": {
 		"@mysten/sui": "workspace:^",
-		"@types/node": "^24.10.1",
+		"@types/node": "^25.0.8",
 		"dotenv": "^17.2.3",
 		"typescript": "^5.9.3",
-		"vitest": "^4.0.15"
+		"vitest": "^4.0.17"
 	},
 	"dependencies": {
-		"@google-cloud/kms": "^4.5.0",
+		"@google-cloud/kms": "^5.2.1",
 		"@mysten/ledgerjs-hw-app-sui": "workspace:^",
 		"@noble/curves": "^2.0.1",
 		"@noble/hashes": "^2.0.1",
-		"asn1-ts": "^8.0.2"
+		"asn1-ts": "^11.0.4"
 	},
 	"engines": {
 		"node": ">=22"

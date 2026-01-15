@@ -49,14 +49,14 @@
 		"@iarna/toml": "^2.2.5",
 		"@mysten/codegen": "workspace:^",
 		"@mysten/sui": "workspace:^",
-		"@types/node": "^24.10.1",
+		"@types/node": "^25.0.8",
 		"dotenv": "^17.2.3",
 		"tmp": "^0.2.5",
 		"ts-node": "^10.9.2",
 		"ts-retry-promise": "^0.8.1",
 		"typescript": "^5.9.3",
-		"vite": "^7.2.6",
-		"vitest": "^4.0.15",
+		"vite": "^7.3.1",
+		"vitest": "^4.0.17",
 		"wait-on": "^9.0.3"
 	},
 	"peerDependencies": {

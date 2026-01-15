@@ -42,7 +42,7 @@
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/utils#readme",
 	"devDependencies": {
 		"typescript": "^5.9.3",
-		"vitest": "^4.0.15"
+		"vitest": "^4.0.17"
 	},
 	"dependencies": {
 		"@scure/base": "^2.0.0"

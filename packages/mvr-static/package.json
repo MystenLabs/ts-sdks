@@ -44,14 +44,14 @@
 	},
 	"devDependencies": {
 		"typescript": "^5.9.3",
-		"vitest": "^4.0.15"
+		"vitest": "^4.0.17"
 	},
 	"dependencies": {
 		"@mysten/sui": "workspace:^",
-		"@types/node": "^24.10.1",
+		"@types/node": "^25.0.8",
 		"enquirer": "^2.4.1",
 		"glob": "^13.0.0",
-		"prettier": "^3.7.3"
+		"prettier": "^3.7.4"
 	},
 	"sideEffects": false,
 	"bin": "./bin/parser.js"
