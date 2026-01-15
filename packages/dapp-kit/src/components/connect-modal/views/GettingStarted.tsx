@@ -11,7 +11,7 @@ export function GettingStarted() {
 		<div className={styles.container}>
 			<Heading as="h2">Get Started with Sui</Heading>
 			<div className={styles.content}>
-				<InfoSection title="Install the Slush Wallet Extension">
+				<InfoSection title="Install the Slush Extension">
 					We recommend pinning Slush to your taskbar for quicker access.
 				</InfoSection>
 				<InfoSection title="Create or Import a Wallet">
