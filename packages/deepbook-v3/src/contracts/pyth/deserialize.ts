@@ -10,10 +10,7 @@ export interface DeserializeVectorOptions {
 export function deserializeVector(options: DeserializeVectorOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		'0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94::cursor::Cursor<u8>',
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -29,9 +26,7 @@ export interface DeserializeU8Options {
 export function deserializeU8(options: DeserializeU8Options) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		'0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94::cursor::Cursor<u8>',
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -47,9 +42,7 @@ export interface DeserializeU16Options {
 export function deserializeU16(options: DeserializeU16Options) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		'0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94::cursor::Cursor<u8>',
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -65,9 +58,7 @@ export interface DeserializeU32Options {
 export function deserializeU32(options: DeserializeU32Options) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		'0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94::cursor::Cursor<u8>',
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -83,9 +74,7 @@ export interface DeserializeI32Options {
 export function deserializeI32(options: DeserializeI32Options) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		'0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94::cursor::Cursor<u8>',
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -101,9 +90,7 @@ export interface DeserializeU64Options {
 export function deserializeU64(options: DeserializeU64Options) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		'0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94::cursor::Cursor<u8>',
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -119,9 +106,7 @@ export interface DeserializeI64Options {
 export function deserializeI64(options: DeserializeI64Options) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		'0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94::cursor::Cursor<u8>',
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

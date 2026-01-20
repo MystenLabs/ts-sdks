@@ -46,12 +46,10 @@ export function applyPercentageDiscount<T extends BcsType<any>>(
 	options: ApplyPercentageDiscountOptions<T>,
 ) {
 	const packageAddress = options.package ?? '@suins/discounts';
-	const argumentsTypes = [
-		`${packageAddress}::house::DiscountHouse`,
-		`${packageAddress}::payment::PaymentIntent`,
-		`${packageAddress}::suins::SuiNS`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, `${options.typeArguments[0]}`] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['self', 'intent', 'suins', '_'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -85,12 +83,7 @@ export interface ApplyDayOneDiscountOptions {
  */
 export function applyDayOneDiscount(options: ApplyDayOneDiscountOptions) {
 	const packageAddress = options.package ?? '@suins/discounts';
-	const argumentsTypes = [
-		`${packageAddress}::house::DiscountHouse`,
-		`${packageAddress}::payment::PaymentIntent`,
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::day_one::DayOne`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'intent', 'suins', 'dayOne'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -125,11 +118,7 @@ export interface AuthorizeTypeOptions {
  */
 export function authorizeType(options: AuthorizeTypeOptions) {
 	const packageAddress = options.package ?? '@suins/discounts';
-	const argumentsTypes = [
-		`${packageAddress}::house::DiscountHouse`,
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::pricing_config::PricingConfig`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', '_', 'pricingConfig'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -154,10 +143,7 @@ export interface DeauthorizeTypeOptions {
 /** An admin action to deauthorize type T from getting discounts. */
 export function deauthorizeType(options: DeauthorizeTypeOptions) {
 	const packageAddress = options.package ?? '@suins/discounts';
-	const argumentsTypes = [
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::house::DiscountHouse`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self'];
 	return (tx: Transaction) =>
 		tx.moveCall({

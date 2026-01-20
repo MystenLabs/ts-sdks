@@ -41,10 +41,10 @@ export function add<T0 extends BcsType<any>, T1 extends BcsType<any>>(options: A
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [
-		`${packageAddress}::table::Table<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
+		null,
 		`${options.typeArguments[0]}`,
 		`${options.typeArguments[1]}`,
-	] satisfies string[];
+	] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -62,10 +62,7 @@ export interface BorrowOptions<T0 extends BcsType<any>> {
 export function borrow<T0 extends BcsType<any>>(options: BorrowOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table::Table<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -83,10 +80,7 @@ export interface BorrowMutOptions<T0 extends BcsType<any>> {
 export function borrowMut<T0 extends BcsType<any>>(options: BorrowMutOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table::Table<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -104,10 +98,7 @@ export interface RemoveOptions<T0 extends BcsType<any>> {
 export function remove<T0 extends BcsType<any>>(options: RemoveOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table::Table<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -125,10 +116,7 @@ export interface ContainsOptions<T0 extends BcsType<any>> {
 export function contains<T0 extends BcsType<any>>(options: ContainsOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table::Table<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -146,9 +134,7 @@ export interface LengthOptions {
 export function length(options: LengthOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table::Table<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -166,9 +152,7 @@ export interface IsEmptyOptions {
 export function isEmpty(options: IsEmptyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table::Table<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -186,9 +170,7 @@ export interface DestroyEmptyOptions {
 export function destroyEmpty(options: DestroyEmptyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table::Table<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -206,9 +188,7 @@ export interface DropOptions {
 export function drop(options: DropOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table::Table<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

@@ -37,7 +37,7 @@ export interface NewGeneratorOptions {
 export function newGenerator(options: NewGeneratorOptions = {}) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::random::Random`] satisfies string[];
+	const argumentsTypes = ['0x2::random::Random'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -53,7 +53,7 @@ export interface GenerateBytesOptions {
 export function generateBytes(options: GenerateBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::random::RandomGenerator`, 'u16'] satisfies string[];
+	const argumentsTypes = [null, 'u16'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -69,7 +69,7 @@ export interface GenerateU256Options {
 export function generateU256(options: GenerateU256Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::random::RandomGenerator`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -85,7 +85,7 @@ export interface GenerateU128Options {
 export function generateU128(options: GenerateU128Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::random::RandomGenerator`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -101,7 +101,7 @@ export interface GenerateU64Options {
 export function generateU64(options: GenerateU64Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::random::RandomGenerator`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -117,7 +117,7 @@ export interface GenerateU32Options {
 export function generateU32(options: GenerateU32Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::random::RandomGenerator`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -133,7 +133,7 @@ export interface GenerateU16Options {
 export function generateU16(options: GenerateU16Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::random::RandomGenerator`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -149,7 +149,7 @@ export interface GenerateU8Options {
 export function generateU8(options: GenerateU8Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::random::RandomGenerator`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -165,7 +165,7 @@ export interface GenerateBoolOptions {
 export function generateBool(options: GenerateBoolOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::random::RandomGenerator`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -185,11 +185,7 @@ export interface GenerateU128InRangeOptions {
 export function generateU128InRange(options: GenerateU128InRangeOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::random::RandomGenerator`,
-		'u128',
-		'u128',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u128', 'u128'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -209,11 +205,7 @@ export interface GenerateU64InRangeOptions {
 export function generateU64InRange(options: GenerateU64InRangeOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::random::RandomGenerator`,
-		'u64',
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64', 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -233,11 +225,7 @@ export interface GenerateU32InRangeOptions {
 export function generateU32InRange(options: GenerateU32InRangeOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::random::RandomGenerator`,
-		'u32',
-		'u32',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u32', 'u32'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -257,11 +245,7 @@ export interface GenerateU16InRangeOptions {
 export function generateU16InRange(options: GenerateU16InRangeOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::random::RandomGenerator`,
-		'u16',
-		'u16',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u16', 'u16'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -281,11 +265,7 @@ export interface GenerateU8InRangeOptions {
 export function generateU8InRange(options: GenerateU8InRangeOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::random::RandomGenerator`,
-		'u8',
-		'u8',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u8', 'u8'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -302,10 +282,7 @@ export interface ShuffleOptions<T0 extends BcsType<any>> {
 export function shuffle<T0 extends BcsType<any>>(options: ShuffleOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::random::RandomGenerator`,
-		`vector<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, `vector<${options.typeArguments[0]}>`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

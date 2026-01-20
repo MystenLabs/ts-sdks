@@ -11,9 +11,7 @@ export interface KeepOptions {
 export function keep(options: KeepOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin::Coin<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -31,10 +29,7 @@ export interface SplitOptions {
 export function split(options: SplitOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin::Coin<${options.typeArguments[0]}>`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -52,10 +47,7 @@ export interface SplitVecOptions {
 export function splitVec(options: SplitVecOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin::Coin<${options.typeArguments[0]}>`,
-		'vector<u64>',
-	] satisfies string[];
+	const argumentsTypes = [null, 'vector<u64>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -77,11 +69,7 @@ export interface SplitAndTransferOptions {
 export function splitAndTransfer(options: SplitAndTransferOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin::Coin<${options.typeArguments[0]}>`,
-		'u64',
-		'address',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64', 'address'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -99,10 +87,7 @@ export interface DivideAndKeepOptions {
 export function divideAndKeep(options: DivideAndKeepOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin::Coin<${options.typeArguments[0]}>`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -120,10 +105,7 @@ export interface JoinOptions {
 export function join(options: JoinOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin::Coin<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::Coin<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -141,10 +123,7 @@ export interface JoinVecOptions {
 export function joinVec(options: JoinVecOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin::Coin<${options.typeArguments[0]}>`,
-		`vector<${packageAddress}::coin::Coin<${options.typeArguments[0]}>>`,
-	] satisfies string[];
+	const argumentsTypes = [null, 'vector<null>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -162,10 +141,7 @@ export interface JoinVecAndTransferOptions {
 export function joinVecAndTransfer(options: JoinVecAndTransferOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`vector<${packageAddress}::coin::Coin<${options.typeArguments[0]}>>`,
-		'address',
-	] satisfies string[];
+	const argumentsTypes = ['vector<null>', 'address'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

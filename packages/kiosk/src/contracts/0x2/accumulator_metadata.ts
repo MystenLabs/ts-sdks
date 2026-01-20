@@ -30,3 +30,9 @@ export const Metadata = new MoveStruct({
 		fields: bag.Bag,
 	},
 });
+export const AccumulatorObjectCountKey = new MoveStruct({
+	name: `${$moduleName}::AccumulatorObjectCountKey`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
+});

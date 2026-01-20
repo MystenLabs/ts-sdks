@@ -116,10 +116,7 @@ export interface CloseAndWithdrawOptions {
 export function closeAndWithdraw(options: CloseAndWithdrawOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -135,10 +132,7 @@ export interface SetOwnerOptions {
 export function setOwner(options: SetOwnerOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -158,11 +152,7 @@ export interface SetOwnerCustomOptions {
 export function setOwnerCustom(options: SetOwnerCustomOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-		'address',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'address'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -183,11 +173,7 @@ export interface PlaceOptions<T0 extends BcsType<any>> {
 export function place<T0 extends BcsType<any>>(options: PlaceOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -210,12 +196,10 @@ export interface LockOptions<T0 extends BcsType<any>> {
 export function lock<T0 extends BcsType<any>>(options: LockOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-		`${packageAddress}::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, `${options.typeArguments[0]}`] satisfies (
+		| string
+		| null
+	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -237,11 +221,7 @@ export interface TakeOptions {
 export function take(options: TakeOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-		`${packageAddress}::object::ID`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -264,12 +244,7 @@ export interface ListOptions {
 export function list(options: ListOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-		`${packageAddress}::object::ID`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::object::ID', 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -292,12 +267,10 @@ export interface PlaceAndListOptions<T0 extends BcsType<any>> {
 export function placeAndList<T0 extends BcsType<any>>(options: PlaceAndListOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-		`${options.typeArguments[0]}`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, null, `${options.typeArguments[0]}`, 'u64'] satisfies (
+		| string
+		| null
+	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -319,11 +292,7 @@ export interface DelistOptions {
 export function delist(options: DelistOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-		`${packageAddress}::object::ID`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -345,11 +314,7 @@ export interface PurchaseOptions {
 export function purchase(options: PurchaseOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::object::ID`,
-		`${packageAddress}::coin::Coin<${packageAddress}::sui::SUI>`,
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::object::ID', null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -372,12 +337,7 @@ export interface ListWithPurchaseCapOptions {
 export function listWithPurchaseCap(options: ListWithPurchaseCapOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-		`${packageAddress}::object::ID`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::object::ID', 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -399,11 +359,7 @@ export interface PurchaseWithCapOptions {
 export function purchaseWithCap(options: PurchaseWithCapOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::PurchaseCap<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::Coin<${packageAddress}::sui::SUI>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -421,10 +377,7 @@ export interface ReturnPurchaseCapOptions {
 export function returnPurchaseCap(options: ReturnPurchaseCapOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::PurchaseCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -445,11 +398,7 @@ export interface WithdrawOptions {
 export function withdraw(options: WithdrawOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<u64>',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::option::Option<u64>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -465,10 +414,7 @@ export interface HasItemOptions {
 export function hasItem(options: HasItemOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::object::ID`,
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -485,10 +431,7 @@ export interface HasItemWithTypeOptions {
 export function hasItemWithType(options: HasItemWithTypeOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::object::ID`,
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -505,10 +448,7 @@ export interface IsLockedOptions {
 export function isLocked(options: IsLockedOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::object::ID`,
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -524,10 +464,7 @@ export interface IsListedOptions {
 export function isListed(options: IsListedOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::object::ID`,
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -543,10 +480,7 @@ export interface IsListedExclusivelyOptions {
 export function isListedExclusively(options: IsListedExclusivelyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::object::ID`,
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -562,10 +496,7 @@ export interface HasAccessOptions {
 export function hasAccess(options: HasAccessOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -581,10 +512,7 @@ export interface UidMutAsOwnerOptions {
 export function uidMutAsOwner(options: UidMutAsOwnerOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -604,11 +532,7 @@ export interface SetAllowExtensionsOptions {
 export function setAllowExtensions(options: SetAllowExtensionsOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-		'bool',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'bool'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -624,7 +548,7 @@ export interface UidOptions {
 export function uid(options: UidOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::kiosk::Kiosk`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -640,7 +564,7 @@ export interface UidMutOptions {
 export function uidMut(options: UidMutOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::kiosk::Kiosk`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -656,7 +580,7 @@ export interface OwnerOptions {
 export function owner(options: OwnerOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::kiosk::Kiosk`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -672,7 +596,7 @@ export interface ItemCountOptions {
 export function itemCount(options: ItemCountOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::kiosk::Kiosk`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -688,7 +612,7 @@ export interface ProfitsAmountOptions {
 export function profitsAmount(options: ProfitsAmountOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::kiosk::Kiosk`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -704,10 +628,7 @@ export interface ProfitsMutOptions {
 export function profitsMut(options: ProfitsMutOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -728,11 +649,7 @@ export interface BorrowOptions {
 export function borrow(options: BorrowOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-		`${packageAddress}::object::ID`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -754,11 +671,7 @@ export interface BorrowMutOptions {
 export function borrowMut(options: BorrowMutOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-		`${packageAddress}::object::ID`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -780,11 +693,7 @@ export interface BorrowValOptions {
 export function borrowVal(options: BorrowValOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-		`${packageAddress}::object::ID`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -806,11 +715,7 @@ export interface ReturnValOptions<T0 extends BcsType<any>> {
 export function returnVal<T0 extends BcsType<any>>(options: ReturnValOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${options.typeArguments[0]}`,
-		`${packageAddress}::kiosk::Borrow`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -827,7 +732,7 @@ export interface KioskOwnerCapForOptions {
 export function kioskOwnerCapFor(options: KioskOwnerCapForOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::kiosk::KioskOwnerCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -844,9 +749,7 @@ export interface PurchaseCapKioskOptions {
 export function purchaseCapKiosk(options: PurchaseCapKioskOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::PurchaseCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -864,9 +767,7 @@ export interface PurchaseCapItemOptions {
 export function purchaseCapItem(options: PurchaseCapItemOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::PurchaseCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -884,9 +785,7 @@ export interface PurchaseCapMinPriceOptions {
 export function purchaseCapMinPrice(options: PurchaseCapMinPriceOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::PurchaseCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

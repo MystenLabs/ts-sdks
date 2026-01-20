@@ -61,12 +61,7 @@ export interface HandleBasePaymentOptions {
  */
 export function handleBasePayment(options: HandleBasePaymentOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::bbb_vault::BBBVault`,
-		`${packageAddress}::payment::PaymentIntent`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, null] satisfies (string | null)[];
 	const parameterNames = ['suins', 'bbbVault', 'intent', 'payment'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -113,15 +108,10 @@ export interface HandlePaymentOptions {
  */
 export function handlePayment(options: HandlePaymentOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::bbb_vault::BBBVault`,
-		`${packageAddress}::payment::PaymentIntent`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${options.typeArguments[0]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-		'0x8d97f1cd6ac663735be08d1d2b6d02a159e711586461306ce60a2b7a6a565a9e::price_info::PriceInfoObject',
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, null, '0x2::clock::Clock', null, 'u64'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = [
 		'suins',
 		'bbbVault',
@@ -167,12 +157,7 @@ export interface CalculatePriceOptions {
  */
 export function calculatePrice(options: CalculatePriceOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-		'0x8d97f1cd6ac663735be08d1d2b6d02a159e711586461306ce60a2b7a6a565a9e::price_info::PriceInfoObject',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64', '0x2::clock::Clock', null] satisfies (string | null)[];
 	const parameterNames = ['suins', 'baseAmount', 'priceInfoObject'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -196,10 +181,7 @@ export interface CalculatePriceAfterDiscountOptions {
 }
 export function calculatePriceAfterDiscount(options: CalculatePriceAfterDiscountOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::payment::PaymentIntent`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['suins', 'intent'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -229,11 +211,7 @@ export interface NewCoinTypeDataOptions {
 /** Creates a new CoinTypeData struct. Leave price_feed_id empty for base currency. */
 export function newCoinTypeData(options: NewCoinTypeDataOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
-	const argumentsTypes = [
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::CoinMetadata<${options.typeArguments[0]}>`,
-		'u8',
-		'vector<u8>',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u8', 'vector<u8>'] satisfies (string | null)[];
 	const parameterNames = ['coinMetadata', 'discountPercentage', 'priceFeedId'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -267,12 +245,7 @@ export interface NewPaymentsConfigOptions {
  */
 export function newPaymentsConfig(options: NewPaymentsConfigOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
-	const argumentsTypes = [
-		`vector<${packageAddress}::payments::CoinTypeData>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::type_name::TypeName',
-		'u64',
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = ['vector<null>', null, 'u64', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['setups', 'baseCurrency', 'maxAge', 'burnBps'];
 	return (tx: Transaction) =>
 		tx.moveCall({

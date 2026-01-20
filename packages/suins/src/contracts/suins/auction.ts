@@ -7,7 +7,6 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 import * as balance from './deps/sui/balance.js';
 import * as linked_table from './deps/sui/linked_table.js';
 import * as domain from './domain.js';
@@ -23,7 +22,7 @@ export const App = new MoveStruct({
 export const AuctionHouse = new MoveStruct({
 	name: `${$moduleName}::AuctionHouse`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		balance: balance.Balance,
 		auctions: linked_table.LinkedTable(domain.Domain),
 	},
@@ -94,13 +93,10 @@ export interface StartAuctionAndPlaceBidOptions {
 /** Start an auction if it's not started yet; and make the first bid. */
 export function startAuctionAndPlaceBid(options: StartAuctionAndPlaceBidOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::auction::AuctionHouse`,
-		`${packageAddress}::suins::SuiNS`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::string::String', null, '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['self', 'suins', 'domainName', 'bid'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -135,12 +131,10 @@ export interface PlaceBidOptions {
  */
 export function placeBid(options: PlaceBidOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::auction::AuctionHouse`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String', null, '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['self', 'domainName', 'bid'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -169,11 +163,10 @@ export interface ClaimOptions {
  */
 export function claim(options: ClaimOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::auction::AuctionHouse`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['self', 'domainName'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -208,10 +201,7 @@ export interface GetAuctionMetadataOptions {
  */
 export function getAuctionMetadata(options: GetAuctionMetadataOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::auction::AuctionHouse`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'domainName'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -233,11 +223,10 @@ export interface CollectWinningAuctionFundOptions {
 }
 export function collectWinningAuctionFund(options: CollectWinningAuctionFundOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::auction::AuctionHouse`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['self', 'domainName'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -259,10 +248,7 @@ export interface AdminWithdrawFundsOptions {
 }
 export function adminWithdrawFunds(options: AdminWithdrawFundsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::auction::AuctionHouse`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -306,12 +292,10 @@ export interface AdminFinalizeAuctionOptions {
  */
 export function adminFinalizeAuction(options: AdminFinalizeAuctionOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::auction::AuctionHouse`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['admin', 'self', 'domain'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -345,12 +329,7 @@ export interface AdminTryFinalizeAuctionsOptions {
  */
 export function adminTryFinalizeAuctions(options: AdminTryFinalizeAuctionsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::auction::AuctionHouse`,
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['admin', 'self', 'operationLimit'];
 	return (tx: Transaction) =>
 		tx.moveCall({

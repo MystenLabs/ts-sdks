@@ -31,7 +31,7 @@ export interface NewOptions<T extends BcsType<any>> {
 /** Creates a new extended field with the given value. */
 export function _new<T extends BcsType<any>>(options: NewOptions<T>) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -53,9 +53,7 @@ export interface BorrowOptions {
 /** Borrows the value stored in the extended field. */
 export function borrow(options: BorrowOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::extended_field::ExtendedField<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['field'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -77,9 +75,7 @@ export interface BorrowMutOptions {
 /** Borrows the value stored in the extended field mutably. */
 export function borrowMut(options: BorrowMutOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::extended_field::ExtendedField<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['field'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -104,10 +100,7 @@ export interface SwapOptions<T extends BcsType<any>> {
 /** Swaps the value stored in the extended field with the given value. */
 export function swap<T extends BcsType<any>>(options: SwapOptions<T>) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::extended_field::ExtendedField<${options.typeArguments[0]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['field', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -129,9 +122,7 @@ export interface DestroyOptions {
 /** Destroys the extended field and returns the value stored in it. */
 export function destroy(options: DestroyOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::extended_field::ExtendedField<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['field'];
 	return (tx: Transaction) =>
 		tx.moveCall({

@@ -8,13 +8,13 @@
  */
 
 import { MoveStruct } from '../../../utils/index.js';
-import * as object from './object.js';
+import { bcs } from '@mysten/sui/bcs';
 import * as balance from './balance.js';
 const $moduleName = '0x2::coin';
 export const Coin = new MoveStruct({
 	name: `${$moduleName}::Coin`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		balance: balance.Balance,
 	},
 });

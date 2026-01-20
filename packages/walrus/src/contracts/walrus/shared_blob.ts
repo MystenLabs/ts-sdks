@@ -25,7 +25,7 @@ export interface NewOptions {
 /** Shares the provided `blob` as a `SharedBlob` with zero funds. */
 export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['blob'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -48,10 +48,7 @@ export interface NewFundedOptions {
 /** Shares the provided `blob` as a `SharedBlob` with funds. */
 export function newFunded(options: NewFundedOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::blob::Blob`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['blob', 'funds'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -74,10 +71,7 @@ export interface FundOptions {
 /** Adds the provided `Coin` to the stored funds. */
 export function fund(options: FundOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::shared_blob::SharedBlob`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'addedFunds'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -109,11 +103,7 @@ export interface ExtendOptions {
  */
 export function extend(options: ExtendOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::shared_blob::SharedBlob`,
-		`${packageAddress}::system::System`,
-		'u32',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u32'] satisfies (string | null)[];
 	const parameterNames = ['self', 'system', 'extendedEpochs'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -133,7 +123,7 @@ export interface BlobOptions {
 /** Returns a reference to the wrapped `Blob`. */
 export function blob(options: BlobOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::shared_blob::SharedBlob`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -153,7 +143,7 @@ export interface FundsOptions {
 /** Returns the balance of funds stored in the `SharedBlob`. */
 export function funds(options: FundsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::shared_blob::SharedBlob`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({

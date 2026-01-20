@@ -47,10 +47,7 @@ export interface CalculateBasePriceOptions {
  */
 export function calculateBasePrice(options: CalculateBasePriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::pricing_config::PricingConfig`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['config', 'length'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -80,10 +77,7 @@ export interface NewOptions {
  */
 export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`vector<${packageAddress}::pricing_config::Range>`,
-		'vector<u64>',
-	] satisfies string[];
+	const argumentsTypes = ['vector<null>', 'vector<u64>'] satisfies (string | null)[];
 	const parameterNames = ['ranges', 'prices'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -106,7 +100,7 @@ export interface IsBetweenInclusiveOptions {
 /** Checks if the value is between the range (inclusive). */
 export function isBetweenInclusive(options: IsBetweenInclusiveOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::pricing_config::Range`, 'u64'] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['range', 'length'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -126,7 +120,7 @@ export interface PricingOptions {
 /** Returns the pricing config for usage in external apps. */
 export function pricing(options: PricingOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::pricing_config::PricingConfig`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -146,7 +140,7 @@ export interface NewRenewalConfigOptions {
 /** Constructor for Renewal<T> that initializes it with a PricingConfig. */
 export function newRenewalConfig(options: NewRenewalConfigOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::pricing_config::PricingConfig`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -165,7 +159,7 @@ export interface NewRangeOptions {
 }
 export function newRange(options: NewRangeOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = ['vector<u64>'] satisfies string[];
+	const argumentsTypes = ['vector<u64>'] satisfies (string | null)[];
 	const parameterNames = ['range'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -184,7 +178,7 @@ export interface ConfigOptions {
 }
 export function config(options: ConfigOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::pricing_config::RenewalConfig`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['renewal'];
 	return (tx: Transaction) =>
 		tx.moveCall({

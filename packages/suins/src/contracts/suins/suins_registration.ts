@@ -16,13 +16,12 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 import * as domain_1 from './domain.js';
 const $moduleName = '@suins/core::suins_registration';
 export const SuinsRegistration = new MoveStruct({
 	name: `${$moduleName}::SuinsRegistration`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		/** The parsed domain. */
 		domain: domain_1.Domain,
 		/** The domain name that the NFT is for. */
@@ -46,10 +45,7 @@ export interface HasExpiredOptions {
  */
 export function hasExpired(options: HasExpiredOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -73,10 +69,7 @@ export interface HasExpiredPastGracePeriodOptions {
  */
 export function hasExpiredPastGracePeriod(options: HasExpiredPastGracePeriodOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -96,9 +89,7 @@ export interface DomainOptions {
 /** Get the `domain` field of the `SuinsRegistration`. */
 export function domain(options: DomainOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -118,9 +109,7 @@ export interface DomainNameOptions {
 /** Get the `domain_name` field of the `SuinsRegistration`. */
 export function domainName(options: DomainNameOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -140,9 +129,7 @@ export interface ExpirationTimestampMsOptions {
 /** Get the `expiration_timestamp_ms` field of the `SuinsRegistration`. */
 export function expirationTimestampMs(options: ExpirationTimestampMsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -162,9 +149,7 @@ export interface ImageUrlOptions {
 /** Get the `image_url` field of the `SuinsRegistration`. */
 export function imageUrl(options: ImageUrlOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -183,9 +168,7 @@ export interface UidOptions {
 }
 export function uid(options: UidOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -205,9 +188,7 @@ export interface UidMutOptions {
 /** Get the mutable `id` field of the `SuinsRegistration`. */
 export function uidMut(options: UidMutOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({

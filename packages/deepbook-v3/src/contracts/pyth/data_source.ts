@@ -21,10 +21,7 @@ export interface ContainsOptions {
 export function contains(options: ContainsOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::UID',
-		`${packageAddress}::data_source::DataSource`,
-	] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID', null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -40,7 +37,7 @@ export interface EmitterChainOptions {
 export function emitterChain(options: EmitterChainOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::data_source::DataSource`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -56,7 +53,7 @@ export interface EmitterAddressOptions {
 export function emitterAddress(options: EmitterAddressOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::data_source::DataSource`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
