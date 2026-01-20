@@ -26,7 +26,7 @@ export interface SingleOwnerOptions {
 export function singleOwner(options: SingleOwnerOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['address'] satisfies string[];
+	const argumentsTypes = ['address'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

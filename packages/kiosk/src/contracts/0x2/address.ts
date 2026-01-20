@@ -10,7 +10,7 @@ export interface ToU256Options {
 export function toU256(options: ToU256Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['address'] satisfies string[];
+	const argumentsTypes = ['address'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -26,7 +26,7 @@ export interface FromU256Options {
 export function fromU256(options: FromU256Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['u256'] satisfies string[];
+	const argumentsTypes = ['u256'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -42,7 +42,7 @@ export interface FromBytesOptions {
 export function fromBytes(options: FromBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -58,7 +58,7 @@ export interface ToBytesOptions {
 export function toBytes(options: ToBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['address'] satisfies string[];
+	const argumentsTypes = ['address'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -74,7 +74,7 @@ export interface ToAsciiStringOptions {
 export function toAsciiString(options: ToAsciiStringOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['address'] satisfies string[];
+	const argumentsTypes = ['address'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -90,7 +90,7 @@ export interface ToStringOptions {
 export function toString(options: ToStringOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['address'] satisfies string[];
+	const argumentsTypes = ['address'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -106,7 +106,7 @@ export interface FromAsciiBytesOptions {
 export function fromAsciiBytes(options: FromAsciiBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

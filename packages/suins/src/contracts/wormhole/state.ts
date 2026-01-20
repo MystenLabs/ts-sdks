@@ -3,7 +3,6 @@
  **************************************************************/
 import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import * as object from './deps/0x0000000000000000000000000000000000000000000000000000000000000002/object.js';
 import * as external_address from './external_address.js';
 import * as table from './deps/0x0000000000000000000000000000000000000000000000000000000000000002/table.js';
 import * as consumed_vaas from './consumed_vaas.js';
@@ -13,7 +12,7 @@ const $moduleName = '0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888
 export const State = new MoveStruct({
 	name: `${$moduleName}::State`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		governance_chain: bcs.u16(),
 		governance_contract: external_address.ExternalAddress,
 		guardian_set_index: bcs.u32(),

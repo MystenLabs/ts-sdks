@@ -58,12 +58,10 @@ export interface FreeClaimOptions<T extends BcsType<any>> {
 /** A function to register a name with a discount using type `T`. */
 export function freeClaim<T extends BcsType<any>>(options: FreeClaimOptions<T>) {
 	const packageAddress = options.package ?? '@suins/discounts';
-	const argumentsTypes = [
-		`${packageAddress}::house::DiscountHouse`,
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::payment::PaymentIntent`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, `${options.typeArguments[0]}`] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['self', 'suins', 'intent', 'object'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -93,12 +91,7 @@ export interface FreeClaimWithDayOneOptions {
 }
 export function freeClaimWithDayOne(options: FreeClaimWithDayOneOptions) {
 	const packageAddress = options.package ?? '@suins/discounts';
-	const argumentsTypes = [
-		`${packageAddress}::house::DiscountHouse`,
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::payment::PaymentIntent`,
-		`${packageAddress}::day_one::DayOne`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'suins', 'intent', 'dayOne'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -130,11 +123,7 @@ export interface AuthorizeTypeOptions {
  */
 export function authorizeType(options: AuthorizeTypeOptions) {
 	const packageAddress = options.package ?? '@suins/discounts';
-	const argumentsTypes = [
-		`${packageAddress}::house::DiscountHouse`,
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::pricing_config::Range`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', '_', 'domainLengthRange'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -159,10 +148,7 @@ export interface DeauthorizeTypeOptions {
 /** Force-deauthorize type T from free claims. Drops the linked_table. */
 export function deauthorizeType(options: DeauthorizeTypeOptions) {
 	const packageAddress = options.package ?? '@suins/discounts';
-	const argumentsTypes = [
-		`${packageAddress}::house::DiscountHouse`,
-		`${packageAddress}::suins::AdminCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', '_'];
 	return (tx: Transaction) =>
 		tx.moveCall({

@@ -30,19 +30,18 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@suins/core::suins';
 export const AdminCap = new MoveStruct({
 	name: `${$moduleName}::AdminCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 	},
 });
 export const SuiNS = new MoveStruct({
 	name: `${$moduleName}::SuiNS`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		/**
 		 * The total balance of the SuiNS. Can be added to by authorized apps. Can be
 		 * withdrawn only by the application Admin.
@@ -97,10 +96,7 @@ export interface WithdrawOptions {
  */
 export function withdraw(options: WithdrawOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::suins::SuiNS`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -124,10 +120,7 @@ export interface WithdrawCustomOptions {
 /** Withdraw from the SuiNS balance of a custom coin type. */
 export function withdrawCustom(options: WithdrawCustomOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::suins::AdminCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', '_'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -152,10 +145,7 @@ export interface AuthorizeAppOptions {
 /** Authorize an application to access protected features of the SuiNS. */
 export function authorizeApp(options: AuthorizeAppOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::suins::SuiNS`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -180,10 +170,7 @@ export interface DeauthorizeAppOptions {
 /** Deauthorize an application by removing its authorization key. */
 export function deauthorizeApp(options: DeauthorizeAppOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::suins::SuiNS`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -205,7 +192,7 @@ export interface IsAppAuthorizedOptions {
 /** Check if an application is authorized to access protected features of the SuiNS. */
 export function isAppAuthorized(options: IsAppAuthorizedOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::suins::SuiNS`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -230,7 +217,7 @@ export interface AssertAppIsAuthorizedOptions {
  */
 export function assertAppIsAuthorized(options: AssertAppIsAuthorizedOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::suins::SuiNS`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -260,11 +247,7 @@ export interface AppAddBalanceOptions<App extends BcsType<any>> {
 /** Adds balance to the SuiNS. */
 export function appAddBalance<App extends BcsType<any>>(options: AppAddBalanceOptions<App>) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${options.typeArguments[0]}`,
-		`${packageAddress}::suins::SuiNS`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::balance::Balance<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>',
-	] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`, null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self', 'balance'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -296,11 +279,7 @@ export function appAddCustomBalance<App extends BcsType<any>>(
 	options: AppAddCustomBalanceOptions<App>,
 ) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${options.typeArguments[0]}`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::balance::Balance<${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`, null] satisfies (string | null)[];
 	const parameterNames = ['self', '_', 'balance'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -328,10 +307,7 @@ export interface AppRegistryMutOptions<App extends BcsType<any>> {
  */
 export function appRegistryMut<App extends BcsType<any>>(options: AppRegistryMutOptions<App>) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${options.typeArguments[0]}`,
-		`${packageAddress}::suins::SuiNS`,
-	] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -361,11 +337,7 @@ export interface AddConfigOptions<Config extends BcsType<any>> {
 /** Attach dynamic configuration object to the application. */
 export function addConfig<Config extends BcsType<any>>(options: AddConfigOptions<Config>) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::suins::SuiNS`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['_', 'self', 'config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -387,7 +359,7 @@ export interface GetConfigOptions {
 /** Borrow configuration object. Read-only mode for applications. */
 export function getConfig(options: GetConfigOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::suins::SuiNS`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -419,10 +391,7 @@ export interface RemoveConfigOptions {
  */
 export function removeConfig(options: RemoveConfigOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::suins::SuiNS`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -444,7 +413,7 @@ export interface RegistryOptions {
 /** Get a read-only access to the `Registry` object. */
 export function registry(options: RegistryOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::suins::SuiNS`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -474,11 +443,7 @@ export interface AddRegistryOptions<R extends BcsType<any>> {
 /** Add a registry to the SuiNS. Can only be performed by the admin. */
 export function addRegistry<R extends BcsType<any>>(options: AddRegistryOptions<R>) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::suins::SuiNS`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['_', 'self', 'registry'];
 	return (tx: Transaction) =>
 		tx.moveCall({

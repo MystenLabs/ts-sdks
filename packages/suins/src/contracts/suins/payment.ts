@@ -123,13 +123,13 @@ export function applyPercentageDiscount<A extends BcsType<any>>(
 ) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
-		`${packageAddress}::payment::PaymentIntent`,
-		`${packageAddress}::suins::SuiNS`,
+		null,
+		null,
 		`${options.typeArguments[0]}`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+		'0x1::string::String',
 		'u8',
 		'bool',
-	] satisfies string[];
+	] satisfies (string | null)[];
 	const parameterNames = [
 		'intent',
 		'suins',
@@ -174,12 +174,10 @@ export interface FinalizePaymentOptions<A extends BcsType<any>> {
  */
 export function finalizePayment<A extends BcsType<any>>(options: FinalizePaymentOptions<A>) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::payment::PaymentIntent`,
-		`${packageAddress}::suins::SuiNS`,
-		`${options.typeArguments[0]}`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, `${options.typeArguments[0]}`, null] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['intent', 'suins', 'app', 'coin'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -206,10 +204,7 @@ export interface InitRegistrationOptions {
  */
 export function initRegistration(options: InitRegistrationOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['suins', 'domain'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -240,11 +235,7 @@ export interface InitRenewalOptions {
  */
 export function initRenewal(options: InitRenewalOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-		'u8',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u8'] satisfies (string | null)[];
 	const parameterNames = ['suins', 'nft', 'years'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -270,11 +261,7 @@ export interface RegisterOptions {
  */
 export function register(options: RegisterOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::payment::Receipt`,
-		`${packageAddress}::suins::SuiNS`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['receipt', 'suins'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -305,12 +292,7 @@ export interface RenewOptions {
  */
 export function renew(options: RenewOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::payment::Receipt`,
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['receipt', 'suins', 'nft'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -330,7 +312,7 @@ export interface RequestDataOptions {
 /** Getters */
 export function requestData(options: RequestDataOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::payment::PaymentIntent`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['intent'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -349,7 +331,7 @@ export interface YearsOptions {
 }
 export function years(options: YearsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::payment::RequestData`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -368,7 +350,7 @@ export interface BaseAmountOptions {
 }
 export function baseAmount(options: BaseAmountOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::payment::RequestData`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -387,7 +369,7 @@ export interface DomainOptions {
 }
 export function domain(options: DomainOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::payment::RequestData`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -407,7 +389,7 @@ export interface DiscountAppliedOptions {
 /** Returns true if at least one discount has been applied to the payment intent. */
 export function discountApplied(options: DiscountAppliedOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::payment::RequestData`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -427,7 +409,7 @@ export interface DiscountsAppliedOptions {
 /** A list of discounts that have been applied to the payment intent. */
 export function discountsApplied(options: DiscountsAppliedOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::payment::RequestData`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -450,7 +432,7 @@ export interface CalculateTotalAfterDiscountOptions {
 /** Public helper to calculate price after a percentage discount has been applied. */
 export function calculateTotalAfterDiscount(options: CalculateTotalAfterDiscountOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::payment::RequestData`, 'u8'] satisfies string[];
+	const argumentsTypes = [null, 'u8'] satisfies (string | null)[];
 	const parameterNames = ['data', 'discount'];
 	return (tx: Transaction) =>
 		tx.moveCall({

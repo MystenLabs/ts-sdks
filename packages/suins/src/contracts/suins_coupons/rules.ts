@@ -49,12 +49,12 @@ export interface NewCouponRulesOptions {
 export function newCouponRules(options: NewCouponRulesOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
-		`0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<${packageAddress}::range::Range>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<u64>',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<address>',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<u64>',
-		`0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<${packageAddress}::range::Range>`,
-	] satisfies string[];
+		'0x1::option::Option<null>',
+		'0x1::option::Option<u64>',
+		'0x1::option::Option<address>',
+		'0x1::option::Option<u64>',
+		'0x1::option::Option<null>',
+	] satisfies (string | null)[];
 	const parameterNames = ['length', 'availableClaims', 'user', 'expiration', 'years'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -92,7 +92,7 @@ export interface DecreaseAvailableClaimsOptions {
  */
 export function decreaseAvailableClaims(options: DecreaseAvailableClaimsOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [`${packageAddress}::rules::CouponRules`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['rules'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -111,7 +111,7 @@ export interface HasAvailableClaimsOptions {
 }
 export function hasAvailableClaims(options: HasAvailableClaimsOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [`${packageAddress}::rules::CouponRules`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['rules'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -133,7 +133,7 @@ export interface AssertCouponValidForDomainYearsOptions {
 }
 export function assertCouponValidForDomainYears(options: AssertCouponValidForDomainYearsOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [`${packageAddress}::rules::CouponRules`, 'u8'] satisfies string[];
+	const argumentsTypes = [null, 'u8'] satisfies (string | null)[];
 	const parameterNames = ['rules', 'target'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -155,7 +155,7 @@ export interface IsCouponValidForDomainYearsOptions {
 }
 export function isCouponValidForDomainYears(options: IsCouponValidForDomainYearsOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [`${packageAddress}::rules::CouponRules`, 'u8'] satisfies string[];
+	const argumentsTypes = [null, 'u8'] satisfies (string | null)[];
 	const parameterNames = ['rules', 'target'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -174,7 +174,7 @@ export interface AssertIsValidDiscountTypeOptions {
 }
 export function assertIsValidDiscountType(options: AssertIsValidDiscountTypeOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = ['u8'] satisfies string[];
+	const argumentsTypes = ['u8'] satisfies (string | null)[];
 	const parameterNames = ['type'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -196,7 +196,7 @@ export interface AssertIsValidAmountOptions {
 }
 export function assertIsValidAmount(options: AssertIsValidAmountOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = ['u8', 'u64'] satisfies string[];
+	const argumentsTypes = ['u8', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['_', 'amount'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -218,7 +218,7 @@ export interface AssertCouponValidForDomainSizeOptions {
 }
 export function assertCouponValidForDomainSize(options: AssertCouponValidForDomainSizeOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [`${packageAddress}::rules::CouponRules`, 'u8'] satisfies string[];
+	const argumentsTypes = [null, 'u8'] satisfies (string | null)[];
 	const parameterNames = ['rules', 'length'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -241,7 +241,7 @@ export interface IsCouponValidForDomainSizeOptions {
 /** We check the length of the name based on the domain length rule */
 export function isCouponValidForDomainSize(options: IsCouponValidForDomainSizeOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [`${packageAddress}::rules::CouponRules`, 'u8'] satisfies string[];
+	const argumentsTypes = [null, 'u8'] satisfies (string | null)[];
 	const parameterNames = ['rules', 'length'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -264,7 +264,7 @@ export interface AssertCouponValidForAddressOptions {
 /** Throws `EInvalidUser` error if it has expired. */
 export function assertCouponValidForAddress(options: AssertCouponValidForAddressOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [`${packageAddress}::rules::CouponRules`, 'address'] satisfies string[];
+	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['rules', 'user'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -287,7 +287,7 @@ export interface IsCouponValidForAddressOptions {
 /** Check that the domain is valid for the specified address */
 export function isCouponValidForAddress(options: IsCouponValidForAddressOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [`${packageAddress}::rules::CouponRules`, 'address'] satisfies string[];
+	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['rules', 'user'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -310,10 +310,7 @@ export interface AssertCouponIsNotExpiredOptions {
  */
 export function assertCouponIsNotExpired(options: AssertCouponIsNotExpiredOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [
-		`${packageAddress}::rules::CouponRules`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['rules'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -333,10 +330,7 @@ export interface IsCouponExpiredOptions {
 /** Check whether a coupon has expired */
 export function isCouponExpired(options: IsCouponExpiredOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [
-		`${packageAddress}::rules::CouponRules`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['rules'];
 	return (tx: Transaction) =>
 		tx.moveCall({

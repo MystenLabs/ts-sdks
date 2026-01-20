@@ -38,14 +38,14 @@ export interface NewOptions {
 export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
 	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+		null,
+		null,
+		'0x2::clock::Clock',
+		'0x1::string::String',
 		'u64',
 		'bool',
 		'bool',
-	] satisfies string[];
+	] satisfies (string | null)[];
 	const parameterNames = [
 		'suins',
 		'subdomain',
@@ -82,12 +82,12 @@ export interface NewLeafOptions {
 export function newLeaf(options: NewLeafOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
 	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+		null,
+		null,
+		'0x2::clock::Clock',
+		'0x1::string::String',
 		'address',
-	] satisfies string[];
+	] satisfies (string | null)[];
 	const parameterNames = ['suins', 'subdomain', 'subdomainName', 'target'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -114,12 +114,10 @@ export interface RemoveLeafOptions {
 }
 export function removeLeaf(options: RemoveLeafOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::clock::Clock', '0x1::string::String'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['suins', 'subdomain', 'subdomainName'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -151,13 +149,13 @@ export interface AddLeafMetadataOptions {
 export function addLeafMetadata(options: AddLeafMetadataOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
 	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+		null,
+		null,
+		'0x2::clock::Clock',
+		'0x1::string::String',
+		'0x1::string::String',
+		'0x1::string::String',
+	] satisfies (string | null)[];
 	const parameterNames = ['suins', 'parent', 'subdomainName', 'key', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -187,12 +185,12 @@ export interface RemoveLeafMetadataOptions {
 export function removeLeafMetadata(options: RemoveLeafMetadataOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
 	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+		null,
+		null,
+		'0x2::clock::Clock',
+		'0x1::string::String',
+		'0x1::string::String',
+	] satisfies (string | null)[];
 	const parameterNames = ['suins', 'parent', 'subdomainName', 'key'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -224,13 +222,13 @@ export interface EditSetupOptions {
 export function editSetup(options: EditSetupOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
 	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+		null,
+		null,
+		'0x2::clock::Clock',
+		'0x1::string::String',
 		'bool',
 		'bool',
-	] satisfies string[];
+	] satisfies (string | null)[];
 	const parameterNames = [
 		'suins',
 		'parent',
@@ -264,11 +262,11 @@ export interface SetTargetAddressOptions {
 export function setTargetAddress(options: SetTargetAddressOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
 	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<address>',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+		null,
+		null,
+		'0x1::option::Option<address>',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = ['suins', 'subdomain', 'newTarget'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -298,12 +296,12 @@ export interface SetUserDataOptions {
 export function setUserData(options: SetUserDataOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
 	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+		null,
+		null,
+		'0x1::string::String',
+		'0x1::string::String',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = ['suins', 'subdomain', 'key', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -330,12 +328,10 @@ export interface UnsetUserDataOptions {
 }
 export function unsetUserData(options: UnsetUserDataOptions) {
 	const packageAddress = options.package ?? '@suins/subdomain-proxy';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['suins', 'subdomain', 'key'];
 	return (tx: Transaction) =>
 		tx.moveCall({

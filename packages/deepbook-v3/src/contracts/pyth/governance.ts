@@ -22,9 +22,7 @@ export interface TakePayloadOptions {
 export function takePayload(options: TakePayloadOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::governance::WormholeVAAVerificationReceipt`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -40,9 +38,7 @@ export interface TakeDigestOptions {
 export function takeDigest(options: TakeDigestOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::governance::WormholeVAAVerificationReceipt`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -58,9 +54,7 @@ export interface TakeSequenceOptions {
 export function takeSequence(options: TakeSequenceOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::governance::WormholeVAAVerificationReceipt`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -76,9 +70,7 @@ export interface DestroyOptions {
 export function destroy(options: DestroyOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::governance::WormholeVAAVerificationReceipt`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -94,10 +86,7 @@ export interface VerifyVaaOptions {
 export function verifyVaa(options: VerifyVaaOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::state::State`,
-		'0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94::vaa::VAA',
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -113,10 +102,7 @@ export interface ExecuteGovernanceInstructionOptions {
 export function executeGovernanceInstruction(options: ExecuteGovernanceInstructionOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::state::State`,
-		`${packageAddress}::governance::WormholeVAAVerificationReceipt`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

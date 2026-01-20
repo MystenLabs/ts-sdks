@@ -10,7 +10,7 @@ export interface MaxOptions {
 export function max(options: MaxOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['u64', 'u64'] satisfies string[];
+	const argumentsTypes = ['u64', 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -26,7 +26,7 @@ export interface MinOptions {
 export function min(options: MinOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['u64', 'u64'] satisfies string[];
+	const argumentsTypes = ['u64', 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -42,7 +42,7 @@ export interface DiffOptions {
 export function diff(options: DiffOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['u64', 'u64'] satisfies string[];
+	const argumentsTypes = ['u64', 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -58,7 +58,7 @@ export interface PowOptions {
 export function pow(options: PowOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['u64', 'u8'] satisfies string[];
+	const argumentsTypes = ['u64', 'u8'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -74,7 +74,7 @@ export interface SqrtOptions {
 export function sqrt(options: SqrtOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['u64'] satisfies string[];
+	const argumentsTypes = ['u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -90,7 +90,7 @@ export interface SqrtU128Options {
 export function sqrtU128(options: SqrtU128Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['u128'] satisfies string[];
+	const argumentsTypes = ['u128'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -106,7 +106,7 @@ export interface DivideAndRoundUpOptions {
 export function divideAndRoundUp(options: DivideAndRoundUpOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['u64', 'u64'] satisfies string[];
+	const argumentsTypes = ['u64', 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

@@ -36,7 +36,7 @@ export interface NewOptions {
 export function _new(options: NewOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::package::Publisher`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -59,10 +59,10 @@ export function newWithFields(options: NewWithFieldsOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [
-		`${packageAddress}::package::Publisher`,
-		'vector<0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
-		'vector<0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
-	] satisfies string[];
+		null,
+		'vector<0x1::string::String>',
+		'vector<0x1::string::String>',
+	] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -80,7 +80,7 @@ export interface CreateAndKeepOptions {
 export function createAndKeep(options: CreateAndKeepOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::package::Publisher`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -98,9 +98,7 @@ export interface UpdateVersionOptions {
 export function updateVersion(options: UpdateVersionOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::display::Display<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -122,11 +120,10 @@ export interface AddOptions {
 export function add(options: AddOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::display::Display<${options.typeArguments[0]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String', '0x1::string::String'] satisfies (
+		| string
+		| null
+	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -149,10 +146,10 @@ export function addMultiple(options: AddMultipleOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [
-		`${packageAddress}::display::Display<${options.typeArguments[0]}>`,
-		'vector<0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
-		'vector<0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
-	] satisfies string[];
+		null,
+		'vector<0x1::string::String>',
+		'vector<0x1::string::String>',
+	] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -174,11 +171,10 @@ export interface EditOptions {
 export function edit(options: EditOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::display::Display<${options.typeArguments[0]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String', '0x1::string::String'] satisfies (
+		| string
+		| null
+	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -196,10 +192,7 @@ export interface RemoveOptions {
 export function remove(options: RemoveOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::display::Display<${options.typeArguments[0]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -217,7 +210,7 @@ export interface IsAuthorizedOptions {
 export function isAuthorized(options: IsAuthorizedOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::package::Publisher`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -235,9 +228,7 @@ export interface VersionOptions {
 export function version(options: VersionOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::display::Display<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -255,9 +246,7 @@ export interface FieldsOptions {
 export function fields(options: FieldsOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::display::Display<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

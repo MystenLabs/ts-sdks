@@ -72,12 +72,10 @@ export interface PvkFromBytesOptions {
 export function pvkFromBytes(options: PvkFromBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		'vector<u8>',
-		'vector<u8>',
-		'vector<u8>',
-		'vector<u8>',
-	] satisfies string[];
+	const argumentsTypes = ['vector<u8>', 'vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (
+		| string
+		| null
+	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -93,7 +91,7 @@ export interface PvkToBytesOptions {
 export function pvkToBytes(options: PvkToBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::groth16::PreparedVerifyingKey`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -109,7 +107,7 @@ export interface PublicProofInputsFromBytesOptions {
 export function publicProofInputsFromBytes(options: PublicProofInputsFromBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -125,7 +123,7 @@ export interface ProofPointsFromBytesOptions {
 export function proofPointsFromBytes(options: ProofPointsFromBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -141,7 +139,7 @@ export interface PrepareVerifyingKeyOptions {
 export function prepareVerifyingKey(options: PrepareVerifyingKeyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::groth16::Curve`, 'vector<u8>'] satisfies string[];
+	const argumentsTypes = [null, 'vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -162,12 +160,7 @@ export interface VerifyGroth16ProofOptions {
 export function verifyGroth16Proof(options: VerifyGroth16ProofOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::groth16::Curve`,
-		`${packageAddress}::groth16::PreparedVerifyingKey`,
-		`${packageAddress}::groth16::PublicProofInputs`,
-		`${packageAddress}::groth16::ProofPoints`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

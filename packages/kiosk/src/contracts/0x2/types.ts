@@ -12,7 +12,7 @@ export interface IsOneTimeWitnessOptions<T0 extends BcsType<any>> {
 export function isOneTimeWitness<T0 extends BcsType<any>>(options: IsOneTimeWitnessOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

@@ -38,10 +38,10 @@ export interface ClaimOptions<T0 extends BcsType<any>> {
 export function claim<T0 extends BcsType<any>>(options: ClaimOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::object::UID`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
+		| string
+		| null
+	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -59,10 +59,10 @@ export interface ExistsOptions<T0 extends BcsType<any>> {
 export function exists<T0 extends BcsType<any>>(options: ExistsOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::object::UID`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
+		| string
+		| null
+	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -80,10 +80,10 @@ export interface DeriveAddressOptions<T0 extends BcsType<any>> {
 export function deriveAddress<T0 extends BcsType<any>>(options: DeriveAddressOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::object::ID`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
+		| string
+		| null
+	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

@@ -20,7 +20,7 @@ export interface TransferOptions<T0 extends BcsType<any>> {
 export function transfer<T0 extends BcsType<any>>(options: TransferOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`, 'address'] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`, 'address'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -38,7 +38,7 @@ export interface PublicTransferOptions<T0 extends BcsType<any>> {
 export function publicTransfer<T0 extends BcsType<any>>(options: PublicTransferOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`, 'address'] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`, 'address'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -56,10 +56,7 @@ export interface PartyTransferOptions<T0 extends BcsType<any>> {
 export function partyTransfer<T0 extends BcsType<any>>(options: PartyTransferOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${options.typeArguments[0]}`,
-		`${packageAddress}::party::Party`,
-	] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -79,10 +76,7 @@ export function publicPartyTransfer<T0 extends BcsType<any>>(
 ) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${options.typeArguments[0]}`,
-		`${packageAddress}::party::Party`,
-	] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -100,7 +94,7 @@ export interface FreezeObjectOptions<T0 extends BcsType<any>> {
 export function freezeObject<T0 extends BcsType<any>>(options: FreezeObjectOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -120,7 +114,7 @@ export function publicFreezeObject<T0 extends BcsType<any>>(
 ) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -138,7 +132,7 @@ export interface ShareObjectOptions<T0 extends BcsType<any>> {
 export function shareObject<T0 extends BcsType<any>>(options: ShareObjectOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -156,7 +150,7 @@ export interface PublicShareObjectOptions<T0 extends BcsType<any>> {
 export function publicShareObject<T0 extends BcsType<any>>(options: PublicShareObjectOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -174,10 +168,7 @@ export interface ReceiveOptions {
 export function receive(options: ReceiveOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::object::UID`,
-		`${packageAddress}::transfer::Receiving<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID', null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -195,10 +186,7 @@ export interface PublicReceiveOptions {
 export function publicReceive(options: PublicReceiveOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::object::UID`,
-		`${packageAddress}::transfer::Receiving<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID', null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -216,9 +204,7 @@ export interface ReceivingObjectIdOptions {
 export function receivingObjectId(options: ReceivingObjectIdOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::transfer::Receiving<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

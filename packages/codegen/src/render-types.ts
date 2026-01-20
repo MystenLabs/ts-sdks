@@ -214,13 +214,33 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 	const address = options.resolveAddress(type.module.address);
 
 	if (options.format === 'typeTag') {
-		const typeArgs = type.type_arguments.map((type) => renderTypeSignature(type.argument, options));
-
-		if (typeArgs.length === 0) {
-			return `${address === options.resolveAddress(options.summary.id.address) ? '${packageAddress}' : address}::${type.module.name}::${type.name}`;
+		if (address === SUI_FRAMEWORK_ADDRESS) {
+			if (type.module.name === 'clock' && type.name === 'Clock') return '0x2::clock::Clock';
+			if (type.module.name === 'random' && type.name === 'Random') return '0x2::random::Random';
+			if (type.module.name === 'deny_list' && type.name === 'DenyList')
+				return '0x2::deny_list::DenyList';
+			if (type.module.name === 'object' && (type.name === 'ID' || type.name === 'UID'))
+				return '0x2::object::ID';
+		}
+		if (address === SUI_SYSTEM_ADDRESS) {
+			if (type.module.name === 'sui_system' && type.name === 'SuiSystemState')
+				return '0x3::sui_system::SuiSystemState';
 		}
 
-		return `${address === options.resolveAddress(options.summary.id.address) ? '${packageAddress}' : address}::${type.module.name}::${type.name}<${typeArgs.join(', ')}>`;
+		if (address === MOVE_STDLIB_ADDRESS) {
+			if (
+				(type.module.name === 'ascii' || type.module.name === 'string') &&
+				type.name === 'String'
+			) {
+				return '0x1::string::String';
+			}
+			if (type.module.name === 'option' && type.name === 'Option') {
+				const innerType = renderTypeSignature(type.type_arguments[0].argument, options);
+				return `0x1::option::Option<${innerType}>`;
+			}
+		}
+
+		return 'null';
 	}
 
 	if (address === MOVE_STDLIB_ADDRESS) {

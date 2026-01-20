@@ -20,15 +20,15 @@ export function initPyth(options: InitPythOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [
-		`${packageAddress}::setup::DeployerCap`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::package::UpgradeCap',
+		null,
+		null,
 		'u64',
 		'u64',
 		'vector<u8>',
 		'vector<u64>',
 		'vector<vector<u8>>',
 		'u64',
-	] satisfies string[];
+	] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -48,12 +48,10 @@ export interface CreatePriceFeedsUsingAccumulatorOptions {
 export function createPriceFeedsUsingAccumulator(options: CreatePriceFeedsUsingAccumulatorOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::state::State`,
-		'vector<u8>',
-		'0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94::vaa::VAA',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, 'vector<u8>', null, '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -69,11 +67,7 @@ export interface CreatePriceFeedsOptions {
 export function createPriceFeeds(options: CreatePriceFeedsOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::state::State`,
-		'vector<0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94::vaa::VAA>',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, 'vector<null>', '0x2::clock::Clock'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -95,12 +89,10 @@ export function createAuthenticatedPriceInfosUsingAccumulator(
 ) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::state::State`,
-		'vector<u8>',
-		'0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94::vaa::VAA',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, 'vector<u8>', null, '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -116,11 +108,7 @@ export interface CreatePriceInfosHotPotatoOptions {
 export function createPriceInfosHotPotato(options: CreatePriceInfosHotPotatoOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::state::State`,
-		'vector<0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94::vaa::VAA>',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, 'vector<null>', '0x2::clock::Clock'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -141,13 +129,7 @@ export interface UpdateSinglePriceFeedOptions {
 export function updateSinglePriceFeed(options: UpdateSinglePriceFeedOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::state::State`,
-		`${packageAddress}::hot_potato_vector::HotPotatoVector<${packageAddress}::price_info::PriceInfo>`,
-		`${packageAddress}::price_info::PriceInfoObject`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -163,10 +145,7 @@ export interface PriceFeedExistsOptions {
 export function priceFeedExists(options: PriceFeedExistsOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::state::State`,
-		`${packageAddress}::price_identifier::PriceIdentifier`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -182,11 +161,7 @@ export interface GetPriceOptions {
 export function getPrice(options: GetPriceOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::state::State`,
-		`${packageAddress}::price_info::PriceInfoObject`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -202,11 +177,7 @@ export interface GetPriceNoOlderThanOptions {
 export function getPriceNoOlderThan(options: GetPriceNoOlderThanOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::price_info::PriceInfoObject`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::clock::Clock', 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -222,7 +193,7 @@ export interface GetPriceUnsafeOptions {
 export function getPriceUnsafe(options: GetPriceUnsafeOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::price_info::PriceInfoObject`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -238,7 +209,7 @@ export interface GetStalePriceThresholdSecsOptions {
 export function getStalePriceThresholdSecs(options: GetStalePriceThresholdSecsOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::state::State`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -254,7 +225,7 @@ export interface GetTotalUpdateFeeOptions {
 export function getTotalUpdateFee(options: GetTotalUpdateFeeOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::state::State`, 'u64'] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

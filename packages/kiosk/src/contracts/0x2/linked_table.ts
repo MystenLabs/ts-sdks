@@ -52,9 +52,7 @@ export interface FrontOptions {
 export function front(options: FrontOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -72,9 +70,7 @@ export interface BackOptions {
 export function back(options: BackOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -99,10 +95,10 @@ export function pushFront<T0 extends BcsType<any>, T1 extends BcsType<any>>(
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
+		null,
 		`${options.typeArguments[0]}`,
 		`${options.typeArguments[1]}`,
-	] satisfies string[];
+	] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -127,10 +123,10 @@ export function pushBack<T0 extends BcsType<any>, T1 extends BcsType<any>>(
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
+		null,
 		`${options.typeArguments[0]}`,
 		`${options.typeArguments[1]}`,
-	] satisfies string[];
+	] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -148,10 +144,7 @@ export interface BorrowOptions<T0 extends BcsType<any>> {
 export function borrow<T0 extends BcsType<any>>(options: BorrowOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -169,10 +162,7 @@ export interface BorrowMutOptions<T0 extends BcsType<any>> {
 export function borrowMut<T0 extends BcsType<any>>(options: BorrowMutOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -190,10 +180,7 @@ export interface PrevOptions<T0 extends BcsType<any>> {
 export function prev<T0 extends BcsType<any>>(options: PrevOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -211,10 +198,7 @@ export interface NextOptions<T0 extends BcsType<any>> {
 export function next<T0 extends BcsType<any>>(options: NextOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -232,10 +216,7 @@ export interface RemoveOptions<T0 extends BcsType<any>> {
 export function remove<T0 extends BcsType<any>>(options: RemoveOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -253,9 +234,7 @@ export interface PopFrontOptions {
 export function popFront(options: PopFrontOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -273,9 +252,7 @@ export interface PopBackOptions {
 export function popBack(options: PopBackOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -293,10 +270,7 @@ export interface ContainsOptions<T0 extends BcsType<any>> {
 export function contains<T0 extends BcsType<any>>(options: ContainsOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -314,9 +288,7 @@ export interface LengthOptions {
 export function length(options: LengthOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -334,9 +306,7 @@ export interface IsEmptyOptions {
 export function isEmpty(options: IsEmptyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -354,9 +324,7 @@ export interface DestroyEmptyOptions {
 export function destroyEmpty(options: DestroyEmptyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -374,9 +342,7 @@ export interface DropOptions {
 export function drop(options: DropOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::linked_table::LinkedTable<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

@@ -18,9 +18,7 @@ export interface NewUnsafeOptions {
 export function newUnsafe(options: NewUnsafeOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000001::ascii::String',
-	] satisfies string[];
+	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -36,7 +34,7 @@ export interface NewUnsafeFromBytesOptions {
 export function newUnsafeFromBytes(options: NewUnsafeFromBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -52,7 +50,7 @@ export interface InnerUrlOptions {
 export function innerUrl(options: InnerUrlOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::url::Url`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -68,10 +66,7 @@ export interface UpdateOptions {
 export function update(options: UpdateOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::url::Url`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::ascii::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

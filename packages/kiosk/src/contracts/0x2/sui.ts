@@ -18,10 +18,7 @@ export interface TransferOptions {
 export function transfer(options: TransferOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin::Coin<${packageAddress}::sui::SUI>`,
-		'address',
-	] satisfies string[];
+	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

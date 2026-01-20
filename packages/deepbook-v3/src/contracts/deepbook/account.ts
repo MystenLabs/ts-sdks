@@ -35,7 +35,7 @@ export interface OpenOrdersOptions {
 }
 export function openOrders(options: OpenOrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::account::Account`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -54,7 +54,7 @@ export interface TakerVolumeOptions {
 }
 export function takerVolume(options: TakerVolumeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::account::Account`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -73,7 +73,7 @@ export interface MakerVolumeOptions {
 }
 export function makerVolume(options: MakerVolumeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::account::Account`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -92,7 +92,7 @@ export interface TotalVolumeOptions {
 }
 export function totalVolume(options: TotalVolumeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::account::Account`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -111,7 +111,7 @@ export interface ActiveStakeOptions {
 }
 export function activeStake(options: ActiveStakeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::account::Account`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -130,7 +130,7 @@ export interface InactiveStakeOptions {
 }
 export function inactiveStake(options: InactiveStakeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::account::Account`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -149,7 +149,7 @@ export interface CreatedProposalOptions {
 }
 export function createdProposal(options: CreatedProposalOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::account::Account`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -168,7 +168,7 @@ export interface VotedProposalOptions {
 }
 export function votedProposal(options: VotedProposalOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::account::Account`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -187,7 +187,7 @@ export interface SettledBalancesOptions {
 }
 export function settledBalances(options: SettledBalancesOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::account::Account`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({

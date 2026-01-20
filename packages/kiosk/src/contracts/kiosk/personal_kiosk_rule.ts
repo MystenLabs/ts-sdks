@@ -48,10 +48,7 @@ export interface AddOptions {
 /** Add the "owned" rule to the KioskOwnerCap. */
 export function add(options: AddOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferPolicyCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['policy', 'cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -79,10 +76,7 @@ export interface ProveOptions {
  */
 export function prove(options: ProveOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000002::kiosk::Kiosk',
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferRequest<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['kiosk', 'request'];
 	return (tx: Transaction) =>
 		tx.moveCall({

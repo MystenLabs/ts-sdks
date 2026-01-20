@@ -122,13 +122,13 @@ export function newCurrency(options: NewCurrencyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [
-		`${packageAddress}::coin_registry::CoinRegistry`,
+		null,
 		'u8',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+		'0x1::string::String',
+		'0x1::string::String',
+		'0x1::string::String',
+		'0x1::string::String',
+	] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -158,11 +158,11 @@ export function newCurrencyWithOtw<T0 extends BcsType<any>>(
 	const argumentsTypes = [
 		`${options.typeArguments[0]}`,
 		'u8',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+		'0x1::string::String',
+		'0x1::string::String',
+		'0x1::string::String',
+		'0x1::string::String',
+	] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -180,10 +180,7 @@ export interface ClaimMetadataCapOptions {
 export function claimMetadataCap(options: ClaimMetadataCapOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::TreasuryCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -201,10 +198,7 @@ export interface MakeRegulatedOptions {
 export function makeRegulated(options: MakeRegulatedOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::CurrencyInitializer<${options.typeArguments[0]}>`,
-		'bool',
-	] satisfies string[];
+	const argumentsTypes = [null, 'bool'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -222,10 +216,7 @@ export interface MakeSupplyFixedInitOptions {
 export function makeSupplyFixedInit(options: MakeSupplyFixedInitOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::CurrencyInitializer<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::TreasuryCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -243,10 +234,7 @@ export interface MakeSupplyBurnOnlyInitOptions {
 export function makeSupplyBurnOnlyInit(options: MakeSupplyBurnOnlyInitOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::CurrencyInitializer<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::TreasuryCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -264,10 +252,7 @@ export interface MakeSupplyFixedOptions {
 export function makeSupplyFixed(options: MakeSupplyFixedOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::TreasuryCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -285,10 +270,7 @@ export interface MakeSupplyBurnOnlyOptions {
 export function makeSupplyBurnOnly(options: MakeSupplyBurnOnlyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::TreasuryCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -306,9 +288,7 @@ export interface FinalizeOptions {
 export function finalize(options: FinalizeOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::CurrencyInitializer<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -326,9 +306,7 @@ export interface FinalizeAndDeleteMetadataCapOptions {
 export function finalizeAndDeleteMetadataCap(options: FinalizeAndDeleteMetadataCapOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::CurrencyInitializer<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -346,10 +324,7 @@ export interface FinalizeRegistrationOptions {
 export function finalizeRegistration(options: FinalizeRegistrationOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::CoinRegistry`,
-		`${packageAddress}::transfer::Receiving<${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -367,10 +342,7 @@ export interface DeleteMetadataCapOptions {
 export function deleteMetadataCap(options: DeleteMetadataCapOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin_registry::MetadataCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -388,10 +360,7 @@ export interface BurnOptions {
 export function burn(options: BurnOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::Coin<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -409,10 +378,7 @@ export interface BurnBalanceOptions {
 export function burnBalance(options: BurnBalanceOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::balance::Balance<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -434,11 +400,7 @@ export interface SetNameOptions {
 export function setName(options: SetNameOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin_registry::MetadataCap<${options.typeArguments[0]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::string::String'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -460,11 +422,7 @@ export interface SetDescriptionOptions {
 export function setDescription(options: SetDescriptionOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin_registry::MetadataCap<${options.typeArguments[0]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::string::String'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -486,11 +444,7 @@ export interface SetIconUrlOptions {
 export function setIconUrl(options: SetIconUrlOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin_registry::MetadataCap<${options.typeArguments[0]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::string::String'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -508,10 +462,7 @@ export interface SetTreasuryCapIdOptions {
 export function setTreasuryCapId(options: SetTreasuryCapIdOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::TreasuryCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -529,10 +480,7 @@ export interface MigrateLegacyMetadataOptions {
 export function migrateLegacyMetadata(options: MigrateLegacyMetadataOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::CoinRegistry`,
-		`${packageAddress}::coin::CoinMetadata<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -550,10 +498,7 @@ export interface UpdateFromLegacyMetadataOptions {
 export function updateFromLegacyMetadata(options: UpdateFromLegacyMetadataOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::CoinMetadata<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -571,10 +516,7 @@ export interface DeleteMigratedLegacyMetadataOptions {
 export function deleteMigratedLegacyMetadata(options: DeleteMigratedLegacyMetadataOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::CoinMetadata<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -592,10 +534,7 @@ export interface MigrateRegulatedStateByMetadataOptions {
 export function migrateRegulatedStateByMetadata(options: MigrateRegulatedStateByMetadataOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::RegulatedCoinMetadata<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -613,10 +552,7 @@ export interface MigrateRegulatedStateByCapOptions {
 export function migrateRegulatedStateByCap(options: MigrateRegulatedStateByCapOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::DenyCapV2<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -634,9 +570,7 @@ export interface BorrowLegacyMetadataOptions {
 export function borrowLegacyMetadata(options: BorrowLegacyMetadataOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -658,11 +592,7 @@ export interface ReturnBorrowedLegacyMetadataOptions {
 export function returnBorrowedLegacyMetadata(options: ReturnBorrowedLegacyMetadataOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::CoinMetadata<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin_registry::Borrow<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -680,9 +610,7 @@ export interface DecimalsOptions {
 export function decimals(options: DecimalsOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -700,9 +628,7 @@ export interface NameOptions {
 export function name(options: NameOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -720,9 +646,7 @@ export interface SymbolOptions {
 export function symbol(options: SymbolOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -740,9 +664,7 @@ export interface DescriptionOptions {
 export function description(options: DescriptionOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -760,9 +682,7 @@ export interface IconUrlOptions {
 export function iconUrl(options: IconUrlOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -780,9 +700,7 @@ export interface IsMetadataCapClaimedOptions {
 export function isMetadataCapClaimed(options: IsMetadataCapClaimedOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -800,9 +718,7 @@ export interface IsMetadataCapDeletedOptions {
 export function isMetadataCapDeleted(options: IsMetadataCapDeletedOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -820,9 +736,7 @@ export interface MetadataCapIdOptions {
 export function metadataCapId(options: MetadataCapIdOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -840,9 +754,7 @@ export interface TreasuryCapIdOptions {
 export function treasuryCapId(options: TreasuryCapIdOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -860,9 +772,7 @@ export interface DenyCapIdOptions {
 export function denyCapId(options: DenyCapIdOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -880,9 +790,7 @@ export interface IsSupplyFixedOptions {
 export function isSupplyFixed(options: IsSupplyFixedOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -900,9 +808,7 @@ export interface IsSupplyBurnOnlyOptions {
 export function isSupplyBurnOnly(options: IsSupplyBurnOnlyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -920,9 +826,7 @@ export interface IsRegulatedOptions {
 export function isRegulated(options: IsRegulatedOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -940,9 +844,7 @@ export interface TotalSupplyOptions {
 export function totalSupply(options: TotalSupplyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::coin_registry::Currency<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -960,7 +862,7 @@ export interface ExistsOptions {
 export function exists(options: ExistsOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::coin_registry::CoinRegistry`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

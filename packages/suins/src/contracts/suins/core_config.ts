@@ -69,9 +69,9 @@ export function _new(options: NewOptions) {
 		'u8',
 		'u8',
 		'u8',
-		'vector<0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::vec_map::VecMap<0x0000000000000000000000000000000000000000000000000000000000000001::string::String, 0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
-	] satisfies string[];
+		'vector<0x1::string::String>',
+		null,
+	] satisfies (string | null)[];
 	const parameterNames = [
 		'publicKey',
 		'minLabelLength',
@@ -98,7 +98,7 @@ export interface PublicKeyOptions {
 }
 export function publicKey(options: PublicKeyOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -117,7 +117,7 @@ export interface MinLabelLengthOptions {
 }
 export function minLabelLength(options: MinLabelLengthOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -136,7 +136,7 @@ export interface MaxLabelLengthOptions {
 }
 export function maxLabelLength(options: MaxLabelLengthOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -158,10 +158,7 @@ export interface IsValidTldOptions {
 }
 export function isValidTld(options: IsValidTldOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::core_config::CoreConfig`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['config', 'tld'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -180,7 +177,7 @@ export interface PaymentsVersionOptions {
 }
 export function paymentsVersion(options: PaymentsVersionOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -199,7 +196,7 @@ export interface MaxYearsOptions {
 }
 export function maxYears(options: MaxYearsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::core_config::CoreConfig`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
