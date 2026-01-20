@@ -181,6 +181,11 @@ export const mainnetCoins: CoinMap = {
 		type: `0x0041f9f9344cac094454cd574e333c4fdb132d7bcc9379bcd4aab485b2a63942::wbtc::WBTC`,
 		scalar: 100000000,
 	},
+	USDT: {
+		address: `0x375f70cf2ae4c00bf37117d0c85a2c71545e6ee05c4a5c7d282cd66a4504b068`,
+		type: `0x375f70cf2ae4c00bf37117d0c85a2c71545e6ee05c4a5c7d282cd66a4504b068::usdt::USDT`,
+		scalar: 1000000,
+	},
 	// This coin is experimental
 	WGIGA: {
 		address: `0xec32640add6d02a1d5f0425d72705eb76d9de7edfd4f34e0dba68e62ecceb05b`,
@@ -321,6 +326,11 @@ export const mainnetPools: PoolMap = {
 	LZWBTC_USDC: {
 		address: `0xf5142aafa24866107df628bf92d0358c7da6acc46c2f10951690fd2b8570f117`,
 		baseCoin: 'LZWBTC',
+		quoteCoin: 'USDC',
+	},
+	USDT_USDC: {
+		address: '0xfc28a2fb22579c16d672a1152039cbf671e5f4b9f103feddff4ea06ef3c2bc25',
+		baseCoin: 'USDT',
 		quoteCoin: 'USDC',
 	},
 };
