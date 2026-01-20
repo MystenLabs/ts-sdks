@@ -375,9 +375,13 @@ export type AvailableRange = {
 /** The total balance for a particular coin type. */
 export type Balance = {
   __typename?: 'Balance';
+  /** The balance as tracked by the accumulator object for the address. */
+  addressBalance?: Maybe<Scalars['BigInt']['output']>;
+  /** Total balance across all owned coin objects of the coin type. */
+  coinBalance?: Maybe<Scalars['BigInt']['output']>;
   /** Coin type for the balance, such as `0x2::sui::SUI`. */
   coinType?: Maybe<MoveType>;
-  /** The total balance across all coin objects of this coin type. */
+  /** The sum total of the accumulator balance and individual coin balances owned by the address. */
   totalBalance?: Maybe<Scalars['BigInt']['output']>;
 };
 
@@ -4593,7 +4597,7 @@ export type GetAllBalancesQueryVariables = Exact<{
 }>;
 
 
-export type GetAllBalancesQuery = { __typename?: 'Query', address?: { __typename?: 'Address', balances?: { __typename?: 'BalanceConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Balance', totalBalance?: string | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null } | null };
+export type GetAllBalancesQuery = { __typename?: 'Query', address?: { __typename?: 'Address', balances?: { __typename?: 'BalanceConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'Balance', totalBalance?: string | null, addressBalance?: string | null, coinType?: { __typename?: 'MoveType', repr: string } | null }> } | null } | null };
 
 export type GetBalanceQueryVariables = Exact<{
   owner: Scalars['SuiAddress']['input'];
@@ -4601,7 +4605,7 @@ export type GetBalanceQueryVariables = Exact<{
 }>;
 
 
-export type GetBalanceQuery = { __typename?: 'Query', address?: { __typename?: 'Address', balance?: { __typename?: 'Balance', totalBalance?: string | null, coinType?: { __typename?: 'MoveType', repr: string } | null } | null } | null };
+export type GetBalanceQuery = { __typename?: 'Query', address?: { __typename?: 'Address', balance?: { __typename?: 'Balance', totalBalance?: string | null, addressBalance?: string | null, coinType?: { __typename?: 'MoveType', repr: string } | null } | null } | null };
 
 export type GetChainIdentifierQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -5006,6 +5010,7 @@ export const GetAllBalancesDocument = new TypedDocumentString(`
           repr
         }
         totalBalance
+        addressBalance
       }
     }
   }
@@ -5019,6 +5024,7 @@ export const GetBalanceDocument = new TypedDocumentString(`
         repr
       }
       totalBalance
+      addressBalance
     }
   }
 }

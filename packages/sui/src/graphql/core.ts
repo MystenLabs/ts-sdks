@@ -237,19 +237,21 @@ export class GraphQLCoreClient extends CoreClient {
 				query: GetBalanceDocument,
 				variables: {
 					owner: options.owner,
-					type: (await this.mvr.resolveType({ type: coinType })).type,
+					coinType: (await this.mvr.resolveType({ type: coinType })).type,
 				},
 			},
 			(result) => result.address?.balance,
 		);
 
+		const addressBalance = BigInt(result.addressBalance ?? '0');
+		const coinBalance = BigInt(result.totalBalance ?? '0') - addressBalance;
+
 		return {
 			balance: {
 				coinType: result.coinType?.repr ?? coinType,
 				balance: result.totalBalance ?? '0',
-				// TODO: support address balances
-				coinBalance: result.totalBalance ?? '0',
-				addressBalance: '0',
+				coinBalance: coinBalance.toString(),
+				addressBalance: addressBalance.toString(),
 			},
 		};
 	}
@@ -267,13 +269,16 @@ export class GraphQLCoreClient extends CoreClient {
 		return {
 			cursor: balances.pageInfo.endCursor ?? null,
 			hasNextPage: balances.pageInfo.hasNextPage,
-			balances: balances.nodes.map((balance) => ({
-				coinType: balance.coinType?.repr!,
-				balance: balance.totalBalance!,
-				// TODO: support address balances
-				coinBalance: balance.totalBalance!,
-				addressBalance: '0',
-			})),
+			balances: balances.nodes.map((balance) => {
+				const addressBalance = BigInt(balance.addressBalance ?? '0');
+				const coinBalance = BigInt(balance.totalBalance ?? '0') - addressBalance;
+				return {
+					coinType: balance.coinType?.repr!,
+					balance: balance.totalBalance!,
+					coinBalance: coinBalance.toString(),
+					addressBalance: addressBalance.toString(),
+				};
+			}),
 		};
 	}
 	async getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(

@@ -345,6 +345,12 @@ export enum TransactionKind_Kind {
 	 * @generated from protobuf enum value: CONSENSUS_COMMIT_PROLOGUE_V4 = 10;
 	 */
 	CONSENSUS_COMMIT_PROLOGUE_V4 = 10,
+	/**
+	 * A system transaction comprised of a list of native commands and Move calls.
+	 *
+	 * @generated from protobuf enum value: PROGRAMMABLE_SYSTEM_TRANSACTION = 11;
+	 */
+	PROGRAMMABLE_SYSTEM_TRANSACTION = 11,
 }
 /**
  * A user transaction.
@@ -1017,6 +1023,15 @@ export interface EndOfEpochTransactionKind {
 				bridgeObjectVersion: bigint;
 		  }
 		| {
+				oneofKind: 'storageCost';
+				/**
+				 * Contains the end-of-epoch-computed storage cost for accumulator objects.
+				 *
+				 * @generated from protobuf field: uint64 storage_cost = 7;
+				 */
+				storageCost: bigint;
+		  }
+		| {
 				oneofKind: undefined;
 		  };
 }
@@ -1100,6 +1115,12 @@ export enum EndOfEpochTransactionKind_Kind {
 	 * @generated from protobuf enum value: ADDRESS_ALIAS_STATE_CREATE = 12;
 	 */
 	ADDRESS_ALIAS_STATE_CREATE = 12,
+	/**
+	 * Write the end-of-epoch-computed storage cost for accumulator objects.
+	 *
+	 * @generated from protobuf enum value: WRITE_ACCUMULATOR_STORAGE_COST = 13;
+	 */
+	WRITE_ACCUMULATOR_STORAGE_COST = 13,
 }
 /**
  * Expire old JWKs.
@@ -1942,6 +1963,14 @@ class EndOfEpochTransactionKind$Type extends MessageType<EndOfEpochTransactionKi
 			{
 				no: 6,
 				name: 'bridge_object_version',
+				kind: 'scalar',
+				oneof: 'data',
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{
+				no: 7,
+				name: 'storage_cost',
 				kind: 'scalar',
 				oneof: 'data',
 				T: 4 /*ScalarType.UINT64*/,

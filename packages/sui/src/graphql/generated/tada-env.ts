@@ -839,6 +839,24 @@ const introspection = {
         "name": "Balance",
         "fields": [
           {
+            "name": "addressBalance",
+            "type": {
+              "kind": "SCALAR",
+              "name": "BigInt"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "coinBalance",
+            "type": {
+              "kind": "SCALAR",
+              "name": "BigInt"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
             "name": "coinType",
             "type": {
               "kind": "OBJECT",

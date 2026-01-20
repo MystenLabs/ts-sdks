@@ -38,7 +38,7 @@ describe('coinWithBalance', () => {
 			target: `${packageId}::test::mint`,
 			arguments: [
 				mintTx.object(treasuryCapId),
-				mintTx.pure.u64(50), // enough for multiple test runs
+				mintTx.pure.u64(100), // enough for multiple test runs across all clients
 				mintTx.pure.address(publishToolbox.address()),
 			],
 		});
@@ -808,377 +808,369 @@ describe('coinWithBalance', () => {
 	});
 
 	describe('with address balance', () => {
-		testWithAllClients(
-			'uses address balance for SUI when available',
-			async (client) => {
-				const depositAmount = 100_000_000n;
-				const depositTx = new Transaction();
-				const [coinToDeposit] = depositTx.splitCoins(depositTx.gas, [depositAmount]);
-				depositTx.moveCall({
-					target: '0x2::coin::send_funds',
-					typeArguments: ['0x2::sui::SUI'],
-					arguments: [coinToDeposit, depositTx.pure.address(toolbox.address())],
-				});
+		testWithAllClients('uses address balance for SUI when available', async (client) => {
+			const depositAmount = 100_000_000n;
+			const depositTx = new Transaction();
+			const [coinToDeposit] = depositTx.splitCoins(depositTx.gas, [depositAmount]);
+			depositTx.moveCall({
+				target: '0x2::coin::send_funds',
+				typeArguments: ['0x2::sui::SUI'],
+				arguments: [coinToDeposit, depositTx.pure.address(toolbox.address())],
+			});
 
-				const depositResult = await client.core.signAndExecuteTransaction({
-					transaction: depositTx,
-					signer: toolbox.keypair,
-				});
-				if (depositResult.$kind !== 'Transaction') throw new Error('Deposit failed');
-				await client.core.waitForTransaction({ digest: depositResult.Transaction.digest });
+			const depositResult = await client.core.signAndExecuteTransaction({
+				transaction: depositTx,
+				signer: toolbox.keypair,
+			});
+			if (depositResult.$kind !== 'Transaction') throw new Error('Deposit failed');
+			await client.core.waitForTransaction({ digest: depositResult.Transaction.digest });
 
-				const receiver = new Ed25519Keypair();
-				const requestAmount1 = 25_000_000n;
-				const requestAmount2 = 25_000_000n;
-				const totalAmount = requestAmount1 + requestAmount2;
+			const receiver = new Ed25519Keypair();
+			const requestAmount1 = 25_000_000n;
+			const requestAmount2 = 25_000_000n;
+			const totalAmount = requestAmount1 + requestAmount2;
 
-				const tx = new Transaction();
-				tx.transferObjects(
-					[
-						coinWithBalance({ type: 'gas', balance: requestAmount1 }),
-						coinWithBalance({ type: 'gas', balance: requestAmount2 }),
-					],
-					receiver.toSuiAddress(),
-				);
-				tx.setSender(toolbox.address());
+			const tx = new Transaction();
+			tx.transferObjects(
+				[
+					coinWithBalance({ type: 'gas', balance: requestAmount1 }),
+					coinWithBalance({ type: 'gas', balance: requestAmount2 }),
+				],
+				receiver.toSuiAddress(),
+			);
+			tx.setSender(toolbox.address());
 
-				expect(
-					JSON.parse(
-						await tx.toJSON({
-							supportedIntents: ['CoinWithBalance'],
-						}),
-					),
-				).toEqual({
-					expiration: null,
-					gasData: {
-						budget: null,
-						owner: null,
-						payment: null,
-						price: null,
-					},
-					inputs: [
-						{
-							Pure: {
-								bytes: toBase64(fromHex(receiver.toSuiAddress())),
-							},
-						},
-					],
-					sender: toolbox.address(),
-					commands: [
-						{
-							$Intent: {
-								data: {
-									balance: String(requestAmount1),
-									type: 'gas',
-								},
-								inputs: {},
-								name: 'CoinWithBalance',
-							},
-						},
-						{
-							$Intent: {
-								data: {
-									balance: String(requestAmount2),
-									type: 'gas',
-								},
-								inputs: {},
-								name: 'CoinWithBalance',
-							},
-						},
-						{
-							TransferObjects: {
-								objects: [{ Result: 0 }, { Result: 1 }],
-								address: { Input: 0 },
-							},
-						},
-					],
-					version: 2,
-				});
-
-				const resolved = JSON.parse(
+			expect(
+				JSON.parse(
 					await tx.toJSON({
-						supportedIntents: [],
-						client,
+						supportedIntents: ['CoinWithBalance'],
 					}),
-				);
-
-				expect(resolved.inputs).toEqual([
+				),
+			).toEqual({
+				expiration: null,
+				gasData: {
+					budget: null,
+					owner: null,
+					payment: null,
+					price: null,
+				},
+				inputs: [
 					{
 						Pure: {
 							bytes: toBase64(fromHex(receiver.toSuiAddress())),
 						},
 					},
+				],
+				sender: toolbox.address(),
+				commands: [
 					{
-						FundsWithdrawal: {
-							reservation: {
-								$kind: 'MaxAmountU64',
-								MaxAmountU64: String(requestAmount1),
+						$Intent: {
+							data: {
+								balance: String(requestAmount1),
+								type: 'gas',
 							},
-							typeArg: {
-								$kind: 'Balance',
-								Balance: normalizeStructTag('0x2::sui::SUI'),
-							},
-							withdrawFrom: {
-								$kind: 'Sender',
-								Sender: true,
-							},
+							inputs: {},
+							name: 'CoinWithBalance',
 						},
 					},
 					{
-						FundsWithdrawal: {
-							reservation: {
-								$kind: 'MaxAmountU64',
-								MaxAmountU64: String(requestAmount2),
+						$Intent: {
+							data: {
+								balance: String(requestAmount2),
+								type: 'gas',
 							},
-							typeArg: {
-								$kind: 'Balance',
-								Balance: normalizeStructTag('0x2::sui::SUI'),
-							},
-							withdrawFrom: {
-								$kind: 'Sender',
-								Sender: true,
-							},
-						},
-					},
-				]);
-
-				expect(resolved.commands).toEqual([
-					{
-						MoveCall: {
-							package: normalizeSuiAddress('0x2'),
-							module: 'coin',
-							function: 'redeem_funds',
-							typeArguments: [normalizeStructTag('0x2::sui::SUI')],
-							arguments: [{ Input: 1 }],
-						},
-					},
-					{
-						MoveCall: {
-							package: normalizeSuiAddress('0x2'),
-							module: 'coin',
-							function: 'redeem_funds',
-							typeArguments: [normalizeStructTag('0x2::sui::SUI')],
-							arguments: [{ Input: 2 }],
+							inputs: {},
+							name: 'CoinWithBalance',
 						},
 					},
 					{
 						TransferObjects: {
-							objects: [{ NestedResult: [0, 0] }, { NestedResult: [1, 0] }],
+							objects: [{ Result: 0 }, { Result: 1 }],
 							address: { Input: 0 },
 						},
 					},
-				]);
+				],
+				version: 2,
+			});
 
-				const result = await client.core.signAndExecuteTransaction({
-					transaction: tx,
-					signer: toolbox.keypair,
-					include: { balanceChanges: true },
-				});
+			const resolved = JSON.parse(
+				await tx.toJSON({
+					supportedIntents: [],
+					client,
+				}),
+			);
 
-				await client.core.waitForTransaction({ result });
-
-				expect(result.$kind).toBe('Transaction');
-				if (result.$kind !== 'Transaction') throw new Error('Transaction failed');
-
-				expect(result.Transaction.status.success).toBe(true);
-				expect(
-					result.Transaction.balanceChanges?.find(
-						(change) => change.address === receiver.toSuiAddress(),
-					)?.amount,
-				).toBe(String(totalAmount));
-			},
-			{ skip: ['graphql'] },
-		);
-
-		testWithAllClients(
-			'uses address balance for custom coin when available',
-			async (client) => {
-				const coins = await client.core.listCoins({
-					owner: publishToolbox.address(),
-					coinType: testType,
-				});
-				expect(coins.objects.length).toBeGreaterThan(0);
-
-				const depositAmount = 4n;
-				const depositTx = new Transaction();
-				const [coinToDeposit] = depositTx.splitCoins(depositTx.object(coins.objects[0].objectId), [
-					depositAmount,
-				]);
-				depositTx.moveCall({
-					target: '0x2::coin::send_funds',
-					typeArguments: [testType],
-					arguments: [coinToDeposit, depositTx.pure.address(publishToolbox.address())],
-				});
-
-				const depositResult = await client.core.signAndExecuteTransaction({
-					transaction: depositTx,
-					signer: publishToolbox.keypair,
-				});
-				if (depositResult.$kind !== 'Transaction') throw new Error('Deposit failed');
-				await client.core.waitForTransaction({ digest: depositResult.Transaction.digest });
-
-				const receiver = new Ed25519Keypair();
-				const requestAmount1 = 1n;
-				const requestAmount2 = 1n;
-				const totalAmount = requestAmount1 + requestAmount2;
-
-				const tx = new Transaction();
-				tx.transferObjects(
-					[
-						coinWithBalance({ type: testType, balance: requestAmount1 }),
-						coinWithBalance({ type: testType, balance: requestAmount2 }),
-					],
-					receiver.toSuiAddress(),
-				);
-				tx.setSender(publishToolbox.address());
-
-				expect(
-					JSON.parse(
-						await tx.toJSON({
-							supportedIntents: ['CoinWithBalance'],
-						}),
-					),
-				).toEqual({
-					expiration: null,
-					gasData: {
-						budget: null,
-						owner: null,
-						payment: null,
-						price: null,
+			expect(resolved.inputs).toEqual([
+				{
+					Pure: {
+						bytes: toBase64(fromHex(receiver.toSuiAddress())),
 					},
-					inputs: [
-						{
-							Pure: {
-								bytes: toBase64(fromHex(receiver.toSuiAddress())),
-							},
+				},
+				{
+					FundsWithdrawal: {
+						reservation: {
+							$kind: 'MaxAmountU64',
+							MaxAmountU64: String(requestAmount1),
 						},
-					],
-					sender: publishToolbox.address(),
-					commands: [
-						{
-							$Intent: {
-								data: {
-									balance: String(requestAmount1),
-									type: testType,
-								},
-								inputs: {},
-								name: 'CoinWithBalance',
-							},
+						typeArg: {
+							$kind: 'Balance',
+							Balance: normalizeStructTag('0x2::sui::SUI'),
 						},
-						{
-							$Intent: {
-								data: {
-									balance: String(requestAmount2),
-									type: testType,
-								},
-								inputs: {},
-								name: 'CoinWithBalance',
-							},
+						withdrawFrom: {
+							$kind: 'Sender',
+							Sender: true,
 						},
-						{
-							TransferObjects: {
-								objects: [{ Result: 0 }, { Result: 1 }],
-								address: { Input: 0 },
-							},
+					},
+				},
+				{
+					FundsWithdrawal: {
+						reservation: {
+							$kind: 'MaxAmountU64',
+							MaxAmountU64: String(requestAmount2),
 						},
-					],
-					version: 2,
-				});
+						typeArg: {
+							$kind: 'Balance',
+							Balance: normalizeStructTag('0x2::sui::SUI'),
+						},
+						withdrawFrom: {
+							$kind: 'Sender',
+							Sender: true,
+						},
+					},
+				},
+			]);
 
-				const resolved = JSON.parse(
+			expect(resolved.commands).toEqual([
+				{
+					MoveCall: {
+						package: normalizeSuiAddress('0x2'),
+						module: 'coin',
+						function: 'redeem_funds',
+						typeArguments: [normalizeStructTag('0x2::sui::SUI')],
+						arguments: [{ Input: 1 }],
+					},
+				},
+				{
+					MoveCall: {
+						package: normalizeSuiAddress('0x2'),
+						module: 'coin',
+						function: 'redeem_funds',
+						typeArguments: [normalizeStructTag('0x2::sui::SUI')],
+						arguments: [{ Input: 2 }],
+					},
+				},
+				{
+					TransferObjects: {
+						objects: [{ NestedResult: [0, 0] }, { NestedResult: [1, 0] }],
+						address: { Input: 0 },
+					},
+				},
+			]);
+
+			const result = await client.core.signAndExecuteTransaction({
+				transaction: tx,
+				signer: toolbox.keypair,
+				include: { balanceChanges: true },
+			});
+
+			await client.core.waitForTransaction({ result });
+
+			expect(result.$kind).toBe('Transaction');
+			if (result.$kind !== 'Transaction') throw new Error('Transaction failed');
+
+			expect(result.Transaction.status.success).toBe(true);
+			expect(
+				result.Transaction.balanceChanges?.find(
+					(change) => change.address === receiver.toSuiAddress(),
+				)?.amount,
+			).toBe(String(totalAmount));
+		});
+
+		testWithAllClients('uses address balance for custom coin when available', async (client) => {
+			const coins = await client.core.listCoins({
+				owner: publishToolbox.address(),
+				coinType: testType,
+			});
+			expect(coins.objects.length).toBeGreaterThan(0);
+
+			const depositAmount = 4n;
+			const depositTx = new Transaction();
+			const [coinToDeposit] = depositTx.splitCoins(depositTx.object(coins.objects[0].objectId), [
+				depositAmount,
+			]);
+			depositTx.moveCall({
+				target: '0x2::coin::send_funds',
+				typeArguments: [testType],
+				arguments: [coinToDeposit, depositTx.pure.address(publishToolbox.address())],
+			});
+
+			const depositResult = await client.core.signAndExecuteTransaction({
+				transaction: depositTx,
+				signer: publishToolbox.keypair,
+			});
+			if (depositResult.$kind !== 'Transaction') throw new Error('Deposit failed');
+			await client.core.waitForTransaction({ digest: depositResult.Transaction.digest });
+
+			const receiver = new Ed25519Keypair();
+			const requestAmount1 = 1n;
+			const requestAmount2 = 1n;
+			const totalAmount = requestAmount1 + requestAmount2;
+
+			const tx = new Transaction();
+			tx.transferObjects(
+				[
+					coinWithBalance({ type: testType, balance: requestAmount1 }),
+					coinWithBalance({ type: testType, balance: requestAmount2 }),
+				],
+				receiver.toSuiAddress(),
+			);
+			tx.setSender(publishToolbox.address());
+
+			expect(
+				JSON.parse(
 					await tx.toJSON({
-						supportedIntents: [],
-						client,
+						supportedIntents: ['CoinWithBalance'],
 					}),
-				);
-
-				expect(resolved.inputs).toEqual([
+				),
+			).toEqual({
+				expiration: null,
+				gasData: {
+					budget: null,
+					owner: null,
+					payment: null,
+					price: null,
+				},
+				inputs: [
 					{
 						Pure: {
 							bytes: toBase64(fromHex(receiver.toSuiAddress())),
 						},
 					},
+				],
+				sender: publishToolbox.address(),
+				commands: [
 					{
-						FundsWithdrawal: {
-							reservation: {
-								$kind: 'MaxAmountU64',
-								MaxAmountU64: String(requestAmount1),
+						$Intent: {
+							data: {
+								balance: String(requestAmount1),
+								type: testType,
 							},
-							typeArg: {
-								$kind: 'Balance',
-								Balance: testType,
-							},
-							withdrawFrom: {
-								$kind: 'Sender',
-								Sender: true,
-							},
+							inputs: {},
+							name: 'CoinWithBalance',
 						},
 					},
 					{
-						FundsWithdrawal: {
-							reservation: {
-								$kind: 'MaxAmountU64',
-								MaxAmountU64: String(requestAmount2),
+						$Intent: {
+							data: {
+								balance: String(requestAmount2),
+								type: testType,
 							},
-							typeArg: {
-								$kind: 'Balance',
-								Balance: testType,
-							},
-							withdrawFrom: {
-								$kind: 'Sender',
-								Sender: true,
-							},
-						},
-					},
-				]);
-
-				expect(resolved.commands).toEqual([
-					{
-						MoveCall: {
-							package: normalizeSuiAddress('0x2'),
-							module: 'coin',
-							function: 'redeem_funds',
-							typeArguments: [testType],
-							arguments: [{ Input: 1 }],
-						},
-					},
-					{
-						MoveCall: {
-							package: normalizeSuiAddress('0x2'),
-							module: 'coin',
-							function: 'redeem_funds',
-							typeArguments: [testType],
-							arguments: [{ Input: 2 }],
+							inputs: {},
+							name: 'CoinWithBalance',
 						},
 					},
 					{
 						TransferObjects: {
-							objects: [{ NestedResult: [0, 0] }, { NestedResult: [1, 0] }],
+							objects: [{ Result: 0 }, { Result: 1 }],
 							address: { Input: 0 },
 						},
 					},
-				]);
+				],
+				version: 2,
+			});
 
-				const result = await client.core.signAndExecuteTransaction({
-					transaction: tx,
-					signer: publishToolbox.keypair,
-					include: { balanceChanges: true },
-				});
+			const resolved = JSON.parse(
+				await tx.toJSON({
+					supportedIntents: [],
+					client,
+				}),
+			);
 
-				await client.core.waitForTransaction({ result });
+			expect(resolved.inputs).toEqual([
+				{
+					Pure: {
+						bytes: toBase64(fromHex(receiver.toSuiAddress())),
+					},
+				},
+				{
+					FundsWithdrawal: {
+						reservation: {
+							$kind: 'MaxAmountU64',
+							MaxAmountU64: String(requestAmount1),
+						},
+						typeArg: {
+							$kind: 'Balance',
+							Balance: testType,
+						},
+						withdrawFrom: {
+							$kind: 'Sender',
+							Sender: true,
+						},
+					},
+				},
+				{
+					FundsWithdrawal: {
+						reservation: {
+							$kind: 'MaxAmountU64',
+							MaxAmountU64: String(requestAmount2),
+						},
+						typeArg: {
+							$kind: 'Balance',
+							Balance: testType,
+						},
+						withdrawFrom: {
+							$kind: 'Sender',
+							Sender: true,
+						},
+					},
+				},
+			]);
 
-				expect(result.$kind).toBe('Transaction');
-				if (result.$kind !== 'Transaction') throw new Error('Transaction failed');
+			expect(resolved.commands).toEqual([
+				{
+					MoveCall: {
+						package: normalizeSuiAddress('0x2'),
+						module: 'coin',
+						function: 'redeem_funds',
+						typeArguments: [testType],
+						arguments: [{ Input: 1 }],
+					},
+				},
+				{
+					MoveCall: {
+						package: normalizeSuiAddress('0x2'),
+						module: 'coin',
+						function: 'redeem_funds',
+						typeArguments: [testType],
+						arguments: [{ Input: 2 }],
+					},
+				},
+				{
+					TransferObjects: {
+						objects: [{ NestedResult: [0, 0] }, { NestedResult: [1, 0] }],
+						address: { Input: 0 },
+					},
+				},
+			]);
 
-				expect(result.Transaction.status.success).toBe(true);
-				expect(
-					result.Transaction.balanceChanges?.find(
-						(change) => change.address === receiver.toSuiAddress(),
-					)?.amount,
-				).toBe(String(totalAmount));
-			},
-			{ skip: ['graphql'] },
-		);
+			const result = await client.core.signAndExecuteTransaction({
+				transaction: tx,
+				signer: publishToolbox.keypair,
+				include: { balanceChanges: true },
+			});
+
+			await client.core.waitForTransaction({ result });
+
+			expect(result.$kind).toBe('Transaction');
+			if (result.$kind !== 'Transaction') throw new Error('Transaction failed');
+
+			expect(result.Transaction.status.success).toBe(true);
+			expect(
+				result.Transaction.balanceChanges?.find(
+					(change) => change.address === receiver.toSuiAddress(),
+				)?.amount,
+			).toBe(String(totalAmount));
+		});
 
 		testWithAllClients(
 			'combines address balance and coins when neither is sufficient alone',
@@ -1362,7 +1354,6 @@ describe('coinWithBalance', () => {
 					)?.amount,
 				).toBe(String(totalAmount));
 			},
-			{ skip: ['graphql'] },
 		);
 
 		testWithAllClients(
@@ -1574,7 +1565,6 @@ describe('coinWithBalance', () => {
 					)?.amount,
 				).toBe(String(totalAmount));
 			},
-			{ skip: ['graphql'] },
 		);
 	});
 });
