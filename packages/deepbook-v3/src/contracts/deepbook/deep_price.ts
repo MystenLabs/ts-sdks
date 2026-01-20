@@ -53,7 +53,7 @@ export interface AssetIsBaseOptions {
 }
 export function assetIsBase(options: AssetIsBaseOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::deep_price::OrderDeepPrice`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -72,7 +72,7 @@ export interface DeepPerAssetOptions {
 }
 export function deepPerAsset(options: DeepPerAssetOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::deep_price::OrderDeepPrice`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({

@@ -30,9 +30,7 @@ export interface NewOptions {
 export function _new(options: NewOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`vector<${packageAddress}::priority_queue::Entry<${options.typeArguments[0]}>>`,
-	] satisfies string[];
+	const argumentsTypes = ['vector<null>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -50,9 +48,7 @@ export interface PopMaxOptions {
 export function popMax(options: PopMaxOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::priority_queue::PriorityQueue<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -74,11 +70,7 @@ export interface InsertOptions<T0 extends BcsType<any>> {
 export function insert<T0 extends BcsType<any>>(options: InsertOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::priority_queue::PriorityQueue<${options.typeArguments[0]}>`,
-		'u64',
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64', `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -96,7 +88,7 @@ export interface NewEntryOptions<T0 extends BcsType<any>> {
 export function newEntry<T0 extends BcsType<any>>(options: NewEntryOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['u64', `${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = ['u64', `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -114,7 +106,10 @@ export interface CreateEntriesOptions<T0 extends BcsType<any>> {
 export function createEntries<T0 extends BcsType<any>>(options: CreateEntriesOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u64>', `vector<${options.typeArguments[0]}>`] satisfies string[];
+	const argumentsTypes = ['vector<u64>', `vector<${options.typeArguments[0]}>`] satisfies (
+		| string
+		| null
+	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -132,9 +127,7 @@ export interface PrioritiesOptions {
 export function priorities(options: PrioritiesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::priority_queue::PriorityQueue<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

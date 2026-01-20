@@ -29,7 +29,7 @@ export interface NewOptions {
 }
 export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::suins::AdminCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['_'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -61,12 +61,7 @@ export interface AddRecordIgnoringGracePeriodOptions {
  */
 export function addRecordIgnoringGracePeriod(options: AddRecordIgnoringGracePeriodOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::domain::Domain`,
-		'u8',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u8', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain', 'noYears'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -98,12 +93,7 @@ export interface AddRecordOptions {
  */
 export function addRecord(options: AddRecordOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::domain::Domain`,
-		'u8',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u8', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain', 'noYears'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -129,11 +119,7 @@ export interface BurnRegistrationObjectOptions {
  */
 export function burnRegistrationObject(options: BurnRegistrationObjectOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self', 'nft'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -156,11 +142,7 @@ export interface WrapSubdomainOptions {
 /** Allow creation of subdomain wrappers only to authorized modules. */
 export function wrapSubdomain(options: WrapSubdomainOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['_', 'nft'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -186,11 +168,7 @@ export interface BurnSubdomainObjectOptions {
  */
 export function burnSubdomainObject(options: BurnSubdomainObjectOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self', 'nft'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -233,12 +211,7 @@ export interface AddLeafRecordOptions {
  */
 export function addLeafRecord(options: AddLeafRecordOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::domain::Domain`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-		'address',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::clock::Clock', 'address'] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain', 'target'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -265,10 +238,7 @@ export interface RemoveLeafRecordOptions {
  */
 export function removeLeafRecord(options: RemoveLeafRecordOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::domain::Domain`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -295,11 +265,7 @@ export interface SetTargetAddressOptions {
 }
 export function setTargetAddress(options: SetTargetAddressOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::domain::Domain`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<address>',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::option::Option<address>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain', 'newTarget'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -321,7 +287,7 @@ export interface UnsetReverseLookupOptions {
 }
 export function unsetReverseLookup(options: UnsetReverseLookupOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::registry::Registry`, 'address'] satisfies string[];
+	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['self', 'address'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -349,11 +315,7 @@ export interface SetReverseLookupOptions {
 /** Reverse lookup can only be set for the record that has the target address. */
 export function setReverseLookup(options: SetReverseLookupOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		'address',
-		`${packageAddress}::domain::Domain`,
-	] satisfies string[];
+	const argumentsTypes = [null, 'address', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'address', 'domain'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -387,12 +349,7 @@ export interface SetExpirationTimestampMsOptions {
  */
 export function setExpirationTimestampMs(options: SetExpirationTimestampMsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-		`${packageAddress}::domain::Domain`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'nft', 'domain', 'expirationTimestampMs'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -425,11 +382,7 @@ export interface SetDataOptions {
  */
 export function setData(options: SetDataOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::domain::Domain`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::vec_map::VecMap<0x0000000000000000000000000000000000000000000000000000000000000001::string::String, 0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain', 'data'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -452,10 +405,7 @@ export interface HasRecordOptions {
 /** Check whether the given `domain` is registered in the `Registry`. */
 export function hasRecord(options: HasRecordOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::domain::Domain`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -478,10 +428,7 @@ export interface LookupOptions {
 /** Returns the `NameRecord` associated with the given domain or None. */
 export function lookup(options: LookupOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::domain::Domain`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -504,7 +451,7 @@ export interface ReverseLookupOptions {
 /** Returns the `domain_name` associated with the given address or None. */
 export function reverseLookup(options: ReverseLookupOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::registry::Registry`, 'address'] satisfies string[];
+	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['self', 'address'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -532,11 +479,7 @@ export interface AssertNftIsAuthorizedOptions {
  */
 export function assertNftIsAuthorized(options: AssertNftIsAuthorizedOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self', 'nft'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -559,10 +502,7 @@ export interface GetDataOptions {
 /** Returns the `data` associated with the given `Domain`. */
 export function getData(options: GetDataOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::domain::Domain`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain'];
 	return (tx: Transaction) =>
 		tx.moveCall({

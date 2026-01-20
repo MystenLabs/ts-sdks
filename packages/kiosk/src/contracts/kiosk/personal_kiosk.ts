@@ -51,10 +51,7 @@ export interface DefaultOptions {
 /** The default setup for the PersonalKioskCap. */
 export function _default(options: DefaultOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000002::kiosk::Kiosk',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::kiosk::KioskOwnerCap',
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['kiosk', 'cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -81,10 +78,7 @@ export interface NewOptions {
  */
 export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000002::kiosk::Kiosk',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::kiosk::KioskOwnerCap',
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['kiosk', 'cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -115,11 +109,7 @@ export interface CreateForOptions {
  */
 export function createFor(options: CreateForOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000002::kiosk::Kiosk',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::kiosk::KioskOwnerCap',
-		'address',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['kiosk', 'cap', 'recipient'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -139,7 +129,7 @@ export interface BorrowOptions {
 /** Borrow the `KioskOwnerCap` from the `PersonalKioskCap` object. */
 export function borrow(options: BorrowOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [`${packageAddress}::personal_kiosk::PersonalKioskCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -159,7 +149,7 @@ export interface BorrowMutOptions {
 /** Mutably borrow the `KioskOwnerCap` from the `PersonalKioskCap` object. */
 export function borrowMut(options: BorrowMutOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [`${packageAddress}::personal_kiosk::PersonalKioskCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -182,7 +172,7 @@ export interface BorrowValOptions {
  */
 export function borrowVal(options: BorrowValOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [`${packageAddress}::personal_kiosk::PersonalKioskCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -210,11 +200,7 @@ export interface ReturnValOptions {
 /** Return the Cap to the PersonalKioskCap object. */
 export function returnVal(options: ReturnValOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		`${packageAddress}::personal_kiosk::PersonalKioskCap`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::kiosk::KioskOwnerCap',
-		`${packageAddress}::personal_kiosk::Borrow`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'cap', 'borrow'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -234,9 +220,7 @@ export interface IsPersonalOptions {
 /** Check if the Kiosk is "personal". */
 export function isPersonal(options: IsPersonalOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000002::kiosk::Kiosk',
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['kiosk'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -256,9 +240,7 @@ export interface OwnerOptions {
 /** Get the owner of the Kiosk if the Kiosk is "personal". Aborts otherwise. */
 export function owner(options: OwnerOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000002::kiosk::Kiosk',
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['kiosk'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -281,9 +263,7 @@ export interface TryOwnerOptions {
  */
 export function tryOwner(options: TryOwnerOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000002::kiosk::Kiosk',
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['kiosk'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -303,7 +283,7 @@ export interface TransferToSenderOptions {
 /** Transfer the `PersonalKioskCap` to the transaction sender. */
 export function transferToSender(options: TransferToSenderOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [`${packageAddress}::personal_kiosk::PersonalKioskCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({

@@ -33,10 +33,7 @@ export interface AuthorizeOptions {
  */
 export function authorize(options: AuthorizeOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::suins::SuiNS`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['cap', 'suins'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -66,13 +63,10 @@ export interface ReserveDomainOptions {
 /** Reserve a `domain` in the `SuiNS`. */
 export function reserveDomain(options: ReserveDomainOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::suins::SuiNS`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'u8',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::string::String', 'u8', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['_', 'suins', 'domainName', 'noYears'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -103,12 +97,12 @@ export interface ReserveDomainsOptions {
 export function reserveDomains(options: ReserveDomainsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
-		`${packageAddress}::suins::AdminCap`,
-		`${packageAddress}::suins::SuiNS`,
-		'vector<0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
+		null,
+		null,
+		'vector<0x1::string::String>',
 		'u8',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = ['_', 'suins', 'domains', 'noYears'];
 	return (tx: Transaction) =>
 		tx.moveCall({

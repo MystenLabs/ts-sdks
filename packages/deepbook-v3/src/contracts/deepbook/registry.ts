@@ -78,10 +78,7 @@ export interface AuthorizeAppOptions {
 /** Authorize an application to access protected features of the DeepBook. */
 export function authorizeApp(options: AuthorizeAppOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::registry::DeepbookAdminCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'AdminCap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -106,10 +103,7 @@ export interface DeauthorizeAppOptions {
 /** Deauthorize an application by removing its authorization key. */
 export function deauthorizeApp(options: DeauthorizeAppOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::registry::DeepbookAdminCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'AdminCap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -134,7 +128,7 @@ export interface AssertAppIsAuthorizedOptions {
  */
 export function assertAppIsAuthorized(options: AssertAppIsAuthorizedOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::registry::Registry`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -166,11 +160,7 @@ export interface SetTreasuryAddressOptions {
  */
 export function setTreasuryAddress(options: SetTreasuryAddressOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		'address',
-		`${packageAddress}::registry::DeepbookAdminCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, 'address', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'treasuryAddress', 'Cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -201,11 +191,7 @@ export interface EnableVersionOptions {
  */
 export function enableVersion(options: EnableVersionOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		'u64',
-		`${packageAddress}::registry::DeepbookAdminCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'version', 'Cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -236,11 +222,7 @@ export interface DisableVersionOptions {
  */
 export function disableVersion(options: DisableVersionOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		'u64',
-		`${packageAddress}::registry::DeepbookAdminCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'version', 'Cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -264,10 +246,7 @@ export interface AddStablecoinOptions {
 /** Adds a stablecoin to the whitelist Only Admin can add stablecoin */
 export function addStablecoin(options: AddStablecoinOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::registry::DeepbookAdminCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'Cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -292,10 +271,7 @@ export interface RemoveStablecoinOptions {
 /** Removes a stablecoin from the whitelist Only Admin can remove stablecoin */
 export function removeStablecoin(options: RemoveStablecoinOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::registry::DeepbookAdminCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'Cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -319,10 +295,7 @@ export interface InitBalanceManagerMapOptions {
 /** Adds the BalanceManagerKey dynamic field to the registry */
 export function initBalanceManagerMap(options: InitBalanceManagerMapOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::registry::DeepbookAdminCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'Cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -345,7 +318,7 @@ export interface GetBalanceManagerIdsOptions {
 /** Get the balance manager IDs for a given owner */
 export function getBalanceManagerIds(options: GetBalanceManagerIdsOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::registry::Registry`, 'address'] satisfies string[];
+	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['self', 'owner'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -368,10 +341,7 @@ export interface IsStablecoinOptions {
 /** Returns whether the given coin is whitelisted */
 export function isStablecoin(options: IsStablecoinOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::type_name::TypeName',
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'stableType'];
 	return (tx: Transaction) =>
 		tx.moveCall({

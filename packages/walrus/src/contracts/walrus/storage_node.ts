@@ -45,7 +45,7 @@ export interface IdOptions {
 /** Return the node ID of the storage node. */
 export function id(options: IdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -65,7 +65,7 @@ export interface NodeIdOptions {
 /** Return the pool ID of the storage node. */
 export function nodeId(options: NodeIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -88,7 +88,7 @@ export interface LastEpochSyncDoneOptions {
  */
 export function lastEpochSyncDone(options: LastEpochSyncDoneOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -108,7 +108,7 @@ export interface LastEventBlobAttestationOptions {
 /** Return the latest event blob attestation. */
 export function lastEventBlobAttestation(options: LastEventBlobAttestationOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -128,7 +128,7 @@ export interface DenyListRootOptions {
 /** Return the deny list root of the storage node. */
 export function denyListRoot(options: DenyListRootOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -148,7 +148,7 @@ export interface DenyListSequenceOptions {
 /** Return the deny list sequence number of the storage node. */
 export function denyListSequence(options: DenyListSequenceOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({

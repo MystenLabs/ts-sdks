@@ -54,11 +54,7 @@ export interface AddOptions {
  */
 export function add(options: AddOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferPolicyCap<${options.typeArguments[0]}>`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['policy', 'cap', 'floorPrice'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -83,10 +79,7 @@ export interface ProveOptions {
 /** Buyer action: Prove that the amount is higher or equal to the floor_price. */
 export function prove(options: ProveOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferRequest<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['policy', 'request'];
 	return (tx: Transaction) =>
 		tx.moveCall({

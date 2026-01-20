@@ -607,9 +607,11 @@ export class MoveModuleBuilder extends FileBuilder {
 									resolveAddress: (address) => this.#resolveAddress(address),
 								}),
 							)
-							.map((tag) => (tag.includes('{') ? `\`${tag}\`` : `'${tag}'`))
+							.map((tag) =>
+								tag === 'null' ? 'null' : tag.includes('{') ? `\`${tag}\`` : `'${tag}'`,
+							)
 							.join(',\n')}
-					] satisfies string[]\n`
+					] satisfies (string | null)[]\n`
 							: ''
 					}${hasAllParameterNames ? `const parameterNames = ${JSON.stringify(requiredParameters.map((param) => camelCase(param.name!)))}\n` : ''}
 					return (tx: ${transactionTypeName}) => tx.moveCall({

@@ -24,7 +24,7 @@ export interface IdToBytesOptions {
 export function idToBytes(options: IdToBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::object::ID`] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -40,7 +40,7 @@ export interface IdToAddressOptions {
 export function idToAddress(options: IdToAddressOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::object::ID`] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -56,7 +56,7 @@ export interface IdFromBytesOptions {
 export function idFromBytes(options: IdFromBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -72,7 +72,7 @@ export interface IdFromAddressOptions {
 export function idFromAddress(options: IdFromAddressOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['address'] satisfies string[];
+	const argumentsTypes = ['address'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -88,7 +88,7 @@ export interface UidAsInnerOptions {
 export function uidAsInner(options: UidAsInnerOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::object::UID`] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -104,7 +104,7 @@ export interface UidToInnerOptions {
 export function uidToInner(options: UidToInnerOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::object::UID`] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -120,7 +120,7 @@ export interface UidToBytesOptions {
 export function uidToBytes(options: UidToBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::object::UID`] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -136,7 +136,7 @@ export interface UidToAddressOptions {
 export function uidToAddress(options: UidToAddressOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::object::UID`] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -166,7 +166,7 @@ export interface DeleteOptions {
 export function _delete(options: DeleteOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::object::UID`] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -183,7 +183,7 @@ export interface IdOptions<T0 extends BcsType<any>> {
 export function id<T0 extends BcsType<any>>(options: IdOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -201,7 +201,7 @@ export interface BorrowIdOptions<T0 extends BcsType<any>> {
 export function borrowId<T0 extends BcsType<any>>(options: BorrowIdOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -219,7 +219,7 @@ export interface IdBytesOptions<T0 extends BcsType<any>> {
 export function idBytes<T0 extends BcsType<any>>(options: IdBytesOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -237,7 +237,7 @@ export interface IdAddressOptions<T0 extends BcsType<any>> {
 export function idAddress<T0 extends BcsType<any>>(options: IdAddressOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

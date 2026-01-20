@@ -50,10 +50,7 @@ export interface NewOptions {
 /** Create a new NameRecord. */
 export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['nftId', 'expirationTimestampMs'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -79,10 +76,10 @@ export interface NewLeafOptions {
 /** Create a `leaf` NameRecord. */
 export function newLeaf(options: NewLeafOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<address>',
-	] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID', '0x1::option::Option<address>'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['parentId', 'targetAddress'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -118,10 +115,7 @@ export interface SetDataOptions {
  */
 export function setData(options: SetDataOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::name_record::NameRecord`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::vec_map::VecMap<0x0000000000000000000000000000000000000000000000000000000000000001::string::String, 0x0000000000000000000000000000000000000000000000000000000000000001::string::String>',
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'data'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -144,10 +138,7 @@ export interface SetTargetAddressOptions {
 /** Set the `target_address` field of the `NameRecord`. */
 export function setTargetAddress(options: SetTargetAddressOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::name_record::NameRecord`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<address>',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::option::Option<address>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'newAddress'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -172,7 +163,7 @@ export interface SetExpirationTimestampMsOptions {
 }
 export function setExpirationTimestampMs(options: SetExpirationTimestampMsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::name_record::NameRecord`, 'u64'] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'expirationTimestampMs'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -192,10 +183,7 @@ export interface HasExpiredOptions {
 /** Check if the record has expired. */
 export function hasExpired(options: HasExpiredOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::name_record::NameRecord`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -215,10 +203,7 @@ export interface HasExpiredPastGracePeriodOptions {
 /** Check if the record has expired, taking into account the grace period. */
 export function hasExpiredPastGracePeriod(options: HasExpiredPastGracePeriodOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::name_record::NameRecord`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -238,7 +223,7 @@ export interface IsLeafRecordOptions {
 /** Checks whether a name_record is a `leaf` record. */
 export function isLeafRecord(options: IsLeafRecordOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::name_record::NameRecord`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -258,7 +243,7 @@ export interface DataOptions {
 /** Read the `data` field from the `NameRecord`. */
 export function data(options: DataOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::name_record::NameRecord`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -278,7 +263,7 @@ export interface TargetAddressOptions {
 /** Read the `target_address` field from the `NameRecord`. */
 export function targetAddress(options: TargetAddressOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::name_record::NameRecord`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -298,7 +283,7 @@ export interface NftIdOptions {
 /** Read the `nft_id` field from the `NameRecord`. */
 export function nftId(options: NftIdOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::name_record::NameRecord`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -318,7 +303,7 @@ export interface ExpirationTimestampMsOptions {
 /** Read the `expiration_timestamp_ms` field from the `NameRecord`. */
 export function expirationTimestampMs(options: ExpirationTimestampMsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::name_record::NameRecord`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({

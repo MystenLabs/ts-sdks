@@ -33,12 +33,10 @@ export interface AddOptions<T0 extends BcsType<any>> {
 export function add<T0 extends BcsType<any>>(options: AddOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${options.typeArguments[0]}`,
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-		'u128',
-	] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`, null, null, 'u128'] satisfies (
+		| string
+		| null
+	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -56,10 +54,7 @@ export interface DisableOptions {
 export function disable(options: DisableOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -77,10 +72,7 @@ export interface EnableOptions {
 export function enable(options: EnableOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -98,10 +90,7 @@ export interface RemoveOptions {
 export function remove(options: RemoveOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::kiosk::Kiosk`,
-		`${packageAddress}::kiosk::KioskOwnerCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -119,10 +108,7 @@ export interface StorageOptions<T0 extends BcsType<any>> {
 export function storage<T0 extends BcsType<any>>(options: StorageOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${options.typeArguments[0]}`,
-		`${packageAddress}::kiosk::Kiosk`,
-	] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -140,10 +126,7 @@ export interface StorageMutOptions<T0 extends BcsType<any>> {
 export function storageMut<T0 extends BcsType<any>>(options: StorageMutOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${options.typeArguments[0]}`,
-		`${packageAddress}::kiosk::Kiosk`,
-	] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -170,10 +153,10 @@ export function place<T0 extends BcsType<any>, T1 extends BcsType<any>>(
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [
 		`${options.typeArguments[0]}`,
-		`${packageAddress}::kiosk::Kiosk`,
+		null,
 		`${options.typeArguments[1]}`,
-		`${packageAddress}::transfer_policy::TransferPolicy<${options.typeArguments[1]}>`,
-	] satisfies string[];
+		null,
+	] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -200,10 +183,10 @@ export function lock<T0 extends BcsType<any>, T1 extends BcsType<any>>(
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [
 		`${options.typeArguments[0]}`,
-		`${packageAddress}::kiosk::Kiosk`,
+		null,
 		`${options.typeArguments[1]}`,
-		`${packageAddress}::transfer_policy::TransferPolicy<${options.typeArguments[1]}>`,
-	] satisfies string[];
+		null,
+	] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -221,7 +204,7 @@ export interface IsInstalledOptions {
 export function isInstalled(options: IsInstalledOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::kiosk::Kiosk`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -239,7 +222,7 @@ export interface IsEnabledOptions {
 export function isEnabled(options: IsEnabledOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::kiosk::Kiosk`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -257,7 +240,7 @@ export interface CanPlaceOptions {
 export function canPlace(options: CanPlaceOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::kiosk::Kiosk`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -275,7 +258,7 @@ export interface CanLockOptions {
 export function canLock(options: CanLockOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::kiosk::Kiosk`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

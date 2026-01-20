@@ -12,7 +12,7 @@ export interface EmitOptions<T0 extends BcsType<any>> {
 export function emit<T0 extends BcsType<any>>(options: EmitOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -30,7 +30,7 @@ export interface EmitAuthenticatedOptions<T0 extends BcsType<any>> {
 export function emitAuthenticated<T0 extends BcsType<any>>(options: EmitAuthenticatedOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

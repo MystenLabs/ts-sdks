@@ -73,12 +73,7 @@ export interface AddOptions {
  */
 export function add(options: AddOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferPolicyCap<${options.typeArguments[0]}>`,
-		'u16',
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u16', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['policy', 'cap', 'amountBp', 'minAmount'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -108,11 +103,7 @@ export interface PayOptions {
 /** Buyer action: Pay the royalty fee for the transfer. */
 export function pay(options: PayOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferRequest<${options.typeArguments[0]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>',
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['policy', 'request', 'payment'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -140,10 +131,7 @@ export interface FeeAmountOptions {
  */
 export function feeAmount(options: FeeAmountOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['policy', 'paid'];
 	return (tx: Transaction) =>
 		tx.moveCall({
