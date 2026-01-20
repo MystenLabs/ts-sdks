@@ -51,11 +51,10 @@ export interface InsertOrUpdateOptions {
  */
 export function insertOrUpdate(options: InsertOrUpdateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::metadata::Metadata`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String', '0x1::string::String'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['self', 'key', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -78,10 +77,7 @@ export interface RemoveOptions {
 /** Removes the metadata associated with the given key. */
 export function remove(options: RemoveOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::metadata::Metadata`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'key'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -108,10 +104,7 @@ export interface RemoveIfExistsOptions {
  */
 export function removeIfExists(options: RemoveIfExistsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::metadata::Metadata`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'key'];
 	return (tx: Transaction) =>
 		tx.moveCall({

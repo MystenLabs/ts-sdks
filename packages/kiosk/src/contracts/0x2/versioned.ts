@@ -27,7 +27,7 @@ export interface CreateOptions<T0 extends BcsType<any>> {
 export function create<T0 extends BcsType<any>>(options: CreateOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['u64', `${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = ['u64', `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -44,7 +44,7 @@ export interface VersionOptions {
 export function version(options: VersionOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::versioned::Versioned`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -61,7 +61,7 @@ export interface LoadValueOptions {
 export function loadValue(options: LoadValueOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::versioned::Versioned`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -79,7 +79,7 @@ export interface LoadValueMutOptions {
 export function loadValueMut(options: LoadValueMutOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::versioned::Versioned`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -97,7 +97,7 @@ export interface RemoveValueForUpgradeOptions {
 export function removeValueForUpgrade(options: RemoveValueForUpgradeOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::versioned::Versioned`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -120,12 +120,10 @@ export interface UpgradeOptions<T0 extends BcsType<any>> {
 export function upgrade<T0 extends BcsType<any>>(options: UpgradeOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::versioned::Versioned`,
-		'u64',
-		`${options.typeArguments[0]}`,
-		`${packageAddress}::versioned::VersionChangeCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64', `${options.typeArguments[0]}`, null] satisfies (
+		| string
+		| null
+	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -143,7 +141,7 @@ export interface DestroyOptions {
 export function destroy(options: DestroyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::versioned::Versioned`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

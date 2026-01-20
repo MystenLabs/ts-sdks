@@ -36,9 +36,7 @@ export interface NewOptions {
 }
 export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['domain'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -58,7 +56,7 @@ export interface ToStringOptions {
 /** Converts a domain into a fully-qualified string representation. */
 export function toString(options: ToStringOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::domain::Domain`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -91,7 +89,7 @@ export interface LabelOptions {
  */
 export function label(options: LabelOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::domain::Domain`, 'u64'] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'level'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -115,7 +113,7 @@ export interface TldOptions {
  */
 export function tld(options: TldOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::domain::Domain`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -139,7 +137,7 @@ export interface SldOptions {
  */
 export function sld(options: SldOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::domain::Domain`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -158,7 +156,7 @@ export interface NumberOfLevelsOptions {
 }
 export function numberOfLevels(options: NumberOfLevelsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::domain::Domain`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -177,7 +175,7 @@ export interface IsSubdomainOptions {
 }
 export function isSubdomain(options: IsSubdomainOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::domain::Domain`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['domain'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -197,7 +195,7 @@ export interface ParentOptions {
 /** Derive the parent of a subdomain. e.g. `subdomain.example.sui` -> `example.sui` */
 export function parent(options: ParentOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::domain::Domain`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['domain'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -220,10 +218,7 @@ export interface IsParentOfOptions {
 /** Checks if `parent` domain is a valid parent for `child`. */
 export function isParentOf(options: IsParentOfOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::domain::Domain`,
-		`${packageAddress}::domain::Domain`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['parent', 'child'];
 	return (tx: Transaction) =>
 		tx.moveCall({

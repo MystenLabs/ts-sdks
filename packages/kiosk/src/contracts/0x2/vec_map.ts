@@ -57,10 +57,10 @@ export function insert<T0 extends BcsType<any>, T1 extends BcsType<any>>(
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
+		null,
 		`${options.typeArguments[0]}`,
 		`${options.typeArguments[1]}`,
-	] satisfies string[];
+	] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -78,10 +78,7 @@ export interface RemoveOptions<T0 extends BcsType<any>> {
 export function remove<T0 extends BcsType<any>>(options: RemoveOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -99,9 +96,7 @@ export interface PopOptions {
 export function pop(options: PopOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -119,10 +114,7 @@ export interface GetMutOptions<T0 extends BcsType<any>> {
 export function getMut<T0 extends BcsType<any>>(options: GetMutOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -140,10 +132,7 @@ export interface GetOptions<T0 extends BcsType<any>> {
 export function get<T0 extends BcsType<any>>(options: GetOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -161,10 +150,7 @@ export interface TryGetOptions<T0 extends BcsType<any>> {
 export function tryGet<T0 extends BcsType<any>>(options: TryGetOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -182,10 +168,7 @@ export interface ContainsOptions<T0 extends BcsType<any>> {
 export function contains<T0 extends BcsType<any>>(options: ContainsOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -203,9 +186,7 @@ export interface LengthOptions {
 export function length(options: LengthOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -223,9 +204,7 @@ export interface IsEmptyOptions {
 export function isEmpty(options: IsEmptyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -243,9 +222,7 @@ export interface DestroyEmptyOptions {
 export function destroyEmpty(options: DestroyEmptyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -263,9 +240,7 @@ export interface IntoKeysValuesOptions {
 export function intoKeysValues(options: IntoKeysValuesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -288,7 +263,7 @@ export function fromKeysValues<T0 extends BcsType<any>, T1 extends BcsType<any>>
 	const argumentsTypes = [
 		`vector<${options.typeArguments[0]}>`,
 		`vector<${options.typeArguments[1]}>`,
-	] satisfies string[];
+	] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -306,9 +281,7 @@ export interface KeysOptions {
 export function keys(options: KeysOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -326,10 +299,7 @@ export interface GetIdxOptOptions<T0 extends BcsType<any>> {
 export function getIdxOpt<T0 extends BcsType<any>>(options: GetIdxOptOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -347,10 +317,7 @@ export interface GetIdxOptions<T0 extends BcsType<any>> {
 export function getIdx<T0 extends BcsType<any>>(options: GetIdxOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -368,10 +335,7 @@ export interface GetEntryByIdxOptions {
 export function getEntryByIdx(options: GetEntryByIdxOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -389,10 +353,7 @@ export interface GetEntryByIdxMutOptions {
 export function getEntryByIdxMut(options: GetEntryByIdxMutOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -410,10 +371,7 @@ export interface RemoveEntryByIdxOptions {
 export function removeEntryByIdx(options: RemoveEntryByIdxOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -431,9 +389,7 @@ export interface SizeOptions {
 export function size(options: SizeOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::vec_map::VecMap<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

@@ -36,7 +36,7 @@ export interface ObjectIdOptions {
 }
 export function objectId(options: ObjectIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -55,7 +55,7 @@ export interface RegisteredEpochOptions {
 }
 export function registeredEpoch(options: RegisteredEpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -74,7 +74,7 @@ export interface BlobIdOptions {
 }
 export function blobId(options: BlobIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -93,7 +93,7 @@ export interface SizeOptions {
 }
 export function size(options: SizeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -112,7 +112,7 @@ export interface EncodingTypeOptions {
 }
 export function encodingType(options: EncodingTypeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -131,7 +131,7 @@ export interface CertifiedEpochOptions {
 }
 export function certifiedEpoch(options: CertifiedEpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -150,7 +150,7 @@ export interface StorageOptions {
 }
 export function storage(options: StorageOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -169,7 +169,7 @@ export interface IsDeletableOptions {
 }
 export function isDeletable(options: IsDeletableOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -191,7 +191,7 @@ export interface EncodedSizeOptions {
 }
 export function encodedSize(options: EncodedSizeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::blob::Blob`, 'u16'] satisfies string[];
+	const argumentsTypes = [null, 'u16'] satisfies (string | null)[];
 	const parameterNames = ['self', 'nShards'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -210,7 +210,7 @@ export interface EndEpochOptions {
 }
 export function endEpoch(options: EndEpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -238,7 +238,7 @@ export interface DeriveBlobIdOptions {
 /** Derives the blob_id for a blob given the root_hash, encoding_type and size. */
 export function deriveBlobId(options: DeriveBlobIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = ['u256', 'u8', 'u64'] satisfies string[];
+	const argumentsTypes = ['u256', 'u8', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['rootHash', 'encodingType', 'size'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -262,7 +262,7 @@ export interface BurnOptions {
  */
 export function burn(options: BurnOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -289,10 +289,7 @@ export interface AddMetadataOptions {
  */
 export function addMetadata(options: AddMetadataOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::blob::Blob`,
-		`${packageAddress}::metadata::Metadata`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'metadata'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -320,10 +317,7 @@ export interface AddOrReplaceMetadataOptions {
  */
 export function addOrReplaceMetadata(options: AddOrReplaceMetadataOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::blob::Blob`,
-		`${packageAddress}::metadata::Metadata`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'metadata'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -348,7 +342,7 @@ export interface TakeMetadataOptions {
  */
 export function takeMetadata(options: TakeMetadataOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::blob::Blob`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -381,11 +375,10 @@ export interface InsertOrUpdateMetadataPairOptions {
  */
 export function insertOrUpdateMetadataPair(options: InsertOrUpdateMetadataPairOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::blob::Blob`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String', '0x1::string::String'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['self', 'key', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -412,10 +405,7 @@ export interface RemoveMetadataPairOptions {
  */
 export function removeMetadataPair(options: RemoveMetadataPairOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::blob::Blob`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'key'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -438,10 +428,7 @@ export interface RemoveMetadataPairIfExistsOptions {
 /** Removes and returns the metadata associated with the given key, if it exists. */
 export function removeMetadataPairIfExists(options: RemoveMetadataPairIfExistsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::blob::Blob`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'key'];
 	return (tx: Transaction) =>
 		tx.moveCall({

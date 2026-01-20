@@ -37,7 +37,7 @@ export interface NewOptions {
  */
 export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = ['vector<u8>', 'u64', 'u64', 'u64'] satisfies string[];
+	const argumentsTypes = ['vector<u8>', 'u64', 'u64', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['PublicKey', 'ThreeCharPrice', 'FourCharPrice', 'FivePlusCharPrice'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -53,7 +53,7 @@ export interface SetPublicKeyOptions {
 }
 export function setPublicKey(options: SetPublicKeyOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::config::Config`, 'vector<u8>'] satisfies string[];
+	const argumentsTypes = [null, 'vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -68,7 +68,7 @@ export interface SetThreeCharPriceOptions {
 }
 export function setThreeCharPrice(options: SetThreeCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::config::Config`, 'u64'] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -83,7 +83,7 @@ export interface SetFourCharPriceOptions {
 }
 export function setFourCharPrice(options: SetFourCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::config::Config`, 'u64'] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -98,7 +98,7 @@ export interface SetFivePlusCharPriceOptions {
 }
 export function setFivePlusCharPrice(options: SetFivePlusCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::config::Config`, 'u64'] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -117,7 +117,7 @@ export interface CalculatePriceOptions {
 }
 export function calculatePrice(options: CalculatePriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::config::Config`, 'u8', 'u8'] satisfies string[];
+	const argumentsTypes = [null, 'u8', 'u8'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -135,7 +135,7 @@ export interface PublicKeyOptions {
 }
 export function publicKey(options: PublicKeyOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::config::Config`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['_'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -154,7 +154,7 @@ export interface ThreeCharPriceOptions {
 }
 export function threeCharPrice(options: ThreeCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::config::Config`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['_'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -173,7 +173,7 @@ export interface FourCharPriceOptions {
 }
 export function fourCharPrice(options: FourCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::config::Config`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['_'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -192,7 +192,7 @@ export interface FivePlusCharPriceOptions {
 }
 export function fivePlusCharPrice(options: FivePlusCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::config::Config`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['_'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -213,7 +213,7 @@ export function assertValidUserRegisterableDomain(
 	options: AssertValidUserRegisterableDomainOptions,
 ) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::domain::Domain`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['_'];
 	return (tx: Transaction) =>
 		tx.moveCall({

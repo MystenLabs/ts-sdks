@@ -17,7 +17,6 @@ import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from 
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as data from './data.js';
-import * as object from './deps/sui/object.js';
 const $moduleName = '@suins/coupons::coupon_house';
 export const CouponsApp = new MoveStruct({
 	name: `${$moduleName}::CouponsApp`,
@@ -36,7 +35,7 @@ export const CouponHouse = new MoveStruct({
 	fields: {
 		data: data.Data,
 		version: bcs.u8(),
-		storage: object.UID,
+		storage: bcs.Address,
 	},
 });
 export interface SetupArguments {
@@ -52,10 +51,7 @@ export interface SetupOptions {
 /** Called once to setup the CouponHouse on SuiNS. */
 export function setup(options: SetupOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::AdminCap',
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['suins', 'cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -82,12 +78,10 @@ export interface ApplyCouponOptions {
 }
 export function applyCoupon(options: ApplyCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
-		'0x0000000000000000000000000000000000000000000000000000000000000000::payment::PaymentIntent',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['suins', 'intent', 'couponCode'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -119,13 +113,13 @@ export interface RegisterWithCouponOptions {
 export function registerWithCoupon(options: RegisterWithCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
+		null,
+		'0x1::string::String',
+		'0x1::string::String',
 		'u8',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+		null,
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = ['Suins', 'CouponCode', 'DomainName', 'NoYears', 'Payment'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -152,11 +146,7 @@ export interface CalculateSalePriceOptions {
 }
 export function calculateSalePrice(options: CalculateSalePriceOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64', '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['Suins', 'Price', 'CouponCode'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -179,10 +169,7 @@ export interface AppDataMutOptions<A extends BcsType<any>> {
 }
 export function appDataMut<A extends BcsType<any>>(options: AppDataMutOptions<A>) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['suins', '_'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -210,10 +197,7 @@ export interface AuthorizeAppOptions {
  */
 export function authorizeApp(options: AuthorizeAppOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::AdminCap',
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'suins'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -238,10 +222,7 @@ export interface DeauthorizeAppOptions {
 /** De-authorize an app. The app can no longer add or remove */
 export function deauthorizeApp(options: DeauthorizeAppOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::AdminCap',
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'suins'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -273,11 +254,7 @@ export interface SetVersionOptions {
  */
 export function setVersion(options: SetVersionOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::AdminCap',
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
-		'u8',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u8'] satisfies (string | null)[];
 	const parameterNames = ['_', 'suins', 'version'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -297,7 +274,7 @@ export interface AssertVersionIsValidOptions {
 /** Validate that the version of the app is the latest. */
 export function assertVersionIsValid(options: AssertVersionIsValidOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [`${packageAddress}::coupon_house::CouponHouse`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -337,14 +314,10 @@ export interface AdminAddCouponOptions {
  */
 export function adminAddCoupon(options: AdminAddCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::AdminCap',
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'u8',
-		'u64',
-		`${packageAddress}::rules::CouponRules`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::string::String', 'u8', 'u64', null] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['_', 'suins', 'code', 'kind', 'amount', 'rules'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -371,11 +344,7 @@ export interface AdminRemoveCouponOptions {
 }
 export function adminRemoveCoupon(options: AdminRemoveCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::AdminCap',
-		'0x0000000000000000000000000000000000000000000000000000000000000000::suins::SuiNS',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['_', 'suins', 'code'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -406,13 +375,10 @@ export interface AppAddCouponOptions {
 }
 export function appAddCoupon(options: AppAddCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [
-		`${packageAddress}::data::Data`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'u8',
-		'u64',
-		`${packageAddress}::rules::CouponRules`,
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String', 'u8', 'u64', null] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['data', 'code', 'kind', 'amount', 'rules'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -434,10 +400,7 @@ export interface AppRemoveCouponOptions {
 }
 export function appRemoveCoupon(options: AppRemoveCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [
-		`${packageAddress}::data::Data`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['data', 'code'];
 	return (tx: Transaction) =>
 		tx.moveCall({

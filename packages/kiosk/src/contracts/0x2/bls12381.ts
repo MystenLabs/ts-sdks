@@ -46,7 +46,7 @@ export interface Bls12381MinSigVerifyOptions {
 export function bls12381MinSigVerify(options: Bls12381MinSigVerifyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -66,7 +66,7 @@ export interface Bls12381MinPkVerifyOptions {
 export function bls12381MinPkVerify(options: Bls12381MinPkVerifyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -82,7 +82,7 @@ export interface ScalarFromBytesOptions {
 export function scalarFromBytes(options: ScalarFromBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -98,7 +98,7 @@ export interface ScalarFromU64Options {
 export function scalarFromU64(options: ScalarFromU64Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['u64'] satisfies string[];
+	const argumentsTypes = ['u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -142,10 +142,7 @@ export interface ScalarAddOptions {
 export function scalarAdd(options: ScalarAddOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -161,10 +158,7 @@ export interface ScalarSubOptions {
 export function scalarSub(options: ScalarSubOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -180,10 +174,7 @@ export interface ScalarMulOptions {
 export function scalarMul(options: ScalarMulOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -199,10 +190,7 @@ export interface ScalarDivOptions {
 export function scalarDiv(options: ScalarDivOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -218,9 +206,7 @@ export interface ScalarNegOptions {
 export function scalarNeg(options: ScalarNegOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -236,9 +222,7 @@ export interface ScalarInvOptions {
 export function scalarInv(options: ScalarInvOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -254,7 +238,7 @@ export interface G1FromBytesOptions {
 export function g1FromBytes(options: G1FromBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -298,10 +282,7 @@ export interface G1AddOptions {
 export function g1Add(options: G1AddOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G1>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G1>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -317,10 +298,7 @@ export interface G1SubOptions {
 export function g1Sub(options: G1SubOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G1>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G1>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -336,10 +314,7 @@ export interface G1MulOptions {
 export function g1Mul(options: G1MulOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G1>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -355,10 +330,7 @@ export interface G1DivOptions {
 export function g1Div(options: G1DivOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G1>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -374,9 +346,7 @@ export interface G1NegOptions {
 export function g1Neg(options: G1NegOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G1>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -392,7 +362,7 @@ export interface HashToG1Options {
 export function hashToG1(options: HashToG1Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -408,10 +378,7 @@ export interface G1MultiScalarMultiplicationOptions {
 export function g1MultiScalarMultiplication(options: G1MultiScalarMultiplicationOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`vector<${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>>`,
-		`vector<${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G1>>`,
-	] satisfies string[];
+	const argumentsTypes = ['vector<null>', 'vector<null>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -427,9 +394,7 @@ export interface G1ToUncompressedG1Options {
 export function g1ToUncompressedG1(options: G1ToUncompressedG1Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G1>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -445,7 +410,7 @@ export interface G2FromBytesOptions {
 export function g2FromBytes(options: G2FromBytesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -489,10 +454,7 @@ export interface G2AddOptions {
 export function g2Add(options: G2AddOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G2>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G2>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -508,10 +470,7 @@ export interface G2SubOptions {
 export function g2Sub(options: G2SubOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G2>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G2>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -527,10 +486,7 @@ export interface G2MulOptions {
 export function g2Mul(options: G2MulOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G2>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -546,10 +502,7 @@ export interface G2DivOptions {
 export function g2Div(options: G2DivOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G2>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -565,9 +518,7 @@ export interface G2NegOptions {
 export function g2Neg(options: G2NegOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G2>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -583,7 +534,7 @@ export interface HashToG2Options {
 export function hashToG2(options: HashToG2Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -599,10 +550,7 @@ export interface G2MultiScalarMultiplicationOptions {
 export function g2MultiScalarMultiplication(options: G2MultiScalarMultiplicationOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`vector<${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>>`,
-		`vector<${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G2>>`,
-	] satisfies string[];
+	const argumentsTypes = ['vector<null>', 'vector<null>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -646,10 +594,7 @@ export interface GtAddOptions {
 export function gtAdd(options: GtAddOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::GT>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::GT>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -665,10 +610,7 @@ export interface GtSubOptions {
 export function gtSub(options: GtSubOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::GT>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::GT>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -684,10 +626,7 @@ export interface GtMulOptions {
 export function gtMul(options: GtMulOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::GT>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -703,10 +642,7 @@ export interface GtDivOptions {
 export function gtDiv(options: GtDivOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::Scalar>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::GT>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -722,9 +658,7 @@ export interface GtNegOptions {
 export function gtNeg(options: GtNegOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::GT>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -740,10 +674,7 @@ export interface PairingOptions {
 export function pairing(options: PairingOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G1>`,
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::G2>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -759,9 +690,7 @@ export interface UncompressedG1ToG1Options {
 export function uncompressedG1ToG1(options: UncompressedG1ToG1Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::group_ops::Element<${packageAddress}::bls12381::UncompressedG1>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -777,9 +706,7 @@ export interface UncompressedG1SumOptions {
 export function uncompressedG1Sum(options: UncompressedG1SumOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`vector<${packageAddress}::group_ops::Element<${packageAddress}::bls12381::UncompressedG1>>`,
-	] satisfies string[];
+	const argumentsTypes = ['vector<null>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

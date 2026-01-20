@@ -29,10 +29,7 @@ export interface GetIdBytesOptions {
 export function getIdBytes(options: GetIdBytesOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::UID',
-		`${packageAddress}::price_identifier::PriceIdentifier`,
-	] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID', null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -48,10 +45,7 @@ export interface GetIdOptions {
 export function getId(options: GetIdOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::UID',
-		`${packageAddress}::price_identifier::PriceIdentifier`,
-	] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID', null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -67,10 +61,7 @@ export interface ContainsOptions {
 export function contains(options: ContainsOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::UID',
-		`${packageAddress}::price_identifier::PriceIdentifier`,
-	] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID', null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -86,7 +77,7 @@ export interface GetBalanceOptions {
 export function getBalance(options: GetBalanceOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::price_info::PriceInfoObject`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -102,10 +93,7 @@ export interface DepositFeeCoinsOptions {
 export function depositFeeCoins(options: DepositFeeCoinsOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::price_info::PriceInfoObject`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>',
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -125,11 +113,7 @@ export interface NewPriceInfoOptions {
 export function newPriceInfo(options: NewPriceInfoOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		'u64',
-		'u64',
-		`${packageAddress}::price_feed::PriceFeed`,
-	] satisfies string[];
+	const argumentsTypes = ['u64', 'u64', null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -145,7 +129,7 @@ export interface UidToInnerOptions {
 export function uidToInner(options: UidToInnerOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::price_info::PriceInfoObject`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -161,7 +145,7 @@ export interface GetPriceInfoFromPriceInfoObjectOptions {
 export function getPriceInfoFromPriceInfoObject(options: GetPriceInfoFromPriceInfoObjectOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::price_info::PriceInfoObject`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -177,7 +161,7 @@ export interface GetPriceIdentifierOptions {
 export function getPriceIdentifier(options: GetPriceIdentifierOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::price_info::PriceInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -193,7 +177,7 @@ export interface GetPriceFeedOptions {
 export function getPriceFeed(options: GetPriceFeedOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::price_info::PriceInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -209,7 +193,7 @@ export interface GetAttestationTimeOptions {
 export function getAttestationTime(options: GetAttestationTimeOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::price_info::PriceInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -225,7 +209,7 @@ export interface GetArrivalTimeOptions {
 export function getArrivalTime(options: GetArrivalTimeOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::price_info::PriceInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

@@ -51,13 +51,13 @@ export interface IterOrdersOptions {
 export function iterOrders(options: IterOrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<u128>',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<u128>',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<u64>',
+		null,
+		'0x1::option::Option<u128>',
+		'0x1::option::Option<u128>',
+		'0x1::option::Option<u64>',
 		'u64',
 		'bool',
-	] satisfies string[];
+	] satisfies (string | null)[];
 	const parameterNames = [
 		'self',
 		'startOrderId',
@@ -84,7 +84,7 @@ export interface OrdersOptions {
 }
 export function orders(options: OrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_query::OrderPage`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -103,7 +103,7 @@ export interface HasNextPageOptions {
 }
 export function hasNextPage(options: HasNextPageOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_query::OrderPage`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({

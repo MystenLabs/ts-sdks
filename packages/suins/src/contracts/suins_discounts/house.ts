@@ -10,12 +10,11 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 const $moduleName = '@suins/discounts::house';
 export const DiscountHouse = new MoveStruct({
 	name: `${$moduleName}::DiscountHouse`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		version: bcs.u8(),
 	},
 });
@@ -36,11 +35,7 @@ export interface SetVersionOptions {
 }
 export function setVersion(options: SetVersionOptions) {
 	const packageAddress = options.package ?? '@suins/discounts';
-	const argumentsTypes = [
-		`${packageAddress}::house::DiscountHouse`,
-		`${packageAddress}::suins::AdminCap`,
-		'u8',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u8'] satisfies (string | null)[];
 	const parameterNames = ['self', '_', 'version'];
 	return (tx: Transaction) =>
 		tx.moveCall({

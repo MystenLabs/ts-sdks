@@ -10,7 +10,7 @@ export interface PoseidonBn254Options {
 export function poseidonBn254(options: PoseidonBn254Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u256>'] satisfies string[];
+	const argumentsTypes = ['vector<u256>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

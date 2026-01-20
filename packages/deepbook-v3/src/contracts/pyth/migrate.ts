@@ -18,10 +18,7 @@ export interface MigrateOptions {
 export function migrate(options: MigrateOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::state::State`,
-		`${packageAddress}::governance::WormholeVAAVerificationReceipt`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

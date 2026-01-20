@@ -61,7 +61,7 @@ export interface NodeIdOptions {
 /** Returns the `node_id` of the staked WAL. */
 export function nodeId(options: NodeIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::staked_wal::StakedWal`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['sw'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -84,7 +84,7 @@ export interface ValueOptions {
  */
 export function value(options: ValueOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::staked_wal::StakedWal`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['sw'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -104,7 +104,7 @@ export interface ActivationEpochOptions {
 /** Returns the `activation_epoch` of the staked WAL. */
 export function activationEpoch(options: ActivationEpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::staked_wal::StakedWal`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['sw'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -124,7 +124,7 @@ export interface IsStakedOptions {
 /** Returns true if the staked WAL is in the `Staked` state. */
 export function isStaked(options: IsStakedOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::staked_wal::StakedWal`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['sw'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -144,7 +144,7 @@ export interface IsWithdrawingOptions {
 /** Checks whether the staked WAL is in the `Withdrawing` state. */
 export function isWithdrawing(options: IsWithdrawingOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::staked_wal::StakedWal`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['sw'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -167,7 +167,7 @@ export interface WithdrawEpochOptions {
  */
 export function withdrawEpoch(options: WithdrawEpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::staked_wal::StakedWal`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['sw'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -195,10 +195,7 @@ export interface JoinOptions {
  */
 export function join(options: JoinOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staked_wal::StakedWal`,
-		`${packageAddress}::staked_wal::StakedWal`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['sw', 'other'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -228,7 +225,7 @@ export interface SplitOptions {
  */
 export function split(options: SplitOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::staked_wal::StakedWal`, 'u64'] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['sw', 'amount'];
 	return (tx: Transaction) =>
 		tx.moveCall({

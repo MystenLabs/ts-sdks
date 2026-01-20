@@ -39,11 +39,11 @@ export interface SetTargetAddressOptions {
 export function setTargetAddress(options: SetTargetAddressOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<address>',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+		null,
+		null,
+		'0x1::option::Option<address>',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = ['suins', 'nft', 'newTarget'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -66,10 +66,7 @@ export interface SetReverseLookupOptions {
 /** Set the reverse lookup address for the domain */
 export function setReverseLookup(options: SetReverseLookupOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['suins', 'domainName'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -89,7 +86,7 @@ export interface UnsetReverseLookupOptions {
 /** User-facing function - unset the reverse lookup address for the domain. */
 export function unsetReverseLookup(options: UnsetReverseLookupOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [`${packageAddress}::suins::SuiNS`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['suins'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -120,11 +117,10 @@ export interface SetObjectReverseLookupOptions {
  */
 export function setObjectReverseLookup(options: SetObjectReverseLookupOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::UID',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::object::ID', '0x1::string::String'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['suins', 'obj', 'domainName'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -150,10 +146,7 @@ export interface UnsetObjectReverseLookupOptions {
  */
 export function unsetObjectReverseLookup(options: UnsetObjectReverseLookupOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::UID',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['suins', 'obj'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -184,12 +177,12 @@ export interface SetUserDataOptions {
 export function setUserData(options: SetUserDataOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+		null,
+		null,
+		'0x1::string::String',
+		'0x1::string::String',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = ['suins', 'nft', 'key', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -217,12 +210,10 @@ export interface UnsetUserDataOptions {
 /** User-facing function - remove a key from the name record's data. */
 export function unsetUserData(options: UnsetUserDataOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['suins', 'nft', 'key'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -244,11 +235,7 @@ export interface BurnExpiredOptions {
 }
 export function burnExpired(options: BurnExpiredOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::suins_registration::SuinsRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['suins', 'nft'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -270,11 +257,7 @@ export interface BurnExpiredSubnameOptions {
 }
 export function burnExpiredSubname(options: BurnExpiredSubnameOptions) {
 	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [
-		`${packageAddress}::suins::SuiNS`,
-		`${packageAddress}::subdomain_registration::SubDomainRegistration`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['suins', 'nft'];
 	return (tx: Transaction) =>
 		tx.moveCall({

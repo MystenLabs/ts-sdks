@@ -14,7 +14,7 @@ export interface Ed25519VerifyOptions {
 export function ed25519Verify(options: Ed25519VerifyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
