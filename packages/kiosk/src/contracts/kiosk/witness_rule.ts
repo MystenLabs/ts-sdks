@@ -46,10 +46,7 @@ export interface AddOptions {
  */
 export function add(options: AddOptions) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferPolicyCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['policy', 'cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -82,11 +79,7 @@ export interface ProveOptions<Proof extends BcsType<any>> {
  */
 export function prove<Proof extends BcsType<any>>(options: ProveOptions<Proof>) {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
-	const argumentsTypes = [
-		`${options.typeArguments[1]}`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::transfer_policy::TransferRequest<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[1]}`, null, null] satisfies (string | null)[];
 	const parameterNames = ['Proof', 'policy', 'request'];
 	return (tx: Transaction) =>
 		tx.moveCall({

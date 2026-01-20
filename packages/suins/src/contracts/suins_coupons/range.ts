@@ -27,7 +27,7 @@ export interface NewOptions {
 /** a new Range constructor[from, to] */
 export function _new(options: NewOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = ['u8', 'u8'] satisfies string[];
+	const argumentsTypes = ['u8', 'u8'] satisfies (string | null)[];
 	const parameterNames = ['from', 'to'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -49,7 +49,7 @@ export interface IsInRangeOptions {
 }
 export function isInRange(options: IsInRangeOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [`${packageAddress}::range::Range`, 'u8'] satisfies string[];
+	const argumentsTypes = [null, 'u8'] satisfies (string | null)[];
 	const parameterNames = ['range', 'number'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -69,7 +69,7 @@ export interface FromOptions {
 /** Get floor limit for the range. */
 export function _from(options: FromOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [`${packageAddress}::range::Range`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['range'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -89,7 +89,7 @@ export interface ToOptions {
 /** Get upper limit for the range. */
 export function to(options: ToOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
-	const argumentsTypes = [`${packageAddress}::range::Range`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['range'];
 	return (tx: Transaction) =>
 		tx.moveCall({

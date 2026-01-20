@@ -62,11 +62,7 @@ export interface NewRequestOptions {
 export function newRequest(options: NewRequestOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::object::ID`,
-		'u64',
-		`${packageAddress}::object::ID`,
-	] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID', 'u64', '0x2::object::ID'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -84,7 +80,7 @@ export interface NewOptions {
 export function _new(options: NewOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::package::Publisher`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -102,7 +98,7 @@ export interface DefaultOptions {
 export function _default(options: DefaultOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::package::Publisher`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -124,11 +120,7 @@ export interface WithdrawOptions {
 export function withdraw(options: WithdrawOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`${packageAddress}::transfer_policy::TransferPolicyCap<${options.typeArguments[0]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<u64>',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::option::Option<u64>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -146,10 +138,7 @@ export interface DestroyAndWithdrawOptions {
 export function destroyAndWithdraw(options: DestroyAndWithdrawOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`${packageAddress}::transfer_policy::TransferPolicyCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -167,10 +156,7 @@ export interface ConfirmRequestOptions {
 export function confirmRequest(options: ConfirmRequestOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`${packageAddress}::transfer_policy::TransferRequest<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -197,10 +183,10 @@ export function addRule<T1 extends BcsType<any>, T2 extends BcsType<any>>(
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [
 		`${options.typeArguments[1]}`,
-		`${packageAddress}::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`${packageAddress}::transfer_policy::TransferPolicyCap<${options.typeArguments[0]}>`,
+		null,
+		null,
 		`${options.typeArguments[2]}`,
-	] satisfies string[];
+	] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -218,10 +204,7 @@ export interface GetRuleOptions<T1 extends BcsType<any>> {
 export function getRule<T1 extends BcsType<any>>(options: GetRuleOptions<T1>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${options.typeArguments[1]}`,
-		`${packageAddress}::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[1]}`, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -243,11 +226,7 @@ export interface AddToBalanceOptions<T1 extends BcsType<any>> {
 export function addToBalance<T1 extends BcsType<any>>(options: AddToBalanceOptions<T1>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${options.typeArguments[1]}`,
-		`${packageAddress}::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`${packageAddress}::coin::Coin<${packageAddress}::sui::SUI>`,
-	] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[1]}`, null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -265,10 +244,7 @@ export interface AddReceiptOptions<T1 extends BcsType<any>> {
 export function addReceipt<T1 extends BcsType<any>>(options: AddReceiptOptions<T1>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${options.typeArguments[1]}`,
-		`${packageAddress}::transfer_policy::TransferRequest<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[1]}`, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -286,9 +262,7 @@ export interface HasRuleOptions {
 export function hasRule(options: HasRuleOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -306,10 +280,7 @@ export interface RemoveRuleOptions {
 export function removeRule(options: RemoveRuleOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`${packageAddress}::transfer_policy::TransferPolicyCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -327,9 +298,7 @@ export interface UidOptions {
 export function uid(options: UidOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -347,10 +316,7 @@ export interface UidMutAsOwnerOptions {
 export function uidMutAsOwner(options: UidMutAsOwnerOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-		`${packageAddress}::transfer_policy::TransferPolicyCap<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -368,9 +334,7 @@ export interface RulesOptions {
 export function rules(options: RulesOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::transfer_policy::TransferPolicy<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -388,9 +352,7 @@ export interface ItemOptions {
 export function item(options: ItemOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::transfer_policy::TransferRequest<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -408,9 +370,7 @@ export interface PaidOptions {
 export function paid(options: PaidOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::transfer_policy::TransferRequest<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -428,9 +388,7 @@ export interface FromOptions {
 export function _from(options: FromOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::transfer_policy::TransferRequest<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

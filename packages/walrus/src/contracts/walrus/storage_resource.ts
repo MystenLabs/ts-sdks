@@ -23,7 +23,7 @@ export interface StartEpochOptions {
 }
 export function startEpoch(options: StartEpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_resource::Storage`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -42,7 +42,7 @@ export interface EndEpochOptions {
 }
 export function endEpoch(options: EndEpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_resource::Storage`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -61,7 +61,7 @@ export interface SizeOptions {
 }
 export function size(options: SizeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_resource::Storage`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -89,7 +89,7 @@ export interface SplitByEpochOptions {
  */
 export function splitByEpoch(options: SplitByEpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_resource::Storage`, 'u32'] satisfies string[];
+	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
 	const parameterNames = ['storage', 'splitEpoch'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -117,7 +117,7 @@ export interface SplitBySizeOptions {
  */
 export function splitBySize(options: SplitBySizeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_resource::Storage`, 'u64'] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['storage', 'splitSize'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -140,10 +140,7 @@ export interface FusePeriodsOptions {
 /** Fuse two storage objects that cover adjacent periods with the same storage size. */
 export function fusePeriods(options: FusePeriodsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::storage_resource::Storage`,
-		`${packageAddress}::storage_resource::Storage`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['first', 'second'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -166,10 +163,7 @@ export interface FuseAmountOptions {
 /** Fuse two storage objects that cover the same period. */
 export function fuseAmount(options: FuseAmountOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::storage_resource::Storage`,
-		`${packageAddress}::storage_resource::Storage`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['first', 'second'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -195,10 +189,7 @@ export interface FuseOptions {
  */
 export function fuse(options: FuseOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::storage_resource::Storage`,
-		`${packageAddress}::storage_resource::Storage`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['first', 'second'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -218,7 +209,7 @@ export interface DestroyOptions {
 /** Destructor for [Storage] objects. */
 export function destroy(options: DestroyOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_resource::Storage`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['storage'];
 	return (tx: Transaction) =>
 		tx.moveCall({

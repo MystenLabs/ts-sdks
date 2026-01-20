@@ -36,7 +36,7 @@ export interface SingletonOptions<T0 extends BcsType<any>> {
 export function singleton<T0 extends BcsType<any>>(options: SingletonOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -54,9 +54,7 @@ export interface LengthOptions {
 export function length(options: LengthOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table_vec::TableVec<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -74,9 +72,7 @@ export interface IsEmptyOptions {
 export function isEmpty(options: IsEmptyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table_vec::TableVec<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -94,10 +90,7 @@ export interface BorrowOptions {
 export function borrow(options: BorrowOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table_vec::TableVec<${options.typeArguments[0]}>`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -115,10 +108,7 @@ export interface PushBackOptions<T0 extends BcsType<any>> {
 export function pushBack<T0 extends BcsType<any>>(options: PushBackOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table_vec::TableVec<${options.typeArguments[0]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -136,10 +126,7 @@ export interface BorrowMutOptions {
 export function borrowMut(options: BorrowMutOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table_vec::TableVec<${options.typeArguments[0]}>`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -157,9 +144,7 @@ export interface PopBackOptions {
 export function popBack(options: PopBackOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table_vec::TableVec<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -177,9 +162,7 @@ export interface DestroyEmptyOptions {
 export function destroyEmpty(options: DestroyEmptyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table_vec::TableVec<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -197,9 +180,7 @@ export interface DropOptions {
 export function drop(options: DropOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table_vec::TableVec<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -221,11 +202,7 @@ export interface SwapOptions {
 export function swap(options: SwapOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table_vec::TableVec<${options.typeArguments[0]}>`,
-		'u64',
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64', 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -243,10 +220,7 @@ export interface SwapRemoveOptions {
 export function swapRemove(options: SwapRemoveOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::table_vec::TableVec<${options.typeArguments[0]}>`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

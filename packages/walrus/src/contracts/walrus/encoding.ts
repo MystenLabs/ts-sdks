@@ -24,7 +24,7 @@ export interface EncodedBlobLengthOptions {
  */
 export function encodedBlobLength(options: EncodedBlobLengthOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = ['u64', 'u8', 'u16'] satisfies string[];
+	const argumentsTypes = ['u64', 'u8', 'u16'] satisfies (string | null)[];
 	const parameterNames = ['unencodedLength', 'encodingType', 'nShards'];
 	return (tx: Transaction) =>
 		tx.moveCall({

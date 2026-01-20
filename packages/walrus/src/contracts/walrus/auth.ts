@@ -54,7 +54,7 @@ export function authenticateWithObject<T extends BcsType<any>>(
 	options: AuthenticateWithObjectOptions<T>,
 ) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['obj'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -75,7 +75,7 @@ export interface AuthorizedAddressOptions {
 /** Returns the `Authorized` as an address. */
 export function authorizedAddress(options: AuthorizedAddressOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = ['address'] satisfies string[];
+	const argumentsTypes = ['address'] satisfies (string | null)[];
 	const parameterNames = ['addr'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -95,9 +95,7 @@ export interface AuthorizedObjectOptions {
 /** Returns the `Authorized` as an object. */
 export function authorizedObject(options: AuthorizedObjectOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
-	] satisfies string[];
+	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['id'];
 	return (tx: Transaction) =>
 		tx.moveCall({

@@ -19,7 +19,7 @@ export interface NewOptions {
 export function _new(options: NewOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = ['u64', 'bool'] satisfies string[];
+	const argumentsTypes = ['u64', 'bool'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -35,7 +35,7 @@ export interface GetIsNegativeOptions {
 export function getIsNegative(options: GetIsNegativeOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::i64::I64`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -51,7 +51,7 @@ export interface GetMagnitudeIfPositiveOptions {
 export function getMagnitudeIfPositive(options: GetMagnitudeIfPositiveOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::i64::I64`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -67,7 +67,7 @@ export interface GetMagnitudeIfNegativeOptions {
 export function getMagnitudeIfNegative(options: GetMagnitudeIfNegativeOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::i64::I64`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -83,7 +83,7 @@ export interface FromU64Options {
 export function fromU64(options: FromU64Options) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = ['u64'] satisfies string[];
+	const argumentsTypes = ['u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

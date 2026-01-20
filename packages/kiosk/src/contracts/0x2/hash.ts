@@ -10,7 +10,7 @@ export interface Blake2b256Options {
 export function blake2b256(options: Blake2b256Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -26,7 +26,7 @@ export interface Keccak256Options {
 export function keccak256(options: Keccak256Options) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

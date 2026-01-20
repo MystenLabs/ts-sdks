@@ -26,11 +26,7 @@ export interface NewOptions {
 export function _new(options: NewOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [
-		`${packageAddress}::price_identifier::PriceIdentifier`,
-		`${packageAddress}::price::Price`,
-		`${packageAddress}::price::Price`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -46,7 +42,7 @@ export interface FromOptions {
 export function _from(options: FromOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::price_feed::PriceFeed`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -62,7 +58,7 @@ export interface GetPriceIdentifierOptions {
 export function getPriceIdentifier(options: GetPriceIdentifierOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::price_feed::PriceFeed`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -78,7 +74,7 @@ export interface GetPriceOptions {
 export function getPrice(options: GetPriceOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::price_feed::PriceFeed`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -94,7 +90,7 @@ export interface GetEmaPriceOptions {
 export function getEmaPrice(options: GetEmaPriceOptions) {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
-	const argumentsTypes = [`${packageAddress}::price_feed::PriceFeed`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

@@ -19,7 +19,7 @@ export interface TimestampMsOptions {
 export function timestampMs(options: TimestampMsOptions = {}) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${packageAddress}::clock::Clock`] satisfies string[];
+	const argumentsTypes = ['0x2::clock::Clock'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

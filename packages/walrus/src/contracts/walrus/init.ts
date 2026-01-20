@@ -47,15 +47,10 @@ export interface InitializeWalrusOptions {
  */
 export function initializeWalrus(options: InitializeWalrusOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::init::InitCap`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::package::UpgradeCap',
-		'u64',
-		'u64',
-		'u16',
-		'u32',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u64', 'u64', 'u16', 'u32', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = [
 		'initCap',
 		'upgradeCap',
@@ -94,10 +89,7 @@ export interface MigrateOptions {
  */
 export function migrate(options: MigrateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::system::System`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['staking', 'system'];
 	return (tx: Transaction) =>
 		tx.moveCall({

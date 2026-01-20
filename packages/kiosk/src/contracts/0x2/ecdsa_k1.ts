@@ -14,7 +14,7 @@ export interface Secp256k1EcrecoverOptions {
 export function secp256k1Ecrecover(options: Secp256k1EcrecoverOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>', 'vector<u8>', 'u8'] satisfies string[];
+	const argumentsTypes = ['vector<u8>', 'vector<u8>', 'u8'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -30,7 +30,7 @@ export interface DecompressPubkeyOptions {
 export function decompressPubkey(options: DecompressPubkeyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>'] satisfies string[];
+	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -51,7 +51,10 @@ export interface Secp256k1VerifyOptions {
 export function secp256k1Verify(options: Secp256k1VerifyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['vector<u8>', 'vector<u8>', 'vector<u8>', 'u8'] satisfies string[];
+	const argumentsTypes = ['vector<u8>', 'vector<u8>', 'vector<u8>', 'u8'] satisfies (
+		| string
+		| null
+	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

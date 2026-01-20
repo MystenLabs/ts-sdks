@@ -25,9 +25,7 @@ export interface ValueOptions {
 export function value(options: ValueOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::balance::Balance<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -45,9 +43,7 @@ export interface SupplyValueOptions {
 export function supplyValue(options: SupplyValueOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::balance::Supply<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -65,7 +61,7 @@ export interface CreateSupplyOptions<T0 extends BcsType<any>> {
 export function createSupply<T0 extends BcsType<any>>(options: CreateSupplyOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies string[];
+	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -83,10 +79,7 @@ export interface IncreaseSupplyOptions {
 export function increaseSupply(options: IncreaseSupplyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::balance::Supply<${options.typeArguments[0]}>`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -104,10 +97,7 @@ export interface DecreaseSupplyOptions {
 export function decreaseSupply(options: DecreaseSupplyOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::balance::Supply<${options.typeArguments[0]}>`,
-		`${packageAddress}::balance::Balance<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -141,10 +131,7 @@ export interface JoinOptions {
 export function join(options: JoinOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::balance::Balance<${options.typeArguments[0]}>`,
-		`${packageAddress}::balance::Balance<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -162,10 +149,7 @@ export interface SplitOptions {
 export function split(options: SplitOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::balance::Balance<${options.typeArguments[0]}>`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -183,9 +167,7 @@ export interface WithdrawAllOptions {
 export function withdrawAll(options: WithdrawAllOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::balance::Balance<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -203,9 +185,7 @@ export interface DestroyZeroOptions {
 export function destroyZero(options: DestroyZeroOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::balance::Balance<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -223,10 +203,7 @@ export interface SendFundsOptions {
 export function sendFunds(options: SendFundsOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::balance::Balance<${options.typeArguments[0]}>`,
-		'address',
-	] satisfies string[];
+	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -244,14 +221,30 @@ export interface RedeemFundsOptions {
 export function redeemFunds(options: RedeemFundsOptions) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [
-		`${packageAddress}::funds_accumulator::Withdrawal<${packageAddress}::balance::Balance<${options.typeArguments[0]}>>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'balance',
 			function: 'redeem_funds',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface WithdrawFundsFromObjectOptions {
+	package?: string;
+	arguments: [RawTransactionArgument<string>, RawTransactionArgument<number | bigint>];
+	typeArguments: [string];
+}
+export function withdrawFundsFromObject(options: WithdrawFundsFromObjectOptions) {
+	const packageAddress =
+		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
+	const argumentsTypes = ['0x2::object::ID', 'u64'] satisfies (string | null)[];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'balance',
+			function: 'withdraw_funds_from_object',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
 			typeArguments: options.typeArguments,
 		});
