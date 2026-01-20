@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.27.1
+
+### Patch Changes
+
+- dd4b1c3: USDT/USDC pool
+
 ## 0.27.0
 
 ### Minor Changes
