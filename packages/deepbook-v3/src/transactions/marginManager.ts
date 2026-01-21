@@ -82,6 +82,54 @@ export class MarginManagerContract {
 		};
 
 	/**
+	 * @description Deposit into a margin manager during initialization (before sharing).
+	 * Use this when you need to deposit funds into a newly created manager in the same transaction.
+	 * @param {TransactionArgument} manager The margin manager transaction argument (from newMarginManagerWithInitializer)
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} coinType The type of coin to deposit: 'base', 'quote', 'deep', or a coin key from config
+	 * @param {number} amount The amount to deposit
+	 * @returns A function that takes a Transaction object
+	 */
+	depositDuringInitialization =
+		(manager: TransactionArgument, poolKey: string, coinType: string, amount: number) =>
+		(tx: Transaction) => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+			// Determine the deposit coin based on coinType
+			let depositCoin;
+			if (coinType === 'base') {
+				depositCoin = baseCoin;
+			} else if (coinType === 'quote') {
+				depositCoin = quoteCoin;
+			} else if (coinType === 'deep' || coinType === 'DEEP') {
+				depositCoin = this.#config.getCoin('DEEP');
+			} else {
+				// Assume it's a coin key from config
+				depositCoin = this.#config.getCoin(coinType);
+			}
+
+			const coin = coinWithBalance({
+				type: depositCoin.type,
+				balance: Math.round(amount * depositCoin.scalar),
+			});
+
+			tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
+				arguments: [
+					manager,
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					tx.object(baseCoin.priceInfoObjectId!),
+					tx.object(quoteCoin.priceInfoObjectId!),
+					coin,
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type, depositCoin.type],
+			});
+		};
+
+	/**
 	 * @description Deposit base into a margin manager
 	 * @param {string} managerKey The key to identify the manager
 	 * @param {number} amount The amount to deposit
