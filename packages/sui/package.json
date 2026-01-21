@@ -167,7 +167,7 @@
 		"@graphql-typed-document-node/core": "^3.2.0",
 		"@mysten/bcs": "workspace:^",
 		"@mysten/utils": "workspace:^",
-		"@noble/curves": "=1.9.4",
+		"@noble/curves": "^2.0.1",
 		"@noble/hashes": "^2.0.1",
 		"@protobuf-ts/grpcweb-transport": "^2.11.1",
 		"@protobuf-ts/runtime": "^2.11.1",

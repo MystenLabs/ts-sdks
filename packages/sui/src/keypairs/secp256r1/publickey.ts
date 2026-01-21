@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fromBase64 } from '@mysten/bcs';
-import { secp256r1 } from '@noble/curves/p256';
-import { sha256 } from '@noble/hashes/sha2.js';
+import { p256 as secp256r1 } from '@noble/curves/nist.js';
 
 import { bytesEqual, PublicKey } from '../../cryptography/publickey.js';
 import type { PublicKeyInitData } from '../../cryptography/publickey.js';
@@ -82,10 +81,6 @@ export class Secp256r1PublicKey extends PublicKey {
 			bytes = signature;
 		}
 
-		return secp256r1.verify(
-			secp256r1.Signature.fromCompact(bytes),
-			sha256(message),
-			this.toRawBytes(),
-		);
+		return secp256r1.verify(bytes, message, this.toRawBytes());
 	}
 }

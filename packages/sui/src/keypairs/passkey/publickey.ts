@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fromBase64, toBase64 } from '@mysten/bcs';
-import { secp256r1 } from '@noble/curves/p256';
+import { p256 as secp256r1 } from '@noble/curves/nist.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 
 import { PasskeyAuthenticator } from '../../bcs/bcs.js';
@@ -139,7 +139,7 @@ export class PasskeyPublicKey extends PublicKey {
 			...sha256(new TextEncoder().encode(parsed.clientDataJson)),
 		]);
 		const sig = parsed.userSignature.slice(1, PASSKEY_SIGNATURE_SIZE + 1);
-		return secp256r1.verify(sig, sha256(payload), pk);
+		return secp256r1.verify(sig, payload, pk);
 	}
 }
 

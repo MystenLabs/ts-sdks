@@ -50,7 +50,7 @@
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:^",
-		"@noble/curves": "=1.9.4",
+		"@noble/curves": "^2.0.1",
 		"@noble/hashes": "^2.0.1"
 	},
 	"peerDependencies": {

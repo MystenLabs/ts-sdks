@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { toBase64 } from '@mysten/bcs';
-import { secp256r1 } from '@noble/curves/p256';
+import { p256 as secp256r1 } from '@noble/curves/nist.js';
 import { blake2b } from '@noble/hashes/blake2.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { randomBytes } from '@noble/hashes/utils.js';
@@ -143,8 +143,8 @@ export class PasskeyKeypair extends Signer {
 		} else {
 			const derSPKI = credential.response.getPublicKey()!;
 			const pubkeyUncompressed = parseDerSPKI(new Uint8Array(derSPKI));
-			const pubkey = secp256r1.ProjectivePoint.fromHex(pubkeyUncompressed);
-			const pubkeyCompressed = pubkey.toRawBytes(true);
+			const pubkey = secp256r1.Point.fromBytes(pubkeyUncompressed);
+			const pubkeyCompressed = pubkey.toBytes(true);
 			return new PasskeyKeypair(pubkeyCompressed, provider);
 		}
 	}
@@ -170,9 +170,12 @@ export class PasskeyKeypair extends Signer {
 		const decoder = new TextDecoder();
 		const clientDataJSONString: string = decoder.decode(clientDataJSON);
 
-		// parse the signature from DER format, normalize and convert to compressed format (33 bytes).
-		const sig = secp256r1.Signature.fromDER(new Uint8Array(credential.response.signature));
-		const normalized = sig.normalizeS().toCompactRawBytes();
+		const sig = secp256r1.Signature.fromBytes(new Uint8Array(credential.response.signature), 'der');
+		const normalizedSig = sig.hasHighS()
+			? new secp256r1.Signature(sig.r, secp256r1.Point.Fn.neg(sig.s))
+			: sig;
+
+		const normalized = normalizedSig.toBytes('compact');
 
 		if (
 			normalized.length !== PASSKEY_SIGNATURE_SIZE ||
@@ -255,14 +258,15 @@ export class PasskeyKeypair extends Signer {
 	): Promise<PublicKey[]> {
 		const credential = await provider.get(message);
 		const fullMessage = messageFromAssertionResponse(credential.response);
-		const sig = secp256r1.Signature.fromDER(new Uint8Array(credential.response.signature));
+		const sig = secp256r1.Signature.fromBytes(new Uint8Array(credential.response.signature), 'der');
 
 		const res = [];
+		const msgHash = sha256(fullMessage);
 		for (let i = 0; i < 4; i++) {
 			const s = sig.addRecoveryBit(i);
 			try {
-				const pubkey = s.recoverPublicKey(sha256(fullMessage));
-				const pk = new PasskeyPublicKey(pubkey.toRawBytes(true));
+				const pubkey = s.recoverPublicKey(msgHash);
+				const pk = new PasskeyPublicKey(pubkey.toBytes(true));
 				res.push(pk);
 			} catch {
 				continue;
