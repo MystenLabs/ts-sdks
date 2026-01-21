@@ -3,9 +3,9 @@
 
 import { toBase64 } from '@mysten/bcs';
 import { secp256r1 } from '@noble/curves/p256';
-import { blake2b } from '@noble/hashes/blake2b';
-import { sha256 } from '@noble/hashes/sha256';
-import { randomBytes } from '@noble/hashes/utils';
+import { blake2b } from '@noble/hashes/blake2.js';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { randomBytes } from '@noble/hashes/utils.js';
 
 import { PasskeyAuthenticator } from '../../bcs/bcs.js';
 import type { IntentScope, SignatureWithBytes } from '../../cryptography/index.js';

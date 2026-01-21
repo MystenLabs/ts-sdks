@@ -3,7 +3,7 @@
 
 import { fromBase64, toBase64 } from '@mysten/bcs';
 import { secp256r1 } from '@noble/curves/p256';
-import { sha256 } from '@noble/hashes/sha256';
+import { sha256 } from '@noble/hashes/sha2.js';
 
 import { PasskeyAuthenticator } from '../../bcs/bcs.js';
 import { bytesEqual, PublicKey } from '../../cryptography/publickey.js';
@@ -134,7 +134,10 @@ export class PasskeyPublicKey extends PublicKey {
 			return false;
 		}
 
-		const payload = new Uint8Array([...parsed.authenticatorData, ...sha256(parsed.clientDataJson)]);
+		const payload = new Uint8Array([
+			...parsed.authenticatorData,
+			...sha256(new TextEncoder().encode(parsed.clientDataJson)),
+		]);
 		const sig = parsed.userSignature.slice(1, PASSKEY_SIGNATURE_SIZE + 1);
 		return secp256r1.verify(sig, sha256(payload), pk);
 	}

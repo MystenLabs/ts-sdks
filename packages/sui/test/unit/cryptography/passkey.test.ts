@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { secp256r1 } from '@noble/curves/p256';
-import { blake2b } from '@noble/hashes/blake2b';
+import { blake2b } from '@noble/hashes/blake2.js';
 import { describe, expect, it } from 'vitest';
 
 import { bcs } from '../../../src/bcs';

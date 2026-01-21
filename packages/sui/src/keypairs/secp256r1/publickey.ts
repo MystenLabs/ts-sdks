@@ -3,7 +3,7 @@
 
 import { fromBase64 } from '@mysten/bcs';
 import { secp256r1 } from '@noble/curves/p256';
-import { sha256 } from '@noble/hashes/sha256';
+import { sha256 } from '@noble/hashes/sha2.js';
 
 import { bytesEqual, PublicKey } from '../../cryptography/publickey.js';
 import type { PublicKeyInitData } from '../../cryptography/publickey.js';

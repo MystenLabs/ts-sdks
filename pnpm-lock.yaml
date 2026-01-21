@@ -593,8 +593,8 @@ importers:
         specifier: workspace:^
         version: link:../bcs
       '@noble/hashes':
-        specifier: ^1.8.0
-        version: 1.8.0
+        specifier: ^2.0.1
+        version: 2.0.1
       axios:
         specifier: ^1.13.2
         version: 1.13.2
@@ -1048,8 +1048,8 @@ importers:
         specifier: '=1.9.4'
         version: 1.9.4
       '@noble/hashes':
-        specifier: ^1.8.0
-        version: 1.8.0
+        specifier: ^2.0.1
+        version: 2.0.1
     devDependencies:
       '@hey-api/openapi-ts':
         specifier: ^0.90.3
@@ -1144,8 +1144,8 @@ importers:
         specifier: '=1.9.4'
         version: 1.9.4
       '@noble/hashes':
-        specifier: ^1.8.0
-        version: 1.8.0
+        specifier: ^2.0.1
+        version: 2.0.1
       '@protobuf-ts/grpcweb-transport':
         specifier: ^2.11.1
         version: 2.11.1

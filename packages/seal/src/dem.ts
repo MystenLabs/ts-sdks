@@ -3,8 +3,8 @@
 
 import { bcs } from '@mysten/bcs';
 import { equalBytes } from '@noble/curves/abstract/utils';
-import { hmac } from '@noble/hashes/hmac';
-import { sha3_256 } from '@noble/hashes/sha3';
+import { hmac } from '@noble/hashes/hmac.js';
+import { sha3_256 } from '@noble/hashes/sha3.js';
 
 import type { Ciphertext } from './bcs.js';
 import { DecryptionError, InvalidCiphertextError } from './error.js';

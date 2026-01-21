@@ -3,7 +3,7 @@
 
 import { fromBase64 } from '@mysten/bcs';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { sha256 } from '@noble/hashes/sha256';
+import { sha256 } from '@noble/hashes/sha2.js';
 
 import {
 	bytesEqual,

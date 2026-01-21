@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { secp256r1 } from '@noble/curves/p256';
-import { sha256 } from '@noble/hashes/sha256';
+import { sha256 } from '@noble/hashes/sha2.js';
 
 import { PasskeyKeypair } from '../../../src/keypairs/passkey/index.js';
 import type { PasskeyProvider } from '../../../src/keypairs/passkey/keypair.js';
