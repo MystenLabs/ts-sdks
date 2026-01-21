@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { TransactionObjectArgument } from '@mysten/sui/transactions';
+import type { TransactionArgument, TransactionObjectArgument } from '@mysten/sui/transactions';
 
 // SPDX-License-Identifier: Apache-2.0
 export interface BalanceManager {
@@ -253,3 +253,22 @@ export interface Config {
 }
 
 export type Environment = 'mainnet' | 'testnet';
+
+/**
+ * Parameters for depositing into a margin manager.
+ * Either `amount` (number) or `coin` (TransactionArgument) must be provided, but not both.
+ */
+export type DepositParams = {
+	managerKey: string;
+} & ({ amount: number; coin?: never } | { amount?: never; coin: TransactionArgument });
+
+/**
+ * Parameters for depositing during margin manager initialization.
+ * Either (`coinType` + `amount`) or (`coinType` + `coin`) must be provided.
+ * `coinType` should be a coin key from config (e.g., 'SUI', 'DBUSDC', 'DEEP').
+ */
+export type DepositDuringInitParams = {
+	manager: TransactionArgument;
+	poolKey: string;
+	coinType: string;
+} & ({ amount: number; coin?: never } | { amount?: never; coin: TransactionArgument });

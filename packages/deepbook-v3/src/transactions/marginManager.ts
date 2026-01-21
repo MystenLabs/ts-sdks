@@ -4,25 +4,7 @@ import type { Transaction, TransactionArgument } from '@mysten/sui/transactions'
 import { coinWithBalance } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
-
-/**
- * Parameters for depositing into a margin manager.
- * Either `amount` (number) or `coin` (TransactionArgument) must be provided, but not both.
- */
-export type DepositParams = {
-	managerKey: string;
-} & ({ amount: number; coin?: never } | { amount?: never; coin: TransactionArgument });
-
-/**
- * Parameters for depositing during margin manager initialization.
- * Either (`coinType` + `amount`) or (`coinType` + `coin`) must be provided.
- * `coinType` should be a coin key from config (e.g., 'SUI', 'DBUSDC', 'DEEP').
- */
-export type DepositDuringInitParams = {
-	manager: TransactionArgument;
-	poolKey: string;
-	coinType: string;
-} & ({ amount: number; coin?: never } | { amount?: never; coin: TransactionArgument });
+import type { DepositParams, DepositDuringInitParams } from '../types/index.js';
 
 /**
  * MarginManagerContract class for managing MarginManager operations.
