@@ -1703,6 +1703,30 @@ export class DeepBookClient {
 		);
 	}
 
+	/**
+	 * @description Get account order details for a margin manager.
+	 * This retrieves the balance manager from the margin manager and returns order details.
+	 * @param {string} marginManagerKey The key to identify the margin manager
+	 * @returns {Promise<Array>} Array of order details
+	 */
+	async getMarginAccountOrderDetails(marginManagerKey: string) {
+		const manager = this.#config.getMarginManager(marginManagerKey);
+		const tx = new Transaction();
+		tx.add(this.marginManager.getMarginAccountOrderDetails(manager.poolKey, manager.address));
+
+		const res = await this.client.devInspectTransactionBlock({
+			sender: normalizeSuiAddress(this.#address),
+			transactionBlock: tx,
+		});
+
+		try {
+			const orderInformation = res.results![0].returnValues![0][0];
+			return bcs.vector(Order).parse(new Uint8Array(orderInformation));
+		} catch {
+			return [];
+		}
+	}
+
 	// === Margin TPSL (Take Profit / Stop Loss) Read-Only Functions ===
 
 	/**
