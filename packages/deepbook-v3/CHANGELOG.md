@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.28.1
+
+### Patch Changes
+
+- 1434c65: Withdraw all fix
+
 ## 0.28.0
 
 ### Minor Changes
