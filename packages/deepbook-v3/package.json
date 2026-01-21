@@ -41,7 +41,7 @@
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:^",
-		"@noble/hashes": "^2.0.1",
+		"@noble/hashes": "^1.8.0",
 		"axios": "^1.13.2",
 		"axios-retry": "^4.5.0"
 	},

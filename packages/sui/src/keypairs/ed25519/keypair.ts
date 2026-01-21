@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { ed25519 } from '@noble/curves/ed25519.js';
+import { ed25519 } from '@noble/curves/ed25519';
 
 import {
 	decodeSuiPrivateKey,
@@ -46,7 +46,7 @@ export class Ed25519Keypair extends Keypair {
 				secretKey: keypair.secretKey.slice(0, 32),
 			};
 		} else {
-			const privateKey = ed25519.utils.randomSecretKey();
+			const privateKey = ed25519.utils.randomPrivateKey();
 			this.keypair = {
 				publicKey: ed25519.getPublicKey(privateKey),
 				secretKey: privateKey,
@@ -65,7 +65,7 @@ export class Ed25519Keypair extends Keypair {
 	 * Generate a new random Ed25519 keypair
 	 */
 	static generate(): Ed25519Keypair {
-		const secretKey = ed25519.utils.randomSecretKey();
+		const secretKey = ed25519.utils.randomPrivateKey();
 		return new Ed25519Keypair({
 			publicKey: ed25519.getPublicKey(secretKey),
 			secretKey,

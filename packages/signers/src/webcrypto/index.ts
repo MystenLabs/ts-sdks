@@ -4,7 +4,7 @@
 import type { SignatureScheme } from '@mysten/sui/cryptography';
 import { Signer } from '@mysten/sui/cryptography';
 import { Secp256r1PublicKey } from '@mysten/sui/keypairs/secp256r1';
-import { p256 as secp256r1 } from '@noble/curves/nist.js';
+import { secp256r1 } from '@noble/curves/p256';
 
 // Convert from uncompressed (65 bytes) to compressed (33 bytes) format
 function getCompressedPublicKey(publicKey: Uint8Array) {
@@ -101,11 +101,8 @@ export class WebCryptoSigner extends Signer {
 			bytes as BufferSource,
 		);
 
-		const signature = secp256r1.Signature.fromBytes(new Uint8Array(rawSignature));
-		const normalizedSig = signature.hasHighS()
-			? new secp256r1.Signature(signature.r, secp256r1.Point.Fn.neg(signature.s))
-			: signature;
+		const signature = secp256r1.Signature.fromCompact(new Uint8Array(rawSignature));
 
-		return normalizedSig.toBytes('compact') as Uint8Array<ArrayBuffer>;
+		return signature.normalizeS().toCompactRawBytes() as Uint8Array<ArrayBuffer>;
 	}
 }

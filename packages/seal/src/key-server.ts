@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { bcs, fromBase64, fromHex, toBase64, toHex } from '@mysten/bcs';
-import { bls12_381 } from '@noble/curves/bls12-381.js';
+import { bls12_381 } from '@noble/curves/bls12-381';
 
 import { KeyServerMove, KeyServerMoveV1 } from './bcs.js';
 import { InvalidKeyServerError, InvalidKeyServerVersionError, SealAPIError } from './error.js';
@@ -124,11 +124,7 @@ export async function verifyKeyServer(
 		return false;
 	}
 	const fullMsg = flatten([DST_POP, server.pk, fromHex(server.objectId)]);
-	return bls12_381.shortSignatures.verify(
-		fromBase64(serviceResponse.pop),
-		bls12_381.shortSignatures.hash(fullMsg),
-		server.pk,
-	);
+	return bls12_381.verifyShortSignature(fromBase64(serviceResponse.pop), fullMsg, server.pk);
 }
 
 /**

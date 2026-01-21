@@ -1,8 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { p256 as secp256r1 } from '@noble/curves/nist.js';
-import { sha256 } from '@noble/hashes/sha2.js';
+import { secp256r1 } from '@noble/curves/p256';
+import { sha256 } from '@noble/hashes/sha256';
 
 import { PasskeyKeypair } from '../../../src/keypairs/passkey/index.js';
 import type { PasskeyProvider } from '../../../src/keypairs/passkey/keypair.js';
@@ -17,7 +17,7 @@ import type {
 
 export function compressedPubKeyToDerSPKI(compressedPubKey: Uint8Array): Uint8Array {
 	// Combine header with the uncompressed public key coordinates.
-	const uncompressedPubKey = secp256r1.Point.fromBytes(compressedPubKey).toBytes(false);
+	const uncompressedPubKey = secp256r1.ProjectivePoint.fromHex(compressedPubKey).toRawBytes(false);
 	return new Uint8Array([...SECP256R1_SPKI_HEADER, ...uncompressedPubKey]);
 }
 
@@ -39,7 +39,7 @@ export class MockPasskeySigner implements PasskeyProvider {
 		changeAuthenticatorData?: boolean;
 		changeSignature?: boolean;
 	}) {
-		this.sk = options?.sk ?? secp256r1.utils.randomSecretKey();
+		this.sk = options?.sk ?? secp256r1.utils.randomPrivateKey();
 		this.pk = options?.pk ?? null;
 		this.authenticatorData =
 			options?.authenticatorData ??
@@ -122,15 +122,15 @@ export class MockPasskeySigner implements PasskeyProvider {
 
 		// Manually mangle the signature if changeSignature.
 		const signature = this.changeSignature
-			? secp256r1.sign(dataToSign, secp256r1.utils.randomSecretKey(), { format: 'der' })
-			: secp256r1.sign(dataToSign, this.sk, { format: 'der' });
+			? secp256r1.sign(sha256(dataToSign), secp256r1.utils.randomPrivateKey())
+			: secp256r1.sign(sha256(dataToSign), this.sk);
 
 		const authResponse: AuthenticatorAssertionResponse = {
 			authenticatorData: this.changeAuthenticatorData
 				? new Uint8Array([1]).buffer // Change authenticator data
 				: this.authenticatorData.slice().buffer,
 			clientDataJSON: new TextEncoder().encode(clientDataJSON).slice().buffer,
-			signature: signature.slice().buffer,
+			signature: signature.toDERRawBytes().slice().buffer,
 			userHandle: null,
 		};
 
@@ -167,7 +167,7 @@ export async function createMockPasskeyKeypair(options?: {
  * Helper function to create a passkey public key for testing
  */
 export function createMockPasskeyPublicKey(sk?: Uint8Array): PasskeyPublicKey {
-	const privateKey = sk ?? secp256r1.utils.randomSecretKey();
+	const privateKey = sk ?? secp256r1.utils.randomPrivateKey();
 	const publicKey = secp256r1.getPublicKey(privateKey);
 	return new PasskeyPublicKey(publicKey);
 }

@@ -1,8 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { secp256k1 } from '@noble/curves/secp256k1.js';
-import { blake2b } from '@noble/hashes/blake2.js';
+import { secp256k1 } from '@noble/curves/secp256k1';
+import { blake2b } from '@noble/hashes/blake2b';
+import { sha256 } from '@noble/hashes/sha256';
+import { bytesToHex } from '@noble/hashes/utils';
 import { HDKey } from '@scure/bip32';
 
 import { decodeSuiPrivateKey, encodeSuiPrivateKey, Keypair } from '../../cryptography/keypair.js';
@@ -38,7 +40,7 @@ export class Secp256k1Keypair extends Keypair {
 		if (keypair) {
 			this.keypair = keypair;
 		} else {
-			const secretKey: Uint8Array = secp256k1.utils.randomSecretKey();
+			const secretKey: Uint8Array = secp256k1.utils.randomPrivateKey();
 			const publicKey: Uint8Array = secp256k1.getPublicKey(secretKey, true);
 
 			this.keypair = { publicKey, secretKey };
@@ -90,10 +92,9 @@ export class Secp256k1Keypair extends Keypair {
 		if (!options || !options.skipValidation) {
 			const encoder = new TextEncoder();
 			const signData = encoder.encode('sui validation');
-			const msgHash = blake2b(signData, { dkLen: 32 });
-			const signature = secp256k1.sign(msgHash, secretKey, { prehash: false });
-
-			if (!secp256k1.verify(signature, msgHash, publicKey, { lowS: true, prehash: false })) {
+			const msgHash = bytesToHex(blake2b(signData, { dkLen: 32 }));
+			const signature = secp256k1.sign(msgHash, secretKey);
+			if (!secp256k1.verify(signature, msgHash, publicKey, { lowS: true })) {
 				throw new Error('Provided secretKey is invalid');
 			}
 		}
@@ -127,9 +128,11 @@ export class Secp256k1Keypair extends Keypair {
 	 * Return the signature for the provided data.
 	 */
 	async sign(data: Uint8Array) {
-		return secp256k1.sign(data, this.keypair.secretKey, {
+		const msgHash = sha256(data);
+		const sig = secp256k1.sign(msgHash, this.keypair.secretKey, {
 			lowS: true,
-		}) as Uint8Array<ArrayBuffer>;
+		});
+		return sig.toCompactRawBytes() as Uint8Array<ArrayBuffer>;
 	}
 
 	/**

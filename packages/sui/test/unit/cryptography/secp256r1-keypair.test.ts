@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fromBase64, toBase58, toBase64 } from '@mysten/bcs';
-import { p256 as secp256r1 } from '@noble/curves/nist.js';
+import { secp256r1 } from '@noble/curves/p256';
+import { sha256 } from '@noble/hashes/sha256';
 import { describe, expect, it } from 'vitest';
 
-import { decodeSuiPrivateKey } from '../../../src/cryptography/keypair.js';
+import { decodeSuiPrivateKey } from '../../../src/cryptography/keypair';
 import {
 	DEFAULT_SECP256R1_DERIVATION_PATH,
 	Secp256r1Keypair,
-} from '../../../src/keypairs/secp256r1/index.js';
-import { Transaction } from '../../../src/transactions/index.js';
-import {
-	verifyPersonalMessageSignature,
-	verifyTransactionSignature,
-} from '../../../src/verify/index.js';
+} from '../../../src/keypairs/secp256r1';
+import { Transaction } from '../../../src/transactions';
+import { verifyPersonalMessageSignature, verifyTransactionSignature } from '../../../src/verify';
 
 const VALID_SECP256R1_SECRET_KEY = [
 	66, 37, 141, 205, 161, 76, 241, 17, 198, 2, 184, 151, 27, 140, 200, 67, 233, 30, 70, 202, 144, 81,
@@ -75,7 +73,7 @@ describe('secp256r1-keypair', () => {
 		const secretKey = fromBase64(secret_key_base64);
 		expect(() => {
 			Secp256r1Keypair.fromSecretKey(secretKey);
-		}).toThrow('Field.fromBytes: expected 32 bytes, got 31');
+		}).toThrow('invalid private key: expected ui8a of size 32, got object');
 	});
 
 	it('generate keypair from random seed', () => {
@@ -88,21 +86,37 @@ describe('secp256r1-keypair', () => {
 	it('signature of data is valid', async () => {
 		const keypair = new Secp256r1Keypair();
 		const signData = new TextEncoder().encode('hello world');
+
+		const msgHash = sha256(signData);
 		const sig = await keypair.sign(signData);
-		expect(secp256r1.verify(sig, signData, keypair.getPublicKey().toRawBytes())).toBeTruthy();
+		expect(
+			secp256r1.verify(
+				secp256r1.Signature.fromCompact(sig),
+				msgHash,
+				keypair.getPublicKey().toRawBytes(),
+			),
+		).toBeTruthy();
 	});
 
 	it('signature of data is same as rust implementation', async () => {
 		const secret_key = new Uint8Array(VALID_SECP256R1_SECRET_KEY);
 		const keypair = Secp256r1Keypair.fromSecretKey(secret_key);
 		const signData = new TextEncoder().encode('Hello, world!');
+
+		const msgHash = sha256(signData);
 		const sig = await keypair.sign(signData);
 
 		// Assert the signature is the same as the rust implementation.
 		expect(Buffer.from(sig).toString('hex')).toEqual(
 			'26d84720652d8bc4ddd1986434a10b3b7b69f0e35a17c6a5987e6d1cba69652f4384a342487642df5e44592d304bea0ceb0fae2e347fa3cec5ce1a8144cfbbb2',
 		);
-		expect(secp256r1.verify(sig, signData, keypair.getPublicKey().toRawBytes())).toBeTruthy();
+		expect(
+			secp256r1.verify(
+				secp256r1.Signature.fromCompact(sig),
+				msgHash,
+				keypair.getPublicKey().toRawBytes(),
+			),
+		).toBeTruthy();
 	});
 
 	it('invalid mnemonics to derive secp256r1 keypair', () => {
