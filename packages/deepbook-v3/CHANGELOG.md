@@ -1,5 +1,12 @@
 # @mysten/deepbook-v3
 
+## 0.28.0
+
+### Minor Changes
+
+- c457d15: Allow deposit into margin pool during initialization. Allow deposit into margin pool
+  using TransactionArgument. Rounding improvements. Export constants in SDK.
+
 ## 0.27.1
 
 ### Patch Changes
