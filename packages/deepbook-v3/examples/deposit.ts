@@ -12,19 +12,15 @@
 import { DeepBookClient } from '../src/client.js';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 
 async function main() {
-	const keypair = Ed25519Keypair.generate();
-	const address = keypair.getPublicKey().toSuiAddress();
-
 	const suiClient = new SuiClient({
 		url: getFullnodeUrl('testnet'),
 	});
 
 	const dbClient = new DeepBookClient({
 		client: suiClient,
-		address,
+		address: '0xYOUR_ADDRESS_HERE', // Replace with your address
 		env: 'testnet',
 	});
 
