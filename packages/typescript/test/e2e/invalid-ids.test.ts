@@ -23,21 +23,19 @@ describe('Object id/Address/Transaction digest validation', () => {
 
 	it('Test all functions with invalid Object Id', async () => {
 		//empty id
-		await expect(toolbox.client.getObject({ id: '' })).rejects.toThrowError(
-			/Invalid Sui Object id/,
-		);
+		await expect(toolbox.client.getObject({ id: '' })).rejects.toThrowError(/Invalid Sui address/);
 
 		//more than 20bytes
 		await expect(
 			toolbox.client.getDynamicFields({
 				parentId: '0x0000000000000000000000004ce52ee7b659b610d59a1ced129291b3d0d4216322',
 			}),
-		).rejects.toThrowError(/Invalid Sui Object id/);
+		).rejects.toThrowError(/Invalid Sui address/);
 
 		//wrong batch request
 		const objectIds = ['0xBABE', '0xCAFE', '0xWRONG', '0xFACE'];
 		await expect(toolbox.client.multiGetObjects({ ids: objectIds })).rejects.toThrowError(
-			/Invalid Sui Object id 0xWRONG/,
+			/Invalid Sui address: 0xWRONG/,
 		);
 	});
 
