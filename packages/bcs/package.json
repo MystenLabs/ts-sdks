@@ -61,6 +61,6 @@
 	},
 	"dependencies": {
 		"@mysten/utils": "workspace:^",
-		"@scure/base": "^1.2.6"
+		"@scure/base": "^2.0.0"
 	}
 }
