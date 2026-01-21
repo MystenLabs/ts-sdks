@@ -197,7 +197,7 @@ export class DeepBookAdminContract {
 		const baseScalar = baseCoin.scalar;
 		const quoteScalar = quoteCoin.scalar;
 
-		const adjustedTickSize = (newTickSize * FLOAT_SCALAR * quoteScalar) / baseScalar;
+		const adjustedTickSize = Math.round((newTickSize * FLOAT_SCALAR * quoteScalar) / baseScalar);
 
 		tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::adjust_tick_size_admin`,
@@ -227,8 +227,8 @@ export class DeepBookAdminContract {
 
 			const baseScalar = baseCoin.scalar;
 
-			const adjustedLotSize = newLotSize * baseScalar;
-			const adjustedMinSize = newMinSize * baseScalar;
+			const adjustedLotSize = Math.round(newLotSize * baseScalar);
+			const adjustedMinSize = Math.round(newMinSize * baseScalar);
 
 			tx.moveCall({
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::adjust_min_lot_size_admin`,

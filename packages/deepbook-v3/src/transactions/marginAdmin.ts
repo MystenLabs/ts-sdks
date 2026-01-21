@@ -239,12 +239,12 @@ export class MarginAdminContract {
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::new_pool_config`,
 			arguments: [
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.pure.u64(minWithdrawRiskRatio * FLOAT_SCALAR),
-				tx.pure.u64(minBorrowRiskRatio * FLOAT_SCALAR),
-				tx.pure.u64(liquidationRiskRatio * FLOAT_SCALAR),
-				tx.pure.u64(targetLiquidationRiskRatio * FLOAT_SCALAR),
-				tx.pure.u64(userLiquidationReward * FLOAT_SCALAR),
-				tx.pure.u64(poolLiquidationReward * FLOAT_SCALAR),
+				tx.pure.u64(Math.round(minWithdrawRiskRatio * FLOAT_SCALAR)),
+				tx.pure.u64(Math.round(minBorrowRiskRatio * FLOAT_SCALAR)),
+				tx.pure.u64(Math.round(liquidationRiskRatio * FLOAT_SCALAR)),
+				tx.pure.u64(Math.round(targetLiquidationRiskRatio * FLOAT_SCALAR)),
+				tx.pure.u64(Math.round(userLiquidationReward * FLOAT_SCALAR)),
+				tx.pure.u64(Math.round(poolLiquidationReward * FLOAT_SCALAR)),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
@@ -262,7 +262,10 @@ export class MarginAdminContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::new_pool_config_with_leverage`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.pure.u64(leverage * FLOAT_SCALAR)],
+			arguments: [
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.pure.u64(Math.round(leverage * FLOAT_SCALAR)),
+			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};

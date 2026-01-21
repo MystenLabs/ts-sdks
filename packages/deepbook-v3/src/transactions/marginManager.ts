@@ -94,7 +94,7 @@ export class MarginManagerContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const coin = coinWithBalance({
 			type: baseCoin.type,
-			balance: amount * baseCoin.scalar,
+			balance: Math.round(amount * baseCoin.scalar),
 		});
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
@@ -123,7 +123,7 @@ export class MarginManagerContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const coin = coinWithBalance({
 			type: quoteCoin.type,
-			balance: amount * quoteCoin.scalar,
+			balance: Math.round(amount * quoteCoin.scalar),
 		});
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
@@ -153,7 +153,7 @@ export class MarginManagerContract {
 		const deepCoin = this.#config.getCoin('DEEP');
 		const coin = coinWithBalance({
 			type: deepCoin.type,
-			balance: amount * deepCoin.scalar,
+			balance: Math.round(amount * deepCoin.scalar),
 		});
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
@@ -192,7 +192,7 @@ export class MarginManagerContract {
 				tx.object(baseCoin.priceInfoObjectId!),
 				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.object(pool.address),
-				tx.pure.u64(amount * baseCoin.scalar),
+				tx.pure.u64(Math.round(amount * baseCoin.scalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type, baseCoin.type],
@@ -222,7 +222,7 @@ export class MarginManagerContract {
 				tx.object(baseCoin.priceInfoObjectId!),
 				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.object(pool.address),
-				tx.pure.u64(amount * quoteCoin.scalar),
+				tx.pure.u64(Math.round(amount * quoteCoin.scalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type, quoteCoin.type],
@@ -253,7 +253,7 @@ export class MarginManagerContract {
 				tx.object(baseCoin.priceInfoObjectId!),
 				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.object(pool.address),
-				tx.pure.u64(amount * deepCoin.scalar),
+				tx.pure.u64(Math.round(amount * deepCoin.scalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type, deepCoin.type],
@@ -281,7 +281,7 @@ export class MarginManagerContract {
 				tx.object(baseCoin.priceInfoObjectId!),
 				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.object(pool.address),
-				tx.pure.u64(amount * baseCoin.scalar),
+				tx.pure.u64(Math.round(amount * baseCoin.scalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
@@ -309,7 +309,7 @@ export class MarginManagerContract {
 				tx.object(baseCoin.priceInfoObjectId!),
 				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.object(pool.address),
-				tx.pure.u64(amount * quoteCoin.scalar),
+				tx.pure.u64(Math.round(amount * quoteCoin.scalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
@@ -336,7 +336,7 @@ export class MarginManagerContract {
 				tx.object(baseMarginPool.address),
 				tx.object.option({
 					type: 'u64',
-					value: amount ? tx.pure.u64(amount * baseCoin.scalar) : null,
+					value: amount ? tx.pure.u64(Math.round(amount * baseCoin.scalar)) : null,
 				}),
 				tx.object.clock(),
 			],
@@ -364,7 +364,7 @@ export class MarginManagerContract {
 				tx.object(quoteMarginPool.address),
 				tx.object.option({
 					type: 'u64',
-					value: amount ? tx.pure.u64(amount * quoteCoin.scalar) : null,
+					value: amount ? tx.pure.u64(Math.round(amount * quoteCoin.scalar)) : null,
 				}),
 				tx.object.clock(),
 			],

@@ -102,9 +102,9 @@ export class MarginMaintainerContract {
 			return tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_margin_pool_config`,
 				arguments: [
-					tx.pure.u64(supplyCap * coin.scalar),
-					tx.pure.u64(maxUtilizationRate * FLOAT_SCALAR),
-					tx.pure.u64(referralSpread * FLOAT_SCALAR),
+					tx.pure.u64(Math.round(supplyCap * coin.scalar)),
+					tx.pure.u64(Math.round(maxUtilizationRate * FLOAT_SCALAR)),
+					tx.pure.u64(Math.round(referralSpread * FLOAT_SCALAR)),
 					tx.pure.u64(Math.round(minBorrow * coin.scalar)),
 				],
 			});
@@ -141,9 +141,9 @@ export class MarginMaintainerContract {
 			return tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_margin_pool_config_with_rate_limit`,
 				arguments: [
-					tx.pure.u64(supplyCap * coin.scalar),
-					tx.pure.u64(maxUtilizationRate * FLOAT_SCALAR),
-					tx.pure.u64(referralSpread * FLOAT_SCALAR),
+					tx.pure.u64(Math.round(supplyCap * coin.scalar)),
+					tx.pure.u64(Math.round(maxUtilizationRate * FLOAT_SCALAR)),
+					tx.pure.u64(Math.round(referralSpread * FLOAT_SCALAR)),
 					tx.pure.u64(Math.round(minBorrow * coin.scalar)),
 					tx.pure.u64(Math.round(rateLimitCapacity * coin.scalar)),
 					tx.pure.u64(Math.round(rateLimitRefillRatePerMs * coin.scalar)),
@@ -162,10 +162,10 @@ export class MarginMaintainerContract {
 		return tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_interest_config`,
 			arguments: [
-				tx.pure.u64(baseRate * FLOAT_SCALAR),
-				tx.pure.u64(baseSlope * FLOAT_SCALAR),
-				tx.pure.u64(optimalUtilization * FLOAT_SCALAR),
-				tx.pure.u64(excessSlope * FLOAT_SCALAR),
+				tx.pure.u64(Math.round(baseRate * FLOAT_SCALAR)),
+				tx.pure.u64(Math.round(baseSlope * FLOAT_SCALAR)),
+				tx.pure.u64(Math.round(optimalUtilization * FLOAT_SCALAR)),
+				tx.pure.u64(Math.round(excessSlope * FLOAT_SCALAR)),
 			],
 		});
 	};

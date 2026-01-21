@@ -506,7 +506,7 @@ export class DeepBookContract {
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_quote_quantity_out`,
 			arguments: [
 				tx.object(pool.address),
-				tx.pure.u64(baseQuantity * baseCoin.scalar),
+				tx.pure.u64(Math.round(baseQuantity * baseCoin.scalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
@@ -529,7 +529,7 @@ export class DeepBookContract {
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_base_quantity_out`,
 			arguments: [
 				tx.object(pool.address),
-				tx.pure.u64(quoteQuantity * quoteScalar),
+				tx.pure.u64(Math.round(quoteQuantity * quoteScalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
@@ -554,8 +554,8 @@ export class DeepBookContract {
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_quantity_out`,
 				arguments: [
 					tx.object(pool.address),
-					tx.pure.u64(baseQuantity * baseCoin.scalar),
-					tx.pure.u64(quoteQuantity * quoteScalar),
+					tx.pure.u64(Math.round(baseQuantity * baseCoin.scalar)),
+					tx.pure.u64(Math.round(quoteQuantity * quoteScalar)),
 					tx.object.clock(),
 				],
 				typeArguments: [baseCoin.type, quoteCoin.type],
@@ -599,8 +599,8 @@ export class DeepBookContract {
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_level2_range`,
 				arguments: [
 					tx.object(pool.address),
-					tx.pure.u64((priceLow * FLOAT_SCALAR * quoteCoin.scalar) / baseCoin.scalar),
-					tx.pure.u64((priceHigh * FLOAT_SCALAR * quoteCoin.scalar) / baseCoin.scalar),
+					tx.pure.u64(Math.round((priceLow * FLOAT_SCALAR * quoteCoin.scalar) / baseCoin.scalar)),
+					tx.pure.u64(Math.round((priceHigh * FLOAT_SCALAR * quoteCoin.scalar) / baseCoin.scalar)),
 					tx.pure.bool(isBid),
 					tx.object.clock(),
 				],
@@ -1193,7 +1193,7 @@ export class DeepBookContract {
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_quote_quantity_out_input_fee`,
 			arguments: [
 				tx.object(pool.address),
-				tx.pure.u64(baseQuantity * baseCoin.scalar),
+				tx.pure.u64(Math.round(baseQuantity * baseCoin.scalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
@@ -1215,7 +1215,7 @@ export class DeepBookContract {
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_base_quantity_out_input_fee`,
 			arguments: [
 				tx.object(pool.address),
-				tx.pure.u64(quoteQuantity * quoteCoin.scalar),
+				tx.pure.u64(Math.round(quoteQuantity * quoteCoin.scalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
@@ -1239,8 +1239,8 @@ export class DeepBookContract {
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_quantity_out_input_fee`,
 				arguments: [
 					tx.object(pool.address),
-					tx.pure.u64(baseQuantity * baseCoin.scalar),
-					tx.pure.u64(quoteQuantity * quoteCoin.scalar),
+					tx.pure.u64(Math.round(baseQuantity * baseCoin.scalar)),
+					tx.pure.u64(Math.round(quoteQuantity * quoteCoin.scalar)),
 					tx.object.clock(),
 				],
 				typeArguments: [baseCoin.type, quoteCoin.type],
@@ -1264,7 +1264,7 @@ export class DeepBookContract {
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_base_quantity_in`,
 				arguments: [
 					tx.object(pool.address),
-					tx.pure.u64(targetQuoteQuantity * quoteCoin.scalar),
+					tx.pure.u64(Math.round(targetQuoteQuantity * quoteCoin.scalar)),
 					tx.pure.bool(payWithDeep),
 					tx.object.clock(),
 				],
@@ -1289,7 +1289,7 @@ export class DeepBookContract {
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_quote_quantity_in`,
 				arguments: [
 					tx.object(pool.address),
-					tx.pure.u64(targetBaseQuantity * baseCoin.scalar),
+					tx.pure.u64(Math.round(targetBaseQuantity * baseCoin.scalar)),
 					tx.pure.bool(payWithDeep),
 					tx.object.clock(),
 				],
