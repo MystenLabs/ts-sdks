@@ -6,6 +6,25 @@ import { coinWithBalance } from '@mysten/sui/transactions';
 import type { DeepBookConfig } from '../utils/config.js';
 
 /**
+ * Parameters for depositing into a margin manager.
+ * Either `amount` (number) or `coin` (TransactionArgument) must be provided, but not both.
+ */
+export type DepositParams = {
+	managerKey: string;
+} & ({ amount: number; coin?: never } | { amount?: never; coin: TransactionArgument });
+
+/**
+ * Parameters for depositing during margin manager initialization.
+ * Either (`coinType` + `amount`) or (`coinType` + `coin`) must be provided.
+ * `coinType` should be a coin key from config (e.g., 'SUI', 'DBUSDC', 'DEEP').
+ */
+export type DepositDuringInitParams = {
+	manager: TransactionArgument;
+	poolKey: string;
+	coinType: string;
+} & ({ amount: number; coin?: never } | { amount?: never; coin: TransactionArgument });
+
+/**
  * MarginManagerContract class for managing MarginManager operations.
  */
 export class MarginManagerContract {
@@ -84,66 +103,59 @@ export class MarginManagerContract {
 	/**
 	 * @description Deposit into a margin manager during initialization (before sharing).
 	 * Use this when you need to deposit funds into a newly created manager in the same transaction.
-	 * @param {TransactionArgument} manager The margin manager transaction argument (from newMarginManagerWithInitializer)
-	 * @param {string} poolKey The key to identify the pool
-	 * @param {string} coinType The type of coin to deposit: 'base', 'quote', 'deep', or a coin key from config
-	 * @param {number} amount The amount to deposit
+	 * @param {DepositDuringInitParams} params The deposit parameters
 	 * @returns A function that takes a Transaction object
 	 */
-	depositDuringInitialization =
-		(manager: TransactionArgument, poolKey: string, coinType: string, amount: number) =>
-		(tx: Transaction) => {
-			const pool = this.#config.getPool(poolKey);
-			const baseCoin = this.#config.getCoin(pool.baseCoin);
-			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+	depositDuringInitialization = (params: DepositDuringInitParams) => (tx: Transaction) => {
+		const { manager, poolKey, coinType } = params;
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-			// Determine the deposit coin based on coinType
-			let depositCoin;
-			if (coinType === 'base') {
-				depositCoin = baseCoin;
-			} else if (coinType === 'quote') {
-				depositCoin = quoteCoin;
-			} else if (coinType === 'deep' || coinType === 'DEEP') {
-				depositCoin = this.#config.getCoin('DEEP');
-			} else {
-				// Assume it's a coin key from config
-				depositCoin = this.#config.getCoin(coinType);
-			}
+		// Get the deposit coin from config using the coinType key (e.g., 'SUI', 'DBUSDC', 'DEEP')
+		const depositCoin = this.#config.getCoin(coinType);
 
-			const coin = coinWithBalance({
-				type: depositCoin.type,
-				balance: Math.round(amount * depositCoin.scalar),
-			});
+		// If amount is provided, create a coin with balance; otherwise use the provided coin
+		const coin =
+			'amount' in params && params.amount !== undefined
+				? coinWithBalance({
+						type: depositCoin.type,
+						balance: Math.round(params.amount * depositCoin.scalar),
+					})
+				: params.coin;
 
-			tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
-				arguments: [
-					manager,
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.object(baseCoin.priceInfoObjectId!),
-					tx.object(quoteCoin.priceInfoObjectId!),
-					coin,
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type, depositCoin.type],
-			});
-		};
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
+			arguments: [
+				manager,
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(baseCoin.priceInfoObjectId!),
+				tx.object(quoteCoin.priceInfoObjectId!),
+				coin,
+				tx.object.clock(),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type, depositCoin.type],
+		});
+	};
 
 	/**
 	 * @description Deposit base into a margin manager
-	 * @param {string} managerKey The key to identify the manager
-	 * @param {number} amount The amount to deposit
+	 * @param {DepositParams} params The deposit parameters
 	 * @returns A function that takes a Transaction object
 	 */
-	depositBase = (managerKey: string, amount: number) => (tx: Transaction) => {
+	depositBase = (params: DepositParams) => (tx: Transaction) => {
+		const { managerKey } = params;
 		const manager = this.#config.getMarginManager(managerKey);
 		const pool = this.#config.getPool(manager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		const coin = coinWithBalance({
-			type: baseCoin.type,
-			balance: Math.round(amount * baseCoin.scalar),
-		});
+		const coin =
+			'amount' in params && params.amount !== undefined
+				? coinWithBalance({
+						type: baseCoin.type,
+						balance: Math.round(params.amount * baseCoin.scalar),
+					})
+				: params.coin;
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
 			arguments: [
@@ -160,19 +172,22 @@ export class MarginManagerContract {
 
 	/**
 	 * @description Deposit quote into a margin manager
-	 * @param {string} managerKey The key to identify the manager
-	 * @param {number} amount The amount to deposit
+	 * @param {DepositParams} params The deposit parameters
 	 * @returns A function that takes a Transaction object
 	 */
-	depositQuote = (managerKey: string, amount: number) => (tx: Transaction) => {
+	depositQuote = (params: DepositParams) => (tx: Transaction) => {
+		const { managerKey } = params;
 		const manager = this.#config.getMarginManager(managerKey);
 		const pool = this.#config.getPool(manager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		const coin = coinWithBalance({
-			type: quoteCoin.type,
-			balance: Math.round(amount * quoteCoin.scalar),
-		});
+		const coin =
+			'amount' in params && params.amount !== undefined
+				? coinWithBalance({
+						type: quoteCoin.type,
+						balance: Math.round(params.amount * quoteCoin.scalar),
+					})
+				: params.coin;
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
 			arguments: [
@@ -189,20 +204,23 @@ export class MarginManagerContract {
 
 	/**
 	 * @description Deposit deep into a margin manager
-	 * @param {string} managerKey The key to identify the manager
-	 * @param {number} amount The amount to deposit
+	 * @param {DepositParams} params The deposit parameters
 	 * @returns A function that takes a Transaction object
 	 */
-	depositDeep = (managerKey: string, amount: number) => (tx: Transaction) => {
+	depositDeep = (params: DepositParams) => (tx: Transaction) => {
+		const { managerKey } = params;
 		const manager = this.#config.getMarginManager(managerKey);
 		const pool = this.#config.getPool(manager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const deepCoin = this.#config.getCoin('DEEP');
-		const coin = coinWithBalance({
-			type: deepCoin.type,
-			balance: Math.round(amount * deepCoin.scalar),
-		});
+		const coin =
+			'amount' in params && params.amount !== undefined
+				? coinWithBalance({
+						type: deepCoin.type,
+						balance: Math.round(params.amount * deepCoin.scalar),
+					})
+				: params.coin;
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
 			arguments: [
