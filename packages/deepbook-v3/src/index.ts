@@ -65,7 +65,21 @@ export type {
 export { OrderType, SelfMatchingOptions } from './types/index.js';
 
 // Constants and configuration maps
-export type { CoinMap, PoolMap, MarginPoolMap } from './utils/constants.js';
+export type { CoinMap, PoolMap, MarginPoolMap, DeepbookPackageIds } from './utils/constants.js';
+
+// Default configurations for mainnet and testnet
+export {
+	mainnetCoins,
+	testnetCoins,
+	mainnetPools,
+	testnetPools,
+	mainnetMarginPools,
+	testnetMarginPools,
+	mainnetPackageIds,
+	testnetPackageIds,
+	mainnetPythConfigs,
+	testnetPythConfigs,
+} from './utils/constants.js';
 export {
 	DEEP_SCALAR,
 	FLOAT_SCALAR,
