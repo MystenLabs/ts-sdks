@@ -72,10 +72,10 @@ export class MarginPoolContract {
 		};
 
 	/**
-	 * @description Withdraw from a margin pool
+	 * @description Withdraw from a margin pool. If amountToWithdraw is not provided, withdraws all.
 	 * @param {string} coinKey The key to identify the pool
 	 * @param {TransactionObjectArgument} supplierCap The supplier cap object
-	 * @param {number} amountToWithdraw The amount to withdraw
+	 * @param {number} [amountToWithdraw] The amount to withdraw. If omitted, withdraws all.
 	 * @returns A function that takes a Transaction object
 	 */
 	withdrawFromMarginPool =
