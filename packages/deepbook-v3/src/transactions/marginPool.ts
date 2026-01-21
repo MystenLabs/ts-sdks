@@ -83,16 +83,15 @@ export class MarginPoolContract {
 		(tx: Transaction) => {
 			const marginPool = this.#config.getMarginPool(coinKey);
 			const coin = this.#config.getCoin(coinKey);
-			const withdrawInput = amountToWithdraw
-				? tx.pure.u64(Math.round(amountToWithdraw * coin.scalar))
-				: null;
+			const withdrawInput =
+				amountToWithdraw !== undefined ? Math.round(amountToWithdraw * coin.scalar) : null;
 			return tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::withdraw`,
 				arguments: [
 					tx.object(marginPool.address),
 					tx.object(this.#config.MARGIN_REGISTRY_ID),
 					supplierCap,
-					tx.object.option({ type: 'u64', value: withdrawInput }),
+					tx.pure.option('u64', withdrawInput),
 					tx.object.clock(),
 				],
 				typeArguments: [marginPool.type],
