@@ -14,7 +14,7 @@ default = ["console_error_panic_hook"]
 bcs = "0.1"
 wasm-bindgen = "0.2.84"
 js-sys = "0.3"
-fastcrypto = { git = "https://github.com/mystenlabs/fastcrypto.git", rev = "1384e624b35ae012435029cc5b162f6b63c1ee1e", features = ["wasm"]}
+fastcrypto = { git = "https://github.com/mystenlabs/fastcrypto.git", rev = "74050e387556b8561ea220fa643090071ff08720", features = ["wasm"]}
 serde-wasm-bindgen = "0.4"
 rand = "0.8"
 

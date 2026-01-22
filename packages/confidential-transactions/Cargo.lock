@@ -611,7 +611,7 @@ dependencies = [
 [[package]]
 name = "fastcrypto"
 version = "0.1.9"
-source = "git+https://github.com/mystenlabs/fastcrypto.git?rev=1384e624b35ae012435029cc5b162f6b63c1ee1e#1384e624b35ae012435029cc5b162f6b63c1ee1e"
+source = "git+https://github.com/mystenlabs/fastcrypto.git?rev=74050e387556b8561ea220fa643090071ff08720#74050e387556b8561ea220fa643090071ff08720"
 dependencies = [
  "ark-ec",
  "ark-ff",
@@ -666,7 +666,7 @@ dependencies = [
 [[package]]
 name = "fastcrypto-derive"
 version = "0.1.3"
-source = "git+https://github.com/mystenlabs/fastcrypto.git?rev=1384e624b35ae012435029cc5b162f6b63c1ee1e#1384e624b35ae012435029cc5b162f6b63c1ee1e"
+source = "git+https://github.com/mystenlabs/fastcrypto.git?rev=74050e387556b8561ea220fa643090071ff08720#74050e387556b8561ea220fa643090071ff08720"
 dependencies = [
  "quote",
  "syn 1.0.109",
