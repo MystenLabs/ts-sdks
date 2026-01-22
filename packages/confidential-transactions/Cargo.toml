@@ -1,0 +1,38 @@
+[package]
+name = "confidential-transactions"
+version = "0.1.0"
+authors = ["jonaslindstrom"]
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["console_error_panic_hook"]
+
+[dependencies]
+bcs = "0.1"
+wasm-bindgen = "0.2.84"
+js-sys = "0.3"
+fastcrypto = { git = "https://github.com/mystenlabs/fastcrypto.git", rev = "1384e624b35ae012435029cc5b162f6b63c1ee1e", features = ["wasm"]}
+serde-wasm-bindgen = "0.4"
+rand = "0.8"
+
+# The `console_error_panic_hook` crate provides better debugging of panics by
+# logging them with `console.error`. This is great for development, but requires
+# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
+# code size when deploying.
+console_error_panic_hook = { version = "0.1.7", optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.34"
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  "console",
+]
