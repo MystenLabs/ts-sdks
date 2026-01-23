@@ -326,3 +326,16 @@ The `legacyAddress` parameter is now **required** for all zkLogin address comput
 - toZkLoginPublicIdentifier(addressSeed, iss)
 + toZkLoginPublicIdentifier(addressSeed, iss, { legacyAddress: false })
 ```
+
+## Default Transaction Expiration
+
+Transactions now default the expiration to the current epoch + 1 using `ValidDuring` when built with
+a client. This provides replay protection for all transactions without requiring explicit
+configuration.
+
+**To preserve the old behavior** (no expiration), explicitly set the expiration to `None`:
+
+```typescript
+const tx = new Transaction();
+tx.setExpiration({ None: true });
+```

@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { fromBase64 } from '@mysten/bcs';
+import { fromBase64, toBase64 } from '@mysten/bcs';
 
 import type { bcs } from '../bcs/index.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
@@ -283,12 +283,7 @@ export function applyGrpcResolvedTransaction(
 	resolvedTransaction: GrpcTransaction,
 	options?: { onlyTransactionKind?: boolean },
 ): void {
-	if (!resolvedTransaction.bcs?.value) {
-		throw new Error('Resolved transaction must contain BCS data');
-	}
-
-	const resolvedBuilder = TransactionDataBuilder.fromBytes(resolvedTransaction.bcs.value);
-	const resolved = resolvedBuilder.snapshot();
+	const resolved = grpcTransactionToTransactionData(resolvedTransaction);
 
 	if (options?.onlyTransactionKind) {
 		transactionData.applyResolvedData({
@@ -334,4 +329,231 @@ export function transactionToGrpcTransaction(transaction: Transaction) {
 export function transactionToGrpcJson(transaction: Transaction): unknown {
 	const grpcTransaction = transactionToGrpcTransaction(transaction);
 	return GrpcTransactionType.toJson(grpcTransaction);
+}
+
+function grpcInputToCallArg(input: Input): CallArg {
+	switch (input.kind) {
+		case Input_InputKind.PURE:
+			return {
+				$kind: 'Pure',
+				Pure: { bytes: toBase64(input.pure!) },
+			};
+
+		case Input_InputKind.IMMUTABLE_OR_OWNED:
+			return {
+				$kind: 'Object',
+				Object: {
+					$kind: 'ImmOrOwnedObject',
+					ImmOrOwnedObject: {
+						objectId: input.objectId!,
+						version: input.version!.toString(),
+						digest: input.digest!,
+					},
+				},
+			};
+
+		case Input_InputKind.SHARED:
+			return {
+				$kind: 'Object',
+				Object: {
+					$kind: 'SharedObject',
+					SharedObject: {
+						objectId: input.objectId!,
+						initialSharedVersion: input.version!.toString(),
+						mutable: input.mutable ?? false,
+					},
+				},
+			};
+
+		case Input_InputKind.RECEIVING:
+			return {
+				$kind: 'Object',
+				Object: {
+					$kind: 'Receiving',
+					Receiving: {
+						objectId: input.objectId!,
+						version: input.version!.toString(),
+						digest: input.digest!,
+					},
+				},
+			};
+
+		case Input_InputKind.FUNDS_WITHDRAWAL:
+			return {
+				$kind: 'FundsWithdrawal',
+				FundsWithdrawal: {
+					reservation: {
+						$kind: 'MaxAmountU64' as const,
+						MaxAmountU64: input.fundsWithdrawal?.amount?.toString() ?? '0',
+					},
+					typeArg: {
+						$kind: 'Balance' as const,
+						Balance: input.fundsWithdrawal?.coinType ?? '0x2::sui::SUI',
+					},
+					withdrawFrom:
+						input.fundsWithdrawal?.source === FundsWithdrawal_Source.SPONSOR
+							? { $kind: 'Sponsor' as const, Sponsor: true as const }
+							: { $kind: 'Sender' as const, Sender: true as const },
+				},
+			};
+
+		default:
+			throw new Error(`Unknown Input kind: ${JSON.stringify(input)}`);
+	}
+}
+
+function grpcArgumentToTsArgument(
+	arg: Argument,
+):
+	| { $kind: 'GasCoin'; GasCoin: true }
+	| { $kind: 'Input'; Input: number }
+	| { $kind: 'Result'; Result: number }
+	| { $kind: 'NestedResult'; NestedResult: [number, number] } {
+	switch (arg.kind) {
+		case Argument_ArgumentKind.GAS:
+			return { $kind: 'GasCoin', GasCoin: true };
+		case Argument_ArgumentKind.INPUT:
+			return { $kind: 'Input', Input: arg.input! };
+		case Argument_ArgumentKind.RESULT:
+			if (arg.subresult != null) {
+				return { $kind: 'NestedResult', NestedResult: [arg.result!, arg.subresult] };
+			}
+			return { $kind: 'Result', Result: arg.result! };
+		default:
+			throw new Error(`Unknown Argument kind: ${JSON.stringify(arg)}`);
+	}
+}
+
+function grpcCommandToTsCommand(cmd: Command): BcsCommand {
+	const command = cmd.command;
+	if (!command) {
+		throw new Error('Command is missing');
+	}
+
+	switch (command.oneofKind) {
+		case 'moveCall':
+			return {
+				$kind: 'MoveCall',
+				MoveCall: {
+					package: command.moveCall.package!,
+					module: command.moveCall.module!,
+					function: command.moveCall.function!,
+					typeArguments: command.moveCall.typeArguments ?? [],
+					arguments: command.moveCall.arguments.map(grpcArgumentToTsArgument),
+				},
+			};
+
+		case 'transferObjects':
+			return {
+				$kind: 'TransferObjects',
+				TransferObjects: {
+					objects: command.transferObjects.objects.map(grpcArgumentToTsArgument),
+					address: grpcArgumentToTsArgument(command.transferObjects.address!),
+				},
+			};
+
+		case 'splitCoins':
+			return {
+				$kind: 'SplitCoins',
+				SplitCoins: {
+					coin: grpcArgumentToTsArgument(command.splitCoins.coin!),
+					amounts: command.splitCoins.amounts.map(grpcArgumentToTsArgument),
+				},
+			};
+
+		case 'mergeCoins':
+			return {
+				$kind: 'MergeCoins',
+				MergeCoins: {
+					destination: grpcArgumentToTsArgument(command.mergeCoins.coin!),
+					sources: command.mergeCoins.coinsToMerge.map(grpcArgumentToTsArgument),
+				},
+			};
+
+		case 'publish':
+			return {
+				$kind: 'Publish',
+				Publish: {
+					modules: command.publish.modules.map((m) => toBase64(m)),
+					dependencies: command.publish.dependencies ?? [],
+				},
+			};
+
+		case 'makeMoveVector':
+			return {
+				$kind: 'MakeMoveVec',
+				MakeMoveVec: {
+					type: command.makeMoveVector.elementType ?? null,
+					elements: command.makeMoveVector.elements.map(grpcArgumentToTsArgument),
+				},
+			};
+
+		case 'upgrade':
+			return {
+				$kind: 'Upgrade',
+				Upgrade: {
+					modules: command.upgrade.modules.map((m) => toBase64(m)),
+					dependencies: command.upgrade.dependencies ?? [],
+					package: command.upgrade.package!,
+					ticket: grpcArgumentToTsArgument(command.upgrade.ticket!),
+				},
+			};
+
+		default:
+			throw new Error(`Unknown Command kind: ${JSON.stringify(command)}`);
+	}
+}
+
+export function grpcTransactionToTransactionData(grpcTx: GrpcTransaction): TransactionData {
+	const programmableTx = grpcTx.kind?.data;
+	if (programmableTx?.oneofKind !== 'programmableTransaction') {
+		throw new Error('Only programmable transactions are supported');
+	}
+
+	const inputs = programmableTx.programmableTransaction.inputs.map(grpcInputToCallArg);
+	const commands = programmableTx.programmableTransaction.commands.map(grpcCommandToTsCommand);
+
+	let expiration: TransactionData['expiration'] = null;
+	if (grpcTx.expiration) {
+		switch (grpcTx.expiration.kind) {
+			case TransactionExpiration_TransactionExpirationKind.NONE:
+				expiration = { $kind: 'None', None: true };
+				break;
+			case TransactionExpiration_TransactionExpirationKind.EPOCH:
+				expiration = { $kind: 'Epoch', Epoch: grpcTx.expiration.epoch!.toString() };
+				break;
+			case TransactionExpiration_TransactionExpirationKind.VALID_DURING:
+				expiration = {
+					$kind: 'ValidDuring',
+					ValidDuring: {
+						minEpoch: grpcTx.expiration.minEpoch?.toString() ?? null,
+						maxEpoch: grpcTx.expiration.epoch?.toString() ?? null,
+						minTimestamp: null,
+						maxTimestamp: null,
+						chain: grpcTx.expiration.chain ?? '',
+						nonce: grpcTx.expiration.nonce ?? 0,
+					},
+				};
+				break;
+		}
+	}
+
+	return {
+		version: 2 as const,
+		sender: grpcTx.sender ?? null,
+		expiration,
+		gasData: {
+			budget: grpcTx.gasPayment?.budget?.toString() ?? null,
+			owner: grpcTx.gasPayment?.owner ?? null,
+			payment:
+				grpcTx.gasPayment?.objects?.map((obj) => ({
+					objectId: obj.objectId!,
+					version: obj.version!.toString(),
+					digest: obj.digest!,
+				})) ?? null,
+			price: grpcTx.gasPayment?.price?.toString() ?? null,
+		},
+		inputs,
+		commands,
+	};
 }

@@ -6,4 +6,5 @@ export type CoinBalance = {
 	coinObjectCount: number;
 	totalBalance: string;
 	lockedBalance: Record<string, string>;
+	fundsInAddressBalance?: string;
 };

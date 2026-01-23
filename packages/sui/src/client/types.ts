@@ -203,13 +203,15 @@ export namespace SuiClientTypes {
 		coinType?: string;
 	}
 
-	export interface CoinBalance {
+	export interface Balance {
 		coinType: string;
 		balance: string;
+		coinBalance: string;
+		addressBalance: string;
 	}
 
 	export interface GetBalanceResponse {
-		balance: CoinBalance;
+		balance: Balance;
 	}
 
 	export interface ListBalancesOptions extends CoreClientMethodOptions {
@@ -219,7 +221,7 @@ export namespace SuiClientTypes {
 	}
 
 	export interface ListBalancesResponse {
-		balances: CoinBalance[];
+		balances: Balance[];
 		hasNextPage: boolean;
 		cursor: string | null;
 	}
@@ -248,6 +250,7 @@ export namespace SuiClientTypes {
 		events: Include extends { events: true } ? Event[] : undefined;
 		objectTypes: Include extends { objectTypes: true } ? Record<string, string> : undefined;
 		transaction: Include extends { transaction: true } ? TransactionData : undefined;
+		bcs: Include extends { bcs: true } ? Uint8Array : undefined;
 	}
 
 	export type TransactionResult<Include extends TransactionInclude = {}> =
@@ -282,6 +285,7 @@ export namespace SuiClientTypes {
 		events?: boolean;
 		objectTypes?: boolean;
 		transaction?: boolean;
+		bcs?: boolean;
 	}
 
 	export interface SimulateTransactionInclude extends TransactionInclude {
@@ -303,9 +307,7 @@ export namespace SuiClientTypes {
 		amount: string;
 	}
 
-	export interface TransactionData extends SerializedTransactionDataV2 {
-		bcs: Uint8Array;
-	}
+	export interface TransactionData extends SerializedTransactionDataV2 {}
 
 	export interface GetTransactionOptions<
 		Include extends TransactionInclude = {},
