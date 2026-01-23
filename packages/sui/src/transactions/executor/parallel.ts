@@ -18,30 +18,41 @@ const PARALLEL_EXECUTOR_DEFAULTS = {
 	initialCoinBalance: 200_000_000n,
 	minimumCoinBalance: 50_000_000n,
 	maxPoolSize: 50,
-	epochBoundaryWindow: 1_000,
-} satisfies Omit<ParallelTransactionExecutorOptions, 'signer' | 'client'>;
-export interface ParallelTransactionExecutorOptions extends Omit<ObjectCacheOptions, 'address'> {
+} satisfies Partial<ParallelTransactionExecutorCoinOptions>;
+
+const EPOCH_BOUNDARY_WINDOW = 60_000;
+
+interface ParallelTransactionExecutorBaseOptions extends Omit<ObjectCacheOptions, 'address'> {
 	client: ClientWithCoreApi;
 	signer: Signer;
+	/** The gasBudget to use if the transaction has not defined it's own gasBudget, defaults to `minimumCoinBalance` */
+	defaultGasBudget?: bigint;
+	/** The maximum number of transactions that can be execute in parallel, this also determines the maximum number of gas coins that will be created */
+	maxPoolSize?: number;
+}
+
+export interface ParallelTransactionExecutorCoinOptions extends ParallelTransactionExecutorBaseOptions {
+	/** Gas mode - use owned coins for gas payments (default) */
+	gasMode?: 'coins';
 	/** The number of coins to create in a batch when refilling the gas pool */
 	coinBatchSize?: number;
 	/** The initial balance of each coin created for the gas pool */
 	initialCoinBalance?: bigint;
 	/** The minimum balance of a coin that can be reused for future transactions.  If the gasCoin is below this value, it will be used when refilling the gasPool */
 	minimumCoinBalance?: bigint;
-	/** The gasBudget to use if the transaction has not defined it's own gasBudget, defaults to `minimumCoinBalance` */
-	defaultGasBudget?: bigint;
-	/**
-	 * Time to wait before/after the expected epoch boundary before re-fetching the gas pool (in milliseconds).
-	 * Building transactions will be paused for up to 2x this duration around each epoch boundary to ensure the
-	 * gas price is up-to-date for the next epoch.
-	 * */
-	epochBoundaryWindow?: number;
-	/** The maximum number of transactions that can be execute in parallel, this also determines the maximum number of gas coins that will be created */
-	maxPoolSize?: number;
 	/** An initial list of coins used to fund the gas pool, uses all owned SUI coins by default */
 	sourceCoins?: string[];
 }
+
+export interface ParallelTransactionExecutorAddressBalanceOptions extends ParallelTransactionExecutorBaseOptions {
+	/** Gas mode - use address balance for gas payments instead of owned coins */
+	gasMode: 'addressBalance';
+}
+
+/** Options for ParallelTransactionExecutor - discriminated union based on gasMode */
+export type ParallelTransactionExecutorOptions =
+	| ParallelTransactionExecutorCoinOptions
+	| ParallelTransactionExecutorAddressBalanceOptions;
 
 interface CoinWithBalance {
 	id: string;
@@ -52,10 +63,10 @@ interface CoinWithBalance {
 export class ParallelTransactionExecutor {
 	#signer: Signer;
 	#client: ClientWithCoreApi;
+	#gasMode: 'coins' | 'addressBalance';
 	#coinBatchSize: number;
 	#initialCoinBalance: bigint;
 	#minimumCoinBalance: bigint;
-	#epochBoundaryWindow: number;
 	#defaultGasBudget: bigint;
 	#maxPoolSize: number;
 	#sourceCoins: Map<string, SuiObjectRef | null> | null;
@@ -67,35 +78,47 @@ export class ParallelTransactionExecutor {
 	#lastDigest: string | null = null;
 	#cacheLock: Promise<void> | null = null;
 	#pendingTransactions = 0;
-	#gasPrice: null | {
+	#epochInfo: null | {
+		epoch: string;
 		price: bigint;
 		expiration: number;
+		chainIdentifier: string;
 	} = null;
+	#epochInfoPromise: Promise<void> | null = null;
 
 	constructor(options: ParallelTransactionExecutorOptions) {
 		this.#signer = options.signer;
 		this.#client = options.client;
-		this.#coinBatchSize = options.coinBatchSize ?? PARALLEL_EXECUTOR_DEFAULTS.coinBatchSize;
-		this.#initialCoinBalance =
-			options.initialCoinBalance ?? PARALLEL_EXECUTOR_DEFAULTS.initialCoinBalance;
-		this.#minimumCoinBalance =
-			options.minimumCoinBalance ?? PARALLEL_EXECUTOR_DEFAULTS.minimumCoinBalance;
+		this.#gasMode = options.gasMode ?? 'coins';
+
+		if (this.#gasMode === 'coins') {
+			const coinOptions = options as ParallelTransactionExecutorCoinOptions;
+			this.#coinBatchSize = coinOptions.coinBatchSize ?? PARALLEL_EXECUTOR_DEFAULTS.coinBatchSize;
+			this.#initialCoinBalance =
+				coinOptions.initialCoinBalance ?? PARALLEL_EXECUTOR_DEFAULTS.initialCoinBalance;
+			this.#minimumCoinBalance =
+				coinOptions.minimumCoinBalance ?? PARALLEL_EXECUTOR_DEFAULTS.minimumCoinBalance;
+			this.#sourceCoins = coinOptions.sourceCoins
+				? new Map(coinOptions.sourceCoins.map((id) => [id, null]))
+				: null;
+		} else {
+			this.#coinBatchSize = 0;
+			this.#initialCoinBalance = 0n;
+			this.#minimumCoinBalance = PARALLEL_EXECUTOR_DEFAULTS.minimumCoinBalance;
+			this.#sourceCoins = null;
+		}
+
 		this.#defaultGasBudget = options.defaultGasBudget ?? this.#minimumCoinBalance;
-		this.#epochBoundaryWindow =
-			options.epochBoundaryWindow ?? PARALLEL_EXECUTOR_DEFAULTS.epochBoundaryWindow;
 		this.#maxPoolSize = options.maxPoolSize ?? PARALLEL_EXECUTOR_DEFAULTS.maxPoolSize;
 		this.#cache = new CachingTransactionExecutor({
 			client: options.client,
 			cache: options.cache,
 		});
 		this.#executeQueue = new ParallelQueue(this.#maxPoolSize);
-		this.#sourceCoins = options.sourceCoins
-			? new Map(options.sourceCoins.map((id) => [id, null]))
-			: null;
 	}
 
 	resetCache() {
-		this.#gasPrice = null;
+		this.#epochInfo = null;
 		return this.#updateCache(() => this.#cache.reset());
 	}
 
@@ -181,7 +204,7 @@ export class ParallelTransactionExecutor {
 		include?: Include,
 		additionalSignatures: string[] = [],
 	): Promise<SuiClientTypes.TransactionResult<Include & { effects: true }>> {
-		let gasCoin!: CoinWithBalance;
+		let gasCoin: CoinWithBalance | null = null;
 		try {
 			transaction.setSenderIfNotSet(this.#signer.toSuiAddress());
 
@@ -195,15 +218,23 @@ export class ParallelTransactionExecutor {
 				transaction.setGasBudgetIfNotSet(this.#defaultGasBudget);
 
 				await this.#updateCache();
-				gasCoin = await this.#getGasCoin();
 				this.#pendingTransactions++;
-				transaction.setGasPayment([
-					{
-						objectId: gasCoin.id,
-						version: gasCoin.version,
-						digest: gasCoin.digest,
-					},
-				]);
+
+				if (this.#gasMode === 'addressBalance') {
+					// Address balance mode: use empty gas payment with ValidDuring expiration
+					transaction.setGasPayment([]);
+					transaction.setExpiration(await this.#getValidDuringExpiration());
+				} else {
+					// Coin mode: use gas coin from pool
+					gasCoin = await this.#getGasCoin();
+					transaction.setGasPayment([
+						{
+							objectId: gasCoin.id,
+							version: gasCoin.version,
+							digest: gasCoin.digest,
+						},
+					]);
+				}
 
 				// Resolve cached references
 				await this.#cache.buildTransaction({ transaction, onlyTransactionKind: true });
@@ -225,6 +256,7 @@ export class ParallelTransactionExecutor {
 			const gasUsed = effects.gasUsed;
 
 			if (gasCoin && gasUsed && gasObject) {
+				const coin = gasCoin as CoinWithBalance;
 				const gasOwner = gasObject.outputOwner?.AddressOwner ?? gasObject.outputOwner?.ObjectOwner;
 
 				if (gasOwner === this.#signer.toSuiAddress()) {
@@ -233,7 +265,7 @@ export class ParallelTransactionExecutor {
 						BigInt(gasUsed.storageCost) +
 						BigInt(gasUsed.storageCost) -
 						BigInt(gasUsed.storageRebate);
-					const remainingBalance = gasCoin.balance - totalUsed;
+					const remainingBalance = coin.balance - totalUsed;
 
 					let usesGasCoin = false;
 					new TransactionDataBuilder(transaction.getData()).mapArguments((arg) => {
@@ -275,7 +307,7 @@ export class ParallelTransactionExecutor {
 					this.#sourceCoins = new Map();
 				}
 
-				this.#sourceCoins.set(gasCoin.id, null);
+				this.#sourceCoins.set((gasCoin as CoinWithBalance).id, null);
 			}
 
 			await this.#updateCache(async () => {
@@ -336,32 +368,56 @@ export class ParallelTransactionExecutor {
 	}
 
 	async #getGasPrice(): Promise<bigint> {
-		const remaining = this.#gasPrice
-			? this.#gasPrice.expiration - this.#epochBoundaryWindow - Date.now()
-			: 0;
+		await this.#ensureEpochInfo();
+		return this.#epochInfo!.price;
+	}
 
-		if (remaining > 0) {
-			return this.#gasPrice!.price;
+	async #getValidDuringExpiration() {
+		await this.#ensureEpochInfo();
+		const currentEpoch = BigInt(this.#epochInfo!.epoch);
+		return {
+			ValidDuring: {
+				minEpoch: String(currentEpoch),
+				maxEpoch: String(currentEpoch + 1n),
+				minTimestamp: null,
+				maxTimestamp: null,
+				chain: this.#epochInfo!.chainIdentifier,
+				nonce: (Math.random() * 0x100000000) >>> 0,
+			},
+		};
+	}
+
+	async #ensureEpochInfo(): Promise<void> {
+		if (this.#epochInfo && this.#epochInfo.expiration - EPOCH_BOUNDARY_WINDOW - Date.now() > 0) {
+			return;
 		}
 
-		if (this.#gasPrice) {
-			const timeToNextEpoch = Math.max(
-				this.#gasPrice.expiration + this.#epochBoundaryWindow - Date.now(),
-				1_000,
-			);
-
-			await new Promise((resolve) => setTimeout(resolve, timeToNextEpoch));
+		if (this.#epochInfoPromise) {
+			await this.#epochInfoPromise;
+			return;
 		}
 
-		const { systemState } = await this.#client.core.getCurrentSystemState();
+		this.#epochInfoPromise = this.#fetchEpochInfo();
+		try {
+			await this.#epochInfoPromise;
+		} finally {
+			this.#epochInfoPromise = null;
+		}
+	}
 
-		this.#gasPrice = {
+	async #fetchEpochInfo(): Promise<void> {
+		const [{ systemState }, { chainIdentifier }] = await Promise.all([
+			this.#client.core.getCurrentSystemState(),
+			this.#client.core.getChainIdentifier(),
+		]);
+
+		this.#epochInfo = {
+			epoch: systemState.epoch,
 			price: BigInt(systemState.referenceGasPrice),
 			expiration:
 				Number(systemState.epochStartTimestampMs) + Number(systemState.parameters.epochDurationMs),
+			chainIdentifier,
 		};
-
-		return this.#gasPrice.price;
 	}
 
 	async #refillCoinPool() {

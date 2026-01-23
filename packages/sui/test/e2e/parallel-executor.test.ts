@@ -199,3 +199,89 @@ describe('ParallelTransactionExecutor', () => {
 		expect(toolbox.grpcClient.core.executeTransaction).toHaveBeenCalledTimes(4);
 	});
 });
+
+describe('ParallelTransactionExecutor with addressBalance mode', () => {
+	let addressBalanceExecutor: ParallelTransactionExecutor;
+
+	beforeAll(async () => {
+		// Wait for any pending transactions from previous tests
+		await executor.waitForLastTransaction();
+
+		// First deposit funds to address balance using send_funds
+		const depositAmount = 500_000_000n; // 0.5 SUI
+		const depositTx = new Transaction();
+		const [coinToDeposit] = depositTx.splitCoins(depositTx.gas, [depositAmount]);
+		depositTx.moveCall({
+			target: '0x2::coin::send_funds',
+			typeArguments: ['0x2::sui::SUI'],
+			arguments: [coinToDeposit, depositTx.pure.address(toolbox.address())],
+		});
+		const depositResult = await toolbox.grpcClient.signAndExecuteTransaction({
+			signer: toolbox.keypair,
+			transaction: depositTx,
+		});
+
+		await toolbox.grpcClient.core.waitForTransaction({ result: depositResult });
+
+		addressBalanceExecutor = new ParallelTransactionExecutor({
+			client: toolbox.grpcClient,
+			signer: toolbox.keypair,
+			gasMode: 'addressBalance',
+			maxPoolSize: 3,
+		});
+	});
+
+	afterEach(async () => {
+		await addressBalanceExecutor.waitForLastTransaction();
+	});
+
+	beforeEach(async () => {
+		await addressBalanceExecutor.resetCache();
+	});
+
+	it('Executes transactions using address balance for gas', async () => {
+		const receiver = new Ed25519Keypair();
+		const txb = new Transaction();
+		// Use withdrawal to get funds from address balance, then redeem to coin
+		const withdrawalInput = txb.withdrawal({ amount: 1000n });
+		const [coin] = txb.moveCall({
+			target: '0x2::coin::redeem_funds',
+			typeArguments: ['0x2::sui::SUI'],
+			arguments: [withdrawalInput],
+		});
+		txb.transferObjects([coin], receiver.toSuiAddress());
+
+		const result = await addressBalanceExecutor.executeTransaction(txb);
+		const resultTx = result.Transaction ?? result.FailedTransaction;
+
+		expect(resultTx.status.success).toEqual(true);
+	});
+
+	it('Executes multiple transactions in parallel with address balance', async () => {
+		const receiver = new Ed25519Keypair();
+		const txbs = [];
+
+		for (let i = 0; i < 5; i++) {
+			const txb = new Transaction();
+			const withdrawalInput = txb.withdrawal({ amount: 1000n });
+			const [coin] = txb.moveCall({
+				target: '0x2::coin::redeem_funds',
+				typeArguments: ['0x2::sui::SUI'],
+				arguments: [withdrawalInput],
+			});
+			txb.transferObjects([coin], receiver.toSuiAddress());
+			txbs.push(txb);
+		}
+
+		const results = await Promise.all(
+			txbs.map((txb) => addressBalanceExecutor.executeTransaction(txb)),
+		);
+
+		const digests = new Set(results.map((r) => (r.Transaction ?? r.FailedTransaction).digest));
+		expect(digests.size).toBe(results.length);
+
+		results.forEach((r) => {
+			expect((r.Transaction ?? r.FailedTransaction).status.success).toEqual(true);
+		});
+	});
+});
