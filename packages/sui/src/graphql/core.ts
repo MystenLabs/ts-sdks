@@ -334,6 +334,10 @@ export class GraphQLCoreClient extends CoreClient {
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = object>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
+		if (!(options.transaction instanceof Uint8Array)) {
+			await options.transaction.prepareForSerialization({ client: this });
+		}
+
 		const result = await this.#graphqlQuery(
 			{
 				query: SimulateTransactionDocument,

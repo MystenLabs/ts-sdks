@@ -4744,6 +4744,8 @@ export type SimulateTransactionQueryVariables = Exact<{
   includeObjectTypes?: InputMaybe<Scalars['Boolean']['input']>;
   includeCommandResults?: InputMaybe<Scalars['Boolean']['input']>;
   includeBcs?: InputMaybe<Scalars['Boolean']['input']>;
+  doGasSelection?: InputMaybe<Scalars['Boolean']['input']>;
+  checksEnabled?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
@@ -5278,8 +5280,12 @@ fragment OBJECT_OWNER_FIELDS on Owner {
   }
 }`) as unknown as TypedDocumentString<MultiGetObjectsQuery, MultiGetObjectsQueryVariables>;
 export const SimulateTransactionDocument = new TypedDocumentString(`
-    query simulateTransaction($transaction: JSON!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeCommandResults: Boolean = false, $includeBcs: Boolean = false) {
-  simulateTransaction(transaction: $transaction) {
+    query simulateTransaction($transaction: JSON!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeCommandResults: Boolean = false, $includeBcs: Boolean = false, $doGasSelection: Boolean = false, $checksEnabled: Boolean = true) {
+  simulateTransaction(
+    transaction: $transaction
+    doGasSelection: $doGasSelection
+    checksEnabled: $checksEnabled
+  ) {
     error
     effects {
       transaction {

@@ -1,25 +1,24 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Transaction } from '@mysten/sui/transactions';
 import { MIST_PER_SUI, normalizeSuiAddress } from '@mysten/sui/utils';
 import { expect } from 'vitest';
 
-import { ALLOWED_METADATA, SuinsClient, SuinsTransaction } from '../src/index.js';
+import { ALLOWED_METADATA, SuinsTransaction, suins } from '../src/index.js';
 
 export const e2eLiveNetworkDryRunFlow = async (network: 'mainnet' | 'testnet') => {
-	const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl(network), network });
+	const client = new SuiGrpcClient({ baseUrl: getJsonRpcFullnodeUrl(network), network }).$extend(
+		suins(),
+	);
 
 	const sender = normalizeSuiAddress('0x2');
-	const suinsClient = new SuinsClient({
-		client,
-		network,
-	});
 
 	// Getting price lists accurately
-	const priceList = await suinsClient.getPriceList();
-	const renewalPriceList = await suinsClient.getRenewalPriceList();
-	const coinDiscount = await suinsClient.getCoinTypeDiscount();
+	const priceList = await client.suins.getPriceList();
+	const renewalPriceList = await client.suins.getRenewalPriceList();
+	const coinDiscount = await client.suins.getCoinTypeDiscount();
 
 	// Expected lists - mainnet and testnet have different prices
 	const expectedPriceList =
@@ -49,32 +48,34 @@ export const e2eLiveNetworkDryRunFlow = async (network: 'mainnet' | 'testnet') =
 				]);
 
 	const expectedCoinDiscount = new Map([
-		[suinsClient.config.coins.USDC.type.slice(2), 0],
-		[suinsClient.config.coins.SUI.type.slice(2), 0],
-		[suinsClient.config.coins.NS.type.slice(2), 25],
+		[client.suins.config.coins.USDC.type.slice(2), 0],
+		[client.suins.config.coins.SUI.type.slice(2), 0],
+		[client.suins.config.coins.NS.type.slice(2), 25],
 	]);
 	expect(priceList).toEqual(expectedPriceList);
 	expect(renewalPriceList).toEqual(expectedRenewalPriceList);
 	expect(coinDiscount).toEqual(expectedCoinDiscount);
 
 	const tx = new Transaction();
-	const coinConfig = suinsClient.config.coins.SUI; // Specify the coin type used for the transaction
+	const coinConfig = client.suins.config.coins.SUI; // Specify the coin type used for the transaction
+
+	// Split coins for registration and Pyth fee upfront
+	const [coinInput, pythFeeCoin] = tx.splitCoins(tx.gas, [10n * MIST_PER_SUI, MIST_PER_SUI]);
+
 	const priceInfoObjectId =
-		coinConfig !== suinsClient.config.coins.USDC
-			? (await suinsClient.getPriceInfoObject(tx, coinConfig.feed))[0]
+		coinConfig !== client.suins.config.coins.USDC
+			? (await client.suins.getPriceInfoObject(tx, coinConfig.feed, pythFeeCoin))[0]
 			: null;
 
-	const suinsTx = new SuinsTransaction(suinsClient, tx);
+	const suinsTx = new SuinsTransaction(client.suins, tx);
 
 	const uniqueName =
 		(Date.now().toString(36) + Math.random().toString(36).substring(2)).repeat(2) + '.sui';
-
-	const [coinInput] = suinsTx.transaction.splitCoins(suinsTx.transaction.gas, [10n * MIST_PER_SUI]);
 	// register test.sui for 2 years.
 	const nft = suinsTx.register({
 		domain: uniqueName,
 		years: 2,
-		coinConfig: suinsClient.config.coins.SUI,
+		coinConfig: client.suins.config.coins.SUI,
 		coin: coinInput,
 		priceInfoObjectId,
 	});
@@ -160,31 +161,14 @@ export const e2eLiveNetworkDryRunFlow = async (network: 'mainnet' | 'testnet') =
 	});
 
 	// do it for sub nft too
-	tx.transferObjects([moreNestedNft, subNft, nft, coinInput], tx.pure.address(sender));
+	tx.transferObjects([moreNestedNft, subNft, nft, coinInput, pythFeeCoin], tx.pure.address(sender));
 
 	tx.setSender(sender);
 
-	if (network === 'mainnet') {
-		tx.setGasPayment([
-			{
-				objectId: '0xc7fcf957faeb0cdd9809b2ab43e0a8bf7a945cfdac13e8cba527261fecefa4dd',
-				version: '86466933',
-				digest: '2F8iuFVJm55J96FnJ99Th493D254BaJkUccbwz5rHFDc',
-			},
-		]);
-	} else if (network === 'testnet') {
-		tx.setGasPayment([
-			{
-				objectId: '0xeb709b97ca3e87e385d019ccb7da4a9bd99f9405f9b0d692f21c9d2e5714f27a',
-				version: '169261602',
-				digest: 'HJehhEV1N8rqjjHbwDgjeCZJkHPRavMmihTvyTJme2rA',
-			},
-		]);
-	}
-
-	return client.dryRunTransactionBlock({
-		transactionBlock: await tx.build({
-			client,
-		}),
+	return client.simulateTransaction({
+		transaction: tx,
+		include: {
+			effects: true,
+		},
 	});
 };
