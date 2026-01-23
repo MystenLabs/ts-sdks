@@ -177,7 +177,7 @@ export function createTestWithAllClients(
 	return function testWithAllClients(
 		testName: string,
 		testFn: (client: ClientWithCoreApi, kind: 'jsonrpc' | 'grpc' | 'graphql') => Promise<void>,
-		options?: { skip?: Array<'jsonrpc' | 'grpc' | 'graphql'> | boolean },
+		options?: { skip?: Array<'jsonrpc' | 'grpc' | 'graphql'> | boolean; only?: boolean },
 	) {
 		// If skip is true, skip all tests
 		if (options?.skip === true) {
@@ -205,7 +205,7 @@ export function createTestWithAllClients(
 		};
 
 		if (!skipArray.includes('jsonrpc')) {
-			it(`[JSON RPC] ${testName}`, async () => {
+			(options?.only ? it.only : it)(`[JSON RPC] ${testName}`, async () => {
 				await testFn(clients().jsonRpc, 'jsonrpc');
 			});
 		} else {
@@ -213,7 +213,7 @@ export function createTestWithAllClients(
 		}
 
 		if (!skipArray.includes('grpc')) {
-			it(`[gRPC] ${testName}`, async () => {
+			(options?.only ? it.only : it)(`[gRPC] ${testName}`, async () => {
 				await testFn(clients().grpc, 'grpc');
 			});
 		} else {
@@ -221,7 +221,7 @@ export function createTestWithAllClients(
 		}
 
 		if (!skipArray.includes('graphql')) {
-			it(`[GraphQL] ${testName}`, async () => {
+			(options?.only ? it.only : it)(`[GraphQL] ${testName}`, async () => {
 				await testFn(clients().graphql, 'graphql');
 			});
 		} else {

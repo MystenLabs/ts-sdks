@@ -225,10 +225,15 @@ export class JSONRpcCoreClient extends CoreClient {
 			signal: options.signal,
 		});
 
+		const addressBalance = balance.fundsInAddressBalance ?? '0';
+		const coinBalance = String(BigInt(balance.totalBalance) - BigInt(addressBalance));
+
 		return {
 			balance: {
 				coinType: normalizeStructTag(balance.coinType),
 				balance: balance.totalBalance,
+				coinBalance,
+				addressBalance,
 			},
 		};
 	}
@@ -239,10 +244,16 @@ export class JSONRpcCoreClient extends CoreClient {
 		});
 
 		return {
-			balances: balances.map((balance) => ({
-				coinType: normalizeStructTag(balance.coinType),
-				balance: balance.totalBalance,
-			})),
+			balances: balances.map((balance) => {
+				const addressBalance = balance.fundsInAddressBalance ?? '0';
+				const coinBalance = String(BigInt(balance.totalBalance) - BigInt(addressBalance));
+				return {
+					coinType: normalizeStructTag(balance.coinType),
+					balance: balance.totalBalance,
+					coinBalance,
+					addressBalance,
+				};
+			}),
 			hasNextPage: false,
 			cursor: null,
 		};
@@ -342,6 +353,9 @@ export class JSONRpcCoreClient extends CoreClient {
 									.catch(() => null as never),
 					)
 				: undefined) as SuiClientTypes.Transaction<Include>['transaction'],
+			bcs: (options.include?.bcs
+				? transactionBytes
+				: undefined) as SuiClientTypes.Transaction<Include>['bcs'],
 			balanceChanges: (options.include?.balanceChanges
 				? result.balanceChanges.map((change) => ({
 						coinType: normalizeStructTag(change.coinType),
@@ -757,25 +771,30 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 
 	let transactionData: SuiClientTypes.TransactionData | undefined;
 	let signatures: string[] = [];
+	let bcsBytes: Uint8Array | undefined;
 
 	if (transaction.rawTransaction) {
 		const parsedTx = bcs.SenderSignedData.parse(fromBase64(transaction.rawTransaction))[0];
 		signatures = parsedTx.txSignatures;
 
-		if (include?.transaction) {
+		if (include?.transaction || include?.bcs) {
 			const bytes = bcs.TransactionData.serialize(parsedTx.intentMessage.value).toBytes();
-			const data = TransactionDataBuilder.restore({
-				version: 2,
-				sender: parsedTx.intentMessage.value.V1.sender,
-				expiration: parsedTx.intentMessage.value.V1.expiration,
-				gasData: parsedTx.intentMessage.value.V1.gasData,
-				inputs: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.inputs,
-				commands: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.commands,
-			});
-			transactionData = {
-				...data,
-				bcs: bytes,
-			};
+
+			if (include?.bcs) {
+				bcsBytes = bytes;
+			}
+
+			if (include?.transaction) {
+				const data = TransactionDataBuilder.restore({
+					version: 2,
+					sender: parsedTx.intentMessage.value.V1.sender,
+					expiration: parsedTx.intentMessage.value.V1.expiration,
+					gasData: parsedTx.intentMessage.value.V1.gasData,
+					inputs: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.inputs,
+					commands: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.commands,
+				});
+				transactionData = { ...data };
+			}
 		}
 	}
 
@@ -804,6 +823,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = ob
 			? objectTypes
 			: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 		transaction: transactionData as SuiClientTypes.Transaction<Include>['transaction'],
+		bcs: bcsBytes as SuiClientTypes.Transaction<Include>['bcs'],
 		signatures,
 		balanceChanges: (include?.balanceChanges
 			? (transaction.balanceChanges?.map((change) => ({

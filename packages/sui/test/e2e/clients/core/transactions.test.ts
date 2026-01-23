@@ -714,6 +714,24 @@ describe('Core API - Transactions', () => {
 			const objectTypes = result.Transaction!.objectTypes;
 			expect(objectTypes).toBeDefined();
 		});
+
+		testWithAllClients('should include bcs when requested', async (client) => {
+			const result = await client.core.getTransaction({
+				digest: executedTxDigest,
+				include: { bcs: true },
+			});
+
+			expect(result.Transaction!.digest).toBe(executedTxDigest);
+			expect(result.Transaction!.bcs).toBeDefined();
+			expect(result.Transaction!.bcs).toBeInstanceOf(Uint8Array);
+			expect(result.Transaction!.bcs!.length).toBeGreaterThan(0);
+
+			// Other optional fields should still be undefined
+			expect(result.Transaction!.transaction).toBeUndefined();
+			expect(result.Transaction!.balanceChanges).toBeUndefined();
+			expect(result.Transaction!.events).toBeUndefined();
+			expect(result.Transaction!.effects).toBeUndefined();
+		});
 	});
 
 	describe('executeTransaction - Include Options', () => {
@@ -827,6 +845,29 @@ describe('Core API - Transactions', () => {
 			const objectTypes = result.Transaction!.objectTypes;
 			expect(objectTypes).toBeDefined();
 		});
+
+		testWithAllClients('should include bcs when requested', async (client) => {
+			const tx = new Transaction();
+			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+
+			tx.setSender(testAddress);
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const signature = await toolbox.keypair.signTransaction(bytes);
+
+			const result = await client.core.executeTransaction({
+				transaction: bytes,
+				signatures: [signature.signature],
+				include: { bcs: true },
+			});
+
+			// Wait for transaction to be indexed
+			await client.core.waitForTransaction({ result });
+
+			expect(result.Transaction!.digest).toBeDefined();
+			expect(result.Transaction!.bcs).toBeDefined();
+			expect(result.Transaction!.bcs).toBeInstanceOf(Uint8Array);
+			expect(result.Transaction!.bcs!.length).toBeGreaterThan(0);
+		});
 	});
 
 	describe('simulateTransaction - Include Options', () => {
@@ -917,6 +958,23 @@ describe('Core API - Transactions', () => {
 			expect(result.Transaction!.balanceChanges).toBeDefined();
 			const objectTypes = result.Transaction!.objectTypes;
 			expect(objectTypes).toBeDefined();
+		});
+
+		testWithAllClients('should include bcs when requested', async (client) => {
+			const tx = new Transaction();
+			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+
+			tx.setSender(testAddress);
+			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+
+			const result = await client.core.simulateTransaction({
+				transaction: bytes,
+				include: { bcs: true },
+			});
+
+			expect(result.Transaction!.bcs).toBeDefined();
+			expect(result.Transaction!.bcs).toBeInstanceOf(Uint8Array);
+			expect(result.Transaction!.bcs!.length).toBeGreaterThan(0);
 		});
 	});
 

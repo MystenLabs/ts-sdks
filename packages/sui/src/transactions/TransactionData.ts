@@ -186,7 +186,7 @@ export class TransactionDataBuilder implements TransactionData {
 		).toBytes();
 	}
 
-	addInput<T extends 'object' | 'pure'>(type: T, arg: CallArg) {
+	addInput<T extends 'object' | 'pure' | 'withdrawal'>(type: T, arg: CallArg) {
 		const index = this.inputs.length;
 		this.inputs.push(arg);
 		return { Input: index, type, $kind: 'Input' as const };

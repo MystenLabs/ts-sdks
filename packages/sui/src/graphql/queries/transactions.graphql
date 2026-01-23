@@ -9,6 +9,7 @@ query simulateTransaction(
 	$includeBalanceChanges: Boolean = false
 	$includeObjectTypes: Boolean = false
 	$includeCommandResults: Boolean = false
+	$includeBcs: Boolean = false
 ) {
 	simulateTransaction(transaction: $transaction) {
 		error
@@ -40,6 +41,7 @@ mutation executeTransaction(
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false
 	$includeObjectTypes: Boolean = false
+	$includeBcs: Boolean = false
 ) {
 	executeTransaction(transactionDataBcs: $transactionDataBcs, signatures: $signatures) {
 		errors
@@ -58,6 +60,7 @@ query getTransactionBlock(
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false
 	$includeObjectTypes: Boolean = false
+	$includeBcs: Boolean = false
 ) {
 	transaction(digest: $digest) {
 		...TRANSACTION_FIELDS
@@ -66,7 +69,8 @@ query getTransactionBlock(
 
 fragment TRANSACTION_FIELDS on Transaction {
 	digest
-	transactionBcs @include(if: $includeTransaction)
+	transactionJson @include(if: $includeTransaction)
+	transactionBcs @include(if: $includeBcs)
 	signatures {
 		signatureBytes
 	}
@@ -93,40 +97,12 @@ fragment TRANSACTION_FIELDS on Transaction {
 			epochId
 		}
 		effectsBcs @include(if: $includeEffects)
-		unchangedConsensusObjects @include(if: $includeObjectTypes) {
-			nodes {
-				__typename
-				... on ConsensusObjectRead {
-					object {
-						asMoveObject {
-							address
-							contents {
-								type {
-									repr
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		objectChanges @include(if: $includeObjectTypes) {
+		effectsJson @include(if: $includeObjectTypes)
+		objectChanges(first: 50) @include(if: $includeObjectTypes) {
 			nodes {
 				address
-				inputState {
-					version
-					asMoveObject {
-						address
-						contents {
-							type {
-								repr
-							}
-						}
-					}
-				}
 				outputState {
 					asMoveObject {
-						address
 						contents {
 							type {
 								repr
@@ -136,20 +112,7 @@ fragment TRANSACTION_FIELDS on Transaction {
 				}
 			}
 		}
-		balanceChanges(first: 50) @include(if: $includeBalanceChanges) {
-			pageInfo {
-				hasNextPage
-			}
-			nodes {
-				owner {
-					address
-				}
-				coinType {
-					repr
-				}
-				amount
-			}
-		}
+		balanceChangesJson @include(if: $includeBalanceChanges)
 		events(first: 50) @include(if: $includeEvents) {
 			pageInfo {
 				hasNextPage
@@ -170,6 +133,17 @@ fragment TRANSACTION_FIELDS on Transaction {
 					}
 					bcs
 				}
+			}
+		}
+	}
+}
+
+query resolveTransaction($transaction: JSON!, $doGasSelection: Boolean = true) {
+	simulateTransaction(transaction: $transaction, doGasSelection: $doGasSelection) {
+		error
+		effects {
+			transaction {
+				transactionBcs
 			}
 		}
 	}
