@@ -10,27 +10,49 @@ import { isTransaction, Transaction } from '../Transaction.js';
 import { CachingTransactionExecutor } from './caching.js';
 import { SerialQueue } from './queue.js';
 
+const EPOCH_BOUNDARY_WINDOW = 60_000;
+
+interface SerialTransactionExecutorBaseOptions extends Omit<ObjectCacheOptions, 'address'> {
+	client: ClientWithCoreApi;
+	signer: Signer;
+	defaultGasBudget?: bigint;
+}
+
+export interface SerialTransactionExecutorCoinOptions extends SerialTransactionExecutorBaseOptions {
+	gasMode?: 'coins';
+}
+
+export interface SerialTransactionExecutorAddressBalanceOptions extends SerialTransactionExecutorBaseOptions {
+	gasMode: 'addressBalance';
+}
+
+export type SerialTransactionExecutorOptions =
+	| SerialTransactionExecutorCoinOptions
+	| SerialTransactionExecutorAddressBalanceOptions;
+
 export class SerialTransactionExecutor {
 	#queue = new SerialQueue();
 	#signer: Signer;
+	#client: ClientWithCoreApi;
 	#cache: CachingTransactionExecutor;
 	#defaultGasBudget: bigint;
+	#gasMode: 'coins' | 'addressBalance';
+	#epochInfo: null | {
+		epoch: string;
+		expiration: number;
+		chainIdentifier: string;
+	} = null;
+	#epochInfoPromise: Promise<void> | null = null;
 
-	constructor({
-		signer,
-		defaultGasBudget = 50_000_000n,
-		...options
-	}: Omit<ObjectCacheOptions, 'address'> & {
-		client: ClientWithCoreApi;
-		signer: Signer;
-		/** The gasBudget to use if the transaction has not defined it's own gasBudget, defaults to `50_000_000n` */
-		defaultGasBudget?: bigint;
-	}) {
+	constructor(options: SerialTransactionExecutorOptions) {
+		const { signer, defaultGasBudget = 50_000_000n, client, cache } = options;
 		this.#signer = signer;
+		this.#client = client;
 		this.#defaultGasBudget = defaultGasBudget;
+		this.#gasMode = options.gasMode ?? 'coins';
 		this.#cache = new CachingTransactionExecutor({
-			client: options.client,
-			cache: options.cache,
+			client,
+			cache,
 			onEffects: (effects) => this.#cacheGasCoin(effects),
 		});
 	}
@@ -40,7 +62,7 @@ export class SerialTransactionExecutor {
 	}
 
 	#cacheGasCoin = async (effects: typeof bcs.TransactionEffects.$inferType) => {
-		if (!effects.V2) {
+		if (this.#gasMode === 'addressBalance' || !effects.V2) {
 			return;
 		}
 
@@ -57,15 +79,22 @@ export class SerialTransactionExecutor {
 	}
 
 	#buildTransaction = async (transaction: Transaction) => {
-		const gasCoin = await this.#cache.cache.getCustom<{
-			objectId: string;
-			version: string;
-			digest: string;
-		}>('gasCoin');
-
 		const copy = Transaction.from(transaction);
-		if (gasCoin) {
-			copy.setGasPayment([gasCoin]);
+
+		if (this.#gasMode === 'addressBalance') {
+			copy.setGasPayment([]);
+			copy.setExpiration(await this.#getValidDuringExpiration());
+		} else {
+			// Coin mode: use cached gas coin if available
+			const gasCoin = await this.#cache.cache.getCustom<{
+				objectId: string;
+				version: string;
+				digest: string;
+			}>('gasCoin');
+
+			if (gasCoin) {
+				copy.setGasPayment([gasCoin]);
+			}
 		}
 
 		copy.setGasBudgetIfNotSet(this.#defaultGasBudget);
@@ -73,6 +102,53 @@ export class SerialTransactionExecutor {
 
 		return this.#cache.buildTransaction({ transaction: copy });
 	};
+
+	async #getValidDuringExpiration() {
+		await this.#ensureEpochInfo();
+		const currentEpoch = BigInt(this.#epochInfo!.epoch);
+		return {
+			ValidDuring: {
+				minEpoch: String(currentEpoch),
+				maxEpoch: String(currentEpoch + 1n),
+				minTimestamp: null,
+				maxTimestamp: null,
+				chain: this.#epochInfo!.chainIdentifier,
+				nonce: (Math.random() * 0x100000000) >>> 0,
+			},
+		};
+	}
+
+	async #ensureEpochInfo(): Promise<void> {
+		if (this.#epochInfo && this.#epochInfo.expiration - EPOCH_BOUNDARY_WINDOW - Date.now() > 0) {
+			return;
+		}
+
+		if (this.#epochInfoPromise) {
+			await this.#epochInfoPromise;
+			return;
+		}
+
+		this.#epochInfoPromise = this.#fetchEpochInfo();
+		try {
+			await this.#epochInfoPromise;
+		} finally {
+			this.#epochInfoPromise = null;
+		}
+	}
+
+	async #fetchEpochInfo(): Promise<void> {
+		const [{ systemState }, { chainIdentifier }] = await Promise.all([
+			this.#client.core.getCurrentSystemState(),
+			this.#client.core.getChainIdentifier(),
+		]);
+
+		this.#epochInfo = {
+			epoch: systemState.epoch,
+			expiration:
+				Number(systemState.epochStartTimestampMs) + Number(systemState.parameters.epochDurationMs),
+			chainIdentifier,
+		};
+	}
 
 	resetCache() {
 		return this.#cache.reset();

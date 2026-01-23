@@ -30,7 +30,9 @@ transactions to finish before sending the next one.
 - `client`: An instance of a Sui client (such as `SuiGrpcClient`) used to execute transactions.
 - `signer`: The signer/keypair used for signed transactions.
 - `defaultBudget`: The default budget for transactions, which will be used if the transaction does
-  not specify a budget (default `50_000_000n`),
+  not specify a budget (default `50_000_000n`).
+- `gasMode`: Either `'coins'` (default) to use owned coins for gas, or `'addressBalance'` to pay gas
+  from the sender's address balance.
 
 ```ts
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -89,6 +91,9 @@ way that avoids conflicts between transactions using the same object ids.
 
 - `client`: An instance of `SuiJsonRpcClient` used to execute transactions.
 - `signer`: The signer/keypair used for signed transactions.
+- `gasMode`: Either `'coins'` (default) to use owned coins for gas, or `'addressBalance'` to pay gas
+  from the sender's address balance. When using `'addressBalance'`, coin-specific options like
+  `coinBatchSize`, `initialCoinBalance`, `minimumCoinBalance`, and `sourceCoins` are not available.
 - `coinBatchSize`: The maximum number of new coins to create when refilling the gas pool
   (default 20)
 - `initialCoinBalance`: The balance of new coins created for the gas pool in MIST (default
