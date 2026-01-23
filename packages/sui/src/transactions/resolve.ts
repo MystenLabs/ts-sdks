@@ -41,6 +41,10 @@ export function needsTransactionResolution(
 		if (!data.gasData.price || !data.gasData.budget || !data.gasData.payment) {
 			return true;
 		}
+
+		if (data.gasData.payment.length === 0 && !data.expiration) {
+			return true;
+		}
 	}
 
 	return false;

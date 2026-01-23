@@ -31,6 +31,12 @@ export type AccumulatorValue =
 export interface Balance {
 	coinObjectCount: number;
 	coinType: string;
+	/**
+	 * The portion of `total_balance` that resides in the address balance rather than in the coin objects.
+	 * `total_balance` is the total amount of funds owned by the address. That is, do not add these two
+	 * fields together.
+	 */
+	fundsInAddressBalance?: string;
 	lockedBalance: {
 		[key: string]: string;
 	};

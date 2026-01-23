@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { EnumInputShape, EnumOutputShape } from '@mysten/bcs';
-import type { GenericSchema, InferInput, InferOutput } from 'valibot';
+import type { GenericSchema, InferInput, InferOutput, ObjectEntries, ObjectSchema } from 'valibot';
 import {
 	array,
 	boolean,
@@ -46,18 +46,33 @@ type EnumSchema<T extends Record<string, GenericSchema<any>>> = GenericSchema<
 >;
 
 export function safeEnum<T extends Record<string, GenericSchema<any>>>(options: T): EnumSchema<T> {
-	const unionOptions = Object.entries(options).map(([key, value]) => object({ [key]: value }));
-
-	return pipe(
-		union(unionOptions),
-		transform(
-			(value) =>
-				({
-					...value,
-					$kind: Object.keys(value)[0] as keyof typeof value,
-				}) as EnumSchemaOutput<T>,
+	return union(
+		Object.keys(options).map(
+			(key) =>
+				withKind(
+					key,
+					object({
+						[key]: options[key],
+					}),
+				) as GenericSchema<EnumOutputShape<T>>,
 		),
 	) as EnumSchema<T>;
+}
+
+function withKind<K extends string, TEntries extends ObjectEntries>(
+	key: K,
+	schema: ObjectSchema<TEntries, undefined>,
+) {
+	return pipe(
+		object({
+			...schema.entries,
+			$kind: optional(literal(key)),
+		}),
+		transform((value) => ({ ...value, $kind: key })),
+	) as GenericSchema<
+		Simplify<InferInput<ObjectSchema<TEntries, undefined>> & { $kind?: K }>,
+		Simplify<InferOutput<ObjectSchema<TEntries, undefined>> & { $kind: K }>
+	>;
 }
 
 export const SuiAddress = pipe(
@@ -96,32 +111,21 @@ export const ObjectRefSchema = object({
 export type ObjectRef = InferOutput<typeof ObjectRefSchema>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L690-L702
-export const ArgumentSchema = pipe(
-	union([
-		object({ GasCoin: literal(true) }),
-		object({ Input: pipe(number(), integer()), type: optional(literal('pure')) }),
-		object({ Input: pipe(number(), integer()), type: optional(literal('object')) }),
-		object({ Result: pipe(number(), integer()) }),
+export const ArgumentSchema = union([
+	withKind('GasCoin', object({ GasCoin: literal(true) })),
+	withKind(
+		'Input',
+		object({
+			Input: pipe(number(), integer()),
+			type: optional(union([literal('pure'), literal('object'), literal('withdrawal')])),
+		}),
+	),
+	withKind('Result', object({ Result: pipe(number(), integer()) })),
+	withKind(
+		'NestedResult',
 		object({ NestedResult: tuple([pipe(number(), integer()), pipe(number(), integer())]) }),
-	]),
-	transform((value) => ({
-		...value,
-		$kind: Object.keys(value)[0] as keyof typeof value,
-	})),
-	// Defined manually to add `type?: 'pure' | 'object'` to Input
-) as GenericSchema<
-	// Input
-	| { GasCoin: true }
-	| { Input: number; type?: 'pure' | 'object' }
-	| { Result: number }
-	| { NestedResult: [number, number] },
-	// Output
-	| { $kind: 'GasCoin'; GasCoin: true }
-	| { $kind: 'Input'; Input: number; type?: 'pure' }
-	| { $kind: 'Input'; Input: number; type?: 'object' }
-	| { $kind: 'Result'; Result: number }
-	| { $kind: 'NestedResult'; NestedResult: [number, number] }
->;
+	),
+]);
 
 export type Argument = InferOutput<typeof ArgumentSchema>;
 

@@ -260,17 +260,30 @@ console.log('Digest:', result.Transaction.digest);
 Fetch a transaction by digest.
 
 ```typescript
-const tx = await client.core.getTransaction({
+const result = await client.core.getTransaction({
 	digest: 'ABC123...',
 	include: {
 		effects: true,
 		events: true,
-		input: true,
+		transaction: true,
 	},
 });
 
-console.log(tx.Transaction?.digest);
-console.log(tx.Transaction?.effects);
+console.log(result.Transaction?.digest);
+console.log(result.Transaction?.effects);
+console.log(result.Transaction?.transaction?.sender);
+```
+
+You can also fetch raw BCS-encoded transaction bytes:
+
+```typescript
+const result = await client.core.getTransaction({
+	digest: 'ABC123...',
+	include: { bcs: true },
+});
+
+// Raw BCS bytes for the transaction
+console.log(result.Transaction?.bcs); // Uint8Array
 ```
 
 ### waitForTransaction
@@ -391,11 +404,12 @@ Most methods accept an `include` parameter to control what data is returned:
 
 ```typescript
 {
-  effects: boolean,        // Transaction effects
+  effects: boolean,        // Transaction effects (BCS-encoded)
   events: boolean,         // Emitted events
-  input: boolean,          // Transaction input data
+  transaction: boolean,    // Parsed transaction data (sender, gas, inputs, commands)
   balanceChanges: boolean, // Balance changes
-  objectChanges: boolean,  // Object changes
+  objectTypes: boolean,    // Map of object IDs to their types for changed objects
+  bcs: boolean,            // Raw BCS-encoded transaction bytes
 }
 ```
 

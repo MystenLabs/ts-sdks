@@ -387,13 +387,11 @@ export function parseTransactionBcs(
 	bytes: Uint8Array,
 	onlyTransactionKind = false,
 ): SuiClientTypes.TransactionData {
-	return {
-		...(onlyTransactionKind
+	return (
+		onlyTransactionKind
 			? TransactionDataBuilder.fromKindBytes(bytes)
 			: TransactionDataBuilder.fromBytes(bytes)
-		).snapshot(),
-		bcs: bytes,
-	};
+	).snapshot();
 }
 
 /**

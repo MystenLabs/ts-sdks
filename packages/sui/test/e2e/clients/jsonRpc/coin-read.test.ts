@@ -1,10 +1,26 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { fromBase64 } from '@mysten/bcs';
+
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { Transaction } from '../../../../src/transactions/index.js';
 import { setup, TestToolbox } from '../../utils/setup.js';
+
+// Magic number used to identify fake address balance coins (last 20 bytes of the digest)
+// See: sui/crates/sui-types/src/coin_reservation.rs
+const COIN_RESERVATION_MAGIC = new Uint8Array([
+	0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac,
+	0xac, 0xac, 0xac, 0xac,
+]);
+
+function isCoinReservationDigest(digestBase64: string): boolean {
+	const digestBytes = fromBase64(digestBase64);
+	// Check if the last 20 bytes match the magic number
+	const last20Bytes = digestBytes.slice(12, 32);
+	return last20Bytes.every((byte, i) => byte === COIN_RESERVATION_MAGIC[i]);
+}
 
 describe('CoinRead API', () => {
 	let toolbox: TestToolbox;
@@ -109,5 +125,94 @@ describe('CoinRead API', () => {
 			coinType: testType,
 		});
 		expect(Number(testSupply.value)).toBeGreaterThanOrEqual(11);
+	});
+
+	describe('Address Balance', () => {
+		it('filters out fake address balance coins from listCoins', async () => {
+			// Deposit some SUI to the address balance
+			const depositAmount = 100_000_000n;
+			const depositTx = new Transaction();
+			const [coinToDeposit] = depositTx.splitCoins(depositTx.gas, [depositAmount]);
+			depositTx.moveCall({
+				target: '0x2::coin::send_funds',
+				typeArguments: ['0x2::sui::SUI'],
+				arguments: [coinToDeposit, depositTx.pure.address(toolbox.address())],
+			});
+
+			const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				transaction: depositTx,
+				signer: toolbox.keypair,
+			});
+			await toolbox.jsonRpcClient.waitForTransaction({ digest });
+
+			// Now list coins - should NOT include the fake address balance coin
+			const coins = await toolbox.jsonRpcClient.getCoins({
+				owner: toolbox.address(),
+			});
+
+			// Verify no coins have the magic digest (indicating a fake address balance coin)
+			for (const coin of coins.data) {
+				expect(isCoinReservationDigest(coin.digest)).toBe(false);
+			}
+		});
+
+		it('returns correct addressBalance in getBalance', async () => {
+			// Deposit some SUI to the address balance
+			const depositAmount = 50_000_000n;
+			const depositTx = new Transaction();
+			const [coinToDeposit] = depositTx.splitCoins(depositTx.gas, [depositAmount]);
+			depositTx.moveCall({
+				target: '0x2::coin::send_funds',
+				typeArguments: ['0x2::sui::SUI'],
+				arguments: [coinToDeposit, depositTx.pure.address(toolbox.address())],
+			});
+
+			const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				transaction: depositTx,
+				signer: toolbox.keypair,
+			});
+			await toolbox.jsonRpcClient.waitForTransaction({ digest });
+
+			// Get balance via core API - addressBalance should be non-zero
+			const balance = await toolbox.jsonRpcClient.core.getBalance({
+				owner: toolbox.address(),
+			});
+
+			// The addressBalance should reflect the deposited amount (may have more from previous deposits)
+			expect(BigInt(balance.balance.addressBalance)).toBeGreaterThanOrEqual(depositAmount);
+
+			// coinBalance should be totalBalance - addressBalance
+			const expectedCoinBalance =
+				BigInt(balance.balance.balance) - BigInt(balance.balance.addressBalance);
+			expect(BigInt(balance.balance.coinBalance)).toBe(expectedCoinBalance);
+		});
+
+		it('core listCoins filters out fake address balance coins', async () => {
+			// Deposit some SUI to the address balance
+			const depositAmount = 25_000_000n;
+			const depositTx = new Transaction();
+			const [coinToDeposit] = depositTx.splitCoins(depositTx.gas, [depositAmount]);
+			depositTx.moveCall({
+				target: '0x2::coin::send_funds',
+				typeArguments: ['0x2::sui::SUI'],
+				arguments: [coinToDeposit, depositTx.pure.address(toolbox.address())],
+			});
+
+			const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				transaction: depositTx,
+				signer: toolbox.keypair,
+			});
+			await toolbox.jsonRpcClient.waitForTransaction({ digest });
+
+			// Now list coins via core API - should NOT include the fake address balance coin
+			const coins = await toolbox.jsonRpcClient.core.listCoins({
+				owner: toolbox.address(),
+			});
+
+			// Verify no coins have the magic digest (indicating a fake address balance coin)
+			for (const coin of coins.objects) {
+				expect(isCoinReservationDigest(coin.digest)).toBe(false);
+			}
+		});
 	});
 });

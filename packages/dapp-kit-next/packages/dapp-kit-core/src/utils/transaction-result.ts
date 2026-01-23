@@ -11,6 +11,7 @@ import {
 export type TransactionResultWithEffects = SuiClientTypes.TransactionResult<{
 	effects: true;
 	transaction: true;
+	bcs: true;
 }>;
 
 export function buildTransactionResult(
@@ -30,7 +31,7 @@ export function buildTransactionResult(
 		);
 	}
 
-	const txResult: SuiClientTypes.Transaction<{ effects: true; transaction: true }> = {
+	const txResult: SuiClientTypes.Transaction<{ effects: true; transaction: true; bcs: true }> = {
 		digest,
 		signatures: [signature],
 		epoch: null,
@@ -40,6 +41,7 @@ export function buildTransactionResult(
 		balanceChanges: undefined,
 		events: undefined,
 		objectTypes: undefined,
+		bcs: transactionBytes,
 	};
 
 	return status.success

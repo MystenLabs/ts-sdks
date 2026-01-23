@@ -222,6 +222,8 @@ export class MockSuiClient extends CoreClient {
 			balance: {
 				coinType: options.coinType ?? `${SUI_FRAMEWORK_ADDRESS}::sui::SUI`,
 				balance: totalBalance.toString(),
+				coinBalance: totalBalance.toString(),
+				addressBalance: '0',
 			},
 		};
 	}
@@ -257,10 +259,12 @@ export class MockSuiClient extends CoreClient {
 			}
 		}
 
-		const balances: SuiClientTypes.CoinBalance[] = Array.from(balancesByType.entries()).map(
+		const balances: SuiClientTypes.Balance[] = Array.from(balancesByType.entries()).map(
 			([coinType, totalBalance]) => ({
 				coinType,
 				balance: totalBalance.toString(),
+				coinBalance: totalBalance.toString(),
+				addressBalance: '0',
 			}),
 		);
 
