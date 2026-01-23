@@ -10,8 +10,14 @@ query simulateTransaction(
 	$includeObjectTypes: Boolean = false
 	$includeCommandResults: Boolean = false
 	$includeBcs: Boolean = false
+	$doGasSelection: Boolean = false
+	$checksEnabled: Boolean = true
 ) {
-	simulateTransaction(transaction: $transaction) {
+	simulateTransaction(
+		transaction: $transaction
+		doGasSelection: $doGasSelection
+		checksEnabled: $checksEnabled
+	) {
 		error
 		effects {
 			transaction {

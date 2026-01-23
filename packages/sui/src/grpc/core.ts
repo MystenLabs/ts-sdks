@@ -366,6 +366,10 @@ export class GrpcCoreClient extends CoreClient {
 			paths.push('command_outputs');
 		}
 
+		if (!(options.transaction instanceof Uint8Array)) {
+			await options.transaction.prepareForSerialization({ client: this });
+		}
+
 		const { response } = await this.#client.transactionExecutionService.simulateTransaction({
 			transaction:
 				options.transaction instanceof Uint8Array
@@ -378,6 +382,7 @@ export class GrpcCoreClient extends CoreClient {
 			readMask: {
 				paths,
 			},
+			doGasSelection: false,
 		});
 
 		const transactionResult = parseTransaction(response.transaction!, options.include);
