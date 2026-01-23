@@ -1724,14 +1724,26 @@ export class DeepBookClient {
 		const tx = new Transaction();
 		tx.add(this.marginManager.getMarginAccountOrderDetails(manager.poolKey, manager.address));
 
-		const res = await this.client.devInspectTransactionBlock({
-			sender: normalizeSuiAddress(this.#address),
-			transactionBlock: tx,
+		tx.setSenderIfNotSet(normalizeSuiAddress(this.#address));
+
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
 		});
 
+		if (res.FailedTransaction) {
+			throw new Error(
+				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
+			);
+		}
+
+		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
+			throw new Error(`Failed to get conditional order IDs: Unknown error`);
+		}
+
 		try {
-			const orderInformation = res.results![0].returnValues![0][0];
-			return bcs.vector(Order).parse(new Uint8Array(orderInformation));
+			const bytes = res.commandResults[1].returnValues[0].bcs;
+			return bcs.vector(Order).parse(bytes);
 		} catch {
 			return [];
 		}
