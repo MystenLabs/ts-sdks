@@ -303,6 +303,32 @@ The following have been removed:
 - `reportTransactionEffects` callback from `useSignTransaction`
 - Automatic transaction effects reporting from `useSignAndExecuteTransaction`
 
+## CSS and Theming Changes
+
+The new dApp Kit no longer bundles a CSS file. If you were importing the old CSS file, remove the
+import:
+
+```diff
+- import '@mysten/dapp-kit/dist/full/index.css';
+```
+
+The new dApp Kit uses web components with built-in styling that can be customized using CSS custom
+properties. See the [Theming documentation](/dapp-kit/theming) for details on customizing the
+appearance of dApp Kit components.
+
+**Quick theme setup:**
+
+```css
+:root {
+	--primary: #4f46e5;
+	--primary-foreground: #ffffff;
+	--background: #ffffff;
+	--foreground: #0f172a;
+	--border: #e2e8f0;
+	--radius: 0.5rem;
+}
+```
+
 ## Removing TanStack Query
 
 If you were only using `@tanstack/react-query` for dApp Kit and don't need it for other parts of
