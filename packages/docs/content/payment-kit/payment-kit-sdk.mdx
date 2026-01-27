@@ -73,7 +73,7 @@ type ProcessRegistryPaymentOptions = {
 	amount: number | bigint; // Amount in smallest unit
 	receiver: string; // Recipient address
 	sender: string; // Sender address (must match signer)
-} & ({ registryName: string; registryId?: never } | { registryId: string; registryName?: never });
+} & Partial<Registry>;
 ```
 
 **Returns:** `Transaction` - Ready-to-sign transaction
@@ -227,7 +227,7 @@ setConfigEpochExpirationDuration(
 type SetEpochExpirationDurationOptions = {
 	epochExpirationDuration: number | bigint; // Number of epochs before records expire
 	adminCapId: string; // Admin capability object ID
-} & ({ registryName: string; registryId?: never } | { registryId: string; registryName?: never });
+} & Partial<Registry>;
 ```
 
 **Returns:** `Transaction` - Ready-to-sign transaction
@@ -271,7 +271,7 @@ setConfigRegistryManagedFunds(
 type SetRegistryManagedFundsOptions = {
 	registryManagedFunds: boolean; // Enable (true) or disable (false)
 	adminCapId: string; // Admin capability object ID
-} & ({ registryName: string; registryId?: never } | { registryId: string; registryName?: never });
+} & Partial<Registry>;
 ```
 
 **Returns:** `Transaction` - Ready-to-sign transaction
@@ -317,7 +317,7 @@ withdrawFromRegistry(
 type WithdrawFromRegistryOptions = {
 	coinType: string; // Coin type to withdraw
 	adminCapId: string; // Admin capability object ID
-} & ({ registryName: string; registryId?: never } | { registryId: string; registryName?: never });
+} & Partial<Registry>;
 ```
 
 **Returns:** `Transaction` - Ready-to-sign transaction
@@ -366,7 +366,7 @@ type DeletePaymentRecordOptions = {
 	coinType: string; // Coin type of the payment
 	amount: number | bigint; // Payment amount
 	receiver: string; // Payment receiver
-} & ({ registryName: string; registryId?: never } | { registryId: string; registryName?: never });
+} & Partial<Registry>;
 ```
 
 **Returns:** `Transaction` - Ready-to-sign transaction
@@ -418,7 +418,7 @@ type GetPaymentRecordOptions = {
 	coinType: string; // Coin type
 	amount: number | bigint; // Payment amount
 	receiver: string; // Payment receiver
-} & ({ registryName: string; registryId?: never } | { registryId: string; registryName?: never });
+} & Partial<Registry>;
 ```
 
 **Returns:**
@@ -571,6 +571,169 @@ class PaymentKitClientError extends Error {
 	constructor(message: string);
 }
 ```
+
+## URI Utilities
+
+Payment Kit provides utility functions for creating and parsing payment transaction URIs. These URIs
+follow the `sui:pay` protocol and can be used to encode payment parameters for QR codes, deep links,
+or other sharing mechanisms.
+
+### URI Format
+
+Payment URIs follow the `sui:pay` protocol:
+
+```
+sui:pay?
+  receiver=<address>
+  &amount=<amount>
+  &coinType=<coinType>
+  &nonce=<nonce>
+  &registry=<registryIdOrName>
+  &label=<label>
+  &message=<message>
+  &iconUrl=<url>
+```
+
+**Required Parameters:**
+
+| Parameter  | Description                                  |
+| ---------- | -------------------------------------------- |
+| `receiver` | Recipient Sui address                        |
+| `amount`   | Payment amount in smallest unit (e.g., MIST) |
+| `coinType` | Coin type (e.g., `0x2::sui::SUI`)            |
+| `nonce`    | Unique payment identifier (max 36 chars)     |
+
+**Optional Parameters:**
+
+| Parameter  | Description                                     |
+| ---------- | ----------------------------------------------- |
+| `registry` | Registry ID or name for registry-based payments |
+| `label`    | Human-readable label for the payment            |
+| `message`  | Message or memo for the payment                 |
+| `iconUrl`  | URL to an icon image for display purposes       |
+
+---
+
+### `createPaymentTransactionUri()`
+
+Creates a payment transaction URI from the given parameters.
+
+```ts
+createPaymentTransactionUri(params: PaymentUriParams): string
+```
+
+**Parameters:**
+
+```ts
+type PaymentUriParams = {
+	receiverAddress: string; // Recipient Sui address
+	amount: bigint; // Amount in smallest unit
+	coinType: string; // Coin type (e.g., '0x2::sui::SUI')
+	nonce: string; // Unique identifier (max 36 chars)
+	label?: string; // Optional human-readable label
+	message?: string; // Optional message/memo
+	iconUrl?: string; // Optional icon URL
+} & Partial<Registry>;
+```
+
+**Returns:** `string` - The constructed payment URI
+
+**Example:**
+
+```ts
+import { createPaymentTransactionUri } from '@mysten/payment-kit';
+
+// Create a URI for a registry-based payment
+const uri = createPaymentTransactionUri({
+	receiverAddress: '0x1234...abcd',
+	amount: 1000000000n, // 1 SUI
+	coinType: '0x2::sui::SUI',
+	nonce: crypto.randomUUID(),
+	registryName: 'my-payment-registry',
+	label: 'Coffee Purchase',
+	message: 'Thanks for your order!',
+});
+
+// Result:
+// sui:pay?
+//   receiver=0x1234...
+//   &amount=1000000000
+//   &coinType=0x2::sui::SUI
+//   &nonce=abc-123-def
+//   &registry=my-payment-registry
+//   &label=Coffee+Purchase
+//   &message=Thanks+for+your+order!
+
+// Create a URI for an ephemeral payment (no registry)
+const ephemeralUri = createPaymentTransactionUri({
+	receiverAddress: '0x1234...abcd',
+	amount: 500000000n, // 0.5 SUI
+	coinType: '0x2::sui::SUI',
+	nonce: crypto.randomUUID(),
+});
+```
+
+**Throws:**
+
+- `PaymentKitUriError` if receiver address is invalid
+- `PaymentKitUriError` if amount is not positive
+- `PaymentKitUriError` if coin type is invalid
+- `PaymentKitUriError` if nonce is missing or exceeds 36 characters
+- `PaymentKitUriError` if registry ID is not a valid Sui object ID
+
+---
+
+### `parsePaymentTransactionUri()`
+
+Parses a payment transaction URI into its component parameters.
+
+```ts
+parsePaymentTransactionUri(uri: string): PaymentUriParams
+```
+
+**Parameters:**
+
+| Parameter | Type     | Description              |
+| --------- | -------- | ------------------------ |
+| `uri`     | `string` | The payment URI to parse |
+
+**Returns:** `PaymentUriParams` - The parsed payment parameters
+
+**Example:**
+
+```ts
+import { parsePaymentTransactionUri } from '@mysten/payment-kit';
+
+const uri =
+	'sui:pay?receiver=0x1234...&amount=1000000000&coinType=0x2::sui::SUI&nonce=abc123&registry=my-registry';
+
+const params = parsePaymentTransactionUri(uri);
+
+console.log(params.receiverAddress); // '0x1234...'
+console.log(params.amount); // 1000000000n (bigint)
+console.log(params.coinType); // '0x2::sui::SUI'
+console.log(params.nonce); // 'abc123'
+console.log(params.registryName); // 'my-registry'
+
+// Use parsed params to process a payment
+const tx = client.paymentKit.tx.processRegistryPayment({
+	receiver: params.receiverAddress,
+	amount: params.amount,
+	coinType: params.coinType,
+	nonce: params.nonce,
+	registryName: params.registryName!,
+	sender: senderAddress,
+});
+```
+
+**Throws:**
+
+- `PaymentKitUriError` if URI doesn't start with `sui:pay?`
+- `PaymentKitUriError` if required parameters are missing
+- `PaymentKitUriError` if receiver address is invalid
+- `PaymentKitUriError` if coin type is invalid
+- `PaymentKitUriError` if nonce exceeds 36 characters
+- `PaymentKitUriError` if amount is not a positive number
 
 ### Future Versions
 
