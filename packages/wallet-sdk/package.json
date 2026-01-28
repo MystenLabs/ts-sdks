@@ -1,60 +1,60 @@
 {
-	"name": "@mysten/wallet-sdk",
-	"version": "0.0.8",
-	"private": false,
-	"description": "Utilities for building Sui wallets",
-	"license": "Apache-2.0",
-	"author": "Mysten Labs <build@mystenlabs.com>",
-	"type": "module",
-	"main": "./dist/index.mjs",
-	"types": "./dist/index.d.mts",
-	"exports": {
-		".": {
-			"types": "./dist/index.d.mts",
-			"import": "./dist/index.mjs"
-		}
-	},
-	"sideEffects": false,
-	"files": [
-		"CHANGELOG.md",
-		"dist"
-	],
-	"scripts": {
-		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "rm -rf dist && tsc --noEmit && tsdown",
-		"vitest": "vitest",
-		"test": "pnpm test:typecheck && pnpm test:unit",
-		"test:typecheck": "tsc -p ./test",
-		"test:unit": "vitest run",
-		"prettier:check": "prettier -c --ignore-unknown .",
-		"prettier:fix": "prettier -w --ignore-unknown .",
-		"oxlint:check": "oxlint  .",
-		"oxlint:fix": "oxlint --fix",
-		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
-		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
-	},
-	"bugs": {
-		"url": "https://github.com/mystenlabs/ts-sdks/issues"
-	},
-	"homepage": "https://github.com/MystenLabs/ts-sdks/packages/wallet-sdk#readme",
-	"devDependencies": {
-		"@mysten/dapp-kit-react": "workspace:^",
-		"@mysten/sui": "workspace:^",
-		"@types/node": "^25.0.8",
-		"msw": "^2.12.7",
-		"typescript": "^5.9.3",
-		"vitest": "^4.0.17"
-	},
-	"dependencies": {
-		"@mysten/bcs": "workspace:^",
-		"@mysten/wallet-standard": "workspace:^",
-		"valibot": "^1.2.0"
-	},
-	"peerDependencies": {
-		"@mysten/sui": "workspace:*"
-	}
+  "name": "@mysten/wallet-sdk",
+  "version": "0.0.8",
+  "private": false,
+  "description": "Utilities for building Sui wallets",
+  "license": "Apache-2.0",
+  "author": "Mysten Labs <build@mystenlabs.com>",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "CHANGELOG.md",
+    "dist"
+  ],
+  "scripts": {
+    "clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+    "build": "rm -rf dist && tsc --noEmit && tsdown",
+    "vitest": "vitest",
+    "test": "pnpm test:typecheck && pnpm test:unit",
+    "test:typecheck": "tsc -p ./test",
+    "test:unit": "vitest run",
+    "prettier:check": "prettier -c --ignore-unknown .",
+    "prettier:fix": "prettier -w --ignore-unknown .",
+    "oxlint:check": "oxlint  .",
+    "oxlint:fix": "oxlint --fix",
+    "lint": "pnpm run oxlint:check && pnpm run prettier:check",
+    "lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MystenLabs/ts-sdks.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mystenlabs/ts-sdks/issues"
+  },
+  "homepage": "https://github.com/MystenLabs/ts-sdks/packages/wallet-sdk#readme",
+  "devDependencies": {
+    "@mysten/dapp-kit-react": "workspace:^",
+    "@mysten/sui": "workspace:^",
+    "@types/node": "^25.0.8",
+    "msw": "^2.12.7",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
+  },
+  "dependencies": {
+    "@mysten/bcs": "workspace:^",
+    "@mysten/wallet-standard": "workspace:^",
+    "valibot": "^1.2.0"
+  },
+  "peerDependencies": {
+    "@mysten/sui": "*"
+  }
 }

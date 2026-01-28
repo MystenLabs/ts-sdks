@@ -1,51 +1,51 @@
 {
-	"name": "@mysten/wallet-standard",
-	"version": "0.19.9",
-	"description": "A suite of standard utilities for implementing wallets based on the Wallet Standard.",
-	"license": "Apache-2.0",
-	"author": "Mysten Labs <build@mystenlabs.com>",
-	"type": "module",
-	"main": "./dist/index.mjs",
-	"types": "./dist/index.d.mts",
-	"exports": {
-		".": {
-			"types": "./dist/index.d.mts",
-			"import": "./dist/index.mjs"
-		}
-	},
-	"sideEffects": false,
-	"files": [
-		"CHANGELOG.md",
-		"dist",
-		"src"
-	],
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
-	},
-	"bugs": {
-		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
-	},
-	"scripts": {
-		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "rm -rf dist && tsc --noEmit && tsdown",
-		"prettier:check": "prettier -c --ignore-unknown .",
-		"prettier:fix": "prettier -w --ignore-unknown .",
-		"oxlint:check": "oxlint  .",
-		"oxlint:fix": "oxlint --fix",
-		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
-		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
-		"json-schema": "typescript-json-schema src/types.ts SerializedTransactionDataV2 --required --strictNullChecks > serialized-transaction-data-v2.schema.json && prettier -w serialized-transaction-data-v2.schema.json"
-	},
-	"dependencies": {
-		"@wallet-standard/core": "1.1.1"
-	},
-	"devDependencies": {
-		"@mysten/sui": "workspace:*",
-		"typescript": "^5.9.3",
-		"typescript-json-schema": "^0.67.1"
-	},
-	"peerDependencies": {
-		"@mysten/sui": "workspace:*"
-	}
+  "name": "@mysten/wallet-standard",
+  "version": "0.19.9",
+  "description": "A suite of standard utilities for implementing wallets based on the Wallet Standard.",
+  "license": "Apache-2.0",
+  "author": "Mysten Labs <build@mystenlabs.com>",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "CHANGELOG.md",
+    "dist",
+    "src"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MystenLabs/ts-sdks.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MystenLabs/ts-sdks/issues/new"
+  },
+  "scripts": {
+    "clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+    "build": "rm -rf dist && tsc --noEmit && tsdown",
+    "prettier:check": "prettier -c --ignore-unknown .",
+    "prettier:fix": "prettier -w --ignore-unknown .",
+    "oxlint:check": "oxlint  .",
+    "oxlint:fix": "oxlint --fix",
+    "lint": "pnpm run oxlint:check && pnpm run prettier:check",
+    "lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
+    "json-schema": "typescript-json-schema src/types.ts SerializedTransactionDataV2 --required --strictNullChecks > serialized-transaction-data-v2.schema.json && prettier -w serialized-transaction-data-v2.schema.json"
+  },
+  "dependencies": {
+    "@wallet-standard/core": "1.1.1"
+  },
+  "devDependencies": {
+    "@mysten/sui": "workspace:*",
+    "typescript": "^5.9.3",
+    "typescript-json-schema": "^0.67.1"
+  },
+  "peerDependencies": {
+    "@mysten/sui": "*"
+  }
 }
