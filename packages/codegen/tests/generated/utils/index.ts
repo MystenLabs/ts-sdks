@@ -184,7 +184,11 @@ export class MoveStruct<
 		client,
 		...options
 	}: GetManyOptions<Include>): Promise<
-		Array<SuiClientTypes.Object<Include & { content: true }> & { json: BcsStruct<T>['$inferType'] }>
+		Array<
+			SuiClientTypes.Object<Include & { content: true; json: true }> & {
+				json: BcsStruct<T>['$inferType'];
+			}
+		>
 	> {
 		const response = (await client.core.getObjects({
 			...options,
@@ -192,7 +196,7 @@ export class MoveStruct<
 				...options.include,
 				content: true,
 			},
-		})) as SuiClientTypes.GetObjectsResponse<Include & { content: true }>;
+		})) as SuiClientTypes.GetObjectsResponse<Include & { content: true; json: true }>;
 
 		return response.objects.map((obj) => {
 			if (obj instanceof Error) {

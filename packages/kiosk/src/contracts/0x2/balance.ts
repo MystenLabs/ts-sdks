@@ -249,3 +249,21 @@ export function withdrawFundsFromObject(options: WithdrawFundsFromObjectOptions)
 			typeArguments: options.typeArguments,
 		});
 }
+export interface SettledFundsValueOptions {
+	package?: string;
+	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
+	typeArguments: [string];
+}
+export function settledFundsValue(options: SettledFundsValueOptions) {
+	const packageAddress =
+		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
+	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'balance',
+			function: 'settled_funds_value',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
+			typeArguments: options.typeArguments,
+		});
+}

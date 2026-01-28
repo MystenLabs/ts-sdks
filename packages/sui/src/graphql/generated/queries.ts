@@ -4674,10 +4674,11 @@ export type GetOwnedObjectsQueryVariables = Exact<{
   includeContent?: InputMaybe<Scalars['Boolean']['input']>;
   includePreviousTransaction?: InputMaybe<Scalars['Boolean']['input']>;
   includeObjectBcs?: InputMaybe<Scalars['Boolean']['input']>;
+  includeJson?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
-export type GetOwnedObjectsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', objects?: { __typename?: 'MoveObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'MoveObject', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null, owner?:
+export type GetOwnedObjectsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', objects?: { __typename?: 'MoveObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'MoveObject', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, json?: unknown | null, type?: { __typename?: 'MoveType', repr: string } | null } | null, owner?:
           | { __typename: 'AddressOwner', address?: { __typename?: 'Address', address: string } | null }
           | { __typename: 'ConsensusAddressOwner', startVersion?: number | null, address?: { __typename?: 'Address', address: string } | null }
           | { __typename: 'Immutable' }
@@ -4690,10 +4691,11 @@ export type MultiGetObjectsQueryVariables = Exact<{
   includeContent?: InputMaybe<Scalars['Boolean']['input']>;
   includePreviousTransaction?: InputMaybe<Scalars['Boolean']['input']>;
   includeObjectBcs?: InputMaybe<Scalars['Boolean']['input']>;
+  includeJson?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
-export type MultiGetObjectsQuery = { __typename?: 'Query', multiGetObjects: Array<{ __typename?: 'Object', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null } | null, asMovePackage?: { __typename: 'MovePackage' } | null, owner?:
+export type MultiGetObjectsQuery = { __typename?: 'Query', multiGetObjects: Array<{ __typename?: 'Object', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs?: string | null, json?: unknown | null, type?: { __typename?: 'MoveType', repr: string } | null } | null } | null, asMovePackage?: { __typename: 'MovePackage' } | null, owner?:
       | { __typename: 'AddressOwner', address?: { __typename?: 'Address', address: string } | null }
       | { __typename: 'ConsensusAddressOwner', startVersion?: number | null, address?: { __typename?: 'Address', address: string } | null }
       | { __typename: 'Immutable' }
@@ -4701,7 +4703,7 @@ export type MultiGetObjectsQuery = { __typename?: 'Query', multiGetObjects: Arra
       | { __typename: 'Shared', initialSharedVersion?: number | null }
      | null, previousTransaction?: { __typename?: 'Transaction', digest: string } | null } | null> };
 
-export type Object_FieldsFragment = { __typename?: 'Object', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null } | null, asMovePackage?: { __typename: 'MovePackage' } | null, owner?:
+export type Object_FieldsFragment = { __typename?: 'Object', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs?: string | null, json?: unknown | null, type?: { __typename?: 'MoveType', repr: string } | null } | null } | null, asMovePackage?: { __typename: 'MovePackage' } | null, owner?:
     | { __typename: 'AddressOwner', address?: { __typename?: 'Address', address: string } | null }
     | { __typename: 'ConsensusAddressOwner', startVersion?: number | null, address?: { __typename?: 'Address', address: string } | null }
     | { __typename: 'Immutable' }
@@ -4709,7 +4711,7 @@ export type Object_FieldsFragment = { __typename?: 'Object', address: string, di
     | { __typename: 'Shared', initialSharedVersion?: number | null }
    | null, previousTransaction?: { __typename?: 'Transaction', digest: string } | null };
 
-export type Move_Object_FieldsFragment = { __typename?: 'MoveObject', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null, owner?:
+export type Move_Object_FieldsFragment = { __typename?: 'MoveObject', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, json?: unknown | null, type?: { __typename?: 'MoveType', repr: string } | null } | null, owner?:
     | { __typename: 'AddressOwner', address?: { __typename?: 'Address', address: string } | null }
     | { __typename: 'ConsensusAddressOwner', startVersion?: number | null, address?: { __typename?: 'Address', address: string } | null }
     | { __typename: 'Immutable' }
@@ -4849,6 +4851,7 @@ export const Object_FieldsFragmentDoc = new TypedDocumentString(`
   asMoveObject {
     contents {
       bcs @include(if: $includeContent)
+      json @include(if: $includeJson)
       type {
         repr
       }
@@ -4894,6 +4897,7 @@ export const Move_Object_FieldsFragmentDoc = new TypedDocumentString(`
   objectBcs @include(if: $includeObjectBcs)
   contents {
     bcs @include(if: $includeContent)
+    json @include(if: $includeJson)
     type {
       repr
     }
@@ -5175,7 +5179,7 @@ export const DefaultSuinsNameDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DefaultSuinsNameQuery, DefaultSuinsNameQueryVariables>;
 export const GetOwnedObjectsDocument = new TypedDocumentString(`
-    query getOwnedObjects($owner: SuiAddress!, $limit: Int, $cursor: String, $filter: ObjectFilter, $includeContent: Boolean = false, $includePreviousTransaction: Boolean = false, $includeObjectBcs: Boolean = false) {
+    query getOwnedObjects($owner: SuiAddress!, $limit: Int, $cursor: String, $filter: ObjectFilter, $includeContent: Boolean = false, $includePreviousTransaction: Boolean = false, $includeObjectBcs: Boolean = false, $includeJson: Boolean = false) {
   address(address: $owner) {
     objects(first: $limit, after: $cursor, filter: $filter) {
       pageInfo {
@@ -5195,6 +5199,7 @@ export const GetOwnedObjectsDocument = new TypedDocumentString(`
   objectBcs @include(if: $includeObjectBcs)
   contents {
     bcs @include(if: $includeContent)
+    json @include(if: $includeJson)
     type {
       repr
     }
@@ -5229,7 +5234,7 @@ fragment OBJECT_OWNER_FIELDS on Owner {
   }
 }`) as unknown as TypedDocumentString<GetOwnedObjectsQuery, GetOwnedObjectsQueryVariables>;
 export const MultiGetObjectsDocument = new TypedDocumentString(`
-    query multiGetObjects($objectKeys: [ObjectKey!]!, $includeContent: Boolean = false, $includePreviousTransaction: Boolean = false, $includeObjectBcs: Boolean = false) {
+    query multiGetObjects($objectKeys: [ObjectKey!]!, $includeContent: Boolean = false, $includePreviousTransaction: Boolean = false, $includeObjectBcs: Boolean = false, $includeJson: Boolean = false) {
   multiGetObjects(keys: $objectKeys) {
     ...OBJECT_FIELDS
   }
@@ -5242,6 +5247,7 @@ export const MultiGetObjectsDocument = new TypedDocumentString(`
   asMoveObject {
     contents {
       bcs @include(if: $includeContent)
+      json @include(if: $includeJson)
       type {
         repr
       }

@@ -88,6 +88,7 @@ export function createMockCoin(params: {
 		content,
 		previousTransaction: undefined,
 		objectBcs: undefined,
+		json: undefined,
 	};
 }
 
@@ -126,6 +127,7 @@ export function createMockNFT(params: {
 		content,
 		previousTransaction: undefined,
 		objectBcs: undefined,
+		json: undefined,
 	};
 }
 
@@ -153,6 +155,7 @@ export function createMockObject(params: {
 		content,
 		previousTransaction: undefined,
 		objectBcs: undefined,
+		json: undefined,
 	};
 }
 

@@ -61,6 +61,7 @@ export namespace SuiClientTypes {
 		content?: boolean;
 		previousTransaction?: boolean;
 		objectBcs?: boolean;
+		json?: boolean;
 	}
 
 	export interface GetObjectsOptions<
@@ -135,6 +136,14 @@ export namespace SuiClientTypes {
 		content: Include extends { content: true } ? Uint8Array<ArrayBuffer> : undefined;
 		previousTransaction: Include extends { previousTransaction: true } ? string | null : undefined;
 		objectBcs: Include extends { objectBcs: true } ? Uint8Array<ArrayBuffer> : undefined;
+		/**
+		 * The JSON representation of the object's Move struct content.
+		 *
+		 * **Warning:** The exact shape and field names of this data may vary between different
+		 * API implementations (JSON-RPC vs gRPC or GraphQL). For consistent data across APIs use
+		 * the `content` field and parse the BCS data directly.
+		 */
+		json: Include extends { json: true } ? Record<string, unknown> | null : undefined;
 	}
 
 	export interface Coin {

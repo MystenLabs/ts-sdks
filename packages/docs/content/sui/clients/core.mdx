@@ -46,6 +46,25 @@ console.log(object.digest);
 console.log(object.type); // e.g., "0x2::coin::Coin<0x2::sui::SUI>"
 ```
 
+You can also fetch the JSON representation of the object's Move struct content:
+
+```typescript
+const { object } = await client.core.getObject({
+	objectId: '0x123...',
+	include: { json: true },
+});
+
+// Access the JSON representation
+console.log(object.json);
+```
+
+<Callout type="warn">
+The `json` field structure may vary between API implementations. For example, JSON-RPC returns UID
+fields as nested objects (`{ "id": { "id": "0x..." } }`), while gRPC and GraphQL flatten them
+(`{ "id": "0x..." }`). For consistent data across all clients, use `include: { content: true }` and
+parse the BCS data directly.
+</Callout>
+
 ### getObjects
 
 Fetch multiple objects in a single request.
@@ -395,10 +414,18 @@ Most methods accept an `include` parameter to control what data is returned:
 
 ```typescript
 {
-  content: boolean,          // BCS-encoded object content
+  content: boolean,             // BCS-encoded object content
   previousTransaction: boolean, // Digest of creating transaction
+  json: boolean,                // JSON representation of Move struct content
 }
 ```
+
+<Callout type="warn">
+	The `json` field returns the JSON representation of an object's Move struct content. **Warning:**
+	The exact shape and field names of this data may vary between different API implementations
+	(JSON-RPC vs gRPC or GraphQL). For consistent data across APIs, use the `content` field and parse
+	the BCS data directly.
+</Callout>
 
 ### Transaction Include Options
 

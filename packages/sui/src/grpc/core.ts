@@ -44,6 +44,7 @@ import {
 	transactionToGrpcTransaction,
 	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
+import { Value } from './proto/google/protobuf/struct.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
@@ -70,6 +71,9 @@ export class GrpcCoreClient extends CoreClient {
 		}
 		if (options.include?.objectBcs) {
 			paths.push('bcs');
+		}
+		if (options.include?.json) {
+			paths.push('json');
 		}
 
 		for (const batch of batches) {
@@ -101,6 +105,12 @@ export class GrpcCoreClient extends CoreClient {
 							? normalizeStructTag(objectType)
 							: (objectType ?? '');
 
+					const jsonContent = options.include?.json
+						? object.result.object.json
+							? (Value.toJson(object.result.object.json) as Record<string, unknown>)
+							: null
+						: undefined;
+
 					return {
 						objectId: object.result.object.objectId!,
 						version: object.result.object.version?.toString()!,
@@ -111,6 +121,7 @@ export class GrpcCoreClient extends CoreClient {
 						previousTransaction: (object.result.object.previousTransaction ??
 							undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
 						objectBcs: objectBcs as SuiClientTypes.Object<Include>['objectBcs'],
+						json: jsonContent as SuiClientTypes.Object<Include>['json'],
 					};
 				}),
 			);
@@ -132,6 +143,9 @@ export class GrpcCoreClient extends CoreClient {
 		}
 		if (options.include?.objectBcs) {
 			paths.push('bcs');
+		}
+		if (options.include?.json) {
+			paths.push('json');
 		}
 
 		const response = await this.#client.stateService.listOwnedObjects({
@@ -157,6 +171,11 @@ export class GrpcCoreClient extends CoreClient {
 				previousTransaction: (object.previousTransaction ??
 					undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
 				objectBcs: object.bcs?.value as SuiClientTypes.Object<Include>['objectBcs'],
+				json: (options.include?.json
+					? object.json
+						? (Value.toJson(object.json) as Record<string, unknown>)
+						: null
+					: undefined) as SuiClientTypes.Object<Include>['json'],
 			}),
 		);
 
