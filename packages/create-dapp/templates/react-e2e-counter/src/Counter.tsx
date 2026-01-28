@@ -20,14 +20,6 @@ import {
 } from "./components/ui/card";
 import { Plus, RotateCcw } from "lucide-react";
 
-interface SuiObject {
-  objectId?: string;
-  version?: bigint;
-  digest?: string;
-  owner?: { kind?: number; address?: string };
-  contents?: { value?: Uint8Array };
-}
-
 export function Counter({ id }: { id: string }) {
   const client = useCurrentClient();
   const currentAccount = useCurrentAccount();
@@ -38,13 +30,11 @@ export function Counter({ id }: { id: string }) {
   const { data, isPending, error } = useQuery({
     queryKey: ["counter", id],
     queryFn: async () => {
-      const { response } = await client.ledgerService.getObject({
+      const { object } = await client.getObject({
         objectId: id,
-        readMask: {
-          paths: ["*"],
-        },
+        include: { content: true },
       });
-      return response.object ?? null;
+      return object;
     },
   });
 
@@ -175,13 +165,13 @@ export function Counter({ id }: { id: string }) {
   );
 }
 
-function getCounterFields(data: SuiObject) {
-  if (!data.contents?.value) {
+function getCounterFields(data: { content?: Uint8Array }) {
+  if (!data.content) {
     return null;
   }
 
   try {
-    const parsed = CounterStruct.parse(data.contents.value);
+    const parsed = CounterStruct.parse(data.content);
     return { value: Number(parsed.value), owner: parsed.owner };
   } catch {
     return null;
