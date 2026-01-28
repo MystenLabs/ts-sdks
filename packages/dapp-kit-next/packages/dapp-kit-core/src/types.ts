@@ -6,11 +6,10 @@ import type { DAppKit } from './core/index.js';
 export interface Register {}
 
 export type ResolvedRegister = {
-	dAppKit: Register extends { dAppKit: infer _DAppKit } ? _DAppKit : DAppKit;
+	dAppKit: Register extends { dAppKit: infer _DAppKit } ? _DAppKit : DAppKit<[]>;
 };
 
 export type RegisteredDAppKit = ResolvedRegister['dAppKit'];
 
-export type DefaultExpectedDppKit = RegisteredDAppKit extends DAppKit
-	? DAppKit<any>
-	: RegisteredDAppKit;
+export type DefaultExpectedDppKit =
+	DAppKit<[]> extends RegisteredDAppKit ? DAppKit<any> : RegisteredDAppKit;
