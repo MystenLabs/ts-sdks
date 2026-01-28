@@ -1329,7 +1329,7 @@ importers:
         version: 1.1.1
     devDependencies:
       '@mysten/sui':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../sui
       typescript:
         specifier: ^5.9.3
