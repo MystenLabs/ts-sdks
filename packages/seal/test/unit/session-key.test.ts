@@ -6,6 +6,7 @@ import { SessionKey } from '../../src/session-key.js';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { UserError } from '../../src/error.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 
 describe('Session key tests', () => {
 	const TESTNET_PACKAGE_ID = '0x9709d4ee371488c2bc09f508e98e881bd1d5335e0805d7e6a99edd54a7027954';
@@ -13,7 +14,7 @@ describe('Session key tests', () => {
 		const kp = Ed25519Keypair.generate();
 		const suiClient = new SuiGrpcClient({
 			network: 'testnet',
-			baseUrl: 'https://fullnode.testnet.sui.io:443',
+			baseUrl: getJsonRpcFullnodeUrl('testnet'),
 		});
 		const sessionKey = await SessionKey.create({
 			address: kp.getPublicKey().toSuiAddress(),

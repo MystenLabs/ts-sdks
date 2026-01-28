@@ -4,10 +4,11 @@
 import { fromHex } from '@mysten/bcs';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { describe, it, expect } from 'vitest';
 
-import { SealClient } from '../../src/client.js';
+import { seal } from '../../src/client.js';
 import { SessionKey } from '../../src/session-key.js';
 
 /**
@@ -31,27 +32,30 @@ describe('Committee Aggregator Tests', () => {
 		const testAddress = testKeypair.getPublicKey().toSuiAddress();
 
 		const testData = crypto.getRandomValues(new Uint8Array(100));
-		const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
 
-		// Create Seal client.
-		const client = new SealClient({
-			suiClient,
-			serverConfigs: [
-				{
-					objectId: COMMITTEE_KEY_SERVER_OBJ_ID,
-					weight: 1,
-					aggregatorUrl: AGGREGATOR_URL,
-				},
-				{
-					objectId: INDEPENDENT_SERVER_OBJ_ID,
-					weight: 1,
-				},
-			],
-			verifyKeyServers: false,
-		});
+		// Create client with seal extension.
+		const client = new SuiGrpcClient({
+			network: 'testnet',
+			baseUrl: getJsonRpcFullnodeUrl('testnet'),
+		}).$extend(
+			seal({
+				serverConfigs: [
+					{
+						objectId: COMMITTEE_KEY_SERVER_OBJ_ID,
+						weight: 1,
+						aggregatorUrl: AGGREGATOR_URL,
+					},
+					{
+						objectId: INDEPENDENT_SERVER_OBJ_ID,
+						weight: 1,
+					},
+				],
+				verifyKeyServers: false,
+			}),
+		);
 
 		// Encrypt with policy and 2 servers (1 for committee, 1 for independent).
-		const { encryptedObject: encryptedBytes } = await client.encrypt({
+		const { encryptedObject: encryptedBytes } = await client.seal.encrypt({
 			threshold: 2,
 			packageId: PACKAGE_ID,
 			id: testAddress,
@@ -64,7 +68,7 @@ describe('Committee Aggregator Tests', () => {
 			packageId: PACKAGE_ID,
 			ttlMin: 10,
 			signer: testKeypair,
-			suiClient,
+			suiClient: client,
 		});
 
 		// Build transaction.
@@ -74,10 +78,10 @@ describe('Committee Aggregator Tests', () => {
 			target: `${PACKAGE_ID}::account_based::seal_approve`,
 			arguments: [keyIdArg],
 		});
-		const txBytes = await tx.build({ client: suiClient, onlyTransactionKind: true });
+		const txBytes = await tx.build({ client, onlyTransactionKind: true });
 
 		// Decrypt data through aggregator.
-		const decryptedData = await client.decrypt({
+		const decryptedData = await client.seal.decrypt({
 			data: encryptedBytes,
 			sessionKey,
 			txBytes,

@@ -3,6 +3,7 @@
 
 import { fromBase64 } from '@mysten/bcs';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { bcs } from '@mysten/sui/bcs';
 
@@ -156,7 +157,7 @@ describe('key-server tests', () => {
 				objectIds: [id],
 				client: new SuiGrpcClient({
 					network: 'testnet',
-					baseUrl: 'https://fullnode.testnet.sui.io:443',
+					baseUrl: getJsonRpcFullnodeUrl('testnet'),
 				}),
 				configs: new Map(),
 			});
