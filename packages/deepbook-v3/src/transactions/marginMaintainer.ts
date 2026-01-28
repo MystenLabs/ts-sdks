@@ -253,7 +253,7 @@ export class MarginMaintainerContract {
 	 * @description Update the margin pool config
 	 * @param {string} coinKey The key to identify the margin pool
 	 * @param {TransactionObjectArgument} marginPoolCap The margin pool cap
-	 * @param {MarginPoolConfigParams} marginPoolConfig The configuration for the margin pool
+	 * @param {MarginPoolConfigParams} marginPoolConfig The configuration for the margin pool (with optional rate limit)
 	 * @returns A function that takes a Transaction object
 	 */
 	updateMarginPoolConfig =
@@ -264,7 +264,18 @@ export class MarginMaintainerContract {
 		) =>
 		(tx: Transaction) => {
 			const marginPool = this.#config.getMarginPool(coinKey);
-			const marginPoolConfigObject = this.newMarginPoolConfig(coinKey, marginPoolConfig)(tx);
+			const hasRateLimit =
+				marginPoolConfig.rateLimitCapacity !== undefined &&
+				marginPoolConfig.rateLimitRefillRatePerMs !== undefined &&
+				marginPoolConfig.rateLimitEnabled !== undefined;
+			const marginPoolConfigObject = hasRateLimit
+				? this.newMarginPoolConfigWithRateLimit(coinKey, {
+						...marginPoolConfig,
+						rateLimitCapacity: marginPoolConfig.rateLimitCapacity!,
+						rateLimitRefillRatePerMs: marginPoolConfig.rateLimitRefillRatePerMs!,
+						rateLimitEnabled: marginPoolConfig.rateLimitEnabled!,
+					})(tx)
+				: this.newMarginPoolConfig(coinKey, marginPoolConfig)(tx);
 			tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::update_margin_pool_config`,
 				arguments: [
