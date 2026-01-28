@@ -23,9 +23,6 @@
 			"axios@>=1.0.0 <1.12.0": ">=1.12.0",
 			"@eslint/plugin-kit@<0.3.4": "0.3.4",
 			"h3@<=1.15.4": ">=1.15.5"
-		},
-		"patchedDependencies": {
-			"asn1-ts@11.0.4": "patches/asn1-ts@11.0.4.patch"
 		}
 	},
 	"engines": {
