@@ -10,11 +10,6 @@ overrides:
   '@eslint/plugin-kit@<0.3.4': 0.3.4
   h3@<=1.15.4: '>=1.15.5'
 
-patchedDependencies:
-  asn1-ts@11.0.4:
-    hash: f173dca41c7ed2f20af27a1ade80b2fe2d33322f18e415c2a5bc5656fb590c35
-    path: patches/asn1-ts@11.0.4.patch
-
 importers:
 
   .:
@@ -1082,8 +1077,8 @@ importers:
         specifier: ^2.0.1
         version: 2.0.1
       asn1-ts:
-        specifier: ^11.0.4
-        version: 11.0.4(patch_hash=f173dca41c7ed2f20af27a1ade80b2fe2d33322f18e415c2a5bc5656fb590c35)
+        specifier: ^11.0.5
+        version: 11.0.5
     devDependencies:
       '@mysten/sui':
         specifier: workspace:^
@@ -6383,8 +6378,8 @@ packages:
   asap@2.0.6:
     resolution: {integrity: sha512-BSHWgDSAiKs50o2Re8ppvp3seVHXSRM44cdSsT9FfNEUUZLOGWVCsiWaRPWM1Znn+mqZ1OfVZ3z3DWEzSp7hRA==}
 
-  asn1-ts@11.0.4:
-    resolution: {integrity: sha512-ABS0JsW++m0jpd0szgqtVkl7DQmCndwKxATfzF0vJr1lDPUWc3n5qUePzI3HWDuTMQnesPe5lVcwy+tf4m54fQ==}
+  asn1-ts@11.0.5:
+    resolution: {integrity: sha512-9seOonQnwRWXAnBPukjLNP+erMbaUuRy43dxpjO433L3YUcKW0y9BPYfJ79XmgRQoQuUEIjI+lxQqp8rdhEvqg==}
 
   asn1@0.2.6:
     resolution: {integrity: sha512-ix/FxPn0MDjeyJ7i/yoHGFt/EX6LyNbxSEhPPXODPL+KB0VPk86UYfL0lMdy+KCnv+fmvIzySwaK5COwqVbWTQ==}
@@ -16325,7 +16320,7 @@ snapshots:
 
   asap@2.0.6: {}
 
-  asn1-ts@11.0.4(patch_hash=f173dca41c7ed2f20af27a1ade80b2fe2d33322f18e415c2a5bc5656fb590c35): {}
+  asn1-ts@11.0.5: {}
 
   asn1@0.2.6:
     dependencies:

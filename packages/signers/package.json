@@ -67,7 +67,7 @@
 		"@mysten/ledgerjs-hw-app-sui": "workspace:^",
 		"@noble/curves": "^2.0.1",
 		"@noble/hashes": "^2.0.1",
-		"asn1-ts": "^11.0.4"
+		"asn1-ts": "^11.0.5"
 	},
 	"engines": {
 		"node": ">=22"
