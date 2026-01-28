@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import './global.css';
 
+import { Banner } from 'fumadocs-ui/components/banner';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import Link from 'next/link';
 import CloudFlareAnalytics from '@/components/CloudFlareAnalytics';
 
 export const metadata: Metadata = {
@@ -41,6 +43,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 				<meta name="algolia-site-verification" content="BCA21DA2879818D2" />
 			</head>
 			<body className="flex flex-col min-h-screen">
+				<Banner id="sdk-2-migration">
+					@mysten/sui v2.0 and a new dApp Kit are here!&nbsp;
+					<Link href="/sui/migrations/sui-2.0" className="underline">
+						Check out the migration guide
+					</Link>
+				</Banner>
 				<RootProvider>{children}</RootProvider>
 				<CloudFlareAnalytics />
 			</body>

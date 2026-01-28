@@ -1,5 +1,6 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * Defines an unsigned, fixed-point numeric type with a 64-bit integer part and a

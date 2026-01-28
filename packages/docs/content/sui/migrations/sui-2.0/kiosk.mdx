@@ -1,0 +1,120 @@
+---
+title: '@mysten/kiosk'
+---
+
+This package now exports a client extension that integrates with Sui clients.
+
+> **Note:** The Kiosk SDK requires `SuiJsonRpcClient` or `SuiGraphQLClient`. It does not work with
+> `SuiGrpcClient` because it uses event queries that are not available in gRPC.
+
+```diff
+- import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+- import { KioskClient, Network } from '@mysten/kiosk';
++ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc'; // or SuiGraphQLClient
++ import { kiosk } from '@mysten/kiosk';
+
+- const suiClient = new SuiClient({ url: getFullnodeUrl('mainnet') });
+- const kioskClient = new KioskClient({
+-   client: suiClient,
+-   network: Network.MAINNET,
+- });
++ const client = new SuiJsonRpcClient({
++   url: getJsonRpcFullnodeUrl('mainnet'),
++   network: 'mainnet',
++ }).$extend(kiosk());
+
+- const ownedKiosks = await kioskClient.getOwnedKiosks({ address: myAddress });
++ const ownedKiosks = await client.kiosk.getOwnedKiosks({ address: myAddress });
+```
+
+## Removed: transactionBlock Parameter
+
+The deprecated `transactionBlock` parameter has been removed from `KioskTransaction`,
+`TransferPolicyTransaction`, and rule resolving functions. Use `transaction` instead:
+
+```diff
+const kioskTx = new KioskTransaction({
+-  transactionBlock: tx,
++  transaction: tx,
+   kioskClient,
+   cap,
+});
+
+const tpTx = new TransferPolicyTransaction({
+-  transactionBlock: tx,
++  transaction: tx,
+   kioskClient,
+   cap,
+});
+```
+
+## Removed: Low-Level Helper Functions
+
+The low-level helper functions have been removed in favor of the `KioskTransaction` and
+`TransferPolicyTransaction` builder classes.
+
+### Kiosk Functions
+
+| Removed Function    | Use Instead              |
+| ------------------- | ------------------------ |
+| `createKiosk`       | `kioskTx.create()`       |
+| `shareKiosk`        | `kioskTx.share()`        |
+| `place`             | `kioskTx.place()`        |
+| `lock`              | `kioskTx.lock()`         |
+| `take`              | `kioskTx.take()`         |
+| `list`              | `kioskTx.list()`         |
+| `delist`            | `kioskTx.delist()`       |
+| `placeAndList`      | `kioskTx.placeAndList()` |
+| `purchase`          | `kioskTx.purchase()`     |
+| `withdrawFromKiosk` | `kioskTx.withdraw()`     |
+| `borrowValue`       | `kioskTx.borrow()`       |
+| `returnValue`       | `kioskTx.return()`       |
+
+### Transfer Policy Functions
+
+| Removed Function                     | Use Instead                                             |
+| ------------------------------------ | ------------------------------------------------------- |
+| `createTransferPolicyWithoutSharing` | `tpTx.create()`                                         |
+| `shareTransferPolicy`                | `tpTx.shareAndTransferCap()`                            |
+| `confirmRequest`                     | Handled automatically by `kioskTx.purchaseAndResolve()` |
+| `removeTransferPolicyRule`           | `tpTx.removeRule()`                                     |
+
+### Personal Kiosk Functions
+
+| Removed Function        | Use Instead                                   |
+| ----------------------- | --------------------------------------------- |
+| `convertToPersonalTx`   | `kioskTx.convertToPersonal()`                 |
+| `transferPersonalCapTx` | Handled automatically by `kioskTx.finalize()` |
+
+### Rule Attachment Functions
+
+| Removed Function            | Use Instead                   |
+| --------------------------- | ----------------------------- |
+| `attachKioskLockRuleTx`     | `tpTx.addLockRule()`          |
+| `attachRoyaltyRuleTx`       | `tpTx.addRoyaltyRule()`       |
+| `attachPersonalKioskRuleTx` | `tpTx.addPersonalKioskRule()` |
+| `attachFloorPriceRuleTx`    | `tpTx.addFloorPriceRule()`    |
+
+## Migration Example
+
+```diff
+- import { createKiosk, shareKiosk, placeAndList } from '@mysten/kiosk';
++ import { kiosk, KioskTransaction } from '@mysten/kiosk';
++ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+
+- const [kiosk, cap] = createKiosk(tx);
+- shareKiosk(tx, kiosk);
+- placeAndList(tx, itemType, kiosk, cap, item, price);
+
++ const client = new SuiJsonRpcClient({
++   url: getJsonRpcFullnodeUrl('mainnet'),
++   network: 'mainnet',
++ }).$extend(kiosk());
++
++ const kioskTx = new KioskTransaction({ transaction: tx, kioskClient: client.kiosk });
++ kioskTx
++   .create()
++   .placeAndList({ itemType, item, price })
++   .shareAndTransferCap(address)
++   .finalize();
+```

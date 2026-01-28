@@ -7,7 +7,7 @@ import type { DeepBookConfig } from '../utils/config.js';
 import type { TransactionArgument } from '@mysten/sui/transactions';
 import type { PoolConfigParams } from '../types/index.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
-import { hexToBytes } from '@noble/hashes/utils';
+import { hexToBytes } from '@noble/hashes/utils.js';
 
 /**
  * MarginAdminContract class for managing admin actions.

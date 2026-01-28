@@ -26,7 +26,6 @@ you including:
 - [TypeScript](https://www.typescriptlang.org/)
 - [Vite](https://vitejs.dev/)
 - [Radix UI](https://www.radix-ui.com/)
-- [ESLint](https://eslint.org/)
 - [`@mysten/dapp-kit`](https://sdk.mystenlabs.com/dapp-kit)
 
 These templates are still new, and would love to get feedback and suggestions for improvements or

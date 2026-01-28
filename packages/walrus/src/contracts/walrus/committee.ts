@@ -1,5 +1,6 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * This module defines the `Committee` struct which stores the current committee
@@ -7,10 +8,9 @@
  * shards between committees with the least amount of changes.
  */
 
-import { MoveTuple, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+import { MoveTuple, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::committee';
 export const Committee = new MoveTuple({
@@ -30,10 +30,7 @@ export interface ShardsOptions {
 /** Get the shards assigned to the given `node_id`. */
 export function shards(options: ShardsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::committee::Committee`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['cmt', 'nodeId'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -53,7 +50,7 @@ export interface SizeOptions {
 /** Get the number of nodes in the committee. */
 export function size(options: SizeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::committee::Committee`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cmt'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -73,7 +70,7 @@ export interface InnerOptions {
 /** Get the inner representation of the committee. */
 export function inner(options: InnerOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::committee::Committee`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cmt'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -93,7 +90,7 @@ export interface ToInnerOptions {
 /** Copy the inner representation of the committee. */
 export function toInner(options: ToInnerOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::committee::Committee`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cmt'];
 	return (tx: Transaction) =>
 		tx.moveCall({

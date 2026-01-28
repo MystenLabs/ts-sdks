@@ -1,10 +1,9 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
-import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as _package from './deps/sui/package.js';
 const $moduleName = '@local-pkg/walrus::init';
 export const INIT = new MoveStruct({
@@ -16,7 +15,7 @@ export const INIT = new MoveStruct({
 export const InitCap = new MoveStruct({
 	name: `${$moduleName}::InitCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		publisher: _package.Publisher,
 	},
 });
@@ -48,15 +47,10 @@ export interface InitializeWalrusOptions {
  */
 export function initializeWalrus(options: InitializeWalrusOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::init::InitCap`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::package::UpgradeCap',
-		'u64',
-		'u64',
-		'u16',
-		'u32',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u64', 'u64', 'u16', 'u32', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = [
 		'initCap',
 		'upgradeCap',
@@ -95,10 +89,7 @@ export interface MigrateOptions {
  */
 export function migrate(options: MigrateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::system::System`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['staking', 'system'];
 	return (tx: Transaction) =>
 		tx.moveCall({

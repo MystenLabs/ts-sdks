@@ -22,7 +22,6 @@ import {
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
-import * as object from './deps/sui/object.js';
 import * as _package from './deps/sui/package.js';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@local-pkg/walrus::upgrade';
@@ -57,7 +56,7 @@ export const UpgradeProposal = new MoveStruct({
 export const UpgradeManager = new MoveStruct({
 	name: `${$moduleName}::UpgradeManager`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		cap: _package.UpgradeCap,
 		upgrade_proposals: table.Table,
 	},
@@ -65,7 +64,7 @@ export const UpgradeManager = new MoveStruct({
 export const EmergencyUpgradeCap = new MoveStruct({
 	name: `${$moduleName}::EmergencyUpgradeCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		upgrade_manager_id: bcs.Address,
 	},
 });

@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Agent, setGlobalDispatcher } from 'undici';
 
 import { walrus } from '../../src/client.js';
@@ -15,9 +15,9 @@ setGlobalDispatcher(
 	}),
 );
 
-const client = new SuiClient({
-	url: getFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
 	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 }).$extend(
 	walrus({
 		storageNodeClientOptions: {
@@ -39,7 +39,7 @@ async function writeAndExtendBlob() {
 	});
 
 	await client.walrus.executeExtendBlobTransaction({
-		blobObjectId: blobObject.id.id,
+		blobObjectId: blobObject.id,
 		epochs: 2, // Extend by 2 more epochs
 		signer: keypair,
 	});

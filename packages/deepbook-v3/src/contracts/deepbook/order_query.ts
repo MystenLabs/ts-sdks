@@ -1,15 +1,15 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * This module defines the OrderPage struct and its methods to iterate over orders
  * in a pool.
  */
 
-import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as order from './order.js';
 const $moduleName = '@deepbook/core::order_query';
 export const OrderPage = new MoveStruct({
@@ -51,13 +51,13 @@ export interface IterOrdersOptions {
 export function iterOrders(options: IterOrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<u128>',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<u128>',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<u64>',
+		null,
+		'0x1::option::Option<u128>',
+		'0x1::option::Option<u128>',
+		'0x1::option::Option<u64>',
 		'u64',
 		'bool',
-	] satisfies string[];
+	] satisfies (string | null)[];
 	const parameterNames = [
 		'self',
 		'startOrderId',
@@ -84,7 +84,7 @@ export interface OrdersOptions {
 }
 export function orders(options: OrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_query::OrderPage`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -103,7 +103,7 @@ export interface HasNextPageOptions {
 }
 export function hasNextPage(options: HasNextPageOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_query::OrderPage`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({

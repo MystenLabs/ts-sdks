@@ -1,0 +1,66 @@
+---
+title: Wallet Builders
+---
+
+This guide covers the breaking changes for wallet builders implementing the
+`@mysten/wallet-standard` interface.
+
+## Key Changes
+
+### Removal of `sui:reportTransactionEffects`
+
+The `sui:reportTransactionEffects` feature has been removed entirely. If your wallet implements this
+feature, remove it.
+
+### New Core API Response Format
+
+The most significant change is how you obtain BCS-encoded effects for the
+`signAndExecuteTransaction` response. The new core API returns effects in a different structure.
+
+## Migrating `signAndExecuteTransaction`
+
+The wallet standard output format hasn't changed - what's different is how you obtain the BCS
+effects when using the new Sui client APIs.
+
+```diff
+#signAndExecuteTransaction: SuiSignAndExecuteTransactionMethod = async ({
+	transaction,
+	signal,
+}) => {
+-	const { bytes, signature } = await Transaction.from(
+-		await transaction.toJSON(),
+-	).sign({ client: suiClient, signer: keypair });
+-
+-	const { rawEffects, digest } = await suiClient.executeTransactionBlock({
+-		signature,
+-		transactionBlock: bytes,
+-		options: { showRawEffects: true },
+-	});
++	const parsedTransaction = Transaction.from(await transaction.toJSON());
++	const bytes = await parsedTransaction.build({ client });
++
++	const result = await this.#keypair.signAndExecuteTransaction({
++		transaction: parsedTransaction,
++		client,
++	});
++
++	const tx = result.Transaction ?? result.FailedTransaction;
+
+	return {
+-		bytes,
+-		signature,
+-		digest,
+-		effects: toBase64(new Uint8Array(rawEffects!)),
++		bytes: toBase64(bytes),
++		signature: tx.signatures[0],
++		digest: tx.digest,
++		effects: toBase64(tx.effects.bcs!),
+	};
+};
+```
+
+Key changes:
+
+- Use `signer.signAndExecuteTransaction()` instead of `suiClient.executeTransactionBlock()`
+- Response is a union type - unwrap with `result.Transaction ?? result.FailedTransaction`
+- BCS effects are in `tx.effects.bcs` (Uint8Array) instead of `rawEffects` (number array)

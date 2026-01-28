@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
@@ -10,8 +10,9 @@ import { MIST_PER_SUI, parseStructTag } from '@mysten/sui/utils';
 import { TESTNET_WALRUS_PACKAGE_CONFIG } from '../src/index.js';
 
 export async function getFundedKeypair() {
-	const suiClient = new SuiClient({
-		url: getFullnodeUrl('testnet'),
+	const suiClient = new SuiGrpcClient({
+		network: 'testnet',
+		baseUrl: 'https://fullnode.testnet.sui.io:443',
 	});
 
 	const keypair = Ed25519Keypair.fromSecretKey(
@@ -19,11 +20,11 @@ export async function getFundedKeypair() {
 	);
 	console.log(keypair.toSuiAddress());
 
-	const balance = await suiClient.getBalance({
+	const { balance } = await suiClient.getBalance({
 		owner: keypair.toSuiAddress(),
 	});
 
-	if (BigInt(balance.totalBalance) < MIST_PER_SUI) {
+	if (BigInt(balance.balance) < MIST_PER_SUI) {
 		await requestSuiFromFaucetV2({
 			host: getFaucetHost('testnet'),
 			recipient: keypair.toSuiAddress(),
@@ -34,19 +35,17 @@ export async function getFundedKeypair() {
 		owner: keypair.toSuiAddress(),
 		coinType: `0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL`,
 	});
-	console.log('wal balance:', walBalance.totalBalance);
+	console.log('wal balance:', walBalance.balance);
 
-	if (Number(walBalance.totalBalance) < Number(MIST_PER_SUI) / 2) {
+	if (Number(walBalance.balance) < Number(MIST_PER_SUI) / 2) {
 		const tx = new Transaction();
 
 		const exchange = await suiClient.getObject({
-			id: TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0],
-			options: {
-				showType: true,
-			},
+			objectId: TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0],
 		});
 
-		const exchangePackageId = parseStructTag(exchange.data?.type!).address;
+		// oxlint-disable-next-line no-non-null-asserted-optional-chain
+		const exchangePackageId = parseStructTag(exchange.object.type).address;
 
 		const wal = tx.moveCall({
 			package: exchangePackageId,
@@ -62,19 +61,16 @@ export async function getFundedKeypair() {
 
 		tx.transferObjects([wal], keypair.toSuiAddress());
 
-		const { digest } = await suiClient.signAndExecuteTransaction({
+		const result = await suiClient.signAndExecuteTransaction({
 			transaction: tx,
 			signer: keypair,
 		});
 
-		const { effects } = await suiClient.waitForTransaction({
-			digest,
-			options: {
-				showEffects: true,
-			},
+		await suiClient.waitForTransaction({
+			digest: (result.Transaction ?? result.FailedTransaction).digest,
 		});
 
-		console.log(effects);
+		console.log((result.Transaction ?? result.FailedTransaction).effects);
 	}
 
 	return keypair;

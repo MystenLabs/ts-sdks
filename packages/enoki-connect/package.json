@@ -4,14 +4,13 @@
 	"description": "Enoki Connect Wallet-Standard implementation",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
-	"type": "commonjs",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.js"
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
 		}
 	},
 	"sideEffects": true,
@@ -21,13 +20,13 @@
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
-		"build": "build-package",
+		"build": "rm -rf dist && tsc --noEmit && tsdown",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
-		"eslint:check": "eslint --max-warnings=0 .",
-		"eslint:fix": "pnpm run eslint:check --fix",
-		"lint": "pnpm run eslint:check && pnpm run prettier:check",
-		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
+		"oxlint:check": "oxlint  .",
+		"oxlint:fix": "oxlint --fix",
+		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
 	},
 	"repository": {
 		"type": "git",
@@ -38,17 +37,18 @@
 	},
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/enoki-connect#readme",
 	"devDependencies": {
-		"@mysten/build-scripts": "workspace:*",
-		"@types/node": "^24.10.1",
+		"@mysten/sui": "workspace:^",
+		"@types/node": "^25.0.8",
 		"typescript": "^5.9.3",
-		"vitest": "^4.0.15"
+		"vitest": "^4.0.17"
 	},
 	"dependencies": {
-		"@mysten/sui": "workspace:*",
-		"@mysten/utils": "workspace:*",
-		"@mysten/wallet-standard": "workspace:*",
+		"@mysten/utils": "workspace:^",
+		"@mysten/wallet-standard": "workspace:^",
 		"@mysten/window-wallet-core": "workspace:^",
-		"lit": "^3.3.1",
-		"mitt": "^3.0.1"
+		"lit": "^3.3.2"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
 	}
 }

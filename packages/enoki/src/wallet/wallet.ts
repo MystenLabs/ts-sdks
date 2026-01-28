@@ -28,8 +28,7 @@ import {
 	SuiSignPersonalMessage,
 	SuiSignTransaction,
 } from '@mysten/wallet-standard';
-import type { Emitter } from 'mitt';
-import mitt from 'mitt';
+import { mitt, type Emitter } from '@mysten/utils';
 
 import type { AuthProvider } from '../EnokiClient/type.js';
 import type { EnokiWalletOptions, WalletEventsMap, EnokiSessionContext } from './types.js';
@@ -40,7 +39,7 @@ import type {
 	EnokiGetSessionMethod,
 } from './features.js';
 import { EnokiGetMetadata, EnokiGetSession } from './features.js';
-import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { SuiClientTypes } from '@mysten/sui/client';
 import { decodeJwt } from '@mysten/sui/zklogin';
 import type { ExportedWebCryptoKeypair } from '@mysten/signers/webcrypto';
 import { WebCryptoSigner } from '@mysten/signers/webcrypto';
@@ -72,7 +71,7 @@ export class EnokiWallet implements Wallet {
 	#clientId: string;
 	#redirectUrl: string;
 	#extraParams: Record<string, string> | (() => Record<string, string>) | undefined;
-	#getCurrentNetwork: () => Experimental_SuiClientTypes.Network;
+	#getCurrentNetwork: () => SuiClientTypes.Network;
 	#windowFeatures?: string | (() => string);
 
 	get name() {
@@ -222,11 +221,12 @@ export class EnokiWallet implements Wallet {
 			client,
 		});
 
+		const tx = result.Transaction ?? result.FailedTransaction;
 		return {
 			bytes: toBase64(bytes),
-			signature: result.signatures[0],
-			digest: result.digest,
-			effects: toBase64(result.effects.bcs!),
+			signature: tx.signatures[0],
+			digest: tx.digest,
+			effects: toBase64(tx.effects.bcs!),
 		};
 	};
 
@@ -353,7 +353,7 @@ export class EnokiWallet implements Wallet {
 		return { client: sessionContext.client, keypair };
 	}
 
-	async #createSession({ network }: { network: Experimental_SuiClientTypes.Network }) {
+	async #createSession({ network }: { network: SuiClientTypes.Network }) {
 		const popup = window.open(
 			'about:blank',
 			'_blank',

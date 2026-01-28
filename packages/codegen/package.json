@@ -5,14 +5,13 @@
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"sideEffects": false,
-	"type": "commonjs",
-	"main": "./dist/cjs/index.js",
-	"module": "./dist/esm/index.js",
-	"types": "./dist/cjs/index.d.ts",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.js"
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
 		}
 	},
 	"files": [
@@ -21,22 +20,22 @@
 		"src"
 	],
 	"bin": {
-		"sui-ts-codegen": "dist/cjs/bin/cli.js",
-		"__sui-ts-codegen_bash_complete": "dist/cjs/bin/bash-complete.js"
+		"sui-ts-codegen": "dist/bin/cli.mjs",
+		"__sui-ts-codegen_bash_complete": "dist/bin/bash-complete.mjs"
 	},
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"dev": "pnpm build --watch",
-		"build": "build-package",
+		"build": "rm -rf dist && tsc --noEmit && tsdown",
 		"codegen": "pnpm tsx src/bin/cli.ts generate && pnpm lint:fix",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
-		"eslint:check": "eslint --max-warnings=0 .",
-		"eslint:fix": "pnpm run eslint:check --fix",
-		"lint": "pnpm run eslint:check && pnpm run prettier:check",
-		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
+		"oxlint:check": "oxlint  .",
+		"oxlint:fix": "oxlint --fix",
+		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
 	},
 	"repository": {
 		"type": "git",
@@ -52,19 +51,18 @@
 	},
 	"homepage": "https://github.com/MystenLabs/ts-sdks/blob/main/packages/codegen#readme",
 	"devDependencies": {
-		"@mysten/build-scripts": "workspace:*",
-		"vitest": "^4.0.15"
+		"vitest": "^4.0.17"
 	},
 	"dependencies": {
-		"@mysten/bcs": "workspace:*",
-		"@mysten/sui": "workspace:*",
-		"@stricli/auto-complete": "^1.2.4",
-		"@stricli/core": "^1.2.4",
-		"@types/node": "^24.10.1",
+		"@mysten/bcs": "workspace:^",
+		"@mysten/sui": "workspace:^",
+		"@stricli/auto-complete": "^1.2.5",
+		"@stricli/core": "^1.2.5",
+		"@types/node": "^25.0.8",
 		"cosmiconfig": "^9.0.0",
-		"prettier": "^3.7.3",
+		"prettier": "^3.7.4",
 		"toml": "^3.0.0",
 		"typescript": "^5.9.3",
-		"zod": "^3.25.67"
+		"zod": "^4.3.5"
 	}
 }

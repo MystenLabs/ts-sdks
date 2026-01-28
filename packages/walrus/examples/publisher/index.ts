@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { serve } from '@hono/node-server';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Hono } from 'hono';
 
 import { WalrusClient } from '../../src/index.js';
 import { getFundedKeypair } from '../funded-keypair.js';
 
-const suiClient = new SuiClient({
-	url: getFullnodeUrl('testnet'),
+const suiClient = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
 const walrusClient = new WalrusClient({
@@ -43,10 +44,10 @@ async function startServer() {
 		return c.json({
 			newlyCreated: {
 				...blobObject,
-				id: blobObject.id.id,
+				id: blobObject.id,
 				storage: {
 					...blobObject.storage,
-					id: blobObject.storage.id.id,
+					id: blobObject.storage.id,
 				},
 			},
 			resourceOperation: {

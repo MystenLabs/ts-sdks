@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { bcs, fromBase58, fromBase64, fromHex, toHex } from './../src/index';
+import { bcs, fromBase58, fromBase64, fromHex, toHex } from './../src/index.js';
 
 describe('BCS: Encodings', () => {
 	it('should de/ser hex, base58 and base64', () => {

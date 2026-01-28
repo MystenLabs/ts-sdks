@@ -1,12 +1,11 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
-import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as group_ops from './deps/sui/group_ops.js';
 import * as extended_field from './extended_field.js';
-import * as object from './deps/sui/object.js';
 import * as event_blob from './event_blob.js';
 const $moduleName = '@local-pkg/walrus::storage_node';
 export const StorageNodeInfo = new MoveStruct({
@@ -24,7 +23,7 @@ export const StorageNodeInfo = new MoveStruct({
 export const StorageNodeCap = new MoveStruct({
 	name: `${$moduleName}::StorageNodeCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		node_id: bcs.Address,
 		last_epoch_sync_done: bcs.u32(),
 		last_event_blob_attestation: bcs.option(event_blob.EventBlobAttestation),
@@ -46,7 +45,7 @@ export interface IdOptions {
 /** Return the node ID of the storage node. */
 export function id(options: IdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -66,7 +65,7 @@ export interface NodeIdOptions {
 /** Return the pool ID of the storage node. */
 export function nodeId(options: NodeIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -89,7 +88,7 @@ export interface LastEpochSyncDoneOptions {
  */
 export function lastEpochSyncDone(options: LastEpochSyncDoneOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -109,7 +108,7 @@ export interface LastEventBlobAttestationOptions {
 /** Return the latest event blob attestation. */
 export function lastEventBlobAttestation(options: LastEventBlobAttestationOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -129,7 +128,7 @@ export interface DenyListRootOptions {
 /** Return the deny list root of the storage node. */
 export function denyListRoot(options: DenyListRootOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -149,7 +148,7 @@ export interface DenyListSequenceOptions {
 /** Return the deny list sequence number of the storage node. */
 export function denyListSequence(options: DenyListSequenceOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::storage_node::StorageNodeCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({

@@ -1,0 +1,105 @@
+---
+title: SuiGraphQLClient
+---
+
+The `SuiGraphQLClient` enables type-safe GraphQL queries against the Sui GraphQL API.
+
+For more details on the Sui GraphQL API, see the
+[GraphQL reference](https://docs.sui.io/references/sui-graphql).
+
+The `SuiGraphQLClient` implements all the the [Core API](/sui/clients/core) methods:
+
+```typescript
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
+
+const client = new SuiGraphQLClient({
+	url: 'https://sui-mainnet.mystenlabs.com/graphql',
+	network: 'mainnet',
+});
+
+const { object } = await client.getObject({ objectId: '0x...' });
+```
+
+## Custom GraphQL queries
+
+To query anything no in the Core API, you can use the `query` method to execute custom GraphQL
+queries.
+
+We'll start by creating our client, and executing a very basic query:
+
+```typescript
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { graphql } from '@mysten/sui/graphql/schema';
+
+const gqlClient = new SuiGraphQLClient({
+	url: 'https://graphql.testnet.sui.io/graphql',
+	network: 'testnet',
+});
+
+const chainIdentifierQuery = graphql(`
+	query {
+		chainIdentifier
+	}
+`);
+
+async function getChainIdentifier() {
+	const result = await gqlClient.query({
+		query: chainIdentifierQuery,
+	});
+
+	return result.data?.chainIdentifier;
+}
+```
+
+## Type-safety for GraphQL queries
+
+You may have noticed the example above does not include any type definitions for the query. The
+`graphql` function used in the example is powered by [`gql.tada`](https://gql-tada.0no.co/) and will
+automatically provide the required type information to ensure that your queries are properly typed
+when executed through `SuiGraphQLClient`.
+
+The `graphql` function detects variables used by your query, and will ensure that the variables
+passed to your query are properly typed.
+
+```typescript
+const getSuinsName = graphql(`
+	query getSuiName($address: SuiAddress!) {
+		address(address: $address) {
+			defaultSuinsName
+		}
+	}
+`);
+
+async function getDefaultSuinsName(address: string) {
+	const result = await gqlClient.query({
+		query: getSuinsName,
+		variables: {
+			address,
+		},
+	});
+
+	return result.data?.address?.defaultSuinsName;
+}
+```
+
+## Using typed GraphQL queries with other GraphQL clients
+
+The `graphql` function returns document nodes that implement the
+[TypedDocumentNode](https://github.com/dotansimha/graphql-typed-document-node) standard, and will
+work with the majority of popular GraphQL clients to provide queries that are automatically typed.
+
+```typescript
+import { useQuery } from '@apollo/client';
+
+const chainIdentifierQuery = graphql(`
+	query {
+		chainIdentifier
+	}
+`);
+
+function ChainIdentifier() {
+	const { loading, error, data } = useQuery(getPokemonsQuery);
+
+	return <div>{data?.chainIdentifier}</div>;
+}
+```

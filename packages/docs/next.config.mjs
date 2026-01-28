@@ -15,11 +15,24 @@ const config = {
 		'@shikijs/twoslash',
 		'fumadocs-docgen',
 	],
+	rewrites: () => {
+		return [
+			{
+				source: '/:path*/llms.txt',
+				destination: '/llms.txt/:path*',
+			},
+		];
+	},
 	redirects: () => {
 		return [
 			{
 				source: '/',
-				destination: '/typescript',
+				destination: '/sui',
+				statusCode: 302,
+			},
+			{
+				source: '/typescript/:path*',
+				destination: '/sui/:path*',
 				statusCode: 302,
 			},
 			{

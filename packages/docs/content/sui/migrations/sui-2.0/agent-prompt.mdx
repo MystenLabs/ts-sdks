@@ -1,0 +1,42 @@
+---
+title: Agent Migration Prompt
+---
+
+Copy and paste the following prompt into your AI coding assistant (Claude Code, Cursor, etc.) to
+migrate your codebase to v2. If a planning mode is available we recommend starting there first.
+
+```txt
+## Sui TypeScript SDK v2 Migration
+
+Migrate this codebase to the latest version of `@mysten/*` packages.
+
+### Step 1: Identify Project Tools
+
+Examine the project to identify:
+- Package manager (npm, pnpm, yarn, bun) - check for lock files
+- Build tools and scripts in package.json
+- Type checking, linting, and test commands
+
+### Step 2: Read the Migration Guide
+
+Fetch and read the full migration guide from:
+https://sdk.mystenlabs.com/sui/migrations/v2/llms.txt
+
+This file contains the migration instructions for most affected @mysten package, but please be sure to install the
+latest version of all @mysten packages even if they do not have an explicit migration guide
+
+### Step 3: Migrate
+
+Apply the migration patterns from the guide. Do not make changes without first reading the relevant section of the migration guide.
+
+### Step 4: Validate
+
+Run all validation scripts to verify the migration including:
+
+* Type check
+* Lint
+* Build
+* Test
+
+Fix all errors before considering the migration complete.
+```

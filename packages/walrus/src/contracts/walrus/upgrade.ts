@@ -1,5 +1,6 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * Module to manage Walrus contract upgrades.
@@ -12,12 +13,15 @@
  * cannot be blocked solely by byzantine nodes.
  */
 
-import { MoveTuple, MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveTuple,
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
-import * as object from './deps/sui/object.js';
 import * as _package from './deps/sui/package.js';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@local-pkg/walrus::upgrade';
@@ -52,7 +56,7 @@ export const UpgradeProposal = new MoveStruct({
 export const UpgradeManager = new MoveStruct({
 	name: `${$moduleName}::UpgradeManager`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		cap: _package.UpgradeCap,
 		upgrade_proposals: table.Table,
 	},
@@ -60,7 +64,7 @@ export const UpgradeManager = new MoveStruct({
 export const EmergencyUpgradeCap = new MoveStruct({
 	name: `${$moduleName}::EmergencyUpgradeCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		upgrade_manager_id: bcs.Address,
 	},
 });
@@ -90,13 +94,10 @@ export interface VoteForUpgradeOptions {
  */
 export function voteForUpgrade(options: VoteForUpgradeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::upgrade::UpgradeManager`,
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::auth::Authenticated`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
-		'vector<u8>',
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, '0x2::object::ID', 'vector<u8>'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['self', 'staking', 'auth', 'nodeId', 'digest'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -124,11 +125,7 @@ export interface AuthorizeUpgradeOptions {
 /** Authorizes an upgrade that has reached quorum. */
 export function authorizeUpgrade(options: AuthorizeUpgradeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::upgrade::UpgradeManager`,
-		`${packageAddress}::staking::Staking`,
-		'vector<u8>',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'vector<u8>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'staking', 'digest'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -161,11 +158,7 @@ export interface AuthorizeEmergencyUpgradeOptions {
  */
 export function authorizeEmergencyUpgrade(options: AuthorizeEmergencyUpgradeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::upgrade::UpgradeManager`,
-		`${packageAddress}::upgrade::EmergencyUpgradeCap`,
-		'vector<u8>',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'vector<u8>'] satisfies (string | null)[];
 	const parameterNames = ['upgradeManager', 'emergencyUpgradeCap', 'digest'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -202,12 +195,7 @@ export interface CommitUpgradeOptions {
  */
 export function commitUpgrade(options: CommitUpgradeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::upgrade::UpgradeManager`,
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::system::System`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::package::UpgradeReceipt',
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, null] satisfies (string | null)[];
 	const parameterNames = ['upgradeManager', 'staking', 'system', 'receipt'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -240,11 +228,7 @@ export interface CleanupUpgradeProposalsOptions {
  */
 export function cleanupUpgradeProposals(options: CleanupUpgradeProposalsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::upgrade::UpgradeManager`,
-		`${packageAddress}::staking::Staking`,
-		'vector<vector<u8>>',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'vector<vector<u8>>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'staking', 'proposals'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -271,7 +255,7 @@ export interface BurnEmergencyUpgradeCapOptions {
  */
 export function burnEmergencyUpgradeCap(options: BurnEmergencyUpgradeCapOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::upgrade::EmergencyUpgradeCap`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['emergencyUpgradeCap'];
 	return (tx: Transaction) =>
 		tx.moveCall({

@@ -2,9 +2,8 @@
 	"name": "@mysten/dapp-kit-react",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "React bindings for @mysten/dapp-kit-core",
-	"version": "0.0.1",
+	"version": "0.0.0",
 	"license": "Apache-2.0",
-	"private": true,
 	"files": [
 		"LICENSE",
 		"README.md",
@@ -12,13 +11,12 @@
 		"src"
 	],
 	"type": "module",
-	"main": "./dist/index.cjs",
 	"module": "./dist/index.mjs",
-	"types": "./dist/index.d.ts",
+	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
-			"import": "./dist/index.mjs",
-			"require": "./dist/index.cjs"
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
 		}
 	},
 	"scripts": {
@@ -28,10 +26,10 @@
 		"dev": "tsdown --watch",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
-		"eslint:check": "eslint --max-warnings=0 .",
-		"eslint:fix": "pnpm run eslint:check --fix",
-		"lint": "pnpm run eslint:check && pnpm run prettier:check",
-		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix"
+		"oxlint:check": "oxlint  .",
+		"oxlint:fix": "oxlint --fix",
+		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
 	},
 	"repository": {
 		"type": "git",
@@ -41,14 +39,14 @@
 		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
 	},
 	"devDependencies": {
-		"@types/react": "^19.2.7",
-		"react": "^19.2.1",
-		"tsdown": "0.17.0-beta.4",
+		"@types/react": "^19.2.8",
+		"react": "^19.2.3",
+		"tsdown": "0.20.0-beta.1",
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
 		"@lit/react": "^1.0.8",
-		"@mysten/dapp-kit-core": "workspace:*",
+		"@mysten/dapp-kit-core": "workspace:^",
 		"@nanostores/react": "^1.0.0",
 		"nanostores": "^1.1.0"
 	},

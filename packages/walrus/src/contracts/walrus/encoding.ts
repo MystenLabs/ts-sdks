@@ -1,8 +1,8 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
+import { type Transaction } from '@mysten/sui/transactions';
+import { normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 export interface EncodedBlobLengthArguments {
 	unencodedLength: RawTransactionArgument<number | bigint>;
 	encodingType: RawTransactionArgument<number>;
@@ -24,7 +24,7 @@ export interface EncodedBlobLengthOptions {
  */
 export function encodedBlobLength(options: EncodedBlobLengthOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = ['u64', 'u8', 'u16'] satisfies string[];
+	const argumentsTypes = ['u64', 'u8', 'u16'] satisfies (string | null)[];
 	const parameterNames = ['unencodedLength', 'encodingType', 'nShards'];
 	return (tx: Transaction) =>
 		tx.moveCall({

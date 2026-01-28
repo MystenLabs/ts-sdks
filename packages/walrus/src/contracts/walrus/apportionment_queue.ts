@@ -1,5 +1,6 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * A custom priority queue implementation for use in the apportionment algorithm.
@@ -7,11 +8,9 @@
  * ties when priorities are equal.
  */
 
-import { bcs } from '@mysten/sui/bcs';
-import type { BcsType } from '@mysten/sui/bcs';
-import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
-import type { Transaction } from '@mysten/sui/transactions';
+import { type BcsType, bcs } from '@mysten/sui/bcs';
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as uq64_64 from './deps/std/uq64_64.js';
 const $moduleName = '@local-pkg/walrus::apportionment_queue';
 export function Entry<T extends BcsType<any>>(...typeParameters: [T]) {
@@ -65,9 +64,7 @@ export interface PopMaxOptions {
 /** Pop the entry with the highest priority value. */
 export function popMax(options: PopMaxOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::apportionment_queue::ApportionmentQueue<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['pq'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -99,12 +96,10 @@ export interface InsertOptions<T extends BcsType<any>> {
 /** Insert a new entry into the queue. */
 export function insert<T extends BcsType<any>>(options: InsertOptions<T>) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::apportionment_queue::ApportionmentQueue<${options.typeArguments[0]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::uq64_64::UQ64_64',
-		'u64',
-		`${options.typeArguments[0]}`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u64', `${options.typeArguments[0]}`] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['pq', 'priority', 'tieBreaker', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({

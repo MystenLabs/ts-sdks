@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClientWithCoreApi } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import type { Networks } from '../utils/networks.js';
 import type { StateStorage } from '../utils/storage.js';
 import type { WalletInitializer } from '../wallets/index.js';

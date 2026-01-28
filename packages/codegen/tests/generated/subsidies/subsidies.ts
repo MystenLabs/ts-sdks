@@ -17,20 +17,19 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/walrus_subsidies::subsidies';
 export const AdminCap = new MoveStruct({
 	name: `${$moduleName}::AdminCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		subsidies_id: bcs.Address,
 	},
 });
 export const Subsidies = new MoveStruct({
 	name: `${$moduleName}::Subsidies`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		/**
 		 * The subsidy rate applied to the buyer at the moment of storage purchase in basis
 		 * points.

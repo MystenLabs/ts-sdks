@@ -1,25 +1,24 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /** Public-facing interface for the package. */
 
-import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { BcsType } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as versioned from './deps/sui/versioned.js';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as book from './book.js';
 import * as state from './state.js';
 import * as vault from './vault.js';
 import * as deep_price from './deep_price.js';
+import * as balance from './deps/sui/balance.js';
 const $moduleName = '@deepbook/core::pool';
 export const Pool = new MoveStruct({
 	name: `${$moduleName}::Pool`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		inner: versioned.Versioned,
 	},
 });
@@ -65,16 +64,44 @@ export const DeepBurned = new MoveStruct({
 		deep_burned: bcs.u64(),
 	},
 });
-export const AppKey = new MoveStruct({
-	name: `${$moduleName}::AppKey`,
+export const ReferralRewards = new MoveStruct({
+	name: `${$moduleName}::ReferralRewards`,
 	fields: {
-		dummy_field: bcs.bool(),
+		multiplier: bcs.u64(),
+		base: balance.Balance,
+		quote: balance.Balance,
+		deep: balance.Balance,
 	},
 });
-export const MarginTradingKey = new MoveStruct({
-	name: `${$moduleName}::MarginTradingKey`,
+export const ReferralClaimedEvent = new MoveStruct({
+	name: `${$moduleName}::ReferralClaimedEvent`,
 	fields: {
-		dummy_field: bcs.bool(),
+		referral_id: bcs.Address,
+		owner: bcs.Address,
+		base_amount: bcs.u64(),
+		quote_amount: bcs.u64(),
+		deep_amount: bcs.u64(),
+	},
+});
+export const ReferralClaimed = new MoveStruct({
+	name: `${$moduleName}::ReferralClaimed`,
+	fields: {
+		pool_id: bcs.Address,
+		referral_id: bcs.Address,
+		owner: bcs.Address,
+		base_amount: bcs.u64(),
+		quote_amount: bcs.u64(),
+		deep_amount: bcs.u64(),
+	},
+});
+export const ReferralFeeEvent = new MoveStruct({
+	name: `${$moduleName}::ReferralFeeEvent`,
+	fields: {
+		pool_id: bcs.Address,
+		referral_id: bcs.Address,
+		base_fee: bcs.u64(),
+		quote_fee: bcs.u64(),
+		deep_fee: bcs.u64(),
 	},
 });
 export interface CreatePermissionlessPoolArguments {
@@ -104,13 +131,7 @@ export interface CreatePermissionlessPoolOptions {
  */
 export function createPermissionlessPool(options: CreatePermissionlessPoolOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		'u64',
-		'u64',
-		'u64',
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::deep::DEEP>`,
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64', 'u64', 'u64', null] satisfies (string | null)[];
 	const parameterNames = ['registry', 'tickSize', 'lotSize', 'minSize', 'creationFee'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -160,9 +181,9 @@ export interface PlaceLimitOrderOptions {
 export function placeLimitOrder(options: PlaceLimitOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-		`${packageAddress}::balance_manager::TradeProof`,
+		null,
+		null,
+		null,
 		'u64',
 		'u8',
 		'u8',
@@ -171,8 +192,8 @@ export function placeLimitOrder(options: PlaceLimitOrderOptions) {
 		'bool',
 		'bool',
 		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = [
 		'self',
 		'balanceManager',
@@ -185,7 +206,6 @@ export function placeLimitOrder(options: PlaceLimitOrderOptions) {
 		'isBid',
 		'payWithDeep',
 		'expireTimestamp',
-		'clock',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -230,16 +250,16 @@ export interface PlaceMarketOrderOptions {
 export function placeMarketOrder(options: PlaceMarketOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-		`${packageAddress}::balance_manager::TradeProof`,
+		null,
+		null,
+		null,
 		'u64',
 		'u8',
 		'u64',
 		'bool',
 		'bool',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = [
 		'self',
 		'balanceManager',
@@ -249,7 +269,6 @@ export function placeMarketOrder(options: PlaceMarketOrderOptions) {
 		'quantity',
 		'isBid',
 		'payWithDeep',
-		'clock',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -285,19 +304,71 @@ export interface SwapExactBaseForQuoteOptions {
  */
 export function swapExactBaseForQuote(options: SwapExactBaseForQuoteOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${options.typeArguments[0]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::deep::DEEP>`,
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'baseIn', 'deepIn', 'minQuoteOut', 'clock'];
+	const argumentsTypes = [null, null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self', 'baseIn', 'deepIn', 'minQuoteOut'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
 			function: 'swap_exact_base_for_quote',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface SwapExactBaseForQuoteWithManagerArguments {
+	self: RawTransactionArgument<string>;
+	balanceManager: RawTransactionArgument<string>;
+	tradeCap: RawTransactionArgument<string>;
+	depositCap: RawTransactionArgument<string>;
+	withdrawCap: RawTransactionArgument<string>;
+	baseIn: RawTransactionArgument<string>;
+	minQuoteOut: RawTransactionArgument<number | bigint>;
+}
+export interface SwapExactBaseForQuoteWithManagerOptions {
+	package?: string;
+	arguments:
+		| SwapExactBaseForQuoteWithManagerArguments
+		| [
+				self: RawTransactionArgument<string>,
+				balanceManager: RawTransactionArgument<string>,
+				tradeCap: RawTransactionArgument<string>,
+				depositCap: RawTransactionArgument<string>,
+				withdrawCap: RawTransactionArgument<string>,
+				baseIn: RawTransactionArgument<string>,
+				minQuoteOut: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Swap exact base for quote with a `balance_manager`. Assumes fees are paid in
+ * DEEP. Assumes balance manager has enough DEEP for fees.
+ */
+export function swapExactBaseForQuoteWithManager(options: SwapExactBaseForQuoteWithManagerOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'self',
+		'balanceManager',
+		'tradeCap',
+		'depositCap',
+		'withdrawCap',
+		'baseIn',
+		'minQuoteOut',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'swap_exact_base_for_quote_with_manager',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
@@ -328,19 +399,71 @@ export interface SwapExactQuoteForBaseOptions {
  */
 export function swapExactQuoteForBase(options: SwapExactQuoteForBaseOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${options.typeArguments[1]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::deep::DEEP>`,
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'quoteIn', 'deepIn', 'minBaseOut', 'clock'];
+	const argumentsTypes = [null, null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self', 'quoteIn', 'deepIn', 'minBaseOut'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
 			function: 'swap_exact_quote_for_base',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface SwapExactQuoteForBaseWithManagerArguments {
+	self: RawTransactionArgument<string>;
+	balanceManager: RawTransactionArgument<string>;
+	tradeCap: RawTransactionArgument<string>;
+	depositCap: RawTransactionArgument<string>;
+	withdrawCap: RawTransactionArgument<string>;
+	quoteIn: RawTransactionArgument<string>;
+	minBaseOut: RawTransactionArgument<number | bigint>;
+}
+export interface SwapExactQuoteForBaseWithManagerOptions {
+	package?: string;
+	arguments:
+		| SwapExactQuoteForBaseWithManagerArguments
+		| [
+				self: RawTransactionArgument<string>,
+				balanceManager: RawTransactionArgument<string>,
+				tradeCap: RawTransactionArgument<string>,
+				depositCap: RawTransactionArgument<string>,
+				withdrawCap: RawTransactionArgument<string>,
+				quoteIn: RawTransactionArgument<string>,
+				minBaseOut: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Swap exact quote for base with a `balance_manager`. Assumes fees are paid in
+ * DEEP. Assumes balance manager has enough DEEP for fees.
+ */
+export function swapExactQuoteForBaseWithManager(options: SwapExactQuoteForBaseWithManagerOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'self',
+		'balanceManager',
+		'tradeCap',
+		'depositCap',
+		'withdrawCap',
+		'quoteIn',
+		'minBaseOut',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'swap_exact_quote_for_base_with_manager',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
@@ -368,20 +491,78 @@ export interface SwapExactQuantityOptions {
 /** Swap exact quantity without needing a balance_manager. */
 export function swapExactQuantity(options: SwapExactQuantityOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${options.typeArguments[0]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${options.typeArguments[1]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::deep::DEEP>`,
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'baseIn', 'quoteIn', 'deepIn', 'minOut', 'clock'];
+	const argumentsTypes = [null, null, null, null, 'u64', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'baseIn', 'quoteIn', 'deepIn', 'minOut'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
 			function: 'swap_exact_quantity',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface SwapExactQuantityWithManagerArguments {
+	self: RawTransactionArgument<string>;
+	balanceManager: RawTransactionArgument<string>;
+	tradeCap: RawTransactionArgument<string>;
+	depositCap: RawTransactionArgument<string>;
+	withdrawCap: RawTransactionArgument<string>;
+	baseIn: RawTransactionArgument<string>;
+	quoteIn: RawTransactionArgument<string>;
+	minOut: RawTransactionArgument<number | bigint>;
+}
+export interface SwapExactQuantityWithManagerOptions {
+	package?: string;
+	arguments:
+		| SwapExactQuantityWithManagerArguments
+		| [
+				self: RawTransactionArgument<string>,
+				balanceManager: RawTransactionArgument<string>,
+				tradeCap: RawTransactionArgument<string>,
+				depositCap: RawTransactionArgument<string>,
+				withdrawCap: RawTransactionArgument<string>,
+				baseIn: RawTransactionArgument<string>,
+				quoteIn: RawTransactionArgument<string>,
+				minOut: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Swap exact quantity with a `balance_manager`. Assumes fees are paid in DEEP.
+ * Assumes balance manager has enough DEEP for fees.
+ */
+export function swapExactQuantityWithManager(options: SwapExactQuantityWithManagerOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'self',
+		'balanceManager',
+		'tradeCap',
+		'depositCap',
+		'withdrawCap',
+		'baseIn',
+		'quoteIn',
+		'minOut',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'swap_exact_quantity_with_manager',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
@@ -413,22 +594,11 @@ export interface ModifyOrderOptions {
  */
 export function modifyOrder(options: ModifyOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-		`${packageAddress}::balance_manager::TradeProof`,
-		'u128',
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = [
-		'self',
-		'balanceManager',
-		'tradeProof',
-		'orderId',
-		'newQuantity',
-		'clock',
-	];
+	const argumentsTypes = [null, null, null, 'u128', 'u64', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'orderId', 'newQuantity'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -464,14 +634,11 @@ export interface CancelOrderOptions {
  */
 export function cancelOrder(options: CancelOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-		`${packageAddress}::balance_manager::TradeProof`,
-		'u128',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'orderId', 'clock'];
+	const argumentsTypes = [null, null, null, 'u128', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'orderId'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -507,14 +674,11 @@ export interface CancelOrdersOptions {
  */
 export function cancelOrders(options: CancelOrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-		`${packageAddress}::balance_manager::TradeProof`,
-		'vector<u128>',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'orderIds', 'clock'];
+	const argumentsTypes = [null, null, null, 'vector<u128>', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'orderIds'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -543,13 +707,8 @@ export interface CancelAllOrdersOptions {
 /** Cancel all open orders placed by the balance manager in the pool. */
 export function cancelAllOrders(options: CancelAllOrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-		`${packageAddress}::balance_manager::TradeProof`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'clock'];
+	const argumentsTypes = [null, null, null, '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self', 'balanceManager', 'tradeProof'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -578,17 +737,40 @@ export interface WithdrawSettledAmountsOptions {
 /** Withdraw settled amounts to the `balance_manager`. */
 export function withdrawSettledAmounts(options: WithdrawSettledAmountsOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-		`${packageAddress}::balance_manager::TradeProof`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'balanceManager', 'tradeProof'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
 			function: 'withdraw_settled_amounts',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface WithdrawSettledAmountsPermissionlessArguments {
+	self: RawTransactionArgument<string>;
+	balanceManager: RawTransactionArgument<string>;
+}
+export interface WithdrawSettledAmountsPermissionlessOptions {
+	package?: string;
+	arguments:
+		| WithdrawSettledAmountsPermissionlessArguments
+		| [self: RawTransactionArgument<string>, balanceManager: RawTransactionArgument<string>];
+	typeArguments: [string, string];
+}
+/** Withdraw settled amounts permissionlessly to the `balance_manager`. */
+export function withdrawSettledAmountsPermissionless(
+	options: WithdrawSettledAmountsPermissionlessOptions,
+) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['self', 'balanceManager'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'withdraw_settled_amounts_permissionless',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
@@ -617,12 +799,7 @@ export interface StakeOptions {
  */
 export function stake(options: StakeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-		`${packageAddress}::balance_manager::TradeProof`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'amount'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -656,11 +833,7 @@ export interface UnstakeOptions {
  */
 export function unstake(options: UnstakeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-		`${packageAddress}::balance_manager::TradeProof`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'balanceManager', 'tradeProof'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -702,14 +875,7 @@ export interface SubmitProposalOptions {
  */
 export function submitProposal(options: SubmitProposalOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-		`${packageAddress}::balance_manager::TradeProof`,
-		'u64',
-		'u64',
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, 'u64', 'u64', 'u64'] satisfies (string | null)[];
 	const parameterNames = [
 		'self',
 		'balanceManager',
@@ -752,12 +918,7 @@ export interface VoteOptions {
  */
 export function vote(options: VoteOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-		`${packageAddress}::balance_manager::TradeProof`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
-	] satisfies string[];
+	const argumentsTypes = [null, null, null, '0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'proposalId'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -790,11 +951,7 @@ export interface ClaimRebatesOptions {
  */
 export function claimRebates(options: ClaimRebatesOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-		`${packageAddress}::balance_manager::TradeProof`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'balanceManager', 'tradeProof'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -822,10 +979,7 @@ export interface BorrowFlashloanBaseOptions {
  */
 export function borrowFlashloanBase(options: BorrowFlashloanBaseOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'baseAmount'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -853,10 +1007,7 @@ export interface BorrowFlashloanQuoteOptions {
  */
 export function borrowFlashloanQuote(options: BorrowFlashloanQuoteOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'quoteAmount'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -889,11 +1040,7 @@ export interface ReturnFlashloanBaseOptions {
  */
 export function returnFlashloanBase(options: ReturnFlashloanBaseOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${options.typeArguments[0]}>`,
-		`${packageAddress}::vault::FlashLoan`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'coin', 'flashLoan'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -926,11 +1073,7 @@ export interface ReturnFlashloanQuoteOptions {
  */
 export function returnFlashloanQuote(options: ReturnFlashloanQuoteOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${options.typeArguments[1]}>`,
-		`${packageAddress}::vault::FlashLoan`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'coin', 'flashLoan'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -958,12 +1101,8 @@ export interface AddDeepPricePointOptions {
  */
 export function addDeepPricePoint(options: AddDeepPricePointOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::pool::Pool<${options.typeArguments[2]}, ${options.typeArguments[3]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['targetPool', 'referencePool', 'clock'];
+	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['targetPool', 'referencePool'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -987,16 +1126,175 @@ export interface BurnDeepOptions {
 /** Burns DEEP tokens from the pool. Amount to burn is within history */
 export function burnDeep(options: BurnDeepOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::deep::ProtectedTreasury`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'treasuryCap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
 			function: 'burn_deep',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface MintReferralArguments {
+	self: RawTransactionArgument<string>;
+	multiplier: RawTransactionArgument<number | bigint>;
+}
+export interface MintReferralOptions {
+	package?: string;
+	arguments:
+		| MintReferralArguments
+		| [self: RawTransactionArgument<string>, multiplier: RawTransactionArgument<number | bigint>];
+	typeArguments: [string, string];
+}
+/** Mint a DeepBookReferral and set the additional bps for the referral. */
+export function mintReferral(options: MintReferralOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['self', 'multiplier'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'mint_referral',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface UpdateReferralMultiplierArguments {
+	Self: RawTransactionArgument<string>;
+	Referral: RawTransactionArgument<string>;
+	Multiplier: RawTransactionArgument<number | bigint>;
+}
+export interface UpdateReferralMultiplierOptions {
+	package?: string;
+	arguments:
+		| UpdateReferralMultiplierArguments
+		| [
+				Self: RawTransactionArgument<string>,
+				Referral: RawTransactionArgument<string>,
+				Multiplier: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string, string];
+}
+export function updateReferralMultiplier(options: UpdateReferralMultiplierOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['Self', 'Referral', 'Multiplier'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'update_referral_multiplier',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface UpdateDeepbookReferralMultiplierArguments {
+	Self: RawTransactionArgument<string>;
+	Referral: RawTransactionArgument<string>;
+	Multiplier: RawTransactionArgument<number | bigint>;
+}
+export interface UpdateDeepbookReferralMultiplierOptions {
+	package?: string;
+	arguments:
+		| UpdateDeepbookReferralMultiplierArguments
+		| [
+				Self: RawTransactionArgument<string>,
+				Referral: RawTransactionArgument<string>,
+				Multiplier: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string, string];
+}
+export function updateDeepbookReferralMultiplier(options: UpdateDeepbookReferralMultiplierOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['Self', 'Referral', 'Multiplier'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'update_deepbook_referral_multiplier',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface UpdatePoolReferralMultiplierArguments {
+	self: RawTransactionArgument<string>;
+	referral: RawTransactionArgument<string>;
+	multiplier: RawTransactionArgument<number | bigint>;
+}
+export interface UpdatePoolReferralMultiplierOptions {
+	package?: string;
+	arguments:
+		| UpdatePoolReferralMultiplierArguments
+		| [
+				self: RawTransactionArgument<string>,
+				referral: RawTransactionArgument<string>,
+				multiplier: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string, string];
+}
+/** Update the multiplier for the referral. */
+export function updatePoolReferralMultiplier(options: UpdatePoolReferralMultiplierOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['self', 'referral', 'multiplier'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'update_pool_referral_multiplier',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface ClaimReferralRewardsArguments {
+	Self: RawTransactionArgument<string>;
+	Referral: RawTransactionArgument<string>;
+}
+export interface ClaimReferralRewardsOptions {
+	package?: string;
+	arguments:
+		| ClaimReferralRewardsArguments
+		| [Self: RawTransactionArgument<string>, Referral: RawTransactionArgument<string>];
+	typeArguments: [string, string];
+}
+export function claimReferralRewards(options: ClaimReferralRewardsOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['Self', 'Referral'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'claim_referral_rewards',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface ClaimPoolReferralRewardsArguments {
+	self: RawTransactionArgument<string>;
+	referral: RawTransactionArgument<string>;
+}
+export interface ClaimPoolReferralRewardsOptions {
+	package?: string;
+	arguments:
+		| ClaimPoolReferralRewardsArguments
+		| [self: RawTransactionArgument<string>, referral: RawTransactionArgument<string>];
+	typeArguments: [string, string];
+}
+/** Claim the rewards for the referral. */
+export function claimPoolReferralRewards(options: ClaimPoolReferralRewardsOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['self', 'referral'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'claim_pool_referral_rewards',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
@@ -1032,15 +1330,10 @@ export interface CreatePoolAdminOptions {
  */
 export function createPoolAdmin(options: CreatePoolAdminOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::registry::Registry`,
-		'u64',
-		'u64',
-		'u64',
-		'bool',
-		'bool',
-		`${packageAddress}::registry::DeepbookAdminCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64', 'u64', 'u64', 'bool', 'bool', null] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = [
 		'registry',
 		'tickSize',
@@ -1078,11 +1371,7 @@ export interface UnregisterPoolAdminOptions {
 /** Unregister a pool in case it needs to be redeployed. */
 export function unregisterPoolAdmin(options: UnregisterPoolAdminOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::registry::DeepbookAdminCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'registry', 'Cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1115,11 +1404,7 @@ export interface UpdateAllowedVersionsOptions {
  */
 export function updateAllowedVersions(options: UpdateAllowedVersionsOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::registry::Registry`,
-		`${packageAddress}::registry::DeepbookAdminCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'registry', 'Cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1148,10 +1433,7 @@ export interface UpdatePoolAllowedVersionsOptions {
  */
 export function updatePoolAllowedVersions(options: UpdatePoolAllowedVersionsOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::registry::Registry`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'registry'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1181,13 +1463,8 @@ export interface AdjustTickSizeAdminOptions {
 /** Adjust the tick size of the pool. Only admin can adjust the tick size. */
 export function adjustTickSizeAdmin(options: AdjustTickSizeAdminOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-		`${packageAddress}::registry::DeepbookAdminCap`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'newTickSize', 'Cap', 'clock'];
+	const argumentsTypes = [null, 'u64', null, '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self', 'newTickSize', 'Cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1221,75 +1498,16 @@ export interface AdjustMinLotSizeAdminOptions {
  */
 export function adjustMinLotSizeAdmin(options: AdjustMinLotSizeAdminOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-		'u64',
-		`${packageAddress}::registry::DeepbookAdminCap`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'newLotSize', 'newMinSize', 'Cap', 'clock'];
+	const argumentsTypes = [null, 'u64', 'u64', null, '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'newLotSize', 'newMinSize', 'Cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
 			function: 'adjust_min_lot_size_admin',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-			typeArguments: options.typeArguments,
-		});
-}
-export interface AuthorizeAppArguments {
-	self: RawTransactionArgument<string>;
-	Cap: RawTransactionArgument<string>;
-}
-export interface AuthorizeAppOptions {
-	package?: string;
-	arguments:
-		| AuthorizeAppArguments
-		| [self: RawTransactionArgument<string>, Cap: RawTransactionArgument<string>];
-	typeArguments: [string, string, string];
-}
-/** Authorize an application to access protected features of Deepbook core. */
-export function authorizeApp(options: AuthorizeAppOptions) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[1]}, ${options.typeArguments[2]}>`,
-		`${packageAddress}::registry::DeepbookAdminCap`,
-	] satisfies string[];
-	const parameterNames = ['self', 'Cap'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'pool',
-			function: 'authorize_app',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-			typeArguments: options.typeArguments,
-		});
-}
-export interface DeauthorizeAppArguments {
-	self: RawTransactionArgument<string>;
-	Cap: RawTransactionArgument<string>;
-}
-export interface DeauthorizeAppOptions {
-	package?: string;
-	arguments:
-		| DeauthorizeAppArguments
-		| [self: RawTransactionArgument<string>, Cap: RawTransactionArgument<string>];
-	typeArguments: [string, string, string];
-}
-/** Deauthorize an application by removing its authorization key. */
-export function deauthorizeApp(options: DeauthorizeAppOptions) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[1]}, ${options.typeArguments[2]}>`,
-		`${packageAddress}::registry::DeepbookAdminCap`,
-	] satisfies string[];
-	const parameterNames = ['self', 'Cap'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'pool',
-			function: 'deauthorize_app',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
@@ -1316,13 +1534,8 @@ export interface EnableEwmaStateOptions {
  */
 export function enableEwmaState(options: EnableEwmaStateOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::registry::DeepbookAdminCap`,
-		'bool',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'Cap', 'enable', 'clock'];
+	const argumentsTypes = [null, null, 'bool', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self', 'Cap', 'enable'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1355,53 +1568,16 @@ export interface SetEwmaParamsOptions {
 /** Set the EWMA parameters for the pool. Only admin can set the parameters. */
 export function setEwmaParams(options: SetEwmaParamsOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::registry::DeepbookAdminCap`,
-		'u64',
-		'u64',
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'Cap', 'alpha', 'zScoreThreshold', 'additionalTakerFee', 'clock'];
+	const argumentsTypes = [null, null, 'u64', 'u64', 'u64', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'Cap', 'alpha', 'zScoreThreshold', 'additionalTakerFee'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
 			function: 'set_ewma_params',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-			typeArguments: options.typeArguments,
-		});
-}
-export interface UpdateMarginStatusArguments<A extends BcsType<any>> {
-	self: RawTransactionArgument<string>;
-	_: RawTransactionArgument<A>;
-	enable: RawTransactionArgument<boolean>;
-}
-export interface UpdateMarginStatusOptions<A extends BcsType<any>> {
-	package?: string;
-	arguments:
-		| UpdateMarginStatusArguments<A>
-		| [
-				self: RawTransactionArgument<string>,
-				_: RawTransactionArgument<A>,
-				enable: RawTransactionArgument<boolean>,
-		  ];
-	typeArguments: [string, string, string];
-}
-export function updateMarginStatus<A extends BcsType<any>>(options: UpdateMarginStatusOptions<A>) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[1]}, ${options.typeArguments[2]}>`,
-		`${options.typeArguments[0]}`,
-		'bool',
-	] satisfies string[];
-	const parameterNames = ['self', '_', 'enable'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'pool',
-			function: 'update_margin_status',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
@@ -1417,9 +1593,7 @@ export interface WhitelistedOptions {
 /** Accessor to check if the pool is whitelisted. */
 export function whitelisted(options: WhitelistedOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1441,9 +1615,7 @@ export interface StablePoolOptions {
 /** Accessor to check if the pool is a stablecoin pool. */
 export function stablePool(options: StablePoolOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1464,9 +1636,7 @@ export interface RegisteredPoolOptions {
 }
 export function registeredPool(options: RegisteredPoolOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1494,12 +1664,8 @@ export interface GetQuoteQuantityOutOptions {
  */
 export function getQuoteQuantityOut(options: GetQuoteQuantityOutOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'baseQuantity', 'clock'];
+	const argumentsTypes = [null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self', 'baseQuantity'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1529,12 +1695,8 @@ export interface GetBaseQuantityOutOptions {
  */
 export function getBaseQuantityOut(options: GetBaseQuantityOutOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'quoteQuantity', 'clock'];
+	const argumentsTypes = [null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self', 'quoteQuantity'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1561,12 +1723,8 @@ export interface GetQuoteQuantityOutInputFeeOptions {
  */
 export function getQuoteQuantityOutInputFee(options: GetQuoteQuantityOutInputFeeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'baseQuantity', 'clock'];
+	const argumentsTypes = [null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self', 'baseQuantity'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1596,12 +1754,8 @@ export interface GetBaseQuantityOutInputFeeOptions {
  */
 export function getBaseQuantityOutInputFee(options: GetBaseQuantityOutInputFeeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'quoteQuantity', 'clock'];
+	const argumentsTypes = [null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self', 'quoteQuantity'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1635,13 +1789,8 @@ export interface GetQuantityOutOptions {
  */
 export function getQuantityOut(options: GetQuantityOutOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'baseQuantity', 'quoteQuantity', 'clock'];
+	const argumentsTypes = [null, 'u64', 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self', 'baseQuantity', 'quoteQuantity'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1675,18 +1824,83 @@ export interface GetQuantityOutInputFeeOptions {
  */
 export function getQuantityOutInputFee(options: GetQuantityOutInputFeeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'baseQuantity', 'quoteQuantity', 'clock'];
+	const argumentsTypes = [null, 'u64', 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self', 'baseQuantity', 'quoteQuantity'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
 			function: 'get_quantity_out_input_fee',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface GetBaseQuantityInArguments {
+	self: RawTransactionArgument<string>;
+	targetQuoteQuantity: RawTransactionArgument<number | bigint>;
+	payWithDeep: RawTransactionArgument<boolean>;
+}
+export interface GetBaseQuantityInOptions {
+	package?: string;
+	arguments:
+		| GetBaseQuantityInArguments
+		| [
+				self: RawTransactionArgument<string>,
+				targetQuoteQuantity: RawTransactionArgument<number | bigint>,
+				payWithDeep: RawTransactionArgument<boolean>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Dry run to determine the base quantity needed to sell to receive a target quote
+ * quantity. Returns (base_quantity_in, actual_quote_quantity_out,
+ * deep_quantity_required) Returns (0, 0, 0) if insufficient liquidity or if result
+ * would be below min_size.
+ */
+export function getBaseQuantityIn(options: GetBaseQuantityInOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, 'u64', 'bool', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self', 'targetQuoteQuantity', 'payWithDeep'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'get_base_quantity_in',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface GetQuoteQuantityInArguments {
+	self: RawTransactionArgument<string>;
+	targetBaseQuantity: RawTransactionArgument<number | bigint>;
+	payWithDeep: RawTransactionArgument<boolean>;
+}
+export interface GetQuoteQuantityInOptions {
+	package?: string;
+	arguments:
+		| GetQuoteQuantityInArguments
+		| [
+				self: RawTransactionArgument<string>,
+				targetBaseQuantity: RawTransactionArgument<number | bigint>,
+				payWithDeep: RawTransactionArgument<boolean>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Dry run to determine the quote quantity needed to buy a target base quantity.
+ * Returns (actual_base_quantity_out, quote_quantity_in, deep_quantity_required)
+ * Returns (0, 0, 0) if insufficient liquidity or if result would be below
+ * min_size.
+ */
+export function getQuoteQuantityIn(options: GetQuoteQuantityInOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, 'u64', 'bool', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self', 'targetBaseQuantity', 'payWithDeep'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'get_quote_quantity_in',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
@@ -1702,11 +1916,8 @@ export interface MidPriceOptions {
 /** Returns the mid price of the pool. */
 export function midPrice(options: MidPriceOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'clock'];
+	const argumentsTypes = [null, '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1730,10 +1941,7 @@ export interface AccountOpenOrdersOptions {
 /** Returns the order_id for all open order for the balance_manager in the pool. */
 export function accountOpenOrders(options: AccountOpenOrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'balanceManager'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1769,14 +1977,11 @@ export interface GetLevel2RangeOptions {
  */
 export function getLevel2Range(options: GetLevel2RangeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-		'u64',
-		'bool',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'priceLow', 'priceHigh', 'isBid', 'clock'];
+	const argumentsTypes = [null, 'u64', 'u64', 'bool', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'priceLow', 'priceHigh', 'isBid'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1806,12 +2011,8 @@ export interface GetLevel2TicksFromMidOptions {
  */
 export function getLevel2TicksFromMid(options: GetLevel2TicksFromMidOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
-	const parameterNames = ['self', 'ticks', 'clock'];
+	const argumentsTypes = [null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['self', 'ticks'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1832,9 +2033,7 @@ export interface VaultBalancesOptions {
 /** Get all balances held in this pool. */
 export function vaultBalances(options: VaultBalancesOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1856,7 +2055,7 @@ export interface GetPoolIdByAssetOptions {
 /** Get the ID of the pool given the asset types. */
 export function getPoolIdByAsset(options: GetPoolIdByAssetOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::registry::Registry`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['registry'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1881,10 +2080,7 @@ export interface GetOrderOptions {
 /** Get the Order struct */
 export function getOrder(options: GetOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u128',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u128'] satisfies (string | null)[];
 	const parameterNames = ['self', 'orderId'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1909,10 +2105,7 @@ export interface GetOrdersOptions {
 /** Get multiple orders given a vector of order_ids. */
 export function getOrders(options: GetOrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'vector<u128>',
-	] satisfies string[];
+	const argumentsTypes = [null, 'vector<u128>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'orderIds'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1937,10 +2130,7 @@ export interface GetAccountOrderDetailsOptions {
 /** Return a copy of all orders that are in the book for this account. */
 export function getAccountOrderDetails(options: GetAccountOrderDetailsOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'balanceManager'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1962,9 +2152,7 @@ export interface GetOrderDeepPriceOptions {
 /** Return the DEEP price for the pool. */
 export function getOrderDeepPrice(options: GetOrderDeepPriceOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1998,11 +2186,7 @@ export interface GetOrderDeepRequiredOptions {
  */
 export function getOrderDeepRequired(options: GetOrderDeepRequiredOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		'u64',
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u64', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'baseQuantity', 'price'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -2030,16 +2214,180 @@ export interface LockedBalanceOptions {
  */
 export function lockedBalance(options: LockedBalanceOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'balanceManager'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
 			function: 'locked_balance',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface CanPlaceLimitOrderArguments {
+	self: RawTransactionArgument<string>;
+	balanceManager: RawTransactionArgument<string>;
+	price: RawTransactionArgument<number | bigint>;
+	quantity: RawTransactionArgument<number | bigint>;
+	isBid: RawTransactionArgument<boolean>;
+	payWithDeep: RawTransactionArgument<boolean>;
+	expireTimestamp: RawTransactionArgument<number | bigint>;
+}
+export interface CanPlaceLimitOrderOptions {
+	package?: string;
+	arguments:
+		| CanPlaceLimitOrderArguments
+		| [
+				self: RawTransactionArgument<string>,
+				balanceManager: RawTransactionArgument<string>,
+				price: RawTransactionArgument<number | bigint>,
+				quantity: RawTransactionArgument<number | bigint>,
+				isBid: RawTransactionArgument<boolean>,
+				payWithDeep: RawTransactionArgument<boolean>,
+				expireTimestamp: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Check if a limit order can be placed based on balance manager balances. Returns
+ * true if the balance manager has sufficient balance (accounting for fees) to
+ * place the order, false otherwise. Assumes the limit order is a taker order as a
+ * worst case scenario.
+ */
+export function canPlaceLimitOrder(options: CanPlaceLimitOrderOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [
+		null,
+		null,
+		'u64',
+		'u64',
+		'bool',
+		'bool',
+		'u64',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'self',
+		'balanceManager',
+		'price',
+		'quantity',
+		'isBid',
+		'payWithDeep',
+		'expireTimestamp',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'can_place_limit_order',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface CanPlaceMarketOrderArguments {
+	self: RawTransactionArgument<string>;
+	balanceManager: RawTransactionArgument<string>;
+	quantity: RawTransactionArgument<number | bigint>;
+	isBid: RawTransactionArgument<boolean>;
+	payWithDeep: RawTransactionArgument<boolean>;
+}
+export interface CanPlaceMarketOrderOptions {
+	package?: string;
+	arguments:
+		| CanPlaceMarketOrderArguments
+		| [
+				self: RawTransactionArgument<string>,
+				balanceManager: RawTransactionArgument<string>,
+				quantity: RawTransactionArgument<number | bigint>,
+				isBid: RawTransactionArgument<boolean>,
+				payWithDeep: RawTransactionArgument<boolean>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Check if a market order can be placed based on balance manager balances. Returns
+ * true if the balance manager has sufficient balance (accounting for fees) to
+ * place the order, false otherwise. Does not account for discounted taker fees
+ */
+export function canPlaceMarketOrder(options: CanPlaceMarketOrderOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, null, 'u64', 'bool', 'bool', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'balanceManager', 'quantity', 'isBid', 'payWithDeep'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'can_place_market_order',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface CheckMarketOrderParamsArguments {
+	self: RawTransactionArgument<string>;
+	quantity: RawTransactionArgument<number | bigint>;
+}
+export interface CheckMarketOrderParamsOptions {
+	package?: string;
+	arguments:
+		| CheckMarketOrderParamsArguments
+		| [self: RawTransactionArgument<string>, quantity: RawTransactionArgument<number | bigint>];
+	typeArguments: [string, string];
+}
+/**
+ * Check if a market order can be placed based on pool book params. Returns true if
+ * the order parameters are valid, false otherwise.
+ */
+export function checkMarketOrderParams(options: CheckMarketOrderParamsOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['self', 'quantity'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'check_market_order_params',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface CheckLimitOrderParamsArguments {
+	self: RawTransactionArgument<string>;
+	price: RawTransactionArgument<number | bigint>;
+	quantity: RawTransactionArgument<number | bigint>;
+	expireTimestamp: RawTransactionArgument<number | bigint>;
+}
+export interface CheckLimitOrderParamsOptions {
+	package?: string;
+	arguments:
+		| CheckLimitOrderParamsArguments
+		| [
+				self: RawTransactionArgument<string>,
+				price: RawTransactionArgument<number | bigint>,
+				quantity: RawTransactionArgument<number | bigint>,
+				expireTimestamp: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Check if a limit order can be placed based on pool book params. Returns true if
+ * the order parameters are valid, false otherwise.
+ */
+export function checkLimitOrderParams(options: CheckLimitOrderParamsOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, 'u64', 'u64', 'u64', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'price', 'quantity', 'expireTimestamp'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'check_limit_order_params',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
@@ -2052,12 +2400,13 @@ export interface PoolTradeParamsOptions {
 	arguments: PoolTradeParamsArguments | [self: RawTransactionArgument<string>];
 	typeArguments: [string, string];
 }
-/** Returns the trade params for the pool. */
+/**
+ * Returns the trade params for the pool. Returns (taker_fee, maker_fee,
+ * stake_required)
+ */
 export function poolTradeParams(options: PoolTradeParamsOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -2079,9 +2428,7 @@ export interface PoolTradeParamsNextOptions {
 /** Returns the currently leading trade params for the next epoch for the pool */
 export function poolTradeParamsNext(options: PoolTradeParamsNextOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -2103,15 +2450,37 @@ export interface PoolBookParamsOptions {
 /** Returns the tick size, lot size, and min size for the pool. */
 export function poolBookParams(options: PoolBookParamsOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
 			function: 'pool_book_params',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface AccountExistsArguments {
+	self: RawTransactionArgument<string>;
+	balanceManager: RawTransactionArgument<string>;
+}
+export interface AccountExistsOptions {
+	package?: string;
+	arguments:
+		| AccountExistsArguments
+		| [self: RawTransactionArgument<string>, balanceManager: RawTransactionArgument<string>];
+	typeArguments: [string, string];
+}
+export function accountExists(options: AccountExistsOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['self', 'balanceManager'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'account_exists',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
@@ -2129,10 +2498,7 @@ export interface AccountOptions {
 }
 export function account(options: AccountOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-		`${packageAddress}::balance_manager::BalanceManager`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'balanceManager'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -2154,9 +2520,7 @@ export interface QuorumOptions {
 /** Returns the quorum needed to pass proposal in the current epoch */
 export function quorum(options: QuorumOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -2177,9 +2541,7 @@ export interface IdOptions {
 }
 export function id(options: IdOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -2190,79 +2552,74 @@ export function id(options: IdOptions) {
 			typeArguments: options.typeArguments,
 		});
 }
-export interface MarginTradingEnabledArguments {
-	self: RawTransactionArgument<string>;
+export interface GetReferralBalancesArguments {
+	Self: RawTransactionArgument<string>;
+	Referral: RawTransactionArgument<string>;
 }
-export interface MarginTradingEnabledOptions {
+export interface GetReferralBalancesOptions {
 	package?: string;
-	arguments: MarginTradingEnabledArguments | [self: RawTransactionArgument<string>];
+	arguments:
+		| GetReferralBalancesArguments
+		| [Self: RawTransactionArgument<string>, Referral: RawTransactionArgument<string>];
 	typeArguments: [string, string];
 }
-export function marginTradingEnabled(options: MarginTradingEnabledOptions) {
+export function getReferralBalances(options: GetReferralBalancesOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[0]}, ${options.typeArguments[1]}>`,
-	] satisfies string[];
-	const parameterNames = ['self'];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['Self', 'Referral'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
-			function: 'margin_trading_enabled',
+			function: 'get_referral_balances',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
 }
-export interface IsAppAuthorizedArguments {
+export interface GetPoolReferralBalancesArguments {
 	self: RawTransactionArgument<string>;
+	referral: RawTransactionArgument<string>;
 }
-export interface IsAppAuthorizedOptions {
+export interface GetPoolReferralBalancesOptions {
 	package?: string;
-	arguments: IsAppAuthorizedArguments | [self: RawTransactionArgument<string>];
-	typeArguments: [string, string, string];
+	arguments:
+		| GetPoolReferralBalancesArguments
+		| [self: RawTransactionArgument<string>, referral: RawTransactionArgument<string>];
+	typeArguments: [string, string];
 }
-/**
- * Check if an application is authorized to access protected features of DeepBook
- * core.
- */
-export function isAppAuthorized(options: IsAppAuthorizedOptions) {
+export function getPoolReferralBalances(options: GetPoolReferralBalancesOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[1]}, ${options.typeArguments[2]}>`,
-	] satisfies string[];
-	const parameterNames = ['self'];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['self', 'referral'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
-			function: 'is_app_authorized',
+			function: 'get_pool_referral_balances',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
 }
-export interface AssertAppIsAuthorizedArguments {
+export interface PoolReferralMultiplierArguments {
 	self: RawTransactionArgument<string>;
+	referral: RawTransactionArgument<string>;
 }
-export interface AssertAppIsAuthorizedOptions {
+export interface PoolReferralMultiplierOptions {
 	package?: string;
-	arguments: AssertAppIsAuthorizedArguments | [self: RawTransactionArgument<string>];
-	typeArguments: [string, string, string];
+	arguments:
+		| PoolReferralMultiplierArguments
+		| [self: RawTransactionArgument<string>, referral: RawTransactionArgument<string>];
+	typeArguments: [string, string];
 }
-/**
- * Assert that an application is authorized to access protected features of
- * DeepBook core. Aborts with `EAppNotAuthorized` if not.
- */
-export function assertAppIsAuthorized(options: AssertAppIsAuthorizedOptions) {
+export function poolReferralMultiplier(options: PoolReferralMultiplierOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		`${packageAddress}::pool::Pool<${options.typeArguments[1]}, ${options.typeArguments[2]}>`,
-	] satisfies string[];
-	const parameterNames = ['self'];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['self', 'referral'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pool',
-			function: 'assert_app_is_authorized',
+			function: 'pool_referral_multiplier',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});

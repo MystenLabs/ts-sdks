@@ -1,13 +1,15 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClientWithCoreApi, Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import { createAnalyzer } from '../analyzer.js';
 import type { TransactionAnalysisIssue } from '../analyzer.js';
 
 import { data } from './core.js';
 
-export type AnalyzedObject = Experimental_SuiClientTypes.ObjectResponse & {
+export type AnalyzedObject = SuiClientTypes.Object<{
+	content: true;
+}> & {
 	ownerAddress: string | null;
 };
 
@@ -67,12 +69,19 @@ export const objects = createAnalyzer({
 		async ({ objectIds }) => {
 			const { objects } = await client.core.getObjects({
 				objectIds,
+				include: {
+					content: true,
+				},
 			});
 
 			const issues: TransactionAnalysisIssue[] = [];
 
 			const foundObjects = objects.filter(
-				(obj): obj is Experimental_SuiClientTypes.ObjectResponse => {
+				(
+					obj,
+				): obj is SuiClientTypes.Object<{
+					content: true;
+				}> => {
 					if (obj instanceof Error) {
 						issues.push({ message: `Failed to fetch object: ${obj.message}`, error: obj });
 						return false;
@@ -127,6 +136,6 @@ export const objectsById = createAnalyzer({
 	analyze:
 		() =>
 		({ objects }) => ({
-			result: new Map(objects.map((obj) => [obj.id, obj])),
+			result: new Map(objects.map((obj) => [obj.objectId, obj])),
 		}),
 });

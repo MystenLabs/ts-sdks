@@ -1,16 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+import type { SuiClientTypes } from '@mysten/sui/client';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
 import { BalanceManagerContract } from '../transactions/balanceManager.js';
-import type {
-	BalanceManager,
-	Environment,
-	MarginManager,
-	Coin,
-	Pool,
-	MarginPool,
-} from '../types/index.js';
+import type { BalanceManager, MarginManager, Coin, Pool, MarginPool } from '../types/index.js';
 import type { CoinMap, PoolMap, MarginPoolMap } from './constants.js';
 import { ResourceNotFoundError, ErrorMessages } from './errors.js';
 import {
@@ -42,7 +36,7 @@ export class DeepBookConfig {
 	#coins: CoinMap;
 	#pools: PoolMap;
 	#marginPools: MarginPoolMap;
-	env: Environment;
+	network: SuiClientTypes.Network;
 	balanceManagers: { [key: string]: BalanceManager };
 	marginManagers: { [key: string]: MarginManager };
 	address: string;
@@ -64,7 +58,7 @@ export class DeepBookConfig {
 	balanceManager: BalanceManagerContract;
 
 	constructor({
-		env,
+		network,
 		address,
 		adminCap,
 		marginAdminCap,
@@ -75,7 +69,7 @@ export class DeepBookConfig {
 		pools,
 		marginPools,
 	}: {
-		env: Environment;
+		network: SuiClientTypes.Network;
 		address: string;
 		adminCap?: string;
 		marginAdminCap?: string;
@@ -86,7 +80,11 @@ export class DeepBookConfig {
 		pools?: PoolMap;
 		marginPools?: MarginPoolMap;
 	}) {
-		this.env = env;
+		if (network !== 'mainnet' && network !== 'testnet') {
+			throw new Error(`DeepBook only supports 'mainnet' and 'testnet' networks, got '${network}'`);
+		}
+
+		this.network = network;
 		this.address = normalizeSuiAddress(address);
 		this.adminCap = adminCap;
 		this.marginAdminCap = marginAdminCap;
@@ -94,7 +92,7 @@ export class DeepBookConfig {
 		this.balanceManagers = balanceManagers || {};
 		this.marginManagers = marginManagers || {};
 
-		if (env === 'mainnet') {
+		if (network === 'mainnet') {
 			this.#coins = coins || mainnetCoins;
 			this.#pools = pools || mainnetPools;
 			this.#marginPools = marginPools || mainnetMarginPools;

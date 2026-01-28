@@ -3,9 +3,9 @@
 
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
-import { analyze } from '../../src/transaction-analyzer/analyzer';
-import { moveFunctions } from '../../src/transaction-analyzer/rules/functions';
-import { MockSuiClient } from '../mocks/MockSuiClient';
+import { analyze } from '../../src/transaction-analyzer/analyzer.js';
+import { moveFunctions } from '../../src/transaction-analyzer/rules/functions.js';
+import { MockSuiClient } from '../mocks/MockSuiClient.js';
 import {
 	DEFAULT_SENDER,
 	TEST_COIN_1_ID,
@@ -13,7 +13,7 @@ import {
 	TEST_PACKAGE_ID,
 	DEFI_PACKAGE_ID,
 	NFT_PACKAGE_ID,
-} from '../mocks/mockData';
+} from '../mocks/mockData.js';
 
 describe('TransactionAnalyzer - Functions Rule', () => {
 	it('should analyze all Move functions in a single transaction', async () => {

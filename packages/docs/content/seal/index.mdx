@@ -2,4 +2,89 @@
 title: Seal SDK
 ---
 
-This is a beta version of Seal. See https://github.com/MystenLabs/seal for more details.
+<Callout type="info">
+	This is a beta version of Seal. See https://github.com/MystenLabs/seal for more details.
+</Callout>
+
+The Seal SDK provides threshold encryption capabilities for Sui applications, enabling secure data
+encryption with configurable key servers.
+
+## Installation
+
+```bash npm2yarn
+npm install --save @mysten/seal @mysten/sui
+```
+
+## Setup
+
+To use the Seal SDK, create a Sui client and extend it with the Seal extension:
+
+```ts
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { seal } from '@mysten/seal';
+
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+}).$extend(
+	seal({
+		serverConfigs: [
+			{ objectId: '0x...keyserver1', weight: 1 },
+			{ objectId: '0x...keyserver2', weight: 1 },
+		],
+	}),
+);
+```
+
+## Configuration Options
+
+The `seal()` function accepts the following options:
+
+- **`serverConfigs`** (required) - Array of key server configurations with `objectId` and `weight`
+- **`verifyKeyServers`** (optional) - Whether to verify key server authenticity (default: `true`)
+- **`timeout`** (optional) - Timeout in milliseconds for network requests (default: `10000`)
+
+## Basic Usage
+
+### Encrypting Data
+
+```ts
+const data = new Uint8Array([1, 2, 3]);
+
+const { encryptedObject } = await client.seal.encrypt({
+	threshold: 2, // Number of key servers needed to decrypt
+	packageId: '0x...your-package-id',
+	id: '0x...your-object-id',
+	data,
+});
+```
+
+### Decrypting Data
+
+```ts
+import { SessionKey } from '@mysten/seal';
+
+// Create a session key for decryption
+const sessionKey = await SessionKey.create({
+	address: senderAddress,
+	packageId: '0x...your-package-id',
+	ttlMin: 10, // Time-to-live in minutes
+	signer: keypair,
+	suiClient: client,
+});
+
+// Build transaction bytes that call seal_approve
+const txBytes = await buildApprovalTransaction(/* ... */);
+
+// Decrypt the data
+const decryptedData = await client.seal.decrypt({
+	data: encryptedObject,
+	sessionKey,
+	txBytes,
+});
+```
+
+## Resources
+
+For detailed documentation on threshold encryption and key server setup, see the
+[Seal repository](https://github.com/MystenLabs/seal).

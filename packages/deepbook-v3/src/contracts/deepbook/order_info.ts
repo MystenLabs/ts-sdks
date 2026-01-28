@@ -1,15 +1,15 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /**
  * Order module defines the order struct and its methods. All order matching
  * happens in this module.
  */
 
-import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as deep_price from './deep_price.js';
 import * as fill from './fill.js';
 const $moduleName = '@deepbook/core::order_info';
@@ -93,6 +93,18 @@ export const OrderExpired = new MoveStruct({
 		timestamp: bcs.u64(),
 	},
 });
+export const OrderFullyFilled = new MoveStruct({
+	name: `${$moduleName}::OrderFullyFilled`,
+	fields: {
+		pool_id: bcs.Address,
+		order_id: bcs.u128(),
+		client_order_id: bcs.u64(),
+		balance_manager_id: bcs.Address,
+		original_quantity: bcs.u64(),
+		is_bid: bcs.bool(),
+		timestamp: bcs.u64(),
+	},
+});
 export interface PoolIdArguments {
 	self: RawTransactionArgument<string>;
 }
@@ -102,7 +114,7 @@ export interface PoolIdOptions {
 }
 export function poolId(options: PoolIdOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -121,7 +133,7 @@ export interface OrderIdOptions {
 }
 export function orderId(options: OrderIdOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -140,7 +152,7 @@ export interface BalanceManagerIdOptions {
 }
 export function balanceManagerId(options: BalanceManagerIdOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -159,7 +171,7 @@ export interface ClientOrderIdOptions {
 }
 export function clientOrderId(options: ClientOrderIdOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -178,7 +190,7 @@ export interface TraderOptions {
 }
 export function trader(options: TraderOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -197,7 +209,7 @@ export interface OrderTypeOptions {
 }
 export function orderType(options: OrderTypeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -216,7 +228,7 @@ export interface SelfMatchingOptionOptions {
 }
 export function selfMatchingOption(options: SelfMatchingOptionOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -235,7 +247,7 @@ export interface PriceOptions {
 }
 export function price(options: PriceOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -254,7 +266,7 @@ export interface IsBidOptions {
 }
 export function isBid(options: IsBidOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -273,7 +285,7 @@ export interface OriginalQuantityOptions {
 }
 export function originalQuantity(options: OriginalQuantityOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -292,7 +304,7 @@ export interface OrderDeepPriceOptions {
 }
 export function orderDeepPrice(options: OrderDeepPriceOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -311,7 +323,7 @@ export interface ExpireTimestampOptions {
 }
 export function expireTimestamp(options: ExpireTimestampOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -330,7 +342,7 @@ export interface ExecutedQuantityOptions {
 }
 export function executedQuantity(options: ExecutedQuantityOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -349,7 +361,7 @@ export interface CumulativeQuoteQuantityOptions {
 }
 export function cumulativeQuoteQuantity(options: CumulativeQuoteQuantityOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -368,7 +380,7 @@ export interface FillsOptions {
 }
 export function fills(options: FillsOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -387,7 +399,7 @@ export interface FeeIsDeepOptions {
 }
 export function feeIsDeep(options: FeeIsDeepOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -406,7 +418,7 @@ export interface PaidFeesOptions {
 }
 export function paidFees(options: PaidFeesOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -425,7 +437,7 @@ export interface MakerFeesOptions {
 }
 export function makerFees(options: MakerFeesOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -444,7 +456,7 @@ export interface EpochOptions {
 }
 export function epoch(options: EpochOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -463,7 +475,7 @@ export interface StatusOptions {
 }
 export function status(options: StatusOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -482,7 +494,7 @@ export interface FillLimitReachedOptions {
 }
 export function fillLimitReached(options: FillLimitReachedOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -501,7 +513,7 @@ export interface OrderInsertedOptions {
 }
 export function orderInserted(options: OrderInsertedOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [`${packageAddress}::order_info::OrderInfo`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({

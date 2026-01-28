@@ -1,7 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { PaginationArguments, SuiClient } from '@mysten/sui/client';
+import type { PaginationArguments } from '@mysten/sui/jsonRpc';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 
 import {
 	FLOOR_PRICE_RULE_ADDRESS,
@@ -18,13 +19,49 @@ import {
 	queryTransferPolicy,
 	queryTransferPolicyCapsByType,
 } from '../query/transfer-policy.js';
-import { Network } from '../types/index.js';
 import type {
 	FetchKioskOptions,
 	KioskClientOptions,
 	KioskData,
 	OwnedKiosks,
 } from '../types/index.js';
+
+export type KioskExtensionOptions<Name extends string = 'kiosk'> = {
+	name?: Name;
+	packageIds?: BaseRulePackageIds;
+};
+
+/**
+ * Creates a kiosk client extension that can be used with `client.$extend()`.
+ *
+ * @example
+ * ```ts
+ * import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+ * import { kiosk } from '@mysten/kiosk';
+ *
+ * const client = new SuiJsonRpcClient({
+ *   url: getJsonRpcFullnodeUrl('mainnet'),
+ *   network: 'mainnet',
+ * }).$extend(kiosk());
+ *
+ * const ownedKiosks = await client.kiosk.getOwnedKiosks({ address: '0x...' });
+ * ```
+ */
+export function kiosk<const Name extends string = 'kiosk'>({
+	name = 'kiosk' as Name,
+	packageIds,
+}: KioskExtensionOptions<Name> = {}) {
+	return {
+		name,
+		register: (client: ClientWithCoreApi) => {
+			return new KioskClient({
+				client,
+				network: client.network,
+				packageIds,
+			});
+		},
+	};
+}
 
 /**
  * A Client that allows you to interact with kiosk.
@@ -33,8 +70,8 @@ import type {
  * If you pass packageIds, all functionality will be managed using these packages.
  */
 export class KioskClient {
-	client: SuiClient;
-	network: Network;
+	client: ClientWithCoreApi;
+	network: SuiClientTypes.Network;
 	rules: TransferPolicyRule[];
 	packageIds?: BaseRulePackageIds;
 
@@ -145,7 +182,7 @@ export class KioskClient {
 
 		/// Check existence of rule based on network and throw an error if it's not found.
 		/// We always have a fallback for testnet or mainnet.
-		if (!rules[rule] && network !== Network.MAINNET && network !== Network.TESTNET) {
+		if (!rules[rule] && network !== 'mainnet' && network !== 'testnet') {
 			throw new Error(`Missing packageId for rule ${rule}`);
 		}
 

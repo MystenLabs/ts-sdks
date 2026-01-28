@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Argument, Command } from '@mysten/sui/transactions';
-import type { Experimental_SuiClientTypes } from '@mysten/sui/experimental';
+import type { SuiClientTypes } from '@mysten/sui/client';
 import { inputs } from './inputs.js';
 import type { AnalyzedCommandInput } from './inputs.js';
 import type { TransactionAnalysisIssue } from '../analyzer.js';
@@ -31,7 +31,7 @@ export type AnalyzedCommand =
 			$kind: 'MoveCall';
 			index: number;
 			arguments: AnalyzedCommandArgument[];
-			function: Experimental_SuiClientTypes.FunctionResponse;
+			function: SuiClientTypes.FunctionResponse;
 			command: Extract<Command, { $kind: 'MoveCall' }>['MoveCall'];
 	  }
 	| {

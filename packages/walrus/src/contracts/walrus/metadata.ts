@@ -1,12 +1,12 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /** Contains the metadata for Blobs on Walrus. */
 
-import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::metadata';
 export const Metadata = new MoveStruct({
@@ -51,11 +51,10 @@ export interface InsertOrUpdateOptions {
  */
 export function insertOrUpdate(options: InsertOrUpdateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::metadata::Metadata`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String', '0x1::string::String'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['self', 'key', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -78,10 +77,7 @@ export interface RemoveOptions {
 /** Removes the metadata associated with the given key. */
 export function remove(options: RemoveOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::metadata::Metadata`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'key'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -108,10 +104,7 @@ export interface RemoveIfExistsOptions {
  */
 export function removeIfExists(options: RemoveIfExistsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::metadata::Metadata`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'key'];
 	return (tx: Transaction) =>
 		tx.moveCall({

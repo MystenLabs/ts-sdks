@@ -1,8 +1,8 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
+import { type Transaction } from '@mysten/sui/transactions';
+import { normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 export interface MulArguments {
 	x: RawTransactionArgument<number | bigint>;
 	y: RawTransactionArgument<number | bigint>;
@@ -16,7 +16,7 @@ export interface MulOptions {
 /** Multiply two floating numbers. This function will round down the result. */
 export function mul(options: MulOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = ['u64', 'u64'] satisfies string[];
+	const argumentsTypes = ['u64', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['x', 'y'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -38,7 +38,7 @@ export interface MulU128Options {
 }
 export function mulU128(options: MulU128Options) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = ['u128', 'u128'] satisfies string[];
+	const argumentsTypes = ['u128', 'u128'] satisfies (string | null)[];
 	const parameterNames = ['x', 'y'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -61,7 +61,7 @@ export interface MulRoundUpOptions {
 /** Multiply two floating numbers. This function will round up the result. */
 export function mulRoundUp(options: MulRoundUpOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = ['u64', 'u64'] satisfies string[];
+	const argumentsTypes = ['u64', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['x', 'y'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -84,7 +84,7 @@ export interface DivOptions {
 /** Divide two floating numbers. This function will round down the result. */
 export function div(options: DivOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = ['u64', 'u64'] satisfies string[];
+	const argumentsTypes = ['u64', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['x', 'y'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -106,7 +106,7 @@ export interface DivU128Options {
 }
 export function divU128(options: DivU128Options) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = ['u128', 'u128'] satisfies string[];
+	const argumentsTypes = ['u128', 'u128'] satisfies (string | null)[];
 	const parameterNames = ['x', 'y'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -129,7 +129,7 @@ export interface DivRoundUpOptions {
 /** Divide two floating numbers. This function will round up the result. */
 export function divRoundUp(options: DivRoundUpOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = ['u64', 'u64'] satisfies string[];
+	const argumentsTypes = ['u64', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['x', 'y'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -146,10 +146,10 @@ export interface MedianOptions {
 	package?: string;
 	arguments: MedianArguments | [v: RawTransactionArgument<number | bigint[]>];
 }
-/** given a vector of u64, return the median */
+/** given a vector of u128, return the median */
 export function median(options: MedianOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = ['vector<u128>'] satisfies string[];
+	const argumentsTypes = ['vector<u128>'] satisfies (string | null)[];
 	const parameterNames = ['v'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -179,7 +179,7 @@ export interface SqrtOptions {
  */
 export function sqrt(options: SqrtOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = ['u64', 'u64'] satisfies string[];
+	const argumentsTypes = ['u64', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['x', 'precision'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -198,7 +198,7 @@ export interface IsPowerOfTenOptions {
 }
 export function isPowerOfTen(options: IsPowerOfTenOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = ['u64'] satisfies string[];
+	const argumentsTypes = ['u64'] satisfies (string | null)[];
 	const parameterNames = ['n'];
 	return (tx: Transaction) =>
 		tx.moveCall({

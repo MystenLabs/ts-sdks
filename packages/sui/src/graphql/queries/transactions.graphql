@@ -1,0 +1,156 @@
+# Copyright (c) Mysten Labs, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+query simulateTransaction(
+	$transaction: JSON!
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeCommandResults: Boolean = false
+	$includeBcs: Boolean = false
+	$doGasSelection: Boolean = false
+	$checksEnabled: Boolean = true
+) {
+	simulateTransaction(
+		transaction: $transaction
+		doGasSelection: $doGasSelection
+		checksEnabled: $checksEnabled
+	) {
+		error
+		effects {
+			transaction {
+				...TRANSACTION_FIELDS
+			}
+		}
+		outputs @include(if: $includeCommandResults) {
+			returnValues {
+				value {
+					bcs
+				}
+			}
+			mutatedReferences {
+				value {
+					bcs
+				}
+			}
+		}
+	}
+}
+
+mutation executeTransaction(
+	$transactionDataBcs: Base64!
+	$signatures: [Base64!]!
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	executeTransaction(transactionDataBcs: $transactionDataBcs, signatures: $signatures) {
+		errors
+		effects {
+			transaction {
+				...TRANSACTION_FIELDS
+			}
+		}
+	}
+}
+
+query getTransactionBlock(
+	$digest: String!
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	transaction(digest: $digest) {
+		...TRANSACTION_FIELDS
+	}
+}
+
+fragment TRANSACTION_FIELDS on Transaction {
+	digest
+	transactionJson @include(if: $includeTransaction)
+	transactionBcs @include(if: $includeBcs)
+	signatures {
+		signatureBytes
+	}
+	effects {
+		status
+		executionError {
+			message
+			abortCode
+			identifier
+			constant
+			sourceLineNumber
+			instructionOffset
+			module {
+				name
+				package {
+					address
+				}
+			}
+			function {
+				name
+			}
+		}
+		epoch {
+			epochId
+		}
+		effectsBcs @include(if: $includeEffects)
+		effectsJson @include(if: $includeObjectTypes)
+		objectChanges(first: 50) @include(if: $includeObjectTypes) {
+			nodes {
+				address
+				outputState {
+					asMoveObject {
+						contents {
+							type {
+								repr
+							}
+						}
+					}
+				}
+			}
+		}
+		balanceChangesJson @include(if: $includeBalanceChanges)
+		events(first: 50) @include(if: $includeEvents) {
+			pageInfo {
+				hasNextPage
+			}
+			nodes {
+				transactionModule {
+					package {
+						address
+					}
+					name
+				}
+				sender {
+					address
+				}
+				contents {
+					type {
+						repr
+					}
+					bcs
+				}
+			}
+		}
+	}
+}
+
+query resolveTransaction($transaction: JSON!, $doGasSelection: Boolean = true) {
+	simulateTransaction(transaction: $transaction, doGasSelection: $doGasSelection) {
+		error
+		effects {
+			transaction {
+				transactionBcs
+			}
+		}
+	}
+}

@@ -6,9 +6,9 @@ import type { IGraphQLConfig } from 'graphql-config';
 const config: IGraphQLConfig = {
 	projects: {
 		tsSDK: {
-			schema: './packages/typescript/src/graphql/generated/latest/schema.graphql',
-			documents: ['./packages/typescript/src/graphql/queries/**/*.graphql'],
-			include: ['./packages/typescript/src/graphql/queries/**/*.graphql'],
+			schema: './packages/sui/src/graphql/generated/latest/schema.graphql',
+			documents: ['./packages/sui/src/graphql/queries/**/*.graphql'],
+			include: ['./packages/sui/src/graphql/queries/**/*.graphql'],
 		},
 	},
 };

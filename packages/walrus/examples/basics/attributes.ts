@@ -1,13 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 import { WalrusClient } from '../../src/client.js';
 import { getFundedKeypair } from '../funded-keypair.js';
 
-const suiClient = new SuiClient({
-	url: getFullnodeUrl('testnet'),
+const suiClient = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
 const walrusClient = new WalrusClient({
@@ -34,14 +35,14 @@ async function uploadFile() {
 	console.log(blobId);
 
 	const attributes = await walrusClient.readBlobAttributes({
-		blobObjectId: blobObject.id.id,
+		blobObjectId: blobObject.id,
 	});
 
 	console.log(attributes);
 
 	await walrusClient.executeWriteBlobAttributesTransaction({
 		signer: keypair,
-		blobObjectId: blobObject.id.id,
+		blobObjectId: blobObject.id,
 		attributes: {
 			contentLength: null,
 			updated: 'true',
@@ -49,7 +50,7 @@ async function uploadFile() {
 	});
 
 	const updatedAttributes = await walrusClient.readBlobAttributes({
-		blobObjectId: blobObject.id.id,
+		blobObjectId: blobObject.id,
 	});
 
 	console.log(updatedAttributes);

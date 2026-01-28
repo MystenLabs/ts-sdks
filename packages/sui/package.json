@@ -1,0 +1,183 @@
+{
+	"name": "@mysten/sui",
+	"author": "Mysten Labs <build@mystenlabs.com>",
+	"description": "Sui TypeScript API",
+	"homepage": "https://sdk.mystenlabs.com",
+	"version": "1.45.2",
+	"license": "Apache-2.0",
+	"sideEffects": false,
+	"files": [
+		"CHANGELOG.md",
+		"LICENSE",
+		"README.md",
+		"bcs",
+		"builder",
+		"client",
+		"cryptography",
+		"dist",
+		"experimental",
+		"faucet",
+		"graphql",
+		"grpc",
+		"jsonRpc",
+		"keypairs",
+		"multisig",
+		"src",
+		"transactions",
+		"utils",
+		"verify",
+		"zklogin"
+	],
+	"engines": {
+		"node": ">=22"
+	},
+	"type": "module",
+	"exports": {
+		"./bcs": {
+			"types": "./dist/bcs/index.d.mts",
+			"import": "./dist/bcs/index.mjs"
+		},
+		"./client": {
+			"types": "./dist/client/index.d.mts",
+			"import": "./dist/client/index.mjs"
+		},
+		"./cryptography": {
+			"types": "./dist/cryptography/index.d.mts",
+			"import": "./dist/cryptography/index.mjs"
+		},
+		"./faucet": {
+			"types": "./dist/faucet/index.d.mts",
+			"import": "./dist/faucet/index.mjs"
+		},
+		"./graphql": {
+			"types": "./dist/graphql/index.d.mts",
+			"import": "./dist/graphql/index.mjs"
+		},
+		"./grpc": {
+			"types": "./dist/grpc/index.d.mts",
+			"import": "./dist/grpc/index.mjs"
+		},
+		"./jsonRpc": {
+			"types": "./dist/jsonRpc/index.d.mts",
+			"import": "./dist/jsonRpc/index.mjs"
+		},
+		"./keypairs/ed25519": {
+			"types": "./dist/keypairs/ed25519/index.d.mts",
+			"import": "./dist/keypairs/ed25519/index.mjs"
+		},
+		"./keypairs/secp256k1": {
+			"types": "./dist/keypairs/secp256k1/index.d.mts",
+			"import": "./dist/keypairs/secp256k1/index.mjs"
+		},
+		"./keypairs/secp256r1": {
+			"types": "./dist/keypairs/secp256r1/index.d.mts",
+			"import": "./dist/keypairs/secp256r1/index.mjs"
+		},
+		"./keypairs/passkey": {
+			"types": "./dist/keypairs/passkey/index.d.mts",
+			"import": "./dist/keypairs/passkey/index.mjs"
+		},
+		"./multisig": {
+			"types": "./dist/multisig/index.d.mts",
+			"import": "./dist/multisig/index.mjs"
+		},
+		"./transactions": {
+			"types": "./dist/transactions/index.d.mts",
+			"import": "./dist/transactions/index.mjs"
+		},
+		"./utils": {
+			"types": "./dist/utils/index.d.mts",
+			"import": "./dist/utils/index.mjs"
+		},
+		"./verify": {
+			"types": "./dist/verify/index.d.mts",
+			"import": "./dist/verify/index.mjs"
+		},
+		"./zklogin": {
+			"types": "./dist/zklogin/index.d.mts",
+			"import": "./dist/zklogin/index.mjs"
+		},
+		"./graphql/schema": {
+			"types": "./dist/graphql/schema/index.d.mts",
+			"import": "./dist/graphql/schema/index.mjs"
+		}
+	},
+	"scripts": {
+		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+		"codegen": "pnpm codegen:graphql && pnpm codegen:grpc && pnpm lint:fix",
+		"codegen:graphql": "graphql-codegen --config graphql-codegen.ts",
+		"codegen:version": "node genversion.mjs",
+		"codegen:grpc": "rm -rf src/grpc/proto && mkdir src/grpc/proto && pnpm codegen:grpc-protoc && pnpm codegen:grpc-header && pnpm codegen:grpc-extensions && pnpm codegen:grpc-types",
+		"codegen:grpc-types": "tsx scripts/generate-grpc-types.ts",
+		"codegen:grpc-protoc": "protoc --ts_out ./src/grpc/proto --ts_opt force_server_none --ts_opt optimize_code_size --ts_opt ts_nocheck -I ../../../sui-apis/proto -I ../../../sui-apis/proto ../../../sui-apis/proto/sui/rpc/v2/*.proto ../../../sui-apis/proto/google/*/*.proto",
+		"codegen:grpc-header": "find src/grpc/proto -type f -exec sh -c 'echo \"// Copyright (c) Mysten Labs, Inc.\\n// SPDX-License-Identifier: Apache-2.0\\n\" | cat - {} > temp && mv temp {}' \\;",
+		"codegen:grpc-extensions": "find src/grpc/proto -name '*.ts' | xargs sed -i '' -E 's/from \"(\\.[^\"]+)\"/from \"\\1.js\"/g'",
+		"build": "rm -rf dist && node genversion.mjs && tsc --noEmit && tsdown",
+		"vitest": "vitest",
+		"test": "pnpm test:typecheck && pnpm test:unit",
+		"test:typecheck": "tsc -p ./test",
+		"test:unit": "vitest run unit __tests__",
+		"test:e2e": "vitest run --config test/e2e/vitest.config.mts",
+		"size": "size-limit",
+		"analyze": "size-limit --why",
+		"prettier:check": "prettier -c --ignore-unknown .",
+		"prettier:fix": "prettier -w --ignore-unknown .",
+		"oxlint:check": "oxlint  .",
+		"oxlint:fix": "oxlint --fix",
+		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
+		"update-graphql-schema": "pnpm tsx scripts/update-graphql-schema.ts"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
+	},
+	"bugs": {
+		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@0no-co/graphqlsp": "^1.15.2",
+		"@graphql-codegen/add": "^6.0.0",
+		"@graphql-codegen/cli": "^6.1.1",
+		"@graphql-codegen/typed-document-node": "^6.1.5",
+		"@graphql-codegen/typescript": "5.0.7",
+		"@graphql-codegen/typescript-document-nodes": "5.0.7",
+		"@graphql-codegen/typescript-operations": "^5.0.7",
+		"@iarna/toml": "^2.2.5",
+		"@parcel/watcher": "^2.5.4",
+		"@types/node": "^25.0.8",
+		"@types/tmp": "^0.2.6",
+		"@types/ws": "^8.18.1",
+		"cross-env": "^10.1.0",
+		"graphql-config": "^5.1.5",
+		"msw": "^2.12.7",
+		"tmp": "^0.2.5",
+		"ts-retry-promise": "^0.8.1",
+		"typescript": "^5.9.3",
+		"vite": "^7.3.1",
+		"vite-tsconfig-paths": "^6.0.4",
+		"vitest": "^4.0.17",
+		"wait-on": "^9.0.3",
+		"ws": "^8.19.0"
+	},
+	"dependencies": {
+		"@graphql-typed-document-node/core": "^3.2.0",
+		"@mysten/bcs": "workspace:^",
+		"@mysten/utils": "workspace:^",
+		"@noble/curves": "^2.0.1",
+		"@noble/hashes": "^2.0.1",
+		"@protobuf-ts/grpcweb-transport": "^2.11.1",
+		"@protobuf-ts/runtime": "^2.11.1",
+		"@protobuf-ts/runtime-rpc": "^2.11.1",
+		"@scure/base": "^2.0.0",
+		"@scure/bip32": "^2.0.1",
+		"@scure/bip39": "^2.0.1",
+		"gql.tada": "^1.9.0",
+		"graphql": "^16.12.0",
+		"poseidon-lite": "0.2.1",
+		"valibot": "^1.2.0"
+	}
+}

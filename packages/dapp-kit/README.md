@@ -4,7 +4,7 @@ The Sui dApp Kit is a set of React components, hooks, and utilities that make it
 dApp for the Sui ecosystem. It provides hooks and components for querying data from the Sui
 blockchain, and connecting to Sui wallets.
 
-See https://sdk.mystenlabs.com/typescript for full documentation
+See https://sdk.mystenlabs.com/sui for full documentation
 
 ### Core Features
 
@@ -35,13 +35,13 @@ pages.
 
 ```tsx
 import { createNetworkConfig, SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
-import { getFullnodeUrl, type SuiClientOptions } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, type SuiClientOptions } from '@mysten/sui/jsonRpc';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Config options for the networks you want to connect to
 const { networkConfig } = createNetworkConfig({
-	localnet: { url: getFullnodeUrl('localnet') },
-	mainnet: { url: getFullnodeUrl('mainnet') },
+	localnet: { url: getJsonRpcFullnodeUrl('localnet') },
+	mainnet: { url: getJsonRpcFullnodeUrl('mainnet') },
 });
 const queryClient = new QueryClient();
 

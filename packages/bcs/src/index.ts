@@ -21,14 +21,16 @@ import {
 	isSerializedBcs,
 	SerializedBcs,
 } from './bcs-type.js';
-import { bcs } from './bcs.js';
+import { bcs, compareBcsBytes } from './bcs.js';
 import { BcsReader } from './reader.js';
 import type {
+	Encoding,
 	EnumInputShape,
 	EnumOutputShape,
 	EnumOutputShapeWithKeys,
 	InferBcsInput,
 	InferBcsType,
+	JoinString,
 } from './types.js';
 import { decodeStr, encodeStr, splitGenericParameters } from './utils.js';
 import type { BcsWriterOptions } from './writer.js';
@@ -37,46 +39,31 @@ import { BcsWriter } from './writer.js';
 // Re-export all encoding dependencies.
 export {
 	bcs,
-	BcsType,
-	BcsStruct,
 	BcsEnum,
-	BcsTuple,
-	type BcsTypeOptions,
-	SerializedBcs,
-	isSerializedBcs,
-	toBase58,
-	fromBase58,
-	toBase64,
-	fromBase64,
-	toHex,
-	fromHex,
-	encodeStr,
-	decodeStr,
-	splitGenericParameters,
 	BcsReader,
+	BcsStruct,
+	BcsTuple,
+	BcsType,
 	BcsWriter,
+	compareBcsBytes,
+	decodeStr,
+	encodeStr,
+	fromBase58,
+	fromBase64,
+	fromHex,
+	isSerializedBcs,
+	SerializedBcs,
+	splitGenericParameters,
+	toBase58,
+	toBase64,
+	toHex,
+	type BcsTypeOptions,
 	type BcsWriterOptions,
+	type Encoding,
+	type EnumInputShape,
+	type EnumOutputShape,
+	type EnumOutputShapeWithKeys,
 	type InferBcsInput,
 	type InferBcsType,
-	type EnumOutputShape,
-	type EnumInputShape,
-	type EnumOutputShapeWithKeys,
+	type JoinString,
 };
-
-/** @deprecated use toBase58 instead */
-export const toB58 = toBase58;
-
-/** @deprecated use fromBase58 instead */
-export const fromB58 = fromBase58;
-
-/** @deprecated use toBase64 instead */
-export const toB64 = toBase64;
-
-/** @deprecated use fromBase64 instead */
-export const fromB64 = fromBase64;
-
-/** @deprecated use toHex instead */
-export const toHEX = toHex;
-
-/** @deprecated use fromHex instead */
-export const fromHEX = fromHex;

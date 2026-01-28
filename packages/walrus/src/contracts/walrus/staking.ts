@@ -1,18 +1,17 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
 
 /** Module: staking */
 
-import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
+import { type Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/walrus::staking';
 export const Staking = new MoveStruct({
 	name: `${$moduleName}::Staking`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		version: bcs.u64(),
 		package_id: bcs.Address,
 		new_package_id: bcs.option(bcs.Address),
@@ -56,10 +55,10 @@ export interface RegisterCandidateOptions {
 export function registerCandidate(options: RegisterCandidateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-		`${packageAddress}::node_metadata::NodeMetadata`,
+		null,
+		'0x1::string::String',
+		'0x1::string::String',
+		null,
 		'vector<u8>',
 		'vector<u8>',
 		'vector<u8>',
@@ -67,7 +66,7 @@ export function registerCandidate(options: RegisterCandidateOptions) {
 		'u64',
 		'u64',
 		'u64',
-	] satisfies string[];
+	] satisfies (string | null)[];
 	const parameterNames = [
 		'staking',
 		'name',
@@ -111,11 +110,7 @@ export interface SetNextCommissionOptions {
  */
 export function setNextCommission(options: SetNextCommissionOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::storage_node::StorageNodeCap`,
-		'u16',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u16'] satisfies (string | null)[];
 	const parameterNames = ['staking', 'cap', 'commissionRate'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -146,11 +141,7 @@ export interface CollectCommissionOptions {
  */
 export function collectCommission(options: CollectCommissionOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
-		`${packageAddress}::auth::Authenticated`,
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::object::ID', null] satisfies (string | null)[];
 	const parameterNames = ['staking', 'nodeId', 'auth'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -180,12 +171,7 @@ export interface SetCommissionReceiverOptions {
 /** Sets the commission receiver for the node. */
 export function setCommissionReceiver(options: SetCommissionReceiverOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
-		`${packageAddress}::auth::Authenticated`,
-		`${packageAddress}::auth::Authorized`,
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::object::ID', null, null] satisfies (string | null)[];
 	const parameterNames = ['staking', 'nodeId', 'auth', 'receiver'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -215,12 +201,7 @@ export interface SetGovernanceAuthorizedOptions {
 /** Sets the governance authorized object for the pool. */
 export function setGovernanceAuthorized(options: SetGovernanceAuthorizedOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
-		`${packageAddress}::auth::Authenticated`,
-		`${packageAddress}::auth::Authorized`,
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::object::ID', null, null] satisfies (string | null)[];
 	const parameterNames = ['staking', 'nodeId', 'auth', 'authorized'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -240,7 +221,7 @@ export interface CommitteeOptions {
 /** Get the current committee. */
 export function committee(options: CommitteeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::staking::Staking`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['staking'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -260,7 +241,7 @@ export interface ComputeNextCommitteeOptions {
 /** Computes the committee for the next epoch. */
 export function computeNextCommittee(options: ComputeNextCommitteeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::staking::Staking`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['staking'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -288,11 +269,7 @@ export interface SetStoragePriceVoteOptions {
 /** Sets the storage price vote for the pool. */
 export function setStoragePriceVote(options: SetStoragePriceVoteOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::storage_node::StorageNodeCap`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'cap', 'storagePrice'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -320,11 +297,7 @@ export interface SetWritePriceVoteOptions {
 /** Sets the write price vote for the pool. */
 export function setWritePriceVote(options: SetWritePriceVoteOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::storage_node::StorageNodeCap`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'cap', 'writePrice'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -352,11 +325,7 @@ export interface SetNodeCapacityVoteOptions {
 /** Sets the node capacity vote for the pool. */
 export function setNodeCapacityVote(options: SetNodeCapacityVoteOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::storage_node::StorageNodeCap`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'cap', 'nodeCapacity'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -379,10 +348,7 @@ export interface NodeMetadataOptions {
 /** Get `NodeMetadata` for the given node. */
 export function nodeMetadata(options: NodeMetadataOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['self', 'nodeId'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -415,12 +381,7 @@ export interface SetNextPublicKeyOptions {
  */
 export function setNextPublicKey(options: SetNextPublicKeyOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::storage_node::StorageNodeCap`,
-		'vector<u8>',
-		'vector<u8>',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'vector<u8>', 'vector<u8>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'cap', 'publicKey', 'proofOfPossession'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -448,11 +409,7 @@ export interface SetNameOptions {
 /** Sets the name of a storage node. */
 export function setName(options: SetNameOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::storage_node::StorageNodeCap`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'cap', 'name'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -480,11 +437,7 @@ export interface SetNetworkAddressOptions {
 /** Sets the network address or host of a storage node. */
 export function setNetworkAddress(options: SetNetworkAddressOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::storage_node::StorageNodeCap`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::string::String',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'cap', 'networkAddress'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -512,11 +465,7 @@ export interface SetNetworkPublicKeyOptions {
 /** Sets the public key used for TLS communication for a node. */
 export function setNetworkPublicKey(options: SetNetworkPublicKeyOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::storage_node::StorageNodeCap`,
-		'vector<u8>',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'vector<u8>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'cap', 'networkPublicKey'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -544,11 +493,7 @@ export interface SetNodeMetadataOptions {
 /** Sets the metadata of a storage node. */
 export function setNodeMetadata(options: SetNodeMetadataOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::storage_node::StorageNodeCap`,
-		`${packageAddress}::node_metadata::NodeMetadata`,
-	] satisfies string[];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'cap', 'metadata'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -573,10 +518,7 @@ export interface VotingEndOptions {
  */
 export function votingEnd(options: VotingEndOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['staking'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -603,11 +545,7 @@ export interface InitiateEpochChangeOptions {
  */
 export function initiateEpochChange(options: InitiateEpochChangeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::system::System`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['staking', 'system'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -638,12 +576,7 @@ export interface EpochSyncDoneOptions {
  */
 export function epochSyncDone(options: EpochSyncDoneOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::storage_node::StorageNodeCap`,
-		'u32',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u32', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['staking', 'cap', 'epoch'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -671,11 +604,7 @@ export interface StakeWithPoolOptions {
 /** Stake `Coin` with the staking pool. */
 export function stakeWithPool(options: StakeWithPoolOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${packageAddress}::wal::WAL>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
-	] satisfies string[];
+	const argumentsTypes = [null, null, '0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['staking', 'toStake', 'nodeId'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -704,10 +633,7 @@ export interface RequestWithdrawStakeOptions {
  */
 export function requestWithdrawStake(options: RequestWithdrawStakeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::staked_wal::StakedWal`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['staking', 'stakedWal'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -730,10 +656,7 @@ export interface WithdrawStakeOptions {
 /** Withdraws the staked amount from the staking pool. */
 export function withdrawStake(options: WithdrawStakeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::staked_wal::StakedWal`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['staking', 'stakedWal'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -762,10 +685,7 @@ export interface TryJoinActiveSetOptions {
  */
 export function tryJoinActiveSet(options: TryJoinActiveSetOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::storage_node::StorageNodeCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['staking', 'cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -793,11 +713,10 @@ export interface AddCommissionToPoolsOptions {
 /** Adds `commissions[i]` to the commission of pool `node_ids[i]`. */
 export function addCommissionToPools(options: AddCommissionToPoolsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		'vector<0x0000000000000000000000000000000000000000000000000000000000000002::object::ID>',
-		`vector<0x0000000000000000000000000000000000000000000000000000000000000002::balance::Balance<${packageAddress}::wal::WAL>>`,
-	] satisfies string[];
+	const argumentsTypes = [null, 'vector<0x2::object::ID>', 'vector<null>'] satisfies (
+		| string
+		| null
+	)[];
 	const parameterNames = ['staking', 'nodeIds', 'commissions'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -817,7 +736,7 @@ export interface EpochOptions {
 /** Returns the current epoch of the staking object. */
 export function epoch(options: EpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::staking::Staking`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['staking'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -857,13 +776,7 @@ export interface CalculateRewardsOptions {
  */
 export function calculateRewards(options: CalculateRewardsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		'0x0000000000000000000000000000000000000000000000000000000000000002::object::ID',
-		'u64',
-		'u32',
-		'u32',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x2::object::ID', 'u64', 'u32', 'u32'] satisfies (string | null)[];
 	const parameterNames = [
 		'staking',
 		'nodeId',
@@ -895,10 +808,7 @@ export interface CanWithdrawStakedWalEarlyOptions {
  */
 export function canWithdrawStakedWalEarly(options: CanWithdrawStakedWalEarlyOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::staking::Staking`,
-		`${packageAddress}::staked_wal::StakedWal`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['staking', 'stakedWal'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -921,7 +831,7 @@ export interface SetMigrationEpochOptions {
  */
 export function setMigrationEpoch(options: SetMigrationEpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [`${packageAddress}::staking::Staking`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['staking'];
 	return (tx: Transaction) =>
 		tx.moveCall({

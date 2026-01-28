@@ -1,14 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { RegisteredDAppKit } from '@mysten/dapp-kit-core';
+import type { DefaultExpectedDppKit } from '@mysten/dapp-kit-core';
 import { createContext } from 'react';
 import type { PropsWithChildren } from 'react';
 
-export const DAppKitContext = createContext<RegisteredDAppKit | null>(null);
+export const DAppKitContext = createContext<DefaultExpectedDppKit | null>(null);
 
 export type DAppKitProviderProps = PropsWithChildren<{
-	dAppKit: RegisteredDAppKit;
+	dAppKit: DefaultExpectedDppKit;
 }>;
 
 export function DAppKitProvider({ dAppKit, children }: DAppKitProviderProps) {

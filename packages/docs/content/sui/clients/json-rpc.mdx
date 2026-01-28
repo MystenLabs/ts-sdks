@@ -1,0 +1,245 @@
+---
+title: SuiJsonRpcClient
+---
+
+<Callout type="warn">
+	The Sui JSON-RPC API has been deprecated. We recommend migration to
+	[SuiGrpcClient](/sui/clients/grpc) or [SuiGraphQLClient](/sui/clients/graphql) as soon as
+	possible.
+</Callout>
+
+The `SuiJsonRpcClient` connects to a Sui network's JSON-RPC server. It implements the
+[Core API](/sui/clients/core), so it can be used with any SDK that accepts `ClientWithCoreApi`.
+
+```typescript
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+
+const client = new SuiJsonRpcClient({
+	url: getJsonRpcFullnodeUrl('mainnet'),
+	network: 'mainnet',
+});
+
+// Use the Core API
+const { object } = await client.core.getObject({ objectId: '0x...' });
+```
+
+## Connecting to a Sui network
+
+To establish a connection to a network, import `SuiJsonRpcClient` from `@mysten/sui/client` and pass
+the relevant URL to the `url` parameter. The following example establishes a connection to Devnet
+and get all `Coin<coin_type>` objects owned by an address.
+
+```typescript
+import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+
+// use getJsonRpcFullnodeUrl to define Devnet RPC location
+const rpcUrl = getJsonRpcFullnodeUrl('devnet');
+
+// create a client connected to devnet
+const client = new SuiJsonRpcClient({ url: rpcUrl, network: 'devnet' });
+
+// get coins owned by an address
+// replace <OWNER_ADDRESS> with actual address in the form of 0x123...
+await client.getCoins({
+	owner: '<OWNER_ADDRESS>',
+});
+```
+
+Network URLs:
+
+- `localnet`: `http://127.0.0.1:9000`
+- `devnet`: `https://fullnode.devnet.sui.io:443`
+- `testnet`: `https://fullnode.testnet.sui.io:443`
+
+For local development, you can run `cargo run --bin sui -- start --with-faucet --force-regenesis` to
+spin up a local network with a local validator, a Full node, and a faucet server. Refer to
+[the Local Network guide](https://docs.sui.io/guides/developer/getting-started/local-network) for
+more information.
+
+## Manually calling unsupported RPC methods
+
+You can use `SuiJsonRpcClient` to call any RPC method the node you're connecting to exposes. Most
+RPC methods are built into `SuiJsonRpcClient`, but you can use `call` to leverage any methods
+available in the RPC.
+
+```typescript
+import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+
+const client = new SuiJsonRpcClient({
+	url: 'https://fullnode.devnet.sui.io:443',
+});
+// asynchronously call suix_getCommitteeInfo
+const committeeInfo = await client.call('suix_getCommitteeInfo', []);
+```
+
+For a full list of available RPC methods, see the
+[RPC documentation](https://docs.sui.io/references/sui-api).
+
+## Customizing the transport
+
+The `SuiJsonRpcClient` uses a `Transport` class to manage connections to the RPC node. The default
+`SuiHTTPTransport` (alias for `JsonRpcHTTPTransport`) makes both JSON RPC requests, as well as
+websocket requests for subscriptions. You can construct a custom transport instance if you need to
+pass any custom options, such as headers or timeout values.
+
+```typescript
+import { SuiJsonRpcClient, JsonRpcHTTPTransport } from '@mysten/sui/jsonRpc';
+
+const client = new SuiJsonRpcClient({
+	transport: new JsonRpcHTTPTransport({
+		url: 'https://fullnode.devnet.sui.io:443',
+		websocket: {
+			reconnectTimeout: 1000,
+			url: 'wss://fullnode.devnet.sui.io:443',
+		},
+		rpc: {
+			headers: {
+				'x-custom-header': 'custom value',
+			},
+		},
+	}),
+});
+```
+
+## Pagination
+
+`SuiJsonRpcClient` exposes a number of RPC methods that return paginated results. These methods
+return a result object with 3 fields:
+
+- data: The list of results for the current page
+- nextCursor: a cursor pointing to the next page of results
+- hasNextPage: a boolean indicating whether there are more pages of results
+
+Some APIs also accept an `order` option that can be set to either `ascending` or `descending` to
+change the order in which the results are returned.
+
+You can pass the `nextCursor` to the `cursor` option of the RPC method to retrieve the next page,
+along with a `limit` to specify the page size:
+
+```ts
+const page1 = await client.getCheckpoints({
+	descendingOrder: false,
+	limit: 10,
+});
+
+const page2 =
+	page1.hasNextPage &&
+	(await client.getCheckpoints({
+		descendingOrder: false,
+		cursor: page1.nextCursor,
+		limit: 10,
+	}));
+```
+
+## Methods
+
+In addition to the RPC methods mentioned above, `SuiJsonRpcClient` also exposes some methods for
+working with Transactions.
+
+### `executeTransactionBlock`
+
+```tsx
+const tx = new Transaction();
+
+// add transaction data to tx...
+
+const { bytes, signature } = await tx.sign({ client, signer: keypair });
+
+const result = await client.executeTransactionBlock({
+	transactionBlock: bytes,
+	signature,
+	options: {
+		showEffects: true,
+	},
+});
+```
+
+#### Arguments
+
+- `transactionBlock` - either a Transaction or BCS serialized transaction data bytes as a Uint8Array
+  or as a base-64 encoded string.
+- `signature` - A signature, or list of signatures committed to the intent message of the
+  transaction data, as a base-64 encoded string.
+- `options`:
+  - `showBalanceChanges`: Whether to show balance_changes. Default to be False
+  - `showEffects`: Whether to show transaction effects. Default to be False
+  - `showEvents`: Whether to show transaction events. Default to be False
+  - `showInput`: Whether to show transaction input data. Default to be False
+  - `showObjectChanges`: Whether to show object_changes. Default to be False
+  - `showRawInput`: Whether to show bcs-encoded transaction input data
+
+### `signAndExecuteTransaction`
+
+```tsx
+const tx = new Transaction();
+
+// add transaction data to tx...
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+	options: {
+		showEffects: true,
+	},
+});
+
+// IMPORTANT: Always check the transaction status
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
+}
+```
+
+#### Arguments
+
+- `transaction` - BCS serialized transaction data bytes as a Uint8Array or as a base-64 encoded
+  string.
+- `signer` - A `Keypair` instance to sign the transaction
+- `options`:
+  - `showBalanceChanges`: Whether to show balance_changes. Default to be False
+  - `showEffects`: Whether to show transaction effects. Default to be False
+  - `showEvents`: Whether to show transaction events. Default to be False
+  - `showInput`: Whether to show transaction input data. Default to be False
+  - `showObjectChanges`: Whether to show object_changes. Default to be False
+  - `showRawInput`: Whether to show bcs-encoded transaction input data
+
+### `waitForTransaction`
+
+Wait for a transaction result to be available over the API. This can be used in conjunction with
+`signAndExecuteTransaction` to wait for the transaction to be available via the API. This currently
+polls the `getTransactionBlock` API to check for the transaction.
+
+```tsx
+const tx = new Transaction();
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+
+// Check transaction status
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
+}
+
+const transaction = await client.waitForTransaction({
+	digest: result.Transaction.digest,
+	options: {
+		showEffects: true,
+	},
+});
+```
+
+#### Arguments
+
+- `digest` - the digest of the queried transaction
+- `signal` - An optional abort signal that can be used to cancel the request
+- `timeout` - The amount of time to wait for a transaction. Defaults to one minute.
+- `pollInterval` - The amount of time to wait between checks for the transaction. Defaults to 2
+  seconds.
+- `options`:
+  - `showBalanceChanges`: Whether to show balance_changes. Default to be False
+  - `showEffects`: Whether to show transaction effects. Default to be False
+  - `showEvents`: Whether to show transaction events. Default to be False
+  - `showInput`: Whether to show transaction input data. Default to be False
+  - `showObjectChanges`: Whether to show object_changes. Default to be False
+  - `showRawInput`: Whether to show bcs-encoded transaction input data

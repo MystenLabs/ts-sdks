@@ -1,9 +1,9 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
-import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/walrus::storage_accounting';
 export const FutureAccounting = new MoveStruct({
@@ -36,9 +36,7 @@ export interface MaxEpochsAheadOptions {
 /** The maximum number of epochs for which we can use `self`. */
 export function maxEpochsAhead(options: MaxEpochsAheadOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::storage_accounting::FutureAccountingRingBuffer`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -61,10 +59,7 @@ export interface RingLookupOptions {
 /** Read-only lookup for an element in the `FutureAccountingRingBuffer` */
 export function ringLookup(options: RingLookupOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::storage_accounting::FutureAccountingRingBuffer`,
-		'u32',
-	] satisfies string[];
+	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
 	const parameterNames = ['self', 'epochsInFuture'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -84,9 +79,7 @@ export interface EpochOptions {
 /** Accessor for epoch, read-only. */
 export function epoch(options: EpochOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::storage_accounting::FutureAccounting`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['accounting'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -106,9 +99,7 @@ export interface UsedCapacityOptions {
 /** Accessor for used_capacity, read-only. */
 export function usedCapacity(options: UsedCapacityOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::storage_accounting::FutureAccounting`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['accounting'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -128,9 +119,7 @@ export interface RewardsOptions {
 /** Accessor for rewards, read-only. */
 export function rewards(options: RewardsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
-	const argumentsTypes = [
-		`${packageAddress}::storage_accounting::FutureAccounting`,
-	] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['accounting'];
 	return (tx: Transaction) =>
 		tx.moveCall({

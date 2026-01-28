@@ -1,9 +1,31 @@
 {
 	"$schema": "https://turbo.build/schema.json",
 	"tasks": {
-		"lint": {},
+		"lint": {
+			"inputs": [
+				"src/**",
+				"test/**",
+				"tests/**",
+				"examples/**",
+				"*.ts",
+				"*.tsx",
+				"*.js",
+				"*.mjs",
+				"*.json"
+			]
+		},
 		"test": {
 			"dependsOn": ["^build", "build"],
+			"inputs": [
+				"src/**",
+				"test/**",
+				"tests/**",
+				"__tests__/**",
+				"*.ts",
+				"*.tsx",
+				"vitest.config.*",
+				"tsconfig.json"
+			],
 			"env": [
 				"AWS_ACCESS_KEY_ID",
 				"AWS_SECRET_ACCESS_KEY",
@@ -19,8 +41,26 @@
 				"GOOGLE_APPLICATION_CREDENTIALS"
 			]
 		},
+		// Avoid running CPU intesive tests in parallel
+		"@mysten/walrus#test": {
+			"dependsOn": ["^build", "build", "@mysten/walrus-wasm#test"]
+		},
+		"@mysten/seal#test": {
+			"dependsOn": ["^build", "build", "@mysten/walrus#test"]
+		},
 		"test:e2e": {
 			"dependsOn": ["^build", "build"],
+			"inputs": [
+				"src/**",
+				"test/**",
+				"tests/**",
+				"__tests__/**",
+				"*.ts",
+				"*.tsx",
+				"vitest.config.*",
+				"tsconfig.json"
+			],
+			"cache": false,
 			"env": [
 				"AWS_ACCESS_KEY_ID",
 				"AWS_SECRET_ACCESS_KEY",
@@ -43,6 +83,7 @@
 		},
 		"build": {
 			"dependsOn": ["^build"],
+			"inputs": ["src/**", "*.ts", "*.mjs", "tsconfig.json", "tsdown.config.ts", "package.json"],
 			"outputs": [
 				"build/**",
 				"dist/**",

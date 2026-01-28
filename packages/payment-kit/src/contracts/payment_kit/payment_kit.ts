@@ -1,23 +1,28 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
-import { MoveStruct, MoveEnum, MoveTuple, normalizeMoveArguments } from '../utils/index.js';
-import type { RawTransactionArgument } from '../utils/index.js';
+/**************************************************************
+ * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
+ **************************************************************/
+import {
+	MoveStruct,
+	MoveEnum,
+	MoveTuple,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
-import * as object from './deps/sui/object.js';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 import * as config from './config.js';
 const $moduleName = '@mysten/payment-kit::payment_kit';
 export const Namespace = new MoveStruct({
 	name: `${$moduleName}::Namespace`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 	},
 });
 export const PaymentRegistry = new MoveStruct({
 	name: `${$moduleName}::PaymentRegistry`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		cap_id: bcs.Address,
 		config: vec_map.VecMap(bcs.string(), config.Value),
 		version: bcs.u16(),
@@ -26,7 +31,7 @@ export const PaymentRegistry = new MoveStruct({
 export const RegistryAdminCap = new MoveStruct({
 	name: `${$moduleName}::RegistryAdminCap`,
 	fields: {
-		id: object.UID,
+		id: bcs.Address,
 		registry_id: bcs.Address,
 	},
 });
@@ -86,10 +91,7 @@ export interface CreateRegistryOptions {
  */
 export function createRegistry(options: CreateRegistryOptions) {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
-	const argumentsTypes = [
-		`${packageAddress}::payment_kit::Namespace`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::ascii::String',
-	] satisfies string[];
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'name'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -124,12 +126,12 @@ export interface ProcessEphemeralPaymentOptions {
 export function processEphemeralPayment(options: ProcessEphemeralPaymentOptions) {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
 	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000001::ascii::String',
+		'0x1::string::String',
 		'u64',
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${options.typeArguments[0]}>`,
+		null,
 		'address',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = ['nonce', 'paymentAmount', 'coin', 'receiver'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -167,13 +169,13 @@ export interface ProcessRegistryPaymentOptions {
 export function processRegistryPayment(options: ProcessRegistryPaymentOptions) {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
 	const argumentsTypes = [
-		`${packageAddress}::payment_kit::PaymentRegistry`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::ascii::String',
+		null,
+		'0x1::string::String',
 		'u64',
-		`0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<${options.typeArguments[0]}>`,
-		'0x0000000000000000000000000000000000000000000000000000000000000001::option::Option<address>',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock',
-	] satisfies string[];
+		null,
+		'0x1::option::Option<address>',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = ['registry', 'nonce', 'paymentAmount', 'coin', 'receiver'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -201,10 +203,7 @@ export interface WithdrawFromRegistryOptions {
  */
 export function withdrawFromRegistry(options: WithdrawFromRegistryOptions) {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
-	const argumentsTypes = [
-		`${packageAddress}::payment_kit::PaymentRegistry`,
-		`${packageAddress}::payment_kit::RegistryAdminCap`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['registry', 'cap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -229,10 +228,7 @@ export interface DeletePaymentRecordOptions {
 /** Removes an expired Payment Record from the Registry. */
 export function deletePaymentRecord(options: DeletePaymentRecordOptions) {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
-	const argumentsTypes = [
-		`${packageAddress}::payment_kit::PaymentRegistry`,
-		`${packageAddress}::payment_kit::PaymentKey<${options.typeArguments[0]}>`,
-	] satisfies string[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['registry', 'paymentKey'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -262,11 +258,7 @@ export interface CreatePaymentKeyOptions {
 /** Creates a PaymentKey from payment parameters. */
 export function createPaymentKey(options: CreatePaymentKeyOptions) {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
-	const argumentsTypes = [
-		'0x0000000000000000000000000000000000000000000000000000000000000001::ascii::String',
-		'u64',
-		'address',
-	] satisfies string[];
+	const argumentsTypes = ['0x1::string::String', 'u64', 'address'] satisfies (string | null)[];
 	const parameterNames = ['nonce', 'paymentAmount', 'receiver'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -299,11 +291,7 @@ export interface SetConfigEpochExpirationDurationOptions {
  */
 export function setConfigEpochExpirationDuration(options: SetConfigEpochExpirationDurationOptions) {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
-	const argumentsTypes = [
-		`${packageAddress}::payment_kit::PaymentRegistry`,
-		`${packageAddress}::payment_kit::RegistryAdminCap`,
-		'u64',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['registry', 'cap', 'epochExpirationDuration'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -335,11 +323,7 @@ export interface SetConfigRegistryManagedFundsOptions {
  */
 export function setConfigRegistryManagedFunds(options: SetConfigRegistryManagedFundsOptions) {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
-	const argumentsTypes = [
-		`${packageAddress}::payment_kit::PaymentRegistry`,
-		`${packageAddress}::payment_kit::RegistryAdminCap`,
-		'bool',
-	] satisfies string[];
+	const argumentsTypes = [null, null, 'bool'] satisfies (string | null)[];
 	const parameterNames = ['registry', 'cap', 'registryManagedFunds'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -365,7 +349,7 @@ export interface ShareOptions {
  */
 export function share(options: ShareOptions) {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
-	const argumentsTypes = [`${packageAddress}::payment_kit::PaymentRegistry`] satisfies string[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['registry'];
 	return (tx: Transaction) =>
 		tx.moveCall({

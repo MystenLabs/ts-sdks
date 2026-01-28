@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { TransactionResult } from '@mysten/sui/transactions';
-import type { ClientWithCoreApi } from '@mysten/sui/experimental';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 
 export type PaymentKitPackageConfig = {
 	packageId: string;

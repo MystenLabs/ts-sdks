@@ -1,24 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClientWithExtensions, Experimental_CoreClient } from '@mysten/sui/experimental';
+import type { ClientWithExtensions, CoreClient } from '@mysten/sui/client';
 import type { DemType, KemType } from './encrypt.js';
 import type { SessionKey } from './session-key.js';
 
 export type KeyCacheKey = `${string}:${string}`;
 export type SealCompatibleClient = ClientWithExtensions<{
-	core: Experimental_CoreClient;
+	core: CoreClient;
 }>;
-
-/** Configuration options for initializing a SealClient*/
-export interface SealClientExtensionOptions {
-	/** Array of key server configs consisting of objectId, weight, optional API key name and API key */
-	serverConfigs: KeyServerConfig[];
-	/** Whether to verify the key servers' authenticity. */
-	verifyKeyServers?: boolean;
-	/** Timeout in milliseconds for network requests. */
-	timeout?: number;
-}
 
 export interface SealOptions<Name = 'seal'> {
 	/** Array of key server configs consisting of objectId, weight, optional API key name and API key */
@@ -41,8 +31,15 @@ export interface KeyServerConfig {
 	aggregatorUrl?: string;
 }
 
-export interface SealClientOptions extends SealClientExtensionOptions {
+/** Configuration options for initializing a SealClient*/
+export interface SealClientOptions {
 	suiClient: SealCompatibleClient;
+	/** Array of key server configs consisting of objectId, weight, optional API key name and API key */
+	serverConfigs: KeyServerConfig[];
+	/** Whether to verify the key servers' authenticity. */
+	verifyKeyServers?: boolean;
+	/** Timeout in milliseconds for network requests. */
+	timeout?: number;
 }
 
 export interface EncryptOptions {

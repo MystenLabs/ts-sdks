@@ -1,0 +1,358 @@
+---
+title: Building SDKs
+---
+
+This guide covers recommended patterns for building TypeScript SDKs that integrate with the Sui SDK.
+Following these patterns ensures your SDK integrates seamlessly with the ecosystem, works across
+different transports (JSON-RPC, GraphQL, gRPC), and composes well with other SDKs.
+
+**Key requirement:** All SDKs should depend on [`ClientWithCoreApi`](./clients/core), which is the
+transport-agnostic interface implemented by all Sui clients. This ensures your SDK works with any
+client the user chooses.
+
+## Package Setup
+
+### Use Mysten Packages as Peer Dependencies
+
+SDKs should declare all `@mysten/*` packages as **peer dependencies** rather than direct
+dependencies. This ensures users get a single shared instance of each package, avoiding version
+conflicts and duplicate code.
+
+```json title="package.json"
+{
+	"name": "@your-org/your-sdk",
+	"peerDependencies": {
+		"@mysten/sui": "^2.0.0",
+		"@mysten/bcs": "^2.0.0"
+	},
+	"devDependencies": {
+		"@mysten/sui": "^2.0.0",
+		"@mysten/bcs": "^2.0.0"
+	}
+}
+```
+
+This approach:
+
+- Prevents multiple versions of Mysten packages from being bundled
+- Ensures compatibility with user's chosen package versions
+- Reduces bundle size for end users
+- Avoids subtle bugs from mismatched package instances
+- Allows the SDK to work with any compatible client
+
+## Client Extensions
+
+The recommended way to build SDKs is using the **client extension pattern**. This allows your SDK to
+extend the Sui client with custom functionality. This makes it easier to use custom SDKs across the
+ecosystem without having to build custom bindings (like react context providers) for each individual
+SDK and client.
+
+### Extension Pattern
+
+Client extensions use the `$extend` method to add functionality to any Sui client. Create a factory
+function that returns a `name` and `register` function:
+
+```typescript
+import type { ClientWithCoreApi } from '@mysten/sui/client';
+
+export interface MySDKOptions<Name = 'mySDK'> {
+	name?: Name;
+	// Add SDK-specific configuration here
+	apiKey?: string;
+}
+
+export function mySDK<const Name = 'mySDK'>({
+	name = 'mySDK' as Name,
+	...options
+}: MySDKOptions<Name> = {}) {
+	return {
+		name,
+		register: (client: ClientWithCoreApi) => {
+			return new MySDKClient({ client, ...options });
+		},
+	};
+}
+
+export class MySDKClient {
+	#client: ClientWithCoreApi;
+	#apiKey?: string;
+
+	constructor({ client, apiKey }: { client: ClientWithCoreApi; apiKey?: string }) {
+		this.#client = client;
+		this.#apiKey = apiKey;
+	}
+
+	async getResource(id: string) {
+		const result = await this.#client.core.getObject({ objectId: id });
+		// Process and return result
+		return result;
+	}
+}
+```
+
+Users can then extend their client:
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { mySDK } from '@your-org/your-sdk';
+
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+}).$extend(mySDK());
+
+// Access your extension
+await client.mySDK.getResource('0x...');
+```
+
+### Real-World Examples
+
+Several official SDKs use this pattern:
+
+- **[@mysten/walrus](https://www.npmjs.com/package/@mysten/walrus)** - Decentralized storage
+- **[@mysten/seal](https://www.npmjs.com/package/@mysten/seal)** - Encryption and key management
+
+## SDK Organization
+
+Most Mysten SDKs do not strictly follow these patterns yet, but we recommend scoping methods on your
+client extension into the following categories for clarity and consistency:
+
+| Property | Purpose                                                   | Example                             |
+| -------- | --------------------------------------------------------- | ----------------------------------- |
+| Methods  | Top-level operations (execute actions or read/parse data) | `sdk.readBlob()`, `sdk.getConfig()` |
+| `tx`     | Methods that create transactions without executing        | `sdk.tx.registerBlob()`             |
+| `bcs`    | BCS type definitions for encoding/decoding                | `sdk.bcs.MyStruct`                  |
+| `call`   | Methods returning Move calls that can be used with tx.add | `sdk.call.myFunction()`             |
+| `view`   | Methods that use simulate API to read onchain state       | `sdk.view.getState()`               |
+
+```typescript
+import { Transaction } from '@mysten/sui/transactions';
+import * as myModule from './contracts/my-package/my-module';
+
+export class MySDKClient {
+	#client: ClientWithCoreApi;
+
+	constructor({ client }: { client: ClientWithCoreApi }) {
+		this.#client = client;
+	}
+
+	// Top-level methods - execute actions or read/parse data
+	async executeAction(options: ActionOptions) {
+		const transaction = this.tx.createAction(options);
+		// Execute and return result
+	}
+
+	async getResource(objectId: string) {
+		const { object } = await this.#client.core.getObject({
+			objectId,
+			include: { content: true },
+		});
+		return myModule.MyStruct.parse(object.content);
+	}
+
+	// Transaction builders
+	tx = {
+		createAction: (options: ActionOptions) => {
+			const transaction = new Transaction();
+			transaction.add(this.call.action(options));
+			return transaction;
+		},
+	};
+
+	// Move call helpers - use generated functions with typed options
+	call = {
+		action: (options: ActionOptions) => {
+			return myModule.action({
+				arguments: {
+					obj: options.objectId,
+					amount: options.amount,
+				},
+			});
+		},
+	};
+
+	// View methods - use simulate API to read onchain state
+	view = {
+		getBalance: async (managerId: string) => {
+			const tx = new Transaction();
+			tx.add(myModule.getBalance({ arguments: { manager: managerId } }));
+
+			const res = await this.#client.core.simulateTransaction({
+				transaction: tx,
+				include: { commandResults: true },
+			});
+
+			return bcs.U64.parse(res.commandResults![0].returnValues[0].bcs);
+		},
+	};
+}
+```
+
+## Transaction Building Patterns
+
+### Transaction Thunks
+
+Transaction thunks are functions that accept a `Transaction` and mutate it. This pattern enables
+composition across multiple SDKs in a single transaction.
+
+```typescript
+import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
+
+// Synchronous thunk for operations that don't need async work
+function createResource(options: { name: string }) {
+	return (tx: Transaction): TransactionObjectArgument => {
+		const [resource] = tx.moveCall({
+			target: `${PACKAGE_ID}::module::create`,
+			arguments: [tx.pure.string(options.name)],
+		});
+		return resource;
+	};
+}
+
+// Usage
+const tx = new Transaction();
+const resource = tx.add(createResource({ name: 'my-resource' }));
+tx.transferObjects([resource], recipient);
+```
+
+### Async Thunks
+
+For operations requiring async work (like fetching package IDs or configuration), return async
+thunks. These are used with `tx.add()` exactly like synchronous thunks - the async resolution
+happens automatically before signing:
+
+```typescript
+function createResourceAsync(options: { name: string }) {
+	return async (tx: Transaction): Promise<TransactionObjectArgument> => {
+		// Async work happens here, before the transaction is signed
+		const packageId = await getLatestPackageId();
+
+		const [resource] = tx.moveCall({
+			target: `${packageId}::module::create`,
+			arguments: [tx.pure.string(options.name)],
+		});
+		return resource;
+	};
+}
+
+// Usage is identical to synchronous thunks
+const tx = new Transaction();
+const resource = tx.add(createResourceAsync({ name: 'my-resource' }));
+tx.transferObjects([resource], recipient);
+
+// Async work resolves automatically when the transaction is built/signed
+await signer.signAndExecuteTransaction({ transaction: tx, client });
+```
+
+This pattern is critical for web wallet compatibility - async work that happens during transaction
+construction won't block the popup triggered by user interaction.
+
+## Transaction Execution
+
+### Accept a Signer Parameter
+
+For methods that execute transactions, accept a `Signer` parameter and always use the signer to
+execute the transaction. This enables:
+
+- Wallet integration through dApp Kit
+- Transaction sponsorship
+- Custom signing flows
+
+```typescript
+import type { Signer } from '@mysten/sui/cryptography';
+
+export class MySDKClient {
+	#client: ClientWithCoreApi;
+
+	async createAndExecute({ signer, ...options }: CreateOptions & { signer: Signer }) {
+		const transaction = this.tx.create(options);
+
+		// Use signAndExecuteTransaction for maximum flexibility
+		const result = await signer.signAndExecuteTransaction({
+			transaction,
+			client: this.#client,
+		});
+
+		return result;
+	}
+}
+```
+
+Using `signAndExecuteTransaction` allows wallets and sponsors to customize execution behavior.
+
+## Code Generation
+
+For SDKs that interact with Move contracts, use **[@mysten/codegen](/codegen)** to generate
+type-safe TypeScript bindings from your Move packages.
+
+Benefits include type safety, BCS parsing, IDE support, and MoveRegistry support for human-readable
+package names. See the [codegen documentation](/codegen) for setup instructions.
+
+### Using Generated Code
+
+The generated code provides both Move call functions and BCS struct definitions:
+
+```typescript
+import * as myContract from './contracts/my-package/my-module';
+
+// Generated Move call functions return thunks with typed options
+const tx = new Transaction();
+tx.add(
+	myContract.doSomething({
+		arguments: {
+			obj: '0x123...',
+			amount: 100n,
+		},
+	}),
+);
+
+// Generated BCS types parse on-chain data
+const { object } = await client.core.getObject({
+	objectId: '0x123...',
+	include: { content: true },
+});
+const parsed = myContract.MyStruct.parse(object.content);
+```
+
+See the [codegen documentation](/codegen) for complete setup and configuration options.
+
+## Reading Object Contents
+
+SDKs often need to fetch objects and parse their BCS-encoded content. Use `getObject` with
+`include: { content: true }` and generated BCS types:
+
+```typescript
+import { MyStruct } from './contracts/my-package/my-module';
+
+async function getResource(objectId: string) {
+	const { object } = await this.#client.core.getObject({
+		objectId,
+		include: { content: true },
+	});
+
+	if (!object) {
+		throw new Error(`Object ${objectId} not found`);
+	}
+
+	// Parse BCS content using generated type
+	return MyStruct.parse(object.content);
+}
+```
+
+For batching multiple object fetches, use `getObjects`:
+
+```typescript
+async function getResources(objectIds: string[]) {
+	const { objects } = await this.#client.core.getObjects({
+		objectIds,
+		include: { content: true },
+	});
+
+	return objects.map((obj) => {
+		if (obj instanceof Error) {
+			throw obj;
+		}
+		return MyStruct.parse(obj.content);
+	});
+}
+```

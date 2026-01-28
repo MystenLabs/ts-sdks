@@ -15,16 +15,15 @@ interface RenderTypeSignatureOptions {
 	summary: ModuleSummary;
 	typeParameters?: TypeParameter[];
 	onDependency?: (address: string, module: string, type: string) => string | undefined;
-	onBcsType?: () => void;
+	bcsImport?: () => string;
 	onTypeParameter?: (typeParameter: number | string) => void;
 	resolveAddress: (address: string) => string;
 }
 
 export function renderTypeSignature(type: Type, options: RenderTypeSignatureOptions): string {
-	if (options.onBcsType) {
-		if (usesBcs(type, options)) {
-			options.onBcsType();
-		}
+	let bcs = 'bcs';
+	if (options.bcsImport && usesBcs(type, options)) {
+		bcs = options.bcsImport();
 	}
 
 	switch (type) {
@@ -35,7 +34,7 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 				case 'typeTag':
 					return `address`;
 				case 'bcs':
-					return 'bcs.Address';
+					return `${bcs}.Address`;
 				default:
 					throw new Error(`Unknown format: ${options.format}`);
 			}
@@ -46,7 +45,7 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 				case 'typeTag':
 					return `bool`;
 				case 'bcs':
-					return 'bcs.bool()';
+					return `${bcs}.bool()`;
 				default:
 					throw new Error(`Unknown format: ${options.format}`);
 			}
@@ -59,7 +58,7 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 				case 'typeTag':
 					return type.toLowerCase();
 				case 'bcs':
-					return `bcs.${type.toLowerCase()}()`;
+					return `${bcs}.${type.toLowerCase()}()`;
 				default:
 					throw new Error(`Unknown format: ${options.format}`);
 			}
@@ -72,7 +71,7 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 				case 'typeTag':
 					return type.toLowerCase();
 				case 'bcs':
-					return `bcs.${type.toLowerCase()}()`;
+					return `${bcs}.${type.toLowerCase()}()`;
 				default:
 					throw new Error(`Unknown format: ${options.format}`);
 			}
@@ -97,7 +96,7 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 			case 'typeTag':
 				return `vector<${renderTypeSignature(type.vector, options)}>`;
 			case 'bcs':
-				return `bcs.vector(${renderTypeSignature(type.vector, options)})`;
+				return `${bcs}.vector(${renderTypeSignature(type.vector, options)})`;
 			default:
 				throw new Error(`Unknown format: ${options.format}`);
 		}
@@ -203,7 +202,7 @@ function isPureDataType(type: Datatype, options: RenderTypeSignatureOptions) {
 	}
 
 	if (address === SUI_FRAMEWORK_ADDRESS) {
-		if (type.module.name === 'object' && type.name === 'ID') {
+		if (type.module.name === 'object' && (type.name === 'ID' || type.name === 'UID')) {
 			return true;
 		}
 	}
@@ -215,15 +214,33 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 	const address = options.resolveAddress(type.module.address);
 
 	if (options.format === 'typeTag') {
-		const typeArgs = type.type_arguments.map((type) => renderTypeSignature(type.argument, options));
-
-		if (typeArgs.length === 0) {
-			// eslint-disable-next-line no-template-curly-in-string
-			return `${address === options.resolveAddress(options.summary.id.address) ? '${packageAddress}' : address}::${type.module.name}::${type.name}`;
+		if (address === SUI_FRAMEWORK_ADDRESS) {
+			if (type.module.name === 'clock' && type.name === 'Clock') return '0x2::clock::Clock';
+			if (type.module.name === 'random' && type.name === 'Random') return '0x2::random::Random';
+			if (type.module.name === 'deny_list' && type.name === 'DenyList')
+				return '0x2::deny_list::DenyList';
+			if (type.module.name === 'object' && (type.name === 'ID' || type.name === 'UID'))
+				return '0x2::object::ID';
+		}
+		if (address === SUI_SYSTEM_ADDRESS) {
+			if (type.module.name === 'sui_system' && type.name === 'SuiSystemState')
+				return '0x3::sui_system::SuiSystemState';
 		}
 
-		// eslint-disable-next-line no-template-curly-in-string
-		return `${address === options.resolveAddress(options.summary.id.address) ? '${packageAddress}' : address}::${type.module.name}::${type.name}<${typeArgs.join(', ')}>`;
+		if (address === MOVE_STDLIB_ADDRESS) {
+			if (
+				(type.module.name === 'ascii' || type.module.name === 'string') &&
+				type.name === 'String'
+			) {
+				return '0x1::string::String';
+			}
+			if (type.module.name === 'option' && type.name === 'Option') {
+				const innerType = renderTypeSignature(type.type_arguments[0].argument, options);
+				return `0x1::option::Option<${innerType}>`;
+			}
+		}
+
+		return 'null';
 	}
 
 	if (address === MOVE_STDLIB_ADDRESS) {
@@ -232,7 +249,7 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 				case 'typescriptArg':
 					return 'string';
 				case 'bcs':
-					return 'bcs.string()';
+					return `${options.bcsImport?.() ?? 'bcs'}.string()`;
 				default:
 					throw new Error(`Unknown format: ${options.format}`);
 			}
@@ -246,7 +263,7 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 					}
 					break;
 				case 'bcs':
-					return `bcs.option(${renderTypeSignature(type.type_arguments[0].argument, options)})`;
+					return `${options.bcsImport?.() ?? 'bcs'}.option(${renderTypeSignature(type.type_arguments[0].argument, options)})`;
 				default:
 					throw new Error(`Unknown format: ${options.format}`);
 			}
@@ -254,12 +271,12 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 	}
 
 	if (address === SUI_FRAMEWORK_ADDRESS) {
-		if (type.module.name === 'object' && type.name === 'ID') {
+		if (type.module.name === 'object' && (type.name === 'ID' || type.name === 'UID')) {
 			switch (options.format) {
 				case 'typescriptArg':
 					return 'string';
 				case 'bcs':
-					return 'bcs.Address';
+					return `${options.bcsImport?.() ?? 'bcs'}.Address`;
 				default:
 					throw new Error(`Unknown format: ${options.format}`);
 			}

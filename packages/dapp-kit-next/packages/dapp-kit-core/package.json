@@ -2,10 +2,9 @@
 	"name": "@mysten/dapp-kit-core",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "Framework-agnostic toolkit for building decentralized applications on Sui.",
-	"homepage": "https://sdk.mystenlabs.com/typescript",
-	"version": "0.0.1",
+	"homepage": "https://sdk.mystenlabs.com/sui",
+	"version": "0.0.0",
 	"license": "Apache-2.0",
-	"private": true,
 	"files": [
 		"CHANGELOG.md",
 		"LICENSE",
@@ -15,17 +14,16 @@
 		"web"
 	],
 	"type": "module",
-	"main": "./dist/index.cjs",
-	"module": "./dist/index.js",
+	"module": "./dist/index.mjs",
 	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
-			"import": "./dist/index.mjs",
-			"require": "./dist/index.cjs"
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
 		},
 		"./web": {
-			"import": "./dist/web/index.mjs",
-			"require": "./dist/web/index.cjs"
+			"types": "./dist/web/index.d.mts",
+			"import": "./dist/web/index.mjs"
 		}
 	},
 	"scripts": {
@@ -35,10 +33,10 @@
 		"dev": "tsdown --watch",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
-		"eslint:check": "eslint --max-warnings=0 .",
-		"eslint:fix": "pnpm run eslint:check --fix",
-		"lint": "pnpm run eslint:check && pnpm run prettier:check",
-		"lint:fix": "pnpm run eslint:fix && pnpm run prettier:fix",
+		"oxlint:check": "oxlint  .",
+		"oxlint:fix": "oxlint --fix",
+		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
 		"test": "pnpm test:typecheck && pnpm vitest run",
 		"test:typecheck": "tsc -b ./test",
 		"storybook": "storybook dev -p 6006",
@@ -55,28 +53,31 @@
 		"access": "public"
 	},
 	"devDependencies": {
+		"@mysten/sui": "workspace:^",
 		"@storybook/addon-essentials": "^8.6.14",
 		"@storybook/blocks": "^8.6.14",
-		"@storybook/web-components": "^8.6.14",
-		"@storybook/web-components-vite": "^8.6.14",
-		"storybook": "^8.6.14",
-		"tsdown": "0.17.0-beta.4",
+		"@storybook/web-components": "^10.1.11",
+		"@storybook/web-components-vite": "^10.1.11",
+		"storybook": "^10.1.11",
+		"tsdown": "0.20.0-beta.1",
 		"typescript": "^5.9.3",
-		"vitest": "^4.0.15"
+		"vitest": "^4.0.17"
 	},
 	"dependencies": {
 		"@floating-ui/dom": "^1.7.4",
 		"@lit-labs/scoped-registry-mixin": "^1.0.4",
 		"@lit/task": "^1.0.3",
-		"@mysten/slush-wallet": "workspace:*",
-		"@mysten/sui": "workspace:*",
-		"@mysten/utils": "workspace:*",
-		"@mysten/wallet-standard": "workspace:*",
+		"@mysten/slush-wallet": "workspace:^",
+		"@mysten/utils": "workspace:^",
+		"@mysten/wallet-standard": "workspace:^",
 		"@nanostores/lit": "^0.2.3",
 		"@wallet-standard/ui": "^1.0.1",
 		"@wallet-standard/ui-registry": "^1.0.1",
 		"@webcomponents/scoped-custom-element-registry": "^0.0.10",
-		"lit": "^3.3.1",
+		"lit": "^3.3.2",
 		"nanostores": "^1.1.0"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
 	}
 }

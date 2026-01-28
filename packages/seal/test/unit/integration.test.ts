@@ -6,8 +6,8 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { SealClient } from '../../src';
-import { EncryptedObject } from '../../src/bcs';
+import { SealClient } from '../../src/index.js';
+import { EncryptedObject } from '../../src/bcs.js';
 import {
 	ExpiredSessionKeyError,
 	GeneralError,
@@ -17,15 +17,15 @@ import {
 	InvalidThresholdError,
 	NoAccessError,
 	toMajorityError,
-} from '../../src/error';
-import { KeyType } from '../../src/key-server';
-import { RequestFormat, SessionKey } from '../../src/session-key';
-import { decrypt } from '../../src/decrypt';
-import { KeyCacheKey, SealCompatibleClient } from '../../src/types';
-import { G1Element } from '../../src/bls12381';
-import { createFullId } from '../../src/utils';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { seal } from '../../src/client';
+} from '../../src/error.js';
+import { KeyType } from '../../src/key-server.js';
+import { RequestFormat, SessionKey } from '../../src/session-key.js';
+import { decrypt } from '../../src/decrypt.js';
+import { KeyCacheKey, SealCompatibleClient } from '../../src/types.js';
+import { G1Element } from '../../src/bls12381.js';
+import { createFullId } from '../../src/utils.js';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { seal } from '../../src/client.js';
 
 /**
  * Helper function
@@ -127,7 +127,10 @@ describe('Integration test', () => {
 			'suiprivkey1qqgzvw5zc2zmga0uyp4rzcgk42pzzw6387zqhahr82pp95yz0scscffh2d8',
 		);
 		suiAddress = keypair.getPublicKey().toSuiAddress();
-		suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
+		suiClient = new SuiGrpcClient({
+			network: 'testnet',
+			baseUrl: 'https://fullnode.testnet.sui.io:443',
+		});
 		TESTNET_PACKAGE_ID = '0x8afa5d31dbaa0a8fb07082692940ca3d56b5e856c5126cb5a3693f0a4de63b82';
 		// Object ids pointing to ci key servers' urls
 		serverObjectId = '0x3cf2a38f061ede3239c1629cb80a9be0e0676b1c15d34c94d104d4ba9d99076f';
