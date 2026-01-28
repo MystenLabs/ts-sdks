@@ -134,6 +134,7 @@ describe('TransactionAnalyzer - Coins Rule', () => {
 			      0,
 			    ],
 			    "digest": "11111111111111111111111111111111",
+			    "json": undefined,
 			    "objectBcs": undefined,
 			    "objectId": "0x0000000000000000000000000000000000000000000000000000000000a5c000",
 			    "owner": {
@@ -191,6 +192,7 @@ describe('TransactionAnalyzer - Coins Rule', () => {
 			      0,
 			    ],
 			    "digest": "11111111111111111111111111111111",
+			    "json": undefined,
 			    "objectBcs": undefined,
 			    "objectId": "0x0000000000000000000000000000000000000000000000000000000000a5c001",
 			    "owner": {
@@ -248,6 +250,7 @@ describe('TransactionAnalyzer - Coins Rule', () => {
 			      0,
 			    ],
 			    "digest": "11111111111111111111111111111111",
+			    "json": undefined,
 			    "objectBcs": undefined,
 			    "objectId": "0x0000000000000000000000000000000000000000000000000000000000abc123",
 			    "owner": {
@@ -305,6 +308,7 @@ describe('TransactionAnalyzer - Coins Rule', () => {
 			      0,
 			    ],
 			    "digest": "11111111111111111111111111111111",
+			    "json": undefined,
 			    "objectBcs": undefined,
 			    "objectId": "0x0000000000000000000000000000000000000000000000000000000000def456",
 			    "owner": {
@@ -367,6 +371,7 @@ describe('TransactionAnalyzer - Coins Rule', () => {
 			      0,
 			    ],
 			    "digest": "11111111111111111111111111111111",
+			    "json": undefined,
 			    "objectBcs": undefined,
 			    "objectId": "0x0000000000000000000000000000000000000000000000000000000000a5c000",
 			    "owner": {

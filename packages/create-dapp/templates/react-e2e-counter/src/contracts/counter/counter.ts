@@ -17,12 +17,11 @@ import {
 } from "../utils/index.js";
 import { bcs } from "@mysten/sui/bcs";
 import { type Transaction } from "@mysten/sui/transactions";
-import * as object from "./deps/sui/object.js";
 const $moduleName = "@local-pkg/counter::counter";
 export const Counter = new MoveStruct({
   name: `${$moduleName}::Counter`,
   fields: {
-    id: object.UID,
+    id: bcs.Address,
     owner: bcs.Address,
     value: bcs.u64(),
   },
@@ -51,9 +50,7 @@ export interface IncrementOptions {
 /** Increment a counter by 1. */
 export function increment(options: IncrementOptions) {
   const packageAddress = options.package ?? "@local-pkg/counter";
-  const argumentsTypes = [
-    `${packageAddress}::counter::Counter`,
-  ] satisfies string[];
+  const argumentsTypes = [null] satisfies (string | null)[];
   const parameterNames = ["counter"];
   return (tx: Transaction) =>
     tx.moveCall({
@@ -83,10 +80,7 @@ export interface SetValueOptions {
 /** Set value (only runnable by the Counter owner) */
 export function setValue(options: SetValueOptions) {
   const packageAddress = options.package ?? "@local-pkg/counter";
-  const argumentsTypes = [
-    `${packageAddress}::counter::Counter`,
-    "u64",
-  ] satisfies string[];
+  const argumentsTypes = [null, "u64"] satisfies (string | null)[];
   const parameterNames = ["counter", "value"];
   return (tx: Transaction) =>
     tx.moveCall({

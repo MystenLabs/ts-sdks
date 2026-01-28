@@ -159,6 +159,7 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 			        0,
 			      ],
 			      "digest": "11111111111111111111111111111111",
+			      "json": undefined,
 			      "objectBcs": undefined,
 			      "objectId": "0x0000000000000000000000000000000000000000000000000000000000a5c000",
 			      "owner": {
@@ -211,6 +212,7 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 			        239,
 			      ],
 			      "digest": "11111111111111111111111111111111",
+			      "json": undefined,
 			      "objectBcs": undefined,
 			      "objectId": "0x000000000000000000000000000000000000000000000000000000000000beef",
 			      "owner": {
@@ -320,6 +322,7 @@ describe('TransactionAnalyzer - Inputs Rule', () => {
 			        103,
 			      ],
 			      "digest": "E7YX7zmxdAVVzrGkcoss2ziUHKMa7qBChPbqg5nGQyYo",
+			      "json": undefined,
 			      "objectBcs": undefined,
 			      "objectId": "0x000000000000000000000000000000000000000000000000000000000000dead",
 			      "owner": {

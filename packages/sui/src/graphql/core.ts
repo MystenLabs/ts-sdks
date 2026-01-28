@@ -100,6 +100,7 @@ export class GraphQLCoreClient extends CoreClient {
 						includeContent: options.include?.content ?? false,
 						includePreviousTransaction: options.include?.previousTransaction ?? false,
 						includeObjectBcs: options.include?.objectBcs ?? false,
+						includeJson: options.include?.json ?? false,
 					},
 				},
 				(result) => result.multiGetObjects,
@@ -133,6 +134,12 @@ export class GraphQLCoreClient extends CoreClient {
 							type = '';
 						}
 
+						const jsonContent = options.include?.json
+							? obj.asMoveObject?.contents?.json
+								? (obj.asMoveObject.contents.json as Record<string, unknown>)
+								: null
+							: undefined;
+
 						return {
 							objectId: obj.address,
 							version: obj.version?.toString()!,
@@ -143,6 +150,7 @@ export class GraphQLCoreClient extends CoreClient {
 							previousTransaction: (obj.previousTransaction?.digest ??
 								undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
 							objectBcs: objectBcs as SuiClientTypes.Object<Include>['objectBcs'],
+							json: jsonContent as SuiClientTypes.Object<Include>['json'],
 						};
 					}),
 			);
@@ -168,6 +176,7 @@ export class GraphQLCoreClient extends CoreClient {
 					includeContent: options.include?.content ?? false,
 					includePreviousTransaction: options.include?.previousTransaction ?? false,
 					includeObjectBcs: options.include?.objectBcs ?? false,
+					includeJson: options.include?.json ?? false,
 				},
 			},
 			(result) => result.address?.objects,
@@ -189,6 +198,11 @@ export class GraphQLCoreClient extends CoreClient {
 					objectBcs: (obj.objectBcs
 						? fromBase64(obj.objectBcs)
 						: undefined) as SuiClientTypes.Object<Include>['objectBcs'],
+					json: (options.include?.json
+						? obj.contents?.json
+							? (obj.contents.json as Record<string, unknown>)
+							: null
+						: undefined) as SuiClientTypes.Object<Include>['json'],
 				}),
 			),
 			hasNextPage: objects.pageInfo.hasNextPage,

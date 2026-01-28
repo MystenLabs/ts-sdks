@@ -381,6 +381,40 @@ describe('Core API - Objects', () => {
 			expect(object.previousTransaction).toBeDefined();
 			expect(typeof object.previousTransaction).toBe('string');
 		});
+
+		testWithAllClients('should include json when requested', async (client) => {
+			const { object } = await client.core.getObject({
+				objectId: testObjectId,
+				include: { json: true },
+			});
+
+			expect(object.objectId).toBe(normalizeSuiAddress(testObjectId));
+
+			// json should be available and contain the object fields
+			expect(object.json).toBeDefined();
+			expect(object.json).not.toBeNull();
+			expect(typeof object.json).toBe('object');
+
+			// Verify the json contains the expected value field
+			const json = object.json as Record<string, unknown>;
+			expect(json).toHaveProperty('value');
+
+			// content should be undefined
+			expect(object.content).toBeUndefined();
+		});
+
+		testWithAllClients('should return null json for package objects', async (client) => {
+			const { object } = await client.core.getObject({
+				objectId: testPackageId,
+				include: { json: true },
+			});
+
+			expect(object.objectId).toBe(normalizeSuiAddress(testPackageId));
+			expect(object.type).toBe('package');
+
+			// json should be null for package objects (no Move struct content)
+			expect(object.json).toBeNull();
+		});
 	});
 
 	describe('getObjects - Include Options', () => {
@@ -450,6 +484,28 @@ describe('Core API - Objects', () => {
 				expect(object.previousTransaction).toBeDefined();
 			}
 		});
+
+		testWithAllClients('should include json when requested', async (client) => {
+			const { objects } = await client.core.getObjects({
+				objectIds: [testObjectId],
+				include: { json: true },
+			});
+
+			expect(objects.length).toBe(1);
+			const object = objects[0];
+			expect(object).not.toBeInstanceOf(Error);
+
+			if (!(object instanceof Error)) {
+				// json should be available
+				expect(object.json).toBeDefined();
+				expect(object.json).not.toBeNull();
+				expect(typeof object.json).toBe('object');
+
+				// Verify the json contains the expected value field
+				const json = object.json as Record<string, unknown>;
+				expect(json).toHaveProperty('value');
+			}
+		});
 	});
 
 	describe('listOwnedObjects - Include Options', () => {
@@ -508,6 +564,22 @@ describe('Core API - Objects', () => {
 				const content = await obj.content;
 				expect(content).toBeInstanceOf(Uint8Array);
 				expect(obj.previousTransaction).toBeDefined();
+			}
+		});
+
+		testWithAllClients('should include json when requested', async (client) => {
+			const result = await client.core.listOwnedObjects({
+				owner: testAddress,
+				limit: 2,
+				include: { json: true },
+			});
+
+			expect(result.objects.length).toBeGreaterThan(0);
+			for (const obj of result.objects) {
+				// json should be available for owned objects
+				expect(obj.json).toBeDefined();
+				expect(obj.json).not.toBeNull();
+				expect(typeof obj.json).toBe('object');
 			}
 		});
 	});

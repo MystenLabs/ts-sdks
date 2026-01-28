@@ -165,11 +165,13 @@ export class MoveStruct<
 	T extends Record<string, BcsType<any>>,
 	const Name extends string = string,
 > extends BcsStruct<T, Name> {
-	async get<Include extends Omit<SuiClientTypes.ObjectInclude, 'content'> = {}>({
+	async get<Include extends Omit<SuiClientTypes.ObjectInclude, 'content' | 'json'> = {}>({
 		objectId,
 		...options
 	}: GetOptions<Include>): Promise<
-		SuiClientTypes.Object<Include & { content: true }> & { json: BcsStruct<T>['$inferType'] }
+		SuiClientTypes.Object<Include & { content: true; json: true }> & {
+			json: BcsStruct<T>['$inferType'];
+		}
 	> {
 		const [res] = await this.getMany<Include>({
 			...options,
@@ -179,11 +181,15 @@ export class MoveStruct<
 		return res;
 	}
 
-	async getMany<Include extends Omit<SuiClientTypes.ObjectInclude, 'content'> = {}>({
+	async getMany<Include extends Omit<SuiClientTypes.ObjectInclude, 'content' | 'json'> = {}>({
 		client,
 		...options
 	}: GetManyOptions<Include>): Promise<
-		Array<SuiClientTypes.Object<Include & { content: true }> & { json: BcsStruct<T>['$inferType'] }>
+		Array<
+			SuiClientTypes.Object<Include & { content: true; json: true }> & {
+				json: BcsStruct<T>['$inferType'];
+			}
+		>
 	> {
 		const response = (await client.core.getObjects({
 			...options,
