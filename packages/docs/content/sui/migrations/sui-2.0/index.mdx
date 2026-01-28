@@ -6,7 +6,8 @@ This guide covers the breaking changes across the latest release of all the `@my
 
 The primary goal of this release is to support the new GRPC and GraphQL Aps across all the mysten
 SDKs. These releases also include removals of deprecated APIs, some renaming for better consistency,
-and significant internal refactoring to improve maintainability.
+and significant internal refactoring to improve maintainability. Mysten packages are also becoming
+ESM only in this release
 
 ## Quick Reference
 
@@ -24,6 +25,35 @@ and significant internal refactoring to improve maintainability.
 | [Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration) | Migrate from deprecated JSON-RPC to gRPC and GraphQL                                     |
 
 ## Common Migration Patterns
+
+### ESM Migration
+
+All `@mysten/*` packages are now ESM only. If you are using `moduleResolution` `"Node"`,
+`"Classic"`, or `"Node10"`, you will need to update your `tsconfig.json` to use `"NodeNext"`,
+`"Node16"`, or `"Bundler"`:
+
+```json
+{
+	"compilerOptions": {
+		"moduleResolution": "NodeNext",
+		"module": "NodeNext"
+	}
+}
+```
+
+This enables proper resolution of the SDK's subpath exports (e.g., `@mysten/sui/client`,
+`@mysten/sui/transactions`).
+
+If you maintain a library that depends on any of the `@mysten/*` packages, you may also need to
+update your library to be ESM only to ensure it works correctly everywhere.
+
+Applications using bundlers and recent Node.js versions (>=22) may still work when using `require`
+to load ESM packages, but we recommend migrating to ESM.
+
+**Why ESM only?** Many packages in the ecosystem (specifically critical cryptography dependencies)
+are now published as ESM only. Supporting CommonJS has prevented us from using the latest versions
+of these dependencies, making our SDKs harder to maintain and risking missing critical security
+updates.
 
 ### Client Migration
 
