@@ -1,5 +1,11 @@
 # @mysten/seal
 
+## 0.10.0
+
+### Minor Changes
+
+- daeecd0: Handle key server v2 and aggregator for a committee of key servers
+
 ## 0.9.6
 
 ### Patch Changes

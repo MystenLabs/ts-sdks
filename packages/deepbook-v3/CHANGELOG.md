@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 0.28.2
+
+### Patch Changes
+
+- 24b41ea: Update rate limit in SDK
+
 ## 0.28.1
 
 ### Patch Changes
