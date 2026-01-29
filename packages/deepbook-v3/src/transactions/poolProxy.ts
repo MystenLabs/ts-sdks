@@ -435,4 +435,26 @@ export class PoolProxyContract {
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};
+
+	/**
+	 * @description Withdraw settled amounts permissionlessly for a margin manager by ID
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The object ID of the MarginManager
+	 * @returns A function that takes a Transaction object
+	 */
+	withdrawMarginSettledAmounts =
+		(poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::withdraw_settled_amounts_permissionless`,
+				arguments: [
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					tx.object(marginManagerId),
+					tx.object(pool.address),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 }
