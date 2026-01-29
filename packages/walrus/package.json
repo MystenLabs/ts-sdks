@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/walrus",
-	"version": "0.9.0",
+	"version": "1.0.0",
 	"private": false,
 	"description": "Walrus SDK",
 	"license": "Apache-2.0",

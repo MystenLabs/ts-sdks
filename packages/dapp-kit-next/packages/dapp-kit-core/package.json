@@ -3,7 +3,7 @@
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "Framework-agnostic toolkit for building decentralized applications on Sui.",
 	"homepage": "https://sdk.mystenlabs.com/sui",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"license": "Apache-2.0",
 	"files": [
 		"CHANGELOG.md",

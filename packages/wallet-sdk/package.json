@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/wallet-sdk",
-	"version": "0.0.8",
+	"version": "0.1.0",
 	"private": false,
 	"description": "Utilities for building Sui wallets",
 	"license": "Apache-2.0",

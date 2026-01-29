@@ -1,5 +1,12 @@
 # @mysten/wallet-standard
 
+## 0.20.0
+
+### Minor Changes
+
+- e00788c: Update to @mysten/sui@2.0
+- e00788c: Remove reportTransactionEffects feature
+
 ## 0.19.9
 
 ### Patch Changes
@@ -694,8 +701,8 @@
 
 - a92b03de42: The Typescript SDK has been renamed to `@mysten/sui` and includes many new features
   and breaking changes. See the
-  [full migration guide](https://sdk.mystenlabs.com/sui/migrations/sui-1.0) for details on
-  how to upgrade.
+  [full migration guide](https://sdk.mystenlabs.com/sui/migrations/sui-1.0) for details on how to
+  upgrade.
 
 ### Patch Changes
 

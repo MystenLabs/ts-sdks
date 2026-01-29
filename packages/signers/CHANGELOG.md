@@ -1,5 +1,43 @@
 # @mysten/signers
 
+## 1.0.0
+
+### Major Changes
+
+- e00788c: Remove manual BCS serialization from ledger signer
+
+  **Breaking Changes:**
+  - **Removed `SuiMoveObject` export**: The custom BCS schema for Move objects has been removed. The
+    ledger signer now uses server-provided BCS bytes directly.
+  - **Client type change**: `LedgerSigner` and `getInputObjects` now accepts `ClientWithCoreApi`
+    instead of `SuiJsonRpcClient` (this is still compatible with `SuiJsonRpcClient`)
+
+### Minor Changes
+
+- e00788c: Remove deprecated `signData()` method from `AwsKmsSigner`, `GcpKmsSigner`, and
+  `MultiSigSigner`. Use `sign()` method instead.
+- e00788c: Update to use SuiJsonRpcClient instead of SuiClient
+
+  Updated all type signatures, internal usages, examples, and documentation to use
+  `SuiJsonRpcClient` from `@mysten/sui/jsonRpc` instead of the deprecated `SuiClient` from
+  `@mysten/sui/client`.
+
+### Patch Changes
+
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+  - @mysten/sui@2.0.0
+
 ## 0.6.2
 
 ### Patch Changes

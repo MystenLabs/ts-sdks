@@ -1,5 +1,27 @@
 # @mysten/mvr-static
 
+## 0.3.0
+
+### Minor Changes
+
+- e00788c: Update to @mysten/sui@2.0
+
+### Patch Changes
+
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+  - @mysten/sui@2.0.0
+
 ## 0.2.12
 
 ### Patch Changes

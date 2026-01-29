@@ -1,5 +1,18 @@
 # Change Log
 
+## 2.0.0
+
+### Major Changes
+
+- e00788c: Remove deprecated exports: `toB58`, `fromB58`, `toB64`, `fromB64`, `toHEX`, `fromHEX`.
+  Use `toBase58`, `fromBase58`, `toBase64`, `fromBase64`, `toHex`, `fromHex` instead.
+
+### Minor Changes
+
+- e00788c: Add automatic sorting of map entries by serialized key bytes in `bcs.map()` to match
+  Rust's BTreeMap BCS serialization. Also exports `compareBcsBytes` helper for lexicographic byte
+  comparison.
+
 ## 1.9.2
 
 ### Patch Changes
@@ -168,8 +181,8 @@
 
 - a92b03de42: The Typescript SDK has been renamed to `@mysten/sui` and includes many new features
   and breaking changes. See the
-  [full migration guide](https://sdk.mystenlabs.com/sui/migrations/sui-1.0) for details on
-  how to upgrade.
+  [full migration guide](https://sdk.mystenlabs.com/sui/migrations/sui-1.0) for details on how to
+  upgrade.
 
 ## 0.11.1
 

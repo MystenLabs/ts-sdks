@@ -1,5 +1,63 @@
 # @mysten/suins
 
+## 1.0.0
+
+### Major Changes
+
+- e00788c: Update SuinsClient to use ClientWithCoreApi for transport-agnostic client support
+  (JSON-RPC, GraphQL, gRPC).
+
+  **Breaking changes:**
+  - `SuinsClient` now requires a client implementing `ClientWithCoreApi` instead of `SuiClient`
+  - Package ID extraction now correctly uses `upgrade_cap.package` from state objects instead of
+    object type
+
+  **Migration:**
+
+  ```diff
+  - import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+  + import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+    import { SuinsClient } from '@mysten/suins';
+
+  - const suiClient = new SuiClient({ url: getFullnodeUrl('mainnet') });
+  + const suiClient = new SuiJsonRpcClient({
+  +   url: getJsonRpcFullnodeUrl('mainnet'),
+  +   network: 'mainnet',
+  + });
+
+    const suinsClient = new SuinsClient({
+      client: suiClient,
+      network: 'mainnet',
+    });
+  ```
+
+  This change allows SuinsClient to work with any Sui client implementation (JSON-RPC, GraphQL, or
+  gRPC).
+
+### Minor Changes
+
+- e00788c: Update to use SuiJsonRpcClient instead of SuiClient
+
+  Updated all type signatures, internal usages, examples, and documentation to use
+  `SuiJsonRpcClient` from `@mysten/sui/jsonRpc` instead of the deprecated `SuiClient` from
+  `@mysten/sui/client`.
+
+### Patch Changes
+
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+  - @mysten/sui@2.0.0
+
 ## 0.9.13
 
 ### Patch Changes

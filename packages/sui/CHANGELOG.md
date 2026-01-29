@@ -1,5 +1,175 @@
 # @mysten/sui.js
 
+## 2.0.0
+
+### Major Changes
+
+- e00788c: Align BCS Object and Effects schemas exactly with Rust implementation
+
+  **Breaking Changes:**
+  - **ExecutionStatus**: Renamed variant `Failed` → `Failure` to match Rust implementation
+  - **UnchangedSharedKind**: Renamed to `UnchangedConsensusKind` and removed obsolete variants
+    (`MutateDeleted`, `ReadDeleted`)
+  - **ExecutionCancelledDueToSharedObjectCongestion**: Fixed field name from `congestedObjects` to
+    `congested_objects` (snake_case)
+  - Renamed BCS Owner enum variant: `ConsensusV2` → `ConsensusAddressOwner`
+  - Renamed Data enum variant: `data.MoveObject` → `data.Move`
+  - Renamed exported schema: `ObjectBcs` → `bcs.Object`
+  - Renamed TransactionEffectsV2 field: `unchangedSharedObjects` → `unchangedConsensusObjects`
+
+  **New Error Variants Added:**
+
+  ExecutionFailureStatus:
+  - `MoveVectorElemTooBig`
+  - `MoveRawValueTooBig`
+  - `InvalidLinkage`
+  - `InsufficientBalanceForWithdraw`
+  - `NonExclusiveWriteInputObjectModified`
+
+  CommandArgumentError:
+  - `InvalidArgumentArity`
+  - `InvalidTransferObject`
+  - `InvalidMakeMoveVecNonObjectArgument`
+  - `ArgumentWithoutValue`
+  - `CannotMoveBorrowedValue`
+  - `CannotWriteToExtendedReference`
+  - `InvalidReferenceArgument`
+
+  **New Types:**
+  - Added complete Object BCS schema matching Rust's ObjectInner
+  - Added `MovePackage` type for package objects
+  - Added `TypeOrigin` for tracking type definitions
+  - Added `UpgradeInfo` for package upgrade tracking
+  - Added `Data.Package` variant (was missing)
+  - Added accumulator types: `AccumulatorWriteV1`, `AccumulatorAddress`, `AccumulatorOperation`,
+    `AccumulatorValue`
+  - Added `ObjectOut.AccumulatorWriteV1` variant
+  - Added UnchangedConsensusKind variants: `MutateConsensusStreamEnded`, `ReadConsensusStreamEnded`,
+    `Cancelled`, `PerEpochConfig`
+  - Moved all Object BCS definitions from separate file into main bcs.ts
+
+  **Migration Guide:**
+
+  ```typescript
+  // ExecutionStatus variant name change
+  // Before
+  if (effects.status.$kind === 'Success') { ... }
+  const error = effects.status.Failed.error;
+
+  // After
+  if (effects.status.$kind === 'Success') { ... }
+  const error = effects.status.Failure.error;
+
+  // UnchangedSharedKind → UnchangedConsensusKind
+  // Before
+  effects.unchangedSharedObjects.forEach(([id, obj]) => {
+      if (obj.$kind === 'MutateDeleted') { ... }
+  });
+
+  // After
+  effects.unchangedConsensusObjects.forEach(([id, obj]) => {
+      if (obj.$kind === 'MutateConsensusStreamEnded') { ... }
+  });
+  ```
+
+- e00788c: Consolidate GraphQL schema exports into a single version:
+  - Removed versioned schema exports: `@mysten/sui/graphql/schemas/2024.1`,
+    `@mysten/sui/graphql/schemas/2024.4`, `@mysten/sui/graphql/schemas/latest`
+  - Added single unified schema export: `@mysten/sui/graphql/schema`
+  - The SDK now tracks only the latest mainnet GraphQL schema version
+
+  See the migration guide for updating your code to use the new export
+
+- e00788c: Rename `Commands` export to `TransactionCommands` to fix ESM resolution for React Native
+- e00788c: Remove default client used for verifying zklogin signatures
+- e00788c: `network` is now a required option on SuiGraphQLClient and SuiJsonRpcClient
+- e00788c: Make legacyAddress parameter in all methods to reduce confusion and inconsistency around
+  default values
+- e00788c: Remove named-packages plugin and global plugin registry APIs. MVR resolution is now built
+  directly into the transaction resolution process, making the plugin-based approach obsolete.
+
+  **Removed from @mysten/sui:**
+  - `namedPackagesPlugin` function
+  - `NamedPackagesPluginOptions` type
+  - `Transaction.registerGlobalSerializationPlugin()` static method
+  - `Transaction.unregisterGlobalSerializationPlugin()` static method
+  - `Transaction.registerGlobalBuildPlugin()` static method
+  - `Transaction.unregisterGlobalBuildPlugin()` static method
+  - Global plugin registry system
+
+  **Changed:**
+  - MVR name resolution (`.move` names) now happens automatically during transaction building for
+    all clients (JSON-RPC and gRPC)
+  - No manual plugin registration is required - MVR resolution is integrated into the standard
+    transaction resolution flow
+
+- e00788c: Remove SuiClient exports from @mysten/sui/client
+
+  BREAKING CHANGE: All exports from `@mysten/sui/client` have been removed. Use
+  `@mysten/sui/jsonRpc` instead:
+  - `SuiClient` -> `SuiJsonRpcClient`
+  - `SuiClientOptions` -> `SuiJsonRpcClientOptions`
+  - `isSuiClient` -> `isSuiJsonRpcClient`
+  - `SuiTransport` -> `JsonRpcTransport`
+  - `getFullnodeUrl` -> `getJsonRpcFullnodeUrl`
+
+  Migration example:
+
+  ```ts
+  // Before
+  import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
+  const client = new SuiClient({ url: getFullnodeUrl('devnet'), network: 'devnet' });
+
+  // After
+  import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+  const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('devnet'), network: 'devnet' });
+  ```
+
+- e00788c: Remove deprecated exports and properties:
+  - Removed `fromB64`, `toB64`, `fromHEX`, `toHEX` exports from utils (use `fromBase64`, `toBase64`,
+    `fromHex`, `toHex` instead)
+  - Removed `schema` property from `ParsedKeypair` (use `scheme` instead)
+  - Removed `requestType` parameter from `executeTransactionBlock`
+  - Removed deprecated faucet methods: `requestSuiFromFaucetV0`, `requestSuiFromFaucetV1`,
+    `getFaucetRequestStatus` (use `requestSuiFromFaucetV2` instead)
+  - Removed deprecated subscription methods: `subscribeEvent`, `subscribeTransaction`
+  - Removed `blockData` property from Transaction class (use `getData()` instead)
+  - Removed `gasConfig` property from TransactionDataBuilder (use `gasData` instead)
+  - Removed `NamedPackagesPluginCache` type export (use `NamedPackagesOverrides` instead)
+  - Removed unnamed plugin registration methods from Transaction class
+
+- e00788c: Stabilize experimental client API by moving it from `@mysten/sui/experimental` to
+  `@mysten/sui/client`:
+  - Moved client implementation from `src/experimental/` to `src/client/`
+  - Removed `Experimental_` prefix from all client types and classes
+  - Updated all internal packages to use the new stable API
+
+  Breaking changes:
+  - `@mysten/sui/experimental` module has been removed
+  - All `Experimental_` prefixed types/classes have been renamed (e.g., `Experimental_CoreClient` →
+    `CoreClient`)
+  - Client types namespace changed from `Experimental_SuiClientTypes` to `SuiClientTypes`
+
+### Minor Changes
+
+- e00788c: Transactions now default the expiration to the current epoch + 1 using `ValidDuring`
+- e00788c: Update transaction executor APIs to accept `ClientWithCoreApi` for gRPC, GraphQL, and
+  JSON-RPC compatibility.
+
+  **Breaking Changes:**
+  - `CachingTransactionExecutor`, `SerialTransactionExecutor`, and `ParallelTransactionExecutor` now
+    accept any client implementing `ClientWithCoreApi` instead of requiring `SuiJsonRpcClient`
+  - The `executeTransaction()` return type changed: `data` property renamed to `result` and uses
+    core API types (`SuiClientTypes.TransactionResult`)
+  - The second parameter of `executeTransaction()` changed from JSON-RPC options to core API
+    `include` options
+
+### Patch Changes
+
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+  - @mysten/bcs@2.0.0
+
 ## 1.45.2
 
 ### Patch Changes
@@ -727,8 +897,8 @@
 
 - a92b03de42: The Typescript SDK has been renamed to `@mysten/sui` and includes many new features
   and breaking changes. See the
-  [full migration guide](https://sdk.mystenlabs.com/sui/migrations/sui-1.0) for details on
-  how to upgrade.
+  [full migration guide](https://sdk.mystenlabs.com/sui/migrations/sui-1.0) for details on how to
+  upgrade.
 
 ### Patch Changes
 

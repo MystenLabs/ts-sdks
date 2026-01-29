@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/walletconnect-wallet",
-	"version": "0.1.12",
+	"version": "1.0.0",
 	"description": "Wallet adapter for WalletConnect on Sui",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",

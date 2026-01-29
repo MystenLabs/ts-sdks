@@ -1,5 +1,25 @@
 # @mysten/wallet-sdk
 
+## 0.1.0
+
+### Minor Changes
+
+- e00788c: Update to @mysten/sui@2.0
+- e00788c: Update to use SuiJsonRpcClient instead of SuiClient
+
+  Updated all type signatures, internal usages, examples, and documentation to use
+  `SuiJsonRpcClient` from `@mysten/sui/jsonRpc` instead of the deprecated `SuiClient` from
+  `@mysten/sui/client`.
+
+### Patch Changes
+
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+  - @mysten/wallet-standard@0.20.0
+  - @mysten/bcs@2.0.0
+
 ## 0.0.8
 
 ### Patch Changes

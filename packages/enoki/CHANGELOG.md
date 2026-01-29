@@ -1,5 +1,38 @@
 # @mysten/enoki
 
+## 1.0.0
+
+### Minor Changes
+
+- e00788c: Update to use SuiJsonRpcClient instead of SuiClient
+
+  Updated all type signatures, internal usages, examples, and documentation to use
+  `SuiJsonRpcClient` from `@mysten/sui/jsonRpc` instead of the deprecated `SuiClient` from
+  `@mysten/sui/client`.
+
+### Patch Changes
+
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+  - @mysten/signers@1.0.0
+  - @mysten/sui@2.0.0
+  - @mysten/wallet-standard@0.20.0
+
 ## 0.13.0
 
 ### Minor Changes
@@ -919,8 +952,8 @@
 
 - a92b03de42: The Typescript SDK has been renamed to `@mysten/sui` and includes many new features
   and breaking changes. See the
-  [full migration guide](https://sdk.mystenlabs.com/sui/migrations/sui-1.0) for details on
-  how to upgrade.
+  [full migration guide](https://sdk.mystenlabs.com/sui/migrations/sui-1.0) for details on how to
+  upgrade.
 
 ### Patch Changes
 

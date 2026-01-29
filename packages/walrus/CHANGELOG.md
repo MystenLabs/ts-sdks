@@ -1,5 +1,37 @@
 # @mysten/walrus
 
+## 1.0.0
+
+### Minor Changes
+
+- e00788c: remove asClientExtension static method
+- e00788c: WalrusClient can no longer be created with only an rpc url, pass in a Client instead
+- e00788c: Update to use SuiJsonRpcClient instead of SuiClient
+
+  Updated all type signatures, internal usages, examples, and documentation to use
+  `SuiJsonRpcClient` from `@mysten/sui/jsonRpc` instead of the deprecated `SuiClient` from
+  `@mysten/sui/client`.
+
+### Patch Changes
+
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+- Updated dependencies [e00788c]
+  - @mysten/sui@2.0.0
+  - @mysten/bcs@2.0.0
+  - @mysten/walrus-wasm@0.2.0
+
 ## 0.9.0
 
 ### Minor Changes
