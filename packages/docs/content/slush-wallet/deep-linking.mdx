@@ -1,0 +1,520 @@
+---
+title: Deep Linking
+---
+
+Deep linking allows external applications, websites, and services to open Slush directly to specific
+screens or trigger specific actions. This enables seamless integrations where users can be directed
+into the wallet to perform actions like swapping tokens, claiming assets, or browsing dApps.
+
+## Overview
+
+Slush supports two types of deep linking:
+
+1. **Custom URL Schemes** - Direct links using `slush://` or `suiwallet://` protocols (mobile app only)
+2. **Universal Links & App Links** - HTTPS links that work across mobile and desktop
+
+<Callout type="info">
+	For most integrations, use `my.slush.app` HTTPS links. They work on iOS, Android, and desktop
+	browsers, opening the native app when installed or falling back to the web app.
+</Callout>
+
+<Callout type="warning">
+	Deep linking is not currently supported for the Slush browser extension.
+</Callout>
+
+## URL Schemes
+
+Slush registers two custom URL schemes:
+
+| Scheme         | Description                                    |
+| -------------- | ---------------------------------------------- |
+| `slush://`     | Primary scheme for the Slush wallet            |
+| `suiwallet://` | Legacy scheme for backwards compatibility      |
+
+Both schemes support identical paths and parameters. Use `slush://` for new integrations.
+
+### Basic Format
+
+```
+slush://<path>?<parameters>
+```
+
+### Examples
+
+```
+slush://swap?fromCoinType=0x2::sui::SUI
+slush://browse/https://app.example.com
+slush://claim?claimUrl=https://zksend.com/claim/abc123
+```
+
+## Universal Links & App Links
+
+Slush responds to HTTPS links (Universal Links on iOS, App Links on Android) from the following domains:
+
+| Domain              | Supported Paths          |
+| ------------------- | ------------------------ |
+| `my.slush.app`      | `/browse/*`, `/claim/*`  |
+| `suiwallet.com`     | `/ul/*`                  |
+| `zksend.com`        | `/claim/*`               |
+| `getstashed.com`    | `/claim/*`               |
+
+### Cross-Platform Behavior
+
+The `my.slush.app` domain is recommended because it works across all platforms:
+
+| Environment                      | Behavior                                           |
+| -------------------------------- | -------------------------------------------------- |
+| Mobile (app installed)           | Opens directly in the Slush native app             |
+| Mobile (app not installed)       | Opens in the mobile browser with the Slush web app |
+| Desktop browser                  | Opens the Slush web app                            |
+
+<Callout type="info">
+	Unlike custom URL schemes (`slush://`), `my.slush.app` links never fail - they always open
+	either the native app or the web app, ensuring users can complete their intended action.
+</Callout>
+
+### Examples
+
+```
+# Opens dApp browser - works on mobile and desktop
+https://my.slush.app/browse/https://app.turbos.finance
+
+# Opens claim flow - works on mobile and desktop
+https://my.slush.app/claim/abc123xyz
+
+# Legacy domain
+https://suiwallet.com/ul/swap
+```
+
+## Supported Routes
+
+### Navigation Tabs
+
+These routes open the main wallet screens:
+
+| Route      | Description                    | Example                  |
+| ---------- | ------------------------------ | ------------------------ |
+| `tokens`   | Home screen with token list    | `slush://tokens`         |
+| `activity` | Transaction history            | `slush://activity`       |
+| `nfts`     | NFT collection view            | `slush://nfts`           |
+| `apps`     | dApp browser home              | `slush://apps`           |
+| `settings` | Wallet settings                | `slush://settings`       |
+| `earn`     | Yield and DeFi opportunities   | `slush://earn`           |
+
+### dApp Browser
+
+Open the in-app browser to load a specific URL:
+
+| Route             | Description                          |
+| ----------------- | ------------------------------------ |
+| `browse/:url`     | Opens a URL in the dApp browser      |
+
+**Parameters:**
+
+| Parameter | Type   | Required | Description                    |
+| --------- | ------ | -------- | ------------------------------ |
+| `url`     | string | Yes      | Full URL to load in the browser |
+
+**Examples:**
+
+```
+slush://browse/https://app.turbos.finance
+suiwallet://browse/https://bluefin.io
+https://my.slush.app/browse/https://app.cetus.zone
+```
+
+<Callout>
+	The URL must be a complete, valid URL including the protocol (e.g., `https://`).
+</Callout>
+
+### Token Swap
+
+Open the token swap screen with optional pre-filled values:
+
+| Route  | Description              |
+| ------ | ------------------------ |
+| `swap` | Opens the swap interface |
+
+**Parameters:**
+
+| Parameter      | Type   | Required | Description                                      |
+| -------------- | ------ | -------- | ------------------------------------------------ |
+| `fromCoinType` | string | No       | Source token type address (defaults to SUI)      |
+| `toCoinType`   | string | No       | Destination token type address                   |
+| `presetAmount` | string | No       | Pre-filled amount to swap                        |
+| `maxSlippage`  | number | No       | Maximum slippage percentage allowed              |
+
+**Examples:**
+
+```
+# Open swap with SUI as source
+slush://swap
+
+# Pre-fill swap from SUI to USDC
+slush://swap?fromCoinType=0x2::sui::SUI&toCoinType=0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC
+
+# Pre-fill swap amount
+slush://swap?fromCoinType=0x2::sui::SUI&presetAmount=100
+
+# Set max slippage
+slush://swap?maxSlippage=0.5
+```
+
+### Claim Assets
+
+Open the claim screen to receive stashed or gifted tokens:
+
+| Route   | Description                        |
+| ------- | ---------------------------------- |
+| `claim` | Opens the claim interface          |
+
+**Parameters:**
+
+| Parameter  | Type   | Required | Description                                      |
+| ---------- | ------ | -------- | ------------------------------------------------ |
+| `claimUrl` | string | Yes      | Full claim URL from zkSend or Getstashed         |
+
+**Examples:**
+
+```
+slush://claim?claimUrl=https://zksend.com/claim/abc123xyz
+slush://claim?claimUrl=https://getstashed.com/claim/def456
+```
+
+<Callout type="info">
+	For zkSend and Getstashed claim links, the full HTTPS URL will also work directly:
+	`https://zksend.com/claim/abc123xyz` will automatically open in Slush if installed.
+</Callout>
+
+### Token Details
+
+View details for a specific token:
+
+| Route    | Description                    |
+| -------- | ------------------------------ |
+| `tokens` | Opens token detail view        |
+
+**Parameters:**
+
+| Parameter  | Type   | Required | Description                         |
+| ---------- | ------ | -------- | ----------------------------------- |
+| `coinType` | string | Yes      | Full token type address to display  |
+
+**Examples:**
+
+```
+# View SUI token details
+slush://tokens?coinType=0x2::sui::SUI
+
+# View USDC token details
+slush://tokens?coinType=0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC
+```
+
+### Receive / QR Code
+
+Open the receive screen to display the wallet address or scan a QR code:
+
+| Route   | Description                           |
+| ------- | ------------------------------------- |
+| `suime` | Opens receive or QR scanner screen    |
+
+**Parameters:**
+
+| Parameter | Type   | Required | Description                                    |
+| --------- | ------ | -------- | ---------------------------------------------- |
+| `action`  | string | Yes      | Either `RECEIVE` or `SCAN_QR_CODE`             |
+
+**Examples:**
+
+```
+# Show receive QR code
+slush://suime?action=RECEIVE
+
+# Open QR code scanner
+slush://suime?action=SCAN_QR_CODE
+```
+
+### DeFi Strategies
+
+Access yield strategies and DeFi opportunities:
+
+| Route                          | Description                              |
+| ------------------------------ | ---------------------------------------- |
+| `strategies`                   | View all available strategies            |
+| `strategies/strategy/:id`      | View details of a specific strategy      |
+| `strategies/deposit/:id`       | Open deposit flow for a strategy         |
+| `strategies/withdraw/:id`      | Open withdraw flow for a strategy        |
+
+**Path Parameters:**
+
+| Parameter | Type   | Required | Description                    |
+| --------- | ------ | -------- | ------------------------------ |
+| `id`      | string | Yes      | Strategy identifier            |
+
+**Examples:**
+
+```
+# View all strategies
+slush://strategies
+
+# View specific strategy details
+slush://strategies/strategy/lending-usdc
+
+# Deposit into a strategy
+slush://strategies/deposit/lending-usdc
+
+# Withdraw from a strategy
+slush://strategies/withdraw/lending-usdc
+```
+
+### Staking
+
+Access native and liquid staking features:
+
+| Route                    | Description                    |
+| ------------------------ | ------------------------------ |
+| `staking`                | Staking overview               |
+| `staking/native-stake`   | Native SUI staking             |
+| `staking/native-unstake` | Unstake native SUI             |
+| `staking/liquid-stake`   | Liquid staking                 |
+| `staking/liquid-unstake` | Unstake liquid staking         |
+
+**Examples:**
+
+```
+slush://staking
+slush://staking/native-stake
+slush://staking/liquid-stake
+```
+
+### Send Tokens
+
+Access the send flow:
+
+| Route                  | Description                    |
+| ---------------------- | ------------------------------ |
+| `send-coins`           | Open send flow                 |
+| `send-coins/send`      | Send input screen              |
+| `send-coins/camera`    | QR scanner for recipient       |
+| `send-coins/review`    | Review transaction             |
+
+**Examples:**
+
+```
+slush://send-coins
+slush://send-coins/camera
+```
+
+### Account Management
+
+Access account settings and management:
+
+| Route                            | Description                         |
+| -------------------------------- | ----------------------------------- |
+| `accounts`                       | Account overview                    |
+| `accounts/manage`                | Manage accounts                     |
+| `accounts/add`                   | Add a new account                   |
+| `accounts/connect-ledger-device` | Connect a Ledger hardware wallet    |
+
+**Examples:**
+
+```
+slush://accounts
+slush://accounts/add
+slush://accounts/connect-ledger-device
+```
+
+### Buy Crypto (On-Ramp)
+
+Purchase crypto with fiat:
+
+| Route                             | Description                              |
+| --------------------------------- | ---------------------------------------- |
+| `onramp/fiat-input/:coinType`     | Enter fiat amount to spend               |
+| `onramp/providers/:coinType/:amt` | Select provider for purchase             |
+
+**Path Parameters:**
+
+| Parameter  | Type   | Required | Description                    |
+| ---------- | ------ | -------- | ------------------------------ |
+| `coinType` | string | Yes      | Token type to purchase         |
+| `amt`      | string | Yes      | Amount to purchase             |
+
+**Examples:**
+
+```
+slush://onramp/fiat-input/0x2::sui::SUI
+```
+
+### Sell Crypto (Off-Ramp)
+
+Sell crypto for fiat:
+
+| Route                                   | Description                              |
+| --------------------------------------- | ---------------------------------------- |
+| `offramp/fiat-input/:coinType`          | Enter amount to sell                     |
+| `offramp/providers/:coinType/:amount`   | Select provider for sale                 |
+| `offramp/redirect/:provider/:coinType`  | Redirect to provider                     |
+
+**Path Parameters:**
+
+| Parameter  | Type   | Required | Description                    |
+| ---------- | ------ | -------- | ------------------------------ |
+| `coinType` | string | Yes      | Token type to sell             |
+| `amount`   | string | Yes      | Amount to sell                 |
+| `provider` | string | Yes      | Fiat provider name             |
+
+**Examples:**
+
+```
+slush://offramp/fiat-input/0x2::sui::SUI
+```
+
+## Implementation Examples
+
+### Web Integration
+
+Link to Slush from any web page (mobile or desktop):
+
+```html
+<!-- Recommended: Works on all platforms -->
+<a href="https://my.slush.app/browse/https://your-dapp.com">Open in Slush</a>
+
+<!-- Mobile-only: Opens app if installed, fails otherwise -->
+<a href="slush://swap">Open Slush to Swap</a>
+<a href="slush://browse/https://your-dapp.com">Open in Slush</a>
+```
+
+### JavaScript / React Native
+
+Open Slush programmatically:
+
+```javascript
+import { Linking } from 'react-native';
+
+// Recommended: Use my.slush.app links (works everywhere)
+Linking.openURL('https://my.slush.app/browse/https://your-dapp.com');
+
+// Alternative: Use custom schemes when you need app-specific behavior
+Linking.openURL('slush://swap?fromCoinType=0x2::sui::SUI');
+
+// Detect if native app is installed (only needed for custom schemes)
+const canOpen = await Linking.canOpenURL('slush://');
+if (canOpen) {
+  // Native app is installed
+  Linking.openURL('slush://swap');
+} else {
+  // Fall back to web app
+  Linking.openURL('https://my.slush.app/browse/https://your-dapp.com');
+}
+```
+
+### iOS (Swift)
+
+```swift
+import UIKit
+
+// Recommended: Use my.slush.app links (works everywhere)
+if let url = URL(string: "https://my.slush.app/browse/https://your-dapp.com") {
+    UIApplication.shared.open(url)
+}
+
+// Alternative: Check for native app, fall back to web
+if let customUrl = URL(string: "slush://swap"),
+   UIApplication.shared.canOpenURL(customUrl) {
+    UIApplication.shared.open(customUrl)
+} else if let webUrl = URL(string: "https://my.slush.app/browse/https://your-dapp.com") {
+    UIApplication.shared.open(webUrl)
+}
+```
+
+### Android (Kotlin)
+
+```kotlin
+import android.content.Intent
+import android.net.Uri
+
+// Recommended: Use my.slush.app links (works everywhere)
+val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://my.slush.app/browse/https://your-dapp.com"))
+startActivity(intent)
+
+// Alternative: Use custom scheme for native app only
+val customIntent = Intent(Intent.ACTION_VIEW, Uri.parse("slush://swap"))
+startActivity(customIntent)
+```
+
+## Best Practices
+
+### Use my.slush.app Links for Maximum Compatibility
+
+When linking from any platform, prefer `my.slush.app` links over custom URL schemes. These links
+work everywhere - mobile apps, mobile browsers, and desktop browsers - providing a seamless
+experience for all users.
+
+```html
+<!-- Recommended: Works on mobile (app or browser) and desktop -->
+<a href="https://my.slush.app/browse/https://your-dapp.com">Open in Slush</a>
+
+<!-- Alternative: Only works if mobile app is installed -->
+<a href="slush://browse/https://your-dapp.com">Open in Slush</a>
+```
+
+<Callout>
+	Use `my.slush.app` links as your default choice. Only use custom URL schemes (`slush://`)
+	when you specifically need to detect whether the mobile app is installed.
+</Callout>
+
+### URL Encode Parameters
+
+Always URL-encode parameter values, especially token type addresses which contain special characters:
+
+```javascript
+const coinType = '0x2::sui::SUI';
+const encodedCoinType = encodeURIComponent(coinType);
+const url = `slush://swap?fromCoinType=${encodedCoinType}`;
+```
+
+### Check App Installation (Custom Schemes Only)
+
+If you're using custom URL schemes (`slush://`), check if the app is installed to provide
+appropriate fallbacks. This is not needed when using `my.slush.app` links, which automatically
+fall back to the web app.
+
+```javascript
+const canOpenSlush = await Linking.canOpenURL('slush://');
+if (canOpenSlush) {
+  Linking.openURL('slush://swap');
+} else {
+  // Fall back to my.slush.app which always works
+  Linking.openURL('https://my.slush.app/browse/https://your-dapp.com');
+}
+```
+
+### Handle Missing Parameters Gracefully
+
+Slush will attempt to open the requested screen even if optional parameters are missing. Required
+parameters that are missing will result in the app opening to a default or error state.
+
+## Troubleshooting
+
+### Link Not Opening the App
+
+1. **Verify the app is installed** - Custom URL schemes only work if Slush is installed
+2. **Check URL format** - Ensure the URL is properly formatted and encoded
+3. **iOS Universal Links** - Must be clicked from Safari or apps that support Universal Links; copied/pasted URLs may not trigger the app
+4. **Android App Links** - Ensure the device has verified the app link association
+
+### Wrong Screen Opens
+
+1. **Check the path** - Verify the route matches one of the supported routes above
+2. **Check parameters** - Ensure all required parameters are provided
+3. **Check parameter encoding** - Special characters in coin types must be URL-encoded
+
+### Universal Links Open in Browser Instead of App
+
+This can happen if:
+- The link is typed directly into the address bar
+- The link domain is the same as the current page
+- The user has previously chosen to open links in Safari
+
+To ensure Universal Links work reliably, link from a different domain than the target domain.
