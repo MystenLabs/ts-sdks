@@ -121,7 +121,6 @@ Open the token swap screen with optional pre-filled values:
 | `fromCoinType` | string | No       | Source token type address (defaults to SUI) |
 | `toCoinType`   | string | No       | Destination token type address              |
 | `presetAmount` | string | No       | Pre-filled amount to swap                   |
-| `maxSlippage`  | number | No       | Maximum slippage percentage allowed         |
 
 **Examples:**
 
@@ -134,9 +133,6 @@ slush://swap?fromCoinType=0x2::sui::SUI&toCoinType=0xdba34672e30cb065b1f93e3ab55
 
 # Pre-fill swap amount
 slush://swap?fromCoinType=0x2::sui::SUI&presetAmount=100
-
-# Set max slippage
-slush://swap?maxSlippage=0.5
 ```
 
 ### Claim Assets
