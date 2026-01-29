@@ -282,6 +282,25 @@ export class DeepBookContract {
 		};
 
 	/**
+	 * @description Withdraw settled amounts permissionlessly for a balance manager by ID
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} balanceManagerId The object ID of the BalanceManager
+	 * @returns A function that takes a Transaction object
+	 */
+	withdrawSettledAmountsManagerID =
+		(poolKey: string, balanceManagerId: string) => (tx: Transaction) => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::withdraw_settled_amounts_permissionless`,
+				arguments: [tx.object(pool.address), tx.object(balanceManagerId)],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
+
+	/**
 	 * @description Add a deep price point for a target pool using a reference pool
 	 * @param {string} targetPoolKey The key to identify the target pool
 	 * @param {string} referencePoolKey The key to identify the reference pool
