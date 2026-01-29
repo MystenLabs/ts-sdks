@@ -1,5 +1,11 @@
 # @mysten/utils
 
+## 0.3.0
+
+### Minor Changes
+
+- 339d1e0: Add mitt
+
 ## 0.2.0
 
 ### Minor Changes

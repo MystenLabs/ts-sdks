@@ -1,5 +1,14 @@
 # @mysten/walrus
 
+## 1.0.1
+
+### Patch Changes
+
+- Updated dependencies [339d1e0]
+  - @mysten/utils@0.3.0
+  - @mysten/bcs@2.0.1
+  - @mysten/sui@2.0.1
+
 ## 1.0.0
 
 ### Minor Changes

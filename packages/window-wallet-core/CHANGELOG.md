@@ -1,5 +1,12 @@
 # @mysten/window-wallet-core
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [339d1e0]
+  - @mysten/utils@0.3.0
+
 ## 0.1.1
 
 ### Patch Changes
