@@ -39,6 +39,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 						url: '/payment-kit',
 					},
 					{
+						title: 'Slush Wallet',
+						description: 'Slush wallet integration',
+						url: '/slush-wallet',
+					},
+					{
 						title: 'Walrus',
 						description: 'Publish and Read blobs directly from walrus storage nodes',
 						url: '/walrus',
