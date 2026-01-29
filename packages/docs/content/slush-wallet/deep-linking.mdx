@@ -22,6 +22,11 @@ Slush supports two types of deep linking:
 	Deep linking is not currently supported for the Slush browser extension.
 </Callout>
 
+<Callout type="warning">
+	Always URL-encode parameter values, especially token type addresses which contain special
+	characters like colons (`:`). See [URL Encode Parameters](#url-encode-parameters) for examples.
+</Callout>
+
 ## URL Schemes
 
 Slush registers a custom URL scheme:
@@ -75,9 +80,6 @@ https://my.slush.app/browse/https://app.turbos.finance
 
 # Opens claim flow - works on mobile and desktop
 https://my.slush.app/claim?claimUrl=abc123xyz
-
-# Legacy domain
-https://suiwallet.com/ul/swap
 ```
 
 ## Supported Routes
@@ -100,7 +102,6 @@ Open the in-app browser to load a specific URL:
 
 ```
 slush://browse/https://app.turbos.finance
-suiwallet://browse/https://bluefin.io
 https://my.slush.app/browse/https://app.cetus.zone
 ```
 
