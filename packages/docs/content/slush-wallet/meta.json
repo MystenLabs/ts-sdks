@@ -2,5 +2,5 @@
 	"root": true,
 	"title": "Slush Wallet",
 	"description": "Slush Wallet Integration",
-	"pages": ["dapp", "deep-linking"]
+	"pages": ["index", "dapp", "deep-linking"]
 }
