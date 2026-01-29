@@ -1,7 +1,7 @@
 # dapp-kit-react
 
-React hooks and components for building decentralized applications on the
-[Sui](https://sui.io) blockchain. Built on top of
+React hooks and components for building decentralized applications on the [Sui](https://sui.io)
+blockchain. Built on top of
 [`@mysten/dapp-kit-core`](https://www.npmjs.com/package/@mysten/dapp-kit-core).
 
 Provides a `DAppKitProvider`, ready-to-use `ConnectButton` and `ConnectModal` components, and hooks
