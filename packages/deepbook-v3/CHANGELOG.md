@@ -1,5 +1,12 @@
 # @mysten/deepbook-v3
 
+## 0.28.3
+
+### Patch Changes
+
+- d381366: Margin manager permissionless withdrawal
+- d25237e: Use balance manager ID for withdrawPermissionless
+
 ## 0.28.2
 
 ### Patch Changes
