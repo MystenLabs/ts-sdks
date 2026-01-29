@@ -1,5 +1,11 @@
 # @mysten/dapp-kit-core
 
+## 1.0.1
+
+### Patch Changes
+
+- 86a0e0f: Add READMEs for dapp-kit-core and dapp-kit-react packages.
+
 ## 1.0.0
 
 ### Major Changes
