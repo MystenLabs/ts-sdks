@@ -38,6 +38,9 @@
 	"bugs": {
 		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
 	},
+	"publishConfig": {
+		"access": "public"
+	},
 	"devDependencies": {
 		"@types/react": "^19.2.8",
 		"react": "^19.2.3",
