@@ -1,5 +1,19 @@
 # dapp-kit-react
 
-> [!NOTE] This package is highly experimental and subject to change.
+React hooks and components for building decentralized applications on the
+[Sui](https://sui.io) blockchain. Built on top of
+[`@mysten/dapp-kit-core`](https://www.npmjs.com/package/@mysten/dapp-kit-core).
 
-React bindings for [`@mysten/dapp-kit-core`](https://github.com/MystenLabs/ts-sdks).
+Provides a `DAppKitProvider`, ready-to-use `ConnectButton` and `ConnectModal` components, and hooks
+like `useDAppKit`, `useCurrentAccount`, `useCurrentWallet`, and more.
+
+## Installation
+
+```sh
+npm i @mysten/dapp-kit-react @mysten/sui
+```
+
+## Documentation
+
+See the [dApp Kit docs](https://sdk.mystenlabs.com/sui/dapp-kit) for full usage instructions,
+guides, and API reference.
