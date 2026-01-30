@@ -1,5 +1,11 @@
 # @mysten/kiosk
 
+## 1.1.0
+
+### Minor Changes
+
+- d9133f1: Add display to kiosk items
+
 ## 1.0.1
 
 ### Patch Changes
