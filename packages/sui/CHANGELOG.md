@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 2.1.0
+
+### Minor Changes
+
+- f950118: Use a Proxy for client extensions
+
 ## 2.0.1
 
 ### Patch Changes
