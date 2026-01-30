@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { isValidSuiAddress } from '@mysten/sui/utils';
-import type { ClientWithCoreApi } from '@mysten/sui/client';
 
 import {
 	TransferPolicyCap as TransferPolicyCapStruct,
 	TransferPolicy as TransferPolicyStruct,
 } from '../contracts/0x2/transfer_policy.js';
-import type { TransferPolicy, TransferPolicyCap } from '../types/index.js';
+import type { KioskCompatibleClient, TransferPolicy, TransferPolicyCap } from '../types/index.js';
 import {
 	TRANSFER_POLICY_CAP_TYPE,
 	TRANSFER_POLICY_CREATED_EVENT,
@@ -30,7 +29,7 @@ import { queryEvents } from './client-utils.js';
  * @throws Error if the client doesn't support event querying
  */
 export async function queryTransferPolicy(
-	client: ClientWithCoreApi,
+	client: KioskCompatibleClient,
 	type: string,
 ): Promise<TransferPolicy[]> {
 	const data = await queryEvents(client, `${TRANSFER_POLICY_CREATED_EVENT}<${type}>`);
@@ -74,7 +73,7 @@ export async function queryTransferPolicy(
  * @returns Array of TransferPolicyCap objects
  */
 export async function queryTransferPolicyCapsByType(
-	client: ClientWithCoreApi,
+	client: KioskCompatibleClient,
 	address: string,
 	type: string,
 ): Promise<TransferPolicyCap[]> {
@@ -125,7 +124,7 @@ export async function queryTransferPolicyCapsByType(
  * @returns Array of TransferPolicyCap objects or undefined if address is invalid
  */
 export async function queryOwnedTransferPolicies(
-	client: ClientWithCoreApi,
+	client: KioskCompatibleClient,
 	address: string,
 ): Promise<TransferPolicyCap[] | undefined> {
 	if (!isValidSuiAddress(address)) return;

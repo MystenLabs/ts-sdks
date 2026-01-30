@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { PaginationArguments } from '@mysten/sui/jsonRpc';
-import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
+import type { SuiClientTypes } from '@mysten/sui/client';
 
 import {
 	FLOOR_PRICE_RULE_ADDRESS,
@@ -22,6 +22,7 @@ import {
 import type {
 	FetchKioskOptions,
 	KioskClientOptions,
+	KioskCompatibleClient,
 	KioskData,
 	OwnedKiosks,
 } from '../types/index.js';
@@ -53,7 +54,7 @@ export function kiosk<const Name extends string = 'kiosk'>({
 }: KioskExtensionOptions<Name> = {}) {
 	return {
 		name,
-		register: (client: ClientWithCoreApi) => {
+		register: (client: KioskCompatibleClient) => {
 			return new KioskClient({
 				client,
 				network: client.network,
@@ -70,7 +71,7 @@ export function kiosk<const Name extends string = 'kiosk'>({
  * If you pass packageIds, all functionality will be managed using these packages.
  */
 export class KioskClient {
-	client: ClientWithCoreApi;
+	client: KioskCompatibleClient;
 	network: SuiClientTypes.Network;
 	rules: TransferPolicyRule[];
 	packageIds?: BaseRulePackageIds;

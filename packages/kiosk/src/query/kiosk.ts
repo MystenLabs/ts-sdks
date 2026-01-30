@@ -8,6 +8,7 @@ import { isValidSuiAddress } from '@mysten/sui/utils';
 import { Extension, ExtensionKey } from '../contracts/0x2/kiosk_extension.js';
 import type {
 	FetchKioskOptions,
+	KioskCompatibleClient,
 	KioskExtension,
 	KioskListing,
 	OwnedKiosks,
@@ -20,13 +21,13 @@ import {
 	attachObjects,
 	extractKioskData,
 	getAllDynamicFields,
-	getAllObjects,
 	getKioskObject,
 } from '../utils.js';
+import { getAllObjects } from './client-utils.js';
 import { PersonalKioskCap } from '../contracts/kiosk/personal_kiosk.js';
 
 export async function fetchKiosk(
-	client: ClientWithCoreApi,
+	client: KioskCompatibleClient,
 	kioskId: string,
 	pagination: PaginationArguments<string>,
 	options: FetchKioskOptions,

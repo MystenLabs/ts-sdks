@@ -5,12 +5,9 @@ import { bcs } from '@mysten/sui/bcs';
 import { PaginationArguments } from '@mysten/sui/jsonRpc';
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import { normalizeStructTag, normalizeSuiAddress, parseStructTag } from '@mysten/sui/utils';
-import { chunk } from '@mysten/utils';
 
-import { Listing, Lock, Kiosk as KioskStruct } from './contracts/0x2/kiosk.js';
-import type { Kiosk, KioskData, KioskListing } from './types/index.js';
-
-const DEFAULT_QUERY_LIMIT = 50;
+import { Item, Listing, Lock, Kiosk as KioskStruct } from './contracts/0x2/kiosk.js';
+import type { Kiosk, KioskData, KioskListing, ObjectWithDisplay } from './types/index.js';
 
 export type DynamicFieldInfo = SuiClientTypes.ListDynamicFieldsResponse['dynamicFields'][number];
 
@@ -53,9 +50,10 @@ export function extractKioskData(
 				baseType ===
 				'0x0000000000000000000000000000000000000000000000000000000000000002::kiosk::Item'
 			) {
-				acc.itemIds.push(val.fieldId);
+				const parsed = Item.parse(val.name.bcs);
+				acc.itemIds.push(parsed.id);
 				acc.items.push({
-					objectId: val.fieldId,
+					objectId: parsed.id,
 					type: val.valueType,
 					isLocked: false,
 					kioskId,
@@ -137,9 +135,9 @@ export function attachListingsAndPrices(
  * A helper that attaches object data to kiosk items.
  * Works with core API objects that contain BCS content.
  */
-export function attachObjects(kioskData: KioskData, objects: SuiClientTypes.Object[]) {
-	const mapping = objects.reduce<Record<string, SuiClientTypes.Object>>(
-		(acc: Record<string, SuiClientTypes.Object>, obj) => {
+export function attachObjects(kioskData: KioskData, objects: ObjectWithDisplay[]) {
+	const mapping = objects.reduce<Record<string, ObjectWithDisplay>>(
+		(acc: Record<string, ObjectWithDisplay>, obj) => {
 			acc[obj.objectId] = obj;
 			return acc;
 		},
@@ -198,34 +196,6 @@ export async function getAllDynamicFields(
 	}
 
 	return data;
-}
-
-/**
- * A helper to fetch all objects that works with pagination.
- * It will fetch all objects in the array, and limit it to 50/request.
- * Requests are sent using `Promise.all`.
- */
-export async function getAllObjects(
-	client: ClientWithCoreApi,
-	ids: string[],
-): Promise<SuiClientTypes.Object[]> {
-	const chunks = chunk(ids, DEFAULT_QUERY_LIMIT);
-
-	const results = await Promise.all(
-		chunks.map(async (objectIds) => {
-			const { objects } = await client.core.getObjects({
-				objectIds,
-				include: {
-					content: true,
-					previousTransaction: true,
-				},
-			});
-
-			return objects.filter((obj): obj is SuiClientTypes.Object => !(obj instanceof Error));
-		}),
-	);
-
-	return results.flat();
 }
 
 /**

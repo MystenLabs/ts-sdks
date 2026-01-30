@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { TransactionArgument } from '@mysten/sui/transactions';
-import { SuiClientTypes } from '@mysten/sui/client';
 
 import type { ObjectArgument } from './index.js';
 
 import { SUI_FRAMEWORK_ADDRESS } from '@mysten/sui/utils';
+import { SuiClientTypes } from '@mysten/sui/client';
 
 /** The Kiosk module. */
 export const KIOSK_MODULE = `${SUI_FRAMEWORK_ADDRESS}::kiosk`;
@@ -88,6 +88,18 @@ export type KioskListing = {
 	price?: string;
 };
 
+export type KioskDisplay = {
+	data: Record<string, string> | null;
+	error: string | null;
+};
+
+export type ObjectWithDisplay = SuiClientTypes.Object<{
+	content: true;
+	previousTransaction: true;
+}> & {
+	display?: KioskDisplay;
+};
+
 /**
  * A dynamic field `Item { ID }` attached to the Kiosk.
  * Holds an Item `T`. The type of the item is known upfront.
@@ -103,8 +115,8 @@ export type KioskItem = {
 	listing?: KioskListing;
 	/** The ID of the kiosk the item is placed in */
 	kioskId: string;
-	/** Optional Kiosk Data (core API object) */
-	data?: SuiClientTypes.Object;
+	/** Optional object data with display metadata */
+	data?: ObjectWithDisplay;
 };
 
 /** The overview type returned from `getKiosk` */
