@@ -26,14 +26,29 @@ export abstract class BaseClient {
 	$extend<const Registrations extends SuiClientRegistration<this>[]>(
 		...registrations: Registrations
 	) {
-		return Object.create(
-			this,
-			Object.fromEntries(
-				registrations.map((registration) => {
-					return [registration.name, { value: registration.register(this) }];
-				}),
-			),
-		) as ClientWithExtensions<
+		const extensions: Record<string, unknown> = Object.fromEntries(
+			registrations.map((registration) => {
+				return [registration.name, registration.register(this)];
+			}),
+		);
+
+		const methodCache = new Map<string | symbol, Function>();
+
+		return new Proxy(this, {
+			get(target, prop) {
+				if (typeof prop === 'string' && prop in extensions) {
+					return extensions[prop];
+				}
+				const value = Reflect.get(target, prop, target);
+				if (typeof value === 'function') {
+					if (!methodCache.has(prop)) {
+						methodCache.set(prop, value.bind(target));
+					}
+					return methodCache.get(prop);
+				}
+				return value;
+			},
+		}) as ClientWithExtensions<
 			Simplify<
 				UnionToIntersection<
 					{
