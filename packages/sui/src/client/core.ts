@@ -76,6 +76,10 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options: SuiClientTypes.ListBalancesOptions,
 	): Promise<SuiClientTypes.ListBalancesResponse>;
 
+	abstract getCoinMetadata(
+		options: SuiClientTypes.GetCoinMetadataOptions,
+	): Promise<SuiClientTypes.GetCoinMetadataResponse>;
+
 	abstract getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>>;

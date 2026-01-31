@@ -235,6 +235,28 @@ export namespace SuiClientTypes {
 		cursor: string | null;
 	}
 
+	/** Coin metadata methods */
+	export interface TransportMethods {
+		getCoinMetadata: (options: GetCoinMetadataOptions) => Promise<GetCoinMetadataResponse>;
+	}
+
+	export interface GetCoinMetadataOptions extends CoreClientMethodOptions {
+		coinType: string;
+	}
+
+	export interface CoinMetadata {
+		id: string | null;
+		decimals: number;
+		name: string;
+		symbol: string;
+		description: string;
+		iconUrl: string | null;
+	}
+
+	export interface GetCoinMetadataResponse {
+		coinMetadata: CoinMetadata | null;
+	}
+
 	/** Transaction methods */
 	export interface TransportMethods {
 		getTransaction: <Include extends TransactionInclude = {}>(

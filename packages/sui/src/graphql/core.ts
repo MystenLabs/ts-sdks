@@ -20,6 +20,7 @@ import {
 	GetAllBalancesDocument,
 	GetBalanceDocument,
 	GetChainIdentifierDocument,
+	GetCoinMetadataDocument,
 	GetCoinsDocument,
 	GetCurrentSystemStateDocument,
 	GetDynamicFieldsDocument,
@@ -269,6 +270,36 @@ export class GraphQLCoreClient extends CoreClient {
 			},
 		};
 	}
+	async getCoinMetadata(
+		options: SuiClientTypes.GetCoinMetadataOptions,
+	): Promise<SuiClientTypes.GetCoinMetadataResponse> {
+		const coinType = (await this.mvr.resolveType({ type: options.coinType })).type;
+
+		const { data, errors } = await this.#graphqlClient.query({
+			query: GetCoinMetadataDocument,
+			variables: {
+				coinType,
+			},
+		});
+
+		handleGraphQLErrors(errors);
+
+		if (!data?.coinMetadata) {
+			return { coinMetadata: null };
+		}
+
+		return {
+			coinMetadata: {
+				id: data.coinMetadata.address!,
+				decimals: data.coinMetadata.decimals!,
+				name: data.coinMetadata.name!,
+				symbol: data.coinMetadata.symbol!,
+				description: data.coinMetadata.description!,
+				iconUrl: data.coinMetadata.iconUrl ?? null,
+			},
+		};
+	}
+
 	async listBalances(
 		options: SuiClientTypes.ListBalancesOptions,
 	): Promise<SuiClientTypes.ListBalancesResponse> {

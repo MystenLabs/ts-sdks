@@ -3587,7 +3587,7 @@ export type Query = {
    * If the address is fetched by name and the name does not resolve to an address (e.g. the name does not exist or has expired), `null` is returned.
    */
   address?: Maybe<Address>;
-  /** First four bytes of the network's genesis checkpoint digest (uniquely identifies the network), hex-encoded. */
+  /** The network's genesis checkpoint digest (uniquely identifies the network), Base58-encoded. */
   chainIdentifier: Scalars['String']['output'];
   /**
    * Fetch a checkpoint by its sequence number, or the latest checkpoint if no sequence number is provided.
@@ -4612,6 +4612,13 @@ export type GetChainIdentifierQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type GetChainIdentifierQuery = { __typename?: 'Query', checkpoint?: { __typename?: 'Checkpoint', digest?: string | null } | null };
 
+export type GetCoinMetadataQueryVariables = Exact<{
+  coinType: Scalars['String']['input'];
+}>;
+
+
+export type GetCoinMetadataQuery = { __typename?: 'Query', coinMetadata?: { __typename?: 'CoinMetadata', address: string, decimals?: number | null, name?: string | null, symbol?: string | null, description?: string | null, iconUrl?: string | null } | null };
+
 export type GetCoinsQueryVariables = Exact<{
   owner: Scalars['SuiAddress']['input'];
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -5042,6 +5049,18 @@ export const GetChainIdentifierDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<GetChainIdentifierQuery, GetChainIdentifierQueryVariables>;
+export const GetCoinMetadataDocument = new TypedDocumentString(`
+    query getCoinMetadata($coinType: String!) {
+  coinMetadata(coinType: $coinType) {
+    address
+    decimals
+    name
+    symbol
+    description
+    iconUrl
+  }
+}
+    `) as unknown as TypedDocumentString<GetCoinMetadataQuery, GetCoinMetadataQueryVariables>;
 export const GetCoinsDocument = new TypedDocumentString(`
     query getCoins($owner: SuiAddress!, $first: Int, $cursor: String, $type: String = "0x2::coin::Coin<0x2::sui::SUI>") {
   address(address: $owner) {

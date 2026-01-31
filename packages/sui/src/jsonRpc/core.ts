@@ -239,6 +239,32 @@ export class JSONRpcCoreClient extends CoreClient {
 			},
 		};
 	}
+	async getCoinMetadata(
+		options: SuiClientTypes.GetCoinMetadataOptions,
+	): Promise<SuiClientTypes.GetCoinMetadataResponse> {
+		const coinType = (await this.mvr.resolveType({ type: options.coinType })).type;
+
+		const result = await this.#jsonRpcClient.getCoinMetadata({
+			coinType,
+			signal: options.signal,
+		});
+
+		if (!result) {
+			return { coinMetadata: null };
+		}
+
+		return {
+			coinMetadata: {
+				id: result.id ?? null,
+				decimals: result.decimals,
+				name: result.name,
+				symbol: result.symbol,
+				description: result.description,
+				iconUrl: result.iconUrl ?? null,
+			},
+		};
+	}
+
 	async listBalances(options: SuiClientTypes.ListBalancesOptions) {
 		const balances = await this.#jsonRpcClient.getAllBalances({
 			owner: options.owner,

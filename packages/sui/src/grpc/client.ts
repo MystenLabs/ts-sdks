@@ -108,6 +108,12 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		return this.core.listBalances(input);
 	}
 
+	getCoinMetadata(
+		input: SuiClientTypes.GetCoinMetadataOptions,
+	): Promise<SuiClientTypes.GetCoinMetadataResponse> {
+		return this.core.getCoinMetadata(input);
+	}
+
 	getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		input: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {

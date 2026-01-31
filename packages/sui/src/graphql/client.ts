@@ -180,6 +180,12 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		return this.core.listBalances(input);
 	}
 
+	getCoinMetadata(
+		input: SuiClientTypes.GetCoinMetadataOptions,
+	): Promise<SuiClientTypes.GetCoinMetadataResponse> {
+		return this.core.getCoinMetadata(input);
+	}
+
 	getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		input: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
