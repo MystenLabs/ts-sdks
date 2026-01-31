@@ -275,6 +275,12 @@ export class MockSuiClient extends CoreClient {
 		};
 	}
 
+	async getCoinMetadata(
+		_options: SuiClientTypes.GetCoinMetadataOptions,
+	): Promise<SuiClientTypes.GetCoinMetadataResponse> {
+		throw new Error('getCoinMetadata not implemented in MockSuiClient');
+	}
+
 	async getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
 		_options: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {

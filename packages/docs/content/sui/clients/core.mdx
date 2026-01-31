@@ -110,7 +110,7 @@ if (result.cursor) {
 }
 ```
 
-## Balance Methods
+## Coin and Balance Methods
 
 ### getBalance
 
@@ -153,6 +153,21 @@ const result = await client.core.listCoins({
 
 for (const coin of result.coins) {
 	console.log(coin.objectId, coin.balance);
+}
+```
+
+### getCoinMetadata
+
+Get metadata for a coin type, including its name, symbol, decimals, and description.
+
+```typescript
+const { coinMetadata } = await client.core.getCoinMetadata({
+	coinType: '0x2::sui::SUI',
+});
+
+if (coinMetadata) {
+	console.log(coinMetadata.name, coinMetadata.symbol, coinMetadata.decimals);
+	// "Sui" "SUI" 9
 }
 ```
 
@@ -510,6 +525,7 @@ const options: SuiClientTypes.GetObjectOptions<{ content: true }> = {
 | `Object<Include>`      | Fetched object with optional included data  |
 | `Coin`                 | Coin object with balance                    |
 | `CoinBalance`          | Balance summary for a coin type             |
+| `CoinMetadata`         | Metadata for a coin type                    |
 | `Transaction<Include>` | Executed transaction with optional data     |
 | `TransactionResult`    | Success or failure result from execution    |
 | `TransactionEffects`   | Detailed effects from transaction execution |
@@ -538,6 +554,7 @@ const options: SuiClientTypes.GetObjectOptions<{ content: true }> = {
 | `ListCoinsOptions`                 | Options for `listCoins`                 |
 | `GetBalanceOptions`                | Options for `getBalance`                |
 | `ListBalancesOptions`              | Options for `listBalances`              |
+| `GetCoinMetadataOptions`           | Options for `getCoinMetadata`           |
 | `ExecuteTransactionOptions`        | Options for `executeTransaction`        |
 | `SimulateTransactionOptions`       | Options for `simulateTransaction`       |
 | `SignAndExecuteTransactionOptions` | Options for `signAndExecuteTransaction` |

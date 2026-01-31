@@ -235,6 +235,36 @@ export class GrpcCoreClient extends CoreClient {
 		};
 	}
 
+	async getCoinMetadata(
+		options: SuiClientTypes.GetCoinMetadataOptions,
+	): Promise<SuiClientTypes.GetCoinMetadataResponse> {
+		const coinType = (await this.mvr.resolveType({ type: options.coinType })).type;
+
+		let response;
+		try {
+			({ response } = await this.#client.stateService.getCoinInfo({
+				coinType,
+			}));
+		} catch {
+			return { coinMetadata: null };
+		}
+
+		if (!response.metadata) {
+			return { coinMetadata: null };
+		}
+
+		return {
+			coinMetadata: {
+				id: response.metadata.id ?? null,
+				decimals: response.metadata.decimals ?? 0,
+				name: response.metadata.name ?? '',
+				symbol: response.metadata.symbol ?? '',
+				description: response.metadata.description ?? '',
+				iconUrl: response.metadata.iconUrl ?? null,
+			},
+		};
+	}
+
 	async listBalances(
 		options: SuiClientTypes.ListBalancesOptions,
 	): Promise<SuiClientTypes.ListBalancesResponse> {
