@@ -3,6 +3,8 @@
 
 export { formatAddress, formatDigest } from './format.js';
 export {
+	isValidMoveIdentifier,
+	isValidStructTag,
 	isValidSuiAddress,
 	isValidSuiObjectId,
 	isValidTransactionDigest,
