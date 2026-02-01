@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { isValidSuiNSName } from './suins.js';
+import { isValidStructTag } from './sui-types.js';
 
 /** The pattern to find an optionally versioned name */
 const NAME_PATTERN = /^([a-z0-9]+(?:-[a-z0-9]+)*)$/;
@@ -29,8 +30,7 @@ export const isValidNamedPackage = (name: string): boolean => {
 };
 
 /**
- * Checks if a type contains valid named packages.
- * This DOES NOT check if the type is a valid Move type.
+ * Checks if a type contains valid named packages and is a valid Move struct tag.
  */
 export const isValidNamedType = (type: string): boolean => {
 	// split our type by all possible type delimeters.
@@ -38,6 +38,5 @@ export const isValidNamedType = (type: string): boolean => {
 	for (const t of splitType) {
 		if (t.includes(NAME_SEPARATOR) && !isValidNamedPackage(t)) return false;
 	}
-	// TODO: Add `isValidStructTag` check once it's introduced.
-	return true;
+	return isValidStructTag(type);
 };
