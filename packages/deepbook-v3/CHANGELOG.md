@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 1.0.1
+
+### Patch Changes
+
+- d83c831: USDE coin
+
 ## 1.0.0
 
 ### Major Changes
