@@ -3,7 +3,7 @@
 
 import type { LocalContext } from '../../context.js';
 import { generateFromPackageSummary } from '../../../index.js';
-import { loadConfig } from '../../../config.js';
+import { loadConfig, type GenerateBase, type PackageGenerate } from '../../../config.js';
 import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
 import { execSync } from 'node:child_process';
 import { existsSync, mkdtempSync } from 'node:fs';
@@ -16,6 +16,10 @@ export interface SubdirCommandFlags {
 	noSummaries?: boolean;
 	network?: 'mainnet' | 'testnet';
 	importExtension?: '.js' | '.ts' | 'none';
+	modules?: string[];
+	noTypes?: boolean;
+	noFunctions?: boolean;
+	private?: 'none' | 'entry' | 'all';
 }
 
 export default async function generate(
@@ -48,6 +52,35 @@ export default async function generate(
 
 	const generateSummaries =
 		flags.noSummaries === undefined ? config.generateSummaries : !flags.noSummaries;
+
+	const cliPrivate =
+		flags.private !== undefined
+			? flags.private === 'all'
+				? true
+				: flags.private === 'none'
+					? false
+					: 'entry'
+			: undefined;
+
+	const cliGenerate: PackageGenerate | undefined =
+		flags.modules !== undefined ||
+		flags.noTypes !== undefined ||
+		flags.noFunctions !== undefined ||
+		flags.private !== undefined
+			? {
+					...(flags.modules !== undefined && { modules: flags.modules }),
+					...(flags.noTypes !== undefined && { types: !flags.noTypes as boolean }),
+					...(flags.noFunctions !== undefined || flags.private !== undefined
+						? {
+								functions: flags.noFunctions
+									? false
+									: cliPrivate !== undefined
+										? { private: cliPrivate }
+										: true,
+							}
+						: {}),
+				}
+			: undefined;
 
 	for (const pkg of normalizedPackages) {
 		// Detect on-chain packages: they have 'network' field and no 'path'
@@ -83,11 +116,37 @@ export default async function generate(
 					? ''
 					: flags.importExtension;
 
+		const pkgWithOverrides = cliGenerate
+			? {
+					...pkg,
+					generate: {
+						...('generate' in pkg ? pkg.generate : {}),
+						...cliGenerate,
+					},
+				}
+			: pkg;
+
+		// Fold deprecated privateMethods into globalGenerate
+		const globalGenerate: GenerateBase | undefined =
+			config.privateMethods && !config.generate?.functions
+				? {
+						...config.generate,
+						functions: {
+							private:
+								config.privateMethods === 'all'
+									? true
+									: config.privateMethods === 'none'
+										? false
+										: 'entry',
+						},
+					}
+				: config.generate;
+
 		await generateFromPackageSummary({
-			package: pkg,
+			package: pkgWithOverrides,
 			prune: flags.noPrune === undefined ? config.prune : !flags.noPrune,
 			outputDir: flags.outputDir ?? config.output,
-			privateMethods: config.privateMethods,
+			globalGenerate,
 			importExtension,
 		});
 	}

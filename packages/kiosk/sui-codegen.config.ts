@@ -14,7 +14,9 @@ const config: SuiCodegenConfig = {
 			package: '0x0000000000000000000000000000000000000000000000000000000000000002',
 			packageName: '0x2',
 			network: 'testnet',
-			modules: ['kiosk', 'kiosk_extension', 'transfer_policy'],
+			generate: {
+				modules: ['kiosk', 'kiosk_extension', 'transfer_policy'],
+			},
 		},
 		{
 			package: '@local-pkg/kiosk',

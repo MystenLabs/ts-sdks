@@ -1,1 +1,2 @@
 tests/move/*/package_summaries
+!tests/move/testpkg/package_summaries

@@ -1,0 +1,72 @@
+{
+  "id": {
+    "address": "std",
+    "name": "internal"
+  },
+  "doc": " Defines the `Permit` type, which can be used to constrain the logic of a\n generic function to be authorized only by the module that defines the type\n parameter.\n\n ```move\n module example::use_permit;\n\n public struct MyType { /* ... */ }\n\n public fun test_permit() {\n    let permit = internal::permit<MyType>();\n    /* external_module::call_with_permit(permit); */\n }\n ```\n\n To write a function that is guarded by a `Permit`, require it as an argument.\n\n ```move\n // Silly mockup of a type registry where a type can be registered only by\n // the module that defines the type.\n module example::type_registry;\n\n public fun register_type<T>(_: internal::Permit<T> /* ... */) {\n   /* ... */\n }\n ```",
+  "immediate_dependencies": [],
+  "attributes": [],
+  "functions": {
+    "permit": {
+      "source_index": 0,
+      "index": 0,
+      "doc": " Construct a new `Permit` for the type `T`.\n Can only be called by the module that defines the type `T`.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [
+        {
+          "name": "T",
+          "constraints": []
+        }
+      ],
+      "parameters": [],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "std",
+              "name": "internal"
+            },
+            "name": "Permit",
+            "type_arguments": [
+              {
+                "phantom": true,
+                "argument": {
+                  "NamedTypeParameter": "T"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "structs": {
+    "Permit": {
+      "index": 0,
+      "doc": " A privileged witness of the `T` type.\n Instances can only be created by the module that defines the type `T`.",
+      "attributes": [],
+      "abilities": [
+        "Drop"
+      ],
+      "type_parameters": [
+        {
+          "phantom": true,
+          "name": "T",
+          "constraints": []
+        }
+      ],
+      "fields": {
+        "positional_fields": true,
+        "fields": {
+          "dummy_field": {
+            "index": 0,
+            "type_": "bool"
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

@@ -1,11 +1,32 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { describe, expect, it } from 'vitest';
-import { normalizeMoveArguments } from './generated/utils/index.js';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
+import { join } from 'node:path';
+import { mkdir, writeFile, rm } from 'node:fs/promises';
+import { utilsContent } from '../src/generate-utils.js';
 
-const CLOCK_TYPE_ARG =
-	'0x0000000000000000000000000000000000000000000000000000000000000002::clock::Clock';
+const GENERATED_DIR = join(import.meta.dirname, 'generated');
+
+let normalizeMoveArguments: (
+	args: unknown[] | object,
+	argTypes: readonly (string | null)[],
+	parameterNames?: string[],
+) => any;
+
+beforeAll(async () => {
+	await mkdir(join(GENERATED_DIR, 'utils'), { recursive: true });
+	await writeFile(join(GENERATED_DIR, 'utils', 'index.ts'), utilsContent);
+	const modPath = join(GENERATED_DIR, 'utils', 'index.js');
+	const mod = await import(modPath);
+	normalizeMoveArguments = mod.normalizeMoveArguments;
+});
+
+afterAll(async () => {
+	await rm(GENERATED_DIR, { recursive: true, force: true });
+});
+
+const CLOCK_TYPE_ARG = '0x2::clock::Clock';
 
 describe('normalizeMoveArguments', () => {
 	it('should handle resolved sui objects for `object` args', async () => {

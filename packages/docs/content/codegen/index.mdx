@@ -73,31 +73,204 @@ This generates TypeScript code in your configured output directory (e.g., `./src
 
 The `SuiCodegenConfig` type supports the following options:
 
-| Option              | Type                         | Default   | Description                                                                                                                                                  |
-| ------------------- | ---------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `output`            | `string`                     | required  | The directory where generated code will be written                                                                                                           |
-| `packages`          | `PackageConfig[]`            | required  | Array of Move packages to generate code for                                                                                                                  |
-| `prune`             | `boolean`                    | `true`    | Remove generated files that are no longer referenced                                                                                                         |
-| `generateSummaries` | `boolean`                    | `true`    | Automatically run `sui move summary` before generating code. Creates a `package_summaries` directory in your Move package which can be added to `.gitignore` |
-| `privateMethods`    | `'none' \| 'entry' \| 'all'` | `'entry'` | Which private functions to generate: `'none'` skips all, `'entry'` generates private entry functions, `'all'` generates all functions                        |
+| Option              | Type                   | Default | Description                                                                                                                                                           |
+| ------------------- | ---------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `output`            | `string`               | —       | The directory where generated code will be written                                                                                                                    |
+| `packages`          | `PackageConfig[]`      | —       | Array of Move packages to generate code for                                                                                                                           |
+| `prune`             | `boolean`              | `true`  | When enabled, only generates code for the main package and omits dependency modules (dependency types referenced by included types are still generated under `deps/`) |
+| `generateSummaries` | `boolean`              | `true`  | Automatically run `sui move summary` before generating code. Creates a `package_summaries` directory in your Move package which can be added to `.gitignore`          |
+| `generate`          | `GenerateOptions`      | —       | Default [generate options](#the-generate-option) (types, functions) for all packages                                                                                  |
+| `importExtension`   | `'.js' \| '.ts' \| ''` | `'.js'` | File extension used in generated import statements                                                                                                                    |
 
 ### Package Configuration
 
-Each package in the `packages` array requires the following options:
+Each entry in the `packages` array configures a Move package to generate code from. Packages can be
+local (from source) or on-chain (fetched from a network).
 
-| Option        | Type     | Required | Description                                        |
-| ------------- | -------- | -------- | -------------------------------------------------- |
-| `package`     | `string` | yes      | Package identifier (e.g., `@local-pkg/my-package`) |
-| `path`        | `string` | yes      | Path to the Move package directory                 |
-| `packageName` | `string` | no       | Custom name for generated code                     |
+#### Local Packages
+
+| Option        | Type                     | Required | Description                                        |
+| ------------- | ------------------------ | -------- | -------------------------------------------------- |
+| `package`     | `string`                 | yes      | Package identifier (e.g., `@local-pkg/my-package`) |
+| `path`        | `string`                 | yes      | Path to the Move package directory                 |
+| `packageName` | `string`                 | no       | Custom name for generated code directory           |
+| `generate`    | `PackageGenerateOptions` | no       | Control what gets generated from this package      |
 
 ```typescript
 {
   package: '@local-pkg/my-package',
   path: './move/my-package',
-  packageName: 'MyPackage'
 }
 ```
+
+#### On-Chain Packages
+
+For packages already deployed on-chain, generate code directly from a package ID or MVR name without
+needing local source code:
+
+| Option        | Type                     | Required | Description                                   |
+| ------------- | ------------------------ | -------- | --------------------------------------------- |
+| `package`     | `string`                 | yes      | Package ID or MVR name                        |
+| `packageName` | `string`                 | yes      | Name for the generated code directory         |
+| `network`     | `'mainnet' \| 'testnet'` | yes      | Network to fetch the package from             |
+| `generate`    | `PackageGenerateOptions` | no       | Control what gets generated from this package |
+
+```typescript
+{
+  package: '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837',
+  packageName: 'pyth',
+  network: 'testnet',
+}
+```
+
+## The `generate` option
+
+The `generate` option controls what code is produced. It can be set at the global level (as a
+default for all packages), at the per-package level, and at the per-module level. More specific
+settings override less specific ones.
+
+When no `generate` option is set, everything is generated (all types and functions). Package-level
+`types` and `functions` also default to `true`. In the record form of `modules`, per-module `types`
+and `functions` default to `false` — you opt in to exactly what you need from each module. Use
+`true` as a shorthand to include everything from a module with package-level defaults.
+
+At the **global** and **package** levels, `types` and `functions` only accept boolean values (or an
+object for `functions`). Name-based filtering with `string[]` is only available at the **module**
+level inside the record form of `modules`, where the filter applies unambiguously to a single
+module.
+
+```typescript
+// Global or package level
+generate: {
+  types: true | false,
+  functions: true | false | { private: boolean | 'entry' },
+  modules: string[] | Record<string, true | { types?, functions? }>,  // package-level only
+}
+
+// Module level (inside the record form of modules)
+modules: {
+  my_module: true,  // shorthand for "include everything"
+  other_module: {
+    types: true | false | string[],
+    functions: true | false | string[] | { private: boolean | 'entry' },
+  }
+}
+```
+
+### Types
+
+Controls which BCS type definitions (structs and enums) are generated:
+
+- `true` — generate all types
+- `false` — skip type generation
+- `string[]` — generate only the listed types by name _(module level only)_
+
+### Functions
+
+Controls which Move function wrappers are generated:
+
+- `true` — generate all public functions and private entry functions
+- `false` — skip function generation
+- `string[]` — generate only the listed functions by name; includes private functions _(module level
+  only)_
+- `{ private: 'entry' }` — generate public functions plus private entry functions
+- `{ private: true }` — generate all functions including private
+- `{ private: false }` — only generate public functions
+
+### Modules
+
+Controls which modules from the package are included. Only available at the package level, not at
+the global level.
+
+- Not set (default) — include all modules
+- `string[]` — only include the listed modules
+- `Record<string, true | { types?, functions? }>` — only include the listed modules, with per-module
+  overrides for `types` and `functions`. Use `true` as a shorthand to include everything from a
+  module with package-level defaults
+
+### Examples
+
+Only generate code from specific modules of the Sui framework:
+
+```typescript
+{
+  package: '0x0000000000000000000000000000000000000000000000000000000000000002',
+  packageName: '0x2',
+  network: 'testnet',
+  generate: {
+    modules: ['kiosk', 'kiosk_extension', 'transfer_policy'],
+  },
+}
+```
+
+Only generate a single type from a dependency (functions are omitted automatically since `generate`
+is configured and `functions` is not specified):
+
+```typescript
+{
+  package: '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837',
+  packageName: 'pyth',
+  network: 'testnet',
+  generate: {
+    modules: {
+      state: { types: ['State'] },
+    },
+  },
+}
+```
+
+Generate specific types and functions from individual modules:
+
+```typescript
+{
+  package: '@local-pkg/my-package',
+  path: './move/my-package',
+  generate: {
+    modules: {
+      token: {
+        types: ['Token', 'TokenMetadata'],
+        functions: ['mint', 'burn', 'transfer'],
+      },
+      admin: {
+        types: true,
+        functions: ['initialize'],
+      },
+    },
+  },
+}
+```
+
+Generate all types but include all private functions for a local package:
+
+```typescript
+{
+  package: '@local-pkg/my-package',
+  path: './move/my-package',
+  generate: {
+    functions: { private: true },
+  },
+}
+```
+
+### Dependency pruning
+
+The global `prune` option (default: `true`) controls whether dependency packages are included in the
+output. Even when pruning is enabled, dependency types referenced by your included types are still
+generated under `deps/`:
+
+```
+src/contracts/
+├── mypackage/
+│   ├── module_a.ts
+│   ├── module_b.ts
+│   └── deps/
+│       └── 0x2/
+│           └── balance.ts     # Auto-included dependency type
+└── utils/
+    └── index.ts               # Shared utilities (always generated)
+```
+
+Set `prune: false` to generate all dependency modules with their full types and functions.
 
 ## Using Generated Code
 

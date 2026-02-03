@@ -5,15 +5,41 @@ import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
 import { cosmiconfig } from 'cosmiconfig';
 import * as z from 'zod/v4';
 
-export const moduleIncludeSchema = z.object({
-	types: z.array(z.string()).optional(),
-	functions: z.array(z.string()).optional(),
+export const globalFunctionsOptionSchema = z.union([
+	z.boolean(),
+	z.object({
+		private: z.union([z.boolean(), z.literal('entry')]).optional(),
+	}),
+]);
+
+export const functionsOptionSchema = z.union([
+	z.boolean(),
+	z.array(z.string()),
+	z.object({
+		private: z.union([z.boolean(), z.literal('entry')]).optional(),
+	}),
+]);
+
+export const typesOptionSchema = z.union([z.boolean(), z.array(z.string())]);
+
+export const globalGenerateSchema = z.object({
+	functions: globalFunctionsOptionSchema.optional(),
+	types: z.boolean().optional(),
 });
 
-export const packageIncludeSchema = z.union([
-	z.array(z.string()),
-	z.record(z.string(), moduleIncludeSchema),
-]);
+export const moduleGenerateSchema = z.object({
+	functions: functionsOptionSchema.optional(),
+	types: typesOptionSchema.optional(),
+});
+
+export const packageGenerateSchema = globalGenerateSchema.extend({
+	modules: z
+		.union([
+			z.array(z.string()),
+			z.record(z.string(), z.union([z.literal(true), moduleGenerateSchema])),
+		])
+		.optional(),
+});
 
 export const onChainPackageSchema = z.object({
 	package: z.string().refine((name) => isValidNamedPackage(name) || isValidSuiObjectId(name), {
@@ -22,33 +48,34 @@ export const onChainPackageSchema = z.object({
 	packageName: z.string(),
 	path: z.never().optional(),
 	network: z.enum(['mainnet', 'testnet']),
-	include: packageIncludeSchema.optional(),
+	generate: packageGenerateSchema.optional(),
 });
 
 export const localPackageSchema = z.object({
 	path: z.string(),
 	package: z.string(),
 	packageName: z.string().optional(),
-	include: packageIncludeSchema.optional(),
+	generate: packageGenerateSchema.optional(),
 });
 
 export const packageConfigSchema = z.union([onChainPackageSchema, localPackageSchema]);
 
-export type ModuleInclude = z.infer<typeof moduleIncludeSchema>;
-export type PackageInclude = z.infer<typeof packageIncludeSchema>;
-
 export const importExtensionSchema = z.union([z.literal('.js'), z.literal('.ts'), z.literal('')]);
 export type ImportExtension = z.infer<typeof importExtensionSchema>;
+
+export type GenerateBase = z.infer<typeof globalGenerateSchema>;
+export type PackageGenerate = z.infer<typeof packageGenerateSchema>;
+export type FunctionsOption = z.infer<typeof functionsOptionSchema>;
+export type TypesOption = z.infer<typeof typesOptionSchema>;
 
 export const configSchema = z.object({
 	output: z.string(),
 	prune: z.boolean().optional().default(true),
 	generateSummaries: z.boolean().optional().default(true),
 	packages: z.array(packageConfigSchema),
-	privateMethods: z
-		.union([z.literal('none'), z.literal('entry'), z.literal('all')])
-		.optional()
-		.default('entry'),
+	generate: globalGenerateSchema.optional(),
+	/** @deprecated Use `generate: { functions: { private: 'entry' } }` instead */
+	privateMethods: z.union([z.literal('none'), z.literal('entry'), z.literal('all')]).optional(),
 	importExtension: importExtensionSchema.optional().default('.js'),
 });
 
@@ -65,7 +92,6 @@ export async function loadConfig(): Promise<ParsedSuiCodegenConfig> {
 			packages: [],
 			prune: true,
 			generateSummaries: true,
-			privateMethods: 'entry',
 			importExtension: '.js',
 		};
 	}

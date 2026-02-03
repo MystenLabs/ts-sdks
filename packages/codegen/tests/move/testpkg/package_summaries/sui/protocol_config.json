@@ -1,0 +1,33 @@
+{
+  "id": {
+    "address": "sui",
+    "name": "protocol_config"
+  },
+  "doc": " This module provides access to protocol configuration feature flags.\n Feature flags control the availability of various protocol features and\n are enabled/disabled at specific protocol versions during epoch changes.",
+  "immediate_dependencies": [],
+  "attributes": [],
+  "functions": {
+    "is_feature_enabled": {
+      "source_index": 0,
+      "index": 0,
+      "doc": " Checks if a specific protocol feature flag is enabled.\n\n Restricted to internal use within the sui-framework package only.\n If we need to use it in sui-system, we can add friend declarations.\n We should never need to expose this to user packages.\n\n # Arguments\n * `feature_flag_name` - The name of the feature flag as bytes (e.g., b\"enable_vdf\")\n   - It is expected to be a valid UTF-8 string\n   - The flag should exist in the protocol config\n\n # Returns\n * `true` if the feature is enabled in the current protocol version\n * `false` if the feature is disabled\n\n # Example (for framework use only)\n ```move\n use sui::protocol_config;\n\n if (protocol_config::is_feature_enabled(b\"enable_accumulators\")) {\n     // Accumulators are available\n };\n ```",
+      "attributes": [],
+      "visibility": "Package",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "feature_flag_name",
+          "type_": {
+            "vector": "u8"
+          }
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    }
+  },
+  "structs": {},
+  "enums": {}
+}

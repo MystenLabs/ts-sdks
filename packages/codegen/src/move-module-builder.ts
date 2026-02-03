@@ -19,7 +19,7 @@ import {
 	withComment,
 } from './utils.js';
 import type { Fields, ModuleSummary, Type, TypeParameter } from './types/summary.js';
-import type { ImportExtension } from './config.js';
+import type { FunctionsOption, ImportExtension, TypesOption } from './config.js';
 import { join } from 'node:path';
 
 const IMPORT_MAP = {
@@ -116,20 +116,14 @@ export class MoveModuleBuilder extends FileBuilder {
 		return `${await super.getHeader()}\n\n/*${await formatComment(this.summary.doc)}*/\n\n`;
 	}
 
-	includeAllFunctions({ privateMethods = 'entry' }: { privateMethods?: 'none' | 'entry' | 'all' }) {
-		this.includeFunctions({
-			names: Object.keys(this.summary.functions),
-			privateMethods,
-		});
-	}
+	includeFunctions(option?: FunctionsOption) {
+		if (option === false) return;
 
-	includeFunctions({
-		names,
-		privateMethods = 'entry',
-	}: {
-		names: string[];
-		privateMethods?: 'none' | 'entry' | 'all';
-	}) {
+		const filterByVisibility = !Array.isArray(option);
+		const names = Array.isArray(option) ? option : Object.keys(this.summary.functions);
+		const privateFunctions =
+			typeof option === 'object' && filterByVisibility ? (option.private ?? 'entry') : 'entry';
+
 		for (const name of names) {
 			const func = this.summary.functions[name];
 			if (!func) {
@@ -142,20 +136,9 @@ export class MoveModuleBuilder extends FileBuilder {
 				continue;
 			}
 
-			if (func.visibility !== 'Public') {
-				switch (privateMethods) {
-					case 'none':
-						continue;
-					case 'entry':
-						if (!func.entry) {
-							continue;
-						}
-						break;
-					case 'all':
-						break;
-					default:
-						throw new Error(`Unknown privateMethods option: ${privateMethods}`);
-				}
+			if (filterByVisibility && func.visibility !== 'Public') {
+				if (privateFunctions === false) continue;
+				if (privateFunctions === 'entry' && !func.entry) continue;
 			}
 
 			const safeName = getSafeName(camelCase(name));
@@ -232,17 +215,16 @@ export class MoveModuleBuilder extends FileBuilder {
 		this.#orderedTypes.push(name);
 	}
 
-	includeTypes(names: string[], moduleBuilders: Record<string, MoveModuleBuilder>) {
+	includeTypes(moduleBuilders: Record<string, MoveModuleBuilder>, option?: TypesOption) {
+		if (option === false) return;
+
+		const names = Array.isArray(option)
+			? option
+			: [...Object.keys(this.summary.structs), ...Object.keys(this.summary.enums)];
+
 		for (const name of names) {
 			this.includeType(name, moduleBuilders);
 		}
-	}
-
-	includeAllTypes(moduleBuilders: Record<string, MoveModuleBuilder>) {
-		this.includeTypes(
-			[...Object.keys(this.summary.structs), ...Object.keys(this.summary.enums)],
-			moduleBuilders,
-		);
 	}
 
 	async renderBCSTypes() {

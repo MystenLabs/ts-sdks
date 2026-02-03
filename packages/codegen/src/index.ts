@@ -1,26 +1,33 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { MoveModuleBuilder } from './move-module-builder.js';
 import { existsSync, statSync } from 'node:fs';
 import { utilsContent } from './generate-utils.js';
 import { parse } from 'toml';
-import type { ImportExtension, PackageConfig, PackageInclude } from './config.js';
+import type {
+	FunctionsOption,
+	GenerateBase,
+	ImportExtension,
+	PackageConfig,
+	PackageGenerate,
+	TypesOption,
+} from './config.js';
 export { type SuiCodegenConfig } from './config.js';
 
 export async function generateFromPackageSummary({
 	package: pkg,
 	prune,
 	outputDir,
-	privateMethods,
+	globalGenerate,
 	importExtension = '.js',
 }: {
 	package: PackageConfig;
 	prune: boolean;
 	outputDir: string;
-	privateMethods: 'none' | 'entry' | 'all';
+	globalGenerate?: GenerateBase;
 	importExtension?: ImportExtension;
 }) {
 	if (!pkg.path) {
@@ -108,46 +115,39 @@ export async function generateFromPackageSummary({
 		modules.map((mod) => [`${mod.package}::${mod.module}`, mod.builder]),
 	);
 
-	const include: PackageInclude | undefined = 'include' in pkg ? pkg.include : undefined;
+	const packageGenerate: PackageGenerate | undefined = 'generate' in pkg ? pkg.generate : undefined;
+	const pkgModules = packageGenerate?.modules;
+	const pkgTypes: TypesOption = packageGenerate?.types ?? globalGenerate?.types ?? true;
+	const pkgFunctions: FunctionsOption =
+		packageGenerate?.functions ?? globalGenerate?.functions ?? true;
 
-	modules.forEach((mod) => {
+	for (const mod of modules) {
 		if (!mod.isMainPackage && prune) {
-			return;
+			continue;
 		}
 
-		// If include is an array, it specifies which modules to include
-		if (Array.isArray(include)) {
-			if (!include.includes(mod.module)) {
-				return;
-			}
-			mod.builder.includeAllTypes(moduleBuilders);
-			mod.builder.includeAllFunctions({ privateMethods });
-			return;
-		}
+		const moduleGenerate = !pkgModules
+			? true
+			: Array.isArray(pkgModules)
+				? pkgModules.includes(mod.module) || null
+				: mod.module in pkgModules
+					? pkgModules[mod.module]
+					: null;
 
-		// If include is a record, it specifies types/functions per module
-		if (include && mod.module in include) {
-			const moduleInclude = include[mod.module];
-			if (moduleInclude.types) {
-				mod.builder.includeTypes(moduleInclude.types, moduleBuilders);
-			}
-			if (moduleInclude.functions) {
-				mod.builder.includeFunctions({ names: moduleInclude.functions, privateMethods });
-			}
-			return;
-		}
+		if (!moduleGenerate) continue;
 
-		// If include is specified but this module isn't in it, skip
-		if (include) {
-			return;
-		}
+		const types = moduleGenerate === true ? pkgTypes : (moduleGenerate.types ?? false);
+		const functions = moduleGenerate === true ? pkgFunctions : (moduleGenerate.functions ?? false);
 
-		// Default: include everything
-		mod.builder.includeAllTypes(moduleBuilders);
-		mod.builder.includeAllFunctions({ privateMethods });
-	});
+		mod.builder.includeTypes(moduleBuilders, types);
+		mod.builder.includeFunctions(functions);
+	}
 
 	await generateUtils({ outputDir });
+
+	// Clean the package output directory to remove stale files from previous runs
+	const packageOutputDir = join(outputDir, packageName);
+	await rm(packageOutputDir, { recursive: true, force: true });
 
 	await Promise.all(
 		modules.map(async (mod) => {

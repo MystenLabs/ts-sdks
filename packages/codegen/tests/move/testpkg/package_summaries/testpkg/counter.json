@@ -1,0 +1,1021 @@
+{
+  "id": {
+    "address": "testpkg",
+    "name": "counter"
+  },
+  "doc": " A counter module used for codegen testing.\n Contains structs with all primitive types, Options, vectors, IDs, and various function visibilities.",
+  "immediate_dependencies": [
+    {
+      "address": "std",
+      "name": "ascii"
+    },
+    {
+      "address": "std",
+      "name": "option"
+    },
+    {
+      "address": "std",
+      "name": "string"
+    },
+    {
+      "address": "std",
+      "name": "vector"
+    },
+    {
+      "address": "sui",
+      "name": "clock"
+    },
+    {
+      "address": "sui",
+      "name": "event"
+    },
+    {
+      "address": "sui",
+      "name": "object"
+    },
+    {
+      "address": "sui",
+      "name": "transfer"
+    },
+    {
+      "address": "sui",
+      "name": "tx_context"
+    }
+  ],
+  "attributes": [
+    {
+      "Parameterized": [
+        "allow",
+        [
+          {
+            "Name": "unused_field"
+          },
+          {
+            "Name": "unused_function"
+          }
+        ]
+      ]
+    }
+  ],
+  "functions": {
+    "create": {
+      "source_index": 0,
+      "index": 0,
+      "doc": " Create a new counter (public entry).",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "sui",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "increment": {
+      "source_index": 1,
+      "index": 1,
+      "doc": " Increment the counter by 1 (public, mutable ref).",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "counter",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "testpkg",
+                    "name": "counter"
+                  },
+                  "name": "Counter",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "value": {
+      "source_index": 2,
+      "index": 2,
+      "doc": " Get the current value (public, immutable ref).",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "counter",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "testpkg",
+                    "name": "counter"
+                  },
+                  "name": "Counter",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "set_value": {
+      "source_index": 3,
+      "index": 3,
+      "doc": " Set the counter to a specific value (public, takes u64 arg).",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "counter",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "testpkg",
+                    "name": "counter"
+                  },
+                  "name": "Counter",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_value",
+          "type_": "u64"
+        }
+      ],
+      "return_": []
+    },
+    "value_with_clock": {
+      "source_index": 4,
+      "index": 4,
+      "doc": " Function that uses a well-known object parameter (Clock).",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "counter",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "testpkg",
+                    "name": "counter"
+                  },
+                  "name": "Counter",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "clock",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "sui",
+                    "name": "clock"
+                  },
+                  "name": "Clock",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "set_optional": {
+      "source_index": 5,
+      "index": 5,
+      "doc": " Function with Option parameters.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "counter",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "testpkg",
+                    "name": "counter"
+                  },
+                  "name": "Counter",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_value",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "std",
+                "name": "option"
+              },
+              "name": "Option",
+              "type_arguments": [
+                {
+                  "phantom": false,
+                  "argument": "u64"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "return_": []
+    },
+    "batch_set": {
+      "source_index": 6,
+      "index": 6,
+      "doc": " Function with vector parameter.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "counter",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "testpkg",
+                    "name": "counter"
+                  },
+                  "name": "Counter",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "values",
+          "type_": {
+            "vector": "u64"
+          }
+        }
+      ],
+      "return_": []
+    },
+    "wrap": {
+      "source_index": 7,
+      "index": 7,
+      "doc": " Function with generic type parameters.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [
+        {
+          "name": "T",
+          "constraints": [
+            "Store"
+          ]
+        }
+      ],
+      "parameters": [
+        {
+          "name": "value",
+          "type_": {
+            "NamedTypeParameter": "T"
+          }
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "sui",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "testpkg",
+              "name": "counter"
+            },
+            "name": "Wrapper",
+            "type_arguments": [
+              {
+                "phantom": false,
+                "argument": {
+                  "NamedTypeParameter": "T"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "create_pair": {
+      "source_index": 8,
+      "index": 8,
+      "doc": " Function with multiple generic type parameters.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [
+        {
+          "name": "T",
+          "constraints": [
+            "Store"
+          ]
+        },
+        {
+          "name": "U",
+          "constraints": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "first",
+          "type_": {
+            "NamedTypeParameter": "T"
+          }
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "sui",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "testpkg",
+              "name": "counter"
+            },
+            "name": "Pair",
+            "type_arguments": [
+              {
+                "phantom": false,
+                "argument": {
+                  "NamedTypeParameter": "T"
+                }
+              },
+              {
+                "phantom": true,
+                "argument": {
+                  "NamedTypeParameter": "U"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "get_value_and_owner": {
+      "source_index": 9,
+      "index": 9,
+      "doc": " Function with multiple return values.",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "counter",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "testpkg",
+                    "name": "counter"
+                  },
+                  "name": "Counter",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64",
+        "address"
+      ]
+    },
+    "reset": {
+      "source_index": 10,
+      "index": 10,
+      "doc": " Reset the counter (private entry function).",
+      "attributes": [],
+      "visibility": "Private",
+      "entry": true,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "counter",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "testpkg",
+                    "name": "counter"
+                  },
+                  "name": "Counter",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "destroy": {
+      "source_index": 11,
+      "index": 11,
+      "doc": " Destroy the counter (private, not entry).",
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "counter",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "testpkg",
+                "name": "counter"
+              },
+              "name": "Counter",
+              "type_arguments": []
+            }
+          }
+        }
+      ],
+      "return_": []
+    }
+  },
+  "structs": {
+    "Counter": {
+      "index": 0,
+      "doc": " A simple counter object.",
+      "attributes": [],
+      "abilities": [
+        "Key"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "sui",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          },
+          "value": {
+            "index": 1,
+            "doc": null,
+            "type_": "u64"
+          },
+          "owner": {
+            "index": 2,
+            "doc": null,
+            "type_": "address"
+          }
+        }
+      }
+    },
+    "AdminCap": {
+      "index": 1,
+      "doc": " Admin capability for managing counters.",
+      "attributes": [],
+      "abilities": [
+        "Key",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "sui",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "CounterCreated": {
+      "index": 2,
+      "doc": " Event emitted when a counter is created.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "counter_id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "sui",
+                  "name": "object"
+                },
+                "name": "ID",
+                "type_arguments": []
+              }
+            }
+          },
+          "initial_value": {
+            "index": 1,
+            "doc": null,
+            "type_": "u64"
+          }
+        }
+      }
+    },
+    "Primitives": {
+      "index": 3,
+      "doc": " Covers all primitive field types.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "val_bool": {
+            "index": 0,
+            "doc": null,
+            "type_": "bool"
+          },
+          "val_u8": {
+            "index": 1,
+            "doc": null,
+            "type_": "u8"
+          },
+          "val_u16": {
+            "index": 2,
+            "doc": null,
+            "type_": "u16"
+          },
+          "val_u32": {
+            "index": 3,
+            "doc": null,
+            "type_": "u32"
+          },
+          "val_u64": {
+            "index": 4,
+            "doc": null,
+            "type_": "u64"
+          },
+          "val_u128": {
+            "index": 5,
+            "doc": null,
+            "type_": "u128"
+          },
+          "val_u256": {
+            "index": 6,
+            "doc": null,
+            "type_": "u256"
+          },
+          "val_address": {
+            "index": 7,
+            "doc": null,
+            "type_": "address"
+          }
+        }
+      }
+    },
+    "Composites": {
+      "index": 4,
+      "doc": " Covers string, vector, option, and object-id field types.",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "val_string": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "std",
+                  "name": "string"
+                },
+                "name": "String",
+                "type_arguments": []
+              }
+            }
+          },
+          "val_ascii_string": {
+            "index": 1,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "std",
+                  "name": "ascii"
+                },
+                "name": "String",
+                "type_arguments": []
+              }
+            }
+          },
+          "val_id": {
+            "index": 2,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "sui",
+                  "name": "object"
+                },
+                "name": "ID",
+                "type_arguments": []
+              }
+            }
+          },
+          "val_vector_u8": {
+            "index": 3,
+            "doc": null,
+            "type_": {
+              "vector": "u8"
+            }
+          },
+          "val_vector_u64": {
+            "index": 4,
+            "doc": null,
+            "type_": {
+              "vector": "u64"
+            }
+          },
+          "val_vector_bool": {
+            "index": 5,
+            "doc": null,
+            "type_": {
+              "vector": "bool"
+            }
+          },
+          "val_vector_address": {
+            "index": 6,
+            "doc": null,
+            "type_": {
+              "vector": "address"
+            }
+          },
+          "val_vector_string": {
+            "index": 7,
+            "doc": null,
+            "type_": {
+              "vector": {
+                "Datatype": {
+                  "module": {
+                    "address": "std",
+                    "name": "string"
+                  },
+                  "name": "String",
+                  "type_arguments": []
+                }
+              }
+            }
+          },
+          "val_nested_vector": {
+            "index": 8,
+            "doc": null,
+            "type_": {
+              "vector": {
+                "vector": "u8"
+              }
+            }
+          },
+          "val_option_u64": {
+            "index": 9,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "std",
+                  "name": "option"
+                },
+                "name": "Option",
+                "type_arguments": [
+                  {
+                    "phantom": false,
+                    "argument": "u64"
+                  }
+                ]
+              }
+            }
+          },
+          "val_option_string": {
+            "index": 10,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "std",
+                  "name": "option"
+                },
+                "name": "Option",
+                "type_arguments": [
+                  {
+                    "phantom": false,
+                    "argument": {
+                      "Datatype": {
+                        "module": {
+                          "address": "std",
+                          "name": "string"
+                        },
+                        "name": "String",
+                        "type_arguments": []
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "val_option_id": {
+            "index": 11,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "std",
+                  "name": "option"
+                },
+                "name": "Option",
+                "type_arguments": [
+                  {
+                    "phantom": false,
+                    "argument": {
+                      "Datatype": {
+                        "module": {
+                          "address": "sui",
+                          "name": "object"
+                        },
+                        "name": "ID",
+                        "type_arguments": []
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "val_option_bool": {
+            "index": 12,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "std",
+                  "name": "option"
+                },
+                "name": "Option",
+                "type_arguments": [
+                  {
+                    "phantom": false,
+                    "argument": "bool"
+                  }
+                ]
+              }
+            }
+          },
+          "val_vector_option": {
+            "index": 13,
+            "doc": null,
+            "type_": {
+              "vector": {
+                "Datatype": {
+                  "module": {
+                    "address": "std",
+                    "name": "option"
+                  },
+                  "name": "Option",
+                  "type_arguments": [
+                    {
+                      "phantom": false,
+                      "argument": "u64"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Wrapper": {
+      "index": 5,
+      "doc": " Generic struct with a non-phantom type parameter.",
+      "attributes": [],
+      "abilities": [
+        "Key",
+        "Store"
+      ],
+      "type_parameters": [
+        {
+          "phantom": false,
+          "name": "T",
+          "constraints": [
+            "Store"
+          ]
+        }
+      ],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "sui",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          },
+          "value": {
+            "index": 1,
+            "doc": null,
+            "type_": {
+              "NamedTypeParameter": "T"
+            }
+          }
+        }
+      }
+    },
+    "Pair": {
+      "index": 6,
+      "doc": " Generic struct with multiple type parameters, mixing phantom and non-phantom.",
+      "attributes": [],
+      "abilities": [
+        "Key",
+        "Store"
+      ],
+      "type_parameters": [
+        {
+          "phantom": false,
+          "name": "T",
+          "constraints": [
+            "Store"
+          ]
+        },
+        {
+          "phantom": true,
+          "name": "U",
+          "constraints": []
+        }
+      ],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "sui",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          },
+          "first": {
+            "index": 1,
+            "doc": null,
+            "type_": {
+              "NamedTypeParameter": "T"
+            }
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

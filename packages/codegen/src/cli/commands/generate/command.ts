@@ -44,10 +44,36 @@ export const generateCommand = buildCommand({
 				optional: true,
 				brief: 'File extension for import statements (default: .js)',
 			},
+			modules: {
+				kind: 'parsed',
+				parse: String,
+				optional: true,
+				variadic: ',',
+				brief: 'Only generate from these modules (comma-separated)',
+			},
+			noTypes: {
+				kind: 'parsed',
+				parse: Boolean,
+				optional: true,
+				brief: 'Skip type generation',
+			},
+			noFunctions: {
+				kind: 'parsed',
+				parse: Boolean,
+				optional: true,
+				brief: 'Skip function generation',
+			},
+			private: {
+				kind: 'enum',
+				values: ['none', 'entry', 'all'],
+				optional: true,
+				brief: 'Which private functions to generate (default: entry)',
+			},
 		},
 		aliases: {
 			o: 'outputDir',
 			n: 'network',
+			m: 'modules',
 		},
 	},
 	docs: {
