@@ -1,5 +1,20 @@
 # @mysten/codegen
 
+## 0.7.0
+
+### Minor Changes
+
+- 03d43fa: Add `generate` option to package config for controlling type and function generation.
+  Replaces the old `modules` and `include` package-level properties with a unified
+  `generate: { types, functions, modules }` structure. Add CLI flags `--modules`, `--noTypes`,
+  `--noFunctions`, and `--private` to override generation options from the command line.
+- 6000f4e: Add flag --yes to sui move summary to not block CI pipelines
+
+### Patch Changes
+
+- Updated dependencies [6125fbd]
+  - @mysten/sui@2.2.0
+
 ## 0.6.0
 
 ### Minor Changes

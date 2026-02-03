@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 2.2.0
+
+### Minor Changes
+
+- 6125fbd: Add getCoinMetadata to core api
+
 ## 2.1.0
 
 ### Minor Changes
