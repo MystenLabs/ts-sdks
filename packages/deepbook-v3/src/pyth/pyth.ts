@@ -195,28 +195,27 @@ export class SuiPythClient {
 	 * @returns Price table object ID and field type
 	 */
 	async #fetchPriceTableInfo(): Promise<{ id: ObjectId; fieldType: ObjectId }> {
-		const nameBytes = bcs.string().serialize('price_info').toBytes();
-
-		const result = await this.provider.core.getDynamicField({
+		const result = await this.provider.core.getDynamicObjectField({
 			parentId: this.pythStateId,
 			name: {
 				type: 'vector<u8>',
-				bcs: nameBytes,
+				bcs: bcs.string().serialize('price_info').toBytes(),
 			},
 		});
 
-		if (!result.dynamicField || !result.dynamicField.type) {
+		if (!result.object) {
 			throw new Error('Price Table not found, contract may not be initialized');
 		}
 
-		const priceIdentifier = parseStructTag(result.dynamicField.type).typeParams[0];
+		const tableType = parseStructTag(result.object.type);
+		const priceIdentifier = tableType.typeParams[0];
 		if (
 			typeof priceIdentifier === 'object' &&
 			priceIdentifier !== null &&
 			priceIdentifier.name === 'PriceIdentifier' &&
 			'address' in priceIdentifier
 		) {
-			return { id: result.dynamicField.fieldId, fieldType: priceIdentifier.address };
+			return { id: result.object.objectId, fieldType: priceIdentifier.address };
 		} else {
 			throw new Error('fieldType not found');
 		}
