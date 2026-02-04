@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 1.0.3
+
+### Patch Changes
+
+- bb40431: USDE Pools added
+
 ## 1.0.2
 
 ### Patch Changes
