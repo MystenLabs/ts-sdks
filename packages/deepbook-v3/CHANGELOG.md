@@ -1,5 +1,13 @@
 # @mysten/deepbook-v3
 
+## 1.0.2
+
+### Patch Changes
+
+- 3651a5f: Fix Pyth price table lookup to use getDynamicObjectField and correctly parse Wormhole
+  state using WormholeState schema
+- 1baa679: Margin manager states function
+
 ## 1.0.1
 
 ### Patch Changes

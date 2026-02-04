@@ -1,5 +1,12 @@
 # @mysten/dapp-kit-core
 
+## 1.0.3
+
+### Patch Changes
+
+- c0a4d9c: Fix autoconnect not triggering when wallets register before store subscription by using
+  subscribe instead of listen
+
 ## 1.0.2
 
 ### Patch Changes
