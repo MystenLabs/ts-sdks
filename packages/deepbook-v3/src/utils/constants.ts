@@ -338,6 +338,16 @@ export const mainnetPools: PoolMap = {
 		baseCoin: 'USDT',
 		quoteCoin: 'USDC',
 	},
+	USDE_USDC: {
+		address: '0x0fac1cebf35bde899cd9ecdd4371e0e33f44ba83b8a2902d69186646afa3a94b',
+		baseCoin: 'USDE',
+		quoteCoin: 'USDC',
+	},
+	SUI_USDE: {
+		address: '0x034f3a42e7348de2084406db7a725f9d9d132a56c68324713e6e623601fb4fd7',
+		baseCoin: 'SUI',
+		quoteCoin: 'USDE',
+	},
 };
 
 export const testnetMarginPools = {
