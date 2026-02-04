@@ -1607,6 +1607,160 @@ export class DeepBookClient {
 	}
 
 	/**
+	 * @description Get comprehensive state information for multiple margin managers.
+	 * @param {Record<string, string>} marginManagers Map of marginManagerId -> poolKey
+	 * @param {number} decimals Number of decimal places for formatting (default: 6)
+	 * @returns {Promise<Record<string, {...}>>} Object keyed by managerId with state data
+	 */
+	async getMarginManagerStates(
+		marginManagers: Record<string, string>,
+		decimals: number = 6,
+	): Promise<
+		Record<
+			string,
+			{
+				managerId: string;
+				deepbookPoolId: string;
+				riskRatio: number;
+				baseAsset: string;
+				quoteAsset: string;
+				baseDebt: string;
+				quoteDebt: string;
+				basePythPrice: string;
+				basePythDecimals: number;
+				quotePythPrice: string;
+				quotePythDecimals: number;
+				currentPrice: bigint;
+				lowestTriggerAbovePrice: bigint;
+				highestTriggerBelowPrice: bigint;
+			}
+		>
+	> {
+		const entries = Object.entries(marginManagers);
+		if (entries.length === 0) {
+			return {};
+		}
+
+		const tx = new Transaction();
+
+		// Add a managerState call for each margin manager
+		for (const [managerId, poolKey] of entries) {
+			tx.add(this.marginManager.managerState(poolKey, managerId));
+		}
+
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
+		});
+
+		if (res.FailedTransaction) {
+			throw new Error(
+				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
+			);
+		}
+
+		if (!res.commandResults) {
+			throw new Error(`Failed to get margin manager states: Unknown error`);
+		}
+
+		const results: Record<
+			string,
+			{
+				managerId: string;
+				deepbookPoolId: string;
+				riskRatio: number;
+				baseAsset: string;
+				quoteAsset: string;
+				baseDebt: string;
+				quoteDebt: string;
+				basePythPrice: string;
+				basePythDecimals: number;
+				quotePythPrice: string;
+				quotePythDecimals: number;
+				currentPrice: bigint;
+				lowestTriggerAbovePrice: bigint;
+				highestTriggerBelowPrice: bigint;
+			}
+		> = {};
+
+		// Parse each command result
+		for (let i = 0; i < entries.length; i++) {
+			const commandResult = res.commandResults[i];
+			if (!commandResult || !commandResult.returnValues) {
+				throw new Error(`Failed to get margin manager state for index ${i}: No return values`);
+			}
+
+			const [, poolKey] = entries[i];
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+			const managerId = normalizeSuiAddress(
+				bcs.Address.parse(commandResult.returnValues[0].bcs),
+			);
+			const deepbookPoolId = normalizeSuiAddress(
+				bcs.Address.parse(commandResult.returnValues[1].bcs),
+			);
+			const riskRatio =
+				Number(bcs.U64.parse(commandResult.returnValues[2].bcs)) / FLOAT_SCALAR;
+			const baseAsset = this.#formatTokenAmount(
+				BigInt(bcs.U64.parse(commandResult.returnValues[3].bcs)),
+				baseCoin.scalar,
+				decimals,
+			);
+			const quoteAsset = this.#formatTokenAmount(
+				BigInt(bcs.U64.parse(commandResult.returnValues[4].bcs)),
+				quoteCoin.scalar,
+				decimals,
+			);
+			const baseDebt = this.#formatTokenAmount(
+				BigInt(bcs.U64.parse(commandResult.returnValues[5].bcs)),
+				baseCoin.scalar,
+				decimals,
+			);
+			const quoteDebt = this.#formatTokenAmount(
+				BigInt(bcs.U64.parse(commandResult.returnValues[6].bcs)),
+				quoteCoin.scalar,
+				decimals,
+			);
+			const basePythPrice = bcs.U64.parse(commandResult.returnValues[7].bcs);
+			const basePythDecimals = Number(
+				bcs.u8().parse(new Uint8Array(commandResult.returnValues[8].bcs)),
+			);
+			const quotePythPrice = bcs.U64.parse(commandResult.returnValues[9].bcs);
+			const quotePythDecimals = Number(
+				bcs.u8().parse(new Uint8Array(commandResult.returnValues[10].bcs)),
+			);
+			const currentPrice = BigInt(bcs.U64.parse(commandResult.returnValues[11].bcs));
+			const lowestTriggerAbovePrice = BigInt(
+				bcs.U64.parse(commandResult.returnValues[12].bcs),
+			);
+			const highestTriggerBelowPrice = BigInt(
+				bcs.U64.parse(commandResult.returnValues[13].bcs),
+			);
+
+			results[managerId] = {
+				managerId,
+				deepbookPoolId,
+				riskRatio,
+				baseAsset,
+				quoteAsset,
+				baseDebt,
+				quoteDebt,
+				basePythPrice: basePythPrice.toString(),
+				basePythDecimals,
+				quotePythPrice: quotePythPrice.toString(),
+				quotePythDecimals,
+				currentPrice,
+				lowestTriggerAbovePrice,
+				highestTriggerBelowPrice,
+			};
+		}
+
+		return results;
+	}
+
+	/**
 	 * @description Get the base asset balance of a margin manager
 	 * @param {string} marginManagerKey The key to identify the margin manager
 	 * @param {number} decimals Number of decimal places to show (default: 6)
