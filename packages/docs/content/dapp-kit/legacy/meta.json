@@ -8,7 +8,7 @@
 		"wallet-provider",
 		"wallet-components",
 		"wallet-hooks",
-		"slush-wallet",
+		"slush",
 		"themes"
 	]
 }

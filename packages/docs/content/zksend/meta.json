@@ -2,5 +2,5 @@
 	"root": true,
 	"title": "ZkSend",
 	"description": "Send Sui with a link",
-	"pages": ["index", "dapp", "link-builder"]
+	"pages": ["index", "link-builder"]
 }

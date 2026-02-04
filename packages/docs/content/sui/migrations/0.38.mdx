@@ -25,15 +25,15 @@ The Sui TypeScript SDK deprecates the following classes with version 0.38.0:
 
 - `JsonRpcProvider` - The `JsonRpcProvider` class is deprecated in favor of the `suiClient` class
   when creating a client for a Sui network. See
-  [Network Interactions with SuiJsonRpcClient](typescript/sui-client) for more information.
+  [Network Interactions with SuiJsonRpcClient](/sui/clients) for more information.
 - `SignerWithProver` and `RawSigner` - Key pairs now directly support signing transactions and
   messages without the need of a `Signer` class. See the
-  [Key pairs](typescript/cryptography/keypairs) topic for more information.
+  [Key pairs](/sui/cryptography/keypairs) topic for more information.
 - `signAndExecuteTransaction` - This method was not deprecated, but is now part of
   `SuiJsonRpcClient`.
 - `Connection` classes - The `Connection` classes (`Connection`, `devnetConnection`, and so on) have
   been deprecated in favor ofSuiJsonRpcClientuiClient` for establishing the connection. See
-  [Network Interactions with SuiJsonRpcClient](typescript/sui-client) for more information.
+  [Network Interactions with SuiJsonRpcClient](/sui/clients) for more information.
 - The `superstruct` type definitions for `JsonRPCProvider` types are replaced with generated types
   exported from `@mysten/sui/client`. The new type definitions are pure TypeScript types that you
   can't use for runtime validation.
@@ -44,7 +44,7 @@ The Sui TypeScript SDK deprecates the following classes with version 0.38.0:
 
 Signing and sending transactions changes slightly with the deprecation of the `Signer` pattern. For
 an example of transaction signing, see the
-[Sui Programmable Transaction Blocks Basics](typescript/transaction-building/basics) topic.
+[Sui Programmable Transaction Blocks Basics](/sui/transaction-building/basics) topic.
 
 ### Faucet requests
 
