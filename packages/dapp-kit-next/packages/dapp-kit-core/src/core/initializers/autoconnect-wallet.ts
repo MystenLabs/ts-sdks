@@ -28,7 +28,7 @@ export function autoConnectWallet({
 	storageKey: string;
 }) {
 	onMount($compatibleWallets, () => {
-		return $compatibleWallets.listen(
+		return $compatibleWallets.subscribe(
 			async (wallets, oldWallets: readonly UiWallet[] | undefined) => {
 				if (oldWallets && oldWallets.length > wallets.length) return;
 
