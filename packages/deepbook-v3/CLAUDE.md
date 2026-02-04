@@ -1,6 +1,8 @@
 # CLAUDE.md - DeepBook V3 Package
 
-This file contains package-specific guidance for Claude Code when working with the deepbook-v3 package. Update this file as new information is learned.
+This file contains package-specific guidance for Claude Code when working with the deepbook-v3 package.
+
+**IMPORTANT**: Update this file whenever new patterns, gotchas, or important information is learned while working in this package. This helps future sessions avoid repeating the same investigations.
 
 ## Overview
 
@@ -127,3 +129,11 @@ pnpm --filter @mysten/deepbook-v3 codegen
 
 - `@mysten/sui` - Core Sui SDK
 - Requires sibling repo `../deepbookv3` for codegen
+
+---
+
+## Changelog
+
+Track significant updates to this file:
+
+- **2026-02**: Initial creation with Move/PTB limitations, `getMarginManagerStates` implementation, gRPC client migration notes
