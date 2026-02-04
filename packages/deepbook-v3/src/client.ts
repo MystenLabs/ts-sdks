@@ -1695,14 +1695,11 @@ export class DeepBookClient {
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-			const managerId = normalizeSuiAddress(
-				bcs.Address.parse(commandResult.returnValues[0].bcs),
-			);
+			const managerId = normalizeSuiAddress(bcs.Address.parse(commandResult.returnValues[0].bcs));
 			const deepbookPoolId = normalizeSuiAddress(
 				bcs.Address.parse(commandResult.returnValues[1].bcs),
 			);
-			const riskRatio =
-				Number(bcs.U64.parse(commandResult.returnValues[2].bcs)) / FLOAT_SCALAR;
+			const riskRatio = Number(bcs.U64.parse(commandResult.returnValues[2].bcs)) / FLOAT_SCALAR;
 			const baseAsset = this.#formatTokenAmount(
 				BigInt(bcs.U64.parse(commandResult.returnValues[3].bcs)),
 				baseCoin.scalar,
@@ -1732,12 +1729,8 @@ export class DeepBookClient {
 				bcs.u8().parse(new Uint8Array(commandResult.returnValues[10].bcs)),
 			);
 			const currentPrice = BigInt(bcs.U64.parse(commandResult.returnValues[11].bcs));
-			const lowestTriggerAbovePrice = BigInt(
-				bcs.U64.parse(commandResult.returnValues[12].bcs),
-			);
-			const highestTriggerBelowPrice = BigInt(
-				bcs.U64.parse(commandResult.returnValues[13].bcs),
-			);
+			const lowestTriggerAbovePrice = BigInt(bcs.U64.parse(commandResult.returnValues[12].bcs));
+			const highestTriggerBelowPrice = BigInt(bcs.U64.parse(commandResult.returnValues[13].bcs));
 
 			results[managerId] = {
 				managerId,
