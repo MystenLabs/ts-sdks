@@ -22,5 +22,7 @@ export {
 	type ClientWithCoreApi,
 };
 
+export { SimulationError } from './errors.js';
+
 export { ClientCache, type ClientCacheOptions } from './cache.js';
 export { type NamedPackagesOverrides } from './mvr.js';

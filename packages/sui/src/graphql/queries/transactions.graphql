@@ -150,6 +150,26 @@ query resolveTransaction($transaction: JSON!, $doGasSelection: Boolean = true) {
 		effects {
 			transaction {
 				transactionBcs
+				effects {
+					status
+					executionError {
+						message
+						abortCode
+						identifier
+						constant
+						sourceLineNumber
+						instructionOffset
+						module {
+							name
+							package {
+								address
+							}
+						}
+						function {
+							name
+						}
+					}
+				}
 			}
 		}
 	}

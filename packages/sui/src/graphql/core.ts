@@ -34,11 +34,11 @@ import {
 	VerifyZkLoginSignatureDocument,
 	ZkLoginIntentScope,
 } from './generated/queries.js';
-import { ObjectError } from '../client/errors.js';
+import { ObjectError, SimulationError } from '../client/errors.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
-import { parseTransactionEffectsBcs } from '../client/utils.js';
+import { formatMoveAbortMessage, parseTransactionEffectsBcs } from '../client/utils.js';
 import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.js';
 import {
 	transactionDataToGrpcTransaction,
@@ -407,8 +407,8 @@ export class GraphQLCoreClient extends CoreClient {
 			(result) => result.simulateTransaction,
 		);
 
-		if (result.error) {
-			throw new Error(result.error);
+		if (result.error && !result.effects?.transaction) {
+			throw new SimulationError(result.error);
 		}
 
 		const transactionResult = parseTransaction(result.effects?.transaction!, options.include);
@@ -747,14 +747,27 @@ export class GraphQLCoreClient extends CoreClient {
 				query: ResolveTransactionDocument,
 				variables: {
 					transaction: transactionJson,
-					doGasSelection: !options.onlyTransactionKind,
+					doGasSelection:
+						!options.onlyTransactionKind &&
+						(snapshot.gasData.budget == null || snapshot.gasData.payment == null),
 				},
 			});
 
 			handleGraphQLErrors(errors);
 
 			if (data?.simulateTransaction?.error) {
-				throw new Error(`Transaction resolution failed: ${data.simulateTransaction.error}`);
+				throw new SimulationError(
+					`Transaction resolution failed: ${data.simulateTransaction.error}`,
+				);
+			}
+
+			const transactionEffects = data?.simulateTransaction?.effects?.transaction?.effects;
+			if (!options.onlyTransactionKind && transactionEffects?.status === ExecutionStatus.Failure) {
+				const executionError = parseGraphQLExecutionError(transactionEffects.executionError);
+				const errorMessage = executionError?.message ?? 'Transaction failed';
+				throw new SimulationError(`Transaction resolution failed: ${errorMessage}`, {
+					executionError,
+				});
 			}
 
 			const resolvedTransactionBcs =
@@ -966,24 +979,47 @@ function parseNormalizedSuiMoveType(type: OpenMoveTypeSignature): SuiClientTypes
 function parseGraphQLExecutionError(
 	executionError: GraphQLExecutionError | null | undefined,
 ): SuiClientTypes.ExecutionError {
-	const message = executionError?.message ?? 'Transaction failed';
 	const name = mapGraphQLExecutionErrorKind(executionError);
 
 	if (name === 'MoveAbort' && executionError?.abortCode != null) {
+		const location = parseGraphQLMoveLocation(executionError);
+		const cleverError = parseGraphQLCleverError(executionError);
+		const commandMatch = executionError.message?.match(/in (\d+)\w* command/);
+		const command = commandMatch ? parseInt(commandMatch[1], 10) - 1 : undefined;
+
 		return {
 			$kind: 'MoveAbort',
-			message,
+			message: formatMoveAbortMessage({
+				command,
+				location: location
+					? {
+							package: location.package,
+							module: location.module,
+							functionName: location.functionName,
+							instruction: location.instruction,
+						}
+					: undefined,
+				abortCode: executionError.abortCode!,
+				cleverError: cleverError
+					? {
+							lineNumber: cleverError.lineNumber,
+							constantName: cleverError.constantName,
+							value: cleverError.value,
+						}
+					: undefined,
+			}),
+			command,
 			MoveAbort: {
 				abortCode: executionError.abortCode!,
-				location: parseGraphQLMoveLocation(executionError),
-				cleverError: parseGraphQLCleverError(executionError),
+				location,
+				cleverError,
 			},
 		};
 	}
 
 	return {
 		$kind: 'Unknown',
-		message,
+		message: executionError?.message ?? 'Transaction failed',
 		Unknown: null,
 	};
 }

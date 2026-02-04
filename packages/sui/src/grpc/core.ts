@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { CoreClientOptions, SuiClientTypes } from '../client/index.js';
-import { CoreClient, formatMoveAbortMessage } from '../client/index.js';
+import { CoreClient, formatMoveAbortMessage, SimulationError } from '../client/index.js';
 import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2/owner.js';
 import { Owner_OwnerKind } from './proto/sui/rpc/v2/owner.js';
@@ -733,13 +733,16 @@ export class GrpcCoreClient extends CoreClient {
 			try {
 				const result = await client.transactionExecutionService.simulateTransaction({
 					transaction: grpcTransaction,
-					doGasSelection: !options.onlyTransactionKind,
+					doGasSelection:
+						!options.onlyTransactionKind &&
+						(snapshot.gasData.budget == null || snapshot.gasData.payment == null),
 					readMask: {
 						paths: [
 							'transaction.transaction.sender',
 							'transaction.transaction.gas_payment',
 							'transaction.transaction.expiration',
 							'transaction.transaction.kind',
+							'transaction.effects.status',
 						],
 					},
 				});
@@ -747,10 +750,23 @@ export class GrpcCoreClient extends CoreClient {
 			} catch (error) {
 				// https://github.com/timostamm/protobuf-ts/pull/739
 				if (error instanceof Error && error.message) {
-					const decodedMessage = decodeURIComponent(error.message);
-					throw new Error(decodedMessage, { cause: error });
+					throw new SimulationError(decodeURIComponent(error.message), { cause: error });
 				}
 				throw error;
+			}
+
+			if (
+				!options.onlyTransactionKind &&
+				response.transaction?.effects?.status &&
+				!response.transaction.effects.status.success
+			) {
+				const executionError = response.transaction.effects.status.error
+					? parseGrpcExecutionError(response.transaction.effects.status.error)
+					: undefined;
+				const errorMessage = executionError?.message ?? 'Transaction failed';
+				throw new SimulationError(`Transaction resolution failed: ${errorMessage}`, {
+					executionError,
+				});
 			}
 
 			if (!response.transaction?.transaction) {

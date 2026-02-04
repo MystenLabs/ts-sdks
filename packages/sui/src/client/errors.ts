@@ -2,8 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { ObjectResponseError } from '../jsonRpc/index.js';
+import type { SuiClientTypes } from './types.js';
 
 export class SuiClientError extends Error {}
+
+export class SimulationError extends SuiClientError {
+	executionError?: SuiClientTypes.ExecutionError;
+
+	constructor(
+		message: string,
+		options?: { cause?: unknown; executionError?: SuiClientTypes.ExecutionError },
+	) {
+		super(message, { cause: options?.cause });
+		this.executionError = options?.executionError;
+	}
+}
 
 export class ObjectError extends SuiClientError {
 	code: string;

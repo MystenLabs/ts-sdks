@@ -5,6 +5,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { setup, TestToolbox, createTestWithAllClients } from '../../utils/setup.js';
 import { Transaction } from '../../../../src/transactions/index.js';
 import { SUI_TYPE_ARG } from '../../../../src/utils/index.js';
+import { SimulationError } from '../../../../src/client/index.js';
+
+/** Replace dynamic package addresses with a stable placeholder for snapshot matching. */
+function normalizeAddress(message: string): string {
+	return message.replace(/0x[0-9a-f]{64}/gi, '0x<PACKAGE>');
+}
 
 describe('Core API - Clever Errors', () => {
 	let toolbox: TestToolbox;
@@ -280,20 +286,159 @@ describe('Core API - Clever Errors', () => {
 			const bytes = await tx.build({});
 			const signature = await toolbox.keypair.signTransaction(bytes);
 
-			// Use expectAllClientsReturnSameData to verify message matches across clients
-			await toolbox.expectAllClientsReturnSameData(async (client) => {
-				const result = await client.core.executeTransaction({
-					transaction: bytes,
-					signatures: [signature.signature],
-					include: { effects: true },
-				});
+			// Use expectAllClientsReturnSameData to verify message matches across clients.
+			// Normalize addresses since BCS uses runtime package address while GraphQL uses published address.
+			await toolbox.expectAllClientsReturnSameData(
+				async (client) => {
+					const result = await client.core.executeTransaction({
+						transaction: bytes,
+						signatures: [signature.signature],
+						include: { effects: true },
+					});
 
-				await client.core.waitForTransaction({
-					digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
-				});
+					await client.core.waitForTransaction({
+						digest: result.Transaction?.digest ?? result.FailedTransaction?.digest!,
+					});
 
-				return result.FailedTransaction?.status.error?.message;
-			});
+					return result.FailedTransaction?.status.error?.message;
+				},
+				(message) => normalizeAddress(message ?? ''),
+			);
 		});
+	});
+
+	describe('SimulationError during transaction build', () => {
+		testWithAllClients(
+			'build() should throw SimulationError with clever error info when simulation fails',
+			async (client, kind) => {
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::test_objects::abort_with_clever_error`,
+					arguments: [],
+				});
+				tx.setSender(testAddress);
+				// Set empty gas payment to disable gas coin selection.
+				// For gRPC/GraphQL, also set gas budget so doGasSelection is fully disabled
+				// and the simulation returns structured effects even when the transaction aborts.
+				// For JSON-RPC, leave budget unset so setGasBudget's simulation catches the error.
+				if (kind !== 'jsonrpc') {
+					tx.setGasBudget(50_000_000);
+				}
+				tx.setGasPayment([]);
+
+				const buildError = await tx.build({ client }).catch((e) => e);
+
+				expect(buildError).toBeInstanceOf(SimulationError);
+
+				const normalized = normalizeAddress(buildError.message);
+				if (kind === 'jsonrpc') {
+					expect(normalized).toMatchInlineSnapshot(
+						`"Transaction resolution failed: MoveAbort in 1st command, abort code: 0, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 135)"`,
+					);
+				} else {
+					expect(normalized).toMatchInlineSnapshot(
+						`"Transaction resolution failed: MoveAbort in 1st command, 'ETestCleverError': Test clever error message, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 135)"`,
+					);
+				}
+
+				// Should have structured executionError attached
+				const executionError = buildError.executionError;
+				expect(executionError?.$kind).toBe('MoveAbort');
+
+				if (executionError?.$kind === 'MoveAbort') {
+					expect(executionError.MoveAbort.abortCode).toBeDefined();
+					expect(executionError.MoveAbort.location?.module).toBe('test_objects');
+					expect(executionError.MoveAbort.location?.functionName).toBe('abort_with_clever_error');
+
+					// gRPC and GraphQL get clever error constant name via structured effects
+					if (kind !== 'jsonrpc') {
+						expect(executionError.MoveAbort.cleverError?.constantName).toBe('ETestCleverError');
+					}
+				}
+			},
+		);
+
+		testWithAllClients(
+			'build() should throw SimulationError with raw abort info',
+			async (client, kind) => {
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::test_objects::abort_always`,
+					arguments: [],
+				});
+				tx.setSender(testAddress);
+				// For gRPC/GraphQL, set budget to disable gas selection; JSON-RPC catches via setGasBudget
+				if (kind !== 'jsonrpc') {
+					tx.setGasBudget(50_000_000);
+				}
+				tx.setGasPayment([]);
+
+				const buildError = await tx.build({ client }).catch((e) => e);
+
+				expect(buildError).toBeInstanceOf(SimulationError);
+
+				const normalized = normalizeAddress(buildError.message);
+
+				expect(normalized).toMatchInlineSnapshot(
+					`"Transaction resolution failed: MoveAbort in 1st command, abort code: 42, in '0x<PACKAGE>::test_objects::abort_always' (instruction 1)"`,
+				);
+
+				const executionError = buildError.executionError;
+				expect(executionError?.$kind).toBe('MoveAbort');
+
+				if (executionError?.$kind === 'MoveAbort') {
+					expect(executionError.MoveAbort.abortCode).toBe('42');
+					expect(executionError.MoveAbort.location?.module).toBe('test_objects');
+					expect(executionError.MoveAbort.location?.functionName).toBe('abort_always');
+					expect(executionError.MoveAbort.cleverError?.constantName).toBeUndefined();
+				}
+			},
+		);
+	});
+
+	describe('SimulationError during signAndExecuteTransaction', () => {
+		testWithAllClients(
+			'signAndExecuteTransaction should throw SimulationError with structured error data',
+			async (client, kind) => {
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::test_objects::abort_with_clever_error`,
+					arguments: [],
+				});
+				// For gRPC/GraphQL, set budget to disable gas selection; JSON-RPC catches via setGasBudget
+				if (kind !== 'jsonrpc') {
+					tx.setGasBudget(50_000_000);
+				}
+				tx.setGasPayment([]);
+
+				const executeError = await client.core
+					.signAndExecuteTransaction({
+						transaction: tx,
+						signer: toolbox.keypair,
+					})
+					.catch((e) => e);
+
+				expect(executeError).toBeInstanceOf(SimulationError);
+
+				const normalized = normalizeAddress(executeError.message);
+				if (kind === 'jsonrpc') {
+					expect(normalized).toMatchInlineSnapshot(
+						`"Transaction resolution failed: MoveAbort in 1st command, abort code: 0, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 135)"`,
+					);
+				} else {
+					expect(normalized).toMatchInlineSnapshot(
+						`"Transaction resolution failed: MoveAbort in 1st command, 'ETestCleverError': Test clever error message, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 135)"`,
+					);
+				}
+
+				const executionError = executeError.executionError;
+				expect(executionError?.$kind).toBe('MoveAbort');
+
+				if (executionError?.$kind === 'MoveAbort') {
+					expect(executionError.MoveAbort.location?.module).toBe('test_objects');
+					expect(executionError.MoveAbort.location?.functionName).toBe('abort_with_clever_error');
+				}
+			},
+		);
 	});
 });

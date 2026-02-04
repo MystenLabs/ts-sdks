@@ -39,13 +39,24 @@ export function formatMoveAbortMessage(options: {
 	const parts: string[] = [];
 
 	if (command != null) {
-		parts.push(`Error in ${formatOrdinal(command + 1)} command`);
+		parts.push(`MoveAbort in ${formatOrdinal(command + 1)} command`);
+	} else {
+		parts.push('MoveAbort');
+	}
+
+	if (cleverError?.constantName) {
+		const errorStr = cleverError!.value
+			? `'${cleverError!.constantName}': ${cleverError!.value}`
+			: `'${cleverError!.constantName}'`;
+		parts.push(errorStr);
+	} else {
+		parts.push(`abort code: ${abortCode}`);
 	}
 
 	if (location?.package && location?.module) {
 		const pkg = location.package.startsWith('0x') ? location.package : `0x${location.package}`;
 		const locationParts = [pkg, location.module, location.functionName].filter(Boolean);
-		const locationStr = [`from '${locationParts.join('::')}'`];
+		const locationStr = [`in '${locationParts.join('::')}'`];
 
 		if (cleverError?.lineNumber != null) {
 			locationStr.push(`(line ${cleverError.lineNumber})`);
@@ -54,15 +65,6 @@ export function formatMoveAbortMessage(options: {
 		}
 
 		parts.push(locationStr.join(' '));
-	}
-
-	if (cleverError?.constantName) {
-		const abortStr = cleverError.value
-			? `abort '${cleverError.constantName}': ${cleverError.value}`
-			: `abort '${cleverError.constantName}'`;
-		parts.push(abortStr);
-	} else {
-		parts.push(`abort code: ${abortCode}`);
 	}
 
 	return parts.join(', ');
@@ -118,19 +120,24 @@ function parseBcsExecutionError(failure: {
 	switch (error.$kind) {
 		case 'MoveAbort': {
 			const [location, abortCode] = error.MoveAbort;
+			const moveLocation = {
+				package: location.module.address,
+				module: location.module.name,
+				function: location.function,
+				functionName: location.functionName ?? undefined,
+				instruction: location.instruction,
+			};
 			return {
 				$kind: 'MoveAbort',
-				message: formatErrorMessage('MoveAbort', error.MoveAbort),
+				message: formatMoveAbortMessage({
+					command,
+					location: moveLocation,
+					abortCode: String(abortCode),
+				}),
 				command,
 				MoveAbort: {
 					abortCode: String(abortCode),
-					location: {
-						package: location.module.address,
-						module: location.module.name,
-						function: location.function,
-						functionName: location.functionName ?? undefined,
-						instruction: location.instruction,
-					},
+					location: moveLocation,
 				},
 			};
 		}

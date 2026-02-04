@@ -8,6 +8,7 @@ import type { ClientWithCoreApi } from './core.js';
 import { ObjectRefSchema } from '../transactions/data/internal.js';
 import type { CallArg, Command } from '../transactions/data/internal.js';
 import type { SuiClientTypes } from './types.js';
+import { SimulationError } from './errors.js';
 import { Inputs } from '../transactions/Inputs.js';
 import { getPureBcsSchema, isTxContext } from '../transactions/serializer.js';
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
@@ -87,13 +88,12 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Cli
 	});
 
 	if (simulateResult.$kind === 'FailedTransaction') {
-		const errorMessage = simulateResult.FailedTransaction.status.error?.message ?? 'Unknown error';
-		throw new Error(
-			`Simulation failed, could not automatically determine a budget: ${errorMessage}`,
-			{
-				cause: simulateResult,
-			},
-		);
+		const executionError = simulateResult.FailedTransaction.status.error ?? undefined;
+		const errorMessage = executionError?.message ?? 'Unknown error';
+		throw new SimulationError(`Transaction resolution failed: ${errorMessage}`, {
+			cause: simulateResult,
+			executionError,
+		});
 	}
 
 	const gasUsed = simulateResult.Transaction.effects!.gasUsed;

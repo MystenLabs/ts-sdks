@@ -37,7 +37,7 @@ describe('formatMoveAbortMessage', () => {
 				functionName: 'test_function',
 			},
 		});
-		expect(message).toBe("from '0x1234::test_module::test_function', abort code: 42");
+		expect(message).toBe("MoveAbort, abort code: 42, in '0x1234::test_module::test_function'");
 	});
 
 	it('should include command number', () => {
@@ -51,7 +51,7 @@ describe('formatMoveAbortMessage', () => {
 			},
 		});
 		expect(message).toBe(
-			"Error in 1st command, from '0x1234::test_module::test_function', abort code: 42",
+			"MoveAbort in 1st command, abort code: 42, in '0x1234::test_module::test_function'",
 		);
 	});
 
@@ -67,7 +67,7 @@ describe('formatMoveAbortMessage', () => {
 			},
 		});
 		expect(message).toBe(
-			"Error in 1st command, from '0x1234::test_module::test_function' (instruction 5), abort code: 42",
+			"MoveAbort in 1st command, abort code: 42, in '0x1234::test_module::test_function' (instruction 5)",
 		);
 	});
 
@@ -87,7 +87,7 @@ describe('formatMoveAbortMessage', () => {
 			},
 		});
 		expect(message).toBe(
-			"Error in 1st command, from '0x1234::test_module::test_function' (line 135), abort 'ETestError'",
+			"MoveAbort in 1st command, 'ETestError', in '0x1234::test_module::test_function' (line 135)",
 		);
 	});
 
@@ -107,7 +107,7 @@ describe('formatMoveAbortMessage', () => {
 			},
 		});
 		expect(message).toBe(
-			"Error in 1st command, from '0x1234::test_module::test_function' (line 135), abort 'ETestError': Test error message",
+			"MoveAbort in 1st command, 'ETestError': Test error message, in '0x1234::test_module::test_function' (line 135)",
 		);
 	});
 
@@ -120,7 +120,7 @@ describe('formatMoveAbortMessage', () => {
 				functionName: 'test_function',
 			},
 		});
-		expect(message).toBe("from '0x1234abcd::test_module::test_function', abort code: 42");
+		expect(message).toBe("MoveAbort, abort code: 42, in '0x1234abcd::test_module::test_function'");
 	});
 
 	it('should handle missing location', () => {
@@ -128,7 +128,7 @@ describe('formatMoveAbortMessage', () => {
 			command: 0,
 			abortCode: '42',
 		});
-		expect(message).toBe('Error in 1st command, abort code: 42');
+		expect(message).toBe('MoveAbort in 1st command, abort code: 42');
 	});
 
 	it('should handle location without function name', () => {
@@ -139,7 +139,7 @@ describe('formatMoveAbortMessage', () => {
 				module: 'test_module',
 			},
 		});
-		expect(message).toBe("from '0x1234::test_module', abort code: 42");
+		expect(message).toBe("MoveAbort, abort code: 42, in '0x1234::test_module'");
 	});
 
 	it('should format 2nd command correctly', () => {
@@ -152,6 +152,6 @@ describe('formatMoveAbortMessage', () => {
 				functionName: 'func',
 			},
 		});
-		expect(message).toBe("Error in 2nd command, from '0xabc::module::func', abort code: 100");
+		expect(message).toBe("MoveAbort in 2nd command, abort code: 100, in '0xabc::module::func'");
 	});
 });
