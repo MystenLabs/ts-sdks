@@ -1,0 +1,23 @@
+CLAUDE.md
+  594f40240d7406d3 130-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.42",
+  "base_commit_sha": "12bddb3df01fd8a2caf9a6074db12621fc6954b4",
+  "prompts": {
+    "594f40240d7406d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92cb2293-6624-483a-aedb-92fba22caf6d",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jordan Gensler <jordan@mystenlabs.com>",
+      "messages": [],
+      "total_additions": 6,
+      "total_deletions": 0,
+      "accepted_lines": 6,
+      "overriden_lines": 0
+    }
+  }
+}
