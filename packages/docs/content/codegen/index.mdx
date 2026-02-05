@@ -73,14 +73,15 @@ This generates TypeScript code in your configured output directory (e.g., `./src
 
 The `SuiCodegenConfig` type supports the following options:
 
-| Option              | Type                   | Default | Description                                                                                                                                                           |
-| ------------------- | ---------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `output`            | `string`               | —       | The directory where generated code will be written                                                                                                                    |
-| `packages`          | `PackageConfig[]`      | —       | Array of Move packages to generate code for                                                                                                                           |
-| `prune`             | `boolean`              | `true`  | When enabled, only generates code for the main package and omits dependency modules (dependency types referenced by included types are still generated under `deps/`) |
-| `generateSummaries` | `boolean`              | `true`  | Automatically run `sui move summary` before generating code. Creates a `package_summaries` directory in your Move package which can be added to `.gitignore`          |
-| `generate`          | `GenerateOptions`      | —       | Default [generate options](#the-generate-option) (types, functions) for all packages                                                                                  |
-| `importExtension`   | `'.js' \| '.ts' \| ''` | `'.js'` | File extension used in generated import statements                                                                                                                    |
+| Option                         | Type                   | Default | Description                                                                                                                                                           |
+| ------------------------------ | ---------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `output`                       | `string`               | —       | The directory where generated code will be written                                                                                                                    |
+| `packages`                     | `PackageConfig[]`      | —       | Array of Move packages to generate code for                                                                                                                           |
+| `prune`                        | `boolean`              | `true`  | When enabled, only generates code for the main package and omits dependency modules (dependency types referenced by included types are still generated under `deps/`) |
+| `generateSummaries`            | `boolean`              | `true`  | Automatically run `sui move summary` before generating code. Creates a `package_summaries` directory in your Move package which can be added to `.gitignore`          |
+| `generate`                     | `GenerateOptions`      | —       | Default [generate options](#the-generate-option) (types, functions) for all packages                                                                                  |
+| `importExtension`              | `'.js' \| '.ts' \| ''` | `'.js'` | File extension used in generated import statements                                                                                                                    |
+| `includePhantomTypeParameters` | `boolean`              | `false` | Include [phantom type parameters](#phantom-types) as function arguments in generated BCS types                                                                        |
 
 ### Package Configuration
 
@@ -271,6 +272,70 @@ src/contracts/
 ```
 
 Set `prune: false` to generate all dependency modules with their full types and functions.
+
+## Phantom Types
+
+In Move, phantom type parameters are type parameters that only appear at the type level and don't
+affect the runtime data layout of a struct. For example, `Balance<T>` has a phantom type parameter
+`T` that indicates the coin type, but the actual serialized data only contains a `u64` value:
+
+```move
+public struct Balance<phantom T> has store {
+    value: u64,
+}
+```
+
+### Default Behavior
+
+By default, codegen excludes phantom type parameters from the generated BCS type functions since
+they don't affect serialization. The generated type is a constant rather than a function:
+
+```typescript
+export const Balance = new MoveStruct({
+	name: `${$moduleName}::Balance<phantom T>`,
+	fields: {
+		value: bcs.u64(),
+	},
+});
+```
+
+This works correctly for parsing on-chain data because phantom types don't change the binary layout.
+
+<Callout type="info">
+
+With the default behavior, phantom parameters appear as literals in the type name (e.g.,
+`Balance<phantom T>`). These names are useful for debugging but are not valid on-chain type tags. If
+you need valid type names with resolved phantom parameters, enable `includePhantomTypeParameters`.
+
+</Callout>
+
+### Including Phantom Type Parameters
+
+If you need the phantom type parameters as function arguments (for example, to preserve type
+information for other tooling), enable `includePhantomTypeParameters`:
+
+```typescript
+const config: SuiCodegenConfig = {
+	output: './src/contracts',
+	includePhantomTypeParameters: true,
+	packages: [
+		// ...
+	],
+};
+```
+
+With this option enabled, phantom type parameters become function arguments:
+
+```typescript
+export function Balance<T extends BcsType<any>>(T: T) {
+	return new MoveStruct({
+		name: `${$moduleName}::Balance<${T.name}>` as const,
+		fields: {
+			value: bcs.u64(),
+		},
+	});
+}
+```
 
 ## Using Generated Code
 
