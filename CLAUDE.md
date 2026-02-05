@@ -127,6 +127,12 @@ Some packages fetch contract ABIs directly from Sui networks:
 - `@mysten/kiosk`: Sui framework kiosk types (0x2) from testnet
 - `@mysten/deepbook-v3`: Pyth oracle package from testnet
 
+### Pull Requests
+
+When creating PRs, follow the template in `.github/PULL_REQUEST_TEMPLATE.md`:
+- Include a description of the changes
+- Check the "This PR was primarily written by AI" checkbox in the AI Assistance Notice section
+
 ### Codegen Commands
 
 ```bash
