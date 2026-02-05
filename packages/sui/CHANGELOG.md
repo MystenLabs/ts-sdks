@@ -1,5 +1,16 @@
 # @mysten/sui.js
 
+## 2.3.0
+
+### Minor Changes
+
+- 724a13a: Improve handling of clever errors during simulation
+
+### Patch Changes
+
+- fcbf952: Fix `$extend` chaining so that `client.$extend(sdk1()).$extend(sdk2())` works correctly.
+  Previously, the second `$extend` call would lose the extensions from the first call.
+
 ## 2.2.0
 
 ### Minor Changes
