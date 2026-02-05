@@ -23,7 +23,7 @@ export default defineConfig({
 		'src/verify/index.ts',
 		'src/zklogin/index.ts',
 	],
-	format: 'esm',
+	format: ['esm', 'cjs'],
 	dts: true,
 	outDir: 'dist',
 	unbundle: true,

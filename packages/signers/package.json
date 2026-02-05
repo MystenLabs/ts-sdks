@@ -7,20 +7,44 @@
 	"type": "module",
 	"exports": {
 		"./aws": {
-			"types": "./dist/aws/index.d.mts",
-			"import": "./dist/aws/index.mjs"
+			"import": {
+				"types": "./dist/aws/index.d.mts",
+				"default": "./dist/aws/index.mjs"
+			},
+			"require": {
+				"types": "./dist/aws/index.d.cts",
+				"default": "./dist/aws/index.cjs"
+			}
 		},
 		"./gcp": {
-			"types": "./dist/gcp/index.d.mts",
-			"import": "./dist/gcp/index.mjs"
+			"import": {
+				"types": "./dist/gcp/index.d.mts",
+				"default": "./dist/gcp/index.mjs"
+			},
+			"require": {
+				"types": "./dist/gcp/index.d.cts",
+				"default": "./dist/gcp/index.cjs"
+			}
 		},
 		"./ledger": {
-			"types": "./dist/ledger/index.d.mts",
-			"import": "./dist/ledger/index.mjs"
+			"import": {
+				"types": "./dist/ledger/index.d.mts",
+				"default": "./dist/ledger/index.mjs"
+			},
+			"require": {
+				"types": "./dist/ledger/index.d.cts",
+				"default": "./dist/ledger/index.cjs"
+			}
 		},
 		"./webcrypto": {
-			"types": "./dist/webcrypto/index.d.mts",
-			"import": "./dist/webcrypto/index.mjs"
+			"import": {
+				"types": "./dist/webcrypto/index.d.mts",
+				"default": "./dist/webcrypto/index.mjs"
+			},
+			"require": {
+				"types": "./dist/webcrypto/index.d.cts",
+				"default": "./dist/webcrypto/index.cjs"
+			}
 		}
 	},
 	"sideEffects": false,

@@ -34,8 +34,14 @@
 	"types": "./dist/Sui.d.mts",
 	"exports": {
 		".": {
-			"types": "./dist/Sui.d.mts",
-			"import": "./dist/Sui.mjs"
+			"import": {
+				"types": "./dist/Sui.d.mts",
+				"default": "./dist/Sui.mjs"
+			},
+			"require": {
+				"types": "./dist/Sui.d.cts",
+				"default": "./dist/Sui.cjs"
+			}
 		}
 	},
 	"scripts": {

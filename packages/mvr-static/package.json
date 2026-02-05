@@ -13,12 +13,18 @@
 		"src"
 	],
 	"type": "module",
-	"main": "./dist/index.mjs",
-	"types": "./dist/index.d.mts",
+	"main": "./dist/execute.mjs",
+	"types": "./dist/execute.d.mts",
 	"exports": {
 		".": {
-			"types": "./dist/index.d.mts",
-			"import": "./dist/index.mjs"
+			"import": {
+				"types": "./dist/execute.d.mts",
+				"default": "./dist/execute.mjs"
+			},
+			"require": {
+				"types": "./dist/execute.d.cts",
+				"default": "./dist/execute.cjs"
+			}
 		}
 	},
 	"scripts": {

@@ -87,6 +87,19 @@ async function buildDappKit() {
 		...buildOptions,
 	});
 
+	// Build CJS
+	await build({
+		format: 'cjs',
+		logLevel: 'error',
+		target: 'es2020',
+		entryPoints,
+		outdir: 'dist',
+		outbase: 'src',
+		sourcemap: true,
+		outExtension: { '.js': '.cjs' },
+		...buildOptions,
+	});
+
 	// Generate type declarations (emitDeclarationOnly since JS is built by esbuild)
 	await exec('pnpm tsc --project tsconfig.json --emitDeclarationOnly');
 

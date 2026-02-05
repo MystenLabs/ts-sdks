@@ -5,7 +5,7 @@ import { defineConfig } from 'tsdown';
 
 export default defineConfig({
 	entry: ['src/index.ts', 'src/react.tsx'],
-	format: 'esm',
+	format: ['esm', 'cjs'],
 	dts: true,
 	outDir: 'dist',
 	unbundle: true,
