@@ -90,7 +90,8 @@
 				"storybook-static/**",
 				".next/**",
 				"!.next/cache/**",
-				"pkg/**"
+				"pkg/**",
+				"public/**"
 			]
 		}
 	},

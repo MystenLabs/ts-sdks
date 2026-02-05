@@ -35,12 +35,15 @@ export abstract class BaseClient {
 		const methodCache = new Map<string | symbol, Function>();
 
 		return new Proxy(this, {
-			get(target, prop) {
+			get(target, prop, receiver) {
 				if (typeof prop === 'string' && prop in extensions) {
 					return extensions[prop];
 				}
-				const value = Reflect.get(target, prop, target);
+				const value = Reflect.get(target, prop, receiver);
 				if (typeof value === 'function') {
+					if (prop === '$extend') {
+						return value.bind(receiver);
+					}
 					if (!methodCache.has(prop)) {
 						methodCache.set(prop, value.bind(target));
 					}

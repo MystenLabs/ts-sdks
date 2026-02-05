@@ -16,6 +16,18 @@ module testpkg::registry {
         Err { code: u64, message: String },
     }
 
+    /// Enum with phantom type parameter (becomes a const, not a function).
+    public enum PhantomResult<phantom T> has copy, drop, store {
+        Success,
+        Failure { code: u64 },
+    }
+
+    /// Enum with phantom first, non-phantom second (tests index remapping).
+    public enum MixedResult<phantom T, V: copy + drop + store> has copy, drop, store {
+        Ok { value: V },
+        Err { code: u64 },
+    }
+
     /// A generic container with a phantom type parameter.
     public struct Container<phantom T> has key, store {
         id: UID,

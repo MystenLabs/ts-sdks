@@ -20,7 +20,7 @@ export const RegularDiscountsApp = new MoveTuple({
 	fields: [bcs.bool()],
 });
 export const DiscountKey = new MoveTuple({
-	name: `${$moduleName}::DiscountKey`,
+	name: `${$moduleName}::DiscountKey<phantom T>`,
 	fields: [bcs.bool()],
 });
 export interface ApplyPercentageDiscountArguments<T extends BcsType<any>> {

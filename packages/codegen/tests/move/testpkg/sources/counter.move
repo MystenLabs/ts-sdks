@@ -66,6 +66,13 @@ module testpkg::counter {
         first: T,
     }
 
+    /// Tests phantom type parameter index remapping when phantom comes first.
+    /// B is at original index 1 but should use typeParameters[0] after filtering.
+    public struct PhantomFirst<phantom A, B: store> has key, store {
+        id: UID,
+        value: B,
+    }
+
     /// Create a new counter (public entry).
     public entry fun create(ctx: &mut TxContext) {
         let counter = Counter {

@@ -59,7 +59,7 @@ export const BalanceManagerKey = new MoveStruct({
 	},
 });
 export const AppKey = new MoveStruct({
-	name: `${$moduleName}::AppKey`,
+	name: `${$moduleName}::AppKey<phantom App>`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},

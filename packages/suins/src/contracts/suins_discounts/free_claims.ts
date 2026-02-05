@@ -27,7 +27,7 @@ export const FreeClaimsApp = new MoveTuple({
 	fields: [bcs.bool()],
 });
 export const FreeClaimsKey = new MoveTuple({
-	name: `${$moduleName}::FreeClaimsKey`,
+	name: `${$moduleName}::FreeClaimsKey<phantom T>`,
 	fields: [bcs.bool()],
 });
 export const FreeClaimsConfig = new MoveStruct({

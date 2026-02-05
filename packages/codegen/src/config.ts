@@ -77,6 +77,7 @@ export const configSchema = z.object({
 	/** @deprecated Use `generate: { functions: { private: 'entry' } }` instead */
 	privateMethods: z.union([z.literal('none'), z.literal('entry'), z.literal('all')]).optional(),
 	importExtension: importExtensionSchema.optional().default('.js'),
+	includePhantomTypeParameters: z.boolean().optional().default(false),
 });
 
 export type PackageConfig = z.infer<typeof packageConfigSchema>;
@@ -93,6 +94,7 @@ export async function loadConfig(): Promise<ParsedSuiCodegenConfig> {
 			prune: true,
 			generateSummaries: true,
 			importExtension: '.js',
+			includePhantomTypeParameters: false,
 		};
 	}
 

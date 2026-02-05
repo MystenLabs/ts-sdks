@@ -23,12 +23,14 @@ export async function generateFromPackageSummary({
 	outputDir,
 	globalGenerate,
 	importExtension = '.js',
+	includePhantomTypeParameters = false,
 }: {
 	package: PackageConfig;
 	prune: boolean;
 	outputDir: string;
 	globalGenerate?: GenerateBase;
 	importExtension?: ImportExtension;
+	includePhantomTypeParameters?: boolean;
 }) {
 	if (!pkg.path) {
 		throw new Error(`Package path is required (got ${pkg.package})`);
@@ -104,6 +106,7 @@ export async function generateFromPackageSummary({
 								addressMappings,
 								isMainPackage(pkgDir) ? mvrNameOrAddress : undefined,
 								importExtension,
+								includePhantomTypeParameters,
 							),
 						})),
 				);

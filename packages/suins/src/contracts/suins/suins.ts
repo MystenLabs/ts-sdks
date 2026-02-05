@@ -56,25 +56,25 @@ export const SUINS = new MoveStruct({
 	},
 });
 export const ConfigKey = new MoveStruct({
-	name: `${$moduleName}::ConfigKey`,
+	name: `${$moduleName}::ConfigKey<phantom Config>`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},
 });
 export const RegistryKey = new MoveStruct({
-	name: `${$moduleName}::RegistryKey`,
+	name: `${$moduleName}::RegistryKey<phantom Config>`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},
 });
 export const BalanceKey = new MoveStruct({
-	name: `${$moduleName}::BalanceKey`,
+	name: `${$moduleName}::BalanceKey<phantom T>`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},
 });
 export const AppKey = new MoveStruct({
-	name: `${$moduleName}::AppKey`,
+	name: `${$moduleName}::AppKey<phantom App>`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},

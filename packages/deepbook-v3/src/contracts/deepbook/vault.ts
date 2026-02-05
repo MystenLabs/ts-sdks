@@ -13,7 +13,7 @@ import * as balance from './deps/sui/balance.js';
 import * as type_name from './deps/std/type_name.js';
 const $moduleName = '@deepbook/core::vault';
 export const Vault = new MoveStruct({
-	name: `${$moduleName}::Vault`,
+	name: `${$moduleName}::Vault<phantom BaseAsset, phantom QuoteAsset>`,
 	fields: {
 		base_balance: balance.Balance,
 		quote_balance: balance.Balance,

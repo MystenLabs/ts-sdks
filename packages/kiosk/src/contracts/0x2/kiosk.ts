@@ -24,7 +24,7 @@ export const KioskOwnerCap = new MoveStruct({
 	},
 });
 export const PurchaseCap = new MoveStruct({
-	name: `${$moduleName}::PurchaseCap`,
+	name: `${$moduleName}::PurchaseCap<phantom T0>`,
 	fields: {
 		id: bcs.Address,
 		kiosk_id: bcs.Address,
@@ -59,7 +59,7 @@ export const Lock = new MoveStruct({
 	},
 });
 export const ItemListed = new MoveStruct({
-	name: `${$moduleName}::ItemListed`,
+	name: `${$moduleName}::ItemListed<phantom T0>`,
 	fields: {
 		kiosk: bcs.Address,
 		id: bcs.Address,
@@ -67,7 +67,7 @@ export const ItemListed = new MoveStruct({
 	},
 });
 export const ItemPurchased = new MoveStruct({
-	name: `${$moduleName}::ItemPurchased`,
+	name: `${$moduleName}::ItemPurchased<phantom T0>`,
 	fields: {
 		kiosk: bcs.Address,
 		id: bcs.Address,
@@ -75,7 +75,7 @@ export const ItemPurchased = new MoveStruct({
 	},
 });
 export const ItemDelisted = new MoveStruct({
-	name: `${$moduleName}::ItemDelisted`,
+	name: `${$moduleName}::ItemDelisted<phantom T0>`,
 	fields: {
 		kiosk: bcs.Address,
 		id: bcs.Address,

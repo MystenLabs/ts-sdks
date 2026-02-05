@@ -93,7 +93,7 @@ export default async function generate(
 			const tempDir = mkdtempSync(join(tmpdir(), 'sui-codegen-'));
 			console.log(`Generating summary for on-chain package ${packageId} to ${tempDir}`);
 
-			execSync(`sui move summary --yes --package-id ${packageId} --output-directory ${tempDir}`, {
+			execSync(`sui move summary --package-id ${packageId} --output-directory ${tempDir}`, {
 				stdio: 'inherit',
 			});
 
@@ -104,7 +104,7 @@ export default async function generate(
 				throw new Error(`Package path does not exist: ${pkg.path}`);
 			}
 
-			execSync('sui move summary --yes', {
+			execSync('sui move summary', {
 				cwd: pkg.path,
 				stdio: 'inherit',
 			});
@@ -148,6 +148,7 @@ export default async function generate(
 			outputDir: flags.outputDir ?? config.output,
 			globalGenerate,
 			importExtension,
+			includePhantomTypeParameters: config.includePhantomTypeParameters,
 		});
 	}
 }

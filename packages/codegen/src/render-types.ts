@@ -3,7 +3,13 @@
 
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
-import type { Datatype, ModuleSummary, Type, TypeParameter } from './types/summary.js';
+import type {
+	Datatype,
+	DatatypeParameter,
+	ModuleSummary,
+	Type,
+	TypeParameter,
+} from './types/summary.js';
 
 export const MOVE_STDLIB_ADDRESS = normalizeSuiAddress('0x1');
 export const SUI_FRAMEWORK_ADDRESS = normalizeSuiAddress('0x2');
@@ -18,6 +24,24 @@ interface RenderTypeSignatureOptions {
 	bcsImport?: () => string;
 	onTypeParameter?: (typeParameter: number | string) => void;
 	resolveAddress: (address: string) => string;
+	includePhantomTypeParameters: boolean;
+}
+
+function getFilteredTypeParameterIndex(
+	originalIndex: number,
+	typeParameters: TypeParameter[] | undefined,
+	includePhantom: boolean,
+): number {
+	if (includePhantom || !typeParameters) return originalIndex;
+
+	let filteredIndex = 0;
+	for (let i = 0; i < originalIndex; i++) {
+		const param = typeParameters[i] as DatatypeParameter | undefined;
+		if (!param?.phantom) {
+			filteredIndex++;
+		}
+	}
+	return filteredIndex;
 }
 
 export function renderTypeSignature(type: Type, options: RenderTypeSignatureOptions): string {
@@ -104,13 +128,19 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 
 	if ('TypeParameter' in type) {
 		options.onTypeParameter?.(type.TypeParameter);
+		const originalIndex = type.TypeParameter;
+		const filteredIndex = getFilteredTypeParameterIndex(
+			originalIndex,
+			options.typeParameters,
+			options.includePhantomTypeParameters,
+		);
 		switch (options.format) {
 			case 'typescriptArg':
-				return options.typeParameters?.[type.TypeParameter]?.name ?? `T${type.TypeParameter}`;
+				return options.typeParameters?.[originalIndex]?.name ?? `T${originalIndex}`;
 			case 'typeTag':
-				return `\${options.typeArguments[${type.TypeParameter}]}`;
+				return `\${options.typeArguments[${originalIndex}]}`;
 			case 'bcs':
-				return `typeParameters[${type.TypeParameter}]`;
+				return `typeParameters[${filteredIndex}]`;
 			default:
 				throw new Error(`Unknown format: ${options.format}`);
 		}
@@ -118,20 +148,26 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 
 	if ('NamedTypeParameter' in type) {
 		options.onTypeParameter?.(type.NamedTypeParameter);
-		const index =
+		const originalIndex =
 			options.typeParameters?.findIndex((p) => p.name === type.NamedTypeParameter) ?? -1;
 
-		if (index === -1) {
+		if (originalIndex === -1) {
 			throw new Error(`Named type parameter ${type.NamedTypeParameter} not found`);
 		}
+
+		const filteredIndex = getFilteredTypeParameterIndex(
+			originalIndex,
+			options.typeParameters,
+			options.includePhantomTypeParameters,
+		);
 
 		switch (options.format) {
 			case 'typescriptArg':
 				return type.NamedTypeParameter;
 			case 'typeTag':
-				return `\${options.typeArguments[${index}]}`;
+				return `\${options.typeArguments[${originalIndex}]}`;
 			case 'bcs':
-				return `typeParameters[${index}]`;
+				return `typeParameters[${filteredIndex}]`;
 			default:
 				throw new Error(`Unknown format: ${options.format}`);
 		}

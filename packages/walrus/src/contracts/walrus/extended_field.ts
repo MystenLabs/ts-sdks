@@ -14,7 +14,7 @@ import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/walrus::extended_field';
 export const ExtendedField = new MoveStruct({
-	name: `${$moduleName}::ExtendedField`,
+	name: `${$moduleName}::ExtendedField<phantom T>`,
 	fields: {
 		id: bcs.Address,
 	},

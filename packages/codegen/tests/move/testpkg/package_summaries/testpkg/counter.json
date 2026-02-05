@@ -1015,6 +1015,55 @@
           }
         }
       }
+    },
+    "PhantomFirst": {
+      "index": 7,
+      "doc": " Tests phantom type parameter index remapping when phantom comes first.\n B is at original index 1 but should use typeParameters[0] after filtering.",
+      "attributes": [],
+      "abilities": [
+        "Key",
+        "Store"
+      ],
+      "type_parameters": [
+        {
+          "phantom": true,
+          "name": "A",
+          "constraints": []
+        },
+        {
+          "phantom": false,
+          "name": "B",
+          "constraints": [
+            "Store"
+          ]
+        }
+      ],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "sui",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          },
+          "value": {
+            "index": 1,
+            "doc": null,
+            "type_": {
+              "NamedTypeParameter": "B"
+            }
+          }
+        }
+      }
     }
   },
   "enums": {}

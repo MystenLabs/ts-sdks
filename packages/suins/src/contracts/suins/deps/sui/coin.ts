@@ -12,7 +12,7 @@ import { bcs } from '@mysten/sui/bcs';
 import * as balance from './balance.js';
 const $moduleName = '0x2::coin';
 export const Coin = new MoveStruct({
-	name: `${$moduleName}::Coin`,
+	name: `${$moduleName}::Coin<phantom T>`,
 	fields: {
 		id: bcs.Address,
 		balance: balance.Balance,

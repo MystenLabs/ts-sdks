@@ -15,7 +15,7 @@ export const Extension = new MoveStruct({
 	},
 });
 export const ExtensionKey = new MoveStruct({
-	name: `${$moduleName}::ExtensionKey`,
+	name: `${$moduleName}::ExtensionKey<phantom T0>`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},

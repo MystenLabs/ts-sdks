@@ -25,7 +25,7 @@ export const CouponsApp = new MoveStruct({
 	},
 });
 export const AppKey = new MoveStruct({
-	name: `${$moduleName}::AppKey`,
+	name: `${$moduleName}::AppKey<phantom A>`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},

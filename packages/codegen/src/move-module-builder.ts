@@ -45,23 +45,27 @@ export class MoveModuleBuilder extends FileBuilder {
 	#mvrNameOrAddress?: string;
 	#importNames: Partial<Record<ImportName, string>> = {};
 	#importExtension: ImportExtension;
+	#includePhantomTypeParameters: boolean;
 
 	constructor({
 		mvrNameOrAddress,
 		summary,
 		addressMappings = {},
 		importExtension = '.js',
+		includePhantomTypeParameters = false,
 	}: {
 		summary: ModuleSummary;
 		addressMappings?: Record<string, string>;
 		mvrNameOrAddress?: string;
 		importExtension?: ImportExtension;
+		includePhantomTypeParameters?: boolean;
 	}) {
 		super();
 		this.summary = summary;
 		this.#addressMappings = addressMappings;
 		this.#mvrNameOrAddress = mvrNameOrAddress;
 		this.#importExtension = importExtension;
+		this.#includePhantomTypeParameters = includePhantomTypeParameters;
 	}
 
 	static async fromSummaryFile(
@@ -69,6 +73,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		addressMappings: Record<string, string>,
 		mvrNameOrAddress?: string,
 		importExtension?: ImportExtension,
+		includePhantomTypeParameters?: boolean,
 	) {
 		const summary = JSON.parse(await readFile(file, 'utf-8'));
 
@@ -77,6 +82,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			addressMappings,
 			mvrNameOrAddress,
 			importExtension,
+			includePhantomTypeParameters,
 		});
 	}
 
@@ -171,6 +177,7 @@ export class MoveModuleBuilder extends FileBuilder {
 					format: 'bcs',
 					summary: this.summary,
 					typeParameters: struct.type_parameters,
+					includePhantomTypeParameters: false,
 					resolveAddress: (address) => this.#resolveAddress(address),
 					onDependency: (address, mod, name) => {
 						const builder = moduleBuilders[`${address}::${mod}`];
@@ -194,6 +201,7 @@ export class MoveModuleBuilder extends FileBuilder {
 						format: 'bcs',
 						summary: this.summary,
 						typeParameters: enum_.type_parameters,
+						includePhantomTypeParameters: false,
 						resolveAddress: (address) => this.#resolveAddress(address),
 						onDependency: (address, mod, name) => {
 							const builder = moduleBuilders[`${address}::${mod}`];
@@ -260,6 +268,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		name: string,
 		{ fields }: Fields,
 		typeParameters: TypeParameter[] = [],
+		includePhantomTypeParameters = false,
 	) {
 		const moveStructName = this.#getImportName('MoveStruct');
 		const fieldObject = await mapToObject({
@@ -272,6 +281,7 @@ export class MoveModuleBuilder extends FileBuilder {
 					bcsImport: () => this.#getImportName('bcs'),
 					summary: this.summary,
 					typeParameters,
+					includePhantomTypeParameters,
 					resolveAddress: (address) => this.#resolveAddress(address),
 					onDependency: (address, mod) => {
 						if (address !== this.summary.id.address || mod !== this.summary.id.name) {
@@ -296,6 +306,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		name: string,
 		{ fields }: Fields,
 		typeParameters: TypeParameter[] = [],
+		includePhantomTypeParameters = false,
 	) {
 		const moveTupleName = this.#getImportName('MoveTuple');
 		const values = Object.values(fields).map((field) =>
@@ -303,6 +314,7 @@ export class MoveModuleBuilder extends FileBuilder {
 				format: 'bcs',
 				summary: this.summary,
 				typeParameters,
+				includePhantomTypeParameters,
 				bcsImport: () => this.#getImportName('bcs'),
 				resolveAddress: (address) => this.#resolveAddress(address),
 				onDependency: (address, mod) => {
@@ -338,17 +350,32 @@ export class MoveModuleBuilder extends FileBuilder {
 
 		this.exports.push(name);
 
+		const includePhantom = this.#includePhantomTypeParameters;
 		const params = struct.type_parameters
 			.map((param, i) => ({ param, originalIndex: i }))
-			.filter(({ param }) => !param.phantom);
+			.filter(({ param }) => includePhantom || !param.phantom);
 		const structName = `\${$moduleName}::${name}`;
 
 		if (params.length === 0) {
+			const hasPhantoms = struct.type_parameters.some((p) => p.phantom);
+			const phantomPlaceholders = hasPhantoms
+				? `<${struct.type_parameters.map((p, i) => `phantom ${p.name ?? `T${i}`}`).join(', ')}>`
+				: '';
 			this.statements.push(
 				...parseTS /* ts */ `export const ${name} = ${
 					struct.fields.positional_fields
-						? await this.#renderFieldsAsTuple(structName, struct.fields, struct.type_parameters)
-						: await this.#renderFieldsAsStruct(structName, struct.fields, struct.type_parameters)
+						? await this.#renderFieldsAsTuple(
+								`${structName}${phantomPlaceholders}`,
+								struct.fields,
+								struct.type_parameters,
+								includePhantom,
+							)
+						: await this.#renderFieldsAsStruct(
+								`${structName}${phantomPlaceholders}`,
+								struct.fields,
+								struct.type_parameters,
+								includePhantom,
+							)
 				}`,
 			);
 		} else {
@@ -356,7 +383,18 @@ export class MoveModuleBuilder extends FileBuilder {
 
 			const typeParams = `...typeParameters: [${params.map(({ param, originalIndex }) => param.name ?? `T${originalIndex}`).join(', ')}]`;
 			const typeGenerics = `${params.map(({ param, originalIndex }) => `${param.name ?? `T${originalIndex}`} extends ${bcsTypeName}<any>`).join(', ')}`;
-			const nameGenerics = `${params.map(({ param, originalIndex }, i) => `\${typeParameters[${i}].name as ${param.name ?? `T${originalIndex}`}['name']}`).join(', ')}`;
+
+			let filteredIndex = 0;
+			const nameGenerics = struct.type_parameters
+				.map((param, i) => {
+					if (!includePhantom && param.phantom) {
+						return `phantom ${param.name ?? `T${i}`}`;
+					}
+					const idx = filteredIndex++;
+					const paramName = param.name ?? `T${idx}`;
+					return `\${typeParameters[${idx}].name as ${paramName}['name']}`;
+				})
+				.join(', ');
 
 			this.statements.push(
 				...(await withComment(
@@ -368,11 +406,13 @@ export class MoveModuleBuilder extends FileBuilder {
 										`${structName}<${nameGenerics}>`,
 										struct.fields,
 										struct.type_parameters,
+										includePhantom,
 									)
 								: await this.#renderFieldsAsStruct(
 										`${structName}<${nameGenerics}>`,
 										struct.fields,
 										struct.type_parameters,
+										includePhantom,
 									)
 						}
 					}`,
@@ -394,6 +434,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			);
 		}
 
+		const includePhantom = this.#includePhantomTypeParameters;
 		const moveEnumName = this.#getImportName('MoveEnum');
 		this.exports.push(name);
 
@@ -412,6 +453,7 @@ export class MoveModuleBuilder extends FileBuilder {
 									format: 'bcs',
 									summary: this.summary,
 									typeParameters: enumDef.type_parameters,
+									includePhantomTypeParameters: includePhantom,
 									bcsImport: () => this.#getImportName('bcs'),
 									resolveAddress: (address) => this.#resolveAddress(address),
 									onDependency: (address, mod) => {
@@ -431,24 +473,30 @@ export class MoveModuleBuilder extends FileBuilder {
 									`${name}.${variantName}`,
 									variant.fields,
 									enumDef.type_parameters,
+									includePhantom,
 								)
 						: await this.#renderFieldsAsStruct(
 								`${name}.${variantName}`,
 								variant.fields,
 								enumDef.type_parameters,
+								includePhantom,
 							),
 			],
 		});
 
 		const params = enumDef.type_parameters
 			.map((param, i) => ({ param, originalIndex: i }))
-			.filter(({ param }) => !param.phantom);
+			.filter(({ param }) => includePhantom || !param.phantom);
 
 		if (params.length === 0) {
+			const hasPhantoms = enumDef.type_parameters.some((p) => p.phantom);
+			const phantomPlaceholders = hasPhantoms
+				? `<${enumDef.type_parameters.map((p, i) => `phantom ${p.name ?? `T${i}`}`).join(', ')}>`
+				: '';
 			this.statements.push(
 				...(await withComment(
 					enumDef,
-					parseTS /* ts */ `export const ${name} = new ${moveEnumName}({ name: \`${enumName}\`, fields: ${variantsObject} })`,
+					parseTS /* ts */ `export const ${name} = new ${moveEnumName}({ name: \`${enumName}${phantomPlaceholders}\`, fields: ${variantsObject} })`,
 				)),
 			);
 		} else {
@@ -456,7 +504,18 @@ export class MoveModuleBuilder extends FileBuilder {
 
 			const typeParams = `...typeParameters: [${params.map(({ param, originalIndex }) => param.name ?? `T${originalIndex}`).join(', ')}]`;
 			const typeGenerics = `${params.map(({ param, originalIndex }) => `${param.name ?? `T${originalIndex}`} extends ${bcsTypeName}<any>`).join(', ')}`;
-			const nameGenerics = `${params.map(({ param, originalIndex }, i) => `\${typeParameters[${i}].name as ${param.name ?? `T${originalIndex}`}['name']}`).join(', ')}`;
+
+			let filteredIndex = 0;
+			const nameGenerics = enumDef.type_parameters
+				.map((param, i) => {
+					if (!includePhantom && param.phantom) {
+						return `phantom ${param.name ?? `T${i}`}`;
+					}
+					const idx = filteredIndex++;
+					const paramName = param.name ?? `T${idx}`;
+					return `\${typeParameters[${idx}].name as ${paramName}['name']}`;
+				})
+				.join(', ');
 
 			this.statements.push(
 				...(await withComment(
@@ -512,6 +571,7 @@ export class MoveModuleBuilder extends FileBuilder {
 						format: 'typescriptArg',
 						summary: this.summary,
 						typeParameters: func.type_parameters,
+						includePhantomTypeParameters: false,
 						resolveAddress: (address) => this.#resolveAddress(address),
 						onTypeParameter: (typeParameter) => usedTypeParameters.add(typeParameter),
 					}),
@@ -586,6 +646,7 @@ export class MoveModuleBuilder extends FileBuilder {
 									format: 'typeTag',
 									summary: this.summary,
 									typeParameters: func.type_parameters,
+									includePhantomTypeParameters: false,
 									resolveAddress: (address) => this.#resolveAddress(address),
 								}),
 							)

@@ -13,17 +13,19 @@ const ADDRESS_MAPPINGS = {
 	testpkg: '0x0000000000000000000000000000000000000000000000000000000000000000',
 };
 
-async function createBuilder(module: 'counter' | 'registry') {
+async function createBuilder(module: 'counter' | 'registry', includePhantomTypeParameters = false) {
 	return MoveModuleBuilder.fromSummaryFile(
 		join(SUMMARIES_DIR, 'testpkg', `${module}.json`),
 		ADDRESS_MAPPINGS,
 		'@test/testpkg',
+		'.js',
+		includePhantomTypeParameters,
 	);
 }
 
-async function createBuilders() {
-	const counter = await createBuilder('counter');
-	const registry = await createBuilder('registry');
+async function createBuilders(includePhantomTypeParameters = false) {
+	const counter = await createBuilder('counter', includePhantomTypeParameters);
+	const registry = await createBuilder('registry', includePhantomTypeParameters);
 	return {
 		counter,
 		registry,
@@ -177,9 +179,32 @@ describe('struct codegen output', () => {
 			export function Pair<T extends BcsType<any>>(...typeParameters: [
 			    T
 			]) {
-			    return new MoveStruct({ name: \`\${$moduleName}::Pair<\${typeParameters[0].name as T['name']}>\`, fields: {
+			    return new MoveStruct({ name: \`\${$moduleName}::Pair<\${typeParameters[0].name as T['name']}, phantom U>\`, fields: {
 			            id: bcs.Address,
 			            first: typeParameters[0]
+			        } });
+			}"
+		`);
+	});
+
+	it('phantom type index remapping (PhantomFirst<phantom A, B>)', async () => {
+		const { counter, all } = await createBuilders();
+		counter.includeTypes(all, ['PhantomFirst']);
+		const output = await render(counter, { types: true, functions: false });
+
+		// B is at original index 1 but should use typeParameters[0] after filtering phantom A
+		expect(extractBody(output)).toMatchInlineSnapshot(`
+			"const $moduleName = '@test/testpkg::counter';
+			/**
+			 * Tests phantom type parameter index remapping when phantom comes first. B is at
+			 * original index 1 but should use typeParameters[0] after filtering.
+			 */
+			export function PhantomFirst<B extends BcsType<any>>(...typeParameters: [
+			    B
+			]) {
+			    return new MoveStruct({ name: \`\${$moduleName}::PhantomFirst<phantom A, \${typeParameters[0].name as B['name']}>\`, fields: {
+			            id: bcs.Address,
+			            value: typeParameters[0]
 			        } });
 			}"
 		`);
@@ -216,7 +241,7 @@ describe('struct codegen output', () => {
 
 		expect(extractBody(output)).toMatchInlineSnapshot(`
 			"const $moduleName = '@test/testpkg::registry';
-			export const Container = new MoveStruct({ name: \`\${$moduleName}::Container\`, fields: {
+			export const Container = new MoveStruct({ name: \`\${$moduleName}::Container<phantom T>\`, fields: {
 			        id: bcs.Address,
 			        size: bcs.u64()
 			    } });"
@@ -261,6 +286,48 @@ describe('enum codegen output', () => {
 			            Err: new MoveStruct({ name: \`Result.Err\`, fields: {
 			                    code: bcs.u64(),
 			                    message: bcs.string()
+			                } })
+			        } });
+			}"
+		`);
+	});
+
+	it('enum with all phantom type parameters becomes const (PhantomResult<phantom T>)', async () => {
+		const { registry, all } = await createBuilders();
+		registry.includeTypes(all, ['PhantomResult']);
+		const output = await render(registry, { types: true, functions: false });
+
+		// All type params are phantom, so it becomes a const (not a function)
+		expect(extractBody(output)).toMatchInlineSnapshot(`
+			"const $moduleName = '@test/testpkg::registry';
+			/** Enum with phantom type parameter (becomes a const, not a function). */
+			export const PhantomResult = new MoveEnum({ name: \`\${$moduleName}::PhantomResult<phantom T>\`, fields: {
+			        Success: null,
+			        Failure: new MoveStruct({ name: \`PhantomResult.Failure\`, fields: {
+			                code: bcs.u64()
+			            } })
+			    } });"
+		`);
+	});
+
+	it('enum phantom type index remapping (MixedResult<phantom T, V>)', async () => {
+		const { registry, all } = await createBuilders();
+		registry.includeTypes(all, ['MixedResult']);
+		const output = await render(registry, { types: true, functions: false });
+
+		// V is at original index 1 but should use typeParameters[0] after filtering phantom T
+		expect(extractBody(output)).toMatchInlineSnapshot(`
+			"const $moduleName = '@test/testpkg::registry';
+			/** Enum with phantom first, non-phantom second (tests index remapping). */
+			export function MixedResult<V extends BcsType<any>>(...typeParameters: [
+			    V
+			]) {
+			    return new MoveEnum({ name: \`\${$moduleName}::MixedResult<phantom T, \${typeParameters[0].name as V['name']}>\`, fields: {
+			            Ok: new MoveStruct({ name: \`MixedResult.Ok\`, fields: {
+			                    value: typeParameters[0]
+			                } }),
+			            Err: new MoveStruct({ name: \`MixedResult.Err\`, fields: {
+			                    code: bcs.u64()
 			                } })
 			        } });
 			}"
@@ -509,6 +576,47 @@ describe('function codegen output', () => {
 			    typeArguments: [
 			        string
 			    ];
+			}"
+		`);
+	});
+});
+
+describe('includePhantomTypeParameters option', () => {
+	it('includes phantom type parameters when enabled (Pair<T, U>)', async () => {
+		const { counter, all } = await createBuilders(true);
+		counter.includeTypes(all, ['Pair']);
+		const output = await render(counter, { types: true, functions: false });
+
+		expect(extractBody(output)).toMatchInlineSnapshot(`
+			"const $moduleName = '@test/testpkg::counter';
+			/** Generic struct with multiple type parameters, mixing phantom and non-phantom. */
+			export function Pair<T extends BcsType<any>, U extends BcsType<any>>(...typeParameters: [
+			    T,
+			    U
+			]) {
+			    return new MoveStruct({ name: \`\${$moduleName}::Pair<\${typeParameters[0].name as T['name']}, \${typeParameters[1].name as U['name']}>\`, fields: {
+			            id: bcs.Address,
+			            first: typeParameters[0]
+			        } });
+			}"
+		`);
+	});
+
+	it('includes phantom type parameters when enabled (Container<T>)', async () => {
+		const { registry, all } = await createBuilders(true);
+		registry.includeTypes(all, ['Container']);
+		const output = await render(registry, { types: true, functions: false });
+
+		expect(extractBody(output)).toMatchInlineSnapshot(`
+			"const $moduleName = '@test/testpkg::registry';
+			/** A generic container with a phantom type parameter. */
+			export function Container<T extends BcsType<any>>(...typeParameters: [
+			    T
+			]) {
+			    return new MoveStruct({ name: \`\${$moduleName}::Container<\${typeParameters[0].name as T['name']}>\`, fields: {
+			            id: bcs.Address,
+			            size: bcs.u64()
+			        } });
 			}"
 		`);
 	});

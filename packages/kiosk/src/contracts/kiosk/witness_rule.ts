@@ -24,7 +24,7 @@ import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/kiosk::witness_rule';
 export const Rule = new MoveStruct({
-	name: `${$moduleName}::Rule`,
+	name: `${$moduleName}::Rule<phantom Proof>`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},

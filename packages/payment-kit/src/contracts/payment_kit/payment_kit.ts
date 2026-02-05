@@ -58,7 +58,7 @@ export const PaymentReceipt = new MoveStruct({
 	},
 });
 export const PaymentKey = new MoveStruct({
-	name: `${$moduleName}::PaymentKey`,
+	name: `${$moduleName}::PaymentKey<phantom T>`,
 	fields: {
 		nonce: bcs.string(),
 		payment_amount: bcs.u64(),
@@ -72,7 +72,7 @@ export const PaymentRecord = new MoveStruct({
 	},
 });
 export const BalanceKey = new MoveTuple({
-	name: `${$moduleName}::BalanceKey`,
+	name: `${$moduleName}::BalanceKey<phantom T>`,
 	fields: [bcs.bool()],
 });
 export interface CreateRegistryArguments {

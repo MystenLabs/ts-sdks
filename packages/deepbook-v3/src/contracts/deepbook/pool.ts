@@ -16,14 +16,14 @@ import * as deep_price from './deep_price.js';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@deepbook/core::pool';
 export const Pool = new MoveStruct({
-	name: `${$moduleName}::Pool`,
+	name: `${$moduleName}::Pool<phantom BaseAsset, phantom QuoteAsset>`,
 	fields: {
 		id: bcs.Address,
 		inner: versioned.Versioned,
 	},
 });
 export const PoolInner = new MoveStruct({
-	name: `${$moduleName}::PoolInner`,
+	name: `${$moduleName}::PoolInner<phantom BaseAsset, phantom QuoteAsset>`,
 	fields: {
 		allowed_versions: vec_set.VecSet(bcs.u64()),
 		pool_id: bcs.Address,
@@ -35,7 +35,7 @@ export const PoolInner = new MoveStruct({
 	},
 });
 export const PoolCreated = new MoveStruct({
-	name: `${$moduleName}::PoolCreated`,
+	name: `${$moduleName}::PoolCreated<phantom BaseAsset, phantom QuoteAsset>`,
 	fields: {
 		pool_id: bcs.Address,
 		taker_fee: bcs.u64(),
@@ -48,7 +48,7 @@ export const PoolCreated = new MoveStruct({
 	},
 });
 export const BookParamsUpdated = new MoveStruct({
-	name: `${$moduleName}::BookParamsUpdated`,
+	name: `${$moduleName}::BookParamsUpdated<phantom BaseAsset, phantom QuoteAsset>`,
 	fields: {
 		pool_id: bcs.Address,
 		tick_size: bcs.u64(),
@@ -58,14 +58,14 @@ export const BookParamsUpdated = new MoveStruct({
 	},
 });
 export const DeepBurned = new MoveStruct({
-	name: `${$moduleName}::DeepBurned`,
+	name: `${$moduleName}::DeepBurned<phantom BaseAsset, phantom QuoteAsset>`,
 	fields: {
 		pool_id: bcs.Address,
 		deep_burned: bcs.u64(),
 	},
 });
 export const ReferralRewards = new MoveStruct({
-	name: `${$moduleName}::ReferralRewards`,
+	name: `${$moduleName}::ReferralRewards<phantom BaseAsset, phantom QuoteAsset>`,
 	fields: {
 		multiplier: bcs.u64(),
 		base: balance.Balance,
@@ -74,7 +74,7 @@ export const ReferralRewards = new MoveStruct({
 	},
 });
 export const ReferralClaimedEvent = new MoveStruct({
-	name: `${$moduleName}::ReferralClaimedEvent`,
+	name: `${$moduleName}::ReferralClaimedEvent<phantom BaseAsset, phantom QuoteAsset>`,
 	fields: {
 		referral_id: bcs.Address,
 		owner: bcs.Address,

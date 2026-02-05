@@ -50,7 +50,7 @@ export const BalanceEvent = new MoveStruct({
 	},
 });
 export const BalanceKey = new MoveStruct({
-	name: `${$moduleName}::BalanceKey`,
+	name: `${$moduleName}::BalanceKey<phantom T>`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},

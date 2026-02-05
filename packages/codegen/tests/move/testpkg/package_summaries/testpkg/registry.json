@@ -689,6 +689,105 @@
           }
         }
       }
+    },
+    "PhantomResult": {
+      "index": 2,
+      "doc": " Enum with phantom type parameter (becomes a const, not a function).",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [
+        {
+          "phantom": true,
+          "name": "T",
+          "constraints": []
+        }
+      ],
+      "variants": {
+        "Success": {
+          "index": 0,
+          "doc": null,
+          "fields": {
+            "positional_fields": false,
+            "fields": {}
+          }
+        },
+        "Failure": {
+          "index": 1,
+          "doc": null,
+          "fields": {
+            "positional_fields": false,
+            "fields": {
+              "code": {
+                "index": 0,
+                "doc": null,
+                "type_": "u64"
+              }
+            }
+          }
+        }
+      }
+    },
+    "MixedResult": {
+      "index": 3,
+      "doc": " Enum with phantom first, non-phantom second (tests index remapping).",
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [
+        {
+          "phantom": true,
+          "name": "T",
+          "constraints": []
+        },
+        {
+          "phantom": false,
+          "name": "V",
+          "constraints": [
+            "Copy",
+            "Drop",
+            "Store"
+          ]
+        }
+      ],
+      "variants": {
+        "Ok": {
+          "index": 0,
+          "doc": null,
+          "fields": {
+            "positional_fields": false,
+            "fields": {
+              "value": {
+                "index": 0,
+                "doc": null,
+                "type_": {
+                  "NamedTypeParameter": "V"
+                }
+              }
+            }
+          }
+        },
+        "Err": {
+          "index": 1,
+          "doc": null,
+          "fields": {
+            "positional_fields": false,
+            "fields": {
+              "code": {
+                "index": 0,
+                "doc": null,
+                "type_": "u64"
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

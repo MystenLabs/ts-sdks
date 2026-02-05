@@ -12,7 +12,7 @@ import { MoveStruct } from '../../../utils/index.js';
 const $moduleName = '0x2::linked_table';
 export function LinkedTable<K extends BcsType<any>>(...typeParameters: [K]) {
 	return new MoveStruct({
-		name: `${$moduleName}::LinkedTable<${typeParameters[0].name as K['name']}>`,
+		name: `${$moduleName}::LinkedTable<${typeParameters[0].name as K['name']}, phantom V>`,
 		fields: {
 			/** the ID of this table */
 			id: bcs.Address,

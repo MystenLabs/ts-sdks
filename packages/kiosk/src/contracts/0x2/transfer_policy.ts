@@ -9,7 +9,7 @@ import * as type_name from './deps/0x0000000000000000000000000000000000000000000
 import * as balance from './balance.js';
 const $moduleName = '0x2::transfer_policy';
 export const TransferRequest = new MoveStruct({
-	name: `${$moduleName}::TransferRequest`,
+	name: `${$moduleName}::TransferRequest<phantom T0>`,
 	fields: {
 		item: bcs.Address,
 		paid: bcs.u64(),
@@ -18,7 +18,7 @@ export const TransferRequest = new MoveStruct({
 	},
 });
 export const TransferPolicy = new MoveStruct({
-	name: `${$moduleName}::TransferPolicy`,
+	name: `${$moduleName}::TransferPolicy<phantom T0>`,
 	fields: {
 		id: bcs.Address,
 		balance: balance.Balance,
@@ -26,26 +26,26 @@ export const TransferPolicy = new MoveStruct({
 	},
 });
 export const TransferPolicyCap = new MoveStruct({
-	name: `${$moduleName}::TransferPolicyCap`,
+	name: `${$moduleName}::TransferPolicyCap<phantom T0>`,
 	fields: {
 		id: bcs.Address,
 		policy_id: bcs.Address,
 	},
 });
 export const TransferPolicyCreated = new MoveStruct({
-	name: `${$moduleName}::TransferPolicyCreated`,
+	name: `${$moduleName}::TransferPolicyCreated<phantom T0>`,
 	fields: {
 		id: bcs.Address,
 	},
 });
 export const TransferPolicyDestroyed = new MoveStruct({
-	name: `${$moduleName}::TransferPolicyDestroyed`,
+	name: `${$moduleName}::TransferPolicyDestroyed<phantom T0>`,
 	fields: {
 		id: bcs.Address,
 	},
 });
 export const RuleKey = new MoveStruct({
-	name: `${$moduleName}::RuleKey`,
+	name: `${$moduleName}::RuleKey<phantom T0>`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},
