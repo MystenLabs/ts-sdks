@@ -79,6 +79,10 @@ export class SerialTransactionExecutor {
 	}
 
 	#buildTransaction = async (transaction: Transaction) => {
+		await transaction.prepareForSerialization({
+			client: this.#client,
+			supportedIntents: ['CoinWithBalance'],
+		});
 		const copy = Transaction.from(transaction);
 
 		if (this.#gasMode === 'addressBalance') {

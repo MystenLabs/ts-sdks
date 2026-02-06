@@ -31,6 +31,7 @@ import { createPure } from './pure.js';
 import { TransactionDataBuilder } from './TransactionData.js';
 import { getIdFromCallArg } from './utils.js';
 import { namedPackagesPlugin } from './plugins/NamedPackagesPlugin.js';
+import { COIN_WITH_BALANCE, resolveCoinBalance } from './intents/CoinWithBalance.js';
 import type { ClientWithCoreApi } from '../client/core.js';
 
 export type TransactionObjectArgument =
@@ -188,6 +189,16 @@ export class Transaction {
 		newTransaction.#inputSection = newTransaction.#data.inputs.slice();
 		newTransaction.#commandSection = newTransaction.#data.commands.slice();
 		newTransaction.#availableResults = new Set(newTransaction.#commandSection.map((_, i) => i));
+
+		if (!newTransaction.isPreparedForSerialization({ supportedIntents: [COIN_WITH_BALANCE] })) {
+			throw new Error(
+				'Transaction has unresolved intents or async thunks. Call `prepareForSerialization` before copying.',
+			);
+		}
+
+		if (newTransaction.#data.commands.some((cmd) => cmd.$Intent?.name === COIN_WITH_BALANCE)) {
+			newTransaction.addIntentResolver(COIN_WITH_BALANCE, resolveCoinBalance);
+		}
 
 		return newTransaction;
 	}
@@ -662,6 +673,31 @@ export class Transaction {
 	}
 
 	/**
+	 * Checks if the transaction is prepared for serialization to JSON.
+	 * This means:
+	 *  - All async thunks have been fully resolved
+	 *  - All transaction intents have been resolved (unless in supportedIntents)
+	 *
+	 * Unlike `isFullyResolved()`, this does not require the sender, gas payment,
+	 * budget, or object versions to be set.
+	 */
+	isPreparedForSerialization(options: { supportedIntents?: string[] } = {}) {
+		if (this.#pendingPromises.size > 0) {
+			return false;
+		}
+
+		if (
+			this.#data.commands.some(
+				(cmd) => cmd.$Intent && !options.supportedIntents?.includes(cmd.$Intent.name),
+			)
+		) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
 	 *  Ensures that:
 	 *  - All objects have been fully resolved to a specific version
 	 *  - All pure inputs have been serialized to bytes
@@ -673,15 +709,11 @@ export class Transaction {
 	 *  When true, the transaction will always be built to the same bytes and digest (unless the transaction is mutated)
 	 */
 	isFullyResolved() {
+		if (!this.isPreparedForSerialization()) {
+			return false;
+		}
+
 		if (!this.#data.sender) {
-			return false;
-		}
-
-		if (this.#pendingPromises.size > 0) {
-			return false;
-		}
-
-		if (this.#data.commands.some((cmd) => cmd.$Intent)) {
 			return false;
 		}
 

@@ -14,7 +14,7 @@ import type { Transaction, TransactionResult } from '../Transaction.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
 import type { ClientWithCoreApi, SuiClientTypes } from '../../client/index.js';
 
-const COIN_WITH_BALANCE = 'CoinWithBalance';
+export const COIN_WITH_BALANCE = 'CoinWithBalance';
 const SUI_TYPE = normalizeStructTag('0x2::sui::SUI');
 
 export function coinWithBalance({
@@ -56,7 +56,7 @@ const CoinWithBalanceData = object({
 	balance: bigint(),
 });
 
-async function resolveCoinBalance(
+export async function resolveCoinBalance(
 	transactionData: TransactionDataBuilder,
 	buildOptions: BuildTransactionOptions,
 	next: () => Promise<void>,

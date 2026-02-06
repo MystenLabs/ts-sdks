@@ -41,7 +41,7 @@
 				"GOOGLE_APPLICATION_CREDENTIALS"
 			]
 		},
-		// Avoid running CPU intesive tests in parallel
+		// Avoid running CPU intensive tests in parallel
 		"@mysten/walrus#test": {
 			"dependsOn": ["^build", "build", "@mysten/walrus-wasm#test"]
 		},
@@ -83,16 +83,36 @@
 		},
 		"build": {
 			"dependsOn": ["^build"],
-			"inputs": ["src/**", "*.ts", "*.mjs", "tsconfig.json", "tsdown.config.ts", "package.json"],
-			"outputs": [
-				"build/**",
-				"dist/**",
-				"storybook-static/**",
-				".next/**",
-				"!.next/cache/**",
-				"pkg/**",
-				"public/**"
-			]
+			"inputs": [
+				"src/**",
+				"bin/**",
+				"scripts/**",
+				"templates/**",
+				"*.ts",
+				"*.mjs",
+				"tsconfig.json",
+				"tsdown.config.ts",
+				"package.json"
+			],
+			"outputs": ["build/**", "dist/**"]
+		},
+		"@mysten/sdk-docs#build": {
+			"dependsOn": ["^build"],
+			"inputs": [
+				"content/**",
+				"app/**",
+				"components/**",
+				"lib/**",
+				"examples/**",
+				"*.ts",
+				"*.mjs",
+				"tsconfig.json",
+				"next.config.mjs",
+				"source.config.ts",
+				"typedoc.json",
+				"package.json"
+			],
+			"outputs": [".next/**", "!.next/cache/**", "public/**"]
 		}
 	},
 	"globalEnv": ["VERCEL_ENV", "VITE_NETWORK", "VITE_VERCEL_ANALYTICS_ID", "VITE_SENTRY_SAMPLE_RATE"]

@@ -149,3 +149,11 @@ If the signer executes transactions that are not sent through the executor that 
 transactions to fail. The executor classes will handle this by invalidating the cache for any
 objects used in the transaction, so you will often be able to recover by re-trying a failed
 transaction once. If it was caused by a stale cache, it should succeed on the second execution.
+
+<Callout type="warn">
+	Transaction plugins and intents may resolve their own data (such as object references) that are
+	not automatically managed by the executor's object cache. This can cause transactions to include
+	stale object versions. The `coinWithBalance` intent is partially supported by the executors and
+	will work correctly when all coin types are either SUI or the required balances are available as
+	address balances rather than coin objects.
+</Callout>
