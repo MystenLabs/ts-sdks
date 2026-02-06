@@ -171,6 +171,40 @@ pnpm --filter @mysten/deepbook-v3 codegen
 - `@mysten/sui` - Core Sui SDK
 - Requires sibling repo `../deepbookv3` for codegen
 
+## NPM Package Change Summary Format
+
+When asked for a summary of changes for the npm package, use this format:
+
+```
+## @mysten/deepbook-v3 Changes Summary
+
+### New Features
+
+**`functionName(params)`** - Brief description
+- Bullet points explaining behavior
+- Code example if helpful
+
+### Configuration Changes
+
+- `CONFIG_NAME`: oldValue → newValue (description)
+
+### Breaking Changes
+
+- Description of breaking change and migration path
+
+### Bug Fixes
+
+- Description of fix
+
+### New Examples
+
+- `examples/filename.ts` - Description
+
+### Files Changed
+
+- `path/to/file.ts` - What changed
+```
+
 ---
 
 ## Changelog
