@@ -1,5 +1,13 @@
 # @mysten/deepbook-v3
 
+## 1.0.4
+
+### Patch Changes
+
+- b1bf6fd: Batch pyth price feed updates, stale feeds older than 30 seconds
+- Updated dependencies [265ec25]
+  - @mysten/sui@2.3.1
+
 ## 1.0.3
 
 ### Patch Changes

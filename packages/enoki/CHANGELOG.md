@@ -1,5 +1,14 @@
 # @mysten/enoki
 
+## 1.0.2
+
+### Patch Changes
+
+- 53ff5aa: Allow any Sui client to be passed when registering enoki wallet
+- Updated dependencies [265ec25]
+  - @mysten/sui@2.3.1
+  - @mysten/wallet-standard@0.20.0
+
 ## 1.0.1
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @mysten/sui.js
 
+## 2.3.1
+
+### Patch Changes
+
+- 265ec25: Add `isPreparedForSerialization` method to Transaction class for checking if a
+  transaction is ready for JSON serialization. Update `Transaction.from` to validate that
+  transactions are prepared before copying and automatically register the CoinWithBalance intent
+  resolver when needed.
+
 ## 2.3.0
 
 ### Minor Changes
