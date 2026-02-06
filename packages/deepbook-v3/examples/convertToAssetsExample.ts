@@ -159,7 +159,7 @@ function formatAmount(amount: bigint, decimals: number): string {
 	const client = new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] });
 
 	// Address to check aToken balances for
-	const owner = '0x7820a145d3d95e4e30308479b6b8e7c7fc89c65f2d526f2b2efe2d18aee928ae';
+	const owner = '';
 
 	console.log(`Network: ${network}`);
 	console.log(`Owner: ${owner}\n`);
