@@ -11,7 +11,7 @@ export const EnokiGetMetadata = 'enoki:getMetadata';
 export type EnokiGetMetadataVersion = '1.0.0';
 
 /**
- * A Wallet Standard feature for retreiving Enoki-specific metadata about the wallet.
+ * A Wallet Standard feature for retrieving Enoki-specific metadata about the wallet.
  */
 export type EnokiGetMetadataFeature = {
 	/** Namespace for the feature. */
@@ -40,7 +40,7 @@ export const EnokiGetSession = 'enoki:getSession';
 export type EnokiGetSessionVersion = '1.0.0';
 
 /**
- * A Wallet Standard feature for retreiving the zkLogin session from the wallet.
+ * A Wallet Standard feature for retrieving the zkLogin session from the wallet.
  */
 export type EnokiGetSessionFeature = {
 	/** Namespace for the feature. */
