@@ -912,6 +912,104 @@ export class DeepBookClient {
 	}
 
 	/**
+	 * @description Batch update price info objects for multiple coins. Only updates stale feeds.
+	 * This is more efficient than calling getPriceInfoObject multiple times as it:
+	 * 1. Batch fetches all price info object ages in one RPC call
+	 * 2. Fetches all stale price updates from Pyth in a single API call
+	 * @param {Transaction} tx Transaction to add price update commands to
+	 * @param {string[]} coinKeys Array of coin keys to update prices for
+	 * @returns {Promise<Record<string, string>>} Map of coinKey -> priceInfoObjectId
+	 */
+	async getPriceInfoObjects(tx: Transaction, coinKeys: string[]): Promise<Record<string, string>> {
+		if (coinKeys.length === 0) {
+			return {};
+		}
+
+		const currentTime = Date.now();
+
+		// Build map of coinKey -> priceInfoObjectId and collect all object IDs
+		const coinToObjectId: Record<string, string> = {};
+		const objectIds: string[] = [];
+		for (const coinKey of coinKeys) {
+			const priceInfoObjectId = this.#config.getCoin(coinKey).priceInfoObjectId!;
+			coinToObjectId[coinKey] = priceInfoObjectId;
+			objectIds.push(priceInfoObjectId);
+		}
+
+		// Batch fetch all price info objects in one RPC call
+		const res = await this.#client.core.getObjects({
+			objectIds,
+			include: { content: true },
+		});
+
+		// Parse each object and determine which are stale
+		const staleCoinKeys: string[] = [];
+		const result: Record<string, string> = {};
+
+		for (let i = 0; i < coinKeys.length; i++) {
+			const coinKey = coinKeys[i];
+			const obj = res.objects[i];
+
+			if (obj instanceof Error || !obj?.content) {
+				// If we can't fetch the object, mark it as stale to force update
+				staleCoinKeys.push(coinKey);
+				continue;
+			}
+
+			const priceInfoObject = PriceInfoObject.parse(obj.content);
+			const arrivalTime = Number(priceInfoObject.price_info.arrival_time);
+			const age = currentTime - arrivalTime * 1000;
+
+			if (age >= PRICE_INFO_OBJECT_MAX_AGE_MS) {
+				staleCoinKeys.push(coinKey);
+			} else {
+				// Fresh price, just return the existing object ID
+				result[coinKey] = coinToObjectId[coinKey];
+			}
+		}
+
+		// If no stale feeds, return early
+		if (staleCoinKeys.length === 0) {
+			return result;
+		}
+
+		// Collect all feed IDs for stale coins
+		const staleFeedIds: string[] = [];
+		const feedIdToCoinKey: Record<string, string> = {};
+		for (const coinKey of staleCoinKeys) {
+			const feedId = this.#config.getCoin(coinKey).feed!;
+			staleFeedIds.push(feedId);
+			feedIdToCoinKey[feedId] = coinKey;
+		}
+
+		// Initialize connection to the Sui Price Service
+		const endpoint =
+			this.#config.network === 'testnet'
+				? 'https://hermes-beta.pyth.network'
+				: 'https://hermes.pyth.network';
+		const connection = new SuiPriceServiceConnection(endpoint);
+
+		// Fetch all stale price updates from Pyth in a single API call
+		const priceUpdateData = await connection.getPriceFeedsUpdateData(staleFeedIds);
+
+		// Initialize Pyth Client
+		const wormholeStateId = this.#config.pyth.wormholeStateId;
+		const pythStateId = this.#config.pyth.pythStateId;
+		const pythClient = new SuiPythClient(this.#client, pythStateId, wormholeStateId);
+
+		// Update all stale feeds in the transaction
+		const updatedObjectIds = await pythClient.updatePriceFeeds(tx, priceUpdateData, staleFeedIds);
+
+		// Map the updated object IDs back to coin keys
+		for (let i = 0; i < staleFeedIds.length; i++) {
+			const coinKey = feedIdToCoinKey[staleFeedIds[i]];
+			result[coinKey] = updatedObjectIds[i];
+		}
+
+		return result;
+	}
+
+	/**
 	 * @description Get the age of the price info object for a specific coin
 	 * @param {string} coinKey Key of the coin
 	 * @returns {Promise<number>} The arrival time of the price info object

@@ -26,7 +26,7 @@ export const DEEP_SCALAR = 1_000_000; // 10^6 - DEEP token decimal places
 
 // Time-related constants
 export const MAX_TIMESTAMP = 1_844_674_407_370_955_161n; // Maximum Unix timestamp (approximately year 2554)
-export const PRICE_INFO_OBJECT_MAX_AGE_MS = 15_000; // 15 seconds in milliseconds
+export const PRICE_INFO_OBJECT_MAX_AGE_MS = 30_000; // 30 seconds in milliseconds
 
 // Transaction and fee constants
 export const GAS_BUDGET = 250_000_000; // 0.25 SUI (0.5 * 500M MIST)
