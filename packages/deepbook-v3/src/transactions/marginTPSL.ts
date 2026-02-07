@@ -195,20 +195,20 @@ export class MarginTPSLContract {
 	/**
 	 * @description Execute conditional orders that have been triggered
 	 * This is a permissionless function that can be called by anyone
-	 * @param {string} marginManagerKey The key to identify the margin manager
+	 * @param {string} managerAddress The address of the margin manager
+	 * @param {string} poolKey The key to identify the pool (e.g., 'SUI_USDC')
 	 * @param {number} maxOrdersToExecute Maximum number of orders to execute in this call
 	 * @returns A function that takes a Transaction object
 	 */
 	executeConditionalOrders =
-		(marginManagerKey: string, maxOrdersToExecute: number) => (tx: Transaction) => {
-			const manager = this.#config.getMarginManager(marginManagerKey);
-			const pool = this.#config.getPool(manager.poolKey);
+		(managerAddress: string, poolKey: string, maxOrdersToExecute: number) => (tx: Transaction) => {
+			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 			return tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::execute_conditional_orders`,
 				arguments: [
-					tx.object(manager.address),
+					tx.object(managerAddress),
 					tx.object(pool.address),
 					tx.object(baseCoin.priceInfoObjectId!),
 					tx.object(quoteCoin.priceInfoObjectId!),
