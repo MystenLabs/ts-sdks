@@ -2712,6 +2712,36 @@ export class DeepBookClient {
 	}
 
 	/**
+	 * @description Execute conditional orders for a margin manager.
+	 * This is a permissionless function that can be called by anyone.
+	 * Unlike marginTPSL.executeConditionalOrders, this method takes managerAddress and poolKey
+	 * directly without requiring the manager to be pre-registered in the client config.
+	 * @param {string} managerAddress The address of the margin manager
+	 * @param {string} poolKey The key to identify the pool (e.g., 'SUI_USDC')
+	 * @param {number} maxOrdersToExecute Maximum number of orders to execute in this call
+	 * @returns A function that takes a Transaction object
+	 */
+	executeConditionalOrders =
+		(managerAddress: string, poolKey: string, maxOrdersToExecute: number) => (tx: Transaction) => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::execute_conditional_orders`,
+				arguments: [
+					tx.object(managerAddress),
+					tx.object(pool.address),
+					tx.object(baseCoin.priceInfoObjectId!),
+					tx.object(quoteCoin.priceInfoObjectId!),
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					tx.pure.u64(maxOrdersToExecute),
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
+
+	/**
 	 * @description Helper function to format token amounts without floating point errors
 	 * @param {bigint} rawAmount The raw amount as bigint
 	 * @param {number} scalar The token scalar (e.g., 1000000000 for 9 decimals)
