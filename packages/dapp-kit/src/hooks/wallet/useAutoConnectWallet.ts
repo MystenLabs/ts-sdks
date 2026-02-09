@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useQuery } from '@tanstack/react-query';
-import { useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 
 import { getWalletUniqueIdentifier } from '../../utils/walletUtils.js';
 import { useConnectWallet } from './useConnectWallet.js';
@@ -19,7 +19,8 @@ export function useAutoConnectWallet(): 'disabled' | 'idle' | 'attempted' {
 	const { isConnected } = useCurrentWallet();
 
 	const [clientOnly, setClientOnly] = useState(false);
-	useLayoutEffect(() => {
+	const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+	useIsomorphicLayoutEffect(() => {
 		setClientOnly(true);
 	}, []);
 

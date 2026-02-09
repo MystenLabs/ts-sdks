@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { registerSlushWallet } from '@mysten/slush-wallet';
-import { useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 
 export interface SlushWalletConfig {
 	name: string;
@@ -10,7 +10,9 @@ export interface SlushWalletConfig {
 }
 
 export function useSlushWallet(config?: SlushWalletConfig) {
-	useLayoutEffect(() => {
+	const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
+	useIsomorphicLayoutEffect(() => {
 		if (!config?.name) {
 			return;
 		}
