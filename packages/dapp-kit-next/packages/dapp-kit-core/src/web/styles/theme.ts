@@ -32,6 +32,14 @@ export const themeStyles = css`
 		--dapp-kit-radius-lg: var(--dapp-kit-radius);
 		--dapp-kit-radius-xl: calc(var(--dapp-kit-radius) + 4px);
 
+		/** Width and Height */
+		--dapp-kit-button-height: 40px;
+		--dapp-kit-button-min-width: 120px;
+
+		/** Padding */
+		--dapp-kit-button-padding-x: 16px;
+		--dapp-kit-button-padding-y: 8px;
+
 		/** Typography */
 		--dapp-kit-font-sans: var(
 			--font-sans,
