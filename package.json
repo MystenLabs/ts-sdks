@@ -17,7 +17,11 @@
 		"release": "pnpm turbo run build --filter \"./packages/*\" && pnpm changeset publish"
 	},
 	"packageManager": "pnpm@10.17.0",
-	"pnpm": {},
+	"pnpm": {
+		"overrides": {
+			"axios": "^1.13.5"
+		}
+	},
 	"engines": {
 		"pnpm": ">=10.17.0"
 	},
