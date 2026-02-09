@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 1.0.5
+
+### Patch Changes
+
+- 65550fe: Update executeConditionalOrders for composability
+
 ## 1.0.4
 
 ### Patch Changes
