@@ -1,5 +1,11 @@
 # @mysten/wallet-standard
 
+## 0.20.1
+
+### Patch Changes
+
+- 99d1e00: Add default export condition
+
 ## 0.20.0
 
 ### Minor Changes

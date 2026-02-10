@@ -1,5 +1,11 @@
 # @mysten/utils
 
+## 0.3.1
+
+### Patch Changes
+
+- 99d1e00: Add default export condition
+
 ## 0.3.0
 
 ### Minor Changes

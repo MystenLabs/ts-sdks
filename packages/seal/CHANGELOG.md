@@ -1,5 +1,14 @@
 # @mysten/seal
 
+## 1.0.1
+
+### Patch Changes
+
+- 99d1e00: Add default export condition
+- Updated dependencies [99d1e00]
+  - @mysten/bcs@2.0.2
+  - @mysten/sui@2.3.2
+
 ## 1.0.0
 
 ### Minor Changes

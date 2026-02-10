@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/utils",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"description": "Shared utilities for @mysten/* packages",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",

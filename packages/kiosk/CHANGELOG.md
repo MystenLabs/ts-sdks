@@ -1,5 +1,15 @@
 # @mysten/kiosk
 
+## 1.1.1
+
+### Patch Changes
+
+- 99d1e00: Add default export condition
+- Updated dependencies [99d1e00]
+  - @mysten/utils@0.3.1
+  - @mysten/bcs@2.0.2
+  - @mysten/sui@2.3.2
+
 ## 1.1.0
 
 ### Minor Changes
