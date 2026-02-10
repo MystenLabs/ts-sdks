@@ -35,12 +35,15 @@ doesn't already exist. For this example, you need only the Sui TypeScript SDK:
 npm i -D @mysten/sui
 ```
 
-Your `package.json` file now has a _dependencies_ section with `@mysten/sui` listed with the package
-version number.
+The SDK is published as an ESM only package, so you also need to set `"type": "module"` in your
+`package.json`. Your `package.json` file should look like this:
 
 ```json
-"dependencies": {
-    "@mysten/sui": "^<VERSION_NUMBER>"
+{
+	"type": "module",
+	"dependencies": {
+		"@mysten/sui": "^<VERSION_NUMBER>"
+	}
 }
 ```
 

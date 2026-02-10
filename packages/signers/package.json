@@ -8,19 +8,23 @@
 	"exports": {
 		"./aws": {
 			"types": "./dist/aws/index.d.mts",
-			"import": "./dist/aws/index.mjs"
+			"import": "./dist/aws/index.mjs",
+			"default": "./dist/aws/index.mjs"
 		},
 		"./gcp": {
 			"types": "./dist/gcp/index.d.mts",
-			"import": "./dist/gcp/index.mjs"
+			"import": "./dist/gcp/index.mjs",
+			"default": "./dist/gcp/index.mjs"
 		},
 		"./ledger": {
 			"types": "./dist/ledger/index.d.mts",
-			"import": "./dist/ledger/index.mjs"
+			"import": "./dist/ledger/index.mjs",
+			"default": "./dist/ledger/index.mjs"
 		},
 		"./webcrypto": {
 			"types": "./dist/webcrypto/index.d.mts",
-			"import": "./dist/webcrypto/index.mjs"
+			"import": "./dist/webcrypto/index.mjs",
+			"default": "./dist/webcrypto/index.mjs"
 		}
 	},
 	"sideEffects": false,

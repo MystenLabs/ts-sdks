@@ -35,7 +35,8 @@
 	"exports": {
 		".": {
 			"types": "./dist/Sui.d.mts",
-			"import": "./dist/Sui.mjs"
+			"import": "./dist/Sui.mjs",
+			"default": "./dist/Sui.mjs"
 		}
 	},
 	"scripts": {

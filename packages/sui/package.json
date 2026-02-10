@@ -35,71 +35,88 @@
 	"exports": {
 		"./bcs": {
 			"types": "./dist/bcs/index.d.mts",
-			"import": "./dist/bcs/index.mjs"
+			"import": "./dist/bcs/index.mjs",
+			"default": "./dist/bcs/index.mjs"
 		},
 		"./client": {
 			"types": "./dist/client/index.d.mts",
-			"import": "./dist/client/index.mjs"
+			"import": "./dist/client/index.mjs",
+			"default": "./dist/client/index.mjs"
 		},
 		"./cryptography": {
 			"types": "./dist/cryptography/index.d.mts",
-			"import": "./dist/cryptography/index.mjs"
+			"import": "./dist/cryptography/index.mjs",
+			"default": "./dist/cryptography/index.mjs"
 		},
 		"./faucet": {
 			"types": "./dist/faucet/index.d.mts",
-			"import": "./dist/faucet/index.mjs"
+			"import": "./dist/faucet/index.mjs",
+			"default": "./dist/faucet/index.mjs"
 		},
 		"./graphql": {
 			"types": "./dist/graphql/index.d.mts",
-			"import": "./dist/graphql/index.mjs"
+			"import": "./dist/graphql/index.mjs",
+			"default": "./dist/graphql/index.mjs"
 		},
 		"./grpc": {
 			"types": "./dist/grpc/index.d.mts",
-			"import": "./dist/grpc/index.mjs"
+			"import": "./dist/grpc/index.mjs",
+			"default": "./dist/grpc/index.mjs"
 		},
 		"./jsonRpc": {
 			"types": "./dist/jsonRpc/index.d.mts",
-			"import": "./dist/jsonRpc/index.mjs"
+			"import": "./dist/jsonRpc/index.mjs",
+			"default": "./dist/jsonRpc/index.mjs"
 		},
 		"./keypairs/ed25519": {
 			"types": "./dist/keypairs/ed25519/index.d.mts",
-			"import": "./dist/keypairs/ed25519/index.mjs"
+			"import": "./dist/keypairs/ed25519/index.mjs",
+			"default": "./dist/keypairs/ed25519/index.mjs"
 		},
 		"./keypairs/secp256k1": {
 			"types": "./dist/keypairs/secp256k1/index.d.mts",
-			"import": "./dist/keypairs/secp256k1/index.mjs"
+			"import": "./dist/keypairs/secp256k1/index.mjs",
+			"default": "./dist/keypairs/secp256k1/index.mjs"
 		},
 		"./keypairs/secp256r1": {
 			"types": "./dist/keypairs/secp256r1/index.d.mts",
-			"import": "./dist/keypairs/secp256r1/index.mjs"
+			"import": "./dist/keypairs/secp256r1/index.mjs",
+			"default": "./dist/keypairs/secp256r1/index.mjs"
 		},
 		"./keypairs/passkey": {
 			"types": "./dist/keypairs/passkey/index.d.mts",
-			"import": "./dist/keypairs/passkey/index.mjs"
+			"import": "./dist/keypairs/passkey/index.mjs",
+			"default": "./dist/keypairs/passkey/index.mjs"
 		},
 		"./multisig": {
 			"types": "./dist/multisig/index.d.mts",
-			"import": "./dist/multisig/index.mjs"
+			"import": "./dist/multisig/index.mjs",
+			"default": "./dist/multisig/index.mjs"
 		},
 		"./transactions": {
 			"types": "./dist/transactions/index.d.mts",
-			"import": "./dist/transactions/index.mjs"
+			"import": "./dist/transactions/index.mjs",
+			"default": "./dist/transactions/index.mjs"
 		},
 		"./utils": {
 			"types": "./dist/utils/index.d.mts",
-			"import": "./dist/utils/index.mjs"
+			"import": "./dist/utils/index.mjs",
+			"default": "./dist/utils/index.mjs"
 		},
 		"./verify": {
 			"types": "./dist/verify/index.d.mts",
-			"import": "./dist/verify/index.mjs"
+			"import": "./dist/verify/index.mjs",
+			"default": "./dist/verify/index.mjs"
 		},
 		"./zklogin": {
 			"types": "./dist/zklogin/index.d.mts",
-			"import": "./dist/zklogin/index.mjs"
+			"import": "./dist/zklogin/index.mjs",
+			"default": "./dist/zklogin/index.mjs"
 		},
 		"./graphql/schema": {
 			"types": "./dist/graphql/schema/index.d.mts",
-			"import": "./dist/graphql/schema/index.mjs"
+			"import": "./dist/graphql/schema/index.mjs",
+			"default": "./dist/graphql/schema/index.mjs"
 		}
 	},
 	"scripts": {

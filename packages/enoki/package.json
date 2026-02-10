@@ -10,11 +10,13 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.mts",
-			"import": "./dist/index.mjs"
+			"import": "./dist/index.mjs",
+			"default": "./dist/index.mjs"
 		},
 		"./react": {
 			"types": "./dist/react.d.mts",
-			"import": "./dist/react.mjs"
+			"import": "./dist/react.mjs",
+			"default": "./dist/react.mjs"
 		}
 	},
 	"files": [
