@@ -13,6 +13,19 @@ To use the Sui TypeScript SDK in your project, run the following command in your
 npm i @mysten/sui
 ```
 
+The SDK is published as an ESM only package. Make sure your `package.json` includes
+`"type": "module"`:
+
+```json
+{
+	"type": "module"
+}
+```
+
+If you are using TypeScript, your `tsconfig.json` should use a compatible `moduleResolution` setting
+such as `"NodeNext"`, `"Node16"`, or `"Bundler"`. See the
+[2.0 migration guide](/sui/migrations/sui-2.0#esm-migration) for more details.
+
 ## Experimental tag for use with a local Sui network
 
 Projects developing against one of the on-chain Sui networks (Devnet, Testnet, Mainnet) should use

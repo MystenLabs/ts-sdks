@@ -19,11 +19,13 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.mts",
-			"import": "./dist/index.mjs"
+			"import": "./dist/index.mjs",
+			"default": "./dist/index.mjs"
 		},
 		"./web": {
 			"types": "./dist/web/index.d.mts",
-			"import": "./dist/web/index.mjs"
+			"import": "./dist/web/index.mjs",
+			"default": "./dist/web/index.mjs"
 		}
 	},
 	"scripts": {

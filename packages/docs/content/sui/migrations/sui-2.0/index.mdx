@@ -28,9 +28,17 @@ packages will now be published as ESM only packages.
 
 ### ESM Migration
 
-All `@mysten/*` packages are now ESM only. If you are using `moduleResolution` `"Node"`,
-`"Classic"`, or `"Node10"`, you will need to update your `tsconfig.json` to use `"NodeNext"`,
-`"Node16"`, or `"Bundler"`:
+All `@mysten/*` packages are now ESM only. If your project does not already use ESM, you will need
+to add `"type": "module"` to your `package.json`:
+
+```json
+{
+	"type": "module"
+}
+```
+
+If you are using TypeScript with `moduleResolution` `"Node"`, `"Classic"`, or `"Node10"`, you will
+need to update your `tsconfig.json` to use `"NodeNext"`, `"Node16"`, or `"Bundler"`:
 
 ```json
 {
