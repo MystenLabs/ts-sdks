@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 1.0.6
+
+### Patch Changes
+
+- ad9a3a4: Price added function
+
 ## 1.0.5
 
 ### Patch Changes
