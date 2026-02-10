@@ -1,5 +1,11 @@
 # @mysten/dapp-kit
 
+## 1.0.2
+
+### Patch Changes
+
+- 7cf3682: Implement an isomorphic effect to fix SSG build errors
+
 ## 1.0.1
 
 ### Patch Changes
