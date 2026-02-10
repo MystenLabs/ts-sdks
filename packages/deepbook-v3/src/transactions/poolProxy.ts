@@ -457,4 +457,32 @@ export class PoolProxyContract {
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			});
 		};
+
+	/**
+	 * @description Update the current price for a pool using Pyth oracle
+	 * @param {string} poolKey The key to identify the pool
+	 * @returns A function that takes a Transaction object
+	 */
+	updateCurrentPrice = (poolKey: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		if (!baseCoin.priceInfoObjectId) {
+			throw new Error(`Missing priceInfoObjectId for ${pool.baseCoin}`);
+		}
+		if (!quoteCoin.priceInfoObjectId) {
+			throw new Error(`Missing priceInfoObjectId for ${pool.quoteCoin}`);
+		}
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::update_current_price`,
+			arguments: [
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(pool.address),
+				tx.object(baseCoin.priceInfoObjectId),
+				tx.object(quoteCoin.priceInfoObjectId),
+				tx.object.clock(),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
 }
