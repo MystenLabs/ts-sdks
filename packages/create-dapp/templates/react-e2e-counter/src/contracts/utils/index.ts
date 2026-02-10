@@ -227,7 +227,7 @@ export class MoveEnum<
 > extends BcsEnum<T, Name> {}
 
 export class MoveTuple<
-  T extends readonly BcsType<any>[],
+  const T extends readonly BcsType<any>[],
   const Name extends string,
 > extends BcsTuple<T, Name> {}
 
