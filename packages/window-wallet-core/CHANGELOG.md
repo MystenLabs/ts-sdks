@@ -1,5 +1,13 @@
 # @mysten/window-wallet-core
 
+## 0.1.3
+
+### Patch Changes
+
+- 99d1e00: Add default export condition
+- Updated dependencies [99d1e00]
+  - @mysten/utils@0.3.1
+
 ## 0.1.2
 
 ### Patch Changes

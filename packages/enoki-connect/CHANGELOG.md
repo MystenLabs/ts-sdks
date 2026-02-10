@@ -1,5 +1,16 @@
 # @mysten/enoki-connect
 
+## 1.0.2
+
+### Patch Changes
+
+- 99d1e00: Add default export condition
+- Updated dependencies [99d1e00]
+  - @mysten/window-wallet-core@0.1.3
+  - @mysten/wallet-standard@0.20.1
+  - @mysten/utils@0.3.1
+  - @mysten/sui@2.3.2
+
 ## 1.0.1
 
 ### Patch Changes

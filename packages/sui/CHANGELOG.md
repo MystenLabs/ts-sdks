@@ -1,5 +1,14 @@
 # @mysten/sui.js
 
+## 2.3.2
+
+### Patch Changes
+
+- 99d1e00: Add default export condition
+- Updated dependencies [99d1e00]
+  - @mysten/utils@0.3.1
+  - @mysten/bcs@2.0.2
+
 ## 2.3.1
 
 ### Patch Changes

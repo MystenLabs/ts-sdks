@@ -1,5 +1,11 @@
 # @mysten/ledgerjs-hw-app-sui
 
+## 0.7.1
+
+### Patch Changes
+
+- 99d1e00: Add default export condition
+
 ## 0.7.0
 
 ### Minor Changes
@@ -53,8 +59,8 @@
 
 - a92b03de42: The Typescript SDK has been renamed to `@mysten/sui` and includes many new features
   and breaking changes. See the
-  [full migration guide](https://sdk.mystenlabs.com/sui/migrations/sui-1.0) for details on
-  how to upgrade.
+  [full migration guide](https://sdk.mystenlabs.com/sui/migrations/sui-1.0) for details on how to
+  upgrade.
 
 ## 0.3.1
 
