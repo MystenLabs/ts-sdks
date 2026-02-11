@@ -111,6 +111,14 @@ export const mainnetCoins: CoinMap = {
 		currencyId: '0xb6a0c0bacb1c87c3be4dff20c22ef1012125b5724b5b0ff424f852a2651b23fa',
 		priceInfoObjectId: '0xeb7e669f74d976c0b99b6ef9801e3a77716a95f1a15754e0f1399ce3fb60973d',
 	},
+	USDE: {
+		address: `0x41d587e5336f1c86cad50d38a7136db99333bb9bda91cea4ba69115defeb1402`,
+		type: `0x41d587e5336f1c86cad50d38a7136db99333bb9bda91cea4ba69115defeb1402::sui_usde::SUI_USDE`,
+		scalar: 1000000,
+		feed: '0x8cead549d0e770dea8fdf5e018a85d59585265cf8bff16ba83962fc7996dbb7f',
+		currencyId: '0x44f0959110bd9e5e91af0483364c42075ac19f173b28f708989f419ef3560576',
+		priceInfoObjectId: '0x9b2028bfc829127d2e5ead1691dc3002de9e9b8d8076b4915e5ecc7d9b99d63f',
+	},
 	WUSDC: {
 		address: `0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf`,
 		type: `0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN`,
@@ -184,11 +192,6 @@ export const mainnetCoins: CoinMap = {
 	USDT: {
 		address: `0x375f70cf2ae4c00bf37117d0c85a2c71545e6ee05c4a5c7d282cd66a4504b068`,
 		type: `0x375f70cf2ae4c00bf37117d0c85a2c71545e6ee05c4a5c7d282cd66a4504b068::usdt::USDT`,
-		scalar: 1000000,
-	},
-	USDE: {
-		address: `0x41d587e5336f1c86cad50d38a7136db99333bb9bda91cea4ba69115defeb1402`,
-		type: `0x41d587e5336f1c86cad50d38a7136db99333bb9bda91cea4ba69115defeb1402::sui_usde::SUI_USDE`,
 		scalar: 1000000,
 	},
 	// This coin is experimental

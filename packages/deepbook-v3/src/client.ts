@@ -163,6 +163,38 @@ export class DeepBookClient {
 	}
 
 	/**
+	 * @description Check the balance of a BalanceManager by its address directly
+	 * @param {string} managerAddress The on-chain address of the BalanceManager
+	 * @param {string} coinKey Key of the coin
+	 * @returns {Promise<{ coinType: string, balance: number }>} An object with coin type and balance
+	 */
+	async checkManagerBalanceWithAddress(managerAddress: string, coinKey: string) {
+		const tx = new Transaction();
+		const coin = this.#config.getCoin(coinKey);
+
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance`,
+			arguments: [tx.object(managerAddress)],
+			typeArguments: [coin.type],
+		});
+
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
+		});
+
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const parsed_balance = bcs.U64.parse(bytes);
+		const balanceNumber = Number(parsed_balance);
+		const adjusted_balance = balanceNumber / coin.scalar;
+
+		return {
+			coinType: coin.type,
+			balance: Number(adjusted_balance.toFixed(9)),
+		};
+	}
+
+	/**
 	 * @description Check if a pool is whitelisted
 	 * @param {string} poolKey Key of the pool
 	 * @returns {Promise<boolean>} Boolean indicating if the pool is whitelisted
