@@ -155,6 +155,14 @@ pnpm --filter @mysten/deepbook-v3 test
 pnpm --filter @mysten/deepbook-v3 codegen
 ```
 
+## Formatting
+
+After making changes, always run prettier to format the code:
+
+```bash
+pnpm exec prettier --write .
+```
+
 ## Common Errors
 
 1. **`UnusedValueWithoutDrop { result_idx: 0, secondary_idx: 0 }`**: Simulation returned a
