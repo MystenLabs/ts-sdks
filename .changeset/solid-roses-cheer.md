@@ -1,5 +1,5 @@
 ---
-'@mysten/dapp-kit-core': major
+'@mysten/dapp-kit-core': minor
 ---
 
-Added new CSS variables folowing --dapp-kit-\* syntatics to customize button sizing and layout
+Added new CSS variables following --dapp-kit-\* syntatics to customize button sizing and layout
