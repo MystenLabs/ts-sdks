@@ -1,5 +1,13 @@
 # @mysten/deepbook-v3
 
+## 1.0.8
+
+### Patch Changes
+
+- 63ca077: Margin ID Update
+- 3d53583: Improve typing of generated bcs tuples
+- 1232202: New method checkManagerBalanceWithAddress. Pyth config for USDE.
+
 ## 1.0.7
 
 ### Patch Changes

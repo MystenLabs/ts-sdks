@@ -1,5 +1,11 @@
 # @mysten/kiosk
 
+## 1.1.2
+
+### Patch Changes
+
+- 3d53583: Improve typing of generated bcs tuples
+
 ## 1.1.1
 
 ### Patch Changes
