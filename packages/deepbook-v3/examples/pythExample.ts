@@ -102,7 +102,7 @@ const getSigner = () => {
 	);
 
 	// Coins to update prices for
-	const coinKeys = ['SUIUSDE'];
+	const coinKeys = ['USDC', 'SUI', 'DEEP', 'WAL', 'SUIUSDE'];
 
 	console.log(`Batch updating Pyth price feeds for: ${coinKeys.join(', ')}\n`);
 
