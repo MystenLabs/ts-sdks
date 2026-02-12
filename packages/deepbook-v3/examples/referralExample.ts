@@ -8,8 +8,18 @@ import { deepbook } from '../src/index.js';
 
 const SUI = process.env.SUI_BINARY ?? `sui`;
 
+type Network = 'mainnet' | 'testnet';
+
 export const getActiveAddress = () => {
 	return execSync(`${SUI} client active-address`, { encoding: 'utf8' }).trim();
+};
+
+const getActiveNetwork = (): Network => {
+	const env = execSync(`${SUI} client active-env`, { encoding: 'utf8' }).trim();
+	if (env !== 'mainnet' && env !== 'testnet') {
+		throw new Error(`Unsupported network: ${env}. Only 'mainnet' and 'testnet' are supported.`);
+	}
+	return env;
 };
 
 const GRPC_URLS = {
@@ -18,8 +28,7 @@ const GRPC_URLS = {
 } as const;
 
 (async () => {
-	// Update constant for network
-	const network = 'testnet';
+	const network = getActiveNetwork();
 	const adminCap = '0x29a62a5385c549dd8e9565312265d2bda0b8700c1560b3e34941671325daae77';
 	const marginAdminCap = '0x42a2e769541d272e624c54fff72b878fb0be670776c2b34ef07be5308480650e';
 	const marginMaintainerCap = '0xc4bc2b7a2b1f317b8a664294c5cc8501520289c3a6e9b9cc04eef668415b59bf';
