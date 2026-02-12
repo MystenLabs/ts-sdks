@@ -116,6 +116,18 @@ describe('parseStructTag', () => {
 		expect(() => parseStructTag('0x2::foo::Bar<vector<u8>')).toThrow('Invalid type tag');
 	});
 
+	it('rejects struct tags with empty components', () => {
+		expect(() => parseStructTag('::foo::Bar')).toThrow('Invalid struct tag');
+		expect(() => parseStructTag('0x2::::Bar')).toThrow('Invalid struct tag');
+		expect(() => parseStructTag('0x2::foo::')).toThrow('Invalid struct tag');
+	});
+
+	it('rejects struct tags with trailing content after type parameters', () => {
+		expect(() => parseStructTag('0x2::coin::Coin<u8>GARBAGE')).toThrow('Invalid struct tag');
+		expect(() => parseStructTag('0x2::foo::Bar<bool> ')).toThrow('Invalid struct tag');
+		expect(() => parseStructTag('0x2::foo::Bar<u64>xyz')).toThrow('Invalid struct tag');
+	});
+
 	it('parses named struct tags correctly', () => {
 		expect(parseStructTag('@mvr/demo::foo::bar')).toMatchInlineSnapshot(`
       {
