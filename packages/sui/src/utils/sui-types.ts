@@ -32,6 +32,63 @@ export function isValidSuiObjectId(value: string): boolean {
 	return isValidSuiAddress(value);
 }
 
+const MOVE_IDENTIFIER_REGEX = /^[a-zA-Z][a-zA-Z0-9_]*$/;
+
+export function isValidMoveIdentifier(name: string): boolean {
+	return MOVE_IDENTIFIER_REGEX.test(name);
+}
+
+const PRIMITIVE_TYPE_TAGS = [
+	'bool',
+	'u8',
+	'u16',
+	'u32',
+	'u64',
+	'u128',
+	'u256',
+	'address',
+	'signer',
+];
+
+const VECTOR_TYPE_REGEX = /^vector<(.+)>$/;
+
+function isValidTypeTag(type: string): boolean {
+	if (PRIMITIVE_TYPE_TAGS.includes(type)) return true;
+
+	const vectorMatch = type.match(VECTOR_TYPE_REGEX);
+	if (vectorMatch) return isValidTypeTag(vectorMatch[1]);
+
+	if (type.includes('::')) return isValidStructTag(type);
+
+	return false;
+}
+
+function isValidParsedStructTag(tag: StructTag): boolean {
+	if (!isValidSuiAddress(tag.address) && !isValidNamedPackage(tag.address)) {
+		return false;
+	}
+
+	if (!isValidMoveIdentifier(tag.module) || !isValidMoveIdentifier(tag.name)) {
+		return false;
+	}
+
+	return tag.typeParams.every((param) => {
+		if (typeof param === 'string') {
+			return isValidTypeTag(param);
+		}
+		return isValidParsedStructTag(param);
+	});
+}
+
+export function isValidStructTag(type: string): boolean {
+	try {
+		const tag = parseStructTag(type);
+		return isValidParsedStructTag(tag);
+	} catch {
+		return false;
+	}
+}
+
 export type StructTag = {
 	address: string;
 	module: string;
