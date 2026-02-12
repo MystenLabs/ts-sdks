@@ -113,8 +113,6 @@ describe('isValidMoveIdentifier', () => {
 		expect(isValidMoveIdentifier('foo_bar')).toBe(true);
 		expect(isValidMoveIdentifier('FooBar')).toBe(true);
 		expect(isValidMoveIdentifier('foo123')).toBe(true);
-		expect(isValidMoveIdentifier('_foo')).toBe(true);
-		expect(isValidMoveIdentifier('_1')).toBe(true);
 		expect(isValidMoveIdentifier('a')).toBe(true);
 		expect(isValidMoveIdentifier('SUI')).toBe(true);
 		expect(isValidMoveIdentifier('CoinMetadata')).toBe(true);
@@ -123,6 +121,9 @@ describe('isValidMoveIdentifier', () => {
 	it('rejects invalid identifiers', () => {
 		expect(isValidMoveIdentifier('')).toBe(false);
 		expect(isValidMoveIdentifier('_')).toBe(false);
+		expect(isValidMoveIdentifier('_foo')).toBe(false);
+		expect(isValidMoveIdentifier('_1')).toBe(false);
+		expect(isValidMoveIdentifier('__')).toBe(false);
 		expect(isValidMoveIdentifier('123')).toBe(false);
 		expect(isValidMoveIdentifier('1foo')).toBe(false);
 		expect(isValidMoveIdentifier('foo-bar')).toBe(false);

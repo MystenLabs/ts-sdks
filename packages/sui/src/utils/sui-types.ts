@@ -32,7 +32,7 @@ export function isValidSuiObjectId(value: string): boolean {
 	return isValidSuiAddress(value);
 }
 
-const MOVE_IDENTIFIER_REGEX = /^(?:[a-zA-Z][a-zA-Z0-9_]*|_[a-zA-Z0-9_]+)$/;
+const MOVE_IDENTIFIER_REGEX = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 
 export function isValidMoveIdentifier(name: string): boolean {
 	return MOVE_IDENTIFIER_REGEX.test(name);
