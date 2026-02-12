@@ -3,8 +3,6 @@ name: Validate AI Assistance Notice
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
-    branches-ignore:
-      - changeset-release/main
 
 permissions:
   pull-requests: read
@@ -13,6 +11,7 @@ permissions:
 jobs:
   validate:
     name: Check AI Assistance Notice in PR body
+    if: github.head_ref != 'changeset-release/main'
     runs-on: ubuntu-latest
     steps:
       - name: Validate PR description
