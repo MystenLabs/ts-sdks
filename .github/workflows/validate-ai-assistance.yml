@@ -3,6 +3,8 @@ name: Validate AI Assistance Notice
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
+    branches-ignore:
+      - changeset-release/main
 
 permissions:
   pull-requests: read
