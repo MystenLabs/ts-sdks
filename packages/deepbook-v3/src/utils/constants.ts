@@ -111,7 +111,7 @@ export const mainnetCoins: CoinMap = {
 		currencyId: '0xb6a0c0bacb1c87c3be4dff20c22ef1012125b5724b5b0ff424f852a2651b23fa',
 		priceInfoObjectId: '0xeb7e669f74d976c0b99b6ef9801e3a77716a95f1a15754e0f1399ce3fb60973d',
 	},
-	USDE: {
+	SUIUSDE: {
 		address: `0x41d587e5336f1c86cad50d38a7136db99333bb9bda91cea4ba69115defeb1402`,
 		type: `0x41d587e5336f1c86cad50d38a7136db99333bb9bda91cea4ba69115defeb1402::sui_usde::SUI_USDE`,
 		scalar: 1000000,
@@ -341,15 +341,15 @@ export const mainnetPools: PoolMap = {
 		baseCoin: 'USDT',
 		quoteCoin: 'USDC',
 	},
-	USDE_USDC: {
+	SUIUSDE_USDC: {
 		address: '0x0fac1cebf35bde899cd9ecdd4371e0e33f44ba83b8a2902d69186646afa3a94b',
-		baseCoin: 'USDE',
+		baseCoin: 'SUIUSDE',
 		quoteCoin: 'USDC',
 	},
-	SUI_USDE: {
+	SUI_SUIUSDE: {
 		address: '0x034f3a42e7348de2084406db7a725f9d9d132a56c68324713e6e623601fb4fd7',
 		baseCoin: 'SUI',
-		quoteCoin: 'USDE',
+		quoteCoin: 'SUIUSDE',
 	},
 };
 
