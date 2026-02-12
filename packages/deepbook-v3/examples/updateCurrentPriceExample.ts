@@ -30,10 +30,23 @@ import { deepbook } from '../src/index.js';
 
 const SUI = process.env.SUI_BINARY ?? `sui`;
 
-const GRPC_URL = 'https://fullnode.mainnet.sui.io:443';
+const GRPC_URLS = {
+	mainnet: 'https://fullnode.mainnet.sui.io:443',
+	testnet: 'https://fullnode.testnet.sui.io:443',
+} as const;
+
+type Network = 'mainnet' | 'testnet';
 
 const getActiveAddress = () => {
 	return execSync(`${SUI} client active-address`, { encoding: 'utf8' }).trim();
+};
+
+const getActiveNetwork = (): Network => {
+	const env = execSync(`${SUI} client active-env`, { encoding: 'utf8' }).trim();
+	if (env !== 'mainnet' && env !== 'testnet') {
+		throw new Error(`Unsupported network: ${env}. Only 'mainnet' and 'testnet' are supported.`);
+	}
+	return env;
 };
 
 const getSigner = () => {
@@ -70,13 +83,14 @@ const getSigner = () => {
 };
 
 (async () => {
+	const network = getActiveNetwork();
 	const signer = getSigner();
 	const address = signer.getPublicKey().toSuiAddress();
 
 	console.log(`Using address: ${address}`);
-	console.log(`Network: mainnet\n`);
+	console.log(`Network: ${network}\n`);
 
-	const client = new SuiGrpcClient({ network: 'mainnet', baseUrl: GRPC_URL }).$extend(
+	const client = new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }).$extend(
 		deepbook({ address }),
 	);
 

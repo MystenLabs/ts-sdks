@@ -3,19 +3,39 @@
 
 /**
  * Check USDC balance for a balance manager on mainnet using a direct address.
+ * Uses checkManagerBalanceWithAddress which doesn't require registering the manager at init time.
  *
  * Usage:
  *   npx tsx examples/checkBalance.ts
  */
 
+import { execSync } from 'child_process';
+
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 import { deepbook } from '../src/index.js';
 
-const GRPC_URL = 'https://fullnode.mainnet.sui.io:443';
+const SUI = process.env.SUI_BINARY ?? `sui`;
+
+const GRPC_URLS = {
+	mainnet: 'https://fullnode.mainnet.sui.io:443',
+	testnet: 'https://fullnode.testnet.sui.io:443',
+} as const;
+
+type Network = 'mainnet' | 'testnet';
+
+const getActiveNetwork = (): Network => {
+	const env = execSync(`${SUI} client active-env`, { encoding: 'utf8' }).trim();
+	if (env !== 'mainnet' && env !== 'testnet') {
+		throw new Error(`Unsupported network: ${env}. Only 'mainnet' and 'testnet' are supported.`);
+	}
+	return env;
+};
 
 (async () => {
-	const client = new SuiGrpcClient({ network: 'mainnet', baseUrl: GRPC_URL }).$extend(
+	const network = getActiveNetwork();
+
+	const client = new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }).$extend(
 		deepbook({ address: '0x0' }),
 	);
 
