@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 1.0.9
+
+### Patch Changes
+
+- 5b220df: Update USDE to SUIUSDE in constants
+
 ## 1.0.8
 
 ### Patch Changes
