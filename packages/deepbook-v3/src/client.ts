@@ -249,9 +249,7 @@ export class DeepBookClient {
 
 				const bytes = commandResult.returnValues[0].bcs;
 				const parsed_balance = bcs.U64.parse(bytes);
-				managerBalances[coin.type] = Number(
-					(Number(parsed_balance) / coin.scalar).toFixed(9),
-				);
+				managerBalances[coin.type] = Number((Number(parsed_balance) / coin.scalar).toFixed(9));
 			}
 
 			results[managerAddress] = managerBalances;

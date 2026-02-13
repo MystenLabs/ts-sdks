@@ -55,37 +55,31 @@ const getActiveNetwork = (): Network => {
 	//     ...
 	//   }
 	// }
-	const balanceManagerAddresses = [
-		'<BALANCE_MANAGER_ADDRESS_1>',
-		'<BALANCE_MANAGER_ADDRESS_2>',
-	];
+	const balanceManagerAddresses = ['<BALANCE_MANAGER_ADDRESS_1>', '<BALANCE_MANAGER_ADDRESS_2>'];
 
-	const balances = await client.deepbook.checkManagerBalancesWithAddress(
-		balanceManagerAddresses,
-		[
-			'DEEP',
-			'SUI',
-			'USDC',
-			'WUSDC',
-			'WETH',
-			'BETH',
-			'WBTC',
-			'WUSDT',
-			'NS',
-			'TYPUS',
-			'AUSD',
-			'WAL',
-			'SUIUSDE',
-			'DRF',
-			'SEND',
-			'XBTC',
-			'IKA',
-			'ALKIMI',
-			'LZWBTC',
-			'USDT',
-			'WGIGA',
-		],
-	);
+	const balances = await client.deepbook.checkManagerBalancesWithAddress(balanceManagerAddresses, [
+		'DEEP',
+		'SUI',
+		'USDC',
+		'WUSDC',
+		'WETH',
+		'BETH',
+		'WBTC',
+		'WUSDT',
+		'NS',
+		'TYPUS',
+		'AUSD',
+		'WAL',
+		'SUIUSDE',
+		'DRF',
+		'SEND',
+		'XBTC',
+		'IKA',
+		'ALKIMI',
+		'LZWBTC',
+		'USDT',
+		'WGIGA',
+	]);
 
 	console.log(balances);
 
