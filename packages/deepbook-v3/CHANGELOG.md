@@ -1,5 +1,12 @@
 # @mysten/deepbook-v3
 
+## 1.0.10
+
+### Patch Changes
+
+- 05765dc: checkManagerBalancesWithAddress and getMarginManagerBalances added to support querying
+  balnces in a single RPC call for multiple managers and assets
+
 ## 1.0.9
 
 ### Patch Changes
