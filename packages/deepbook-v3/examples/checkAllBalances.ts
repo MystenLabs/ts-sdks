@@ -55,11 +55,13 @@ const getActiveNetwork = (): Network => {
 	//     ...
 	//   }
 	// }
+	const balanceManagerAddresses = [
+		'<BALANCE_MANAGER_ADDRESS_1>',
+		'<BALANCE_MANAGER_ADDRESS_2>',
+	];
+
 	const balances = await client.deepbook.checkManagerBalancesWithAddress(
-		[
-			'0x344c2734b1d211bd15212bfb7847c66a3b18803f3f5ab00f5ff6f87b6fe6d27d',
-			'0x705ac1ce9eafab73b885051e458c5b4d8480f44f709abf4cc297df1d20ec6581',
-		],
+		balanceManagerAddresses,
 		[
 			'DEEP',
 			'SUI',
@@ -94,8 +96,8 @@ const getActiveNetwork = (): Network => {
 	//   '0xd0d8...1fc8': { base: '0.0985', quote: '3.605957', deep: '0' }
 	// }
 	const marginBalances = await client.deepbook.getMarginManagerBalances({
-		'0xca5c45c165dc239192abc0d9dedd137cc692d659556a8e933b445faa795dcc0d': 'SUI_USDC',
-		'0xd0d87e56e95248087656632c3f14b5636e8df6cbcfc8257e5556aaa4675b1fc8': 'SUI_USDC',
+		'<MARGIN_MANAGER_ADDRESS_1>': 'SUI_USDC',
+		'<MARGIN_MANAGER_ADDRESS_2>': 'SUI_USDC',
 	});
 
 	console.log(marginBalances);
