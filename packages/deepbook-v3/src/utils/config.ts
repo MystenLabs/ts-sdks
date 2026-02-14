@@ -5,7 +5,7 @@ import { normalizeSuiAddress } from '@mysten/sui/utils';
 
 import { BalanceManagerContract } from '../transactions/balanceManager.js';
 import type { BalanceManager, MarginManager, Coin, Pool, MarginPool } from '../types/index.js';
-import type { CoinMap, PoolMap, MarginPoolMap } from './constants.js';
+import type { CoinMap, PoolMap, MarginPoolMap, DeepbookPackageIds } from './constants.js';
 import { ResourceNotFoundError, ErrorMessages } from './errors.js';
 import {
 	mainnetCoins,
@@ -68,6 +68,8 @@ export class DeepBookConfig {
 		coins,
 		pools,
 		marginPools,
+		packageIds,
+		pyth,
 	}: {
 		network: SuiClientTypes.Network;
 		address: string;
@@ -79,11 +81,9 @@ export class DeepBookConfig {
 		coins?: CoinMap;
 		pools?: PoolMap;
 		marginPools?: MarginPoolMap;
+		packageIds?: DeepbookPackageIds;
+		pyth?: { pythStateId: string; wormholeStateId: string };
 	}) {
-		if (network !== 'mainnet' && network !== 'testnet') {
-			throw new Error(`DeepBook only supports 'mainnet' and 'testnet' networks, got '${network}'`);
-		}
-
 		this.network = network;
 		this.address = normalizeSuiAddress(address);
 		this.adminCap = adminCap;
@@ -92,7 +92,18 @@ export class DeepBookConfig {
 		this.balanceManagers = balanceManagers || {};
 		this.marginManagers = marginManagers || {};
 
-		if (network === 'mainnet') {
+		if (packageIds) {
+			this.DEEPBOOK_PACKAGE_ID = packageIds.DEEPBOOK_PACKAGE_ID;
+			this.REGISTRY_ID = packageIds.REGISTRY_ID;
+			this.DEEP_TREASURY_ID = packageIds.DEEP_TREASURY_ID;
+			this.MARGIN_PACKAGE_ID = packageIds.MARGIN_PACKAGE_ID;
+			this.MARGIN_REGISTRY_ID = packageIds.MARGIN_REGISTRY_ID;
+			this.LIQUIDATION_PACKAGE_ID = packageIds.LIQUIDATION_PACKAGE_ID;
+			this.#coins = coins || {};
+			this.#pools = pools || {};
+			this.#marginPools = marginPools || {};
+			this.pyth = pyth || { pythStateId: '', wormholeStateId: '' };
+		} else if (network === 'mainnet') {
 			this.#coins = coins || mainnetCoins;
 			this.#pools = pools || mainnetPools;
 			this.#marginPools = marginPools || mainnetMarginPools;
@@ -103,7 +114,7 @@ export class DeepBookConfig {
 			this.MARGIN_REGISTRY_ID = mainnetPackageIds.MARGIN_REGISTRY_ID;
 			this.LIQUIDATION_PACKAGE_ID = mainnetPackageIds.LIQUIDATION_PACKAGE_ID;
 			this.pyth = mainnetPythConfigs;
-		} else {
+		} else if (network === 'testnet') {
 			this.#coins = coins || testnetCoins;
 			this.#pools = pools || testnetPools;
 			this.#marginPools = marginPools || testnetMarginPools;
@@ -114,6 +125,10 @@ export class DeepBookConfig {
 			this.MARGIN_REGISTRY_ID = testnetPackageIds.MARGIN_REGISTRY_ID;
 			this.LIQUIDATION_PACKAGE_ID = testnetPackageIds.LIQUIDATION_PACKAGE_ID;
 			this.pyth = testnetPythConfigs;
+		} else {
+			throw new Error(
+				`Network '${network}' is not supported by default. Provide custom 'packageIds' for non-standard networks.`,
+			);
 		}
 
 		this.balanceManager = new BalanceManagerContract(this);
