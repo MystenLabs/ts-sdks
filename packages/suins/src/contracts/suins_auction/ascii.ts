@@ -104,7 +104,7 @@ export interface AllCharactersPrintableOptions {
  */
 export function allCharactersPrintable(options: AllCharactersPrintableOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['string'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -127,7 +127,7 @@ export interface PushCharOptions {
 /** Push a `Char` to the end of the `string`. */
 export function pushChar(options: PushCharOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = ['0x1::string::String', null] satisfies (string | null)[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['string', 'char'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -147,7 +147,7 @@ export interface PopCharOptions {
 /** Pop a `Char` from the end of the `string`. */
 export function popChar(options: PopCharOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['string'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -167,7 +167,7 @@ export interface LengthOptions {
 /** Returns the length of the `string` in bytes. */
 export function length(options: LengthOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['string'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -190,7 +190,7 @@ export interface AppendOptions {
 /** Append the `other` string to the end of `string`. */
 export function append(options: AppendOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = ['0x1::string::String', '0x1::string::String'] satisfies (string | null)[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['string', 'other'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -218,10 +218,7 @@ export interface InsertOptions {
 /** Insert the `other` string at the `at` index of `string`. */
 export function insert(options: InsertOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = ['0x1::string::String', 'u64', '0x1::string::String'] satisfies (
-		| string
-		| null
-	)[];
+	const argumentsTypes = [null, 'u64', null] satisfies (string | null)[];
 	const parameterNames = ['s', 'at', 'o'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -249,7 +246,7 @@ export interface SubstringOptions {
 /** Copy the slice of the `string` from `i` to `j` into a new `String`. */
 export function substring(options: SubstringOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = ['0x1::string::String', 'u64', 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, 'u64', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['string', 'i', 'j'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -269,7 +266,7 @@ export interface AsBytesOptions {
 /** Get the inner bytes of the `string` as a reference */
 export function asBytes(options: AsBytesOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['string'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -289,7 +286,7 @@ export interface IntoBytesOptions {
 /** Unpack the `string` to get its backing bytes */
 export function intoBytes(options: IntoBytesOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['string'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -372,7 +369,7 @@ export interface IsEmptyOptions {
 /** Returns `true` if `string` is empty. */
 export function isEmpty(options: IsEmptyOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['string'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -392,7 +389,7 @@ export interface ToUppercaseOptions {
 /** Convert a `string` to its uppercase equivalent. */
 export function toUppercase(options: ToUppercaseOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['string'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -412,7 +409,7 @@ export interface ToLowercaseOptions {
 /** Convert a `string` to its lowercase equivalent. */
 export function toLowercase(options: ToLowercaseOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['string'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -439,7 +436,7 @@ export interface IndexOfOptions {
  */
 export function indexOf(options: IndexOfOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = ['0x1::string::String', '0x1::string::String'] satisfies (string | null)[];
+	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['string', 'substr'];
 	return (tx: Transaction) =>
 		tx.moveCall({

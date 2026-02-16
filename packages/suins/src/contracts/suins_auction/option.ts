@@ -61,21 +61,18 @@ export function some<Element extends BcsType<any>>(options: SomeOptions<Element>
 			typeArguments: options.typeArguments,
 		});
 }
-export interface IsNoneArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+export interface IsNoneArguments {
+	t: RawTransactionArgument<string>;
 }
-export interface IsNoneOptions<Element extends BcsType<any>> {
+export interface IsNoneOptions {
 	package?: string;
-	arguments: IsNoneArguments<Element> | [t: RawTransactionArgument<Element | null>];
+	arguments: IsNoneArguments | [t: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
 /** Return true if `t` does not hold a value */
-export function isNone<Element extends BcsType<any>>(options: IsNoneOptions<Element>) {
+export function isNone(options: IsNoneOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [`0x1::option::Option<${options.typeArguments[0]}>`] satisfies (
-		| string
-		| null
-	)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['t'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -86,21 +83,18 @@ export function isNone<Element extends BcsType<any>>(options: IsNoneOptions<Elem
 			typeArguments: options.typeArguments,
 		});
 }
-export interface IsSomeArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+export interface IsSomeArguments {
+	t: RawTransactionArgument<string>;
 }
-export interface IsSomeOptions<Element extends BcsType<any>> {
+export interface IsSomeOptions {
 	package?: string;
-	arguments: IsSomeArguments<Element> | [t: RawTransactionArgument<Element | null>];
+	arguments: IsSomeArguments | [t: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
 /** Return true if `t` holds a value */
-export function isSome<Element extends BcsType<any>>(options: IsSomeOptions<Element>) {
+export function isSome(options: IsSomeOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [`0x1::option::Option<${options.typeArguments[0]}>`] satisfies (
-		| string
-		| null
-	)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['t'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -112,14 +106,14 @@ export function isSome<Element extends BcsType<any>>(options: IsSomeOptions<Elem
 		});
 }
 export interface ContainsArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+	t: RawTransactionArgument<string>;
 	eRef: RawTransactionArgument<Element>;
 }
 export interface ContainsOptions<Element extends BcsType<any>> {
 	package?: string;
 	arguments:
 		| ContainsArguments<Element>
-		| [t: RawTransactionArgument<Element | null>, eRef: RawTransactionArgument<Element>];
+		| [t: RawTransactionArgument<string>, eRef: RawTransactionArgument<Element>];
 	typeArguments: [string];
 }
 /**
@@ -128,10 +122,7 @@ export interface ContainsOptions<Element extends BcsType<any>> {
  */
 export function contains<Element extends BcsType<any>>(options: ContainsOptions<Element>) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [
-		`0x1::option::Option<${options.typeArguments[0]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies (string | null)[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['t', 'eRef'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -142,24 +133,21 @@ export function contains<Element extends BcsType<any>>(options: ContainsOptions<
 			typeArguments: options.typeArguments,
 		});
 }
-export interface BorrowArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+export interface BorrowArguments {
+	t: RawTransactionArgument<string>;
 }
-export interface BorrowOptions<Element extends BcsType<any>> {
+export interface BorrowOptions {
 	package?: string;
-	arguments: BorrowArguments<Element> | [t: RawTransactionArgument<Element | null>];
+	arguments: BorrowArguments | [t: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
 /**
  * Return an immutable reference to the value inside `t` Aborts if `t` does not
  * hold a value
  */
-export function borrow<Element extends BcsType<any>>(options: BorrowOptions<Element>) {
+export function borrow(options: BorrowOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [`0x1::option::Option<${options.typeArguments[0]}>`] satisfies (
-		| string
-		| null
-	)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['t'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -171,14 +159,14 @@ export function borrow<Element extends BcsType<any>>(options: BorrowOptions<Elem
 		});
 }
 export interface BorrowWithDefaultArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+	t: RawTransactionArgument<string>;
 	defaultRef: RawTransactionArgument<Element>;
 }
 export interface BorrowWithDefaultOptions<Element extends BcsType<any>> {
 	package?: string;
 	arguments:
 		| BorrowWithDefaultArguments<Element>
-		| [t: RawTransactionArgument<Element | null>, defaultRef: RawTransactionArgument<Element>];
+		| [t: RawTransactionArgument<string>, defaultRef: RawTransactionArgument<Element>];
 	typeArguments: [string];
 }
 /**
@@ -189,10 +177,7 @@ export function borrowWithDefault<Element extends BcsType<any>>(
 	options: BorrowWithDefaultOptions<Element>,
 ) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [
-		`0x1::option::Option<${options.typeArguments[0]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies (string | null)[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['t', 'defaultRef'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -204,12 +189,12 @@ export function borrowWithDefault<Element extends BcsType<any>>(
 		});
 }
 export interface GetWithDefaultArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+	t: RawTransactionArgument<string>;
 	default: RawTransactionArgument<Element>;
 }
 export interface GetWithDefaultOptions<Element extends BcsType<any>> {
 	package?: string;
-	arguments: GetWithDefaultArguments<Element> | [t: RawTransactionArgument<Element | null>];
+	arguments: GetWithDefaultArguments<Element> | [t: RawTransactionArgument<string>];
 	default: RawTransactionArgument<Element>;
 	typeArguments: [string];
 }
@@ -221,10 +206,7 @@ export function getWithDefault<Element extends BcsType<any>>(
 	options: GetWithDefaultOptions<Element>,
 ) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [
-		`0x1::option::Option<${options.typeArguments[0]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies (string | null)[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['t', 'default'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -236,14 +218,14 @@ export function getWithDefault<Element extends BcsType<any>>(
 		});
 }
 export interface FillArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+	t: RawTransactionArgument<string>;
 	e: RawTransactionArgument<Element>;
 }
 export interface FillOptions<Element extends BcsType<any>> {
 	package?: string;
 	arguments:
 		| FillArguments<Element>
-		| [t: RawTransactionArgument<Element | null>, e: RawTransactionArgument<Element>];
+		| [t: RawTransactionArgument<string>, e: RawTransactionArgument<Element>];
 	typeArguments: [string];
 }
 /**
@@ -252,10 +234,7 @@ export interface FillOptions<Element extends BcsType<any>> {
  */
 export function fill<Element extends BcsType<any>>(options: FillOptions<Element>) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [
-		`0x1::option::Option<${options.typeArguments[0]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies (string | null)[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['t', 'e'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -266,24 +245,21 @@ export function fill<Element extends BcsType<any>>(options: FillOptions<Element>
 			typeArguments: options.typeArguments,
 		});
 }
-export interface ExtractArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+export interface ExtractArguments {
+	t: RawTransactionArgument<string>;
 }
-export interface ExtractOptions<Element extends BcsType<any>> {
+export interface ExtractOptions {
 	package?: string;
-	arguments: ExtractArguments<Element> | [t: RawTransactionArgument<Element | null>];
+	arguments: ExtractArguments | [t: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
 /**
  * Convert a `some` option to a `none` by removing and returning the value stored
  * inside `t` Aborts if `t` does not hold a value
  */
-export function extract<Element extends BcsType<any>>(options: ExtractOptions<Element>) {
+export function extract(options: ExtractOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [`0x1::option::Option<${options.typeArguments[0]}>`] satisfies (
-		| string
-		| null
-	)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['t'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -294,24 +270,21 @@ export function extract<Element extends BcsType<any>>(options: ExtractOptions<El
 			typeArguments: options.typeArguments,
 		});
 }
-export interface BorrowMutArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+export interface BorrowMutArguments {
+	t: RawTransactionArgument<string>;
 }
-export interface BorrowMutOptions<Element extends BcsType<any>> {
+export interface BorrowMutOptions {
 	package?: string;
-	arguments: BorrowMutArguments<Element> | [t: RawTransactionArgument<Element | null>];
+	arguments: BorrowMutArguments | [t: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
 /**
  * Return a mutable reference to the value inside `t` Aborts if `t` does not hold a
  * value
  */
-export function borrowMut<Element extends BcsType<any>>(options: BorrowMutOptions<Element>) {
+export function borrowMut(options: BorrowMutOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [`0x1::option::Option<${options.typeArguments[0]}>`] satisfies (
-		| string
-		| null
-	)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['t'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -323,14 +296,14 @@ export function borrowMut<Element extends BcsType<any>>(options: BorrowMutOption
 		});
 }
 export interface SwapArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+	t: RawTransactionArgument<string>;
 	e: RawTransactionArgument<Element>;
 }
 export interface SwapOptions<Element extends BcsType<any>> {
 	package?: string;
 	arguments:
 		| SwapArguments<Element>
-		| [t: RawTransactionArgument<Element | null>, e: RawTransactionArgument<Element>];
+		| [t: RawTransactionArgument<string>, e: RawTransactionArgument<Element>];
 	typeArguments: [string];
 }
 /**
@@ -339,10 +312,7 @@ export interface SwapOptions<Element extends BcsType<any>> {
  */
 export function swap<Element extends BcsType<any>>(options: SwapOptions<Element>) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [
-		`0x1::option::Option<${options.typeArguments[0]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies (string | null)[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['t', 'e'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -354,14 +324,14 @@ export function swap<Element extends BcsType<any>>(options: SwapOptions<Element>
 		});
 }
 export interface SwapOrFillArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+	t: RawTransactionArgument<string>;
 	e: RawTransactionArgument<Element>;
 }
 export interface SwapOrFillOptions<Element extends BcsType<any>> {
 	package?: string;
 	arguments:
 		| SwapOrFillArguments<Element>
-		| [t: RawTransactionArgument<Element | null>, e: RawTransactionArgument<Element>];
+		| [t: RawTransactionArgument<string>, e: RawTransactionArgument<Element>];
 	typeArguments: [string];
 }
 /**
@@ -371,10 +341,7 @@ export interface SwapOrFillOptions<Element extends BcsType<any>> {
  */
 export function swapOrFill<Element extends BcsType<any>>(options: SwapOrFillOptions<Element>) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [
-		`0x1::option::Option<${options.typeArguments[0]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies (string | null)[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['t', 'e'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -386,12 +353,12 @@ export function swapOrFill<Element extends BcsType<any>>(options: SwapOrFillOpti
 		});
 }
 export interface DestroyWithDefaultArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+	t: RawTransactionArgument<string>;
 	default: RawTransactionArgument<Element>;
 }
 export interface DestroyWithDefaultOptions<Element extends BcsType<any>> {
 	package?: string;
-	arguments: DestroyWithDefaultArguments<Element> | [t: RawTransactionArgument<Element | null>];
+	arguments: DestroyWithDefaultArguments<Element> | [t: RawTransactionArgument<string>];
 	default: RawTransactionArgument<Element>;
 	typeArguments: [string];
 }
@@ -400,10 +367,7 @@ export function destroyWithDefault<Element extends BcsType<any>>(
 	options: DestroyWithDefaultOptions<Element>,
 ) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [
-		`0x1::option::Option<${options.typeArguments[0]}>`,
-		`${options.typeArguments[0]}`,
-	] satisfies (string | null)[];
+	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['t', 'default'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -414,21 +378,18 @@ export function destroyWithDefault<Element extends BcsType<any>>(
 			typeArguments: options.typeArguments,
 		});
 }
-export interface DestroySomeArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+export interface DestroySomeArguments {
+	t: RawTransactionArgument<string>;
 }
-export interface DestroySomeOptions<Element extends BcsType<any>> {
+export interface DestroySomeOptions {
 	package?: string;
-	arguments: DestroySomeArguments<Element> | [t: RawTransactionArgument<Element | null>];
+	arguments: DestroySomeArguments | [t: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
 /** Unpack `t` and return its contents Aborts if `t` does not hold a value */
-export function destroySome<Element extends BcsType<any>>(options: DestroySomeOptions<Element>) {
+export function destroySome(options: DestroySomeOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [`0x1::option::Option<${options.typeArguments[0]}>`] satisfies (
-		| string
-		| null
-	)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['t'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -439,21 +400,18 @@ export function destroySome<Element extends BcsType<any>>(options: DestroySomeOp
 			typeArguments: options.typeArguments,
 		});
 }
-export interface DestroyNoneArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+export interface DestroyNoneArguments {
+	t: RawTransactionArgument<string>;
 }
-export interface DestroyNoneOptions<Element extends BcsType<any>> {
+export interface DestroyNoneOptions {
 	package?: string;
-	arguments: DestroyNoneArguments<Element> | [t: RawTransactionArgument<Element | null>];
+	arguments: DestroyNoneArguments | [t: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
 /** Unpack `t` Aborts if `t` holds a value */
-export function destroyNone<Element extends BcsType<any>>(options: DestroyNoneOptions<Element>) {
+export function destroyNone(options: DestroyNoneOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [`0x1::option::Option<${options.typeArguments[0]}>`] satisfies (
-		| string
-		| null
-	)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['t'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -464,24 +422,21 @@ export function destroyNone<Element extends BcsType<any>>(options: DestroyNoneOp
 			typeArguments: options.typeArguments,
 		});
 }
-export interface ToVecArguments<Element extends BcsType<any>> {
-	t: RawTransactionArgument<Element | null>;
+export interface ToVecArguments {
+	t: RawTransactionArgument<string>;
 }
-export interface ToVecOptions<Element extends BcsType<any>> {
+export interface ToVecOptions {
 	package?: string;
-	arguments: ToVecArguments<Element> | [t: RawTransactionArgument<Element | null>];
+	arguments: ToVecArguments | [t: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
 /**
  * Convert `t` into a vector of length 1 if it is `Some`, and an empty vector
  * otherwise
  */
-export function toVec<Element extends BcsType<any>>(options: ToVecOptions<Element>) {
+export function toVec(options: ToVecOptions) {
 	const packageAddress = options.package ?? '@suins/auction';
-	const argumentsTypes = [`0x1::option::Option<${options.typeArguments[0]}>`] satisfies (
-		| string
-		| null
-	)[];
+	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['t'];
 	return (tx: Transaction) =>
 		tx.moveCall({

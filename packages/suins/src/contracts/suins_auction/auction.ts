@@ -10,7 +10,7 @@ import * as suins_registration from './deps/suins/suins_registration.js';
 import * as object_bag from './deps/sui/object_bag.js';
 import * as table from './deps/sui/table.js';
 import * as bag from './deps/sui/bag.js';
-import * as type_name from './type_name.js';
+import * as type_name from './deps/std/type_name.js';
 const $moduleName = '@suins/auction::auction';
 export const AuctionWitness = new MoveStruct({
 	name: `${$moduleName}::AuctionWitness`,

@@ -9,7 +9,7 @@ import * as object_bag from './deps/sui/object_bag.js';
 import * as bag from './deps/sui/bag.js';
 import * as balance from './deps/sui/balance.js';
 import * as suins_registration from './deps/suins/suins_registration.js';
-import * as type_name from './type_name.js';
+import * as type_name from './deps/std/type_name.js';
 const $moduleName = '@suins/auction::offer';
 export const OfferTable = new MoveStruct({
 	name: `${$moduleName}::OfferTable`,

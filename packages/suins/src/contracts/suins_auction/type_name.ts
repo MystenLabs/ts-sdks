@@ -5,8 +5,8 @@
 /** Functionality for converting Move types into values. Use with care! */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
+import * as ascii from './ascii.js';
 const $moduleName = '@suins/auction::type_name';
 export const TypeName = new MoveStruct({
 	name: `${$moduleName}::TypeName`,
@@ -20,7 +20,7 @@ export const TypeName = new MoveStruct({
 		 * Addresses are hex-encoded lowercase values of length ADDRESS_LENGTH (16, 20, or
 		 * 32 depending on the Move platform)
 		 */
-		name: bcs.string(),
+		name: ascii.String,
 	},
 });
 export interface WithDefiningIdsOptions {
