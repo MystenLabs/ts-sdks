@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 2.4.0
+
+### Minor Changes
+
+- 5270eaf: Add `isValidStructTag` validation utility. `isValidNamedType` now also validates the full
+  struct tag structure (completing the TODO that previously returned `true` unconditionally).
+
 ## 2.3.2
 
 ### Patch Changes

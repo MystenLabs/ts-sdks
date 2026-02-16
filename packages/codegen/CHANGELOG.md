@@ -1,5 +1,11 @@
 # @mysten/codegen
 
+## 0.8.2
+
+### Patch Changes
+
+- 3d53583: Improve typing of generated bcs tuples
+
 ## 0.8.1
 
 ### Patch Changes

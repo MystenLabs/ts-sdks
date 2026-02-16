@@ -1,5 +1,11 @@
 # @mysten/suins
 
+## 1.0.2
+
+### Patch Changes
+
+- 3d53583: Improve typing of generated bcs tuples
+
 ## 1.0.1
 
 ### Patch Changes

@@ -48,6 +48,14 @@ const getActiveAddress = () => {
 	return execSync(`${SUI} client active-address`, { encoding: 'utf8' }).trim();
 };
 
+const getActiveNetwork = (): Network => {
+	const env = execSync(`${SUI} client active-env`, { encoding: 'utf8' }).trim();
+	if (env !== 'mainnet' && env !== 'testnet') {
+		throw new Error(`Unsupported network: ${env}. Only 'mainnet' and 'testnet' are supported.`);
+	}
+	return env;
+};
+
 const getSigner = () => {
 	if (process.env.PRIVATE_KEY) {
 		console.log('Using supplied private key.');
@@ -82,7 +90,7 @@ const getSigner = () => {
 };
 
 (async () => {
-	const network: Network = 'testnet';
+	const network = getActiveNetwork();
 	const signer = getSigner();
 	const address = signer.getPublicKey().toSuiAddress();
 
@@ -94,7 +102,7 @@ const getSigner = () => {
 	);
 
 	// Coins to update prices for
-	const coinKeys = ['SUI', 'DBUSDC', 'DEEP'];
+	const coinKeys = ['USDC', 'SUI', 'DEEP', 'WAL', 'SUIUSDE'];
 
 	console.log(`Batch updating Pyth price feeds for: ${coinKeys.join(', ')}\n`);
 

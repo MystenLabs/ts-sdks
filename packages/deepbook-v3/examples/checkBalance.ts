@@ -1,5 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+
+/**
+ * Check USDC balance for a balance manager on mainnet using a direct address.
+ * Uses checkManagerBalanceWithAddress which doesn't require registering the manager at init time.
+ *
+ * Usage:
+ *   npx tsx examples/checkBalance.ts
+ */
+
 import { execSync } from 'child_process';
 
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -23,28 +32,16 @@ const getActiveNetwork = (): Network => {
 	return env;
 };
 
-/// Example to check balance for a balance manager
 (async () => {
 	const network = getActiveNetwork();
 
-	const balanceManagers = {
-		MANAGER_1: {
-			address: '0x344c2734b1d211bd15212bfb7847c66a3b18803f3f5ab00f5ff6f87b6fe6d27d',
-			tradeCap: '',
-		},
-	};
-
 	const client = new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }).$extend(
-		deepbook({
-			address: '0x0',
-			balanceManagers: balanceManagers,
-		}),
+		deepbook({ address: '0x0' }),
 	);
 
-	const assets = ['SUI', 'USDC', 'WUSDT', 'WUSDC', 'BETH', 'DEEP']; // Update assets as needed
-	const manager = 'MANAGER_1'; // Update the manager accordingly
-	console.log('Manager:', manager);
-	for (const asset of assets) {
-		console.log(await client.deepbook.checkManagerBalance(manager, asset));
-	}
+	const result = await client.deepbook.checkManagerBalanceWithAddress(
+		'0x344c2734b1d211bd15212bfb7847c66a3b18803f3f5ab00f5ff6f87b6fe6d27d',
+		'USDC',
+	);
+	console.log(result);
 })();

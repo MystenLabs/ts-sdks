@@ -163,6 +163,102 @@ export class DeepBookClient {
 	}
 
 	/**
+	 * @description Check the balance of a BalanceManager by its address directly
+	 * @param {string} managerAddress The on-chain address of the BalanceManager
+	 * @param {string} coinKey Key of the coin
+	 * @returns {Promise<{ coinType: string, balance: number }>} An object with coin type and balance
+	 */
+	async checkManagerBalanceWithAddress(managerAddress: string, coinKey: string) {
+		const tx = new Transaction();
+		const coin = this.#config.getCoin(coinKey);
+
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance`,
+			arguments: [tx.object(managerAddress)],
+			typeArguments: [coin.type],
+		});
+
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
+		});
+
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const parsed_balance = bcs.U64.parse(bytes);
+		const balanceNumber = Number(parsed_balance);
+		const adjusted_balance = balanceNumber / coin.scalar;
+
+		return {
+			coinType: coin.type,
+			balance: Number(adjusted_balance.toFixed(9)),
+		};
+	}
+
+	/**
+	 * @description Check multiple coin balances for multiple balance managers by address in a single dry run call
+	 * @param {string[]} managerAddresses The on-chain addresses of the BalanceManagers
+	 * @param {string[]} coinKeys Keys of the coins to check balances for
+	 * @returns {Promise<Record<string, Record<string, number>>>} Object keyed by manager address, mapping coinType to balance
+	 */
+	async checkManagerBalancesWithAddress(managerAddresses: string[], coinKeys: string[]) {
+		if (managerAddresses.length === 0 || coinKeys.length === 0) {
+			return {};
+		}
+
+		const tx = new Transaction();
+		const coins = coinKeys.map((coinKey) => this.#config.getCoin(coinKey));
+
+		for (const managerAddress of managerAddresses) {
+			for (const coin of coins) {
+				tx.moveCall({
+					target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance`,
+					arguments: [tx.object(managerAddress)],
+					typeArguments: [coin.type],
+				});
+			}
+		}
+
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
+		});
+
+		if (res.FailedTransaction) {
+			throw new Error(
+				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
+			);
+		}
+
+		if (!res.commandResults) {
+			throw new Error('Failed to get manager balances: No command results');
+		}
+
+		const results: Record<string, Record<string, number>> = {};
+
+		for (let m = 0; m < managerAddresses.length; m++) {
+			const managerAddress = managerAddresses[m];
+			const managerBalances: Record<string, number> = {};
+
+			for (let c = 0; c < coins.length; c++) {
+				const coin = coins[c];
+				const commandResult = res.commandResults[m * coins.length + c];
+
+				if (!commandResult || !commandResult.returnValues) {
+					throw new Error(`Failed to get balance for ${coin.type}: No return values`);
+				}
+
+				const bytes = commandResult.returnValues[0].bcs;
+				const parsed_balance = bcs.U64.parse(bytes);
+				managerBalances[coin.type] = Number((Number(parsed_balance) / coin.scalar).toFixed(9));
+			}
+
+			results[managerAddress] = managerBalances;
+		}
+
+		return results;
+	}
+
+	/**
 	 * @description Check if a pool is whitelisted
 	 * @param {string} poolKey Key of the pool
 	 * @returns {Promise<boolean>} Boolean indicating if the pool is whitelisted
@@ -1956,6 +2052,84 @@ export class DeepBookClient {
 		const deepCoin = this.#config.getCoin('DEEP');
 
 		return this.#formatTokenAmount(BigInt(bcs.U64.parse(bytes)), deepCoin.scalar, decimals);
+	}
+
+	/**
+	 * @description Get base, quote, and DEEP balances for multiple margin managers in a single dry run call
+	 * @param {Record<string, string>} marginManagers Map of marginManagerId -> poolKey
+	 * @param {number} decimals Number of decimal places for formatting (default: 9)
+	 * @returns {Promise<Record<string, { base: string, quote: string, deep: string }>>} Object keyed by managerId
+	 */
+	async getMarginManagerBalances(
+		marginManagers: Record<string, string>,
+		decimals: number = 9,
+	): Promise<Record<string, { base: string; quote: string; deep: string }>> {
+		const entries = Object.entries(marginManagers);
+		if (entries.length === 0) {
+			return {};
+		}
+
+		const tx = new Transaction();
+
+		// 3 calls per manager: base, quote, deep
+		for (const [managerId, poolKey] of entries) {
+			tx.add(this.marginManager.baseBalance(poolKey, managerId));
+			tx.add(this.marginManager.quoteBalance(poolKey, managerId));
+			tx.add(this.marginManager.deepBalance(poolKey, managerId));
+		}
+
+		const res = await this.#client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
+		});
+
+		if (res.FailedTransaction) {
+			throw new Error(
+				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
+			);
+		}
+
+		if (!res.commandResults) {
+			throw new Error('Failed to get margin manager balances: No command results');
+		}
+
+		const results: Record<string, { base: string; quote: string; deep: string }> = {};
+		const deepCoin = this.#config.getCoin('DEEP');
+
+		for (let i = 0; i < entries.length; i++) {
+			const [managerId, poolKey] = entries[i];
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+
+			const baseResult = res.commandResults[i * 3];
+			const quoteResult = res.commandResults[i * 3 + 1];
+			const deepResult = res.commandResults[i * 3 + 2];
+
+			if (!baseResult?.returnValues || !quoteResult?.returnValues || !deepResult?.returnValues) {
+				throw new Error(`Failed to get balances for margin manager ${managerId}: No return values`);
+			}
+
+			results[managerId] = {
+				base: this.#formatTokenAmount(
+					BigInt(bcs.U64.parse(baseResult.returnValues[0].bcs)),
+					baseCoin.scalar,
+					decimals,
+				),
+				quote: this.#formatTokenAmount(
+					BigInt(bcs.U64.parse(quoteResult.returnValues[0].bcs)),
+					quoteCoin.scalar,
+					decimals,
+				),
+				deep: this.#formatTokenAmount(
+					BigInt(bcs.U64.parse(deepResult.returnValues[0].bcs)),
+					deepCoin.scalar,
+					decimals,
+				),
+			};
+		}
+
+		return results;
 	}
 
 	/**
