@@ -3,13 +3,6 @@
 export { suins, SuinsClient, type SuinsExtensionOptions } from './suins-client.js';
 export { SuinsTransaction } from './suins-transaction.js';
 export { SuinsMarketplaceTransaction } from './suins-marketplace-transaction.js';
-export {
-	SuinsMarketplaceClient,
-	type ListingData,
-	type AuctionData,
-	type OfferData,
-	type SealConfig,
-} from './suins-marketplace-client.js';
 export type {
 	SuinsClientConfig,
 	PackageInfo,
