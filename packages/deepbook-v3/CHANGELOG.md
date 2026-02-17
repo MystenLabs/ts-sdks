@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 1.0.11
+
+### Patch Changes
+
+- d13c13e: Add SUIUSDE margin pool
+
 ## 1.0.10
 
 ### Patch Changes
