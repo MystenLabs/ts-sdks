@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 1.0.12
+
+### Patch Changes
+
+- 6add1b1: New Liquidation Package ID (Internal usage)
+
 ## 1.0.11
 
 ### Patch Changes
