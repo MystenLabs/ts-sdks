@@ -6,7 +6,7 @@ import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { BalanceManagerContract } from '../transactions/balanceManager.js';
 import type { BalanceManager, MarginManager, Coin, Pool, MarginPool } from '../types/index.js';
 import type { CoinMap, PoolMap, MarginPoolMap, DeepbookPackageIds } from './constants.js';
-import { ResourceNotFoundError, ErrorMessages } from './errors.js';
+import { ResourceNotFoundError, ConfigurationError, ErrorMessages } from './errors.js';
 import {
 	mainnetCoins,
 	mainnetPackageIds,
@@ -93,12 +93,12 @@ export class DeepBookConfig {
 		this.marginManagers = marginManagers || {};
 
 		if (packageIds) {
-			this.DEEPBOOK_PACKAGE_ID = packageIds.DEEPBOOK_PACKAGE_ID;
-			this.REGISTRY_ID = packageIds.REGISTRY_ID;
-			this.DEEP_TREASURY_ID = packageIds.DEEP_TREASURY_ID;
-			this.MARGIN_PACKAGE_ID = packageIds.MARGIN_PACKAGE_ID;
-			this.MARGIN_REGISTRY_ID = packageIds.MARGIN_REGISTRY_ID;
-			this.LIQUIDATION_PACKAGE_ID = packageIds.LIQUIDATION_PACKAGE_ID;
+			this.DEEPBOOK_PACKAGE_ID = packageIds.DEEPBOOK_PACKAGE_ID || '';
+			this.REGISTRY_ID = packageIds.REGISTRY_ID || '';
+			this.DEEP_TREASURY_ID = packageIds.DEEP_TREASURY_ID || '';
+			this.MARGIN_PACKAGE_ID = packageIds.MARGIN_PACKAGE_ID || '';
+			this.MARGIN_REGISTRY_ID = packageIds.MARGIN_REGISTRY_ID || '';
+			this.LIQUIDATION_PACKAGE_ID = packageIds.LIQUIDATION_PACKAGE_ID || '';
 			this.#coins = coins || {};
 			this.#pools = pools || {};
 			this.#marginPools = marginPools || {};
@@ -132,6 +132,14 @@ export class DeepBookConfig {
 		}
 
 		this.balanceManager = new BalanceManagerContract(this);
+	}
+
+	requirePyth() {
+		if (!this.pyth.pythStateId || !this.pyth.wormholeStateId) {
+			throw new ConfigurationError(
+				"Pyth configuration is required for price feed operations. Provide 'pyth' when using custom packageIds.",
+			);
+		}
 	}
 
 	// Getters
