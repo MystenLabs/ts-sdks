@@ -23,7 +23,7 @@ import {
 	FLOAT_SCALAR,
 	PRICE_INFO_OBJECT_MAX_AGE_MS,
 } from './utils/config.js';
-import type { CoinMap, PoolMap } from './utils/constants.js';
+import type { CoinMap, PoolMap, DeepbookPackageIds } from './utils/constants.js';
 import { MarginAdminContract } from './transactions/marginAdmin.js';
 import { MarginMaintainerContract } from './transactions/marginMaintainer.js';
 import { MarginPoolContract } from './transactions/marginPool.js';
@@ -47,6 +47,8 @@ export interface DeepBookOptions<Name = 'deepbook'> {
 	adminCap?: string;
 	marginAdminCap?: string;
 	marginMaintainerCap?: string;
+	packageIds?: DeepbookPackageIds;
+	pyth?: { pythStateId: string; wormholeStateId: string };
 	name?: Name;
 }
 
@@ -106,6 +108,8 @@ export class DeepBookClient {
 		adminCap,
 		marginAdminCap,
 		marginMaintainerCap,
+		packageIds,
+		pyth,
 	}: DeepBookClientOptions) {
 		this.#client = client;
 		this.#address = normalizeSuiAddress(address);
@@ -119,6 +123,8 @@ export class DeepBookClient {
 			adminCap,
 			marginAdminCap,
 			marginMaintainerCap,
+			packageIds,
+			pyth,
 		});
 		this.balanceManager = new BalanceManagerContract(this.#config);
 		this.deepBook = new DeepBookContract(this.#config);
