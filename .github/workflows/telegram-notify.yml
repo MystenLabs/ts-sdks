@@ -1,24 +1,39 @@
 name: Telegram Notify - DeepBook v3
 
 on:
-  push:
-    tags:
-      - '@mysten/deepbook-v3@*'
+  workflow_run:
+    workflows: ['Changesets']
+    types: [completed]
 
 jobs:
   notify:
     runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
     steps:
-      - name: Send Telegram notification
+      - name: Check for new deepbook-v3 release and notify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.DEEPBOOK_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.DEEPBOOK_TELEGRAM_CHAT_ID }}
         run: |
-          VERSION="${GITHUB_REF_NAME#@mysten/deepbook-v3@}"
-          RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
+          CUTOFF=$(date -u -d '10 minutes ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -v-10M '+%Y-%m-%dT%H:%M:%SZ')
+
+          RELEASE=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 20 --json tagName,createdAt \
+            --jq "[.[] | select(.tagName | startswith(\"@mysten/deepbook-v3@\")) | select(.createdAt > \"$CUTOFF\")] | first")
+
+          if [ -z "$RELEASE" ] || [ "$RELEASE" = "null" ]; then
+            echo "No recent deepbook-v3 release found, skipping"
+            exit 0
+          fi
+
+          TAG=$(echo "$RELEASE" | jq -r '.tagName')
+          VERSION="${TAG#@mysten/deepbook-v3@}"
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
+
           MESSAGE="@mysten/deepbook-v3 v${VERSION} has been published to npm.
 
-          ${RELEASE_URL}"
+          ${URL}"
+
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             --data-urlencode "text=${MESSAGE}"
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.DEEPBOOK_TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.DEEPBOOK_TELEGRAM_CHAT_ID }}
