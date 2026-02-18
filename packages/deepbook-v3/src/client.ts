@@ -980,6 +980,7 @@ export class DeepBookClient {
 	}
 
 	async getPriceInfoObject(tx: Transaction, coinKey: string): Promise<string> {
+		this.#config.requirePyth();
 		const currentTime = Date.now();
 		const priceInfoObjectAge = await this.getPriceInfoObjectAge(coinKey);
 		if (
@@ -1023,6 +1024,7 @@ export class DeepBookClient {
 	 * @returns {Promise<Record<string, string>>} Map of coinKey -> priceInfoObjectId
 	 */
 	async getPriceInfoObjects(tx: Transaction, coinKeys: string[]): Promise<Record<string, string>> {
+		this.#config.requirePyth();
 		if (coinKeys.length === 0) {
 			return {};
 		}

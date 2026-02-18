@@ -7,12 +7,12 @@ export type CoinMap = Record<string, Coin>;
 export type PoolMap = Record<string, Pool>;
 export type MarginPoolMap = Record<string, MarginPool>;
 export interface DeepbookPackageIds {
-	DEEPBOOK_PACKAGE_ID: string;
-	REGISTRY_ID: string;
-	DEEP_TREASURY_ID: string;
-	MARGIN_PACKAGE_ID: string;
-	MARGIN_REGISTRY_ID: string;
-	LIQUIDATION_PACKAGE_ID: string;
+	DEEPBOOK_PACKAGE_ID?: string;
+	REGISTRY_ID?: string;
+	DEEP_TREASURY_ID?: string;
+	MARGIN_PACKAGE_ID?: string;
+	MARGIN_REGISTRY_ID?: string;
+	LIQUIDATION_PACKAGE_ID?: string;
 }
 
 export const testnetPackageIds = {
