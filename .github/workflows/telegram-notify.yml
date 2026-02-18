@@ -1,20 +1,19 @@
 name: Telegram Notify - DeepBook v3
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - '@mysten/deepbook-v3@*'
 
 jobs:
   notify:
     runs-on: ubuntu-latest
-    if: startsWith(github.event.release.tag_name, '@mysten/deepbook-v3@')
     steps:
       - name: Send Telegram notification
         run: |
-          VERSION="${GITHUB_TAG#@mysten/deepbook-v3@}"
+          VERSION="${GITHUB_REF_NAME#@mysten/deepbook-v3@}"
+          RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
           MESSAGE="@mysten/deepbook-v3 v${VERSION} has been published to npm.
-
-          ${RELEASE_BODY}
 
           ${RELEASE_URL}"
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
@@ -23,6 +22,3 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.DEEPBOOK_TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.DEEPBOOK_TELEGRAM_CHAT_ID }}
-          GITHUB_TAG: ${{ github.event.release.tag_name }}
-          RELEASE_URL: ${{ github.event.release.html_url }}
-          RELEASE_BODY: ${{ github.event.release.body }}
