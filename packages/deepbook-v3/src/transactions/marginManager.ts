@@ -753,5 +753,4 @@ export class MarginManagerContract {
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};
-
 }
