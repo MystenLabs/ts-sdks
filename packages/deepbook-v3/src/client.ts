@@ -1571,21 +1571,31 @@ export class DeepBookClient {
 
 	/**
 	 * @description Get the balance manager ID for a margin manager
-	 * @param {string} marginManagerKey The key to identify the margin manager
+	 * @param {string} marginManagerAddress The object ID of the margin manager
 	 * @returns {Promise<string>} The balance manager ID
 	 */
-	async getMarginManagerBalanceManagerId(marginManagerKey: string): Promise<string> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginManager.balanceManager(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
+	async getMarginManagerBalanceManagerId(marginManagerAddress: string): Promise<string> {
+		const res = await this.#client.core.getObject({
+			objectId: marginManagerAddress,
+			include: { content: true },
 		});
 
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return normalizeSuiAddress(bcs.Address.parse(bytes));
+		if (!res.object?.content) {
+			throw new Error(`Margin manager not found: ${marginManagerAddress}`);
+		}
+
+		// MarginManager struct field order: id, owner, deepbook_pool, margin_pool_id, balance_manager
+		// We only need to parse up to balance_manager's id (first field of BalanceManager)
+		const MarginManagerBalanceManagerId = bcs.struct('MarginManagerBalanceManagerId', {
+			id: bcs.Address,
+			owner: bcs.Address,
+			deepbook_pool: bcs.Address,
+			margin_pool_id: bcs.option(bcs.Address),
+			balance_manager_id: bcs.Address,
+		});
+
+		const parsed = MarginManagerBalanceManagerId.parse(res.object.content);
+		return normalizeSuiAddress(parsed.balance_manager_id);
 	}
 
 	/**
