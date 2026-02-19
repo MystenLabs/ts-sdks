@@ -2150,42 +2150,6 @@ export class DeepBookClient {
 		return results;
 	}
 
-	/**
-	 * @description Get account order details for a margin manager.
-	 * This retrieves the balance manager from the margin manager and returns order details.
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @returns {Promise<Array>} Array of order details
-	 */
-	async getMarginAccountOrderDetails(marginManagerKey: string) {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginManager.getMarginAccountOrderDetails(manager.poolKey, manager.address));
-
-		tx.setSenderIfNotSet(normalizeSuiAddress(this.#address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		if (res.FailedTransaction) {
-			throw new Error(
-				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
-			);
-		}
-
-		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
-			throw new Error(`Failed to get conditional order IDs: Unknown error`);
-		}
-
-		try {
-			const bytes = res.commandResults[1].returnValues[0].bcs;
-			return bcs.vector(Order).parse(bytes);
-		} catch {
-			return [];
-		}
-	}
-
 	// === Margin TPSL (Take Profit / Stop Loss) Read-Only Functions ===
 
 	/**
