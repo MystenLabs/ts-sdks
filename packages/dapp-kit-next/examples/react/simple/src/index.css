@@ -11,13 +11,3 @@
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 }
-
-.custom-trigger::part(trigger) {
-	height: 56px;
-	padding: 12px 32px;
-	border-radius: 999px;
-	background-color: #e63946;
-	color: #f1faee;
-	font-size: 18px;
-	letter-spacing: 0.5px;
-}
