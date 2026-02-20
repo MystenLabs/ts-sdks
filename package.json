@@ -19,7 +19,10 @@
 	"packageManager": "pnpm@10.17.0",
 	"pnpm": {
 		"overrides": {
-			"axios": "^1.13.5"
+			"axios": "^1.13.5",
+			"markdown-it@>=13.0.0 <14.1.1": ">=14.1.1",
+			"hono@<4.11.10": ">=4.11.10",
+			"minimatch@<10.2.1": ">=10.2.1"
 		}
 	},
 	"engines": {
