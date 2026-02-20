@@ -27,6 +27,7 @@ export class Button extends LitElement {
 		return this.href
 			? html`
 					<a
+						part="trigger"
 						href=${this.href}
 						?disabled=${this.disabled}
 						target="_blank"
@@ -38,6 +39,7 @@ export class Button extends LitElement {
 				`
 			: html`
 					<button
+						part="trigger"
 						type="button"
 						?disabled=${this.disabled}
 						class=${classMap({ button: true, [this.variant]: true })}
