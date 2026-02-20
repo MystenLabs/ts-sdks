@@ -63,6 +63,7 @@ export class ConnectedAccountMenu extends ScopedRegistryHost(LitElement) {
 
 	override render() {
 		return html`<internal-button
+				exportparts="trigger"
 				id="menu-button"
 				aria-haspopup="true"
 				aria-controls="menu"
