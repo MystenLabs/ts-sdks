@@ -53,9 +53,9 @@ slush://browse/https://app.example.com
 Slush responds to HTTPS links (Universal Links on iOS, App Links on Android) from the following
 domains:
 
-| Domain         | Supported Paths                    |
-| -------------- | ---------------------------------- |
-| `my.slush.app` | `/browse/*`, `/claim/*`, `/swap/*` |
+| Domain         | Supported Paths                              |
+| -------------- | -------------------------------------------- |
+| `my.slush.app` | `/browse/*`, `/claim/*`, `/swap/*`, `/pay/*` |
 
 ### Cross-Platform Behavior
 
@@ -275,6 +275,58 @@ Access the send flow:
 slush://send-coins
 slush://send-coins/camera
 ```
+
+### Payment Kit
+
+Open the payment flow using Payment Kit URIs. Slush supports the `sui:pay` protocol for processing
+on-chain payments with optional registry support.
+
+| Route | Description                 |
+| ----- | --------------------------- |
+| `pay` | Opens the payment interface |
+
+**URI Format:**
+
+Payment Kit uses a special `sui:pay` (`slush:pay` is also supported) protocol that can be opened via
+Slush deep links:
+
+```
+https://my.slush.app/pay?receiver=<address>&amount=<amount>&coinType=<coinType>&nonce=<nonce>
+```
+
+**Parameters:**
+
+| Parameter  | Type   | Required | Description                                            |
+| ---------- | ------ | -------- | ------------------------------------------------------ |
+| `receiver` | string | Yes      | Recipient Sui address                                  |
+| `amount`   | string | Yes      | Payment amount in smallest unit (e.g., MIST for SUI)   |
+| `coinType` | string | Yes      | Coin type (e.g., `0x2::sui::SUI`)                      |
+| `nonce`    | string | Yes      | Unique payment identifier (max 36 characters)          |
+| `registry` | string | No       | Registry name or object ID for registry-based payments |
+| `label`    | string | No       | Human-readable label for the payment                   |
+| `message`  | string | No       | Message or memo for the payment                        |
+| `iconUrl`  | string | No       | URL to an icon image for display purposes              |
+
+**Examples:**
+
+```
+# Basic payment with SUI (using custom scheme)
+sui:pay?receiver=0x1234...abcd&amount=1000000000&coinType=0x2::sui::SUI&nonce=abc-123-xyz
+
+# Basic payment with SUI (using universal link)
+https://my.slush.app/pay?receiver=0x1234...abcd&amount=1000000000&coinType=0x2::sui::SUI&nonce=abc-123-xyz
+
+# Payment with registry and label
+https://my.slush.app/pay?receiver=0x1234...abcd&amount=1000000000&coinType=0x2::sui::SUI&nonce=abc-123-xyz&registry=my-registry&label=Coffee%20Payment
+
+# Payment with custom coin type
+https://my.slush.app/pay?receiver=0x1234...abcd&amount=5000000&coinType=0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC&nonce=def-456-uvw
+```
+
+<Callout>
+	Use the `@mysten/payment-kit` SDK to generate properly formatted payment URIs. See the [Payment
+	Kit documentation](/payment-kit/getting-started) for more details.
+</Callout>
 
 ## Implementation Examples
 
