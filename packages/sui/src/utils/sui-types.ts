@@ -97,6 +97,21 @@ export type StructTag = {
 };
 
 function parseTypeTag(type: string): string | StructTag {
+	if (type.startsWith('vector<')) {
+		if (!type.endsWith('>')) {
+			throw new Error(`Invalid type tag: ${type}`);
+		}
+		const inner = type.slice(7, -1);
+		if (!inner) {
+			throw new Error(`Invalid type tag: ${type}`);
+		}
+		const parsed = parseTypeTag(inner);
+		if (typeof parsed === 'string') {
+			return `vector<${parsed}>`;
+		}
+		return `vector<${normalizeStructTag(parsed)}>`;
+	}
+
 	if (!type.includes('::')) return type;
 
 	return parseStructTag(type);
