@@ -566,7 +566,7 @@ export class GrpcCoreClient extends CoreClient {
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
 			pageSize: options.limit,
 			readMask: {
-				paths: ['field_id', 'name', 'value_type', 'kind'],
+				paths: ['field_id', 'name', 'value_type', 'kind', 'child_id'],
 			},
 		});
 
@@ -584,6 +584,7 @@ export class GrpcCoreClient extends CoreClient {
 					},
 					valueType: field.valueType!,
 					type: normalizeStructTag(fieldType),
+					...(isDynamicObject && field.childId ? { childId: field.childId } : {}),
 				};
 			}),
 			cursor: response.response.nextPageToken ? toBase64(response.response.nextPageToken) : null,

@@ -163,6 +163,8 @@ export namespace SuiClientTypes {
 			type: string;
 			name: DynamicFieldName;
 			valueType: string;
+			/** The ObjectId of the child object, present when the field is a dynamic object field. */
+			childId?: string;
 		}[];
 	}
 
