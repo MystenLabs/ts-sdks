@@ -1,5 +1,15 @@
 # @mysten/deepbook-v3
 
+## 1.1.0
+
+### Minor Changes
+
+- 0be1a79: Add support for custom networks (localnet, devnet) via optional `packageIds` parameter
+
+### Patch Changes
+
+- 9382cd7: Validations for custom package configs
+
 ## 1.0.12
 
 ### Patch Changes
