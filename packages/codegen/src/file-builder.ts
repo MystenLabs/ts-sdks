@@ -49,6 +49,7 @@ export class FileBuilder {
 			i++;
 		}
 
+		this.reservedNames.add(deConflictedName);
 		return deConflictedName;
 	}
 

@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 import { MoveModuleBuilder } from '../src/move-module-builder.js';
+import { FileBuilder } from '../src/file-builder.js';
 
 const SUMMARIES_DIR = join(__dirname, 'move/testpkg/package_summaries');
 
@@ -578,6 +579,159 @@ describe('function codegen output', () => {
 			    ];
 			}"
 		`);
+	});
+});
+
+describe('name collision handling', () => {
+	const transactionModuleSummary = {
+		id: { address: 'testpkg', name: 'transaction_module' },
+		doc: '',
+		immediate_dependencies: [
+			{ address: 'sui', name: 'object' },
+			{ address: 'sui', name: 'tx_context' },
+		],
+		attributes: [],
+		functions: {
+			create_transaction: {
+				source_index: 0,
+				index: 0,
+				doc: ' Create a new Transaction object.',
+				attributes: [],
+				visibility: 'Public',
+				entry: true,
+				macro_: false,
+				type_parameters: [],
+				parameters: [
+					{ name: 'amount', type_: 'u64' },
+					{
+						name: 'ctx',
+						type_: {
+							Reference: [
+								true,
+								{
+									Datatype: {
+										module: { address: 'sui', name: 'tx_context' },
+										name: 'TxContext',
+										type_arguments: [],
+									},
+								},
+							],
+						},
+					},
+				],
+				return_: [],
+			},
+			get_amount: {
+				source_index: 1,
+				index: 1,
+				doc: ' Get the amount from a Transaction object.',
+				attributes: [],
+				visibility: 'Public',
+				entry: false,
+				macro_: false,
+				type_parameters: [],
+				parameters: [
+					{
+						name: 'txn',
+						type_: {
+							Reference: [
+								false,
+								{
+									Datatype: {
+										module: { address: 'testpkg', name: 'transaction_module' },
+										name: 'Transaction',
+										type_arguments: [],
+									},
+								},
+							],
+						},
+					},
+				],
+				return_: ['u64'],
+			},
+		},
+		structs: {
+			Transaction: {
+				index: 0,
+				doc: ' A transaction record.',
+				attributes: [],
+				abilities: ['Key', 'Store'],
+				type_parameters: [],
+				fields: {
+					positional_fields: false,
+					fields: {
+						id: {
+							index: 0,
+							doc: null,
+							type_: {
+								Datatype: {
+									module: { address: 'sui', name: 'object' },
+									name: 'UID',
+									type_arguments: [],
+								},
+							},
+						},
+						amount: { index: 1, doc: null, type_: 'u64' },
+					},
+				},
+			},
+		},
+		enums: {},
+	};
+
+	function createTransactionModuleBuilder() {
+		return new MoveModuleBuilder({
+			summary: transactionModuleSummary as any,
+			addressMappings: ADDRESS_MAPPINGS,
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+	}
+
+	it('struct named Transaction does not collide with SDK Transaction import', async () => {
+		const builder = createTransactionModuleBuilder();
+		const all = { 'testpkg::transaction_module': builder };
+		builder.includeTypes(all);
+		builder.includeFunctions();
+		const output = await render(builder);
+
+		// The Move struct should be exported as 'Transaction'
+		expect(output).toContain('export const Transaction =');
+
+		// The SDK Transaction type import should be aliased to avoid collision
+		expect(output).toMatch(/import\s*\{[^}]*type Transaction as Transaction_1[^}]*\}/);
+
+		// Functions should use the aliased Transaction type
+		expect(output).toContain('(tx: Transaction_1)');
+
+		// The output should be valid (no duplicate Transaction identifiers)
+		const transactionOccurrences = output.match(/export const Transaction\b/g);
+		expect(transactionOccurrences).toHaveLength(1);
+	});
+
+	it('function-only codegen with Transaction struct still aliases SDK import', async () => {
+		const builder = createTransactionModuleBuilder();
+		const all = { 'testpkg::transaction_module': builder };
+		builder.includeTypes(all);
+		builder.includeFunctions();
+		const output = await render(builder);
+
+		// Verify the generated code structure is correct
+		const fnBody = output.match(/export function createTransaction[\s\S]*?^}/m);
+		expect(fnBody?.[0]).toContain('Transaction_1');
+	});
+
+	it('getUnusedName reserves generated aliases to prevent duplicates', () => {
+		const fb = new FileBuilder();
+		fb['reservedNames'].add('Foo');
+
+		const alias1 = fb.getUnusedName('Foo');
+		expect(alias1).toBe('Foo_1');
+
+		// Second call should not return the same alias
+		const alias2 = fb.getUnusedName('Foo');
+		expect(alias2).toBe('Foo_2');
+		expect(alias1).not.toBe(alias2);
 	});
 });
 
