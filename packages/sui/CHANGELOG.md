@@ -1,5 +1,19 @@
 # @mysten/sui.js
 
+## 2.5.0
+
+### Minor Changes
+
+- 1c97aa2: Add childId for listDyanamicFields response and fix name encoding for dynamic field
+  objects
+
+### Patch Changes
+
+- 9ab9a50: Fix `parseTypeTag` to correctly handle vector type parameters containing struct types
+  (e.g. `vector<0x2::sui::SUI>`). Previously, the `::` inside the vector's type parameter caused the
+  entire vector to be incorrectly parsed as a struct tag. Also reject malformed vector inputs like
+  `vector<>` (empty type parameter) and `vector<u8` (missing closing bracket).
+
 ## 2.4.0
 
 ### Minor Changes
