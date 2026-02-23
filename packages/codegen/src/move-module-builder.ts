@@ -529,6 +529,34 @@ export class MoveModuleBuilder extends FileBuilder {
 		}
 	}
 
+	async renderTypeTagGetters() {
+		for (const name of this.#orderedTypes) {
+			const struct = this.summary.structs[name];
+			const enum_ = this.summary.enums[name];
+			const typeParameters = struct?.type_parameters ?? enum_?.type_parameters ?? [];
+
+			const getterName = this.getUnusedName(`${name}TypeName`);
+			this.exports.push(getterName);
+
+			if (typeParameters.length === 0) {
+				this.statements.push(
+					...parseTS /* ts */ `export function ${getterName}(options${this.#mvrNameOrAddress ? '?' : ''}: { package${this.#mvrNameOrAddress ? '?: string' : ': string'} } ${this.#mvrNameOrAddress ? '= {}' : ''}) {
+						const packageAddress = options.package${this.#mvrNameOrAddress ? ` ?? '${this.#mvrNameOrAddress}'` : ''};
+						return \`\${packageAddress}::${this.summary.id.name}::${name}\`;
+					}`,
+				);
+			} else {
+				const typeArgEntries = typeParameters.map(() => `string`).join(', ');
+				this.statements.push(
+					...parseTS /* ts */ `export function ${getterName}(options: { package${this.#mvrNameOrAddress ? '?: string' : ': string'}, typeArguments: [${typeArgEntries}] }) {
+						const packageAddress = options.package${this.#mvrNameOrAddress ? ` ?? '${this.#mvrNameOrAddress}'` : ''};
+						return \`\${packageAddress}::${this.summary.id.name}::${name}<${typeParameters.map((_p, i) => `\${options.typeArguments[${i}]}`).join(', ')}>\`;
+					}`,
+				);
+			}
+		}
+	}
+
 	async renderFunctions() {
 		const names = [];
 

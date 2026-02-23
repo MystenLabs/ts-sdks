@@ -39,9 +39,13 @@ async function createBuilders(includePhantomTypeParameters = false) {
 /** Render a builder to string (types only, functions only, or both) */
 async function render(
 	builder: MoveModuleBuilder,
-	options: { types?: boolean; functions?: boolean } = { types: true, functions: true },
+	options: { types?: boolean; functions?: boolean; typeTagGetters?: boolean } = {
+		types: true,
+		functions: true,
+	},
 ) {
 	if (options.types) await builder.renderBCSTypes();
+	if (options.typeTagGetters) await builder.renderTypeTagGetters();
 	if (options.functions) await builder.renderFunctions();
 	return builder.toString('./', './testpkg/test.ts');
 }
@@ -576,6 +580,67 @@ describe('function codegen output', () => {
 			    typeArguments: [
 			        string
 			    ];
+			}"
+		`);
+	});
+});
+
+describe('type tag getter codegen output', () => {
+	it('simple struct without type params (Counter)', async () => {
+		const { counter, all } = await createBuilders();
+		counter.includeTypes(all, ['Counter']);
+		const output = await render(counter, { types: true, typeTagGetters: true, functions: false });
+
+		const fnBody = output.match(/export function CounterTypeName[\s\S]*?^}/m);
+		expect(fnBody?.[0]).toMatchInlineSnapshot(`
+			"export function CounterTypeName(options?: {
+			    package?: string;
+			}"
+		`);
+	});
+
+	it('generic struct with type params (Wrapper<T>)', async () => {
+		const { counter, all } = await createBuilders();
+		counter.includeTypes(all, ['Wrapper']);
+		const output = await render(counter, { types: true, typeTagGetters: true, functions: false });
+
+		const fnBody = output.match(/export function WrapperTypeName[\s\S]*?^}/m);
+		expect(fnBody?.[0]).toMatchInlineSnapshot(`
+			"export function WrapperTypeName(options: {
+			    package?: string;
+			    typeArguments: [
+			        string
+			    ];
+			}"
+		`);
+	});
+
+	it('generic struct with multiple type params (Pair<T, U>)', async () => {
+		const { counter, all } = await createBuilders();
+		counter.includeTypes(all, ['Pair']);
+		const output = await render(counter, { types: true, typeTagGetters: true, functions: false });
+
+		const fnBody = output.match(/export function PairTypeName[\s\S]*?^}/m);
+		expect(fnBody?.[0]).toMatchInlineSnapshot(`
+			"export function PairTypeName(options: {
+			    package?: string;
+			    typeArguments: [
+			        string,
+			        string
+			    ];
+			}"
+		`);
+	});
+
+	it('enum type tag getter (Status)', async () => {
+		const { registry, all } = await createBuilders();
+		registry.includeTypes(all, ['Status']);
+		const output = await render(registry, { types: true, typeTagGetters: true, functions: false });
+
+		const fnBody = output.match(/export function StatusTypeName[\s\S]*?^}/m);
+		expect(fnBody?.[0]).toMatchInlineSnapshot(`
+			"export function StatusTypeName(options?: {
+			    package?: string;
 			}"
 		`);
 	});
