@@ -71,6 +71,25 @@ export const WithCustomTheme: StoryObj<DAppKitConnectButton> = {
 	`,
 };
 
+export const WithCustomTriggerPart: StoryObj<DAppKitConnectButton> = {
+	render: () => html`
+		<style>
+			.custom-part-demo::part(trigger) {
+				height: 56px;
+				padding: 12px 32px;
+				border-radius: 999px;
+				background-color: #e63946;
+				color: #f1faee;
+				font-size: 18px;
+				letter-spacing: 0.5px;
+			}
+		</style>
+		<mysten-dapp-kit-connect-button class="custom-part-demo" .instance=${dAppKit}>
+			Connect
+		</mysten-dapp-kit-connect-button>
+	`,
+};
+
 export const WithRandomSort: StoryObj<DAppKitConnectButton> = {
 	args: {
 		modalOptions: {

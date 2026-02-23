@@ -43,6 +43,8 @@ import type { AccountSelectedEvent } from './internal/connected-account-menu-ite
  * @cssprop --font-sans - Font family used for text content.
  * @cssprop --font-weight-medium - Medium font weight for text (typically used for buttons and interactive elements).
  * @cssprop --font-weight-semibold - Semibold font weight for text (typically used for headings or emphasized text).
+ *
+ * @csspart trigger - The underlying button element. Use `::part(trigger)` to customize sizing, padding, border-radius, etc.
  */
 @customElement('mysten-dapp-kit-connect-button')
 export class DAppKitConnectButton extends ScopedRegistryHost(LitElement) {
@@ -80,6 +82,7 @@ export class DAppKitConnectButton extends ScopedRegistryHost(LitElement) {
 
 		return connection.account
 			? html`<connected-account-menu
+					exportparts="trigger"
 					.connection=${connection}
 					.client=${client}
 					@account-selected=${(event: AccountSelectedEvent) => {
@@ -92,7 +95,7 @@ export class DAppKitConnectButton extends ScopedRegistryHost(LitElement) {
 						this.instance.connectWallet({ wallet: connection.wallet });
 					}}
 				></connected-account-menu>`
-			: html`<internal-button @click=${this.#openModal}>
+			: html`<internal-button exportparts="trigger" @click=${this.#openModal}>
 						<slot>Connect Wallet</slot>
 					</internal-button>
 					<mysten-dapp-kit-connect-modal
