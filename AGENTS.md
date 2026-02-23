@@ -34,8 +34,12 @@ pnpm --filter @mysten/sui test
 # Run a single test file
 pnpm --filter @mysten/sui vitest run path/to/test.spec.ts
 
-# Run e2e tests (requires Docker)
-pnpm test:e2e
+# Run e2e tests (requires Docker for local network)
+# All e2e tests for a package:
+pnpm --filter @mysten/sui vitest run --config test/e2e/vitest.config.mts
+
+# A specific e2e test file:
+pnpm --filter @mysten/sui vitest run --config test/e2e/vitest.config.mts test/e2e/clients/core/objects.test.ts
 ```
 
 ### Linting and Formatting
