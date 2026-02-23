@@ -1,5 +1,17 @@
 # @mysten/dapp-kit-react
 
+## 1.1.0
+
+### Minor Changes
+
+- 7011028: feat: export react context and account signer
+
+### Patch Changes
+
+- Updated dependencies [7011028]
+- Updated dependencies [ded6fd2]
+  - @mysten/dapp-kit-core@1.1.0
+
 ## 1.0.2
 
 ### Patch Changes

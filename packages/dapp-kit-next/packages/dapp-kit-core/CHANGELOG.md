@@ -1,5 +1,19 @@
 # @mysten/dapp-kit-core
 
+## 1.1.0
+
+### Minor Changes
+
+- 7011028: feat: export react context and account signer
+- ded6fd2: Expose a styleable "trigger" part for more custom styling needs on the connect button
+
+### Patch Changes
+
+- Updated dependencies [9ab9a50]
+- Updated dependencies [1c97aa2]
+  - @mysten/sui@2.5.0
+  - @mysten/wallet-standard@0.20.1
+
 ## 1.0.4
 
 ### Patch Changes
