@@ -333,11 +333,11 @@ describe('Core API - Clever Errors', () => {
 				const normalized = normalizeAddress(buildError.message);
 				if (kind === 'jsonrpc') {
 					expect(normalized).toMatchInlineSnapshot(
-						`"Transaction resolution failed: MoveAbort in 1st command, abort code: 0, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 135)"`,
+						`"Transaction resolution failed: MoveAbort in 1st command, abort code: 0, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 155)"`,
 					);
 				} else {
 					expect(normalized).toMatchInlineSnapshot(
-						`"Transaction resolution failed: MoveAbort in 1st command, 'ETestCleverError': Test clever error message, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 135)"`,
+						`"Transaction resolution failed: MoveAbort in 1st command, 'ETestCleverError': Test clever error message, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 155)"`,
 					);
 				}
 
@@ -423,11 +423,11 @@ describe('Core API - Clever Errors', () => {
 				const normalized = normalizeAddress(executeError.message);
 				if (kind === 'jsonrpc') {
 					expect(normalized).toMatchInlineSnapshot(
-						`"Transaction resolution failed: MoveAbort in 1st command, abort code: 0, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 135)"`,
+						`"Transaction resolution failed: MoveAbort in 1st command, abort code: 0, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 155)"`,
 					);
 				} else {
 					expect(normalized).toMatchInlineSnapshot(
-						`"Transaction resolution failed: MoveAbort in 1st command, 'ETestCleverError': Test clever error message, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 135)"`,
+						`"Transaction resolution failed: MoveAbort in 1st command, 'ETestCleverError': Test clever error message, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 155)"`,
 					);
 				}
 

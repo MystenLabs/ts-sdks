@@ -4,6 +4,7 @@
 module test_data::test_objects;
 
 use sui::dynamic_field;
+use sui::dynamic_object_field;
 use sui::event;
 
 /// Simple owned object for testing
@@ -78,6 +79,25 @@ public fun create_object_with_dynamic_fields(name: vector<u8>, ctx: &mut TxConte
     dynamic_field::add(&mut obj.id, b"field_u64", 42u64);
     dynamic_field::add(&mut obj.id, b"field_bool", true);
     dynamic_field::add(&mut obj.id, b"field_address", ctx.sender());
+
+    transfer::transfer(obj, ctx.sender());
+}
+
+/// Create object with both regular dynamic fields and dynamic object fields
+public fun create_object_with_mixed_dynamic_fields(ctx: &mut TxContext) {
+    let mut obj = ObjectWithDynamicFields {
+        id: object::new(ctx),
+        name: b"mixed_df_object",
+    };
+
+    // Regular dynamic field
+    dynamic_field::add(&mut obj.id, b"regular_field", 100u64);
+
+    // Dynamic object field (child object)
+    dynamic_object_field::add(&mut obj.id, b"object_field", SimpleObject {
+        id: object::new(ctx),
+        value: 42,
+    });
 
     transfer::transfer(obj, ctx.sender());
 }

@@ -22,6 +22,7 @@ import { coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
 import { normalizeSuiAddress, normalizeStructTag } from '../utils/sui-types.js';
+import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { SUI_FRAMEWORK_ADDRESS, SUI_SYSTEM_ADDRESS } from '../utils/constants.js';
 import { CoreClient } from '../client/core.js';
 import type { SuiClientTypes } from '../client/types.js';
@@ -503,21 +504,27 @@ export class JSONRpcCoreClient extends CoreClient {
 		});
 
 		return {
-			dynamicFields: dynamicFields.data.map((dynamicField) => {
+			dynamicFields: dynamicFields.data.map((dynamicField): SuiClientTypes.DynamicFieldEntry => {
 				const isDynamicObject = dynamicField.type === 'DynamicObject';
 				const fullType = isDynamicObject
 					? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${dynamicField.name.type}>, 0x2::object::ID>`
 					: `0x2::dynamic_field::Field<${dynamicField.name.type}, ${dynamicField.objectType}>`;
 
+				const bcsBytes = fromBase64(dynamicField.bcsName);
+				const derivedNameType = isDynamicObject
+					? `0x2::dynamic_object_field::Wrapper<${dynamicField.name.type}>`
+					: dynamicField.name.type;
 				return {
-					fieldId: dynamicField.objectId,
+					$kind: isDynamicObject ? 'DynamicObject' : 'DynamicField',
+					fieldId: deriveDynamicFieldID(options.parentId, derivedNameType, bcsBytes),
 					type: normalizeStructTag(fullType),
 					name: {
 						type: dynamicField.name.type,
-						bcs: fromBase64(dynamicField.bcsName),
+						bcs: bcsBytes,
 					},
 					valueType: dynamicField.objectType,
-				};
+					childId: isDynamicObject ? dynamicField.objectId : undefined,
+				} as SuiClientTypes.DynamicFieldEntry;
 			}),
 			hasNextPage: dynamicFields.hasNextPage,
 			cursor: dynamicFields.nextCursor,

@@ -566,26 +566,30 @@ export class GrpcCoreClient extends CoreClient {
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
 			pageSize: options.limit,
 			readMask: {
-				paths: ['field_id', 'name', 'value_type', 'kind'],
+				paths: ['field_id', 'name', 'value_type', 'kind', 'child_id'],
 			},
 		});
 
 		return {
-			dynamicFields: response.response.dynamicFields.map((field) => {
-				const isDynamicObject = field.kind === DynamicField_DynamicFieldKind.OBJECT;
-				const fieldType = isDynamicObject
-					? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${field.name?.name!}>,0x2::object::ID>`
-					: `0x2::dynamic_field::Field<${field.name?.name!},${field.valueType!}>`;
-				return {
-					fieldId: field.fieldId!,
-					name: {
-						type: field.name?.name!,
-						bcs: field.name?.value!,
-					},
-					valueType: field.valueType!,
-					type: normalizeStructTag(fieldType),
-				};
-			}),
+			dynamicFields: response.response.dynamicFields.map(
+				(field): SuiClientTypes.DynamicFieldEntry => {
+					const isDynamicObject = field.kind === DynamicField_DynamicFieldKind.OBJECT;
+					const fieldType = isDynamicObject
+						? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${field.name?.name!}>,0x2::object::ID>`
+						: `0x2::dynamic_field::Field<${field.name?.name!},${field.valueType!}>`;
+					return {
+						$kind: isDynamicObject ? 'DynamicObject' : 'DynamicField',
+						fieldId: field.fieldId!,
+						name: {
+							type: field.name?.name!,
+							bcs: field.name?.value!,
+						},
+						valueType: field.valueType!,
+						type: normalizeStructTag(fieldType),
+						childId: field.childId,
+					} as SuiClientTypes.DynamicFieldEntry;
+				},
+			),
 			cursor: response.response.nextPageToken ? toBase64(response.response.nextPageToken) : null,
 			hasNextPage: response.response.nextPageToken !== undefined,
 		};

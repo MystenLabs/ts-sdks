@@ -4648,7 +4648,7 @@ export type GetDynamicFieldsQueryVariables = Exact<{
 
 
 export type GetDynamicFieldsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', dynamicFields?: { __typename?: 'DynamicFieldConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'DynamicField', name?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null, value?:
-          | { __typename: 'MoveObject', contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null }
+          | { __typename: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null }
           | { __typename: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null }
          | null }> } | null } | null };
 
@@ -5147,6 +5147,7 @@ export const GetDynamicFieldsDocument = new TypedDocumentString(`
             }
           }
           ... on MoveObject {
+            address
             contents {
               type {
                 repr

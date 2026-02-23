@@ -23,6 +23,7 @@ query getDynamicFields($parentId: SuiAddress!, $first: Int, $cursor: String) {
 						}
 					}
 					... on MoveObject {
+						address
 						contents {
 							type {
 								repr

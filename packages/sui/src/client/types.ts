@@ -155,15 +155,17 @@ export namespace SuiClientTypes {
 		balance: string;
 	}
 
+	export type DynamicFieldEntry = {
+		fieldId: string;
+		type: string;
+		name: DynamicFieldName;
+		valueType: string;
+	} & ({ $kind: 'DynamicField'; childId?: never } | { $kind: 'DynamicObject'; childId: string });
+
 	export interface ListDynamicFieldsResponse {
 		hasNextPage: boolean;
 		cursor: string | null;
-		dynamicFields: {
-			fieldId: string;
-			type: string;
-			name: DynamicFieldName;
-			valueType: string;
-		}[];
+		dynamicFields: DynamicFieldEntry[];
 	}
 
 	export interface GetDynamicFieldResponse {

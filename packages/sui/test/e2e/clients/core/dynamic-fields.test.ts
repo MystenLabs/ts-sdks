@@ -8,26 +8,25 @@ import { bcs } from '../../../../src/bcs/index.js';
 
 describe('Core API - Dynamic Fields', () => {
 	let toolbox: TestToolbox;
-	let testAddress: string;
 	let testPackageId: string;
 	let objectWithDynamicFieldsId: string;
+	let objectWithMixedFieldsId: string;
 
 	const testWithAllClients = createTestWithAllClients(() => toolbox);
 
 	beforeAll(async () => {
 		toolbox = await setup();
-		testAddress = toolbox.address();
 		testPackageId = await toolbox.getPackage('test_data');
 
-		// Create an object with dynamic fields
-		const tx = new Transaction();
-		tx.moveCall({
+		// Create an object with regular dynamic fields
+		const tx1 = new Transaction();
+		tx1.moveCall({
 			target: `${testPackageId}::test_objects::create_object_with_dynamic_fields`,
-			arguments: [tx.pure.vector('u8', Array.from(new TextEncoder().encode('test_df_object')))],
+			arguments: [tx1.pure.vector('u8', Array.from(new TextEncoder().encode('test_df_object')))],
 		});
 
-		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
-			transaction: tx,
+		const result1 = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+			transaction: tx1,
 			signer: toolbox.keypair,
 			options: {
 				showEffects: true,
@@ -35,39 +34,49 @@ describe('Core API - Dynamic Fields', () => {
 			},
 		});
 
-		expect(result.effects?.status.status).toBe('success');
+		expect(result1.effects?.status.status).toBe('success');
+		await toolbox.jsonRpcClient.waitForTransaction({ digest: result1.digest });
 
-		// Wait for indexing
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
-
-		// Find the created ObjectWithDynamicFields
-		if (result.objectChanges) {
-			const createdObj = result.objectChanges.find(
-				(change) =>
-					change.type === 'created' &&
-					change.objectType?.includes('test_objects::ObjectWithDynamicFields'),
-			);
-			expect(createdObj).toBeDefined();
-			if (createdObj && createdObj.type === 'created') {
-				objectWithDynamicFieldsId = createdObj.objectId;
-			}
+		const dfObj = result1.objectChanges?.find(
+			(change) =>
+				change.type === 'created' &&
+				change.objectType?.includes('test_objects::ObjectWithDynamicFields'),
+		);
+		expect(dfObj).toBeDefined();
+		if (dfObj && dfObj.type === 'created') {
+			objectWithDynamicFieldsId = dfObj.objectId;
 		}
 
-		// Fallback: find via getOwnedObjects if objectChanges didn't work
-		if (!objectWithDynamicFieldsId) {
-			const ownedObjects = await toolbox.jsonRpcClient.getOwnedObjects({
-				owner: testAddress,
-				options: {
-					showType: true,
-				},
-			});
+		// Create an object with mixed dynamic fields (regular + DOF)
+		const tx2 = new Transaction();
+		tx2.moveCall({
+			target: `${testPackageId}::test_objects::create_object_with_mixed_dynamic_fields`,
+		});
 
-			const dfObject = ownedObjects.data.find((obj) =>
-				obj.data?.type?.includes('test_objects::ObjectWithDynamicFields'),
-			);
-			expect(dfObject).toBeDefined();
-			objectWithDynamicFieldsId = dfObject!.data!.objectId;
+		const result2 = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+			transaction: tx2,
+			signer: toolbox.keypair,
+			options: {
+				showEffects: true,
+				showObjectChanges: true,
+			},
+		});
+
+		expect(result2.effects?.status.status).toBe('success');
+		await toolbox.jsonRpcClient.waitForTransaction({ digest: result2.digest });
+
+		const mixedObj = result2.objectChanges?.find(
+			(change) =>
+				change.type === 'created' &&
+				change.objectType?.includes('test_objects::ObjectWithDynamicFields'),
+		);
+		expect(mixedObj).toBeDefined();
+		if (mixedObj && mixedObj.type === 'created') {
+			objectWithMixedFieldsId = mixedObj.objectId;
 		}
+
+		expect(objectWithDynamicFieldsId).toBeDefined();
+		expect(objectWithMixedFieldsId).toBeDefined();
 	});
 
 	describe('getDynamicFields', () => {
@@ -148,6 +157,58 @@ describe('Core API - Dynamic Fields', () => {
 
 			expect(result.dynamicFields.length).toBe(0);
 			expect(result.hasNextPage).toBe(false);
+		});
+	});
+
+	describe('$kind and childId', () => {
+		testWithAllClients(
+			'should return $kind DynamicField for regular dynamic fields',
+			async (client) => {
+				const result = await client.core.listDynamicFields({
+					parentId: objectWithDynamicFieldsId,
+				});
+
+				// All fields on this object are regular dynamic fields
+				for (const field of result.dynamicFields) {
+					expect(field.$kind).toBe('DynamicField');
+					expect(field.childId).toBeUndefined();
+				}
+			},
+		);
+
+		testWithAllClients(
+			'should return correct $kind and childId for mixed dynamic fields',
+			async (client) => {
+				const result = await client.core.listDynamicFields({
+					parentId: objectWithMixedFieldsId,
+				});
+
+				expect(result.dynamicFields.length).toBe(2);
+
+				const regularField = result.dynamicFields.find((f) => f.$kind === 'DynamicField');
+				const objectField = result.dynamicFields.find((f) => f.$kind === 'DynamicObject');
+
+				expect(regularField).toBeDefined();
+				expect(objectField).toBeDefined();
+
+				// Regular dynamic field should not have childId
+				expect(regularField!.childId).toBeUndefined();
+
+				// Dynamic object field should have childId
+				expect(objectField!.childId).toBeTypeOf('string');
+				expect(objectField!.childId.length).toBeGreaterThan(0);
+			},
+		);
+
+		it('all clients return same data for mixed dynamic fields', async () => {
+			await toolbox.expectAllClientsReturnSameData(
+				(client) => client.core.listDynamicFields({ parentId: objectWithMixedFieldsId }),
+				(result) => ({
+					...result,
+					cursor: null,
+					dynamicFields: result.dynamicFields.sort((a, b) => a.fieldId.localeCompare(b.fieldId)),
+				}),
+			);
 		});
 	});
 
