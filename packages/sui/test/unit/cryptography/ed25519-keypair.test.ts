@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { fromBase64, toBase58 } from '@mysten/bcs';
+import { fromBase64, fromHex, toBase58 } from '@mysten/bcs';
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { describe, expect, it } from 'vitest';
 
@@ -108,6 +108,19 @@ describe('ed25519-keypair', () => {
 		expect(() => {
 			Ed25519Keypair.deriveKeypair('aaa');
 		}).toThrow('Invalid mnemonic');
+	});
+
+	it('deriveKeypairFromSeed accepts Uint8Array and produces same result as hex string', () => {
+		const seedHex =
+			'000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f';
+		const seedBytes = fromHex(seedHex);
+
+		const keypairFromHex = Ed25519Keypair.deriveKeypairFromSeed(seedHex);
+		const keypairFromBytes = Ed25519Keypair.deriveKeypairFromSeed(seedBytes);
+
+		expect(keypairFromBytes.getPublicKey().toBase64()).toEqual(
+			keypairFromHex.getPublicKey().toBase64(),
+		);
 	});
 
 	it('signs Transactions', async () => {
