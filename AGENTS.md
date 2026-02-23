@@ -4,7 +4,7 @@ This file provides guidance to AI agents working with code in this repository.
 
 ## Skills
 
-This repository provides specialized skills in `.claude/skills/`. Before starting a task, check if a relevant skill exists by running `skill_search` (or scanning `.claude/skills/`). Skills provide domain-specific workflows and checklists that help avoid common mistakes — load the appropriate skill before diving into implementation.
+This repository provides specialized skills in `.claude/skills/`. Before starting a task, scan `.claude/skills/` for relevant `SKILL.md` files. Skills provide domain-specific workflows and checklists that help avoid common mistakes — read the appropriate skill before diving into implementation.
 
 ## Overview
 
