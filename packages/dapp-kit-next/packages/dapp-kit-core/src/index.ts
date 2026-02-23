@@ -16,4 +16,5 @@ export type { StateStorage } from './utils/storage.js';
 export type { ClientWithCoreApi } from '@mysten/sui/client';
 
 export { getWalletUniqueIdentifier } from './utils/wallets.js';
+export { CurrentAccountSigner } from './utils/signer.js';
 export type { UiWallet, UiWalletAccount } from '@wallet-standard/ui';
