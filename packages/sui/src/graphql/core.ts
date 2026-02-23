@@ -571,19 +571,25 @@ export class GraphQLCoreClient extends CoreClient {
 		);
 
 		return {
-			dynamicFields: result.nodes.map((dynamicField) => {
+			dynamicFields: result.nodes.map((dynamicField): SuiClientTypes.DynamicFieldEntry => {
 				const valueType =
 					dynamicField.value?.__typename === 'MoveObject'
 						? dynamicField.value.contents?.type?.repr!
 						: dynamicField.value?.type?.repr!;
+				const isDynamicObject = dynamicField.value?.__typename === 'MoveObject';
+				const derivedNameType = isDynamicObject
+					? `0x2::dynamic_object_field::Wrapper<${dynamicField.name?.type?.repr}>`
+					: dynamicField.name?.type?.repr!;
+
 				return {
+					$kind: isDynamicObject ? 'DynamicObject' : 'DynamicField',
 					fieldId: deriveDynamicFieldID(
 						options.parentId,
-						dynamicField.name?.type?.repr!,
+						derivedNameType,
 						fromBase64(dynamicField.name?.bcs!),
 					),
 					type: normalizeStructTag(
-						dynamicField.value?.__typename === 'MoveObject'
+						isDynamicObject
 							? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${dynamicField.name?.type?.repr}>,0x2::object::ID>`
 							: `0x2::dynamic_field::Field<${dynamicField.name?.type?.repr},${valueType}>`,
 					),
@@ -592,7 +598,11 @@ export class GraphQLCoreClient extends CoreClient {
 						bcs: fromBase64(dynamicField.name?.bcs!),
 					},
 					valueType,
-				};
+					childId:
+						isDynamicObject && dynamicField.value?.__typename === 'MoveObject'
+							? dynamicField.value.address
+							: undefined,
+				} as SuiClientTypes.DynamicFieldEntry;
 			}),
 			cursor: result.pageInfo.endCursor ?? null,
 			hasNextPage: result.pageInfo.hasNextPage,

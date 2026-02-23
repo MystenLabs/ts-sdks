@@ -54,6 +54,68 @@ describe('parseStructTag', () => {
     `);
 	});
 
+	it('parses struct tags with vector type parameters', () => {
+		expect(parseStructTag('0x2::foo::Bar<vector<u8>>')).toMatchInlineSnapshot(`
+      {
+        "address": "0x0000000000000000000000000000000000000000000000000000000000000002",
+        "module": "foo",
+        "name": "Bar",
+        "typeParams": [
+          "vector<u8>",
+        ],
+      }
+    `);
+
+		expect(parseStructTag('0x2::foo::Bar<vector<0x2::sui::SUI>>')).toMatchInlineSnapshot(`
+      {
+        "address": "0x0000000000000000000000000000000000000000000000000000000000000002",
+        "module": "foo",
+        "name": "Bar",
+        "typeParams": [
+          "vector<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>",
+        ],
+      }
+    `);
+
+		expect(parseStructTag('0x2::foo::Bar<vector<0x3::baz::Qux<bool>>>')).toMatchInlineSnapshot(`
+      {
+        "address": "0x0000000000000000000000000000000000000000000000000000000000000002",
+        "module": "foo",
+        "name": "Bar",
+        "typeParams": [
+          "vector<0x0000000000000000000000000000000000000000000000000000000000000003::baz::Qux<bool>>",
+        ],
+      }
+    `);
+
+		expect(parseStructTag('0x2::foo::Bar<vector<vector<u64>>>')).toMatchInlineSnapshot(`
+      {
+        "address": "0x0000000000000000000000000000000000000000000000000000000000000002",
+        "module": "foo",
+        "name": "Bar",
+        "typeParams": [
+          "vector<vector<u64>>",
+        ],
+      }
+    `);
+
+		expect(parseStructTag('0x2::foo::Bar<vector<vector<0x2::sui::SUI>>>')).toMatchInlineSnapshot(`
+      {
+        "address": "0x0000000000000000000000000000000000000000000000000000000000000002",
+        "module": "foo",
+        "name": "Bar",
+        "typeParams": [
+          "vector<vector<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>>",
+        ],
+      }
+    `);
+	});
+
+	it('rejects malformed vector type parameters', () => {
+		expect(() => parseStructTag('0x2::foo::Bar<vector<>>')).toThrow('Invalid type tag');
+		expect(() => parseStructTag('0x2::foo::Bar<vector<u8>')).toThrow('Invalid type tag');
+	});
+
 	it('parses named struct tags correctly', () => {
 		expect(parseStructTag('@mvr/demo::foo::bar')).toMatchInlineSnapshot(`
       {
@@ -92,6 +154,16 @@ describe('normalizeStructTag', () => {
 
 		expect(normalizeStructTag('0x2::foo::bar<0x3::another::package>')).toEqual(
 			'0x0000000000000000000000000000000000000000000000000000000000000002::foo::bar<0x0000000000000000000000000000000000000000000000000000000000000003::another::package>',
+		);
+	});
+
+	it('normalizes struct tags with vector type parameters', () => {
+		expect(normalizeStructTag('0x2::foo::Bar<vector<u8>>')).toEqual(
+			'0x0000000000000000000000000000000000000000000000000000000000000002::foo::Bar<vector<u8>>',
+		);
+
+		expect(normalizeStructTag('0x2::foo::Bar<vector<0x2::sui::SUI>>')).toEqual(
+			'0x0000000000000000000000000000000000000000000000000000000000000002::foo::Bar<vector<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>>',
 		);
 	});
 
