@@ -2,10 +2,6 @@
 
 This file provides guidance to AI agents working with code in this repository.
 
-## Skills
-
-This repository provides specialized skills in `.claude/skills/`. Before starting a task, scan `.claude/skills/` for relevant `SKILL.md` files. Skills provide domain-specific workflows and checklists that help avoid common mistakes — read the appropriate skill before diving into implementation.
-
 ## Overview
 
 This is a monorepo containing TypeScript SDKs for the Sui blockchain ecosystem. It uses pnpm workspaces, turbo for build orchestration, and includes packages for core Sui functionality, dApp development, wallet integration, and various blockchain services.
