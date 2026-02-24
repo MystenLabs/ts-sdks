@@ -68,14 +68,14 @@ export namespace SuiClientTypes {
 		Include extends ObjectInclude = {},
 	> extends CoreClientMethodOptions {
 		objectIds: string[];
-		include?: Include;
+		include?: Include & ObjectInclude;
 	}
 
 	export interface GetObjectOptions<
 		Include extends ObjectInclude = {},
 	> extends CoreClientMethodOptions {
 		objectId: string;
-		include?: Include;
+		include?: Include & ObjectInclude;
 	}
 
 	export interface ListOwnedObjectsOptions<
@@ -85,7 +85,7 @@ export namespace SuiClientTypes {
 		limit?: number;
 		cursor?: string | null;
 		type?: string;
-		include?: Include;
+		include?: Include & ObjectInclude;
 	}
 
 	export interface ListCoinsOptions extends CoreClientMethodOptions {
@@ -162,6 +162,13 @@ export namespace SuiClientTypes {
 		valueType: string;
 	} & ({ $kind: 'DynamicField'; childId?: never } | { $kind: 'DynamicObject'; childId: string });
 
+	export type DynamicField = DynamicFieldEntry & {
+		value: DynamicFieldValue;
+		version: string;
+		digest: string;
+		previousTransaction: string | null;
+	};
+
 	export interface ListDynamicFieldsResponse {
 		hasNextPage: boolean;
 		cursor: string | null;
@@ -169,15 +176,7 @@ export namespace SuiClientTypes {
 	}
 
 	export interface GetDynamicFieldResponse {
-		dynamicField: {
-			name: DynamicFieldName;
-			value: DynamicFieldValue;
-			fieldId: string;
-			version: string;
-			digest: string;
-			type: string;
-			previousTransaction: string | null;
-		};
+		dynamicField: DynamicField;
 	}
 
 	export interface GetDynamicObjectFieldOptions<
@@ -185,7 +184,7 @@ export namespace SuiClientTypes {
 	> extends CoreClientMethodOptions {
 		parentId: string;
 		name: DynamicFieldName;
-		include?: Include;
+		include?: Include & ObjectInclude;
 	}
 
 	export interface GetDynamicObjectFieldResponse<out Include extends ObjectInclude = {}> {
@@ -346,7 +345,7 @@ export namespace SuiClientTypes {
 		Include extends TransactionInclude = {},
 	> extends CoreClientMethodOptions {
 		digest: string;
-		include?: Include;
+		include?: Include & TransactionInclude;
 	}
 
 	export type WaitForTransactionOptions<Include extends TransactionInclude = {}> =
@@ -364,7 +363,7 @@ export namespace SuiClientTypes {
 		Include extends TransactionInclude = {},
 	> extends CoreClientMethodOptions {
 		result: TransactionResult<any>;
-		include?: Include;
+		include?: Include & TransactionInclude;
 		timeout?: number;
 		digest?: never;
 	}
@@ -374,7 +373,7 @@ export namespace SuiClientTypes {
 	> extends CoreClientMethodOptions {
 		transaction: Uint8Array;
 		signatures: string[];
-		include?: Include;
+		include?: Include & TransactionInclude;
 	}
 
 	export interface SignAndExecuteTransactionOptions<
@@ -383,14 +382,14 @@ export namespace SuiClientTypes {
 		transaction: Uint8Array | TransactionInstance;
 		signer: Signer;
 		additionalSignatures?: string[];
-		include?: Include;
+		include?: Include & TransactionInclude;
 	}
 
 	export interface SimulateTransactionOptions<
 		Include extends SimulateTransactionInclude = {},
 	> extends CoreClientMethodOptions {
 		transaction: Uint8Array | TransactionInstance;
-		include?: Include;
+		include?: Include & SimulateTransactionInclude;
 	}
 
 	export interface GetReferenceGasPriceOptions extends CoreClientMethodOptions {}

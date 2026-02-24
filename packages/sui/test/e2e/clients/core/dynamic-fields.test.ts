@@ -5,6 +5,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { setup, TestToolbox, createTestWithAllClients } from '../../utils/setup.js';
 import { Transaction } from '../../../../src/transactions/index.js';
 import { bcs } from '../../../../src/bcs/index.js';
+import type { SuiGrpcClient } from '../../../../src/grpc/index.js';
+import type { SuiGraphQLClient } from '../../../../src/graphql/index.js';
 
 describe('Core API - Dynamic Fields', () => {
 	let toolbox: TestToolbox;
@@ -209,6 +211,156 @@ describe('Core API - Dynamic Fields', () => {
 					dynamicFields: result.dynamicFields.sort((a, b) => a.fieldId.localeCompare(b.fieldId)),
 				}),
 			);
+		});
+	});
+
+	describe('listDynamicFields with include: { value: true }', () => {
+		it('[gRPC] should return value BCS when include value is true', async () => {
+			const grpcClient = toolbox.grpcClient as SuiGrpcClient;
+			const result = await grpcClient.listDynamicFields({
+				parentId: objectWithDynamicFieldsId,
+				include: { value: true },
+			});
+
+			expect(result.dynamicFields.length).toBe(3);
+			for (const field of result.dynamicFields) {
+				expect(field.value).toBeDefined();
+				expect(field.value.type).toBeTypeOf('string');
+				expect(field.value.bcs).toBeInstanceOf(Uint8Array);
+				expect(field.value.bcs.length).toBeGreaterThan(0);
+			}
+
+			// Find the u64 field and verify the decoded value is 42
+			const u64Field = result.dynamicFields.find((f) => {
+				const decodedArray = bcs.vector(bcs.u8()).parse(f.name.bcs);
+				return new TextDecoder().decode(new Uint8Array(decodedArray)) === 'field_u64';
+			});
+			expect(u64Field).toBeDefined();
+			expect(bcs.u64().parse(u64Field!.value.bcs)).toBe('42');
+		});
+
+		it('[GraphQL] should return value BCS when include value is true', async () => {
+			const graphqlClient = toolbox.graphqlClient as SuiGraphQLClient;
+			const result = await graphqlClient.listDynamicFields({
+				parentId: objectWithDynamicFieldsId,
+				include: { value: true },
+			});
+
+			expect(result.dynamicFields.length).toBe(3);
+			for (const field of result.dynamicFields) {
+				expect(field.value).toBeDefined();
+				expect(field.value.type).toBeTypeOf('string');
+				expect(field.value.bcs).toBeInstanceOf(Uint8Array);
+				expect(field.value.bcs.length).toBeGreaterThan(0);
+			}
+
+			// Find the u64 field and verify the decoded value is 42
+			const u64Field = result.dynamicFields.find((f) => {
+				const decodedArray = bcs.vector(bcs.u8()).parse(f.name.bcs);
+				return new TextDecoder().decode(new Uint8Array(decodedArray)) === 'field_u64';
+			});
+			expect(u64Field).toBeDefined();
+			expect(bcs.u64().parse(u64Field!.value.bcs)).toBe('42');
+		});
+
+		it('[gRPC] should return undefined value without include', async () => {
+			const grpcClient = toolbox.grpcClient as SuiGrpcClient;
+			const result = await grpcClient.listDynamicFields({
+				parentId: objectWithDynamicFieldsId,
+			});
+
+			for (const field of result.dynamicFields) {
+				expect(field.value).toBeUndefined();
+			}
+		});
+
+		it('[GraphQL] should return undefined value without include', async () => {
+			const graphqlClient = toolbox.graphqlClient as SuiGraphQLClient;
+			const result = await graphqlClient.listDynamicFields({
+				parentId: objectWithDynamicFieldsId,
+			});
+
+			for (const field of result.dynamicFields) {
+				expect(field.value).toBeUndefined();
+			}
+		});
+
+		it('[gRPC] should return value for mixed dynamic fields including DOFs', async () => {
+			const grpcClient = toolbox.grpcClient as SuiGrpcClient;
+			const result = await grpcClient.listDynamicFields({
+				parentId: objectWithMixedFieldsId,
+				include: { value: true },
+			});
+
+			expect(result.dynamicFields.length).toBe(2);
+
+			const regularField = result.dynamicFields.find((f) => f.$kind === 'DynamicField');
+			const objectField = result.dynamicFields.find((f) => f.$kind === 'DynamicObject');
+
+			expect(regularField).toBeDefined();
+			expect(objectField).toBeDefined();
+
+			// Both should have value
+			expect(regularField!.value).toBeDefined();
+			expect(regularField!.value.bcs.length).toBeGreaterThan(0);
+			expect(objectField!.value).toBeDefined();
+			expect(objectField!.value.bcs.length).toBeGreaterThan(0);
+
+			// Regular field value should decode to 100u64
+			expect(bcs.u64().parse(regularField!.value.bcs)).toBe('100');
+		});
+
+		it('[GraphQL] should return value for mixed dynamic fields including DOFs', async () => {
+			const graphqlClient = toolbox.graphqlClient as SuiGraphQLClient;
+			const result = await graphqlClient.listDynamicFields({
+				parentId: objectWithMixedFieldsId,
+				include: { value: true },
+			});
+
+			expect(result.dynamicFields.length).toBe(2);
+
+			const regularField = result.dynamicFields.find((f) => f.$kind === 'DynamicField');
+			const objectField = result.dynamicFields.find((f) => f.$kind === 'DynamicObject');
+
+			expect(regularField).toBeDefined();
+			expect(objectField).toBeDefined();
+
+			// Both should have value
+			expect(regularField!.value).toBeDefined();
+			expect(regularField!.value.bcs.length).toBeGreaterThan(0);
+			expect(objectField!.value).toBeDefined();
+			expect(objectField!.value.bcs.length).toBeGreaterThan(0);
+
+			// Regular field value should decode to 100u64
+			expect(bcs.u64().parse(regularField!.value.bcs)).toBe('100');
+		});
+
+		it('gRPC and GraphQL return same data with include value', async () => {
+			const grpcClient = toolbox.grpcClient as SuiGrpcClient;
+			const graphqlClient = toolbox.graphqlClient as SuiGraphQLClient;
+
+			const [grpcResult, graphqlResult] = await Promise.all([
+				grpcClient.listDynamicFields({
+					parentId: objectWithDynamicFieldsId,
+					include: { value: true },
+				}),
+				graphqlClient.listDynamicFields({
+					parentId: objectWithDynamicFieldsId,
+					include: { value: true },
+				}),
+			]);
+
+			const normalize = (fields: typeof grpcResult.dynamicFields) =>
+				fields
+					.sort((a, b) => a.fieldId.localeCompare(b.fieldId))
+					.map((f) => ({
+						fieldId: f.fieldId,
+						$kind: f.$kind,
+						valueType: f.valueType,
+						valueBcs: Array.from(f.value.bcs),
+					}));
+
+			expect(normalize(grpcResult.dynamicFields)).toEqual(normalize(graphqlResult.dynamicFields));
 		});
 	});
 

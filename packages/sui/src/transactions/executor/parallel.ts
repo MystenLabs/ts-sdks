@@ -128,7 +128,7 @@ export class ParallelTransactionExecutor {
 
 	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		transaction: Transaction,
-		include?: Include,
+		include?: Include & SuiClientTypes.TransactionInclude,
 		additionalSignatures: string[] = [],
 	): Promise<SuiClientTypes.TransactionResult<Include & { effects: true }>> {
 		const { promise, resolve, reject } =

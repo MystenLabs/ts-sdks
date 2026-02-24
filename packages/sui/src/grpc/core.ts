@@ -6,7 +6,6 @@ import { CoreClient, formatMoveAbortMessage, SimulationError } from '../client/i
 import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2/owner.js';
 import { Owner_OwnerKind } from './proto/sui/rpc/v2/owner.js';
-import { DynamicField_DynamicFieldKind } from './proto/sui/rpc/v2/state_service.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import type { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import type { TransactionEffects } from './proto/sui/rpc/v2/effects.js';
@@ -56,7 +55,7 @@ export class GrpcCoreClient extends CoreClient {
 		this.#client = client;
 	}
 
-	async getObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+	async getObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.GetObjectsOptions<Include>,
 	): Promise<SuiClientTypes.GetObjectsResponse<Include>> {
 		const batches = chunk(options.objectIds, 50);
@@ -131,7 +130,7 @@ export class GrpcCoreClient extends CoreClient {
 			objects: results,
 		};
 	}
-	async listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+	async listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.ListOwnedObjectsOptions<Include>,
 	): Promise<SuiClientTypes.ListOwnedObjectsResponse<Include>> {
 		const paths = ['owner', 'object_type', 'digest', 'version', 'object_id'];
@@ -285,7 +284,7 @@ export class GrpcCoreClient extends CoreClient {
 			})),
 		};
 	}
-	async getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	async getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
@@ -327,7 +326,7 @@ export class GrpcCoreClient extends CoreClient {
 
 		return parseTransaction(response.transaction, options.include);
 	}
-	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
@@ -377,7 +376,7 @@ export class GrpcCoreClient extends CoreClient {
 
 		return parseTransaction(response.transaction!, options.include);
 	}
-	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = object>(
+	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		const paths = [
@@ -561,38 +560,7 @@ export class GrpcCoreClient extends CoreClient {
 	async listDynamicFields(
 		options: SuiClientTypes.ListDynamicFieldsOptions,
 	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
-		const response = await this.#client.stateService.listDynamicFields({
-			parent: options.parentId,
-			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
-			pageSize: options.limit,
-			readMask: {
-				paths: ['field_id', 'name', 'value_type', 'kind', 'child_id'],
-			},
-		});
-
-		return {
-			dynamicFields: response.response.dynamicFields.map(
-				(field): SuiClientTypes.DynamicFieldEntry => {
-					const isDynamicObject = field.kind === DynamicField_DynamicFieldKind.OBJECT;
-					const fieldType = isDynamicObject
-						? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${field.name?.name!}>,0x2::object::ID>`
-						: `0x2::dynamic_field::Field<${field.name?.name!},${field.valueType!}>`;
-					return {
-						$kind: isDynamicObject ? 'DynamicObject' : 'DynamicField',
-						fieldId: field.fieldId!,
-						name: {
-							type: field.name?.name!,
-							bcs: field.name?.value!,
-						},
-						valueType: field.valueType!,
-						type: normalizeStructTag(fieldType),
-						childId: field.childId,
-					} as SuiClientTypes.DynamicFieldEntry;
-				},
-			),
-			cursor: response.response.nextPageToken ? toBase64(response.response.nextPageToken) : null,
-			hasNextPage: response.response.nextPageToken !== undefined,
-		};
+		return this.#client.listDynamicFields(options);
 	}
 
 	async verifyZkLoginSignature(
@@ -1170,7 +1138,7 @@ export function parseTransactionEffects({
 	};
 }
 
-function parseTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 	transaction: ExecutedTransaction,
 	include?: Include,
 ): SuiClientTypes.TransactionResult<Include> {

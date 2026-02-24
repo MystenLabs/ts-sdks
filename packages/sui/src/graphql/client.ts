@@ -9,6 +9,10 @@ import { BaseClient } from '../client/index.js';
 import type { SuiClientTypes } from '../client/index.js';
 import { GraphQLCoreClient } from './core.js';
 import type { TypedDocumentString } from './generated/queries.js';
+import { GetDynamicFieldsDocument } from './generated/queries.js';
+import { fromBase64 } from '@mysten/utils';
+import { normalizeStructTag } from '../utils/sui-types.js';
+import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 
 export type GraphQLDocument<
@@ -64,6 +68,21 @@ export function isSuiGraphQLClient(client: unknown): client is SuiGraphQLClient 
 	return (
 		typeof client === 'object' && client !== null && (client as any)[SUI_CLIENT_BRAND] === true
 	);
+}
+
+export interface DynamicFieldInclude {
+	value?: boolean;
+}
+
+export type DynamicFieldEntryWithValue<Include extends DynamicFieldInclude = {}> =
+	SuiClientTypes.DynamicFieldEntry & {
+		value: Include extends { value: true } ? SuiClientTypes.DynamicFieldValue : undefined;
+	};
+
+export interface ListDynamicFieldsWithValueResponse<Include extends DynamicFieldInclude = {}> {
+	hasNextPage: boolean;
+	cursor: string | null;
+	dynamicFields: DynamicFieldEntryWithValue<Include>[];
 }
 
 export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = {}>
@@ -220,10 +239,83 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		return this.core.getReferenceGasPrice();
 	}
 
-	listDynamicFields(
-		input: SuiClientTypes.ListDynamicFieldsOptions,
-	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
-		return this.core.listDynamicFields(input);
+	async listDynamicFields<Include extends DynamicFieldInclude = {}>(
+		input: SuiClientTypes.ListDynamicFieldsOptions & { include?: Include & DynamicFieldInclude },
+	): Promise<ListDynamicFieldsWithValueResponse<Include>> {
+		const includeValue = input.include?.value ?? false;
+
+		const { data, errors } = await this.query({
+			query: GetDynamicFieldsDocument,
+			variables: {
+				parentId: input.parentId,
+				first: input.limit,
+				cursor: input.cursor,
+				includeValue,
+			},
+		});
+
+		if (errors?.length) {
+			throw errors.length === 1
+				? new Error(errors[0].message)
+				: new AggregateError(errors.map((e) => new Error(e.message)));
+		}
+
+		const result = data?.address?.dynamicFields;
+		if (!result) {
+			throw new Error('Missing response data');
+		}
+
+		return {
+			dynamicFields: result.nodes.map((dynamicField): DynamicFieldEntryWithValue<Include> => {
+				const valueType =
+					dynamicField.value?.__typename === 'MoveObject'
+						? dynamicField.value.contents?.type?.repr!
+						: dynamicField.value?.type?.repr!;
+				const isDynamicObject = dynamicField.value?.__typename === 'MoveObject';
+				const derivedNameType = isDynamicObject
+					? `0x2::dynamic_object_field::Wrapper<${dynamicField.name?.type?.repr}>`
+					: dynamicField.name?.type?.repr!;
+
+				let value: SuiClientTypes.DynamicFieldValue | undefined;
+				if (includeValue) {
+					let valueBcs: Uint8Array;
+					if (dynamicField.value?.__typename === 'MoveValue') {
+						valueBcs = fromBase64(dynamicField.value.bcs ?? '');
+					} else if (dynamicField.value?.__typename === 'MoveObject') {
+						valueBcs = fromBase64(dynamicField.value.contents?.bcs ?? '');
+					} else {
+						valueBcs = new Uint8Array();
+					}
+					value = { type: valueType, bcs: valueBcs };
+				}
+
+				return {
+					$kind: isDynamicObject ? 'DynamicObject' : 'DynamicField',
+					fieldId: deriveDynamicFieldID(
+						input.parentId,
+						derivedNameType,
+						fromBase64(dynamicField.name?.bcs!),
+					),
+					type: normalizeStructTag(
+						isDynamicObject
+							? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${dynamicField.name?.type?.repr}>,0x2::object::ID>`
+							: `0x2::dynamic_field::Field<${dynamicField.name?.type?.repr},${valueType}>`,
+					),
+					name: {
+						type: dynamicField.name?.type?.repr!,
+						bcs: fromBase64(dynamicField.name?.bcs!),
+					},
+					valueType,
+					childId:
+						isDynamicObject && dynamicField.value?.__typename === 'MoveObject'
+							? dynamicField.value.address
+							: undefined,
+					value: (includeValue ? value : undefined) as DynamicFieldEntryWithValue<Include>['value'],
+				} as DynamicFieldEntryWithValue<Include>;
+			}),
+			cursor: result.pageInfo.endCursor ?? null,
+			hasNextPage: result.pageInfo.hasNextPage,
+		};
 	}
 
 	getDynamicField(
