@@ -115,7 +115,7 @@ export class JSONRpcCoreClient extends CoreClient {
 		this.#jsonRpcClient = jsonRpcClient;
 	}
 
-	async getObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+	async getObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.GetObjectsOptions<Include>,
 	) {
 		const batches = chunk(options.objectIds, 50);
@@ -148,7 +148,7 @@ export class JSONRpcCoreClient extends CoreClient {
 			objects: results,
 		};
 	}
-	async listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+	async listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.ListOwnedObjectsOptions<Include>,
 	) {
 		let filter: SuiObjectDataFilter | null = null;
@@ -287,7 +287,7 @@ export class JSONRpcCoreClient extends CoreClient {
 			cursor: null,
 		};
 	}
-	async getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	async getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		const transaction = await this.#jsonRpcClient.getTransactionBlock({
@@ -307,7 +307,7 @@ export class JSONRpcCoreClient extends CoreClient {
 
 		return parseTransaction(transaction, options.include);
 	}
-	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		const transaction = await this.#jsonRpcClient.executeTransactionBlock({
@@ -328,7 +328,7 @@ export class JSONRpcCoreClient extends CoreClient {
 
 		return parseTransaction(transaction, options.include);
 	}
-	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = object>(
+	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		if (!(options.transaction instanceof Uint8Array)) {
@@ -664,7 +664,7 @@ function serializeObjectToBcs(object: SuiObjectData): Uint8Array | undefined {
 	}
 }
 
-function parseObject<Include extends SuiClientTypes.ObjectInclude = object>(
+function parseObject<Include extends SuiClientTypes.ObjectInclude = {}>(
 	object: SuiObjectData,
 	include?: Include,
 ): SuiClientTypes.Object<Include> {
@@ -802,7 +802,7 @@ function parseOwnerAddress(owner: ObjectOwner): string | null {
 	throw new Error(`Unknown owner type: ${JSON.stringify(owner)}`);
 }
 
-function parseTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 	transaction: SuiTransactionBlockResponse,
 	include?: Include,
 ): SuiClientTypes.TransactionResult<Include> {

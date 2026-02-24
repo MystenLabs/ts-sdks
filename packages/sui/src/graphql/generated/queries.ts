@@ -1597,16 +1597,11 @@ export type ExecutionError = {
   sourceLineNumber?: Maybe<Scalars['Int']['output']>;
 };
 
-/** The execution result of a transaction, including the transaction effects and any potential errors due to signing or quorum-driving. */
+/** The execution result of a transaction, including the transaction effects. */
 export type ExecutionResult = {
   __typename?: 'ExecutionResult';
-  /** The effects of the transaction execution, if successful. */
+  /** The effects of the transaction execution. */
   effects?: Maybe<TransactionEffects>;
-  /**
-   * Errors that occurred during execution (e.g., network errors, validation failures).
-   * These are distinct from execution failures within the transaction itself.
-   */
-  errors?: Maybe<Array<Scalars['String']['output']>>;
 };
 
 /** The execution status of this transaction: success or failure. */
@@ -4157,21 +4152,11 @@ export type SharedInput = {
   mutable?: Maybe<Scalars['Boolean']['output']>;
 };
 
-/** The result of simulating a transaction, including the predicted effects and any errors. */
+/** The result of simulating a transaction, including the predicted effects. */
 export type SimulationResult = {
   __typename?: 'SimulationResult';
-  /**
-   * The predicted effects of the transaction if it were executed.
-   *
-   * `None` if the simulation failed due to an error.
-   */
+  /** The predicted effects of the transaction if it were executed. */
   effects?: Maybe<TransactionEffects>;
-  /**
-   * Error message if the simulation failed.
-   *
-   * `None` if the simulation was successful.
-   */
-  error?: Maybe<Scalars['String']['output']>;
   /** The intermediate outputs for each command of the transaction simulation, including contents of mutated references and return values. */
   outputs?: Maybe<Array<CommandResult>>;
 };
@@ -4644,12 +4629,13 @@ export type GetDynamicFieldsQueryVariables = Exact<{
   parentId: Scalars['SuiAddress']['input'];
   first?: InputMaybe<Scalars['Int']['input']>;
   cursor?: InputMaybe<Scalars['String']['input']>;
+  includeValue?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
 export type GetDynamicFieldsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', dynamicFields?: { __typename?: 'DynamicFieldConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'DynamicField', name?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null, value?:
-          | { __typename: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null }
-          | { __typename: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null }
+          | { __typename: 'MoveObject', address: string, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }
+          | { __typename: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null }
          | null }> } | null } | null };
 
 export type GetMoveFunctionQueryVariables = Exact<{
@@ -4758,7 +4744,7 @@ export type SimulateTransactionQueryVariables = Exact<{
 }>;
 
 
-export type SimulateTransactionQuery = { __typename?: 'Query', simulateTransaction: { __typename?: 'SimulationResult', error?: string | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionJson?: unknown | null, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, effectsJson?: unknown | null, balanceChangesJson?: unknown | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null } | null, outputs?: Array<{ __typename?: 'CommandResult', returnValues?: Array<{ __typename?: 'CommandOutput', value?: { __typename?: 'MoveValue', bcs?: string | null } | null }> | null, mutatedReferences?: Array<{ __typename?: 'CommandOutput', value?: { __typename?: 'MoveValue', bcs?: string | null } | null }> | null }> | null } };
+export type SimulateTransactionQuery = { __typename?: 'Query', simulateTransaction: { __typename?: 'SimulationResult', effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionJson?: unknown | null, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, effectsJson?: unknown | null, balanceChangesJson?: unknown | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null } | null, outputs?: Array<{ __typename?: 'CommandResult', returnValues?: Array<{ __typename?: 'CommandOutput', value?: { __typename?: 'MoveValue', bcs?: string | null } | null }> | null, mutatedReferences?: Array<{ __typename?: 'CommandOutput', value?: { __typename?: 'MoveValue', bcs?: string | null } | null }> | null }> | null } };
 
 export type ExecuteTransactionMutationVariables = Exact<{
   transactionDataBcs: Scalars['Base64']['input'];
@@ -4772,7 +4758,7 @@ export type ExecuteTransactionMutationVariables = Exact<{
 }>;
 
 
-export type ExecuteTransactionMutation = { __typename?: 'Mutation', executeTransaction: { __typename?: 'ExecutionResult', errors?: Array<string> | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionJson?: unknown | null, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, effectsJson?: unknown | null, balanceChangesJson?: unknown | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null } | null } };
+export type ExecuteTransactionMutation = { __typename?: 'Mutation', executeTransaction: { __typename?: 'ExecutionResult', effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', digest: string, transactionJson?: unknown | null, transactionBcs?: string | null, signatures: Array<{ __typename?: 'UserSignature', signatureBytes?: string | null }>, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsBcs?: string | null, effectsJson?: unknown | null, balanceChangesJson?: unknown | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null, epoch?: { __typename?: 'Epoch', epochId: number } | null, objectChanges?: { __typename?: 'ObjectChangeConnection', nodes: Array<{ __typename?: 'ObjectChange', address: string, outputState?: { __typename?: 'Object', asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', type?: { __typename?: 'MoveType', repr: string } | null } | null } | null } | null }> } | null, events?: { __typename?: 'EventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean }, nodes: Array<{ __typename?: 'Event', transactionModule?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, sender?: { __typename?: 'Address', address: string } | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null } | null } | null } };
 
 export type GetTransactionBlockQueryVariables = Exact<{
   digest: Scalars['String']['input'];
@@ -4795,7 +4781,7 @@ export type ResolveTransactionQueryVariables = Exact<{
 }>;
 
 
-export type ResolveTransactionQuery = { __typename?: 'Query', simulateTransaction: { __typename?: 'SimulationResult', error?: string | null, effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', transactionBcs?: string | null, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null } | null } | null } | null } };
+export type ResolveTransactionQuery = { __typename?: 'Query', simulateTransaction: { __typename?: 'SimulationResult', effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', transactionBcs?: string | null, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null } | null } | null } | null } };
 
 export type VerifyZkLoginSignatureQueryVariables = Exact<{
   bytes: Scalars['Base64']['input'];
@@ -5125,7 +5111,7 @@ export const GetCurrentSystemStateDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<GetCurrentSystemStateQuery, GetCurrentSystemStateQueryVariables>;
 export const GetDynamicFieldsDocument = new TypedDocumentString(`
-    query getDynamicFields($parentId: SuiAddress!, $first: Int, $cursor: String) {
+    query getDynamicFields($parentId: SuiAddress!, $first: Int, $cursor: String, $includeValue: Boolean = false) {
   address(address: $parentId) {
     dynamicFields(first: $first, after: $cursor) {
       pageInfo {
@@ -5142,6 +5128,7 @@ export const GetDynamicFieldsDocument = new TypedDocumentString(`
         value {
           __typename
           ... on MoveValue {
+            bcs @include(if: $includeValue)
             type {
               repr
             }
@@ -5149,6 +5136,7 @@ export const GetDynamicFieldsDocument = new TypedDocumentString(`
           ... on MoveObject {
             address
             contents {
+              bcs @include(if: $includeValue)
               type {
                 repr
               }
@@ -5312,7 +5300,6 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
     doGasSelection: $doGasSelection
     checksEnabled: $checksEnabled
   ) {
-    error
     effects {
       transaction {
         ...TRANSACTION_FIELDS
@@ -5408,7 +5395,6 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
     transactionDataBcs: $transactionDataBcs
     signatures: $signatures
   ) {
-    errors
     effects {
       transaction {
         ...TRANSACTION_FIELDS
@@ -5565,7 +5551,6 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
 export const ResolveTransactionDocument = new TypedDocumentString(`
     query resolveTransaction($transaction: JSON!, $doGasSelection: Boolean = true) {
   simulateTransaction(transaction: $transaction, doGasSelection: $doGasSelection) {
-    error
     effects {
       transaction {
         transactionBcs
