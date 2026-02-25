@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 1.1.1
+
+### Patch Changes
+
+- 380d5b1: Fix getMarginManagerBalanceManagerId
+
 ## 1.1.0
 
 ### Minor Changes
