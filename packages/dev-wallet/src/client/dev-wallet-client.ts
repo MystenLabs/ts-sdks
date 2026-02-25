@@ -1,0 +1,263 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+import { fromBase64, toBase64 } from '@mysten/sui/utils';
+import { mitt, type Emitter } from '@mysten/utils';
+import type {
+	StandardConnectFeature,
+	StandardConnectMethod,
+	StandardDisconnectFeature,
+	StandardDisconnectMethod,
+	StandardEventsFeature,
+	StandardEventsListeners,
+	StandardEventsOnMethod,
+	SuiFeatures,
+	SuiSignAndExecuteTransactionMethod,
+	SuiSignPersonalMessageMethod,
+	SuiSignTransactionMethod,
+	Wallet,
+	WalletIcon,
+} from '@mysten/wallet-standard';
+import { getWallets, ReadonlyWalletAccount, SUI_CHAINS } from '@mysten/wallet-standard';
+import { DappPostMessageChannel, decodeJwtSession } from '@mysten/window-wallet-core';
+
+type WalletEventsMap = {
+	[E in keyof StandardEventsListeners]: Parameters<StandardEventsListeners[E]>[0];
+};
+
+const DEFAULT_WALLET_NAME = 'Dev Wallet';
+const DEFAULT_ORIGIN = 'http://localhost:5174';
+
+const DEFAULT_WALLET_ICON: WalletIcon =
+	'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjNjM2NkYxIi8+PHBhdGggZD0iTTkgMjJWMTBoMy41YTQgNCAwIDAgMSAwIDhoLTIuNW0wIDBoLTFtMS00aDIuNSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48cGF0aCBkPSJNMTkgMTBsMy41IDEyTTI2IDEwbC0zLjUgMTJNMTkuNSAxOGg1IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==';
+
+const WALLET_FEATURES = [
+	'sui:signTransaction',
+	'sui:signAndExecuteTransaction',
+	'sui:signPersonalMessage',
+] as const;
+
+/**
+ * Options for creating a DevWalletClient.
+ */
+export interface DevWalletClientOptions {
+	/** Display name for the wallet. Defaults to 'Dev Wallet'. */
+	name?: string;
+	/** Data URI icon for the wallet. */
+	icon?: WalletIcon;
+	/** Origin of the dev wallet web app. Defaults to 'http://localhost:5174'. */
+	origin?: string;
+}
+
+/**
+ * A wallet-standard wallet that communicates with a remote DevWallet
+ * web app via PostMessage popups.
+ *
+ * dApps register this client to connect to a dev wallet running as a
+ * standalone web app (started via `npx @mysten/dev-wallet serve`).
+ *
+ * @example
+ * ```typescript
+ * const unregister = DevWalletClient.register({
+ *   origin: 'http://localhost:5174',
+ * });
+ * // dApp code uses normal dapp-kit hooks — wallet popups for signing
+ * ```
+ */
+export class DevWalletClient implements Wallet {
+	readonly #name: string;
+	readonly #icon: WalletIcon;
+	readonly #origin: string;
+	readonly #sessionKey: string;
+	#accounts: ReadonlyWalletAccount[] = [];
+	#events: Emitter<WalletEventsMap>;
+
+	constructor(options?: DevWalletClientOptions) {
+		this.#name = options?.name ?? DEFAULT_WALLET_NAME;
+		this.#icon = options?.icon ?? DEFAULT_WALLET_ICON;
+		this.#origin = options?.origin ?? DEFAULT_ORIGIN;
+		this.#sessionKey = `dev-wallet:session:${this.#origin}`;
+		this.#events = mitt();
+
+		// Restore session from localStorage
+		this.#tryRestoreSession();
+	}
+
+	/**
+	 * Create and register a DevWalletClient with the wallet-standard registry.
+	 *
+	 * @returns An unregister function that removes the wallet.
+	 */
+	static register(options?: DevWalletClientOptions): () => void {
+		const wallet = new DevWalletClient(options);
+		const wallets = getWallets();
+		return wallets.register(wallet);
+	}
+
+	get version() {
+		return '1.0.0' as const;
+	}
+
+	get name() {
+		return this.#name;
+	}
+
+	get icon() {
+		return this.#icon;
+	}
+
+	get chains() {
+		return SUI_CHAINS;
+	}
+
+	get accounts(): readonly ReadonlyWalletAccount[] {
+		return this.#accounts;
+	}
+
+	get features(): StandardConnectFeature &
+		StandardEventsFeature &
+		StandardDisconnectFeature &
+		SuiFeatures {
+		return {
+			'standard:connect': {
+				version: '1.0.0',
+				connect: this.#connect,
+			},
+			'standard:events': {
+				version: '1.0.0',
+				on: this.#on,
+			},
+			'standard:disconnect': {
+				version: '1.0.0',
+				disconnect: this.#disconnect,
+			},
+			'sui:signPersonalMessage': {
+				version: '1.1.0',
+				signPersonalMessage: this.#signPersonalMessage,
+			},
+			'sui:signTransaction': {
+				version: '2.0.0',
+				signTransaction: this.#signTransaction,
+			},
+			'sui:signAndExecuteTransaction': {
+				version: '2.0.0',
+				signAndExecuteTransaction: this.#signAndExecuteTransaction,
+			},
+		};
+	}
+
+	#on: StandardEventsOnMethod = (event, listener) => {
+		this.#events.on(event, listener);
+		return () => this.#events.off(event, listener);
+	};
+
+	#connect: StandardConnectMethod = async () => {
+		const channel = this.#createChannel();
+		const response = await channel.send({ type: 'connect' });
+
+		this.#setSession(response.session);
+		this.#setAccountsFromSession(response.session);
+
+		return { accounts: this.accounts };
+	};
+
+	#disconnect: StandardDisconnectMethod = async () => {
+		this.#clearSession();
+		this.#accounts = [];
+		this.#events.emit('change', { accounts: this.#accounts });
+	};
+
+	#signPersonalMessage: SuiSignPersonalMessageMethod = async (input) => {
+		const channel = this.#createChannel();
+		const response = await channel.send({
+			type: 'sign-personal-message',
+			message: toBase64(input.message),
+			address: input.account.address,
+			chain: input.chain ?? input.account.chains[0] ?? 'sui:unknown',
+			session: this.#getSession(),
+		});
+
+		return { bytes: response.bytes, signature: response.signature };
+	};
+
+	#signTransaction: SuiSignTransactionMethod = async (input) => {
+		const txJson = await input.transaction.toJSON();
+		const channel = this.#createChannel();
+		const response = await channel.send({
+			type: 'sign-transaction',
+			transaction: txJson,
+			address: input.account.address,
+			chain: input.chain,
+			session: this.#getSession(),
+		});
+
+		return { bytes: response.bytes, signature: response.signature };
+	};
+
+	#signAndExecuteTransaction: SuiSignAndExecuteTransactionMethod = async (input) => {
+		const txJson = await input.transaction.toJSON();
+		const channel = this.#createChannel();
+		const response = await channel.send({
+			type: 'sign-and-execute-transaction',
+			transaction: txJson,
+			address: input.account.address,
+			chain: input.chain,
+			session: this.#getSession(),
+		});
+
+		return {
+			bytes: response.bytes,
+			signature: response.signature,
+			digest: response.digest,
+			effects: response.effects,
+		};
+	};
+
+	#createChannel(): DappPostMessageChannel {
+		return new DappPostMessageChannel({
+			appName: this.#name,
+			hostOrigin: this.#origin,
+		});
+	}
+
+	#getSession(): string {
+		const session = localStorage.getItem(this.#sessionKey);
+		if (!session) {
+			throw new Error('No active session. Call connect() first.');
+		}
+		return session;
+	}
+
+	#setSession(session: string): void {
+		localStorage.setItem(this.#sessionKey, session);
+	}
+
+	#clearSession(): void {
+		localStorage.removeItem(this.#sessionKey);
+	}
+
+	#setAccountsFromSession(session: string): void {
+		const decoded = decodeJwtSession(session);
+		this.#accounts = decoded.payload.accounts.map(
+			(account: { address: string; publicKey: string }) =>
+				new ReadonlyWalletAccount({
+					address: account.address,
+					publicKey: account.publicKey ? fromBase64(account.publicKey) : new Uint8Array(0),
+					chains: [...SUI_CHAINS],
+					features: [...WALLET_FEATURES],
+				}),
+		);
+		this.#events.emit('change', { accounts: this.#accounts });
+	}
+
+	#tryRestoreSession(): void {
+		const session = localStorage.getItem(this.#sessionKey);
+		if (!session) return;
+
+		try {
+			this.#setAccountsFromSession(session);
+		} catch {
+			this.#clearSession();
+		}
+	}
+}
