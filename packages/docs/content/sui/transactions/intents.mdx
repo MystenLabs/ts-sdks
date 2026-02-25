@@ -1,0 +1,120 @@
+---
+title: Transaction Intents
+---
+
+Transaction Intents enable third-party SDKs and [Transaction Plugins](../plugins) to add complex
+operations to a Transaction that are resolved at build time. The SDK currently includes one built-in
+intent: `CoinWithBalance`.
+
+## How intents work
+
+An intent is a placeholder command that gets resolved into real transaction commands when the
+transaction is built. This resolution can involve network lookups (fetching coin objects, checking
+balances) or can be done entirely offline.
+
+When you call `coinWithBalance(...)`, it adds a `$Intent` command to the transaction. During
+building, the intent resolver replaces it with concrete commands based on the sender's available
+funds.
+
+## How CoinWithBalance selects funds
+
+The resolver uses a combination of coin objects and address balances to fulfill each request. The
+strategy depends on the coin type, available funds, and options:
+
+**For SUI with `useGasCoin: true` (the default):**
+
+The gas coin is used directly — `SplitCoins(GasCoin, [amount])`. No network lookups are needed for
+the coin itself, though the SDK still fetches the address balance to check sufficiency.
+
+**For non-SUI types (or SUI with `useGasCoin: false`):**
+
+1. The resolver fetches the sender's coin objects and address balance for each coin type in parallel
+2. If the **address balance alone** covers the total requested amount for that type, the resolver
+   uses a `FundsWithdrawal` input redeemed via `0x2::coin::redeem_funds` — no coin objects are
+   needed
+3. Otherwise, the resolver selects enough **coin objects** to cover the amount (skipping any already
+   used as transaction inputs), merges them if needed, and splits the requested amount. If the
+   address balance is also non-zero, it adds a `FundsWithdrawal` and merges that into the coin as
+   well
+4. If the total balance (coins + address balance) is insufficient, building throws an error
+
+**With `forceAddressBalance: true`:**
+
+The resolver skips all coin object lookups and always uses a `FundsWithdrawal` input. This enables
+fully offline building with no network client required.
+
+**For zero balance:**
+
+A zero-balance request resolves to `0x2::coin::zero` regardless of other options.
+
+## The CoinWithBalance intent
+
+`coinWithBalance` is covered in detail in [Coins and Balances](./coins-and-balances#using-coinwithbalance-recommended).
+Here's a summary of its options:
+
+```typescript
+import { coinWithBalance } from '@mysten/sui/transactions';
+
+coinWithBalance({
+	balance: 1_000_000_000,            // required — amount in base units (MIST for SUI)
+	type: '0xPkg::module::CoinType',   // optional — defaults to SUI
+	useGasCoin: false,                  // optional — set false for sponsored transactions
+	forceAddressBalance: true,          // optional — force address balance (for offline building)
+});
+```
+
+| Option                | Default    | Description                                                 |
+| --------------------- | ---------- | ----------------------------------------------------------- |
+| `balance`             | (required) | Amount of the coin to create, in base units                 |
+| `type`                | SUI        | Coin type. Defaults to `0x2::sui::SUI`                      |
+| `useGasCoin`          | `true`     | Whether to split from the gas coin for SUI. Set to `false` for sponsored transactions |
+| `forceAddressBalance` | `false`    | Force address balance withdrawals instead of coin objects. Skips network lookups |
+
+### Sponsored transactions
+
+When sponsoring transactions, the gas coin belongs to the sponsor, not the sender. Set
+`useGasCoin: false` so the intent doesn't try to split the sponsor's gas coin:
+
+```typescript
+tx.transferObjects(
+	[coinWithBalance({ balance: 1_000_000_000, useGasCoin: false })],
+	'0xRecipientAddress',
+);
+```
+
+### Offline building
+
+Set `forceAddressBalance: true` to skip network lookups entirely. The intent resolves to a
+`FundsWithdrawal` input instead of fetching coin objects:
+
+```typescript
+tx.transferObjects(
+	[coinWithBalance({ balance: 1_000_000_000, forceAddressBalance: true })],
+	'0xRecipientAddress',
+);
+```
+
+See [Building Offline](./offline) for the full offline transaction building guide.
+
+## Intent serialization
+
+When serializing transactions with `toJSON()`, intents can be preserved or resolved depending on
+whether the receiver supports them:
+
+```typescript
+// Preserve intents (for wallets/tools that understand them)
+const json = await tx.toJSON({ supportedIntents: ['CoinWithBalance'] });
+
+// Resolve intents into concrete commands (requires a client for network lookups)
+const json = await tx.toJSON({ supportedIntents: [], client: grpcClient });
+
+// Resolve intents without a client (only works with forceAddressBalance: true)
+const json = await tx.toJSON({ supportedIntents: [] });
+```
+
+## Custom intents
+
+You can create custom intents for your own SDK or application using
+`TransactionCommands.Intent()` and `tx.addIntentResolver()`. See
+[Transaction Plugins](../plugins) and [SDK Building](../sdk-building) for details on building
+composable transaction libraries.

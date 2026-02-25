@@ -1,0 +1,4 @@
+{
+	"title": "Transactions",
+	"pages": ["basics", "signing-and-execution", "coins-and-balances", "reference", "offline", "intents"]
+}

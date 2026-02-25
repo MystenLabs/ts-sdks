@@ -1,0 +1,270 @@
+---
+title: Building Transactions
+---
+
+Every interaction with the Sui network goes through a transaction. Sui transactions are
+[programmable transaction blocks (PTBs)](https://docs.sui.io/guides/developer/transactions/prog-txn-blocks)
+— a sequence of commands that execute on inputs to produce a result. Commands within a transaction
+can call Move functions, transfer objects, split and merge coins, and more. You can chain the result
+of one command into a subsequent command, composing complex operations in a single transaction.
+
+All commands in a transaction execute atomically: if any command fails, the entire transaction is
+rolled back and none of its effects are applied.
+
+For a deeper look at the transaction model, see the
+[Sui documentation on PTBs](https://docs.sui.io/guides/developer/transactions/prog-txn-blocks) and
+[inputs and results](https://docs.sui.io/concepts/transactions/inputs-and-results).
+
+## Creating a transaction
+
+Import the `Transaction` class and create a new instance:
+
+```typescript
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+```
+
+## Sending SUI
+
+The simplest transaction sends SUI to an address. Use `coinWithBalance` to create a coin with the
+amount you want to send, then `transferObjects` to send it:
+
+```typescript
+import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
+import { MIST_PER_SUI } from '@mysten/sui/utils';
+
+const tx = new Transaction();
+
+tx.transferObjects(
+	[coinWithBalance({ balance: 1n * MIST_PER_SUI })], // 1 SUI
+	'0xRecipientAddress',
+);
+```
+
+`coinWithBalance` automatically pulls funds from both your coin objects and address balances — you
+don't need to manage individual coin objects yourself.
+
+<Callout type="warning">
+	Address balances are currently only available on devnet and testnet. They are not yet supported on
+	mainnet. On mainnet, `coinWithBalance` draws only from coin objects.
+</Callout>
+
+## Sending other tokens
+
+To send a non-SUI token, pass its coin type to `coinWithBalance`:
+
+```typescript
+const tx = new Transaction();
+
+tx.transferObjects(
+	[coinWithBalance({ balance: 1_000_000, type: '0xPackageId::module::CoinType' })],
+	'0xRecipientAddress',
+);
+```
+
+## Calling Move functions
+
+Use `moveCall` to call any function in a published Move package. The Sui framework at `0x2` provides
+many built-in functions you can call directly. For example, to split a coin:
+
+```typescript
+const tx = new Transaction();
+
+const [newCoin] = tx.moveCall({
+	target: '0x2::coin::split',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.object('0xCoinId'), tx.pure.u64(1000)],
+});
+
+tx.transferObjects([newCoin], '0xRecipientAddress');
+```
+
+The `target` format is `packageId::moduleName::functionName`.
+
+To call functions in your own published packages, use the same pattern with your package ID:
+
+```typescript
+tx.moveCall({
+	target: '0xYourPackageId::module::function_name',
+	arguments: [tx.pure.string('hello'), tx.object('0xSomeObjectId')],
+});
+```
+
+### Using codegen for type-safe calls
+
+The [`@mysten/codegen`](/codegen) package generates type-safe TypeScript functions from your Move
+packages. Instead of writing `moveCall` with string targets and manual argument construction, use
+`tx.add()` with generated functions:
+
+```typescript
+import { Transaction } from '@mysten/sui/transactions';
+import * as counter from './contracts/counter/counter';
+
+const tx = new Transaction();
+tx.add(
+	counter.increment({
+		arguments: {
+			counter: '0x123...', // Counter object ID
+		},
+	}),
+);
+```
+
+This gives you IDE autocompletion, compile-time type checking for arguments, and eliminates
+incorrect target strings. See the [codegen documentation](/codegen) for setup instructions.
+
+### Return values
+
+Commands return results that you can use as input to subsequent commands. For example, `splitCoins`
+returns the new coins it creates:
+
+```typescript
+const tx = new Transaction();
+
+// splitCoins returns one result per amount
+const [coin] = tx.splitCoins(tx.gas, [1_000_000]);
+
+// Use that result as input to another command
+tx.transferObjects([coin], '0xRecipientAddress');
+```
+
+`moveCall` works the same way — when a Move function returns a value, you can capture it and pass it
+to the next command:
+
+```typescript
+const [nft] = tx.moveCall({
+	target: '0xPackageId::nft::mint',
+	arguments: [tx.pure.string('My NFT'), tx.pure.string('Description')],
+});
+
+tx.transferObjects([nft], '0xRecipientAddress');
+```
+
+When a command returns multiple values, destructure or index into the result:
+
+```typescript
+// Destructuring
+const [nft1, nft2] = tx.moveCall({ target: '0xPackageId::nft::mint_pair' });
+
+// Or indexing
+const result = tx.moveCall({ target: '0xPackageId::nft::mint_pair' });
+const firstNft = result[0];
+const secondNft = result[1];
+```
+
+<Callout type="warn">
+	Transaction results are lazy generators — always access elements by index or destructuring. Do not
+	use the spread operator (`...result`) or pass results to `Array.from()`, as this will cause an
+	infinite loop.
+</Callout>
+
+### Type arguments
+
+Some Move functions have generic type parameters. Pass them with `typeArguments`:
+
+```typescript
+tx.moveCall({
+	target: '0x2::coin::split',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.object('0xCoinId'), tx.pure.u64(1000)],
+});
+```
+
+## Chaining commands
+
+The result of any command can be used as input to a subsequent command — this is what makes
+transactions _programmable_. You can compose multiple operations into a single atomic transaction:
+
+```typescript
+const tx = new Transaction();
+
+// Mint an NFT
+const [nft] = tx.moveCall({
+	target: '0xPackageId::nft::mint',
+	arguments: [tx.pure.string('My NFT')],
+});
+
+// Set a property on it
+tx.moveCall({
+	target: '0xPackageId::nft::set_description',
+	arguments: [nft, tx.pure.string('A nice NFT')],
+});
+
+// Transfer it to someone
+tx.transferObjects([nft], '0xRecipientAddress');
+```
+
+## Batch transfers
+
+You can send tokens to multiple recipients in a single transaction using `coinWithBalance` for each
+transfer:
+
+```typescript
+import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
+
+interface Transfer {
+	to: string;
+	amount: number;
+}
+
+const transfers: Transfer[] = [
+	{ to: '0xAlice', amount: 1_000_000_000 },
+	{ to: '0xBob', amount: 2_000_000_000 },
+	{ to: '0xCarol', amount: 500_000_000 },
+];
+
+const tx = new Transaction();
+
+for (const transfer of transfers) {
+	tx.transferObjects([coinWithBalance({ balance: transfer.amount })], transfer.to);
+}
+```
+
+This is simpler than manually splitting a coin into multiple amounts, and works with both coin
+objects and address balances automatically.
+
+## Composable transaction building with thunks
+
+The `tx.add()` method accepts thunks — functions that receive the transaction and add commands to
+it. This enables building reusable, composable transaction pieces:
+
+```typescript
+function mintNft(name: string) {
+	return (tx: Transaction) => {
+		return tx.moveCall({
+			target: '0xPackage::nft::mint',
+			arguments: [tx.pure.string(name)],
+		});
+	};
+}
+
+const tx = new Transaction();
+const [nft] = tx.add(mintNft('My NFT'));
+tx.transferObjects([nft], '0xRecipientAddress');
+```
+
+See [SDK Building](/sui/sdk-building) for more on building composable transaction libraries.
+
+## Serializing transactions
+
+You can serialize a transaction to JSON for storage, transmission, or later reconstruction:
+
+```typescript
+// Serialize to JSON — with a client, resolves any unresolved data first
+const json = await tx.toJSON({ client: grpcClient });
+
+// Serialize without a client (only works if all data is already resolved)
+const json = await tx.toJSON();
+
+// Reconstruct from JSON
+const tx = Transaction.from(json);
+```
+
+This is useful for passing transactions between a frontend and backend, or for storing pre-built
+transactions.
+
+## Executing transactions
+
+Once you've built a transaction, see [Signing and Execution](./signing-and-execution) for all the
+ways to sign and submit it — keypairs, dApp Kit hooks, sponsored transactions, and more.
