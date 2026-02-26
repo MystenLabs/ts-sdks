@@ -39,11 +39,11 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		});
 	}
 
-	abstract getObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+	abstract getObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.GetObjectsOptions<Include>,
 	): Promise<SuiClientTypes.GetObjectsResponse<Include>>;
 
-	async getObject<Include extends SuiClientTypes.ObjectInclude = object>(
+	async getObject<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.GetObjectOptions<Include>,
 	): Promise<SuiClientTypes.GetObjectResponse<Include>> {
 		const { objectId } = options;
@@ -64,7 +64,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options: SuiClientTypes.ListCoinsOptions,
 	): Promise<SuiClientTypes.ListCoinsResponse>;
 
-	abstract listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+	abstract listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.ListOwnedObjectsOptions<Include>,
 	): Promise<SuiClientTypes.ListOwnedObjectsResponse<Include>>;
 
@@ -80,15 +80,15 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options: SuiClientTypes.GetCoinMetadataOptions,
 	): Promise<SuiClientTypes.GetCoinMetadataResponse>;
 
-	abstract getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	abstract getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>>;
 
-	abstract executeTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	abstract executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>>;
 
-	abstract simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = object>(
+	abstract simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>>;
 
@@ -151,8 +151,22 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		const fieldType = parseStructTag(fieldObject.type);
 		const content = await fieldObject.content;
 
+		const nameTypeParam = fieldType.typeParams[0];
+		const isDynamicObject =
+			typeof nameTypeParam !== 'string' &&
+			nameTypeParam.module === 'dynamic_object_field' &&
+			nameTypeParam.name === 'Wrapper';
+
+		const valueBcs = content.slice(SUI_ADDRESS_LENGTH + options.name.bcs.length);
+
+		const valueType =
+			typeof fieldType.typeParams[1] === 'string'
+				? fieldType.typeParams[1]
+				: normalizeStructTag(fieldType.typeParams[1]);
+
 		return {
 			dynamicField: {
+				$kind: isDynamicObject ? 'DynamicObject' : 'DynamicField',
 				fieldId: fieldObject.objectId,
 				digest: fieldObject.digest,
 				version: fieldObject.version,
@@ -160,23 +174,19 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 				previousTransaction: fieldObject.previousTransaction,
 				name: {
 					type:
-						typeof fieldType.typeParams[0] === 'string'
-							? fieldType.typeParams[0]
-							: normalizeStructTag(fieldType.typeParams[0]),
+						typeof nameTypeParam === 'string' ? nameTypeParam : normalizeStructTag(nameTypeParam),
 					bcs: options.name.bcs,
 				},
 				value: {
-					type:
-						typeof fieldType.typeParams[1] === 'string'
-							? fieldType.typeParams[1]
-							: normalizeStructTag(fieldType.typeParams[1]),
-					bcs: content.slice(SUI_ADDRESS_LENGTH + options.name.bcs.length),
+					type: valueType,
+					bcs: valueBcs,
 				},
-			},
+				childId: isDynamicObject ? bcs.Address.parse(valueBcs) : undefined,
+			} as SuiClientTypes.GetDynamicFieldResponse['dynamicField'],
 		};
 	}
 
-	async getDynamicObjectField<Include extends SuiClientTypes.ObjectInclude = object>(
+	async getDynamicObjectField<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.GetDynamicObjectFieldOptions<Include>,
 	): Promise<SuiClientTypes.GetDynamicObjectFieldResponse<Include>> {
 		const resolvedNameType = (
@@ -196,7 +206,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		});
 
 		const { object } = await this.getObject({
-			objectId: bcs.Address.parse(dynamicField.value.bcs),
+			objectId: dynamicField.childId!,
 			signal: options.signal,
 			include: options.include,
 		});
@@ -204,7 +214,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		return { object };
 	}
 
-	async waitForTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	async waitForTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.WaitForTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		const { signal, timeout = 60 * 1000, include } = options;

@@ -15,7 +15,7 @@ import { isTransaction } from '../Transaction.js';
 export interface ExecuteTransactionOptions<Include extends SuiClientTypes.TransactionInclude = {}> {
 	transaction: Transaction | Uint8Array;
 	signatures: string[];
-	include?: Include;
+	include?: Include & SuiClientTypes.TransactionInclude;
 }
 
 export class CachingTransactionExecutor {
@@ -93,7 +93,7 @@ export class CachingTransactionExecutor {
 	}: {
 		transaction: Transaction;
 		signer: Signer;
-		include?: Include;
+		include?: Include & SuiClientTypes.TransactionInclude;
 	}): Promise<SuiClientTypes.TransactionResult<Include & { effects: true }>> {
 		transaction.setSenderIfNotSet(signer.toSuiAddress());
 		const bytes = await this.buildTransaction({ transaction });
