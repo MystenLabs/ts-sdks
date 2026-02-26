@@ -1,4 +1,5 @@
-import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit-react";
+import { useCurrentAccount } from "@mysten/dapp-kit-react";
+import { ConnectButton } from "@mysten/dapp-kit-react/ui";
 import { isValidSuiObjectId } from "@mysten/sui/utils";
 import { useState } from "react";
 import { Counter } from "./Counter";

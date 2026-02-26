@@ -1,4 +1,4 @@
-import { ConnectButton } from "@mysten/dapp-kit-react";
+import { ConnectButton } from "@mysten/dapp-kit-react/ui";
 import { WalletStatus } from "./WalletStatus";
 
 function App() {
