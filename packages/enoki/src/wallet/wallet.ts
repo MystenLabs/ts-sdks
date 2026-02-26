@@ -50,7 +50,6 @@ import type { EnokiNetwork } from '../EnokiClient/type.js';
 import { EnokiKeypair } from '../EnokiKeypair.js';
 
 import { EnokiWalletState } from './state.js';
-import { allTasks } from 'nanostores';
 
 const pkceFlowProviders: Partial<Record<AuthProvider, { tokenEndpoint: string }>> = {
 	playtron: {
@@ -262,11 +261,11 @@ export class EnokiWallet implements Wallet {
 	};
 
 	#connect: StandardConnectMethod = async (input) => {
-		// NOTE: This is a hackfix for the old version of dApp Kit where auto-connection logic
-		// only fires on initial mount of the WalletProvider component. Since hydrating the
-		// zkLogin state from IndexedDB is an asynchronous process, we need to make sure it
-		// is populated before the connect logic runs.
-		await allTasks();
+		// Wait for the zkLogin state to be hydrated from IndexedDB before checking accounts.
+		// This must be a targeted wait rather than allTasks() because connect() may be called
+		// from within a nanostore task() (e.g. dapp-kit-next's connectWallet), and allTasks()
+		// would deadlock by waiting for the calling task to complete.
+		await this.#state.whenReady();
 
 		if (input?.silent || this.#accounts.length > 0) {
 			return { accounts: this.#accounts };

@@ -29,11 +29,16 @@ export class EnokiWalletState {
 	#stateStore: UseStore;
 	#sessionContextByNetwork: Map<SuiClientTypes.Network, EnokiSessionContext>;
 	#zkLoginState: WritableAtom<ZkLoginState | null>;
+	#resolveStateReady!: () => void;
+	#stateReady: Promise<void>;
 
 	constructor(config: EnokiWalletStateConfig) {
 		this.#encryptionKey = config.apiKey;
 		this.#encryption = createDefaultEncryption();
 
+		this.#stateReady = new Promise<void>((resolve) => {
+			this.#resolveStateReady = resolve;
+		});
 		this.#stateStore = createStore(`${config.apiKey}_${config.clientId}`, 'enoki');
 		this.#zkLoginState = this.#createZkLoginState();
 
@@ -57,6 +62,10 @@ export class EnokiWalletState {
 
 	get zkLoginState() {
 		return this.#zkLoginState;
+	}
+
+	whenReady() {
+		return this.#stateReady;
 	}
 
 	get sessionContextByNetwork() {
@@ -134,6 +143,8 @@ export class EnokiWalletState {
 					}
 				} catch {
 					// Ignore errors
+				} finally {
+					this.#resolveStateReady();
 				}
 			});
 		});
