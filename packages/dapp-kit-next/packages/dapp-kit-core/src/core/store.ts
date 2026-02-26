@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { UiWallet, UiWalletAccount } from '@wallet-standard/ui';
+import { uiWalletAccountBelongsToUiWallet } from '@wallet-standard/ui';
 import type { StoreValue } from 'nanostores';
 import { atom, computed, map } from 'nanostores';
 import { getChain } from '../utils/networks.js';
 import type { Networks } from '../utils/networks.js';
-import {
-	getAssociatedWalletOrThrow,
-	requiredWalletFeatures,
-	signingFeatures,
-} from '../utils/wallets.js';
+import { requiredWalletFeatures, signingFeatures } from '../utils/wallets.js';
 import type { DAppKitCompatibleClient } from './types.js';
 
 type InternalWalletConnection =
@@ -78,9 +75,24 @@ export function createStores<
 		$currentClient: computed($currentNetwork, getClient),
 		$connection: computed([$baseConnection, $compatibleWallets], (connection, wallets) => {
 			switch (connection.status) {
-				case 'connected':
+				case 'connected': {
+					const wallet = wallets.find((w) =>
+						uiWalletAccountBelongsToUiWallet(connection.currentAccount, w),
+					);
+					if (!wallet) {
+						return {
+							wallet: null,
+							account: null,
+							status: 'disconnected',
+							supportedIntents: [],
+							isConnected: false,
+							isConnecting: false,
+							isReconnecting: false,
+							isDisconnected: true,
+						} as const;
+					}
 					return {
-						wallet: getAssociatedWalletOrThrow(connection.currentAccount, wallets),
+						wallet,
 						account: connection.currentAccount,
 						status: connection.status,
 						supportedIntents: connection.supportedIntents,
@@ -89,6 +101,7 @@ export function createStores<
 						isReconnecting: false,
 						isDisconnected: false,
 					} as const;
+				}
 				case 'connecting':
 					return {
 						wallet: null,
@@ -100,9 +113,24 @@ export function createStores<
 						isReconnecting: false,
 						isDisconnected: false,
 					} as const;
-				case 'reconnecting':
+				case 'reconnecting': {
+					const wallet = wallets.find((w) =>
+						uiWalletAccountBelongsToUiWallet(connection.currentAccount, w),
+					);
+					if (!wallet) {
+						return {
+							wallet: null,
+							account: null,
+							status: 'disconnected',
+							supportedIntents: [],
+							isConnected: false,
+							isConnecting: false,
+							isReconnecting: false,
+							isDisconnected: true,
+						} as const;
+					}
 					return {
-						wallet: getAssociatedWalletOrThrow(connection.currentAccount, wallets),
+						wallet,
 						account: connection.currentAccount,
 						status: connection.status,
 						supportedIntents: connection.supportedIntents,
@@ -111,6 +139,7 @@ export function createStores<
 						isReconnecting: true,
 						isDisconnected: false,
 					} as const;
+				}
 				case 'disconnected':
 					return {
 						wallet: null,

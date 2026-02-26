@@ -58,7 +58,7 @@
 		"@mysten/sui": "workspace:^",
 		"@storybook/web-components": "^10.1.11",
 		"@storybook/web-components-vite": "^10.1.11",
-		"storybook": "^10.1.11",
+		"storybook": "^10.2.12",
 		"tsdown": "0.20.0-beta.1",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.17"

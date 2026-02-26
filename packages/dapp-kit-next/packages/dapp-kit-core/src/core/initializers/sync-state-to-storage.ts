@@ -28,9 +28,14 @@ export function syncStateToStorage({
 					storageKey,
 					getSavedAccountStorageKey(connection.account, connection.supportedIntents),
 				);
-			} else {
-				storage.removeItem(storageKey);
 			}
+			// Storage is intentionally NOT cleared on disconnect. When a wallet
+			// unregisters and re-registers (HMR, React strict mode, effect re-runs),
+			// the autoconnect initializer uses the persisted session to seamlessly
+			// reconnect once the wallet reappears. Clearing storage here would
+			// permanently lose the session. Stale entries are harmless — autoconnect
+			// ignores them when the wallet is not found, and connecting to a new
+			// wallet overwrites the entry.
 		});
 	});
 }
