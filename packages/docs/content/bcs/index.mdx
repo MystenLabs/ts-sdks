@@ -11,7 +11,7 @@ available in both Browser and NodeJS environments in a type-safe way.`
 To install, add the [`@mysten/bcs`](https://www.npmjs.com/package/@mysten/bcs) package to your
 project:
 
-```sh npm2yarn
+```npm
 npm i @mysten/bcs
 ```
 
