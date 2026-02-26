@@ -1,7 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { ConnectButton, useCurrentAccount, useDAppKit, useWallets } from '@mysten/dapp-kit-react';
+import { useCurrentAccount, useDAppKit, useWallets } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { Transaction } from '@mysten/sui/transactions';
 import { useState } from 'react';
 

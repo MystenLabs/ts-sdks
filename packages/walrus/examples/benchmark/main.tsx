@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createRoot } from 'react-dom/client';
-import { DAppKitProvider, ConnectButton } from '@mysten/dapp-kit-react';
+import { DAppKitProvider } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { dAppKit } from './dapp-kit.js';

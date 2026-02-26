@@ -18,6 +18,11 @@
 			"types": "./dist/index.d.mts",
 			"import": "./dist/index.mjs",
 			"default": "./dist/index.mjs"
+		},
+		"./ui": {
+			"types": "./dist/ui.d.mts",
+			"import": "./dist/ui.mjs",
+			"default": "./dist/ui.mjs"
 		}
 	},
 	"scripts": {

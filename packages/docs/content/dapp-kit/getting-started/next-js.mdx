@@ -45,7 +45,8 @@ Wallet detection only works in the browser, so dApp Kit components must be clien
 // app/DAppKitClientProvider.tsx
 'use client';
 
-import { DAppKitProvider, ConnectButton } from '@mysten/dapp-kit-react';
+import { DAppKitProvider } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { dAppKit } from './dapp-kit';
 
 export function DAppKitClientProvider({ children }: { children: React.ReactNode }) {
@@ -93,12 +94,8 @@ For simpler apps, create a single client component:
 // app/WalletApp.tsx
 'use client';
 
-import {
-	DAppKitProvider,
-	ConnectButton,
-	useCurrentAccount,
-	useDAppKit,
-} from '@mysten/dapp-kit-react';
+import { DAppKitProvider, useCurrentAccount, useDAppKit } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
 import { dAppKit } from './dapp-kit';
 
