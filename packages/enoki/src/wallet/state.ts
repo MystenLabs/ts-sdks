@@ -29,13 +29,15 @@ export class EnokiWalletState {
 	#stateStore: UseStore;
 	#sessionContextByNetwork: Map<SuiClientTypes.Network, EnokiSessionContext>;
 	#zkLoginState: WritableAtom<ZkLoginState | null>;
+	#hydrated: Promise<void> | null = null;
 
 	constructor(config: EnokiWalletStateConfig) {
 		this.#encryptionKey = config.apiKey;
 		this.#encryption = createDefaultEncryption();
 
 		this.#stateStore = createStore(`${config.apiKey}_${config.clientId}`, 'enoki');
-		this.#zkLoginState = this.#createZkLoginState();
+		this.#zkLoginState = atom<ZkLoginState | null>(null);
+		this.#initZkLoginState();
 
 		this.#sessionContextByNetwork = config.clients.reduce((accumulator, client) => {
 			const network = client.network;
@@ -57,6 +59,10 @@ export class EnokiWalletState {
 
 	get zkLoginState() {
 		return this.#zkLoginState;
+	}
+
+	ensureHydrated() {
+		return this.#hydrateFromStorage();
 	}
 
 	get sessionContextByNetwork() {
@@ -122,26 +128,29 @@ export class EnokiWalletState {
 		return $zkLoginSession.get().value;
 	}
 
-	#createZkLoginState() {
-		const $zkLoginState = atom<ZkLoginState | null>(null);
+	#initZkLoginState() {
+		onSet(this.#zkLoginState, ({ newValue }) => {
+			set(stateKey, JSON.stringify(newValue), this.#stateStore);
+		});
 
-		onMount($zkLoginState, () => {
-			task(async () => {
+		onMount(this.#zkLoginState, () => {
+			this.#hydrateFromStorage();
+		});
+	}
+
+	#hydrateFromStorage() {
+		if (!this.#hydrated) {
+			this.#hydrated = task(async () => {
 				try {
 					const rawStoredValue = await get<string>(stateKey, this.#stateStore);
 					if (rawStoredValue) {
-						$zkLoginState.set(JSON.parse(rawStoredValue));
+						this.#zkLoginState.set(JSON.parse(rawStoredValue));
 					}
 				} catch {
 					// Ignore errors
 				}
 			});
-		});
-
-		onSet($zkLoginState, ({ newValue }) => {
-			set(stateKey, JSON.stringify(newValue), this.#stateStore);
-		});
-
-		return $zkLoginState;
+		}
+		return this.#hydrated;
 	}
 }

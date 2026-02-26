@@ -9,22 +9,14 @@ import {
 	WALLET_STANDARD_ERROR__FEATURES__WALLET_ACCOUNT_CHAIN_UNSUPPORTED,
 	WalletStandardError,
 } from '@mysten/wallet-standard';
-import type { UiWallet, UiWalletAccount, UiWalletHandle } from '@wallet-standard/ui';
-import { getWalletAccountFeature, uiWalletAccountBelongsToUiWallet } from '@wallet-standard/ui';
+import type { UiWalletAccount, UiWalletHandle } from '@wallet-standard/ui';
+import { getWalletAccountFeature } from '@wallet-standard/ui';
 import { getWalletForHandle_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getWalletForHandle } from '@wallet-standard/ui-registry';
-import { ChainNotSupportedError, DAppKitError, FeatureNotSupportedError } from './errors.js';
+import { ChainNotSupportedError, FeatureNotSupportedError } from './errors.js';
 
 export const requiredWalletFeatures = [StandardConnect, StandardEvents] as const;
 
 export const signingFeatures = [SuiSignTransaction, SuiSignTransactionBlock] as const;
-
-export function getAssociatedWalletOrThrow(account: UiWalletAccount, wallets: UiWallet[]) {
-	const wallet = wallets.find((wallet) => uiWalletAccountBelongsToUiWallet(account, wallet));
-	if (!wallet) {
-		throw new DAppKitError(`Wallet not found for account ${account.address}.`);
-	}
-	return wallet;
-}
 
 export function getWalletUniqueIdentifier(walletHandle: UiWalletHandle) {
 	const underlyingWallet = getWalletForHandle(walletHandle);
