@@ -18,7 +18,7 @@ describe('Committee Aggregator Tests', () => {
 	it('encrypt and decrypt through aggregator', { timeout: 12000 }, async () => {
 		// Committee key server object for aggregator ci server, that points to a committee of ci key servers.
 		const COMMITTEE_KEY_SERVER_OBJ_ID =
-			'0xa5d2b47e7c649a3c6f9730967a5514abb8e21f19f908ad78a6ad943970c6ad02';
+			'0x94b78303db00d33efc117e1d5bd7a0eb8a30ce31ec1fee84aa911bb2a454cb3b';
 		const AGGREGATOR_URL = 'https://seal-aggregator-ci.mystenlabs.com';
 
 		// A v1 independent server in ci.
