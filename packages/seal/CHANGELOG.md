@@ -1,5 +1,11 @@
 # @mysten/seal
 
+## 1.1.0
+
+### Minor Changes
+
+- 8957bc4: [seal] use vector instead of vecmap for partial key servers
+
 ## 1.0.1
 
 ### Patch Changes

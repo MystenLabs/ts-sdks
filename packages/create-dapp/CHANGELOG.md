@@ -1,5 +1,12 @@
 # @mysten/create-dapp
 
+## 0.6.3
+
+### Patch Changes
+
+- Updated dependencies [2b8355b]
+  - @mysten/dapp-kit-react@2.0.0
+
 ## 0.6.2
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @mysten/dapp-kit-core
 
+## 1.1.1
+
+### Patch Changes
+
+- 3dde32f: Fix crash when a connected wallet is unregistered and re-registered (e.g. during HMR).
+  The `$connection` store now gracefully returns a disconnected state instead of throwing, and
+  storage is preserved on disconnect so autoconnect can reconnect after re-registration.
+
 ## 1.1.0
 
 ### Minor Changes
