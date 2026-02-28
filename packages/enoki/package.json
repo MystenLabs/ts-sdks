@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/enoki",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"description": "zkLogin authentication and sponsored transactions",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",

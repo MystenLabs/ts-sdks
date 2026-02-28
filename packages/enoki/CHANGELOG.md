@@ -1,5 +1,12 @@
 # @mysten/enoki
 
+## 1.0.4
+
+### Patch Changes
+
+- 3dde32f: Fix deadlock in enoki wallet connect by replacing `allTasks()` with direct hydration
+  awaiting, and make zkLogin state hydration lazy but safely awaitable via `ensureHydrated()`.
+
 ## 1.0.3
 
 ### Patch Changes
