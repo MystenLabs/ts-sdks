@@ -71,12 +71,7 @@ export const ServerType = bcs.enum('ServerType', {
 	Committee: bcs.struct('Committee', {
 		version: bcs.u32(),
 		threshold: bcs.u16(),
-		partialKeyServers: bcs.vector(
-			bcs.struct('VecMapEntry', {
-				key: bcs.Address,
-				value: PartialKeyServer,
-			}),
-		),
+		partialKeyServers: bcs.vector(PartialKeyServer),
 	}),
 });
 

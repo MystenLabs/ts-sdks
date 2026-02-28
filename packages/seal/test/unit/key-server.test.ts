@@ -54,6 +54,13 @@ function createMockV2Client(
 	});
 
 	const mockGetDynamicField = vi.fn().mockImplementation(() => {
+		const partialKeyServer = bcs.struct('PartialKeyServer', {
+			name: bcs.string(),
+			url: bcs.string(),
+			partialPk: bcs.byteVector(),
+			partyId: bcs.u16(),
+		});
+
 		const serverTypeEnum = bcs.enum('ServerType', {
 			Independent: bcs.struct('Independent', {
 				url: bcs.string(),
@@ -61,7 +68,7 @@ function createMockV2Client(
 			Committee: bcs.struct('Committee', {
 				version: bcs.u32(),
 				threshold: bcs.u16(),
-				partialKeyServers: bcs.vector(bcs.Address),
+				partialKeyServers: bcs.vector(partialKeyServer),
 			}),
 		});
 
