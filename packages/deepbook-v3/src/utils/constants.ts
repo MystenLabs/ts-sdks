@@ -124,7 +124,7 @@ export const mainnetCoins: CoinMap = {
 		type: `0x876a4b7bce8aeaef60464c11f4026903e9afacab79b9b142686158aa86560b50::xbtc::XBTC`,
 		scalar: 100000000,
 		feed: '0xae8f269ed9c4bed616c99a98cf6dfe562bd3202e7f91821a471ff854713851b4',
-		currencyId: '',
+		currencyId: '0x907bb173bffab7c57bbd3350a633aa32c8770937b496d7d88874087b59200bcc',
 		priceInfoObjectId: '0xa4b9db1866ee6e2a156e8c36fc66be0f68f232388ebb578c949c2c6beb50128b',
 	},
 	WUSDC: {
