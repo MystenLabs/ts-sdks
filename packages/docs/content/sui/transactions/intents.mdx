@@ -49,26 +49,27 @@ A zero-balance request resolves to `0x2::coin::zero` regardless of other options
 
 ## The CoinWithBalance intent
 
-`coinWithBalance` is covered in detail in [Coins and Balances](./coins-and-balances#using-coinwithbalance-recommended).
-Here's a summary of its options:
+`coinWithBalance` is covered in detail in
+[Coins and Balances](./coins-and-balances#using-coinwithbalance-recommended). Here's a summary of
+its options:
 
 ```typescript
 import { coinWithBalance } from '@mysten/sui/transactions';
 
 coinWithBalance({
-	balance: 1_000_000_000,            // required — amount in base units (MIST for SUI)
-	type: '0xPkg::module::CoinType',   // optional — defaults to SUI
-	useGasCoin: false,                  // optional — set false for sponsored transactions
-	forceAddressBalance: true,          // optional — force address balance (for offline building)
+	balance: 1_000_000_000, // required — amount in base units (MIST for SUI)
+	type: '0xPkg::module::CoinType', // optional — defaults to SUI
+	useGasCoin: false, // optional — set false for sponsored transactions
+	forceAddressBalance: true, // optional — force address balance (for offline building)
 });
 ```
 
-| Option                | Default    | Description                                                 |
-| --------------------- | ---------- | ----------------------------------------------------------- |
-| `balance`             | (required) | Amount of the coin to create, in base units                 |
-| `type`                | SUI        | Coin type. Defaults to `0x2::sui::SUI`                      |
+| Option                | Default    | Description                                                                           |
+| --------------------- | ---------- | ------------------------------------------------------------------------------------- |
+| `balance`             | (required) | Amount of the coin to create, in base units                                           |
+| `type`                | SUI        | Coin type. Defaults to `0x2::sui::SUI`                                                |
 | `useGasCoin`          | `true`     | Whether to split from the gas coin for SUI. Set to `false` for sponsored transactions |
-| `forceAddressBalance` | `false`    | Force address balance withdrawals instead of coin objects. Skips network lookups |
+| `forceAddressBalance` | `false`    | Force address balance withdrawals instead of coin objects. Skips network lookups      |
 
 ### Sponsored transactions
 
@@ -114,7 +115,6 @@ const json = await tx.toJSON({ supportedIntents: [] });
 
 ## Custom intents
 
-You can create custom intents for your own SDK or application using
-`TransactionCommands.Intent()` and `tx.addIntentResolver()`. See
-[Transaction Plugins](../plugins) and [SDK Building](../sdk-building) for details on building
-composable transaction libraries.
+You can create custom intents for your own SDK or application using `TransactionCommands.Intent()`
+and `tx.addIntentResolver()`. See [Transaction Plugins](../plugins) and
+[SDK Building](../sdk-building) for details on building composable transaction libraries.
