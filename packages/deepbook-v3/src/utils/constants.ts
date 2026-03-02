@@ -396,6 +396,10 @@ export const mainnetMarginPools = {
 		address: '0xbb990ca04a7743e6c0a25a7fb16f60fc6f6d8bf213624ff03a63f1bb04c3a12f',
 		type: '0x41d587e5336f1c86cad50d38a7136db99333bb9bda91cea4ba69115defeb1402::sui_usde::SUI_USDE',
 	},
+	XBTC: {
+		address: '0x14dfbf54400e0b97e892349310d392bef6d187c2b6709d9b246b8f41c9a13de4',
+		type: '0x876a4b7bce8aeaef60464c11f4026903e9afacab79b9b142686158aa86560b50::xbtc::XBTC',
+	},
 };
 
 export const testnetPythConfigs = {
