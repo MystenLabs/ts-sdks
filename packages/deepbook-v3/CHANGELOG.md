@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 1.1.2
+
+### Patch Changes
+
+- 770536f: XBTC price feeds added
+
 ## 1.1.1
 
 ### Patch Changes
