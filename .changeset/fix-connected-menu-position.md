@@ -2,4 +2,4 @@
 '@mysten/dapp-kit-core': patch
 ---
 
-Fix connected account menu dropdown positioning in Shadow DOM. Removed conflicting `autoPlacement()` middleware and added `composed-offset-position` ponyfill so floating-ui correctly resolves `offsetParent` across shadow boundaries.
+Fix connected account menu dropdown positioning in Shadow DOM. Removed conflicting `autoPlacement()` middleware and switched to fixed positioning strategy to bypass Shadow DOM `offsetParent` issues.
