@@ -30,6 +30,9 @@ export function autoConnectWallet({
 	onMount($compatibleWallets, () => {
 		return $compatibleWallets.subscribe(
 			async (wallets, oldWallets: readonly UiWallet[] | undefined) => {
+				// subscribe on a computed store may fire with undefined due to nanostores
+				// reading the underlying atom's uninitialized value instead of computing it.
+				if (!wallets) return;
 				if (oldWallets && oldWallets.length > wallets.length) return;
 
 				const connection = $baseConnection.get();
