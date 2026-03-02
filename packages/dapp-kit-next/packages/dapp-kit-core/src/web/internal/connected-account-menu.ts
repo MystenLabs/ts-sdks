@@ -11,7 +11,7 @@ import { unlinkIcon } from './icons/unlink-icon.js';
 import { styles } from './connected-account-menu.styles.js';
 import type { DAppKitCompatibleClient } from '../../core/types.js';
 import { autoUpdate, computePosition, flip, offset, platform, shift } from '@floating-ui/dom';
-import { offsetParent } from 'composed-offset-position';
+import { offsetParent } from './composed-offset-parent.js';
 import { AccountMenuItem } from './connected-account-menu-item.js';
 import { chevronDownIcon } from './icons/chevron-down-icon.js';
 import type { WalletConnection } from '../../core/store.js';

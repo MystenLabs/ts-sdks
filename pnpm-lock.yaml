@@ -516,9 +516,6 @@ importers:
       '@webcomponents/scoped-custom-element-registry':
         specifier: ^0.0.10
         version: 0.0.10
-      composed-offset-position:
-        specifier: ^0.0.6
-        version: 0.0.6(@floating-ui/utils@0.2.10)
       lit:
         specifier: ^3.3.2
         version: 3.3.2
@@ -6847,11 +6844,6 @@ packages:
   common-tags@1.8.2:
     resolution: {integrity: sha512-gk/Z852D2Wtb//0I+kRFNKKE9dIIVirjoqPoA1wJU+XePVXZfGeBpk45+A1rKO4Q43prqWBNY/MiIeRLbPWUaA==}
     engines: {node: '>=4.0.0'}
-
-  composed-offset-position@0.0.6:
-    resolution: {integrity: sha512-Q7dLompI6lUwd7LWyIcP66r4WcS9u7AL2h8HaeipiRfCRPLMWqRx8fYsjb4OHi6UQFifO7XtNC2IlEJ1ozIFxw==}
-    peerDependencies:
-      '@floating-ui/utils': ^0.2.5
 
   compress-commons@6.0.2:
     resolution: {integrity: sha512-6FqVXeETqWPoGcfzrXb37E50NP0LXT8kAMu5ooZayhWWdgEY4lBEEcbQNXtkuKQsGduxiIcI4gOTsxTmuq/bSg==}
@@ -16785,10 +16777,6 @@ snapshots:
     optional: true
 
   common-tags@1.8.2: {}
-
-  composed-offset-position@0.0.6(@floating-ui/utils@0.2.10):
-    dependencies:
-      '@floating-ui/utils': 0.2.10
 
   compress-commons@6.0.2:
     dependencies:
