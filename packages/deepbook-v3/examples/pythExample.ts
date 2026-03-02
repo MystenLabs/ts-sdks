@@ -102,7 +102,7 @@ const getSigner = () => {
 	);
 
 	// Coins to update prices for
-	const coinKeys = ['USDC', 'SUI', 'DEEP', 'WAL', 'SUIUSDE'];
+	const coinKeys = ['USDC', 'SUI', 'DEEP', 'WAL', 'SUIUSDE', 'XBTC'];
 
 	console.log(`Batch updating Pyth price feeds for: ${coinKeys.join(', ')}\n`);
 
@@ -110,7 +110,7 @@ const getSigner = () => {
 		const tx = new Transaction();
 
 		// Batch fetch and update all price feeds
-		// Only stale feeds (older than 15 seconds) will be updated
+		// Only stale feeds (older than 30 seconds) will be updated
 		const priceInfoObjects = await client.deepbook.getPriceInfoObjects(tx, coinKeys);
 
 		console.log('Price Info Objects:');
