@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 1.1.3
+
+### Patch Changes
+
+- 7a2ac9a: XBTC margin pool
+
 ## 1.1.2
 
 ### Patch Changes
