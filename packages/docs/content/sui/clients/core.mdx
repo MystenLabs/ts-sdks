@@ -27,6 +27,17 @@ class MySDK {
 
 ## Object Methods
 
+Object methods accept an optional `include` parameter to control what data is returned. By default,
+every object comes with `objectId`, `version`, `digest`, `owner`, and `type`. The following fields
+are only populated when requested:
+
+| Option                | Type      | Description                                                               |
+| --------------------- | --------- | ------------------------------------------------------------------------- |
+| `content`             | `boolean` | BCS-encoded Move struct content — pass this to generated BCS type parsers |
+| `previousTransaction` | `boolean` | Digest of the transaction that last mutated this object                   |
+| `json`                | `boolean` | JSON representation of the object's Move struct content                   |
+| `objectBcs`           | `boolean` | Full BCS-encoded object envelope (rarely needed, see [below](#objectbcs)) |
+
 ### getObject
 
 Fetch a single object by ID.
@@ -45,25 +56,6 @@ console.log(object.version);
 console.log(object.digest);
 console.log(object.type); // e.g., "0x2::coin::Coin<0x2::sui::SUI>"
 ```
-
-You can also fetch the JSON representation of the object's Move struct content:
-
-```typescript
-const { object } = await client.core.getObject({
-	objectId: '0x123...',
-	include: { json: true },
-});
-
-// Access the JSON representation
-console.log(object.json);
-```
-
-<Callout type="warn">
-The `json` field structure may vary between API implementations. For example, JSON-RPC returns UID
-fields as nested objects (`{ "id": { "id": "0x..." } }`), while gRPC and GraphQL flatten them
-(`{ "id": "0x..." }`). For consistent data across all clients, use `include: { content: true }` and
-parse the BCS data directly.
-</Callout>
 
 ### getObjects
 
@@ -109,6 +101,51 @@ if (result.cursor) {
 	});
 }
 ```
+
+### Parsing object content
+
+Use `include: { content: true }` to get the BCS-encoded Move struct bytes, then parse them with
+generated types (from `@mysten/codegen`) or manual BCS definitions:
+
+```typescript
+import { MyStruct } from './generated/my-module';
+
+const { object } = await client.core.getObject({
+	objectId: '0x123...',
+	include: { content: true },
+});
+
+const parsed = MyStruct.parse(object.content);
+```
+
+### `json` include option
+
+You can also fetch a JSON representation of the object's content with `include: { json: true }`.
+
+<Callout type="warn">
+	The `json` field structure may vary between API implementations. For example, JSON-RPC returns
+	UID fields as nested objects (`{ "id": { "id": "0x..." } }`), while gRPC and GraphQL flatten
+	them (`{ "id": "0x..." }`). For consistent data across all clients, use `content` and parse BCS
+	directly.
+</Callout>
+
+### `objectBcs`
+
+The `objectBcs` option returns the full BCS-encoded object envelope — the struct content wrapped in
+metadata (type, `hasPublicTransfer`, version, owner, previous transaction, storage rebate). Most of
+this metadata is already available as fields on the object response, so you typically only need
+`content`. If you do need `objectBcs`, parse it with `bcs.Object` from `@mysten/sui/bcs`:
+
+```typescript
+import { bcs } from '@mysten/sui/bcs';
+
+const envelope = bcs.Object.parse(object.objectBcs);
+```
+
+<Callout type="error">
+	Do not pass `objectBcs` to a Move struct parser — it contains wrapping metadata that will cause
+	parsing to fail or produce incorrect results. Use `content` for parsing Move struct fields.
+</Callout>
 
 ## Coin and Balance Methods
 
@@ -210,7 +247,8 @@ console.log(dynamicField.value.bcs); // BCS-encoded value
 
 ### getDynamicObjectField
 
-Get a dynamic object field, returning the referenced object.
+Get a dynamic object field, returning the referenced object. Supports the same
+[object include options](#object-methods) as `getObject`.
 
 ```typescript
 const { object } = await client.core.getDynamicObjectField({
@@ -224,6 +262,25 @@ const { object } = await client.core.getDynamicObjectField({
 ```
 
 ## Transaction Methods
+
+Transaction methods accept an optional `include` parameter to control what data is returned. By
+default, every transaction result includes `digest`, `signatures`, `epoch`, and `status`. The
+following fields are only populated when requested:
+
+| Option           | Type      | Description                                                          |
+| ---------------- | --------- | -------------------------------------------------------------------- |
+| `effects`        | `boolean` | Parsed transaction effects (gas used, changed objects, status, etc.) |
+| `events`         | `boolean` | Events emitted during execution                                      |
+| `transaction`    | `boolean` | Parsed transaction data (sender, gas config, inputs, commands)       |
+| `balanceChanges` | `boolean` | Balance changes caused by the transaction                            |
+| `objectTypes`    | `boolean` | Map of object IDs to their types for all changed objects             |
+| `bcs`            | `boolean` | Raw BCS-encoded transaction bytes                                    |
+
+`simulateTransaction` also supports:
+
+| Option           | Type      | Description                                            |
+| ---------------- | --------- | ------------------------------------------------------ |
+| `commandResults` | `boolean` | Return values and mutated references from each command |
 
 ### executeTransaction
 
@@ -257,6 +314,7 @@ const result = await client.core.simulateTransaction({
 	include: {
 		effects: true,
 		balanceChanges: true,
+		commandResults: true, // simulation-only option
 	},
 });
 
@@ -419,40 +477,6 @@ const { type } = await client.core.mvr.resolveType({
 });
 
 console.log(type); // "0x2::coin::Coin<0x2::sui::SUI>"
-```
-
-## Include Options
-
-Most methods accept an `include` parameter to control what data is returned:
-
-### Object Include Options
-
-```typescript
-{
-  content: boolean,             // BCS-encoded object content
-  previousTransaction: boolean, // Digest of creating transaction
-  json: boolean,                // JSON representation of Move struct content
-}
-```
-
-<Callout type="warn">
-	The `json` field returns the JSON representation of an object's Move struct content. **Warning:**
-	The exact shape and field names of this data may vary between different API implementations
-	(JSON-RPC vs gRPC or GraphQL). For consistent data across APIs, use the `content` field and parse
-	the BCS data directly.
-</Callout>
-
-### Transaction Include Options
-
-```typescript
-{
-  effects: boolean,        // Transaction effects (BCS-encoded)
-  events: boolean,         // Emitted events
-  transaction: boolean,    // Parsed transaction data (sender, gas, inputs, commands)
-  balanceChanges: boolean, // Balance changes
-  objectTypes: boolean,    // Map of object IDs to their types for changed objects
-  bcs: boolean,            // Raw BCS-encoded transaction bytes
-}
 ```
 
 ## Error Handling

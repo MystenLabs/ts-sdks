@@ -63,37 +63,57 @@ bcs.TypeTag.serialize({
 
 ## Working with Objects
 
-The `bcs.Object` schema can be used to serialize and deserialize complete Sui objects:
+To parse on-chain objects, fetch them with `include: { content: true }` and pass `object.content` to
+a generated BCS type or a manual struct definition. The `content` field contains only the inner Move
+struct bytes:
+
+```typescript
+import { MyStruct } from './generated/my-module';
+
+const { object } = await client.core.getObject({
+	objectId: '0x123...',
+	include: { content: true },
+});
+
+const parsed = MyStruct.parse(object.content);
+```
+
+### `bcs.Object` — Full object envelope
+
+The `bcs.Object` schema represents the complete on-chain object, including metadata (type, owner,
+version, previous transaction, storage rebate) wrapping the inner struct bytes. This is what the
+`objectBcs` include option returns. Most of this metadata is already available as fields on the
+object response, so you typically only need `content`.
 
 ```typescript
 import { bcs } from '@mysten/sui/bcs';
 
-// Parse a BCS-encoded object
-const objectBytes = await client.getObjects({
-  ids: [objectId],
-  include: { objectBcs: true },
-});
+// Parse a full object envelope (from objectBcs include option)
+const envelope = bcs.Object.parse(object.objectBcs);
+console.log('Owner:', envelope.owner);
+console.log('Inner struct bytes:', envelope.data.Move.contents);
 
-const parsed = bcs.Object.parse(objectBytes.objects[0].objectBcs);
-console.log('Owner:', parsed.owner);
-console.log('Previous Transaction:', parsed.previousTransaction);
-console.log('Storage Rebate:', parsed.storageRebate);
-
-// Serialize an object
+// Serialize a full object envelope
 const serialized = bcs.Object.serialize({
-  data: {
-    Move: {
-      type: { GasCoin: null },
-      hasPublicTransfer: true,
-      version: '1',
-      contents: new Uint8Array([...]),
-    },
-  },
-  owner: { AddressOwner: '0x...' },
-  previousTransaction: '...',
-  storageRebate: '1000',
+	data: {
+		Move: {
+			type: { GasCoin: null },
+			hasPublicTransfer: true,
+			version: '1',
+			contents: new Uint8Array([...]),
+		},
+	},
+	owner: { AddressOwner: '0x...' },
+	previousTransaction: '...',
+	storageRebate: '1000',
 });
 ```
+
+<Callout type="warn">
+	Do not pass `objectBcs` bytes to a Move struct parser — it contains wrapping metadata that will
+	cause parsing to fail. Use `content` for parsing Move struct fields. See the [Core API
+	docs](/sui/clients/core#objectbcs) for details.
+</Callout>
 
 ## Working with Transaction Effects
 
