@@ -1,5 +1,11 @@
 # @mysten/dapp-kit-core
 
+## 1.1.2
+
+### Patch Changes
+
+- c75ff80: Fix autoconnect crash when computed store value is undefined during subscribe
+
 ## 1.1.1
 
 ### Patch Changes
