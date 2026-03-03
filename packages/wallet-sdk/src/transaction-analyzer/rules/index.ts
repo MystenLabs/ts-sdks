@@ -10,6 +10,7 @@ import { balanceChanges, bytes, data, digest, transactionResponse } from './core
 import { moveFunctions } from './functions.js';
 import { inputs } from './inputs.js';
 import { objectIds, objects, objectsById, ownedObjects } from './objects.js';
+import { pureValues } from './pure-values.js';
 
 export const analyzers = {
 	accessLevel,
@@ -29,4 +30,5 @@ export const analyzers = {
 	objects,
 	objectsById,
 	ownedObjects,
+	pureValues,
 };
