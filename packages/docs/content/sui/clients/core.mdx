@@ -117,13 +117,14 @@ if (result.cursor) {
 Get the balance of a specific coin type for an owner.
 
 ```typescript
-const balance = await client.core.getBalance({
+const { balance } = await client.core.getBalance({
 	owner: '0xabc...',
 	coinType: '0x2::sui::SUI', // Optional, defaults to SUI
 });
 
-console.log(balance.totalBalance); // Total balance as bigint
-console.log(balance.coinObjectCount); // Number of coin objects
+console.log(balance.balance); // Total balance (coin objects + address balance)
+console.log(balance.coinBalance); // Balance from coin objects only
+console.log(balance.addressBalance); // Balance from address balance only
 ```
 
 ### listBalances
@@ -136,7 +137,7 @@ const { balances } = await client.core.listBalances({
 });
 
 for (const balance of balances) {
-	console.log(balance.coinType, balance.totalBalance);
+	console.log(balance.coinType, balance.balance);
 }
 ```
 
@@ -151,7 +152,7 @@ const result = await client.core.listCoins({
 	limit: 10,
 });
 
-for (const coin of result.coins) {
+for (const coin of result.objects) {
 	console.log(coin.objectId, coin.balance);
 }
 ```
@@ -359,7 +360,7 @@ console.log(referenceGasPrice); // bigint
 Get the current system state including epoch information.
 
 ```typescript
-const systemState = await client.core.getCurrentSystemState();
+const { systemState } = await client.core.getCurrentSystemState();
 console.log(systemState.epoch);
 console.log(systemState.systemStateVersion);
 ```
@@ -383,7 +384,7 @@ Get information about a Move function.
 const { function: fn } = await client.core.getMoveFunction({
 	packageId: '0x2',
 	moduleName: 'coin',
-	name: 'transfer',
+	name: 'value',
 });
 
 console.log(fn.name);
@@ -506,7 +507,7 @@ function processObject(obj: SuiClientTypes.Object<{ content: true }>) {
 async function fetchBalance(
 	client: ClientWithCoreApi,
 	owner: string,
-): Promise<SuiClientTypes.CoinBalance> {
+): Promise<SuiClientTypes.Balance> {
 	const { balance } = await client.core.getBalance({ owner });
 	return balance;
 }
@@ -524,7 +525,7 @@ const options: SuiClientTypes.GetObjectOptions<{ content: true }> = {
 | ---------------------- | ------------------------------------------- |
 | `Object<Include>`      | Fetched object with optional included data  |
 | `Coin`                 | Coin object with balance                    |
-| `CoinBalance`          | Balance summary for a coin type             |
+| `Balance`              | Balance summary for a coin type             |
 | `CoinMetadata`         | Metadata for a coin type                    |
 | `Transaction<Include>` | Executed transaction with optional data     |
 | `TransactionResult`    | Success or failure result from execution    |

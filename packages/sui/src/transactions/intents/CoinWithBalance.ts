@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { InferInput } from 'valibot';
-import { bigint, object, parse, string } from 'valibot';
+import { bigint, boolean, object, optional, parse, string } from 'valibot';
 
 import { bcs } from '../../bcs/index.js';
 import { normalizeStructTag } from '../../utils/sui-types.js';
@@ -21,10 +21,12 @@ export function coinWithBalance({
 	type = SUI_TYPE,
 	balance,
 	useGasCoin = true,
+	forceAddressBalance,
 }: {
 	balance: bigint | number;
 	type?: string;
 	useGasCoin?: boolean;
+	forceAddressBalance?: boolean;
 }): (tx: Transaction) => TransactionResult {
 	let coinResult: TransactionResult | null = null;
 
@@ -41,8 +43,9 @@ export function coinWithBalance({
 				name: COIN_WITH_BALANCE,
 				inputs: {},
 				data: {
-					type: coinType === SUI_TYPE && useGasCoin ? 'gas' : coinType,
+					type: coinType === SUI_TYPE && useGasCoin && !forceAddressBalance ? 'gas' : coinType,
 					balance: BigInt(balance),
+					...(forceAddressBalance ? { forceAddressBalance } : {}),
 				} satisfies InferInput<typeof CoinWithBalanceData>,
 			}),
 		);
@@ -54,6 +57,7 @@ export function coinWithBalance({
 const CoinWithBalanceData = object({
 	type: string(),
 	balance: bigint(),
+	forceAddressBalance: optional(boolean(), false),
 });
 
 export async function resolveCoinBalance(
@@ -70,9 +74,12 @@ export async function resolveCoinBalance(
 
 	for (const command of transactionData.commands) {
 		if (command.$kind === '$Intent' && command.$Intent.name === COIN_WITH_BALANCE) {
-			const { type, balance } = parse(CoinWithBalanceData, command.$Intent.data);
+			const { type, balance, forceAddressBalance } = parse(
+				CoinWithBalanceData,
+				command.$Intent.data,
+			);
 
-			if (type !== 'gas' && balance > 0n) {
+			if (type !== 'gas' && balance > 0n && !forceAddressBalance) {
 				coinTypes.add(type);
 			}
 
@@ -94,36 +101,40 @@ export async function resolveCoinBalance(
 	const addressBalanceByType = new Map<string, bigint>();
 	const client = buildOptions.client;
 
-	if (!client) {
-		throw new Error(
-			'Client must be provided to build or serialize transactions with CoinWithBalance intents',
-		);
+	const needsGasFetch = totalByType.has('gas');
+
+	if (coinTypes.size > 0 || needsGasFetch) {
+		if (!client) {
+			throw new Error(
+				'Client must be provided to build or serialize transactions with CoinWithBalance intents',
+			);
+		}
+
+		await Promise.all([
+			...[...coinTypes].map(async (coinType) => {
+				const { coins, addressBalance } = await getCoinsAndBalanceOfType({
+					coinType,
+					balance: totalByType.get(coinType)!,
+					client,
+					owner: transactionData.sender!,
+					usedIds,
+				});
+
+				coinsByType.set(coinType, coins);
+				addressBalanceByType.set(coinType, addressBalance);
+			}),
+			needsGasFetch
+				? client.core
+						.getBalance({
+							owner: transactionData.sender!,
+							coinType: SUI_TYPE,
+						})
+						.then(({ balance }) => {
+							addressBalanceByType.set('gas', BigInt(balance.addressBalance));
+						})
+				: null,
+		]);
 	}
-
-	await Promise.all([
-		...[...coinTypes].map(async (coinType) => {
-			const { coins, addressBalance } = await getCoinsAndBalanceOfType({
-				coinType,
-				balance: totalByType.get(coinType)!,
-				client,
-				owner: transactionData.sender!,
-				usedIds,
-			});
-
-			coinsByType.set(coinType, coins);
-			addressBalanceByType.set(coinType, addressBalance);
-		}),
-		totalByType.has('gas')
-			? await client.core
-					.getBalance({
-						owner: transactionData.sender!,
-						coinType: SUI_TYPE,
-					})
-					.then(({ balance }) => {
-						addressBalanceByType.set('gas', BigInt(balance.addressBalance));
-					})
-			: null,
-	]);
 
 	const mergedCoins = new Map<string, Argument>();
 
@@ -132,9 +143,10 @@ export async function resolveCoinBalance(
 			continue;
 		}
 
-		const { type, balance } = transaction.$Intent.data as {
+		const { type, balance, forceAddressBalance } = transaction.$Intent.data as {
 			type: string;
 			balance: bigint;
+			forceAddressBalance?: boolean;
 		};
 
 		if (balance === 0n) {
@@ -150,7 +162,7 @@ export async function resolveCoinBalance(
 
 		const commands = [];
 
-		if (addressBalanceByType.get(type)! >= totalByType.get(type)!) {
+		if (forceAddressBalance || addressBalanceByType.get(type)! >= totalByType.get(type)!) {
 			commands.push(
 				TransactionCommands.MoveCall({
 					target: '0x2::coin::redeem_funds',

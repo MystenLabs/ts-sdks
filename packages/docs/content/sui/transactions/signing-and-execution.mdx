@@ -1,0 +1,405 @@
+---
+title: Signing and Execution
+---
+
+Once you've built a transaction, you need to sign it and submit it to the network. For background on
+how transaction signing and finality work at the protocol level, see the Sui documentation on
+[transaction lifecycle](https://docs.sui.io/concepts/transactions/transaction-lifecycle) and
+[transaction auth](https://docs.sui.io/concepts/transactions/transaction-auth).
+
+## Simulating transactions
+
+Use `simulateTransaction` to dry-run a transaction without executing it. This is useful for
+estimating gas costs, checking return values, and validating transactions before executing.
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const grpcClient = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+});
+
+const result = await grpcClient.simulateTransaction({
+	transaction: tx,
+	include: {
+		effects: true,
+		balanceChanges: true,
+		commandResults: true,
+	},
+});
+
+if (result.$kind === 'FailedTransaction') {
+	console.error('Simulation failed:', result.FailedTransaction.status.error?.message);
+} else {
+	console.log('Balance changes:', result.Transaction.balanceChanges);
+	console.log('Command results:', result.commandResults);
+}
+```
+
+### Include options
+
+The `include` parameter controls what data is returned from the simulation. All fields are optional
+and default to `false`:
+
+| Field            | Description                                                                            |
+| ---------------- | -------------------------------------------------------------------------------------- |
+| `effects`        | Execution effects — created, mutated, and deleted objects, gas usage                   |
+| `events`         | Move events emitted during execution                                                   |
+| `balanceChanges` | Token balance changes for each affected address and coin type                          |
+| `objectTypes`    | Map of object ID to type string for all changed objects                                |
+| `transaction`    | The full transaction data (sender, commands, gas config)                               |
+| `bcs`            | Raw BCS-encoded transaction bytes                                                      |
+| `commandResults` | BCS-encoded return values and mutated references from each command _(simulation only)_ |
+
+The `commandResults` field is unique to simulation — it's not available on `executeTransaction`.
+Each entry contains `returnValues` and `mutatedReferences`, both as BCS-encoded `Uint8Array` values
+that you can decode with the [BCS library](/bcs).
+
+## With a keypair (backend / scripts)
+
+The simplest approach. The keypair signs the transaction and submits it to the network in one call:
+
+```typescript
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const keypair = Ed25519Keypair.fromSecretKey('suiprivkey1...');
+const grpcClient = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+});
+
+const result = await keypair.signAndExecuteTransaction({
+	transaction: tx,
+	client: grpcClient,
+});
+```
+
+`fromSecretKey` accepts a Bech32-encoded private key (`suiprivkey1...`) or a raw 32-byte
+`Uint8Array`. You can also use `Ed25519Keypair.deriveKeypair(mnemonic)` to derive from a mnemonic
+phrase.
+
+This method automatically sets the sender to the keypair's address, builds the transaction, signs
+it, and executes it. The result includes the transaction data and effects by default.
+
+Available keypair types:
+
+- `Ed25519Keypair` from `@mysten/sui/keypairs/ed25519`
+- `Secp256k1Keypair` from `@mysten/sui/keypairs/secp256k1`
+- `Secp256r1Keypair` from `@mysten/sui/keypairs/secp256r1`
+- `PasskeyKeypair` from `@mysten/sui/keypairs/passkey`
+
+## With dApp Kit (React frontend)
+
+In a React app, use the `useSignAndExecuteTransaction` hook. The user's connected wallet signs and
+submits the transaction:
+
+```tsx
+import { useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { Transaction } from '@mysten/sui/transactions';
+
+function SendButton() {
+	const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+
+	function handleClick() {
+		const tx = new Transaction();
+		// ... build your transaction ...
+
+		signAndExecute(
+			{ transaction: tx },
+			{
+				onSuccess: (result) => {
+					console.log('Transaction digest:', result.digest);
+				},
+				onError: (error) => {
+					console.error('Transaction failed:', error);
+				},
+			},
+		);
+	}
+
+	return <button onClick={handleClick}>Send</button>;
+}
+```
+
+See the [dApp Kit documentation](/dapp-kit) for full setup instructions.
+
+## Sign without executing
+
+Sometimes you need the signature without immediately executing — for multi-sig, sponsored
+transactions, or delayed execution.
+
+### With a keypair
+
+```typescript
+// Build the transaction bytes first
+tx.setSender(keypair.toSuiAddress());
+const bytes = await tx.build({ client: grpcClient });
+
+// Sign the bytes
+const { signature } = await keypair.signTransaction(bytes);
+```
+
+### With dApp Kit
+
+```tsx
+import { useSignTransaction } from '@mysten/dapp-kit';
+
+function SignButton() {
+	const { mutate: signTransaction } = useSignTransaction();
+
+	function handleClick() {
+		const tx = new Transaction();
+		// ... build your transaction ...
+
+		signTransaction(
+			{ transaction: tx },
+			{
+				onSuccess: ({ bytes, signature }) => {
+					// Send bytes + signature to your backend, sponsor, etc.
+				},
+			},
+		);
+	}
+
+	return <button onClick={handleClick}>Sign</button>;
+}
+```
+
+## Manual execution
+
+When you already have the transaction bytes and signature(s), execute directly through the client:
+
+```typescript
+const result = await grpcClient.executeTransaction({
+	transaction: bytes, // Uint8Array
+	signatures: [signature], // string[]
+	include: {
+		effects: true,
+		events: true,
+		balanceChanges: true,
+		objectTypes: true,
+	},
+});
+```
+
+The `include` parameter controls what data is returned with the result:
+
+| Field            | Description                                         |
+| ---------------- | --------------------------------------------------- |
+| `transaction`    | The full transaction data (sender, commands, gas)   |
+| `effects`        | Execution effects (created/mutated/deleted objects) |
+| `events`         | Move events emitted during execution                |
+| `balanceChanges` | Token balance changes for each affected address     |
+| `objectTypes`    | Map of object ID to type for changed objects        |
+| `bcs`            | Raw BCS bytes of the transaction                    |
+
+## Observing results
+
+### Checking success or failure
+
+Every transaction result is a discriminated union — always check which variant you received:
+
+```typescript
+const result = await keypair.signAndExecuteTransaction({
+	transaction: tx,
+	client: grpcClient,
+});
+
+if (result.$kind === 'FailedTransaction') {
+	const { status } = result.FailedTransaction;
+	console.error('Transaction failed:', status.error?.message);
+} else {
+	console.log('Transaction succeeded:', result.Transaction.digest);
+}
+```
+
+You can also use the shorthand:
+
+```typescript
+const tx = result.Transaction ?? result.FailedTransaction;
+if (!tx.status.success) {
+	throw new Error(`Failed: ${tx.status.error?.message}`);
+}
+```
+
+### Waiting for indexing
+
+After a transaction executes, the effects may not be immediately visible to read APIs (like
+`getBalance` or `getObject`). Waiting is also required before executing a subsequent transaction
+that depends on objects created or modified by the first one. Use `waitForTransaction` to ensure
+consistency:
+
+```typescript
+const result = await keypair.signAndExecuteTransaction({
+	transaction: tx,
+	client: grpcClient,
+});
+
+// Wait for the transaction to be indexed
+await grpcClient.waitForTransaction({ result });
+
+// Now reads will reflect the transaction's effects
+const { balance } = await grpcClient.getBalance({ owner: myAddress });
+```
+
+You can also wait by digest:
+
+```typescript
+await grpcClient.waitForTransaction({ digest: result.Transaction.digest });
+```
+
+## Gas configuration
+
+Every Sui transaction costs gas. The SDK handles gas automatically in most cases — it sets the gas
+price, estimates the budget, and selects how to pay. You only need to configure gas explicitly for
+special cases.
+
+### Defaults
+
+When you don't configure gas explicitly, the SDK:
+
+1. **Gas price** — uses the network's reference gas price
+2. **Gas budget** — simulates the transaction and uses the result to set an appropriate budget
+3. **Gas payment** — uses address balances, falling back to coin objects when the balance is below
+   the budget
+
+For most transactions, the defaults work well and you don't need to change anything.
+
+### Explicit gas settings
+
+```typescript
+// Override the reference gas price
+tx.setGasPrice(1500);
+
+// Override the simulated budget (in MIST)
+tx.setGasBudget(50_000_000);
+```
+
+### Gas payment with coin objects
+
+Specify exactly which coins to use for gas. These coins are merged into a single gas coin before
+execution:
+
+```typescript
+tx.setGasPayment([
+	{ objectId: '0xCoin1', version: '1', digest: 'abc...' },
+	{ objectId: '0xCoin2', version: '2', digest: 'def...' },
+]);
+```
+
+The coins you provide must not overlap with any object inputs in your transaction.
+
+### Gas payment with address balance
+
+To pay gas from your address balance instead of coin objects, pass an empty array:
+
+```typescript
+tx.setGasPayment([]);
+```
+
+This is particularly useful for [offline building](./offline) and
+[sponsored transactions](#sponsored-transactions), since there are no coin object versions to look
+up or coordinate.
+
+### The gas coin (`tx.gas`)
+
+`tx.gas` references the coin used for gas payment. You can split SUI from it, merge coins into it,
+or transfer it to another address:
+
+```typescript
+const [coin] = tx.splitCoins(tx.gas, [1_000_000_000]);
+tx.transferObjects([coin], '0xRecipientAddress');
+```
+
+<Callout type="warn">
+	`tx.gas` only works when gas is paid from coin objects. If gas is paid from address balances (via
+	`setGasPayment([])`), `tx.gas` is not available. Use [`coinWithBalance`](./coins-and-balances)
+	instead, which works in both cases.
+</Callout>
+
+## Sponsored transactions
+
+In a sponsored transaction, someone other than the sender pays for gas. There are two flows
+depending on whether gas is paid from coin objects or address balances.
+
+### Coin-based sponsorship
+
+The traditional flow where the sponsor provides specific gas coin objects:
+
+```typescript
+// 1. User builds transaction kind bytes (no gas info)
+const tx = new Transaction();
+// ... add commands ...
+const kindBytes = await tx.build({ client: grpcClient, onlyTransactionKind: true });
+
+// 2. Sponsor wraps with gas info
+const sponsoredTx = Transaction.fromKind(kindBytes);
+sponsoredTx.setSender(userAddress);
+sponsoredTx.setGasOwner(sponsorAddress);
+sponsoredTx.setGasPayment(sponsorGasCoins);
+
+// 3. Build the full transaction
+const fullBytes = await sponsoredTx.build({ client: grpcClient });
+
+// 4. Both parties sign
+const { signature: userSignature } = await userKeypair.signTransaction(fullBytes);
+const { signature: sponsorSignature } = await sponsorKeypair.signTransaction(fullBytes);
+
+// 5. Execute with both signatures
+const result = await grpcClient.executeTransaction({
+	transaction: fullBytes,
+	signatures: [userSignature, sponsorSignature],
+});
+```
+
+<Callout type="warn">
+	The user must wait for the sponsor to set gas coins before signing, because gas coins are part of
+	the signed transaction data.
+</Callout>
+
+### Address balance sponsorship
+
+When the sponsor pays from their address balance instead of specific coins, the flow is simpler
+because there are no coin object references to coordinate:
+
+```typescript
+// 1. User builds and signs the transaction first
+const tx = new Transaction();
+tx.setSender(userAddress);
+tx.setGasOwner(sponsorAddress);
+tx.setGasPayment([]); // empty array = use address balance for gas
+// ... add commands ...
+
+const bytes = await tx.build({ client: grpcClient });
+const { signature: userSignature } = await userKeypair.signTransaction(bytes);
+
+// 2. Sponsor signs (can happen asynchronously)
+const { signature: sponsorSignature } = await sponsorKeypair.signTransaction(bytes);
+
+// 3. Either party executes
+const result = await grpcClient.executeTransaction({
+	transaction: bytes,
+	signatures: [userSignature, sponsorSignature],
+});
+```
+
+The key advantage: the sender can sign before the sponsor, enabling simpler async flows. No need to
+coordinate gas coin selection.
+
+### Using coinWithBalance in sponsored transactions
+
+When building sponsored transactions, set `useGasCoin: false` on `coinWithBalance` so it doesn't try
+to split the gas coin (which belongs to the sponsor):
+
+```typescript
+import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+
+tx.transferObjects(
+	[coinWithBalance({ balance: 1_000_000_000, useGasCoin: false })],
+	'0xRecipientAddress',
+);
+```

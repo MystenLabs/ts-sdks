@@ -1,0 +1,316 @@
+---
+title: Coins and Balances
+---
+
+Tokens are the most common thing you work with in transactions. Sui has two systems for holding
+fungible token balances: **coin objects** and **address balances**. Understanding both is important
+for building reliable transactions.
+
+<Callout type="warning">
+	Address balances are currently only available on devnet and testnet. They are not yet supported on
+	mainnet.
+</Callout>
+
+## Coin objects vs address balances
+
+**Coin objects** are individual on-chain objects, each with its own ID, version, and balance. You
+own specific coin objects and need to split, merge, and track them.
+
+**Address balances** are an accumulator per address per coin type. There are no objects to manage —
+deposits automatically merge into a single balance, and you withdraw from it as needed.
+
+Both systems coexist. An address's total balance for a given coin type is the sum of its coin object
+balances and its address balance.
+
+## Checking balances
+
+Use `getBalance` to see the full picture (see [client docs](/sui/clients) for setup):
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const grpcClient = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+});
+
+const { balance } = await grpcClient.getBalance({
+	owner: '0xMyAddress',
+});
+
+console.log(balance.coinType); // '0x2::sui::SUI'
+console.log(balance.balance); // total balance (coin objects + address balance)
+console.log(balance.coinBalance); // balance from coin objects only
+console.log(balance.addressBalance); // balance from address balance only
+```
+
+For a specific token type:
+
+```typescript
+const { balance } = await grpcClient.getBalance({
+	owner: '0xMyAddress',
+	coinType: '0xPackageId::module::CoinType',
+});
+```
+
+## Using coinWithBalance (recommended)
+
+`coinWithBalance` is the recommended way to get a coin of any type in a transaction. It
+automatically draws from both coin objects and address balances:
+
+```typescript
+import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+
+// SUI (balance is in MIST — 1 SUI = 1,000,000,000 MIST)
+tx.transferObjects([coinWithBalance({ balance: 1_000_000_000 })], '0xRecipientAddress');
+
+// Another coin type
+tx.transferObjects(
+	[coinWithBalance({ balance: 1_000_000, type: '0xPackageId::module::CoinType' })],
+	'0xRecipientAddress',
+);
+```
+
+Under the hood, `coinWithBalance` looks up the sender's coins, finds enough to cover the requested
+balance, merges them if needed, and splits off the exact amount. You don't need to manage any of
+this yourself.
+
+To force `coinWithBalance` to use only address balance withdrawals (skipping coin object lookups),
+set `forceAddressBalance: true`. This is useful for [offline transaction building](./offline):
+
+```typescript
+tx.transferObjects(
+	[coinWithBalance({ balance: 1_000_000_000, forceAddressBalance: true })],
+	'0xRecipientAddress',
+);
+```
+
+### Getting a Balance from coinWithBalance
+
+Some Move functions expect a `Balance<T>` instead of a `Coin<T>`. Use `0x2::coin::into_balance` to
+convert the coin:
+
+```typescript
+import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+
+const [balance] = tx.moveCall({
+	target: '0x2::coin::into_balance',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [coinWithBalance({ balance: 1_000_000_000 })],
+});
+
+// Use the Balance<T> in a Move call that expects it
+tx.moveCall({
+	target: '0xPackage::module::deposit',
+	arguments: [tx.object('0xPoolId'), balance],
+});
+```
+
+## Sending to address balances
+
+To deposit tokens directly into a recipient's address balance (instead of creating a new coin object
+for them), use `0x2::coin::send_funds`:
+
+```typescript
+import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+
+tx.moveCall({
+	target: '0x2::coin::send_funds',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [coinWithBalance({ balance: 1_000_000_000 }), tx.pure.address('0xRecipientAddress')],
+});
+```
+
+This avoids creating a new coin object for the recipient. The funds go directly into their address
+balance accumulator.
+
+## Manual coin operations
+
+For fine-grained control, you can split and merge coins manually.
+
+### Splitting coins
+
+`splitCoins` creates new coins from an existing coin:
+
+```typescript
+const tx = new Transaction();
+
+// Split specific amounts from a coin you own
+const [coin1, coin2] = tx.splitCoins('0xMyCoinId', [1_000_000, 2_000_000]);
+
+tx.transferObjects([coin1], '0xAlice');
+tx.transferObjects([coin2], '0xBob');
+```
+
+You can also split the gas coin for SUI:
+
+```typescript
+const [coin] = tx.splitCoins(tx.gas, [1_000_000_000]);
+tx.transferObjects([coin], '0xRecipientAddress');
+```
+
+<Callout type="warn">
+	`tx.gas` does not work with address balances. If your SUI is held in address balances rather than
+	coin objects, use `coinWithBalance` instead.
+</Callout>
+
+### Merging coins
+
+`mergeCoins` combines multiple coins into one. Source coins can be object IDs, `tx.object()`
+references, `coinWithBalance` results, or results from other commands:
+
+```typescript
+import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+
+// Merge by object ID
+tx.mergeCoins('0xCoin1', ['0xCoin2', '0xCoin3']);
+
+// Merge a coinWithBalance result into an existing coin
+tx.mergeCoins(tx.object('0xCoin1'), [coinWithBalance({ balance: 500_000 })]);
+
+// Merge a coin returned from a Move call
+const [mintedCoin] = tx.moveCall({ target: '0xPackage::token::mint' });
+tx.mergeCoins(tx.object('0xCoin1'), [mintedCoin]);
+```
+
+## Working with address balances directly
+
+### Withdrawing from address balance
+
+`tx.withdrawal()` creates a `Withdrawal<Balance<T>>` input that draws from your address balance.
+This is a withdrawal capability — to get a usable value, you must redeem it.
+
+To get a `Coin<T>` (for transfers and most operations):
+
+```typescript
+const tx = new Transaction();
+
+const [coin] = tx.moveCall({
+	target: '0x2::coin::redeem_funds',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.withdrawal({ amount: 1_000_000_000 })],
+});
+
+tx.transferObjects([coin], '0xRecipientAddress');
+```
+
+To get a `Balance<T>` (for Move functions that expect a balance directly):
+
+```typescript
+const [balance] = tx.moveCall({
+	target: '0x2::balance::redeem_funds',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.withdrawal({ amount: 1_000_000_000 })],
+});
+
+// Use the Balance<T> in a Move call
+tx.moveCall({
+	target: '0xPackage::module::deposit',
+	arguments: [tx.object('0xPoolId'), balance],
+});
+```
+
+For non-SUI coin types, pass the `type` parameter:
+
+```typescript
+const withdrawal = tx.withdrawal({
+	amount: 1_000_000,
+	type: '0xPackageId::module::CoinType',
+});
+```
+
+### Depositing coins into address balances
+
+Use `0x2::coin::send_funds` to deposit a coin into a recipient's address balance. The coin object is
+consumed and the funds are added to the address balance accumulator:
+
+```typescript
+const tx = new Transaction();
+
+tx.moveCall({
+	target: '0x2::coin::send_funds',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.object('0xMyCoinObjectId'), tx.pure.address('0xRecipientAddress')],
+});
+```
+
+You can also deposit into your own address balance to consolidate coin objects:
+
+```typescript
+tx.moveCall({
+	target: '0x2::coin::send_funds',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [
+		tx.object('0xMyCoinObjectId'),
+		tx.pure.address('0xMyAddress'), // send to yourself
+	],
+});
+```
+
+### Converting coins to Balance objects
+
+`Balance<T>` is a Move struct that holds a fungible token amount without being a standalone object.
+It's commonly used inside shared objects (like liquidity pools) to store funds. Use
+`0x2::coin::into_balance` to convert a coin:
+
+```typescript
+const tx = new Transaction();
+
+const [balance] = tx.moveCall({
+	target: '0x2::coin::into_balance',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.object('0xMyCoinId')],
+});
+
+// Store the balance in a shared object
+tx.moveCall({
+	target: '0xPackage::pool::add_liquidity',
+	arguments: [tx.object('0xPoolId'), balance],
+});
+```
+
+To convert a `Balance<T>` back into a `Coin<T>`:
+
+```typescript
+const [coin] = tx.moveCall({
+	target: '0x2::coin::from_balance',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [balance],
+});
+```
+
+<Callout type="info">
+	`Balance<T>` values cannot be transferred between addresses — they must be stored inside objects
+	or converted to `Coin<T>` first. Use `send_funds` to deposit directly into an address balance, or
+	`into_balance` / `from_balance` for conversions within a transaction.
+</Callout>
+
+## Listing coin objects
+
+When you need to see specific coin objects (not just aggregate balances), use `listCoins`:
+
+```typescript
+const { objects, hasNextPage, cursor } = await grpcClient.listCoins({
+	owner: '0xMyAddress',
+});
+
+for (const coin of objects) {
+	console.log(coin.objectId, coin.balance);
+}
+
+// For a specific type
+const { objects: usdcCoins } = await grpcClient.listCoins({
+	owner: '0xMyAddress',
+	coinType: '0xPackageId::module::USDC',
+});
+```
+
+Each coin object includes `objectId`, `version`, `digest`, `balance`, and `type`.

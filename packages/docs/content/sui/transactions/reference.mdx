@@ -1,0 +1,385 @@
+---
+title: Commands and Inputs Reference
+---
+
+A
+[programmable transaction block](https://docs.sui.io/guides/developer/transactions/prog-txn-blocks)
+has two parts: **inputs** (objects and pure values) and **commands** (operations that execute on
+those inputs). This page is a complete reference for all input types and commands available in the
+SDK. For task-oriented guides, see [Building Transactions](./basics).
+
+See also the [Sui documentation on PTB commands](https://docs.sui.io/references/ptb-commands) and
+[inputs and results](https://docs.sui.io/concepts/transactions/inputs-and-results).
+
+## Passing inputs
+
+### Object references
+
+Commands that accept objects (like `splitCoins`, `mergeCoins`, `transferObjects`, and `moveCall`)
+accept any of the following as an object reference:
+
+- **String object ID** — `'0xObjectId'` (SDK looks up version and digest at build time)
+- **`tx.object('0xObjectId')`** — equivalent to a string ID, but explicit
+- **`tx.objectRef({...})`** — fully-resolved owned/immutable object (no lookup needed)
+- **`tx.sharedObjectRef({...})`** — fully-resolved shared object (no lookup needed)
+- **`tx.receivingRef({...})`** — fully-resolved receiving object (no lookup needed)
+- **Transaction result** — the return value of a previous command (e.g., from `splitCoins`)
+- **`coinWithBalance({...})`** — a coin intent resolved at build time
+- **`tx.gas`** — the gas coin (when gas is paid from coin objects)
+
+### JavaScript value shortcuts
+
+For arguments where the expected type is known, you can pass plain JavaScript values. The SDK
+coerces them to the correct Move type automatically.
+
+```typescript
+// amounts in splitCoins are coerced to u64
+tx.splitCoins(tx.gas, [100, 200]);
+
+// addresses in transferObjects are coerced to address
+tx.transferObjects([coin], '0xRecipientAddress');
+```
+
+### Pure values
+
+For Move primitive types, use `tx.pure` to serialize values as BCS:
+
+```typescript
+tx.pure.u8(255);
+tx.pure.u16(65535);
+tx.pure.u32(4294967295);
+tx.pure.u64(100);
+tx.pure.u128(100n);
+tx.pure.u256(100n);
+tx.pure.bool(true);
+tx.pure.string('hello');
+tx.pure.address('0xSomeAddress');
+tx.pure.id('0xSomeObjectId');
+```
+
+### Vectors and options
+
+```typescript
+// Using type-specific methods
+tx.pure.vector('u8', [1, 2, 3]);
+tx.pure.option('u8', 1);
+tx.pure.option('u8', null); // None
+
+// Using type string syntax
+tx.pure('vector<u8>', [1, 2, 3]);
+tx.pure('option<u8>', 1);
+tx.pure('option<u8>', null);
+tx.pure('vector<option<u8>>', [1, null, 2]);
+```
+
+### BCS serialization
+
+For complex types, use the BCS library directly:
+
+```typescript
+import { bcs } from '@mysten/sui/bcs';
+
+tx.pure(bcs.vector(bcs.U8).serialize([1, 2, 3]));
+tx.pure(bcs.option(bcs.U8).serialize(1));
+tx.pure(bcs.option(bcs.U8).serialize(null));
+```
+
+### Address balance withdrawals
+
+<Callout type="warning">
+	Address balances are currently only available on devnet and testnet. They are not yet supported on
+	mainnet.
+</Callout>
+
+Use `tx.withdrawal()` to create an input that withdraws from your address balance:
+
+```typescript
+// Withdraw SUI
+const withdrawal = tx.withdrawal({ amount: 1_000_000_000 });
+
+// Withdraw another coin type
+const withdrawal = tx.withdrawal({ amount: 1_000_000, type: '0xPackageId::module::CoinType' });
+```
+
+See [Coins and Balances](./coins-and-balances#withdrawing-from-address-balance) for usage examples.
+
+### The gas coin
+
+`tx.gas` references the coin used for gas payment. It can be used as an input to commands:
+
+```typescript
+const [coin] = tx.splitCoins(tx.gas, [1_000_000_000]);
+```
+
+<Callout type="warn">
+	`tx.gas` is not available when gas is paid from address balances. Use `coinWithBalance` instead
+	for portable code.
+</Callout>
+
+## Object inputs
+
+Objects on Sui have different
+[ownership types](https://docs.sui.io/guides/developer/objects/object-ownership) — address-owned,
+shared, immutable, and object-owned (receiving). Each type requires different metadata when used as
+a transaction input, but the SDK handles most of this automatically.
+
+### tx.object(id)
+
+The simplest way to reference an on-chain object. The SDK automatically looks up the object's
+version, digest, and type when the transaction is built:
+
+```typescript
+tx.moveCall({
+	target: '0xPackage::module::function',
+	arguments: [tx.object('0xSomeObjectId')],
+});
+```
+
+Object IDs can also be passed directly to commands that only accept objects:
+
+```typescript
+tx.transferObjects(['0xObjectId1', '0xObjectId2'], '0xRecipient');
+```
+
+When a Move function expects a `Receiving<T>` argument, `tx.object()` automatically converts the
+reference to a receiving input:
+
+```typescript
+tx.moveCall({
+	target: '0xPackage::module::receive',
+	// SDK detects the function signature expects Receiving<T> and adjusts accordingly
+	arguments: [tx.object('0xParentId'), tx.object('0xReceivingObjectId')],
+});
+```
+
+### Fully-resolved object references
+
+To avoid the SDK's automatic lookup (for [offline building](./offline) or performance), provide the
+full object metadata directly:
+
+```typescript
+// Owned or immutable objects — need exact version and digest
+tx.objectRef({
+	objectId: '0xObjectId',
+	version: '42',
+	digest: 'abc123...',
+});
+
+// Shared objects — need initial shared version (stable, doesn't change)
+tx.sharedObjectRef({
+	objectId: '0xObjectId',
+	initialSharedVersion: '1',
+	mutable: true,
+});
+
+// Receiving objects — need exact version and digest
+tx.receivingRef({
+	objectId: '0xObjectId',
+	version: '42',
+	digest: 'abc123...',
+});
+```
+
+### Shared objects
+
+Shared objects are accessible by any transaction and are sequenced through consensus. When using
+`tx.object()` with a shared object ID, the SDK looks up the required metadata automatically. For
+offline building or performance, use `tx.sharedObjectRef()` with the `initialSharedVersion` (which
+is stable and never changes after the object is shared):
+
+```typescript
+tx.sharedObjectRef({
+	objectId: '0xSharedObjectId',
+	initialSharedVersion: '1',
+	mutable: true, // false for read-only access
+});
+```
+
+### Party objects
+
+Party objects are address-owned but consensus-versioned, with per-address permissions
+(read/write/delete/transfer). They are referenced the same way as shared objects:
+
+```typescript
+tx.sharedObjectRef({
+	objectId: '0xPartyObjectId',
+	initialSharedVersion: '1',
+	mutable: true,
+});
+```
+
+Key differences from regular owned objects:
+
+- **Enable pipelining** — multiple in-flight transactions on the same object
+- **No version lookup needed** — `initialSharedVersion` is stable
+- **Cannot be used for gas payment** — use address balance for gas instead
+
+### Object helpers
+
+Common system objects have shorthand methods. Passing `mutable` skips the SDK's automatic mutability
+lookup:
+
+```typescript
+tx.object.system(); // Sui system state (SDK looks up mutability)
+tx.object.system({ mutable: true }); // Mutable system state (no lookup needed)
+tx.object.system({ mutable: false }); // Immutable system state (no lookup needed)
+tx.object.clock(); // On-chain clock (always immutable)
+tx.object.random(); // Random number generator
+tx.object.denyList(); // Coin deny list (SDK looks up mutability)
+tx.object.denyList({ mutable: true }); // Mutable deny list (no lookup needed)
+```
+
+`tx.object.option` wraps an object as a Move `Option<T>`. This adds a `moveCall` command to the
+transaction that constructs the option value:
+
+```typescript
+// Some — wraps the object in Option::some()
+tx.object.option({
+	type: '0xPackage::module::Thing',
+	value: '0xObjectId',
+});
+
+// None — creates Option::none()
+tx.object.option({
+	type: '0xPackage::module::Thing',
+	value: null,
+});
+```
+
+## Commands
+
+### splitCoins
+
+Creates new coins by splitting amounts from an existing coin. Returns one result per amount.
+
+```typescript
+const [coin1, coin2] = tx.splitCoins(coin, [amount1, amount2]);
+```
+
+| Parameter | Type                                               | Description               |
+| --------- | -------------------------------------------------- | ------------------------- |
+| `coin`    | [object reference](#object-references) or `tx.gas` | The coin to split from    |
+| `amounts` | `(number \| bigint \| string)[]`                   | Amounts for each new coin |
+
+### mergeCoins
+
+Merges one or more source coins into a destination coin. The source coins are destroyed.
+
+```typescript
+tx.mergeCoins(destinationCoin, [sourceCoin1, sourceCoin2]);
+```
+
+| Parameter     | Type                                     | Description                      |
+| ------------- | ---------------------------------------- | -------------------------------- |
+| `destination` | [object reference](#object-references)   | The coin to merge into           |
+| `sources`     | [object reference](#object-references)[] | Coins to merge (destroyed after) |
+
+### transferObjects
+
+Transfers one or more objects to a recipient address.
+
+```typescript
+tx.transferObjects([obj1, obj2], recipientAddress);
+```
+
+| Parameter | Type                                     | Description         |
+| --------- | ---------------------------------------- | ------------------- |
+| `objects` | [object reference](#object-references)[] | Objects to transfer |
+| `address` | `string`                                 | Recipient address   |
+
+### moveCall
+
+Calls a function in a published Move package. Returns whatever the Move function returns.
+
+```typescript
+const [result] = tx.moveCall({
+	target: '0xPackage::module::function',
+	arguments: [arg1, arg2],
+	typeArguments: ['0x2::sui::SUI'],
+});
+```
+
+| Parameter       | Type       | Description                                        |
+| --------------- | ---------- | -------------------------------------------------- |
+| `target`        | `string`   | `packageId::moduleName::functionName`              |
+| `arguments`     | `any[]`    | Function arguments (objects, pure values, results) |
+| `typeArguments` | `string[]` | Move type parameters                               |
+
+You can also pass `package`, `module`, and `function` separately instead of `target`:
+
+```typescript
+tx.moveCall({
+	package: '0xPackageId',
+	module: 'my_module',
+	function: 'my_function',
+	arguments: [],
+	typeArguments: [],
+});
+```
+
+### makeMoveVec
+
+Constructs a vector of objects for use in `moveCall`. Required because there's no other way to pass
+a vector of objects as a transaction input.
+
+```typescript
+const vec = tx.makeMoveVec({ elements: [obj1, obj2] });
+
+// Pass the vector to a Move function
+tx.moveCall({
+	target: '0xPackage::module::process_items',
+	arguments: [vec],
+});
+```
+
+| Parameter  | Type                                     | Description                      |
+| ---------- | ---------------------------------------- | -------------------------------- |
+| `elements` | [object reference](#object-references)[] | Objects to include in the vector |
+| `type`     | `string` (optional)                      | Move type of the elements        |
+
+### publish
+
+Publishes a new Move package. Returns the upgrade capability object.
+
+```typescript
+const [upgradeCap] = tx.publish({ modules, dependencies });
+```
+
+| Parameter      | Type                     | Description                                                                                                                                             |
+| -------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `modules`      | `number[][] \| string[]` | Compiled module bytecodes — each module as a `number[]` (byte array) or base64-encoded `string`. To convert from `Uint8Array`, use `Array.from(bytes)`. |
+| `dependencies` | `string[]`               | Package IDs of dependencies                                                                                                                             |
+
+### upgrade
+
+Upgrades an existing Move package.
+
+```typescript
+const [upgradeReceipt] = tx.upgrade({ modules, dependencies, package: packageId, ticket });
+```
+
+| Parameter      | Type                                   | Description                                                                                                                                             |
+| -------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `modules`      | `number[][] \| string[]`               | Compiled module bytecodes — each module as a `number[]` (byte array) or base64-encoded `string`. To convert from `Uint8Array`, use `Array.from(bytes)`. |
+| `dependencies` | `string[]`                             | Package IDs of dependencies                                                                                                                             |
+| `package`      | `string`                               | ID of the package being upgraded                                                                                                                        |
+| `ticket`       | [object reference](#object-references) | The upgrade ticket                                                                                                                                      |
+
+## Transaction results
+
+Every command returns a `TransactionResult` that can be used as input to subsequent commands:
+
+```typescript
+const [coin] = tx.splitCoins(tx.gas, [100]);
+tx.transferObjects([coin], address);
+```
+
+When a command returns multiple values, use destructuring or indexing:
+
+```typescript
+const [a, b] = tx.moveCall({ target: '0xPkg::mod::returns_two' });
+
+// or
+const result = tx.moveCall({ target: '0xPkg::mod::returns_two' });
+tx.transferObjects([result[0], result[1]], address);
+```

@@ -35,7 +35,6 @@ the following pre-defined schemes:
 - `SharedObjectRef`
 - `StructTag`
 - `SuiObjectRef`
-- `Transaction`
 - `TransactionData`
 - `TransactionDataV1`
 - `TransactionExpiration`
@@ -43,8 +42,6 @@ the following pre-defined schemes:
 - `TypeTag`
 - `Object` - Complete object with data, owner, previousTransaction, and storageRebate
 - `TransactionEffects` - Transaction execution effects (supports both V1 and V2)
-- `TransactionEffectsV1` - Legacy transaction effects format
-- `TransactionEffectsV2` - Current transaction effects format with detailed object changes
 
 All the upper-cased values are `BcsType` instances, and can be used directly to parse and serialize
 data.
@@ -69,12 +66,12 @@ The `bcs.Object` schema can be used to serialize and deserialize complete Sui ob
 import { bcs } from '@mysten/sui/bcs';
 
 // Parse a BCS-encoded object
-const objectBytes = await client.getObjects({
-  ids: [objectId],
+const { objects } = await client.core.getObjects({
+  objectIds: [objectId],
   include: { objectBcs: true },
 });
 
-const parsed = bcs.Object.parse(objectBytes.objects[0].objectBcs);
+const parsed = bcs.Object.parse(objects[0].objectBcs);
 console.log('Owner:', parsed.owner);
 console.log('Previous Transaction:', parsed.previousTransaction);
 console.log('Storage Rebate:', parsed.storageRebate);

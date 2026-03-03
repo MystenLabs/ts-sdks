@@ -6,6 +6,9 @@
 # OSX
 .DS_Store
 
+# Claude Code
+.claude/worktrees/
+
 # Node.js
 node_modules
 .tsbuildinfo

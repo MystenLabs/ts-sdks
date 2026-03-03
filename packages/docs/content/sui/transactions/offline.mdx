@@ -1,0 +1,193 @@
+---
+title: Building Offline
+---
+
+Normally the SDK resolves object versions, estimates gas, and fills in other details by querying the
+network. For offline building — backend services, air-gapped signing, pre-built transactions — you
+must provide this information yourself. See also the Sui documentation on
+[offline signing](https://docs.sui.io/guides/developer/transactions/transaction-auth/offline-signing)
+for the protocol-level details.
+
+## Transactions without owned object inputs
+
+The simplest offline case. When your transaction only uses shared objects, party objects, and/or
+address balance withdrawals, there are no owned object versions to look up.
+
+```typescript
+import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+
+// forceAddressBalance: true avoids network lookups for coin objects
+tx.transferObjects(
+	[coinWithBalance({ balance: 1_000_000_000, forceAddressBalance: true })],
+	'0xRecipientAddress',
+);
+
+// Shared/party objects only need objectId + initialSharedVersion (both stable)
+tx.moveCall({
+	target: '0xPackage::module::function',
+	arguments: [
+		tx.sharedObjectRef({
+			objectId: '0xSharedObjectId',
+			initialSharedVersion: '1',
+			mutable: true,
+		}),
+	],
+});
+
+// Required configuration for all offline builds
+tx.setSender('0xSenderAddress');
+tx.setGasPrice(1000); // query getReferenceGasPrice() beforehand, or use a known value
+tx.setGasBudget(50_000_000);
+tx.setGasPayment([]); // empty array = pay gas from address balance
+
+// Expiration is required when there are no owned objects for gas or inputs
+tx.setExpiration({
+	ValidDuring: {
+		minEpoch: 100, // current epoch
+		maxEpoch: 101, // current epoch + 1
+		minTimestamp: null,
+		maxTimestamp: null,
+		chain: 'mainnet', // or 'testnet', 'devnet'
+		nonce: 0,
+	},
+});
+
+// Build without a client
+const bytes = await tx.build();
+```
+
+This enables fully stateless construction — you only need the sender address, reference gas price,
+epoch, and chain identifier.
+
+## Party objects
+
+Party objects are address-owned but consensus-versioned, with per-address permissions. They are
+referenced the same way as shared objects:
+
+```typescript
+tx.sharedObjectRef({
+	objectId: '0xPartyObjectId',
+	initialSharedVersion: '1',
+	mutable: true,
+});
+```
+
+Key properties for offline building:
+
+- **No version lookup needed** — `initialSharedVersion` is stable (set once when the object becomes
+  a party object)
+- **Enable pipelining** — you can submit multiple transactions on the same party object without
+  waiting for each one to finalize
+- **Cannot be used for gas** — use address balance for gas payment (`setGasPayment([])`)
+
+## Transactions with owned object inputs
+
+When your transaction uses owned or immutable objects, you must provide the exact version and digest
+for each one:
+
+```typescript
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+
+// Owned objects need exact version and digest
+tx.transferObjects(
+	[
+		tx.objectRef({
+			objectId: '0xOwnedObjectId',
+			version: '42',
+			digest: 'abc123...',
+		}),
+	],
+	'0xRecipientAddress',
+);
+
+// Receiving objects also need exact version and digest
+tx.moveCall({
+	target: '0xPackage::module::receive',
+	arguments: [
+		tx.objectRef({
+			objectId: '0xParentId',
+			version: '10',
+			digest: 'def456...',
+		}),
+		tx.receivingRef({
+			objectId: '0xReceivingId',
+			version: '5',
+			digest: 'ghi789...',
+		}),
+	],
+});
+
+// Gas payment with specific coin objects
+tx.setGasPayment([{ objectId: '0xGasCoinId', version: '3', digest: 'jkl012...' }]);
+
+tx.setSender('0xSenderAddress');
+tx.setGasPrice(1000);
+tx.setGasBudget(50_000_000);
+
+const bytes = await tx.build();
+```
+
+## Required configuration for all offline builds
+
+Every offline-built transaction must have:
+
+| Method            | Description                                                     |
+| ----------------- | --------------------------------------------------------------- |
+| `setSender()`     | The address executing the transaction                           |
+| `setGasPrice()`   | Reference gas price (query `getReferenceGasPrice()` beforehand) |
+| `setGasBudget()`  | Maximum gas to spend (in MIST)                                  |
+| `setGasPayment()` | Coin object references, or `[]` for address balance             |
+
+### Expiration
+
+When a transaction has no owned objects used for gas or inputs, you must set an expiration. This
+applies when using address balances for gas (`setGasPayment([])`) with only shared/party object
+inputs:
+
+```typescript
+tx.setExpiration({
+	ValidDuring: {
+		minEpoch: 100, // current epoch
+		maxEpoch: 101, // typically current epoch + 1
+		minTimestamp: null,
+		maxTimestamp: null,
+		chain: 'mainnet',
+		nonce: 0, // increment for multiple transactions in the same epoch
+	},
+});
+```
+
+You can also use epoch-based expiration:
+
+```typescript
+tx.setExpiration({ Epoch: 100 });
+```
+
+<Callout type="info">
+	When building with a client, the SDK sets expiration automatically. The manual configuration above
+	is only needed for fully offline builds.
+</Callout>
+
+## Serialization
+
+### Building to bytes
+
+```typescript
+// Build to BCS bytes (Uint8Array) — fully offline, all data must be provided
+const bytes = await tx.build();
+
+// Build with a client — only makes network requests when there is unresolved data to look up
+const bytes = await tx.build({ client: grpcClient });
+```
+
+### Converting bytes back to a Transaction
+
+```typescript
+const tx = Transaction.from(bytes);
+```
+
+This works with BCS byte arrays, base64-encoded strings, and JSON strings (from `toJSON()`).

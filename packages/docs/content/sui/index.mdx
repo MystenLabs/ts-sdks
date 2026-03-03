@@ -1,5 +1,5 @@
 ---
-title: Sui TypeScript SDK Quick Start
+title: Sui TypeScript SDK
 ---
 
 The Sui TypeScript SDK is a modular library of tools for interacting with the Sui blockchain. Use it
@@ -7,9 +7,42 @@ to send queries to RPC nodes, build and sign transactions, and interact with a S
 
 ## Installation
 
-```sh npm2yarn
+```npm
 npm i @mysten/sui
 ```
+
+The SDK is published as an ESM only package. Make sure your `package.json` includes
+`"type": "module"`:
+
+```json
+{
+	"type": "module"
+}
+```
+
+If you are using TypeScript, your `tsconfig.json` should use a compatible `moduleResolution` setting
+such as `"NodeNext"`, `"Node16"`, or `"Bundler"`.
+
+## Module packages
+
+The SDK contains a set of modular packages that you can use independently or together. Import just
+what you need to keep your code light and compact.
+
+- [`@mysten/sui/client`](/sui/clients) - A client for interacting with Sui RPC nodes.
+- [`@mysten/sui/bcs`](/sui/bcs) - A BCS builder with pre-defined types for Sui.
+- [`@mysten/sui/transactions`](/sui/transactions/basics) - Utilities for building and interacting
+  with transactions.
+- [`@mysten/sui/keypairs/*`](/sui/cryptography/keypairs) - Modular exports for specific KeyPair
+  implementations.
+- [`@mysten/sui/verify`](/sui/cryptography/keypairs#verifying-signatures-without-a-key-pair) -
+  Methods for verifying transactions and messages.
+- [`@mysten/sui/cryptography`](/sui/cryptography/keypairs) - Shared types and classes for
+  cryptography.
+- [`@mysten/sui/multisig`](/sui/cryptography/multisig) - Utilities for working with multisig
+  signatures.
+- [`@mysten/sui/utils`](/sui/utils) - Utilities for formatting and parsing various Sui types.
+- [`@mysten/sui/faucet`](/sui/faucet) - Methods for requesting SUI from a faucet.
+- [`@mysten/sui/zklogin`](/sui/zklogin) - Utilities for working with zkLogin.
 
 ## Network locations
 
@@ -35,23 +68,158 @@ for Sui on the [Sui Dev Portal](https://sui.io/developers#dev-tools) using the *
 
 </Callout>
 
-## Module packages
+## Quick start
 
-The SDK contains a set of modular packages that you can use independently or together. Import just
-what you need to keep your code light and compact.
+Get started in a few minutes. This guide walks you through creating a keypair, funding it from a
+faucet, and checking your balance.
 
-- [`@mysten/sui/client`](/sui/clients) - A client for interacting with Sui RPC nodes.
-- [`@mysten/sui/bcs`](/sui/bcs) - A BCS builder with pre-defined types for Sui.
-- [`@mysten/sui/transactions`](/sui/transaction-building/basics) - Utilities for building and
-  interacting with transactions.
-- [`@mysten/sui/keypairs/*`](/sui/cryptography/keypairs) - Modular exports for specific KeyPair
-  implementations.
-- [`@mysten/sui/verify`](/sui/cryptography/keypairs#verifying-signatures-without-a-key-pair) -
-  Methods for verifying transactions and messages.
-- [`@mysten/sui/cryptography`](/sui/cryptography/keypairs) - Shared types and classes for
-  cryptography.
-- [`@mysten/sui/multisig`](/sui/cryptography/multisig) - Utilities for working with multisig
-  signatures.
-- [`@mysten/sui/utils`](/sui/utils) - Utilities for formatting and parsing various Sui types.
-- [`@mysten/sui/faucet`](/sui/faucet) - Methods for requesting SUI from a faucet.
-- [`@mysten/sui/zklogin`](/sui/zklogin) - Utilities for working with zkLogin.
+### Create a project
+
+```sh
+mkdir hello-sui
+cd hello-sui
+npm init -y
+npm pkg set type=module
+npm i @mysten/sui
+```
+
+### Step 1: Create a keypair and get SUI
+
+Create a `setup.ts` file that generates a new keypair, requests SUI from the faucet, and prints your
+secret key for later use:
+
+```typescript
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
+
+// Generate a new keypair
+const keypair = new Ed25519Keypair();
+
+console.log('Address:', keypair.toSuiAddress());
+console.log('Secret key:', keypair.getSecretKey());
+
+// Request SUI from the devnet faucet
+await requestSuiFromFaucetV2({
+	host: getFaucetHost('devnet'),
+	recipient: keypair.toSuiAddress(),
+});
+
+console.log('Faucet request sent! Save the secret key above for the next step.');
+```
+
+Run it:
+
+```sh
+node setup.ts
+```
+
+Save the secret key that gets printed — you'll use it in the next step.
+
+<Callout type="warn">
+	Logging secret keys to the console is only appropriate for quick demos like this. In real
+	applications, never log or expose secret keys. Store them securely using environment variables,
+	encrypted keystores, or a secrets manager.
+</Callout>
+
+### Step 2: Check your balance
+
+Create a `balance.ts` file that imports your keypair from the secret key and checks the balance:
+
+```typescript
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { MIST_PER_SUI } from '@mysten/sui/utils';
+
+// Import the keypair using the secret key from step 1
+const keypair = Ed25519Keypair.fromSecretKey('suiprivkey1...'); // paste your secret key here
+
+const grpcClient = new SuiGrpcClient({
+	network: 'devnet',
+	baseUrl: 'https://fullnode.devnet.sui.io:443',
+});
+
+const { balance } = await grpcClient.core.getBalance({
+	owner: keypair.toSuiAddress(),
+});
+
+const sui = Number(balance.balance) / Number(MIST_PER_SUI);
+console.log(`Address: ${keypair.toSuiAddress()}`);
+console.log(`Balance: ${sui} SUI`);
+```
+
+Run it:
+
+```sh
+node balance.ts
+```
+
+### Step 3: Transfer SUI
+
+Create a `transfer.ts` file that sends SUI to another address and logs the transaction effects:
+
+```typescript
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
+import { MIST_PER_SUI } from '@mysten/sui/utils';
+
+const keypair = Ed25519Keypair.fromSecretKey('suiprivkey1...'); // paste your secret key here
+const grpcClient = new SuiGrpcClient({
+	network: 'devnet',
+	baseUrl: 'https://fullnode.devnet.sui.io:443',
+});
+
+const tx = new Transaction();
+
+tx.transferObjects(
+	[coinWithBalance({ balance: BigInt(0.1 * Number(MIST_PER_SUI)) })],
+	'0xRecipientAddress', // replace with the recipient's address
+);
+
+const result = await keypair.signAndExecuteTransaction({
+	transaction: tx,
+	client: grpcClient,
+	include: { effects: true, balanceChanges: true },
+});
+
+if (result.$kind === 'FailedTransaction') {
+	console.error('Transaction failed:', result.FailedTransaction.status.error?.message);
+} else {
+	console.log('Transaction digest:', result.Transaction.digest);
+	console.log('Effects:', JSON.stringify(result.Transaction.effects, null, 2));
+	console.log('Balance changes:', JSON.stringify(result.Transaction.balanceChanges, null, 2));
+}
+```
+
+Run it:
+
+```sh
+node transfer.ts
+```
+
+### Faucet
+
+Devnet, Testnet, and local networks include faucets that mint SUI. Use `requestSuiFromFaucetV2` to
+request SUI programmatically:
+
+```typescript
+import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
+
+await requestSuiFromFaucetV2({
+	host: getFaucetHost('testnet'),
+	recipient: '0xYourAddress',
+});
+```
+
+<Callout type="info">
+	Faucets on Devnet and Testnet are rate limited. If you hit the limit, wait before trying again.
+	For testnet, you can also get SUI through the web UI at `faucet.sui.io` or via the [Sui
+	Discord](https://discord.gg/sui) faucet channels.
+</Callout>
+
+## Next steps
+
+- [Building Transactions](./transactions/basics) — create and compose transactions
+- [Signing and Execution](./transactions/signing-and-execution) — sign and submit transactions
+- [Coins and Balances](./transactions/coins-and-balances) — work with tokens
+- [Client Setup](./clients) — configure clients for different networks
