@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 2.5.1
+
+### Patch Changes
+
+- e8f985e: Fix duplicate `storageCost` in `ParallelTransactionExecutor` gas calculation, which was
+  double-counting storage costs.
+
 ## 2.5.0
 
 ### Minor Changes

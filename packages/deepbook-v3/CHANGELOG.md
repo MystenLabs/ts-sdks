@@ -1,5 +1,13 @@
 # @mysten/deepbook-v3
 
+## 1.1.5
+
+### Patch Changes
+
+- cc33343: Add USDSUI pools
+- Updated dependencies [e8f985e]
+  - @mysten/sui@2.5.1
+
 ## 1.1.4
 
 ### Patch Changes
