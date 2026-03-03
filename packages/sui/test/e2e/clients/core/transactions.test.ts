@@ -492,6 +492,12 @@ describe('Core API - Transactions', () => {
 			expect(event?.sender).toBe(testAddress);
 			expect(event?.eventType).toContain('ObjectCreated');
 			expect(event?.bcs).toBeInstanceOf(Uint8Array);
+
+			// Verify event json field
+			expect(event?.json).toBeDefined();
+			expect(event?.json).not.toBeNull();
+			expect(typeof event?.json).toBe('object');
+			expect(event?.json).toHaveProperty('value');
 		});
 
 		testWithAllClients(
@@ -552,6 +558,12 @@ describe('Core API - Transactions', () => {
 			expect(Array.isArray(getResult.Transaction!.events)).toBe(true);
 			expect(getResult.Transaction!.events?.length).toBeGreaterThan(0);
 			expect(getResult.Transaction!.events?.[0]?.eventType).toContain('ObjectCreated');
+
+			// Verify event json field
+			const event = getResult.Transaction!.events?.[0];
+			expect(event?.json).toBeDefined();
+			expect(event?.json).not.toBeNull();
+			expect(event?.json).toHaveProperty('value');
 		});
 
 		testWithAllClients('should include events in simulateTransaction response', async (client) => {
@@ -574,6 +586,12 @@ describe('Core API - Transactions', () => {
 			expect(result.Transaction!.events?.length).toBeGreaterThan(0);
 			expect(result.Transaction!.events?.[0]?.packageId).toBe(packageId);
 			expect(result.Transaction!.events?.[0]?.eventType).toContain('ObjectCreated');
+
+			// Verify event json field
+			const event = result.Transaction!.events?.[0];
+			expect(event?.json).toBeDefined();
+			expect(event?.json).not.toBeNull();
+			expect(event?.json).toHaveProperty('value');
 		});
 	});
 

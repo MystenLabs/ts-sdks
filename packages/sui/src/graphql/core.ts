@@ -894,6 +894,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 						sender: event.sender?.address!,
 						eventType,
 						bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
+						json: (event.contents?.json as Record<string, unknown>) ?? null,
 					};
 				}) ?? [])
 			: undefined) as SuiClientTypes.Transaction<Include>['events'],

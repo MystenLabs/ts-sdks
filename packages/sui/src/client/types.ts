@@ -847,6 +847,14 @@ export namespace SuiClientTypes {
 		sender: string;
 		eventType: string;
 		bcs: Uint8Array;
+		/**
+		 * The JSON representation of the event's Move struct data.
+		 *
+		 * **Warning:** The exact shape and field names of this data may vary between different
+		 * API implementations (JSON-RPC vs gRPC or GraphQL). For consistent data across APIs use
+		 * the `bcs` field and parse the BCS data directly.
+		 */
+		json: Record<string, unknown> | null;
 	}
 
 	export interface MoveAbort {
