@@ -10,7 +10,7 @@ import { property, query, state } from 'lit/decorators.js';
 import { unlinkIcon } from './icons/unlink-icon.js';
 import { styles } from './connected-account-menu.styles.js';
 import type { DAppKitCompatibleClient } from '../../core/types.js';
-import { autoPlacement, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
+import { autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
 import { AccountMenuItem } from './connected-account-menu-item.js';
 import { chevronDownIcon } from './icons/chevron-down-icon.js';
 import type { WalletConnection } from '../../core/store.js';
@@ -175,7 +175,7 @@ export class ConnectedAccountMenu extends ScopedRegistryHost(LitElement) {
 		this.#unsubscribeFromAutoUpdate = autoUpdate(this._trigger, this._menu, async () => {
 			const result = await computePosition(this._trigger, this._menu, {
 				placement: 'bottom-end',
-				middleware: [offset(12), flip(), shift({ padding: 16 }), autoPlacement()],
+				middleware: [offset(12), flip(), shift({ padding: 16 })],
 			});
 
 			Object.assign(this._menu.style, {
