@@ -1,5 +1,15 @@
 # @mysten/dapp-kit-core
 
+## 1.1.3
+
+### Patch Changes
+
+- 49e3f86: Fix connected account menu dropdown positioning in Shadow DOM by removing conflicting
+  `autoPlacement()` middleware.
+- Updated dependencies [e8f985e]
+  - @mysten/sui@2.5.1
+  - @mysten/wallet-standard@0.20.1
+
 ## 1.1.2
 
 ### Patch Changes
