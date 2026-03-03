@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 1.1.4
+
+### Patch Changes
+
+- c95bbc9: Add USDSUI coin to mainnet constants
+
 ## 1.1.3
 
 ### Patch Changes
