@@ -112,7 +112,12 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Cli
 // The current default is just picking _all_ coins we can which may not be ideal.
 async function setGasPayment(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
 	if (!transactionData.gasData.payment) {
-		const gasPayer = transactionData.gasData.owner ?? transactionData.sender!;
+		const gasPayer = transactionData.gasData.owner ?? transactionData.sender;
+		if (!gasPayer) {
+			throw new Error('Either a gas owner or sender must be set to determine gas payment.');
+		}
+
+		const normalizedGasPayer = normalizeSuiAddress(gasPayer);
 		let usesGasCoin = false;
 		let withdrawals = 0n;
 
@@ -127,7 +132,7 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Cl
 						? transactionData.sender
 						: gasPayer;
 
-					if (withdrawalOwner === gasPayer) {
+					if (withdrawalOwner && normalizeSuiAddress(withdrawalOwner) === normalizedGasPayer) {
 						if (input.FundsWithdrawal.reservation.$kind === 'MaxAmountU64') {
 							withdrawals += BigInt(input.FundsWithdrawal.reservation.MaxAmountU64);
 						}
@@ -139,13 +144,9 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Cl
 		});
 
 		const [suiBalance, coins] = await Promise.all([
-			usesGasCoin || !transactionData.gasData.owner
-				? null
-				: client.core.getBalance({
-						owner: transactionData.gasData.owner,
-					}),
+			usesGasCoin ? null : client.core.getBalance({ owner: gasPayer }),
 			client.core.listCoins({
-				owner: transactionData.gasData.owner || transactionData.sender!,
+				owner: gasPayer,
 				coinType: SUI_TYPE_ARG,
 			}),
 		]);

@@ -808,7 +808,9 @@ describe('coinWithBalance', () => {
 	});
 
 	describe('with address balance', () => {
-		testWithAllClients('uses address balance for SUI when available', async (client) => {
+		testWithAllClients(
+			'uses address balance for SUI when available',
+			async (client) => {
 			const depositAmount = 100_000_000n;
 			const depositTx = new Transaction();
 			const [coinToDeposit] = depositTx.splitCoins(depositTx.gas, [depositAmount]);
@@ -984,7 +986,12 @@ describe('coinWithBalance', () => {
 					(change) => change.address === receiver.toSuiAddress(),
 				)?.amount,
 			).toBe(String(totalAmount));
-		});
+			},
+			// JSON RPC executeTransactionBlock returns empty balanceChanges for payment: []
+			// (address-balance-backed gas) transactions. This is a server-side bug in
+			// ObjectProviderCache — getTransactionBlock on the same digest returns correct results.
+			{ skip: ['jsonrpc'] },
+		);
 
 		testWithAllClients('uses address balance for custom coin when available', async (client) => {
 			const coins = await client.core.listCoins({
