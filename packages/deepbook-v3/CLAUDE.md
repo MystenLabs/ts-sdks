@@ -174,6 +174,74 @@ pnpm exec prettier --write .
 3. **`INVALID_ARGUMENT`**: Often caused by using wrong property names in gRPC client calls (e.g.,
    `id` instead of `objectId`).
 
+## Constants and Network Configuration (`src/utils/constants.ts`)
+
+This file contains all on-chain addresses for testnet and mainnet. It is the most frequently edited
+file in the package — most PRs here are adding new coins, pools, or margin pools.
+
+### Structure
+
+The file defines parallel testnet/mainnet maps for each entity type:
+
+| Map                  | Type                 | Key convention           | Example key    |
+| -------------------- | -------------------- | ------------------------ | -------------- |
+| `testnetCoins`       | `CoinMap`            | Uppercase coin symbol    | `DEEP`, `SUI`  |
+| `mainnetCoins`       | `CoinMap`            | Uppercase coin symbol    | `USDC`, `XBTC` |
+| `testnetPools`       | `PoolMap`            | `BASE_QUOTE` (uppercase) | `DEEP_SUI`     |
+| `mainnetPools`       | `PoolMap`            | `BASE_QUOTE` (uppercase) | `SUI_USDC`     |
+| `testnetMarginPools` | `MarginPoolMap`      | Uppercase coin symbol    | `SUI`, `DEEP`  |
+| `mainnetMarginPools` | `MarginPoolMap`      | Uppercase coin symbol    | `SUI`, `USDC`  |
+| `testnetPackageIds`  | `DeepbookPackageIds` | Fixed keys               | —              |
+| `mainnetPackageIds`  | `DeepbookPackageIds` | Fixed keys               | —              |
+
+### Adding a new coin
+
+Add an entry to `mainnetCoins` (or `testnetCoins`):
+
+```typescript
+SYMBOL: {
+    address: `0x...`,           // Package address
+    type: `0x...::module::TYPE`, // Full coin type
+    scalar: 1000000,            // 10^decimals (e.g., 1000000 for 6 decimals, 1000000000 for 9)
+    feed?: '0x...',             // Pyth price feed ID (optional, needed for margin trading)
+    currencyId?: '0x...',       // Pyth currency ID (optional)
+    priceInfoObjectId?: '0x...', // Pyth price info object (optional)
+},
+```
+
+### Adding a new pool
+
+Add an entry to `mainnetPools` (or `testnetPools`). The `baseCoin` and `quoteCoin` must match keys
+in the corresponding coins map:
+
+```typescript
+BASE_QUOTE: {
+    address: `0x...`,      // Pool object ID
+    baseCoin: 'BASE',      // Must match a key in mainnetCoins
+    quoteCoin: 'QUOTE',    // Must match a key in mainnetCoins
+},
+```
+
+### Adding a new margin pool
+
+Add an entry to `mainnetMarginPools` (or `testnetMarginPools`). The `type` should match the coin's
+`type` field from the coins map:
+
+```typescript
+SYMBOL: {
+    address: '0x...',              // Margin pool object ID
+    type: '0x...::module::TYPE',   // Full coin type (same as in coins map)
+},
+```
+
+### Conventions
+
+- Coin keys are always UPPERCASE symbols (e.g., `XBTC`, `USDC`, `SUIUSDE`)
+- Pool keys are `BASE_QUOTE` format (e.g., `SUI_USDC`, `XBTC_USDC`)
+- The `type` field in margin pools should match the corresponding coin's `type` in the coins map
+- Use backtick template literals for addresses in coins/pools, single quotes in margin pools (follow
+  existing style)
+
 ## Dependencies
 
 - `@mysten/sui` - Core Sui SDK
@@ -223,3 +291,4 @@ Track significant updates to this file:
   gRPC client migration notes
 - **2026-02**: Added `getPriceInfoObjects` batch method for efficient Pyth price updates
 - **2026-02**: Updated `PRICE_INFO_OBJECT_MAX_AGE_MS` from 15s to 30s
+- **2026-03**: Added constants management guide (coins, pools, margin pools)
