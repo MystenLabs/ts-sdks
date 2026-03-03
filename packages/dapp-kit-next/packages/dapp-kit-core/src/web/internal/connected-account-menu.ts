@@ -174,7 +174,6 @@ export class ConnectedAccountMenu extends ScopedRegistryHost(LitElement) {
 	#startPositioning() {
 		this.#unsubscribeFromAutoUpdate = autoUpdate(this._trigger, this._menu, async () => {
 			const result = await computePosition(this._trigger, this._menu, {
-				strategy: 'fixed',
 				placement: 'bottom-end',
 				middleware: [offset(12), flip(), shift({ padding: 16 })],
 			});

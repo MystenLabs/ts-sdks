@@ -25,7 +25,7 @@ export const styles = [
 			min-width: 396px;
 			gap: 16px;
 			padding: 16px;
-			position: fixed;
+			position: absolute;
 			outline: none;
 			background-color: var(--dapp-kit-popover);
 			color: var(--dapp-kit-popover-foreground);
