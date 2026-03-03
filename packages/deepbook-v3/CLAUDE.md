@@ -183,16 +183,16 @@ file in the package — most PRs here are adding new coins, pools, or margin poo
 
 The file defines parallel testnet/mainnet maps for each entity type:
 
-| Map                    | Type        | Key convention                            | Example key    |
-| ---------------------- | ----------- | ----------------------------------------- | -------------- |
-| `testnetCoins`         | `CoinMap`   | Uppercase coin symbol                     | `DEEP`, `SUI`  |
-| `mainnetCoins`         | `CoinMap`   | Uppercase coin symbol                     | `USDC`, `XBTC` |
-| `testnetPools`         | `PoolMap`   | `BASE_QUOTE` (uppercase)                  | `DEEP_SUI`     |
-| `mainnetPools`         | `PoolMap`   | `BASE_QUOTE` (uppercase)                  | `SUI_USDC`     |
-| `testnetMarginPools`   | `MarginPoolMap` | Uppercase coin symbol                 | `SUI`, `DEEP`  |
-| `mainnetMarginPools`   | `MarginPoolMap` | Uppercase coin symbol                 | `SUI`, `USDC`  |
-| `testnetPackageIds`    | `DeepbookPackageIds` | Fixed keys                       | —              |
-| `mainnetPackageIds`    | `DeepbookPackageIds` | Fixed keys                       | —              |
+| Map                  | Type                 | Key convention           | Example key    |
+| -------------------- | -------------------- | ------------------------ | -------------- |
+| `testnetCoins`       | `CoinMap`            | Uppercase coin symbol    | `DEEP`, `SUI`  |
+| `mainnetCoins`       | `CoinMap`            | Uppercase coin symbol    | `USDC`, `XBTC` |
+| `testnetPools`       | `PoolMap`            | `BASE_QUOTE` (uppercase) | `DEEP_SUI`     |
+| `mainnetPools`       | `PoolMap`            | `BASE_QUOTE` (uppercase) | `SUI_USDC`     |
+| `testnetMarginPools` | `MarginPoolMap`      | Uppercase coin symbol    | `SUI`, `DEEP`  |
+| `mainnetMarginPools` | `MarginPoolMap`      | Uppercase coin symbol    | `SUI`, `USDC`  |
+| `testnetPackageIds`  | `DeepbookPackageIds` | Fixed keys               | —              |
+| `mainnetPackageIds`  | `DeepbookPackageIds` | Fixed keys               | —              |
 
 ### Adding a new coin
 
@@ -239,8 +239,8 @@ SYMBOL: {
 - Coin keys are always UPPERCASE symbols (e.g., `XBTC`, `USDC`, `SUIUSDE`)
 - Pool keys are `BASE_QUOTE` format (e.g., `SUI_USDC`, `XBTC_USDC`)
 - The `type` field in margin pools should match the corresponding coin's `type` in the coins map
-- Use backtick template literals for addresses in coins/pools, single quotes in margin pools
-  (follow existing style)
+- Use backtick template literals for addresses in coins/pools, single quotes in margin pools (follow
+  existing style)
 
 ## Dependencies
 
