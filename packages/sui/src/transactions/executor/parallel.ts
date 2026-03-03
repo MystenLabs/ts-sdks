@@ -262,7 +262,6 @@ export class ParallelTransactionExecutor {
 				if (gasOwner === this.#signer.toSuiAddress()) {
 					const totalUsed =
 						BigInt(gasUsed.computationCost) +
-						BigInt(gasUsed.storageCost) +
 						BigInt(gasUsed.storageCost) -
 						BigInt(gasUsed.storageRebate);
 					const remainingBalance = coin.balance - totalUsed;
