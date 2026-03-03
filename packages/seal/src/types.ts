@@ -13,7 +13,11 @@ export type SealCompatibleClient = ClientWithExtensions<{
 export interface SealOptions<Name = 'seal'> {
 	/** Array of key server configs consisting of objectId, weight, optional API key name and API key */
 	serverConfigs: KeyServerConfig[];
-	/** Whether to verify the key servers' authenticity. */
+	/**
+	 * Whether to verify the key servers' authenticity.
+	 * Note: /service verification is skipped for committee key servers (serverType === 'Committee')
+	 * since their requests go through an aggregator.
+	 */
 	verifyKeyServers?: boolean;
 	/** Timeout in milliseconds for network requests. */
 	timeout?: number;
@@ -36,7 +40,11 @@ export interface SealClientOptions {
 	suiClient: SealCompatibleClient;
 	/** Array of key server configs consisting of objectId, weight, optional API key name and API key */
 	serverConfigs: KeyServerConfig[];
-	/** Whether to verify the key servers' authenticity. */
+	/**
+	 * Whether to verify the key servers' authenticity.
+	 * Note: /service verification is skipped for committee key servers (serverType === 'Committee')
+	 * since their requests go through an aggregator.
+	 */
 	verifyKeyServers?: boolean;
 	/** Timeout in milliseconds for network requests. */
 	timeout?: number;
