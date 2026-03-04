@@ -88,6 +88,8 @@ export function getErrorMessage(error: unknown, fallback: string): string {
 	return error instanceof Error ? error.message : fallback;
 }
 
+export { getNetworkFromChain } from '../wallet/constants.js';
+
 /** Find the adapter that owns a given address. */
 export function findAdapterForAddress<T extends { getAccount(address: string): unknown }>(
 	adapters: readonly T[],

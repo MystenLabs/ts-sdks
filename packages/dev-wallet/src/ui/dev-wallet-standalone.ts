@@ -86,11 +86,18 @@ export class DevWalletStandalone extends LitElement {
 	@property({ attribute: false })
 	wallet: DevWallet | null = null;
 
+	/** When set, the settings tab shows a bookmarklet section pointing to this origin. */
+	@property({ type: String })
+	bookmarkletOrigin = '';
+
 	#ctrl = new WalletController(this);
 
 	override willUpdate(changedProperties: Map<string, unknown>) {
 		if (changedProperties.has('wallet')) {
 			this.#ctrl.wallet = this.wallet;
+		}
+		if (changedProperties.has('bookmarkletOrigin')) {
+			this.#ctrl.bookmarkletOrigin = this.bookmarkletOrigin;
 		}
 	}
 

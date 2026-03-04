@@ -77,6 +77,15 @@ const themeStyles = css`
 		--dev-wallet-font-weight-semibold: 600;
 		--dev-wallet-font-mono:
 			ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+		/* Font-size scale */
+		--dev-wallet-text-2xs: 10px;
+		--dev-wallet-text-xs: 11px;
+		--dev-wallet-text-sm: 12px;
+		--dev-wallet-text-base: 13px;
+		--dev-wallet-text-md: 14px;
+		--dev-wallet-text-lg: 15px;
+		--dev-wallet-text-xl: 16px;
 		--dev-wallet-shadow-lg: 0 8px 32px color-mix(in oklab, oklch(0 0 0) 40%, transparent);
 	}
 `;

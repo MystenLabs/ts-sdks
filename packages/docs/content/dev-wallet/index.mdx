@@ -1,0 +1,52 @@
+---
+title: Dev Wallet
+---
+
+A modular, wallet-standard development wallet for building and testing Sui dApps — no browser
+extension required.
+
+## Why Dev Wallet?
+
+- **See what you're signing** — every transaction queues for approval with full details
+- **No extension needed** — runs in-process in your dApp or as a standalone web app
+- **Pluggable key management** — 4 built-in adapters (InMemory, WebCrypto, Passkey, CLI)
+- **Works with dApp Kit** — wallet-standard compliant, appears in the wallet picker
+- **Auto-approval for testing** — skip the approval modal in CI or rapid prototyping
+- **Rich UI** — floating panel, signing modal, account management, network switching
+
+![Dev Wallet panel showing account and balances](/dev-wallet/wallet-panel-open.png)
+
+## Quick Start
+
+```tsx
+import { DevWallet } from '@mysten/dev-wallet';
+import { InMemorySignerAdapter } from '@mysten/dev-wallet/adapters';
+import { mountDevWallet } from '@mysten/dev-wallet/ui';
+
+const adapter = new InMemorySignerAdapter();
+await adapter.initialize();
+await adapter.createAccount({ label: 'Dev Account' });
+
+const wallet = new DevWallet({ adapters: [adapter] });
+wallet.register(); // Appears in wallet-standard registry
+mountDevWallet(wallet); // Floating panel UI
+```
+
+## Key Features
+
+| Feature               | Description                                                                                                      |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Wallet Standard**   | Implements `standard:connect`, `sui:signTransaction`, `sui:signAndExecuteTransaction`, `sui:signPersonalMessage` |
+| **4 Adapters**        | InMemory (ephemeral), WebCrypto (persistent), Passkey (biometric), Remote CLI                                    |
+| **Approval Flow**     | One-at-a-time request queue with approve/reject                                                                  |
+| **Auto-Approval**     | Boolean or function-based policies for testing                                                                   |
+| **UI Components**     | Lit Web Components with dark theme, works in any framework                                                       |
+| **React Integration** | `useDevWallet` hook, `DevWalletProvider`, wrapped components                                                     |
+| **Standalone Mode**   | `npx @mysten/dev-wallet serve` — run as a separate web app                                                       |
+
+## Next Steps
+
+- [Getting Started](/dev-wallet/getting-started) — installation and setup
+- [Adapters](/dev-wallet/adapters) — choose the right key management strategy
+- [Signing Flow](/dev-wallet/signing-flow) — understand the approval model
+- [React Integration](/dev-wallet/react-integration) — hooks and components

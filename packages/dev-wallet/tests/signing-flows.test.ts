@@ -75,8 +75,6 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 	let wallet: DevWallet;
 	let keypair: Ed25519Keypair;
 	let adapter: InMemorySignerAdapter;
-	let cleanup: (() => void) | null = null;
-
 	beforeAll(async () => {
 		try {
 			const result = await createFundedWallet();
@@ -93,7 +91,6 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 	});
 
 	afterAll(() => {
-		cleanup?.();
 		adapter?.destroy();
 	});
 

@@ -237,7 +237,7 @@ describe('executeSigning', () => {
 				executeSigning({
 					type: 'sign-and-execute-transaction',
 					signer,
-					data: 123,
+					data: 123 as any,
 					client,
 				}),
 			).rejects.toThrow('sign-and-execute-transaction expects data to be a JSON string');

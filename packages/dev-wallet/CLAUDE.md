@@ -20,9 +20,8 @@ cd packages/dev-wallet/examples/demo && pnpm dev
 ## Architecture Quick Reference
 
 - **Wallet core**: `src/wallet/dev-wallet.ts` — wallet-standard Wallet, request queue, auto-approval
-- **Adapters (browser)**: `src/adapters/browser.ts` — InMemorySignerAdapter, WebCryptoSignerAdapter,
+- **Adapters**: `src/adapters/browser.ts` — InMemorySignerAdapter, WebCryptoSignerAdapter,
   PasskeySignerAdapter, RemoteCliAdapter, BaseSignerAdapter
-- **Adapters (node)**: `src/adapters/node.ts` — parseKeystoreFile, keystore utilities
 - **UI**: `src/ui/` — Lit Web Components (panel, signing-modal, signing, accounts, balances,
   new-account, account-selector, tab-bar, settings, objects, dropdown, standalone, mount)
 - **React**: `src/react/` — useDevWallet hook, DevWalletProvider, React-wrapped Lit components
@@ -33,19 +32,17 @@ cd packages/dev-wallet/examples/demo && pnpm dev
 
 ### Export Map
 
-| Import path                        | Environment  | Contents                                        |
-| ---------------------------------- | ------------ | ----------------------------------------------- |
-| `@mysten/dev-wallet`               | Any          | DevWallet, types, config                        |
-| `@mysten/dev-wallet/adapters`      | Browser-safe | InMemory, WebCrypto, Passkey, RemoteCLI, Base   |
-| `@mysten/dev-wallet/adapters/node` | Node.js only | parseKeystoreFile, keystore utilities           |
-| `@mysten/dev-wallet/ui`            | Browser      | Lit components, mountDevWallet                  |
-| `@mysten/dev-wallet/react`         | Browser      | useDevWallet, DevWalletProvider, React wrappers |
-| `@mysten/dev-wallet/client`        | Browser      | DevWalletClient                                 |
-| `@mysten/dev-wallet/server`        | Node.js      | parseWalletRequest                              |
+| Import path                   | Contents                                        |
+| ----------------------------- | ----------------------------------------------- |
+| `@mysten/dev-wallet`          | DevWallet, types, config                        |
+| `@mysten/dev-wallet/adapters` | InMemory, WebCrypto, Passkey, RemoteCLI, Base   |
+| `@mysten/dev-wallet/ui`       | Lit components, mountDevWallet                  |
+| `@mysten/dev-wallet/react`    | useDevWallet, DevWalletProvider, React wrappers |
+| `@mysten/dev-wallet/client`   | DevWalletClient                                 |
+| `@mysten/dev-wallet/server`   | parseWalletRequest                              |
 
 ### Key Patterns
 
-- `./adapters` is browser-safe (no `node:` imports). Node-only adapters are at `./adapters/node`.
 - Lit components use `experimentalDecorators` (tsconfig)
 - Tests: vitest.config.ts excludes `examples/**` and browser tests
 

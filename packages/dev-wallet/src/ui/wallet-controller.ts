@@ -6,6 +6,7 @@ import type { ReadonlyWalletAccount } from '@mysten/wallet-standard';
 import { html, nothing } from 'lit';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
+import { getNetworkFromChain } from '../wallet/constants.js';
 import type {
 	DevWallet,
 	PendingConnectRequest,
@@ -36,6 +37,8 @@ export class WalletController implements ReactiveController {
 	activeAccountIndex = 0;
 	pendingRequest: PendingSigningRequest | null = null;
 	pendingConnect: PendingConnectRequest | null = null;
+	/** When set, the settings tab shows a bookmarklet section pointing to this origin. */
+	bookmarkletOrigin = '';
 
 	#wallet: DevWallet | null = null;
 	#unsubscribeEvents: (() => void) | null = null;
@@ -49,6 +52,10 @@ export class WalletController implements ReactiveController {
 
 	get wallet(): DevWallet | null {
 		return this.#wallet;
+	}
+
+	get activeAddress(): string {
+		return this.accounts[this.activeAccountIndex]?.address ?? '';
 	}
 
 	set wallet(value: DevWallet | null) {
@@ -107,7 +114,7 @@ export class WalletController implements ReactiveController {
 		if (!this.#wallet) return null;
 
 		if (this.pendingRequest) {
-			const network = this.pendingRequest.chain.split(':')[1];
+			const network = getNetworkFromChain(this.pendingRequest.chain);
 			if (network) {
 				try {
 					return this.#wallet.getClient(network);
@@ -126,8 +133,8 @@ export class WalletController implements ReactiveController {
 		if (!this.#wallet) return;
 		try {
 			await this.#wallet.approveRequest();
-		} catch {
-			// Error is propagated to the caller via the request's reject
+		} catch (error) {
+			console.error('[dev-wallet] approve failed:', error);
 		}
 	}
 
@@ -135,8 +142,8 @@ export class WalletController implements ReactiveController {
 		if (!this.#wallet) return;
 		try {
 			this.#wallet.rejectRequest();
-		} catch {
-			// No pending request
+		} catch (error) {
+			console.error('[dev-wallet] reject failed:', error);
 		}
 	}
 
@@ -162,8 +169,8 @@ export class WalletController implements ReactiveController {
 		if (!this.#wallet) return;
 		try {
 			this.#wallet.approveConnect(e.detail.selectedAddresses);
-		} catch {
-			// No pending connect
+		} catch (error) {
+			console.error('[dev-wallet] connect approve failed:', error);
 		}
 	}
 
@@ -173,32 +180,36 @@ export class WalletController implements ReactiveController {
 		if (!this.#wallet) return;
 		try {
 			this.#wallet.rejectConnect();
-		} catch {
-			// No pending connect
+		} catch (error) {
+			console.error('[dev-wallet] connect reject failed:', error);
 		}
 	}
 
 	// ── Shared render fragments ─────────────────────────────────────────────
 
-	renderAssetsTab() {
-		const activeAddress = this.accounts[this.activeAccountIndex]?.address ?? '';
-
+	renderAccountSelector() {
 		return html`
 			<div class="section">
 				<dev-wallet-account-selector
 					exportparts="trigger: selector-trigger, copy-button: selector-copy-button, empty-state: selector-empty-state"
 					.accounts=${this.accounts}
 					.adapters=${this.#wallet ? [...this.#wallet.adapters] : []}
-					.activeAddress=${activeAddress}
+					.activeAddress=${this.activeAddress}
 					@account-selected=${(e: CustomEvent) => this.handleAccountSelected(e)}
 				></dev-wallet-account-selector>
 			</div>
-			${activeAddress && this.#wallet
+		`;
+	}
+
+	renderAssetsTab() {
+		return html`
+			${this.renderAccountSelector()}
+			${this.activeAddress && this.#wallet
 				? html`
 						<div class="section">
 							<dev-wallet-balances
 								exportparts="balance-list, loading: balances-loading, error-message: balances-error-message, empty-state: balances-empty-state"
-								.address=${activeAddress}
+								.address=${this.activeAddress}
 								.client=${this.getActiveClient()}
 							></dev-wallet-balances>
 						</div>
@@ -208,36 +219,25 @@ export class WalletController implements ReactiveController {
 	}
 
 	renderObjectsTab() {
-		const activeAddress = this.accounts[this.activeAccountIndex]?.address ?? '';
-
 		return html`
-			<div class="section">
-				<dev-wallet-account-selector
-					exportparts="trigger: selector-trigger, copy-button: selector-copy-button, empty-state: selector-empty-state"
-					.accounts=${this.accounts}
-					.adapters=${this.#wallet ? [...this.#wallet.adapters] : []}
-					.activeAddress=${activeAddress}
-					@account-selected=${(e: CustomEvent) => this.handleAccountSelected(e)}
-				></dev-wallet-account-selector>
-			</div>
+			${this.renderAccountSelector()}
 			<dev-wallet-objects
 				exportparts="object-list, loading: objects-loading, error-message: objects-error-message, empty-state: objects-empty-state, load-more-button"
-				.address=${activeAddress}
+				.address=${this.activeAddress}
 				.client=${this.getActiveClient()}
 			></dev-wallet-objects>
 		`;
 	}
 
 	renderSettingsTab() {
-		const activeAddress = this.accounts[this.activeAccountIndex]?.address ?? '';
-
 		return html`
 			<dev-wallet-settings
 				exportparts="accounts-account-list, accounts-add-button, accounts-empty-state"
 				.wallet=${this.#wallet}
 				.accounts=${this.accounts}
 				.adapters=${this.#wallet ? [...this.#wallet.adapters] : []}
-				.activeAddress=${activeAddress}
+				.activeAddress=${this.activeAddress}
+				.bookmarkletOrigin=${this.bookmarkletOrigin}
 				@account-selected=${(e: CustomEvent) => this.handleAccountSelected(e)}
 			></dev-wallet-settings>
 		`;

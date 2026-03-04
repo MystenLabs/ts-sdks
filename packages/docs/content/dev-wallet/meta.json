@@ -1,0 +1,16 @@
+{
+	"root": true,
+	"title": "Dev Wallet",
+	"description": "A modular development wallet for Sui dApps",
+	"pages": [
+		"index",
+		"getting-started",
+		"adapters",
+		"signing-flow",
+		"ui-components",
+		"react-integration",
+		"standalone-mode",
+		"auto-approval",
+		"architecture"
+	]
+}

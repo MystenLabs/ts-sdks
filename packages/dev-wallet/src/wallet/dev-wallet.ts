@@ -22,7 +22,7 @@ import type {
 import { getWallets, ReadonlyWalletAccount, SUI_CHAINS } from '@mysten/wallet-standard';
 
 import type { SignerAdapter } from '../types.js';
-import { DEFAULT_WALLET_ICON, type WalletEventsMap } from './constants.js';
+import { DEFAULT_WALLET_ICON, getNetworkFromChain, type WalletEventsMap } from './constants.js';
 import { type SigningResult, executeSigning } from './signing.js';
 
 const DEFAULT_WALLET_NAME = 'Dev Wallet';
@@ -30,11 +30,11 @@ const DEFAULT_WALLET_NAME = 'Dev Wallet';
 /**
  * Default gRPC endpoint URLs for standard Sui networks (devnet, testnet, localnet).
  */
-export const DEFAULT_NETWORK_URLS: Record<string, string> = {
+export const DEFAULT_NETWORK_URLS = {
 	devnet: 'https://fullnode.devnet.sui.io:443',
 	testnet: 'https://fullnode.testnet.sui.io:443',
 	localnet: 'http://127.0.0.1:9000',
-};
+} as const;
 
 /**
  * A pending signing request waiting for user approval via the wallet UI.
@@ -47,8 +47,7 @@ export interface WalletRequest {
 	chain: string;
 	/** Transaction JSON string for sign/execute, Uint8Array for personal messages. */
 	data: string | Uint8Array;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- wallet-standard return types vary by method
-	resolve: (result: any) => void;
+	resolve: (result: SigningResult) => void;
 	reject: (error: Error) => void;
 }
 
@@ -254,26 +253,15 @@ export class DevWallet implements Wallet {
 	 * Note: This eagerly creates clients for all networks. Prefer `getClient()` or `activeClient` for single-network access.
 	 */
 	get clients(): Record<string, ClientWithCoreApi> {
-		for (const [name, url] of Object.entries(this.#networkUrls)) {
-			if (!this.#clients[name]) {
-				this.#clients[name] = this.#clientFactory(name, url);
-			}
+		for (const name of Object.keys(this.#networkUrls)) {
+			this.#ensureClient(name);
 		}
 		return { ...this.#clients };
 	}
 
 	/** Get or create the client for a specific network name. */
 	getClient(network: string): ClientWithCoreApi {
-		if (!this.#clients[network]) {
-			const url = this.#networkUrls[network];
-			if (!url) {
-				throw new Error(
-					`No client for network "${network}". Available: ${this.availableNetworks.join(', ')}`,
-				);
-			}
-			this.#clients[network] = this.#clientFactory(network, url);
-		}
-		return this.#clients[network];
+		return this.#ensureClient(network);
 	}
 
 	/** The configured network URLs, keyed by network name. */
@@ -288,13 +276,8 @@ export class DevWallet implements Wallet {
 
 	/** The client for the currently active network. */
 	get activeClient(): ClientWithCoreApi | null {
-		if (!this.#activeNetwork) return null;
-		const url = this.#networkUrls[this.#activeNetwork];
-		if (!url) return null;
-		if (!this.#clients[this.#activeNetwork]) {
-			this.#clients[this.#activeNetwork] = this.#clientFactory(this.#activeNetwork, url);
-		}
-		return this.#clients[this.#activeNetwork];
+		if (!this.#activeNetwork || !this.#networkUrls[this.#activeNetwork]) return null;
+		return this.#ensureClient(this.#activeNetwork);
 	}
 
 	/** List of available network names. */
@@ -544,16 +527,20 @@ export class DevWallet implements Wallet {
 		this.#events.emit('change', { accounts: this.#accounts });
 	};
 
-	#getClient(chain: string) {
-		const network = chain.split(':')[1];
+	#getClientForChain(chain: string) {
+		const network = getNetworkFromChain(chain);
 		if (!network) {
 			throw new Error(`Invalid chain identifier: ${chain}`);
 		}
+		return this.#ensureClient(network);
+	}
+
+	#ensureClient(network: string): ClientWithCoreApi {
 		if (!this.#clients[network]) {
 			const url = this.#networkUrls[network];
 			if (!url) {
 				throw new Error(
-					`No client configured for network "${network}". Available networks: ${Object.keys(this.#networkUrls).join(', ')}`,
+					`No client for network "${network}". Available: ${this.availableNetworks.join(', ')}`,
 				);
 			}
 			this.#clients[network] = this.#clientFactory(network, url);
@@ -600,7 +587,7 @@ export class DevWallet implements Wallet {
 		data: string | Uint8Array,
 	) {
 		const signer = this.#getSigner(account.address);
-		const client = type !== 'sign-personal-message' ? this.#getClient(chain) : undefined;
+		const client = type !== 'sign-personal-message' ? this.#getClientForChain(chain) : undefined;
 		return executeSigning({ type, signer, data, client });
 	}
 
@@ -631,7 +618,7 @@ export class DevWallet implements Wallet {
 				account,
 				chain,
 				data,
-				resolve,
+				resolve: resolve as (result: SigningResult) => void,
 				reject,
 			};
 			this.#notifyRequestListeners();

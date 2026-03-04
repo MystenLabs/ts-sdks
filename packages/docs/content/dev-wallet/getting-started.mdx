@@ -1,0 +1,148 @@
+---
+title: Getting Started
+---
+
+## Installation
+
+```sh npm2yarn
+npm i @mysten/dev-wallet
+```
+
+<Callout type="info">
+	`@mysten/sui` is a required peer dependency. For WebCrypto adapter support, also install
+	`@mysten/signers`. For React integration, install `react` and `@lit/react`.
+</Callout>
+
+## Subpath Exports
+
+The package uses subpath exports to keep your bundle lean — import only what you need:
+
+| Import Path                   | Description                                               |
+| ----------------------------- | --------------------------------------------------------- |
+| `@mysten/dev-wallet`          | Core `DevWallet` class and types                          |
+| `@mysten/dev-wallet/adapters` | Signer adapters (InMemory, WebCrypto, Passkey, RemoteCli) |
+| `@mysten/dev-wallet/ui`       | Lit Web Components and `mountDevWallet`                   |
+| `@mysten/dev-wallet/react`    | React hooks, context, and component wrappers              |
+| `@mysten/dev-wallet/client`   | `DevWalletClient` for connecting to a standalone wallet   |
+| `@mysten/dev-wallet/server`   | Request handling and CLI signing middleware               |
+
+## Vanilla JavaScript Setup
+
+```typescript
+import { DevWallet } from '@mysten/dev-wallet';
+import { InMemorySignerAdapter } from '@mysten/dev-wallet/adapters';
+import { mountDevWallet } from '@mysten/dev-wallet/ui';
+
+// 1. Create and initialize an adapter
+const adapter = new InMemorySignerAdapter();
+await adapter.initialize();
+await adapter.createAccount({ label: 'Dev Account' });
+
+// 2. Create the wallet
+const wallet = new DevWallet({
+	adapters: [adapter],
+	networks: {
+		devnet: 'https://fullnode.devnet.sui.io:443',
+		testnet: 'https://fullnode.testnet.sui.io:443',
+	},
+});
+
+// 3. Register with wallet-standard (makes it appear in dApp Kit)
+const unregister = wallet.register();
+
+// 4. Mount the floating panel UI
+const unmountUI = mountDevWallet(wallet);
+
+// Cleanup when done
+// unmountUI();
+// unregister();
+// wallet.destroy();
+```
+
+## React Setup
+
+```tsx
+import { useDevWallet } from '@mysten/dev-wallet/react';
+import { InMemorySignerAdapter } from '@mysten/dev-wallet/adapters';
+import { useMemo } from 'react';
+
+function App() {
+	// Stable adapter reference — create once
+	const adapters = useMemo(() => [new InMemorySignerAdapter()], []);
+
+	const { wallet, error, loading } = useDevWallet({
+		adapters,
+		name: 'Dev Wallet',
+		createInitialAccount: true, // Auto-create first account
+		mountUI: true, // Show floating panel
+		autoConnect: true, // Skip account picker
+	});
+
+	if (loading) return <div>Initializing wallet...</div>;
+	if (error) return <div>Error: {error.message}</div>;
+
+	return <div>Wallet ready: {wallet?.accounts.length} accounts</div>;
+}
+```
+
+<Callout type="warn">
+	Always create adapters outside your component or wrap them in `useMemo`. Creating adapters inside
+	render causes infinite re-initialization loops.
+</Callout>
+
+## Using with dApp Kit
+
+The most common pattern combines Dev Wallet with `@mysten/dapp-kit-react`:
+
+```tsx
+import { createDAppKit, DAppKitProvider } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
+import { useDevWallet } from '@mysten/dev-wallet/react';
+import { InMemorySignerAdapter } from '@mysten/dev-wallet/adapters';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { useMemo } from 'react';
+
+const dAppKit = createDAppKit({
+	networks: ['devnet'],
+	createClient: (network) =>
+		new SuiGrpcClient({
+			network,
+			baseUrl: 'https://fullnode.devnet.sui.io:443',
+		}),
+});
+
+function App() {
+	const adapters = useMemo(() => [new InMemorySignerAdapter()], []);
+
+	useDevWallet({
+		adapters,
+		createInitialAccount: true,
+		mountUI: true,
+		autoConnect: true,
+	});
+
+	return (
+		<DAppKitProvider dAppKit={dAppKit}>
+			<ConnectButton />
+			{/* Dev Wallet appears in the wallet picker */}
+		</DAppKitProvider>
+	);
+}
+```
+
+## Default Networks
+
+If you don't provide a `networks` config, Dev Wallet includes these defaults:
+
+| Network  | URL                                   |
+| -------- | ------------------------------------- |
+| devnet   | `https://fullnode.devnet.sui.io:443`  |
+| testnet  | `https://fullnode.testnet.sui.io:443` |
+| localnet | `http://127.0.0.1:9000`               |
+
+## Next Steps
+
+- [Adapters](/dev-wallet/adapters) — choose the right adapter for your use case
+- [Signing Flow](/dev-wallet/signing-flow) — understand the approval model
+- [UI Components](/dev-wallet/ui-components) — customize the wallet panel
+- [Auto-Approval](/dev-wallet/auto-approval) — skip the modal for testing

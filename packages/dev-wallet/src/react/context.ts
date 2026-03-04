@@ -10,7 +10,7 @@ export const DevWalletContext = createContext<DevWallet | null>(null);
 
 export interface DevWalletProviderProps {
 	wallet: DevWallet;
-	children: ReactNode;
+	children?: ReactNode;
 }
 
 /**

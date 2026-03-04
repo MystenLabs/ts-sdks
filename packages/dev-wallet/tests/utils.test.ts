@@ -15,6 +15,7 @@ import {
 	toggleSetItem,
 	getErrorMessage,
 	findAdapterForAddress,
+	getNetworkFromChain,
 } from '../src/ui/utils.js';
 
 describe('formatAddress', () => {
@@ -165,6 +166,23 @@ describe('getErrorMessage', () => {
 		expect(getErrorMessage('string error', 'fallback')).toBe('fallback');
 		expect(getErrorMessage(null, 'fallback')).toBe('fallback');
 		expect(getErrorMessage(42, 'fallback')).toBe('fallback');
+	});
+});
+
+describe('getNetworkFromChain', () => {
+	it('extracts network from standard chain identifier', () => {
+		expect(getNetworkFromChain('sui:testnet')).toBe('testnet');
+		expect(getNetworkFromChain('sui:mainnet')).toBe('mainnet');
+		expect(getNetworkFromChain('sui:devnet')).toBe('devnet');
+		expect(getNetworkFromChain('sui:localnet')).toBe('localnet');
+	});
+
+	it('returns undefined for chain without colon', () => {
+		expect(getNetworkFromChain('invalid')).toBeUndefined();
+	});
+
+	it('handles unknown network names', () => {
+		expect(getNetworkFromChain('sui:custom')).toBe('custom');
 	});
 });
 

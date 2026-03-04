@@ -18,6 +18,9 @@ import { buildManagedAccount } from './build-managed-account.js';
  */
 const CLI_WALLET_FEATURES = ['sui:signTransaction', 'sui:signAndExecuteTransaction'] as const;
 
+/** Cache TTL for the CLI server accounts fetch (milliseconds). */
+const ACCOUNTS_CACHE_TTL_MS = 5000;
+
 /** Map CLI `keyScheme` strings to SDK {@link SignatureScheme} values. */
 const KEY_SCHEME_MAP: Record<string, SignatureScheme> = {
 	ed25519: 'ED25519',
@@ -318,7 +321,11 @@ export class RemoteCliAdapter extends BaseSignerAdapter {
 	}
 
 	async #fetchServerAccounts(forceRefresh = false): Promise<void> {
-		if (!forceRefresh && this.#lastFetch && Date.now() - this.#lastFetch.time < 5000) {
+		if (
+			!forceRefresh &&
+			this.#lastFetch &&
+			Date.now() - this.#lastFetch.time < ACCOUNTS_CACHE_TTL_MS
+		) {
 			this.#allServerAccounts = this.#lastFetch.result;
 			return;
 		}

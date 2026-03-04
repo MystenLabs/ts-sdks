@@ -41,7 +41,7 @@ export class InMemorySignerAdapter extends BaseSignerAdapter {
 		return managedAccount;
 	}
 
-	renameAccount(address: string, label: string): boolean {
+	async renameAccount(address: string, label: string): Promise<boolean> {
 		return this._performRename(address, label);
 	}
 

@@ -25,14 +25,17 @@ export function createMockAccount(keypair?: Ed25519Keypair): ManagedAccount {
 	};
 }
 
-export function createMockAdapter(accounts: ManagedAccount[] = []): SignerAdapter & {
+export function createMockAdapter(
+	accounts: ManagedAccount[] = [],
+	options?: { id?: string; name?: string },
+): SignerAdapter & {
 	_triggerAccountsChanged(accounts: ManagedAccount[]): void;
 } {
 	const listeners = new Set<(accounts: ManagedAccount[]) => void>();
 
 	return {
-		id: 'mock',
-		name: 'Mock Adapter',
+		id: options?.id ?? 'mock',
+		name: options?.name ?? 'Mock Adapter',
 		initialize: vi.fn().mockResolvedValue(undefined),
 		getAccounts: vi.fn(() => [...accounts]),
 		getAccount: vi.fn((address: string) => accounts.find((a) => a.address === address)),

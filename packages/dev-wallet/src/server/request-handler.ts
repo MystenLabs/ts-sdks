@@ -6,6 +6,7 @@ import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { createJwtSession, WalletPostMessageChannel } from '@mysten/window-wallet-core';
 
 import type { SignerAdapter } from '../types.js';
+import { getNetworkFromChain } from '../wallet/constants.js';
 import { executeSigning } from '../wallet/signing.js';
 
 /**
@@ -149,7 +150,7 @@ export function parseWalletRequest(options: HandleRequestOptions): PendingWallet
 			}
 
 			try {
-				const network = payload.chain?.split(':')[1];
+				const network = payload.chain ? getNetworkFromChain(payload.chain) : undefined;
 				const client = network ? options.clients?.[network] : undefined;
 				const result = await executeSigning({
 					type: payload.type,

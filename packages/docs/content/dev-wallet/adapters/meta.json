@@ -1,0 +1,4 @@
+{
+	"title": "Adapters",
+	"pages": ["index", "in-memory", "webcrypto", "passkey", "remote-cli", "custom"]
+}

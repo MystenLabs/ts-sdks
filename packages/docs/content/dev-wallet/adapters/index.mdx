@@ -1,0 +1,76 @@
+---
+title: Adapters
+---
+
+Adapters are the pluggable key management layer of Dev Wallet. Each adapter manages its own set of
+accounts and provides signers for transaction signing.
+
+## What Is a SignerAdapter?
+
+A `SignerAdapter` handles:
+
+- **Key generation and storage** — how keypairs are created and where they live
+- **Account lifecycle** — creating, importing, removing, and renaming accounts
+- **Signing** — providing a `Signer` for each account that can sign transactions and messages
+
+DevWallet aggregates accounts from all its adapters into a single wallet. You can use multiple
+adapters simultaneously — for example, InMemory for quick testing and WebCrypto for persistent
+accounts.
+
+## Adapter Comparison
+
+| Adapter                                       | Key Type  | Persistence  | Auto-Sign | Best For                      |
+| --------------------------------------------- | --------- | ------------ | --------- | ----------------------------- |
+| [InMemory](/dev-wallet/adapters/in-memory)    | Ed25519   | None         | Yes       | Quick prototyping, unit tests |
+| [WebCrypto](/dev-wallet/adapters/webcrypto)   | Secp256r1 | IndexedDB    | Yes       | Persistent dev accounts       |
+| [Passkey](/dev-wallet/adapters/passkey)       | Secp256r1 | Browser + OS | No        | Testing passkey flows         |
+| [Remote CLI](/dev-wallet/adapters/remote-cli) | Any       | External     | No        | Using `sui` CLI keystore      |
+
+## Using Multiple Adapters
+
+```typescript
+import { DevWallet } from '@mysten/dev-wallet';
+import { InMemorySignerAdapter, WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+
+const adapters = [new InMemorySignerAdapter(), new WebCryptoSignerAdapter()];
+
+// Initialize all adapters
+await Promise.all(adapters.map((a) => a.initialize()));
+
+const wallet = new DevWallet({ adapters });
+// wallet.accounts includes accounts from both adapters
+```
+
+## The BaseSignerAdapter
+
+All built-in adapters extend `BaseSignerAdapter`, which handles common boilerplate:
+
+- Account list management (`setInitialAccounts`, `addAccount`, `removeAccountByAddress`,
+  `replaceAccount`)
+- Change notification via `onAccountsChanged` listeners
+- Cleanup via `destroy()`
+
+If you need a custom adapter, extending `BaseSignerAdapter` is the recommended approach. See
+[Custom Adapters](/dev-wallet/adapters/custom).
+
+## The SignerAdapter Interface
+
+```typescript
+interface SignerAdapter {
+	readonly id: string;
+	readonly name: string;
+	readonly allowAutoSign?: boolean;
+
+	initialize(): Promise<void>;
+	getAccounts(): ManagedAccount[];
+	getAccount(address: string): ManagedAccount | undefined;
+
+	createAccount?(options?: CreateAccountOptions): Promise<ManagedAccount>;
+	importAccount?(options: ImportAccountOptions): Promise<ManagedAccount>;
+	removeAccount?(address: string): Promise<boolean>;
+	renameAccount?(address: string, label: string): Promise<boolean>;
+
+	onAccountsChanged(callback: (accounts: ManagedAccount[]) => void): () => void;
+	destroy(): void;
+}
+```

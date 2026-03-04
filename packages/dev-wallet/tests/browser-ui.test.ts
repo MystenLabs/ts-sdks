@@ -3,7 +3,7 @@
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { ReadonlyWalletAccount, SUI_CHAINS } from '@mysten/wallet-standard';
 import { toBase64 } from '@mysten/sui/utils';
 
@@ -19,13 +19,6 @@ import type { DevWalletNewAccount } from '../src/ui/dev-wallet-new-account.js';
 const NETWORK = 'devnet';
 
 // --- Helpers ---
-
-function createDevnetClient(): SuiJsonRpcClient {
-	return new SuiJsonRpcClient({
-		network: NETWORK,
-		url: getJsonRpcFullnodeUrl(NETWORK),
-	});
-}
 
 function createMockWalletAccount(keypair: Ed25519Keypair): ReadonlyWalletAccount {
 	return new ReadonlyWalletAccount({
@@ -92,8 +85,6 @@ describe('dev-wallet-signing component', () => {
 			account,
 			chain: 'sui:devnet',
 			data: new TextEncoder().encode('Hello test'),
-			resolve: () => {},
-			reject: () => {},
 		};
 		container.appendChild(el);
 		await waitForUpdate(el);
@@ -126,8 +117,6 @@ describe('dev-wallet-signing component', () => {
 			account,
 			chain: 'sui:devnet',
 			data: '{"kind":"TransactionData"}',
-			resolve: () => {},
-			reject: () => {},
 		};
 		container.appendChild(el);
 		await waitForUpdate(el);
@@ -147,8 +136,6 @@ describe('dev-wallet-signing component', () => {
 			account,
 			chain: 'sui:devnet',
 			data: '{"kind":"TransactionData"}',
-			resolve: () => {},
-			reject: () => {},
 		};
 		container.appendChild(el);
 		await waitForUpdate(el);
@@ -168,8 +155,6 @@ describe('dev-wallet-signing component', () => {
 			account,
 			chain: 'sui:unknown',
 			data: new TextEncoder().encode('test'),
-			resolve: () => {},
-			reject: () => {},
 		};
 		container.appendChild(el);
 		await waitForUpdate(el);
@@ -195,8 +180,6 @@ describe('dev-wallet-signing component', () => {
 			account,
 			chain: 'sui:unknown',
 			data: new TextEncoder().encode('test'),
-			resolve: () => {},
-			reject: () => {},
 		};
 		container.appendChild(el);
 		await waitForUpdate(el);
@@ -222,8 +205,6 @@ describe('dev-wallet-signing component', () => {
 			account,
 			chain: 'sui:unknown',
 			data: new TextEncoder().encode('x'),
-			resolve: () => {},
-			reject: () => {},
 		};
 		container.appendChild(el);
 		await waitForUpdate(el);

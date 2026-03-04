@@ -125,40 +125,16 @@ await adapter.initialize(); // loads existing keys from IndexedDB
 await adapter.createAccount({ label: 'Persistent Key' });
 ```
 
-### SuiCliSignerAdapter
-
-Reads keys from the local Sui CLI keystore. Account creation shells out to `sui client new-address`.
-Node.js only.
-
-```typescript
-const adapter = new SuiCliSignerAdapter();
-await adapter.initialize(); // reads ~/.sui/sui_config/sui.keystore
-```
-
-### KeystoreSignerAdapter
-
-Read-only adapter that loads keys directly from a Sui keystore file. Faster than
-`SuiCliSignerAdapter` (no CLI dependency), but does not support account creation. Node.js only.
-
-```typescript
-const adapter = new KeystoreSignerAdapter();
-await adapter.initialize(); // reads ~/.sui/sui_config/sui.keystore
-
-// Pick up externally-added keys
-await adapter.reload();
-```
-
 ## Subpath Exports
 
-| Export                             | Contents                                                                     |
-| ---------------------------------- | ---------------------------------------------------------------------------- |
-| `@mysten/dev-wallet`               | `DevWallet`, types (`DevWalletConfig`, `WalletRequest`, `AutoApprovePolicy`) |
-| `@mysten/dev-wallet/adapters`      | Browser-safe signer adapters + `SignerAdapter` type                          |
-| `@mysten/dev-wallet/adapters/node` | Node.js adapters (`KeystoreSignerAdapter`, `SuiCliSignerAdapter`)            |
-| `@mysten/dev-wallet/ui`            | Lit web components + `mountDevWallet()`                                      |
-| `@mysten/dev-wallet/react`         | `useDevWallet` hook, React-wrapped Lit components                            |
-| `@mysten/dev-wallet/client`        | `DevWalletClient` (dApp-side PostMessage wallet)                             |
-| `@mysten/dev-wallet/server`        | `parseWalletRequest()` (web wallet app handler)                              |
+| Export                        | Contents                                                                     |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| `@mysten/dev-wallet`          | `DevWallet`, types (`DevWalletConfig`, `WalletRequest`, `AutoApprovePolicy`) |
+| `@mysten/dev-wallet/adapters` | Signer adapters (InMemory, WebCrypto, Passkey, RemoteCli) + `SignerAdapter`  |
+| `@mysten/dev-wallet/ui`       | Lit web components + `mountDevWallet()`                                      |
+| `@mysten/dev-wallet/react`    | `useDevWallet` hook, React-wrapped Lit components                            |
+| `@mysten/dev-wallet/client`   | `DevWalletClient` (dApp-side PostMessage wallet)                             |
+| `@mysten/dev-wallet/server`   | `parseWalletRequest()` (web wallet app handler)                              |
 
 ## Signing Flow
 

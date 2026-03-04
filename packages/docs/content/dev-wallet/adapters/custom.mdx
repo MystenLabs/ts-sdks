@@ -1,0 +1,102 @@
+---
+title: Custom Adapters
+---
+
+You can create custom adapters by implementing the `SignerAdapter` interface or extending
+`BaseSignerAdapter`.
+
+## Extending BaseSignerAdapter
+
+`BaseSignerAdapter` handles common boilerplate — account list management, change notifications, and
+cleanup. You only need to implement the initialization and key management logic.
+
+```typescript
+import { BaseSignerAdapter } from '@mysten/dev-wallet/adapters';
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import type { ManagedAccount, CreateAccountOptions } from '@mysten/dev-wallet';
+
+class LocalStorageAdapter extends BaseSignerAdapter {
+  readonly id = 'local-storage';
+  readonly name = 'LocalStorage';
+
+  async initialize(): Promise<void> {
+    // Load saved keys from localStorage
+    const stored = localStorage.getItem('dev-wallet-keys');
+    if (!stored) return;
+
+    const entries: Array<{ secret: string; label: string }> = JSON.parse(stored);
+    const accounts = entries.map((entry) => {
+      const keypair = Ed25519Keypair.fromSecretKey(entry.secret);
+      return this.createManagedAccount(keypair, entry.label);
+    });
+
+    this.setInitialAccounts(accounts);
+  }
+
+  async createAccount(options?: CreateAccountOptions): Promise<ManagedAccount> {
+    const keypair = new Ed25519Keypair();
+    const label = options?.label ?? `Account ${this.getAccounts().length + 1}`;
+    const account = this.addAccount(keypair, label);
+    this.persist();
+    return account;
+  }
+
+  async removeAccount(address: string): Promise<boolean> {
+    const removed = this.removeAccountByAddress(address);
+    if (removed) this.persist();
+    return removed;
+  }
+
+  private createManagedAccount(keypair: Ed25519Keypair, label: string): ManagedAccount {
+    // BaseSignerAdapter.addAccount handles the WalletAccount creation
+    // For initialize, we create accounts manually
+    return {
+      address: keypair.getPublicKey().toSuiAddress(),
+      label,
+      signer: keypair,
+      walletAccount: /* create ReadonlyWalletAccount */,
+    };
+  }
+
+  private persist(): void {
+    const data = this.getAccounts().map((acc) => ({
+      secret: /* export secret key */,
+      label: acc.label,
+    }));
+    localStorage.setItem('dev-wallet-keys', JSON.stringify(data));
+  }
+}
+```
+
+## Using Your Custom Adapter
+
+```typescript
+import { DevWallet } from '@mysten/dev-wallet';
+
+const adapter = new LocalStorageAdapter();
+await adapter.initialize();
+
+const wallet = new DevWallet({
+	adapters: [adapter],
+});
+```
+
+## BaseSignerAdapter Helper Methods
+
+| Method                             | Description                                        |
+| ---------------------------------- | -------------------------------------------------- |
+| `setInitialAccounts(accounts)`     | Set the initial account list during `initialize()` |
+| `addAccount(signer, label)`        | Add a new account and notify listeners             |
+| `removeAccountByAddress(address)`  | Remove an account and notify listeners             |
+| `replaceAccount(address, account)` | Replace an account (e.g., after rename)            |
+
+## The ManagedAccount Interface
+
+```typescript
+interface ManagedAccount {
+	address: string; // Sui address
+	label: string; // Human-readable name
+	signer: Signer; // Can sign transactions and messages
+	walletAccount: ReadonlyWalletAccount; // Wallet-standard account
+}
+```

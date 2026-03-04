@@ -5,7 +5,7 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import type { SignerAdapter } from '../types.js';
-import { actionButtonStyles, sharedStyles } from './styles.js';
+import { actionButtonStyles, sharedStyles, stateStyles } from './styles.js';
 import {
 	emitEvent,
 	formatAddress,
@@ -28,6 +28,7 @@ export class DevWalletNewAccount extends LitElement {
 	static override styles = [
 		sharedStyles,
 		actionButtonStyles,
+		stateStyles,
 		css`
 			:host {
 				display: block;
@@ -264,18 +265,9 @@ export class DevWalletNewAccount extends LitElement {
 				flex-shrink: 0;
 			}
 
-			.empty-state {
-				text-align: center;
-				padding: 20px;
-				color: var(--dev-wallet-muted-foreground);
-				font-size: 13px;
-			}
-
+			.empty-state,
 			.loading {
-				text-align: center;
 				padding: 20px;
-				color: var(--dev-wallet-muted-foreground);
-				font-size: 13px;
 			}
 
 			.actions {

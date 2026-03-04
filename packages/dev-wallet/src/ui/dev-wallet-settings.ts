@@ -239,6 +239,75 @@ export class DevWalletSettings extends LitElement {
 				color: var(--dev-wallet-destructive);
 				margin-top: 4px;
 			}
+
+			.bookmarklet-link-wrapper {
+				margin-top: 8px;
+			}
+
+			.bookmarklet-link {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				padding: 8px 14px;
+				border-radius: var(--dev-wallet-radius-sm);
+				background: var(--dev-wallet-primary);
+				color: var(--dev-wallet-primary-foreground);
+				font-size: 13px;
+				font-weight: var(--dev-wallet-font-weight-semibold);
+				text-decoration: none;
+				cursor: grab;
+				user-select: none;
+			}
+
+			.bookmarklet-link:hover {
+				opacity: 0.9;
+			}
+
+			.bookmarklet-link:active {
+				cursor: grabbing;
+			}
+
+			.bookmarklet-url {
+				font-family: var(--dev-wallet-font-mono);
+				font-size: 10px;
+				color: var(--dev-wallet-muted-foreground);
+				word-break: break-all;
+				user-select: all;
+			}
+
+			.console-snippet {
+				position: relative;
+				margin-top: 8px;
+				padding: 10px 12px;
+				border-radius: var(--dev-wallet-radius-sm);
+				background: var(--dev-wallet-secondary);
+				border: 1px solid var(--dev-wallet-border);
+				font-family: var(--dev-wallet-font-mono);
+				font-size: 11px;
+				color: var(--dev-wallet-foreground);
+				line-height: 1.5;
+				white-space: pre-wrap;
+				word-break: break-all;
+				user-select: all;
+			}
+
+			.btn-copy {
+				position: absolute;
+				top: 6px;
+				right: 6px;
+				padding: 3px 8px;
+				border-radius: var(--dev-wallet-radius-xs);
+				background: var(--dev-wallet-border);
+				color: var(--dev-wallet-muted-foreground);
+				font-size: 10px;
+				font-family: inherit;
+				cursor: pointer;
+			}
+
+			.btn-copy:hover {
+				background: var(--dev-wallet-input);
+				color: var(--dev-wallet-foreground);
+			}
 		`,
 	];
 
@@ -253,6 +322,10 @@ export class DevWalletSettings extends LitElement {
 
 	@property({ type: String })
 	activeAddress = '';
+
+	/** When set, shows the bookmarklet section pointing to this origin. */
+	@property({ type: String })
+	bookmarkletOrigin = '';
 
 	@state()
 	private _showAddNetwork = false;
@@ -272,6 +345,9 @@ export class DevWalletSettings extends LitElement {
 	@state()
 	private _editingUrl = '';
 
+	@state()
+	private _copied = false;
+
 	override render() {
 		return html`
 			<div class="section">${this.#renderNetworks()}</div>
@@ -279,6 +355,7 @@ export class DevWalletSettings extends LitElement {
 				? html`<div class="section">${this.#renderCliSigner()}</div>`
 				: nothing}
 			<div class="section">${this.#renderAccounts()}</div>
+			<div class="section">${this.#renderBookmarklet()}</div>
 			<div class="section">${this.#renderAbout()}</div>
 		`;
 	}
@@ -487,6 +564,55 @@ export class DevWalletSettings extends LitElement {
 		`;
 	}
 
+	#renderBookmarklet() {
+		if (!this.bookmarkletOrigin) return nothing;
+		const origin = this.bookmarkletOrigin;
+
+		const bookmarkletJs = `${origin}/bookmarklet.js`;
+		const bookmarkletHref = `javascript:void(document.head.appendChild(Object.assign(document.createElement('script'),{src:'${bookmarkletJs}'})))`;
+		const consoleSnippet = `var s=document.createElement('script');s.src='${bookmarkletJs}';document.head.appendChild(s);`;
+
+		return html`
+			<h3 class="section-header">Bookmarklet</h3>
+			<div class="about">
+				Drag this link to your bookmarks bar, then click it on any dApp to inject the wallet:
+			</div>
+			<div class="bookmarklet-link-wrapper">
+				<a
+					class="bookmarklet-link"
+					href=${bookmarkletHref}
+					title="Drag to bookmarks bar"
+					@click=${(e: MouseEvent) => e.preventDefault()}
+				>
+					Dev Wallet
+				</a>
+			</div>
+			<div class="about" style="margin-top: 12px">Or paste this in the browser console:</div>
+			<div class="console-snippet">
+				${consoleSnippet}
+				<button
+					class="btn-copy"
+					@click=${() => this.#copySnippet(consoleSnippet)}
+				>
+					${this._copied ? 'Copied!' : 'Copy'}
+				</button>
+			</div>
+			<div class="about" style="margin-top: 8px">
+				Or add this script to your page:<br />
+				<code class="bookmarklet-url">${bookmarkletJs}</code>
+			</div>
+		`;
+	}
+
+	#copySnippet(text: string) {
+		navigator.clipboard.writeText(text).then(() => {
+			this._copied = true;
+			setTimeout(() => {
+				this._copied = false;
+			}, 2000);
+		});
+	}
+
 	#renderAbout() {
 		return html`
 			<h3 class="section-header">About</h3>
@@ -543,9 +669,13 @@ export class DevWalletSettings extends LitElement {
 		const url = this._editingUrl.trim();
 		if (!url) return;
 
-		this.wallet.addNetwork(name, url);
-		this._editingNetwork = null;
-		this._editingUrl = '';
+		try {
+			this.wallet.addNetwork(name, url);
+			this._editingNetwork = null;
+			this._editingUrl = '';
+		} catch (error) {
+			this._error = error instanceof Error ? error.message : 'Invalid URL';
+		}
 	}
 
 	#cancelEditNetwork() {

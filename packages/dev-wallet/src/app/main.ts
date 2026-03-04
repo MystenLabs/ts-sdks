@@ -7,10 +7,12 @@ import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { RemoteCliAdapter } from '../adapters/remote-cli-adapter.js';
 import type { SignerAdapter } from '../types.js';
 import { parseWalletRequest } from '../server/request-handler.js';
+import { getNetworkFromChain } from '../wallet/constants.js';
 import { DEFAULT_NETWORK_URLS, DevWallet } from '../wallet/dev-wallet.js';
 
 // Import UI components to register custom elements
 import '../ui/dev-wallet-popup.js';
+import type { DevWalletStandalone } from '../ui/dev-wallet-standalone.js';
 import '../ui/dev-wallet-standalone.js';
 import type { DevWalletConnect } from '../ui/dev-wallet-connect.js';
 
@@ -117,7 +119,7 @@ async function handlePopupRequest(hash: string) {
 		app.innerHTML = '';
 
 		// Determine client for signing analysis
-		const network = request.chain?.split(':')[1];
+		const network = request.chain ? getNetworkFromChain(request.chain) : undefined;
 		const client = network ? clients[network] : clients['devnet'];
 
 		const popup = document.createElement('dev-wallet-popup');
@@ -191,8 +193,9 @@ async function showStandaloneUI() {
 
 		app.innerHTML = '';
 
-		const el = document.createElement('dev-wallet-standalone');
-		(el as any).wallet = wallet;
+		const el = document.createElement('dev-wallet-standalone') as DevWalletStandalone;
+		el.wallet = wallet;
+		el.bookmarkletOrigin = window.location.origin;
 		app.appendChild(el);
 	} catch (error) {
 		showErrorMessage(app, 'Failed to initialize wallet', error);

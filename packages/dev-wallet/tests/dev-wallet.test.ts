@@ -364,7 +364,7 @@ describe('DevWallet', () => {
 			// Approve it — the signing process will fail because no client for testnet
 			await wallet.approveRequest();
 
-			await expect(resultPromise).rejects.toThrow('No client configured for network "testnet"');
+			await expect(resultPromise).rejects.toThrow('No client for network "testnet"');
 		});
 	});
 
@@ -751,10 +751,8 @@ describe('DevWallet', () => {
 		it('getAdapterForAccount returns the correct adapter', () => {
 			const account1 = createMockAccount();
 			const account2 = createMockAccount();
-			const adapter1 = createMockAdapter([account1]);
-			const adapter2 = createMockAdapter([account2]);
-			adapter1.id = 'adapter-1';
-			adapter2.id = 'adapter-2';
+			const adapter1 = createMockAdapter([account1], { id: 'adapter-1' });
+			const adapter2 = createMockAdapter([account2], { id: 'adapter-2' });
 			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter1, adapter2] }));
 
 			expect(wallet.getAdapterForAccount(account1.address)?.id).toBe('adapter-1');
@@ -804,10 +802,8 @@ describe('DevWallet', () => {
 		});
 
 		it('exposes all adapters in order', () => {
-			const adapter1 = createMockAdapter();
-			const adapter2 = createMockAdapter();
-			adapter1.id = 'first';
-			adapter2.id = 'second';
+			const adapter1 = createMockAdapter([], { id: 'first' });
+			const adapter2 = createMockAdapter([], { id: 'second' });
 			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter1, adapter2] }));
 
 			expect(wallet.adapters).toHaveLength(2);

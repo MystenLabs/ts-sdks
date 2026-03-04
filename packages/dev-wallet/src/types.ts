@@ -70,7 +70,7 @@ export interface SignerAdapter {
 	/** Remove an account by address. Returns true if the account was found and removed. */
 	removeAccount?(address: string): Promise<boolean>;
 	/** Rename an account. Returns true if the account was found and renamed. */
-	renameAccount?(address: string, label: string): boolean | Promise<boolean>;
+	renameAccount?(address: string, label: string): Promise<boolean>;
 
 	/** Subscribe to account list changes. Returns an unsubscribe function. */
 	onAccountsChanged(callback: (accounts: ManagedAccount[]) => void): () => void;

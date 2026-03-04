@@ -19,10 +19,6 @@
 			"types": "./dist/adapters/browser.d.mts",
 			"import": "./dist/adapters/browser.mjs"
 		},
-		"./adapters/node": {
-			"types": "./dist/adapters/node.d.mts",
-			"import": "./dist/adapters/node.mjs"
-		},
 		"./ui": {
 			"types": "./dist/ui/index.d.mts",
 			"import": "./dist/ui/index.mjs"
@@ -79,6 +75,7 @@
 	],
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/dev-wallet#readme",
 	"devDependencies": {
+		"@lit/react": "^1.0.8",
 		"@mysten/signers": "workspace:^",
 		"@mysten/sui": "workspace:^",
 		"@testing-library/react": "^16.3.1",
