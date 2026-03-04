@@ -40,7 +40,7 @@ describe('MultiSig with zklogin signature', () => {
 		}
 
 		// Parse the generated zkLogin signature to get the public key and proof details
-		const tempSig = pmJson.sig;
+		const tempSig = pmJson.sig as string;
 		const parsedZkLogin = parseSerializedZkLoginSignature(tempSig);
 		// Create ZkLoginPublicIdentifier from the parsed data
 		const pkZklogin = toZkLoginPublicIdentifier(
