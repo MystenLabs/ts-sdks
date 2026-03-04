@@ -1,5 +1,20 @@
 # @mysten/dapp-kit-core
 
+## 1.1.4
+
+### Patch Changes
+
+- 637b125: Clear persisted wallet session on explicit disconnect to prevent auto-reconnect after
+  page refresh. Wallet removal (HMR, React strict mode) is unaffected.
+- Updated dependencies [903eecc]
+- Updated dependencies [e33fea3]
+- Updated dependencies [903eecc]
+- Updated dependencies [e33fea3]
+- Updated dependencies [903eecc]
+- Updated dependencies [903eecc]
+  - @mysten/sui@2.6.0
+  - @mysten/wallet-standard@0.20.1
+
 ## 1.1.3
 
 ### Patch Changes

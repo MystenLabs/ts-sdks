@@ -1,5 +1,25 @@
 # @mysten/sui.js
 
+## 2.6.0
+
+### Minor Changes
+
+- 903eecc: Add `childId` to `getDynamicField` response for dynamic object fields.
+- e33fea3: Add `json` field to event data in transaction responses. When `events: true` is included,
+  each event now contains a `json` field with the JSON representation of the event's Move struct
+  data (or `null` if unavailable). Supported across all three transports (gRPC, GraphQL, JSON-RPC).
+- 903eecc: Add `include: { value: true }` option to `listDynamicFields` on `SuiGrpcClient` and
+  `SuiGraphQLClient` to optionally return the field values
+
+### Patch Changes
+
+- e33fea3: Fix gas payment resolution to check sender's address balance when sender is their own gas
+  payer. Previously, address balance was only checked for sponsored transactions, causing "No valid
+  gas coins found" errors for accounts with sufficient address balance but no coin objects.
+- 903eecc: Fix IDE autocomplete for `include` option in client and client.core methods
+- 903eecc: Update GraphQL schema and remove references to dropped `SimulationResult.error` and
+  `ExecutionResult.errors` fields
+
 ## 2.5.1
 
 ### Patch Changes
