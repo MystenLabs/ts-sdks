@@ -28,10 +28,11 @@ describe('Core API - ZkLogin', () => {
 		const currentEpoch = Number(epoch.epoch);
 		const maxEpoch = currentEpoch + 10;
 
-		// Generate PersonalMessage signature
+		// Generate PersonalMessage signature using --json for reliable parsing
 		const pmResult = await execSuiTools([
 			'sui',
 			'keytool',
+			'--json',
 			'zk-login-insecure-sign-personal-message',
 			'--data',
 			'hello',
@@ -40,18 +41,17 @@ describe('Core API - ZkLogin', () => {
 		]);
 
 		const pmOutput = pmResult.stdout;
-		const pmSigMatch = pmOutput.match(/│\s*sig\s*│\s*(.+?)\s*│/);
-		const pmAddressMatch = pmOutput.match(/│\s*address\s*│\s*(.+?)\s*│/);
+		const pmJson = JSON.parse(pmOutput.slice(pmOutput.indexOf('{')));
 
-		if (!pmSigMatch || !pmAddressMatch) {
-			throw new Error('Failed to generate zkLogin signature: could not parse output');
+		if (!pmJson.sig || !pmJson.address) {
+			throw new Error('Failed to generate zkLogin signature: missing sig or address in output');
 		}
 
 		validSignatureCase = {
 			bytes: 'aGVsbG8=', // base64 encoding of "hello"
-			signature: pmSigMatch[1].trim(),
+			signature: pmJson.sig,
 			intentScope: 'PersonalMessage',
-			address: pmAddressMatch[1].trim(),
+			address: pmJson.address,
 		};
 
 		// Hardcoded TransactionData signature (generated using local keytool)

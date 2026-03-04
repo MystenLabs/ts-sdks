@@ -26,10 +26,11 @@ describe('MultiSig with zklogin signature', () => {
 		const maxEpoch = currentEpoch + 10;
 
 		// Generate a zkLogin signature dynamically using sui keytool
-		// This creates a fresh signature with a valid max epoch
+		// This creates a fresh signature with a valid max epoch, using --json for reliable parsing
 		const pmResult = await execSuiTools([
 			'sui',
 			'keytool',
+			'--json',
 			'zk-login-insecure-sign-personal-message',
 			'--data',
 			'hello',
@@ -38,14 +39,14 @@ describe('MultiSig with zklogin signature', () => {
 		]);
 
 		const pmOutput = pmResult.stdout;
-		const pmSigMatch = pmOutput.match(/│\s*sig\s*│\s*(.+?)\s*│/);
+		const pmJson = JSON.parse(pmOutput.slice(pmOutput.indexOf('{')));
 
-		if (!pmSigMatch) {
-			throw new Error('Failed to generate zkLogin signature: could not parse output');
+		if (!pmJson.sig) {
+			throw new Error('Failed to generate zkLogin signature: missing sig in output');
 		}
 
 		// Parse the generated zkLogin signature to get the public key and proof details
-		const tempSig = pmSigMatch[1].trim();
+		const tempSig = pmJson.sig;
 		const parsedZkLogin = parseSerializedZkLoginSignature(tempSig);
 		// Create ZkLoginPublicIdentifier from the parsed data
 		const pkZklogin = toZkLoginPublicIdentifier(
