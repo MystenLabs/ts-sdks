@@ -106,7 +106,7 @@ export function createDAppKit<
 		signAndExecuteTransaction: signAndExecuteTransactionCreator(stores),
 		signPersonalMessage: signPersonalMessageCreator(stores),
 		connectWallet: connectWalletCreator(stores, networks),
-		disconnectWallet: disconnectWalletCreator(stores),
+		disconnectWallet: disconnectWalletCreator(stores, { storage, storageKey }),
 		switchAccount: switchAccountCreator(stores),
 		switchNetwork: switchNetworkCreator(stores),
 		stores: {
