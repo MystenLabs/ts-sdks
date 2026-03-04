@@ -360,31 +360,32 @@ tx.add(
 
 ### Parsing BCS Data
 
-Use generated BCS types to parse on-chain object data with the core API:
+Use generated BCS types to parse on-chain object data. Fetch the object with
+`include: { content: true }` and pass `object.content` to the generated type's `.parse()` method:
 
 ```typescript
 import { Counter as CounterStruct } from './contracts/counter/counter';
 
-async function readCounter(id: string) {
-	const { response } = await client.ledgerService.getObject({
+async function readCounter(client: ClientWithCoreApi, id: string) {
+	const { object } = await client.core.getObject({
 		objectId: id,
-		readMask: {
-			paths: ['*'],
-		},
+		include: { content: true },
 	});
 
-	if (!response.object?.contents?.value) {
-		throw new Error('Expected a move object with contents');
-	}
-
-	// Parse with generated BCS type
-	const parsed = CounterStruct.parse(response.object.contents.value);
+	// Parse the Move struct fields from BCS content
+	const parsed = CounterStruct.parse(object.content);
 	console.log('Counter value:', parsed.value);
 	console.log('Counter owner:', parsed.owner);
 
 	return parsed;
 }
 ```
+
+<Callout type="warn">
+	Always use `content`, not `objectBcs`, when parsing with generated types. The `objectBcs` field
+	contains a full object envelope with additional metadata that will cause parsing to fail. See the
+	[Core API docs](/sui/clients/core#objectbcs) for details.
+</Callout>
 
 ## Client Configuration
 
