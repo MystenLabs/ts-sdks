@@ -15,7 +15,7 @@ import {
 	parseSerializedZkLoginSignature,
 	toZkLoginPublicIdentifier,
 } from '../../src/zklogin/publickey.js';
-import { DEFAULT_RECIPIENT, execSuiTools, setup, setupWithFundedAddress } from './utils/setup.js';
+import { DEFAULT_RECIPIENT, execKeytool, setup, setupWithFundedAddress } from './utils/setup.js';
 
 describe('MultiSig with zklogin signature', () => {
 	it('Execute tx with multisig with 1 sig and 1 zkLogin sig combined', async () => {
@@ -27,19 +27,13 @@ describe('MultiSig with zklogin signature', () => {
 
 		// Generate a zkLogin signature dynamically using sui keytool
 		// This creates a fresh signature with a valid max epoch, using --json for reliable parsing
-		const pmResult = await execSuiTools([
-			'sui',
-			'keytool',
-			'--json',
+		const pmJson = await execKeytool([
 			'zk-login-insecure-sign-personal-message',
 			'--data',
 			'hello',
 			'--max-epoch',
 			maxEpoch.toString(),
 		]);
-
-		const pmOutput = pmResult.stdout;
-		const pmJson = JSON.parse(pmOutput.slice(pmOutput.indexOf('{')));
 
 		if (!pmJson.sig) {
 			throw new Error('Failed to generate zkLogin signature: missing sig in output');

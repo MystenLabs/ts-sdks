@@ -494,6 +494,55 @@ export async function executePaySuiNTimes(
 
 const client = await getContainerRuntimeClient();
 
+/**
+ * Run a `sui keytool` command with an isolated keystore to avoid concurrent write conflicts.
+ * Retries on failure since concurrent keytool calls can cause panics in the sui binary.
+ * Returns the parsed JSON output.
+ */
+export async function execKeytool(
+	args: string[],
+	maxRetries = 3,
+): Promise<Record<string, unknown>> {
+	for (let attempt = 0; attempt < maxRetries; attempt++) {
+		const keystorePath = `/tmp/keystore-${Math.random().toString(36).slice(2)}.keystore`;
+		await execSuiTools(['bash', '-c', `echo '[]' > ${keystorePath}`]);
+		const result = await execSuiTools([
+			'sui',
+			'keytool',
+			'--keystore-path',
+			keystorePath,
+			'--json',
+			...args,
+		]);
+		try {
+			return parseKeytoolJson(result.stdout);
+		} catch (e) {
+			if (attempt === maxRetries - 1) throw e;
+			// Wait before retrying - concurrent keytool calls can cause crashes
+			await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+		}
+	}
+	throw new Error('unreachable');
+}
+
+/**
+ * Parse JSON output from `sui keytool --json` commands.
+ * The output may contain debug lines before the JSON object, so we find the last
+ * top-level JSON object by looking for `\n{` at the start of a line.
+ */
+export function parseKeytoolJson(stdout: string): Record<string, unknown> {
+	// Find the last JSON object starting at the beginning of a line
+	const jsonStart = stdout.lastIndexOf('\n{');
+	if (jsonStart !== -1) {
+		return JSON.parse(stdout.slice(jsonStart + 1));
+	}
+	// If the output starts with '{', try parsing directly
+	if (stdout.trimStart().startsWith('{')) {
+		return JSON.parse(stdout.trimStart());
+	}
+	throw new Error(`No JSON object found in keytool output: ${stdout.slice(0, 200)}`);
+}
+
 export async function execSuiTools(
 	command: string[],
 	options?: Parameters<ContainerRuntimeClient['container']['exec']>[2],

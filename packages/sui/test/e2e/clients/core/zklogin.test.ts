@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { beforeAll, describe, expect } from 'vitest';
-import { setup, TestToolbox, createTestWithAllClients, execSuiTools } from '../../utils/setup.js';
+import { setup, TestToolbox, createTestWithAllClients, execKeytool } from '../../utils/setup.js';
 
 describe('Core API - ZkLogin', () => {
 	let toolbox: TestToolbox;
@@ -29,10 +29,7 @@ describe('Core API - ZkLogin', () => {
 		const maxEpoch = currentEpoch + 10;
 
 		// Generate PersonalMessage signature using --json for reliable parsing
-		const pmResult = await execSuiTools([
-			'sui',
-			'keytool',
-			'--json',
+		const pmJson = await execKeytool([
 			'zk-login-insecure-sign-personal-message',
 			'--data',
 			'hello',
@@ -40,18 +37,15 @@ describe('Core API - ZkLogin', () => {
 			maxEpoch.toString(),
 		]);
 
-		const pmOutput = pmResult.stdout;
-		const pmJson = JSON.parse(pmOutput.slice(pmOutput.indexOf('{')));
-
 		if (!pmJson.sig || !pmJson.address) {
 			throw new Error('Failed to generate zkLogin signature: missing sig or address in output');
 		}
 
 		validSignatureCase = {
 			bytes: 'aGVsbG8=', // base64 encoding of "hello"
-			signature: pmJson.sig,
+			signature: pmJson.sig as string,
 			intentScope: 'PersonalMessage',
-			address: pmJson.address,
+			address: pmJson.address as string,
 		};
 
 		// Hardcoded TransactionData signature (generated using local keytool)
