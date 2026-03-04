@@ -164,7 +164,7 @@ export class SerialTransactionExecutor {
 
 	executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		transaction: Transaction | Uint8Array,
-		include?: Include,
+		include?: Include & SuiClientTypes.TransactionInclude,
 		additionalSignatures: string[] = [],
 	): Promise<SuiClientTypes.TransactionResult<Include & { effects: true }>> {
 		return this.#queue.runTask(async () => {

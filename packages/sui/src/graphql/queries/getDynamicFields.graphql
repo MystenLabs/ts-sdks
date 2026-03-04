@@ -1,7 +1,12 @@
 # Copyright (c) Mysten Labs, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-query getDynamicFields($parentId: SuiAddress!, $first: Int, $cursor: String) {
+query getDynamicFields(
+	$parentId: SuiAddress!
+	$first: Int
+	$cursor: String
+	$includeValue: Boolean = false
+) {
 	address(address: $parentId) {
 		dynamicFields(first: $first, after: $cursor) {
 			pageInfo {
@@ -18,6 +23,7 @@ query getDynamicFields($parentId: SuiAddress!, $first: Int, $cursor: String) {
 				value {
 					__typename
 					... on MoveValue {
+						bcs @include(if: $includeValue)
 						type {
 							repr
 						}
@@ -25,6 +31,7 @@ query getDynamicFields($parentId: SuiAddress!, $first: Int, $cursor: String) {
 					... on MoveObject {
 						address
 						contents {
+							bcs @include(if: $includeValue)
 							type {
 								repr
 							}

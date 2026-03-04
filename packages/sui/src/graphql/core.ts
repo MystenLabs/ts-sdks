@@ -23,7 +23,6 @@ import {
 	GetCoinMetadataDocument,
 	GetCoinsDocument,
 	GetCurrentSystemStateDocument,
-	GetDynamicFieldsDocument,
 	GetMoveFunctionDocument,
 	GetOwnedObjectsDocument,
 	GetReferenceGasPriceDocument,
@@ -36,8 +35,7 @@ import {
 } from './generated/queries.js';
 import { ObjectError, SimulationError } from '../client/errors.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
-import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
-import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
+import { normalizeSuiAddress } from '../utils/sui-types.js';
 import { formatMoveAbortMessage, parseTransactionEffectsBcs } from '../client/utils.js';
 import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.js';
 import {
@@ -86,7 +84,7 @@ export class GraphQLCoreClient extends CoreClient {
 		return extractedData as NonNullable<Data>;
 	}
 
-	async getObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+	async getObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.GetObjectsOptions<Include>,
 	): Promise<SuiClientTypes.GetObjectsResponse<Include>> {
 		const batches = chunk(options.objectIds, 50);
@@ -161,7 +159,7 @@ export class GraphQLCoreClient extends CoreClient {
 			objects: results,
 		};
 	}
-	async listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = object>(
+	async listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.ListOwnedObjectsOptions<Include>,
 	): Promise<SuiClientTypes.ListOwnedObjectsResponse<Include>> {
 		const objects = await this.#graphqlQuery(
@@ -326,7 +324,7 @@ export class GraphQLCoreClient extends CoreClient {
 			}),
 		};
 	}
-	async getTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	async getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		const result = await this.#graphqlQuery(
@@ -347,7 +345,7 @@ export class GraphQLCoreClient extends CoreClient {
 
 		return parseTransaction(result, options.include);
 	}
-	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		const result = await this.#graphqlQuery(
@@ -367,16 +365,9 @@ export class GraphQLCoreClient extends CoreClient {
 			(result) => result.executeTransaction,
 		);
 
-		if (result.errors) {
-			if (result.errors.length === 1) {
-				throw new Error(result.errors[0]);
-			}
-			throw new AggregateError(result.errors.map((error) => new Error(error)));
-		}
-
 		return parseTransaction(result.effects?.transaction!, options.include);
 	}
-	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = object>(
+	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		if (!(options.transaction instanceof Uint8Array)) {
@@ -406,10 +397,6 @@ export class GraphQLCoreClient extends CoreClient {
 			},
 			(result) => result.simulateTransaction,
 		);
-
-		if (result.error && !result.effects?.transaction) {
-			throw new SimulationError(result.error);
-		}
 
 		const transactionResult = parseTransaction(result.effects?.transaction!, options.include);
 
@@ -558,55 +545,7 @@ export class GraphQLCoreClient extends CoreClient {
 	async listDynamicFields(
 		options: SuiClientTypes.ListDynamicFieldsOptions,
 	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
-		const result = await this.#graphqlQuery(
-			{
-				query: GetDynamicFieldsDocument,
-				variables: {
-					parentId: options.parentId,
-					first: options.limit,
-					cursor: options.cursor,
-				},
-			},
-			(result) => result.address?.dynamicFields,
-		);
-
-		return {
-			dynamicFields: result.nodes.map((dynamicField): SuiClientTypes.DynamicFieldEntry => {
-				const valueType =
-					dynamicField.value?.__typename === 'MoveObject'
-						? dynamicField.value.contents?.type?.repr!
-						: dynamicField.value?.type?.repr!;
-				const isDynamicObject = dynamicField.value?.__typename === 'MoveObject';
-				const derivedNameType = isDynamicObject
-					? `0x2::dynamic_object_field::Wrapper<${dynamicField.name?.type?.repr}>`
-					: dynamicField.name?.type?.repr!;
-
-				return {
-					$kind: isDynamicObject ? 'DynamicObject' : 'DynamicField',
-					fieldId: deriveDynamicFieldID(
-						options.parentId,
-						derivedNameType,
-						fromBase64(dynamicField.name?.bcs!),
-					),
-					type: normalizeStructTag(
-						isDynamicObject
-							? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${dynamicField.name?.type?.repr}>,0x2::object::ID>`
-							: `0x2::dynamic_field::Field<${dynamicField.name?.type?.repr},${valueType}>`,
-					),
-					name: {
-						type: dynamicField.name?.type?.repr!,
-						bcs: fromBase64(dynamicField.name?.bcs!),
-					},
-					valueType,
-					childId:
-						isDynamicObject && dynamicField.value?.__typename === 'MoveObject'
-							? dynamicField.value.address
-							: undefined,
-				} as SuiClientTypes.DynamicFieldEntry;
-			}),
-			cursor: result.pageInfo.endCursor ?? null,
-			hasNextPage: result.pageInfo.hasNextPage,
-		};
+		return this.#graphqlClient.listDynamicFields(options);
 	}
 
 	async verifyZkLoginSignature(
@@ -765,12 +704,6 @@ export class GraphQLCoreClient extends CoreClient {
 
 			handleGraphQLErrors(errors);
 
-			if (data?.simulateTransaction?.error) {
-				throw new SimulationError(
-					`Transaction resolution failed: ${data.simulateTransaction.error}`,
-				);
-			}
-
 			const transactionEffects = data?.simulateTransaction?.effects?.transaction?.effects;
 			if (!options.onlyTransactionKind && transactionEffects?.status === ExecutionStatus.Failure) {
 				const executionError = parseGraphQLExecutionError(transactionEffects.executionError);
@@ -860,7 +793,7 @@ function mapOwner(owner: Object_Owner_FieldsFragment): SuiClientTypes.ObjectOwne
 	}
 }
 
-function parseTransaction<Include extends SuiClientTypes.TransactionInclude = object>(
+function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 	transaction: Transaction_FieldsFragment,
 	include?: Include,
 ): SuiClientTypes.TransactionResult<Include> {

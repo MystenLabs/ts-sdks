@@ -18,7 +18,6 @@ query simulateTransaction(
 		doGasSelection: $doGasSelection
 		checksEnabled: $checksEnabled
 	) {
-		error
 		effects {
 			transaction {
 				...TRANSACTION_FIELDS
@@ -50,7 +49,6 @@ mutation executeTransaction(
 	$includeBcs: Boolean = false
 ) {
 	executeTransaction(transactionDataBcs: $transactionDataBcs, signatures: $signatures) {
-		errors
 		effects {
 			transaction {
 				...TRANSACTION_FIELDS
@@ -146,7 +144,6 @@ fragment TRANSACTION_FIELDS on Transaction {
 
 query resolveTransaction($transaction: JSON!, $doGasSelection: Boolean = true) {
 	simulateTransaction(transaction: $transaction, doGasSelection: $doGasSelection) {
-		error
 		effects {
 			transaction {
 				transactionBcs

@@ -4315,21 +4315,6 @@ const introspection = {
             },
             "args": [],
             "isDeprecated": false
-          },
-          {
-            "name": "errors",
-            "type": {
-              "kind": "LIST",
-              "ofType": {
-                "kind": "NON_NULL",
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String"
-                }
-              }
-            },
-            "args": [],
-            "isDeprecated": false
           }
         ],
         "interfaces": []
@@ -11568,15 +11553,6 @@ const introspection = {
             "type": {
               "kind": "OBJECT",
               "name": "TransactionEffects"
-            },
-            "args": [],
-            "isDeprecated": false
-          },
-          {
-            "name": "error",
-            "type": {
-              "kind": "SCALAR",
-              "name": "String"
             },
             "args": [],
             "isDeprecated": false
