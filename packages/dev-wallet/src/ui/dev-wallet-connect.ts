@@ -1,21 +1,29 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { css, html, LitElement } from 'lit';
+import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { sharedStyles } from './styles.js';
+import { actionButtonStyles, sharedStyles } from './styles.js';
+import { emitEvent, formatAddress, toggleSetItem } from './utils.js';
+
+interface AccountInfo {
+	address: string;
+	label?: string;
+}
 
 /**
- * Connect approval UI for wallet popup requests.
+ * Connect approval UI shared between the embedded modal and standalone popup.
  *
- * Displays the requesting app's name/URL and provides
- * Connect and Reject buttons. Dispatches `approve` and `reject` events.
+ * Displays a list of accounts to select and Connect/Reject buttons.
+ * When `appName` is provided (standalone popup context), shows app info.
+ * Dispatches `approve` (with selected addresses) and `reject` events.
  */
 @customElement('dev-wallet-connect')
 export class DevWalletConnect extends LitElement {
 	static override styles = [
 		sharedStyles,
+		actionButtonStyles,
 		css`
 			:host {
 				display: flex;
@@ -26,53 +34,73 @@ export class DevWalletConnect extends LitElement {
 			.connect-content {
 				flex: 1;
 				padding: 16px;
+			}
+
+			.connect-header {
 				text-align: center;
-			}
-
-			.connect-icon {
-				width: 48px;
-				height: 48px;
-				border-radius: 50%;
-				background: color-mix(in oklab, var(--dev-wallet-primary) 15%, transparent);
-				color: var(--dev-wallet-primary);
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				margin: 0 auto 16px;
-			}
-
-			.connect-icon svg {
-				width: 24px;
-				height: 24px;
-			}
-
-			.connect-title {
-				font-size: 16px;
-				font-weight: var(--dev-wallet-font-weight-semibold);
-				color: var(--dev-wallet-foreground);
 				margin-bottom: 12px;
 			}
 
+			.connect-title {
+				font-size: 14px;
+				font-weight: var(--dev-wallet-font-weight-semibold);
+				color: var(--dev-wallet-foreground);
+			}
+
+			.connect-desc {
+				font-size: 12px;
+				color: var(--dev-wallet-muted-foreground);
+				margin-top: 4px;
+			}
+
 			.app-info {
-				margin-bottom: 16px;
+				margin-top: 8px;
 			}
 
 			.app-name {
-				font-size: 14px;
+				font-size: 13px;
 				font-weight: var(--dev-wallet-font-weight-medium);
 				color: var(--dev-wallet-foreground);
 				display: block;
-				margin-bottom: 4px;
 			}
 
 			.app-url {
-				font-size: 12px;
+				font-size: 11px;
 				color: var(--dev-wallet-muted-foreground);
 				word-break: break-all;
 			}
 
-			.connect-desc {
+			.account-list {
+				max-height: 240px;
+				overflow-y: auto;
+			}
+
+			.account-item {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 8px;
+				border-radius: var(--dev-wallet-radius-md);
+				cursor: pointer;
+			}
+
+			.account-item:hover {
+				background: var(--dev-wallet-secondary);
+			}
+
+			.account-item input[type='checkbox'] {
+				accent-color: var(--dev-wallet-primary);
+			}
+
+			.account-label {
 				font-size: 13px;
+				font-weight: var(--dev-wallet-font-weight-semibold);
+				color: var(--dev-wallet-foreground);
+			}
+
+			.account-address {
+				font-size: 11px;
+				font-family: var(--dev-wallet-font-mono);
 				color: var(--dev-wallet-muted-foreground);
 			}
 
@@ -81,23 +109,9 @@ export class DevWalletConnect extends LitElement {
 				border-top: 1px solid var(--dev-wallet-border);
 			}
 
-			.actions {
-				display: flex;
-				gap: 8px;
-			}
-
-			.btn {
-				flex: 1;
-				padding: 10px 16px;
-				border-radius: var(--dev-wallet-radius-md);
-				font-size: 13px;
-				font-weight: var(--dev-wallet-font-weight-semibold);
-				transition: background-color 0.15s;
-			}
-
+			/* Override: connect uses --primary instead of --positive for approve */
 			.btn-approve {
 				background: var(--dev-wallet-primary);
-				color: var(--dev-wallet-primary-foreground);
 			}
 
 			.btn-approve:hover {
@@ -105,17 +119,7 @@ export class DevWalletConnect extends LitElement {
 			}
 
 			.btn-approve:disabled {
-				opacity: 0.7;
 				cursor: default;
-			}
-
-			.btn-reject {
-				background: var(--dev-wallet-destructive);
-				color: var(--dev-wallet-primary-foreground);
-			}
-
-			.btn-reject:hover {
-				background: oklab(from var(--dev-wallet-destructive) calc(l - 0.05) a b);
 			}
 
 			.error-message {
@@ -133,56 +137,103 @@ export class DevWalletConnect extends LitElement {
 	@property({ type: String })
 	appUrl = '';
 
+	@property({ attribute: false })
+	accounts: AccountInfo[] = [];
+
 	@state()
 	private _connecting = false;
 
 	@state()
 	private _error: string | null = null;
 
+	@state()
+	private _selectedAddresses: Set<string> = new Set();
+
+	override willUpdate(changedProperties: Map<string, unknown>) {
+		if (
+			changedProperties.has('accounts') &&
+			this.accounts.length > 0 &&
+			this._selectedAddresses.size === 0
+		) {
+			this._selectedAddresses = new Set(this.accounts.map((a) => a.address));
+		}
+	}
+
 	override render() {
 		return html`
 			<div class="connect-content">
-				<div class="connect-icon">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path
-							d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						/>
-						<path
-							d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						/>
-					</svg>
+				<div class="connect-header">
+					<div class="connect-title">Connection Request</div>
+					<div class="connect-desc">Select accounts to share with the app</div>
+					${this.appName
+						? html`
+								<div class="app-info">
+									<span class="app-name">${this.appName}</span>
+									<span class="app-url">${this.appUrl}</span>
+								</div>
+							`
+						: nothing}
 				</div>
-				<h3 class="connect-title">Connection Request</h3>
-				<div class="app-info">
-					<span class="app-name">${this.appName}</span>
-					<span class="app-url">${this.appUrl}</span>
-				</div>
-				<p class="connect-desc">This app wants to connect to your wallet.</p>
+				${this.accounts.length > 0
+					? html`
+							<div class="account-list" part="account-list">
+								${this.accounts.map(
+									(account) => html`
+										<label class="account-item">
+											<input
+												type="checkbox"
+												.checked=${this._selectedAddresses.has(account.address)}
+												@change=${() => this.#toggleAccount(account.address)}
+											/>
+											<div>
+												${account.label
+													? html`<div class="account-label">${account.label}</div>`
+													: nothing}
+												<div class="account-address">${formatAddress(account.address)}</div>
+											</div>
+										</label>
+									`,
+								)}
+							</div>
+						`
+					: nothing}
 			</div>
 			<div class="connect-footer">
 				<div class="actions">
-					<button class="btn btn-reject" @click=${this.#reject}>Reject</button>
-					<button class="btn btn-approve" ?disabled=${this._connecting} @click=${this.#approve}>
-						${this._connecting ? 'Connecting...' : 'Connect'}
+					<button class="btn btn-reject" part="reject-button" @click=${this.#reject}>Reject</button>
+					<button
+						class="btn btn-approve"
+						part="approve-button"
+						?disabled=${this._connecting || this._selectedAddresses.size === 0}
+						@click=${this.#approve}
+					>
+						${this._connecting ? 'Connecting...' : `Connect (${this._selectedAddresses.size})`}
 					</button>
 				</div>
-				${this._error ? html`<p class="error-message">${this._error}</p>` : ''}
+				${this._error
+					? html`<p class="error-message" part="error-message">${this._error}</p>`
+					: nothing}
 			</div>
 		`;
+	}
+
+	/** Returns the currently selected addresses. */
+	get selectedAddresses(): string[] {
+		return [...this._selectedAddresses];
+	}
+
+	#toggleAccount(address: string) {
+		this._selectedAddresses = toggleSetItem(this._selectedAddresses, address);
 	}
 
 	#approve() {
 		this._connecting = true;
 		this._error = null;
-		this.dispatchEvent(new CustomEvent('approve', { bubbles: true, composed: true }));
+		emitEvent(this, 'approve', { selectedAddresses: this.selectedAddresses });
 	}
 
 	#reject() {
-		this.dispatchEvent(new CustomEvent('reject', { bubbles: true, composed: true }));
+		emitEvent(this, 'reject');
 	}
 
 	/** Call this from the parent if the approve operation fails. */

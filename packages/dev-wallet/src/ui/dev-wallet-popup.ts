@@ -3,9 +3,9 @@
 
 import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { css, html, LitElement } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 
-import type { WalletRequest } from '../wallet/dev-wallet.js';
+import type { PendingSigningRequest } from '../wallet/dev-wallet.js';
 import { sharedStyles } from './styles.js';
 import './dev-wallet-connect.js';
 import './dev-wallet-signing.js';
@@ -36,7 +36,7 @@ export class DevWalletPopup extends LitElement {
 				border-radius: var(--dev-wallet-radius-xl);
 				background: var(--dev-wallet-background);
 				border: 1px solid var(--dev-wallet-border);
-				box-shadow: 0 8px 32px color-mix(in oklab, oklch(0 0 0) 40%, transparent);
+				box-shadow: var(--dev-wallet-shadow-lg);
 				overflow: hidden;
 				display: flex;
 				flex-direction: column;
@@ -66,7 +66,7 @@ export class DevWalletPopup extends LitElement {
 	];
 
 	@property({ type: String })
-	walletName = 'Dev Wallet';
+	walletName = 'Dev Wallet (Web)';
 
 	@property({ type: String })
 	requestType:
@@ -93,9 +93,44 @@ export class DevWalletPopup extends LitElement {
 	@property({ attribute: false })
 	client: ClientWithCoreApi | null = null;
 
+	@property({ attribute: false })
+	connectAccounts: Array<{ address: string; label?: string }> = [];
+
+	@state()
+	private _request: PendingSigningRequest | null = null;
+
+	#requestId: string | null = null;
+
+	override willUpdate(changed: Map<string, unknown>) {
+		// Rebuild the signing request object only when relevant properties change
+		if (
+			this.requestType !== 'connect' &&
+			(changed.has('requestType') ||
+				changed.has('address') ||
+				changed.has('chain') ||
+				changed.has('data'))
+		) {
+			if (!this.#requestId) {
+				this.#requestId = crypto.randomUUID();
+			}
+			this._request = {
+				id: this.#requestId,
+				type: this.requestType as PendingSigningRequest['type'],
+				account: {
+					address: this.address,
+					publicKey: new Uint8Array(0),
+					chains: [],
+					features: [],
+				},
+				chain: this.chain,
+				data: this.data ?? '',
+			};
+		}
+	}
+
 	override render() {
 		return html`
-			<div class="popup-card">
+			<div class="popup-card" part="card">
 				<div class="popup-header">
 					<span class="popup-title">${this.walletName}</span>
 				</div>
@@ -108,28 +143,24 @@ export class DevWalletPopup extends LitElement {
 
 	#renderConnect() {
 		return html`
-			<dev-wallet-connect .appName=${this.appName} .appUrl=${this.appUrl}></dev-wallet-connect>
+			<dev-wallet-connect
+				exportparts="approve-button: connect-approve-button, reject-button: connect-reject-button, account-list: connect-account-list, error-message: connect-error-message"
+				.appName=${this.appName}
+				.appUrl=${this.appUrl}
+				.accounts=${this.connectAccounts}
+			></dev-wallet-connect>
 		`;
 	}
 
 	#renderSigning() {
-		const request: WalletRequest = {
-			id: crypto.randomUUID(),
-			type: this.requestType as WalletRequest['type'],
-			account: {
-				address: this.address,
-				publicKey: new Uint8Array(0),
-				chains: [],
-				features: [],
-			},
-			chain: this.chain,
-			data: this.data ?? '',
-			resolve: () => {},
-			reject: () => {},
-		};
+		if (!this._request) return html``;
 
 		return html`
-			<dev-wallet-signing .request=${request} .client=${this.client}></dev-wallet-signing>
+			<dev-wallet-signing
+				exportparts="approve-button: signing-approve-button, reject-button: signing-reject-button, request-type: signing-request-type, empty-state: signing-empty-state, error-message: signing-error-message, footer: signing-footer"
+				.request=${this._request}
+				.client=${this.client}
+			></dev-wallet-signing>
 		`;
 	}
 }

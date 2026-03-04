@@ -38,15 +38,16 @@ async function createFundedWallet(
 	await adapter.initialize();
 	await adapter.importAccount({ signer: keypair, label: 'Test Account' });
 
-	const client = createDevnetClient();
 	await fundAddress(keypair.getPublicKey().toSuiAddress());
 
 	// Wait for the faucet funds to be available
+	const client = createDevnetClient();
 	await waitForBalance(client, keypair.getPublicKey().toSuiAddress());
 
 	const wallet = new DevWallet({
 		adapters: [adapter],
-		clients: { [NETWORK]: client },
+		networks: { [NETWORK]: getJsonRpcFullnodeUrl(NETWORK) },
+		autoConnect: true,
 		...overrides,
 	});
 
@@ -255,7 +256,7 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 		it('auto-approves all requests when autoApprove is true', async () => {
 			const autoWallet = new DevWallet({
 				adapters: [adapter],
-				clients: { [NETWORK]: createDevnetClient() },
+				networks: { [NETWORK]: getJsonRpcFullnodeUrl(NETWORK) },
 				autoApprove: true,
 			});
 
@@ -276,7 +277,7 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 		it('auto-approves sign-and-execute on devnet when autoApprove is true', async () => {
 			const autoWallet = new DevWallet({
 				adapters: [adapter],
-				clients: { [NETWORK]: createDevnetClient() },
+				networks: { [NETWORK]: getJsonRpcFullnodeUrl(NETWORK) },
 				autoApprove: true,
 			});
 
@@ -303,7 +304,7 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 		it('selectively auto-approves with a policy function', async () => {
 			const autoWallet = new DevWallet({
 				adapters: [adapter],
-				clients: { [NETWORK]: createDevnetClient() },
+				networks: { [NETWORK]: getJsonRpcFullnodeUrl(NETWORK) },
 				autoApprove: (request) => request.type === 'sign-personal-message',
 			});
 
@@ -412,7 +413,8 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 			const container = document.createElement('div');
 			document.body.appendChild(container);
 
-			const unmount = await wallet.mountUI(container);
+			const { mountDevWallet } = await import('../src/ui/mount.js');
+			const unmount = mountDevWallet(wallet, { container });
 
 			const panel = container.querySelector('dev-wallet-panel');
 			expect(panel).not.toBeNull();

@@ -13,6 +13,13 @@ vi.mock('@mysten/window-wallet-core', () => {
 	const mockChannel = {
 		getRequestData: vi.fn(),
 		sendMessage: vi.fn(),
+		verifyJwtSession: vi.fn(async () => ({
+			exp: Date.now() / 1000 + 86400,
+			iat: Date.now() / 1000,
+			iss: 'dev-wallet',
+			aud: 'http://localhost:3000',
+			payload: { accounts: [] },
+		})),
 	};
 
 	return {

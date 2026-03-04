@@ -22,12 +22,13 @@ export function BalanceDisplay({
 	client,
 }: {
 	address: string;
-	client: ClientWithCoreApi;
+	client: ClientWithCoreApi | null;
 }) {
 	const [balance, setBalance] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 
 	const fetchBalance = useCallback(async () => {
+		if (!client) return;
 		setLoading(true);
 		try {
 			const { balances } = await client.core.listBalances({ owner: address });

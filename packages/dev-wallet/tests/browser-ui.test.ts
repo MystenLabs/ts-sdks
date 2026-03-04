@@ -50,8 +50,11 @@ beforeAll(async () => {
 	await import('../src/ui/dev-wallet-signing-modal.js');
 	await import('../src/ui/dev-wallet-signing.js');
 	await import('../src/ui/dev-wallet-accounts.js');
+	await import('../src/ui/dev-wallet-account-selector.js');
 	await import('../src/ui/dev-wallet-balances.js');
+	await import('../src/ui/dev-wallet-network-badge.js');
 	await import('../src/ui/dev-wallet-new-account.js');
+	await import('../src/ui/dev-wallet-tab-bar.js');
 });
 
 // --- Signing Component ---
@@ -73,7 +76,7 @@ describe('dev-wallet-signing component', () => {
 		container.appendChild(el);
 		await waitForUpdate(el);
 
-		const noRequest = el.shadowRoot!.querySelector('.no-request');
+		const noRequest = el.shadowRoot!.querySelector('[part="empty-state"]');
 		expect(noRequest).not.toBeNull();
 		expect(noRequest!.textContent).toContain('No pending requests');
 	});
@@ -100,7 +103,7 @@ describe('dev-wallet-signing component', () => {
 		expect(title?.textContent).toContain('Approval Required');
 
 		// Should show the request type label
-		const typeLabel = el.shadowRoot!.querySelector('.request-type');
+		const typeLabel = el.shadowRoot!.querySelector('[part="request-type"]');
 		expect(typeLabel?.textContent).toContain('Sign Message');
 
 		// Personal messages are chain-agnostic — chain row should be hidden
@@ -129,7 +132,7 @@ describe('dev-wallet-signing component', () => {
 		container.appendChild(el);
 		await waitForUpdate(el);
 
-		const typeLabel = el.shadowRoot!.querySelector('.request-type');
+		const typeLabel = el.shadowRoot!.querySelector('[part="request-type"]');
 		expect(typeLabel?.textContent).toContain('Sign Transaction');
 	});
 
@@ -150,7 +153,7 @@ describe('dev-wallet-signing component', () => {
 		container.appendChild(el);
 		await waitForUpdate(el);
 
-		const typeLabel = el.shadowRoot!.querySelector('.request-type');
+		const typeLabel = el.shadowRoot!.querySelector('[part="request-type"]');
 		expect(typeLabel?.textContent).toContain('Sign & Execute Transaction');
 	});
 
@@ -174,7 +177,7 @@ describe('dev-wallet-signing component', () => {
 		const listener = vi.fn();
 		el.addEventListener('approve', listener);
 
-		const approveBtn = el.shadowRoot!.querySelector('.btn-approve') as HTMLButtonElement;
+		const approveBtn = el.shadowRoot!.querySelector('[part="approve-button"]') as HTMLButtonElement;
 		expect(approveBtn).not.toBeNull();
 		approveBtn.click();
 
@@ -201,7 +204,7 @@ describe('dev-wallet-signing component', () => {
 		const listener = vi.fn();
 		el.addEventListener('reject', listener);
 
-		const rejectBtn = el.shadowRoot!.querySelector('.btn-reject') as HTMLButtonElement;
+		const rejectBtn = el.shadowRoot!.querySelector('[part="reject-button"]') as HTMLButtonElement;
 		expect(rejectBtn).not.toBeNull();
 		rejectBtn.click();
 
@@ -253,7 +256,7 @@ describe('dev-wallet-accounts component', () => {
 		container.appendChild(el);
 		await waitForUpdate(el);
 
-		const empty = el.shadowRoot!.querySelector('.empty-state');
+		const empty = el.shadowRoot!.querySelector('[part="empty-state"]');
 		expect(empty).not.toBeNull();
 		expect(empty!.textContent).toContain('No accounts yet');
 	});
@@ -307,7 +310,7 @@ describe('dev-wallet-accounts component', () => {
 		container.appendChild(el);
 		await waitForUpdate(el);
 
-		const addBtn = el.shadowRoot!.querySelector('.add-btn');
+		const addBtn = el.shadowRoot!.querySelector('[part="add-button"]');
 		expect(addBtn).not.toBeNull();
 		expect(addBtn!.textContent).toContain('+ Add');
 	});
@@ -319,7 +322,7 @@ describe('dev-wallet-accounts component', () => {
 		container.appendChild(el);
 		await waitForUpdate(el);
 
-		const addBtn = el.shadowRoot!.querySelector('.add-btn');
+		const addBtn = el.shadowRoot!.querySelector('[part="add-button"]');
 		expect(addBtn).toBeNull();
 	});
 
@@ -376,13 +379,13 @@ describe('dev-wallet-new-account component', () => {
 		container.appendChild(el);
 		await waitForUpdate(el);
 
-		const dialog = el.shadowRoot!.querySelector('.dialog');
+		const dialog = el.shadowRoot!.querySelector('dialog');
 		expect(dialog).not.toBeNull();
 
 		const title = el.shadowRoot!.querySelector('.dialog-title');
-		expect(title?.textContent).toContain('New Account');
+		expect(title?.textContent).toContain('Add Account');
 
-		const input = el.shadowRoot!.querySelector('.field-input') as HTMLInputElement;
+		const input = el.shadowRoot!.querySelector('[part="label-input"]') as HTMLInputElement;
 		expect(input).not.toBeNull();
 		expect(input.placeholder).toBe('e.g. Test Account');
 	});
@@ -397,7 +400,7 @@ describe('dev-wallet-new-account component', () => {
 		const listener = vi.fn();
 		el.addEventListener('close', listener);
 
-		const cancelBtn = el.shadowRoot!.querySelector('.btn-cancel') as HTMLButtonElement;
+		const cancelBtn = el.shadowRoot!.querySelector('[part="cancel-button"]') as HTMLButtonElement;
 		cancelBtn.click();
 
 		expect(listener).toHaveBeenCalledTimes(1);
@@ -417,7 +420,7 @@ describe('dev-wallet-new-account component', () => {
 		el.addEventListener('close', closeListener);
 
 		// Click the Create button
-		const createBtn = el.shadowRoot!.querySelector('.btn-create') as HTMLButtonElement;
+		const createBtn = el.shadowRoot!.querySelector('[part="create-button"]') as HTMLButtonElement;
 		createBtn.click();
 
 		// Wait for async account creation
@@ -429,7 +432,7 @@ describe('dev-wallet-new-account component', () => {
 		expect(adapter.getAccounts()).toHaveLength(1);
 	});
 
-	it('dispatches "close" when overlay is clicked', async () => {
+	it('dispatches "close" when dialog cancel event fires', async () => {
 		const el = document.createElement('dev-wallet-new-account') as DevWalletNewAccount;
 		el.open = true;
 		el.adapters = [new InMemorySignerAdapter()];
@@ -439,8 +442,9 @@ describe('dev-wallet-new-account component', () => {
 		const listener = vi.fn();
 		el.addEventListener('close', listener);
 
-		const overlay = el.shadowRoot!.querySelector('.overlay') as HTMLElement;
-		overlay.click();
+		// Simulate the native dialog cancel event (triggered by Escape or backdrop click)
+		const dialog = el.shadowRoot!.querySelector('dialog') as HTMLDialogElement;
+		dialog.dispatchEvent(new Event('cancel'));
 
 		expect(listener).toHaveBeenCalledTimes(1);
 	});
@@ -466,7 +470,7 @@ describe('dev-wallet-balances component', () => {
 		container.appendChild(el);
 		await waitForUpdate(el);
 
-		const header = el.shadowRoot!.querySelector('.balances-header');
+		const header = el.shadowRoot!.querySelector('.section-header');
 		expect(header).toBeNull();
 	});
 
@@ -484,7 +488,7 @@ describe('dev-wallet-balances component', () => {
 		container.appendChild(el);
 		await waitForUpdate(el);
 
-		const loading = el.shadowRoot!.querySelector('.loading');
+		const loading = el.shadowRoot!.querySelector('[part="loading"]');
 		expect(loading).not.toBeNull();
 		expect(loading!.textContent).toContain('Loading...');
 	});
@@ -535,13 +539,13 @@ describe('dev-wallet-balances component', () => {
 		await vi.waitFor(
 			async () => {
 				await el.updateComplete;
-				const error = el.shadowRoot!.querySelector('.error-state');
+				const error = el.shadowRoot!.querySelector('[part="error-message"]');
 				expect(error).not.toBeNull();
 			},
 			{ timeout: 5_000 },
 		);
 
-		const error = el.shadowRoot!.querySelector('.error-state');
+		const error = el.shadowRoot!.querySelector('[part="error-message"]');
 		expect(error!.textContent).toContain('Failed to load balances');
 	});
 
@@ -558,7 +562,7 @@ describe('dev-wallet-balances component', () => {
 		await vi.waitFor(
 			async () => {
 				await el.updateComplete;
-				const empty = el.shadowRoot!.querySelector('.empty-state');
+				const empty = el.shadowRoot!.querySelector('[part="empty-state"]');
 				expect(empty).not.toBeNull();
 				expect(empty!.textContent).toContain('No balances');
 			},
@@ -583,7 +587,7 @@ describe('dev-wallet-panel component', { timeout: 60_000 }, () => {
 
 		wallet = new DevWallet({
 			adapters: [adapter],
-			clients: { [NETWORK]: createDevnetClient() },
+			networks: { [NETWORK]: getJsonRpcFullnodeUrl(NETWORK) },
 		});
 	});
 
@@ -602,7 +606,7 @@ describe('dev-wallet-panel component', { timeout: 60_000 }, () => {
 		container.appendChild(el);
 		await waitForUpdate(el);
 
-		const trigger = el.shadowRoot!.querySelector('.trigger');
+		const trigger = el.shadowRoot!.querySelector('[part="trigger"]');
 		expect(trigger).not.toBeNull();
 
 		// Should have the wallet SVG icon
@@ -617,15 +621,15 @@ describe('dev-wallet-panel component', { timeout: 60_000 }, () => {
 		await waitForUpdate(el);
 
 		// Sidebar should not be visible initially
-		expect(el.shadowRoot!.querySelector('.sidebar')).toBeNull();
+		expect(el.shadowRoot!.querySelector('[part="sidebar"]')).toBeNull();
 
 		// Click the trigger
-		const trigger = el.shadowRoot!.querySelector('.trigger') as HTMLButtonElement;
+		const trigger = el.shadowRoot!.querySelector('[part="trigger"]') as HTMLButtonElement;
 		trigger.click();
 		await waitForUpdate(el);
 
 		// Sidebar should now be visible
-		const sidebar = el.shadowRoot!.querySelector('.sidebar');
+		const sidebar = el.shadowRoot!.querySelector('[part="sidebar"]');
 		expect(sidebar).not.toBeNull();
 	});
 
@@ -636,24 +640,24 @@ describe('dev-wallet-panel component', { timeout: 60_000 }, () => {
 		await waitForUpdate(el);
 
 		// Open the sidebar
-		const trigger = el.shadowRoot!.querySelector('.trigger') as HTMLButtonElement;
+		const trigger = el.shadowRoot!.querySelector('[part="trigger"]') as HTMLButtonElement;
 		trigger.click();
 		await waitForUpdate(el);
 
-		expect(el.shadowRoot!.querySelector('.sidebar')).not.toBeNull();
+		expect(el.shadowRoot!.querySelector('[part="sidebar"]')).not.toBeNull();
 
 		// Click the close button
-		const closeBtn = el.shadowRoot!.querySelector('.close-btn') as HTMLButtonElement;
+		const closeBtn = el.shadowRoot!.querySelector('[part="close-button"]') as HTMLButtonElement;
 		closeBtn.click();
 		await waitForUpdate(el);
 
-		expect(el.shadowRoot!.querySelector('.sidebar')).toBeNull();
+		expect(el.shadowRoot!.querySelector('[part="sidebar"]')).toBeNull();
 	});
 
 	it('displays wallet name in sidebar header', async () => {
 		const namedWallet = new DevWallet({
 			adapters: [adapter],
-			clients: { [NETWORK]: createDevnetClient() },
+			networks: { [NETWORK]: getJsonRpcFullnodeUrl(NETWORK) },
 			name: 'My Test Wallet',
 		});
 
@@ -663,7 +667,7 @@ describe('dev-wallet-panel component', { timeout: 60_000 }, () => {
 		await waitForUpdate(el);
 
 		// Open the sidebar
-		const trigger = el.shadowRoot!.querySelector('.trigger') as HTMLButtonElement;
+		const trigger = el.shadowRoot!.querySelector('[part="trigger"]') as HTMLButtonElement;
 		trigger.click();
 		await waitForUpdate(el);
 
@@ -671,57 +675,32 @@ describe('dev-wallet-panel component', { timeout: 60_000 }, () => {
 		expect(title?.textContent).toContain('My Test Wallet');
 	});
 
-	it('shows accounts section inside sidebar', async () => {
+	it('shows account selector inside sidebar', async () => {
 		const el = document.createElement('dev-wallet-panel') as DevWalletPanel;
 		(el as any).wallet = wallet;
 		container.appendChild(el);
 		await waitForUpdate(el);
 
 		// Open the sidebar
-		const trigger = el.shadowRoot!.querySelector('.trigger') as HTMLButtonElement;
+		const trigger = el.shadowRoot!.querySelector('[part="trigger"]') as HTMLButtonElement;
 		trigger.click();
 		await waitForUpdate(el);
 
-		const accountsComponent = el.shadowRoot!.querySelector('dev-wallet-accounts');
-		expect(accountsComponent).not.toBeNull();
+		const accountSelector = el.shadowRoot!.querySelector('dev-wallet-account-selector');
+		expect(accountSelector).not.toBeNull();
 	});
 
-	it('shows notification badge when a signing request is pending', async () => {
+	it('shows signing modal when a signing request is pending', async () => {
 		const el = document.createElement('dev-wallet-panel') as DevWalletPanel;
 		(el as any).wallet = wallet;
 		container.appendChild(el);
 		await waitForUpdate(el);
 
-		// No badge initially
-		expect(el.shadowRoot!.querySelector('.badge')).toBeNull();
+		// No modal initially
+		expect(el.shadowRoot!.querySelector('dev-wallet-signing-modal')).toBeNull();
 
 		// Create a signing request
-		const message = new TextEncoder().encode('badge test');
-		const resultPromise = wallet.features['sui:signPersonalMessage'].signPersonalMessage({
-			message,
-			account: wallet.accounts[0],
-		});
-
-		await new Promise((resolve) => setTimeout(resolve, 50));
-		await waitForUpdate(el);
-
-		// Badge should appear
-		const badge = el.shadowRoot!.querySelector('.badge');
-		expect(badge).not.toBeNull();
-
-		// Clean up
-		await wallet.approveRequest();
-		await resultPromise;
-	});
-
-	it('shows signing modal when request is pending', async () => {
-		const el = document.createElement('dev-wallet-panel') as DevWalletPanel;
-		(el as any).wallet = wallet;
-		container.appendChild(el);
-		await waitForUpdate(el);
-
-		// Create a signing request (will auto-open sidebar)
-		const message = new TextEncoder().encode('signing component test');
+		const message = new TextEncoder().encode('modal test');
 		const resultPromise = wallet.features['sui:signPersonalMessage'].signPersonalMessage({
 			message,
 			account: wallet.accounts[0],
@@ -745,22 +724,22 @@ describe('dev-wallet-panel component', { timeout: 60_000 }, () => {
 		container.appendChild(el);
 		await waitForUpdate(el);
 
-		const trigger = el.shadowRoot!.querySelector('.trigger') as HTMLButtonElement;
+		const trigger = el.shadowRoot!.querySelector('[part="trigger"]') as HTMLButtonElement;
 
 		// Click 1: open
 		trigger.click();
 		await waitForUpdate(el);
-		expect(el.shadowRoot!.querySelector('.sidebar')).not.toBeNull();
+		expect(el.shadowRoot!.querySelector('[part="sidebar"]')).not.toBeNull();
 
 		// Click 2: close
 		trigger.click();
 		await waitForUpdate(el);
-		expect(el.shadowRoot!.querySelector('.sidebar')).toBeNull();
+		expect(el.shadowRoot!.querySelector('[part="sidebar"]')).toBeNull();
 
 		// Click 3: open again
 		trigger.click();
 		await waitForUpdate(el);
-		expect(el.shadowRoot!.querySelector('.sidebar')).not.toBeNull();
+		expect(el.shadowRoot!.querySelector('[part="sidebar"]')).not.toBeNull();
 	});
 });
 
@@ -780,7 +759,7 @@ describe('full UI signing flow', { timeout: 120_000 }, () => {
 
 		wallet = new DevWallet({
 			adapters: [adapter],
-			clients: { [NETWORK]: createDevnetClient() },
+			networks: { [NETWORK]: getJsonRpcFullnodeUrl(NETWORK) },
 		});
 	});
 
@@ -819,14 +798,16 @@ describe('full UI signing flow', { timeout: 120_000 }, () => {
 		await waitForUpdate(signing);
 
 		// 3. Verify request details are displayed
-		const typeLabel = signing.shadowRoot!.querySelector('.request-type');
+		const typeLabel = signing.shadowRoot!.querySelector('[part="request-type"]');
 		expect(typeLabel?.textContent).toContain('Sign Message');
 
 		const dataPreview = signing.shadowRoot!.querySelector('.request-data');
 		expect(dataPreview?.textContent).toContain('Approve via UI button');
 
 		// 4. Click the Approve button in the signing component
-		const approveBtn = signing.shadowRoot!.querySelector('.btn-approve') as HTMLButtonElement;
+		const approveBtn = signing.shadowRoot!.querySelector(
+			'[part="approve-button"]',
+		) as HTMLButtonElement;
 		expect(approveBtn).not.toBeNull();
 		approveBtn.click();
 
@@ -869,7 +850,9 @@ describe('full UI signing flow', { timeout: 120_000 }, () => {
 		await waitForUpdate(signing);
 
 		// 3. Click the Reject button
-		const rejectBtn = signing.shadowRoot!.querySelector('.btn-reject') as HTMLButtonElement;
+		const rejectBtn = signing.shadowRoot!.querySelector(
+			'[part="reject-button"]',
+		) as HTMLButtonElement;
 		expect(rejectBtn).not.toBeNull();
 		rejectBtn.click();
 
@@ -929,7 +912,9 @@ describe('full UI signing flow', { timeout: 120_000 }, () => {
 		await waitForUpdate(modal);
 		let signing = modal.shadowRoot!.querySelector('dev-wallet-signing') as DevWalletSigning;
 		await waitForUpdate(signing);
-		let approveBtn = signing.shadowRoot!.querySelector('.btn-approve') as HTMLButtonElement;
+		let approveBtn = signing.shadowRoot!.querySelector(
+			'[part="approve-button"]',
+		) as HTMLButtonElement;
 		approveBtn.click();
 
 		const result1 = await result1Promise;
@@ -953,7 +938,7 @@ describe('full UI signing flow', { timeout: 120_000 }, () => {
 		const dataPreview = signing.shadowRoot!.querySelector('.request-data');
 		expect(dataPreview?.textContent).toContain('Second request');
 
-		approveBtn = signing.shadowRoot!.querySelector('.btn-approve') as HTMLButtonElement;
+		approveBtn = signing.shadowRoot!.querySelector('[part="approve-button"]') as HTMLButtonElement;
 		approveBtn.click();
 
 		const result2 = await result2Promise;

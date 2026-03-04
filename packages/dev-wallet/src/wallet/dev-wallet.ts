@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { ClientWithCoreApi } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { mitt, type Emitter } from '@mysten/utils';
 import type {
 	StandardConnectFeature,
@@ -9,7 +10,6 @@ import type {
 	StandardDisconnectFeature,
 	StandardDisconnectMethod,
 	StandardEventsFeature,
-	StandardEventsListeners,
 	StandardEventsOnMethod,
 	SuiFeatures,
 	SuiSignAndExecuteTransactionMethod,
@@ -22,19 +22,23 @@ import type {
 import { getWallets, ReadonlyWalletAccount, SUI_CHAINS } from '@mysten/wallet-standard';
 
 import type { SignerAdapter } from '../types.js';
-import { executeSigning } from './signing.js';
-
-type WalletEventsMap = {
-	[E in keyof StandardEventsListeners]: Parameters<StandardEventsListeners[E]>[0];
-};
+import { DEFAULT_WALLET_ICON, type WalletEventsMap } from './constants.js';
+import { type SigningResult, executeSigning } from './signing.js';
 
 const DEFAULT_WALLET_NAME = 'Dev Wallet';
 
-const DEFAULT_WALLET_ICON: WalletIcon =
-	'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjNjM2NkYxIi8+PHBhdGggZD0iTTkgMjJWMTBoMy41YTQgNCAwIDAgMSAwIDhoLTIuNW0wIDBoLTFtMS00aDIuNSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48cGF0aCBkPSJNMTkgMTBsMy41IDEyTTI2IDEwbC0zLjUgMTJNMTkuNSAxOGg1IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==';
+/**
+ * Default gRPC endpoint URLs for standard Sui networks (devnet, testnet, localnet).
+ */
+export const DEFAULT_NETWORK_URLS: Record<string, string> = {
+	devnet: 'https://fullnode.devnet.sui.io:443',
+	testnet: 'https://fullnode.testnet.sui.io:443',
+	localnet: 'http://127.0.0.1:9000',
+};
 
 /**
  * A pending signing request waiting for user approval via the wallet UI.
+ * @internal — use {@link PendingSigningRequest} for public consumption.
  */
 export interface WalletRequest {
 	id: string;
@@ -47,6 +51,25 @@ export interface WalletRequest {
 	resolve: (result: any) => void;
 	reject: (error: Error) => void;
 }
+
+/**
+ * Public view of a pending signing request, omitting internal resolve/reject callbacks.
+ */
+export type PendingSigningRequest = Omit<WalletRequest, 'resolve' | 'reject'>;
+
+/**
+ * A pending connect request waiting for user to select which accounts to expose.
+ */
+export interface ConnectRequest {
+	id: string;
+	resolve: (result: { accounts: readonly WalletAccount[] }) => void;
+	reject: (error: Error) => void;
+}
+
+/**
+ * Public view of a pending connect request, omitting internal resolve/reject callbacks.
+ */
+export type PendingConnectRequest = Omit<ConnectRequest, 'resolve' | 'reject'>;
 
 /**
  * Auto-approval policy for signing requests.
@@ -69,12 +92,24 @@ export type AutoApprovePolicy =
 export interface DevWalletConfig {
 	/** The signer adapters that manage accounts and signing. Each adapter manages its own type of accounts. */
 	adapters: SignerAdapter[];
-	/** Map of network name to SuiClient instance (e.g. { testnet: suiClient }). */
-	clients: Record<string, ClientWithCoreApi>;
+	/**
+	 * Network URLs by name. Keys are network names, values are gRPC endpoint URLs.
+	 * Defaults to devnet, testnet, and localnet.
+	 *
+	 * @example
+	 * ```ts
+	 * { devnet: 'https://fullnode.devnet.sui.io:443' }
+	 * ```
+	 */
+	networks?: Record<string, string>;
 	/** Display name for the wallet. Defaults to 'Dev Wallet'. */
 	name?: string;
 	/** Data URI icon for the wallet. */
 	icon?: WalletIcon;
+	/**
+	 * The initially active network. Defaults to the first key in `networks`.
+	 */
+	activeNetwork?: string;
 	/**
 	 * Auto-approval policy. When set, matching requests are signed immediately
 	 * without queuing for user approval.
@@ -85,6 +120,15 @@ export interface DevWalletConfig {
 	 * @default false (all requests require manual approval)
 	 */
 	autoApprove?: AutoApprovePolicy;
+	/**
+	 * When true, connect requests are auto-approved with all accounts
+	 * (no account picker shown). Useful for testing/CI.
+	 *
+	 * @default false
+	 */
+	autoConnect?: boolean;
+	/** Factory to create a client for a given network. Defaults to creating SuiGrpcClient instances. */
+	clientFactory?: (network: string, url: string) => ClientWithCoreApi;
 }
 
 /**
@@ -96,28 +140,44 @@ export interface DevWalletConfig {
  */
 export class DevWallet implements Wallet {
 	readonly #adapters: SignerAdapter[];
-	readonly #clients: Record<string, ClientWithCoreApi>;
+	#networkUrls: Record<string, string>;
+	#clients: Record<string, ClientWithCoreApi>;
+	#activeNetwork: string;
 	readonly #name: string;
 	readonly #icon: WalletIcon;
 	readonly #autoApprove: AutoApprovePolicy;
+	readonly #autoConnect: boolean;
+	readonly #clientFactory: (network: string, url: string) => ClientWithCoreApi;
 	#accounts: ReadonlyWalletAccount[];
 	#events: Emitter<WalletEventsMap>;
 	#unsubscribeAdapters: (() => void)[];
 	#pendingRequest: WalletRequest | null;
-	#requestListeners: Set<(request: WalletRequest | null) => void>;
+	#requestListeners: Set<(request: PendingSigningRequest | null) => void>;
+	#pendingConnect: ConnectRequest | null;
+	#connectListeners: Set<(request: PendingConnectRequest | null) => void>;
 	#destroyed = false;
 
 	constructor(config: DevWalletConfig) {
+		if (config.adapters.length === 0) {
+			console.warn('[dev-wallet] No adapters provided. The wallet will have no accounts.');
+		}
 		this.#adapters = config.adapters;
-		this.#clients = config.clients;
+		this.#networkUrls = { ...(config.networks ?? DEFAULT_NETWORK_URLS) };
+		this.#clients = {};
+		this.#activeNetwork = config.activeNetwork ?? Object.keys(this.#networkUrls)[0] ?? '';
 		this.#name = config.name ?? DEFAULT_WALLET_NAME;
 		this.#icon = config.icon ?? DEFAULT_WALLET_ICON;
 		this.#autoApprove = config.autoApprove ?? false;
+		this.#autoConnect = config.autoConnect ?? false;
+		this.#clientFactory =
+			config.clientFactory ?? ((network, url) => new SuiGrpcClient({ baseUrl: url, network }));
 		this.#accounts = this.#aggregateAccounts();
 		this.#events = mitt();
 		this.#unsubscribeAdapters = [];
 		this.#pendingRequest = null;
 		this.#requestListeners = new Set();
+		this.#pendingConnect = null;
+		this.#connectListeners = new Set();
 
 		this.#setupAdapterListeners();
 	}
@@ -175,7 +235,7 @@ export class DevWallet implements Wallet {
 	}
 
 	/** The current pending signing request, or null if none. */
-	get pendingRequest(): WalletRequest | null {
+	get pendingRequest(): PendingSigningRequest | null {
 		return this.#pendingRequest;
 	}
 
@@ -189,14 +249,90 @@ export class DevWallet implements Wallet {
 		return this.#adapters.find((a) => a.getAccount(address) !== undefined);
 	}
 
-	/** Returns adapters that support account creation. */
-	getCreatableAdapters(): SignerAdapter[] {
-		return this.#adapters.filter((a) => 'createAccount' in a && a.createAccount);
+	/**
+	 * The configured clients, keyed by network name.
+	 * Note: This eagerly creates clients for all networks. Prefer `getClient()` or `activeClient` for single-network access.
+	 */
+	get clients(): Record<string, ClientWithCoreApi> {
+		for (const [name, url] of Object.entries(this.#networkUrls)) {
+			if (!this.#clients[name]) {
+				this.#clients[name] = this.#clientFactory(name, url);
+			}
+		}
+		return { ...this.#clients };
 	}
 
-	/** The configured clients, keyed by network name. */
-	get clients(): Record<string, ClientWithCoreApi> {
-		return this.#clients;
+	/** Get or create the client for a specific network name. */
+	getClient(network: string): ClientWithCoreApi {
+		if (!this.#clients[network]) {
+			const url = this.#networkUrls[network];
+			if (!url) {
+				throw new Error(
+					`No client for network "${network}". Available: ${this.availableNetworks.join(', ')}`,
+				);
+			}
+			this.#clients[network] = this.#clientFactory(network, url);
+		}
+		return this.#clients[network];
+	}
+
+	/** The configured network URLs, keyed by network name. */
+	get networkUrls(): Record<string, string> {
+		return { ...this.#networkUrls };
+	}
+
+	/** The currently active network name. */
+	get activeNetwork(): string {
+		return this.#activeNetwork;
+	}
+
+	/** The client for the currently active network. */
+	get activeClient(): ClientWithCoreApi | null {
+		if (!this.#activeNetwork) return null;
+		const url = this.#networkUrls[this.#activeNetwork];
+		if (!url) return null;
+		if (!this.#clients[this.#activeNetwork]) {
+			this.#clients[this.#activeNetwork] = this.#clientFactory(this.#activeNetwork, url);
+		}
+		return this.#clients[this.#activeNetwork];
+	}
+
+	/** List of available network names. */
+	get availableNetworks(): string[] {
+		return Object.keys(this.#networkUrls);
+	}
+
+	/** Switch the active network. Emits a `change` event. */
+	setActiveNetwork(network: string): void {
+		if (!this.#networkUrls[network]) {
+			throw new Error(
+				`No client for network "${network}". Available: ${this.availableNetworks.join(', ')}`,
+			);
+		}
+		this.#activeNetwork = network;
+		this.#events.emit('change', { accounts: this.#accounts });
+	}
+
+	/** Add or update a network. Creates a new gRPC client for the URL. */
+	addNetwork(name: string, url: string): void {
+		try {
+			new URL(url);
+		} catch {
+			throw new Error(`Invalid URL: ${url}`);
+		}
+		this.#networkUrls[name] = url;
+		this.#clients[name] = this.#clientFactory(name, url);
+		this.#events.emit('change', { accounts: this.#accounts });
+	}
+
+	/** Remove a network. Resets active network if it was the removed one. */
+	removeNetwork(name: string): void {
+		delete this.#networkUrls[name];
+		delete this.#clients[name];
+		if (this.#activeNetwork === name) {
+			this.#activeNetwork = Object.keys(this.#networkUrls)[0] ?? '';
+		}
+		this.#events.emit('change', { accounts: this.#accounts });
 	}
 
 	/**
@@ -227,28 +363,13 @@ export class DevWallet implements Wallet {
 			this.#pendingRequest.reject(new Error('Wallet destroyed.'));
 			this.#pendingRequest = null;
 		}
+		if (this.#pendingConnect) {
+			this.#pendingConnect.reject(new Error('Wallet destroyed.'));
+			this.#pendingConnect = null;
+		}
 		this.#requestListeners.clear();
+		this.#connectListeners.clear();
 		this.#events.all.clear();
-	}
-
-	/**
-	 * Mount the wallet UI panel to the DOM.
-	 *
-	 * Creates a `<dev-wallet-panel>` element bound to this wallet and appends it
-	 * to the given target element (defaults to `document.body`).
-	 *
-	 * @returns A cleanup function that removes the UI from the DOM.
-	 */
-	async mountUI(target?: HTMLElement): Promise<() => void> {
-		// Await the import to ensure the custom element is registered before createElement
-		await import('../ui/dev-wallet-panel.js');
-		const container = target ?? document.body;
-		const panel = document.createElement('dev-wallet-panel');
-		(panel as any).wallet = this;
-		container.appendChild(panel);
-		return () => {
-			panel.remove();
-		};
 	}
 
 	/**
@@ -297,16 +418,73 @@ export class DevWallet implements Wallet {
 	 *
 	 * @returns An unsubscribe function.
 	 */
-	onRequestChange(callback: (request: WalletRequest | null) => void): () => void {
+	onRequestChange(callback: (request: PendingSigningRequest | null) => void): () => void {
 		this.#requestListeners.add(callback);
 		return () => {
 			this.#requestListeners.delete(callback);
 		};
 	}
 
+	/** The current pending connect request, or null if none. */
+	get pendingConnect(): PendingConnectRequest | null {
+		return this.#pendingConnect;
+	}
+
+	/**
+	 * Approve a connect request, exposing only the given addresses to the dApp.
+	 */
+	approveConnect(selectedAddresses: string[]): void {
+		const request = this.#pendingConnect;
+		if (!request) {
+			throw new Error('No pending connect request to approve.');
+		}
+
+		const allAccounts = this.#aggregateAccounts();
+		const selected =
+			selectedAddresses.length > 0
+				? allAccounts.filter((a) => selectedAddresses.includes(a.address))
+				: allAccounts;
+
+		this.#accounts = selected;
+		this.#pendingConnect = null;
+		this.#notifyConnectListeners();
+		this.#events.emit('change', { accounts: this.#accounts });
+		request.resolve({ accounts: selected });
+	}
+
+	/**
+	 * Reject a connect request.
+	 */
+	rejectConnect(reason?: string): void {
+		const request = this.#pendingConnect;
+		if (!request) {
+			throw new Error('No pending connect request to reject.');
+		}
+		this.#pendingConnect = null;
+		this.#notifyConnectListeners();
+		request.reject(new Error(reason ?? 'Connection rejected by user.'));
+	}
+
+	/**
+	 * Subscribe to pending connect request changes.
+	 */
+	onConnectChange(callback: (request: PendingConnectRequest | null) => void): () => void {
+		this.#connectListeners.add(callback);
+		return () => {
+			this.#connectListeners.delete(callback);
+		};
+	}
+
 	#notifyRequestListeners() {
 		const request = this.#pendingRequest;
 		for (const listener of this.#requestListeners) {
+			listener(request);
+		}
+	}
+
+	#notifyConnectListeners() {
+		const request = this.#pendingConnect;
+		for (const listener of this.#connectListeners) {
 			listener(request);
 		}
 	}
@@ -334,8 +512,27 @@ export class DevWallet implements Wallet {
 		if (this.#unsubscribeAdapters.length === 0) {
 			this.#setupAdapterListeners();
 		}
-		this.#accounts = this.#aggregateAccounts();
-		return { accounts: this.accounts };
+
+		// Auto-connect: return all accounts immediately
+		if (this.#autoConnect) {
+			this.#accounts = this.#aggregateAccounts();
+			this.#events.emit('change', { accounts: this.#accounts });
+			return { accounts: this.accounts };
+		}
+
+		// Queue a connect request for user to select accounts
+		if (this.#pendingConnect) {
+			return Promise.reject(new Error('A connect request is already pending.'));
+		}
+
+		return new Promise((resolve, reject) => {
+			this.#pendingConnect = {
+				id: crypto.randomUUID(),
+				resolve,
+				reject,
+			};
+			this.#notifyConnectListeners();
+		});
 	};
 
 	#disconnect: StandardDisconnectMethod = async () => {
@@ -343,6 +540,8 @@ export class DevWallet implements Wallet {
 			unsub();
 		}
 		this.#unsubscribeAdapters = [];
+		this.#accounts = [];
+		this.#events.emit('change', { accounts: this.#accounts });
 	};
 
 	#getClient(chain: string) {
@@ -350,13 +549,16 @@ export class DevWallet implements Wallet {
 		if (!network) {
 			throw new Error(`Invalid chain identifier: ${chain}`);
 		}
-		const client = this.#clients[network];
-		if (!client) {
-			throw new Error(
-				`No client configured for network "${network}". Available networks: ${Object.keys(this.#clients).join(', ')}`,
-			);
+		if (!this.#clients[network]) {
+			const url = this.#networkUrls[network];
+			if (!url) {
+				throw new Error(
+					`No client configured for network "${network}". Available networks: ${Object.keys(this.#networkUrls).join(', ')}`,
+				);
+			}
+			this.#clients[network] = this.#clientFactory(network, url);
 		}
-		return client;
+		return this.#clients[network];
 	}
 
 	#getSigner(address: string) {
@@ -376,6 +578,12 @@ export class DevWallet implements Wallet {
 		chain: string,
 		data: string | Uint8Array,
 	): boolean {
+		// Check adapter-level opt-out first — CLI adapters never auto-sign
+		const adapter = this.getAdapterForAccount(account.address);
+		if (adapter?.allowAutoSign === false) {
+			return false;
+		}
+
 		if (this.#autoApprove === true) {
 			return true;
 		}
@@ -396,17 +604,18 @@ export class DevWallet implements Wallet {
 		return executeSigning({ type, signer, data, client });
 	}
 
-	#enqueueRequest(
-		type: WalletRequest['type'],
+	#enqueueRequest<T extends WalletRequest['type']>(
+		type: T,
 		account: WalletAccount,
 		chain: string,
 		data: string | Uint8Array,
-	): Promise<any> {
+	): Promise<Extract<SigningResult, { type: T }>> {
+		type Result = Extract<SigningResult, { type: T }>;
 		if (this.#destroyed) {
 			return Promise.reject(new Error('Wallet has been destroyed.'));
 		}
 		if (this.#shouldAutoApprove(type, account, chain, data)) {
-			return this.#executeSigning(type, account, chain, data);
+			return this.#executeSigning(type, account, chain, data) as Promise<Result>;
 		}
 
 		// Only one request at a time — subsequent requests are immediately rejected.
@@ -415,7 +624,7 @@ export class DevWallet implements Wallet {
 			return Promise.reject(new Error('A signing request is already pending.'));
 		}
 
-		return new Promise((resolve, reject) => {
+		return new Promise<Result>((resolve, reject) => {
 			this.#pendingRequest = {
 				id: crypto.randomUUID(),
 				type,

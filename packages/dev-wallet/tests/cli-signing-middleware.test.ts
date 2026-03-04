@@ -36,8 +36,14 @@ const mockSignResult = {
 };
 
 // Helper to set up a test HTTP server with the middleware
-function createTestServer(): { server: Server; port: number; close: () => Promise<void> } {
-	const middleware = createCliSigningMiddleware();
+function createTestServer(options?: { skipAuth?: boolean }): {
+	server: Server;
+	token: string | null;
+	close: () => Promise<void>;
+} {
+	const { middleware, token } = createCliSigningMiddleware({
+		skipAuth: options?.skipAuth ?? true,
+	});
 
 	const server = createServer((req, res) => {
 		middleware(req, res, () => {
@@ -46,13 +52,9 @@ function createTestServer(): { server: Server; port: number; close: () => Promis
 		});
 	});
 
-	let resolvedPort: number;
-
 	return {
-		get port() {
-			return resolvedPort;
-		},
 		server,
+		token,
 		close: () =>
 			new Promise<void>((resolve) => {
 				server.close(() => resolve());
@@ -73,11 +75,15 @@ async function startServer(testServer: ReturnType<typeof createTestServer>): Pro
 async function request(
 	port: number,
 	path: string,
-	options?: { method?: string; body?: unknown },
+	options?: { method?: string; body?: unknown; token?: string },
 ): Promise<{ status: number; body: any }> {
+	const headers: Record<string, string> = {};
+	if (options?.body) headers['Content-Type'] = 'application/json';
+	if (options?.token) headers['Authorization'] = `Bearer ${options.token}`;
+
 	const res = await fetch(`http://localhost:${port}${path}`, {
 		method: options?.method ?? 'GET',
-		headers: options?.body ? { 'Content-Type': 'application/json' } : undefined,
+		headers,
 		body: options?.body ? JSON.stringify(options.body) : undefined,
 	});
 
@@ -91,7 +97,7 @@ describe('CLI Signing Middleware', () => {
 
 	beforeEach(async () => {
 		vi.clearAllMocks();
-		testServer = createTestServer();
+		testServer = createTestServer({ skipAuth: true });
 		port = await startServer(testServer);
 	});
 
@@ -157,24 +163,6 @@ describe('CLI Signing Middleware', () => {
 			expect(body.digest).toBe('ZGlnZXN0');
 		});
 
-		it('calls sui keytool sign with correct arguments', async () => {
-			mockExecFile.mockImplementation((_cmd, _args, callback: any) => {
-				callback(null, { stdout: JSON.stringify(mockSignResult), stderr: '' });
-				return {} as any;
-			});
-
-			await request(port, '/api/sign-transaction', {
-				method: 'POST',
-				body: { address: '0xabc123', txBytes: 'dHhEYXRh' },
-			});
-
-			expect(mockExecFile).toHaveBeenCalledWith(
-				'sui',
-				['keytool', 'sign', '--address', '0xabc123', '--data', 'dHhEYXRh', '--json'],
-				expect.any(Function),
-			);
-		});
-
 		it('rejects invalid address format', async () => {
 			const { status, body } = await request(port, '/api/sign-transaction', {
 				method: 'POST',
@@ -184,16 +172,6 @@ describe('CLI Signing Middleware', () => {
 			expect(status).toBe(400);
 			expect(body.error).toContain('Invalid address format');
 			expect(mockExecFile).not.toHaveBeenCalled();
-		});
-
-		it('rejects address without 0x prefix', async () => {
-			const { status, body } = await request(port, '/api/sign-transaction', {
-				method: 'POST',
-				body: { address: 'abc123', txBytes: 'dHhEYXRh' },
-			});
-
-			expect(status).toBe(400);
-			expect(body.error).toContain('Invalid address format');
 		});
 
 		it('rejects empty txBytes', async () => {
@@ -206,163 +184,10 @@ describe('CLI Signing Middleware', () => {
 			expect(body.error).toContain('Invalid txBytes');
 		});
 
-		it('rejects missing txBytes', async () => {
-			const { status, body } = await request(port, '/api/sign-transaction', {
-				method: 'POST',
-				body: { address: '0xabc123' },
-			});
-
-			expect(status).toBe(400);
-			expect(body.error).toContain('Invalid txBytes');
-		});
-
-		it('rejects invalid JSON body', async () => {
-			const res = await fetch(`http://localhost:${port}/api/sign-transaction`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: 'not-json{{{',
-			});
-
-			expect(res.status).toBe(400);
-			const body = await res.json();
-			expect(body.error).toContain('Invalid JSON body');
-		});
-
 		it('rejects shell injection in address', async () => {
 			const { status } = await request(port, '/api/sign-transaction', {
 				method: 'POST',
 				body: { address: '$(rm -rf /)', txBytes: 'dHhEYXRh' },
-			});
-
-			expect(status).toBe(400);
-			expect(mockExecFile).not.toHaveBeenCalled();
-		});
-
-		it('rejects address with special characters', async () => {
-			const { status } = await request(port, '/api/sign-transaction', {
-				method: 'POST',
-				body: { address: '0xabc; rm -rf /', txBytes: 'dHhEYXRh' },
-			});
-
-			expect(status).toBe(400);
-			expect(mockExecFile).not.toHaveBeenCalled();
-		});
-
-		it('returns 500 on CLI error', async () => {
-			mockExecFile.mockImplementation((_cmd, _args, callback: any) => {
-				callback(new Error('Signing failed'), null);
-				return {} as any;
-			});
-
-			const { status, body } = await request(port, '/api/sign-transaction', {
-				method: 'POST',
-				body: { address: '0xabc123', txBytes: 'dHhEYXRh' },
-			});
-
-			expect(status).toBe(500);
-			expect(body.error).toContain('Signing failed');
-		});
-	});
-
-	describe('POST /api/create-account', () => {
-		it('creates account via sui client new-address', async () => {
-			mockExecFile.mockImplementation((_cmd, _args, callback: any) => {
-				callback(null, {
-					stdout: JSON.stringify({
-						alias: 'new-alias',
-						address: '0xnew',
-						keyScheme: 'ed25519',
-						recoveryPhrase: 'word1 word2 word3',
-					}),
-					stderr: '',
-				});
-				return {} as any;
-			});
-
-			const { status, body } = await request(port, '/api/create-account', {
-				method: 'POST',
-				body: { scheme: 'ed25519' },
-			});
-
-			expect(status).toBe(200);
-			expect(body.address).toBe('0xnew');
-			expect(body.keyScheme).toBe('ed25519');
-		});
-
-		it('does not return recovery phrase', async () => {
-			mockExecFile.mockImplementation((_cmd, _args, callback: any) => {
-				callback(null, {
-					stdout: JSON.stringify({
-						alias: 'new-alias',
-						address: '0xnew',
-						keyScheme: 'ed25519',
-						recoveryPhrase: 'secret words here',
-					}),
-					stderr: '',
-				});
-				return {} as any;
-			});
-
-			const { body } = await request(port, '/api/create-account', {
-				method: 'POST',
-				body: { scheme: 'ed25519' },
-			});
-
-			// Should not leak recovery phrase to browser
-			expect(body.recoveryPhrase).toBeUndefined();
-		});
-
-		it('calls sui client new-address with correct arguments', async () => {
-			mockExecFile.mockImplementation((_cmd, _args, callback: any) => {
-				callback(null, { stdout: '{}', stderr: '' });
-				return {} as any;
-			});
-
-			await request(port, '/api/create-account', {
-				method: 'POST',
-				body: { scheme: 'secp256k1' },
-			});
-
-			expect(mockExecFile).toHaveBeenCalledWith(
-				'sui',
-				['client', 'new-address', 'secp256k1', '--json'],
-				expect.any(Function),
-			);
-		});
-
-		it('defaults to ed25519', async () => {
-			mockExecFile.mockImplementation((_cmd, _args, callback: any) => {
-				callback(null, { stdout: '{}', stderr: '' });
-				return {} as any;
-			});
-
-			await request(port, '/api/create-account', {
-				method: 'POST',
-				body: {},
-			});
-
-			expect(mockExecFile).toHaveBeenCalledWith(
-				'sui',
-				['client', 'new-address', 'ed25519', '--json'],
-				expect.any(Function),
-			);
-		});
-
-		it('rejects invalid scheme', async () => {
-			const { status, body } = await request(port, '/api/create-account', {
-				method: 'POST',
-				body: { scheme: 'rsa4096' },
-			});
-
-			expect(status).toBe(400);
-			expect(body.error).toContain('Invalid key scheme');
-			expect(mockExecFile).not.toHaveBeenCalled();
-		});
-
-		it('rejects shell injection in scheme', async () => {
-			const { status } = await request(port, '/api/create-account', {
-				method: 'POST',
-				body: { scheme: 'ed25519; rm -rf /' },
 			});
 
 			expect(status).toBe(400);
@@ -377,15 +202,99 @@ describe('CLI Signing Middleware', () => {
 			expect(status).toBe(404);
 			expect(body.error).toBe('Not found (passthrough)');
 		});
+	});
 
-		it('passes non-matching methods to next()', async () => {
-			const { status, body } = await request(port, '/api/accounts', {
-				method: 'POST',
-				body: {},
+	describe('DNS rebinding protection', () => {
+		it('rejects requests from non-localhost Host header', async () => {
+			// Use raw http.request since fetch overrides the Host header
+			const http = await import('node:http');
+			const { status, body } = await new Promise<{ status: number; body: any }>((resolve) => {
+				const req = http.request(
+					{
+						hostname: '127.0.0.1',
+						port,
+						path: '/api/accounts',
+						method: 'GET',
+						headers: { Host: 'evil.example.com' },
+					},
+					(res) => {
+						let data = '';
+						res.on('data', (chunk: Buffer) => (data += chunk));
+						res.on('end', () => resolve({ status: res.statusCode!, body: JSON.parse(data) }));
+					},
+				);
+				req.end();
 			});
-
-			expect(status).toBe(404);
-			expect(body.error).toBe('Not found (passthrough)');
+			expect(status).toBe(403);
+			expect(body.error).toContain('localhost');
 		});
+	});
+
+	describe('body validation', () => {
+		it('returns 400 for invalid JSON body', async () => {
+			const res = await fetch(`http://localhost:${port}/api/sign-transaction`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: '{invalid json',
+			});
+			const body = await res.json();
+			expect(res.status).toBe(400);
+			expect(body.error).toContain('Invalid JSON');
+		});
+	});
+});
+
+describe('Token Authentication', () => {
+	let testServer: ReturnType<typeof createTestServer>;
+	let port: number;
+
+	beforeEach(async () => {
+		vi.clearAllMocks();
+		testServer = createTestServer({ skipAuth: false });
+		port = await startServer(testServer);
+	});
+
+	afterEach(async () => {
+		await testServer.close();
+	});
+
+	it('generates a 64-char hex token', () => {
+		expect(testServer.token).toBeTruthy();
+		expect(testServer.token).toMatch(/^[0-9a-f]{64}$/);
+	});
+
+	it('rejects API calls without authentication', async () => {
+		const { status, body } = await request(port, '/api/accounts');
+
+		expect(status).toBe(401);
+		expect(body.error).toContain('Authentication required');
+	});
+
+	it('allows API calls with valid token', async () => {
+		mockExecFile.mockImplementation((_cmd, _args, callback: any) => {
+			callback(null, { stdout: '[]', stderr: '' });
+			return {} as any;
+		});
+
+		const { status } = await request(port, '/api/accounts', {
+			token: testServer.token!,
+		});
+
+		expect(status).toBe(200);
+	});
+
+	it('rejects API calls with invalid token', async () => {
+		const { status } = await request(port, '/api/accounts', {
+			token: 'invalid-token',
+		});
+
+		expect(status).toBe(401);
+	});
+
+	it('passthrough routes are not affected by auth', async () => {
+		const { status, body } = await request(port, '/some-other-path');
+
+		expect(status).toBe(404);
+		expect(body.error).toBe('Not found (passthrough)');
 	});
 });

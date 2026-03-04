@@ -1,5 +1,5 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-export { KeystoreSignerAdapter } from './keystore-adapter.js';
-export { SuiCliSignerAdapter } from './sui-cli-adapter.js';
+export { parseKeystoreFile, DEFAULT_KEYSTORE_PATH } from './keystore-utils.js';
+export type { KeystoreEntry } from './keystore-utils.js';

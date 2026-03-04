@@ -1,28 +1,25 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
+import { RemoteCliAdapter } from '../adapters/remote-cli-adapter.js';
 import type { SignerAdapter } from '../types.js';
 import { parseWalletRequest } from '../server/request-handler.js';
+import { DEFAULT_NETWORK_URLS, DevWallet } from '../wallet/dev-wallet.js';
 
 // Import UI components to register custom elements
 import '../ui/dev-wallet-popup.js';
-import '../ui/dev-wallet-accounts.js';
-import '../ui/dev-wallet-balances.js';
+import '../ui/dev-wallet-standalone.js';
 import type { DevWalletConnect } from '../ui/dev-wallet-connect.js';
 
 declare const __DEV_WALLET_CLI__: string | undefined;
 
-const NETWORKS = ['mainnet', 'testnet', 'devnet', 'localnet'] as const;
-
-function createClients(): Record<string, SuiJsonRpcClient> {
-	const clients: Record<string, SuiJsonRpcClient> = {};
-	for (const network of NETWORKS) {
-		clients[network] = new SuiJsonRpcClient({
-			url: getJsonRpcFullnodeUrl(network),
-			network,
-		});
+function createClients(): Record<string, ClientWithCoreApi> {
+	const clients: Record<string, ClientWithCoreApi> = {};
+	for (const [name, url] of Object.entries(DEFAULT_NETWORK_URLS)) {
+		clients[name] = new SuiGrpcClient({ baseUrl: url, network: name });
 	}
 	return clients;
 }
@@ -42,33 +39,49 @@ async function getJwtSecretKey(): Promise<Uint8Array> {
 }
 
 async function createAdapters(): Promise<SignerAdapter[]> {
-	const adapters: SignerAdapter[] = [];
+	// Initialize all adapters concurrently
+	const initTasks: Array<Promise<SignerAdapter | null>> = [];
 
-	// Always add in-memory adapter (lightweight, always available)
-	const { InMemorySignerAdapter } = await import('../adapters/in-memory-adapter.js');
-	const memoryAdapter = new InMemorySignerAdapter();
-	await memoryAdapter.initialize();
-	adapters.push(memoryAdapter);
-
-	// Add WebCrypto adapter (browser with IndexedDB)
+	// WebCrypto adapter (persistent via IndexedDB — preferred default)
 	if (typeof indexedDB !== 'undefined') {
-		try {
-			const { WebCryptoSignerAdapter } = await import('../adapters/webcrypto-adapter.js');
-			const wcAdapter = new WebCryptoSignerAdapter();
-			await wcAdapter.initialize();
-			adapters.push(wcAdapter);
-		} catch {
-			// WebCrypto not available in this environment
-		}
+		initTasks.push(
+			import('../adapters/webcrypto-adapter.js')
+				.then(async ({ WebCryptoSignerAdapter }) => {
+					const adapter = new WebCryptoSignerAdapter();
+					await adapter.initialize();
+					return adapter;
+				})
+				.catch(() => null),
+		);
 	}
 
-	// Add CLI adapter (when running with CLI middleware)
+	// In-memory adapter (lightweight fallback, always available)
+	initTasks.push(
+		import('../adapters/in-memory-adapter.js').then(async ({ InMemorySignerAdapter }) => {
+			const adapter = new InMemorySignerAdapter();
+			await adapter.initialize();
+			return adapter;
+		}),
+	);
+
+	// CLI adapter (when running with CLI middleware)
 	if (typeof __DEV_WALLET_CLI__ !== 'undefined') {
-		const { RemoteCliAdapter } = await import('../adapters/remote-cli-adapter.js');
-		const cliAdapter = new RemoteCliAdapter();
-		await cliAdapter.initialize();
-		adapters.push(cliAdapter);
+		initTasks.push(
+			import('../adapters/remote-cli-adapter.js').then(async ({ RemoteCliAdapter }) => {
+				const cliAdapter = new RemoteCliAdapter();
+				await cliAdapter.initialize();
+				return cliAdapter;
+			}),
+		);
 	}
+
+	const results = await Promise.allSettled(initTasks);
+	const adapters = results
+		.filter(
+			(r): r is PromiseFulfilledResult<SignerAdapter> =>
+				r.status === 'fulfilled' && r.value !== null,
+		)
+		.map((r) => r.value);
 
 	// Ensure at least one account exists across all adapters
 	const hasAccounts = adapters.some((a) => a.getAccounts().length > 0);
@@ -86,7 +99,8 @@ async function createAdapters(): Promise<SignerAdapter[]> {
  * Handle a popup request from a dApp using shared Lit components.
  */
 async function handlePopupRequest(hash: string) {
-	const app = document.getElementById('app')!;
+	const app = document.getElementById('app');
+	if (!app) throw new Error('Missing #app element in document');
 
 	try {
 		const adapters = await createAdapters();
@@ -107,7 +121,7 @@ async function handlePopupRequest(hash: string) {
 		const client = network ? clients[network] : clients['devnet'];
 
 		const popup = document.createElement('dev-wallet-popup');
-		popup.walletName = 'Dev Wallet';
+		popup.walletName = 'Dev Wallet (Web)';
 		popup.requestType = request.type;
 		popup.appName = request.appName;
 		popup.appUrl = request.appUrl;
@@ -116,13 +130,23 @@ async function handlePopupRequest(hash: string) {
 		popup.data = request.data ?? null;
 		popup.client = client ?? null;
 
+		// For connect requests, pass account list to enable selection
+		if (request.type === 'connect') {
+			popup.connectAccounts = adapters.flatMap((a) =>
+				a.getAccounts().map((acc) => ({ address: acc.address, label: acc.label })),
+			);
+		}
+
 		let handling = false;
 
-		popup.addEventListener('approve', async () => {
+		popup.addEventListener('approve', async (e) => {
 			if (handling) return;
 			handling = true;
 			try {
-				await request.approve();
+				const detail = (e as CustomEvent).detail;
+				await request.approve(
+					detail?.selectedAddresses ? { selectedAddresses: detail.selectedAddresses } : undefined,
+				);
 				window.close();
 			} catch (error) {
 				handling = false;
@@ -150,63 +174,26 @@ async function handlePopupRequest(hash: string) {
 }
 
 /**
- * Show the standalone wallet management page using shared Lit components.
+ * Show the standalone wallet management page using the shared standalone component.
  * This is a full-page layout (not the embedded floating FAB).
  */
 async function showStandaloneUI() {
-	const app = document.getElementById('app')!;
+	const app = document.getElementById('app');
+	if (!app) throw new Error('Missing #app element in document');
 
 	try {
 		const adapters = await createAdapters();
-		const clients = createClients();
-		const client = clients['devnet'] ?? clients['testnet'] ?? Object.values(clients)[0];
+
+		const wallet = new DevWallet({
+			adapters,
+			activeNetwork: 'devnet',
+		});
 
 		app.innerHTML = '';
 
-		const container = document.createElement('dev-wallet-standalone');
-		container.innerHTML = '';
-
-		// We use a simple wrapper div styled via the page's CSS
-		const wrapper = document.createElement('div');
-		wrapper.className = 'standalone-layout';
-
-		const header = document.createElement('div');
-		header.className = 'standalone-header';
-		header.innerHTML = '<h1>Dev Wallet</h1><p>Wallet is running. Connect from your dApp.</p>';
-		wrapper.appendChild(header);
-
-		const allAccounts = adapters.flatMap((a) => a.getAccounts());
-		const firstAddress = allAccounts[0]?.address ?? '';
-
-		// Use the shared <dev-wallet-balances> component
-		const balancesEl = document.createElement('dev-wallet-balances');
-		balancesEl.address = firstAddress;
-		(balancesEl as any).client = client;
-		wrapper.appendChild(balancesEl);
-
-		// Use the shared <dev-wallet-accounts> component
-		const accountsEl = document.createElement('dev-wallet-accounts');
-		(accountsEl as any).accounts = allAccounts.map((a) => a.walletAccount);
-		(accountsEl as any).adapters = adapters;
-		accountsEl.activeAddress = firstAddress;
-		wrapper.appendChild(accountsEl);
-
-		// When account is selected, update balances
-		accountsEl.addEventListener('account-selected', ((e: CustomEvent) => {
-			const newAddress = e.detail.account.address;
-			accountsEl.activeAddress = newAddress;
-			balancesEl.address = newAddress;
-		}) as EventListener);
-
-		// When accounts change (new account added), refresh the list
-		for (const adapter of adapters) {
-			adapter.onAccountsChanged(() => {
-				const updatedAccounts = adapters.flatMap((a) => a.getAccounts());
-				(accountsEl as any).accounts = updatedAccounts.map((a) => a.walletAccount);
-			});
-		}
-
-		app.appendChild(wrapper);
+		const el = document.createElement('dev-wallet-standalone');
+		(el as any).wallet = wallet;
+		app.appendChild(el);
 	} catch (error) {
 		showErrorMessage(app, 'Failed to initialize wallet', error);
 	}
@@ -230,6 +217,16 @@ function showErrorMessage(container: HTMLElement, title: string, error: unknown)
 	wrapper.appendChild(message);
 
 	container.appendChild(wrapper);
+}
+
+// Extract and store CLI token from URL (Jupyter-style auth).
+// Stored in localStorage so popups (signing requests) can also access it.
+const url = new URL(window.location.href);
+const urlToken = url.searchParams.get('token');
+if (urlToken) {
+	localStorage.setItem(RemoteCliAdapter.TOKEN_KEY, urlToken);
+	url.searchParams.delete('token');
+	history.replaceState(null, '', url.pathname + url.hash);
 }
 
 // Entry point

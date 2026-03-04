@@ -41,8 +41,7 @@
 		}
 	},
 	"sideEffects": [
-		"dist/ui/*.mjs",
-		"src/ui/*.ts"
+		"dist/ui/*.mjs"
 	],
 	"files": [
 		"CHANGELOG.md",
@@ -96,7 +95,6 @@
 		"vitest": "^4.0.18"
 	},
 	"dependencies": {
-		"@lit/react": "^1.0.8",
 		"@mysten/utils": "workspace:^",
 		"@mysten/wallet-sdk": "workspace:^",
 		"@mysten/wallet-standard": "workspace:^",
@@ -105,6 +103,7 @@
 		"lit": "^3.3.2"
 	},
 	"peerDependencies": {
+		"@lit/react": "^1.0.8",
 		"@mysten/signers": "workspace:^",
 		"@mysten/sui": "workspace:^",
 		"@types/react": ">=17.0.0",
@@ -115,6 +114,12 @@
 			"optional": true
 		},
 		"@types/react": {
+			"optional": true
+		},
+		"@mysten/signers": {
+			"optional": true
+		},
+		"@lit/react": {
 			"optional": true
 		}
 	}

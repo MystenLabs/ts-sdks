@@ -10,6 +10,9 @@ import { executeSigning } from '../wallet/signing.js';
 
 /**
  * A parsed wallet request with methods to approve or reject it.
+ *
+ * This is different from `PendingSigningRequest` (in dev-wallet.ts) — this interface
+ * includes `approve()`/`reject()` methods and is specific to the standalone popup flow.
  */
 export interface PendingWalletRequest {
 	type: 'connect' | 'sign-transaction' | 'sign-and-execute-transaction' | 'sign-personal-message';
@@ -18,8 +21,12 @@ export interface PendingWalletRequest {
 	address?: string;
 	chain?: string;
 	data?: string | Uint8Array;
-	/** Approve the request. For connect, returns the session. For signing, signs with the adapter. */
-	approve(): Promise<void>;
+	/**
+	 * Approve the request.
+	 * For connect: creates a session with the selected accounts (or all if none specified).
+	 * For signing: signs with the adapter.
+	 */
+	approve(options?: { selectedAddresses?: string[] }): Promise<void>;
 	/** Reject the request with an optional reason. */
 	reject(reason?: string): void;
 }
@@ -56,6 +63,11 @@ export interface HandleRequestOptions {
  * ```
  */
 export function parseWalletRequest(options: HandleRequestOptions): PendingWalletRequest {
+	if (!options.hash && typeof window === 'undefined') {
+		throw new Error(
+			'parseWalletRequest requires either options.hash or a browser environment with window.location',
+		);
+	}
 	const hash = options.hash ?? window.location.hash.slice(1);
 	const channel = WalletPostMessageChannel.fromUrlHash(hash);
 	const requestData = channel.getRequestData();
@@ -66,13 +78,18 @@ export function parseWalletRequest(options: HandleRequestOptions): PendingWallet
 			type: 'connect',
 			appName: requestData.appName,
 			appUrl: requestData.appUrl,
-			async approve() {
-				const accounts = options.adapters.flatMap((adapter) =>
+			async approve(approveOptions?: { selectedAddresses?: string[] }) {
+				const allAccounts = options.adapters.flatMap((adapter) =>
 					adapter.getAccounts().map((a) => ({
 						address: a.address,
 						publicKey: toBase64(a.signer.getPublicKey().toSuiBytes()),
+						label: a.label,
 					})),
 				);
+				const selected = approveOptions?.selectedAddresses;
+				const accounts = selected
+					? allAccounts.filter((a) => selected.includes(a.address))
+					: allAccounts;
 
 				const session = await createJwtSession(
 					{ accounts },
@@ -80,7 +97,7 @@ export function parseWalletRequest(options: HandleRequestOptions): PendingWallet
 						secretKey: options.jwtSecretKey,
 						expirationTime: '7d',
 						issuer: 'dev-wallet',
-						audience: requestData.appUrl,
+						audience: new URL(requestData.appUrl).origin,
 					},
 				);
 
@@ -106,6 +123,18 @@ export function parseWalletRequest(options: HandleRequestOptions): PendingWallet
 		chain: payload.chain,
 		data: messageData,
 		async approve() {
+			// Verify JWT session before signing — ensures the dApp was previously
+			// authorized for this account via a connect flow
+			try {
+				await channel.verifyJwtSession(options.jwtSecretKey);
+			} catch (error) {
+				channel.sendMessage({
+					type: 'reject',
+					reason: `Session verification failed: ${error instanceof Error ? error.message : String(error)}`,
+				});
+				return;
+			}
+
 			let account;
 			for (const adapter of options.adapters) {
 				account = adapter.getAccount(payload.address);
@@ -129,10 +158,10 @@ export function parseWalletRequest(options: HandleRequestOptions): PendingWallet
 					client,
 				});
 				// Normalize effects to always be a string for the PostMessage channel protocol
-			const data =
-				result.type === 'sign-and-execute-transaction'
-					? { ...result, effects: result.effects ?? '' }
-					: result;
+				const data =
+					result.type === 'sign-and-execute-transaction'
+						? { ...result, effects: result.effects ?? '' }
+						: result;
 				channel.sendMessage({
 					type: 'resolve',
 					data,

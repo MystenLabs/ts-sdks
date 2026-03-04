@@ -7,9 +7,9 @@ import { Ed25519PublicKey } from '@mysten/sui/keypairs/ed25519';
 import { Secp256k1PublicKey } from '@mysten/sui/keypairs/secp256k1';
 import { Secp256r1PublicKey } from '@mysten/sui/keypairs/secp256r1';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
-import { ReadonlyWalletAccount, SUI_CHAINS } from '@mysten/wallet-standard';
-
-import type { CreateAccountOptions, ManagedAccount, SignerAdapter } from '../types.js';
+import type { ImportAccountOptions, ManagedAccount } from '../types.js';
+import { BaseSignerAdapter } from './base-adapter.js';
+import { buildManagedAccount } from './build-managed-account.js';
 
 /**
  * Wallet features advertised by CLI-backed accounts.
@@ -25,8 +25,6 @@ const KEY_SCHEME_MAP: Record<string, SignatureScheme> = {
 	secp256r1: 'Secp256r1',
 };
 
-const VALID_SCHEMES = new Set(['ed25519', 'secp256k1', 'secp256r1']);
-
 /** Account metadata returned by the server `/api/accounts` endpoint. */
 interface ServerAccountInfo {
 	suiAddress: string;
@@ -38,13 +36,9 @@ interface ServerAccountInfo {
 /**
  * Construct the appropriate {@link PublicKey} from base64-encoded bytes (with
  * flag prefix) and a key scheme name.
- *
- * The `publicBase64Key` field from `sui keytool list --json` includes a
- * one-byte flag prefix. We strip it to get the raw public key bytes.
  */
 function publicKeyFromSuiBytes(publicBase64Key: string, scheme: SignatureScheme): PublicKey {
 	const allBytes = fromBase64(publicBase64Key);
-	// Strip the flag byte (first byte) to get raw public key
 	const rawBytes = allBytes.slice(1);
 
 	switch (scheme) {
@@ -74,24 +68,23 @@ export class CliProxySigner extends Signer {
 	#publicKey: PublicKey;
 	#scheme: SignatureScheme;
 	#serverOrigin: string;
+	#authToken: string | null;
 
 	constructor(options: {
 		address: string;
 		publicKey: PublicKey;
 		scheme: SignatureScheme;
 		serverOrigin: string;
+		authToken?: string | null;
 	}) {
 		super();
 		this.#address = options.address;
 		this.#publicKey = options.publicKey;
 		this.#scheme = options.scheme;
 		this.#serverOrigin = options.serverOrigin;
+		this.#authToken = options.authToken ?? null;
 	}
 
-	/**
-	 * Raw digest signing — not used directly. {@link signTransaction} is
-	 * overridden to call the server API which delegates to `sui keytool sign`.
-	 */
 	async sign(_bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
 		throw new Error(
 			'CliProxySigner does not support direct digest signing. ' +
@@ -111,17 +104,15 @@ export class CliProxySigner extends Signer {
 		return this.#address;
 	}
 
-	/**
-	 * Sign a transaction by sending the BCS-serialized bytes to the server,
-	 * which delegates to `sui keytool sign`.
-	 *
-	 * The CLI handles intent wrapping and hashing internally. The returned
-	 * `suiSignature` is the complete serialized signature (flag + sig + pubkey).
-	 */
 	override async signTransaction(bytes: Uint8Array) {
+		const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+		if (this.#authToken) {
+			headers['Authorization'] = `Bearer ${this.#authToken}`;
+		}
+
 		const res = await fetch(`${this.#serverOrigin}/api/sign-transaction`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers,
 			body: JSON.stringify({
 				address: this.#address,
 				txBytes: toBase64(bytes),
@@ -129,23 +120,20 @@ export class CliProxySigner extends Signer {
 		});
 
 		if (!res.ok) {
-			const body = await res.json().catch(() => ({ error: res.statusText }));
-			throw new Error(`Transaction signing failed: ${body.error}`);
+			const body = await res.json().catch(() => ({}));
+			throw new Error(`Transaction signing failed: ${body.error ?? res.statusText}`);
 		}
 
 		const { suiSignature } = await res.json();
+		if (typeof suiSignature !== 'string' || suiSignature.length === 0) {
+			throw new Error('Transaction signing failed: server returned invalid signature');
+		}
 		return {
 			bytes: toBase64(bytes),
 			signature: suiSignature,
 		};
 	}
 
-	/**
-	 * Personal message signing is not supported in CLI mode.
-	 *
-	 * The `sui keytool sign` command only accepts BCS-serialized
-	 * `TransactionData` — there is no CLI command for personal message signing.
-	 */
 	override async signPersonalMessage(_bytes: Uint8Array): Promise<never> {
 		throw new Error(
 			'Personal message signing is not supported in CLI mode. ' +
@@ -159,128 +147,258 @@ export class CliProxySigner extends Signer {
  * Browser-side {@link SignerAdapter} that delegates all operations to a
  * server running the `sui` CLI.
  *
- * The server exposes HTTP endpoints backed by `sui keytool` commands:
- * - `GET /api/accounts` — lists keystore accounts (no key material)
- * - `POST /api/sign-transaction` — signs via `sui keytool sign`
- * - `POST /api/create-account` — creates via `sui client new-address`
+ * Authentication uses a token-in-URL approach (Jupyter-style). The CLI
+ * server prints a URL with a token to the terminal. Opening that URL
+ * stores the token in `localStorage`, and the adapter reads it on
+ * `initialize()` to auto-authenticate.
+ *
+ * Accounts are imported one-at-a-time via `importAccount()`. Imported
+ * account addresses are persisted in `localStorage` so they survive
+ * page reloads and CLI restarts.
  *
  * Private keys never enter JavaScript — they stay within the `sui` binary.
  */
-export class RemoteCliAdapter implements SignerAdapter {
+export class RemoteCliAdapter extends BaseSignerAdapter {
 	readonly id = 'remote-cli';
 	readonly name = 'Remote CLI Signer';
+	readonly allowAutoSign = false;
+
+	// Keys are scoped per origin to prevent cross-site leakage on shared localhost setups.
+	// localStorage is used rather than sessionStorage because popup wallet flows
+	// (DevWalletClient) may open new tabs that need access to the token.
+	static storageKey(suffix: string): string {
+		const origin = typeof location !== 'undefined' ? location.origin : 'unknown';
+		return `dev-wallet:${suffix}:${origin}`;
+	}
+
+	static get STORAGE_KEY(): string {
+		return RemoteCliAdapter.storageKey('cli-imported-addresses');
+	}
+
+	static get TOKEN_KEY(): string {
+		return RemoteCliAdapter.storageKey('cli-token');
+	}
 
 	#serverOrigin: string;
-	#accounts: ManagedAccount[] = [];
-	#listeners = new Set<(accounts: ManagedAccount[]) => void>();
+	#authToken: string | null = null;
+	#allServerAccounts: ServerAccountInfo[] = [];
+	#lastFetch: { time: number; result: ServerAccountInfo[] } | null = null;
 
-	constructor(options?: { serverOrigin?: string }) {
-		this.#serverOrigin = options?.serverOrigin ?? '';
+	constructor(options?: { serverOrigin?: string; token?: string }) {
+		super();
+		const origin = options?.serverOrigin ?? '';
+		if (origin) {
+			try {
+				new URL(origin);
+			} catch {
+				throw new Error(`Invalid serverOrigin URL: "${origin}"`);
+			}
+		}
+		this.#serverOrigin = origin;
+		if (options?.token) {
+			this.#authToken = options.token;
+		}
+	}
+
+	get isPaired(): boolean {
+		return this.#authToken !== null;
 	}
 
 	async initialize(): Promise<void> {
-		await this.#fetchAccounts();
-	}
-
-	getAccounts(): ManagedAccount[] {
-		return [...this.#accounts];
-	}
-
-	getAccount(address: string): ManagedAccount | undefined {
-		return this.#accounts.find((a) => a.address === address);
-	}
-
-	async createAccount(options?: CreateAccountOptions): Promise<ManagedAccount> {
-		const scheme = (options?.scheme as string) ?? 'ed25519';
-		if (!VALID_SCHEMES.has(scheme)) {
-			throw new Error(
-				`Invalid key scheme: ${scheme}. Must be one of: ${[...VALID_SCHEMES].join(', ')}`,
-			);
+		// Auto-authenticate from localStorage if no token was provided via constructor
+		if (!this.#authToken && typeof localStorage !== 'undefined') {
+			const stored = localStorage.getItem(RemoteCliAdapter.TOKEN_KEY);
+			if (stored) {
+				this.#authToken = stored;
+			}
 		}
 
-		const res = await fetch(`${this.#serverOrigin}/api/create-account`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ scheme, label: options?.label }),
+		// If we have a token, verify it works and restore previously-imported accounts
+		if (this.#authToken) {
+			try {
+				await this.#fetchServerAccounts();
+				await this.#restoreImportedAccounts();
+			} catch (error) {
+				// Distinguish auth failures from network errors
+				const msg = error instanceof Error ? error.message : '';
+				const isAuthError =
+					msg.includes('401') ||
+					msg.includes('403') ||
+					msg.includes('Unauthorized') ||
+					msg.includes('Forbidden');
+				if (isAuthError) {
+					// Token is invalid — clear it
+					this.#authToken = null;
+					if (typeof localStorage !== 'undefined') {
+						localStorage.removeItem(RemoteCliAdapter.TOKEN_KEY);
+					}
+				} else {
+					// Network error — keep token, log warning
+					console.warn('[dev-wallet] CLI adapter initialization failed:', error);
+				}
+			}
+		}
+	}
+
+	/**
+	 * List all accounts available on the CLI server that have NOT been imported.
+	 */
+	async listAvailableAccounts(): Promise<
+		Array<{ address: string; scheme: string; alias: string | null }>
+	> {
+		await this.#fetchServerAccounts();
+		const importedAddresses = new Set(this._accounts.map((a) => a.address));
+		return this.#allServerAccounts
+			.filter((info) => {
+				const scheme = KEY_SCHEME_MAP[info.keyScheme];
+				return scheme && !importedAddresses.has(info.suiAddress);
+			})
+			.map((info) => ({
+				address: info.suiAddress,
+				scheme: info.keyScheme,
+				alias: info.alias,
+			}));
+	}
+
+	/**
+	 * Import a specific account from the server by address.
+	 * The address is persisted in `localStorage` so it survives reloads.
+	 */
+	async importAccount(options: ImportAccountOptions): Promise<ManagedAccount> {
+		const address = options.address;
+		if (!address) {
+			throw new Error('Remote CLI adapter requires an address to import');
+		}
+
+		if (this._accounts.some((a) => a.address === address)) {
+			throw new Error(`Account ${address} is already imported`);
+		}
+
+		await this.#fetchServerAccounts();
+		const info = this.#allServerAccounts.find((a) => a.suiAddress === address);
+		if (!info) {
+			throw new Error(`Account ${address} not found on server`);
+		}
+
+		const scheme = KEY_SCHEME_MAP[info.keyScheme];
+		if (!scheme) {
+			throw new Error(`Unsupported key scheme: ${info.keyScheme}`);
+		}
+
+		const account = this.#serverAccountToManaged(info, scheme, options.label);
+		this.addAccount(account);
+		this.#saveImportedAddresses();
+		return account;
+	}
+
+	async removeAccount(address: string): Promise<boolean> {
+		const removed = this.removeAccountByAddress(address);
+		if (removed) {
+			this.#saveImportedAddresses();
+		}
+		return removed;
+	}
+
+	override destroy(): void {
+		this.#allServerAccounts = [];
+		this.#authToken = null;
+		if (typeof localStorage !== 'undefined') {
+			localStorage.removeItem(RemoteCliAdapter.TOKEN_KEY);
+			localStorage.removeItem(RemoteCliAdapter.STORAGE_KEY);
+		}
+		super.destroy();
+	}
+
+	#authHeaders(): Record<string, string> {
+		const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+		if (this.#authToken) {
+			headers['Authorization'] = `Bearer ${this.#authToken}`;
+		}
+		return headers;
+	}
+
+	async #fetchServerAccounts(forceRefresh = false): Promise<void> {
+		if (!forceRefresh && this.#lastFetch && Date.now() - this.#lastFetch.time < 5000) {
+			this.#allServerAccounts = this.#lastFetch.result;
+			return;
+		}
+		const res = await fetch(`${this.#serverOrigin}/api/accounts`, {
+			headers: this.#authHeaders(),
 		});
-
-		if (!res.ok) {
-			const body = await res.json().catch(() => ({ error: res.statusText }));
-			throw new Error(`Account creation failed: ${body.error}`);
-		}
-
-		// Refresh the full account list from the server
-		const prevAddresses = new Set(this.#accounts.map((a) => a.address));
-		await this.#fetchAccounts();
-
-		const newAccount = this.#accounts.find((a) => !prevAddresses.has(a.address));
-		if (!newAccount) {
-			throw new Error('Account was created but not found after refresh');
-		}
-
-		if (options?.label) {
-			newAccount.label = options.label;
-		}
-
-		this.#notifyListeners();
-		return newAccount;
-	}
-
-	onAccountsChanged(callback: (accounts: ManagedAccount[]) => void): () => void {
-		this.#listeners.add(callback);
-		return () => {
-			this.#listeners.delete(callback);
-		};
-	}
-
-	destroy(): void {
-		this.#accounts = [];
-		this.#listeners.clear();
-	}
-
-	async #fetchAccounts(): Promise<void> {
-		const res = await fetch(`${this.#serverOrigin}/api/accounts`);
 		if (!res.ok) {
 			throw new Error(`Failed to fetch accounts: ${res.statusText}`);
 		}
 
 		const { accounts } = (await res.json()) as { accounts: ServerAccountInfo[] };
-
-		this.#accounts = accounts
-			.map((info, index): ManagedAccount | null => {
-				const scheme = KEY_SCHEME_MAP[info.keyScheme];
-				if (!scheme) return null;
-
-				const publicKey = publicKeyFromSuiBytes(info.publicBase64Key, scheme);
-
-				const signer = new CliProxySigner({
-					address: info.suiAddress,
-					publicKey,
-					scheme,
-					serverOrigin: this.#serverOrigin,
-				});
-
-				const walletAccount = new ReadonlyWalletAccount({
-					address: info.suiAddress,
-					publicKey: publicKey.toSuiBytes(),
-					chains: [...SUI_CHAINS],
-					features: [...CLI_WALLET_FEATURES],
-				});
-
-				return {
-					address: info.suiAddress,
-					label: info.alias ?? `CLI Account ${index + 1}`,
-					signer,
-					walletAccount,
-				};
-			})
-			.filter((a): a is ManagedAccount => a !== null);
+		this.#allServerAccounts = accounts;
+		this.#lastFetch = { time: Date.now(), result: accounts };
 	}
 
-	#notifyListeners(): void {
-		const accounts = this.getAccounts();
-		for (const listener of this.#listeners) {
-			listener(accounts);
+	/**
+	 * Restore previously-imported accounts from localStorage.
+	 * Accounts that no longer exist on the server are silently skipped.
+	 */
+	async #restoreImportedAccounts(): Promise<void> {
+		const saved = this.#loadImportedAddresses();
+		if (saved.length === 0) return;
+
+		const existingAddresses = new Set(this.getAccounts().map((a) => a.address));
+		const restored: ManagedAccount[] = [];
+
+		for (const address of saved) {
+			if (existingAddresses.has(address)) continue;
+
+			const info = this.#allServerAccounts.find((a) => a.suiAddress === address);
+			if (!info) continue; // Account no longer on server — skip
+
+			const scheme = KEY_SCHEME_MAP[info.keyScheme];
+			if (!scheme) continue;
+
+			restored.push(this.#serverAccountToManaged(info, scheme));
 		}
+
+		if (restored.length > 0) {
+			this.setInitialAccounts([...this.getAccounts(), ...restored]);
+			this.notifyListeners();
+		}
+	}
+
+	#loadImportedAddresses(): string[] {
+		if (typeof localStorage === 'undefined') return [];
+		try {
+			const raw = localStorage.getItem(RemoteCliAdapter.STORAGE_KEY);
+			if (!raw) return [];
+			const parsed: unknown = JSON.parse(raw);
+			if (!Array.isArray(parsed)) return [];
+			return parsed.filter((v): v is string => typeof v === 'string');
+		} catch {
+			return [];
+		}
+	}
+
+	#saveImportedAddresses(): void {
+		if (typeof localStorage === 'undefined') return;
+		const addresses = this._accounts.map((a) => a.address);
+		localStorage.setItem(RemoteCliAdapter.STORAGE_KEY, JSON.stringify(addresses));
+	}
+
+	#serverAccountToManaged(
+		info: ServerAccountInfo,
+		scheme: SignatureScheme,
+		label?: string,
+	): ManagedAccount {
+		const publicKey = publicKeyFromSuiBytes(info.publicBase64Key, scheme);
+
+		const signer = new CliProxySigner({
+			address: info.suiAddress,
+			publicKey,
+			scheme,
+			serverOrigin: this.#serverOrigin,
+			authToken: this.#authToken,
+		});
+
+		const accountLabel = label ?? info.alias ?? `CLI Account ${this.getAccounts().length + 1}`;
+
+		return buildManagedAccount(signer, info.suiAddress, accountLabel, CLI_WALLET_FEATURES);
 	}
 }

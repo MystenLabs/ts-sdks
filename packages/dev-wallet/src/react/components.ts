@@ -1,6 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+if (typeof customElements === 'undefined') {
+	throw new Error(
+		'@mysten/dev-wallet/react components require a browser environment. ' +
+			'Use dynamic imports with ssr:false in Next.js.',
+	);
+}
+
 import { createComponent, type EventName } from '@lit/react';
 import * as React from 'react';
 
@@ -21,9 +28,6 @@ export const DevWalletPanel = createComponent({
 	elementClass: DevWalletPanelElement,
 });
 
-/** @deprecated Use `DevWalletPanel` instead. */
-export const DevWalletDrawer = DevWalletPanel;
-
 /**
  * React wrapper for the `<dev-wallet-accounts>` Lit component.
  * Displays a list of accounts with selection and creation support.
@@ -33,7 +37,12 @@ export const DevWalletAccounts = createComponent({
 	tagName: 'dev-wallet-accounts',
 	elementClass: DevWalletAccountsElement,
 	events: {
-		onAccountSelected: 'account-selected' as EventName<CustomEvent>,
+		onAccountSelected: 'account-selected' as EventName<
+			CustomEvent<{ account: import('@mysten/wallet-standard').ReadonlyWalletAccount }>
+		>,
+		onAccountRenamed: 'account-renamed' as EventName<
+			CustomEvent<{ address: string; label: string }>
+		>,
 	},
 });
 

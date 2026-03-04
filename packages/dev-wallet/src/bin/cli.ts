@@ -37,6 +37,10 @@ The wallet automatically detects available adapters:
 	}
 
 	const port = parseInt(values.port ?? '5174', 10);
+	if (isNaN(port) || port < 1 || port > 65535) {
+		console.error('Error: --port must be a number between 1 and 65535');
+		process.exit(1);
+	}
 
 	// Check if sui CLI is available
 	let hasSuiCli = false;
@@ -80,12 +84,15 @@ The wallet automatically detects available adapters:
 	// Build Vite plugins — CLI middleware must be registered via configureServer
 	// so it runs before Vite's SPA fallback (which would serve index.html for /api/* routes).
 	const plugins = [];
+	let cliToken: string | null = null;
 	if (hasSuiCli) {
 		const { createCliSigningMiddleware } = await import('../server/cli-signing-middleware.js');
+		const { middleware, token } = createCliSigningMiddleware();
+		cliToken = token;
 		plugins.push({
 			name: 'dev-wallet-cli-middleware',
 			configureServer(server: { middlewares: { use: (fn: unknown) => void } }) {
-				server.middlewares.use(createCliSigningMiddleware());
+				server.middlewares.use(middleware);
 			},
 		});
 	}
@@ -110,20 +117,24 @@ The wallet automatically detects available adapters:
 	await server.listen();
 
 	const address = server.resolvedUrls?.local?.[0] ?? `http://localhost:${port}`;
+	const baseUrl = address.replace(/\/$/, '');
 
 	const enabledAdapters = ['In-Memory (Ed25519)', 'WebCrypto (Passkey)'];
 	if (hasSuiCli) {
 		enabledAdapters.push('CLI Signer');
 	}
 
+	// Build the URL with token for auto-authentication (Jupyter-style)
+	const walletUrl = cliToken ? `${baseUrl}/?token=${cliToken}` : baseUrl;
+
 	console.log(`
-  Dev Wallet running at ${address}
+  Dev Wallet running at ${walletUrl}
   Adapters: ${enabledAdapters.join(', ')}${!hasSuiCli ? '\n  (Install sui CLI to enable CLI signing)' : ''}
 
   To connect from your dApp:
 
     import { DevWalletClient } from '@mysten/dev-wallet/client';
-    DevWalletClient.register({ origin: '${address.replace(/\/$/, '')}' });
+    DevWalletClient.register({ origin: '${baseUrl}' });
 
   Press Ctrl+C to stop.
 `);

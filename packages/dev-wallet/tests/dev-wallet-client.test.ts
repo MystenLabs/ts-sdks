@@ -64,7 +64,7 @@ describe('DevWalletClient', () => {
 	describe('constructor', () => {
 		it('creates with default options', () => {
 			const client = new DevWalletClient();
-			expect(client.name).toBe('Dev Wallet');
+			expect(client.name).toBe('Dev Wallet (Web)');
 			expect(client.version).toBe('1.0.0');
 			expect(client.chains).toBeDefined();
 			expect(client.accounts).toHaveLength(0);
@@ -245,6 +245,26 @@ describe('DevWalletClient', () => {
 	});
 
 	describe('signTransaction', () => {
+		it('throws if no session', async () => {
+			const client = new DevWalletClient();
+			const { signTransaction } = client.features['sui:signTransaction'];
+
+			const mockTransaction = { toJSON: vi.fn().mockResolvedValue('{}') };
+
+			await expect(
+				signTransaction({
+					transaction: mockTransaction as any,
+					account: {
+						address: '0xabc123',
+						publicKey: new Uint8Array(0),
+						chains: ['sui:testnet'],
+						features: [],
+					},
+					chain: 'sui:testnet',
+				}),
+			).rejects.toThrow('No active session');
+		});
+
 		it('sends sign-transaction request via channel', async () => {
 			localStorage.setItem('dev-wallet:session:http://localhost:5174', 'test-session');
 			mockSend.mockResolvedValue({
@@ -278,6 +298,26 @@ describe('DevWalletClient', () => {
 	});
 
 	describe('signAndExecuteTransaction', () => {
+		it('throws if no session', async () => {
+			const client = new DevWalletClient();
+			const { signAndExecuteTransaction } = client.features['sui:signAndExecuteTransaction'];
+
+			const mockTransaction = { toJSON: vi.fn().mockResolvedValue('{}') };
+
+			await expect(
+				signAndExecuteTransaction({
+					transaction: mockTransaction as any,
+					account: {
+						address: '0xabc123',
+						publicKey: new Uint8Array(0),
+						chains: ['sui:testnet'],
+						features: [],
+					},
+					chain: 'sui:testnet',
+				}),
+			).rejects.toThrow('No active session');
+		});
+
 		it('sends sign-and-execute-transaction request via channel', async () => {
 			localStorage.setItem('dev-wallet:session:http://localhost:5174', 'test-session');
 			mockSend.mockResolvedValue({

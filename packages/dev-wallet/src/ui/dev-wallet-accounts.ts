@@ -6,14 +6,16 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import type { SignerAdapter } from '../types.js';
-import { sharedStyles } from './styles.js';
-import { formatAddress } from './utils.js';
+import { CopyController } from './copy-controller.js';
+import { sectionHeaderStyles, sharedStyles } from './styles.js';
+import { emitEvent, findAdapterForAddress, formatAddress } from './utils.js';
 import './dev-wallet-new-account.js';
 
 @customElement('dev-wallet-accounts')
 export class DevWalletAccounts extends LitElement {
 	static override styles = [
 		sharedStyles,
+		sectionHeaderStyles,
 		css`
 			:host {
 				display: block;
@@ -26,12 +28,8 @@ export class DevWalletAccounts extends LitElement {
 				margin-bottom: 12px;
 			}
 
-			.accounts-header h3 {
-				font-size: 13px;
-				font-weight: var(--dev-wallet-font-weight-semibold);
-				color: var(--dev-wallet-muted-foreground);
-				text-transform: uppercase;
-				letter-spacing: 0.5px;
+			.accounts-header .section-header {
+				margin-bottom: 0;
 			}
 
 			.add-btn {
@@ -100,10 +98,62 @@ export class DevWalletAccounts extends LitElement {
 			.account-address {
 				font-size: 12px;
 				color: var(--dev-wallet-muted-foreground);
-				font-family: monospace;
+				font-family: var(--dev-wallet-font-mono);
 				overflow: hidden;
 				text-overflow: ellipsis;
 				white-space: nowrap;
+				cursor: pointer;
+				border-radius: var(--dev-wallet-radius-2xs);
+				padding: 1px 2px;
+				transition: background 0.15s;
+			}
+
+			.account-address:hover {
+				background: color-mix(in oklab, var(--dev-wallet-primary) 15%, transparent);
+			}
+
+			.account-address.copied {
+				color: var(--dev-wallet-positive);
+			}
+
+			.account-label-row {
+				display: flex;
+				align-items: center;
+				gap: 4px;
+			}
+
+			.edit-label-btn {
+				width: 18px;
+				height: 18px;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: var(--dev-wallet-radius-2xs);
+				font-size: 11px;
+				color: var(--dev-wallet-muted-foreground);
+				opacity: 0;
+				transition: opacity 0.15s;
+			}
+
+			.account-item:hover .edit-label-btn {
+				opacity: 1;
+			}
+
+			.edit-label-btn:hover {
+				background: var(--dev-wallet-border);
+				color: var(--dev-wallet-foreground);
+			}
+
+			.edit-label-input {
+				padding: 2px 6px;
+				border-radius: var(--dev-wallet-radius-2xs);
+				border: 1px solid var(--dev-wallet-primary);
+				background: var(--dev-wallet-background);
+				color: var(--dev-wallet-foreground);
+				font-size: 13px;
+				font-family: inherit;
+				outline: none;
+				width: 100%;
 			}
 
 			.account-badge {
@@ -140,33 +190,113 @@ export class DevWalletAccounts extends LitElement {
 	@state()
 	private _dialogOpen = false;
 
+	#copy = new CopyController(this);
+
+	@state()
+	private _editingAddress: string | null = null;
+
+	@state()
+	private _editingLabel = '';
+
 	override render() {
-		const canCreate = this.adapters.some((a) => 'createAccount' in a && a.createAccount);
+		const canAdd = this.adapters.some(
+			(a) =>
+				('createAccount' in a && a.createAccount) ||
+				('importAccount' in a &&
+					a.importAccount &&
+					'listAvailableAccounts' in a &&
+					a.listAvailableAccounts),
+		);
 
 		return html`
 			<div class="accounts-header">
-				<h3>Accounts</h3>
-				${canCreate
-					? html`<button class="add-btn" @click=${this.#openDialog}>+ Add</button>`
+				<h3 class="section-header">Accounts</h3>
+				${canAdd
+					? html`<button class="add-btn" part="add-button" @click=${this.#openDialog}>
+							+ Add
+						</button>`
 					: nothing}
 			</div>
 			${this.accounts.length === 0
-				? html`<div class="empty-state">No accounts yet</div>`
+				? html`<div class="empty-state" part="empty-state">No accounts yet</div>`
 				: html`
-						<div class="account-list">
+						<div
+							class="account-list"
+							part="account-list"
+							role="listbox"
+							aria-label="Wallet accounts"
+						>
 							${this.accounts.map(
 								(account, index) => html`
 									<button
 										class="account-item ${account.address === this.activeAddress ? 'active' : ''}"
+										role="option"
+										aria-selected=${account.address === this.activeAddress}
 										@click=${() => this.#selectAccount(account)}
 									>
 										<div class="account-avatar">${index + 1}</div>
 										<div class="account-info">
-											<div class="account-label">
-												${this.#getAccountLabel(account.address, index)}
-												<span class="account-badge">${this.#getAdapterName(account.address)}</span>
+											${this._editingAddress === account.address
+												? html`<input
+														class="edit-label-input"
+														type="text"
+														aria-label="Rename account"
+														.value=${this._editingLabel}
+														@input=${(e: InputEvent) => {
+															this._editingLabel = (e.target as HTMLInputElement).value;
+														}}
+														@keydown=${(e: KeyboardEvent) => {
+															e.stopPropagation();
+															if (e.key === 'Enter') this.#saveLabel(account.address);
+															if (e.key === 'Escape') this.#cancelEditLabel();
+														}}
+														@click=${(e: Event) => e.stopPropagation()}
+													/>`
+												: html`<div class="account-label-row">
+														<span class="account-label">
+															${this.#getAccountLabel(account.address, index)}
+														</span>
+														<span class="account-badge"
+															>${this.#getAdapterName(account.address)}</span
+														>
+														${this.#canRename(account.address)
+															? html`<button
+																	class="edit-label-btn"
+																	title="Rename"
+																	aria-label="Rename account"
+																	@click=${(e: Event) => {
+																		e.stopPropagation();
+																		this.#startEditLabel(account.address, index);
+																	}}
+																>
+																	&#9998;
+																</button>`
+															: nothing}
+													</div>`}
+											<div
+												class="account-address ${this.#copy.isCopied(account.address)
+													? 'copied'
+													: ''}"
+												title="Click to copy"
+												role="button"
+												tabindex="0"
+												aria-label="Copy address"
+												@click=${(e: Event) => {
+													e.stopPropagation();
+													this.#copy.copy(account.address);
+												}}
+												@keydown=${(e: KeyboardEvent) => {
+													if (e.key === 'Enter' || e.key === ' ') {
+														e.preventDefault();
+														e.stopPropagation();
+														this.#copy.copy(account.address);
+													}
+												}}
+											>
+												${this.#copy.isCopied(account.address)
+													? 'Copied!'
+													: formatAddress(account.address)}
 											</div>
-											<div class="account-address">${formatAddress(account.address)}</div>
 										</div>
 									</button>
 								`,
@@ -182,28 +312,54 @@ export class DevWalletAccounts extends LitElement {
 	}
 
 	#getAccountLabel(address: string, index: number): string {
-		for (const adapter of this.adapters) {
-			const managed = adapter.getAccount(address);
-			if (managed) return managed.label;
-		}
-		return `Account ${index + 1}`;
+		const adapter = findAdapterForAddress(this.adapters, address);
+		if (!adapter) return `Account ${index + 1}`;
+		const managed = adapter.getAccount(address);
+		return managed?.label ?? `Account ${index + 1}`;
+	}
+
+	#canRename(address: string): boolean {
+		const adapter = findAdapterForAddress(this.adapters, address);
+		return !!(adapter && adapter.renameAccount);
 	}
 
 	#getAdapterName(address: string): string {
-		for (const adapter of this.adapters) {
-			if (adapter.getAccount(address)) return adapter.name;
-		}
-		return 'Unknown';
+		return findAdapterForAddress(this.adapters, address)?.name ?? 'Unknown';
 	}
 
 	#selectAccount(account: ReadonlyWalletAccount) {
-		this.dispatchEvent(
-			new CustomEvent('account-selected', {
-				detail: { account },
-				bubbles: true,
-				composed: true,
-			}),
-		);
+		emitEvent(this, 'account-selected', { account });
+	}
+
+	#startEditLabel(address: string, index: number) {
+		this._editingAddress = address;
+		this._editingLabel = this.#getAccountLabel(address, index);
+	}
+
+	async #saveLabel(address: string) {
+		const label = this._editingLabel.trim();
+		if (!label) {
+			this.#cancelEditLabel();
+			return;
+		}
+		try {
+			for (const adapter of this.adapters) {
+				if (adapter.getAccount(address) && adapter.renameAccount) {
+					await adapter.renameAccount(address, label);
+					break;
+				}
+			}
+		} catch (e) {
+			console.error('[dev-wallet] rename failed:', e);
+		}
+		this._editingAddress = null;
+		this._editingLabel = '';
+		emitEvent(this, 'account-renamed', { address, label });
+	}
+
+	#cancelEditLabel() {
+		this._editingAddress = null;
+		this._editingLabel = '';
 	}
 
 	#openDialog() {

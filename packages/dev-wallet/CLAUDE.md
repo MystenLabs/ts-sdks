@@ -7,7 +7,7 @@
 pnpm turbo build --filter=@mysten/dev-wallet
 
 # Tests
-pnpm --filter @mysten/dev-wallet test:node     # 170 node tests
+pnpm --filter @mysten/dev-wallet test:node     # 280 node tests
 pnpm --filter @mysten/dev-wallet test:browser   # 47+12 browser tests via Playwright
 
 # Lint
@@ -20,13 +20,11 @@ cd packages/dev-wallet/examples/demo && pnpm dev
 ## Architecture Quick Reference
 
 - **Wallet core**: `src/wallet/dev-wallet.ts` — wallet-standard Wallet, request queue, auto-approval
-- **State**: `src/wallet/wallet-state.ts` — nanostores atoms
-  ($walletState, $currentRequest,
-  $drawerOpen)
-- **Adapters (browser)**: `src/adapters/browser.ts` — InMemorySignerAdapter, WebCryptoSignerAdapter
-- **Adapters (node)**: `src/adapters/node.ts` — KeystoreSignerAdapter, SuiCliSignerAdapter
-- **UI**: `src/ui/` — 7 Lit Web Components (panel, signing-modal, signing, accounts, balances,
-  new-account, mount)
+- **Adapters (browser)**: `src/adapters/browser.ts` — InMemorySignerAdapter, WebCryptoSignerAdapter,
+  PasskeySignerAdapter, RemoteCliAdapter, BaseSignerAdapter
+- **Adapters (node)**: `src/adapters/node.ts` — parseKeystoreFile, keystore utilities
+- **UI**: `src/ui/` — Lit Web Components (panel, signing-modal, signing, accounts, balances,
+  new-account, account-selector, tab-bar, settings, objects, dropdown, standalone, mount)
 - **React**: `src/react/` — useDevWallet hook, DevWalletProvider, React-wrapped Lit components
 - **Client**: `src/client/` — DevWalletClient for PostMessage popup wallet
 - **Server**: `src/server/` — request handler for standalone web wallet
@@ -37,9 +35,9 @@ cd packages/dev-wallet/examples/demo && pnpm dev
 
 | Import path                        | Environment  | Contents                                        |
 | ---------------------------------- | ------------ | ----------------------------------------------- |
-| `@mysten/dev-wallet`               | Any          | DevWallet, types, createWalletStores            |
-| `@mysten/dev-wallet/adapters`      | Browser-safe | InMemorySignerAdapter, WebCryptoSignerAdapter   |
-| `@mysten/dev-wallet/adapters/node` | Node.js only | KeystoreSignerAdapter, SuiCliSignerAdapter      |
+| `@mysten/dev-wallet`               | Any          | DevWallet, types, config                        |
+| `@mysten/dev-wallet/adapters`      | Browser-safe | InMemory, WebCrypto, Passkey, RemoteCLI, Base   |
+| `@mysten/dev-wallet/adapters/node` | Node.js only | parseKeystoreFile, keystore utilities           |
 | `@mysten/dev-wallet/ui`            | Browser      | Lit components, mountDevWallet                  |
 | `@mysten/dev-wallet/react`         | Browser      | useDevWallet, DevWalletProvider, React wrappers |
 | `@mysten/dev-wallet/client`        | Browser      | DevWalletClient                                 |
@@ -113,14 +111,12 @@ Ask 1-2 questions at a time, not a wall of questions. Wait for answers before as
 
 When the user reports a bug or gives feedback:
 
-1. Log it immediately in `PROGRESS.md` under "Issues Found During Review"
-2. If it's blocking the review, fix it immediately, rebuild, and tell the user to refresh
-3. If it's not blocking, log it and move on
+1. If it's blocking the review, fix it immediately, rebuild, and tell the user to refresh
+2. If it's not blocking, log it and move on
 
 ### 5. After the review
 
-Summarize all issues found (fixed and open), open questions, and next steps. Update PROGRESS.md with
-the final state.
+Summarize all issues found (fixed and open), open questions, and next steps.
 
 ### Known pitfalls
 

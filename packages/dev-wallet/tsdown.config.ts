@@ -6,7 +6,6 @@ import { defineConfig } from 'tsdown';
 export default defineConfig({
 	entry: [
 		'src/index.ts',
-		'src/adapters/index.ts',
 		'src/adapters/browser.ts',
 		'src/adapters/node.ts',
 		'src/ui/index.ts',
@@ -19,5 +18,6 @@ export default defineConfig({
 	dts: true,
 	outDir: 'dist',
 	unbundle: true,
+	treeshake: false,
 	external: ['vite'],
 });

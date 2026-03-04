@@ -24,10 +24,12 @@ export interface CreateAccountOptions {
 	[key: string]: unknown;
 }
 
-/** Options for importing an existing keypair via {@link SignerAdapter.importAccount}. */
+/** Options for importing an existing account via {@link SignerAdapter.importAccount}. */
 export interface ImportAccountOptions {
-	/** The signer (keypair) to import. */
-	signer: Signer;
+	/** The signer (keypair) to import — used by adapters that accept raw keypairs. */
+	signer?: Signer;
+	/** The address to import — used by adapters that look up keys from an external source (e.g. CLI keystore). */
+	address?: string;
 	/** Optional human-readable label for the imported account. */
 	label?: string;
 }
@@ -43,6 +45,12 @@ export interface SignerAdapter {
 	readonly id: string;
 	/** Human-readable display name for this adapter. */
 	readonly name: string;
+	/**
+	 * Whether accounts from this adapter are eligible for auto-signing.
+	 * Defaults to `true`. CLI-based adapters set this to `false` because
+	 * transactions should always require explicit user approval.
+	 */
+	readonly allowAutoSign?: boolean;
 
 	/** Initialize the adapter (e.g. load keys from storage). Must be called before use. */
 	initialize(): Promise<void>;
@@ -55,8 +63,14 @@ export interface SignerAdapter {
 	createAccount?(options?: CreateAccountOptions): Promise<ManagedAccount>;
 	/** Import an existing keypair as a managed account. Not all adapters support this. */
 	importAccount?(options: ImportAccountOptions): Promise<ManagedAccount>;
+	/** List accounts available for import (e.g. from a CLI keystore). Not all adapters support this. */
+	listAvailableAccounts?(): Promise<
+		Array<{ address: string; scheme: string; alias?: string | null }>
+	>;
 	/** Remove an account by address. Returns true if the account was found and removed. */
 	removeAccount?(address: string): Promise<boolean>;
+	/** Rename an account. Returns true if the account was found and renamed. */
+	renameAccount?(address: string, label: string): boolean | Promise<boolean>;
 
 	/** Subscribe to account list changes. Returns an unsubscribe function. */
 	onAccountsChanged(callback: (accounts: ManagedAccount[]) => void): () => void;

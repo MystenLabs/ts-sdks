@@ -5,7 +5,7 @@ import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { sharedStyles } from './styles.js';
+import { sectionHeaderStyles, sharedStyles, stateStyles } from './styles.js';
 import { formatCoinBalance, getCoinDecimals, getCoinSymbol } from './utils.js';
 
 interface CoinBalance {
@@ -19,18 +19,11 @@ interface CoinBalance {
 export class DevWalletBalances extends LitElement {
 	static override styles = [
 		sharedStyles,
+		sectionHeaderStyles,
+		stateStyles,
 		css`
 			:host {
 				display: block;
-			}
-
-			.balances-header {
-				font-size: 13px;
-				font-weight: var(--dev-wallet-font-weight-semibold);
-				color: var(--dev-wallet-muted-foreground);
-				text-transform: uppercase;
-				letter-spacing: 0.5px;
-				margin-bottom: 12px;
 			}
 
 			.balance-list {
@@ -58,28 +51,7 @@ export class DevWalletBalances extends LitElement {
 			.balance-amount {
 				font-size: 14px;
 				color: var(--dev-wallet-foreground);
-				font-family: monospace;
-			}
-
-			.loading {
-				text-align: center;
-				padding: 16px;
-				color: var(--dev-wallet-muted-foreground);
-				font-size: 13px;
-			}
-
-			.empty-state {
-				text-align: center;
-				padding: 16px;
-				color: var(--dev-wallet-muted-foreground);
-				font-size: 13px;
-			}
-
-			.error-state {
-				text-align: center;
-				padding: 16px;
-				color: var(--dev-wallet-destructive);
-				font-size: 13px;
+				font-family: var(--dev-wallet-font-mono);
 			}
 		`,
 	];
@@ -127,15 +99,17 @@ export class DevWalletBalances extends LitElement {
 		}
 
 		return html`
-			<h3 class="balances-header">Balances</h3>
+			<h3 class="section-header">Balances</h3>
 			${this._loading
-				? html`<div class="loading">Loading...</div>`
+				? html`<div class="loading" part="loading" aria-live="polite">Loading...</div>`
 				: this._error
-					? html`<div class="error-state">${this._error}</div>`
+					? html`<div class="error-state" part="error-message" aria-live="polite">
+							${this._error}
+						</div>`
 					: this._balances.length === 0
-						? html`<div class="empty-state">No balances</div>`
+						? html`<div class="empty-state" part="empty-state">No balances</div>`
 						: html`
-								<div class="balance-list">
+								<div class="balance-list" part="balance-list">
 									${this._balances.map(
 										(balance) => html`
 											<div class="balance-item">

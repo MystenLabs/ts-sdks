@@ -7,13 +7,20 @@ import type { AnalyzedCommand } from '@mysten/wallet-sdk';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import type { WalletRequest } from '../wallet/dev-wallet.js';
-import { sharedStyles } from './styles.js';
-import type { FallbackCommand, TransactionAnalysis } from './transaction-analyzer.js';
+import type { PendingSigningRequest } from '../wallet/dev-wallet.js';
+import { CopyController } from './copy-controller.js';
+import { actionButtonStyles, sharedStyles } from './styles.js';
+import type { TransactionAnalysis } from './transaction-analyzer.js';
 import { analyzeTransaction } from './transaction-analyzer.js';
-import { formatAddress, formatCoinBalance, getCoinDecimals, getCoinSymbol } from './utils.js';
+import {
+	emitEvent,
+	formatAddress,
+	formatCoinBalance,
+	getCoinDecimals,
+	getCoinSymbol,
+} from './utils.js';
 
-const REQUEST_TYPE_LABELS: Record<WalletRequest['type'], string> = {
+const REQUEST_TYPE_LABELS: Record<PendingSigningRequest['type'], string> = {
 	'sign-personal-message': 'Sign Message',
 	'sign-transaction': 'Sign Transaction',
 	'sign-and-execute-transaction': 'Sign & Execute Transaction',
@@ -23,6 +30,7 @@ const REQUEST_TYPE_LABELS: Record<WalletRequest['type'], string> = {
 export class DevWalletSigning extends LitElement {
 	static override styles = [
 		sharedStyles,
+		actionButtonStyles,
 		css`
 			:host {
 				display: flex;
@@ -99,11 +107,31 @@ export class DevWalletSigning extends LitElement {
 
 			.detail-value {
 				color: var(--dev-wallet-foreground);
-				font-family: monospace;
-				max-width: 180px;
+				font-family: var(--dev-wallet-font-mono);
+				max-width: 220px;
 				overflow: hidden;
 				text-overflow: ellipsis;
 				white-space: nowrap;
+			}
+
+			.detail-value.copyable-addr {
+				cursor: pointer;
+				border-radius: var(--dev-wallet-radius-2xs);
+				padding: 1px 3px;
+				transition: background 0.15s;
+			}
+
+			.detail-value.copyable-addr:hover {
+				background: color-mix(in oklab, var(--dev-wallet-primary) 15%, transparent);
+			}
+
+			.detail-value.copied {
+				color: var(--dev-wallet-positive);
+			}
+
+			.detail-secondary {
+				color: var(--dev-wallet-muted-foreground);
+				font-size: 0.85em;
 			}
 
 			.request-data {
@@ -111,7 +139,7 @@ export class DevWalletSigning extends LitElement {
 				padding: 8px;
 				border-radius: var(--dev-wallet-radius-xs);
 				background: var(--dev-wallet-background);
-				font-family: monospace;
+				font-family: var(--dev-wallet-font-mono);
 				font-size: 11px;
 				color: var(--dev-wallet-muted-foreground);
 				max-height: 80px;
@@ -150,7 +178,7 @@ export class DevWalletSigning extends LitElement {
 			}
 
 			.coin-flow-amount {
-				font-family: monospace;
+				font-family: var(--dev-wallet-font-mono);
 				font-weight: var(--dev-wallet-font-weight-semibold);
 				color: var(--dev-wallet-destructive);
 			}
@@ -176,7 +204,7 @@ export class DevWalletSigning extends LitElement {
 
 			.command-detail {
 				color: var(--dev-wallet-muted-foreground);
-				font-family: monospace;
+				font-family: var(--dev-wallet-font-mono);
 				font-size: 11px;
 				overflow: hidden;
 				text-overflow: ellipsis;
@@ -192,7 +220,7 @@ export class DevWalletSigning extends LitElement {
 			.command-arg {
 				font-size: 11px;
 				color: var(--dev-wallet-muted-foreground);
-				font-family: monospace;
+				font-family: var(--dev-wallet-font-mono);
 				padding: 1px 0;
 				overflow: hidden;
 				text-overflow: ellipsis;
@@ -202,7 +230,7 @@ export class DevWalletSigning extends LitElement {
 			.arg-access {
 				font-size: 10px;
 				padding: 1px 4px;
-				border-radius: 3px;
+				border-radius: var(--dev-wallet-radius-2xs);
 				font-weight: var(--dev-wallet-font-weight-medium);
 			}
 
@@ -221,36 +249,31 @@ export class DevWalletSigning extends LitElement {
 				color: var(--dev-wallet-destructive);
 			}
 
-			.actions {
-				display: flex;
-				gap: 8px;
+			.error-state {
+				padding: 10px;
+				border-radius: var(--dev-wallet-radius-xs);
+				background: color-mix(in oklab, var(--dev-wallet-destructive) 10%, transparent);
+				color: var(--dev-wallet-destructive);
+				font-size: 12px;
+				word-break: break-word;
 			}
 
-			.btn {
-				flex: 1;
-				padding: 10px 16px;
-				border-radius: var(--dev-wallet-radius-md);
-				font-size: 13px;
+			.section-label-error {
+				color: var(--dev-wallet-destructive);
+			}
+
+			.error-title {
 				font-weight: var(--dev-wallet-font-weight-semibold);
-				transition: background-color 0.15s;
+				margin-bottom: 4px;
 			}
 
-			.btn-approve {
-				background: var(--dev-wallet-positive);
-				color: var(--dev-wallet-primary-foreground);
+			.error-body {
+				margin-bottom: 6px;
 			}
 
-			.btn-approve:hover {
-				background: oklab(from var(--dev-wallet-positive) calc(l - 0.03) a b);
-			}
-
-			.btn-reject {
-				background: var(--dev-wallet-destructive);
-				color: var(--dev-wallet-primary-foreground);
-			}
-
-			.btn-reject:hover {
-				background: oklab(from var(--dev-wallet-destructive) calc(l - 0.05) a b);
+			.error-hint {
+				font-size: 11px;
+				opacity: 0.8;
 			}
 
 			.no-request {
@@ -263,7 +286,7 @@ export class DevWalletSigning extends LitElement {
 	];
 
 	@property({ attribute: false })
-	request: WalletRequest | null = null;
+	request: PendingSigningRequest | null = null;
 
 	@property({ attribute: false })
 	client: ClientWithCoreApi | null = null;
@@ -272,17 +295,18 @@ export class DevWalletSigning extends LitElement {
 	private _analysis: TransactionAnalysis | null = null;
 
 	@state()
-	private _fallbackCommands: FallbackCommand[] | null = null;
+	private _analysisError: string | null = null;
 
 	@state()
 	private _analyzing = false;
 
+	#copy = new CopyController(this);
 	#analysisGeneration = 0;
 
 	override willUpdate(changedProperties: Map<string, unknown>) {
 		if (changedProperties.has('request')) {
 			this._analysis = null;
-			this._fallbackCommands = null;
+			this._analysisError = null;
 			this._analyzing = false;
 			if (this.request && this.request.type !== 'sign-personal-message') {
 				this.#analyzeTransaction();
@@ -301,8 +325,8 @@ export class DevWalletSigning extends LitElement {
 
 		if (result.kind === 'rich') {
 			this._analysis = result.analysis;
-		} else if (result.kind === 'fallback') {
-			this._fallbackCommands = result.commands;
+		} else {
+			this._analysisError = result.message;
 		}
 
 		this._analyzing = false;
@@ -310,10 +334,17 @@ export class DevWalletSigning extends LitElement {
 
 	override render() {
 		if (!this.request) {
-			return html`<div class="no-request">No pending requests</div>`;
+			return html`<div class="no-request" part="empty-state">No pending requests</div>`;
 		}
 
 		const typeLabel = REQUEST_TYPE_LABELS[this.request.type];
+
+		// For transactions: only allow approval after successful analysis
+		// For personal messages: always allow (no analysis needed)
+		const isTransaction = this.request.type !== 'sign-personal-message';
+		const canApprove = isTransaction
+			? this._analysis !== null && !this._analysisError && !this._analyzing
+			: true;
 
 		return html`
 			<div class="signing-content">
@@ -322,25 +353,52 @@ export class DevWalletSigning extends LitElement {
 					<span class="signing-title">Approval Required</span>
 				</div>
 
-				<div class="request-type">${typeLabel}</div>
+				<div class="request-type" part="request-type">${typeLabel}</div>
 
 				<div class="request-detail">
 					<span class="detail-label">Account</span>
-					<span class="detail-value">${formatAddress(this.request.account.address)}</span>
+					<span
+						class="detail-value copyable-addr ${this.#copy.isCopied(this.request.account.address)
+							? 'copied'
+							: ''}"
+						title="Click to copy"
+						role="button"
+						tabindex="0"
+						aria-label="Copy account address"
+						@click=${() => this.#copy.copy(this.request!.account.address)}
+						@keydown=${(e: KeyboardEvent) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								this.#copy.copy(this.request!.account.address);
+							}
+						}}
+					>
+						${this.#copy.isCopied(this.request.account.address)
+							? 'Copied!'
+							: this.request.account.label
+								? html`${this.request.account.label}
+										<span class="detail-secondary"
+											>${formatAddress(this.request.account.address)}</span
+										>`
+								: formatAddress(this.request.account.address)}
+					</span>
 				</div>
-				${this.request.type !== 'sign-personal-message'
+				${isTransaction
 					? html`<div class="request-detail">
 							<span class="detail-label">Chain</span>
 							<span class="detail-value">${this.request.chain}</span>
 						</div>`
 					: nothing}
-
 				${this.#renderTransactionPreview()}
 			</div>
-			<div class="signing-footer">
+			<div class="signing-footer" part="footer">
 				<div class="actions">
-					<button class="btn btn-reject" @click=${this.#reject}>Reject</button>
-					<button class="btn btn-approve" @click=${this.#approve}>Approve</button>
+					<button class="btn btn-reject" part="reject-button" @click=${this.#reject}>Reject</button>
+					${canApprove
+						? html`<button class="btn btn-approve" part="approve-button" @click=${this.#approve}>
+								Approve
+							</button>`
+						: nothing}
 				</div>
 			</div>
 		`;
@@ -352,6 +410,21 @@ export class DevWalletSigning extends LitElement {
 			return html`<div class="section-label">Analyzing transaction...</div>`;
 		}
 
+		// Analysis failed — show detailed error, no approve allowed
+		if (this._analysisError) {
+			return html`
+				<div class="section-label section-label-error">Analysis Failed</div>
+				<div class="error-state" part="error-message">
+					<div class="error-title">Unable to analyze this transaction</div>
+					<div class="error-body">${this._analysisError}</div>
+					<div class="error-hint">
+						The transaction cannot be approved without successful analysis. Check that the network
+						is reachable and the transaction is well-formed.
+					</div>
+				</div>
+			`;
+		}
+
 		// Rich analysis from wallet-sdk
 		if (this._analysis) {
 			return html`
@@ -359,23 +432,7 @@ export class DevWalletSigning extends LitElement {
 			`;
 		}
 
-		// Fallback commands
-		if (this._fallbackCommands) {
-			return html`
-				<div class="section-label">Commands</div>
-				<div class="commands-list">
-					${this._fallbackCommands.map(
-						(cmd) => html`
-							<div class="command-item">
-								<div class="command-kind">${cmd.$kind}</div>
-								${cmd.detail ? html`<div class="command-detail">${cmd.detail}</div>` : nothing}
-							</div>
-						`,
-					)}
-				</div>
-			`;
-		}
-
+		// Personal message preview
 		const dataPreview = this.#getDataPreview();
 		return dataPreview ? html`<div class="request-data">${dataPreview}</div>` : nothing;
 	}
@@ -540,11 +597,11 @@ export class DevWalletSigning extends LitElement {
 	}
 
 	#approve() {
-		this.dispatchEvent(new CustomEvent('approve', { bubbles: true, composed: true }));
+		emitEvent(this, 'approve');
 	}
 
 	#reject() {
-		this.dispatchEvent(new CustomEvent('reject', { bubbles: true, composed: true }));
+		emitEvent(this, 'reject');
 	}
 }
 

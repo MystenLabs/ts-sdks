@@ -5,41 +5,15 @@ import { act, renderHook } from '@testing-library/react';
 import { createElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ManagedAccount, SignerAdapter } from '../src/types.js';
 import { DevWallet } from '../src/wallet/dev-wallet.js';
 import { DevWalletProvider, useDevWalletInstance } from '../src/react/context.js';
 import { useDevWallet } from '../src/react/useDevWallet.js';
-
-function createMockAdapter(accounts: ManagedAccount[] = []): SignerAdapter {
-	const listeners = new Set<(accounts: ManagedAccount[]) => void>();
-
-	return {
-		id: 'mock',
-		name: 'Mock Adapter',
-		initialize: vi.fn().mockResolvedValue(undefined),
-		getAccounts: vi.fn(() => [...accounts]),
-		getAccount: vi.fn((address: string) => accounts.find((a) => a.address === address)),
-		createAccount: vi.fn().mockResolvedValue({
-			address: '0x' + '1'.repeat(64),
-			label: 'New Account',
-			signer: {} as any,
-			walletAccount: {} as any,
-		}),
-		removeAccount: vi.fn(),
-		onAccountsChanged: vi.fn((callback: (accounts: ManagedAccount[]) => void) => {
-			listeners.add(callback);
-			return () => {
-				listeners.delete(callback);
-			};
-		}),
-		destroy: vi.fn(),
-	};
-}
+import { createMockAdapter } from './test-utils.js';
 
 describe('DevWalletProvider / useDevWalletInstance', () => {
 	it('provides wallet via context', () => {
 		const adapter = createMockAdapter();
-		const wallet = new DevWallet({ adapters: [adapter], clients: {} });
+		const wallet = new DevWallet({ adapters: [adapter], networks: {} });
 
 		const wrapper = ({ children }: { children: React.ReactNode }) =>
 			createElement(DevWalletProvider, { wallet }, children);
@@ -52,8 +26,8 @@ describe('DevWalletProvider / useDevWalletInstance', () => {
 	it('returns provided wallet instance over context', () => {
 		const adapter1 = createMockAdapter();
 		const adapter2 = createMockAdapter();
-		const contextWallet = new DevWallet({ adapters: [adapter1], clients: {} });
-		const directWallet = new DevWallet({ adapters: [adapter2], clients: {} });
+		const contextWallet = new DevWallet({ adapters: [adapter1], networks: {} });
+		const directWallet = new DevWallet({ adapters: [adapter2], networks: {} });
 
 		const wrapper = ({ children }: { children: React.ReactNode }) =>
 			createElement(DevWalletProvider, { wallet: contextWallet }, children);
@@ -77,7 +51,7 @@ describe('useDevWallet', () => {
 		const { result } = renderHook(() =>
 			useDevWallet({
 				adapters: [adapter],
-				clients: { testnet: {} },
+				networks: { testnet: 'https://fullnode.testnet.sui.io:443' },
 				mountUI: false,
 			}),
 		);
@@ -97,7 +71,7 @@ describe('useDevWallet', () => {
 		const { result } = renderHook(() =>
 			useDevWallet({
 				adapters: [adapter],
-				clients: {},
+				networks: {},
 				mountUI: false,
 			}),
 		);
@@ -115,7 +89,7 @@ describe('useDevWallet', () => {
 		const { result } = renderHook(() =>
 			useDevWallet({
 				adapters: [adapter],
-				clients: {},
+				networks: {},
 				autoInitialize: false,
 				mountUI: false,
 			}),
@@ -134,7 +108,7 @@ describe('useDevWallet', () => {
 		const { result } = renderHook(() =>
 			useDevWallet({
 				adapters: [adapter],
-				clients: {},
+				networks: {},
 				createInitialAccount: true,
 				mountUI: false,
 			}),
@@ -153,7 +127,7 @@ describe('useDevWallet', () => {
 		const { result } = renderHook(() =>
 			useDevWallet({
 				adapters: [adapter],
-				clients: {},
+				networks: {},
 				createInitialAccount: false,
 				mountUI: false,
 			}),
@@ -172,7 +146,7 @@ describe('useDevWallet', () => {
 		const { result } = renderHook(() =>
 			useDevWallet({
 				adapters: [adapter],
-				clients: {},
+				networks: {},
 				name: 'My Test Wallet',
 				mountUI: false,
 			}),
@@ -191,7 +165,7 @@ describe('useDevWallet', () => {
 		const { result, unmount } = renderHook(() =>
 			useDevWallet({
 				adapters: [adapter],
-				clients: {},
+				networks: {},
 				mountUI: true,
 			}),
 		);
@@ -217,7 +191,7 @@ describe('useDevWallet', () => {
 		const { result, unmount } = renderHook(() =>
 			useDevWallet({
 				adapters: [adapter],
-				clients: {},
+				networks: {},
 				mountUI: true,
 			}),
 		);
@@ -245,7 +219,7 @@ describe('useDevWallet', () => {
 		const { result } = renderHook(() =>
 			useDevWallet({
 				adapters: [adapter],
-				clients: {},
+				networks: {},
 				mountUI: false,
 			}),
 		);
@@ -265,7 +239,7 @@ describe('useDevWallet', () => {
 		const { result } = renderHook(() =>
 			useDevWallet({
 				adapters: [adapter],
-				clients: {},
+				networks: {},
 				mountUI: false,
 			}),
 		);

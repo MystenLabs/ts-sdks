@@ -7,98 +7,26 @@ import { toBase64 } from '@mysten/sui/utils';
 import { ReadonlyWalletAccount, SUI_CHAINS } from '@mysten/wallet-standard';
 
 import { DevWallet } from '../src/wallet/dev-wallet.js';
-import type { DevWalletConfig } from '../src/wallet/dev-wallet.js';
-import type { ManagedAccount, SignerAdapter } from '../src/types.js';
-
-function createMockAccount(keypair?: Ed25519Keypair): ManagedAccount {
-	const kp = keypair ?? new Ed25519Keypair();
-	const address = kp.getPublicKey().toSuiAddress();
-
-	return {
-		address,
-		label: 'Test Account',
-		signer: kp,
-		walletAccount: new ReadonlyWalletAccount({
-			address,
-			publicKey: kp.getPublicKey().toSuiBytes(),
-			chains: [...SUI_CHAINS],
-			features: ['sui:signTransaction', 'sui:signAndExecuteTransaction', 'sui:signPersonalMessage'],
-		}),
-	};
-}
-
-function createMockAdapter(accounts: ManagedAccount[] = []): SignerAdapter & {
-	_triggerAccountsChanged(accounts: ManagedAccount[]): void;
-} {
-	const listeners = new Set<(accounts: ManagedAccount[]) => void>();
-
-	return {
-		id: 'mock',
-		name: 'Mock Adapter',
-		initialize: vi.fn().mockResolvedValue(undefined),
-		getAccounts: vi.fn(() => [...accounts]),
-		getAccount: vi.fn((address: string) => accounts.find((a) => a.address === address)),
-		createAccount: vi.fn(),
-		removeAccount: vi.fn(),
-		onAccountsChanged: vi.fn((callback: (accounts: ManagedAccount[]) => void) => {
-			listeners.add(callback);
-			return () => {
-				listeners.delete(callback);
-			};
-		}),
-		destroy: vi.fn(),
-		_triggerAccountsChanged(newAccounts: ManagedAccount[]) {
-			accounts.length = 0;
-			accounts.push(...newAccounts);
-			for (const listener of listeners) {
-				listener([...newAccounts]);
-			}
-		},
-	};
-}
-
-function createDefaultConfig(overrides?: Partial<DevWalletConfig>): DevWalletConfig {
-	return {
-		adapters: [createMockAdapter()],
-		clients: {
-			testnet: {},
-		},
-		...overrides,
-	};
-}
+import { createMockAccount, createMockAdapter, createDefaultConfig } from './test-utils.js';
 
 describe('DevWallet', () => {
 	describe('properties', () => {
-		it('has version 1.0.0', () => {
+		it('has correct default properties', () => {
 			const wallet = new DevWallet(createDefaultConfig());
 			expect(wallet.version).toBe('1.0.0');
-		});
-
-		it('has default name "Dev Wallet"', () => {
-			const wallet = new DevWallet(createDefaultConfig());
 			expect(wallet.name).toBe('Dev Wallet');
-		});
-
-		it('uses custom name when provided', () => {
-			const wallet = new DevWallet(createDefaultConfig({ name: 'My Custom Wallet' }));
-			expect(wallet.name).toBe('My Custom Wallet');
-		});
-
-		it('has a default icon', () => {
-			const wallet = new DevWallet(createDefaultConfig());
 			expect(wallet.icon).toMatch(/^data:image\//);
+			expect(wallet.chains).toBe(SUI_CHAINS);
 		});
 
-		it('uses custom icon when provided', () => {
+		it('uses custom name and icon when provided', () => {
 			const customIcon =
 				'data:image/png;base64,aW1hZ2U=' as `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
-			const wallet = new DevWallet(createDefaultConfig({ icon: customIcon }));
+			const wallet = new DevWallet(
+				createDefaultConfig({ name: 'My Custom Wallet', icon: customIcon }),
+			);
+			expect(wallet.name).toBe('My Custom Wallet');
 			expect(wallet.icon).toBe(customIcon);
-		});
-
-		it('returns SUI_CHAINS for chains', () => {
-			const wallet = new DevWallet(createDefaultConfig());
-			expect(wallet.chains).toBe(SUI_CHAINS);
 		});
 	});
 
@@ -128,48 +56,26 @@ describe('DevWallet', () => {
 	});
 
 	describe('features', () => {
-		it('implements standard:connect', () => {
+		it.each([
+			['standard:connect', '1.0.0'],
+			['standard:events', '1.0.0'],
+			['standard:disconnect', '1.0.0'],
+			['sui:signPersonalMessage', '1.1.0'],
+			['sui:signTransaction', '2.0.0'],
+			['sui:signAndExecuteTransaction', '2.0.0'],
+		])('implements %s with version %s', (feature, version) => {
 			const wallet = new DevWallet(createDefaultConfig());
-			expect(wallet.features['standard:connect']).toBeDefined();
-			expect(wallet.features['standard:connect'].version).toBe('1.0.0');
-		});
-
-		it('implements standard:events', () => {
-			const wallet = new DevWallet(createDefaultConfig());
-			expect(wallet.features['standard:events']).toBeDefined();
-			expect(wallet.features['standard:events'].version).toBe('1.0.0');
-		});
-
-		it('implements standard:disconnect', () => {
-			const wallet = new DevWallet(createDefaultConfig());
-			expect(wallet.features['standard:disconnect']).toBeDefined();
-			expect(wallet.features['standard:disconnect'].version).toBe('1.0.0');
-		});
-
-		it('implements sui:signPersonalMessage', () => {
-			const wallet = new DevWallet(createDefaultConfig());
-			expect(wallet.features['sui:signPersonalMessage']).toBeDefined();
-			expect(wallet.features['sui:signPersonalMessage'].version).toBe('1.1.0');
-		});
-
-		it('implements sui:signTransaction', () => {
-			const wallet = new DevWallet(createDefaultConfig());
-			expect(wallet.features['sui:signTransaction']).toBeDefined();
-			expect(wallet.features['sui:signTransaction'].version).toBe('2.0.0');
-		});
-
-		it('implements sui:signAndExecuteTransaction', () => {
-			const wallet = new DevWallet(createDefaultConfig());
-			expect(wallet.features['sui:signAndExecuteTransaction']).toBeDefined();
-			expect(wallet.features['sui:signAndExecuteTransaction'].version).toBe('2.0.0');
+			const feat = (wallet.features as any)[feature];
+			expect(feat).toBeDefined();
+			expect(feat.version).toBe(version);
 		});
 	});
 
 	describe('connect()', () => {
-		it('returns adapter accounts', async () => {
+		it('returns adapter accounts with autoConnect', async () => {
 			const account = createMockAccount();
 			const adapter = createMockAdapter([account]);
-			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter], autoConnect: true }));
 
 			const result = await wallet.features['standard:connect'].connect();
 
@@ -177,8 +83,8 @@ describe('DevWallet', () => {
 			expect(result.accounts[0].address).toBe(account.address);
 		});
 
-		it('returns empty accounts when adapter has none', async () => {
-			const wallet = new DevWallet(createDefaultConfig());
+		it('returns empty accounts when adapter has none (autoConnect)', async () => {
+			const wallet = new DevWallet(createDefaultConfig({ autoConnect: true }));
 
 			const result = await wallet.features['standard:connect'].connect();
 
@@ -436,7 +342,7 @@ describe('DevWallet', () => {
 			const wallet = new DevWallet(
 				createDefaultConfig({
 					adapters: [adapter],
-					clients: { mainnet: {} },
+					networks: { mainnet: 'https://fullnode.mainnet.sui.io:443' },
 				}),
 			);
 
@@ -760,6 +666,41 @@ describe('DevWallet', () => {
 				data: message,
 			});
 		});
+
+		it('does not auto-approve when adapter.allowAutoSign is false', async () => {
+			const keypair = new Ed25519Keypair();
+			const account = createMockAccount(keypair);
+			const adapter = { ...createMockAdapter([account]), allowAutoSign: false };
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter], autoApprove: true }));
+
+			const pending = wallet.features['sui:signPersonalMessage'].signPersonalMessage({
+				message: new TextEncoder().encode('cli-test'),
+				account: account.walletAccount,
+			});
+
+			// Should be queued, NOT auto-approved, despite autoApprove: true
+			expect(wallet.pendingRequest).not.toBeNull();
+
+			wallet.rejectRequest();
+			await pending.catch(() => {});
+		});
+
+		it('auto-approves when adapter.allowAutoSign is undefined (default)', async () => {
+			const keypair = new Ed25519Keypair();
+			const account = createMockAccount(keypair);
+			const adapter = createMockAdapter([account]);
+			// adapter.allowAutoSign is not set (undefined) — should NOT block auto-approve
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter], autoApprove: true }));
+
+			const message = new TextEncoder().encode('should-auto');
+			const result = await wallet.features['sui:signPersonalMessage'].signPersonalMessage({
+				message,
+				account: account.walletAccount,
+			});
+
+			expect(result).toBeDefined();
+			expect(result.bytes).toBe(toBase64(message));
+		});
 	});
 
 	describe('chain parsing', () => {
@@ -769,9 +710,9 @@ describe('DevWallet', () => {
 			const wallet = new DevWallet(
 				createDefaultConfig({
 					adapters: [adapter],
-					clients: {
-						testnet: {},
-						mainnet: {},
+					networks: {
+						testnet: 'https://fullnode.testnet.sui.io:443',
+						mainnet: 'https://fullnode.mainnet.sui.io:443',
 					},
 				}),
 			);
@@ -791,6 +732,466 @@ describe('DevWallet', () => {
 			});
 
 			expect(wallet.pendingRequest!.chain).toBe('sui:testnet');
+		});
+	});
+
+	describe('multi-adapter', () => {
+		it('aggregates accounts from multiple adapters', () => {
+			const account1 = createMockAccount();
+			const account2 = createMockAccount();
+			const adapter1 = createMockAdapter([account1]);
+			const adapter2 = createMockAdapter([account2]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter1, adapter2] }));
+
+			expect(wallet.accounts).toHaveLength(2);
+			expect(wallet.accounts[0].address).toBe(account1.address);
+			expect(wallet.accounts[1].address).toBe(account2.address);
+		});
+
+		it('getAdapterForAccount returns the correct adapter', () => {
+			const account1 = createMockAccount();
+			const account2 = createMockAccount();
+			const adapter1 = createMockAdapter([account1]);
+			const adapter2 = createMockAdapter([account2]);
+			adapter1.id = 'adapter-1';
+			adapter2.id = 'adapter-2';
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter1, adapter2] }));
+
+			expect(wallet.getAdapterForAccount(account1.address)?.id).toBe('adapter-1');
+			expect(wallet.getAdapterForAccount(account2.address)?.id).toBe('adapter-2');
+			expect(wallet.getAdapterForAccount('0x' + '0'.repeat(64))).toBeUndefined();
+		});
+
+		it('signs with the correct signer across adapters', async () => {
+			const keypair1 = new Ed25519Keypair();
+			const keypair2 = new Ed25519Keypair();
+			const account1 = createMockAccount(keypair1);
+			const account2 = createMockAccount(keypair2);
+			const adapter1 = createMockAdapter([account1]);
+			const adapter2 = createMockAdapter([account2]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter1, adapter2] }));
+
+			const message = new TextEncoder().encode('Cross-adapter test');
+
+			// Sign with account from adapter2
+			const resultPromise = wallet.features['sui:signPersonalMessage'].signPersonalMessage({
+				message,
+				account: account2.walletAccount,
+			});
+
+			await wallet.approveRequest();
+			const result = await resultPromise;
+
+			// Verify it was signed by keypair2
+			const expected = await keypair2.signPersonalMessage(message);
+			expect(result.signature).toBe(expected.signature);
+		});
+
+		it('emits change when any adapter updates accounts', () => {
+			const account1 = createMockAccount();
+			const adapter1 = createMockAdapter([account1]);
+			const adapter2 = createMockAdapter([]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter1, adapter2] }));
+
+			const listener = vi.fn();
+			wallet.features['standard:events'].on('change', listener);
+
+			const newAccount = createMockAccount();
+			adapter2._triggerAccountsChanged([newAccount]);
+
+			expect(listener).toHaveBeenCalledTimes(1);
+			expect(wallet.accounts).toHaveLength(2);
+		});
+
+		it('exposes all adapters in order', () => {
+			const adapter1 = createMockAdapter();
+			const adapter2 = createMockAdapter();
+			adapter1.id = 'first';
+			adapter2.id = 'second';
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter1, adapter2] }));
+
+			expect(wallet.adapters).toHaveLength(2);
+			expect(wallet.adapters[0].id).toBe('first');
+			expect(wallet.adapters[1].id).toBe('second');
+		});
+	});
+
+	describe('destroy()', () => {
+		it('rejects pending signing request', async () => {
+			const account = createMockAccount();
+			const adapter = createMockAdapter([account]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
+
+			const resultPromise = wallet.features['sui:signPersonalMessage'].signPersonalMessage({
+				message: new TextEncoder().encode('will be destroyed'),
+				account: account.walletAccount,
+			});
+
+			expect(wallet.pendingRequest).not.toBeNull();
+
+			wallet.destroy();
+
+			await expect(resultPromise).rejects.toThrow('Wallet destroyed');
+			expect(wallet.pendingRequest).toBeNull();
+		});
+
+		it('clears request listeners', () => {
+			const adapter = createMockAdapter();
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
+
+			const listener = vi.fn();
+			wallet.onRequestChange(listener);
+
+			wallet.destroy();
+
+			// Listener was called once during destroy (pending → null), but after that
+			// no more notifications should be emitted
+			listener.mockClear();
+
+			// No way to trigger more notifications since the wallet is destroyed,
+			// but verify the listener set was cleared by checking no error on re-use
+			expect(() => wallet.destroy()).not.toThrow();
+		});
+
+		it('clears connect listeners', () => {
+			const adapter = createMockAdapter();
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
+
+			const listener = vi.fn();
+			wallet.onConnectChange(listener);
+
+			wallet.destroy();
+
+			listener.mockClear();
+			expect(() => wallet.destroy()).not.toThrow();
+		});
+
+		it('rejects new signing requests after destroy', async () => {
+			const account = createMockAccount();
+			const adapter = createMockAdapter([account]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
+
+			wallet.destroy();
+
+			await expect(
+				wallet.features['sui:signPersonalMessage'].signPersonalMessage({
+					message: new TextEncoder().encode('post-destroy'),
+					account: account.walletAccount,
+				}),
+			).rejects.toThrow('destroyed');
+		});
+
+		it('unsubscribes from adapter account changes', () => {
+			const account = createMockAccount();
+			const adapter = createMockAdapter([account]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
+
+			const listener = vi.fn();
+			wallet.features['standard:events'].on('change', listener);
+
+			wallet.destroy();
+			listener.mockClear();
+
+			// Trigger adapter change — should NOT propagate since we unsubscribed
+			adapter._triggerAccountsChanged([]);
+			expect(listener).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('network management', () => {
+		it('exposes default network URLs', () => {
+			const wallet = new DevWallet(createDefaultConfig());
+			expect(wallet.availableNetworks).toEqual(['testnet']);
+			expect(wallet.networkUrls).toEqual({ testnet: 'https://fullnode.testnet.sui.io:443' });
+		});
+
+		it('sets activeNetwork to first network key by default', () => {
+			const wallet = new DevWallet(
+				createDefaultConfig({
+					networks: { devnet: 'https://devnet.example', testnet: 'https://testnet.example' },
+				}),
+			);
+			expect(wallet.activeNetwork).toBe('devnet');
+		});
+
+		it('uses activeNetwork from config if provided', () => {
+			const wallet = new DevWallet(
+				createDefaultConfig({
+					networks: { devnet: 'https://devnet.example', testnet: 'https://testnet.example' },
+					activeNetwork: 'testnet',
+				}),
+			);
+			expect(wallet.activeNetwork).toBe('testnet');
+		});
+
+		it('setActiveNetwork switches and emits change', () => {
+			const wallet = new DevWallet(
+				createDefaultConfig({
+					networks: { devnet: 'https://devnet.example', testnet: 'https://testnet.example' },
+				}),
+			);
+
+			const listener = vi.fn();
+			wallet.features['standard:events'].on('change', listener);
+
+			wallet.setActiveNetwork('testnet');
+
+			expect(wallet.activeNetwork).toBe('testnet');
+			expect(listener).toHaveBeenCalledTimes(1);
+		});
+
+		it('setActiveNetwork throws for unknown network', () => {
+			const wallet = new DevWallet(createDefaultConfig());
+			expect(() => wallet.setActiveNetwork('mainnet')).toThrow('No client for network "mainnet"');
+		});
+
+		it('addNetwork adds a new network and emits change', () => {
+			const wallet = new DevWallet(createDefaultConfig());
+			const listener = vi.fn();
+			wallet.features['standard:events'].on('change', listener);
+
+			wallet.addNetwork('devnet', 'https://fullnode.devnet.sui.io:443');
+
+			expect(wallet.availableNetworks).toContain('devnet');
+			expect(wallet.networkUrls['devnet']).toBe('https://fullnode.devnet.sui.io:443');
+			expect(listener).toHaveBeenCalledTimes(1);
+		});
+
+		it('addNetwork throws for invalid URL', () => {
+			const wallet = new DevWallet(createDefaultConfig());
+			expect(() => wallet.addNetwork('custom', 'not-a-url')).toThrow('Invalid URL');
+		});
+
+		it('removeNetwork removes and emits change', () => {
+			const wallet = new DevWallet(
+				createDefaultConfig({
+					networks: { devnet: 'https://devnet.example', testnet: 'https://testnet.example' },
+				}),
+			);
+
+			const listener = vi.fn();
+			wallet.features['standard:events'].on('change', listener);
+
+			wallet.removeNetwork('testnet');
+
+			expect(wallet.availableNetworks).toEqual(['devnet']);
+			expect(listener).toHaveBeenCalledTimes(1);
+		});
+
+		it('removeNetwork resets activeNetwork when removing the active one', () => {
+			const wallet = new DevWallet(
+				createDefaultConfig({
+					networks: { devnet: 'https://devnet.example', testnet: 'https://testnet.example' },
+					activeNetwork: 'testnet',
+				}),
+			);
+
+			wallet.removeNetwork('testnet');
+
+			expect(wallet.activeNetwork).toBe('devnet');
+		});
+
+		it('activeClient returns client for active network', () => {
+			const clientFactory = vi.fn((_network, _url) => ({ core: {} }) as any);
+			const wallet = new DevWallet(createDefaultConfig({ clientFactory }));
+
+			const client = wallet.activeClient;
+
+			expect(client).not.toBeNull();
+			expect(clientFactory).toHaveBeenCalledWith('testnet', 'https://fullnode.testnet.sui.io:443');
+		});
+
+		it('activeClient returns null when no active network', () => {
+			const wallet = new DevWallet(createDefaultConfig({ networks: {} }));
+			expect(wallet.activeClient).toBeNull();
+		});
+
+		it('activeClient lazily creates client (not on construction)', () => {
+			const clientFactory = vi.fn((_network, _url) => ({ core: {} }) as any);
+			const wallet = new DevWallet(createDefaultConfig({ clientFactory }));
+
+			expect(clientFactory).not.toHaveBeenCalled();
+			const _client = wallet.activeClient;
+			expect(clientFactory).toHaveBeenCalledTimes(1);
+		});
+
+		it('clients getter eagerly creates all clients', () => {
+			const clientFactory = vi.fn((_network, _url) => ({ core: {} }) as any);
+			const wallet = new DevWallet(
+				createDefaultConfig({
+					networks: { devnet: 'https://devnet.example', testnet: 'https://testnet.example' },
+					clientFactory,
+				}),
+			);
+
+			const clients = wallet.clients;
+
+			expect(Object.keys(clients)).toEqual(['devnet', 'testnet']);
+			expect(clientFactory).toHaveBeenCalledTimes(2);
+		});
+
+		it('getClient returns client for specific network', () => {
+			const clientFactory = vi.fn((_network, _url) => ({ core: {} }) as any);
+			const wallet = new DevWallet(createDefaultConfig({ clientFactory }));
+
+			const client = wallet.getClient('testnet');
+
+			expect(client).toBeDefined();
+			expect(clientFactory).toHaveBeenCalledWith('testnet', 'https://fullnode.testnet.sui.io:443');
+		});
+
+		it('getClient caches the client (same reference on second call)', () => {
+			const clientFactory = vi.fn((_network, _url) => ({ core: {} }) as any);
+			const wallet = new DevWallet(createDefaultConfig({ clientFactory }));
+
+			const first = wallet.getClient('testnet');
+			const second = wallet.getClient('testnet');
+
+			expect(first).toBe(second);
+			expect(clientFactory).toHaveBeenCalledTimes(1);
+		});
+
+		it('getClient throws for unknown network', () => {
+			const wallet = new DevWallet(createDefaultConfig());
+			expect(() => wallet.getClient('mainnet')).toThrow('No client for network "mainnet"');
+		});
+	});
+
+	describe('disconnect()', () => {
+		it('clears accounts and emits change', async () => {
+			const account = createMockAccount();
+			const adapter = createMockAdapter([account]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter], autoConnect: true }));
+
+			await wallet.features['standard:connect'].connect();
+			expect(wallet.accounts).toHaveLength(1);
+
+			const listener = vi.fn();
+			wallet.features['standard:events'].on('change', listener);
+
+			await wallet.features['standard:disconnect'].disconnect();
+
+			expect(wallet.accounts).toHaveLength(0);
+			expect(listener).toHaveBeenCalledWith(expect.objectContaining({ accounts: [] }));
+		});
+	});
+
+	describe('approveConnect with empty array', () => {
+		it('approveConnect([]) exposes all accounts', async () => {
+			const account1 = createMockAccount();
+			const account2 = createMockAccount();
+			const adapter = createMockAdapter([account1, account2]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
+
+			const connectPromise = wallet.features['standard:connect'].connect();
+			wallet.approveConnect([]);
+			const result = await connectPromise;
+
+			expect(result.accounts).toHaveLength(2);
+		});
+	});
+
+	describe('connect flow', () => {
+		it('queues a connect request when autoConnect is false', async () => {
+			const account = createMockAccount();
+			const adapter = createMockAdapter([account]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
+
+			const connectPromise = wallet.features['standard:connect'].connect();
+
+			expect(wallet.pendingConnect).not.toBeNull();
+
+			// Clean up
+			wallet.rejectConnect();
+			await connectPromise.catch(() => {});
+		});
+
+		it('auto-connects with all accounts when autoConnect is true', async () => {
+			const account1 = createMockAccount();
+			const account2 = createMockAccount();
+			const adapter = createMockAdapter([account1, account2]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter], autoConnect: true }));
+
+			const result = await wallet.features['standard:connect'].connect();
+
+			expect(result.accounts).toHaveLength(2);
+			expect(wallet.pendingConnect).toBeNull();
+		});
+
+		it('approveConnect returns only selected accounts', async () => {
+			const account1 = createMockAccount();
+			const account2 = createMockAccount();
+			const adapter = createMockAdapter([account1, account2]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
+
+			const connectPromise = wallet.features['standard:connect'].connect();
+
+			expect(wallet.pendingConnect).not.toBeNull();
+
+			wallet.approveConnect([account1.address]);
+
+			const result = await connectPromise;
+			expect(result.accounts).toHaveLength(1);
+			expect(result.accounts[0].address).toBe(account1.address);
+		});
+
+		it('rejectConnect rejects the promise', async () => {
+			const account = createMockAccount();
+			const adapter = createMockAdapter([account]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
+
+			const connectPromise = wallet.features['standard:connect'].connect();
+
+			wallet.rejectConnect('User said no');
+
+			await expect(connectPromise).rejects.toThrow('User said no');
+		});
+
+		it('notifies connect listeners', async () => {
+			const account = createMockAccount();
+			const adapter = createMockAdapter([account]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
+
+			const listener = vi.fn();
+			wallet.onConnectChange(listener);
+
+			const connectPromise = wallet.features['standard:connect'].connect();
+
+			expect(listener).toHaveBeenCalledTimes(1);
+			expect(listener).toHaveBeenCalledWith(expect.objectContaining({ id: expect.any(String) }));
+
+			wallet.rejectConnect();
+			await connectPromise.catch(() => {});
+
+			expect(listener).toHaveBeenCalledTimes(2);
+			expect(listener).toHaveBeenLastCalledWith(null);
+		});
+
+		it('rejects duplicate connect requests', async () => {
+			const account = createMockAccount();
+			const adapter = createMockAdapter([account]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
+
+			const first = wallet.features['standard:connect'].connect();
+
+			await expect(wallet.features['standard:connect'].connect()).rejects.toThrow(
+				'already pending',
+			);
+
+			wallet.rejectConnect();
+			await first.catch(() => {});
+		});
+
+		it('destroy rejects pending connect request', async () => {
+			const account = createMockAccount();
+			const adapter = createMockAdapter([account]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
+
+			const connectPromise = wallet.features['standard:connect'].connect();
+
+			wallet.destroy();
+
+			await expect(connectPromise).rejects.toThrow('Wallet destroyed');
 		});
 	});
 });

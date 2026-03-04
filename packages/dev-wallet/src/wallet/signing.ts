@@ -6,23 +6,39 @@ import type { Signer } from '@mysten/sui/cryptography';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 
-export type SigningRequestType =
+type SigningRequestType =
 	| 'sign-personal-message'
 	| 'sign-transaction'
 	| 'sign-and-execute-transaction';
 
-export interface ExecuteSigningOptions {
+interface ExecuteSigningOptions {
 	type: SigningRequestType;
 	signer: Signer;
-	data: unknown;
+	data: string | Uint8Array;
 	client?: ClientWithCoreApi;
 }
+
+export type SigningResult =
+	| { type: 'sign-personal-message'; bytes: string; signature: string }
+	| { type: 'sign-transaction'; bytes: string; signature: string }
+	| {
+			type: 'sign-and-execute-transaction';
+			bytes: string;
+			signature: string;
+			digest: string;
+			effects: string;
+	  };
 
 /**
  * Execute a signing request (sign message, sign transaction, or sign & execute).
  * Shared between the embedded wallet (DevWallet) and the standalone popup (request-handler).
  */
-export async function executeSigning({ type, signer, data, client }: ExecuteSigningOptions) {
+export async function executeSigning({
+	type,
+	signer,
+	data,
+	client,
+}: ExecuteSigningOptions): Promise<SigningResult> {
 	switch (type) {
 		case 'sign-personal-message': {
 			if (!(data instanceof Uint8Array)) {
@@ -64,7 +80,8 @@ export async function executeSigning({ type, signer, data, client }: ExecuteSign
 				bytes,
 				signature,
 				digest: txResult.digest,
-				effects: txResult.effects?.bcs ? toBase64(txResult.effects.bcs) : undefined,
+				// Empty string when effects BCS is unavailable — the wallet-standard protocol requires a string
+				effects: txResult.effects?.bcs ? toBase64(txResult.effects.bcs) : '',
 			};
 		}
 	}

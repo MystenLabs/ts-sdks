@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { execFile } from 'node:child_process';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { promisify } from 'node:util';
 
@@ -10,7 +11,6 @@ const execFileAsync = promisify(execFile);
 // ── Input validation ─────────────────────────────────────────────────────────
 
 const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{1,64}$/;
-const VALID_SCHEMES = new Set(['ed25519', 'secp256k1', 'secp256r1']);
 
 function isValidAddress(value: unknown): value is string {
 	return typeof value === 'string' && ADDRESS_PATTERN.test(value);
@@ -20,10 +20,6 @@ function isValidBase64(value: unknown): value is string {
 	if (typeof value !== 'string' || value.length === 0) return false;
 	// Only allow base64 characters (standard + URL-safe), padding, and reasonable length
 	return /^[A-Za-z0-9+/\-_]+=*$/.test(value) && value.length <= 1_000_000;
-}
-
-function isValidScheme(value: unknown): value is string {
-	return typeof value === 'string' && VALID_SCHEMES.has(value);
 }
 
 // ── Body parsing ─────────────────────────────────────────────────────────────
@@ -75,7 +71,12 @@ async function handleListAccounts(res: ServerResponse): Promise<void> {
 		jsonResponse(res, 200, { accounts });
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
-		errorResponse(res, 500, `Failed to list accounts: ${message}`);
+		const isExecError = message.includes('ENOENT') || message.includes('not found');
+		errorResponse(
+			res,
+			500,
+			isExecError ? 'Failed to list accounts: sui CLI not found.' : 'Failed to list accounts.',
+		);
 	}
 }
 
@@ -126,85 +127,84 @@ async function handleSignTransaction(req: IncomingMessage, res: ServerResponse):
 		});
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
+		console.error('[dev-wallet] CLI signing error:', message);
 
-		// Check for common CLI errors
+		// Check for common CLI errors — return sanitized messages
 		if (message.includes('not found') || message.includes('Cannot find key')) {
 			return errorResponse(res, 404, `Address not found in keystore: ${body.address}`);
 		}
 
-		errorResponse(res, 500, `Signing failed: ${message}`);
+		errorResponse(res, 500, 'Signing failed due to a CLI error.');
 	}
 }
 
-/**
- * POST /api/create-account
- *
- * Creates a new account via `sui client new-address`.
- *
- * Request body: `{ scheme?: string }`
- * Response: `{ address: string, keyScheme: string }`
- */
-async function handleCreateAccount(req: IncomingMessage, res: ServerResponse): Promise<void> {
-	let body: { scheme?: unknown } = {};
-	try {
-		const raw = await collectBody(req);
-		if (raw.length > 0) {
-			body = JSON.parse(raw);
-		}
-	} catch {
-		return errorResponse(res, 400, 'Invalid JSON body');
-	}
+// ── Token generation ────────────────────────────────────────────────────────
 
-	const scheme = body.scheme ?? 'ed25519';
-	if (!isValidScheme(scheme)) {
-		return errorResponse(
-			res,
-			400,
-			`Invalid key scheme: ${String(scheme)}. Must be one of: ${[...VALID_SCHEMES].join(', ')}`,
-		);
-	}
-
-	try {
-		// scheme: validated against VALID_SCHEMES allowlist
-		const { stdout } = await execFileAsync('sui', ['client', 'new-address', scheme, '--json']);
-
-		const result = JSON.parse(stdout);
-		jsonResponse(res, 200, {
-			address: result.address,
-			keyScheme: result.keyScheme,
-			alias: result.alias,
-		});
-	} catch (err) {
-		const message = err instanceof Error ? err.message : String(err);
-		errorResponse(res, 500, `Account creation failed: ${message}`);
-	}
+function generateToken(): string {
+	return randomBytes(32).toString('hex');
 }
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 
 type NextFunction = () => void;
 
+export interface CliSigningMiddlewareOptions {
+	/**
+	 * When true, skip token authentication. Useful for testing.
+	 * @default false
+	 */
+	skipAuth?: boolean;
+}
+
+export interface CliSigningMiddlewareResult {
+	middleware: (req: IncomingMessage, res: ServerResponse, next: NextFunction) => void;
+	/** Cryptographically strong token for URL-based auth (Jupyter-style). Null if auth is skipped. */
+	token: string | null;
+}
+
 /**
  * Create a Connect-compatible middleware that exposes signing endpoints
  * backed by the `sui` CLI.
  *
+ * Authentication uses a **token-in-URL** approach (same pattern as Jupyter
+ * notebooks). The CLI server generates a 256-bit random token, embeds it
+ * in the URL printed to the terminal. Opening that URL auto-authenticates
+ * the browser session via `Authorization: Bearer <token>`.
+ *
  * All CLI calls use `execFile` (not `exec`) to prevent shell injection.
  * All user-supplied inputs are validated before being passed as CLI arguments.
- *
- * @example
- * ```typescript
- * const server = await createServer({ ... });
- * server.middlewares.use(createCliSigningMiddleware());
- * await server.listen();
- * ```
  */
-export function createCliSigningMiddleware(): (
-	req: IncomingMessage,
-	res: ServerResponse,
-	next: NextFunction,
-) => void {
-	return (req: IncomingMessage, res: ServerResponse, next: NextFunction) => {
+export function createCliSigningMiddleware(
+	options?: CliSigningMiddlewareOptions,
+): CliSigningMiddlewareResult {
+	const skipAuth = options?.skipAuth ?? false;
+	const token = skipAuth ? null : generateToken();
+
+	function isAuthenticated(req: IncomingMessage): boolean {
+		if (skipAuth) return true;
+		if (!token) return false;
+		const auth = req.headers.authorization;
+		if (!auth?.startsWith('Bearer ')) return false;
+		const provided = auth.slice(7);
+		if (provided.length !== token.length) return false;
+		return timingSafeEqual(Buffer.from(provided), Buffer.from(token));
+	}
+
+	const middleware = (req: IncomingMessage, res: ServerResponse, next: NextFunction) => {
 		const url = req.url ?? '';
+
+		// Reject requests from non-localhost hosts (DNS rebinding protection)
+		const host = (req.headers.host ?? '').replace(/:\d+$/, '');
+		if (host && host !== 'localhost' && host !== '127.0.0.1' && host !== '[::1]') {
+			errorResponse(res, 403, 'Requests must originate from localhost.');
+			return;
+		}
+
+		// All API routes require authentication
+		if (url.startsWith('/api/') && !isAuthenticated(req)) {
+			errorResponse(res, 401, 'Authentication required. Open the token URL from the terminal.');
+			return;
+		}
 
 		if (url === '/api/accounts' && req.method === 'GET') {
 			handleListAccounts(res).catch(() => errorResponse(res, 500, 'Internal server error'));
@@ -216,11 +216,8 @@ export function createCliSigningMiddleware(): (
 			return;
 		}
 
-		if (url === '/api/create-account' && req.method === 'POST') {
-			handleCreateAccount(req, res).catch(() => errorResponse(res, 500, 'Internal server error'));
-			return;
-		}
-
 		next();
 	};
+
+	return { middleware, token };
 }

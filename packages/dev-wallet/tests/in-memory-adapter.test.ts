@@ -4,107 +4,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { InMemorySignerAdapter } from '../src/adapters/in-memory-adapter.js';
+import { runAdapterContractTests } from './shared-adapter-tests.js';
+
+runAdapterContractTests('InMemorySignerAdapter', async () => new InMemorySignerAdapter());
 
 describe('InMemorySignerAdapter', () => {
-	it('createAccount creates an account with valid Sui address', async () => {
-		const adapter = new InMemorySignerAdapter();
-		const account = await adapter.createAccount();
-
-		expect(account.address).toMatch(/^0x[a-f0-9]{64}$/);
-	});
-
-	it('createAccount with label uses the provided label', async () => {
-		const adapter = new InMemorySignerAdapter();
-		const account = await adapter.createAccount({ label: 'My Custom Label' });
-
-		expect(account.label).toBe('My Custom Label');
-	});
-
-	it('getAccounts returns all created accounts', async () => {
-		const adapter = new InMemorySignerAdapter();
-		await adapter.createAccount();
-		await adapter.createAccount();
-		await adapter.createAccount();
-
-		const accounts = adapter.getAccounts();
-		expect(accounts).toHaveLength(3);
-	});
-
-	it('getAccount finds account by address', async () => {
-		const adapter = new InMemorySignerAdapter();
-		const created = await adapter.createAccount({ label: 'Test' });
-
-		const found = adapter.getAccount(created.address);
-		expect(found).toBeDefined();
-		expect(found!.address).toBe(created.address);
-		expect(found!.label).toBe('Test');
-	});
-
-	it('getAccount returns undefined for unknown address', () => {
-		const adapter = new InMemorySignerAdapter();
-
-		const found = adapter.getAccount(
-			'0x0000000000000000000000000000000000000000000000000000000000000000',
-		);
-		expect(found).toBeUndefined();
-	});
-
-	it('removeAccount removes the account', async () => {
-		const adapter = new InMemorySignerAdapter();
-		const account = await adapter.createAccount();
-
-		const removed = await adapter.removeAccount(account.address);
-		expect(removed).toBe(true);
-		expect(adapter.getAccounts()).toHaveLength(0);
-		expect(adapter.getAccount(account.address)).toBeUndefined();
-	});
-
-	it('removeAccount returns false for unknown address', async () => {
-		const adapter = new InMemorySignerAdapter();
-
-		const removed = await adapter.removeAccount(
-			'0x0000000000000000000000000000000000000000000000000000000000000000',
-		);
-		expect(removed).toBe(false);
-	});
-
-	it('onAccountsChanged fires when accounts are created', async () => {
-		const adapter = new InMemorySignerAdapter();
-		const callback = vi.fn();
-
-		adapter.onAccountsChanged(callback);
-		await adapter.createAccount();
-
-		expect(callback).toHaveBeenCalledTimes(1);
-		expect(callback).toHaveBeenCalledWith(
-			expect.arrayContaining([expect.objectContaining({ address: expect.any(String) })]),
-		);
-	});
-
-	it('onAccountsChanged fires when accounts are removed', async () => {
-		const adapter = new InMemorySignerAdapter();
-		const account = await adapter.createAccount();
-
-		const callback = vi.fn();
-		adapter.onAccountsChanged(callback);
-		await adapter.removeAccount(account.address);
-
-		expect(callback).toHaveBeenCalledTimes(1);
-		expect(callback).toHaveBeenCalledWith([]);
-	});
-
-	it('destroy clears all accounts', async () => {
-		const adapter = new InMemorySignerAdapter();
-		await adapter.createAccount();
-		await adapter.createAccount();
-
-		expect(adapter.getAccounts()).toHaveLength(2);
-
-		adapter.destroy();
-
-		expect(adapter.getAccounts()).toHaveLength(0);
-	});
-
 	it('account.signer.signPersonalMessage returns a verifiable signature', async () => {
 		const adapter = new InMemorySignerAdapter();
 		const account = await adapter.createAccount();
@@ -155,6 +59,13 @@ describe('InMemorySignerAdapter', () => {
 		const { signature } = await account.signer.signPersonalMessage(message);
 		const isValid = await keypair.getPublicKey().verifyPersonalMessage(message, signature);
 		expect(isValid).toBe(true);
+	});
+
+	it('importAccount throws when signer is missing', async () => {
+		const adapter = new InMemorySignerAdapter();
+		await expect(adapter.importAccount({} as any)).rejects.toThrow(
+			'In-memory adapter requires a signer to import',
+		);
 	});
 
 	it('importAccount fires onAccountsChanged', async () => {

@@ -9,7 +9,6 @@ import type {
 	StandardDisconnectFeature,
 	StandardDisconnectMethod,
 	StandardEventsFeature,
-	StandardEventsListeners,
 	StandardEventsOnMethod,
 	SuiFeatures,
 	SuiSignAndExecuteTransactionMethod,
@@ -21,15 +20,10 @@ import type {
 import { getWallets, ReadonlyWalletAccount, SUI_CHAINS } from '@mysten/wallet-standard';
 import { DappPostMessageChannel, decodeJwtSession } from '@mysten/window-wallet-core';
 
-type WalletEventsMap = {
-	[E in keyof StandardEventsListeners]: Parameters<StandardEventsListeners[E]>[0];
-};
+import { DEFAULT_WALLET_ICON, type WalletEventsMap } from '../wallet/constants.js';
 
-const DEFAULT_WALLET_NAME = 'Dev Wallet';
+const DEFAULT_WALLET_NAME = 'Dev Wallet (Web)';
 const DEFAULT_ORIGIN = 'http://localhost:5174';
-
-const DEFAULT_WALLET_ICON: WalletIcon =
-	'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjNjM2NkYxIi8+PHBhdGggZD0iTTkgMjJWMTBoMy41YTQgNCAwIDAgMSAwIDhoLTIuNW0wIDBoLTFtMS00aDIuNSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48cGF0aCBkPSJNMTkgMTBsMy41IDEyTTI2IDEwbC0zLjUgMTJNMTkuNSAxOGg1IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==';
 
 const WALLET_FEATURES = [
 	'sui:signTransaction',
@@ -41,7 +35,7 @@ const WALLET_FEATURES = [
  * Options for creating a DevWalletClient.
  */
 export interface DevWalletClientOptions {
-	/** Display name for the wallet. Defaults to 'Dev Wallet'. */
+	/** Display name for the wallet. Defaults to 'Dev Wallet (Web)'. */
 	name?: string;
 	/** Data URI icon for the wallet. */
 	icon?: WalletIcon;
@@ -221,6 +215,9 @@ export class DevWalletClient implements Wallet {
 	}
 
 	#getSession(): string {
+		if (typeof localStorage === 'undefined') {
+			throw new Error('No active session. Call connect() first.');
+		}
 		const session = localStorage.getItem(this.#sessionKey);
 		if (!session) {
 			throw new Error('No active session. Call connect() first.');
@@ -229,28 +226,34 @@ export class DevWalletClient implements Wallet {
 	}
 
 	#setSession(session: string): void {
-		localStorage.setItem(this.#sessionKey, session);
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem(this.#sessionKey, session);
+		}
 	}
 
 	#clearSession(): void {
-		localStorage.removeItem(this.#sessionKey);
+		if (typeof localStorage !== 'undefined') {
+			localStorage.removeItem(this.#sessionKey);
+		}
 	}
 
 	#setAccountsFromSession(session: string): void {
 		const decoded = decodeJwtSession(session);
 		this.#accounts = decoded.payload.accounts.map(
-			(account: { address: string; publicKey: string }) =>
+			(account: { address: string; publicKey: string; label?: string }) =>
 				new ReadonlyWalletAccount({
 					address: account.address,
 					publicKey: account.publicKey ? fromBase64(account.publicKey) : new Uint8Array(0),
 					chains: [...SUI_CHAINS],
 					features: [...WALLET_FEATURES],
+					label: account.label,
 				}),
 		);
 		this.#events.emit('change', { accounts: this.#accounts });
 	}
 
 	#tryRestoreSession(): void {
+		if (typeof localStorage === 'undefined') return;
 		const session = localStorage.getItem(this.#sessionKey);
 		if (!session) return;
 

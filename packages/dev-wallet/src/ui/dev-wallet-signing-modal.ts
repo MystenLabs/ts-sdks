@@ -5,8 +5,9 @@ import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
-import type { WalletRequest } from '../wallet/dev-wallet.js';
+import type { PendingSigningRequest } from '../wallet/dev-wallet.js';
 import { sharedStyles } from './styles.js';
+import { emitEvent } from './utils.js';
 import './dev-wallet-signing.js';
 
 /**
@@ -25,26 +26,23 @@ export class DevWalletSigningModal extends LitElement {
 				display: block;
 			}
 
-			.overlay {
-				position: fixed;
-				inset: 0;
-				background: color-mix(in oklab, oklch(0 0 0) 50%, transparent);
-				z-index: 1000000;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-			}
-
-			.modal {
+			dialog {
 				width: 360px;
+				max-width: calc(100vw - 32px);
 				max-height: min(600px, 80vh);
 				border-radius: var(--dev-wallet-radius-xl);
 				background: var(--dev-wallet-background);
 				border: 1px solid var(--dev-wallet-border);
-				box-shadow: 0 8px 32px color-mix(in oklab, oklch(0 0 0) 40%, transparent);
+				box-shadow: var(--dev-wallet-shadow-lg);
 				overflow: hidden;
 				display: flex;
 				flex-direction: column;
+				padding: 0;
+				color: inherit;
+			}
+
+			dialog::backdrop {
+				background: color-mix(in oklab, oklch(0 0 0) 50%, transparent);
 			}
 
 			.modal-header {
@@ -71,7 +69,7 @@ export class DevWalletSigningModal extends LitElement {
 	];
 
 	@property({ attribute: false })
-	request: WalletRequest | null = null;
+	request: PendingSigningRequest | null = null;
 
 	@property({ attribute: false })
 	client: ClientWithCoreApi | null = null;
@@ -79,53 +77,56 @@ export class DevWalletSigningModal extends LitElement {
 	@property({ type: String })
 	walletName = 'Dev Wallet';
 
-	#boundKeyHandler = (e: KeyboardEvent) => {
-		if (e.key === 'Escape') {
-			this.dispatchEvent(new CustomEvent('reject', { bubbles: true, composed: true }));
-		}
+	#handleDialogCancel = (e: Event) => {
+		e.preventDefault();
+		emitEvent(this, 'reject');
 	};
 
-	override connectedCallback() {
-		super.connectedCallback();
-		document.addEventListener('keydown', this.#boundKeyHandler);
+	override firstUpdated() {
+		const dialog = this.shadowRoot?.querySelector('dialog');
+		if (dialog && !dialog.open) {
+			dialog.showModal();
+		}
+		dialog?.addEventListener('cancel', this.#handleDialogCancel);
 	}
 
 	override disconnectedCallback() {
 		super.disconnectedCallback();
-		document.removeEventListener('keydown', this.#boundKeyHandler);
+		const dialog = this.shadowRoot?.querySelector('dialog');
+		dialog?.removeEventListener('cancel', this.#handleDialogCancel);
+		if (dialog?.open) dialog.close();
 	}
 
 	override render() {
 		if (!this.request) return nothing;
 
 		return html`
-			<div class="overlay">
-				<div class="modal">
-					<div class="modal-header">
-						<span class="modal-title">${this.walletName}</span>
-					</div>
-					<div class="modal-body">
-						<dev-wallet-signing
-							.request=${this.request}
-							.client=${this.client}
-							@approve=${this.#handleApprove}
-							@reject=${this.#handleReject}
-						></dev-wallet-signing>
-					</div>
+			<dialog part="dialog">
+				<div class="modal-header">
+					<span class="modal-title">${this.walletName}</span>
 				</div>
-			</div>
+				<div class="modal-body">
+					<dev-wallet-signing
+						exportparts="approve-button: signing-approve-button, reject-button: signing-reject-button, request-type: signing-request-type, empty-state: signing-empty-state, error-message: signing-error-message, footer: signing-footer"
+						.request=${this.request}
+						.client=${this.client}
+						@approve=${this.#handleApprove}
+						@reject=${this.#handleReject}
+					></dev-wallet-signing>
+				</div>
+			</dialog>
 		`;
 	}
 
 	#handleApprove(e: Event) {
 		// Stop the composed signing event from also reaching the parent
 		e.stopPropagation();
-		this.dispatchEvent(new CustomEvent('approve', { bubbles: true, composed: true }));
+		emitEvent(this, 'approve');
 	}
 
 	#handleReject(e: Event) {
 		e.stopPropagation();
-		this.dispatchEvent(new CustomEvent('reject', { bubbles: true, composed: true }));
+		emitEvent(this, 'reject');
 	}
 }
 

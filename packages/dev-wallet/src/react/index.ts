@@ -10,7 +10,6 @@ export type { DevWalletProviderProps } from './context.js';
 export {
 	DevWalletAccounts,
 	DevWalletBalances,
-	DevWalletDrawer,
 	DevWalletNewAccount,
 	DevWalletPanel,
 	DevWalletSigning,
