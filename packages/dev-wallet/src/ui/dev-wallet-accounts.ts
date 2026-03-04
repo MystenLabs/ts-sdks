@@ -7,8 +7,8 @@ import { customElement, property, state } from 'lit/decorators.js';
 
 import type { SignerAdapter } from '../types.js';
 import { CopyController } from './copy-controller.js';
-import { sectionHeaderStyles, sharedStyles } from './styles.js';
-import { emitEvent, findAdapterForAddress, formatAddress } from './utils.js';
+import { actionButtonStyles, sectionHeaderStyles, sharedStyles } from './styles.js';
+import { emitEvent, findAdapterForAddress, formatAddress, getErrorMessage } from './utils.js';
 import './dev-wallet-new-account.js';
 
 @customElement('dev-wallet-accounts')
@@ -16,6 +16,7 @@ export class DevWalletAccounts extends LitElement {
 	static override styles = [
 		sharedStyles,
 		sectionHeaderStyles,
+		actionButtonStyles,
 		css`
 			:host {
 				display: block;
@@ -169,6 +170,95 @@ export class DevWalletAccounts extends LitElement {
 				white-space: nowrap;
 			}
 
+			.delete-btn {
+				width: 18px;
+				height: 18px;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: var(--dev-wallet-radius-2xs);
+				font-size: 11px;
+				color: var(--dev-wallet-muted-foreground);
+				opacity: 0;
+				transition: opacity 0.15s;
+				flex-shrink: 0;
+			}
+
+			.account-item:hover .delete-btn {
+				opacity: 1;
+			}
+
+			.delete-btn:hover {
+				background: color-mix(in oklab, var(--dev-wallet-destructive) 20%, transparent);
+				color: var(--dev-wallet-destructive);
+			}
+
+			.confirm-dialog:not([open]) {
+				display: none;
+			}
+
+			.confirm-dialog {
+				width: 300px;
+				max-width: calc(100vw - 32px);
+				border-radius: var(--dev-wallet-radius-xl);
+				background: var(--dev-wallet-background);
+				border: 1px solid var(--dev-wallet-border);
+				box-shadow: var(--dev-wallet-shadow-lg);
+				padding: 20px;
+				display: flex;
+				flex-direction: column;
+				color: inherit;
+			}
+
+			.confirm-dialog::backdrop {
+				background: color-mix(in oklab, oklch(0 0 0) 50%, transparent);
+			}
+
+			.confirm-title {
+				font-size: 16px;
+				font-weight: var(--dev-wallet-font-weight-semibold);
+				color: var(--dev-wallet-foreground);
+				margin-bottom: 12px;
+			}
+
+			.confirm-body {
+				font-size: 13px;
+				color: var(--dev-wallet-muted-foreground);
+				margin-bottom: 8px;
+				line-height: 1.4;
+			}
+
+			.confirm-account {
+				padding: 8px 10px;
+				border-radius: var(--dev-wallet-radius-sm);
+				background: var(--dev-wallet-secondary);
+				border: 1px solid var(--dev-wallet-border);
+				margin-bottom: 16px;
+			}
+
+			.confirm-account-label {
+				font-size: 13px;
+				font-weight: var(--dev-wallet-font-weight-medium);
+				color: var(--dev-wallet-foreground);
+			}
+
+			.confirm-account-address {
+				font-size: 11px;
+				color: var(--dev-wallet-muted-foreground);
+				font-family: var(--dev-wallet-font-mono);
+			}
+
+			.confirm-actions {
+				display: flex;
+				gap: 8px;
+			}
+
+			.confirm-error {
+				color: var(--dev-wallet-destructive);
+				font-size: 12px;
+				margin-bottom: 8px;
+			}
+
 			.empty-state {
 				text-align: center;
 				padding: 24px;
@@ -197,6 +287,15 @@ export class DevWalletAccounts extends LitElement {
 
 	@state()
 	private _editingLabel = '';
+
+	@state()
+	private _confirmDeleteAddress: string | null = null;
+
+	@state()
+	private _deleting = false;
+
+	@state()
+	private _deleteError: string | null = null;
 
 	override render() {
 		const canAdd = this.adapters.some(
@@ -298,11 +397,25 @@ export class DevWalletAccounts extends LitElement {
 													: formatAddress(account.address)}
 											</div>
 										</div>
+										${this.#canRemove(account.address)
+											? html`<button
+													class="delete-btn"
+													title="Remove account"
+													aria-label="Remove account"
+													@click=${(e: Event) => {
+														e.stopPropagation();
+														this.#promptDelete(account.address);
+													}}
+												>
+													&#128465;
+												</button>`
+											: nothing}
 									</button>
 								`,
 							)}
 						</div>
 					`}
+			${this.#renderConfirmDialog()}
 			<dev-wallet-new-account
 				.adapters=${this.adapters}
 				.open=${this._dialogOpen}
@@ -360,6 +473,93 @@ export class DevWalletAccounts extends LitElement {
 	#cancelEditLabel() {
 		this._editingAddress = null;
 		this._editingLabel = '';
+	}
+
+	#canRemove(address: string): boolean {
+		const adapter = findAdapterForAddress(this.adapters, address);
+		return !!(adapter && adapter.removeAccount);
+	}
+
+	#isImportedAccount(address: string): boolean {
+		const adapter = findAdapterForAddress(this.adapters, address);
+		if (!adapter) return false;
+		return !('createAccount' in adapter && adapter.createAccount);
+	}
+
+	#promptDelete(address: string) {
+		this._confirmDeleteAddress = address;
+		this._deleteError = null;
+		this.updateComplete.then(() => {
+			const dialog = this.shadowRoot?.querySelector<HTMLDialogElement>('.confirm-dialog');
+			if (dialog && !dialog.open) dialog.showModal();
+		});
+	}
+
+	#cancelDelete() {
+		const dialog = this.shadowRoot?.querySelector<HTMLDialogElement>('.confirm-dialog');
+		if (dialog?.open) dialog.close();
+		this._confirmDeleteAddress = null;
+		this._deleting = false;
+		this._deleteError = null;
+	}
+
+	async #confirmDelete() {
+		const address = this._confirmDeleteAddress;
+		if (!address) return;
+
+		this._deleting = true;
+		this._deleteError = null;
+
+		try {
+			const adapter = findAdapterForAddress(this.adapters, address);
+			if (!adapter?.removeAccount) throw new Error('Adapter does not support removal');
+			const removed = await adapter.removeAccount(address);
+			if (!removed) throw new Error('Account not found');
+			this.#cancelDelete();
+			emitEvent(this, 'account-removed', { address });
+		} catch (error) {
+			this._deleteError = getErrorMessage(error, 'Failed to remove account');
+			this._deleting = false;
+		}
+	}
+
+	#renderConfirmDialog() {
+		if (!this._confirmDeleteAddress) return nothing;
+
+		const address = this._confirmDeleteAddress;
+		const index = this.accounts.findIndex((a) => a.address === address);
+		const label = index >= 0 ? this.#getAccountLabel(address, index) : 'Unknown';
+		const imported = this.#isImportedAccount(address);
+
+		return html`
+			<dialog
+				class="confirm-dialog"
+				@cancel=${(e: Event) => {
+					e.preventDefault();
+					this.#cancelDelete();
+				}}
+			>
+				<div class="confirm-title">Remove Account</div>
+				<div class="confirm-body">
+					${imported
+						? 'This will remove the imported account from your wallet. You can re-import it later.'
+						: 'This will permanently delete this account and its keys. This cannot be undone.'}
+				</div>
+				<div class="confirm-account">
+					<div class="confirm-account-label">${label}</div>
+					<div class="confirm-account-address">${formatAddress(address)}</div>
+				</div>
+				${this._deleteError ? html`<div class="confirm-error">${this._deleteError}</div>` : nothing}
+				<div class="confirm-actions">
+					<button class="btn btn-cancel" ?disabled=${this._deleting} @click=${this.#cancelDelete}>
+						Cancel
+					</button>
+					<button class="btn btn-reject" ?disabled=${this._deleting} @click=${this.#confirmDelete}>
+						${this._deleting ? 'Removing...' : 'Remove'}
+					</button>
+				</div>
+			</dialog>
+		`;
 	}
 
 	#openDialog() {

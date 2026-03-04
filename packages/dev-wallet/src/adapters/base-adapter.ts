@@ -45,9 +45,10 @@ export abstract class BaseSignerAdapter implements SignerAdapter {
 		return this.#accounts;
 	}
 
-	/** Set accounts during initialization without notifying listeners. */
+	/** Set accounts during initialization and notify listeners. */
 	protected setInitialAccounts(accounts: ManagedAccount[]): void {
 		this.#accounts = accounts;
+		this.notifyListeners();
 	}
 
 	protected addAccount(account: ManagedAccount): void {

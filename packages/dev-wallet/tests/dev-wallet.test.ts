@@ -1054,7 +1054,7 @@ describe('DevWallet', () => {
 	});
 
 	describe('disconnect()', () => {
-		it('clears accounts and emits change', async () => {
+		it('retains accounts after disconnect', async () => {
 			const account = createMockAccount();
 			const adapter = createMockAdapter([account]);
 			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter], autoConnect: true }));
@@ -1062,13 +1062,26 @@ describe('DevWallet', () => {
 			await wallet.features['standard:connect'].connect();
 			expect(wallet.accounts).toHaveLength(1);
 
-			const listener = vi.fn();
-			wallet.features['standard:events'].on('change', listener);
-
 			await wallet.features['standard:disconnect'].disconnect();
 
-			expect(wallet.accounts).toHaveLength(0);
-			expect(listener).toHaveBeenCalledWith(expect.objectContaining({ accounts: [] }));
+			// Wallet retains its accounts — disconnect is a dApp session concern, not wallet state
+			expect(wallet.accounts).toHaveLength(1);
+			expect(wallet.accounts[0].address).toBe(account.address);
+		});
+
+		it('still receives adapter updates after disconnect', async () => {
+			const account = createMockAccount();
+			const adapter = createMockAdapter([account]);
+			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter], autoConnect: true }));
+
+			await wallet.features['standard:connect'].connect();
+			await wallet.features['standard:disconnect'].disconnect();
+
+			// Adapter listeners remain active after disconnect
+			const newAccount = createMockAccount();
+			adapter._triggerAccountsChanged([account, newAccount]);
+
+			expect(wallet.accounts).toHaveLength(2);
 		});
 	});
 

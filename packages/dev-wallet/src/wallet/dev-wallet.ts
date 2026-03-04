@@ -422,16 +422,13 @@ export class DevWallet implements Wallet {
 			throw new Error('No pending connect request to approve.');
 		}
 
-		const allAccounts = this.#aggregateAccounts();
 		const selected =
 			selectedAddresses.length > 0
-				? allAccounts.filter((a) => selectedAddresses.includes(a.address))
-				: allAccounts;
+				? this.#accounts.filter((a) => selectedAddresses.includes(a.address))
+				: [...this.#accounts];
 
-		this.#accounts = selected;
 		this.#pendingConnect = null;
 		this.#notifyConnectListeners();
-		this.#events.emit('change', { accounts: this.#accounts });
 		request.resolve({ accounts: selected });
 	}
 
@@ -492,14 +489,8 @@ export class DevWallet implements Wallet {
 	};
 
 	#connect: StandardConnectMethod = async () => {
-		if (this.#unsubscribeAdapters.length === 0) {
-			this.#setupAdapterListeners();
-		}
-
 		// Auto-connect: return all accounts immediately
 		if (this.#autoConnect) {
-			this.#accounts = this.#aggregateAccounts();
-			this.#events.emit('change', { accounts: this.#accounts });
 			return { accounts: this.accounts };
 		}
 
@@ -519,12 +510,8 @@ export class DevWallet implements Wallet {
 	};
 
 	#disconnect: StandardDisconnectMethod = async () => {
-		for (const unsub of this.#unsubscribeAdapters) {
-			unsub();
-		}
-		this.#unsubscribeAdapters = [];
-		this.#accounts = [];
-		this.#events.emit('change', { accounts: this.#accounts });
+		// Disconnecting ends the dApp session but does not affect wallet state.
+		// The wallet retains its accounts and adapter subscriptions.
 	};
 
 	#getClientForChain(chain: string) {
