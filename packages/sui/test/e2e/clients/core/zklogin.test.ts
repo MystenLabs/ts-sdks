@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { beforeAll, describe, expect } from 'vitest';
-import { setup, TestToolbox, createTestWithAllClients, execSuiTools } from '../../utils/setup.js';
+import { setup, TestToolbox, createTestWithAllClients, execKeytool } from '../../utils/setup.js';
 
 describe('Core API - ZkLogin', () => {
 	let toolbox: TestToolbox;
@@ -28,10 +28,8 @@ describe('Core API - ZkLogin', () => {
 		const currentEpoch = Number(epoch.epoch);
 		const maxEpoch = currentEpoch + 10;
 
-		// Generate PersonalMessage signature
-		const pmResult = await execSuiTools([
-			'sui',
-			'keytool',
+		// Generate PersonalMessage signature using --json for reliable parsing
+		const pmJson = await execKeytool([
 			'zk-login-insecure-sign-personal-message',
 			'--data',
 			'hello',
@@ -39,19 +37,15 @@ describe('Core API - ZkLogin', () => {
 			maxEpoch.toString(),
 		]);
 
-		const pmOutput = pmResult.stdout;
-		const pmSigMatch = pmOutput.match(/│\s*sig\s*│\s*(.+?)\s*│/);
-		const pmAddressMatch = pmOutput.match(/│\s*address\s*│\s*(.+?)\s*│/);
-
-		if (!pmSigMatch || !pmAddressMatch) {
-			throw new Error('Failed to generate zkLogin signature: could not parse output');
+		if (!pmJson.sig || !pmJson.address) {
+			throw new Error('Failed to generate zkLogin signature: missing sig or address in output');
 		}
 
 		validSignatureCase = {
 			bytes: 'aGVsbG8=', // base64 encoding of "hello"
-			signature: pmSigMatch[1].trim(),
+			signature: pmJson.sig as string,
 			intentScope: 'PersonalMessage',
-			address: pmAddressMatch[1].trim(),
+			address: pmJson.address as string,
 		};
 
 		// Hardcoded TransactionData signature (generated using local keytool)

@@ -10,7 +10,7 @@ import {
 	ZkLoginPublicIdentifier,
 } from '../../src/zklogin/publickey.js';
 import { getZkLoginSignature, parseZkLoginSignature } from '../../src/zklogin/signature.js';
-import { execSuiTools, setup } from './utils/setup.js';
+import { execKeytool, setup } from './utils/setup.js';
 
 const DEFAULT_GRAPHQL_URL = import.meta.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125/graphql';
 
@@ -80,11 +80,9 @@ describe('zkLogin signature', () => {
 			const currentEpoch = Number(epoch.epoch);
 			const maxEpoch = currentEpoch + 10;
 
-			// Generate PersonalMessage signature dynamically
+			// Generate PersonalMessage signature dynamically using --json for reliable parsing
 			const bytes = 'aGVsbG8='; // the base64 encoding of "hello"
-			const pmResult = await execSuiTools([
-				'sui',
-				'keytool',
+			const pmJson = await execKeytool([
 				'zk-login-insecure-sign-personal-message',
 				'--data',
 				'hello',
@@ -92,14 +90,11 @@ describe('zkLogin signature', () => {
 				maxEpoch.toString(),
 			]);
 
-			const pmOutput = pmResult.stdout;
-			const pmSigMatch = pmOutput.match(/│\s*sig\s*│\s*(.+?)\s*│/);
-
-			if (!pmSigMatch) {
-				throw new Error('Failed to generate zkLogin signature: could not parse output');
+			if (!pmJson.sig) {
+				throw new Error('Failed to generate zkLogin signature: missing sig in output');
 			}
 
-			const testSignature = pmSigMatch[1].trim();
+			const testSignature = pmJson.sig as string;
 			const parsed = parseSerializedZkLoginSignature(testSignature);
 			const client = new SuiGraphQLClient({
 				url: DEFAULT_GRAPHQL_URL,
@@ -114,9 +109,7 @@ describe('zkLogin signature', () => {
 			expect(res).toBe(true);
 
 			// Generate signature with max_epoch too large (should fail)
-			const largePmResult = await execSuiTools([
-				'sui',
-				'keytool',
+			const largePmJson = await execKeytool([
 				'zk-login-insecure-sign-personal-message',
 				'--data',
 				'hello',
@@ -124,14 +117,11 @@ describe('zkLogin signature', () => {
 				(currentEpoch + 100).toString(),
 			]);
 
-			const largePmOutput = largePmResult.stdout;
-			const largePmSigMatch = largePmOutput.match(/│\s*sig\s*│\s*(.+?)\s*│/);
-
-			if (!largePmSigMatch) {
-				throw new Error('Failed to generate zkLogin signature: could not parse output');
+			if (!largePmJson.sig) {
+				throw new Error('Failed to generate zkLogin signature: missing sig in output');
 			}
 
-			const testSignature2 = largePmSigMatch[1].trim();
+			const testSignature2 = largePmJson.sig as string;
 			const parsed2 = parseSerializedZkLoginSignature(testSignature2);
 			const res1 = await pk.verifyPersonalMessage(fromBase64(bytes), parsed2.signature);
 			expect(res1).toBe(false);

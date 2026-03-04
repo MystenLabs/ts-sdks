@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { resolve } from 'path';
-import { GenericContainer, Network, PullPolicy } from 'testcontainers';
+import { GenericContainer, getContainerRuntimeClient, Network, PullPolicy } from 'testcontainers';
 import type { TestProject } from 'vitest/node';
 
 import type { PrePublishedPackage } from './prePublish.js';
@@ -21,8 +21,8 @@ declare module 'vitest' {
 const SUI_TOOLS_TAG =
 	process.env.SUI_TOOLS_TAG ||
 	(process.arch === 'arm64'
-		? '62564033de7611e1080b1a782e6484114b9e7576-arm64'
-		: '62564033de7611e1080b1a782e6484114b9e7576');
+		? 'e50c3fe5ae2b3c43a42f9d25743386ba87bb150c-arm64'
+		: 'e50c3fe5ae2b3c43a42f9d25743386ba87bb150c');
 
 export default async function setup(project: TestProject) {
 	console.log('Starting test containers');
@@ -66,6 +66,27 @@ export default async function setup(project: TestProject) {
 	const localnetPort = localnet.getMappedPort(9000);
 	const graphqlPort = localnet.getMappedPort(9125);
 	const containerId = localnet.getId();
+
+	// Create default sui config so `sui keytool` commands work in the container.
+	// This must happen once before any tests run to avoid race conditions.
+	const runtimeClient = await getContainerRuntimeClient();
+	const container = runtimeClient.container.getById(containerId);
+	await runtimeClient.container.exec(container, ['mkdir', '-p', '/root/.sui/sui_config']);
+	await runtimeClient.container.exec(container, [
+		'bash',
+		'-c',
+		`echo '[]' > /root/.sui/sui_config/sui.keystore && cat > /root/.sui/sui_config/client.yaml << 'EOF'
+---
+keystore:
+  File: /root/.sui/sui_config/sui.keystore
+envs:
+  - alias: localnet
+    rpc: "http://127.0.0.1:9000"
+    ws: ~
+active_env: localnet
+active_address: "0x0000000000000000000000000000000000000000000000000000000000000000"
+EOF`,
+	]);
 
 	project.provide('faucetPort', faucetPort);
 	project.provide('localnetPort', localnetPort);

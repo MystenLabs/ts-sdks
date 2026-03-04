@@ -403,6 +403,7 @@ export class JSONRpcCoreClient extends CoreClient {
 						sender: event.sender,
 						eventType: event.type,
 						bcs: 'bcs' in event ? fromBase64(event.bcs) : new Uint8Array(),
+						json: (event.parsedJson as Record<string, unknown>) ?? null,
 					})) ?? [])
 				: undefined) as SuiClientTypes.Transaction<Include>['events'],
 		};
@@ -886,6 +887,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 					sender: event.sender,
 					eventType: event.type,
 					bcs: 'bcs' in event ? fromBase64(event.bcs) : new Uint8Array(),
+					json: (event.parsedJson as Record<string, unknown>) ?? null,
 				})) ?? [])
 			: undefined) as SuiClientTypes.Transaction<Include>['events'],
 	};
