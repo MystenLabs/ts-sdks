@@ -7,10 +7,14 @@ import type { DAppKitStores } from '../store.js';
 import { task } from 'nanostores';
 import { getWalletFeature } from '@wallet-standard/ui';
 import { WalletNotConnectedError } from '../../utils/errors.js';
+import type { StateStorage } from '../../utils/storage.js';
 
 export type DisconnectWalletArgs = Parameters<StandardDisconnectMethod>;
 
-export function disconnectWalletCreator({ $baseConnection, $connection }: DAppKitStores) {
+export function disconnectWalletCreator(
+	{ $baseConnection, $connection }: DAppKitStores,
+	{ storage, storageKey }: { storage: StateStorage; storageKey: string },
+) {
 	/**
 	 * Disconnects the current wallet from the application and prompts the current wallet
 	 * to deauthorize accounts from the current domain depending on the wallet's implemetation
@@ -33,6 +37,7 @@ export function disconnectWalletCreator({ $baseConnection, $connection }: DAppKi
 			} catch (error) {
 				console.warn('Failed to disconnect the current wallet from the application.', error);
 			} finally {
+				storage.removeItem(storageKey);
 				$baseConnection.set({
 					status: 'disconnected',
 					currentAccount: null,
