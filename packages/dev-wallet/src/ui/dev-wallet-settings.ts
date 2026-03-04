@@ -590,10 +590,7 @@ export class DevWalletSettings extends LitElement {
 			<div class="about" style="margin-top: 12px">Or paste this in the browser console:</div>
 			<div class="console-snippet">
 				${consoleSnippet}
-				<button
-					class="btn-copy"
-					@click=${() => this.#copySnippet(consoleSnippet)}
-				>
+				<button class="btn-copy" @click=${() => this.#copySnippet(consoleSnippet)}>
 					${this._copied ? 'Copied!' : 'Copy'}
 				</button>
 			</div>

@@ -27,8 +27,7 @@ import { DevWalletClient } from '../client/dev-wallet-client.js';
  * bundle boundaries (unlike `getWallets().register()` which is per-module).
  */
 function registerWalletViaEvent(wallet: Wallet) {
-	const callback = ({ register }: { register: (...wallets: Wallet[]) => void }) =>
-		register(wallet);
+	const callback = ({ register }: { register: (...wallets: Wallet[]) => void }) => register(wallet);
 
 	try {
 		window.dispatchEvent(
@@ -44,10 +43,7 @@ function registerWalletViaEvent(wallet: Wallet) {
 	}
 
 	try {
-		window.addEventListener(
-			'wallet-standard:app-ready',
-			({ detail: api }: any) => callback(api),
-		);
+		window.addEventListener('wallet-standard:app-ready', ({ detail: api }: any) => callback(api));
 	} catch (error) {
 		console.error('wallet-standard:app-ready event listener could not be added\n', error);
 	}
