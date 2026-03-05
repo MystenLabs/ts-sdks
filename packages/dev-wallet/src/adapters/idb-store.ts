@@ -6,28 +6,39 @@
  *
  * The API mirrors the subset used by the WebCrypto and Passkey adapters:
  * `createStore`, `get`, `set`, `del`, and `entries`.
+ *
+ * The database connection is opened lazily on first use and reused for all
+ * subsequent operations on the same store.
  */
 
 export type IDBStore = {
 	dbName: string;
 	storeName: string;
+	/** Cached database connection promise, set on first use. */
+	db?: Promise<IDBDatabase>;
 };
 
 export function createStore(dbName: string, storeName: string): IDBStore {
 	return { dbName, storeName };
 }
 
-function openDB(store: IDBStore): Promise<IDBDatabase> {
-	return new Promise((resolve, reject) => {
-		const request = indexedDB.open(store.dbName);
-		request.onupgradeneeded = () => {
-			if (!request.result.objectStoreNames.contains(store.storeName)) {
-				request.result.createObjectStore(store.storeName);
-			}
-		};
-		request.onsuccess = () => resolve(request.result);
-		request.onerror = () => reject(request.error);
-	});
+function getDB(store: IDBStore): Promise<IDBDatabase> {
+	if (!store.db) {
+		store.db = new Promise((resolve, reject) => {
+			const request = indexedDB.open(store.dbName);
+			request.onupgradeneeded = () => {
+				if (!request.result.objectStoreNames.contains(store.storeName)) {
+					request.result.createObjectStore(store.storeName);
+				}
+			};
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => {
+				store.db = undefined;
+				reject(request.error);
+			};
+		});
+	}
+	return store.db;
 }
 
 function withStore<T>(
@@ -35,23 +46,14 @@ function withStore<T>(
 	mode: IDBTransactionMode,
 	fn: (objectStore: IDBObjectStore) => IDBRequest<T>,
 ): Promise<T> {
-	return openDB(store).then(
+	return getDB(store).then(
 		(db) =>
 			new Promise((resolve, reject) => {
 				const tx = db.transaction(store.storeName, mode);
 				const req = fn(tx.objectStore(store.storeName));
-				tx.oncomplete = () => {
-					resolve(req.result);
-					db.close();
-				};
-				tx.onerror = () => {
-					reject(tx.error);
-					db.close();
-				};
-				tx.onabort = () => {
-					reject(tx.error);
-					db.close();
-				};
+				tx.oncomplete = () => resolve(req.result);
+				tx.onerror = () => reject(tx.error);
+				tx.onabort = () => reject(tx.error);
 			}),
 	);
 }
@@ -69,7 +71,7 @@ export function del(key: IDBValidKey, store: IDBStore): Promise<void> {
 }
 
 export function entries<K extends IDBValidKey, V>(store: IDBStore): Promise<[K, V][]> {
-	return openDB(store).then(
+	return getDB(store).then(
 		(db) =>
 			new Promise((resolve, reject) => {
 				const tx = db.transaction(store.storeName, 'readonly');
@@ -83,14 +85,8 @@ export function entries<K extends IDBValidKey, V>(store: IDBStore): Promise<[K, 
 						c.continue();
 					}
 				};
-				tx.oncomplete = () => {
-					resolve(results);
-					db.close();
-				};
-				tx.onerror = () => {
-					reject(tx.error);
-					db.close();
-				};
+				tx.oncomplete = () => resolve(results);
+				tx.onerror = () => reject(tx.error);
 			}),
 	);
 }
