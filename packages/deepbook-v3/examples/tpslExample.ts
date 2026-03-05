@@ -221,8 +221,9 @@ const GRPC_URLS = {
 	// ----------------------------------------------------------------------------
 	console.log('Executing triggered conditional orders...');
 
-	// Execute up to 10 triggered orders
-	client.deepbook.marginTPSL.executeConditionalOrders('MARGIN_MANAGER_1', 10)(tx);
+	// Execute up to 10 triggered orders for a target margin manager (permissionless - any address)
+	const targetManagerAddress = marginManagers.MARGIN_MANAGER_1.address;
+	client.deepbook.marginTPSL.executeConditionalOrders(targetManagerAddress, 'SUI_USDC', 10)(tx);
 
 	// ============================================================================
 	// SECTION 3: USING HELPER FUNCTIONS DIRECTLY (Advanced Usage)
