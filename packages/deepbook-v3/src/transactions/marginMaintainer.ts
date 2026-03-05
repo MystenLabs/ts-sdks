@@ -10,6 +10,7 @@ import type {
 import type { DeepBookConfig } from '../utils/config.js';
 import type { MarginPoolConfigParams, InterestConfigParams } from '../types/index.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
+import { convertQuantity, convertRate } from '../utils/conversion.js';
 
 /**
  * DeepBookMaintainerContract class for managing maintainer actions.
@@ -102,10 +103,10 @@ export class MarginMaintainerContract {
 			return tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_margin_pool_config`,
 				arguments: [
-					tx.pure.u64(Math.round(supplyCap * coin.scalar)),
-					tx.pure.u64(Math.round(maxUtilizationRate * FLOAT_SCALAR)),
-					tx.pure.u64(Math.round(referralSpread * FLOAT_SCALAR)),
-					tx.pure.u64(Math.round(minBorrow * coin.scalar)),
+					tx.pure.u64(convertQuantity(supplyCap, coin.scalar)),
+					tx.pure.u64(convertRate(maxUtilizationRate, FLOAT_SCALAR)),
+					tx.pure.u64(convertRate(referralSpread, FLOAT_SCALAR)),
+					tx.pure.u64(convertQuantity(minBorrow, coin.scalar)),
 				],
 			});
 		};
@@ -141,12 +142,12 @@ export class MarginMaintainerContract {
 			return tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_margin_pool_config_with_rate_limit`,
 				arguments: [
-					tx.pure.u64(Math.round(supplyCap * coin.scalar)),
-					tx.pure.u64(Math.round(maxUtilizationRate * FLOAT_SCALAR)),
-					tx.pure.u64(Math.round(referralSpread * FLOAT_SCALAR)),
-					tx.pure.u64(Math.round(minBorrow * coin.scalar)),
-					tx.pure.u64(Math.round(rateLimitCapacity * coin.scalar)),
-					tx.pure.u64(Math.round(rateLimitRefillRatePerMs * coin.scalar)),
+					tx.pure.u64(convertQuantity(supplyCap, coin.scalar)),
+					tx.pure.u64(convertRate(maxUtilizationRate, FLOAT_SCALAR)),
+					tx.pure.u64(convertRate(referralSpread, FLOAT_SCALAR)),
+					tx.pure.u64(convertQuantity(minBorrow, coin.scalar)),
+					tx.pure.u64(convertQuantity(rateLimitCapacity, coin.scalar)),
+					tx.pure.u64(convertQuantity(rateLimitRefillRatePerMs, coin.scalar)),
 					tx.pure.bool(rateLimitEnabled),
 				],
 			});
@@ -162,10 +163,10 @@ export class MarginMaintainerContract {
 		return tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_interest_config`,
 			arguments: [
-				tx.pure.u64(Math.round(baseRate * FLOAT_SCALAR)),
-				tx.pure.u64(Math.round(baseSlope * FLOAT_SCALAR)),
-				tx.pure.u64(Math.round(optimalUtilization * FLOAT_SCALAR)),
-				tx.pure.u64(Math.round(excessSlope * FLOAT_SCALAR)),
+				tx.pure.u64(convertRate(baseRate, FLOAT_SCALAR)),
+				tx.pure.u64(convertRate(baseSlope, FLOAT_SCALAR)),
+				tx.pure.u64(convertRate(optimalUtilization, FLOAT_SCALAR)),
+				tx.pure.u64(convertRate(excessSlope, FLOAT_SCALAR)),
 			],
 		});
 	};

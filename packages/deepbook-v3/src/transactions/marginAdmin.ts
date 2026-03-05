@@ -7,6 +7,7 @@ import type { DeepBookConfig } from '../utils/config.js';
 import type { TransactionArgument } from '@mysten/sui/transactions';
 import type { PoolConfigParams } from '../types/index.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
+import { convertRate } from '../utils/conversion.js';
 import { hexToBytes } from '@noble/hashes/utils.js';
 
 /**
@@ -239,12 +240,12 @@ export class MarginAdminContract {
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::new_pool_config`,
 			arguments: [
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.pure.u64(Math.round(minWithdrawRiskRatio * FLOAT_SCALAR)),
-				tx.pure.u64(Math.round(minBorrowRiskRatio * FLOAT_SCALAR)),
-				tx.pure.u64(Math.round(liquidationRiskRatio * FLOAT_SCALAR)),
-				tx.pure.u64(Math.round(targetLiquidationRiskRatio * FLOAT_SCALAR)),
-				tx.pure.u64(Math.round(userLiquidationReward * FLOAT_SCALAR)),
-				tx.pure.u64(Math.round(poolLiquidationReward * FLOAT_SCALAR)),
+				tx.pure.u64(convertRate(minWithdrawRiskRatio, FLOAT_SCALAR)),
+				tx.pure.u64(convertRate(minBorrowRiskRatio, FLOAT_SCALAR)),
+				tx.pure.u64(convertRate(liquidationRiskRatio, FLOAT_SCALAR)),
+				tx.pure.u64(convertRate(targetLiquidationRiskRatio, FLOAT_SCALAR)),
+				tx.pure.u64(convertRate(userLiquidationReward, FLOAT_SCALAR)),
+				tx.pure.u64(convertRate(poolLiquidationReward, FLOAT_SCALAR)),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
@@ -264,7 +265,7 @@ export class MarginAdminContract {
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::new_pool_config_with_leverage`,
 			arguments: [
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.pure.u64(Math.round(leverage * FLOAT_SCALAR)),
+				tx.pure.u64(convertRate(leverage, FLOAT_SCALAR)),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});

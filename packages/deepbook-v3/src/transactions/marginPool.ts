@@ -4,6 +4,7 @@ import { coinWithBalance } from '@mysten/sui/transactions';
 import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
+import { convertQuantity } from '../utils/conversion.js';
 
 /**
  * MarginPoolContract class for managing MarginPool operations.
@@ -48,7 +49,7 @@ export class MarginPoolContract {
 			tx.setSenderIfNotSet(this.#config.address);
 			const marginPool = this.#config.getMarginPool(coinKey);
 			const coin = this.#config.getCoin(coinKey);
-			const depositInput = Math.round(amountToDeposit * coin.scalar);
+			const depositInput = convertQuantity(amountToDeposit, coin.scalar);
 			const supply = coinWithBalance({
 				type: coin.type,
 				balance: depositInput,
@@ -84,7 +85,7 @@ export class MarginPoolContract {
 			const marginPool = this.#config.getMarginPool(coinKey);
 			const coin = this.#config.getCoin(coinKey);
 			const withdrawInput =
-				amountToWithdraw !== undefined ? Math.round(amountToWithdraw * coin.scalar) : null;
+				amountToWithdraw !== undefined ? convertQuantity(amountToWithdraw, coin.scalar) : null;
 			return tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::withdraw`,
 				arguments: [

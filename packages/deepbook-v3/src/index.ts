@@ -37,6 +37,33 @@ export type {
 	Config,
 } from './types/index.js';
 
+// Named return types
+export type {
+	ManagerBalance,
+	VaultBalances,
+	LockedBalances,
+	ReferralBalances,
+	PoolTradeParams,
+	PoolBookParams,
+	PoolDeepPrice,
+	QuoteQuantityOut,
+	BaseQuantityOut,
+	QuantityOut,
+	BaseQuantityIn,
+	QuoteQuantityIn,
+	OrderDeepRequiredResult,
+	Level2Range,
+	Level2TicksFromMid,
+	AccountBalances,
+	AccountInfo,
+	DecodedOrderId,
+	MarginManagerState,
+	MarginManagerAssets,
+	MarginManagerDebts,
+	MarginManagerBalancesResult,
+	BorrowedShares,
+} from './types/index.js';
+
 // Trading parameter interfaces
 export type {
 	PlaceLimitOrderParams,

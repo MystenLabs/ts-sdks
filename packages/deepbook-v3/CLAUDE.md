@@ -16,15 +16,30 @@ for interacting with DeepBook pools, margin managers, and flash loans.
 ```
 packages/deepbook-v3/
 ├── src/
-│   ├── index.ts           # Main entry point, exports deepbook() extension
-│   ├── client.ts          # DeepBookClient class with high-level methods
-│   ├── transactions/      # Transaction builders for Move calls
-│   │   ├── pool.ts        # Pool operations (place orders, get quotes, etc.)
-│   │   ├── marginManager.ts # Margin manager operations
-│   │   ├── flashLoan.ts   # Flash loan operations
-│   │   └── ...
+│   ├── index.ts           # Main entry point, exports deepbook() extension + all public types
+│   ├── client.ts          # DeepBookClient — thin delegate to query modules + contract properties
+│   ├── queries/           # Read-only query modules (one per domain)
+│   │   ├── context.ts     # QueryContext interface + formatTokenAmount helper
+│   │   ├── poolQueries.ts
+│   │   ├── orderQueries.ts
+│   │   ├── quantityQueries.ts
+│   │   ├── accountQueries.ts
+│   │   ├── balanceManagerQueries.ts
+│   │   ├── marginManagerQueries.ts
+│   │   ├── marginPoolQueries.ts
+│   │   ├── referralQueries.ts
+│   │   ├── registryQueries.ts
+│   │   ├── priceFeedQueries.ts
+│   │   ├── tpslQueries.ts
+│   │   └── index.ts       # Barrel re-export
+│   ├── transactions/      # Transaction builders for Move calls (one per domain)
+│   ├── types/
+│   │   ├── index.ts       # All public param + return type interfaces
+│   │   └── bcs.ts         # BCS type definitions for on-chain data
 │   └── utils/
-│       └── config.ts      # Network configuration and coin types
+│       ├── config.ts      # Network configuration and coin types
+│       ├── constants.ts   # On-chain addresses for testnet/mainnet
+│       └── conversion.ts  # convertQuantity/convertPrice/convertRate helpers
 ├── examples/              # Usage examples
 └── tests/
 ```
@@ -242,6 +257,46 @@ SYMBOL: {
 - Use backtick template literals for addresses in coins/pools, single quotes in margin pools (follow
   existing style)
 
+## Architecture: Query Modules and Conversion Helpers
+
+### Query module pattern (`src/queries/`)
+
+Read-only methods live in domain-specific query classes (e.g., `PoolQueries`, `OrderQueries`). Each
+class receives a `QueryContext` via constructor — this provides access to the Sui client, config,
+contract builders, and the user's address. `DeepBookClient` delegates to these modules:
+
+```typescript
+// In client.ts
+midPrice(poolKey: string): Promise<number> {
+  return this.#poolQueries.midPrice(poolKey);
+}
+```
+
+The `queries/` directory mirrors `transactions/` — both have one file per domain. When adding new
+read-only methods, add them to the appropriate query module, then add a delegate method in
+`client.ts`.
+
+### Conversion helpers (`src/utils/conversion.ts`)
+
+All financial parameters accept `number | bigint`. Three conversion functions handle scaling:
+
+- `convertQuantity(value, scalar)` — for token amounts (base/quote quantities, stake amounts)
+- `convertPrice(value, floatScalar, quoteScalar, baseScalar)` — for prices
+- `convertRate(value, floatScalar)` — for fee rates and percentages
+
+**Semantics**: `number` = human-readable value (e.g., `1.5` SUI), SDK applies
+`BigInt(Math.round(value * scalar))`. `bigint` = raw on-chain u64 value (e.g., `1500000000n`), SDK
+passes through directly.
+
+When adding new transaction builders or query methods with financial params, always use these
+helpers instead of inline `Math.round(value * scalar)`.
+
+### Named return types (`src/types/index.ts`)
+
+All read-only query methods use named return types (e.g., `VaultBalances`, `QuoteQuantityOut`,
+`AccountInfo`). When adding new query methods, define a named return type interface rather than
+returning anonymous objects.
+
 ## Dependencies
 
 - `@mysten/sui` - Core Sui SDK
@@ -281,6 +336,26 @@ When asked for a summary of changes for the npm package, use this format:
 - `path/to/file.ts` - What changed
 ```
 
+## Pull Request Requirements
+
+When creating PRs, **always** include the AI Assistance Notice section at the bottom of the PR body,
+and check "This PR was primarily written by AI":
+
+```markdown
+---
+
+### AI Assistance Notice
+
+> Please disclose the usage of AI. This is primarily to help inform reviewers of how careful they
+> need to review PRs, and to keep track of AI usage across our team. Please fill this out
+> accurately, and do not modify the content or heading for this section!
+
+- [x] This PR was primarily written by AI.
+- [ ] I used AI for docs / tests, but manually wrote the source code.
+- [ ] I used AI to understand the problem space / repository.
+- [ ] I did not use AI for this PR.
+```
+
 ---
 
 ## Changelog
@@ -292,3 +367,4 @@ Track significant updates to this file:
 - **2026-02**: Added `getPriceInfoObjects` batch method for efficient Pyth price updates
 - **2026-02**: Updated `PRICE_INFO_OBJECT_MAX_AGE_MS` from 15s to 30s
 - **2026-03**: Added constants management guide (coins, pools, margin pools)
+- **2026-03**: Documented query module pattern, conversion helpers, and named return types

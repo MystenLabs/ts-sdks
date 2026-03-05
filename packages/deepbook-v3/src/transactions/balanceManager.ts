@@ -4,6 +4,7 @@ import { coinWithBalance } from '@mysten/sui/transactions';
 import type { Transaction, TransactionArgument } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
+import { convertQuantity } from '../utils/conversion.js';
 
 /**
  * BalanceManagerContract class for managing BalanceManager operations.
@@ -70,7 +71,7 @@ export class BalanceManagerContract {
 			tx.setSenderIfNotSet(this.#config.address);
 			const managerId = this.#config.getBalanceManager(managerKey).address;
 			const coin = this.#config.getCoin(coinKey);
-			const depositInput = Math.round(amountToDeposit * coin.scalar);
+			const depositInput = convertQuantity(amountToDeposit, coin.scalar);
 			const deposit = coinWithBalance({
 				type: coin.type,
 				balance: depositInput,
@@ -96,7 +97,7 @@ export class BalanceManagerContract {
 		(tx: Transaction) => {
 			const managerId = this.#config.getBalanceManager(managerKey).address;
 			const coin = this.#config.getCoin(coinKey);
-			const withdrawInput = Math.round(amountToWithdraw * coin.scalar);
+			const withdrawInput = convertQuantity(amountToWithdraw, coin.scalar);
 			const coinObject = tx.moveCall({
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::withdraw`,
 				arguments: [tx.object(managerId), tx.pure.u64(withdrawInput)],
@@ -240,7 +241,7 @@ export class BalanceManagerContract {
 			}
 			const depositCapId = manager.depositCap;
 			const coin = this.#config.getCoin(coinKey);
-			const depositInput = Math.round(amountToDeposit * coin.scalar);
+			const depositInput = convertQuantity(amountToDeposit, coin.scalar);
 			const deposit = coinWithBalance({
 				type: coin.type,
 				balance: depositInput,
@@ -269,7 +270,7 @@ export class BalanceManagerContract {
 			}
 			const withdrawCapId = manager.withdrawCap;
 			const coin = this.#config.getCoin(coinKey);
-			const withdrawAmount = Math.round(amountToWithdraw * coin.scalar);
+			const withdrawAmount = convertQuantity(amountToWithdraw, coin.scalar);
 			return tx.moveCall({
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::withdraw_with_cap`,
 				arguments: [tx.object(managerId), tx.object(withdrawCapId), tx.pure.u64(withdrawAmount)],

@@ -5,6 +5,7 @@ import { coinWithBalance } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
 import type { DepositParams, DepositDuringInitParams } from '../types/index.js';
+import { convertQuantity } from '../utils/conversion.js';
 
 /**
  * MarginManagerContract class for managing MarginManager operations.
@@ -102,7 +103,7 @@ export class MarginManagerContract {
 			'amount' in params && params.amount !== undefined
 				? coinWithBalance({
 						type: depositCoin.type,
-						balance: Math.round(params.amount * depositCoin.scalar),
+						balance: convertQuantity(params.amount, depositCoin.scalar),
 					})
 				: params.coin;
 
@@ -135,7 +136,7 @@ export class MarginManagerContract {
 			'amount' in params && params.amount !== undefined
 				? coinWithBalance({
 						type: baseCoin.type,
-						balance: Math.round(params.amount * baseCoin.scalar),
+						balance: convertQuantity(params.amount, baseCoin.scalar),
 					})
 				: params.coin;
 		tx.moveCall({
@@ -167,7 +168,7 @@ export class MarginManagerContract {
 			'amount' in params && params.amount !== undefined
 				? coinWithBalance({
 						type: quoteCoin.type,
-						balance: Math.round(params.amount * quoteCoin.scalar),
+						balance: convertQuantity(params.amount, quoteCoin.scalar),
 					})
 				: params.coin;
 		tx.moveCall({
@@ -200,7 +201,7 @@ export class MarginManagerContract {
 			'amount' in params && params.amount !== undefined
 				? coinWithBalance({
 						type: deepCoin.type,
-						balance: Math.round(params.amount * deepCoin.scalar),
+						balance: convertQuantity(params.amount, deepCoin.scalar),
 					})
 				: params.coin;
 		tx.moveCall({
@@ -240,7 +241,7 @@ export class MarginManagerContract {
 				tx.object(baseCoin.priceInfoObjectId!),
 				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.object(pool.address),
-				tx.pure.u64(Math.round(amount * baseCoin.scalar)),
+				tx.pure.u64(convertQuantity(amount, baseCoin.scalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type, baseCoin.type],
@@ -270,7 +271,7 @@ export class MarginManagerContract {
 				tx.object(baseCoin.priceInfoObjectId!),
 				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.object(pool.address),
-				tx.pure.u64(Math.round(amount * quoteCoin.scalar)),
+				tx.pure.u64(convertQuantity(amount, quoteCoin.scalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type, quoteCoin.type],
@@ -301,7 +302,7 @@ export class MarginManagerContract {
 				tx.object(baseCoin.priceInfoObjectId!),
 				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.object(pool.address),
-				tx.pure.u64(Math.round(amount * deepCoin.scalar)),
+				tx.pure.u64(convertQuantity(amount, deepCoin.scalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type, deepCoin.type],
@@ -329,7 +330,7 @@ export class MarginManagerContract {
 				tx.object(baseCoin.priceInfoObjectId!),
 				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.object(pool.address),
-				tx.pure.u64(Math.round(amount * baseCoin.scalar)),
+				tx.pure.u64(convertQuantity(amount, baseCoin.scalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
@@ -357,7 +358,7 @@ export class MarginManagerContract {
 				tx.object(baseCoin.priceInfoObjectId!),
 				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.object(pool.address),
-				tx.pure.u64(Math.round(amount * quoteCoin.scalar)),
+				tx.pure.u64(convertQuantity(amount, quoteCoin.scalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
@@ -384,7 +385,7 @@ export class MarginManagerContract {
 				tx.object(baseMarginPool.address),
 				tx.object.option({
 					type: 'u64',
-					value: amount ? tx.pure.u64(Math.round(amount * baseCoin.scalar)) : null,
+					value: amount ? tx.pure.u64(convertQuantity(amount, baseCoin.scalar)) : null,
 				}),
 				tx.object.clock(),
 			],
@@ -412,7 +413,7 @@ export class MarginManagerContract {
 				tx.object(quoteMarginPool.address),
 				tx.object.option({
 					type: 'u64',
-					value: amount ? tx.pure.u64(Math.round(amount * quoteCoin.scalar)) : null,
+					value: amount ? tx.pure.u64(convertQuantity(amount, quoteCoin.scalar)) : null,
 				}),
 				tx.object.clock(),
 			],

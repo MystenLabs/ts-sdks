@@ -6,6 +6,7 @@ import type { Transaction } from '@mysten/sui/transactions';
 import type { CreatePoolAdminParams, SetEwmaParams } from '../types/index.js';
 import type { DeepBookConfig } from '../utils/config.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
+import { convertQuantity, convertPrice, convertRate } from '../utils/conversion.js';
 
 /**
  * DeepBookAdminContract class for managing admin actions.
@@ -47,9 +48,9 @@ export class DeepBookAdminContract {
 		const baseScalar = baseCoin.scalar;
 		const quoteScalar = quoteCoin.scalar;
 
-		const adjustedTickSize = Math.round((tickSize * FLOAT_SCALAR * quoteScalar) / baseScalar);
-		const adjustedLotSize = Math.round(lotSize * baseScalar);
-		const adjustedMinSize = Math.round(minSize * baseScalar);
+		const adjustedTickSize = convertPrice(tickSize, FLOAT_SCALAR, quoteScalar, baseScalar);
+		const adjustedLotSize = convertQuantity(lotSize, baseScalar);
+		const adjustedMinSize = convertQuantity(minSize, baseScalar);
 
 		tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::create_pool_admin`,
@@ -197,7 +198,7 @@ export class DeepBookAdminContract {
 		const baseScalar = baseCoin.scalar;
 		const quoteScalar = quoteCoin.scalar;
 
-		const adjustedTickSize = Math.round((newTickSize * FLOAT_SCALAR * quoteScalar) / baseScalar);
+		const adjustedTickSize = convertPrice(newTickSize, FLOAT_SCALAR, quoteScalar, baseScalar);
 
 		tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::adjust_tick_size_admin`,
@@ -227,8 +228,8 @@ export class DeepBookAdminContract {
 
 			const baseScalar = baseCoin.scalar;
 
-			const adjustedLotSize = Math.round(newLotSize * baseScalar);
-			const adjustedMinSize = Math.round(newMinSize * baseScalar);
+			const adjustedLotSize = convertQuantity(newLotSize, baseScalar);
+			const adjustedMinSize = convertQuantity(newMinSize, baseScalar);
 
 			tx.moveCall({
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::adjust_min_lot_size_admin`,
@@ -262,9 +263,9 @@ export class DeepBookAdminContract {
 	 */
 	setEwmaParams = (poolKey: string, params: SetEwmaParams) => (tx: Transaction) => {
 		const { alpha, zScoreThreshold, additionalTakerFee } = params;
-		const adjustedAlpha = Math.round(alpha * FLOAT_SCALAR);
-		const adjustedZScoreThreshold = Math.round(zScoreThreshold * FLOAT_SCALAR);
-		const adjustedAdditionalTakerFee = Math.round(additionalTakerFee * FLOAT_SCALAR);
+		const adjustedAlpha = convertRate(alpha, FLOAT_SCALAR);
+		const adjustedZScoreThreshold = convertRate(zScoreThreshold, FLOAT_SCALAR);
+		const adjustedAdditionalTakerFee = convertRate(additionalTakerFee, FLOAT_SCALAR);
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
