@@ -2,8 +2,13 @@
 
 A development-only wallet for building and testing Sui dApps.
 
-> **Not for production.** This wallet is for development and testing only. Do not use it to store
-> real funds. A console warning is emitted automatically in production builds.
+> [!WARNING]
+> This wallet is for development and testing only. Do not use it to store real funds. A console
+> warning is emitted automatically in production builds.
+
+> [!CAUTION]
+> **Pre-1.0:** This package is under active development. Minor versions may contain breaking changes
+> until the API stabilizes at 1.0.
 
 ## Why use a dev wallet?
 

@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/dev-wallet",
-	"version": "0.0.1",
+	"version": "0.0.0",
 	"description": "A modular dev wallet for Sui",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
