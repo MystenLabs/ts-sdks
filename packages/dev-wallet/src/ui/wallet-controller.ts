@@ -270,7 +270,11 @@ export class WalletController implements ReactiveController {
 
 		const allAccounts = this.#wallet
 			? this.#wallet.adapters.flatMap((a) =>
-					a.getAccounts().map((acc) => ({ address: acc.address, label: acc.label })),
+					a.getAccounts().map((acc) => ({
+						address: acc.address,
+						label: acc.label,
+						adapterName: a.name,
+					})),
 				)
 			: [];
 

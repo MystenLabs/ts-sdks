@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createServer } from 'node:http';
 import type { Server } from 'node:http';
+
+import { serve } from '@hono/node-server';
+import { Hono } from 'hono';
 
 import { createCliSigningMiddleware } from '../src/server/cli-signing-middleware.js';
 
@@ -41,16 +43,15 @@ function createTestServer(options?: { skipAuth?: boolean }): {
 	token: string | null;
 	close: () => Promise<void>;
 } {
-	const { middleware, token } = createCliSigningMiddleware({
+	const { app: cliApp, token } = createCliSigningMiddleware({
 		skipAuth: options?.skipAuth ?? true,
 	});
 
-	const server = createServer((req, res) => {
-		middleware(req, res, () => {
-			res.writeHead(404, { 'Content-Type': 'application/json' });
-			res.end(JSON.stringify({ error: 'Not found (passthrough)' }));
-		});
-	});
+	const app = new Hono();
+	app.route('/', cliApp);
+	app.all('*', (c) => c.json({ error: 'Not found (passthrough)' }, 404));
+
+	const server = serve({ fetch: app.fetch, port: 0 }) as Server;
 
 	return {
 		server,
@@ -64,11 +65,17 @@ function createTestServer(options?: { skipAuth?: boolean }): {
 
 async function startServer(testServer: ReturnType<typeof createTestServer>): Promise<number> {
 	return new Promise((resolve) => {
-		testServer.server.listen(0, () => {
-			const addr = testServer.server.address();
-			const port = typeof addr === 'object' ? addr!.port : 0;
-			resolve(port);
-		});
+		// The server from serve() is already listening; get the port
+		const addr = testServer.server.address();
+		if (addr && typeof addr === 'object') {
+			resolve(addr.port);
+		} else {
+			// Wait for listening event if not ready yet
+			testServer.server.on('listening', () => {
+				const a = testServer.server.address();
+				resolve(typeof a === 'object' ? a!.port : 0);
+			});
+		}
 	});
 }
 

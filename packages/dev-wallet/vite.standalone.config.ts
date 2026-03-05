@@ -19,7 +19,7 @@ const outDir = resolve(import.meta.dirname, 'dist', 'standalone');
 
 /**
  * Marks all local source modules as having side effects so Rolldown
- * preserves Lit @customElement() decorator calls (which register
+ * preserves Lit `@customElement()` decorator calls (which register
  * custom elements as a top-level side effect).
  */
 function forceSideEffects(): Plugin {

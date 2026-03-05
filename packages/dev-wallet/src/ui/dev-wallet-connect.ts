@@ -10,6 +10,7 @@ import { emitEvent, formatAddress, toggleSetItem } from './utils.js';
 interface AccountInfo {
 	address: string;
 	label?: string;
+	adapterName?: string;
 }
 
 /**
@@ -104,6 +105,19 @@ export class DevWalletConnect extends LitElement {
 				color: var(--dev-wallet-muted-foreground);
 			}
 
+			.account-adapter {
+				display: inline-block;
+				font-size: 9px;
+				font-weight: var(--dev-wallet-font-weight-semibold);
+				text-transform: uppercase;
+				letter-spacing: 0.3px;
+				padding: 1px 5px;
+				border-radius: var(--dev-wallet-radius-2xs);
+				background: color-mix(in oklab, var(--dev-wallet-primary) 15%, transparent);
+				color: var(--dev-wallet-primary);
+				margin-left: 6px;
+			}
+
 			.connect-footer {
 				padding: 12px 16px;
 				border-top: 1px solid var(--dev-wallet-border);
@@ -187,7 +201,11 @@ export class DevWalletConnect extends LitElement {
 											/>
 											<div>
 												${account.label
-													? html`<div class="account-label">${account.label}</div>`
+													? html`<div class="account-label">
+															${account.label}${account.adapterName
+																? html`<span class="account-adapter">${account.adapterName}</span>`
+																: nothing}
+														</div>`
 													: nothing}
 												<div class="account-address">${formatAddress(account.address)}</div>
 											</div>

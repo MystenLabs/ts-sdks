@@ -85,6 +85,9 @@ export class DevWalletPopup extends LitElement {
 	address = '';
 
 	@property({ type: String })
+	accountLabel = '';
+
+	@property({ type: String })
 	chain = '';
 
 	@property({ attribute: false })
@@ -94,7 +97,7 @@ export class DevWalletPopup extends LitElement {
 	client: ClientWithCoreApi | null = null;
 
 	@property({ attribute: false })
-	connectAccounts: Array<{ address: string; label?: string }> = [];
+	connectAccounts: Array<{ address: string; label?: string; adapterName?: string }> = [];
 
 	@state()
 	private _request: PendingSigningRequest | null = null;
@@ -107,6 +110,7 @@ export class DevWalletPopup extends LitElement {
 			this.requestType !== 'connect' &&
 			(changed.has('requestType') ||
 				changed.has('address') ||
+				changed.has('accountLabel') ||
 				changed.has('chain') ||
 				changed.has('data'))
 		) {
@@ -118,6 +122,7 @@ export class DevWalletPopup extends LitElement {
 				type: this.requestType as PendingSigningRequest['type'],
 				account: {
 					address: this.address,
+					label: this.accountLabel || undefined,
 					publicKey: new Uint8Array(0),
 					chains: [],
 					features: [],

@@ -3,6 +3,7 @@
 
 import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { fromBase64, toBase64 } from '@mysten/sui/utils';
 
 import { RemoteCliAdapter } from '../adapters/remote-cli-adapter.js';
 import type { SignerAdapter } from '../types.js';
@@ -32,14 +33,10 @@ function createClients(): Record<string, ClientWithCoreApi> {
 
 // NOTE: JWT secret is stored in localStorage (readable by any JS on the same origin).
 // This is acceptable for a dev-only tool but should not be used in production wallets.
-async function getJwtSecretKey(): Promise<Uint8Array> {
+function getJwtSecretKey(): Uint8Array {
 	const stored = localStorage.getItem('dev-wallet:jwt-secret');
-	if (stored) {
-		const { fromBase64 } = await import('@mysten/sui/utils');
-		return fromBase64(stored);
-	}
+	if (stored) return fromBase64(stored);
 	const key = crypto.getRandomValues(new Uint8Array(32));
-	const { toBase64 } = await import('@mysten/sui/utils');
 	localStorage.setItem('dev-wallet:jwt-secret', toBase64(key));
 	return key;
 }
@@ -82,12 +79,23 @@ async function createAdapters(): Promise<SignerAdapter[]> {
 	}
 
 	const results = await Promise.allSettled(initTasks);
+
+	for (const result of results) {
+		if (result.status === 'rejected') {
+			console.warn('[dev-wallet] Adapter initialization failed:', result.reason);
+		}
+	}
+
 	const adapters = results
 		.filter(
 			(r): r is PromiseFulfilledResult<SignerAdapter> =>
 				r.status === 'fulfilled' && r.value !== null,
 		)
 		.map((r) => r.value);
+
+	if (adapters.length === 0) {
+		throw new Error('No adapters could be initialized');
+	}
 
 	// Ensure at least one account exists across all adapters
 	const hasAccounts = adapters.some((a) => a.getAccounts().length > 0);
@@ -111,7 +119,7 @@ async function handlePopupRequest(hash: string) {
 	try {
 		const adapters = await createAdapters();
 		const clients = createClients();
-		const jwtSecretKey = await getJwtSecretKey();
+		const jwtSecretKey = getJwtSecretKey();
 
 		const request = parseWalletRequest({
 			adapters,
@@ -132,6 +140,16 @@ async function handlePopupRequest(hash: string) {
 		popup.appName = request.appName;
 		popup.appUrl = request.appUrl;
 		popup.address = request.address ?? '';
+		// Look up the account label from adapters for signing requests
+		if (request.address) {
+			for (const adapter of adapters) {
+				const account = adapter.getAccount(request.address);
+				if (account) {
+					popup.accountLabel = account.label;
+					break;
+				}
+			}
+		}
 		popup.chain = request.chain ?? 'sui:unknown';
 		popup.data = request.data ?? null;
 		popup.client = client ?? null;
@@ -139,7 +157,11 @@ async function handlePopupRequest(hash: string) {
 		// For connect requests, pass account list to enable selection
 		if (request.type === 'connect') {
 			popup.connectAccounts = adapters.flatMap((a) =>
-				a.getAccounts().map((acc) => ({ address: acc.address, label: acc.label })),
+				a.getAccounts().map((acc) => ({
+					address: acc.address,
+					label: acc.label,
+					adapterName: a.name,
+				})),
 			);
 		}
 
@@ -226,17 +248,23 @@ function showErrorMessage(container: HTMLElement, title: string, error: unknown)
 	container.appendChild(wrapper);
 }
 
-// Extract and store CLI token from URL (Jupyter-style auth).
-// Stored in localStorage so popups (signing requests) can also access it.
-const url = new URL(window.location.href);
-const urlToken = url.searchParams.get('token');
-if (urlToken) {
-	localStorage.setItem(RemoteCliAdapter.TOKEN_KEY, urlToken);
-	url.searchParams.delete('token');
-	history.replaceState(null, '', url.pathname + url.hash);
+/**
+ * Extract CLI token from URL query param and store in localStorage.
+ * This uses Jupyter-style auth — the token is embedded in the URL printed
+ * to the terminal. Stored so popups (signing requests) can also access it.
+ */
+function extractAndStoreCliToken(): void {
+	const url = new URL(window.location.href);
+	const urlToken = url.searchParams.get('token');
+	if (urlToken) {
+		localStorage.setItem(RemoteCliAdapter.TOKEN_KEY, urlToken);
+		url.searchParams.delete('token');
+		history.replaceState(null, '', url.pathname + url.hash);
+	}
 }
 
 // Entry point
+extractAndStoreCliToken();
 const hash = window.location.hash.slice(1);
 if (hash) {
 	handlePopupRequest(hash);
