@@ -15,6 +15,8 @@ interface StoredPasskeyMeta {
 	label: string;
 	/** Compressed secp256r1 public key (33 bytes, stored as number array). */
 	publicKeyBytes: number[];
+	/** WebAuthn credential ID (stored as number array). Used to constrain credential selection during signing. */
+	credentialId?: number[];
 }
 
 const DEFAULT_DB_NAME = 'dev-wallet-passkey';
@@ -80,7 +82,8 @@ export class PasskeySignerAdapter extends BaseSignerAdapter {
 		this.setInitialAccounts(
 			stored.map((meta) => {
 				const publicKeyBytes = new Uint8Array(meta.publicKeyBytes);
-				const signer = new PasskeyKeypair(publicKeyBytes, provider);
+				const credentialId = meta.credentialId ? new Uint8Array(meta.credentialId) : undefined;
+				const signer = new PasskeyKeypair(publicKeyBytes, provider, credentialId);
 				return buildManagedAccount(signer, meta.address, meta.label);
 			}),
 		);
@@ -111,11 +114,15 @@ export class PasskeySignerAdapter extends BaseSignerAdapter {
 	}
 
 	async #saveMeta(): Promise<void> {
-		const meta: StoredPasskeyMeta[] = this.getAccounts().map((a) => ({
-			address: a.address,
-			label: a.label,
-			publicKeyBytes: [...a.signer.getPublicKey().toRawBytes()],
-		}));
+		const meta: StoredPasskeyMeta[] = this.getAccounts().map((a) => {
+			const credentialId = (a.signer as PasskeyKeypair).getCredentialId?.();
+			return {
+				address: a.address,
+				label: a.label,
+				publicKeyBytes: [...a.signer.getPublicKey().toRawBytes()],
+				...(credentialId && { credentialId: [...credentialId] }),
+			};
+		});
 		await set(META_KEY, meta, this.#store);
 	}
 }

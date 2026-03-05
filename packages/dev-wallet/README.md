@@ -83,8 +83,7 @@ import { DevWalletClient } from '@mysten/dev-wallet/client';
 DevWalletClient.register({ origin: 'http://localhost:5174' });
 ```
 
-The default port is 5174 (Vite's default). If the port is busy, Vite picks the next available —
-check the terminal output. Use `--port` to set a fixed port.
+The default port is 5174. Use `--port` to set a different port.
 
 The standalone wallet includes WebCrypto and InMemory adapters by default. If `sui` is on your PATH,
 the CLI adapter is also available — so you can sign with the same address you published contracts
@@ -198,9 +197,31 @@ The easiest way is the standalone wallet:
 npx @mysten/dev-wallet serve
 ```
 
-Open the URL printed in the terminal to authenticate. Then import the address you used to publish
-your contracts. Transactions signed in your dApp use the same key that deployed your package, giving
-you access to AdminCap and other owned objects.
+The terminal prints a URL with an auth token (e.g. `http://localhost:5174/?token=abc123`). Open it
+in your browser — the token is saved automatically so popups can authenticate with the CLI signer.
+
+To import a CLI account:
+
+1. Click the **+** button on the Accounts tab (or go to Settings to verify the CLI Signer shows
+   "Connected")
+2. Switch to the **Import** tab in the Add Account dialog
+3. Select the address you want from the list (these come from your `sui` keystore)
+4. Click **Import**
+
+The imported account now appears alongside your other wallet accounts. When a dApp requests a
+signature with that address, the transaction bytes are sent to the local `sui keytool sign` command
+— your private key never leaves the CLI.
+
+> **Note:** The CLI signer supports transaction signing only. Personal message signing
+> (`sui keytool sign` only accepts TransactionData) will show an error. Use a WebCrypto or InMemory
+> account for `signPersonalMessage`.
+
+#### Bookmarklet
+
+The standalone wallet also serves a bookmarklet for quick injection into any dApp. You can find it
+in the **Settings** tab — drag it to your bookmarks bar, or copy the console snippet from the
+terminal output. Clicking the bookmarklet on any page registers the standalone wallet without
+needing to modify the dApp's source code.
 
 ### Connecting to localnet or custom networks
 

@@ -3,12 +3,29 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { execFile } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import type { IncomingMessage, ServerResponse } from 'node:http';
-import { resolve, dirname } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
+import { resolve, dirname, extname } from 'node:path';
 import { parseArgs, promisify } from 'node:util';
 
+import { getRequestListener } from '@hono/node-server';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+
 const execFileAsync = promisify(execFile);
+
+const MIME_TYPES: Record<string, string> = {
+	'.html': 'text/html; charset=utf-8',
+	'.js': 'application/javascript',
+	'.mjs': 'application/javascript',
+	'.css': 'text/css',
+	'.json': 'application/json',
+	'.svg': 'image/svg+xml',
+	'.png': 'image/png',
+	'.ico': 'image/x-icon',
+	'.woff': 'font/woff',
+	'.woff2': 'font/woff2',
+};
 
 async function main() {
 	const { values } = parseArgs({
@@ -52,171 +69,115 @@ The wallet automatically detects available adapters:
 		// sui CLI not available — CLI adapter will not be enabled
 	}
 
-	// Build Vite define config
-	const define: Record<string, string> = {};
-	if (hasSuiCli) {
-		define.__DEV_WALLET_CLI__ = JSON.stringify('true');
-	}
-
-	// Find the app directory relative to this script
-	// In dist: dist/bin/cli.mjs -> app is at ../../src/app/
-	// In src: src/bin/cli.ts -> app is at ../app/
+	// Find the pre-built standalone app directory relative to this script.
+	// In dist: dist/bin/cli.mjs → standalone is at dist/standalone/
+	// In src: src/bin/cli.ts → standalone is at ../../dist/standalone/
 	const scriptDir = dirname(new URL(import.meta.url).pathname);
-	let appDir: string;
-	if (scriptDir.includes('dist/bin') || scriptDir.includes('dist\\bin')) {
-		// Running from dist/ - app source is at ../../src/app/
-		appDir = resolve(scriptDir, '..', '..', 'src', 'app');
-	} else {
-		// Running from src/ (e.g., via tsx)
-		appDir = resolve(scriptDir, '..', 'app');
-	}
+	const standaloneDir =
+		scriptDir.includes('dist/bin') || scriptDir.includes('dist\\bin')
+			? resolve(scriptDir, '..', 'standalone')
+			: resolve(scriptDir, '..', '..', 'dist', 'standalone');
 
-	if (!existsSync(resolve(appDir, 'index.html'))) {
-		console.error(`App directory not found at ${appDir}`);
+	// Read index.html and inject __DEV_WALLET_CLI__ flag when sui CLI is available
+	let indexHtml: string;
+	try {
+		indexHtml = await readFile(resolve(standaloneDir, 'index.html'), 'utf-8');
+	} catch {
+		console.error(
+			'Standalone wallet app not found at ' +
+				standaloneDir +
+				'.\nRun `pnpm turbo build --filter=@mysten/dev-wallet` first.',
+		);
 		process.exit(1);
 	}
+	if (hasSuiCli) {
+		indexHtml = indexHtml.replace(
+			'</head>',
+			'<script>window.__DEV_WALLET_CLI__=true;</script></head>',
+		);
+	}
 
-	// Dynamically import vite to start the dev server
-	const { createServer } = await import('vite');
+	// --- Hono app for static files + SPA fallback ---
+	const app = new Hono();
 
-	// The package root is two levels up from src/app/
-	const packageRoot = resolve(appDir, '..', '..');
+	// Bookmarklet with CORS (loaded cross-origin by dApp pages)
+	app.get('/bookmarklet.js', cors({ origin: '*' }), async (c) => {
+		try {
+			const content = await readFile(resolve(standaloneDir, 'bookmarklet.js'), 'utf-8');
+			c.header('Cache-Control', 'no-cache');
+			return c.body(content, { headers: { 'Content-Type': 'application/javascript' } });
+		} catch {
+			return c.text('Bookmarklet not found', 404);
+		}
+	});
 
-	// Build Vite plugins — CLI middleware must be registered via configureServer
-	// so it runs before Vite's SPA fallback (which would serve index.html for /api/* routes).
-	const plugins = [];
+	// Static files from pre-built standalone directory
+	app.get('*', async (c) => {
+		const urlPath = decodeURIComponent(new URL(c.req.url).pathname);
+
+		// Root and index.html get the injected version
+		if (urlPath === '/' || urlPath === '/index.html') {
+			return c.html(indexHtml);
+		}
+
+		// Serve static file if it exists
+		const filePath = resolve(standaloneDir, urlPath.slice(1));
+
+		// Path traversal protection
+		if (!filePath.startsWith(standaloneDir)) {
+			return c.html(indexHtml);
+		}
+
+		try {
+			const content = await readFile(filePath);
+			const ext = extname(filePath);
+			const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+			return c.body(content, { headers: { 'Content-Type': contentType } });
+		} catch {
+			// File not found — SPA fallback
+			return c.html(indexHtml);
+		}
+	});
+
+	// --- CLI signing middleware (connect-style, mounted before Hono) ---
 	let cliToken: string | null = null;
+	let cliMiddlewareFn:
+		| ReturnType<
+				typeof import('../server/cli-signing-middleware.js').createCliSigningMiddleware
+		  >['middleware']
+		| null = null;
+
 	if (hasSuiCli) {
 		const { createCliSigningMiddleware } = await import('../server/cli-signing-middleware.js');
 		const { middleware, token } = createCliSigningMiddleware();
 		cliToken = token;
-		plugins.push({
-			name: 'dev-wallet-cli-middleware',
-			configureServer(server: { middlewares: { use: (fn: unknown) => void } }) {
-				server.middlewares.use(middleware);
-			},
-		});
+		cliMiddlewareFn = middleware;
 	}
 
-	// Bookmarklet plugin — builds and serves /bookmarklet.js as a self-contained IIFE.
-	// dApp pages can load this script to register the dev wallet without code changes.
-	plugins.push({
-		name: 'dev-wallet-bookmarklet',
-		configureServer(server: { middlewares: { use: (fn: unknown) => void } }) {
-			let cachedBundle: string | null = null;
-			let buildPromise: Promise<string> | null = null;
+	// Bridge: connect middleware runs first (handles /api/*), then Hono handles the rest
+	const honoListener = getRequestListener(app.fetch);
 
-			async function buildBookmarklet(): Promise<string> {
-				if (cachedBundle) return cachedBundle;
-				if (buildPromise) return buildPromise;
-
-				buildPromise = (async (): Promise<string> => {
-					const { build } = await import('vite');
-					const entryFile = resolve(appDir, 'bookmarklet-entry.ts');
-
-					const result = await build({
-						root: packageRoot,
-						configFile: false,
-						logLevel: 'silent',
-						build: {
-							write: false,
-							lib: {
-								entry: entryFile,
-								formats: ['iife'],
-								name: 'DevWalletBookmarklet',
-								fileName: () => 'bookmarklet.js',
-							},
-							rollupOptions: {
-								output: {
-									inlineDynamicImports: true,
-								},
-							},
-							minify: 'esbuild',
-						},
-						resolve: {
-							conditions: ['import', 'module', 'browser', 'default'],
-						},
-					});
-
-					// build() with write:false returns RollupOutput (or RollupOutput[])
-					const outputs = Array.isArray(result) ? result : [result];
-					const rollupOutput = outputs[0] as { output: Array<{ type: string; code?: string }> };
-					const chunk = rollupOutput.output.find((o) => o.type === 'chunk');
-					if (!chunk?.code) {
-						throw new Error('Bookmarklet build produced no output chunk');
-					}
-
-					cachedBundle = chunk.code;
-					return chunk.code;
-				})();
-
-				try {
-					return await buildPromise;
-				} catch (err) {
-					buildPromise = null;
-					throw err;
-				}
-			}
-
-			const middleware = (req: IncomingMessage, res: ServerResponse, next: () => void) => {
-				if (req.url !== '/bookmarklet.js') {
-					next();
-					return;
-				}
-
-				buildBookmarklet()
-					.then((code) => {
-						res.writeHead(200, {
-							'Content-Type': 'application/javascript',
-							'Access-Control-Allow-Origin': '*',
-							'Cache-Control': 'no-cache',
-						});
-						res.end(code);
-					})
-					.catch((err) => {
-						console.error('[dev-wallet] Bookmarklet build error:', err);
-						res.writeHead(500, { 'Content-Type': 'text/plain' });
-						res.end('Failed to build bookmarklet');
-					});
-			};
-
-			server.middlewares.use(middleware);
-		},
+	const server = createServer((req, res) => {
+		if (cliMiddlewareFn) {
+			cliMiddlewareFn(req, res, () => honoListener(req, res));
+		} else {
+			honoListener(req, res);
+		}
 	});
 
-	const server = await createServer({
-		root: appDir,
-		server: {
-			port,
-			open: false,
-			fs: {
-				// Allow serving files from the whole package tree and monorepo node_modules
-				allow: [packageRoot],
-			},
-		},
-		define,
-		plugins,
-		optimizeDeps: {
-			exclude: ['@mysten/dev-wallet'],
-		},
-	});
+	server.listen(port, () => {
+		const baseUrl = `http://localhost:${port}`;
 
-	await server.listen();
+		const enabledAdapters = ['In-Memory (Ed25519)', 'WebCrypto (Passkey)'];
+		if (hasSuiCli) {
+			enabledAdapters.push('CLI Signer');
+		}
 
-	const address = server.resolvedUrls?.local?.[0] ?? `http://localhost:${port}`;
-	const baseUrl = address.replace(/\/$/, '');
+		const walletUrl = cliToken ? `${baseUrl}/?token=${cliToken}` : baseUrl;
 
-	const enabledAdapters = ['In-Memory (Ed25519)', 'WebCrypto (Passkey)'];
-	if (hasSuiCli) {
-		enabledAdapters.push('CLI Signer');
-	}
+		const bookmarkletCode = `javascript:void(document.head.appendChild(Object.assign(document.createElement('script'),{src:'${baseUrl}/bookmarklet.js'})))`;
 
-	// Build the URL with token for auto-authentication (Jupyter-style)
-	const walletUrl = cliToken ? `${baseUrl}/?token=${cliToken}` : baseUrl;
-
-	const bookmarkletCode = `javascript:void(document.head.appendChild(Object.assign(document.createElement('script'),{src:'${baseUrl}/bookmarklet.js'})))`;
-
-	console.log(`
+		console.log(`
   Dev Wallet running at ${walletUrl}
   Adapters: ${enabledAdapters.join(', ')}${!hasSuiCli ? '\n  (Install sui CLI to enable CLI signing)' : ''}
 
@@ -235,6 +196,7 @@ The wallet automatically detects available adapters:
 
   Press Ctrl+C to stop.
 `);
+	});
 }
 
 main().catch((error) => {

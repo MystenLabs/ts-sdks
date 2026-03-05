@@ -30,6 +30,8 @@ vi.mock('idb-keyval', () => ({
  * so that it returns a real PasskeyKeypair constructed from a secp256r1 keypair's
  * compressed public key — no WebAuthn or noble-curves needed.
  */
+const MOCK_CREDENTIAL_ID = new Uint8Array([10, 20, 30, 40, 50]);
+
 function createMockProvider(): {
 	provider: PasskeyProvider;
 	keypair: Secp256r1Keypair;
@@ -43,7 +45,7 @@ function createMockProvider(): {
 	};
 
 	vi.spyOn(PasskeyKeypair, 'getPasskeyInstance').mockImplementation(async (p) => {
-		return new PasskeyKeypair(compressedPubKey, p);
+		return new PasskeyKeypair(compressedPubKey, p, MOCK_CREDENTIAL_ID);
 	});
 
 	return { provider, keypair: kp };
@@ -97,6 +99,23 @@ describe('PasskeySignerAdapter', () => {
 		expect(accounts[0].address).toBe(account.address);
 		expect(accounts[0].label).toBe('Persisted Account');
 		expect(accounts[0].signer).toBeInstanceOf(PasskeyKeypair);
+	});
+
+	it('persists and restores credential IDs across adapter instances', async () => {
+		const { provider } = createMockProvider();
+		const adapter1 = new PasskeySignerAdapter({ provider });
+		await adapter1.initialize();
+
+		await adapter1.createAccount({ label: 'Cred ID Test' });
+		adapter1.destroy();
+
+		const adapter2 = new PasskeySignerAdapter({ provider });
+		await adapter2.initialize();
+
+		const accounts = adapter2.getAccounts();
+		expect(accounts).toHaveLength(1);
+		const signer = accounts[0].signer as PasskeyKeypair;
+		expect(signer.getCredentialId()).toEqual(MOCK_CREDENTIAL_ID);
 	});
 
 	it('wallet accounts have correct features', async () => {

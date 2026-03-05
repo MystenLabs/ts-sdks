@@ -629,6 +629,9 @@ importers:
 
   packages/dev-wallet:
     dependencies:
+      '@hono/node-server':
+        specifier: ^1.19.8
+        version: 1.19.8(hono@4.12.2)
       '@mysten/utils':
         specifier: workspace:^
         version: link:../utils
@@ -641,6 +644,9 @@ importers:
       '@mysten/window-wallet-core':
         specifier: workspace:^
         version: link:../window-wallet-core
+      hono:
+        specifier: ^4.12.2
+        version: 4.12.2
       idb-keyval:
         specifier: ^6.2.2
         version: 6.2.2

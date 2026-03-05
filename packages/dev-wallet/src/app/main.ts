@@ -16,7 +16,11 @@ import type { DevWalletStandalone } from '../ui/dev-wallet-standalone.js';
 import '../ui/dev-wallet-standalone.js';
 import type { DevWalletConnect } from '../ui/dev-wallet-connect.js';
 
-declare const __DEV_WALLET_CLI__: string | undefined;
+declare global {
+	interface Window {
+		__DEV_WALLET_CLI__?: boolean;
+	}
+}
 
 function createClients(): Record<string, ClientWithCoreApi> {
 	const clients: Record<string, ClientWithCoreApi> = {};
@@ -67,7 +71,7 @@ async function createAdapters(): Promise<SignerAdapter[]> {
 	);
 
 	// CLI adapter (when running with CLI middleware)
-	if (typeof __DEV_WALLET_CLI__ !== 'undefined') {
+	if (window.__DEV_WALLET_CLI__) {
 		initTasks.push(
 			import('../adapters/remote-cli-adapter.js').then(async ({ RemoteCliAdapter }) => {
 				const cliAdapter = new RemoteCliAdapter();

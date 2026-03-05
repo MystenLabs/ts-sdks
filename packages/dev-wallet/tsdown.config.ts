@@ -18,5 +18,5 @@ export default defineConfig({
 	outDir: 'dist',
 	unbundle: true,
 	treeshake: false,
-	external: ['vite'],
+	external: ['hono', '@hono/node-server'],
 });
