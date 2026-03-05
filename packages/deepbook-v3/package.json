@@ -37,6 +37,7 @@
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"oxlint:check": "oxlint  .",
 		"oxlint:fix": "oxlint --fix",
+		"test": "vitest",
 		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
 		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
 	},
