@@ -92,12 +92,12 @@
 		"vitest": "^4.0.17"
 	},
 	"dependencies": {
-		"@hono/node-server": "^1.19.8",
+		"@hono/node-server": "^1.19.9",
 		"@mysten/utils": "workspace:^",
 		"@mysten/wallet-sdk": "workspace:^",
 		"@mysten/wallet-standard": "workspace:^",
 		"@mysten/window-wallet-core": "workspace:^",
-		"hono": "^4.12.2",
+		"hono": "^4.12.3",
 		"idb-keyval": "^6.2.2",
 		"lit": "^3.3.2"
 	},
