@@ -131,15 +131,15 @@ const WalletSetup = dynamic(() => import('./WalletSetup'), { ssr: false });
 
 ## Full dApp Kit Integration
 
-The recommended pattern for combining Dev Wallet with `@mysten/dapp-kit-react`:
+The recommended approach uses `devWalletInitializer` to register the wallet through dApp Kit's
+plugin system. The wallet automatically uses dApp Kit's networks and clients:
 
 ```tsx
 import { createDAppKit, DAppKitProvider } from '@mysten/dapp-kit-react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
-import { useDevWallet } from '@mysten/dev-wallet/react';
+import { devWalletInitializer } from '@mysten/dev-wallet';
 import { InMemorySignerAdapter, WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { useMemo } from 'react';
 
 const dAppKit = createDAppKit({
 	networks: ['devnet', 'testnet'],
@@ -148,6 +148,13 @@ const dAppKit = createDAppKit({
 			network,
 			baseUrl: `https://fullnode.${network}.sui.io:443`,
 		}),
+	walletInitializers: [
+		devWalletInitializer({
+			adapters: [new WebCryptoSignerAdapter(), new InMemorySignerAdapter()],
+			autoConnect: true,
+			mountUI: true,
+		}),
+	],
 });
 
 declare module '@mysten/dapp-kit-react' {
@@ -157,15 +164,6 @@ declare module '@mysten/dapp-kit-react' {
 }
 
 function App() {
-	const adapters = useMemo(() => [new WebCryptoSignerAdapter(), new InMemorySignerAdapter()], []);
-
-	useDevWallet({
-		adapters,
-		createInitialAccount: true,
-		mountUI: true,
-		autoConnect: true,
-	});
-
 	return (
 		<DAppKitProvider dAppKit={dAppKit}>
 			<header>
@@ -174,5 +172,49 @@ function App() {
 			<main>{/* Your app content — Dev Wallet appears in the wallet picker */}</main>
 		</DAppKitProvider>
 	);
+}
+```
+
+If you need programmatic access to the `DevWallet` instance (e.g. for custom approval UIs), use the
+`onWalletCreated` callback:
+
+```tsx
+let devWallet: DevWallet;
+
+const dAppKit = createDAppKit({
+	// ...
+	walletInitializers: [
+		devWalletInitializer({
+			adapters: [new InMemorySignerAdapter()],
+			onWalletCreated: (wallet) => {
+				devWallet = wallet;
+			},
+		}),
+	],
+});
+```
+
+### Using useDevWallet Instead
+
+For finer-grained control within React components, you can still use the `useDevWallet` hook
+directly. This is useful when you need the wallet instance in React state or want to manage the
+wallet lifecycle within a component:
+
+```tsx
+import { useDevWallet } from '@mysten/dev-wallet/react';
+import { InMemorySignerAdapter, WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+import { useMemo } from 'react';
+
+function App() {
+	const adapters = useMemo(() => [new WebCryptoSignerAdapter(), new InMemorySignerAdapter()], []);
+
+	const { wallet, error, loading } = useDevWallet({
+		adapters,
+		createInitialAccount: true,
+		mountUI: true,
+		autoConnect: true,
+	});
+
+	// wallet instance available for programmatic use
 }
 ```

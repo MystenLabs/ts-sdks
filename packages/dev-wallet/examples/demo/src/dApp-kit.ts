@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createDAppKit } from '@mysten/dapp-kit-react';
+import { devWalletInitializer } from '@mysten/dev-wallet';
+import {
+	InMemorySignerAdapter,
+	PasskeySignerAdapter,
+	WebCryptoSignerAdapter,
+} from '@mysten/dev-wallet/adapters';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 export const GRPC_URLS: Record<string, string> = {
@@ -17,6 +23,13 @@ export const dAppKit = createDAppKit({
 	createClient(network) {
 		return new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] });
 	},
+	walletInitializers: [
+		devWalletInitializer({
+			adapters: [new WebCryptoSignerAdapter(), new InMemorySignerAdapter(), new PasskeySignerAdapter()],
+			autoConnect: true,
+			mountUI: true,
+		}),
+	],
 });
 
 declare module '@mysten/dapp-kit-react' {

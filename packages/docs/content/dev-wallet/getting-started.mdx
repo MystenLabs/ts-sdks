@@ -92,15 +92,16 @@ function App() {
 
 ## Using with dApp Kit
 
-The most common pattern combines Dev Wallet with `@mysten/dapp-kit-react`:
+The recommended pattern uses `devWalletInitializer` to register the wallet through dApp Kit's
+plugin system. This way the wallet uses dApp Kit's network configuration and client factory
+instead of managing its own:
 
 ```tsx
 import { createDAppKit, DAppKitProvider } from '@mysten/dapp-kit-react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
-import { useDevWallet } from '@mysten/dev-wallet/react';
+import { devWalletInitializer } from '@mysten/dev-wallet';
 import { InMemorySignerAdapter } from '@mysten/dev-wallet/adapters';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { useMemo } from 'react';
 
 const dAppKit = createDAppKit({
 	networks: ['devnet'],
@@ -109,18 +110,16 @@ const dAppKit = createDAppKit({
 			network,
 			baseUrl: 'https://fullnode.devnet.sui.io:443',
 		}),
+	walletInitializers: [
+		devWalletInitializer({
+			adapters: [new InMemorySignerAdapter()],
+			autoConnect: true,
+			mountUI: true,
+		}),
+	],
 });
 
 function App() {
-	const adapters = useMemo(() => [new InMemorySignerAdapter()], []);
-
-	useDevWallet({
-		adapters,
-		createInitialAccount: true,
-		mountUI: true,
-		autoConnect: true,
-	});
-
 	return (
 		<DAppKitProvider dAppKit={dAppKit}>
 			<ConnectButton />
@@ -129,6 +128,11 @@ function App() {
 	);
 }
 ```
+
+<Callout type="info">
+	You can also use the `useDevWallet` React hook for finer control — see [React
+	Integration](/dev-wallet/react-integration).
+</Callout>
 
 ## Default Networks
 

@@ -3,13 +3,7 @@
 
 import { useCurrentAccount, useCurrentClient } from '@mysten/dapp-kit-react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
-import {
-	InMemorySignerAdapter,
-	PasskeySignerAdapter,
-	WebCryptoSignerAdapter,
-} from '@mysten/dev-wallet/adapters';
-import { useDevWallet } from '@mysten/dev-wallet/react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { BalanceDisplay } from './demos/BalanceDisplay.tsx';
 import { FaucetButton } from './demos/FaucetButton.tsx';
 import { MintNFT } from './demos/MintNFT.tsx';
@@ -31,19 +25,6 @@ export function App() {
 	const account = useCurrentAccount();
 	const client = useCurrentClient();
 	const refreshBalance = useCallback(() => setBalanceKey((k) => k + 1), []);
-
-	const adapters = useMemo(
-		() => [new WebCryptoSignerAdapter(), new InMemorySignerAdapter(), new PasskeySignerAdapter()],
-		[],
-	);
-
-	useDevWallet({
-		adapters,
-		name: 'Dev Wallet',
-		createInitialAccount: true,
-		mountUI: true,
-		autoConnect: true,
-	});
 
 	const ActiveComponent = DEMOS.find((d) => d.id === activeDemo)?.Component ?? Transfer;
 

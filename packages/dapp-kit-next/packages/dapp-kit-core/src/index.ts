@@ -5,6 +5,7 @@ export { createDAppKit } from './core/index.js';
 export type { DAppKit } from './core/index.js';
 
 export type { DAppKitCompatibleClient } from './core/types.js';
+export type { WalletInitializer } from './wallets/index.js';
 export type { WalletConnection } from './core/store.js';
 export type {
 	Register,
