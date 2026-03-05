@@ -32,12 +32,16 @@ const account = await adapter.createAccount({ label: 'My Passkey' });
 | Property / Method               | Description                             |
 | ------------------------------- | --------------------------------------- |
 | `id`                            | `'passkey'`                             |
-| `name`                          | `'Passkey'`                             |
+| `name`                          | `'Passkey Signer'`                      |
 | `allowAutoSign`                 | `false`                                 |
 | `initialize()`                  | Load passkey metadata from IndexedDB    |
 | `createAccount(options?)`       | Trigger WebAuthn registration ceremony  |
 | `removeAccount(address)`        | Remove metadata (passkey remains in OS) |
 | `renameAccount(address, label)` | Update label                            |
+| `getAccounts()`                 | List all managed accounts               |
+| `getAccount(address)`           | Look up a single account                |
+| `onAccountsChanged(callback)`   | Subscribe to account list changes       |
+| `destroy()`                     | Clean up listeners and state            |
 
 <Callout type="info">
 	This adapter is ideal for testing passkey-based wallet flows during development. The WebAuthn

@@ -1,0 +1,13 @@
+{
+	"title": "Reference",
+	"pages": [
+		"adapters",
+		"signing-flow",
+		"auto-approval",
+		"ui-components",
+		"react-integration",
+		"standalone-mode",
+		"cli-signer-api",
+		"architecture"
+	]
+}

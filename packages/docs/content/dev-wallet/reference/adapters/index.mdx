@@ -19,12 +19,12 @@ accounts.
 
 ## Adapter Comparison
 
-| Adapter                                       | Key Type  | Persistence  | Auto-Sign | Best For                      |
-| --------------------------------------------- | --------- | ------------ | --------- | ----------------------------- |
-| [InMemory](/dev-wallet/adapters/in-memory)    | Ed25519   | None         | Yes       | Quick prototyping, unit tests |
-| [WebCrypto](/dev-wallet/adapters/webcrypto)   | Secp256r1 | IndexedDB    | Yes       | Persistent dev accounts       |
-| [Passkey](/dev-wallet/adapters/passkey)       | Secp256r1 | Browser + OS | No        | Testing passkey flows         |
-| [Remote CLI](/dev-wallet/adapters/remote-cli) | Any       | External     | No        | Using `sui` CLI keystore      |
+| Adapter                                                 | Key Type  | Persistence  | Auto-Sign | Best For                      |
+| ------------------------------------------------------- | --------- | ------------ | --------- | ----------------------------- |
+| [InMemory](/dev-wallet/reference/adapters/in-memory)    | Ed25519   | None         | Yes       | Quick prototyping, unit tests |
+| [WebCrypto](/dev-wallet/reference/adapters/webcrypto)   | Secp256r1 | IndexedDB    | Yes       | Persistent dev accounts       |
+| [Passkey](/dev-wallet/reference/adapters/passkey)       | Secp256r1 | Browser + OS | No        | Testing passkey flows         |
+| [Remote CLI](/dev-wallet/reference/adapters/remote-cli) | Any       | External     | No        | Using `sui` CLI keystore      |
 
 ## Using Multiple Adapters
 
@@ -51,7 +51,7 @@ All built-in adapters extend `BaseSignerAdapter`, which handles common boilerpla
 - Cleanup via `destroy()`
 
 If you need a custom adapter, extending `BaseSignerAdapter` is the recommended approach. See
-[Custom Adapters](/dev-wallet/adapters/custom).
+[Custom Adapters](/dev-wallet/reference/adapters/custom).
 
 ## The SignerAdapter Interface
 
@@ -67,6 +67,9 @@ interface SignerAdapter {
 
 	createAccount?(options?: CreateAccountOptions): Promise<ManagedAccount>;
 	importAccount?(options: ImportAccountOptions): Promise<ManagedAccount>;
+	listAvailableAccounts?(): Promise<
+		Array<{ address: string; scheme: string; alias?: string | null }>
+	>;
 	removeAccount?(address: string): Promise<boolean>;
 	renameAccount?(address: string, label: string): Promise<boolean>;
 

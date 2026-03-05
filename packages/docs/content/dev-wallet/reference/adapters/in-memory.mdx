@@ -2,7 +2,7 @@
 title: InMemorySignerAdapter
 ---
 
-import { InMemoryAdapterDemo } from '../../../examples/dev-wallet-demos-client';
+import { InMemoryAdapterDemo } from '../../../../examples/dev-wallet-demos-client';
 
 The simplest adapter — generates Ed25519 keypairs held in memory. Keys are lost when the page
 reloads. Perfect for quick prototyping, unit tests, and documentation demos.
@@ -45,8 +45,8 @@ const account = await adapter.importAccount({
 | Property / Method               | Description                       |
 | ------------------------------- | --------------------------------- |
 | `id`                            | `'in-memory'`                     |
-| `name`                          | `'In-Memory'`                     |
-| `allowAutoSign`                 | `true`                            |
+| `name`                          | `'In-Memory Signer'`              |
+| `allowAutoSign`                 | Not set (auto-sign allowed)       |
 | `initialize()`                  | No-op (no storage to load)        |
 | `createAccount(options?)`       | Generate a new Ed25519 keypair    |
 | `importAccount(options)`        | Import an existing `Signer`       |

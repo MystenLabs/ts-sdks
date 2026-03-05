@@ -25,6 +25,38 @@ import { DEFAULT_WALLET_ICON, type WalletEventsMap } from '../wallet/constants.j
 const DEFAULT_WALLET_NAME = 'Dev Wallet (Web)';
 const DEFAULT_ORIGIN = 'http://localhost:5174';
 
+/**
+ * Creates a wallet initializer that can be passed to `createDAppKit({ walletInitializers: [...] })`.
+ *
+ * This registers a {@link DevWalletClient} that communicates with a standalone
+ * dev wallet server via PostMessage popups.
+ *
+ * @example
+ * ```ts
+ * import { createDAppKit } from '@mysten/dapp-kit-react';
+ * import { devWalletClientInitializer } from '@mysten/dev-wallet/client';
+ *
+ * const dAppKit = createDAppKit({
+ *   networks: ['devnet'],
+ *   walletInitializers: [
+ *     devWalletClientInitializer({ origin: 'http://localhost:5174' }),
+ *   ],
+ * });
+ * ```
+ */
+export function devWalletClientInitializer(options?: DevWalletClientOptions): {
+	id: string;
+	initialize(): { unregister: () => void };
+} {
+	return {
+		id: 'dev-wallet-client-initializer',
+		initialize() {
+			const unregister = DevWalletClient.register(options);
+			return { unregister };
+		},
+	};
+}
+
 const WALLET_FEATURES = [
 	'sui:signTransaction',
 	'sui:signAndExecuteTransaction',

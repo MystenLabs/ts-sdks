@@ -1,0 +1,13 @@
+{
+	"title": "Guides",
+	"pages": [
+		"localnet-and-custom-networks",
+		"e2e-testing",
+		"persistent-wallet",
+		"cli-signing",
+		"shared-wallet",
+		"demo-app",
+		"quick-prototyping",
+		"isolated-dev-keys"
+	]
+}

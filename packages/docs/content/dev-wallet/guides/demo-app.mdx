@@ -1,0 +1,70 @@
+---
+title: Demo App
+---
+
+Build a demo, tutorial, or hackathon project that works without asking users to install a browser
+extension wallet.
+
+## The problem
+
+You're showing off a dApp — at a hackathon, in a tutorial, or as a live demo. Your users don't have
+a wallet extension installed, and you can't ask them to install one just to try your app.
+
+## Solution
+
+Embed Dev Wallet directly in your app. It auto-creates an account, auto-connects, and shows a
+floating panel for account management. Users never see a "please install a wallet" step.
+
+### With dApp Kit (recommended)
+
+```tsx
+import { createDAppKit, DAppKitProvider } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
+import { devWalletInitializer } from '@mysten/dev-wallet';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const dAppKit = createDAppKit({
+	networks: ['devnet'],
+	createClient: (network) =>
+		new SuiGrpcClient({ network, baseUrl: 'https://fullnode.devnet.sui.io:443' }),
+	walletInitializers: [
+		devWalletInitializer({
+			adapters: [new WebCryptoSignerAdapter()],
+			autoConnect: true,
+			createInitialAccount: true,
+			mountUI: true,
+		}),
+	],
+});
+
+function App() {
+	return (
+		<DAppKitProvider dAppKit={dAppKit}>
+			<ConnectButton />
+			{/* Your demo app — wallet is ready to go */}
+		</DAppKitProvider>
+	);
+}
+```
+
+### What the user sees
+
+1. The dApp loads with a wallet already connected
+2. A floating wallet button appears in the corner for account management
+3. When a transaction is triggered, a signing modal shows the details
+4. The user approves — no extension install needed
+
+## Using WebCrypto for persistence
+
+With `WebCryptoSignerAdapter`, the user's account persists across page reloads. If you faucet coins
+once, they're available on every subsequent visit. This makes repeated demos smoother.
+
+If you prefer fully ephemeral accounts (fresh start every load), use `InMemorySignerAdapter`
+instead.
+
+## Related
+
+- [Persistent Wallet](/dev-wallet/guides/persistent-wallet) — keeping faucet coins across reloads
+- [React Integration](/dev-wallet/reference/react-integration) — `useDevWallet` hook and components
+- [UI Components](/dev-wallet/reference/ui-components) — customizing the wallet panel appearance

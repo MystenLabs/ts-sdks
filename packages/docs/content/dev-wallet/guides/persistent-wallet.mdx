@@ -1,0 +1,82 @@
+---
+title: Persistent Wallet
+---
+
+Keep your dev wallet accounts and faucet coins across page reloads and browser restarts.
+
+## The problem
+
+With the default `InMemorySignerAdapter`, you get a fresh keypair every time the page reloads. Any
+coins you requested from the faucet are gone. You have to faucet again every time you refresh during
+development.
+
+## Solution
+
+Use `WebCryptoSignerAdapter`. It stores keys in IndexedDB, so they survive page reloads, browser
+restarts, and app redeployments.
+
+### With dApp Kit (recommended)
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-react';
+import { devWalletInitializer } from '@mysten/dev-wallet';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+
+const dAppKit = createDAppKit({
+	networks: ['devnet'],
+	walletInitializers: [
+		devWalletInitializer({
+			adapters: [new WebCryptoSignerAdapter()],
+			autoConnect: true,
+			mountUI: true,
+		}),
+	],
+});
+```
+
+### Without dApp Kit
+
+```typescript
+import { DevWallet } from '@mysten/dev-wallet';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+import { mountDevWallet } from '@mysten/dev-wallet/ui';
+
+const adapter = new WebCryptoSignerAdapter();
+await adapter.initialize(); // Loads existing keys from IndexedDB
+
+// Only create an account if none exist yet
+if (adapter.getAccounts().length === 0) {
+	await adapter.createAccount({ label: 'Dev Account' });
+}
+
+const wallet = new DevWallet({ adapters: [adapter] });
+wallet.register();
+mountDevWallet(wallet);
+```
+
+## How it works
+
+1. On first load, `initialize()` finds no keys in IndexedDB. `createInitialAccount` (or your code)
+   creates one.
+2. The key pair is stored in IndexedDB via `crypto.subtle.generateKey()` — the private key is
+   non-extractable and never leaves the browser's crypto engine.
+3. On subsequent loads, `initialize()` loads the existing key pair from IndexedDB. Same address,
+   same coins.
+
+## Requirements
+
+- `@mysten/signers` peer dependency must be installed
+- Secure context (HTTPS or localhost)
+- IndexedDB available
+
+<Callout type="warn">
+	Keys do not survive incognito/private browsing sessions or clearing site data. For keys that
+	survive even those scenarios, use the [Remote CLI
+	adapter](/dev-wallet/reference/adapters/remote-cli).
+</Callout>
+
+## Related
+
+- [WebCrypto Adapter reference](/dev-wallet/reference/adapters/webcrypto) — full API
+- [Isolated Dev Keys](/dev-wallet/guides/isolated-dev-keys) — how dev keys stay separate from
+  mainnet

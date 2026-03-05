@@ -1,0 +1,67 @@
+---
+title: Quick Prototyping
+---
+
+Get a working wallet in three lines of config — the fastest way to start building.
+
+## The problem
+
+You just want a wallet so you can start building your dApp. You don't care about key management or
+wallet setup right now. You want minimum friction.
+
+## Solution
+
+Use `WebCryptoSignerAdapter` with `devWalletInitializer`. Three lines of config, default networks
+included, account auto-created, and your keys and faucet coins persist across page reloads.
+
+### With dApp Kit
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-react';
+import { devWalletInitializer } from '@mysten/dev-wallet';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+
+const dAppKit = createDAppKit({
+	networks: ['devnet'],
+	walletInitializers: [
+		devWalletInitializer({
+			adapters: [new WebCryptoSignerAdapter()],
+			autoConnect: true,
+			mountUI: true,
+		}),
+	],
+});
+```
+
+That's it. The wallet auto-initializes, creates an account, registers with wallet-standard, and
+mounts the floating panel. Your dApp Kit hooks work normally. Faucet once and your coins survive
+page refresh.
+
+### Without dApp Kit
+
+```typescript
+import { DevWallet } from '@mysten/dev-wallet';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+import { mountDevWallet } from '@mysten/dev-wallet/ui';
+
+const adapter = new WebCryptoSignerAdapter();
+await adapter.initialize();
+await adapter.createAccount({ label: 'Dev Account' });
+
+const wallet = new DevWallet({ adapters: [adapter] });
+wallet.register();
+mountDevWallet(wallet);
+```
+
+## What you get
+
+- **Secp256r1 keypair** stored in IndexedDB via Web Crypto API
+- **Keys and coins persist** across page reloads — faucet once, keep building
+- **Devnet, testnet, and localnet** configured by default
+- **Floating wallet panel** with account management, balances, and objects
+- **Signing modal** for every transaction so you can see what you're signing
+
+## Related
+
+- [WebCrypto Adapter reference](/dev-wallet/reference/adapters/webcrypto) — full API
+- [Getting Started](/dev-wallet/getting-started) — installation and setup options

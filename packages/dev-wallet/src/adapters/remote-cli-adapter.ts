@@ -28,7 +28,7 @@ const KEY_SCHEME_MAP: Record<string, SignatureScheme> = {
 	secp256r1: 'Secp256r1',
 };
 
-/** Account metadata returned by the server `/api/accounts` endpoint. */
+/** Account metadata returned by the server `/api/v1/accounts` endpoint. */
 interface ServerAccountInfo {
 	suiAddress: string;
 	publicBase64Key: string;
@@ -113,7 +113,7 @@ export class CliProxySigner extends Signer {
 			headers['Authorization'] = `Bearer ${this.#authToken}`;
 		}
 
-		const res = await fetch(`${this.#serverOrigin}/api/sign-transaction`, {
+		const res = await fetch(`${this.#serverOrigin}/api/v1/sign-transaction`, {
 			method: 'POST',
 			headers,
 			body: JSON.stringify({
@@ -329,7 +329,7 @@ export class RemoteCliAdapter extends BaseSignerAdapter {
 			this.#allServerAccounts = this.#lastFetch.result;
 			return;
 		}
-		const res = await fetch(`${this.#serverOrigin}/api/accounts`, {
+		const res = await fetch(`${this.#serverOrigin}/api/v1/accounts`, {
 			headers: this.#authHeaders(),
 		});
 		if (!res.ok) {

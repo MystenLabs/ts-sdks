@@ -1,0 +1,93 @@
+---
+title: Localnet & Custom Networks
+---
+
+Connect Dev Wallet to localnet, devnet, testnet, or any custom Sui network.
+
+## The problem
+
+Production wallets don't connect to localnet or custom RPC endpoints. If you're running `sui start`
+locally, you have no wallet to test with.
+
+## Solution
+
+Dev Wallet includes localnet, devnet, and testnet by default — no configuration needed.
+
+### With dApp Kit (recommended)
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-react';
+import { devWalletInitializer } from '@mysten/dev-wallet';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const dAppKit = createDAppKit({
+	networks: ['localnet', 'devnet', 'testnet'],
+	createClient: (network) =>
+		new SuiGrpcClient({
+			network,
+			baseUrl:
+				network === 'localnet' ? 'http://127.0.0.1:9000' : `https://fullnode.${network}.sui.io:443`,
+		}),
+	walletInitializers: [
+		devWalletInitializer({
+			adapters: [new WebCryptoSignerAdapter()],
+			autoConnect: true,
+			mountUI: true,
+		}),
+	],
+});
+```
+
+### Without dApp Kit
+
+```typescript
+import { DevWallet } from '@mysten/dev-wallet';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+
+const adapter = new WebCryptoSignerAdapter();
+await adapter.initialize();
+await adapter.createAccount({ label: 'Dev Account' });
+
+// Default networks include localnet, devnet, and testnet
+const wallet = new DevWallet({ adapters: [adapter] });
+wallet.register();
+```
+
+## Custom network URLs
+
+For staging servers or private networks, pass your own URLs:
+
+```typescript
+const wallet = new DevWallet({
+	adapters: [adapter],
+	networks: {
+		localnet: 'http://127.0.0.1:9000',
+		staging: 'https://my-staging-fullnode.example.com:443',
+	},
+});
+```
+
+## Default networks
+
+If you don't provide a `networks` config, Dev Wallet includes:
+
+| Network  | URL                                   |
+| -------- | ------------------------------------- |
+| devnet   | `https://fullnode.devnet.sui.io:443`  |
+| testnet  | `https://fullnode.testnet.sui.io:443` |
+| localnet | `http://127.0.0.1:9000`               |
+
+## Switching networks
+
+The wallet UI Settings tab includes a network switcher. You can also switch programmatically:
+
+```typescript
+wallet.setActiveNetwork('localnet');
+```
+
+## Related
+
+- [Adapters](/dev-wallet/reference/adapters) — choose the right key management strategy
+- [UI Components](/dev-wallet/reference/ui-components) — the Settings tab includes a network
+  switcher

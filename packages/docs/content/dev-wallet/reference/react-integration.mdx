@@ -12,11 +12,11 @@ mounts the UI:
 
 ```tsx
 import { useDevWallet } from '@mysten/dev-wallet/react';
-import { InMemorySignerAdapter } from '@mysten/dev-wallet/adapters';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
 import { useMemo } from 'react';
 
 function App() {
-	const adapters = useMemo(() => [new InMemorySignerAdapter()], []);
+	const adapters = useMemo(() => [new WebCryptoSignerAdapter()], []);
 
 	const { wallet, error, loading } = useDevWallet({
 		adapters,
@@ -72,7 +72,9 @@ Share the wallet instance across your component tree via React context:
 import { DevWalletProvider, useDevWalletInstance } from '@mysten/dev-wallet/react';
 
 function App() {
-	const { wallet } = useDevWallet({ adapters, mountUI: true });
+	const { wallet, loading } = useDevWallet({ adapters, mountUI: true });
+
+	if (loading || !wallet) return <div>Loading...</div>;
 
 	return (
 		<DevWalletProvider wallet={wallet}>
@@ -185,7 +187,7 @@ const dAppKit = createDAppKit({
 	// ...
 	walletInitializers: [
 		devWalletInitializer({
-			adapters: [new InMemorySignerAdapter()],
+			adapters: [new WebCryptoSignerAdapter()],
 			onWalletCreated: (wallet) => {
 				devWallet = wallet;
 			},

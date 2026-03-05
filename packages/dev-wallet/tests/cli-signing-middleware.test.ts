@@ -105,14 +105,14 @@ describe('CLI Signing Middleware', () => {
 		await testServer.close();
 	});
 
-	describe('GET /api/accounts', () => {
+	describe('GET /api/v1/accounts', () => {
 		it('returns accounts from sui keytool list', async () => {
 			mockExecFile.mockImplementation((_cmd, _args, callback: any) => {
 				callback(null, { stdout: JSON.stringify(mockAccountList), stderr: '' });
 				return {} as any;
 			});
 
-			const { status, body } = await request(port, '/api/accounts');
+			const { status, body } = await request(port, '/api/v1/accounts');
 
 			expect(status).toBe(200);
 			expect(body.accounts).toEqual(mockAccountList);
@@ -124,7 +124,7 @@ describe('CLI Signing Middleware', () => {
 				return {} as any;
 			});
 
-			await request(port, '/api/accounts');
+			await request(port, '/api/v1/accounts');
 
 			expect(mockExecFile).toHaveBeenCalledWith(
 				'sui',
@@ -139,21 +139,21 @@ describe('CLI Signing Middleware', () => {
 				return {} as any;
 			});
 
-			const { status, body } = await request(port, '/api/accounts');
+			const { status, body } = await request(port, '/api/v1/accounts');
 
 			expect(status).toBe(500);
 			expect(body.error).toContain('Failed to list accounts');
 		});
 	});
 
-	describe('POST /api/sign-transaction', () => {
+	describe('POST /api/v1/sign-transaction', () => {
 		it('signs transaction via sui keytool sign', async () => {
 			mockExecFile.mockImplementation((_cmd, _args, callback: any) => {
 				callback(null, { stdout: JSON.stringify(mockSignResult), stderr: '' });
 				return {} as any;
 			});
 
-			const { status, body } = await request(port, '/api/sign-transaction', {
+			const { status, body } = await request(port, '/api/v1/sign-transaction', {
 				method: 'POST',
 				body: { address: '0xabc123', txBytes: 'dHhEYXRh' },
 			});
@@ -164,7 +164,7 @@ describe('CLI Signing Middleware', () => {
 		});
 
 		it('rejects invalid address format', async () => {
-			const { status, body } = await request(port, '/api/sign-transaction', {
+			const { status, body } = await request(port, '/api/v1/sign-transaction', {
 				method: 'POST',
 				body: { address: 'not-an-address', txBytes: 'dHhEYXRh' },
 			});
@@ -175,7 +175,7 @@ describe('CLI Signing Middleware', () => {
 		});
 
 		it('rejects empty txBytes', async () => {
-			const { status, body } = await request(port, '/api/sign-transaction', {
+			const { status, body } = await request(port, '/api/v1/sign-transaction', {
 				method: 'POST',
 				body: { address: '0xabc123', txBytes: '' },
 			});
@@ -185,7 +185,7 @@ describe('CLI Signing Middleware', () => {
 		});
 
 		it('rejects shell injection in address', async () => {
-			const { status } = await request(port, '/api/sign-transaction', {
+			const { status } = await request(port, '/api/v1/sign-transaction', {
 				method: 'POST',
 				body: { address: '$(rm -rf /)', txBytes: 'dHhEYXRh' },
 			});
@@ -213,7 +213,7 @@ describe('CLI Signing Middleware', () => {
 					{
 						hostname: '127.0.0.1',
 						port,
-						path: '/api/accounts',
+						path: '/api/v1/accounts',
 						method: 'GET',
 						headers: { Host: 'evil.example.com' },
 					},
@@ -232,7 +232,7 @@ describe('CLI Signing Middleware', () => {
 
 	describe('body validation', () => {
 		it('returns 400 for invalid JSON body', async () => {
-			const res = await fetch(`http://localhost:${port}/api/sign-transaction`, {
+			const res = await fetch(`http://localhost:${port}/api/v1/sign-transaction`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: '{invalid json',
@@ -264,7 +264,7 @@ describe('Token Authentication', () => {
 	});
 
 	it('rejects API calls without authentication', async () => {
-		const { status, body } = await request(port, '/api/accounts');
+		const { status, body } = await request(port, '/api/v1/accounts');
 
 		expect(status).toBe(401);
 		expect(body.error).toContain('Authentication required');
@@ -276,7 +276,7 @@ describe('Token Authentication', () => {
 			return {} as any;
 		});
 
-		const { status } = await request(port, '/api/accounts', {
+		const { status } = await request(port, '/api/v1/accounts', {
 			token: testServer.token!,
 		});
 
@@ -284,7 +284,7 @@ describe('Token Authentication', () => {
 	});
 
 	it('rejects API calls with invalid token', async () => {
-		const { status } = await request(port, '/api/accounts', {
+		const { status } = await request(port, '/api/v1/accounts', {
 			token: 'invalid-token',
 		});
 

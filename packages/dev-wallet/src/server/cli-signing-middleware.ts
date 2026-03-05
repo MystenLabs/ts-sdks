@@ -59,7 +59,7 @@ function errorResponse(res: ServerResponse, status: number, message: string): vo
 // ── Route handlers ───────────────────────────────────────────────────────────
 
 /**
- * GET /api/accounts
+ * GET /api/v1/accounts
  *
  * Lists accounts from the Sui CLI keystore via `sui keytool list --json`.
  * Returns account metadata only — no private key material.
@@ -81,7 +81,7 @@ async function handleListAccounts(res: ServerResponse): Promise<void> {
 }
 
 /**
- * POST /api/sign-transaction
+ * POST /api/v1/sign-transaction
  *
  * Signs BCS-serialized TransactionData via `sui keytool sign`.
  * The CLI reads keys from the keystore internally — our code never
@@ -206,12 +206,12 @@ export function createCliSigningMiddleware(
 			return;
 		}
 
-		if (url === '/api/accounts' && req.method === 'GET') {
+		if (url === '/api/v1/accounts' && req.method === 'GET') {
 			handleListAccounts(res).catch(() => errorResponse(res, 500, 'Internal server error'));
 			return;
 		}
 
-		if (url === '/api/sign-transaction' && req.method === 'POST') {
+		if (url === '/api/v1/sign-transaction' && req.method === 'POST') {
 			handleSignTransaction(req, res).catch(() => errorResponse(res, 500, 'Internal server error'));
 			return;
 		}

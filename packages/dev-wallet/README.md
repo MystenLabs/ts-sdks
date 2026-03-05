@@ -1,8 +1,26 @@
 # @mysten/dev-wallet
 
-A modular dev wallet for Sui with pluggable key management, wallet-standard compliance, and a
-request-queue signing flow. Replaces `useUnsafeBurnerWallet` with a real approval UI so developers
-can inspect what they're signing during development.
+A development-only wallet for building and testing Sui dApps.
+
+> **Not for production.** This wallet is for development and testing only. Do not use it to store
+> real funds. A console warning is emitted automatically in production builds.
+
+## Why use a dev wallet?
+
+- **Localnet and custom networks** — production wallets don't connect to localnet. This wallet
+  connects to any network URL you give it.
+- **Separate from mainnet credentials** — your dev keys never touch your real wallet. Ephemeral keys
+  disappear on page refresh; persistent keys stay scoped to the browser.
+- **E2E testing without manual approval** — set `autoApprove: true` and the wallet signs
+  automatically. No click-through, no popups, works in headless CI.
+- **Preserve assets across page loads** — use the WebCrypto adapter and your faucet coins survive
+  browser refresh.
+- **No browser extension required** — embed the wallet directly in your app. Perfect for demos,
+  tutorials, and hackathons where asking users to install a wallet extension is friction.
+- **Same account you publish contracts from** — connect to the `sui` CLI and sign transactions with
+  the same address that ran `sui move publish`, so you can access AdminCap and other owned objects.
+- **Works across multiple apps** — run the wallet as a standalone web app and connect any number of
+  dApps to it via popup.
 
 ## Installation
 
@@ -10,206 +28,240 @@ can inspect what they're signing during development.
 npm install @mysten/dev-wallet
 ```
 
-## Quick Start
+## Pick your setup
 
-### Embedded in a dApp
+### dApp Kit plugin (easiest)
 
-The simplest setup — create an adapter, create a wallet, and register it. Your existing dapp-kit
-code works unchanged.
-
-```typescript
-import { DevWallet } from '@mysten/dev-wallet';
-import { InMemorySignerAdapter } from '@mysten/dev-wallet/adapters';
-import { mountDevWallet } from '@mysten/dev-wallet/ui';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
-
-const adapter = new InMemorySignerAdapter();
-await adapter.initialize();
-await adapter.createAccount({ label: 'Dev Account' });
-
-const wallet = new DevWallet({
-	adapter,
-	clients: {
-		testnet: new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('testnet'), network: 'testnet' }),
-	},
-});
-
-wallet.register(); // registers with wallet-standard
-mountDevWallet(wallet); // appends floating drawer to document.body
-```
-
-### With React
-
-```tsx
-import { useDevWallet } from '@mysten/dev-wallet/react';
-import { InMemorySignerAdapter } from '@mysten/dev-wallet/adapters';
-
-const adapter = useMemo(() => new InMemorySignerAdapter(), []);
-const clients = useMemo(
-	() => ({
-		testnet: new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('testnet'), network: 'testnet' }),
-	}),
-	[],
-);
-
-function App() {
-	const wallet = useDevWallet({ adapter, clients, createInitialAccount: true });
-	return <WalletProvider>{/* dapp-kit hooks work normally */}</WalletProvider>;
-}
-```
-
-### Auto-Approval (Burner Wallet Replacement)
-
-For tests or CI where you want transactions signed without user interaction:
+If your app uses `@mysten/dapp-kit-react`, embed the wallet directly. It inherits your dApp Kit
+network config automatically.
 
 ```typescript
-const wallet = new DevWallet({
-	adapter,
-	clients,
-	autoApprove: true, // signs everything immediately — no queue, no UI
+import { createDAppKit } from '@mysten/dapp-kit-react';
+import { devWalletInitializer } from '@mysten/dev-wallet';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+
+const dAppKit = createDAppKit({
+	networks: ['devnet', 'testnet', 'localnet'],
+	walletInitializers: [
+		devWalletInitializer({
+			adapters: [new WebCryptoSignerAdapter()],
+			autoConnect: true,
+			mountUI: true,
+		}),
+	],
 });
 ```
 
-For fine-grained control:
+The wallet appears in the dApp Kit wallet picker. An initial account is created automatically.
 
-```typescript
-const wallet = new DevWallet({
-	adapter,
-	clients,
-	autoApprove: (request) => request.type === 'sign-personal-message',
-});
-```
+### Standalone wallet
 
-### Standalone Web Wallet (npx)
-
-Run a full wallet UI as a standalone web app. dApps connect via popup, same as production wallets.
+Run a self-contained wallet as a separate web app — signing works via popup, same as a production
+browser wallet.
 
 ```bash
-npx @mysten/dev-wallet serve --adapter=cli --port=5174
-npx @mysten/dev-wallet serve --adapter=webcrypto
-npx @mysten/dev-wallet serve --adapter=memory
+npx @mysten/dev-wallet serve
 ```
 
-On the dApp side, register a client that opens popups to the web wallet:
+Register it through `walletInitializers` using `devWalletClientInitializer`:
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-react';
+import { devWalletClientInitializer } from '@mysten/dev-wallet/client';
+
+const dAppKit = createDAppKit({
+	networks: ['devnet'],
+	walletInitializers: [devWalletClientInitializer({ origin: 'http://localhost:5174' })],
+});
+```
+
+Or register directly without dApp Kit:
 
 ```typescript
 import { DevWalletClient } from '@mysten/dev-wallet/client';
 
-const unregister = DevWalletClient.register({
-	origin: 'http://localhost:5174',
+DevWalletClient.register({ origin: 'http://localhost:5174' });
+```
+
+The default port is 5174 (Vite's default). If the port is busy, Vite picks the next available —
+check the terminal output. Use `--port` to set a fixed port.
+
+The standalone wallet includes WebCrypto and InMemory adapters by default. If `sui` is on your PATH,
+the CLI adapter is also available — so you can sign with the same address you published contracts
+from. Great for teams, multi-app development, and when you can't modify the dApp source.
+
+### Manual setup (no framework)
+
+If you're not using dApp Kit or React, create and register the wallet directly. Localnet, devnet,
+and testnet are configured out of the box — no URLs needed.
+
+```typescript
+import { DevWallet } from '@mysten/dev-wallet';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+import { mountDevWallet } from '@mysten/dev-wallet/ui';
+
+const adapter = new WebCryptoSignerAdapter();
+await adapter.initialize();
+await adapter.createAccount({ label: 'Dev Account' });
+
+const wallet = new DevWallet({ adapters: [adapter] });
+wallet.register();
+mountDevWallet(wallet);
+```
+
+## Which adapter should I use?
+
+| Adapter                  | Keys stored             | Persists across reload | Best for                                        | Caveats                          |
+| ------------------------ | ----------------------- | ---------------------- | ----------------------------------------------- | -------------------------------- |
+| `InMemorySignerAdapter`  | Memory (Ed25519)        | No                     | Quick prototyping, throwaway tests              | New keys every page load         |
+| `WebCryptoSignerAdapter` | IndexedDB (Secp256r1)   | Yes                    | Persistent dev wallet, keeping faucet coins     | Browser-scoped, not exportable   |
+| `RemoteCliAdapter`       | `sui` CLI keystore      | Yes (via CLI)          | Using same address you published contracts from | No personal message signing      |
+| `PasskeySignerAdapter`   | OS keychain (Secp256r1) | Yes                    | Testing passkey/biometric flows                 | Requires user gesture every sign |
+
+**Start here:** `WebCryptoSignerAdapter` — keys persist across page reloads, faucet once and keep
+your coins. Best default for development.
+
+**Fully ephemeral:** `InMemorySignerAdapter` — fresh keys every page load. Useful when you
+specifically need a guaranteed clean slate.
+
+**Match your deployed contracts:** `RemoteCliAdapter` — use the same address that ran
+`sui move publish`.
+
+You can use multiple adapters at the same time. The wallet aggregates accounts from all of them:
+
+```typescript
+devWalletInitializer({
+	adapters: [new WebCryptoSignerAdapter(), new InMemorySignerAdapter()],
+	mountUI: true,
 });
 ```
 
-## Signer Adapters
+## Common recipes
 
-Adapters manage keys and provide `Signer` instances. Import from `@mysten/dev-wallet/adapters`.
+### E2E testing with auto-approval
 
-### InMemorySignerAdapter
-
-Ephemeral Ed25519 keypairs in memory. Supports `createAccount` and `removeAccount`. No persistence.
-
-```typescript
-const adapter = new InMemorySignerAdapter();
-await adapter.initialize();
-const account = await adapter.createAccount({ label: 'Test' });
-```
-
-### WebCryptoSignerAdapter
-
-Secp256r1 keys via WebCrypto API, persisted in IndexedDB. Good for persistent browser-based dev
-wallets.
+Set `autoApprove: true` to sign everything without user interaction. Your dApp code stays exactly
+the same — same wallet-standard APIs, same signing flow — the approval step is just skipped. Works
+great with headless browsers and CI.
 
 ```typescript
-const adapter = new WebCryptoSignerAdapter();
-await adapter.initialize(); // loads existing keys from IndexedDB
-await adapter.createAccount({ label: 'Persistent Key' });
+import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
+
+devWalletInitializer({
+	adapters: [new WebCryptoSignerAdapter()],
+	autoApprove: true,
+	autoConnect: true,
+});
+
+// Fund the account from the faucet (only needed once — WebCrypto persists across runs)
+await requestSuiFromFaucetV2({
+	host: getFaucetHost('localnet'),
+	recipient: wallet.accounts[0].address,
+});
 ```
 
-## Subpath Exports
-
-| Export                        | Contents                                                                     |
-| ----------------------------- | ---------------------------------------------------------------------------- |
-| `@mysten/dev-wallet`          | `DevWallet`, types (`DevWalletConfig`, `WalletRequest`, `AutoApprovePolicy`) |
-| `@mysten/dev-wallet/adapters` | Signer adapters (InMemory, WebCrypto, Passkey, RemoteCli) + `SignerAdapter`  |
-| `@mysten/dev-wallet/ui`       | Lit web components + `mountDevWallet()`                                      |
-| `@mysten/dev-wallet/react`    | `useDevWallet` hook, React-wrapped Lit components                            |
-| `@mysten/dev-wallet/client`   | `DevWalletClient` (dApp-side PostMessage wallet)                             |
-| `@mysten/dev-wallet/server`   | `parseWalletRequest()` (web wallet app handler)                              |
-
-## Signing Flow
-
-All signing requests are queued and require explicit approval:
-
-1. dApp calls `signTransaction()`, `signPersonalMessage()`, or `signAndExecuteTransaction()`
-2. Request is stored as `wallet.pendingRequest` and the returned Promise blocks
-3. Wallet UI (or your code) calls `wallet.approveRequest()` or `wallet.rejectRequest()`
-4. The Promise resolves or rejects accordingly
-
-Only one request can be pending at a time. Additional requests are rejected immediately.
-
-When `autoApprove` is set, matching requests bypass the queue and sign directly.
-
-## API
-
-### DevWallet
+For fine-grained control, pass a function:
 
 ```typescript
-class DevWallet implements Wallet {
-	constructor(config: DevWalletConfig);
-
-	register(): () => void; // register with wallet-standard
-	get pendingRequest(): WalletRequest | null;
-	get adapter(): SignerAdapter;
-
-	approveRequest(): Promise<void>;
-	rejectRequest(reason?: string): void;
-}
+devWalletInitializer({
+	adapters: [new WebCryptoSignerAdapter()],
+	autoApprove: (request) => request.type === 'sign-transaction',
+	autoConnect: true,
+});
 ```
 
-### DevWalletConfig
+Note: `RemoteCliAdapter` and `PasskeySignerAdapter` never auto-sign regardless of this setting.
+
+### Persistent wallet that survives page reloads
+
+Use the WebCrypto adapter. Keys are stored in IndexedDB. Request coins from the faucet once — they
+survive page refresh, browser restart, and app redeployment.
 
 ```typescript
-interface DevWalletConfig {
-	adapter: SignerAdapter;
-	clients: Record<string, ClientWithCoreApi>; // network name → SuiClient
-	name?: string; // default: 'Dev Wallet'
-	icon?: WalletIcon;
-	autoApprove?: boolean | ((request: { type; account; chain; data }) => boolean);
-}
+devWalletInitializer({
+	adapters: [new WebCryptoSignerAdapter()],
+	autoConnect: true,
+	mountUI: true,
+});
 ```
 
-### SignerAdapter
+On first load, an account is created automatically. Subsequent loads restore it.
+
+### Using the same address you publish contracts from
+
+The RemoteCLI adapter connects to your local `sui` CLI over HTTP. Private keys never leave the `sui`
+binary — only transaction bytes are sent for signing.
+
+The easiest way is the standalone wallet:
+
+```bash
+npx @mysten/dev-wallet serve
+```
+
+Open the URL printed in the terminal to authenticate. Then import the address you used to publish
+your contracts. Transactions signed in your dApp use the same key that deployed your package, giving
+you access to AdminCap and other owned objects.
+
+### Connecting to localnet or custom networks
+
+Localnet, devnet, and testnet are configured by default. For custom URLs:
 
 ```typescript
-interface SignerAdapter {
-	readonly id: string;
-	readonly name: string;
-
-	initialize(): Promise<void>;
-	getAccounts(): ManagedAccount[];
-	getAccount(address: string): ManagedAccount | undefined;
-
-	createAccount?(options?: CreateAccountOptions): Promise<ManagedAccount>;
-	removeAccount?(address: string): Promise<boolean>;
-
-	onAccountsChanged(callback: (accounts: ManagedAccount[]) => void): () => void;
-	destroy(): void;
-}
+const wallet = new DevWallet({
+	adapters: [new WebCryptoSignerAdapter()],
+	networks: {
+		localnet: 'http://127.0.0.1:9000',
+		staging: 'https://my-staging-fullnode.example.com:443',
+	},
+});
 ```
 
-### useDevWallet
+### Demo app with no browser extension required
+
+Embed the wallet with auto-connect and it appears in the dApp Kit wallet picker automatically. Users
+don't need to install anything.
 
 ```typescript
-function useDevWallet(options: UseDevWalletOptions): DevWallet | null;
-
-interface UseDevWalletOptions {
-	adapter: SignerAdapter;
-	clients: Record<string, ClientWithCoreApi>;
-	name?: string;
-	icon?: WalletIcon;
-	autoInitialize?: boolean; // default: true
-	createInitialAccount?: boolean; // default: true
-	mountUI?: boolean; // default: true
-	container?: HTMLElement;
-}
+devWalletInitializer({
+	adapters: [new WebCryptoSignerAdapter()],
+	autoConnect: true,
+	mountUI: true,
+	createInitialAccount: true,
+});
 ```
+
+### Wallet shared across multiple apps
+
+Run the standalone wallet once and connect as many dApps as you need:
+
+```bash
+npx @mysten/dev-wallet serve --port=5174
+```
+
+In each dApp:
+
+```typescript
+import { DevWalletClient } from '@mysten/dev-wallet/client';
+
+DevWalletClient.register({ origin: 'http://localhost:5174' });
+```
+
+All apps share the same accounts and balances.
+
+## Imports
+
+| Import                        | What you get                                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `@mysten/dev-wallet`          | `DevWallet`, `devWalletInitializer`, `DEFAULT_NETWORK_URLS`, config types                                          |
+| `@mysten/dev-wallet/adapters` | `InMemorySignerAdapter`, `WebCryptoSignerAdapter`, `PasskeySignerAdapter`, `RemoteCliAdapter`, `BaseSignerAdapter` |
+| `@mysten/dev-wallet/ui`       | `mountDevWallet()`, Lit web components                                                                             |
+| `@mysten/dev-wallet/react`    | `useDevWallet` hook, `DevWalletProvider`, React-wrapped Lit components                                             |
+| `@mysten/dev-wallet/client`   | `DevWalletClient`, `devWalletClientInitializer` for standalone wallet popup mode                                   |
+| `@mysten/dev-wallet/server`   | `parseWalletRequest()`, `createCliSigningMiddleware()` for standalone wallet and CLI signing                       |
+
+## Limitations
+
+- **Not for production** — emits a console warning when `NODE_ENV=production`
+- **RemoteCLI cannot sign personal messages** — `sui keytool sign` only supports transaction data
+- **RemoteCLI and Passkey never auto-sign** — they always require explicit interaction, regardless
+  of the `autoApprove` setting

@@ -1,0 +1,57 @@
+---
+title: Shared Wallet
+---
+
+Run one wallet and connect multiple dApps to it.
+
+## The problem
+
+You're working on several dApps that all need the same wallet, or you're on a team and everyone
+needs access to the same dev accounts. Or you can't modify a dApp's source to embed a wallet.
+
+## Solution
+
+Run Dev Wallet as a standalone web app. Each dApp connects via popup.
+
+### Start the wallet
+
+```bash
+npx @mysten/dev-wallet serve --port=5174
+```
+
+This starts a wallet UI at `http://localhost:5174`. InMemory and WebCrypto adapters are included by
+default. If `sui` is on your PATH, the CLI adapter is also available automatically.
+
+### Connect from each dApp
+
+Register the standalone wallet through `walletInitializers` in each dApp:
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-react';
+import { devWalletClientInitializer } from '@mysten/dev-wallet/client';
+
+const dAppKit = createDAppKit({
+	networks: ['devnet'],
+	walletInitializers: [devWalletClientInitializer({ origin: 'http://localhost:5174' })],
+});
+```
+
+Or if you can't modify the dApp source, use the
+[bookmarklet](/dev-wallet/reference/standalone-mode#via-bookmarklet-no-code-changes) to inject the
+wallet into any page.
+
+The wallet appears in each dApp's wallet picker. When a dApp requests a signature, a popup opens to
+the standalone wallet for approval.
+
+## How it works
+
+- The standalone wallet runs as a Vite dev server
+- dApps communicate via `window.postMessage` through popup windows
+- Account selection is stored in a JWT session per dApp origin
+- All dApps share the same underlying accounts and balances
+
+## Related
+
+- [Standalone Mode reference](/dev-wallet/reference/standalone-mode) — full API and session
+  management
+- [CLI Signing](/dev-wallet/guides/cli-signing) — using your publish address

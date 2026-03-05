@@ -26,19 +26,49 @@ npx @mysten/dev-wallet serve --port 3000
 
 ## Connecting from a dApp
 
-In your dApp, register a `DevWalletClient` that communicates with the standalone wallet via
-PostMessage popups:
+### Via walletInitializers (recommended)
+
+If your dApp uses `@mysten/dapp-kit-react`, register the standalone wallet through
+`walletInitializers`:
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-react';
+import { devWalletClientInitializer } from '@mysten/dev-wallet/client';
+
+const dAppKit = createDAppKit({
+	networks: ['devnet'],
+	walletInitializers: [devWalletClientInitializer({ origin: 'http://localhost:5174' })],
+});
+```
+
+### Via direct registration
+
+If you're not using dApp Kit, register the wallet client directly:
 
 ```typescript
 import { DevWalletClient } from '@mysten/dev-wallet/client';
 
-// Register the wallet — it appears in dApp Kit's wallet picker
 const unregister = DevWalletClient.register({
 	origin: 'http://localhost:5174',
 });
-
-// Now use dApp Kit normally — selecting "Dev Wallet (Web)" opens popup windows for signing
 ```
+
+### Via bookmarklet (no code changes)
+
+If you can't modify the dApp source, use the bookmarklet to inject the wallet into any page. The
+standalone server serves a script at `/bookmarklet.js` that registers the wallet via the
+wallet-standard window event protocol.
+
+Drag the bookmarklet link from the wallet's Settings tab into your browser bookmarks bar, or paste
+this in your browser console:
+
+```javascript
+var s = document.createElement('script');
+s.src = 'http://localhost:5174/bookmarklet.js';
+document.head.appendChild(s);
+```
+
+The bookmarklet automatically detects the wallet server origin from the script URL.
 
 ## How Popup Signing Works
 
@@ -65,7 +95,19 @@ sequenceDiagram
     end
 ```
 
-## DevWalletClient API
+## API
+
+### devWalletClientInitializer
+
+Creates a wallet initializer for use with `createDAppKit({ walletInitializers: [...] })`:
+
+```typescript
+function devWalletClientInitializer(options?: DevWalletClientOptions): WalletInitializer;
+```
+
+### DevWalletClient
+
+For direct registration without dApp Kit:
 
 ```typescript
 class DevWalletClient implements Wallet {

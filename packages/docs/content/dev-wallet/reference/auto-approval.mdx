@@ -2,10 +2,11 @@
 title: Auto-Approval
 ---
 
-import { AutoApprovalDemo } from '../../examples/dev-wallet-demos-client';
+import { AutoApprovalDemo } from '../../../examples/dev-wallet-demos-client';
 
-Skip the approval modal for automated testing, CI pipelines, or rapid prototyping. Auto-approval
-policies control which signing requests are signed immediately without user interaction.
+Skip the approval modal for automated testing, CI pipelines, or rapid prototyping. Your dApp code
+stays exactly the same — same wallet-standard APIs, same signing calls — auto-approval just removes
+the manual step.
 
 ## Boolean Policy
 
@@ -19,8 +20,8 @@ const wallet = new DevWallet({
 });
 ```
 
-This is equivalent to the old `useUnsafeBurnerWallet` behavior — but with a real wallet-standard
-implementation.
+Every signing request is approved immediately — no modal, no queue. Useful for tests and CI where
+you need zero interaction.
 
 ## Function Policy
 
@@ -62,7 +63,7 @@ user interaction:
 // Even with autoApprove: true, passkey accounts still require biometric
 const wallet = new DevWallet({
 	adapters: [
-		new InMemorySignerAdapter(), // allowAutoSign: true → auto-approved
+		new WebCryptoSignerAdapter(), // allowAutoSign: true → auto-approved
 		new PasskeySignerAdapter(), // allowAutoSign: false → always manual
 	],
 	autoApprove: true,
@@ -81,12 +82,12 @@ Using Dev Wallet with `autoApprove` in a vitest test:
 
 ```typescript
 import { DevWallet } from '@mysten/dev-wallet';
-import { InMemorySignerAdapter } from '@mysten/dev-wallet/adapters';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
 import { describe, it, expect } from 'vitest';
 
 describe('my dApp', () => {
 	it('signs a transaction', async () => {
-		const adapter = new InMemorySignerAdapter();
+		const adapter = new WebCryptoSignerAdapter();
 		await adapter.initialize();
 		await adapter.createAccount({ label: 'Test' });
 
@@ -126,5 +127,5 @@ const wallet = new DevWallet({
 });
 ```
 
-Without `autoConnect`, connect requests are queued for the user to select which accounts to expose
-(similar to how MetaMask lets you choose accounts).
+Without `autoConnect`, connect requests show an account picker so the user can select which accounts
+to expose.

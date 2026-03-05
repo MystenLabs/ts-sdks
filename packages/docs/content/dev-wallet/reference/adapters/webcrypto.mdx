@@ -40,14 +40,16 @@ const account = await adapter.createAccount({ label: 'Persistent Dev' });
 | Property / Method               | Description                              |
 | ------------------------------- | ---------------------------------------- |
 | `id`                            | `'webcrypto'`                            |
-| `name`                          | `'WebCrypto'`                            |
-| `allowAutoSign`                 | `true`                                   |
+| `name`                          | `'WebCrypto Signer'`                     |
+| `allowAutoSign`                 | Not set (auto-sign allowed)              |
 | `initialize()`                  | Load keys from IndexedDB                 |
 | `createAccount(options?)`       | Generate a new Secp256r1 key pair        |
 | `removeAccount(address)`        | Remove account and delete from IndexedDB |
 | `renameAccount(address, label)` | Update label (persisted)                 |
 | `getAccounts()`                 | List all managed accounts                |
 | `getAccount(address)`           | Look up a single account                 |
+| `onAccountsChanged(callback)`   | Subscribe to account list changes        |
+| `destroy()`                     | Clean up listeners and state             |
 
 ## Requirements
 
@@ -57,6 +59,6 @@ const account = await adapter.createAccount({ label: 'Persistent Dev' });
 
 <Callout type="warn">
 	Keys do not survive incognito/private browsing sessions or clearing site data. For truly
-	persistent development keys, use the [Remote CLI adapter](/dev-wallet/adapters/remote-cli) with
-	your `sui` keystore.
+	persistent development keys, use the [Remote CLI
+	adapter](/dev-wallet/reference/adapters/remote-cli) with your `sui` keystore.
 </Callout>

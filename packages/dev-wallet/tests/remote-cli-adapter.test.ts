@@ -94,7 +94,7 @@ describe('RemoteCliAdapter', () => {
 
 			expect(adapter.isPaired).toBe(true);
 			expect(mockFetch).toHaveBeenCalledWith(
-				'http://localhost:5175/api/accounts',
+				'http://localhost:5175/api/v1/accounts',
 				expect.objectContaining({
 					headers: expect.objectContaining({
 						Authorization: `Bearer ${MOCK_TOKEN}`,
@@ -130,7 +130,7 @@ describe('RemoteCliAdapter', () => {
 
 			expect(adapter.isPaired).toBe(true);
 			expect(mockFetch).toHaveBeenCalledWith(
-				'http://localhost:5175/api/accounts',
+				'http://localhost:5175/api/v1/accounts',
 				expect.objectContaining({
 					headers: expect.objectContaining({
 						Authorization: `Bearer ${MOCK_TOKEN}`,
@@ -366,7 +366,7 @@ describe('CliProxySigner', () => {
 			expect(result.signature).toBe(mockSignature);
 
 			expect(mockFetch).toHaveBeenCalledWith(
-				'http://localhost:5175/api/sign-transaction',
+				'http://localhost:5175/api/v1/sign-transaction',
 				expect.objectContaining({
 					method: 'POST',
 					headers: {

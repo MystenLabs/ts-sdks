@@ -25,7 +25,11 @@ export const dAppKit = createDAppKit({
 	},
 	walletInitializers: [
 		devWalletInitializer({
-			adapters: [new WebCryptoSignerAdapter(), new InMemorySignerAdapter(), new PasskeySignerAdapter()],
+			adapters: [
+				new WebCryptoSignerAdapter(),
+				new InMemorySignerAdapter(),
+				new PasskeySignerAdapter(),
+			],
 			autoConnect: true,
 			mountUI: true,
 		}),

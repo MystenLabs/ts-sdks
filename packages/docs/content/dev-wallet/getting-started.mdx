@@ -26,15 +26,100 @@ The package uses subpath exports to keep your bundle lean — import only what y
 | `@mysten/dev-wallet/client`   | `DevWalletClient` for connecting to a standalone wallet   |
 | `@mysten/dev-wallet/server`   | Request handling and CLI signing middleware               |
 
+## Using with dApp Kit
+
+The recommended pattern uses `devWalletInitializer` to register the wallet through dApp Kit's plugin
+system. This way the wallet uses dApp Kit's network configuration and client factory instead of
+managing its own:
+
+```tsx
+import { createDAppKit, DAppKitProvider } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
+import { devWalletInitializer } from '@mysten/dev-wallet';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const dAppKit = createDAppKit({
+	networks: ['devnet'],
+	createClient: (network) =>
+		new SuiGrpcClient({
+			network,
+			baseUrl: 'https://fullnode.devnet.sui.io:443',
+		}),
+	walletInitializers: [
+		devWalletInitializer({
+			adapters: [new WebCryptoSignerAdapter()],
+			autoConnect: true,
+			mountUI: true,
+		}),
+	],
+});
+
+function App() {
+	return (
+		<DAppKitProvider dAppKit={dAppKit}>
+			<ConnectButton />
+			{/* Dev Wallet appears in the wallet picker */}
+		</DAppKitProvider>
+	);
+}
+```
+
+<Callout type="info">
+	You can also use the `useDevWallet` React hook for finer control — see [React
+	Integration](/dev-wallet/reference/react-integration).
+</Callout>
+
+## Standalone Wallet
+
+Run the wallet as a separate web app with zero code changes to your dApp:
+
+```bash
+npx @mysten/dev-wallet serve
+```
+
+This starts a full wallet UI at `http://localhost:5174` with WebCrypto and InMemory adapters. If
+`sui` is on your PATH, your CLI keystore accounts are available too.
+
+Register it through `walletInitializers` using `devWalletClientInitializer`:
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-react';
+import { devWalletClientInitializer } from '@mysten/dev-wallet/client';
+
+const dAppKit = createDAppKit({
+	networks: ['devnet'],
+	walletInitializers: [devWalletClientInitializer({ origin: 'http://localhost:5174' })],
+});
+```
+
+Or register it directly without dApp Kit:
+
+```typescript
+import { DevWalletClient } from '@mysten/dev-wallet/client';
+
+DevWalletClient.register({ origin: 'http://localhost:5174' });
+```
+
+<Callout type="info">
+	The default port is 5174 (Vite's default). If the port is already in use, Vite picks the next
+	available port — check the terminal output and update the origin accordingly. You can also set a
+	fixed port with `npx @mysten/dev-wallet serve --port 5174`.
+</Callout>
+
+Signing works via popup windows — same flow as a production browser wallet. See
+[Standalone Mode](/dev-wallet/reference/standalone-mode) for full options and
+[Shared Wallet](/dev-wallet/guides/shared-wallet) for connecting multiple dApps.
+
 ## Vanilla JavaScript Setup
 
 ```typescript
 import { DevWallet } from '@mysten/dev-wallet';
-import { InMemorySignerAdapter } from '@mysten/dev-wallet/adapters';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
 import { mountDevWallet } from '@mysten/dev-wallet/ui';
 
 // 1. Create and initialize an adapter
-const adapter = new InMemorySignerAdapter();
+const adapter = new WebCryptoSignerAdapter();
 await adapter.initialize();
 await adapter.createAccount({ label: 'Dev Account' });
 
@@ -63,12 +148,12 @@ const unmountUI = mountDevWallet(wallet);
 
 ```tsx
 import { useDevWallet } from '@mysten/dev-wallet/react';
-import { InMemorySignerAdapter } from '@mysten/dev-wallet/adapters';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
 import { useMemo } from 'react';
 
 function App() {
 	// Stable adapter reference — create once
-	const adapters = useMemo(() => [new InMemorySignerAdapter()], []);
+	const adapters = useMemo(() => [new WebCryptoSignerAdapter()], []);
 
 	const { wallet, error, loading } = useDevWallet({
 		adapters,
@@ -90,50 +175,6 @@ function App() {
 	render causes infinite re-initialization loops.
 </Callout>
 
-## Using with dApp Kit
-
-The recommended pattern uses `devWalletInitializer` to register the wallet through dApp Kit's
-plugin system. This way the wallet uses dApp Kit's network configuration and client factory
-instead of managing its own:
-
-```tsx
-import { createDAppKit, DAppKitProvider } from '@mysten/dapp-kit-react';
-import { ConnectButton } from '@mysten/dapp-kit-react/ui';
-import { devWalletInitializer } from '@mysten/dev-wallet';
-import { InMemorySignerAdapter } from '@mysten/dev-wallet/adapters';
-import { SuiGrpcClient } from '@mysten/sui/grpc';
-
-const dAppKit = createDAppKit({
-	networks: ['devnet'],
-	createClient: (network) =>
-		new SuiGrpcClient({
-			network,
-			baseUrl: 'https://fullnode.devnet.sui.io:443',
-		}),
-	walletInitializers: [
-		devWalletInitializer({
-			adapters: [new InMemorySignerAdapter()],
-			autoConnect: true,
-			mountUI: true,
-		}),
-	],
-});
-
-function App() {
-	return (
-		<DAppKitProvider dAppKit={dAppKit}>
-			<ConnectButton />
-			{/* Dev Wallet appears in the wallet picker */}
-		</DAppKitProvider>
-	);
-}
-```
-
-<Callout type="info">
-	You can also use the `useDevWallet` React hook for finer control — see [React
-	Integration](/dev-wallet/react-integration).
-</Callout>
-
 ## Default Networks
 
 If you don't provide a `networks` config, Dev Wallet includes these defaults:
@@ -144,9 +185,28 @@ If you don't provide a `networks` config, Dev Wallet includes these defaults:
 | testnet  | `https://fullnode.testnet.sui.io:443` |
 | localnet | `http://127.0.0.1:9000`               |
 
-## Next Steps
+## Funding Your Wallet
 
-- [Adapters](/dev-wallet/adapters) — choose the right adapter for your use case
-- [Signing Flow](/dev-wallet/signing-flow) — understand the approval model
-- [UI Components](/dev-wallet/ui-components) — customize the wallet panel
-- [Auto-Approval](/dev-wallet/auto-approval) — skip the modal for testing
+After setup, request test coins from the faucet so you can send transactions:
+
+```typescript
+import { requestSuiFromFaucetV2, getFaucetHost } from '@mysten/sui/faucet';
+
+await requestSuiFromFaucetV2({
+	host: getFaucetHost('devnet'),
+	recipient: wallet.accounts[0].address,
+});
+```
+
+With `WebCryptoSignerAdapter`, you only need to faucet once — the coins persist across page reloads.
+
+## Where to go next
+
+Now that you have the wallet set up, pick the guide that matches what you're building:
+
+- **Building on localnet?**
+  [Localnet & Custom Networks](/dev-wallet/guides/localnet-and-custom-networks)
+- **Writing e2e tests?** [E2E Testing](/dev-wallet/guides/e2e-testing)
+- **Need coins to survive page refresh?** [Persistent Wallet](/dev-wallet/guides/persistent-wallet)
+- **Publishing contracts with `sui move`?** [CLI Signing](/dev-wallet/guides/cli-signing)
+- **Just prototyping?** [Quick Prototyping](/dev-wallet/guides/quick-prototyping)

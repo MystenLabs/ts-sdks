@@ -1,0 +1,107 @@
+---
+title: E2E Testing
+---
+
+Use Dev Wallet in automated tests with auto-approval so transactions sign without user interaction.
+
+## The problem
+
+Automated tests (Playwright, Cypress, vitest) need a wallet that signs without clicking "Approve" in
+a browser. You can't interact with a signing modal in a headless browser.
+
+## Solution
+
+Set `autoApprove: true` and the wallet signs everything immediately. Your dApp code stays exactly
+the same — same wallet-standard APIs, same signing calls — the manual approval step is just skipped.
+
+### Vitest example
+
+```typescript
+import { DevWallet } from '@mysten/dev-wallet';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
+import { describe, it, expect } from 'vitest';
+
+describe('my dApp', () => {
+	it('signs a transaction', async () => {
+		const adapter = new WebCryptoSignerAdapter();
+		await adapter.initialize();
+		await adapter.createAccount({ label: 'Test' });
+
+		const wallet = new DevWallet({
+			adapters: [adapter],
+			autoApprove: true,
+			autoConnect: true,
+		});
+
+		wallet.register();
+		await wallet.features['standard:connect'].connect();
+
+		// Fund the account from the faucet (only needed once — WebCrypto persists across runs)
+		await requestSuiFromFaucetV2({
+			host: getFaucetHost('localnet'),
+			recipient: wallet.accounts[0].address,
+		});
+
+		// Signs immediately — no approval modal
+		const result = await wallet.features['sui:signPersonalMessage'].signPersonalMessage({
+			message: new TextEncoder().encode('test'),
+			account: wallet.accounts[0],
+		});
+
+		expect(result.signature).toBeDefined();
+		wallet.destroy();
+	});
+});
+```
+
+### With dApp Kit
+
+```typescript
+devWalletInitializer({
+	adapters: [new WebCryptoSignerAdapter()],
+	autoApprove: true,
+	autoConnect: true,
+});
+```
+
+## Fine-grained auto-approval
+
+Pass a function to control which requests are auto-approved:
+
+```typescript
+devWalletInitializer({
+	adapters: [new WebCryptoSignerAdapter()],
+	autoApprove: (request) => {
+		// Only auto-approve on devnet
+		if (request.chain === 'sui:devnet') return true;
+
+		// Only auto-approve personal messages
+		if (request.type === 'sign-personal-message') return true;
+
+		return false;
+	},
+	autoConnect: true,
+});
+```
+
+## Per-adapter limits
+
+`RemoteCliAdapter` and `PasskeySignerAdapter` set `allowAutoSign: false`, which overrides the
+wallet-level `autoApprove` policy. These adapters always require explicit interaction regardless of
+your auto-approval settings.
+
+```typescript
+const wallet = new DevWallet({
+	adapters: [
+		new WebCryptoSignerAdapter(), // auto-approved ✓
+		new PasskeySignerAdapter(), // always manual ✗
+	],
+	autoApprove: true,
+});
+```
+
+## Related
+
+- [Auto-Approval reference](/dev-wallet/reference/auto-approval) — full API and policy parameters
+- [Signing Flow](/dev-wallet/reference/signing-flow) — how the request queue works
