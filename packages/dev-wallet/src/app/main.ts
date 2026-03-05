@@ -1,15 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClientWithCoreApi } from '@mysten/sui/client';
-import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 
 import { RemoteCliAdapter } from '../adapters/remote-cli-adapter.js';
 import type { SignerAdapter } from '../types.js';
 import { parseWalletRequest } from '../server/request-handler.js';
 import { getNetworkFromChain } from '../wallet/constants.js';
-import { DEFAULT_NETWORK_URLS, DevWallet } from '../wallet/dev-wallet.js';
+import { DevWallet } from '../wallet/dev-wallet.js';
 
 // Import UI components to register custom elements
 import '../ui/dev-wallet-popup.js';
@@ -23,14 +21,6 @@ declare global {
 	}
 }
 
-function createClients(): Record<string, ClientWithCoreApi> {
-	const clients: Record<string, ClientWithCoreApi> = {};
-	for (const [name, url] of Object.entries(DEFAULT_NETWORK_URLS)) {
-		clients[name] = new SuiGrpcClient({ baseUrl: url, network: name });
-	}
-	return clients;
-}
-
 // NOTE: JWT secret is stored in localStorage (readable by any JS on the same origin).
 // This is acceptable for a dev-only tool but should not be used in production wallets.
 function getJwtSecretKey(): Uint8Array {
@@ -41,7 +31,7 @@ function getJwtSecretKey(): Uint8Array {
 	return key;
 }
 
-async function createAdapters(): Promise<SignerAdapter[]> {
+async function createWallet(): Promise<DevWallet> {
 	// Initialize all adapters concurrently
 	const initTasks: Array<Promise<SignerAdapter | null>> = [];
 
@@ -106,7 +96,11 @@ async function createAdapters(): Promise<SignerAdapter[]> {
 		}
 	}
 
-	return adapters;
+	return new DevWallet({
+		adapters,
+		activeNetwork: 'devnet',
+		persistNetworks: true,
+	});
 }
 
 /**
@@ -117,14 +111,19 @@ async function handlePopupRequest(hash: string) {
 	if (!app) throw new Error('Missing #app element in document');
 
 	try {
-		const adapters = await createAdapters();
-		const clients = createClients();
+		const wallet = await createWallet();
 		const jwtSecretKey = getJwtSecretKey();
 
 		const request = parseWalletRequest({
-			adapters,
+			adapters: [...wallet.adapters],
 			jwtSecretKey,
-			clients,
+			getClient: (network) => {
+				try {
+					return wallet.getClient(network);
+				} catch {
+					return undefined;
+				}
+			},
 			hash,
 		});
 
@@ -132,7 +131,9 @@ async function handlePopupRequest(hash: string) {
 
 		// Determine client for signing analysis
 		const network = request.chain ? getNetworkFromChain(request.chain) : undefined;
-		const client = network ? clients[network] : clients['devnet'];
+		const client = network
+			? (wallet.getClient(network) ?? wallet.activeClient)
+			: wallet.activeClient;
 
 		const popup = document.createElement('dev-wallet-popup');
 		popup.walletName = 'Dev Wallet (Web)';
@@ -142,12 +143,10 @@ async function handlePopupRequest(hash: string) {
 		popup.address = request.address ?? '';
 		// Look up the account label from adapters for signing requests
 		if (request.address) {
-			for (const adapter of adapters) {
-				const account = adapter.getAccount(request.address);
-				if (account) {
-					popup.accountLabel = account.label;
-					break;
-				}
+			const account = wallet.getAdapterForAccount(request.address)
+				?.getAccount(request.address);
+			if (account) {
+				popup.accountLabel = account.label;
 			}
 		}
 		popup.chain = request.chain ?? 'sui:unknown';
@@ -156,7 +155,7 @@ async function handlePopupRequest(hash: string) {
 
 		// For connect requests, pass account list to enable selection
 		if (request.type === 'connect') {
-			popup.connectAccounts = adapters.flatMap((a) =>
+			popup.connectAccounts = wallet.adapters.flatMap((a) =>
 				a.getAccounts().map((acc) => ({
 					address: acc.address,
 					label: acc.label,
@@ -210,12 +209,7 @@ async function showStandaloneUI() {
 	if (!app) throw new Error('Missing #app element in document');
 
 	try {
-		const adapters = await createAdapters();
-
-		const wallet = new DevWallet({
-			adapters,
-			activeNetwork: 'devnet',
-		});
+		const wallet = await createWallet();
 
 		app.innerHTML = '';
 

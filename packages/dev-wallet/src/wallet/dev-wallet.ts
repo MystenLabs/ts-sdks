@@ -26,6 +26,7 @@ import { DEFAULT_WALLET_ICON, getNetworkFromChain, type WalletEventsMap } from '
 import { type SigningResult, executeSigning } from './signing.js';
 
 const DEFAULT_WALLET_NAME = 'Dev Wallet';
+const NETWORK_STORAGE_KEY = 'dev-wallet:networks';
 
 /**
  * Default gRPC endpoint URLs for standard Sui networks (devnet, testnet, localnet).
@@ -128,6 +129,13 @@ export interface DevWalletConfig {
 	autoConnect?: boolean;
 	/** Factory to create a client for a given network. Defaults to creating SuiGrpcClient instances. */
 	clientFactory?: (network: string, url: string) => ClientWithCoreApi;
+	/**
+	 * Persist network URLs to localStorage. When enabled, custom network
+	 * configurations survive page reloads and are shared with popup windows.
+	 *
+	 * @default false
+	 */
+	persistNetworks?: boolean;
 }
 
 /**
@@ -147,6 +155,7 @@ export class DevWallet implements Wallet {
 	readonly #autoApprove: AutoApprovePolicy;
 	readonly #autoConnect: boolean;
 	readonly #clientFactory: (network: string, url: string) => ClientWithCoreApi;
+	readonly #persistNetworks: boolean;
 	#accounts: ReadonlyWalletAccount[];
 	#events: Emitter<WalletEventsMap>;
 	#unsubscribeAdapters: (() => void)[];
@@ -161,7 +170,8 @@ export class DevWallet implements Wallet {
 			console.warn('[dev-wallet] No adapters provided. The wallet will have no accounts.');
 		}
 		this.#adapters = config.adapters;
-		this.#networkUrls = { ...(config.networks ?? DEFAULT_NETWORK_URLS) };
+		this.#persistNetworks = config.persistNetworks ?? false;
+		this.#networkUrls = this.#loadNetworkUrls(config.networks ?? DEFAULT_NETWORK_URLS);
 		this.#clients = {};
 		this.#activeNetwork = config.activeNetwork ?? Object.keys(this.#networkUrls)[0] ?? '';
 		this.#name = config.name ?? DEFAULT_WALLET_NAME;
@@ -305,6 +315,7 @@ export class DevWallet implements Wallet {
 		}
 		this.#networkUrls[name] = url;
 		this.#clients[name] = this.#clientFactory(name, url);
+		this.#saveNetworkUrls();
 		this.#events.emit('change', { accounts: this.#accounts });
 	}
 
@@ -315,6 +326,7 @@ export class DevWallet implements Wallet {
 		if (this.#activeNetwork === name) {
 			this.#activeNetwork = Object.keys(this.#networkUrls)[0] ?? '';
 		}
+		this.#saveNetworkUrls();
 		this.#events.emit('change', { accounts: this.#accounts });
 	}
 
@@ -520,6 +532,29 @@ export class DevWallet implements Wallet {
 			throw new Error(`Invalid chain identifier: ${chain}`);
 		}
 		return this.#ensureClient(network);
+	}
+
+	#loadNetworkUrls(defaults: Record<string, string>): Record<string, string> {
+		if (!this.#persistNetworks || typeof localStorage === 'undefined') {
+			return { ...defaults };
+		}
+		try {
+			const raw = localStorage.getItem(NETWORK_STORAGE_KEY);
+			if (raw) {
+				const parsed = JSON.parse(raw);
+				if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+					return parsed as Record<string, string>;
+				}
+			}
+		} catch {
+			// Corrupted data — fall through to defaults
+		}
+		return { ...defaults };
+	}
+
+	#saveNetworkUrls(): void {
+		if (!this.#persistNetworks || typeof localStorage === 'undefined') return;
+		localStorage.setItem(NETWORK_STORAGE_KEY, JSON.stringify(this.#networkUrls));
 	}
 
 	#ensureClient(network: string): ClientWithCoreApi {

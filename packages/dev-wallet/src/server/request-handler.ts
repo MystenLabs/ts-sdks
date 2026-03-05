@@ -37,8 +37,8 @@ export interface HandleRequestOptions {
 	adapters: SignerAdapter[];
 	/** JWT secret key for session creation. */
 	jwtSecretKey: CryptoKey | Uint8Array;
-	/** SuiClient instances by network (needed for signAndExecute). */
-	clients?: Record<string, ClientWithCoreApi>;
+	/** Resolve a client for a given network name (needed for signAndExecute). */
+	getClient?: (network: string) => ClientWithCoreApi | undefined;
 	/** URL hash containing the encoded request. Defaults to window.location.hash. */
 	hash?: string;
 }
@@ -151,7 +151,7 @@ export function parseWalletRequest(options: HandleRequestOptions): PendingWallet
 
 			try {
 				const network = payload.chain ? getNetworkFromChain(payload.chain) : undefined;
-				const client = network ? options.clients?.[network] : undefined;
+				const client = network ? options.getClient?.(network) : undefined;
 				const result = await executeSigning({
 					type: payload.type,
 					signer: account.signer,
