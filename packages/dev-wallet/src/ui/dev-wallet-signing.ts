@@ -12,13 +12,7 @@ import { CopyController } from './copy-controller.js';
 import { actionButtonStyles, sharedStyles } from './styles.js';
 import type { TransactionAnalysis } from './transaction-analyzer.js';
 import { analyzeTransaction } from './transaction-analyzer.js';
-import {
-	emitEvent,
-	formatAddress,
-	formatCoinBalance,
-	getCoinDecimals,
-	getCoinSymbol,
-} from './utils.js';
+import { emitEvent, formatAddress, formatCoinBalance, getCoinSymbol } from './utils.js';
 
 const REQUEST_TYPE_LABELS: Record<PendingSigningRequest['type'], string> = {
 	'sign-personal-message': 'Sign Message',
@@ -302,6 +296,7 @@ export class DevWalletSigning extends LitElement {
 
 	#copy = new CopyController(this);
 	#analysisGeneration = 0;
+	#coinDecimalsCache = new Map<string, number>();
 
 	override willUpdate(changedProperties: Map<string, unknown>) {
 		if (changedProperties.has('request')) {
@@ -325,6 +320,28 @@ export class DevWalletSigning extends LitElement {
 
 		if (result.kind === 'rich') {
 			this._analysis = result.analysis;
+			// Fetch coin metadata for all coin types in flows
+			if (this.client && result.analysis.coinFlows?.length) {
+				const coinTypes = [...new Set(result.analysis.coinFlows.map((f) => f.coinType))];
+				await Promise.all(
+					coinTypes
+						.filter((ct) => !this.#coinDecimalsCache.has(ct))
+						.map(async (ct) => {
+							try {
+								const { coinMetadata } = await this.client!.core.getCoinMetadata({
+									coinType: ct,
+								});
+								if (coinMetadata) {
+									this.#coinDecimalsCache.set(ct, coinMetadata.decimals);
+								}
+							} catch {
+								// leave uncached — will use 0 as fallback
+							}
+						}),
+				);
+				if (generation !== this.#analysisGeneration) return;
+				this.requestUpdate();
+			}
 		} else {
 			this._analysisError = result.message;
 		}
@@ -445,7 +462,7 @@ export class DevWalletSigning extends LitElement {
 			<div class="section-label">Estimated Cost</div>
 			<div class="coin-flows">
 				${flows.map((flow) => {
-					const decimals = getCoinDecimals(flow.coinType);
+					const decimals = this.#coinDecimalsCache.get(flow.coinType) ?? 0;
 					const formatted = formatCoinBalance(flow.amount, decimals);
 					// Outflows are shown as negative (cost), displayed in destructive color
 					return html`

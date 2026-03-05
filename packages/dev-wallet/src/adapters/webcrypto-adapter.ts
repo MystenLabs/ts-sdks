@@ -33,7 +33,10 @@ export class WebCryptoSignerAdapter extends BaseSignerAdapter {
 	}
 
 	async initialize(): Promise<void> {
-		const allEntries = await this.#store.entries<string, ExportedWebCryptoKeypair | StoredAccountMeta[]>();
+		const allEntries = await this.#store.entries<
+			string,
+			ExportedWebCryptoKeypair | StoredAccountMeta[]
+		>();
 		const meta: StoredAccountMeta[] = (await this.#store.get<StoredAccountMeta[]>(META_KEY)) ?? [];
 
 		const accounts = [];
@@ -55,7 +58,7 @@ export class WebCryptoSignerAdapter extends BaseSignerAdapter {
 	async createAccount(options?: CreateAccountOptions): Promise<ManagedAccount> {
 		const signer = await WebCryptoSigner.generate();
 		const address = signer.getPublicKey().toSuiAddress();
-		const label = options?.label ?? `Account ${this.getAccounts().length + 1}`;
+		const label = options?.label ?? this.getDefaultLabel();
 
 		const managedAccount = buildManagedAccount(signer, address, label);
 

@@ -1,8 +1,9 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createServer } from 'node:net';
 import type { Server } from 'node:http';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
@@ -21,7 +22,7 @@ const mockExecFile = vi.mocked(execFile);
 const mockAccountList = [
 	{
 		alias: 'test-alias',
-		suiAddress: '0xabc123',
+		suiAddress: '0x00000000000000000000000000000000000000000000000000000000000abc23',
 		publicBase64Key: 'AHsXwcxaWNaNtCIIszwu7V2G6HO8aNM1598w/8y0zI5q',
 		keyScheme: 'ed25519',
 		flag: 0,
@@ -29,7 +30,7 @@ const mockAccountList = [
 ];
 
 const mockSignResult = {
-	suiAddress: '0xabc123',
+	suiAddress: '0x00000000000000000000000000000000000000000000000000000000000abc23',
 	rawTxData: 'dHhEYXRh',
 	intent: { scope: 0, version: 0, appId: 0 },
 	rawIntentMsg: 'aW50ZW50TXNn',
@@ -37,46 +38,43 @@ const mockSignResult = {
 	suiSignature: 'c2lnbmF0dXJl',
 };
 
-// Helper to set up a test HTTP server with the middleware
-function createTestServer(options?: { skipAuth?: boolean }): {
-	server: Server;
-	token: string | null;
-	close: () => Promise<void>;
-} {
-	const { app: cliApp, token } = createCliSigningMiddleware({
-		skipAuth: options?.skipAuth ?? true,
+/** Find an available port by briefly listening on port 0. */
+function getAvailablePort(): Promise<number> {
+	return new Promise((resolve, reject) => {
+		const srv = createServer();
+		srv.listen(0, () => {
+			const addr = srv.address();
+			const port = typeof addr === 'object' ? addr!.port : 0;
+			srv.close((err) => (err ? reject(err) : resolve(port)));
+		});
 	});
+}
+
+// Helper to set up a test HTTP server with the middleware
+async function createTestServer(): Promise<{
+	server: Server;
+	token: string;
+	port: number;
+	close: () => Promise<void>;
+}> {
+	const port = await getAvailablePort();
+	const { app: cliApp, token } = createCliSigningMiddleware({ port });
 
 	const app = new Hono();
 	app.route('/', cliApp);
 	app.all('*', (c) => c.json({ error: 'Not found (passthrough)' }, 404));
 
-	const server = serve({ fetch: app.fetch, port: 0 }) as Server;
+	const server = serve({ fetch: app.fetch, port }) as Server;
 
 	return {
 		server,
 		token,
+		port,
 		close: () =>
 			new Promise<void>((resolve) => {
 				server.close(() => resolve());
 			}),
 	};
-}
-
-async function startServer(testServer: ReturnType<typeof createTestServer>): Promise<number> {
-	return new Promise((resolve) => {
-		// The server from serve() is already listening; get the port
-		const addr = testServer.server.address();
-		if (addr && typeof addr === 'object') {
-			resolve(addr.port);
-		} else {
-			// Wait for listening event if not ready yet
-			testServer.server.on('listening', () => {
-				const a = testServer.server.address();
-				resolve(typeof a === 'object' ? a!.port : 0);
-			});
-		}
-	});
 }
 
 async function request(
@@ -99,13 +97,13 @@ async function request(
 }
 
 describe('CLI Signing Middleware', () => {
-	let testServer: ReturnType<typeof createTestServer>;
+	let testServer: Awaited<ReturnType<typeof createTestServer>>;
 	let port: number;
 
 	beforeEach(async () => {
 		vi.clearAllMocks();
-		testServer = createTestServer({ skipAuth: true });
-		port = await startServer(testServer);
+		testServer = await createTestServer();
+		port = testServer.port;
 	});
 
 	afterEach(async () => {
@@ -119,7 +117,9 @@ describe('CLI Signing Middleware', () => {
 				return {} as any;
 			});
 
-			const { status, body } = await request(port, '/api/v1/accounts');
+			const { status, body } = await request(port, '/api/v1/accounts', {
+				token: testServer.token,
+			});
 
 			expect(status).toBe(200);
 			expect(body.accounts).toEqual(mockAccountList);
@@ -131,7 +131,7 @@ describe('CLI Signing Middleware', () => {
 				return {} as any;
 			});
 
-			await request(port, '/api/v1/accounts');
+			await request(port, '/api/v1/accounts', { token: testServer.token });
 
 			expect(mockExecFile).toHaveBeenCalledWith(
 				'sui',
@@ -146,7 +146,9 @@ describe('CLI Signing Middleware', () => {
 				return {} as any;
 			});
 
-			const { status, body } = await request(port, '/api/v1/accounts');
+			const { status, body } = await request(port, '/api/v1/accounts', {
+				token: testServer.token,
+			});
 
 			expect(status).toBe(500);
 			expect(body.error).toContain('Failed to list accounts');
@@ -162,7 +164,11 @@ describe('CLI Signing Middleware', () => {
 
 			const { status, body } = await request(port, '/api/v1/sign-transaction', {
 				method: 'POST',
-				body: { address: '0xabc123', txBytes: 'dHhEYXRh' },
+				body: {
+					address: '0x00000000000000000000000000000000000000000000000000000000000abc23',
+					txBytes: 'dHhEYXRh',
+				},
+				token: testServer.token,
 			});
 
 			expect(status).toBe(200);
@@ -174,6 +180,7 @@ describe('CLI Signing Middleware', () => {
 			const { status, body } = await request(port, '/api/v1/sign-transaction', {
 				method: 'POST',
 				body: { address: 'not-an-address', txBytes: 'dHhEYXRh' },
+				token: testServer.token,
 			});
 
 			expect(status).toBe(400);
@@ -184,7 +191,11 @@ describe('CLI Signing Middleware', () => {
 		it('rejects empty txBytes', async () => {
 			const { status, body } = await request(port, '/api/v1/sign-transaction', {
 				method: 'POST',
-				body: { address: '0xabc123', txBytes: '' },
+				body: {
+					address: '0x00000000000000000000000000000000000000000000000000000000000abc23',
+					txBytes: '',
+				},
+				token: testServer.token,
 			});
 
 			expect(status).toBe(400);
@@ -195,6 +206,7 @@ describe('CLI Signing Middleware', () => {
 			const { status } = await request(port, '/api/v1/sign-transaction', {
 				method: 'POST',
 				body: { address: '$(rm -rf /)', txBytes: 'dHhEYXRh' },
+				token: testServer.token,
 			});
 
 			expect(status).toBe(400);
@@ -235,13 +247,39 @@ describe('CLI Signing Middleware', () => {
 			expect(status).toBe(403);
 			expect(body.error).toContain('localhost');
 		});
+
+		it('rejects requests with wrong port in Host header', async () => {
+			const http = await import('node:http');
+			const { status, body } = await new Promise<{ status: number; body: any }>((resolve) => {
+				const req = http.request(
+					{
+						hostname: '127.0.0.1',
+						port,
+						path: '/api/v1/accounts',
+						method: 'GET',
+						headers: { Host: 'localhost:9999' },
+					},
+					(res) => {
+						let data = '';
+						res.on('data', (chunk: Buffer) => (data += chunk));
+						res.on('end', () => resolve({ status: res.statusCode!, body: JSON.parse(data) }));
+					},
+				);
+				req.end();
+			});
+			expect(status).toBe(403);
+			expect(body.error).toContain('localhost');
+		});
 	});
 
 	describe('body validation', () => {
 		it('returns 400 for invalid JSON body', async () => {
 			const res = await fetch(`http://localhost:${port}/api/v1/sign-transaction`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${testServer.token}`,
+				},
 				body: '{invalid json',
 			});
 			const body = await res.json();
@@ -252,13 +290,13 @@ describe('CLI Signing Middleware', () => {
 });
 
 describe('Token Authentication', () => {
-	let testServer: ReturnType<typeof createTestServer>;
+	let testServer: Awaited<ReturnType<typeof createTestServer>>;
 	let port: number;
 
 	beforeEach(async () => {
 		vi.clearAllMocks();
-		testServer = createTestServer({ skipAuth: false });
-		port = await startServer(testServer);
+		testServer = await createTestServer();
+		port = testServer.port;
 	});
 
 	afterEach(async () => {
@@ -284,7 +322,7 @@ describe('Token Authentication', () => {
 		});
 
 		const { status } = await request(port, '/api/v1/accounts', {
-			token: testServer.token!,
+			token: testServer.token,
 		});
 
 		expect(status).toBe(200);
@@ -296,6 +334,19 @@ describe('Token Authentication', () => {
 		});
 
 		expect(status).toBe(401);
+	});
+
+	it('accepts Bearer scheme case-insensitively', async () => {
+		mockExecFile.mockImplementation((_cmd, _args, callback: any) => {
+			callback(null, { stdout: '[]', stderr: '' });
+			return {} as any;
+		});
+
+		const res = await fetch(`http://localhost:${port}/api/v1/accounts`, {
+			headers: { Authorization: `bearer ${testServer.token}` },
+		});
+
+		expect(res.status).toBe(200);
 	});
 
 	it('passthrough routes are not affected by auth', async () => {

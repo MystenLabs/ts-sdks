@@ -5,22 +5,16 @@ import { execFile } from 'node:child_process';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
+import { isValidSuiAddress } from '@mysten/sui/utils';
 import { Hono } from 'hono';
 
 const execFileAsync = promisify(execFile);
 
 // ── Input validation ─────────────────────────────────────────────────────────
 
-const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{1,64}$/;
-
-function isValidAddress(value: unknown): value is string {
-	return typeof value === 'string' && ADDRESS_PATTERN.test(value);
-}
-
 function isValidBase64(value: unknown): value is string {
 	if (typeof value !== 'string' || value.length === 0) return false;
-	// Only allow base64 characters (standard + URL-safe), padding, and reasonable length
-	return /^[A-Za-z0-9+/\-_]+=*$/.test(value) && value.length <= 1_000_000;
+	return /^[A-Za-z0-9+/]+=*$/.test(value) && value.length <= 1_000_000;
 }
 
 // ── Body size limit ─────────────────────────────────────────────────────────
@@ -36,17 +30,14 @@ function generateToken(): string {
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export interface CliSigningMiddlewareOptions {
-	/**
-	 * When true, skip token authentication. Useful for testing.
-	 * @default false
-	 */
-	skipAuth?: boolean;
+	/** The port the server is listening on, used for DNS rebinding protection. */
+	port: number;
 }
 
 export interface CliSigningMiddlewareResult {
 	app: Hono;
-	/** Cryptographically strong token for URL-based auth (Jupyter-style). Null if auth is skipped. */
-	token: string | null;
+	/** Cryptographically strong token for URL-based auth (Jupyter-style). */
+	token: string;
 }
 
 /**
@@ -61,15 +52,14 @@ export interface CliSigningMiddlewareResult {
  * All user-supplied inputs are validated before being passed as CLI arguments.
  */
 export function createCliSigningMiddleware(
-	options?: CliSigningMiddlewareOptions,
+	options: CliSigningMiddlewareOptions,
 ): CliSigningMiddlewareResult {
-	const skipAuth = options?.skipAuth ?? false;
-	const token = skipAuth ? null : generateToken();
+	const { port } = options;
+	const token = generateToken();
 
 	function isAuthenticated(authHeader: string | undefined): boolean {
-		if (skipAuth) return true;
 		if (!token) return false;
-		if (!authHeader?.startsWith('Bearer ')) return false;
+		if (!authHeader || !/^bearer /i.test(authHeader)) return false;
 		const provided = authHeader.slice(7);
 		if (provided.length !== token.length) return false;
 		return timingSafeEqual(Buffer.from(provided), Buffer.from(token));
@@ -79,8 +69,9 @@ export function createCliSigningMiddleware(
 
 	// DNS rebinding protection — reject non-localhost hosts
 	app.use('*', async (c, next) => {
-		const host = (c.req.header('host') ?? '').replace(/:\d+$/, '');
-		if (host && host !== 'localhost' && host !== '127.0.0.1' && host !== '[::1]') {
+		const host = c.req.header('host') ?? '';
+		const allowedHosts = new Set([`localhost:${port}`, `127.0.0.1:${port}`, `[::1]:${port}`]);
+		if (host && !allowedHosts.has(host)) {
 			return c.json({ error: 'Requests must originate from localhost.' }, 403);
 		}
 		return await next();
@@ -131,7 +122,7 @@ export function createCliSigningMiddleware(
 			return c.json({ error: 'Invalid JSON body' }, 400);
 		}
 
-		if (!isValidAddress(body.address)) {
+		if (typeof body.address !== 'string' || !isValidSuiAddress(body.address)) {
 			return c.json({ error: 'Invalid address format. Expected 0x-prefixed hex.' }, 400);
 		}
 
@@ -141,7 +132,7 @@ export function createCliSigningMiddleware(
 
 		try {
 			// All arguments are passed as an array — no shell interpretation.
-			// address: validated by ADDRESS_PATTERN (hex only)
+			// address: validated by isValidSuiAddress (hex only)
 			// txBytes: validated as base64 (alphanumeric + /+=)
 			const { stdout } = await execFileAsync('sui', [
 				'keytool',

@@ -6,7 +6,7 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { sectionHeaderStyles, sharedStyles, stateStyles } from './styles.js';
-import { formatCoinBalance, getCoinDecimals, getCoinSymbol } from './utils.js';
+import { formatCoinBalance, getCoinSymbol } from './utils.js';
 
 interface CoinBalance {
 	coinType: string;
@@ -136,12 +136,20 @@ export class DevWalletBalances extends LitElement {
 			const { balances } = await this.client!.core.listBalances({ owner: this.address });
 
 			if (generation !== this.#fetchGeneration) return;
+
+			const metadataResults = await Promise.all(
+				balances.map((b) =>
+					this.client!.core.getCoinMetadata({ coinType: b.coinType }).catch(() => null),
+				),
+			);
+
+			if (generation !== this.#fetchGeneration) return;
 			this._balances = balances.map(
-				(b): CoinBalance => ({
+				(b, i): CoinBalance => ({
 					coinType: b.coinType,
-					symbol: getCoinSymbol(b.coinType),
+					symbol: metadataResults[i]?.coinMetadata?.symbol ?? getCoinSymbol(b.coinType),
 					totalBalance: b.balance,
-					decimals: getCoinDecimals(b.coinType),
+					decimals: metadataResults[i]?.coinMetadata?.decimals ?? 0,
 				}),
 			);
 		} catch {

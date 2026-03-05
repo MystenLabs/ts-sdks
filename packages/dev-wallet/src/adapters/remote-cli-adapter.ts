@@ -166,6 +166,10 @@ export class RemoteCliAdapter extends BaseSignerAdapter {
 	readonly name = 'Remote CLI Signer';
 	readonly allowAutoSign = false;
 
+	protected override getDefaultLabel(): string {
+		return `CLI Account ${this.getAccounts().length + 1}`;
+	}
+
 	// Keys are scoped per origin to prevent cross-site leakage on shared localhost setups.
 	// localStorage is used rather than sessionStorage because popup wallet flows
 	// (DevWalletClient) may open new tabs that need access to the token.
@@ -404,7 +408,7 @@ export class RemoteCliAdapter extends BaseSignerAdapter {
 			authToken: this.#authToken,
 		});
 
-		const accountLabel = label ?? info.alias ?? `CLI Account ${this.getAccounts().length + 1}`;
+		const accountLabel = label ?? info.alias ?? this.getDefaultLabel();
 
 		return buildManagedAccount(signer, info.suiAddress, accountLabel, CLI_WALLET_FEATURES);
 	}

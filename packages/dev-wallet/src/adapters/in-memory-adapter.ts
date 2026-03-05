@@ -18,7 +18,7 @@ export class InMemorySignerAdapter extends BaseSignerAdapter {
 	async createAccount(options?: CreateAccountOptions): Promise<ManagedAccount> {
 		const keypair = new Ed25519Keypair();
 		const address = keypair.getPublicKey().toSuiAddress();
-		const label = options?.label ?? `Account ${this.getAccounts().length + 1}`;
+		const label = options?.label ?? this.getDefaultLabel();
 
 		const managedAccount = buildManagedAccount(keypair, address, label);
 		this.addAccount(managedAccount);
@@ -35,7 +35,7 @@ export class InMemorySignerAdapter extends BaseSignerAdapter {
 		const existing = this.getAccount(address);
 		if (existing) return existing;
 
-		const label = options.label ?? `Account ${this.getAccounts().length + 1}`;
+		const label = options.label ?? this.getDefaultLabel();
 		const managedAccount = buildManagedAccount(signer, address, label);
 		this.addAccount(managedAccount);
 		return managedAccount;

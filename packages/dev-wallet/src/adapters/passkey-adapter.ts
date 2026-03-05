@@ -89,10 +89,14 @@ export class PasskeySignerAdapter extends BaseSignerAdapter {
 		);
 	}
 
+	protected override getDefaultLabel(): string {
+		return `Passkey Account ${this.getAccounts().length + 1}`;
+	}
+
 	async createAccount(options?: CreateAccountOptions) {
 		const signer = await PasskeyKeypair.getPasskeyInstance(this.#getProvider());
 		const address = signer.toSuiAddress();
-		const label = options?.label ?? `Passkey Account ${this.getAccounts().length + 1}`;
+		const label = options?.label ?? this.getDefaultLabel();
 
 		const managedAccount = buildManagedAccount(signer, address, label);
 		this.addAccount(managedAccount);

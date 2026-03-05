@@ -485,6 +485,17 @@ describe('dev-wallet-balances component', () => {
 						hasNextPage: false,
 						cursor: null,
 					}),
+				getCoinMetadata: () =>
+					Promise.resolve({
+						coinMetadata: {
+							decimals: 9,
+							symbol: 'SUI',
+							name: 'Sui',
+							description: '',
+							id: null,
+							iconUrl: null,
+						},
+					}),
 			},
 		} as any;
 		container.appendChild(el);

@@ -1,8 +1,20 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
+
+const NORMALIZED_SUI_COIN_TYPE =
+	'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI';
+
+const NORMALIZED_COIN_PREFIX =
+	'0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<';
+
 export function isSuiCoinType(coinType: string): boolean {
-	return coinType.endsWith('::sui::SUI');
+	try {
+		return normalizeStructTag(coinType) === NORMALIZED_SUI_COIN_TYPE;
+	} catch {
+		return false;
+	}
 }
 
 export function formatAddress(address: string): string {
@@ -11,36 +23,30 @@ export function formatAddress(address: string): string {
 }
 
 export function getCoinSymbol(coinType: string): string {
-	if (isSuiCoinType(coinType)) return 'SUI';
-	const parts = coinType.split('::');
-	return parts.length >= 3 ? parts[2] : coinType;
-}
-
-// Known decimals for common Sui tokens. Unknown tokens default to 0 (raw display).
-const KNOWN_DECIMALS: Record<string, number> = {
-	SUI: 9,
-	USDC: 6,
-	USDT: 6,
-	WETH: 8,
-};
-
-export function getCoinDecimals(coinType: string): number {
-	if (isSuiCoinType(coinType)) return 9;
-	const symbol = getCoinSymbol(coinType);
-	return KNOWN_DECIMALS[symbol] ?? 0;
+	try {
+		const tag = parseStructTag(coinType);
+		return tag.name;
+	} catch {
+		return coinType;
+	}
 }
 
 /** Check if a type string is a Coin wrapper (0x2::coin::Coin<...>) */
 export function isCoinType(type: string): boolean {
-	return /::coin::Coin</.test(type);
+	try {
+		return normalizeStructTag(type).startsWith(NORMALIZED_COIN_PREFIX);
+	} catch {
+		return false;
+	}
 }
 
 /** Extract the short struct name from a full Move type string */
 export function getTypeName(type: string): string {
-	// Remove generics for the display name
-	const base = type.replace(/<.*>$/, '');
-	const parts = base.split('::');
-	return parts.length >= 3 ? parts[parts.length - 1] : type;
+	try {
+		return parseStructTag(type).name;
+	} catch {
+		return type;
+	}
 }
 
 export async function copyToClipboard(text: string): Promise<boolean> {

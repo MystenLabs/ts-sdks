@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest';
 import {
 	formatAddress,
 	getCoinSymbol,
-	getCoinDecimals,
 	formatCoinBalance,
 	getTypeName,
 	isCoinType,
@@ -48,20 +47,6 @@ describe('getCoinSymbol', () => {
 
 	it('returns full string for non-standard types', () => {
 		expect(getCoinSymbol('something')).toBe('something');
-	});
-});
-
-describe('getCoinDecimals', () => {
-	it('returns 9 for SUI', () => {
-		expect(getCoinDecimals('0x2::sui::SUI')).toBe(9);
-	});
-
-	it('returns 6 for USDC', () => {
-		expect(getCoinDecimals('0xabc::usdc::USDC')).toBe(6);
-	});
-
-	it('returns 0 for unknown tokens', () => {
-		expect(getCoinDecimals('0xabc::foo::FOO')).toBe(0);
 	});
 });
 
@@ -112,12 +97,22 @@ describe('isCoinType', () => {
 });
 
 describe('isSuiCoinType', () => {
-	it('detects SUI coin type', () => {
+	it('detects SUI coin type with short address', () => {
 		expect(isSuiCoinType('0x2::sui::SUI')).toBe(true);
+	});
+
+	it('detects SUI coin type with full address', () => {
+		expect(
+			isSuiCoinType('0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'),
+		).toBe(true);
 	});
 
 	it('rejects non-SUI types', () => {
 		expect(isSuiCoinType('0x2::usdc::USDC')).toBe(false);
+	});
+
+	it('rejects types that only end with ::sui::SUI', () => {
+		expect(isSuiCoinType('0xabc::sui::SUI')).toBe(false);
 	});
 });
 

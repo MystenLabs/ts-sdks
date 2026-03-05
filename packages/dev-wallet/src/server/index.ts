@@ -6,5 +6,3 @@ export type {
 	CliSigningMiddlewareOptions,
 	CliSigningMiddlewareResult,
 } from './cli-signing-middleware.js';
-export { parseWalletRequest } from './request-handler.js';
-export type { PendingWalletRequest, HandleRequestOptions } from './request-handler.js';

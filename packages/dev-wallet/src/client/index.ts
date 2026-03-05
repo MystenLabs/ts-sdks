@@ -3,3 +3,5 @@
 
 export { DevWalletClient, devWalletClientInitializer } from './dev-wallet-client.js';
 export type { DevWalletClientOptions } from './dev-wallet-client.js';
+export { parseWalletRequest } from './request-handler.js';
+export type { PendingWalletRequest, HandleRequestOptions } from './request-handler.js';

@@ -5,7 +5,7 @@ import { fromBase64, toBase64 } from '@mysten/sui/utils';
 
 import { RemoteCliAdapter } from '../adapters/remote-cli-adapter.js';
 import type { SignerAdapter } from '../types.js';
-import { parseWalletRequest } from '../server/request-handler.js';
+import { parseWalletRequest } from '../client/request-handler.js';
 import { getNetworkFromChain } from '../wallet/constants.js';
 import { DevWallet } from '../wallet/dev-wallet.js';
 
@@ -143,8 +143,7 @@ async function handlePopupRequest(hash: string) {
 		popup.address = request.address ?? '';
 		// Look up the account label from adapters for signing requests
 		if (request.address) {
-			const account = wallet.getAdapterForAccount(request.address)
-				?.getAccount(request.address);
+			const account = wallet.getAdapterForAccount(request.address)?.getAccount(request.address);
 			if (account) {
 				popup.accountLabel = account.label;
 			}

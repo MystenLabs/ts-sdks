@@ -37,7 +37,7 @@ const mockChannel = (windowWalletCore as any).__mockChannel;
 const { WalletPostMessageChannel } = windowWalletCore;
 
 // Import after mock setup
-const { parseWalletRequest } = await import('../src/server/request-handler.js');
+const { parseWalletRequest } = await import('../src/client/request-handler.js');
 
 describe('parseWalletRequest', () => {
 	let adapter: InMemorySignerAdapter;

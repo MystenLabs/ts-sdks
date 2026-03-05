@@ -149,7 +149,7 @@ The wallet automatically detects available adapters:
 
 	if (hasSuiCli) {
 		const { createCliSigningMiddleware } = await import('../server/cli-signing-middleware.js');
-		const result = createCliSigningMiddleware();
+		const result = createCliSigningMiddleware({ port });
 		cliToken = result.token;
 		app.route('/', result.app);
 	}
