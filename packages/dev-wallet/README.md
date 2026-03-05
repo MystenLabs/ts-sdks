@@ -2,13 +2,11 @@
 
 A development-only wallet for building and testing Sui dApps.
 
-> [!WARNING]
-> This wallet is for development and testing only. Do not use it to store real funds. A console
-> warning is emitted automatically in production builds.
+> [!WARNING] This wallet is for development and testing only. Do not use it to store real funds. A
+> console warning is emitted automatically in production builds.
 
-> [!CAUTION]
-> **Pre-1.0:** This package is under active development. Minor versions may contain breaking changes
-> until the API stabilizes at 1.0.
+> [!CAUTION] **Pre-1.0:** This package is under active development. Minor versions may contain
+> breaking changes until the API stabilizes at 1.0.
 
 ## Why use a dev wallet?
 
@@ -31,6 +29,34 @@ A development-only wallet for building and testing Sui dApps.
 
 ```bash
 npm install @mysten/dev-wallet
+```
+
+## Quick start
+
+A single `devWalletInitializer` call covers most use cases. Tweak the options for your scenario:
+
+```typescript
+import { createDAppKit } from '@mysten/dapp-kit-react';
+import { devWalletInitializer } from '@mysten/dev-wallet';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+
+const dAppKit = createDAppKit({
+	networks: ['devnet', 'testnet', 'localnet'],
+	walletInitializers: [
+		devWalletInitializer({
+			// Keys persist in IndexedDB — faucet once, keep your coins across reloads
+			adapters: [new WebCryptoSignerAdapter()],
+			// Skip the wallet picker — connect immediately on load
+			autoConnect: true,
+			// Show the floating wallet panel (accounts, balances, objects)
+			mountUI: true,
+			// Auto-create an account on first visit (default: true)
+			createInitialAccount: true,
+			// Sign without approval modals — great for E2E tests and CI
+			// autoApprove: true,
+		}),
+	],
+});
 ```
 
 ## Pick your setup
@@ -140,31 +166,23 @@ devWalletInitializer({
 });
 ```
 
-## Common recipes
+## Options reference
 
-### E2E testing with auto-approval
+Options for `devWalletInitializer` (dApp Kit plugin) and `DevWallet` constructor:
 
-Set `autoApprove: true` to sign everything without user interaction. Your dApp code stays exactly
-the same — same wallet-standard APIs, same signing flow — the approval step is just skipped. Works
-great with headless browsers and CI.
+| Option                 | Type                              | Default                   | Description                                                                                   |
+| ---------------------- | --------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------- |
+| `adapters`             | `BaseSignerAdapter[]`             | _(required)_              | Signer adapters that provide accounts and signing                                             |
+| `autoConnect`          | `boolean`                         | `false`                   | Skip wallet picker — connect the first available account on load                              |
+| `autoApprove`          | `boolean \| (request) => boolean` | `false`                   | Sign without showing the approval modal. Pass a function for fine-grained control (see below) |
+| `mountUI`              | `boolean`                         | `false`                   | Show the floating wallet panel (accounts, balances, objects)                                  |
+| `createInitialAccount` | `boolean`                         | `true`                    | Auto-create an account on first visit if the adapter has none                                 |
+| `name`                 | `string`                          | `'Dev Wallet'`            | Wallet name shown in the wallet picker                                                        |
+| `networks`             | `Record<string, string>`          | devnet, testnet, localnet | Custom network URLs (only needed for non-default networks like staging)                       |
 
-```typescript
-import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
+### Fine-grained `autoApprove`
 
-devWalletInitializer({
-	adapters: [new WebCryptoSignerAdapter()],
-	autoApprove: true,
-	autoConnect: true,
-});
-
-// Fund the account from the faucet (only needed once — WebCrypto persists across runs)
-await requestSuiFromFaucetV2({
-	host: getFaucetHost('localnet'),
-	recipient: wallet.accounts[0].address,
-});
-```
-
-For fine-grained control, pass a function:
+Pass a function to approve only specific request types or chains:
 
 ```typescript
 devWalletInitializer({
@@ -176,25 +194,10 @@ devWalletInitializer({
 
 Note: `RemoteCliAdapter` and `PasskeySignerAdapter` never auto-sign regardless of this setting.
 
-### Persistent wallet that survives page reloads
+## Using the CLI adapter
 
-Use the WebCrypto adapter. Keys are stored in IndexedDB. Request coins from the faucet once — they
-survive page refresh, browser restart, and app redeployment.
-
-```typescript
-devWalletInitializer({
-	adapters: [new WebCryptoSignerAdapter()],
-	autoConnect: true,
-	mountUI: true,
-});
-```
-
-On first load, an account is created automatically. Subsequent loads restore it.
-
-### Using the same address you publish contracts from
-
-The RemoteCLI adapter connects to your local `sui` CLI over HTTP. Private keys never leave the `sui`
-binary — only transaction bytes are sent for signing.
+The Remote CLI adapter connects to your local `sui` CLI over HTTP. Private keys never leave the
+`sui` binary — only transaction bytes are sent for signing.
 
 The easiest way is the standalone wallet:
 
@@ -221,58 +224,12 @@ signature with that address, the transaction bytes are sent to the local `sui ke
 > (`sui keytool sign` only accepts TransactionData) will show an error. Use a WebCrypto or InMemory
 > account for `signPersonalMessage`.
 
-#### Bookmarklet
+### Bookmarklet
 
 The standalone wallet also serves a bookmarklet for quick injection into any dApp. You can find it
 in the **Settings** tab — drag it to your bookmarks bar, or copy the console snippet from the
 terminal output. Clicking the bookmarklet on any page registers the standalone wallet without
 needing to modify the dApp's source code.
-
-### Connecting to localnet or custom networks
-
-Localnet, devnet, and testnet are configured by default. For custom URLs:
-
-```typescript
-const wallet = new DevWallet({
-	adapters: [new WebCryptoSignerAdapter()],
-	networks: {
-		localnet: 'http://127.0.0.1:9000',
-		staging: 'https://my-staging-fullnode.example.com:443',
-	},
-});
-```
-
-### Demo app with no browser extension required
-
-Embed the wallet with auto-connect and it appears in the dApp Kit wallet picker automatically. Users
-don't need to install anything.
-
-```typescript
-devWalletInitializer({
-	adapters: [new WebCryptoSignerAdapter()],
-	autoConnect: true,
-	mountUI: true,
-	createInitialAccount: true,
-});
-```
-
-### Wallet shared across multiple apps
-
-Run the standalone wallet once and connect as many dApps as you need:
-
-```bash
-npx @mysten/dev-wallet serve --port=5174
-```
-
-In each dApp:
-
-```typescript
-import { DevWalletClient } from '@mysten/dev-wallet/client';
-
-DevWalletClient.register({ origin: 'http://localhost:5174' });
-```
-
-All apps share the same accounts and balances.
 
 ## Imports
 

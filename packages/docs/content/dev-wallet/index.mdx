@@ -17,16 +17,16 @@ A development-only wallet for building and testing Sui dApps — no browser exte
 
 ## What can you do with it?
 
-| I want to...                                                   | Guide                                                                         |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Connect a wallet to **localnet** or a custom network           | [Localnet & Custom Networks](/dev-wallet/guides/localnet-and-custom-networks) |
-| **Test my dApp end-to-end** without click-through approvals    | [E2E Testing](/dev-wallet/guides/e2e-testing)                                 |
-| Keep a **persistent dev wallet** that survives page reloads    | [Persistent Wallet](/dev-wallet/guides/persistent-wallet)                     |
-| Sign with the **same address I published contracts from**      | [CLI Signing](/dev-wallet/guides/cli-signing)                                 |
-| **Share one wallet** across multiple dApps                     | [Shared Wallet](/dev-wallet/guides/shared-wallet)                             |
-| Build a **demo app** users can try without installing a wallet | [Demo App](/dev-wallet/guides/demo-app)                                       |
-| **Prototype fast** with zero setup                             | [Quick Prototyping](/dev-wallet/guides/quick-prototyping)                     |
-| Keep dev keys **separate from mainnet credentials**            | [Isolated Dev Keys](/dev-wallet/guides/isolated-dev-keys)                     |
+| I want to...                                                   | How                                                                                                | Details                                                       |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Connect a wallet to **localnet** or a custom network           | Built-in — devnet, testnet, localnet included by default. Pass custom URLs via `networks` config.  | [Getting Started](/dev-wallet/getting-started)                |
+| **Test my dApp end-to-end** without click-through approvals    | Set `autoApprove: true`                                                                            | [E2E Testing](/dev-wallet/guides/e2e-testing)                 |
+| Keep a **persistent dev wallet** that survives page reloads    | Use `WebCryptoSignerAdapter` — keys stored in IndexedDB, survive refresh and restart               | [WebCrypto adapter](/dev-wallet/reference/adapters/webcrypto) |
+| Sign with the **same address I published contracts from**      | Use standalone wallet + `RemoteCliAdapter`                                                         | [CLI Signing](/dev-wallet/guides/cli-signing)                 |
+| **Share one wallet** across multiple dApps                     | Run standalone wallet, register in each dApp                                                       | [Shared Wallet](/dev-wallet/guides/shared-wallet)             |
+| Build a **demo app** users can try without installing a wallet | Set `autoConnect: true`, `mountUI: true` — wallet embeds directly, no extension needed             | [Getting Started](/dev-wallet/getting-started)                |
+| **Prototype fast** with zero setup                             | Use `WebCryptoSignerAdapter` with defaults — three lines of config                                 | [Getting Started](/dev-wallet/getting-started)                |
+| Keep dev keys **separate from mainnet credentials**            | All adapters are isolated from production wallets by design — keys are ephemeral or browser-scoped | [Adapters](/dev-wallet/reference/adapters)                    |
 
 ## Quick Start
 
@@ -87,5 +87,7 @@ for details.
 ## Next Steps
 
 - [Getting Started](/dev-wallet/getting-started) — installation and first setup
-- [Guides](/dev-wallet/guides/localnet-and-custom-networks) — use-case-driven walkthroughs
+- [E2E Testing](/dev-wallet/guides/e2e-testing) — automated testing with auto-approval
+- [CLI Signing](/dev-wallet/guides/cli-signing) — sign with your contract publish address
+- [Shared Wallet](/dev-wallet/guides/shared-wallet) — one wallet across multiple dApps
 - [Reference](/dev-wallet/reference/adapters) — adapters, APIs, and architecture

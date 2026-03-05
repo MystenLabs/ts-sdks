@@ -107,22 +107,6 @@ The API uses a **token-in-URL** approach (same pattern as Jupyter notebooks):
 4. All API requests require the token in the `Authorization: Bearer <token>` header
 5. Token comparison uses `timingSafeEqual()` to prevent timing attacks
 
-## Security
-
-**Localhost binding:** Requests must originate from `localhost`, `127.0.0.1`, or `[::1]`. Any other
-hostname returns `403 Forbidden` (DNS rebinding protection).
-
-**Input validation:** All user inputs are validated before being passed to the CLI:
-
-| Input     | Validation                  | Rationale                |
-| --------- | --------------------------- | ------------------------ |
-| `address` | Hex-only regex              | Prevents shell injection |
-| `txBytes` | Base64 chars only, max 1 MB | No shell metacharacters  |
-| Body      | Max 2 MB total              | Prevents DoS             |
-
-**CLI invocation:** Uses `execFile` (not `exec`), passing arguments as an array — no shell
-interpretation.
-
 ## Client Integration
 
 The `RemoteCliAdapter` from `@mysten/dev-wallet/adapters` implements the browser-side client for
