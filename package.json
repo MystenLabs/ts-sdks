@@ -20,8 +20,6 @@
 	"pnpm": {
 		"overrides": {
 			"axios": "^1.13.5",
-			"hono": ">=4.12.4",
-			"@hono/node-server": ">=1.19.10",
 			"@tootallnate/once": ">=3.0.1",
 			"immutable": ">=5.1.5"
 		}

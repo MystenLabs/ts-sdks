@@ -6,8 +6,6 @@ settings:
 
 overrides:
   axios: ^1.13.5
-  hono: '>=4.12.4'
-  '@hono/node-server': '>=1.19.10'
   '@tootallnate/once': '>=3.0.1'
   immutable: '>=5.1.5'
 
@@ -632,8 +630,8 @@ importers:
   packages/dev-wallet:
     dependencies:
       '@hono/node-server':
-        specifier: '>=1.19.10'
-        version: 1.19.11(hono@4.12.5)
+        specifier: ^1.19.9
+        version: 1.19.10(hono@4.12.4)
       '@mysten/utils':
         specifier: workspace:^
         version: link:../utils
@@ -647,8 +645,8 @@ importers:
         specifier: workspace:^
         version: link:../window-wallet-core
       hono:
-        specifier: '>=4.12.4'
-        version: 4.12.5
+        specifier: ^4.12.3
+        version: 4.12.4
       lit:
         specifier: ^3.3.2
         version: 3.3.2
@@ -1546,8 +1544,8 @@ importers:
         version: 2.2.3
     devDependencies:
       '@hono/node-server':
-        specifier: '>=1.19.10'
-        version: 1.19.11(hono@4.12.5)
+        specifier: ^1.19.9
+        version: 1.19.10(hono@4.12.4)
       '@mysten/codegen':
         specifier: workspace:^
         version: link:../codegen
@@ -1576,8 +1574,8 @@ importers:
         specifier: ^5.1.2
         version: 5.1.2(vite@7.3.1(@types/node@25.0.8)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))
       hono:
-        specifier: '>=4.12.4'
-        version: 4.12.5
+        specifier: ^4.12.3
+        version: 4.12.4
       react:
         specifier: ^19.2.3
         version: 19.2.3
@@ -2988,11 +2986,11 @@ packages:
     peerDependencies:
       typescript: '>=5.5.3'
 
-  '@hono/node-server@1.19.11':
-    resolution: {integrity: sha512-dr8/3zEaB+p0D2n/IUrlPF1HZm586qgJNXK1a9fhg/PzdtkK7Ksd5l312tJX2yBuALqDYBlG20QEbayqPyxn+g==}
+  '@hono/node-server@1.19.10':
+    resolution: {integrity: sha512-hZ7nOssGqRgyV3FVVQdfi+U4q02uB23bpnYpdvNXkYTRRyWx84b7yf1ans+dnJ/7h41sGL3CeQTfO+ZGxuO+Iw==}
     engines: {node: '>=18.14.1'}
     peerDependencies:
-      hono: '>=4.12.4'
+      hono: ^4
 
   '@ianvs/prettier-plugin-sort-imports@4.7.0':
     resolution: {integrity: sha512-soa2bPUJAFruLL4z/CnMfSEKGznm5ebz29fIa9PxYtu8HHyLKNE1NXAs6dylfw1jn/ilEIfO2oLLN6uAafb7DA==}
@@ -8248,8 +8246,8 @@ packages:
   highlight.js@10.7.3:
     resolution: {integrity: sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A==}
 
-  hono@4.12.5:
-    resolution: {integrity: sha512-3qq+FUBtlTHhtYxbxheZgY8NIFnkkC/MR8u5TTsr7YZ3wixryQ3cCwn3iZbg8p8B88iDBBAYSfZDS75t8MN7Vg==}
+  hono@4.12.4:
+    resolution: {integrity: sha512-ooiZW1Xy8rQ4oELQ++otI2T9DsKpV0M6c6cO6JGx4RTfav9poFFLlet9UMXHZnoM1yG0HWGlQLswBGX3RZmHtg==}
     engines: {node: '>=16.9.0'}
 
   hookable@6.0.1:
@@ -12784,9 +12782,9 @@ snapshots:
     transitivePeerDependencies:
       - magicast
 
-  '@hono/node-server@1.19.11(hono@4.12.5)':
+  '@hono/node-server@1.19.10(hono@4.12.4)':
     dependencies:
-      hono: 4.12.5
+      hono: 4.12.4
 
   '@ianvs/prettier-plugin-sort-imports@4.7.0(@vue/compiler-sfc@3.5.26)(prettier@3.7.4)':
     dependencies:
@@ -18920,7 +18918,7 @@ snapshots:
 
   highlight.js@10.7.3: {}
 
-  hono@4.12.5: {}
+  hono@4.12.4: {}
 
   hookable@6.0.1: {}
 
