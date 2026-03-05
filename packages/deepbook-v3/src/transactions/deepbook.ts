@@ -21,6 +21,7 @@ import {
 	MAX_TIMESTAMP,
 	POOL_CREATION_FEE_DEEP,
 } from '../utils/config.js';
+import { convertQuantity, convertPrice, convertRate } from '../utils/conversion.js';
 
 /**
  * DeepBookContract class for managing DeepBook operations.
@@ -59,8 +60,8 @@ export class DeepBookContract {
 		const balanceManager = this.#config.getBalanceManager(balanceManagerKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		const inputPrice = Math.round((price * FLOAT_SCALAR * quoteCoin.scalar) / baseCoin.scalar);
-		const inputQuantity = Math.round(quantity * baseCoin.scalar);
+		const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
+		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 
 		const tradeProof = tx.add(this.#config.balanceManager.generateProof(balanceManagerKey));
 
@@ -106,7 +107,7 @@ export class DeepBookContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const tradeProof = tx.add(this.#config.balanceManager.generateProof(balanceManagerKey));
-		const inputQuantity = Math.round(quantity * baseCoin.scalar);
+		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 
 		tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::place_market_order`,
@@ -141,7 +142,7 @@ export class DeepBookContract {
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 			const tradeProof = tx.add(this.#config.balanceManager.generateProof(balanceManagerKey));
-			const inputQuantity = Math.round(newQuantity * baseCoin.scalar);
+			const inputQuantity = convertQuantity(newQuantity, baseCoin.scalar);
 
 			tx.moveCall({
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::modify_order`,
@@ -359,7 +360,7 @@ export class DeepBookContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		const adjustedNumber = Math.round(multiplier * FLOAT_SCALAR);
+		const adjustedNumber = convertRate(multiplier, FLOAT_SCALAR);
 
 		tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::mint_referral`,
@@ -380,7 +381,7 @@ export class DeepBookContract {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-			const adjustedNumber = Math.round(multiplier * FLOAT_SCALAR);
+			const adjustedNumber = convertRate(multiplier, FLOAT_SCALAR);
 
 			tx.moveCall({
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::update_pool_referral_multiplier`,
@@ -516,7 +517,7 @@ export class DeepBookContract {
 	 * @param {number} baseQuantity Base quantity to convert
 	 * @returns A function that takes a Transaction object
 	 */
-	getQuoteQuantityOut = (poolKey: string, baseQuantity: number) => (tx: Transaction) => {
+	getQuoteQuantityOut = (poolKey: string, baseQuantity: number | bigint) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
@@ -525,7 +526,7 @@ export class DeepBookContract {
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_quote_quantity_out`,
 			arguments: [
 				tx.object(pool.address),
-				tx.pure.u64(Math.round(baseQuantity * baseCoin.scalar)),
+				tx.pure.u64(convertQuantity(baseQuantity, baseCoin.scalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
@@ -538,7 +539,7 @@ export class DeepBookContract {
 	 * @param {number} quoteQuantity Quote quantity to convert
 	 * @returns A function that takes a Transaction object
 	 */
-	getBaseQuantityOut = (poolKey: string, quoteQuantity: number) => (tx: Transaction) => {
+	getBaseQuantityOut = (poolKey: string, quoteQuantity: number | bigint) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
@@ -548,7 +549,7 @@ export class DeepBookContract {
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_base_quantity_out`,
 			arguments: [
 				tx.object(pool.address),
-				tx.pure.u64(Math.round(quoteQuantity * quoteScalar)),
+				tx.pure.u64(convertQuantity(quoteQuantity, quoteScalar)),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
@@ -563,7 +564,8 @@ export class DeepBookContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	getQuantityOut =
-		(poolKey: string, baseQuantity: number, quoteQuantity: number) => (tx: Transaction) => {
+		(poolKey: string, baseQuantity: number | bigint, quoteQuantity: number | bigint) =>
+		(tx: Transaction) => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
@@ -573,8 +575,8 @@ export class DeepBookContract {
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_quantity_out`,
 				arguments: [
 					tx.object(pool.address),
-					tx.pure.u64(Math.round(baseQuantity * baseCoin.scalar)),
-					tx.pure.u64(Math.round(quoteQuantity * quoteScalar)),
+					tx.pure.u64(convertQuantity(baseQuantity, baseCoin.scalar)),
+					tx.pure.u64(convertQuantity(quoteQuantity, quoteScalar)),
 					tx.object.clock(),
 				],
 				typeArguments: [baseCoin.type, quoteCoin.type],
@@ -609,7 +611,8 @@ export class DeepBookContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	getLevel2Range =
-		(poolKey: string, priceLow: number, priceHigh: number, isBid: boolean) => (tx: Transaction) => {
+		(poolKey: string, priceLow: number | bigint, priceHigh: number | bigint, isBid: boolean) =>
+		(tx: Transaction) => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
@@ -618,8 +621,8 @@ export class DeepBookContract {
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_level2_range`,
 				arguments: [
 					tx.object(pool.address),
-					tx.pure.u64(Math.round((priceLow * FLOAT_SCALAR * quoteCoin.scalar) / baseCoin.scalar)),
-					tx.pure.u64(Math.round((priceHigh * FLOAT_SCALAR * quoteCoin.scalar) / baseCoin.scalar)),
+					tx.pure.u64(convertPrice(priceLow, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar)),
+					tx.pure.u64(convertPrice(priceHigh, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar)),
 					tx.pure.bool(isBid),
 					tx.object.clock(),
 				],
@@ -697,13 +700,16 @@ export class DeepBookContract {
 
 		const baseCoinInput =
 			params.baseCoin ??
-			coinWithBalance({ type: baseCoin.type, balance: Math.round(baseAmount * baseCoin.scalar) });
+			coinWithBalance({
+				type: baseCoin.type,
+				balance: convertQuantity(baseAmount, baseCoin.scalar),
+			});
 
 		const deepCoin =
 			params.deepCoin ??
-			coinWithBalance({ type: deepCoinType, balance: Math.round(deepAmount * DEEP_SCALAR) });
+			coinWithBalance({ type: deepCoinType, balance: convertQuantity(deepAmount, DEEP_SCALAR) });
 
-		const minQuoteInput = Math.round(minQuote * quoteCoin.scalar);
+		const minQuoteInput = convertQuantity(minQuote, quoteCoin.scalar);
 
 		const [baseCoinResult, quoteCoinResult, deepCoinResult] = tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::swap_exact_base_for_quote`,
@@ -743,14 +749,14 @@ export class DeepBookContract {
 			params.quoteCoin ??
 			coinWithBalance({
 				type: quoteCoin.type,
-				balance: Math.round(quoteAmount * quoteCoin.scalar),
+				balance: convertQuantity(quoteAmount, quoteCoin.scalar),
 			});
 
 		const deepCoin =
 			params.deepCoin ??
-			coinWithBalance({ type: deepCoinType, balance: Math.round(deepAmount * DEEP_SCALAR) });
+			coinWithBalance({ type: deepCoinType, balance: convertQuantity(deepAmount, DEEP_SCALAR) });
 
-		const minBaseInput = Math.round(minBase * baseCoin.scalar);
+		const minBaseInput = convertQuantity(minBase, baseCoin.scalar);
 
 		const [baseCoinResult, quoteCoinResult, deepCoinResult] = tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::swap_exact_quote_for_base`,
@@ -788,7 +794,7 @@ export class DeepBookContract {
 			? (baseCoin ??
 				coinWithBalance({
 					type: baseCoinType.type,
-					balance: Math.round(amount * baseCoinType.scalar),
+					balance: convertQuantity(amount, baseCoinType.scalar),
 				}))
 			: coinWithBalance({ type: baseCoinType.type, balance: 0 });
 
@@ -797,15 +803,16 @@ export class DeepBookContract {
 			: (quoteCoin ??
 				coinWithBalance({
 					type: quoteCoinType.type,
-					balance: Math.round(amount * quoteCoinType.scalar),
+					balance: convertQuantity(amount, quoteCoinType.scalar),
 				}));
 
 		const deepCoinInput =
 			deepCoin ??
-			coinWithBalance({ type: deepCoinType, balance: Math.round(deepAmount * DEEP_SCALAR) });
+			coinWithBalance({ type: deepCoinType, balance: convertQuantity(deepAmount, DEEP_SCALAR) });
 
-		const minOutInput = Math.round(
-			minOut * (isBaseToCoin ? quoteCoinType.scalar : baseCoinType.scalar),
+		const minOutInput = convertQuantity(
+			minOut,
+			isBaseToCoin ? quoteCoinType.scalar : baseCoinType.scalar,
 		);
 
 		const [baseCoinResult, quoteCoinResult, deepCoinResult] = tx.moveCall({
@@ -851,9 +858,9 @@ export class DeepBookContract {
 			baseCoin ??
 			coinWithBalance({
 				type: baseCoinType.type,
-				balance: Math.round(baseAmount * baseCoinType.scalar),
+				balance: convertQuantity(baseAmount, baseCoinType.scalar),
 			});
-		const minQuoteInput = Math.round(minQuote * quoteCoinType.scalar);
+		const minQuoteInput = convertQuantity(minQuote, quoteCoinType.scalar);
 
 		const [baseCoinResult, quoteCoinResult] = tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::swap_exact_base_for_quote_with_manager`,
@@ -900,9 +907,9 @@ export class DeepBookContract {
 			quoteCoin ??
 			coinWithBalance({
 				type: quoteCoinType.type,
-				balance: Math.round(quoteAmount * quoteCoinType.scalar),
+				balance: convertQuantity(quoteAmount, quoteCoinType.scalar),
 			});
-		const minBaseInput = Math.round(minBase * baseCoinType.scalar);
+		const minBaseInput = convertQuantity(minBase, baseCoinType.scalar);
 
 		const [baseCoinResult, quoteCoinResult] = tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::swap_exact_quote_for_base_with_manager`,
@@ -952,7 +959,7 @@ export class DeepBookContract {
 				? (baseCoin ??
 					coinWithBalance({
 						type: baseCoinType.type,
-						balance: Math.round(amount * baseCoinType.scalar),
+						balance: convertQuantity(amount, baseCoinType.scalar),
 					}))
 				: coinWithBalance({ type: baseCoinType.type, balance: 0 });
 
@@ -961,11 +968,12 @@ export class DeepBookContract {
 				: (quoteCoin ??
 					coinWithBalance({
 						type: quoteCoinType.type,
-						balance: Math.round(amount * quoteCoinType.scalar),
+						balance: convertQuantity(amount, quoteCoinType.scalar),
 					}));
 
-			const minOutInput = Math.round(
-				minOut * (isBaseToCoin ? quoteCoinType.scalar : baseCoinType.scalar),
+			const minOutInput = convertQuantity(
+				minOut,
+				isBaseToCoin ? quoteCoinType.scalar : baseCoinType.scalar,
 			);
 
 			const [baseCoinResult, quoteCoinResult] = tx.moveCall({
@@ -1002,9 +1010,9 @@ export class DeepBookContract {
 		const baseScalar = baseCoin.scalar;
 		const quoteScalar = quoteCoin.scalar;
 
-		const adjustedTickSize = Math.round((tickSize * FLOAT_SCALAR * quoteScalar) / baseScalar);
-		const adjustedLotSize = Math.round(lotSize * baseScalar);
-		const adjustedMinSize = Math.round(minSize * baseScalar);
+		const adjustedTickSize = convertPrice(tickSize, FLOAT_SCALAR, quoteScalar, baseScalar);
+		const adjustedLotSize = convertQuantity(lotSize, baseScalar);
+		const adjustedMinSize = convertQuantity(minSize, baseScalar);
 
 		const deepCoinInput =
 			deepCoin ??
@@ -1203,21 +1211,22 @@ export class DeepBookContract {
 	 * @param {number} baseQuantity Base quantity to convert
 	 * @returns A function that takes a Transaction object
 	 */
-	getQuoteQuantityOutInputFee = (poolKey: string, baseQuantity: number) => (tx: Transaction) => {
-		const pool = this.#config.getPool(poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+	getQuoteQuantityOutInputFee =
+		(poolKey: string, baseQuantity: number | bigint) => (tx: Transaction) => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_quote_quantity_out_input_fee`,
-			arguments: [
-				tx.object(pool.address),
-				tx.pure.u64(Math.round(baseQuantity * baseCoin.scalar)),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
+			return tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_quote_quantity_out_input_fee`,
+				arguments: [
+					tx.object(pool.address),
+					tx.pure.u64(convertQuantity(baseQuantity, baseCoin.scalar)),
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 
 	/**
 	 * @description Get the base quantity out for a given quote quantity using input token as fee
@@ -1225,21 +1234,22 @@ export class DeepBookContract {
 	 * @param {number} quoteQuantity Quote quantity to convert
 	 * @returns A function that takes a Transaction object
 	 */
-	getBaseQuantityOutInputFee = (poolKey: string, quoteQuantity: number) => (tx: Transaction) => {
-		const pool = this.#config.getPool(poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+	getBaseQuantityOutInputFee =
+		(poolKey: string, quoteQuantity: number | bigint) => (tx: Transaction) => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_base_quantity_out_input_fee`,
-			arguments: [
-				tx.object(pool.address),
-				tx.pure.u64(Math.round(quoteQuantity * quoteCoin.scalar)),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
+			return tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_base_quantity_out_input_fee`,
+				arguments: [
+					tx.object(pool.address),
+					tx.pure.u64(convertQuantity(quoteQuantity, quoteCoin.scalar)),
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 
 	/**
 	 * @description Get the quantity out for a given base or quote quantity using input token as fee
@@ -1249,7 +1259,8 @@ export class DeepBookContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	getQuantityOutInputFee =
-		(poolKey: string, baseQuantity: number, quoteQuantity: number) => (tx: Transaction) => {
+		(poolKey: string, baseQuantity: number | bigint, quoteQuantity: number | bigint) =>
+		(tx: Transaction) => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
@@ -1258,8 +1269,8 @@ export class DeepBookContract {
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_quantity_out_input_fee`,
 				arguments: [
 					tx.object(pool.address),
-					tx.pure.u64(Math.round(baseQuantity * baseCoin.scalar)),
-					tx.pure.u64(Math.round(quoteQuantity * quoteCoin.scalar)),
+					tx.pure.u64(convertQuantity(baseQuantity, baseCoin.scalar)),
+					tx.pure.u64(convertQuantity(quoteQuantity, quoteCoin.scalar)),
 					tx.object.clock(),
 				],
 				typeArguments: [baseCoin.type, quoteCoin.type],
@@ -1274,7 +1285,8 @@ export class DeepBookContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	getBaseQuantityIn =
-		(poolKey: string, targetQuoteQuantity: number, payWithDeep: boolean) => (tx: Transaction) => {
+		(poolKey: string, targetQuoteQuantity: number | bigint, payWithDeep: boolean) =>
+		(tx: Transaction) => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
@@ -1283,7 +1295,7 @@ export class DeepBookContract {
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_base_quantity_in`,
 				arguments: [
 					tx.object(pool.address),
-					tx.pure.u64(Math.round(targetQuoteQuantity * quoteCoin.scalar)),
+					tx.pure.u64(convertQuantity(targetQuoteQuantity, quoteCoin.scalar)),
 					tx.pure.bool(payWithDeep),
 					tx.object.clock(),
 				],
@@ -1299,7 +1311,8 @@ export class DeepBookContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	getQuoteQuantityIn =
-		(poolKey: string, targetBaseQuantity: number, payWithDeep: boolean) => (tx: Transaction) => {
+		(poolKey: string, targetBaseQuantity: number | bigint, payWithDeep: boolean) =>
+		(tx: Transaction) => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
@@ -1308,7 +1321,7 @@ export class DeepBookContract {
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_quote_quantity_in`,
 				arguments: [
 					tx.object(pool.address),
-					tx.pure.u64(Math.round(targetBaseQuantity * baseCoin.scalar)),
+					tx.pure.u64(convertQuantity(targetBaseQuantity, baseCoin.scalar)),
 					tx.pure.bool(payWithDeep),
 					tx.object.clock(),
 				],
@@ -1343,12 +1356,13 @@ export class DeepBookContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	getOrderDeepRequired =
-		(poolKey: string, baseQuantity: number, price: number) => (tx: Transaction) => {
+		(poolKey: string, baseQuantity: number | bigint, price: number | bigint) =>
+		(tx: Transaction) => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-			const inputPrice = Math.round((price * FLOAT_SCALAR * quoteCoin.scalar) / baseCoin.scalar);
-			const inputQuantity = Math.round(baseQuantity * baseCoin.scalar);
+			const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
+			const inputQuantity = convertQuantity(baseQuantity, baseCoin.scalar);
 
 			return tx.moveCall({
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::get_order_deep_required`,
@@ -1440,8 +1454,8 @@ export class DeepBookContract {
 		const manager = this.#config.getBalanceManager(balanceManagerKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		const inputPrice = Math.round((price * FLOAT_SCALAR * quoteCoin.scalar) / baseCoin.scalar);
-		const inputQuantity = Math.round(quantity * baseCoin.scalar);
+		const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
+		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 
 		return tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::can_place_limit_order`,
@@ -1471,7 +1485,7 @@ export class DeepBookContract {
 		const manager = this.#config.getBalanceManager(balanceManagerKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		const inputQuantity = Math.round(quantity * baseCoin.scalar);
+		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 
 		return tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::can_place_market_order`,
@@ -1493,11 +1507,11 @@ export class DeepBookContract {
 	 * @param {number} quantity Quantity
 	 * @returns A function that takes a Transaction object
 	 */
-	checkMarketOrderParams = (poolKey: string, quantity: number) => (tx: Transaction) => {
+	checkMarketOrderParams = (poolKey: string, quantity: number | bigint) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		const inputQuantity = Math.round(quantity * baseCoin.scalar);
+		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 
 		return tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::check_market_order_params`,
@@ -1515,13 +1529,13 @@ export class DeepBookContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	checkLimitOrderParams =
-		(poolKey: string, price: number, quantity: number, expireTimestamp: number) =>
+		(poolKey: string, price: number | bigint, quantity: number | bigint, expireTimestamp: number) =>
 		(tx: Transaction) => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-			const inputPrice = Math.round((price * FLOAT_SCALAR * quoteCoin.scalar) / baseCoin.scalar);
-			const inputQuantity = Math.round(quantity * baseCoin.scalar);
+			const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
+			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 
 			return tx.moveCall({
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::check_limit_order_params`,

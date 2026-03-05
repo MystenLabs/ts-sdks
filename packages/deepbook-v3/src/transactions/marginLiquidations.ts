@@ -4,6 +4,7 @@ import type { Transaction } from '@mysten/sui/transactions';
 import { coinWithBalance } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
+import { convertQuantity } from '../utils/conversion.js';
 
 /**
  * MarginLiquidationsContract class for managing LiquidationVault operations.
@@ -44,7 +45,7 @@ export class MarginLiquidationsContract {
 			const coin = this.#config.getCoin(coinKey);
 			const depositCoin = coinWithBalance({
 				type: coin.type,
-				balance: amount * coin.scalar,
+				balance: convertQuantity(amount, coin.scalar),
 			});
 			tx.moveCall({
 				target: `${this.#config.LIQUIDATION_PACKAGE_ID}::liquidation_vault::deposit`,
@@ -70,7 +71,7 @@ export class MarginLiquidationsContract {
 				arguments: [
 					tx.object(vaultId),
 					tx.object(liquidationAdminCap),
-					tx.pure.u64(amount * coin.scalar),
+					tx.pure.u64(convertQuantity(amount, coin.scalar)),
 				],
 				typeArguments: [coin.type],
 			});
@@ -95,7 +96,7 @@ export class MarginLiquidationsContract {
 
 			const repayAmountArg =
 				repayAmount !== undefined
-					? tx.pure.option('u64', BigInt(Math.floor(repayAmount * baseCoin.scalar)))
+					? tx.pure.option('u64', convertQuantity(repayAmount, baseCoin.scalar))
 					: tx.pure.option('u64', null);
 
 			tx.moveCall({
@@ -135,7 +136,7 @@ export class MarginLiquidationsContract {
 
 			const repayAmountArg =
 				repayAmount !== undefined
-					? tx.pure.option('u64', BigInt(Math.floor(repayAmount * quoteCoin.scalar)))
+					? tx.pure.option('u64', convertQuantity(repayAmount, quoteCoin.scalar))
 					: tx.pure.option('u64', null);
 
 			tx.moveCall({

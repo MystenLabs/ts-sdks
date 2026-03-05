@@ -1,40 +1,65 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { bcs } from '@mysten/sui/bcs';
-import { Account, Order, OrderDeepPrice, VecSet } from './types/bcs.js';
-import type { ClientWithCoreApi, SuiClientRegistration, SuiClientTypes } from '@mysten/sui/client';
-import { Transaction } from '@mysten/sui/transactions';
-import { normalizeSuiAddress } from '@mysten/sui/utils';
 
+import type { ClientWithCoreApi, SuiClientRegistration, SuiClientTypes } from '@mysten/sui/client';
+import type { Transaction } from '@mysten/sui/transactions';
+
+import type { QueryContext } from './queries/context.js';
+import { AccountQueries } from './queries/accountQueries.js';
+import { BalanceManagerQueries } from './queries/balanceManagerQueries.js';
+import { MarginManagerQueries } from './queries/marginManagerQueries.js';
+import { MarginPoolQueries } from './queries/marginPoolQueries.js';
+import { OrderQueries } from './queries/orderQueries.js';
+import { PoolQueries } from './queries/poolQueries.js';
+import { PriceFeedQueries } from './queries/priceFeedQueries.js';
+import { QuantityQueries } from './queries/quantityQueries.js';
+import { ReferralQueries } from './queries/referralQueries.js';
+import { RegistryQueries } from './queries/registryQueries.js';
+import { TPSLQueries } from './queries/tpslQueries.js';
 import { BalanceManagerContract } from './transactions/balanceManager.js';
 import { DeepBookContract } from './transactions/deepbook.js';
 import { DeepBookAdminContract } from './transactions/deepbookAdmin.js';
 import { FlashLoanContract } from './transactions/flashLoans.js';
 import { GovernanceContract } from './transactions/governance.js';
+import { MarginAdminContract } from './transactions/marginAdmin.js';
+import { MarginLiquidationsContract } from './transactions/marginLiquidations.js';
+import { MarginMaintainerContract } from './transactions/marginMaintainer.js';
+import { MarginManagerContract } from './transactions/marginManager.js';
+import { MarginPoolContract } from './transactions/marginPool.js';
+import { MarginRegistryContract } from './transactions/marginRegistry.js';
+import { MarginTPSLContract } from './transactions/marginTPSL.js';
+import { PoolProxyContract } from './transactions/poolProxy.js';
 import type {
+	AccountInfo,
 	BalanceManager,
-	MarginManager,
+	BaseQuantityIn,
+	BaseQuantityOut,
+	BorrowedShares,
 	CanPlaceLimitOrderParams,
 	CanPlaceMarketOrderParams,
+	DecodedOrderId,
+	Level2Range,
+	Level2TicksFromMid,
+	LockedBalances,
+	ManagerBalance,
+	MarginManager,
+	MarginManagerAssets,
+	MarginManagerBalancesResult,
+	MarginManagerDebts,
+	MarginManagerState,
+	OrderDeepRequiredResult,
+	PoolBookParams,
+	PoolDeepPrice,
+	PoolTradeParams,
+	QuantityOut,
+	QuoteQuantityIn,
+	QuoteQuantityOut,
+	ReferralBalances,
+	VaultBalances,
 } from './types/index.js';
-import {
-	DEEP_SCALAR,
-	DeepBookConfig,
-	FLOAT_SCALAR,
-	PRICE_INFO_OBJECT_MAX_AGE_MS,
-} from './utils/config.js';
-import type { CoinMap, PoolMap, DeepbookPackageIds } from './utils/constants.js';
-import { MarginAdminContract } from './transactions/marginAdmin.js';
-import { MarginMaintainerContract } from './transactions/marginMaintainer.js';
-import { MarginPoolContract } from './transactions/marginPool.js';
-import { MarginManagerContract } from './transactions/marginManager.js';
-import { MarginRegistryContract } from './transactions/marginRegistry.js';
-import { MarginLiquidationsContract } from './transactions/marginLiquidations.js';
-import { SuiPriceServiceConnection } from './pyth/pyth.js';
-import { SuiPythClient } from './pyth/pyth.js';
-import { PriceInfoObject } from './contracts/pyth/price_info.js';
-import { PoolProxyContract } from './transactions/poolProxy.js';
-import { MarginTPSLContract } from './transactions/marginTPSL.js';
+import { DeepBookConfig } from './utils/config.js';
+import type { CoinMap, DeepbookPackageIds, PoolMap } from './utils/constants.js';
+import { normalizeSuiAddress } from '@mysten/sui/utils';
 
 export interface DeepBookCompatibleClient extends ClientWithCoreApi {}
 
@@ -77,9 +102,18 @@ export function deepbook<Name extends string = 'deepbook'>({
  * DeepBookClient class for managing DeepBook operations.
  */
 export class DeepBookClient {
-	#client: DeepBookCompatibleClient;
-	#config: DeepBookConfig;
-	#address: string;
+	#balanceManagerQueries: BalanceManagerQueries;
+	#poolQueries: PoolQueries;
+	#quantityQueries: QuantityQueries;
+	#orderQueries: OrderQueries;
+	#accountQueries: AccountQueries;
+	#referralQueries: ReferralQueries;
+	#priceFeedQueries: PriceFeedQueries;
+	#marginPoolQueries: MarginPoolQueries;
+	#marginManagerQueries: MarginManagerQueries;
+	#tpslQueries: TPSLQueries;
+	#registryQueries: RegistryQueries;
+
 	balanceManager: BalanceManagerContract;
 	deepBook: DeepBookContract;
 	deepBookAdmin: DeepBookAdminContract;
@@ -111,10 +145,9 @@ export class DeepBookClient {
 		packageIds,
 		pyth,
 	}: DeepBookClientOptions) {
-		this.#client = client;
-		this.#address = normalizeSuiAddress(address);
-		this.#config = new DeepBookConfig({
-			address: this.#address,
+		const normalizedAddress = normalizeSuiAddress(address);
+		const config = new DeepBookConfig({
+			address: normalizedAddress,
 			network,
 			balanceManagers,
 			marginManagers,
@@ -126,2779 +159,505 @@ export class DeepBookClient {
 			packageIds,
 			pyth,
 		});
-		this.balanceManager = new BalanceManagerContract(this.#config);
-		this.deepBook = new DeepBookContract(this.#config);
-		this.deepBookAdmin = new DeepBookAdminContract(this.#config);
-		this.flashLoans = new FlashLoanContract(this.#config);
-		this.governance = new GovernanceContract(this.#config);
-		this.marginAdmin = new MarginAdminContract(this.#config);
-		this.marginMaintainer = new MarginMaintainerContract(this.#config);
-		this.marginPool = new MarginPoolContract(this.#config);
-		this.marginManager = new MarginManagerContract(this.#config);
-		this.marginRegistry = new MarginRegistryContract(this.#config);
-		this.marginLiquidations = new MarginLiquidationsContract(this.#config);
-		this.poolProxy = new PoolProxyContract(this.#config);
-		this.marginTPSL = new MarginTPSLContract(this.#config);
-	}
 
-	/**
-	 * @description Check the balance of a balance manager for a specific coin
-	 * @param {string} managerKey Key of the balance manager
-	 * @param {string} coinKey Key of the coin
-	 * @returns {Promise<{ coinType: string, balance: number }>} An object with coin type and balance
-	 */
-	async checkManagerBalance(managerKey: string, coinKey: string) {
-		const tx = new Transaction();
-		const coin = this.#config.getCoin(coinKey);
+		this.balanceManager = new BalanceManagerContract(config);
+		this.deepBook = new DeepBookContract(config);
+		this.deepBookAdmin = new DeepBookAdminContract(config);
+		this.flashLoans = new FlashLoanContract(config);
+		this.governance = new GovernanceContract(config);
+		this.marginAdmin = new MarginAdminContract(config);
+		this.marginMaintainer = new MarginMaintainerContract(config);
+		this.marginPool = new MarginPoolContract(config);
+		this.marginManager = new MarginManagerContract(config);
+		this.marginRegistry = new MarginRegistryContract(config);
+		this.marginLiquidations = new MarginLiquidationsContract(config);
+		this.poolProxy = new PoolProxyContract(config);
+		this.marginTPSL = new MarginTPSLContract(config);
 
-		tx.add(this.balanceManager.checkManagerBalance(managerKey, coinKey));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const parsed_balance = bcs.U64.parse(bytes);
-		const balanceNumber = Number(parsed_balance);
-		const adjusted_balance = balanceNumber / coin.scalar;
-
-		return {
-			coinType: coin.type,
-			balance: Number(adjusted_balance.toFixed(9)),
+		const ctx: QueryContext = {
+			client,
+			config,
+			address: normalizedAddress,
+			balanceManager: this.balanceManager,
+			deepBook: this.deepBook,
+			marginManager: this.marginManager,
+			marginPool: this.marginPool,
+			marginRegistry: this.marginRegistry,
+			marginTPSL: this.marginTPSL,
 		};
+
+		this.#balanceManagerQueries = new BalanceManagerQueries(ctx);
+		this.#poolQueries = new PoolQueries(ctx);
+		this.#quantityQueries = new QuantityQueries(ctx);
+		this.#orderQueries = new OrderQueries(ctx);
+		this.#accountQueries = new AccountQueries(ctx);
+		this.#referralQueries = new ReferralQueries(ctx);
+		this.#priceFeedQueries = new PriceFeedQueries(ctx);
+		this.#marginPoolQueries = new MarginPoolQueries(ctx);
+		this.#marginManagerQueries = new MarginManagerQueries(ctx);
+		this.#tpslQueries = new TPSLQueries(ctx);
+		this.#registryQueries = new RegistryQueries(ctx);
 	}
 
-	/**
-	 * @description Check the balance of a BalanceManager by its address directly
-	 * @param {string} managerAddress The on-chain address of the BalanceManager
-	 * @param {string} coinKey Key of the coin
-	 * @returns {Promise<{ coinType: string, balance: number }>} An object with coin type and balance
-	 */
-	async checkManagerBalanceWithAddress(managerAddress: string, coinKey: string) {
-		const tx = new Transaction();
-		const coin = this.#config.getCoin(coinKey);
+	// === Balance Manager Queries ===
 
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance`,
-			arguments: [tx.object(managerAddress)],
-			typeArguments: [coin.type],
-		});
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const parsed_balance = bcs.U64.parse(bytes);
-		const balanceNumber = Number(parsed_balance);
-		const adjusted_balance = balanceNumber / coin.scalar;
-
-		return {
-			coinType: coin.type,
-			balance: Number(adjusted_balance.toFixed(9)),
-		};
+	checkManagerBalance(managerKey: string, coinKey: string): Promise<ManagerBalance> {
+		return this.#balanceManagerQueries.checkManagerBalance(managerKey, coinKey);
 	}
 
-	/**
-	 * @description Check multiple coin balances for multiple balance managers by address in a single dry run call
-	 * @param {string[]} managerAddresses The on-chain addresses of the BalanceManagers
-	 * @param {string[]} coinKeys Keys of the coins to check balances for
-	 * @returns {Promise<Record<string, Record<string, number>>>} Object keyed by manager address, mapping coinType to balance
-	 */
-	async checkManagerBalancesWithAddress(managerAddresses: string[], coinKeys: string[]) {
-		if (managerAddresses.length === 0 || coinKeys.length === 0) {
-			return {};
-		}
-
-		const tx = new Transaction();
-		const coins = coinKeys.map((coinKey) => this.#config.getCoin(coinKey));
-
-		for (const managerAddress of managerAddresses) {
-			for (const coin of coins) {
-				tx.moveCall({
-					target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance`,
-					arguments: [tx.object(managerAddress)],
-					typeArguments: [coin.type],
-				});
-			}
-		}
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		if (res.FailedTransaction) {
-			throw new Error(
-				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
-			);
-		}
-
-		if (!res.commandResults) {
-			throw new Error('Failed to get manager balances: No command results');
-		}
-
-		const results: Record<string, Record<string, number>> = {};
-
-		for (let m = 0; m < managerAddresses.length; m++) {
-			const managerAddress = managerAddresses[m];
-			const managerBalances: Record<string, number> = {};
-
-			for (let c = 0; c < coins.length; c++) {
-				const coin = coins[c];
-				const commandResult = res.commandResults[m * coins.length + c];
-
-				if (!commandResult || !commandResult.returnValues) {
-					throw new Error(`Failed to get balance for ${coin.type}: No return values`);
-				}
-
-				const bytes = commandResult.returnValues[0].bcs;
-				const parsed_balance = bcs.U64.parse(bytes);
-				managerBalances[coin.type] = Number((Number(parsed_balance) / coin.scalar).toFixed(9));
-			}
-
-			results[managerAddress] = managerBalances;
-		}
-
-		return results;
+	checkManagerBalanceWithAddress(managerAddress: string, coinKey: string): Promise<ManagerBalance> {
+		return this.#balanceManagerQueries.checkManagerBalanceWithAddress(managerAddress, coinKey);
 	}
 
-	/**
-	 * @description Check if a pool is whitelisted
-	 * @param {string} poolKey Key of the pool
-	 * @returns {Promise<boolean>} Boolean indicating if the pool is whitelisted
-	 */
-	async whitelisted(poolKey: string) {
-		const tx = new Transaction();
-
-		tx.add(this.deepBook.whitelisted(poolKey));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const whitelisted = bcs.Bool.parse(bytes);
-
-		return whitelisted;
+	checkManagerBalancesWithAddress(
+		managerAddresses: string[],
+		coinKeys: string[],
+	): Promise<Record<string, Record<string, number>>> {
+		return this.#balanceManagerQueries.checkManagerBalancesWithAddress(managerAddresses, coinKeys);
 	}
 
-	/**
-	 * @description Get the quote quantity out for a given base quantity
-	 * @param {string} poolKey Key of the pool
-	 * @param {number} baseQuantity Base quantity to convert
-	 * @returns {Promise<{ baseQuantity: number, baseOut: number, quoteOut: number, deepRequired: number }>}
-	 * An object with base quantity, base out, quote out, and deep required for the dry run
-	 */
-	async getQuoteQuantityOut(poolKey: string, baseQuantity: number) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
-		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
-
-		tx.add(this.deepBook.getQuoteQuantityOut(poolKey, baseQuantity));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
-		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
-		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
-
-		return {
-			baseQuantity,
-			baseOut: Number((baseOut / baseScalar).toFixed(9)),
-			quoteOut: Number((quoteOut / quoteScalar).toFixed(9)),
-			deepRequired: Number((deepRequired / DEEP_SCALAR).toFixed(9)),
-		};
+	getBalanceManagerIds(owner: string): Promise<string[]> {
+		return this.#balanceManagerQueries.getBalanceManagerIds(owner);
 	}
 
-	/**
-	 * @description Get the base quantity out for a given quote quantity
-	 * @param {string} poolKey Key of the pool
-	 * @param {number} quoteQuantity Quote quantity to convert
-	 * @returns {Promise<{ quoteQuantity: number, baseOut: number, quoteOut: number, deepRequired: number }>}
-	 * An object with quote quantity, base out, quote out, and deep required for the dry run
-	 */
-	async getBaseQuantityOut(poolKey: string, quoteQuantity: number) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
-		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
-
-		tx.add(this.deepBook.getBaseQuantityOut(poolKey, quoteQuantity));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
-		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
-		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
-
-		return {
-			quoteQuantity: quoteQuantity,
-			baseOut: Number((baseOut / baseScalar).toFixed(9)),
-			quoteOut: Number((quoteOut / quoteScalar).toFixed(9)),
-			deepRequired: Number((deepRequired / DEEP_SCALAR).toFixed(9)),
-		};
+	accountExists(poolKey: string, managerKey: string): Promise<boolean> {
+		return this.#balanceManagerQueries.accountExists(poolKey, managerKey);
 	}
 
-	/**
-	 * @description Get the output quantities for given base and quote quantities. Only one quantity can be non-zero
-	 * @param {string} poolKey Key of the pool
-	 * @param {number} baseQuantity Base quantity to convert
-	 * @param {number} quoteQuantity Quote quantity to convert
-	 * @returns {Promise<{ baseQuantity: number, quoteQuantity: number, baseOut: number, quoteOut: number, deepRequired: number }>}
-	 * An object with base quantity, quote quantity, base out, quote out, and deep required for the dry run
-	 */
-	async getQuantityOut(poolKey: string, baseQuantity: number, quoteQuantity: number) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
-		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
+	// === Pool Queries ===
 
-		tx.add(this.deepBook.getQuantityOut(poolKey, baseQuantity, quoteQuantity));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
-		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
-		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
-
-		return {
-			baseQuantity,
-			quoteQuantity,
-			baseOut: Number((baseOut / baseScalar).toFixed(9)),
-			quoteOut: Number((quoteOut / quoteScalar).toFixed(9)),
-			deepRequired: Number((deepRequired / DEEP_SCALAR).toFixed(9)),
-		};
+	whitelisted(poolKey: string): Promise<boolean> {
+		return this.#poolQueries.whitelisted(poolKey);
 	}
 
-	/**
-	 * @description Get open orders for a balance manager in a pool
-	 * @param {string} poolKey Key of the pool
-	 * @param {string} managerKey Key of the balance manager
-	 * @returns {Promise<Array>} An array of open order IDs
-	 */
-	async accountOpenOrders(poolKey: string, managerKey: string) {
-		const tx = new Transaction();
-
-		tx.add(this.deepBook.accountOpenOrders(poolKey, managerKey));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const order_ids = res.commandResults![0].returnValues[0].bcs;
-
-		return VecSet(bcs.u128()).parse(new Uint8Array(order_ids)).contents;
+	vaultBalances(poolKey: string): Promise<VaultBalances> {
+		return this.#poolQueries.vaultBalances(poolKey);
 	}
 
-	/**
-	 * @description Get the order information for a specific order in a pool
-	 * @param {string} poolKey Key of the pool
-	 * @param {string} orderId Order ID
-	 * @returns {Promise<Object>} A promise that resolves to an object containing the order information
-	 */
-	async getOrder(poolKey: string, orderId: string) {
-		const tx = new Transaction();
-
-		tx.add(this.deepBook.getOrder(poolKey, orderId));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		try {
-			const orderInformation = res.commandResults![0].returnValues[0].bcs;
-			return Order.parse(new Uint8Array(orderInformation));
-		} catch {
-			return null;
-		}
+	getPoolIdByAssets(baseType: string, quoteType: string): Promise<string> {
+		return this.#poolQueries.getPoolIdByAssets(baseType, quoteType);
 	}
 
-	/**
-	 * @description Get the order information for a specific order in a pool, with normalized price
-	 * @param {string} poolKey Key of the pool
-	 * @param {string} orderId Order ID
-	 * @returns {Promise<Object>} A promise that resolves to an object containing the order information with normalized price
-	 */
-	async getOrderNormalized(poolKey: string, orderId: string) {
-		const tx = new Transaction();
-		tx.add(this.deepBook.getOrder(poolKey, orderId));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		try {
-			const orderInformation = res.commandResults![0].returnValues[0].bcs;
-			const orderInfo = Order.parse(new Uint8Array(orderInformation));
-
-			if (!orderInfo) {
-				return null;
-			}
-			const baseCoin = this.#config.getCoin(this.#config.getPool(poolKey).baseCoin);
-			const quoteCoin = this.#config.getCoin(this.#config.getPool(poolKey).quoteCoin);
-			const { isBid, price: rawPrice } = this.decodeOrderId(BigInt(orderInfo.order_id));
-			const normalizedPrice = (rawPrice * baseCoin.scalar) / quoteCoin.scalar / FLOAT_SCALAR;
-
-			const normalizedOrderInfo = {
-				...orderInfo,
-				quantity: String((Number(orderInfo.quantity) / baseCoin.scalar).toFixed(9)),
-				filled_quantity: String((Number(orderInfo.filled_quantity) / baseCoin.scalar).toFixed(9)),
-				order_deep_price: {
-					...orderInfo.order_deep_price,
-					deep_per_asset: String(
-						(Number(orderInfo.order_deep_price.deep_per_asset) / DEEP_SCALAR).toFixed(9),
-					),
-				},
-				isBid,
-				normalized_price: normalizedPrice.toFixed(9),
-			};
-			return normalizedOrderInfo;
-		} catch {
-			return null;
-		}
+	midPrice(poolKey: string): Promise<number> {
+		return this.#poolQueries.midPrice(poolKey);
 	}
 
-	/**
-	 * @description Retrieves information for multiple specific orders in a pool.
-	 * @param {string} poolKey - The key identifying the pool from which to retrieve order information.
-	 * @param {string[]} orderIds - List of order IDs to retrieve information for.
-	 * @returns {Promise<Object[] | null>} A promise that resolves to an array of order objects, each containing details such as
-	 * balance manager ID, order ID, client order ID, quantity, filled quantity, fee information, order price, epoch, status,
-	 * and expiration timestamp. Returns `null` if the retrieval fails.
-	 */
-	async getOrders(poolKey: string, orderIds: string[]) {
-		const tx = new Transaction();
-
-		tx.add(this.deepBook.getOrders(poolKey, orderIds));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		try {
-			const orderInformation = res.commandResults![0].returnValues[0].bcs;
-			return bcs.vector(Order).parse(new Uint8Array(orderInformation));
-		} catch {
-			return null;
-		}
+	poolTradeParams(poolKey: string): Promise<PoolTradeParams> {
+		return this.#poolQueries.poolTradeParams(poolKey);
 	}
 
-	/**
-	 * @description Get level 2 order book specifying range of price
-	 * @param {string} poolKey Key of the pool
-	 * @param {number} priceLow Lower bound of the price range
-	 * @param {number} priceHigh Upper bound of the price range
-	 * @param {boolean} isBid Whether to get bid or ask orders
-	 * @returns {Promise<{ prices: Array<number>, quantities: Array<number> }>}
-	 * An object with arrays of prices and quantities
-	 */
-	async getLevel2Range(poolKey: string, priceLow: number, priceHigh: number, isBid: boolean) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-
-		tx.add(this.deepBook.getLevel2Range(poolKey, priceLow, priceHigh, isBid));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const prices = res.commandResults![0].returnValues[0].bcs;
-		const parsed_prices = bcs.vector(bcs.u64()).parse(new Uint8Array(prices));
-		const quantities = res.commandResults![0].returnValues[1].bcs;
-		const parsed_quantities = bcs.vector(bcs.u64()).parse(new Uint8Array(quantities));
-
-		return {
-			prices: parsed_prices.map((price) =>
-				Number(((Number(price) / FLOAT_SCALAR / quoteCoin.scalar) * baseCoin.scalar).toFixed(9)),
-			),
-			quantities: parsed_quantities.map((price) =>
-				Number((Number(price) / baseCoin.scalar).toFixed(9)),
-			),
-		};
+	poolBookParams(poolKey: string): Promise<PoolBookParams> {
+		return this.#poolQueries.poolBookParams(poolKey);
 	}
 
-	/**
-	 * @description Get level 2 order book ticks from mid-price for a pool
-	 * @param {string} poolKey Key of the pool
-	 * @param {number} ticks Number of ticks from mid-price
-	 * @returns {Promise<{ bid_prices: Array<number>, bid_quantities: Array<number>, ask_prices: Array<number>, ask_quantities: Array<number> }>}
-	 * An object with arrays of prices and quantities
-	 */
-	async getLevel2TicksFromMid(poolKey: string, ticks: number) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-
-		tx.add(this.deepBook.getLevel2TicksFromMid(poolKey, ticks));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bid_prices = res.commandResults![0].returnValues[0].bcs;
-		const bid_parsed_prices = bcs.vector(bcs.u64()).parse(new Uint8Array(bid_prices));
-		const bid_quantities = res.commandResults![0].returnValues[1].bcs;
-		const bid_parsed_quantities = bcs.vector(bcs.u64()).parse(new Uint8Array(bid_quantities));
-
-		const ask_prices = res.commandResults![0].returnValues[2].bcs;
-		const ask_parsed_prices = bcs.vector(bcs.u64()).parse(new Uint8Array(ask_prices));
-		const ask_quantities = res.commandResults![0].returnValues[3].bcs;
-		const ask_parsed_quantities = bcs.vector(bcs.u64()).parse(new Uint8Array(ask_quantities));
-
-		return {
-			bid_prices: bid_parsed_prices.map((price) =>
-				Number(((Number(price) / FLOAT_SCALAR / quoteCoin.scalar) * baseCoin.scalar).toFixed(9)),
-			),
-			bid_quantities: bid_parsed_quantities.map((quantity) =>
-				Number((Number(quantity) / baseCoin.scalar).toFixed(9)),
-			),
-			ask_prices: ask_parsed_prices.map((price) =>
-				Number(((Number(price) / FLOAT_SCALAR / quoteCoin.scalar) * baseCoin.scalar).toFixed(9)),
-			),
-			ask_quantities: ask_parsed_quantities.map((quantity) =>
-				Number((Number(quantity) / baseCoin.scalar).toFixed(9)),
-			),
-		};
+	stablePool(poolKey: string): Promise<boolean> {
+		return this.#poolQueries.stablePool(poolKey);
 	}
 
-	/**
-	 * @description Get the vault balances for a pool
-	 * @param {string} poolKey Key of the pool
-	 * @returns {Promise<{ base: number, quote: number, deep: number }>}
-	 * An object with base, quote, and deep balances in the vault
-	 */
-	async vaultBalances(poolKey: string) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
-		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
-
-		tx.add(this.deepBook.vaultBalances(poolKey));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const baseInVault = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
-		const quoteInVault = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
-		const deepInVault = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
-
-		return {
-			base: Number((baseInVault / baseScalar).toFixed(9)),
-			quote: Number((quoteInVault / quoteScalar).toFixed(9)),
-			deep: Number((deepInVault / DEEP_SCALAR).toFixed(9)),
-		};
+	registeredPool(poolKey: string): Promise<boolean> {
+		return this.#poolQueries.registeredPool(poolKey);
 	}
 
-	/**
-	 * @description Get the pool ID by asset types
-	 * @param {string} baseType Type of the base asset
-	 * @param {string} quoteType Type of the quote asset
-	 * @returns {Promise<string>} The address of the pool
-	 */
-	async getPoolIdByAssets(baseType: string, quoteType: string) {
-		const tx = new Transaction();
-		tx.add(this.deepBook.getPoolIdByAssets(baseType, quoteType));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const address = bcs.Address.parse(res.commandResults![0].returnValues[0].bcs);
-
-		return address;
+	poolTradeParamsNext(poolKey: string): Promise<PoolTradeParams> {
+		return this.#poolQueries.poolTradeParamsNext(poolKey);
 	}
 
-	/**
-	 * @description Get the mid price for a pool
-	 * @param {string} poolKey Key of the pool
-	 * @returns {Promise<number>} The mid price
-	 */
-	async midPrice(poolKey: string) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		tx.add(this.deepBook.midPrice(poolKey));
-
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const parsed_mid_price = Number(bcs.U64.parse(bytes));
-		const adjusted_mid_price =
-			(parsed_mid_price * baseCoin.scalar) / quoteCoin.scalar / FLOAT_SCALAR;
-
-		return Number(adjusted_mid_price.toFixed(9));
+	quorum(poolKey: string): Promise<number> {
+		return this.#poolQueries.quorum(poolKey);
 	}
 
-	/**
-	 * @description Get the trade parameters for a given pool, including taker fee, maker fee, and stake required.
-	 * @param {string} poolKey Key of the pool
-	 * @returns {Promise<{ takerFee: number, makerFee: number, stakeRequired: number }>}
-	 */
-	async poolTradeParams(poolKey: string) {
-		const tx = new Transaction();
-
-		tx.add(this.deepBook.poolTradeParams(poolKey));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const takerFee = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
-		const makerFee = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
-		const stakeRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
-
-		return {
-			takerFee: Number(takerFee / FLOAT_SCALAR),
-			makerFee: Number(makerFee / FLOAT_SCALAR),
-			stakeRequired: Number(stakeRequired / DEEP_SCALAR),
-		};
+	poolId(poolKey: string): Promise<string> {
+		return this.#poolQueries.poolId(poolKey);
 	}
 
-	/**
-	 * @description Get the trade parameters for a given pool, including tick size, lot size, and min size.
-	 * @param {string} poolKey Key of the pool
-	 * @returns {Promise<{ tickSize: number, lotSize: number, minSize: number }>}
-	 */
-	async poolBookParams(poolKey: string) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
-		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
-
-		tx.add(this.deepBook.poolBookParams(poolKey));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const tickSize = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
-		const lotSize = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
-		const minSize = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
-
-		return {
-			tickSize: Number((tickSize * baseScalar) / quoteScalar / FLOAT_SCALAR),
-			lotSize: Number(lotSize / baseScalar),
-			minSize: Number(minSize / baseScalar),
-		};
+	canPlaceLimitOrder(params: CanPlaceLimitOrderParams): Promise<boolean> {
+		return this.#poolQueries.canPlaceLimitOrder(params);
 	}
 
-	/**
-	 * @description Get the account information for a given pool and balance manager
-	 * @param {string} poolKey Key of the pool
-	 * @param {string} managerKey The key of the BalanceManager
-	 * @returns {Promise<Object>} A promise that resolves to an object containing the account information
-	 */
-	async account(poolKey: string, managerKey: string) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
-		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
-
-		tx.add(this.deepBook.account(poolKey, managerKey));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const accountInformation = res.commandResults![0].returnValues[0].bcs;
-		const accountInfo = Account.parse(new Uint8Array(accountInformation));
-
-		return {
-			epoch: accountInfo.epoch,
-			open_orders: accountInfo.open_orders,
-			taker_volume: Number(accountInfo.taker_volume) / baseScalar,
-			maker_volume: Number(accountInfo.maker_volume) / baseScalar,
-			active_stake: Number(accountInfo.active_stake) / DEEP_SCALAR,
-			inactive_stake: Number(accountInfo.inactive_stake) / DEEP_SCALAR,
-			created_proposal: accountInfo.created_proposal,
-			voted_proposal: accountInfo.voted_proposal,
-			unclaimed_rebates: {
-				base: Number(accountInfo.unclaimed_rebates.base) / baseScalar,
-				quote: Number(accountInfo.unclaimed_rebates.quote) / quoteScalar,
-				deep: Number(accountInfo.unclaimed_rebates.deep) / DEEP_SCALAR,
-			},
-			settled_balances: {
-				base: Number(accountInfo.settled_balances.base) / baseScalar,
-				quote: Number(accountInfo.settled_balances.quote) / quoteScalar,
-				deep: Number(accountInfo.settled_balances.deep) / DEEP_SCALAR,
-			},
-			owed_balances: {
-				base: Number(accountInfo.owed_balances.base) / baseScalar,
-				quote: Number(accountInfo.owed_balances.quote) / quoteScalar,
-				deep: Number(accountInfo.owed_balances.deep) / DEEP_SCALAR,
-			},
-		};
+	canPlaceMarketOrder(params: CanPlaceMarketOrderParams): Promise<boolean> {
+		return this.#poolQueries.canPlaceMarketOrder(params);
 	}
 
-	/**
-	 * @description Get the locked balances for a pool and balance manager
-	 * @param {string} poolKey Key of the pool
-	 * @param {string} managerKey The key of the BalanceManager
-	 * @returns {Promise<{ base: number, quote: number, deep: number }>}
-	 * An object with base, quote, and deep locked for the balance manager in the pool
-	 */
-	async lockedBalance(poolKey: string, balanceManagerKey: string) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
-		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
-
-		tx.add(this.deepBook.lockedBalance(poolKey, balanceManagerKey));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const baseLocked = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
-		const quoteLocked = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
-		const deepLocked = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
-
-		return {
-			base: Number((baseLocked / baseScalar).toFixed(9)),
-			quote: Number((quoteLocked / quoteScalar).toFixed(9)),
-			deep: Number((deepLocked / DEEP_SCALAR).toFixed(9)),
-		};
+	checkMarketOrderParams(poolKey: string, quantity: number | bigint): Promise<boolean> {
+		return this.#poolQueries.checkMarketOrderParams(poolKey, quantity);
 	}
 
-	/**
-	 * @description Get the DEEP price conversion for a pool
-	 * @param {string} poolKey Key of the pool
-	 * @returns {Promise<{ asset_is_base: bool, deep_per_quote: number }>} Deep price conversion
-	 */
-	async getPoolDeepPrice(poolKey: string) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		tx.add(this.deepBook.getPoolDeepPrice(poolKey));
-
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		const deepCoin = this.#config.getCoin('DEEP');
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const poolDeepPriceBytes = res.commandResults![0].returnValues[0].bcs;
-		const poolDeepPrice = OrderDeepPrice.parse(new Uint8Array(poolDeepPriceBytes));
-
-		if (poolDeepPrice.asset_is_base) {
-			return {
-				asset_is_base: poolDeepPrice.asset_is_base,
-				deep_per_base:
-					((Number(poolDeepPrice.deep_per_asset) / FLOAT_SCALAR) * baseCoin.scalar) /
-					deepCoin.scalar,
-			};
-		} else {
-			return {
-				asset_is_base: poolDeepPrice.asset_is_base,
-				deep_per_quote:
-					((Number(poolDeepPrice.deep_per_asset) / FLOAT_SCALAR) * quoteCoin.scalar) /
-					deepCoin.scalar,
-			};
-		}
+	checkLimitOrderParams(
+		poolKey: string,
+		price: number | bigint,
+		quantity: number | bigint,
+		expireTimestamp: number,
+	): Promise<boolean> {
+		return this.#poolQueries.checkLimitOrderParams(poolKey, price, quantity, expireTimestamp);
 	}
 
-	/**
-	 * @description Decode the order ID to get bid/ask status, price, and orderId
-	 * @param {bigint} encodedOrderId Encoded order ID
-	 * @returns {Object} Object containing isBid, price, and orderId
-	 */
-	decodeOrderId(encodedOrderId: bigint): { isBid: boolean; price: number; orderId: number } {
+	// === Quantity Queries ===
+
+	getQuoteQuantityOut(poolKey: string, baseQuantity: number | bigint): Promise<QuoteQuantityOut> {
+		return this.#quantityQueries.getQuoteQuantityOut(poolKey, baseQuantity);
+	}
+
+	getBaseQuantityOut(poolKey: string, quoteQuantity: number | bigint): Promise<BaseQuantityOut> {
+		return this.#quantityQueries.getBaseQuantityOut(poolKey, quoteQuantity);
+	}
+
+	getQuantityOut(
+		poolKey: string,
+		baseQuantity: number | bigint,
+		quoteQuantity: number | bigint,
+	): Promise<QuantityOut> {
+		return this.#quantityQueries.getQuantityOut(poolKey, baseQuantity, quoteQuantity);
+	}
+
+	getQuoteQuantityOutInputFee(
+		poolKey: string,
+		baseQuantity: number | bigint,
+	): Promise<QuoteQuantityOut> {
+		return this.#quantityQueries.getQuoteQuantityOutInputFee(poolKey, baseQuantity);
+	}
+
+	getBaseQuantityOutInputFee(
+		poolKey: string,
+		quoteQuantity: number | bigint,
+	): Promise<BaseQuantityOut> {
+		return this.#quantityQueries.getBaseQuantityOutInputFee(poolKey, quoteQuantity);
+	}
+
+	getQuantityOutInputFee(
+		poolKey: string,
+		baseQuantity: number | bigint,
+		quoteQuantity: number | bigint,
+	): Promise<QuantityOut> {
+		return this.#quantityQueries.getQuantityOutInputFee(poolKey, baseQuantity, quoteQuantity);
+	}
+
+	getBaseQuantityIn(
+		poolKey: string,
+		targetQuoteQuantity: number | bigint,
+		payWithDeep: boolean,
+	): Promise<BaseQuantityIn> {
+		return this.#quantityQueries.getBaseQuantityIn(poolKey, targetQuoteQuantity, payWithDeep);
+	}
+
+	getQuoteQuantityIn(
+		poolKey: string,
+		targetBaseQuantity: number | bigint,
+		payWithDeep: boolean,
+	): Promise<QuoteQuantityIn> {
+		return this.#quantityQueries.getQuoteQuantityIn(poolKey, targetBaseQuantity, payWithDeep);
+	}
+
+	getOrderDeepRequired(
+		poolKey: string,
+		baseQuantity: number | bigint,
+		price: number | bigint,
+	): Promise<OrderDeepRequiredResult> {
+		return this.#quantityQueries.getOrderDeepRequired(poolKey, baseQuantity, price);
+	}
+
+	// === Order Queries ===
+
+	accountOpenOrders(poolKey: string, managerKey: string): Promise<string[]> {
+		return this.#orderQueries.accountOpenOrders(poolKey, managerKey);
+	}
+
+	getOrder(poolKey: string, orderId: string) {
+		return this.#orderQueries.getOrder(poolKey, orderId);
+	}
+
+	getOrderNormalized(poolKey: string, orderId: string) {
+		return this.#orderQueries.getOrderNormalized(poolKey, orderId);
+	}
+
+	getOrders(poolKey: string, orderIds: string[]) {
+		return this.#orderQueries.getOrders(poolKey, orderIds);
+	}
+
+	getLevel2Range(
+		poolKey: string,
+		priceLow: number | bigint,
+		priceHigh: number | bigint,
+		isBid: boolean,
+	): Promise<Level2Range> {
+		return this.#orderQueries.getLevel2Range(poolKey, priceLow, priceHigh, isBid);
+	}
+
+	getLevel2TicksFromMid(poolKey: string, ticks: number): Promise<Level2TicksFromMid> {
+		return this.#orderQueries.getLevel2TicksFromMid(poolKey, ticks);
+	}
+
+	getAccountOrderDetails(poolKey: string, managerKey: string) {
+		return this.#orderQueries.getAccountOrderDetails(poolKey, managerKey);
+	}
+
+	// === Account Queries ===
+
+	account(poolKey: string, managerKey: string): Promise<AccountInfo> {
+		return this.#accountQueries.account(poolKey, managerKey);
+	}
+
+	lockedBalance(poolKey: string, balanceManagerKey: string): Promise<LockedBalances> {
+		return this.#accountQueries.lockedBalance(poolKey, balanceManagerKey);
+	}
+
+	getPoolDeepPrice(poolKey: string): Promise<PoolDeepPrice> {
+		return this.#accountQueries.getPoolDeepPrice(poolKey);
+	}
+
+	// === Referral Queries ===
+
+	balanceManagerReferralOwner(referral: string): Promise<string> {
+		return this.#referralQueries.balanceManagerReferralOwner(referral);
+	}
+
+	getPoolReferralBalances(poolKey: string, referral: string): Promise<ReferralBalances> {
+		return this.#referralQueries.getPoolReferralBalances(poolKey, referral);
+	}
+
+	balanceManagerReferralPoolId(referral: string): Promise<string> {
+		return this.#referralQueries.balanceManagerReferralPoolId(referral);
+	}
+
+	poolReferralMultiplier(poolKey: string, referral: string): Promise<number> {
+		return this.#referralQueries.poolReferralMultiplier(poolKey, referral);
+	}
+
+	getBalanceManagerReferralId(managerKey: string, poolKey: string): Promise<string | null> {
+		return this.#referralQueries.getBalanceManagerReferralId(managerKey, poolKey);
+	}
+
+	// === Price Feed Queries ===
+
+	getPriceInfoObject(tx: Transaction, coinKey: string): Promise<string> {
+		return this.#priceFeedQueries.getPriceInfoObject(tx, coinKey);
+	}
+
+	getPriceInfoObjects(tx: Transaction, coinKeys: string[]): Promise<Record<string, string>> {
+		return this.#priceFeedQueries.getPriceInfoObjects(tx, coinKeys);
+	}
+
+	getPriceInfoObjectAge(coinKey: string): Promise<number> {
+		return this.#priceFeedQueries.getPriceInfoObjectAge(coinKey);
+	}
+
+	// === Margin Pool Queries ===
+
+	getMarginPoolId(coinKey: string): Promise<string> {
+		return this.#marginPoolQueries.getMarginPoolId(coinKey);
+	}
+
+	isDeepbookPoolAllowed(coinKey: string, deepbookPoolId: string): Promise<boolean> {
+		return this.#marginPoolQueries.isDeepbookPoolAllowed(coinKey, deepbookPoolId);
+	}
+
+	getMarginPoolTotalSupply(coinKey: string, decimals: number = 6): Promise<string> {
+		return this.#marginPoolQueries.getMarginPoolTotalSupply(coinKey, decimals);
+	}
+
+	getMarginPoolSupplyShares(coinKey: string, decimals: number = 6): Promise<string> {
+		return this.#marginPoolQueries.getMarginPoolSupplyShares(coinKey, decimals);
+	}
+
+	getMarginPoolTotalBorrow(coinKey: string, decimals: number = 6): Promise<string> {
+		return this.#marginPoolQueries.getMarginPoolTotalBorrow(coinKey, decimals);
+	}
+
+	getMarginPoolBorrowShares(coinKey: string, decimals: number = 6): Promise<string> {
+		return this.#marginPoolQueries.getMarginPoolBorrowShares(coinKey, decimals);
+	}
+
+	getMarginPoolLastUpdateTimestamp(coinKey: string): Promise<number> {
+		return this.#marginPoolQueries.getMarginPoolLastUpdateTimestamp(coinKey);
+	}
+
+	getMarginPoolSupplyCap(coinKey: string, decimals: number = 6): Promise<string> {
+		return this.#marginPoolQueries.getMarginPoolSupplyCap(coinKey, decimals);
+	}
+
+	getMarginPoolMaxUtilizationRate(coinKey: string): Promise<number> {
+		return this.#marginPoolQueries.getMarginPoolMaxUtilizationRate(coinKey);
+	}
+
+	getMarginPoolProtocolSpread(coinKey: string): Promise<number> {
+		return this.#marginPoolQueries.getMarginPoolProtocolSpread(coinKey);
+	}
+
+	getMarginPoolMinBorrow(coinKey: string, decimals: number = 6): Promise<string> {
+		return this.#marginPoolQueries.getMarginPoolMinBorrow(coinKey, decimals);
+	}
+
+	getMarginPoolInterestRate(coinKey: string): Promise<number> {
+		return this.#marginPoolQueries.getMarginPoolInterestRate(coinKey);
+	}
+
+	getUserSupplyShares(
+		coinKey: string,
+		supplierCapId: string,
+		decimals: number = 6,
+	): Promise<string> {
+		return this.#marginPoolQueries.getUserSupplyShares(coinKey, supplierCapId, decimals);
+	}
+
+	getUserSupplyAmount(
+		coinKey: string,
+		supplierCapId: string,
+		decimals: number = 6,
+	): Promise<string> {
+		return this.#marginPoolQueries.getUserSupplyAmount(coinKey, supplierCapId, decimals);
+	}
+
+	// === Margin Manager Queries ===
+
+	getMarginManagerOwner(marginManagerKey: string): Promise<string> {
+		return this.#marginManagerQueries.getMarginManagerOwner(marginManagerKey);
+	}
+
+	getMarginManagerDeepbookPool(marginManagerKey: string): Promise<string> {
+		return this.#marginManagerQueries.getMarginManagerDeepbookPool(marginManagerKey);
+	}
+
+	getMarginManagerMarginPoolId(marginManagerKey: string): Promise<string | null> {
+		return this.#marginManagerQueries.getMarginManagerMarginPoolId(marginManagerKey);
+	}
+
+	getMarginManagerBorrowedShares(marginManagerKey: string): Promise<BorrowedShares> {
+		return this.#marginManagerQueries.getMarginManagerBorrowedShares(marginManagerKey);
+	}
+
+	getMarginManagerBorrowedBaseShares(marginManagerKey: string): Promise<string> {
+		return this.#marginManagerQueries.getMarginManagerBorrowedBaseShares(marginManagerKey);
+	}
+
+	getMarginManagerBorrowedQuoteShares(marginManagerKey: string): Promise<string> {
+		return this.#marginManagerQueries.getMarginManagerBorrowedQuoteShares(marginManagerKey);
+	}
+
+	getMarginManagerHasBaseDebt(marginManagerKey: string): Promise<boolean> {
+		return this.#marginManagerQueries.getMarginManagerHasBaseDebt(marginManagerKey);
+	}
+
+	getMarginManagerBalanceManagerId(marginManagerAddress: string): Promise<string> {
+		return this.#marginManagerQueries.getMarginManagerBalanceManagerId(marginManagerAddress);
+	}
+
+	getMarginManagerAssets(
+		marginManagerKey: string,
+		decimals: number = 6,
+	): Promise<MarginManagerAssets> {
+		return this.#marginManagerQueries.getMarginManagerAssets(marginManagerKey, decimals);
+	}
+
+	getMarginManagerDebts(
+		marginManagerKey: string,
+		decimals: number = 6,
+	): Promise<MarginManagerDebts> {
+		return this.#marginManagerQueries.getMarginManagerDebts(marginManagerKey, decimals);
+	}
+
+	getMarginManagerState(
+		marginManagerKey: string,
+		decimals: number = 6,
+	): Promise<MarginManagerState> {
+		return this.#marginManagerQueries.getMarginManagerState(marginManagerKey, decimals);
+	}
+
+	getMarginManagerStates(
+		marginManagers: Record<string, string>,
+		decimals: number = 6,
+	): Promise<Record<string, MarginManagerState>> {
+		return this.#marginManagerQueries.getMarginManagerStates(marginManagers, decimals);
+	}
+
+	getMarginManagerBaseBalance(marginManagerKey: string, decimals: number = 9): Promise<string> {
+		return this.#marginManagerQueries.getMarginManagerBaseBalance(marginManagerKey, decimals);
+	}
+
+	getMarginManagerQuoteBalance(marginManagerKey: string, decimals: number = 9): Promise<string> {
+		return this.#marginManagerQueries.getMarginManagerQuoteBalance(marginManagerKey, decimals);
+	}
+
+	getMarginManagerDeepBalance(marginManagerKey: string, decimals: number = 6): Promise<string> {
+		return this.#marginManagerQueries.getMarginManagerDeepBalance(marginManagerKey, decimals);
+	}
+
+	getMarginManagerBalances(
+		marginManagers: Record<string, string>,
+		decimals: number = 9,
+	): Promise<Record<string, MarginManagerBalancesResult>> {
+		return this.#marginManagerQueries.getMarginManagerBalances(marginManagers, decimals);
+	}
+
+	// === TPSL Queries ===
+
+	getConditionalOrderIds(marginManagerKey: string): Promise<string[]> {
+		return this.#tpslQueries.getConditionalOrderIds(marginManagerKey);
+	}
+
+	getLowestTriggerAbovePrice(marginManagerKey: string): Promise<bigint> {
+		return this.#tpslQueries.getLowestTriggerAbovePrice(marginManagerKey);
+	}
+
+	getHighestTriggerBelowPrice(marginManagerKey: string): Promise<bigint> {
+		return this.#tpslQueries.getHighestTriggerBelowPrice(marginManagerKey);
+	}
+
+	// === Registry Queries ===
+
+	isPoolEnabledForMargin(poolKey: string): Promise<boolean> {
+		return this.#registryQueries.isPoolEnabledForMargin(poolKey);
+	}
+
+	getMarginManagerIdsForOwner(owner: string): Promise<string[]> {
+		return this.#registryQueries.getMarginManagerIdsForOwner(owner);
+	}
+
+	getBaseMarginPoolId(poolKey: string): Promise<string> {
+		return this.#registryQueries.getBaseMarginPoolId(poolKey);
+	}
+
+	getQuoteMarginPoolId(poolKey: string): Promise<string> {
+		return this.#registryQueries.getQuoteMarginPoolId(poolKey);
+	}
+
+	getMinWithdrawRiskRatio(poolKey: string): Promise<number> {
+		return this.#registryQueries.getMinWithdrawRiskRatio(poolKey);
+	}
+
+	getMinBorrowRiskRatio(poolKey: string): Promise<number> {
+		return this.#registryQueries.getMinBorrowRiskRatio(poolKey);
+	}
+
+	getLiquidationRiskRatio(poolKey: string): Promise<number> {
+		return this.#registryQueries.getLiquidationRiskRatio(poolKey);
+	}
+
+	getTargetLiquidationRiskRatio(poolKey: string): Promise<number> {
+		return this.#registryQueries.getTargetLiquidationRiskRatio(poolKey);
+	}
+
+	getUserLiquidationReward(poolKey: string): Promise<number> {
+		return this.#registryQueries.getUserLiquidationReward(poolKey);
+	}
+
+	getPoolLiquidationReward(poolKey: string): Promise<number> {
+		return this.#registryQueries.getPoolLiquidationReward(poolKey);
+	}
+
+	getAllowedMaintainers(): Promise<string[]> {
+		return this.#registryQueries.getAllowedMaintainers();
+	}
+
+	getAllowedPauseCaps(): Promise<string[]> {
+		return this.#registryQueries.getAllowedPauseCaps();
+	}
+
+	// === Synchronous Utilities ===
+
+	decodeOrderId(encodedOrderId: bigint): DecodedOrderId {
 		const isBid = encodedOrderId >> 127n === 0n;
 		const price = Number((encodedOrderId >> 64n) & ((1n << 63n) - 1n));
 		const orderId = Number(encodedOrderId & ((1n << 64n) - 1n));
 
 		return { isBid, price, orderId };
-	}
-
-	/**
-	 * @description Get all balance manager IDs for a given owner
-	 * @param {string} owner The owner address to get balance manager IDs for
-	 * @returns {Promise<string[]>} Array of balance manager ID strings
-	 */
-	async getBalanceManagerIds(owner: string): Promise<string[]> {
-		const tx = new Transaction();
-		tx.add(this.deepBook.getBalanceManagerIds(owner));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const vecOfAddresses = bcs.vector(bcs.Address).parse(bytes);
-
-		return vecOfAddresses.map((id: string) => normalizeSuiAddress(id));
-	}
-
-	/**
-	 * @description Get the owner of the referral (DeepBookPoolReferral)
-	 * @param {string} referral The ID of the referral to get the owner of
-	 * @returns {Promise<string>} The owner of the referral
-	 */
-	async balanceManagerReferralOwner(referral: string) {
-		const tx = new Transaction();
-		tx.add(this.balanceManager.balanceManagerReferralOwner(referral));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const owner = bcs.Address.parse(bytes);
-
-		return owner;
-	}
-
-	/**
-	 * @description Get the referral balances for a pool and referral (DeepBookPoolReferral)
-	 * @param {string} poolKey Key of the pool
-	 * @param {string} referral The referral ID to get balances for
-	 * @returns {Promise<{ base: number, quote: number, deep: number }>} Object with base, quote, and deep balances
-	 */
-	async getPoolReferralBalances(
-		poolKey: string,
-		referral: string,
-	): Promise<{ base: number; quote: number; deep: number }> {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
-		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
-
-		tx.add(this.deepBook.getPoolReferralBalances(poolKey, referral));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		// The function returns three u64 values: (base, quote, deep)
-		const baseBytes = res.commandResults![0].returnValues[0].bcs;
-		const quoteBytes = res.commandResults![0].returnValues[1].bcs;
-		const deepBytes = res.commandResults![0].returnValues[2].bcs;
-
-		const baseBalance = Number(bcs.U64.parse(baseBytes));
-		const quoteBalance = Number(bcs.U64.parse(quoteBytes));
-		const deepBalance = Number(bcs.U64.parse(deepBytes));
-
-		return {
-			base: baseBalance / baseScalar,
-			quote: quoteBalance / quoteScalar,
-			deep: deepBalance / DEEP_SCALAR,
-		};
-	}
-
-	/**
-	 * @description Get the pool ID associated with a referral (DeepBookPoolReferral)
-	 * @param {string} referral The referral (DeepBookPoolReferral) to get the pool ID for
-	 * @returns {Promise<string>} The pool ID
-	 */
-	async balanceManagerReferralPoolId(referral: string): Promise<string> {
-		const tx = new Transaction();
-
-		tx.add(this.balanceManager.balanceManagerReferralPoolId(referral));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const poolId = bcs.Address.parse(bytes);
-
-		return normalizeSuiAddress(poolId);
-	}
-
-	/**
-	 * @description Get the multiplier for a referral (DeepBookPoolReferral)
-	 * @param {string} poolKey Key of the pool
-	 * @param {string} referral The referral (DeepBookPoolReferral) to get the multiplier for
-	 * @returns {Promise<number>} The multiplier value
-	 */
-	async poolReferralMultiplier(poolKey: string, referral: string): Promise<number> {
-		const tx = new Transaction();
-
-		tx.add(this.deepBook.poolReferralMultiplier(poolKey, referral));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const multiplier = Number(bcs.U64.parse(bytes));
-
-		return multiplier / FLOAT_SCALAR;
-	}
-
-	/**
-	 * @description Get the referral ID from a balance manager for a specific pool
-	 * @param {string} managerKey Key of the balance manager
-	 * @param {string} poolKey Key of the pool to get the referral for
-	 * @returns {Promise<string | null>} The referral ID or null if not set
-	 */
-	async getBalanceManagerReferralId(managerKey: string, poolKey: string): Promise<string | null> {
-		const tx = new Transaction();
-		tx.add(this.balanceManager.getBalanceManagerReferralId(managerKey, poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		try {
-			const bytes = res.commandResults![0].returnValues[0].bcs;
-			const optionId = bcs.option(bcs.Address).parse(bytes);
-			if (optionId === null) {
-				return null;
-			}
-			return normalizeSuiAddress(optionId);
-		} catch {
-			return null;
-		}
-	}
-
-	async getPriceInfoObject(tx: Transaction, coinKey: string): Promise<string> {
-		this.#config.requirePyth();
-		const currentTime = Date.now();
-		const priceInfoObjectAge = await this.getPriceInfoObjectAge(coinKey);
-		if (
-			priceInfoObjectAge &&
-			currentTime - priceInfoObjectAge * 1000 < PRICE_INFO_OBJECT_MAX_AGE_MS
-		) {
-			return await this.#config.getCoin(coinKey).priceInfoObjectId!;
-		}
-
-		// Initialize connection to the Sui Price Service
-		const endpoint =
-			this.#config.network === 'testnet'
-				? 'https://hermes-beta.pyth.network'
-				: 'https://hermes.pyth.network';
-		const connection = new SuiPriceServiceConnection(endpoint);
-
-		// List of price feed IDs
-		const priceIDs = [
-			this.#config.getCoin(coinKey).feed!, // ASSET/USD price ID
-		];
-
-		// Fetch price feed update data
-		const priceUpdateData = await connection.getPriceFeedsUpdateData(priceIDs);
-
-		// Initialize Sui Client and Pyth Client
-		const wormholeStateId = this.#config.pyth.wormholeStateId;
-		const pythStateId = this.#config.pyth.pythStateId;
-
-		const client = new SuiPythClient(this.#client, pythStateId, wormholeStateId);
-
-		return (await client.updatePriceFeeds(tx, priceUpdateData, priceIDs))[0]; // returns priceInfoObjectIds
-	}
-
-	/**
-	 * @description Batch update price info objects for multiple coins. Only updates stale feeds.
-	 * This is more efficient than calling getPriceInfoObject multiple times as it:
-	 * 1. Batch fetches all price info object ages in one RPC call
-	 * 2. Fetches all stale price updates from Pyth in a single API call
-	 * @param {Transaction} tx Transaction to add price update commands to
-	 * @param {string[]} coinKeys Array of coin keys to update prices for
-	 * @returns {Promise<Record<string, string>>} Map of coinKey -> priceInfoObjectId
-	 */
-	async getPriceInfoObjects(tx: Transaction, coinKeys: string[]): Promise<Record<string, string>> {
-		this.#config.requirePyth();
-		if (coinKeys.length === 0) {
-			return {};
-		}
-
-		const currentTime = Date.now();
-
-		// Build map of coinKey -> priceInfoObjectId and collect all object IDs
-		const coinToObjectId: Record<string, string> = {};
-		const objectIds: string[] = [];
-		for (const coinKey of coinKeys) {
-			const priceInfoObjectId = this.#config.getCoin(coinKey).priceInfoObjectId!;
-			coinToObjectId[coinKey] = priceInfoObjectId;
-			objectIds.push(priceInfoObjectId);
-		}
-
-		// Batch fetch all price info objects in one RPC call
-		const res = await this.#client.core.getObjects({
-			objectIds,
-			include: { content: true },
-		});
-
-		// Parse each object and determine which are stale
-		const staleCoinKeys: string[] = [];
-		const result: Record<string, string> = {};
-
-		for (let i = 0; i < coinKeys.length; i++) {
-			const coinKey = coinKeys[i];
-			const obj = res.objects[i];
-
-			if (obj instanceof Error || !obj?.content) {
-				// If we can't fetch the object, mark it as stale to force update
-				staleCoinKeys.push(coinKey);
-				continue;
-			}
-
-			const priceInfoObject = PriceInfoObject.parse(obj.content);
-			const arrivalTime = Number(priceInfoObject.price_info.arrival_time);
-			const age = currentTime - arrivalTime * 1000;
-
-			if (age >= PRICE_INFO_OBJECT_MAX_AGE_MS) {
-				staleCoinKeys.push(coinKey);
-			} else {
-				// Fresh price, just return the existing object ID
-				result[coinKey] = coinToObjectId[coinKey];
-			}
-		}
-
-		// If no stale feeds, return early
-		if (staleCoinKeys.length === 0) {
-			return result;
-		}
-
-		// Collect all feed IDs for stale coins
-		const staleFeedIds: string[] = [];
-		const feedIdToCoinKey: Record<string, string> = {};
-		for (const coinKey of staleCoinKeys) {
-			const feedId = this.#config.getCoin(coinKey).feed!;
-			staleFeedIds.push(feedId);
-			feedIdToCoinKey[feedId] = coinKey;
-		}
-
-		// Initialize connection to the Sui Price Service
-		const endpoint =
-			this.#config.network === 'testnet'
-				? 'https://hermes-beta.pyth.network'
-				: 'https://hermes.pyth.network';
-		const connection = new SuiPriceServiceConnection(endpoint);
-
-		// Fetch all stale price updates from Pyth in a single API call
-		const priceUpdateData = await connection.getPriceFeedsUpdateData(staleFeedIds);
-
-		// Initialize Pyth Client
-		const wormholeStateId = this.#config.pyth.wormholeStateId;
-		const pythStateId = this.#config.pyth.pythStateId;
-		const pythClient = new SuiPythClient(this.#client, pythStateId, wormholeStateId);
-
-		// Update all stale feeds in the transaction
-		const updatedObjectIds = await pythClient.updatePriceFeeds(tx, priceUpdateData, staleFeedIds);
-
-		// Map the updated object IDs back to coin keys
-		for (let i = 0; i < staleFeedIds.length; i++) {
-			const coinKey = feedIdToCoinKey[staleFeedIds[i]];
-			result[coinKey] = updatedObjectIds[i];
-		}
-
-		return result;
-	}
-
-	/**
-	 * @description Get the age of the price info object for a specific coin
-	 * @param {string} coinKey Key of the coin
-	 * @returns {Promise<number>} The arrival time of the price info object
-	 */
-	async getPriceInfoObjectAge(coinKey: string) {
-		const priceInfoObjectId = this.#config.getCoin(coinKey).priceInfoObjectId!;
-		const res = await this.#client.core.getObject({
-			objectId: priceInfoObjectId,
-			include: {
-				content: true,
-			},
-		});
-
-		if (!res.object?.content) {
-			throw new Error(`Price info object not found for ${coinKey}`);
-		}
-
-		const priceInfoObject = PriceInfoObject.parse(res.object.content);
-		return Number(priceInfoObject.price_info.arrival_time);
-	}
-
-	// === Margin Pool View Methods ===
-
-	/**
-	 * @description Get the margin pool ID
-	 * @param {string} coinKey The key to identify the margin pool
-	 * @returns {Promise<string>} The margin pool ID
-	 */
-	async getMarginPoolId(coinKey: string): Promise<string> {
-		const tx = new Transaction();
-		tx.add(this.marginPool.getId(coinKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.Address.parse(bytes);
-	}
-
-	/**
-	 * @description Check if a deepbook pool is allowed for borrowing from margin pool
-	 * @param {string} coinKey The key to identify the margin pool
-	 * @param {string} deepbookPoolId The ID of the deepbook pool
-	 * @returns {Promise<boolean>} Whether the deepbook pool is allowed
-	 */
-	async isDeepbookPoolAllowed(coinKey: string, deepbookPoolId: string): Promise<boolean> {
-		const tx = new Transaction();
-		tx.add(this.marginPool.deepbookPoolAllowed(coinKey, deepbookPoolId));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(bytes);
-	}
-
-	/**
-	 * @description Get the total supply amount in the margin pool
-	 * @param {string} coinKey The key to identify the margin pool
-	 * @param {number} decimals Number of decimal places to show (default: 6)
-	 * @returns {Promise<string>} The total supply amount as a string
-	 */
-	async getMarginPoolTotalSupply(coinKey: string, decimals: number = 6): Promise<string> {
-		const tx = new Transaction();
-		tx.add(this.marginPool.totalSupply(coinKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const rawAmount = BigInt(bcs.U64.parse(bytes));
-		const coin = this.#config.getCoin(coinKey);
-		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
-	}
-
-	/**
-	 * @description Get the total supply shares in the margin pool
-	 * @param {string} coinKey The key to identify the margin pool
-	 * @param {number} decimals Number of decimal places to show (default: 6)
-	 * @returns {Promise<string>} The total supply shares as a string
-	 */
-	async getMarginPoolSupplyShares(coinKey: string, decimals: number = 6): Promise<string> {
-		const tx = new Transaction();
-		tx.add(this.marginPool.supplyShares(coinKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const rawShares = BigInt(bcs.U64.parse(bytes));
-		const coin = this.#config.getCoin(coinKey);
-		return this.#formatTokenAmount(rawShares, coin.scalar, decimals);
-	}
-
-	/**
-	 * @description Get the total borrow amount in the margin pool
-	 * @param {string} coinKey The key to identify the margin pool
-	 * @param {number} decimals Number of decimal places to show (default: 6)
-	 * @returns {Promise<string>} The total borrow amount as a string
-	 */
-	async getMarginPoolTotalBorrow(coinKey: string, decimals: number = 6): Promise<string> {
-		const tx = new Transaction();
-		tx.add(this.marginPool.totalBorrow(coinKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const rawAmount = BigInt(bcs.U64.parse(bytes));
-		const coin = this.#config.getCoin(coinKey);
-		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
-	}
-
-	/**
-	 * @description Get the total borrow shares in the margin pool
-	 * @param {string} coinKey The key to identify the margin pool
-	 * @param {number} decimals Number of decimal places to show (default: 6)
-	 * @returns {Promise<string>} The total borrow shares as a string
-	 */
-	async getMarginPoolBorrowShares(coinKey: string, decimals: number = 6): Promise<string> {
-		const tx = new Transaction();
-		tx.add(this.marginPool.borrowShares(coinKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const rawShares = BigInt(bcs.U64.parse(bytes));
-		const coin = this.#config.getCoin(coinKey);
-		return this.#formatTokenAmount(rawShares, coin.scalar, decimals);
-	}
-
-	/**
-	 * @description Get the last update timestamp of the margin pool
-	 * @param {string} coinKey The key to identify the margin pool
-	 * @returns {Promise<number>} The last update timestamp in milliseconds
-	 */
-	async getMarginPoolLastUpdateTimestamp(coinKey: string): Promise<number> {
-		const tx = new Transaction();
-		tx.add(this.marginPool.lastUpdateTimestamp(coinKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return Number(bcs.U64.parse(bytes));
-	}
-
-	/**
-	 * @description Get the supply cap of the margin pool
-	 * @param {string} coinKey The key to identify the margin pool
-	 * @param {number} decimals Number of decimal places to show (default: 6)
-	 * @returns {Promise<string>} The supply cap as a string
-	 */
-	async getMarginPoolSupplyCap(coinKey: string, decimals: number = 6): Promise<string> {
-		const tx = new Transaction();
-		tx.add(this.marginPool.supplyCap(coinKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const rawAmount = BigInt(bcs.U64.parse(bytes));
-		const coin = this.#config.getCoin(coinKey);
-		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
-	}
-
-	/**
-	 * @description Get the max utilization rate of the margin pool
-	 * @param {string} coinKey The key to identify the margin pool
-	 * @returns {Promise<number>} The max utilization rate (as a decimal, e.g., 0.95 for 95%)
-	 */
-	async getMarginPoolMaxUtilizationRate(coinKey: string): Promise<number> {
-		const tx = new Transaction();
-		tx.add(this.marginPool.maxUtilizationRate(coinKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const rawRate = Number(bcs.U64.parse(bytes));
-		return rawRate / FLOAT_SCALAR;
-	}
-
-	/**
-	 * @description Get the protocol spread of the margin pool
-	 * @param {string} coinKey The key to identify the margin pool
-	 * @returns {Promise<number>} The protocol spread (as a decimal)
-	 */
-	async getMarginPoolProtocolSpread(coinKey: string): Promise<number> {
-		const tx = new Transaction();
-		tx.add(this.marginPool.protocolSpread(coinKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const rawSpread = Number(bcs.U64.parse(bytes));
-		return rawSpread / FLOAT_SCALAR;
-	}
-
-	/**
-	 * @description Get the minimum borrow amount for the margin pool
-	 * @param {string} coinKey The key to identify the margin pool
-	 * @param {number} decimals Number of decimal places to show (default: 6)
-	 * @returns {Promise<string>} The minimum borrow amount as a string
-	 */
-	async getMarginPoolMinBorrow(coinKey: string, decimals: number = 6): Promise<string> {
-		const tx = new Transaction();
-		tx.add(this.marginPool.minBorrow(coinKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const rawAmount = BigInt(bcs.U64.parse(bytes));
-		const coin = this.#config.getCoin(coinKey);
-		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
-	}
-
-	/**
-	 * @description Get the current interest rate of the margin pool
-	 * @param {string} coinKey The key to identify the margin pool
-	 * @returns {Promise<number>} The current interest rate (as a decimal)
-	 */
-	async getMarginPoolInterestRate(coinKey: string): Promise<number> {
-		const tx = new Transaction();
-		tx.add(this.marginPool.interestRate(coinKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const rawRate = Number(bcs.U64.parse(bytes));
-		return rawRate / FLOAT_SCALAR;
-	}
-
-	/**
-	 * @description Get user supply shares for a supplier cap
-	 * @param {string} coinKey The key to identify the margin pool
-	 * @param {string} supplierCapId The ID of the supplier cap
-	 * @param {number} decimals Number of decimal places to show (default: 6)
-	 * @returns {Promise<string>} The user's supply shares as a string
-	 */
-	async getUserSupplyShares(
-		coinKey: string,
-		supplierCapId: string,
-		decimals: number = 6,
-	): Promise<string> {
-		const tx = new Transaction();
-		tx.add(this.marginPool.userSupplyShares(coinKey, supplierCapId));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const rawShares = BigInt(bcs.U64.parse(bytes));
-		const coin = this.#config.getCoin(coinKey);
-		return this.#formatTokenAmount(rawShares, coin.scalar, decimals);
-	}
-
-	/**
-	 * @description Get user supply amount for a supplier cap
-	 * @param {string} coinKey The key to identify the margin pool
-	 * @param {string} supplierCapId The ID of the supplier cap
-	 * @param {number} decimals Number of decimal places to show (default: 6)
-	 * @returns {Promise<string>} The user's supply amount as a string
-	 */
-	async getUserSupplyAmount(
-		coinKey: string,
-		supplierCapId: string,
-		decimals: number = 6,
-	): Promise<string> {
-		const tx = new Transaction();
-		tx.add(this.marginPool.userSupplyAmount(coinKey, supplierCapId));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const rawAmount = BigInt(bcs.U64.parse(bytes));
-		const coin = this.#config.getCoin(coinKey);
-		return this.#formatTokenAmount(rawAmount, coin.scalar, decimals);
-	}
-
-	// === Margin Manager Read-Only Functions ===
-
-	/**
-	 * @description Get the owner address of a margin manager
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @returns {Promise<string>} The owner address
-	 */
-	async getMarginManagerOwner(marginManagerKey: string): Promise<string> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginManager.ownerByPoolKey(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return normalizeSuiAddress(bcs.Address.parse(bytes));
-	}
-
-	/**
-	 * @description Get the DeepBook pool ID associated with a margin manager
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @returns {Promise<string>} The DeepBook pool ID
-	 */
-	async getMarginManagerDeepbookPool(marginManagerKey: string): Promise<string> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginManager.deepbookPool(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return normalizeSuiAddress(bcs.Address.parse(bytes));
-	}
-
-	/**
-	 * @description Get the margin pool ID (if any) associated with a margin manager
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @returns {Promise<string | null>} The margin pool ID or null if no active loan
-	 */
-	async getMarginManagerMarginPoolId(marginManagerKey: string): Promise<string | null> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginManager.marginPoolId(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const option = bcs.option(bcs.Address).parse(bytes);
-		return option ? normalizeSuiAddress(option) : null;
-	}
-
-	/**
-	 * @description Get borrowed shares for both base and quote assets
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @returns {Promise<{baseShares: string, quoteShares: string}>} The borrowed shares
-	 */
-	async getMarginManagerBorrowedShares(
-		marginManagerKey: string,
-	): Promise<{ baseShares: string; quoteShares: string }> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginManager.borrowedShares(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const baseBytes = res.commandResults![0].returnValues[0].bcs;
-		const quoteBytes = res.commandResults![0].returnValues[1].bcs;
-		const baseShares = bcs.U64.parse(baseBytes).toString();
-		const quoteShares = bcs.U64.parse(quoteBytes).toString();
-
-		return { baseShares, quoteShares };
-	}
-
-	/**
-	 * @description Get borrowed base shares
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @returns {Promise<string>} The borrowed base shares
-	 */
-	async getMarginManagerBorrowedBaseShares(marginManagerKey: string): Promise<string> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginManager.borrowedBaseShares(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.U64.parse(bytes).toString();
-	}
-
-	/**
-	 * @description Get borrowed quote shares
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @returns {Promise<string>} The borrowed quote shares
-	 */
-	async getMarginManagerBorrowedQuoteShares(marginManagerKey: string): Promise<string> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginManager.borrowedQuoteShares(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.U64.parse(bytes).toString();
-	}
-
-	/**
-	 * @description Check if margin manager has base asset debt
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @returns {Promise<boolean>} True if has base debt, false otherwise
-	 */
-	async getMarginManagerHasBaseDebt(marginManagerKey: string): Promise<boolean> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginManager.hasBaseDebt(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(bytes);
-	}
-
-	/**
-	 * @description Get the balance manager ID for a margin manager
-	 * @param {string} marginManagerAddress The object ID of the margin manager
-	 * @returns {Promise<string>} The balance manager ID
-	 */
-	async getMarginManagerBalanceManagerId(marginManagerAddress: string): Promise<string> {
-		const res = await this.#client.core.getObject({
-			objectId: marginManagerAddress,
-			include: { content: true },
-		});
-
-		if (!res.object?.content) {
-			throw new Error(`Margin manager not found: ${marginManagerAddress}`);
-		}
-
-		// MarginManager struct field order: id, owner, deepbook_pool, margin_pool_id, balance_manager
-		// We only need to parse up to balance_manager's id (first field of BalanceManager)
-		const MarginManagerBalanceManagerId = bcs.struct('MarginManagerBalanceManagerId', {
-			id: bcs.Address,
-			owner: bcs.Address,
-			deepbook_pool: bcs.Address,
-			margin_pool_id: bcs.option(bcs.Address),
-			balance_manager_id: bcs.Address,
-		});
-
-		const parsed = MarginManagerBalanceManagerId.parse(res.object.content);
-		return normalizeSuiAddress(parsed.balance_manager_id);
-	}
-
-	/**
-	 * @description Calculate assets (base and quote) for a margin manager
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @param {number} decimals Number of decimal places to show (default: 6)
-	 * @returns {Promise<{baseAsset: string, quoteAsset: string}>} The base and quote assets
-	 */
-	async getMarginManagerAssets(
-		marginManagerKey: string,
-		decimals: number = 6,
-	): Promise<{ baseAsset: string; quoteAsset: string }> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginManager.calculateAssets(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const baseBytes = res.commandResults![0].returnValues[0].bcs;
-		const quoteBytes = res.commandResults![0].returnValues[1].bcs;
-		const pool = this.#config.getPool(manager.poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-
-		const baseAsset = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(baseBytes)),
-			baseCoin.scalar,
-			decimals,
-		);
-		const quoteAsset = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(quoteBytes)),
-			quoteCoin.scalar,
-			decimals,
-		);
-
-		return { baseAsset, quoteAsset };
-	}
-
-	/**
-	 * @description Calculate debts (base and quote) for a margin manager
-	 * NOTE: This function automatically determines whether to use base or quote margin pool
-	 * based on hasBaseDebt. You don't need to specify the debt coin type.
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @param {number} decimals Number of decimal places to show (default: 6)
-	 * @returns {Promise<{baseDebt: string, quoteDebt: string}>} The base and quote debts
-	 */
-	async getMarginManagerDebts(
-		marginManagerKey: string,
-		decimals: number = 6,
-	): Promise<{ baseDebt: string; quoteDebt: string }> {
-		// First check if the margin manager has base debt
-		const hasBaseDebt = await this.getMarginManagerHasBaseDebt(marginManagerKey);
-
-		// Get the manager and pool configuration
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const pool = this.#config.getPool(manager.poolKey);
-		const debtCoinKey = hasBaseDebt ? pool.baseCoin : pool.quoteCoin;
-
-		// Now call calculateDebts with the correct debt coin
-		const tx = new Transaction();
-		tx.add(this.marginManager.calculateDebts(manager.poolKey, debtCoinKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		if (res.FailedTransaction) {
-			throw new Error(
-				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
-			);
-		}
-
-		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
-			throw new Error(`Failed to get margin manager debts: ${'Unknown error'}`);
-		}
-
-		// The Move function returns a tuple (u64, u64), so returnValues has 2 elements
-		const baseBytes = res.commandResults[0].returnValues[0].bcs;
-		const quoteBytes = res.commandResults[0].returnValues[1].bcs;
-		const debtCoin = this.#config.getCoin(debtCoinKey);
-
-		const baseDebt = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(baseBytes)),
-			debtCoin.scalar,
-			decimals,
-		);
-		const quoteDebt = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(quoteBytes)),
-			debtCoin.scalar,
-			decimals,
-		);
-
-		return { baseDebt, quoteDebt };
-	}
-
-	/**
-	 * @description Get comprehensive state information for a margin manager
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @param {number} decimals Number of decimal places to show (default: 6)
-	 * @returns {Promise<{
-	 *   managerId: string,
-	 *   deepbookPoolId: string,
-	 *   riskRatio: number,
-	 *   baseAsset: string,
-	 *   quoteAsset: string,
-	 *   baseDebt: string,
-	 *   quoteDebt: string,
-	 *   basePythPrice: string,
-	 *   basePythDecimals: number,
-	 *   quotePythPrice: string,
-	 *   quotePythDecimals: number
-	 * }>} Comprehensive margin manager state
-	 */
-	async getMarginManagerState(
-		marginManagerKey: string,
-		decimals: number = 6,
-	): Promise<{
-		managerId: string;
-		deepbookPoolId: string;
-		riskRatio: number;
-		baseAsset: string;
-		quoteAsset: string;
-		baseDebt: string;
-		quoteDebt: string;
-		basePythPrice: string;
-		basePythDecimals: number;
-		quotePythPrice: string;
-		quotePythDecimals: number;
-		currentPrice: bigint;
-		lowestTriggerAbovePrice: bigint;
-		highestTriggerBelowPrice: bigint;
-	}> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginManager.managerState(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		if (res.FailedTransaction) {
-			throw new Error(
-				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
-			);
-		}
-
-		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
-			throw new Error(`Failed to get margin manager state: Unknown error`);
-		}
-
-		const pool = this.#config.getPool(manager.poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-
-		// Parse all 11 return values
-		const managerId = normalizeSuiAddress(
-			bcs.Address.parse(res.commandResults[0].returnValues[0].bcs),
-		);
-		const deepbookPoolId = normalizeSuiAddress(
-			bcs.Address.parse(res.commandResults[0].returnValues[1].bcs),
-		);
-		const riskRatio =
-			Number(bcs.U64.parse(res.commandResults[0].returnValues[2].bcs)) / FLOAT_SCALAR;
-		const baseAsset = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(res.commandResults[0].returnValues[3].bcs)),
-			baseCoin.scalar,
-			decimals,
-		);
-		const quoteAsset = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(res.commandResults[0].returnValues[4].bcs)),
-			quoteCoin.scalar,
-			decimals,
-		);
-		const baseDebt = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(res.commandResults[0].returnValues[5].bcs)),
-			baseCoin.scalar,
-			decimals,
-		);
-		const quoteDebt = this.#formatTokenAmount(
-			BigInt(bcs.U64.parse(res.commandResults[0].returnValues[6].bcs)),
-			quoteCoin.scalar,
-			decimals,
-		);
-		const basePythPrice = bcs.U64.parse(res.commandResults[0].returnValues[7].bcs);
-		const basePythDecimals = Number(
-			bcs.u8().parse(new Uint8Array(res.commandResults[0].returnValues[8].bcs)),
-		);
-		const quotePythPrice = bcs.U64.parse(res.commandResults[0].returnValues[9].bcs);
-		const quotePythDecimals = Number(
-			bcs.u8().parse(new Uint8Array(res.commandResults[0].returnValues[10].bcs)),
-		);
-		const currentPrice = BigInt(bcs.U64.parse(res.commandResults[0].returnValues[11].bcs));
-		const lowestTriggerAbovePrice = BigInt(
-			bcs.U64.parse(res.commandResults[0].returnValues[12].bcs),
-		);
-		const highestTriggerBelowPrice = BigInt(
-			bcs.U64.parse(res.commandResults[0].returnValues[13].bcs),
-		);
-
-		return {
-			managerId,
-			deepbookPoolId,
-			riskRatio,
-			baseAsset,
-			quoteAsset,
-			baseDebt,
-			quoteDebt,
-			basePythPrice: basePythPrice.toString(),
-			basePythDecimals,
-			quotePythPrice: quotePythPrice.toString(),
-			quotePythDecimals,
-			currentPrice,
-			lowestTriggerAbovePrice,
-			highestTriggerBelowPrice,
-		};
-	}
-
-	/**
-	 * @description Get comprehensive state information for multiple margin managers.
-	 * @param {Record<string, string>} marginManagers Map of marginManagerId -> poolKey
-	 * @param {number} decimals Number of decimal places for formatting (default: 6)
-	 * @returns {Promise<Record<string, {...}>>} Object keyed by managerId with state data
-	 */
-	async getMarginManagerStates(
-		marginManagers: Record<string, string>,
-		decimals: number = 6,
-	): Promise<
-		Record<
-			string,
-			{
-				managerId: string;
-				deepbookPoolId: string;
-				riskRatio: number;
-				baseAsset: string;
-				quoteAsset: string;
-				baseDebt: string;
-				quoteDebt: string;
-				basePythPrice: string;
-				basePythDecimals: number;
-				quotePythPrice: string;
-				quotePythDecimals: number;
-				currentPrice: bigint;
-				lowestTriggerAbovePrice: bigint;
-				highestTriggerBelowPrice: bigint;
-			}
-		>
-	> {
-		const entries = Object.entries(marginManagers);
-		if (entries.length === 0) {
-			return {};
-		}
-
-		const tx = new Transaction();
-
-		// Add a managerState call for each margin manager
-		for (const [managerId, poolKey] of entries) {
-			tx.add(this.marginManager.managerState(poolKey, managerId));
-		}
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		if (res.FailedTransaction) {
-			throw new Error(
-				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
-			);
-		}
-
-		if (!res.commandResults) {
-			throw new Error(`Failed to get margin manager states: Unknown error`);
-		}
-
-		const results: Record<
-			string,
-			{
-				managerId: string;
-				deepbookPoolId: string;
-				riskRatio: number;
-				baseAsset: string;
-				quoteAsset: string;
-				baseDebt: string;
-				quoteDebt: string;
-				basePythPrice: string;
-				basePythDecimals: number;
-				quotePythPrice: string;
-				quotePythDecimals: number;
-				currentPrice: bigint;
-				lowestTriggerAbovePrice: bigint;
-				highestTriggerBelowPrice: bigint;
-			}
-		> = {};
-
-		// Parse each command result
-		for (let i = 0; i < entries.length; i++) {
-			const commandResult = res.commandResults[i];
-			if (!commandResult || !commandResult.returnValues) {
-				throw new Error(`Failed to get margin manager state for index ${i}: No return values`);
-			}
-
-			const [, poolKey] = entries[i];
-			const pool = this.#config.getPool(poolKey);
-			const baseCoin = this.#config.getCoin(pool.baseCoin);
-			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-
-			const managerId = normalizeSuiAddress(bcs.Address.parse(commandResult.returnValues[0].bcs));
-			const deepbookPoolId = normalizeSuiAddress(
-				bcs.Address.parse(commandResult.returnValues[1].bcs),
-			);
-			const riskRatio = Number(bcs.U64.parse(commandResult.returnValues[2].bcs)) / FLOAT_SCALAR;
-			const baseAsset = this.#formatTokenAmount(
-				BigInt(bcs.U64.parse(commandResult.returnValues[3].bcs)),
-				baseCoin.scalar,
-				decimals,
-			);
-			const quoteAsset = this.#formatTokenAmount(
-				BigInt(bcs.U64.parse(commandResult.returnValues[4].bcs)),
-				quoteCoin.scalar,
-				decimals,
-			);
-			const baseDebt = this.#formatTokenAmount(
-				BigInt(bcs.U64.parse(commandResult.returnValues[5].bcs)),
-				baseCoin.scalar,
-				decimals,
-			);
-			const quoteDebt = this.#formatTokenAmount(
-				BigInt(bcs.U64.parse(commandResult.returnValues[6].bcs)),
-				quoteCoin.scalar,
-				decimals,
-			);
-			const basePythPrice = bcs.U64.parse(commandResult.returnValues[7].bcs);
-			const basePythDecimals = Number(
-				bcs.u8().parse(new Uint8Array(commandResult.returnValues[8].bcs)),
-			);
-			const quotePythPrice = bcs.U64.parse(commandResult.returnValues[9].bcs);
-			const quotePythDecimals = Number(
-				bcs.u8().parse(new Uint8Array(commandResult.returnValues[10].bcs)),
-			);
-			const currentPrice = BigInt(bcs.U64.parse(commandResult.returnValues[11].bcs));
-			const lowestTriggerAbovePrice = BigInt(bcs.U64.parse(commandResult.returnValues[12].bcs));
-			const highestTriggerBelowPrice = BigInt(bcs.U64.parse(commandResult.returnValues[13].bcs));
-
-			results[managerId] = {
-				managerId,
-				deepbookPoolId,
-				riskRatio,
-				baseAsset,
-				quoteAsset,
-				baseDebt,
-				quoteDebt,
-				basePythPrice: basePythPrice.toString(),
-				basePythDecimals,
-				quotePythPrice: quotePythPrice.toString(),
-				quotePythDecimals,
-				currentPrice,
-				lowestTriggerAbovePrice,
-				highestTriggerBelowPrice,
-			};
-		}
-
-		return results;
-	}
-
-	/**
-	 * @description Get the base asset balance of a margin manager
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @param {number} decimals Number of decimal places to show (default: 6)
-	 * @returns {Promise<string>} The base asset balance
-	 */
-	async getMarginManagerBaseBalance(
-		marginManagerKey: string,
-		decimals: number = 9,
-	): Promise<string> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginManager.baseBalance(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		if (res.FailedTransaction) {
-			throw new Error(
-				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
-			);
-		}
-
-		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
-			throw new Error(`Failed to get margin manager base balance: Unknown error`);
-		}
-
-		const bytes = res.commandResults[0].returnValues[0].bcs;
-		const pool = this.#config.getPool(manager.poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-
-		return this.#formatTokenAmount(BigInt(bcs.U64.parse(bytes)), baseCoin.scalar, decimals);
-	}
-
-	/**
-	 * @description Get the quote asset balance of a margin manager
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @param {number} decimals Number of decimal places to show (default: 6)
-	 * @returns {Promise<string>} The quote asset balance
-	 */
-	async getMarginManagerQuoteBalance(
-		marginManagerKey: string,
-		decimals: number = 9,
-	): Promise<string> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginManager.quoteBalance(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		if (res.FailedTransaction) {
-			throw new Error(
-				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
-			);
-		}
-
-		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
-			throw new Error(`Failed to get margin manager quote balance: Unknown error`);
-		}
-
-		const bytes = res.commandResults[0].returnValues[0].bcs;
-		const pool = this.#config.getPool(manager.poolKey);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-
-		return this.#formatTokenAmount(BigInt(bcs.U64.parse(bytes)), quoteCoin.scalar, decimals);
-	}
-
-	/**
-	 * @description Get the DEEP token balance of a margin manager
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @param {number} decimals Number of decimal places to show (default: 6)
-	 * @returns {Promise<string>} The DEEP token balance
-	 */
-	async getMarginManagerDeepBalance(
-		marginManagerKey: string,
-		decimals: number = 6,
-	): Promise<string> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginManager.deepBalance(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		if (res.FailedTransaction) {
-			throw new Error(
-				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
-			);
-		}
-
-		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
-			throw new Error(`Failed to get margin manager DEEP balance: Unknown error`);
-		}
-
-		const bytes = res.commandResults[0].returnValues[0].bcs;
-		const deepCoin = this.#config.getCoin('DEEP');
-
-		return this.#formatTokenAmount(BigInt(bcs.U64.parse(bytes)), deepCoin.scalar, decimals);
-	}
-
-	/**
-	 * @description Get base, quote, and DEEP balances for multiple margin managers in a single dry run call
-	 * @param {Record<string, string>} marginManagers Map of marginManagerId -> poolKey
-	 * @param {number} decimals Number of decimal places for formatting (default: 9)
-	 * @returns {Promise<Record<string, { base: string, quote: string, deep: string }>>} Object keyed by managerId
-	 */
-	async getMarginManagerBalances(
-		marginManagers: Record<string, string>,
-		decimals: number = 9,
-	): Promise<Record<string, { base: string; quote: string; deep: string }>> {
-		const entries = Object.entries(marginManagers);
-		if (entries.length === 0) {
-			return {};
-		}
-
-		const tx = new Transaction();
-
-		// 3 calls per manager: base, quote, deep
-		for (const [managerId, poolKey] of entries) {
-			tx.add(this.marginManager.baseBalance(poolKey, managerId));
-			tx.add(this.marginManager.quoteBalance(poolKey, managerId));
-			tx.add(this.marginManager.deepBalance(poolKey, managerId));
-		}
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		if (res.FailedTransaction) {
-			throw new Error(
-				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
-			);
-		}
-
-		if (!res.commandResults) {
-			throw new Error('Failed to get margin manager balances: No command results');
-		}
-
-		const results: Record<string, { base: string; quote: string; deep: string }> = {};
-		const deepCoin = this.#config.getCoin('DEEP');
-
-		for (let i = 0; i < entries.length; i++) {
-			const [managerId, poolKey] = entries[i];
-			const pool = this.#config.getPool(poolKey);
-			const baseCoin = this.#config.getCoin(pool.baseCoin);
-			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-
-			const baseResult = res.commandResults[i * 3];
-			const quoteResult = res.commandResults[i * 3 + 1];
-			const deepResult = res.commandResults[i * 3 + 2];
-
-			if (!baseResult?.returnValues || !quoteResult?.returnValues || !deepResult?.returnValues) {
-				throw new Error(`Failed to get balances for margin manager ${managerId}: No return values`);
-			}
-
-			results[managerId] = {
-				base: this.#formatTokenAmount(
-					BigInt(bcs.U64.parse(baseResult.returnValues[0].bcs)),
-					baseCoin.scalar,
-					decimals,
-				),
-				quote: this.#formatTokenAmount(
-					BigInt(bcs.U64.parse(quoteResult.returnValues[0].bcs)),
-					quoteCoin.scalar,
-					decimals,
-				),
-				deep: this.#formatTokenAmount(
-					BigInt(bcs.U64.parse(deepResult.returnValues[0].bcs)),
-					deepCoin.scalar,
-					decimals,
-				),
-			};
-		}
-
-		return results;
-	}
-
-	// === Margin TPSL (Take Profit / Stop Loss) Read-Only Functions ===
-
-	/**
-	 * @description Get all conditional order IDs for a margin manager
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @returns {Promise<string[]>} Array of conditional order IDs
-	 */
-	async getConditionalOrderIds(marginManagerKey: string): Promise<string[]> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginTPSL.conditionalOrderIds(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		if (res.FailedTransaction) {
-			throw new Error(
-				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
-			);
-		}
-
-		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
-			throw new Error(`Failed to get conditional order IDs: Unknown error`);
-		}
-
-		const bytes = res.commandResults[0].returnValues[0].bcs;
-		const orderIds = bcs.vector(bcs.u64()).parse(bytes);
-		return orderIds.map((id) => id.toString());
-	}
-
-	/**
-	 * @description Get the lowest trigger price for trigger_above orders
-	 * Returns MAX_U64 if there are no trigger_above orders
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @returns {Promise<bigint>} The lowest trigger above price
-	 */
-	async getLowestTriggerAbovePrice(marginManagerKey: string): Promise<bigint> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginTPSL.lowestTriggerAbovePrice(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		if (res.FailedTransaction) {
-			throw new Error(
-				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
-			);
-		}
-
-		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
-			throw new Error(`Failed to get lowest trigger above price: Unknown error`);
-		}
-
-		const bytes = res.commandResults[0].returnValues[0].bcs;
-		return BigInt(bcs.U64.parse(bytes));
-	}
-
-	/**
-	 * @description Get the highest trigger price for trigger_below orders
-	 * Returns 0 if there are no trigger_below orders
-	 * @param {string} marginManagerKey The key to identify the margin manager
-	 * @returns {Promise<bigint>} The highest trigger below price
-	 */
-	async getHighestTriggerBelowPrice(marginManagerKey: string): Promise<bigint> {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const tx = new Transaction();
-		tx.add(this.marginTPSL.highestTriggerBelowPrice(manager.poolKey, manager.address));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		if (res.FailedTransaction) {
-			throw new Error(
-				`Transaction failed: ${res.FailedTransaction.status.error?.message || 'Unknown error'}`,
-			);
-		}
-
-		if (!res.commandResults || !res.commandResults[0] || !res.commandResults[0].returnValues) {
-			throw new Error(`Failed to get highest trigger below price: Unknown error`);
-		}
-
-		const bytes = res.commandResults[0].returnValues[0].bcs;
-		return BigInt(bcs.U64.parse(bytes));
-	}
-
-	// === Margin Registry Functions ===
-
-	/**
-	 * @description Check if a deepbook pool is enabled for margin trading
-	 * @param {string} poolKey The key to identify the pool
-	 * @returns {Promise<boolean>} True if the pool is enabled for margin trading
-	 */
-	async isPoolEnabledForMargin(poolKey: string): Promise<boolean> {
-		const tx = new Transaction();
-		tx.add(this.marginRegistry.poolEnabled(poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.Bool.parse(bytes);
-	}
-
-	/**
-	 * @description Get the margin manager IDs for a given owner address
-	 * @param {string} owner The owner address
-	 * @returns {Promise<string[]>} Array of margin manager IDs
-	 */
-	async getMarginManagerIdsForOwner(owner: string): Promise<string[]> {
-		const tx = new Transaction();
-		tx.add(this.marginRegistry.getMarginManagerIds(owner));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const vecSet = VecSet(bcs.Address).parse(bytes);
-		return vecSet.contents.map((id) => normalizeSuiAddress(id));
-	}
-
-	/**
-	 * @description Get the base margin pool ID for a deepbook pool
-	 * @param {string} poolKey The key to identify the pool
-	 * @returns {Promise<string>} The base margin pool ID
-	 */
-	async getBaseMarginPoolId(poolKey: string): Promise<string> {
-		const tx = new Transaction();
-		tx.add(this.marginRegistry.baseMarginPoolId(poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const id = bcs.Address.parse(bytes);
-		return '0x' + id;
-	}
-
-	/**
-	 * @description Get the quote margin pool ID for a deepbook pool
-	 * @param {string} poolKey The key to identify the pool
-	 * @returns {Promise<string>} The quote margin pool ID
-	 */
-	async getQuoteMarginPoolId(poolKey: string): Promise<string> {
-		const tx = new Transaction();
-		tx.add(this.marginRegistry.quoteMarginPoolId(poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const id = bcs.Address.parse(bytes);
-		return '0x' + id;
-	}
-
-	/**
-	 * @description Get the minimum withdraw risk ratio for a deepbook pool
-	 * @param {string} poolKey The key to identify the pool
-	 * @returns {Promise<number>} The minimum withdraw risk ratio as a decimal (e.g., 1.5 for 150%)
-	 */
-	async getMinWithdrawRiskRatio(poolKey: string): Promise<number> {
-		const tx = new Transaction();
-		tx.add(this.marginRegistry.minWithdrawRiskRatio(poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const ratio = Number(bcs.U64.parse(bytes));
-		return ratio / FLOAT_SCALAR;
-	}
-
-	/**
-	 * @description Get the minimum borrow risk ratio for a deepbook pool
-	 * @param {string} poolKey The key to identify the pool
-	 * @returns {Promise<number>} The minimum borrow risk ratio as a decimal (e.g., 1.25 for 125%)
-	 */
-	async getMinBorrowRiskRatio(poolKey: string): Promise<number> {
-		const tx = new Transaction();
-		tx.add(this.marginRegistry.minBorrowRiskRatio(poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const ratio = Number(bcs.U64.parse(bytes));
-		return ratio / FLOAT_SCALAR;
-	}
-
-	/**
-	 * @description Get the liquidation risk ratio for a deepbook pool
-	 * @param {string} poolKey The key to identify the pool
-	 * @returns {Promise<number>} The liquidation risk ratio as a decimal (e.g., 1.125 for 112.5%)
-	 */
-	async getLiquidationRiskRatio(poolKey: string): Promise<number> {
-		const tx = new Transaction();
-		tx.add(this.marginRegistry.liquidationRiskRatio(poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const ratio = Number(bcs.U64.parse(bytes));
-		return ratio / FLOAT_SCALAR;
-	}
-
-	/**
-	 * @description Get the target liquidation risk ratio for a deepbook pool
-	 * @param {string} poolKey The key to identify the pool
-	 * @returns {Promise<number>} The target liquidation risk ratio as a decimal (e.g., 1.25 for 125%)
-	 */
-	async getTargetLiquidationRiskRatio(poolKey: string): Promise<number> {
-		const tx = new Transaction();
-		tx.add(this.marginRegistry.targetLiquidationRiskRatio(poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const ratio = Number(bcs.U64.parse(bytes));
-		return ratio / FLOAT_SCALAR;
-	}
-
-	/**
-	 * @description Get the user liquidation reward for a deepbook pool
-	 * @param {string} poolKey The key to identify the pool
-	 * @returns {Promise<number>} The user liquidation reward as a decimal (e.g., 0.05 for 5%)
-	 */
-	async getUserLiquidationReward(poolKey: string): Promise<number> {
-		const tx = new Transaction();
-		tx.add(this.marginRegistry.userLiquidationReward(poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const reward = Number(bcs.U64.parse(bytes));
-		return reward / FLOAT_SCALAR;
-	}
-
-	/**
-	 * @description Get the pool liquidation reward for a deepbook pool
-	 * @param {string} poolKey The key to identify the pool
-	 * @returns {Promise<number>} The pool liquidation reward as a decimal (e.g., 0.05 for 5%)
-	 */
-	async getPoolLiquidationReward(poolKey: string): Promise<number> {
-		const tx = new Transaction();
-		tx.add(this.marginRegistry.poolLiquidationReward(poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const reward = Number(bcs.U64.parse(bytes));
-		return reward / FLOAT_SCALAR;
-	}
-
-	/**
-	 * @description Get all allowed maintainer cap IDs
-	 * @returns {Promise<string[]>} Array of allowed maintainer cap IDs
-	 */
-	async getAllowedMaintainers(): Promise<string[]> {
-		const tx = new Transaction();
-		tx.add(this.marginRegistry.allowedMaintainers());
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const vecSet = VecSet(bcs.Address).parse(bytes);
-		return vecSet.contents.map((id) => normalizeSuiAddress(id));
-	}
-
-	/**
-	 * @description Get all allowed pause cap IDs
-	 * @returns {Promise<string[]>} Array of allowed pause cap IDs
-	 */
-	async getAllowedPauseCaps(): Promise<string[]> {
-		const tx = new Transaction();
-		tx.add(this.marginRegistry.allowedPauseCaps());
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const vecSet = VecSet(bcs.Address).parse(bytes);
-		return vecSet.contents.map((id) => normalizeSuiAddress(id));
-	}
-
-	/**
-	 * @description Check if a pool is a stable pool
-	 * @param {string} poolKey Key of the pool
-	 * @returns {Promise<boolean>} Whether the pool is a stable pool
-	 */
-	async stablePool(poolKey: string): Promise<boolean> {
-		const tx = new Transaction();
-		tx.add(this.deepBook.stablePool(poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(bytes);
-	}
-
-	/**
-	 * @description Check if a pool is registered
-	 * @param {string} poolKey Key of the pool
-	 * @returns {Promise<boolean>} Whether the pool is registered
-	 */
-	async registeredPool(poolKey: string): Promise<boolean> {
-		const tx = new Transaction();
-		tx.add(this.deepBook.registeredPool(poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(bytes);
-	}
-
-	/**
-	 * @description Get the quote quantity out using input token as fee
-	 * @param {string} poolKey Key of the pool
-	 * @param {number} baseQuantity Base quantity
-	 * @returns {Promise<{baseQuantity: number, baseOut: number, quoteOut: number, deepRequired: number}>}
-	 */
-	async getQuoteQuantityOutInputFee(poolKey: string, baseQuantity: number) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
-		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
-
-		tx.add(this.deepBook.getQuoteQuantityOutInputFee(poolKey, baseQuantity));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
-		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
-		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
-
-		return {
-			baseQuantity,
-			baseOut: Number((baseOut / baseScalar).toFixed(9)),
-			quoteOut: Number((quoteOut / quoteScalar).toFixed(9)),
-			deepRequired: Number((deepRequired / DEEP_SCALAR).toFixed(9)),
-		};
-	}
-
-	/**
-	 * @description Get the base quantity out using input token as fee
-	 * @param {string} poolKey Key of the pool
-	 * @param {number} quoteQuantity Quote quantity
-	 * @returns {Promise<{quoteQuantity: number, baseOut: number, quoteOut: number, deepRequired: number}>}
-	 */
-	async getBaseQuantityOutInputFee(poolKey: string, quoteQuantity: number) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
-		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
-
-		tx.add(this.deepBook.getBaseQuantityOutInputFee(poolKey, quoteQuantity));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
-		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
-		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
-
-		return {
-			quoteQuantity,
-			baseOut: Number((baseOut / baseScalar).toFixed(9)),
-			quoteOut: Number((quoteOut / quoteScalar).toFixed(9)),
-			deepRequired: Number((deepRequired / DEEP_SCALAR).toFixed(9)),
-		};
-	}
-
-	/**
-	 * @description Get the quantity out using input token as fee
-	 * @param {string} poolKey Key of the pool
-	 * @param {number} baseQuantity Base quantity
-	 * @param {number} quoteQuantity Quote quantity
-	 * @returns {Promise<{baseQuantity: number, quoteQuantity: number, baseOut: number, quoteOut: number, deepRequired: number}>}
-	 */
-	async getQuantityOutInputFee(poolKey: string, baseQuantity: number, quoteQuantity: number) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
-		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
-
-		tx.add(this.deepBook.getQuantityOutInputFee(poolKey, baseQuantity, quoteQuantity));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
-		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
-		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
-
-		return {
-			baseQuantity,
-			quoteQuantity,
-			baseOut: Number((baseOut / baseScalar).toFixed(9)),
-			quoteOut: Number((quoteOut / quoteScalar).toFixed(9)),
-			deepRequired: Number((deepRequired / DEEP_SCALAR).toFixed(9)),
-		};
-	}
-
-	/**
-	 * @description Get the base quantity needed to receive target quote quantity
-	 * @param {string} poolKey Key of the pool
-	 * @param {number} targetQuoteQuantity Target quote quantity
-	 * @param {boolean} payWithDeep Whether to pay fees with DEEP
-	 * @returns {Promise<{baseIn: number, quoteOut: number, deepRequired: number}>}
-	 */
-	async getBaseQuantityIn(poolKey: string, targetQuoteQuantity: number, payWithDeep: boolean) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
-		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
-
-		tx.add(this.deepBook.getBaseQuantityIn(poolKey, targetQuoteQuantity, payWithDeep));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const baseIn = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
-		const quoteOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
-		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
-
-		return {
-			baseIn: Number((baseIn / baseScalar).toFixed(9)),
-			quoteOut: Number((quoteOut / quoteScalar).toFixed(9)),
-			deepRequired: Number((deepRequired / DEEP_SCALAR).toFixed(9)),
-		};
-	}
-
-	/**
-	 * @description Get the quote quantity needed to receive target base quantity
-	 * @param {string} poolKey Key of the pool
-	 * @param {number} targetBaseQuantity Target base quantity
-	 * @param {boolean} payWithDeep Whether to pay fees with DEEP
-	 * @returns {Promise<{baseOut: number, quoteIn: number, deepRequired: number}>}
-	 */
-	async getQuoteQuantityIn(poolKey: string, targetBaseQuantity: number, payWithDeep: boolean) {
-		const tx = new Transaction();
-		const pool = this.#config.getPool(poolKey);
-		const baseScalar = this.#config.getCoin(pool.baseCoin).scalar;
-		const quoteScalar = this.#config.getCoin(pool.quoteCoin).scalar;
-
-		tx.add(this.deepBook.getQuoteQuantityIn(poolKey, targetBaseQuantity, payWithDeep));
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const baseOut = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
-		const quoteIn = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
-		const deepRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
-
-		return {
-			baseOut: Number((baseOut / baseScalar).toFixed(9)),
-			quoteIn: Number((quoteIn / quoteScalar).toFixed(9)),
-			deepRequired: Number((deepRequired / DEEP_SCALAR).toFixed(9)),
-		};
-	}
-
-	/**
-	 * @description Get account order details for a balance manager
-	 * @param {string} poolKey Key of the pool
-	 * @param {string} managerKey Key of the balance manager
-	 * @returns {Promise<Array>} Array of order details
-	 */
-	async getAccountOrderDetails(poolKey: string, managerKey: string) {
-		const tx = new Transaction();
-		tx.add(this.deepBook.getAccountOrderDetails(poolKey, managerKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		try {
-			const orderInformation = res.commandResults![0].returnValues[0].bcs;
-			return bcs.vector(Order).parse(new Uint8Array(orderInformation));
-		} catch {
-			return [];
-		}
-	}
-
-	/**
-	 * @description Get the DEEP required for an order
-	 * @param {string} poolKey Key of the pool
-	 * @param {number} baseQuantity Base quantity
-	 * @param {number} price Price
-	 * @returns {Promise<{deepRequiredTaker: number, deepRequiredMaker: number}>}
-	 */
-	async getOrderDeepRequired(poolKey: string, baseQuantity: number, price: number) {
-		const tx = new Transaction();
-		tx.add(this.deepBook.getOrderDeepRequired(poolKey, baseQuantity, price));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const deepRequiredTaker = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
-		const deepRequiredMaker = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
-
-		return {
-			deepRequiredTaker: Number((deepRequiredTaker / DEEP_SCALAR).toFixed(9)),
-			deepRequiredMaker: Number((deepRequiredMaker / DEEP_SCALAR).toFixed(9)),
-		};
-	}
-
-	/**
-	 * @description Check if account exists for a balance manager
-	 * @param {string} poolKey Key of the pool
-	 * @param {string} managerKey Key of the balance manager
-	 * @returns {Promise<boolean>} Whether account exists
-	 */
-	async accountExists(poolKey: string, managerKey: string): Promise<boolean> {
-		const tx = new Transaction();
-		tx.add(this.deepBook.accountExists(poolKey, managerKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(bytes);
-	}
-
-	/**
-	 * @description Get the next epoch trade parameters
-	 * @param {string} poolKey Key of the pool
-	 * @returns {Promise<{takerFee: number, makerFee: number, stakeRequired: number}>}
-	 */
-	async poolTradeParamsNext(poolKey: string) {
-		const tx = new Transaction();
-		tx.add(this.deepBook.poolTradeParamsNext(poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const takerFee = Number(bcs.U64.parse(res.commandResults![0].returnValues[0].bcs));
-		const makerFee = Number(bcs.U64.parse(res.commandResults![0].returnValues[1].bcs));
-		const stakeRequired = Number(bcs.U64.parse(res.commandResults![0].returnValues[2].bcs));
-
-		return {
-			takerFee: takerFee / FLOAT_SCALAR,
-			makerFee: makerFee / FLOAT_SCALAR,
-			stakeRequired: stakeRequired / DEEP_SCALAR,
-		};
-	}
-
-	/**
-	 * @description Get the quorum for a pool
-	 * @param {string} poolKey Key of the pool
-	 * @returns {Promise<number>} The quorum amount in DEEP
-	 */
-	async quorum(poolKey: string): Promise<number> {
-		const tx = new Transaction();
-		tx.add(this.deepBook.quorum(poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const quorum = Number(bcs.U64.parse(bytes));
-		return quorum / DEEP_SCALAR;
-	}
-
-	/**
-	 * @description Get the pool ID
-	 * @param {string} poolKey Key of the pool
-	 * @returns {Promise<string>} The pool ID
-	 */
-	async poolId(poolKey: string): Promise<string> {
-		const tx = new Transaction();
-		tx.add(this.deepBook.poolId(poolKey));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return normalizeSuiAddress(bcs.Address.parse(bytes));
-	}
-
-	/**
-	 * @description Check if a limit order can be placed
-	 * @param {CanPlaceLimitOrderParams} params Parameters for checking limit order placement
-	 * @returns {Promise<boolean>} Whether order can be placed
-	 */
-	async canPlaceLimitOrder(params: CanPlaceLimitOrderParams): Promise<boolean> {
-		const tx = new Transaction();
-		tx.add(this.deepBook.canPlaceLimitOrder(params));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(bytes);
-	}
-
-	/**
-	 * @description Check if a market order can be placed
-	 * @param {CanPlaceMarketOrderParams} params Parameters for checking market order placement
-	 * @returns {Promise<boolean>} Whether order can be placed
-	 */
-	async canPlaceMarketOrder(params: CanPlaceMarketOrderParams): Promise<boolean> {
-		const tx = new Transaction();
-		tx.add(this.deepBook.canPlaceMarketOrder(params));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(bytes);
-	}
-
-	/**
-	 * @description Check if market order params are valid
-	 * @param {string} poolKey Key of the pool
-	 * @param {number} quantity Quantity
-	 * @returns {Promise<boolean>} Whether params are valid
-	 */
-	async checkMarketOrderParams(poolKey: string, quantity: number): Promise<boolean> {
-		const tx = new Transaction();
-		tx.add(this.deepBook.checkMarketOrderParams(poolKey, quantity));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(bytes);
-	}
-
-	/**
-	 * @description Check if limit order params are valid
-	 * @param {string} poolKey Key of the pool
-	 * @param {number} price Price
-	 * @param {number} quantity Quantity
-	 * @param {number} expireTimestamp Expiration timestamp
-	 * @returns {Promise<boolean>} Whether params are valid
-	 */
-	async checkLimitOrderParams(
-		poolKey: string,
-		price: number,
-		quantity: number,
-		expireTimestamp: number,
-	): Promise<boolean> {
-		const tx = new Transaction();
-		tx.add(this.deepBook.checkLimitOrderParams(poolKey, price, quantity, expireTimestamp));
-
-		const res = await this.#client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		return bcs.bool().parse(bytes);
-	}
-
-	/**
-	 * @description Helper function to format token amounts without floating point errors
-	 * @param {bigint} rawAmount The raw amount as bigint
-	 * @param {number} scalar The token scalar (e.g., 1000000000 for 9 decimals)
-	 * @param {number} decimals Number of decimal places to show
-	 * @returns {string} Formatted amount as string
-	 */
-	#formatTokenAmount(rawAmount: bigint, scalar: number, decimals: number): string {
-		const scalarBigInt = BigInt(scalar);
-		const integerPart = rawAmount / scalarBigInt;
-		const fractionalPart = rawAmount % scalarBigInt;
-
-		// If no fractional part, return just the integer
-		if (fractionalPart === 0n) {
-			return integerPart.toString();
-		}
-
-		// Convert fractional part to string with leading zeros
-		const scalarDigits = scalar.toString().length - 1;
-		const fractionalStr = fractionalPart.toString().padStart(scalarDigits, '0');
-
-		// Truncate to desired decimal places
-		const truncated = fractionalStr.slice(0, decimals);
-
-		// Remove trailing zeros for cleaner output
-		const trimmed = truncated.replace(/0+$/, '');
-
-		// If nothing left after trimming, return just integer
-		if (!trimmed) {
-			return integerPart.toString();
-		}
-
-		return `${integerPart}.${trimmed}`;
 	}
 }

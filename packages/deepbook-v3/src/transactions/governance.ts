@@ -5,6 +5,7 @@ import type { Transaction } from '@mysten/sui/transactions';
 import type { ProposalParams } from '../types/index.js';
 import type { DeepBookConfig } from '../utils/config.js';
 import { DEEP_SCALAR, FLOAT_SCALAR } from '../utils/config.js';
+import { convertQuantity, convertRate } from '../utils/conversion.js';
 
 /**
  * GovernanceContract class for managing governance operations in DeepBook.
@@ -33,7 +34,7 @@ export class GovernanceContract {
 			const tradeProof = tx.add(this.#config.balanceManager.generateProof(balanceManagerKey));
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-			const stakeInput = Math.round(stakeAmount * DEEP_SCALAR);
+			const stakeInput = convertQuantity(stakeAmount, DEEP_SCALAR);
 
 			tx.moveCall({
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::stake`,
@@ -87,9 +88,9 @@ export class GovernanceContract {
 				tx.object(pool.address),
 				tx.object(balanceManager.address),
 				tradeProof,
-				tx.pure.u64(Math.round(takerFee * FLOAT_SCALAR)),
-				tx.pure.u64(Math.round(makerFee * FLOAT_SCALAR)),
-				tx.pure.u64(Math.round(stakeRequired * DEEP_SCALAR)),
+				tx.pure.u64(convertRate(takerFee, FLOAT_SCALAR)),
+				tx.pure.u64(convertRate(makerFee, FLOAT_SCALAR)),
+				tx.pure.u64(convertQuantity(stakeRequired, DEEP_SCALAR)),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
