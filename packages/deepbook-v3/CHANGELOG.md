@@ -1,5 +1,12 @@
 # @mysten/deepbook-v3
 
+## 1.2.0
+
+### Minor Changes
+
+- c868e59: Accept `bigint` parameters for all financial values (quantities, prices, rates) alongside
+  existing `number` inputs, and extract query methods into domain-specific modules.
+
 ## 1.1.5
 
 ### Patch Changes
