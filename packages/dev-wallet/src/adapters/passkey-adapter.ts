@@ -3,11 +3,11 @@
 
 import { PasskeyKeypair } from '@mysten/sui/keypairs/passkey';
 import type { PasskeyProvider } from '@mysten/sui/keypairs/passkey';
-import { createStore, get, set, type IDBStore } from './idb-store.js';
 
 import type { CreateAccountOptions } from '../types.js';
 import { BaseSignerAdapter } from './base-adapter.js';
 import { buildManagedAccount } from './build-managed-account.js';
+import { IDBStore } from './idb-store.js';
 
 /** Metadata stored in IndexedDB for each passkey account. */
 interface StoredPasskeyMeta {
@@ -46,7 +46,7 @@ export class PasskeySignerAdapter extends BaseSignerAdapter {
 
 	constructor(options?: { dbName?: string; storeName?: string; provider?: PasskeyProvider }) {
 		super();
-		this.#store = createStore(
+		this.#store = new IDBStore(
 			options?.dbName ?? DEFAULT_DB_NAME,
 			options?.storeName ?? DEFAULT_STORE_NAME,
 		);
@@ -75,7 +75,7 @@ export class PasskeySignerAdapter extends BaseSignerAdapter {
 			});
 		}
 
-		const stored = await get<StoredPasskeyMeta[]>(META_KEY, this.#store);
+		const stored = await this.#store.get<StoredPasskeyMeta[]>(META_KEY);
 		if (!stored) return;
 
 		const provider = this.#getProvider();
@@ -123,6 +123,6 @@ export class PasskeySignerAdapter extends BaseSignerAdapter {
 				...(credentialId && { credentialId: [...credentialId] }),
 			};
 		});
-		await set(META_KEY, meta, this.#store);
+		await this.#store.set(META_KEY, meta);
 	}
 }

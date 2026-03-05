@@ -6,24 +6,29 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebCryptoSignerAdapter } from '../src/adapters/webcrypto-adapter.js';
 import { runAdapterContractTests } from './shared-adapter-tests.js';
 
-// Mock idb-store — IndexedDB is not available in Node.js
-const mockStore = new Map<string, unknown>();
+// Mock IDBStore — IndexedDB is not available in Node.js
+const mockData = new Map<string, unknown>();
 vi.mock('../src/adapters/idb-store.js', () => ({
-	createStore: vi.fn(() => 'mock-store'),
-	get: vi.fn((key: string) => Promise.resolve(mockStore.get(key))),
-	set: vi.fn((key: string, value: unknown) => {
-		mockStore.set(key, value);
-		return Promise.resolve();
-	}),
-	del: vi.fn((key: string) => {
-		mockStore.delete(key);
-		return Promise.resolve();
-	}),
-	entries: vi.fn(() => Promise.resolve([...mockStore.entries()])),
+	IDBStore: class {
+		get(key: string) {
+			return Promise.resolve(mockData.get(key));
+		}
+		set(key: string, value: unknown) {
+			mockData.set(key, value);
+			return Promise.resolve();
+		}
+		del(key: string) {
+			mockData.delete(key);
+			return Promise.resolve();
+		}
+		entries() {
+			return Promise.resolve([...mockData.entries()]);
+		}
+	},
 }));
 
 beforeEach(() => {
-	mockStore.clear();
+	mockData.clear();
 });
 
 runAdapterContractTests('WebCryptoSignerAdapter', async () => {
@@ -68,8 +73,8 @@ describe('WebCryptoSignerAdapter', () => {
 		await adapter.initialize();
 		const account = await adapter.createAccount({ label: 'Persisted' });
 
-		expect(mockStore.has(account.address)).toBe(true);
-		expect(mockStore.has('__account_meta__')).toBe(true);
+		expect(mockData.has(account.address)).toBe(true);
+		expect(mockData.has('__account_meta__')).toBe(true);
 	});
 
 	it('removes keys from IndexedDB on remove', async () => {
@@ -77,11 +82,11 @@ describe('WebCryptoSignerAdapter', () => {
 		await adapter.initialize();
 		const account = await adapter.createAccount();
 
-		expect(mockStore.has(account.address)).toBe(true);
+		expect(mockData.has(account.address)).toBe(true);
 
 		await adapter.removeAccount(account.address);
 
-		expect(mockStore.has(account.address)).toBe(false);
+		expect(mockData.has(account.address)).toBe(false);
 	});
 
 	it('restores accounts from IndexedDB on initialize', async () => {

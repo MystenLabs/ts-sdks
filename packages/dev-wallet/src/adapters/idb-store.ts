@@ -2,91 +2,86 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Minimal IndexedDB key-value helpers replacing the `idb-keyval` package.
- *
- * The API mirrors the subset used by the WebCrypto and Passkey adapters:
- * `createStore`, `get`, `set`, `del`, and `entries`.
+ * Minimal IndexedDB key-value store replacing the `idb-keyval` package.
  *
  * The database connection is opened lazily on first use and reused for all
- * subsequent operations on the same store.
+ * subsequent operations.
  */
+export class IDBStore {
+	#dbName: string;
+	#storeName: string;
+	#db: Promise<IDBDatabase> | null = null;
 
-export type IDBStore = {
-	dbName: string;
-	storeName: string;
-	/** Cached database connection promise, set on first use. */
-	db?: Promise<IDBDatabase>;
-};
-
-export function createStore(dbName: string, storeName: string): IDBStore {
-	return { dbName, storeName };
-}
-
-function getDB(store: IDBStore): Promise<IDBDatabase> {
-	if (!store.db) {
-		store.db = new Promise((resolve, reject) => {
-			const request = indexedDB.open(store.dbName);
-			request.onupgradeneeded = () => {
-				if (!request.result.objectStoreNames.contains(store.storeName)) {
-					request.result.createObjectStore(store.storeName);
-				}
-			};
-			request.onsuccess = () => resolve(request.result);
-			request.onerror = () => {
-				store.db = undefined;
-				reject(request.error);
-			};
-		});
+	constructor(dbName: string, storeName: string) {
+		this.#dbName = dbName;
+		this.#storeName = storeName;
 	}
-	return store.db;
-}
 
-function withStore<T>(
-	store: IDBStore,
-	mode: IDBTransactionMode,
-	fn: (objectStore: IDBObjectStore) => IDBRequest<T>,
-): Promise<T> {
-	return getDB(store).then(
-		(db) =>
-			new Promise((resolve, reject) => {
-				const tx = db.transaction(store.storeName, mode);
-				const req = fn(tx.objectStore(store.storeName));
-				tx.oncomplete = () => resolve(req.result);
-				tx.onerror = () => reject(tx.error);
-				tx.onabort = () => reject(tx.error);
-			}),
-	);
-}
+	get<T>(key: IDBValidKey): Promise<T | undefined> {
+		return this.#withTx('readonly', (s) => s.get(key) as IDBRequest<T | undefined>);
+	}
 
-export function get<T>(key: IDBValidKey, store: IDBStore): Promise<T | undefined> {
-	return withStore(store, 'readonly', (s) => s.get(key) as IDBRequest<T | undefined>);
-}
+	async set(key: IDBValidKey, value: unknown): Promise<void> {
+		await this.#withTx('readwrite', (s) => s.put(value, key));
+	}
 
-export async function set(key: IDBValidKey, value: unknown, store: IDBStore): Promise<void> {
-	await withStore(store, 'readwrite', (s) => s.put(value, key));
-}
+	del(key: IDBValidKey): Promise<void> {
+		return this.#withTx('readwrite', (s) => s.delete(key) as IDBRequest<void>);
+	}
 
-export function del(key: IDBValidKey, store: IDBStore): Promise<void> {
-	return withStore(store, 'readwrite', (s) => s.delete(key) as IDBRequest<void>);
-}
+	entries<K extends IDBValidKey, V>(): Promise<[K, V][]> {
+		return this.#open().then(
+			(db) =>
+				new Promise((resolve, reject) => {
+					const tx = db.transaction(this.#storeName, 'readonly');
+					const objectStore = tx.objectStore(this.#storeName);
+					const results: [K, V][] = [];
+					const cursor = objectStore.openCursor();
+					cursor.onsuccess = () => {
+						const c = cursor.result;
+						if (c) {
+							results.push([c.key as K, c.value as V]);
+							c.continue();
+						}
+					};
+					tx.oncomplete = () => resolve(results);
+					tx.onerror = () => reject(tx.error);
+				}),
+		);
+	}
 
-export function entries<K extends IDBValidKey, V>(store: IDBStore): Promise<[K, V][]> {
-	return getDB(store).then(
-		(db) =>
-			new Promise((resolve, reject) => {
-				const tx = db.transaction(store.storeName, 'readonly');
-				const objectStore = tx.objectStore(store.storeName);
-				const results: [K, V][] = [];
-				const cursor = objectStore.openCursor();
-				cursor.onsuccess = () => {
-					const c = cursor.result;
-					if (c) {
-						results.push([c.key as K, c.value as V]);
-						c.continue();
+	#open(): Promise<IDBDatabase> {
+		if (!this.#db) {
+			this.#db = new Promise((resolve, reject) => {
+				const request = indexedDB.open(this.#dbName);
+				request.onupgradeneeded = () => {
+					if (!request.result.objectStoreNames.contains(this.#storeName)) {
+						request.result.createObjectStore(this.#storeName);
 					}
 				};
-				tx.oncomplete = () => resolve(results);
-				tx.onerror = () => reject(tx.error);
-			}),
-	);
+				request.onsuccess = () => resolve(request.result);
+				request.onerror = () => {
+					this.#db = null;
+					reject(request.error);
+				};
+			});
+		}
+		return this.#db;
+	}
+
+	#withTx<T>(
+		mode: IDBTransactionMode,
+		fn: (objectStore: IDBObjectStore) => IDBRequest<T>,
+	): Promise<T> {
+		return this.#open().then(
+			(db) =>
+				new Promise((resolve, reject) => {
+					const tx = db.transaction(this.#storeName, mode);
+					const req = fn(tx.objectStore(this.#storeName));
+					tx.oncomplete = () => resolve(req.result);
+					tx.onerror = () => reject(tx.error);
+					tx.onabort = () => reject(tx.error);
+				}),
+		);
+	}
 }

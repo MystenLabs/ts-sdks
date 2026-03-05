@@ -3,11 +3,11 @@
 
 import type { ExportedWebCryptoKeypair } from '@mysten/signers/webcrypto';
 import { WebCryptoSigner } from '@mysten/signers/webcrypto';
-import { createStore, del, entries, get, set, type IDBStore } from './idb-store.js';
 
 import type { CreateAccountOptions, ManagedAccount } from '../types.js';
 import { BaseSignerAdapter } from './base-adapter.js';
 import { buildManagedAccount } from './build-managed-account.js';
+import { IDBStore } from './idb-store.js';
 
 interface StoredAccountMeta {
 	address: string;
@@ -26,17 +26,15 @@ export class WebCryptoSignerAdapter extends BaseSignerAdapter {
 
 	constructor(options?: { dbName?: string; storeName?: string }) {
 		super();
-		this.#store = createStore(
+		this.#store = new IDBStore(
 			options?.dbName ?? DEFAULT_DB_NAME,
 			options?.storeName ?? DEFAULT_STORE_NAME,
 		);
 	}
 
 	async initialize(): Promise<void> {
-		const allEntries = await entries<string, ExportedWebCryptoKeypair | StoredAccountMeta[]>(
-			this.#store,
-		);
-		const meta: StoredAccountMeta[] = (await get<StoredAccountMeta[]>(META_KEY, this.#store)) ?? [];
+		const allEntries = await this.#store.entries<string, ExportedWebCryptoKeypair | StoredAccountMeta[]>();
+		const meta: StoredAccountMeta[] = (await this.#store.get<StoredAccountMeta[]>(META_KEY)) ?? [];
 
 		const accounts = [];
 
@@ -62,7 +60,7 @@ export class WebCryptoSignerAdapter extends BaseSignerAdapter {
 		const managedAccount = buildManagedAccount(signer, address, label);
 
 		// Persist key and meta to IndexedDB
-		await set(address, signer.export(), this.#store);
+		await this.#store.set(address, signer.export());
 		this.addAccount(managedAccount);
 		await this.#saveMeta();
 
@@ -79,7 +77,7 @@ export class WebCryptoSignerAdapter extends BaseSignerAdapter {
 		if (!this.removeAccountByAddress(address)) return false;
 
 		// Remove from IndexedDB
-		await del(address, this.#store);
+		await this.#store.del(address);
 		await this.#saveMeta();
 		return true;
 	}
@@ -89,6 +87,6 @@ export class WebCryptoSignerAdapter extends BaseSignerAdapter {
 			address: a.address,
 			label: a.label,
 		}));
-		await set(META_KEY, meta, this.#store);
+		await this.#store.set(META_KEY, meta);
 	}
 }

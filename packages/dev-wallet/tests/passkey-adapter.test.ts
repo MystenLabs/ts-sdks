@@ -9,20 +9,25 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PasskeySignerAdapter } from '../src/adapters/passkey-adapter.js';
 import { runAdapterContractTests } from './shared-adapter-tests.js';
 
-// Mock idb-store — IndexedDB is not available in Node.js
-const mockStore = new Map<string, unknown>();
+// Mock IDBStore — IndexedDB is not available in Node.js
+const mockData = new Map<string, unknown>();
 vi.mock('../src/adapters/idb-store.js', () => ({
-	createStore: vi.fn(() => 'mock-store'),
-	get: vi.fn((key: string) => Promise.resolve(mockStore.get(key))),
-	set: vi.fn((key: string, value: unknown) => {
-		mockStore.set(key, value);
-		return Promise.resolve();
-	}),
-	del: vi.fn((key: string) => {
-		mockStore.delete(key);
-		return Promise.resolve();
-	}),
-	entries: vi.fn(() => Promise.resolve([...mockStore.entries()])),
+	IDBStore: class {
+		get(key: string) {
+			return Promise.resolve(mockData.get(key));
+		}
+		set(key: string, value: unknown) {
+			mockData.set(key, value);
+			return Promise.resolve();
+		}
+		del(key: string) {
+			mockData.delete(key);
+			return Promise.resolve();
+		}
+		entries() {
+			return Promise.resolve([...mockData.entries()]);
+		}
+	},
 }));
 
 /**
@@ -52,7 +57,7 @@ function createMockProvider(): {
 }
 
 beforeEach(() => {
-	mockStore.clear();
+	mockData.clear();
 	vi.restoreAllMocks();
 });
 
