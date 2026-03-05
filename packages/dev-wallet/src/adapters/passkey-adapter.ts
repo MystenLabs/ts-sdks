@@ -3,7 +3,7 @@
 
 import { PasskeyKeypair } from '@mysten/sui/keypairs/passkey';
 import type { PasskeyProvider } from '@mysten/sui/keypairs/passkey';
-import { createStore, get, set } from 'idb-keyval';
+import { createStore, get, set, type IDBStore } from './idb-store.js';
 
 import type { CreateAccountOptions } from '../types.js';
 import { BaseSignerAdapter } from './base-adapter.js';
@@ -41,7 +41,7 @@ export class PasskeySignerAdapter extends BaseSignerAdapter {
 	readonly name = 'Passkey Signer';
 	readonly allowAutoSign = false;
 
-	#store: ReturnType<typeof createStore>;
+	#store: IDBStore;
 	#provider: PasskeyProvider | null;
 
 	constructor(options?: { dbName?: string; storeName?: string; provider?: PasskeyProvider }) {

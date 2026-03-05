@@ -6,9 +6,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebCryptoSignerAdapter } from '../src/adapters/webcrypto-adapter.js';
 import { runAdapterContractTests } from './shared-adapter-tests.js';
 
-// Mock idb-keyval — IndexedDB is not available in Node.js
+// Mock idb-store — IndexedDB is not available in Node.js
 const mockStore = new Map<string, unknown>();
-vi.mock('idb-keyval', () => ({
+vi.mock('../src/adapters/idb-store.js', () => ({
 	createStore: vi.fn(() => 'mock-store'),
 	get: vi.fn((key: string) => Promise.resolve(mockStore.get(key))),
 	set: vi.fn((key: string, value: unknown) => {

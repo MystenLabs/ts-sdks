@@ -3,7 +3,7 @@
 
 import type { ExportedWebCryptoKeypair } from '@mysten/signers/webcrypto';
 import { WebCryptoSigner } from '@mysten/signers/webcrypto';
-import { createStore, del, entries, get, set } from 'idb-keyval';
+import { createStore, del, entries, get, set, type IDBStore } from './idb-store.js';
 
 import type { CreateAccountOptions, ManagedAccount } from '../types.js';
 import { BaseSignerAdapter } from './base-adapter.js';
@@ -22,7 +22,7 @@ export class WebCryptoSignerAdapter extends BaseSignerAdapter {
 	readonly id = 'webcrypto';
 	readonly name = 'WebCrypto Signer';
 
-	#store: ReturnType<typeof createStore>;
+	#store: IDBStore;
 
 	constructor(options?: { dbName?: string; storeName?: string }) {
 		super();
