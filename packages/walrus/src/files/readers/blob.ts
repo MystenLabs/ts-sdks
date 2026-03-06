@@ -8,9 +8,11 @@ import { QuiltReader } from './quilt.js';
 import { SliverData } from '../../utils/bcs.js';
 
 export interface BlobReaderOptions {
-	client: WalrusClient;
+	client?: WalrusClient;
 	blobId: string;
 	numShards: number;
+	/** Pre-fetched blob bytes (e.g. downloaded from an aggregator). When provided, getBytes() returns these directly. */
+	bytes?: Uint8Array;
 }
 
 export class BlobReader implements FileReader {
@@ -18,15 +20,40 @@ export class BlobReader implements FileReader {
 
 	#cache = new ClientCache();
 
-	#client: WalrusClient;
+	#client: WalrusClient | undefined;
 	#secondarySlivers = new Map<number, Uint8Array | Promise<Uint8Array>>();
 	hasStartedLoadingFullBlob = false;
 	#numShards: number;
 
-	constructor({ client, blobId, numShards }: BlobReaderOptions) {
+	constructor({ client, blobId, numShards, bytes }: BlobReaderOptions) {
 		this.#client = client;
 		this.blobId = blobId;
 		this.#numShards = numShards;
+
+		if (bytes) {
+			this.hasStartedLoadingFullBlob = true;
+			this.#cache.read(['getBytes'], async () => bytes);
+		}
+	}
+
+	#requireClient(method: string): WalrusClient {
+		if (!this.#client) {
+			throw new Error(
+				`BlobReader.${method}() requires a WalrusClient. ` +
+					'Provide a client when constructing the BlobReader, or use WalrusClient.getBlob() instead.',
+			);
+		}
+		return this.#client;
+	}
+
+	/**
+	 * Pre-populate secondary slivers from externally fetched data.
+	 * If a client is available, missing slivers will fall back to network reads.
+	 */
+	seedSlivers(slivers: Map<number, Uint8Array>) {
+		for (const [index, data] of slivers) {
+			this.#secondarySlivers.set(index, data);
+		}
 	}
 
 	async getIdentifier() {
@@ -43,9 +70,10 @@ export class BlobReader implements FileReader {
 
 	async getBytes() {
 		return this.#cache.read(['getBytes'], async () => {
+			const client = this.#requireClient('getBytes');
 			this.hasStartedLoadingFullBlob = true;
 			try {
-				const blob = await this.#client.readBlob({ blobId: this.blobId });
+				const blob = await client.readBlob({ blobId: this.blobId });
 				return blob;
 			} catch (error) {
 				this.hasStartedLoadingFullBlob = false;
@@ -55,9 +83,10 @@ export class BlobReader implements FileReader {
 	}
 
 	getMetadata() {
-		return this.#cache.read(['getMetadata'], () =>
-			this.#client.getBlobMetadata({ blobId: this.blobId }),
-		);
+		return this.#cache.read(['getMetadata'], () => {
+			const client = this.#requireClient('getMetadata');
+			return client.getBlobMetadata({ blobId: this.blobId });
+		});
 	}
 
 	async getColumnSize() {
@@ -110,7 +139,9 @@ export class BlobReader implements FileReader {
 			return this.#secondarySlivers.get(sliverIndex)!;
 		}
 
-		const sliverPromise = this.#client
+		const client = this.#requireClient('getSecondarySliver');
+
+		const sliverPromise = client
 			.getSecondarySliver({
 				blobId: this.blobId,
 				index: sliverIndex,

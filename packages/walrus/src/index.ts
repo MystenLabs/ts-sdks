@@ -14,3 +14,4 @@ export { blobIdFromInt, blobIdToInt } from './utils/bcs.js';
 
 export { WalrusFile, type FileReader } from './files/file.js';
 export { WalrusBlob } from './files/blob.js';
+export { BlobReader, type BlobReaderOptions } from './files/readers/blob.js';
