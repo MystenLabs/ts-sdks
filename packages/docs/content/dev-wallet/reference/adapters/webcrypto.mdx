@@ -1,0 +1,64 @@
+---
+title: WebCryptoSignerAdapter
+---
+
+Generates Secp256r1 key pairs via the browser's
+[Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API) and persists them
+in IndexedDB. Keys survive page reloads and browser restarts.
+
+<Callout type="info">
+Requires the `@mysten/signers` peer dependency:
+
+```sh npm2yarn
+npm i @mysten/signers
+```
+
+</Callout>
+
+## Usage
+
+```typescript
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+
+const adapter = new WebCryptoSignerAdapter();
+await adapter.initialize(); // Loads existing keys from IndexedDB
+
+// Create a new persistent account
+const account = await adapter.createAccount({ label: 'Persistent Dev' });
+```
+
+## How Persistence Works
+
+1. When you create an account, a non-extractable `CryptoKeyPair` is generated via
+   `crypto.subtle.generateKey()`
+2. The key pair and metadata are stored in an IndexedDB database (`dev-wallet-webcrypto`)
+3. On `initialize()`, all stored key pairs are loaded back
+4. Private keys never leave the browser's crypto engine — they cannot be exported to JavaScript
+
+## API
+
+| Property / Method               | Description                              |
+| ------------------------------- | ---------------------------------------- |
+| `id`                            | `'webcrypto'`                            |
+| `name`                          | `'WebCrypto Signer'`                     |
+| `allowAutoSign`                 | Not set (auto-sign allowed)              |
+| `initialize()`                  | Load keys from IndexedDB                 |
+| `createAccount(options?)`       | Generate a new Secp256r1 key pair        |
+| `removeAccount(address)`        | Remove account and delete from IndexedDB |
+| `renameAccount(address, label)` | Update label (persisted)                 |
+| `getAccounts()`                 | List all managed accounts                |
+| `getAccount(address)`           | Look up a single account                 |
+| `onAccountsChanged(callback)`   | Subscribe to account list changes        |
+| `destroy()`                     | Clean up listeners and state             |
+
+## Requirements
+
+- Secure context (HTTPS or localhost)
+- Browser with Web Crypto API support (all modern browsers)
+- IndexedDB available (not in some worker contexts)
+
+<Callout type="warn">
+	Keys do not survive incognito/private browsing sessions or clearing site data. For truly
+	persistent development keys, use the [Remote CLI
+	adapter](/dev-wallet/reference/adapters/remote-cli) with your `sui` keystore.
+</Callout>

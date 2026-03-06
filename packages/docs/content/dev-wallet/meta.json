@@ -1,0 +1,6 @@
+{
+	"root": true,
+	"title": "Dev Wallet",
+	"description": "A development-only wallet for building and testing Sui dApps",
+	"pages": ["index", "getting-started", "guides", "reference"]
+}

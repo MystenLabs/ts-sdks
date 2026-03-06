@@ -1,5 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+import { remarkMdxMermaid } from 'fumadocs-core/mdx-plugins';
 import { defineConfig, defineDocs } from 'fumadocs-mdx/config';
 import { createGenerator, remarkAutoTypeTable } from 'fumadocs-typescript';
 
@@ -16,6 +17,6 @@ export const docs = defineDocs({
 
 export default defineConfig({
 	mdxOptions: {
-		remarkPlugins: [[remarkAutoTypeTable, { generator }]],
+		remarkPlugins: [[remarkAutoTypeTable, { generator }], remarkMdxMermaid],
 	},
 });

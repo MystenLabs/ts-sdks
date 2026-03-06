@@ -1,0 +1,70 @@
+---
+title: RemoteCliAdapter
+---
+
+Delegates signing to a remote server that calls the `sui` CLI's `keytool sign` command. This lets
+you use your real CLI keystore (`~/.sui/sui_config/sui.keystore`) from a browser-based dApp.
+
+## How It Works
+
+1. Run `npx @mysten/dev-wallet serve` — starts a Vite dev server with signing middleware
+2. The CLI detects if `sui` is on your PATH and enables the Remote CLI adapter
+3. The adapter lists available accounts from your CLI keystore
+4. Signing requests are sent to the server via HTTP
+5. The server calls `sui keytool sign` with the transaction bytes
+6. Signed bytes are returned to the browser
+
+## Usage
+
+The Remote CLI adapter is primarily used automatically when running in
+[standalone mode](/dev-wallet/reference/standalone-mode). You can also use it programmatically:
+
+```typescript
+import { RemoteCliAdapter } from '@mysten/dev-wallet/adapters';
+
+const adapter = new RemoteCliAdapter({
+	serverOrigin: 'http://localhost:5174',
+	token: 'your-auth-token',
+});
+
+await adapter.initialize(); // Fetches available accounts from CLI
+```
+
+## API
+
+| Property / Method             | Description                                         |
+| ----------------------------- | --------------------------------------------------- |
+| `id`                          | `'remote-cli'`                                      |
+| `name`                        | `'Remote CLI Signer'`                               |
+| `allowAutoSign`               | `false`                                             |
+| `isPaired`                    | Whether the adapter has an auth token               |
+| `initialize()`                | Load previously imported accounts from localStorage |
+| `listAvailableAccounts()`     | Fetch all accounts from the CLI keystore            |
+| `importAccount(options)`      | Import a CLI account by address                     |
+| `removeAccount(address)`      | Remove an imported account                          |
+| `getAccounts()`               | List imported accounts                              |
+| `getAccount(address)`         | Look up a single imported account                   |
+| `onAccountsChanged(callback)` | Subscribe to account list changes                   |
+| `destroy()`                   | Clean up and clear stored tokens                    |
+
+## Limitations
+
+<Callout type="warn">
+	**`signPersonalMessage` is not supported.** The `sui keytool sign` command only accepts
+	TransactionData BCS bytes, not arbitrary personal messages. Attempting to sign a personal message
+	with a CLI account will throw an error.
+</Callout>
+
+- `allowAutoSign` is always `false` — CLI signing should always require explicit approval
+- Account creation is not supported — manage keys via `sui keytool`
+- Requires the `sui` CLI to be installed and on PATH
+
+## Security
+
+The CLI server uses token-based authentication (similar to Jupyter notebooks). The token is:
+
+- Generated randomly when the server starts
+- Passed via URL parameter in the browser
+- Required for all signing requests
+
+This is acceptable for a development-only tool running on localhost.

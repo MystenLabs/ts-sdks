@@ -34,6 +34,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 						url: '/dapp-kit',
 					},
 					{
+						title: 'Dev Wallet',
+						description: 'A modular development wallet for Sui dApps',
+						url: '/dev-wallet',
+					},
+					{
 						title: 'Kiosk',
 						description: 'Interact with on-chain commerce applications',
 						url: '/kiosk',

@@ -94,7 +94,7 @@ export class MockPasskeySigner implements PasskeyProvider {
 		return credential as RegistrationCredential;
 	}
 
-	async get(challenge: Uint8Array): Promise<AuthenticationCredential> {
+	async get(challenge: Uint8Array, _credentialId?: Uint8Array): Promise<AuthenticationCredential> {
 		// Manually mangle the digest bytes if changeDigest.
 		if (this.changeDigest) {
 			challenge = sha256(challenge);
