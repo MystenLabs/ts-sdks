@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { fromBase58, fromHex, toBase58, toHex } from '@mysten/bcs';
 import { parse } from 'valibot';
 
 import { normalizeSuiAddress, normalizeSuiObjectId, SUI_TYPE_ARG } from '../utils/index.js';
@@ -14,6 +15,7 @@ import { getPureBcsSchema, isTxContext } from '../transactions/serializer.js';
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
 import type { BuildTransactionOptions } from '../transactions/index.js';
+import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 
 // The maximum objects that can be fetched at once using multiGetObjects.
 const MAX_OBJECTS_PER_FETCH = 50;
@@ -21,6 +23,93 @@ const MAX_OBJECTS_PER_FETCH = 50;
 // An amount of gas (in gas units) that is added to transactions as an overhead to ensure transactions do not fail.
 const GAS_SAFE_OVERHEAD = 1000n;
 const MAX_GAS = 50_000_000_000;
+
+// The accumulator root object ID (0xacc) which is the parent of all address balance dynamic fields.
+// See: sui/crates/sui-types/src/lib.rs
+const SUI_ACCUMULATOR_ROOT_OBJECT_ID =
+	'0x0000000000000000000000000000000000000000000000000000000000000acc';
+
+// Magic bytes used to identify a coin reservation digest (last 20 bytes).
+// See: sui/crates/sui-types/src/coin_reservation.rs
+const COIN_RESERVATION_MAGIC = new Uint8Array([
+	0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac,
+	0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac,
+]);
+
+/**
+ * Constructs a "fake coin" ObjectRef that encodes an address balance reservation for gas payment.
+ *
+ * When a transaction uses `tx.gas` (Argument::GasCoin) but the sender's SUI is held as address
+ * balance rather than individual coin objects, the gas payment must include a reservation reference
+ * so the validator knows to draw gas from the address balance.
+ *
+ * The format is defined in sui/crates/sui-types/src/coin_reservation.rs:
+ *   - objectId: XOR(accumulatorObjectId, chainIdentifier) — masked to prevent cross-chain replay
+ *   - version:  "0" (unused by validation; helps old client caching)
+ *   - digest:   [amount:u64le][epoch:u32le][magic:20 bytes of 0xac]
+ */
+function buildCoinReservationRef(
+	owner: string,
+	chainIdentifier: string,
+	epoch: number,
+	reservationAmount: bigint,
+): { objectId: string; version: string; digest: string } {
+	// Compute the accumulator dynamic field ID for this owner + SUI balance type.
+	// This mirrors AccumulatorValue::get_field_id(owner, Balance<SUI>) in Rust.
+	const keyBytes = fromHex(normalizeSuiAddress(owner).slice(2));
+	const normalized0x2 = normalizeSuiAddress('0x2');
+	const accumulatorObjectId = deriveDynamicFieldID(
+		SUI_ACCUMULATOR_ROOT_OBJECT_ID,
+		{
+			struct: {
+				address: normalized0x2,
+				module: 'accumulator',
+				name: 'Key',
+				typeParams: [
+					{
+						struct: {
+							address: normalized0x2,
+							module: 'balance',
+							name: 'Balance',
+							typeParams: [
+								{
+									struct: {
+										address: normalized0x2,
+										module: 'sui',
+										name: 'SUI',
+										typeParams: [],
+									},
+								},
+							],
+						},
+					},
+				],
+			},
+		},
+		keyBytes,
+	);
+
+	// Mask the object ID by XORing with the chain identifier (genesis digest) to prevent replay.
+	const idBytes = fromHex(normalizeSuiAddress(accumulatorObjectId).slice(2));
+	const chainBytes = fromBase58(chainIdentifier);
+	const maskedId = new Uint8Array(32);
+	for (let i = 0; i < 32; i++) {
+		maskedId[i] = idBytes[i] ^ chainBytes[i];
+	}
+
+	// Build the 32-byte digest: [reservation_amount:u64le][epoch_id:u32le][magic:20]
+	const digestBytes = new Uint8Array(32);
+	const view = new DataView(digestBytes.buffer);
+	view.setBigUint64(0, reservationAmount, true);
+	view.setUint32(8, epoch, true);
+	digestBytes.set(COIN_RESERVATION_MAGIC, 12);
+
+	return {
+		objectId: `0x${toHex(maskedId)}`,
+		version: '0',
+		digest: toBase58(digestBytes),
+	};
+}
 
 function getClient(options: BuildTransactionOptions): ClientWithCoreApi {
 	if (!options.client) {
@@ -144,17 +233,18 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Cl
 		});
 
 		const [suiBalance, coins] = await Promise.all([
-			usesGasCoin ? null : client.core.getBalance({ owner: gasPayer }),
+			client.core.getBalance({ owner: gasPayer }),
 			client.core.listCoins({
 				owner: gasPayer,
 				coinType: SUI_TYPE_ARG,
 			}),
 		]);
 
+		const addressBalance = BigInt(suiBalance.balance.addressBalance);
+
 		if (
-			suiBalance?.balance.addressBalance &&
-			BigInt(suiBalance.balance.addressBalance) >=
-				BigInt(transactionData.gasData.budget || '0') + withdrawals
+			!usesGasCoin &&
+			addressBalance >= BigInt(transactionData.gasData.budget || '0') + withdrawals
 		) {
 			transactionData.gasData.payment = [];
 			return;
@@ -180,6 +270,25 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Cl
 					version: coin.version,
 				}),
 			);
+
+		// When the transaction uses tx.gas (Argument::GasCoin) and the sender has address balance,
+		// we must include a coin reservation ref so the validator can draw gas from address balance.
+		// This supports old-style transactions (e.g. tx.splitCoins(tx.gas, [amount])) when the
+		// sender's SUI is held as address balance rather than individual coin objects.
+		if (usesGasCoin && addressBalance > 0n) {
+			const [{ systemState }, { chainIdentifier }] = await Promise.all([
+				client.core.getCurrentSystemState(),
+				client.core.getChainIdentifier(),
+			]);
+			const fakeCoin = buildCoinReservationRef(
+				gasPayer,
+				chainIdentifier,
+				Number(systemState.epoch),
+				BigInt(transactionData.gasData.budget || '0'),
+			);
+			transactionData.gasData.payment = [...paymentCoins, fakeCoin];
+			return;
+		}
 
 		if (!paymentCoins.length) {
 			throw new Error('No valid gas coins found for the transaction.');
