@@ -125,10 +125,20 @@ export function parseStructTag(type: string): StructTag {
 	}
 
 	const [address, module] = parts;
+
+	if (!address || !module) {
+		throw new Error(`Invalid struct tag: ${type}`);
+	}
+
 	const isMvrPackage = isValidNamedPackage(address);
 
 	const rest = type.slice(address.length + module.length + 4);
 	const name = rest.includes('<') ? rest.slice(0, rest.indexOf('<')) : rest;
+
+	if (!name || (rest.includes('<') && !rest.endsWith('>'))) {
+		throw new Error(`Invalid struct tag: ${type}`);
+	}
+
 	const typeParams = rest.includes('<')
 		? splitGenericParameters(rest.slice(rest.indexOf('<') + 1, rest.lastIndexOf('>'))).map(
 				(typeParam) => parseTypeTag(typeParam.trim()),
