@@ -13,14 +13,18 @@
  *   npx tsx scripts/validate-llm-docs.ts
  */
 
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import matter from 'gray-matter';
 
-const CONTENT_DIR = path.resolve(new URL('.', import.meta.url).pathname, '..', 'content');
-const DIST_DIR = path.resolve(new URL('.', import.meta.url).pathname, '..', 'dist');
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const CONTENT_DIR = path.resolve(SCRIPT_DIR, '..', 'content');
+const DIST_DIR = path.resolve(SCRIPT_DIR, '..', 'dist');
 const INDEX_FILE = path.join(DIST_DIR, 'llms-index.md');
+const GENERATE_INDEX_SCRIPT = path.join(SCRIPT_DIR, 'generate-llms-index.ts');
 
 let errors = 0;
 
@@ -80,7 +84,21 @@ if (fs.existsSync(INDEX_FILE)) {
 		}
 	}
 } else {
-	error('dist/llms-index.md does not exist. Run the index generation script first.');
+	console.log('Skipping dead links check: dist/llms-index.md does not exist yet.');
+}
+
+// Check 3: llms-index freshness (delegates to generate-llms-index.ts --check)
+console.log('Checking llms-index.md freshness...');
+const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+try {
+	execFileSync(npxCommand, ['tsx', GENERATE_INDEX_SCRIPT, '--check'], {
+		cwd: path.resolve(SCRIPT_DIR, '..'),
+		stdio: 'inherit',
+	});
+} catch {
+	error(
+		'dist/llms-index.md is missing or out of date. Run `npx tsx scripts/generate-llms-index.ts`.',
+	);
 }
 
 // Summary
