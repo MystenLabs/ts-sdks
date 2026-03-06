@@ -1,0 +1,65 @@
+---
+title: LLM Documentation
+description: Give AI agents access to Sui SDK documentation in your project
+---
+
+The `@mysten/docs` package ships flat markdown files optimized for AI agent consumption. Adding it
+as a dev dependency gives coding agents (Claude Code, Cursor, Copilot, etc.) accurate, up-to-date
+SDK reference without relying on training data.
+
+## Install
+
+```npm
+npm i -D @mysten/docs
+```
+
+This installs pre-built markdown files into `node_modules/@mysten/docs/dist/`.
+
+## Configure Your Agent
+
+Point your agent's configuration file (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`, etc.) at the
+installed docs. The package includes a routing index at `dist/llms-index.md` that lists all
+available pages with descriptions.
+
+### AGENTS.md / CLAUDE.md
+
+```markdown
+## Sui SDK Reference
+
+When working with @mysten/\* packages, consult the SDK documentation for accurate API usage:
+
+- **Index**: `node_modules/@mysten/docs/dist/llms-index.md` — lists all available doc pages
+- **Docs root**: `node_modules/@mysten/docs/dist/` — individual markdown files organized by package
+
+Read the index first to find the relevant page, then read that page for details.
+```
+
+### Cursor / Windsurf
+
+Add the docs directory as a reference in your project rules:
+
+```markdown
+@node_modules/@mysten/docs/dist/llms-index.md
+
+When working with Sui SDK packages, consult the docs index above to find relevant documentation,
+then read the specific page for API details.
+```
+
+## What's Included
+
+The `dist/` directory contains:
+
+- `llms-index.md` — routing index with all pages, titles, and descriptions
+- One subdirectory per package (e.g. `sui/`, `dapp-kit/`, `bcs/`, `walrus/`)
+
+Each markdown file is a self-contained reference page stripped of JSX components and framework
+markup from the source MDX.
+
+## Keeping Docs Updated
+
+The docs package is versioned alongside the SDK packages. When you update your `@mysten/*`
+dependencies, update `@mysten/docs` as well to keep documentation in sync:
+
+```npm
+npm i -D @mysten/docs@latest
+```

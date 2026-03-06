@@ -96,7 +96,7 @@
 			],
 			"outputs": ["build/**", "dist/**"]
 		},
-		"@mysten/sdk-docs#build": {
+		"@mysten/docs#build": {
 			"dependsOn": ["^build"],
 			"inputs": [
 				"content/**",
@@ -104,6 +104,7 @@
 				"components/**",
 				"lib/**",
 				"examples/**",
+				"scripts/**",
 				"*.ts",
 				"*.mjs",
 				"tsconfig.json",
@@ -112,7 +113,7 @@
 				"typedoc.json",
 				"package.json"
 			],
-			"outputs": [".next/**", "!.next/cache/**", "public/**"]
+			"outputs": [".next/**", "!.next/cache/**", "public/**", "dist/**"]
 		}
 	},
 	"globalEnv": ["VERCEL_ENV", "VITE_NETWORK", "VITE_VERCEL_ANALYTICS_ID", "VITE_SENTRY_SAMPLE_RATE"]

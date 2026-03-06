@@ -32,15 +32,18 @@ If the change affects the return type in `src/client/types.ts`:
 ## Phase 3: Update All Three Implementations
 
 ### gRPC (`src/grpc/core.ts`)
+
 - Check the `readMask.paths` array — fields not listed here are not returned by the server.
 - Reference proto types in `src/grpc/proto/` to discover available fields.
 
 ### GraphQL (`src/graphql/core.ts`)
+
 - If new data is needed from the API, edit the `.graphql` query file in `src/graphql/queries/`.
 - Regenerate types: `pnpm --filter @mysten/sui codegen:graphql`
 - This updates `src/graphql/generated/queries.ts` with new typed document nodes.
 
 ### JSON-RPC (`src/jsonRpc/core.ts`)
+
 - JSON-RPC response shapes often differ from unified types. Check what the RPC actually returns.
 - Some data must be derived rather than mapped directly. Utilities in `src/utils/` (e.g., `deriveDynamicFieldID`, `normalizeStructTag`) may be needed.
 

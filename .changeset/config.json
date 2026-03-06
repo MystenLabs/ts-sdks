@@ -8,7 +8,7 @@
 	"baseBranch": "main",
 	"updateInternalDependencies": "minor",
 	"privatePackages": false,
-	"ignore": ["@mysten/sdk-docs"],
+	"ignore": ["@mysten/docs"],
 	"___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
 		"onlyUpdatePeerDependentsWhenOutOfRange": true
 	}
