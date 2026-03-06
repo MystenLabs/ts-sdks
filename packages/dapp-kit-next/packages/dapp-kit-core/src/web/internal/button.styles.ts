@@ -19,11 +19,12 @@ export const styles = [
 			justify-content: center;
 			align-items: center;
 			gap: 12px;
-			padding-left: 16px;
-			padding-right: 16px;
-			padding-top: 8px;
-			padding-bottom: 8px;
-			height: 40px;
+			padding-left: var(--dapp-kit-button-padding-x);
+			padding-right: var(--dapp-kit-button-padding-x);
+			padding-top: var(--dapp-kit-button-padding-y);
+			padding-bottom: var(--dapp-kit-button-padding-y);
+			height: var(--dapp-kit-button-height);
+			min-width: var(--dapp-kit-button-min-width);
 		}
 
 		.button:focus-visible {
