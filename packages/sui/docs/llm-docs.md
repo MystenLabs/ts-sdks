@@ -1,7 +1,6 @@
----
-title: LLM Documentation
-description: Give AI agents access to Sui SDK documentation in your project
----
+# LLM Documentation
+
+> Give AI agents access to Sui SDK documentation in your project
 
 Every `@mysten/*` package ships a `docs/` directory containing flat markdown files optimized for AI
 agent consumption. When you install an SDK package, you automatically get accurate, up-to-date
@@ -28,7 +27,7 @@ installed docs.
 ```markdown
 ## Sui SDK Reference
 
-Every @mysten/\* package ships LLM documentation in its `docs/` directory. When working with these
+Every @mysten/* package ships LLM documentation in its `docs/` directory. When working with these
 packages, find the relevant docs by looking for `docs/llms-index.md` files inside
 `node_modules/@mysten/*/`. Read the index first to find the page you need, then read that page for
 details.
@@ -39,7 +38,7 @@ details.
 Add the docs directory as a reference in your project rules:
 
 ```markdown
-When working with @mysten/_ packages, find documentation by looking for docs/llms-index.md files
-inside node_modules/@mysten/_/. Read the index to find relevant pages, then read those pages for API
-details.
+When working with @mysten/* packages, find documentation by looking for docs/llms-index.md files
+inside node_modules/@mysten/*/. Read the index to find relevant pages, then read those pages for
+API details.
 ```

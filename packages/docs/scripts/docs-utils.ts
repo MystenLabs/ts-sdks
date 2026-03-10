@@ -58,7 +58,7 @@ function mdxToMarkdown(mdx: string): string {
 	const lines = md.split('\n');
 	let inFence = false;
 	for (let i = 0; i < lines.length; i++) {
-		if (lines[i].startsWith('```')) {
+		if (/^\s*```/.test(lines[i])) {
 			inFence = !inFence;
 			continue;
 		}
@@ -68,9 +68,9 @@ function mdxToMarkdown(mdx: string): string {
 		// Opening: <Component ...>
 		// Closing: </Component>
 		lines[i] = lines[i]
-			.replace(/^<[A-Z][a-zA-Z]*\b[^>]*\/>\s*$/, '')
-			.replace(/^<[A-Z][a-zA-Z]*\b[^>]*>\s*$/, '')
-			.replace(/^<\/[A-Z][a-zA-Z]*>\s*$/, '');
+			.replace(/^\s*<[A-Z][a-zA-Z]*\b[^>]*\/>\s*$/, '')
+			.replace(/^\s*<[A-Z][a-zA-Z]*\b[^>]*>\s*$/, '')
+			.replace(/^\s*<\/[A-Z][a-zA-Z]*>\s*$/, '');
 	}
 	md = lines.join('\n');
 

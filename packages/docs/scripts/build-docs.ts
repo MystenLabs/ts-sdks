@@ -89,6 +89,7 @@ async function buildSectionDocs(
 	});
 
 	let processed = 0;
+	let errors = 0;
 	for (const mdxFile of mdxFiles) {
 		const relativePath = path.relative(contentRoot, mdxFile);
 		const mdOutputPath = path.join(outputDir, relativePath.replace(/\.mdx$/, '.md'));
@@ -97,8 +98,13 @@ async function buildSectionDocs(
 			await processFile(mdxFile, mdOutputPath);
 			processed++;
 		} catch (err) {
+			errors++;
 			console.error(`  Error processing ${relativePath}:`, err);
 		}
+	}
+
+	if (errors > 0) {
+		throw new Error(`Failed to process ${errors} file(s) in ${sectionName}`);
 	}
 
 	// Generate per-section index
