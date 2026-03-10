@@ -14,6 +14,7 @@
  *   "build:docs": "tsx scripts/build-docs.ts --all"
  */
 
+import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -111,6 +112,9 @@ async function buildSectionDocs(
 	const sectionIndex = generateSectionIndex(contentRoot, '.', '#', excludedSubdirs);
 	fs.writeFileSync(path.join(outputDir, 'llms-index.md'), sectionIndex);
 
+	// Format generated files with prettier
+	execSync(`npx prettier --write "${outputDir}/**/*.md"`, { stdio: 'ignore' });
+
 	return processed;
 }
 
@@ -159,6 +163,9 @@ async function buildAll(): Promise<void> {
 		fullIndexLines.push(generateSectionIndex(sectionDir, `./${section}`, '##', EXCLUDED_SUBDIRS));
 	}
 	fs.writeFileSync(path.join(distDir, 'llms-index.md'), fullIndexLines.join('\n'));
+
+	// Format the top-level index
+	execSync(`npx prettier --write "${path.join(distDir, 'llms-index.md')}"`, { stdio: 'ignore' });
 
 	console.log(`Generated ${totalFiles} files across ${sections.length} sections in dist/`);
 }

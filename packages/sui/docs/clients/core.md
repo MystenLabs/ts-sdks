@@ -1,0 +1,571 @@
+# Core API
+
+> Transport-agnostic Core API shared by all Sui clients
+
+The Core API is the transport-agnostic interface that all Sui clients implement. It provides a
+consistent set of methods for interacting with the Sui blockchain, regardless of whether you're
+using gRPC, GraphQL, or JSON-RPC.
+
+## ClientWithCoreApi
+
+The `ClientWithCoreApi` type represents any client that implements the Core API. Use this type when
+building SDKs or libraries that should work with any transport:
+
+```typescript
+// Your SDK works with any client
+class MySDK {
+	constructor(private client: ClientWithCoreApi) {}
+
+	async doSomething() {
+		// Use client.core for all operations
+		return this.client.core.getObject({ objectId: '0x...' });
+	}
+}
+```
+
+## Object Methods
+
+Object methods accept an optional `include` parameter to control what data is returned. By default,
+every object comes with `objectId`, `version`, `digest`, `owner`, and `type`. The following fields
+are only populated when requested:
+
+| Option                | Type      | Description                                                               |
+| --------------------- | --------- | ------------------------------------------------------------------------- |
+| `content`             | `boolean` | BCS-encoded Move struct content — pass this to generated BCS type parsers |
+| `previousTransaction` | `boolean` | Digest of the transaction that last mutated this object                   |
+| `json`                | `boolean` | JSON representation of the object's Move struct content                   |
+| `objectBcs`           | `boolean` | Full BCS-encoded object envelope (rarely needed, see [below](#objectbcs)) |
+
+### getObject
+
+Fetch a single object by ID.
+
+```typescript
+const { object } = await client.core.getObject({
+	objectId: '0x123...',
+	include: {
+		content: true, // Include BCS-encoded content
+		previousTransaction: true, // Include creating transaction digest
+	},
+});
+
+console.log(object.objectId);
+console.log(object.version);
+console.log(object.digest);
+console.log(object.type); // e.g., "0x2::coin::Coin<0x2::sui::SUI>"
+```
+
+### getObjects
+
+Fetch multiple objects in a single request.
+
+```typescript
+const { objects } = await client.core.getObjects({
+	objectIds: ['0x123...', '0x456...'],
+	include: { content: true },
+});
+
+for (const obj of objects) {
+	if (obj instanceof Error) {
+		console.log('Object not found:', obj.message);
+	} else {
+		console.log(obj.objectId, obj.type);
+	}
+}
+```
+
+### listOwnedObjects
+
+List objects owned by an address.
+
+```typescript
+const result = await client.core.listOwnedObjects({
+	owner: '0xabc...',
+	filter: {
+		StructType: '0x2::coin::Coin<0x2::sui::SUI>',
+	},
+	limit: 10,
+});
+
+for (const obj of result.objects) {
+	console.log(obj.objectId, obj.type);
+}
+
+// Paginate
+if (result.cursor) {
+	const nextPage = await client.core.listOwnedObjects({
+		owner: '0xabc...',
+		cursor: result.cursor,
+	});
+}
+```
+
+### Parsing object content
+
+Use `include: { content: true }` to get the BCS-encoded Move struct bytes, then parse them with
+generated types (from `@mysten/codegen`) or manual BCS definitions:
+
+```typescript
+const { object } = await client.core.getObject({
+	objectId: '0x123...',
+	include: { content: true },
+});
+
+const parsed = MyStruct.parse(object.content);
+```
+
+### `json` include option
+
+You can also fetch a JSON representation of the object's content with `include: { json: true }`.
+
+> **Warning:** The `json` field structure may vary between API implementations. For example,
+> JSON-RPC returns UID fields as nested objects (`{ "id": { "id": "0x..." } }`), while gRPC and
+> GraphQL flatten them (`{ "id": "0x..." }`). For consistent data across all clients, use `content`
+> and parse BCS directly.
+
+### `objectBcs`
+
+The `objectBcs` option returns the full BCS-encoded object envelope — the struct content wrapped in
+metadata (type, `hasPublicTransfer`, version, owner, previous transaction, storage rebate). Most of
+this metadata is already available as fields on the object response, so you typically only need
+`content`. If you do need `objectBcs`, parse it with `bcs.Object` from `@mysten/sui/bcs`:
+
+```typescript
+const envelope = bcs.Object.parse(object.objectBcs);
+```
+
+> **Error:** Do not pass `objectBcs` to a Move struct parser — it contains wrapping metadata that
+> will cause parsing to fail or produce incorrect results. Use `content` for parsing Move struct
+> fields.
+
+## Coin and Balance Methods
+
+### getBalance
+
+Get the balance of a specific coin type for an owner.
+
+```typescript
+const balance = await client.core.getBalance({
+	owner: '0xabc...',
+	coinType: '0x2::sui::SUI', // Optional, defaults to SUI
+});
+
+console.log(balance.totalBalance); // Total balance as bigint
+console.log(balance.coinObjectCount); // Number of coin objects
+```
+
+### listBalances
+
+List all coin balances for an owner.
+
+```typescript
+const { balances } = await client.core.listBalances({
+	owner: '0xabc...',
+});
+
+for (const balance of balances) {
+	console.log(balance.coinType, balance.totalBalance);
+}
+```
+
+### listCoins
+
+List coin objects of a specific type owned by an address.
+
+```typescript
+const result = await client.core.listCoins({
+	owner: '0xabc...',
+	coinType: '0x2::sui::SUI',
+	limit: 10,
+});
+
+for (const coin of result.coins) {
+	console.log(coin.objectId, coin.balance);
+}
+```
+
+### getCoinMetadata
+
+Get metadata for a coin type, including its name, symbol, decimals, and description.
+
+```typescript
+const { coinMetadata } = await client.core.getCoinMetadata({
+	coinType: '0x2::sui::SUI',
+});
+
+if (coinMetadata) {
+	console.log(coinMetadata.name, coinMetadata.symbol, coinMetadata.decimals);
+	// "Sui" "SUI" 9
+}
+```
+
+## Dynamic Field Methods
+
+### listDynamicFields
+
+List dynamic fields on an object.
+
+```typescript
+const result = await client.core.listDynamicFields({
+	parentId: '0x123...',
+	limit: 10,
+});
+
+for (const field of result.dynamicFields) {
+	console.log(field.name, field.type);
+}
+```
+
+### getDynamicField
+
+Get a specific dynamic field by name.
+
+```typescript
+const { dynamicField } = await client.core.getDynamicField({
+	parentId: '0x123...',
+	name: {
+		type: 'u64',
+		bcs: bcs.u64().serialize(42).toBytes(),
+	},
+});
+
+console.log(dynamicField.name);
+console.log(dynamicField.value.type);
+console.log(dynamicField.value.bcs); // BCS-encoded value
+```
+
+### getDynamicObjectField
+
+Get a dynamic object field, returning the referenced object. Supports the same
+[object include options](#object-methods) as `getObject`.
+
+```typescript
+const { object } = await client.core.getDynamicObjectField({
+	parentId: '0x123...',
+	name: {
+		type: '0x2::object::ID',
+		bcs: bcs.Address.serialize('0x456...').toBytes(),
+	},
+	include: { content: true },
+});
+```
+
+## Transaction Methods
+
+Transaction methods accept an optional `include` parameter to control what data is returned. By
+default, every transaction result includes `digest`, `signatures`, `epoch`, and `status`. The
+following fields are only populated when requested:
+
+| Option           | Type      | Description                                                          |
+| ---------------- | --------- | -------------------------------------------------------------------- |
+| `effects`        | `boolean` | Parsed transaction effects (gas used, changed objects, status, etc.) |
+| `events`         | `boolean` | Events emitted during execution                                      |
+| `transaction`    | `boolean` | Parsed transaction data (sender, gas config, inputs, commands)       |
+| `balanceChanges` | `boolean` | Balance changes caused by the transaction                            |
+| `objectTypes`    | `boolean` | Map of object IDs to their types for all changed objects             |
+| `bcs`            | `boolean` | Raw BCS-encoded transaction bytes                                    |
+
+`simulateTransaction` also supports:
+
+| Option           | Type      | Description                                            |
+| ---------------- | --------- | ------------------------------------------------------ |
+| `commandResults` | `boolean` | Return values and mutated references from each command |
+
+### executeTransaction
+
+Execute a signed transaction.
+
+```typescript
+const result = await client.core.executeTransaction({
+	transaction: transactionBytes,
+	signatures: [signature],
+	include: {
+		effects: true,
+		events: true,
+	},
+});
+
+if (result.Transaction) {
+	console.log('Success:', result.Transaction.digest);
+	console.log('Effects:', result.Transaction.effects);
+} else {
+	console.log('Failed:', result.FailedTransaction?.status.error);
+}
+```
+
+### simulateTransaction
+
+Simulate a transaction without executing it.
+
+```typescript
+const result = await client.core.simulateTransaction({
+	transaction: transactionBytes,
+	include: {
+		effects: true,
+		balanceChanges: true,
+		commandResults: true, // simulation-only option
+	},
+});
+
+// Check simulated effects before signing
+console.log(result.effects);
+console.log(result.balanceChanges);
+```
+
+### signAndExecuteTransaction
+
+Sign and execute a transaction in one step.
+
+```typescript
+const tx = new Transaction();
+tx.transferObjects([tx.object('0x123...')], '0xrecipient...');
+
+const result = await client.core.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+	include: { effects: true },
+});
+
+// Always check the result
+if (result.FailedTransaction) {
+	throw new Error(`Failed: ${result.FailedTransaction.status.error}`);
+}
+
+console.log('Digest:', result.Transaction.digest);
+```
+
+### getTransaction
+
+Fetch a transaction by digest.
+
+```typescript
+const result = await client.core.getTransaction({
+	digest: 'ABC123...',
+	include: {
+		effects: true,
+		events: true,
+		transaction: true,
+	},
+});
+
+console.log(result.Transaction?.digest);
+console.log(result.Transaction?.effects);
+console.log(result.Transaction?.transaction?.sender);
+```
+
+You can also fetch raw BCS-encoded transaction bytes:
+
+```typescript
+const result = await client.core.getTransaction({
+	digest: 'ABC123...',
+	include: { bcs: true },
+});
+
+// Raw BCS bytes for the transaction
+console.log(result.Transaction?.bcs); // Uint8Array
+```
+
+### waitForTransaction
+
+Wait for a transaction to be available.
+
+```typescript
+const result = await client.core.waitForTransaction({
+	digest: 'ABC123...',
+	timeout: 60_000, // 60 seconds
+	include: { effects: true },
+});
+```
+
+You can also pass the result directly from `executeTransaction`:
+
+```typescript
+const executeResult = await client.core.executeTransaction({ ... });
+
+const finalResult = await client.core.waitForTransaction({
+	result: executeResult,
+	include: { effects: true },
+});
+```
+
+## System Methods
+
+### getReferenceGasPrice
+
+Get the current reference gas price.
+
+```typescript
+const { referenceGasPrice } = await client.core.getReferenceGasPrice();
+console.log(referenceGasPrice); // bigint
+```
+
+### getCurrentSystemState
+
+Get the current system state including epoch information.
+
+```typescript
+const systemState = await client.core.getCurrentSystemState();
+console.log(systemState.epoch);
+console.log(systemState.systemStateVersion);
+```
+
+### getChainIdentifier
+
+Get the chain identifier for the network.
+
+```typescript
+const { chainIdentifier } = await client.core.getChainIdentifier();
+console.log(chainIdentifier); // e.g., "4c78adac"
+```
+
+## Move Methods
+
+### getMoveFunction
+
+Get information about a Move function.
+
+```typescript
+const { function: fn } = await client.core.getMoveFunction({
+	packageId: '0x2',
+	moduleName: 'coin',
+	name: 'transfer',
+});
+
+console.log(fn.name);
+console.log(fn.parameters);
+console.log(fn.typeParameters);
+```
+
+## Name Service Methods
+
+### defaultNameServiceName
+
+Resolve an address to its default SuiNS name.
+
+```typescript
+const { name } = await client.core.defaultNameServiceName({
+	address: '0xabc...',
+});
+
+console.log(name); // e.g., "example.sui"
+```
+
+## MVR Methods
+
+The client also exposes MVR (Move Registry) methods through `client.core.mvr`:
+
+### resolveType
+
+Resolve a type name (including `.move` names) to a fully qualified type.
+
+```typescript
+const { type } = await client.core.mvr.resolveType({
+	type: '@mysten/sui::coin::Coin<@mysten/sui::sui::SUI>',
+});
+
+console.log(type); // "0x2::coin::Coin<0x2::sui::SUI>"
+```
+
+## Error Handling
+
+Methods that fetch objects may return errors in the result:
+
+```typescript
+const { objects } = await client.core.getObjects({
+	objectIds: ['0x123...', '0x456...'],
+});
+
+for (const obj of objects) {
+	if (obj instanceof Error) {
+		// Object not found or other error
+		console.error('Error:', obj.message);
+	} else {
+		// Successfully fetched
+		console.log(obj.objectId);
+	}
+}
+```
+
+For transaction execution, always check the result type:
+
+```typescript
+const result = await client.core.executeTransaction({ ... });
+
+if (result.Transaction) {
+	// Success
+	console.log(result.Transaction.digest);
+} else if (result.FailedTransaction) {
+	// Transaction was executed but failed
+	throw new Error(result.FailedTransaction.status.error);
+}
+```
+
+## SuiClientTypes Namespace
+
+The `SuiClientTypes` namespace contains all type definitions for the Core API. Import it when you
+need to type function parameters, return values, or variables:
+
+```typescript
+// Type function parameters
+function processObject(obj: SuiClientTypes.Object<{ content: true }>) {
+	console.log(obj.objectId, obj.content);
+}
+
+// Type return values
+async function fetchBalance(
+	client: ClientWithCoreApi,
+	owner: string,
+): Promise<SuiClientTypes.CoinBalance> {
+	const { balance } = await client.core.getBalance({ owner });
+	return balance;
+}
+
+// Type options
+const options: SuiClientTypes.GetObjectOptions<{ content: true }> = {
+	objectId: '0x123...',
+	include: { content: true },
+};
+```
+
+### Common Types
+
+| Type                   | Description                                 |
+| ---------------------- | ------------------------------------------- |
+| `Object<Include>`      | Fetched object with optional included data  |
+| `Coin`                 | Coin object with balance                    |
+| `CoinBalance`          | Balance summary for a coin type             |
+| `CoinMetadata`         | Metadata for a coin type                    |
+| `Transaction<Include>` | Executed transaction with optional data     |
+| `TransactionResult`    | Success or failure result from execution    |
+| `TransactionEffects`   | Detailed effects from transaction execution |
+| `Event`                | Emitted event from a transaction            |
+| `ObjectOwner`          | Union of all owner types                    |
+| `ExecutionStatus`      | Success/failure status with error details   |
+| `DynamicFieldName`     | Name identifier for dynamic fields          |
+| `FunctionResponse`     | Move function metadata                      |
+| `Network`              | Network identifier type                     |
+
+### Include Options Types
+
+| Type                         | Description                             |
+| ---------------------------- | --------------------------------------- |
+| `ObjectInclude`              | Options for object data inclusion       |
+| `TransactionInclude`         | Options for transaction data inclusion  |
+| `SimulateTransactionInclude` | Extended options for simulation results |
+
+### Method Options Types
+
+| Type                               | Description                             |
+| ---------------------------------- | --------------------------------------- |
+| `GetObjectOptions`                 | Options for `getObject`                 |
+| `GetObjectsOptions`                | Options for `getObjects`                |
+| `ListOwnedObjectsOptions`          | Options for `listOwnedObjects`          |
+| `ListCoinsOptions`                 | Options for `listCoins`                 |
+| `GetBalanceOptions`                | Options for `getBalance`                |
+| `ListBalancesOptions`              | Options for `listBalances`              |
+| `GetCoinMetadataOptions`           | Options for `getCoinMetadata`           |
+| `ExecuteTransactionOptions`        | Options for `executeTransaction`        |
+| `SimulateTransactionOptions`       | Options for `simulateTransaction`       |
+| `SignAndExecuteTransactionOptions` | Options for `signAndExecuteTransaction` |
+| `GetTransactionOptions`            | Options for `getTransaction`            |
+| `WaitForTransactionOptions`        | Options for `waitForTransaction`        |

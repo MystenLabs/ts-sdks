@@ -1,0 +1,22 @@
+# Sponsored Transactions
+
+> Pay gas fees on behalf of other users with sponsored transactions
+
+The transaction builder can support sponsored transactions by using the `onlyTransactionKind` flag
+when building the transaction.
+
+```tsx
+const tx = new Transaction();
+
+// ... add some transactions...
+
+const kindBytes = await tx.build({ provider, onlyTransactionKind: true });
+
+// construct a sponsored transaction from the kind bytes
+const sponsoredtx = Transaction.fromKind(kindBytes);
+
+// you can now set the sponsored transaction data that is required
+sponsoredtx.setSender(sender);
+sponsoredtx.setGasOwner(sponsor);
+sponsoredtx.setGasPayment(sponsorCoins);
+```
