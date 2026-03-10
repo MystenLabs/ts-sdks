@@ -2,117 +2,45 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Generates dist/llms-index.md from meta.json files and MDX frontmatter.
+ * Generates doc indices from meta.json files and MDX frontmatter:
+ *   - dist/llms-index.md              — full index across all sections
+ *   - dist/<section>/llms-index.md    — per-section index (one per content dir)
  *
  * Usage:
- *   npx tsx scripts/generate-llms-index.ts          # write to dist/llms-index.md
- *   npx tsx scripts/generate-llms-index.ts --check   # exit 1 if output differs from committed file
+ *   npx tsx scripts/generate-llms-index.ts          # write indices
+ *   npx tsx scripts/generate-llms-index.ts --check   # exit 1 if full index differs
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import matter from 'gray-matter';
+import { generateSectionIndex, readMetaJson } from './docs-utils.js';
 
 const CONTENT_DIR = path.resolve(new URL('.', import.meta.url).pathname, '..', 'content');
 const OUTPUT_DIR = path.resolve(new URL('.', import.meta.url).pathname, '..', 'dist');
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'llms-index.md');
 
-interface MetaJson {
-	root?: boolean;
-	title?: string;
-	description?: string;
-	pages?: string[];
-	index?: { title?: string; root?: boolean };
-	[key: string]: unknown;
-}
-
-interface PageInfo {
-	title: string;
-	description: string;
-	relativePath: string;
-}
-
-function readMetaJson(dir: string): MetaJson | null {
-	const metaPath = path.join(dir, 'meta.json');
-	if (!fs.existsSync(metaPath)) return null;
-	return JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as MetaJson;
-}
-
-function readMdxFrontmatter(filePath: string): { title?: string; description?: string } {
-	if (!fs.existsSync(filePath)) return {};
-	const content = fs.readFileSync(filePath, 'utf-8');
-	const { data } = matter(content);
-	return { title: data.title, description: data.description };
-}
-
-function getPageEntries(dir: string, basePath: string, seen = new Set<string>()): PageInfo[] {
-	const meta = readMetaJson(dir);
-	const entries: PageInfo[] = [];
-
-	function addEntry(entry: PageInfo): void {
-		if (seen.has(entry.relativePath)) return;
-		seen.add(entry.relativePath);
-		entries.push(entry);
-	}
-
-	if (meta?.pages) {
-		for (const pageName of meta.pages) {
-			// Skip "..." (rest pages marker used by fumadocs)
-			if (pageName === '...') continue;
-
-			const pageDir = path.join(dir, pageName);
-			const mdxFile = path.join(dir, `${pageName}.mdx`);
-
-			if (fs.existsSync(pageDir) && fs.statSync(pageDir).isDirectory()) {
-				// It's a subdirectory — check for index.mdx
-				const indexFile = path.join(pageDir, 'index.mdx');
-				const subMeta = readMetaJson(pageDir);
-				const subTitle = subMeta?.title || pageName;
-
-				if (fs.existsSync(indexFile)) {
-					const fm = readMdxFrontmatter(indexFile);
-					addEntry({
-						title: fm.title || subTitle,
-						description: fm.description || subMeta?.description || '',
-						relativePath: `${basePath}/${pageName}/index.md`,
-					});
-				}
-
-				// Recurse into subdirectory pages (entries already tracked in shared `seen`)
-				const subEntries = getPageEntries(pageDir, `${basePath}/${pageName}`, seen);
-				entries.push(...subEntries);
-			} else if (fs.existsSync(mdxFile)) {
-				const fm = readMdxFrontmatter(mdxFile);
-				addEntry({
-					title: fm.title || pageName,
-					description: fm.description || '',
-					relativePath: `${basePath}/${pageName}.md`,
-				});
+/** Return sorted list of content section directory names (e.g. ["bcs", "dapp-kit", "sui"]). */
+function getContentSections(): string[] {
+	return fs
+		.readdirSync(CONTENT_DIR)
+		.filter((name) => {
+			const dir = path.join(CONTENT_DIR, name);
+			if (!fs.statSync(dir).isDirectory()) return false;
+			// Skip api-reference — it's auto-generated, not useful for LLM docs
+			if (name === 'api-reference') return false;
+			const meta = readMetaJson(dir);
+			if (meta?.root === true) return true;
+			if (!meta) {
+				return fs.readdirSync(dir).some((f) => f.endsWith('.mdx'));
 			}
-		}
-	} else {
-		// No pages array — scan for MDX files alphabetically
-		const files = fs
-			.readdirSync(dir)
-			.filter((f) => f.endsWith('.mdx'))
-			.sort();
-		for (const file of files) {
-			const name = file.replace(/\.mdx$/, '');
-			if (name === 'index') continue; // Skip index, it's listed at the section level
-			const fm = readMdxFrontmatter(path.join(dir, file));
-			addEntry({
-				title: fm.title || name,
-				description: fm.description || '',
-				relativePath: `${basePath}/${name}.md`,
-			});
-		}
-	}
-
-	return entries;
+			return false;
+		})
+		.sort();
 }
 
-function generateIndex(): string {
+/** Generate the full combined index across all sections. */
+function generateFullIndex(sections: string[]): string {
 	const lines: string[] = [];
 
 	lines.push('# Sui TypeScript SDK Documentation');
@@ -121,64 +49,9 @@ function generateIndex(): string {
 	);
 	lines.push('');
 
-	// Find all content directories (root meta.json or directories with MDX files)
-	const rootDirs = fs
-		.readdirSync(CONTENT_DIR)
-		.filter((name) => {
-			const dir = path.join(CONTENT_DIR, name);
-			if (!fs.statSync(dir).isDirectory()) return false;
-			const meta = readMetaJson(dir);
-			// Include if it has root: true in meta.json, or has MDX files but no meta.json
-			if (meta?.root === true) return true;
-			if (!meta) {
-				// Check if directory has any MDX files
-				return fs.readdirSync(dir).some((f) => f.endsWith('.mdx'));
-			}
-			return false;
-		})
-		.sort();
-
-	for (const rootName of rootDirs) {
-		const rootDir = path.join(CONTENT_DIR, rootName);
-		const meta = readMetaJson(rootDir);
-
-		// Skip api-reference — it's auto-generated, not useful for LLM docs
-		if (rootName === 'api-reference') continue;
-
-		// Subdirectories to exclude from the index
-		const EXCLUDED_SUBDIRS = ['dapp-kit/legacy'];
-
-		const sectionTitle = meta?.title || rootName;
-		const sectionDesc = meta?.description || '';
-
-		lines.push(`## ${sectionTitle}`);
-		if (sectionDesc) {
-			lines.push(`> ${sectionDesc}`);
-		}
-		lines.push('');
-
-		// Add index page if it exists
-		const indexFile = path.join(rootDir, 'index.mdx');
-		if (fs.existsSync(indexFile)) {
-			const fm = readMdxFrontmatter(indexFile);
-			const desc = fm.description || 'Overview and getting started';
-			lines.push(`- [${fm.title || sectionTitle}](./${rootName}/index.md): ${desc}`);
-		}
-
-		// Add all pages
-		const entries = getPageEntries(rootDir, `./${rootName}`);
-		for (const entry of entries) {
-			// Skip if it's the same as the index we just added
-			if (entry.relativePath === `./${rootName}/index.md`) continue;
-
-			// Skip excluded subdirectories
-			if (EXCLUDED_SUBDIRS.some((dir) => entry.relativePath.startsWith(`./${dir}/`))) continue;
-
-			const desc = entry.description ? `: ${entry.description}` : '';
-			lines.push(`- [${entry.title}](${entry.relativePath})${desc}`);
-		}
-
-		lines.push('');
+	for (const sectionName of sections) {
+		const sectionDir = path.join(CONTENT_DIR, sectionName);
+		lines.push(generateSectionIndex(sectionDir, `./${sectionName}`));
 	}
 
 	return lines.join('\n');
@@ -186,7 +59,8 @@ function generateIndex(): string {
 
 // Main
 const checkMode = process.argv.includes('--check');
-const indexContent = generateIndex();
+const sections = getContentSections();
+const indexContent = generateFullIndex(sections);
 
 if (checkMode) {
 	if (!fs.existsSync(OUTPUT_FILE)) {
@@ -203,6 +77,19 @@ if (checkMode) {
 	console.log('dist/llms-index.md is up to date.');
 } else {
 	fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+
+	// Write the full combined index
 	fs.writeFileSync(OUTPUT_FILE, indexContent);
 	console.log(`Generated ${OUTPUT_FILE}`);
+
+	// Write per-section indices into dist/<section>/llms-index.md
+	for (const sectionName of sections) {
+		const sectionDir = path.join(CONTENT_DIR, sectionName);
+		const sectionIndex = generateSectionIndex(sectionDir, '.', '#');
+		const sectionOutputDir = path.join(OUTPUT_DIR, sectionName);
+		fs.mkdirSync(sectionOutputDir, { recursive: true });
+		const sectionOutputFile = path.join(sectionOutputDir, 'llms-index.md');
+		fs.writeFileSync(sectionOutputFile, sectionIndex);
+	}
+	console.log(`Generated per-section indices for ${sections.length} sections`);
 }

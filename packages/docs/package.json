@@ -8,7 +8,7 @@
 	],
 	"scripts": {
 		"build": "typedoc && next build && pnpm run build:docs",
-		"build:docs": "tsx scripts/generate-llms-index.ts && tsx scripts/generate-flat-docs.ts",
+		"build:docs": "tsx scripts/build-docs.ts --all",
 		"dev": "next dev",
 		"start": "next start",
 		"postinstall": "fumadocs-mdx",
@@ -49,11 +49,7 @@
 		"gray-matter": "^4.0.3",
 		"next": "^16.1.5",
 		"react": "^19.2.3",
-		"react-dom": "^19.2.3",
-		"remark": "^15.0.1",
-		"remark-gfm": "^4.0.1",
-		"remark-mdx": "^3.1.0",
-		"remark-stringify": "^11.0.0"
+		"react-dom": "^19.2.3"
 	},
 	"devDependencies": {
 		"@tailwindcss/postcss": "^4.1.18",

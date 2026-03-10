@@ -18,11 +18,13 @@
 	"files": [
 		"CHANGELOG.md",
 		"dist",
+		"docs",
 		"src"
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
+		"build:docs": "tsx ../docs/scripts/build-docs.ts",
 		"test": "vitest run --typecheck",
 		"test:watch": "vitest --typecheck",
 		"prettier:check": "prettier -c --ignore-unknown .",

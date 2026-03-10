@@ -33,6 +33,16 @@ Content goes here...
 5. Regenerate the LLM index: `pnpm --filter @mysten/docs build:docs`
 6. Validate: `pnpm --filter @mysten/docs validate-docs`
 
+## Adding Docs for a New Package
+
+When a new SDK package needs documentation:
+
+1. Create `packages/docs/content/<package-name>/` with `meta.json` (`root: true`) and `index.mdx`
+2. Add `"build:docs": "tsx ../docs/scripts/build-docs.ts"` to the package's `package.json` scripts
+3. Add `"docs"` to the package's `files` array in `package.json` (so docs are published to npm)
+4. Add the package as a dependency in `packages/docs/package.json`
+5. See [references/structure.md](references/structure.md) for full checklist
+
 ## Editing Existing Docs
 
 1. Read the full page before editing — understand context.
@@ -52,7 +62,8 @@ Content goes here...
 5. **Import from public API paths** — `@mysten/sui/transactions`, not internal paths.
 6. **Use fenced code blocks** with `tsx` or `typescript` language tag.
 7. **Every new page must be in a `meta.json` `pages` array** — or it won't appear in navigation.
-8. **`dist/` is generated at build time** — not committed to git. Run `build:docs` to verify output locally.
+8. **`dist/` and `docs/` are generated at build time** — not committed to git. Run `build:docs` to verify output locally.
+9. **New packages need `build:docs` script and `docs` in `files`** — or docs won't be published to npm.
 
 ## Common Mistakes — STOP
 
@@ -70,8 +81,14 @@ Content goes here...
 ## Build Commands
 
 ```npm
-# Generate LLM index + flat markdown
+# Generate all docs (combined dist/ + per-section indices)
 pnpm --filter @mysten/docs build:docs
+
+# Generate docs for a single package (run from package dir)
+pnpm --filter @mysten/sui build:docs
+
+# Build everything (includes build:docs automatically via turbo)
+pnpm turbo build
 
 # Check index is up to date
 npx tsx packages/docs/scripts/generate-llms-index.ts --check

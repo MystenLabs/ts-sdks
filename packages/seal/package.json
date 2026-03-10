@@ -17,11 +17,13 @@
 	"sideEffects": false,
 	"files": [
 		"CHANGELOG.md",
-		"dist"
+		"dist",
+		"docs"
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "node genversion.mjs && rm -rf dist && tsc --noEmit && tsdown",
+		"build:docs": "tsx ../docs/scripts/build-docs.ts",
 		"codegen:version": "node genversion.mjs",
 		"vitest": "vitest",
 		"test": "pnpm test:typecheck && pnpm test:unit",

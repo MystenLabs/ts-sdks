@@ -34,7 +34,9 @@
 		".git",
 		"packages/suins/examples",
 		"packages/deepbook-v3/examples",
-		"packages/utils/src/dataloader.ts"
+		"packages/utils/src/dataloader.ts",
+		"packages/*/docs",
+		"packages/*/packages/*/docs"
 	],
 	"settings": {
 		"jsdoc": {

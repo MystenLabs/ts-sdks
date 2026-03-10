@@ -10,6 +10,7 @@
 		"LICENSE",
 		"README.md",
 		"dist",
+		"docs",
 		"src",
 		"web"
 	],
@@ -31,6 +32,7 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "pnpm typecheck && tsdown",
+		"build:docs": "tsx ../../../docs/scripts/build-docs.ts",
 		"typecheck": "tsc --noEmit",
 		"dev": "tsdown --watch",
 		"prettier:check": "prettier -c --ignore-unknown .",
