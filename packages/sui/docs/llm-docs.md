@@ -12,17 +12,15 @@ separate install or training data required.
 Each package includes:
 
 - `docs/llms-index.md` — routing index listing all doc pages with descriptions
-- `docs/*.md` — individual reference pages (self-contained, no JSX or framework markup)
+- `docs/*.md` — individual reference pages
 
 For example, installing `@mysten/sui` gives you docs at
 `node_modules/@mysten/sui/docs/llms-index.md`.
 
 ## Configure Your Agent
 
-Point your agent's configuration file (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`, etc.) at the
-installed docs.
-
-### AGENTS.md / CLAUDE.md
+Add the following snippet to your agent's configuration file (`AGENTS.md`, `CLAUDE.md`,
+`.cursorrules`, etc.):
 
 ```markdown
 ## Sui SDK Reference
@@ -31,14 +29,4 @@ Every @mysten/\* package ships LLM documentation in its `docs/` directory. When 
 packages, find the relevant docs by looking for `docs/llms-index.md` files inside
 `node_modules/@mysten/\*/`. Read the index first to find the page you need, then read that page for
 details.
-```
-
-### Cursor / Windsurf
-
-Add the docs directory as a reference in your project rules:
-
-```markdown
-When working with @mysten/\* packages, find documentation by looking for docs/llms-index.md files
-inside node_modules/@mysten/\*/. Read the index to find relevant pages, then read those pages for
-API details.
 ```
