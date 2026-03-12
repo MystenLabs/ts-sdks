@@ -9,6 +9,6 @@ export const TESTNET_PAS_PACKAGE_CONFIG: PASPackageConfig = {
 };
 
 export const MAINNET_PAS_PACKAGE_CONFIG: PASPackageConfig = {
-	packageId: '0x0', // TODO: Replace with actual mainnet package ID
-	namespaceId: '0x0', // TODO: Replace with actual mainnet namespace ID
+	packageId: '', // TODO: Replace with actual mainnet package ID
+	namespaceId: '', // TODO: Replace with actual mainnet namespace ID
 };
