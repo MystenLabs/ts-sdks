@@ -9,9 +9,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
-  # Run e2e test against localnet built on the testnet branch
-  localnet:
-    name: Localnet
+  pas:
+    name: PAS on localnet
     runs-on: ubuntu-ghcloud
     steps:
       - name: Checkout
