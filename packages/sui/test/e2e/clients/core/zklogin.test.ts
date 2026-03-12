@@ -83,7 +83,6 @@ describe('Core API - ZkLogin', () => {
 			const result = await client.core.verifyZkLoginSignature(wrongAuthorCase as any);
 
 			expect(result.success).toBe(false);
-			expect(result.errors.length).toBeGreaterThan(0);
 		});
 
 		testWithAllClients('should fail verification for wrong bytes', async (client) => {
@@ -95,7 +94,6 @@ describe('Core API - ZkLogin', () => {
 			const result = await client.core.verifyZkLoginSignature(wrongBytesCase as any);
 
 			expect(result.success).toBe(false);
-			expect(result.errors.length).toBeGreaterThan(0);
 		});
 	});
 
@@ -124,7 +122,6 @@ describe('Core API - ZkLogin', () => {
 				const result = await client.core.verifyZkLoginSignature(wrongAuthorCase as any);
 
 				expect(result.success).toBe(false);
-				expect(result.errors.length).toBeGreaterThan(0);
 			},
 		);
 	});

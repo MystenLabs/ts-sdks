@@ -11,6 +11,5 @@ query verifyZkLoginSignature(
 		author: $author
 	) {
 		success
-		error
 	}
 }

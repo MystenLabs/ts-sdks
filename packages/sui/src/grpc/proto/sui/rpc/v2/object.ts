@@ -107,6 +107,13 @@ export interface Object {
 	 * @generated from protobuf field: optional uint64 balance = 101;
 	 */
 	balance?: bigint;
+	/**
+	 * JSON rendering of the object based on an on-chain template.
+	 * This will not be set if the value's type does not have an associated `Display` template.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.Display display = 102;
+	 */
+	display?: Display;
 }
 /**
  * Set of Objects
@@ -120,6 +127,29 @@ export interface ObjectSet {
 	 * @generated from protobuf field: repeated sui.rpc.v2.Object objects = 1;
 	 */
 	objects: Object[];
+}
+/**
+ * A rendered JSON blob based on an on-chain template.
+ *
+ * @generated from protobuf message sui.rpc.v2.Display
+ */
+export interface Display {
+	/**
+	 * Output for all successfully substituted display fields. Unsuccessful
+	 * fields will be `null`, and will be accompanied by a field in `errors`,
+	 * explaining the error.
+	 *
+	 * @generated from protobuf field: optional google.protobuf.Value output = 1;
+	 */
+	output?: Value;
+	/**
+	 * If any fields failed to render, this will contain a mapping from failed
+	 * field names to error messages. If all fields succeed, this will either be
+	 * `null` or not set.
+	 *
+	 * @generated from protobuf field: optional google.protobuf.Value errors = 2;
+	 */
+	errors?: Value;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class Object$Type extends MessageType<Object> {
@@ -165,6 +195,7 @@ class Object$Type extends MessageType<Object> {
 				T: 4 /*ScalarType.UINT64*/,
 				L: 0 /*LongType.BIGINT*/,
 			},
+			{ no: 102, name: 'display', kind: 'message', T: () => Display },
 		]);
 	}
 }
@@ -184,3 +215,16 @@ class ObjectSet$Type extends MessageType<ObjectSet> {
  * @generated MessageType for protobuf message sui.rpc.v2.ObjectSet
  */
 export const ObjectSet = new ObjectSet$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class Display$Type extends MessageType<Display> {
+	constructor() {
+		super('sui.rpc.v2.Display', [
+			{ no: 1, name: 'output', kind: 'message', T: () => Value },
+			{ no: 2, name: 'errors', kind: 'message', T: () => Value },
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.Display
+ */
+export const Display = new Display$Type();
