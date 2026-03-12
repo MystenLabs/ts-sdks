@@ -45,11 +45,14 @@ export class WebCryptoSignerAdapter extends BaseSignerAdapter {
 			if (key === META_KEY) continue;
 
 			const address = key as string;
-			const exported = value as ExportedWebCryptoKeypair;
-			const signer = WebCryptoSigner.import(exported);
-			const accountMeta = meta.find((m) => m.address === address);
-
-			accounts.push(buildManagedAccount(signer, address, accountMeta?.label ?? 'Account'));
+			try {
+				const exported = value as ExportedWebCryptoKeypair;
+				const signer = WebCryptoSigner.import(exported);
+				const accountMeta = meta.find((m) => m.address === address);
+				accounts.push(buildManagedAccount(signer, address, accountMeta?.label ?? 'Account'));
+			} catch (error) {
+				console.warn(`[dev-wallet] Failed to load account ${address}, skipping:`, error);
+			}
 		}
 
 		this.setInitialAccounts(accounts);

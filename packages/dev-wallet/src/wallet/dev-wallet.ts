@@ -255,10 +255,14 @@ export class DevWallet implements Wallet {
 	}
 
 	addNetwork(name: string, url: string): void {
+		let parsed: URL;
 		try {
-			new URL(url);
+			parsed = new URL(url);
 		} catch {
 			throw new Error(`Invalid URL: ${url}`);
+		}
+		if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+			throw new Error(`Invalid URL: must use http or https (got ${parsed.protocol})`);
 		}
 		this.#networkUrls[name] = url;
 		this.#clients[name] = this.#clientFactory(name, url);
@@ -287,13 +291,16 @@ export class DevWallet implements Wallet {
 		return walletsApi.register(this);
 	}
 
-	/** Reject any pending requests, unsubscribe from adapters, and clear all listeners. */
+	/** Reject any pending requests, unsubscribe from adapters, destroy them, and clear all listeners. */
 	destroy(): void {
 		this.#destroyed = true;
 		for (const unsub of this.#unsubscribeAdapters) {
 			unsub();
 		}
 		this.#unsubscribeAdapters = [];
+		for (const adapter of this.#adapters) {
+			adapter.destroy();
+		}
 		if (this.#pendingRequest) {
 			this.#pendingRequest.reject(new Error('Wallet destroyed.'));
 			this.#pendingRequest = null;

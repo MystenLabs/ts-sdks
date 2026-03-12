@@ -107,6 +107,7 @@ describe('RemoteCliAdapter', () => {
 			localStorage.setItem(RemoteCliAdapter.TOKEN_KEY, 'invalid-token');
 			mockFetch.mockResolvedValueOnce({
 				ok: false,
+				status: 401,
 				statusText: 'Unauthorized',
 			});
 

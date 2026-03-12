@@ -21,6 +21,14 @@ const CLI_WALLET_FEATURES = ['sui:signTransaction', 'sui:signAndExecuteTransacti
 /** Cache TTL for the CLI server accounts fetch (milliseconds). */
 const ACCOUNTS_CACHE_TTL_MS = 5000;
 
+/** Thrown when the server rejects a request with a 401 or 403 status. */
+class AuthError extends Error {
+	constructor() {
+		super('Unauthorized');
+		this.name = 'AuthError';
+	}
+}
+
 /** Map CLI `keyScheme` strings to SDK {@link SignatureScheme} values. */
 const KEY_SCHEME_MAP: Record<string, SignatureScheme> = {
 	ed25519: 'ED25519',
@@ -209,13 +217,7 @@ export class RemoteCliAdapter extends BaseSignerAdapter {
 				await this.#fetchServerAccounts();
 				await this.#restoreImportedAccounts();
 			} catch (error) {
-				const msg = error instanceof Error ? error.message : '';
-				const isAuthError =
-					msg.includes('401') ||
-					msg.includes('403') ||
-					msg.includes('Unauthorized') ||
-					msg.includes('Forbidden');
-				if (isAuthError) {
+				if (error instanceof AuthError) {
 					this.#authToken = null;
 					if (typeof localStorage !== 'undefined') {
 						localStorage.removeItem(RemoteCliAdapter.TOKEN_KEY);
@@ -309,6 +311,9 @@ export class RemoteCliAdapter extends BaseSignerAdapter {
 		const res = await fetch(`${this.#serverOrigin}/api/v1/accounts`, {
 			headers: this.#authHeaders(),
 		});
+		if (res.status === 401 || res.status === 403) {
+			throw new AuthError();
+		}
 		if (!res.ok) {
 			throw new Error(`Failed to fetch accounts: ${res.statusText}`);
 		}

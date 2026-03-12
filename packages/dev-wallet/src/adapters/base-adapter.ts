@@ -13,6 +13,7 @@ import { buildManagedAccount } from './build-managed-account.js';
 export abstract class BaseSignerAdapter implements SignerAdapter {
 	abstract readonly id: string;
 	abstract readonly name: string;
+	readonly allowAutoSign: boolean = true;
 
 	#accounts: ManagedAccount[] = [];
 	#listeners = new Set<(accounts: ManagedAccount[]) => void>();
