@@ -37,6 +37,7 @@ are only populated when requested:
 | `previousTransaction` | `boolean` | Digest of the transaction that last mutated this object                   |
 | `json`                | `boolean` | JSON representation of the object's Move struct content                   |
 | `objectBcs`           | `boolean` | Full BCS-encoded object envelope (rarely needed, see [below](#objectbcs)) |
+| `display`             | `boolean` | [Sui Display Standard](https://docs.sui.io/standards/display) metadata    |
 
 ### getObject
 
@@ -146,6 +147,35 @@ const envelope = bcs.Object.parse(object.objectBcs);
 	Do not pass `objectBcs` to a Move struct parser — it contains wrapping metadata that will cause
 	parsing to fail or produce incorrect results. Use `content` for parsing Move struct fields.
 </Callout>
+
+### `display` include option
+
+The `display` option fetches [Sui Display Standard](https://docs.sui.io/standards/display) metadata
+for an object. Display templates define how an object should be presented in wallets and explorers —
+fields like `name`, `description`, and `image_url`.
+
+```typescript
+const { object } = await client.core.getObject({
+	objectId: '0x123...',
+	include: { display: true },
+});
+
+if (object.display) {
+	// display is null if the object's type has no Display template
+	console.log(object.display.output?.name);
+	console.log(object.display.output?.image_url);
+}
+```
+
+The `display` field is `null` when the object's type has no registered Display template, and
+`undefined` when `display` was not requested. The `Display` type has two fields:
+
+| Field    | Type                             | Description                                                     |
+| -------- | -------------------------------- | --------------------------------------------------------------- |
+| `output` | `Record<string, string> \| null` | Interpolated display fields (template variables resolved)       |
+| `errors` | `Record<string, string> \| null` | Per-field errors if any template variable failed to interpolate |
+
+`display` works with `getObject`, `getObjects`, and `listOwnedObjects`.
 
 ## Coin and Balance Methods
 
