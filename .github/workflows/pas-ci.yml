@@ -1,0 +1,38 @@
+name: PAS tests (unit & e2e)
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  # Run e2e test against localnet built on the testnet branch
+  localnet:
+    name: Localnet
+    runs-on: ubuntu-ghcloud
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build dependencies
+        run: pnpm turbo build --filter @mysten/pas
+
+      - name: Run tests
+        run: pnpm --filter @mysten/pas test
