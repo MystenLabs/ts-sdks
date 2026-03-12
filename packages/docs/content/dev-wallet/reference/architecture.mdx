@@ -63,8 +63,8 @@ communicate via popup windows and PostMessage. Supports CLI signing and team sha
 When a dApp calls `signTransaction`:
 
 1. Transaction is serialized to JSON via `transaction.toJSON()`
-2. Auto-approve check: adapter's `allowAutoSign` is evaluated first (adapters can opt out
-   regardless of wallet policy), then the wallet-level `autoApprove` policy
+2. Auto-approve check: adapter's `allowAutoSign` is evaluated first (adapters can opt out regardless
+   of wallet policy), then the wallet-level `autoApprove` policy
 3. Auto-approved: calls the adapter's signer directly, returns the result
 4. Manual: stored as `pendingRequest`, listeners notified, UI shows the modal
 5. `approveRequest()` → adapter signs → promise resolves; `rejectRequest()` → promise rejects
@@ -73,14 +73,14 @@ When a dApp calls `signTransaction`:
 
 The package is split into subpath exports to support different environments:
 
-| Export                        | Contains                                                   |
-| ----------------------------- | ---------------------------------------------------------- |
-| `@mysten/dev-wallet`          | Core `DevWallet` class, types                              |
-| `@mysten/dev-wallet/adapters` | InMemory, WebCrypto, Passkey, RemoteCli, BaseSignerAdapter |
-| `@mysten/dev-wallet/ui`       | Lit Web Components, `mountDevWallet`                       |
-| `@mysten/dev-wallet/react`    | React hooks, context, component wrappers                   |
+| Export                        | Contains                                                              |
+| ----------------------------- | --------------------------------------------------------------------- |
+| `@mysten/dev-wallet`          | Core `DevWallet` class, types                                         |
+| `@mysten/dev-wallet/adapters` | InMemory, WebCrypto, Passkey, RemoteCli, BaseSignerAdapter            |
+| `@mysten/dev-wallet/ui`       | Lit Web Components, `mountDevWallet`                                  |
+| `@mysten/dev-wallet/react`    | React hooks, context, component wrappers                              |
 | `@mysten/dev-wallet/client`   | `DevWalletClient`, `devWalletClientInitializer`, `parseWalletRequest` |
-| `@mysten/dev-wallet/server`   | `createCliSigningMiddleware` (Hono sub-app for CLI signing) |
+| `@mysten/dev-wallet/server`   | `createCliSigningMiddleware` (Hono sub-app for CLI signing)           |
 
 ## Wallet-Standard Compliance
 

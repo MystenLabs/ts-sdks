@@ -42,8 +42,6 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Install Playwright browsers
-        run: pnpm --filter @mysten/dev-wallet exec playwright install --with-deps chromium
       - name: Manypkg Check
         run: pnpm manypkg check
       - name: Turbo Cache

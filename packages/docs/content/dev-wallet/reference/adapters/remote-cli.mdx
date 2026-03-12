@@ -32,20 +32,20 @@ await adapter.initialize(); // Restores imported accounts from CLI if paired
 
 ## API
 
-| Property / Method             | Description                                         |
-| ----------------------------- | --------------------------------------------------- |
-| `id`                          | `'remote-cli'`                                      |
-| `name`                        | `'Remote CLI Signer'`                               |
-| `allowAutoSign`               | `false`                                             |
-| `isPaired`                    | Whether the adapter has an auth token               |
+| Property / Method             | Description                                                |
+| ----------------------------- | ---------------------------------------------------------- |
+| `id`                          | `'remote-cli'`                                             |
+| `name`                        | `'Remote CLI Signer'`                                      |
+| `allowAutoSign`               | `false`                                                    |
+| `isPaired`                    | Whether the adapter has an auth token                      |
 | `initialize()`                | Restore auth token and imported accounts from localStorage |
-| `listAvailableAccounts()`     | Fetch CLI keystore accounts not yet imported        |
-| `importAccount(options)`      | Import a CLI account by address                     |
-| `removeAccount(address)`      | Remove an imported account                          |
-| `getAccounts()`               | List imported accounts                              |
-| `getAccount(address)`         | Look up a single imported account                   |
-| `onAccountsChanged(callback)` | Subscribe to account list changes                   |
-| `destroy()`                   | Clear token and imported accounts from localStorage |
+| `listAvailableAccounts()`     | Fetch CLI keystore accounts not yet imported               |
+| `importAccount(options)`      | Import a CLI account by address                            |
+| `removeAccount(address)`      | Remove an imported account                                 |
+| `getAccounts()`               | List imported accounts                                     |
+| `getAccount(address)`         | Look up a single imported account                          |
+| `onAccountsChanged(callback)` | Subscribe to account list changes                          |
+| `destroy()`                   | Clear token and imported accounts from localStorage        |
 
 ## Limitations
 

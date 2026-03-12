@@ -1,0 +1,35 @@
+name: Dev Wallet Browser Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/dev-wallet/**'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'packages/dev-wallet/**'
+
+jobs:
+  browser-tests:
+    name: Dev Wallet Browser Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # Pin v4.1.1
+        with:
+          fetch-depth: 2
+      - uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # pin@v3.0.0
+      - name: Install Nodejs
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # pin@v4.0.2
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm turbo build --filter=@mysten/dev-wallet...
+      - name: Install Playwright browsers
+        run: pnpm --filter @mysten/dev-wallet exec playwright install --with-deps chromium
+      - name: Run browser tests
+        run: pnpm --filter @mysten/dev-wallet test:browser
