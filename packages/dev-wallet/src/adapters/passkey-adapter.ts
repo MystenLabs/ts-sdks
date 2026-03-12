@@ -24,15 +24,9 @@ const DEFAULT_STORE_NAME = 'accounts';
 const META_KEY = '__passkey_accounts__';
 
 /**
- * Signer adapter that manages passkey-backed accounts.
- *
- * Uses the WebAuthn/Passkey API via `PasskeyKeypair` from `@mysten/sui/keypairs/passkey`.
- * Each signing operation triggers a browser biometric/PIN prompt.
- *
- * Account metadata (public key, label) is persisted in IndexedDB. The passkey
- * credential itself is managed by the browser/OS — private keys never enter JS.
- *
- * `allowAutoSign` is `false` because passkeys require user interaction.
+ * Signer adapter backed by WebAuthn passkeys. Each signing operation triggers a
+ * browser biometric/PIN prompt. Account metadata is persisted in IndexedDB;
+ * private keys are managed by the browser/OS and never enter JavaScript.
  *
  * Browser only — requires `navigator.credentials` and `indexedDB`.
  */
@@ -51,13 +45,7 @@ export class PasskeySignerAdapter extends BaseSignerAdapter {
 			options?.storeName ?? DEFAULT_STORE_NAME,
 		);
 		// Allow injecting a custom provider (useful for testing)
-		if (options?.provider) {
-			this.#provider = options.provider;
-		} else {
-			// Lazy-load BrowserPasskeyProvider at construction (avoids importing
-			// browser globals in environments where they don't exist)
-			this.#provider = null;
-		}
+		this.#provider = options?.provider ?? null;
 	}
 
 	#getProvider(): PasskeyProvider {

@@ -422,12 +422,10 @@ export class DevWalletSigning extends LitElement {
 	}
 
 	#renderTransactionPreview() {
-		// Still loading
 		if (this._analyzing) {
 			return html`<div class="section-label">Analyzing transaction...</div>`;
 		}
 
-		// Analysis failed — show detailed error, no approve allowed
 		if (this._analysisError) {
 			return html`
 				<div class="section-label section-label-error">Analysis Failed</div>
@@ -442,14 +440,12 @@ export class DevWalletSigning extends LitElement {
 			`;
 		}
 
-		// Rich analysis from wallet-sdk
 		if (this._analysis) {
 			return html`
 				${this.#renderCoinFlows()} ${this.#renderAnalyzedCommands(this._analysis.commands)}
 			`;
 		}
 
-		// Personal message preview
 		const dataPreview = this.#getDataPreview();
 		return dataPreview ? html`<div class="request-data">${dataPreview}</div>` : nothing;
 	}
@@ -464,7 +460,6 @@ export class DevWalletSigning extends LitElement {
 				${flows.map((flow) => {
 					const decimals = this.#coinDecimalsCache.get(flow.coinType) ?? 0;
 					const formatted = formatCoinBalance(flow.amount, decimals);
-					// Outflows are shown as negative (cost), displayed in destructive color
 					return html`
 						<div class="coin-flow-item">
 							<span class="coin-flow-type">${getCoinSymbol(flow.coinType)}</span>

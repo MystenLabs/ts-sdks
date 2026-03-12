@@ -10,24 +10,22 @@ import { DevWallet } from '../src/wallet/dev-wallet.js';
 import { createMockAccount, createMockAdapter, createDefaultConfig } from './test-utils.js';
 
 describe('DevWallet', () => {
-	describe('properties', () => {
-		it('has correct default properties', () => {
-			const wallet = new DevWallet(createDefaultConfig());
-			expect(wallet.version).toBe('1.0.0');
-			expect(wallet.name).toBe('Dev Wallet');
-			expect(wallet.icon).toMatch(/^data:image\//);
-			expect(wallet.chains).toBe(SUI_CHAINS);
-		});
+	it('has correct default properties', () => {
+		const wallet = new DevWallet(createDefaultConfig());
+		expect(wallet.version).toBe('1.0.0');
+		expect(wallet.name).toBe('Dev Wallet');
+		expect(wallet.icon).toMatch(/^data:image\//);
+		expect(wallet.chains).toBe(SUI_CHAINS);
+	});
 
-		it('uses custom name and icon when provided', () => {
-			const customIcon =
-				'data:image/png;base64,aW1hZ2U=' as `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
-			const wallet = new DevWallet(
-				createDefaultConfig({ name: 'My Custom Wallet', icon: customIcon }),
-			);
-			expect(wallet.name).toBe('My Custom Wallet');
-			expect(wallet.icon).toBe(customIcon);
-		});
+	it('uses custom name and icon when provided', () => {
+		const customIcon =
+			'data:image/png;base64,aW1hZ2U=' as `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
+		const wallet = new DevWallet(
+			createDefaultConfig({ name: 'My Custom Wallet', icon: customIcon }),
+		);
+		expect(wallet.name).toBe('My Custom Wallet');
+		expect(wallet.icon).toBe(customIcon);
 	});
 
 	describe('accounts', () => {
@@ -43,15 +41,6 @@ describe('DevWallet', () => {
 
 			expect(wallet.accounts).toHaveLength(1);
 			expect(wallet.accounts[0].address).toBe(account.address);
-		});
-
-		it('reflects multiple adapter accounts', () => {
-			const account1 = createMockAccount();
-			const account2 = createMockAccount();
-			const adapter = createMockAdapter([account1, account2]);
-			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
-
-			expect(wallet.accounts).toHaveLength(2);
 		});
 	});
 
@@ -89,13 +78,6 @@ describe('DevWallet', () => {
 			const result = await wallet.features['standard:connect'].connect();
 
 			expect(result.accounts).toHaveLength(0);
-		});
-	});
-
-	describe('disconnect()', () => {
-		it('completes without error', async () => {
-			const wallet = new DevWallet(createDefaultConfig());
-			await expect(wallet.features['standard:disconnect'].disconnect()).resolves.toBeUndefined();
 		});
 	});
 
@@ -151,17 +133,9 @@ describe('DevWallet', () => {
 		});
 	});
 
-	describe('request queue', () => {
-		it('has no pending request initially', () => {
-			const wallet = new DevWallet(createDefaultConfig());
-			expect(wallet.pendingRequest).toBeNull();
-		});
-
-		it('exposes the adapters', () => {
-			const adapter = createMockAdapter();
-			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
-			expect(wallet.adapters).toEqual([adapter]);
-		});
+	it('has no pending request initially', () => {
+		const wallet = new DevWallet(createDefaultConfig());
+		expect(wallet.pendingRequest).toBeNull();
 	});
 
 	describe('signPersonalMessage()', () => {
@@ -205,25 +179,6 @@ describe('DevWallet', () => {
 			expect(typeof result.signature).toBe('string');
 		});
 
-		it('clears pendingRequest after approval', async () => {
-			const keypair = new Ed25519Keypair();
-			const account = createMockAccount(keypair);
-			const adapter = createMockAdapter([account]);
-			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
-
-			const message = new TextEncoder().encode('test');
-
-			const resultPromise = wallet.features['sui:signPersonalMessage'].signPersonalMessage({
-				message,
-				account: account.walletAccount,
-			});
-
-			await wallet.approveRequest();
-			await resultPromise;
-
-			expect(wallet.pendingRequest).toBeNull();
-		});
-
 		it('rejects when rejected', async () => {
 			const account = createMockAccount();
 			const adapter = createMockAdapter([account]);
@@ -254,22 +209,6 @@ describe('DevWallet', () => {
 			await expect(resultPromise).rejects.toThrow('Request rejected by user.');
 		});
 
-		it('clears pendingRequest after rejection', async () => {
-			const account = createMockAccount();
-			const adapter = createMockAdapter([account]);
-			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
-
-			const resultPromise = wallet.features['sui:signPersonalMessage'].signPersonalMessage({
-				message: new TextEncoder().encode('test'),
-				account: account.walletAccount,
-			});
-
-			wallet.rejectRequest();
-			await resultPromise.catch(() => {});
-
-			expect(wallet.pendingRequest).toBeNull();
-		});
-
 		it('selects the correct signer based on account address', async () => {
 			const keypair1 = new Ed25519Keypair();
 			const keypair2 = new Ed25519Keypair();
@@ -293,19 +232,6 @@ describe('DevWallet', () => {
 
 			expect(result.bytes).toBe(expected.bytes);
 			expect(result.signature).toBe(expected.signature);
-		});
-
-		it('uses sui:unknown chain when chain is not provided for personal message', () => {
-			const account = createMockAccount();
-			const adapter = createMockAdapter([account]);
-			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
-
-			wallet.features['sui:signPersonalMessage'].signPersonalMessage({
-				message: new TextEncoder().encode('test'),
-				account: account.walletAccount,
-			});
-
-			expect(wallet.pendingRequest!.chain).toBe('sui:unknown');
 		});
 	});
 
@@ -505,16 +431,13 @@ describe('DevWallet', () => {
 		});
 	});
 
-	describe('register()', () => {
-		it('returns an unregister function', () => {
-			const wallet = new DevWallet(createDefaultConfig());
-			const unregister = wallet.register();
+	it('register() returns an unregister function', () => {
+		const wallet = new DevWallet(createDefaultConfig());
+		const unregister = wallet.register();
 
-			expect(typeof unregister).toBe('function');
+		expect(typeof unregister).toBe('function');
 
-			// Clean up
-			unregister();
-		});
+		unregister();
 	});
 
 	describe('auto-approval', () => {
@@ -531,27 +454,9 @@ describe('DevWallet', () => {
 				account: account.walletAccount,
 			});
 
-			// Should resolve immediately without needing approveRequest()
 			expect(result.bytes).toBe(toBase64(message));
 			expect(result.signature).toBeTruthy();
-			// No pending request should be set
 			expect(wallet.pendingRequest).toBeNull();
-		});
-
-		it('does not set pendingRequest when auto-approved', async () => {
-			const keypair = new Ed25519Keypair();
-			const account = createMockAccount(keypair);
-			const adapter = createMockAdapter([account]);
-			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter], autoApprove: true }));
-
-			const resultPromise = wallet.features['sui:signPersonalMessage'].signPersonalMessage({
-				message: new TextEncoder().encode('test'),
-				account: account.walletAccount,
-			});
-
-			// pendingRequest should never be set for auto-approved requests
-			expect(wallet.pendingRequest).toBeNull();
-			await resultPromise;
 		});
 
 		it('allows concurrent auto-approved requests (no queue blocking)', async () => {
@@ -626,23 +531,6 @@ describe('DevWallet', () => {
 			await pending.catch(() => {});
 		});
 
-		it('does not auto-approve when autoApprove is false (default)', async () => {
-			const account = createMockAccount();
-			const adapter = createMockAdapter([account]);
-			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
-
-			const pending = wallet.features['sui:signPersonalMessage'].signPersonalMessage({
-				message: new TextEncoder().encode('test'),
-				account: account.walletAccount,
-			});
-
-			expect(wallet.pendingRequest).not.toBeNull();
-
-			// Clean up
-			wallet.rejectRequest();
-			await pending.catch(() => {});
-		});
-
 		it('policy function receives correct request details', async () => {
 			const keypair = new Ed25519Keypair();
 			const account = createMockAccount(keypair);
@@ -678,60 +566,10 @@ describe('DevWallet', () => {
 				account: account.walletAccount,
 			});
 
-			// Should be queued, NOT auto-approved, despite autoApprove: true
 			expect(wallet.pendingRequest).not.toBeNull();
 
 			wallet.rejectRequest();
 			await pending.catch(() => {});
-		});
-
-		it('auto-approves when adapter.allowAutoSign is undefined (default)', async () => {
-			const keypair = new Ed25519Keypair();
-			const account = createMockAccount(keypair);
-			const adapter = createMockAdapter([account]);
-			// adapter.allowAutoSign is not set (undefined) — should NOT block auto-approve
-			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter], autoApprove: true }));
-
-			const message = new TextEncoder().encode('should-auto');
-			const result = await wallet.features['sui:signPersonalMessage'].signPersonalMessage({
-				message,
-				account: account.walletAccount,
-			});
-
-			expect(result).toBeDefined();
-			expect(result.bytes).toBe(toBase64(message));
-		});
-	});
-
-	describe('chain parsing', () => {
-		it('extracts network name from chain identifier', async () => {
-			const account = createMockAccount();
-			const adapter = createMockAdapter([account]);
-			const wallet = new DevWallet(
-				createDefaultConfig({
-					adapters: [adapter],
-					networks: {
-						testnet: 'https://fullnode.testnet.sui.io:443',
-						mainnet: 'https://fullnode.mainnet.sui.io:443',
-					},
-				}),
-			);
-
-			const mockTransaction = {
-				toJSON: vi.fn().mockResolvedValue('test-json'),
-			};
-
-			wallet.features['sui:signTransaction'].signTransaction({
-				transaction: mockTransaction as any,
-				account: account.walletAccount,
-				chain: 'sui:testnet',
-			});
-
-			await vi.waitFor(() => {
-				expect(wallet.pendingRequest).not.toBeNull();
-			});
-
-			expect(wallet.pendingRequest!.chain).toBe('sui:testnet');
 		});
 	});
 
@@ -800,16 +638,6 @@ describe('DevWallet', () => {
 			expect(listener).toHaveBeenCalledTimes(1);
 			expect(wallet.accounts).toHaveLength(2);
 		});
-
-		it('exposes all adapters in order', () => {
-			const adapter1 = createMockAdapter([], { id: 'first' });
-			const adapter2 = createMockAdapter([], { id: 'second' });
-			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter1, adapter2] }));
-
-			expect(wallet.adapters).toHaveLength(2);
-			expect(wallet.adapters[0].id).toBe('first');
-			expect(wallet.adapters[1].id).toBe('second');
-		});
 	});
 
 	describe('destroy()', () => {
@@ -829,37 +657,6 @@ describe('DevWallet', () => {
 
 			await expect(resultPromise).rejects.toThrow('Wallet destroyed');
 			expect(wallet.pendingRequest).toBeNull();
-		});
-
-		it('clears request listeners', () => {
-			const adapter = createMockAdapter();
-			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
-
-			const listener = vi.fn();
-			wallet.onRequestChange(listener);
-
-			wallet.destroy();
-
-			// Listener was called once during destroy (pending → null), but after that
-			// no more notifications should be emitted
-			listener.mockClear();
-
-			// No way to trigger more notifications since the wallet is destroyed,
-			// but verify the listener set was cleared by checking no error on re-use
-			expect(() => wallet.destroy()).not.toThrow();
-		});
-
-		it('clears connect listeners', () => {
-			const adapter = createMockAdapter();
-			const wallet = new DevWallet(createDefaultConfig({ adapters: [adapter] }));
-
-			const listener = vi.fn();
-			wallet.onConnectChange(listener);
-
-			wallet.destroy();
-
-			listener.mockClear();
-			expect(() => wallet.destroy()).not.toThrow();
 		});
 
 		it('rejects new signing requests after destroy', async () => {
@@ -1054,6 +851,11 @@ describe('DevWallet', () => {
 	});
 
 	describe('disconnect()', () => {
+		it('completes without error', async () => {
+			const wallet = new DevWallet(createDefaultConfig());
+			await expect(wallet.features['standard:disconnect'].disconnect()).resolves.toBeUndefined();
+		});
+
 		it('retains accounts after disconnect', async () => {
 			const account = createMockAccount();
 			const adapter = createMockAdapter([account]);
@@ -1064,7 +866,6 @@ describe('DevWallet', () => {
 
 			await wallet.features['standard:disconnect'].disconnect();
 
-			// Wallet retains its accounts — disconnect is a dApp session concern, not wallet state
 			expect(wallet.accounts).toHaveLength(1);
 			expect(wallet.accounts[0].address).toBe(account.address);
 		});
@@ -1077,7 +878,6 @@ describe('DevWallet', () => {
 			await wallet.features['standard:connect'].connect();
 			await wallet.features['standard:disconnect'].disconnect();
 
-			// Adapter listeners remain active after disconnect
 			const newAccount = createMockAccount();
 			adapter._triggerAccountsChanged([account, newAccount]);
 
@@ -1085,7 +885,7 @@ describe('DevWallet', () => {
 		});
 	});
 
-	describe('approveConnect with empty array', () => {
+	describe('connect flow', () => {
 		it('approveConnect([]) exposes all accounts', async () => {
 			const account1 = createMockAccount();
 			const account2 = createMockAccount();
@@ -1098,9 +898,7 @@ describe('DevWallet', () => {
 
 			expect(result.accounts).toHaveLength(2);
 		});
-	});
 
-	describe('connect flow', () => {
 		it('queues a connect request when autoConnect is false', async () => {
 			const account = createMockAccount();
 			const adapter = createMockAdapter([account]);

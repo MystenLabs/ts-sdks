@@ -43,26 +43,6 @@ export interface HandleRequestOptions {
 	hash?: string;
 }
 
-/**
- * Parse an incoming wallet request from the URL hash and return
- * a `PendingWalletRequest` with approve/reject methods.
- *
- * This is the core handler for a web wallet app that receives
- * PostMessage requests from dApps via `DevWalletClient`.
- *
- * @example
- * ```typescript
- * const request = parseWalletRequest({
- *   adapters: [adapter],
- *   jwtSecretKey: secretKey,
- * });
- *
- * // Show approval UI...
- * // On user approval:
- * await request.approve();
- * window.close();
- * ```
- */
 export function parseWalletRequest(options: HandleRequestOptions): PendingWalletRequest {
 	if (!options.hash && typeof window === 'undefined') {
 		throw new Error(
@@ -158,7 +138,7 @@ export function parseWalletRequest(options: HandleRequestOptions): PendingWallet
 					data: messageData,
 					client,
 				});
-				// Normalize effects to always be a string for the PostMessage channel protocol
+				// effects must be a string in the PostMessage protocol
 				const data =
 					result.type === 'sign-and-execute-transaction'
 						? { ...result, effects: result.effects ?? '' }

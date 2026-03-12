@@ -13,20 +13,13 @@ export interface DevWalletProviderProps {
 	children?: ReactNode;
 }
 
-/**
- * Provides a DevWallet instance to descendant components via React context.
- *
- * Use `useDevWalletInstance()` in child components to access the wallet.
- */
 export function DevWalletProvider({ wallet, children }: DevWalletProviderProps) {
 	return createElement(DevWalletContext.Provider, { value: wallet }, children);
 }
 
 /**
- * Access the DevWallet instance from context, or use the provided instance directly.
- *
- * @param wallet - Optional wallet instance. If provided, context is bypassed.
- * @throws If no wallet is provided and no DevWalletProvider is found.
+ * @param wallet - If provided, context is bypassed.
+ * @throws If no wallet is provided and no DevWalletProvider is in the tree.
  */
 export function useDevWalletInstance(wallet?: DevWallet): DevWallet {
 	const contextValue = useContext(DevWalletContext);

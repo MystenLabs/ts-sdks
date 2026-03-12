@@ -4,8 +4,8 @@ title: InMemorySignerAdapter
 
 import { InMemoryAdapterDemo } from '../../../../examples/dev-wallet-demos-client';
 
-The simplest adapter — generates Ed25519 keypairs held in memory. Keys are lost when the page
-reloads. Perfect for quick prototyping, unit tests, and documentation demos.
+Generates Ed25519 keypairs held in memory. Keys are lost when the page reloads. Useful for
+prototyping, unit tests, and documentation demos.
 
 ## Usage
 
@@ -57,7 +57,5 @@ const account = await adapter.importAccount({
 | `onAccountsChanged(callback)`   | Subscribe to account list changes |
 | `destroy()`                     | Clean up listeners                |
 
-<Callout type="info">
-	Since keys exist only in memory, `InMemorySignerAdapter` is the only adapter that works
-	identically in both browser and Node.js environments.
-</Callout>
+`InMemorySignerAdapter` is the only adapter that works identically in both browser and Node.js
+environments.

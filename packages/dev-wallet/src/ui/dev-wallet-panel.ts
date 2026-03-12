@@ -139,7 +139,6 @@ export class DevWalletPanel extends LitElement {
 		}
 		this.#hadPendingRequest = hasPending;
 
-		// Open/close the connect dialog when the pending connect state changes
 		const dialog = this.shadowRoot?.querySelector<HTMLDialogElement>('.connect-dialog');
 		if (this.#ctrl.pendingConnect && dialog && !dialog.open) {
 			dialog.showModal();

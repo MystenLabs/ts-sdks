@@ -304,19 +304,17 @@ describe('RemoteCliAdapter', () => {
 		});
 	});
 
-	describe('destroy()', () => {
-		it('clears accounts and auth state', async () => {
-			mockAccountsFetch();
-			adapter = new RemoteCliAdapter({
-				serverOrigin: 'http://localhost:5175',
-				token: MOCK_TOKEN,
-			});
-			await adapter.initialize();
-
-			adapter.destroy();
-			expect(adapter.getAccounts()).toHaveLength(0);
-			expect(adapter.isPaired).toBe(false);
+	it('destroy() clears accounts and auth state', async () => {
+		mockAccountsFetch();
+		adapter = new RemoteCliAdapter({
+			serverOrigin: 'http://localhost:5175',
+			token: MOCK_TOKEN,
 		});
+		await adapter.initialize();
+
+		adapter.destroy();
+		expect(adapter.getAccounts()).toHaveLength(0);
+		expect(adapter.isPaired).toBe(false);
 	});
 });
 
@@ -338,15 +336,9 @@ describe('CliProxySigner', () => {
 		mockFetch.mockReset();
 	});
 
-	it('returns correct address', () => {
+	it('returns correct address, key scheme, and public key', () => {
 		expect(signer.toSuiAddress()).toBe(testAddress);
-	});
-
-	it('returns correct key scheme', () => {
 		expect(signer.getKeyScheme()).toBe('ED25519');
-	});
-
-	it('returns correct public key', () => {
 		expect(signer.getPublicKey()).toBe(testPublicKey);
 	});
 
@@ -389,19 +381,15 @@ describe('CliProxySigner', () => {
 		});
 	});
 
-	describe('signPersonalMessage()', () => {
-		it('throws with clear error message', async () => {
-			await expect(signer.signPersonalMessage(new Uint8Array([1, 2, 3]))).rejects.toThrow(
-				'Personal message signing is not supported in CLI mode',
-			);
-		});
+	it('signPersonalMessage() throws', async () => {
+		await expect(signer.signPersonalMessage(new Uint8Array([1, 2, 3]))).rejects.toThrow(
+			'Personal message signing is not supported in CLI mode',
+		);
 	});
 
-	describe('sign()', () => {
-		it('throws — not used directly', async () => {
-			await expect(signer.sign(new Uint8Array(32))).rejects.toThrow(
-				'does not support direct digest signing',
-			);
-		});
+	it('sign() throws', async () => {
+		await expect(signer.sign(new Uint8Array(32))).rejects.toThrow(
+			'does not support direct digest signing',
+		);
 	});
 });

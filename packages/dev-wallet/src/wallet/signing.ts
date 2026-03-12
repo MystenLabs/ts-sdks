@@ -29,10 +29,7 @@ export type SigningResult =
 			effects: string;
 	  };
 
-/**
- * Execute a signing request (sign message, sign transaction, or sign & execute).
- * Shared between the embedded wallet (DevWallet) and the standalone popup (request-handler).
- */
+// Shared between the embedded DevWallet and the standalone popup request-handler.
 export async function executeSigning({
 	type,
 	signer,

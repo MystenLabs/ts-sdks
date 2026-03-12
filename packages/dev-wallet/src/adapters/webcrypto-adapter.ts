@@ -62,7 +62,6 @@ export class WebCryptoSignerAdapter extends BaseSignerAdapter {
 
 		const managedAccount = buildManagedAccount(signer, address, label);
 
-		// Persist key and meta to IndexedDB
 		await this.#store.set(address, signer.export());
 		this.addAccount(managedAccount);
 		await this.#saveMeta();
@@ -79,7 +78,6 @@ export class WebCryptoSignerAdapter extends BaseSignerAdapter {
 	async removeAccount(address: string): Promise<boolean> {
 		if (!this.removeAccountByAddress(address)) return false;
 
-		// Remove from IndexedDB
 		await this.#store.del(address);
 		await this.#saveMeta();
 		return true;

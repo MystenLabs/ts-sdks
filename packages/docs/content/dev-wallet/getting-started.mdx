@@ -15,8 +15,6 @@ npm i @mysten/dev-wallet
 
 ## Subpath Exports
 
-The package uses subpath exports to keep your bundle lean — import only what you need:
-
 | Import Path                   | Description                                               |
 | ----------------------------- | --------------------------------------------------------- |
 | `@mysten/dev-wallet`          | Core `DevWallet` class and types                          |
@@ -28,9 +26,8 @@ The package uses subpath exports to keep your bundle lean — import only what y
 
 ## Using with dApp Kit
 
-The recommended pattern uses `devWalletInitializer` to register the wallet through dApp Kit's plugin
-system. This way the wallet uses dApp Kit's network configuration and client factory instead of
-managing its own:
+`devWalletInitializer` registers the wallet through dApp Kit's plugin system, so it inherits dApp
+Kit's network configuration and client factory:
 
 ```tsx
 import { createDAppKit, DAppKitProvider } from '@mysten/dapp-kit-react';
@@ -108,8 +105,7 @@ DevWalletClient.register({ origin: 'http://localhost:5174' });
 </Callout>
 
 Signing works via popup windows — same flow as a production browser wallet. See
-[Standalone Mode](/dev-wallet/reference/standalone-mode) for full options and
-[Shared Wallet](/dev-wallet/guides/shared-wallet) for connecting multiple dApps.
+[Standalone Mode](/dev-wallet/reference/standalone-mode) for full options.
 
 ## Vanilla JavaScript Setup
 
@@ -200,11 +196,9 @@ await requestSuiFromFaucetV2({
 
 With `WebCryptoSignerAdapter`, you only need to faucet once — the coins persist across page reloads.
 
-## Where to go next
-
-Now that you have the wallet set up, pick the guide that matches what you're building:
+## Next
 
 - **Writing e2e tests?** [E2E Testing](/dev-wallet/guides/e2e-testing)
 - **Publishing contracts with `sui move`?** [CLI Signing](/dev-wallet/guides/cli-signing)
-- **Sharing one wallet across apps?** [Shared Wallet](/dev-wallet/guides/shared-wallet)
+- **Sharing one wallet across apps?** [Standalone Mode](/dev-wallet/reference/standalone-mode)
 - **Choosing an adapter?** [Adapters](/dev-wallet/reference/adapters)

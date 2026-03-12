@@ -106,14 +106,17 @@ describe('dev-wallet-signing component', () => {
 		expect(dataPreview?.textContent).toContain('Hello test');
 	});
 
-	it('renders transaction request type correctly', async () => {
+	it.each([
+		['sign-transaction', 'Sign Transaction'],
+		['sign-and-execute-transaction', 'Sign & Execute Transaction'],
+	] as const)('renders request type label for %s', async (type, expectedLabel) => {
 		const keypair = new Ed25519Keypair();
 		const account = createMockWalletAccount(keypair);
 
 		const el = document.createElement('dev-wallet-signing') as DevWalletSigning;
 		el.request = {
-			id: 'test-2',
-			type: 'sign-transaction',
+			id: 'test-type',
+			type,
 			account,
 			chain: 'sui:devnet',
 			data: '{"kind":"TransactionData"}',
@@ -122,26 +125,7 @@ describe('dev-wallet-signing component', () => {
 		await waitForUpdate(el);
 
 		const typeLabel = el.shadowRoot!.querySelector('[part="request-type"]');
-		expect(typeLabel?.textContent).toContain('Sign Transaction');
-	});
-
-	it('renders sign-and-execute type correctly', async () => {
-		const keypair = new Ed25519Keypair();
-		const account = createMockWalletAccount(keypair);
-
-		const el = document.createElement('dev-wallet-signing') as DevWalletSigning;
-		el.request = {
-			id: 'test-3',
-			type: 'sign-and-execute-transaction',
-			account,
-			chain: 'sui:devnet',
-			data: '{"kind":"TransactionData"}',
-		};
-		container.appendChild(el);
-		await waitForUpdate(el);
-
-		const typeLabel = el.shadowRoot!.querySelector('[part="request-type"]');
-		expect(typeLabel?.textContent).toContain('Sign & Execute Transaction');
+		expect(typeLabel?.textContent).toContain(expectedLabel);
 	});
 
 	it('dispatches "approve" event when Approve button is clicked', async () => {

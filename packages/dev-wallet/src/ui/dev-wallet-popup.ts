@@ -10,13 +10,6 @@ import { sharedStyles } from './styles.js';
 import './dev-wallet-connect.js';
 import './dev-wallet-signing.js';
 
-/**
- * Popup request container that delegates to `<dev-wallet-connect>` or
- * `<dev-wallet-signing>` based on request type.
- *
- * Used as the top-level UI in the wallet popup window for dApp requests.
- * Dispatches `approve` and `reject` events to the parent.
- */
 @customElement('dev-wallet-popup')
 export class DevWalletPopup extends LitElement {
 	static override styles = [
@@ -105,7 +98,6 @@ export class DevWalletPopup extends LitElement {
 	#requestId: string | null = null;
 
 	override willUpdate(changed: Map<string, unknown>) {
-		// Rebuild the signing request object only when relevant properties change
 		if (
 			this.requestType !== 'connect' &&
 			(changed.has('requestType') ||

@@ -69,22 +69,12 @@ runAdapterContractTests('PasskeySignerAdapter', async () => {
 });
 
 describe('PasskeySignerAdapter', () => {
-	it('has correct id and name', () => {
+	it('has correct id, name, allowAutoSign, and starts empty', () => {
 		const { provider } = createMockProvider();
 		const adapter = new PasskeySignerAdapter({ provider });
 		expect(adapter.id).toBe('passkey');
 		expect(adapter.name).toBe('Passkey Signer');
-	});
-
-	it('has allowAutoSign set to false', () => {
-		const { provider } = createMockProvider();
-		const adapter = new PasskeySignerAdapter({ provider });
 		expect(adapter.allowAutoSign).toBe(false);
-	});
-
-	it('starts with no accounts before initialize', () => {
-		const { provider } = createMockProvider();
-		const adapter = new PasskeySignerAdapter({ provider });
 		expect(adapter.getAccounts()).toEqual([]);
 	});
 

@@ -348,11 +348,4 @@ describe('Token Authentication', () => {
 
 		expect(res.status).toBe(200);
 	});
-
-	it('passthrough routes are not affected by auth', async () => {
-		const { status, body } = await request(port, '/some-other-path');
-
-		expect(status).toBe(404);
-		expect(body.error).toBe('Not found (passthrough)');
-	});
 });

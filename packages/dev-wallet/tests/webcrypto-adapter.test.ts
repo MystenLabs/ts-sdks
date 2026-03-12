@@ -38,14 +38,10 @@ runAdapterContractTests('WebCryptoSignerAdapter', async () => {
 });
 
 describe('WebCryptoSignerAdapter', () => {
-	it('has correct id and name', () => {
+	it('has correct id, name, and starts empty', () => {
 		const adapter = new WebCryptoSignerAdapter();
 		expect(adapter.id).toBe('webcrypto');
 		expect(adapter.name).toBe('WebCrypto Signer');
-	});
-
-	it('starts with no accounts before initialize', () => {
-		const adapter = new WebCryptoSignerAdapter();
 		expect(adapter.getAccounts()).toEqual([]);
 	});
 
@@ -132,13 +128,5 @@ describe('WebCryptoSignerAdapter', () => {
 		expect(account.walletAccount.features).toContain('sui:signTransaction');
 		expect(account.walletAccount.features).toContain('sui:signAndExecuteTransaction');
 		expect(account.walletAccount.features).toContain('sui:signPersonalMessage');
-	});
-
-	it('accepts custom dbName and storeName', () => {
-		const adapter = new WebCryptoSignerAdapter({
-			dbName: 'custom-db',
-			storeName: 'custom-store',
-		});
-		expect(adapter.id).toBe('webcrypto');
 	});
 });

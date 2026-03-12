@@ -36,10 +36,6 @@ interface ServerAccountInfo {
 	alias: string | null;
 }
 
-/**
- * Construct the appropriate {@link PublicKey} from base64-encoded bytes (with
- * flag prefix) and a key scheme name.
- */
 function publicKeyFromSuiBytes(publicBase64Key: string, scheme: SignatureScheme): PublicKey {
 	const allBytes = fromBase64(publicBase64Key);
 	const rawBytes = allBytes.slice(1);
@@ -57,14 +53,11 @@ function publicKeyFromSuiBytes(publicBase64Key: string, scheme: SignatureScheme)
 }
 
 /**
- * A {@link Signer} that delegates transaction signing to a server HTTP
- * endpoint backed by the `sui keytool sign` CLI command.
+ * A {@link Signer} that delegates transaction signing to a server HTTP endpoint
+ * backed by `sui keytool sign`. Private keys never enter JavaScript.
  *
- * Private keys never leave the `sui` binary — our JavaScript (browser and
- * Node.js) never has access to key material.
- *
- * **Limitation:** `signPersonalMessage()` is not supported because the
- * `sui keytool sign` command only accepts BCS-serialized `TransactionData`.
+ * `signPersonalMessage()` is not supported — `sui keytool sign` only accepts
+ * BCS-serialized `TransactionData`.
  */
 export class CliProxySigner extends Signer {
 	#address: string;
@@ -147,19 +140,11 @@ export class CliProxySigner extends Signer {
 }
 
 /**
- * Browser-side {@link SignerAdapter} that delegates all operations to a
- * server running the `sui` CLI.
+ * {@link SignerAdapter} that delegates signing to a server running the `sui` CLI.
  *
- * Authentication uses a token-in-URL approach (Jupyter-style). The CLI
- * server prints a URL with a token to the terminal. Opening that URL
- * stores the token in `localStorage`, and the adapter reads it on
- * `initialize()` to auto-authenticate.
- *
- * Accounts are imported one-at-a-time via `importAccount()`. Imported
- * account addresses are persisted in `localStorage` so they survive
- * page reloads and CLI restarts.
- *
- * Private keys never enter JavaScript — they stay within the `sui` binary.
+ * Authentication uses a token-in-URL approach: the CLI server prints a URL with
+ * a token, which gets stored in `localStorage` for subsequent page loads. Imported
+ * account addresses are also persisted so they survive CLI restarts.
  */
 export class RemoteCliAdapter extends BaseSignerAdapter {
 	readonly id = 'remote-cli';
@@ -212,7 +197,6 @@ export class RemoteCliAdapter extends BaseSignerAdapter {
 	}
 
 	async initialize(): Promise<void> {
-		// Auto-authenticate from localStorage if no token was provided via constructor
 		if (!this.#authToken && typeof localStorage !== 'undefined') {
 			const stored = localStorage.getItem(RemoteCliAdapter.TOKEN_KEY);
 			if (stored) {
@@ -220,13 +204,11 @@ export class RemoteCliAdapter extends BaseSignerAdapter {
 			}
 		}
 
-		// If we have a token, verify it works and restore previously-imported accounts
 		if (this.#authToken) {
 			try {
 				await this.#fetchServerAccounts();
 				await this.#restoreImportedAccounts();
 			} catch (error) {
-				// Distinguish auth failures from network errors
 				const msg = error instanceof Error ? error.message : '';
 				const isAuthError =
 					msg.includes('401') ||
@@ -234,22 +216,17 @@ export class RemoteCliAdapter extends BaseSignerAdapter {
 					msg.includes('Unauthorized') ||
 					msg.includes('Forbidden');
 				if (isAuthError) {
-					// Token is invalid — clear it
 					this.#authToken = null;
 					if (typeof localStorage !== 'undefined') {
 						localStorage.removeItem(RemoteCliAdapter.TOKEN_KEY);
 					}
 				} else {
-					// Network error — keep token, log warning
 					console.warn('[dev-wallet] CLI adapter initialization failed:', error);
 				}
 			}
 		}
 	}
 
-	/**
-	 * List all accounts available on the CLI server that have NOT been imported.
-	 */
 	async listAvailableAccounts(): Promise<
 		Array<{ address: string; scheme: string; alias: string | null }>
 	> {
@@ -267,10 +244,6 @@ export class RemoteCliAdapter extends BaseSignerAdapter {
 			}));
 	}
 
-	/**
-	 * Import a specific account from the server by address.
-	 * The address is persisted in `localStorage` so it survives reloads.
-	 */
 	async importAccount(options: ImportAccountOptions): Promise<ManagedAccount> {
 		const address = options.address;
 		if (!address) {
@@ -345,10 +318,6 @@ export class RemoteCliAdapter extends BaseSignerAdapter {
 		this.#lastFetch = { time: Date.now(), result: accounts };
 	}
 
-	/**
-	 * Restore previously-imported accounts from localStorage.
-	 * Accounts that no longer exist on the server are silently skipped.
-	 */
 	async #restoreImportedAccounts(): Promise<void> {
 		const saved = this.#loadImportedAddresses();
 		if (saved.length === 0) return;
@@ -370,7 +339,6 @@ export class RemoteCliAdapter extends BaseSignerAdapter {
 
 		if (restored.length > 0) {
 			this.setInitialAccounts([...this.getAccounts(), ...restored]);
-			this.notifyListeners();
 		}
 	}
 

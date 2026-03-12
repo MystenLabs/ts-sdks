@@ -9,56 +9,43 @@ import { DevWallet, type AutoApprovePolicy } from './dev-wallet.js';
 
 /**
  * Configuration for the dev wallet initializer.
- *
- * Unlike {@link DevWalletConfig}, this does not include `networks` or
- * `clientFactory` because those come from the dApp Kit context at
- * initialization time.
+ * Unlike {@link DevWalletConfig}, `networks` and `clientFactory` are omitted — they come
+ * from the dApp Kit context at initialization time.
  */
 export interface DevWalletInitializerConfig {
-	/** The signer adapters that manage accounts and signing. */
 	adapters: SignerAdapter[];
-	/** Display name for the wallet. Defaults to 'Dev Wallet'. */
 	name?: string;
-	/** Data URI icon for the wallet. */
 	icon?: WalletIcon;
-	/** Auto-approval policy for signing requests. */
 	autoApprove?: AutoApprovePolicy;
-	/** When true, connect requests are auto-approved with all accounts. */
 	autoConnect?: boolean;
-	/** Whether to call adapter.initialize() automatically. Defaults to true. */
+	/** Call `adapter.initialize()` automatically. Defaults to true. */
 	autoInitialize?: boolean;
-	/** Whether to create an initial account after initialization (if adapter supports it). Defaults to true. */
+	/** Create an initial account after initialization if no accounts exist. Defaults to true. */
 	createInitialAccount?: boolean;
-	/** Whether to mount the floating wallet drawer UI. Defaults to false. */
+	/** Mount the floating wallet drawer UI. Defaults to false. */
 	mountUI?: boolean;
 	/** Container element for the UI drawer. Defaults to document.body. */
 	container?: HTMLElement;
-	/**
-	 * Called with the DevWallet instance after creation. Use this for
-	 * programmatic access to approve/reject requests, etc.
-	 */
+	/** Called with the DevWallet instance after creation. */
 	onWalletCreated?: (wallet: DevWallet) => void;
 }
 
 /**
- * Creates a wallet initializer that can be passed to `createDAppKit({ walletInitializers: [...] })`.
- *
- * This integrates DevWallet with dApp Kit's lifecycle — the wallet uses dApp Kit's
- * networks and client factory instead of managing its own, and is properly
- * unregistered when dApp Kit tears down.
+ * Creates a wallet initializer for `createDAppKit({ walletInitializers: [...] })`.
+ * The wallet uses dApp Kit's networks and client factory and is unregistered when dApp Kit tears down.
  *
  * @example
  * ```ts
  * import { createDAppKit } from '@mysten/dapp-kit-react';
  * import { devWalletInitializer } from '@mysten/dev-wallet';
- * import { WebCryptoSignerAdapter, InMemorySignerAdapter } from '@mysten/dev-wallet/adapters';
+ * import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
  *
  * const dAppKit = createDAppKit({
  *   networks: ['devnet', 'testnet'],
  *   createClient(network) { ... },
  *   walletInitializers: [
  *     devWalletInitializer({
- *       adapters: [new WebCryptoSignerAdapter(), new InMemorySignerAdapter()],
+ *       adapters: [new WebCryptoSignerAdapter()],
  *       autoConnect: true,
  *       mountUI: true,
  *     }),

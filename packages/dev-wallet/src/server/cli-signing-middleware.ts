@@ -10,24 +10,16 @@ import { Hono } from 'hono';
 
 const execFileAsync = promisify(execFile);
 
-// ── Input validation ─────────────────────────────────────────────────────────
-
 function isValidBase64(value: unknown): value is string {
 	if (typeof value !== 'string' || value.length === 0) return false;
 	return /^[A-Za-z0-9+/]+=*$/.test(value) && value.length <= 1_000_000;
 }
 
-// ── Body size limit ─────────────────────────────────────────────────────────
-
 const MAX_BODY_SIZE = 2 * 1024 * 1024; // 2 MB
-
-// ── Token generation ────────────────────────────────────────────────────────
 
 function generateToken(): string {
 	return randomBytes(32).toString('hex');
 }
-
-// ── Public API ──────────────────────────────────────────────────────────────
 
 export interface CliSigningMiddlewareOptions {
 	/** The port the server is listening on, used for DNS rebinding protection. */
@@ -36,20 +28,15 @@ export interface CliSigningMiddlewareOptions {
 
 export interface CliSigningMiddlewareResult {
 	app: Hono;
-	/** Cryptographically strong token for URL-based auth (Jupyter-style). */
 	token: string;
 }
 
 /**
  * Create a Hono sub-app that exposes signing endpoints backed by the `sui` CLI.
  *
- * Authentication uses a **token-in-URL** approach (same pattern as Jupyter
- * notebooks). The CLI server generates a 256-bit random token, embeds it
- * in the URL printed to the terminal. Opening that URL auto-authenticates
- * the browser session via `Authorization: Bearer <token>`.
- *
- * All CLI calls use `execFile` (not `exec`) to prevent shell injection.
- * All user-supplied inputs are validated before being passed as CLI arguments.
+ * Uses token-in-URL auth: a 256-bit random token is embedded in the URL printed
+ * to the terminal and sent as `Authorization: Bearer <token>` on subsequent requests.
+ * All CLI calls use `execFile` to prevent shell injection.
  */
 export function createCliSigningMiddleware(
 	options: CliSigningMiddlewareOptions,
@@ -131,9 +118,6 @@ export function createCliSigningMiddleware(
 		}
 
 		try {
-			// All arguments are passed as an array — no shell interpretation.
-			// address: validated by isValidSuiAddress (hex only)
-			// txBytes: validated as base64 (alphanumeric + /+=)
 			const { stdout } = await execFileAsync('sui', [
 				'keytool',
 				'sign',

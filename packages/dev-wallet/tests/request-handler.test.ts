@@ -31,12 +31,10 @@ vi.mock('@mysten/window-wallet-core', () => {
 	};
 });
 
-// Get mock references
 const windowWalletCore = await import('@mysten/window-wallet-core');
 const mockChannel = (windowWalletCore as any).__mockChannel;
 const { WalletPostMessageChannel } = windowWalletCore;
 
-// Import after mock setup
 const { parseWalletRequest } = await import('../src/client/request-handler.js');
 
 describe('parseWalletRequest', () => {
@@ -97,22 +95,12 @@ describe('parseWalletRequest', () => {
 			});
 
 			request.reject('User rejected');
-
 			expect(mockChannel.sendMessage).toHaveBeenCalledWith({
 				type: 'reject',
 				reason: 'User rejected',
 			});
-		});
-
-		it('reject sends a reject message with no reason', () => {
-			const request = parseWalletRequest({
-				adapters: [adapter],
-				jwtSecretKey,
-				hash: 'fake-encoded-hash',
-			});
 
 			request.reject();
-
 			expect(mockChannel.sendMessage).toHaveBeenCalledWith({
 				type: 'reject',
 				reason: undefined,
@@ -171,7 +159,6 @@ describe('parseWalletRequest', () => {
 		});
 
 		it('approve rejects when account is not found', async () => {
-			// Override payload with unknown address
 			mockChannel.getRequestData.mockReturnValue({
 				appName: 'Test dApp',
 				appUrl: 'http://localhost:3000',
@@ -241,7 +228,6 @@ describe('parseWalletRequest', () => {
 				adapters: [adapter],
 				jwtSecretKey,
 				hash: 'fake-encoded-hash',
-				// no clients provided
 			});
 
 			await request.approve();

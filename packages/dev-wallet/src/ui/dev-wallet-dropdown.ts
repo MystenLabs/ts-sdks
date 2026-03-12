@@ -8,23 +8,8 @@ import { sharedStyles } from './styles.js';
 import { emitEvent } from './utils.js';
 
 /**
- * A reusable dropdown component that handles positioning and click-outside-to-close.
- *
- * Parent controls `open` state via property. The component emits `close` when the
- * user clicks outside.
- *
  * @slot trigger - The element that opens the dropdown (parent handles click to toggle)
- * @slot popover - The dropdown content (items, etc.)
- *
- * @example
- * ```html
- * <dev-wallet-dropdown .open=${this._open} @close=${() => this._open = false}>
- *   <button slot="trigger" @click=${() => this._open = !this._open}>Select</button>
- *   <div slot="popover">
- *     <button @click=${() => this.#select('a')}>Option A</button>
- *   </div>
- * </dev-wallet-dropdown>
- * ```
+ * @slot popover - The dropdown content
  */
 @customElement('dev-wallet-dropdown')
 export class DevWalletDropdown extends LitElement {
@@ -94,7 +79,6 @@ export class DevWalletDropdown extends LitElement {
 		if (e.key === 'Escape') {
 			e.preventDefault();
 			this.close();
-			// Return focus to the trigger
 			const trigger = this.querySelector('[slot="trigger"]') as HTMLElement | null;
 			trigger?.focus();
 			return;

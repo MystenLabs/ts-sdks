@@ -37,7 +37,6 @@ export class WalletController implements ReactiveController {
 	activeAccountIndex = 0;
 	pendingRequest: PendingSigningRequest | null = null;
 	pendingConnect: PendingConnectRequest | null = null;
-	/** When set, the settings tab shows a bookmarklet section pointing to this origin. */
 	bookmarkletOrigin = '';
 
 	#wallet: DevWallet | null = null;

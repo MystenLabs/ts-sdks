@@ -32,7 +32,6 @@ function getJwtSecretKey(): Uint8Array {
 }
 
 async function createWallet(): Promise<DevWallet> {
-	// Initialize all adapters concurrently
 	const initTasks: Array<Promise<SignerAdapter | null>> = [];
 
 	// WebCrypto adapter (persistent via IndexedDB — preferred default)
@@ -87,7 +86,6 @@ async function createWallet(): Promise<DevWallet> {
 		throw new Error('No adapters could be initialized');
 	}
 
-	// Ensure at least one account exists across all adapters
 	const hasAccounts = adapters.some((a) => a.getAccounts().length > 0);
 	if (!hasAccounts) {
 		const creatableAdapter = adapters.find((a) => a.createAccount);
@@ -103,9 +101,6 @@ async function createWallet(): Promise<DevWallet> {
 	});
 }
 
-/**
- * Handle a popup request from a dApp using shared Lit components.
- */
 async function handlePopupRequest(hash: string) {
 	const app = document.getElementById('app');
 	if (!app) throw new Error('Missing #app element in document');
@@ -129,7 +124,6 @@ async function handlePopupRequest(hash: string) {
 
 		app.innerHTML = '';
 
-		// Determine client for signing analysis
 		const network = request.chain ? getNetworkFromChain(request.chain) : undefined;
 		const client = network
 			? (wallet.getClient(network) ?? wallet.activeClient)
@@ -141,7 +135,6 @@ async function handlePopupRequest(hash: string) {
 		popup.appName = request.appName;
 		popup.appUrl = request.appUrl;
 		popup.address = request.address ?? '';
-		// Look up the account label from adapters for signing requests
 		if (request.address) {
 			const account = wallet.getAdapterForAccount(request.address)?.getAccount(request.address);
 			if (account) {
@@ -152,7 +145,6 @@ async function handlePopupRequest(hash: string) {
 		popup.data = request.data ?? null;
 		popup.client = client ?? null;
 
-		// For connect requests, pass account list to enable selection
 		if (request.type === 'connect') {
 			popup.connectAccounts = wallet.adapters.flatMap((a) =>
 				a.getAccounts().map((acc) => ({
@@ -176,7 +168,6 @@ async function handlePopupRequest(hash: string) {
 				window.close();
 			} catch (error) {
 				handling = false;
-				// Try to show error on the connect component (if it's a connect request)
 				const connectEl = popup.shadowRoot?.querySelector(
 					'dev-wallet-connect',
 				) as DevWalletConnect | null;
@@ -199,10 +190,6 @@ async function handlePopupRequest(hash: string) {
 	}
 }
 
-/**
- * Show the standalone wallet management page using the shared standalone component.
- * This is a full-page layout (not the embedded floating FAB).
- */
 async function showStandaloneUI() {
 	const app = document.getElementById('app');
 	if (!app) throw new Error('Missing #app element in document');
@@ -221,9 +208,6 @@ async function showStandaloneUI() {
 	}
 }
 
-/**
- * Render an error message safely using textContent (no innerHTML interpolation).
- */
 function showErrorMessage(container: HTMLElement, title: string, error: unknown) {
 	container.innerHTML = '';
 	const wrapper = document.createElement('div');
@@ -241,11 +225,7 @@ function showErrorMessage(container: HTMLElement, title: string, error: unknown)
 	container.appendChild(wrapper);
 }
 
-/**
- * Extract CLI token from URL query param and store in localStorage.
- * This uses Jupyter-style auth — the token is embedded in the URL printed
- * to the terminal. Stored so popups (signing requests) can also access it.
- */
+// Token is stored in localStorage so popup windows (signing requests) can also read it.
 function extractAndStoreCliToken(): void {
 	const url = new URL(window.location.href);
 	const urlToken = url.searchParams.get('token');
@@ -256,7 +236,6 @@ function extractAndStoreCliToken(): void {
 	}
 }
 
-// Entry point
 extractAndStoreCliToken();
 const hash = window.location.hash.slice(1);
 if (hash) {

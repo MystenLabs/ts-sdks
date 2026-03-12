@@ -2,8 +2,8 @@
 title: Standalone Mode
 ---
 
-Run Dev Wallet as a separate web application. Your dApp opens popup windows for signing — just like
-a real browser extension wallet.
+Run Dev Wallet as a separate web application. Your dApp communicates with it via popup windows and
+PostMessage.
 
 ## Starting the Server
 
@@ -99,10 +99,13 @@ sequenceDiagram
 
 ### devWalletClientInitializer
 
-Creates a wallet initializer for use with `createDAppKit({ walletInitializers: [...] })`:
+Returns a wallet initializer object for use with `createDAppKit({ walletInitializers: [...] })`:
 
 ```typescript
-function devWalletClientInitializer(options?: DevWalletClientOptions): WalletInitializer;
+function devWalletClientInitializer(options?: DevWalletClientOptions): {
+	id: string;
+	initialize(): { unregister: () => void };
+};
 ```
 
 ### DevWalletClient
@@ -140,6 +143,13 @@ The standalone wallet uses JWT-based sessions:
 2. The wallet creates a JWT session token containing the selected account addresses
 3. The token is stored in `localStorage` and reused for subsequent signing requests
 4. On `disconnect()`, the session is cleared
+
+## Multiple dApps
+
+Because the standalone wallet runs independently, any number of dApps can connect to the same
+instance. Each dApp gets its own JWT session scoped to its origin, but all sessions share the same
+underlying accounts and balances. Useful when working across several dApps simultaneously, sharing
+dev accounts with a team, or when you can't modify a dApp's source to embed a wallet.
 
 ## Embedded vs Standalone
 

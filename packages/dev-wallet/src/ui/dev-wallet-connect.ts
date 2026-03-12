@@ -13,13 +13,6 @@ interface AccountInfo {
 	adapterName?: string;
 }
 
-/**
- * Connect approval UI shared between the embedded modal and standalone popup.
- *
- * Displays a list of accounts to select and Connect/Reject buttons.
- * When `appName` is provided (standalone popup context), shows app info.
- * Dispatches `approve` (with selected addresses) and `reject` events.
- */
 @customElement('dev-wallet-connect')
 export class DevWalletConnect extends LitElement {
 	static override styles = [
@@ -235,7 +228,6 @@ export class DevWalletConnect extends LitElement {
 		`;
 	}
 
-	/** Returns the currently selected addresses. */
 	get selectedAddresses(): string[] {
 		return [...this._selectedAddresses];
 	}
@@ -254,7 +246,6 @@ export class DevWalletConnect extends LitElement {
 		emitEvent(this, 'reject');
 	}
 
-	/** Call this from the parent if the approve operation fails. */
 	showError(message: string) {
 		this._connecting = false;
 		this._error = message;

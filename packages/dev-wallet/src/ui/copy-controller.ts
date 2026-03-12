@@ -5,10 +5,6 @@ import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 import { copyToClipboard } from './utils.js';
 
-/**
- * Lit ReactiveController that encapsulates copy-to-clipboard behavior:
- * clipboard call, copied state, auto-reset timeout, and cleanup.
- */
 export class CopyController implements ReactiveController {
 	host: ReactiveControllerHost;
 	copied = false;

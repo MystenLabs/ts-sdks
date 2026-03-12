@@ -60,10 +60,10 @@ Content-Type: application/json
 }
 ```
 
-| Field     | Type     | Validation                 | Description                     |
-| --------- | -------- | -------------------------- | ------------------------------- |
-| `address` | `string` | `^0x[0-9a-fA-F]{1,64}$`    | Sui address to sign with        |
-| `txBytes` | `string` | Non-empty base64, max 1 MB | BCS-serialized transaction data |
+| Field     | Type     | Validation                          | Description                     |
+| --------- | -------- | ----------------------------------- | ------------------------------- |
+| `address` | `string` | Valid Sui address (`isValidSuiAddress`) | Sui address to sign with    |
+| `txBytes` | `string` | Non-empty base64, max ~1M chars     | BCS-serialized transaction data |
 
 **Response (200):**
 
@@ -95,6 +95,7 @@ All errors return JSON with an `error` field:
 | `401`  | Missing or invalid authentication token                   |
 | `403`  | Request not from localhost                                |
 | `404`  | Address not found in keystore                             |
+| `413`  | Request body exceeds 2 MB (based on `content-length`)     |
 | `500`  | `sui` CLI not found or signing failure                    |
 
 ## Authentication

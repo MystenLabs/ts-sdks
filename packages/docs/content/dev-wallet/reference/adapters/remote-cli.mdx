@@ -27,7 +27,7 @@ const adapter = new RemoteCliAdapter({
 	token: 'your-auth-token',
 });
 
-await adapter.initialize(); // Fetches available accounts from CLI
+await adapter.initialize(); // Restores imported accounts from CLI if paired
 ```
 
 ## API
@@ -38,14 +38,14 @@ await adapter.initialize(); // Fetches available accounts from CLI
 | `name`                        | `'Remote CLI Signer'`                               |
 | `allowAutoSign`               | `false`                                             |
 | `isPaired`                    | Whether the adapter has an auth token               |
-| `initialize()`                | Load previously imported accounts from localStorage |
-| `listAvailableAccounts()`     | Fetch all accounts from the CLI keystore            |
+| `initialize()`                | Restore auth token and imported accounts from localStorage |
+| `listAvailableAccounts()`     | Fetch CLI keystore accounts not yet imported        |
 | `importAccount(options)`      | Import a CLI account by address                     |
 | `removeAccount(address)`      | Remove an imported account                          |
 | `getAccounts()`               | List imported accounts                              |
 | `getAccount(address)`         | Look up a single imported account                   |
 | `onAccountsChanged(callback)` | Subscribe to account list changes                   |
-| `destroy()`                   | Clean up and clear stored tokens                    |
+| `destroy()`                   | Clear token and imported accounts from localStorage |
 
 ## Limitations
 
@@ -55,7 +55,6 @@ await adapter.initialize(); // Fetches available accounts from CLI
 	with a CLI account will throw an error.
 </Callout>
 
-- `allowAutoSign` is always `false` — CLI signing should always require explicit approval
 - Account creation is not supported — manage keys via `sui keytool`
 - Requires the `sui` CLI to be installed and on PATH
 

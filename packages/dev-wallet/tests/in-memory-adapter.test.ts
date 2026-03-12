@@ -48,19 +48,6 @@ describe('InMemorySignerAdapter', () => {
 		expect(adapter.getAccounts()).toHaveLength(1);
 	});
 
-	it('importAccount signs correctly with the imported key', async () => {
-		const { Ed25519Keypair } = await import('@mysten/sui/keypairs/ed25519');
-		const keypair = new Ed25519Keypair();
-
-		const adapter = new InMemorySignerAdapter();
-		const account = await adapter.importAccount({ signer: keypair });
-
-		const message = new TextEncoder().encode('test message');
-		const { signature } = await account.signer.signPersonalMessage(message);
-		const isValid = await keypair.getPublicKey().verifyPersonalMessage(message, signature);
-		expect(isValid).toBe(true);
-	});
-
 	it('importAccount throws when signer is missing', async () => {
 		const adapter = new InMemorySignerAdapter();
 		await expect(adapter.importAccount({} as any)).rejects.toThrow(

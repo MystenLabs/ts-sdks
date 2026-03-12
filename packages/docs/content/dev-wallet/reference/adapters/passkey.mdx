@@ -18,6 +18,9 @@ await adapter.initialize(); // Loads passkey metadata from IndexedDB
 const account = await adapter.createAccount({ label: 'My Passkey' });
 ```
 
+The constructor accepts optional `dbName`, `storeName`, and `provider` (a custom `PasskeyProvider`,
+useful for testing). Defaults: `'dev-wallet-passkey'` and `'accounts'`.
+
 ## Key Behavior
 
 - **Private keys never enter JavaScript** — the browser/OS manages the credential entirely
@@ -43,10 +46,8 @@ const account = await adapter.createAccount({ label: 'My Passkey' });
 | `onAccountsChanged(callback)`   | Subscribe to account list changes       |
 | `destroy()`                     | Clean up listeners and state            |
 
-<Callout type="info">
-	This adapter is ideal for testing passkey-based wallet flows during development. The WebAuthn
-	ceremony works on localhost without HTTPS.
-</Callout>
+The WebAuthn ceremony works on `localhost` without HTTPS, so no special setup is needed for local
+development.
 
 ## Requirements
 

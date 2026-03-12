@@ -45,7 +45,6 @@ export abstract class BaseSignerAdapter implements SignerAdapter {
 		return this.#accounts;
 	}
 
-	/** Set accounts during initialization and notify listeners. */
 	protected setInitialAccounts(accounts: ManagedAccount[]): void {
 		this.#accounts = accounts;
 		this.notifyListeners();
@@ -80,7 +79,6 @@ export abstract class BaseSignerAdapter implements SignerAdapter {
 		return this.replaceAccount(address, buildManagedAccount(account.signer, address, label));
 	}
 
-	/** Generate a default label for a new account when none is provided. Override in subclasses. */
 	protected getDefaultLabel(): string {
 		return `Account ${this.getAccounts().length + 1}`;
 	}

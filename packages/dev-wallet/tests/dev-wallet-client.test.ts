@@ -5,7 +5,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock window-wallet-core before importing the client
 const mockSend = vi.fn();
 
 const mockDecodeJwtSession = vi.fn(() => ({
@@ -32,7 +31,6 @@ vi.mock('@mysten/window-wallet-core', () => {
 	};
 });
 
-// Mock wallet-standard getWallets
 const mockRegister = vi.fn(() => vi.fn());
 vi.mock('@mysten/wallet-standard', async (importOriginal) => {
 	const original = (await importOriginal()) as any;
@@ -50,7 +48,6 @@ describe('DevWalletClient', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		localStorage.clear();
-		// Restore default decodeJwtSession behavior
 		mockDecodeJwtSession.mockReturnValue({
 			payload: {
 				accounts: [
@@ -185,7 +182,6 @@ describe('DevWalletClient', () => {
 			const listener = vi.fn();
 			on('change', listener);
 
-			// Clear listener from the session restore
 			listener.mockClear();
 
 			const { disconnect } = client.features['standard:disconnect'];

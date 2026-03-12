@@ -4,12 +4,7 @@ title: Signing Flow
 
 import { SigningFlowDemo } from '../../../examples/dev-wallet-demos-client';
 
-Dev Wallet uses a request queue to ensure every signing operation is explicitly approved — just like
-a real wallet.
-
 ## How It Works
-
-When a dApp calls a signing method, the request flows through the wallet:
 
 ```mermaid
 sequenceDiagram
@@ -43,8 +38,7 @@ sequenceDiagram
 ## One Request at a Time
 
 The wallet processes one signing request at a time. If a second request arrives while one is
-pending, it's immediately rejected with `"A signing request is already pending."` This prevents
-confusion and ensures the user is always reviewing exactly one transaction.
+pending, it's immediately rejected with `"A signing request is already pending."`
 
 <Callout type="info">
 	dApps that send multiple transactions should serialize their signing calls — `await` each one
@@ -60,9 +54,6 @@ confusion and ensures the user is always reviewing exactly one transaction.
 | `sign-personal-message`        | `sui:signPersonalMessage`       | `Uint8Array` message bytes |
 
 ## The Signing Modal
-
-When a signing request arrives, the wallet displays a modal with request details, the account being
-asked to sign, and Approve/Reject buttons:
 
 ![Signing modal showing approval required with message details](/dev-wallet/signing-modal.png)
 
@@ -118,9 +109,8 @@ const unsubscribe = wallet.onRequestChange((request) => {
 
 ## Connect Approval
 
-Connect requests follow the same pattern. When a dApp calls `standard:connect`, the wallet can
-either auto-connect (with `autoConnect: true`) or queue a connect request for the user to select
-which accounts to expose:
+Connect requests follow the same pattern: auto-connect if `autoConnect: true`, otherwise queue a
+connect request so the user can select which accounts to expose.
 
 ![Connect dialog showing wallet picker with Dev Wallet option](/dev-wallet/connect-dialog.png)
 
@@ -141,11 +131,9 @@ wallet.rejectConnect('User cancelled');
 
 ## Transaction Analysis
 
-The signing modal automatically analyzes transaction commands and displays:
+The signing modal analyzes transaction commands and displays:
 
 - **MoveCall** — package, module, function, and arguments
 - **TransferObjects** — recipient address and objects being transferred
 - **SplitCoins** — coin type and split amounts
 - **MergeCoins** — coins being merged
-
-This helps developers understand exactly what each transaction does before approving.

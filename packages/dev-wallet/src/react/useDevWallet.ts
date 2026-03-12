@@ -38,8 +38,6 @@ export interface UseDevWalletResult {
  *
  * const wallet = useDevWallet({ adapters, networks: { devnet: 'https://fullnode.devnet.sui.io:443' } });
  * ```
- *
- * @returns An object with `wallet` (the DevWallet instance, or null during setup) and `error` (initialization error, or null).
  */
 export function useDevWallet(options: UseDevWalletOptions): UseDevWalletResult {
 	const [wallet, setWallet] = useState<DevWallet | null>(null);

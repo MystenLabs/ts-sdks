@@ -323,7 +323,6 @@ export class DevWalletSettings extends LitElement {
 	@property({ type: String })
 	activeAddress = '';
 
-	/** When set, shows the bookmarklet section pointing to this origin. */
 	@property({ type: String })
 	bookmarkletOrigin = '';
 

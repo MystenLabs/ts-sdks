@@ -15,7 +15,7 @@ A development-only wallet for building and testing Sui dApps — no browser exte
 
 ![Dev Wallet panel showing account and balances](/dev-wallet/wallet-panel-open.png)
 
-## What can you do with it?
+## Use cases
 
 | I want to...                                                   | How                                                                                                | Details                                                       |
 | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
@@ -23,7 +23,7 @@ A development-only wallet for building and testing Sui dApps — no browser exte
 | **Test my dApp end-to-end** without click-through approvals    | Set `autoApprove: true`                                                                            | [E2E Testing](/dev-wallet/guides/e2e-testing)                 |
 | Keep a **persistent dev wallet** that survives page reloads    | Use `WebCryptoSignerAdapter` — keys stored in IndexedDB, survive refresh and restart               | [WebCrypto adapter](/dev-wallet/reference/adapters/webcrypto) |
 | Sign with the **same address I published contracts from**      | Use standalone wallet + `RemoteCliAdapter`                                                         | [CLI Signing](/dev-wallet/guides/cli-signing)                 |
-| **Share one wallet** across multiple dApps                     | Run standalone wallet, register in each dApp                                                       | [Shared Wallet](/dev-wallet/guides/shared-wallet)             |
+| **Share one wallet** across multiple dApps                     | Run standalone wallet, register in each dApp                                                       | [Standalone Mode](/dev-wallet/reference/standalone-mode)      |
 | Build a **demo app** users can try without installing a wallet | Set `autoConnect: true`, `mountUI: true` — wallet embeds directly, no extension needed             | [Getting Started](/dev-wallet/getting-started)                |
 | **Prototype fast** with zero setup                             | Use `WebCryptoSignerAdapter` with defaults — three lines of config                                 | [Getting Started](/dev-wallet/getting-started)                |
 | Keep dev keys **separate from mainnet credentials**            | All adapters are isolated from production wallets by design — keys are ephemeral or browser-scoped | [Adapters](/dev-wallet/reference/adapters)                    |
@@ -84,10 +84,10 @@ Key management is handled by pluggable **adapters** — InMemory (ephemeral), We
 Passkey (biometric), and Remote CLI (sui keystore). See [Adapters](/dev-wallet/reference/adapters)
 for details.
 
-## Next Steps
+## Guides
 
 - [Getting Started](/dev-wallet/getting-started) — installation and first setup
 - [E2E Testing](/dev-wallet/guides/e2e-testing) — automated testing with auto-approval
 - [CLI Signing](/dev-wallet/guides/cli-signing) — sign with your contract publish address
-- [Shared Wallet](/dev-wallet/guides/shared-wallet) — one wallet across multiple dApps
+- [Standalone Mode](/dev-wallet/reference/standalone-mode) — one wallet across multiple dApps
 - [Reference](/dev-wallet/reference/adapters) — adapters, APIs, and architecture

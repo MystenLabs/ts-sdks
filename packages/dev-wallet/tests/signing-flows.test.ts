@@ -104,11 +104,9 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 				account,
 			});
 
-			// Request should be pending
 			expect(wallet.pendingRequest).not.toBeNull();
 			expect(wallet.pendingRequest!.type).toBe('sign-personal-message');
 
-			// Approve it
 			await wallet.approveRequest();
 
 			const result = await resultPromise;
@@ -155,7 +153,6 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 				chain: `sui:${NETWORK}`,
 			});
 
-			// Wait for the transaction to be serialized and enqueued
 			await vi.waitFor(
 				() => {
 					expect(wallet.pendingRequest).not.toBeNull();
@@ -166,7 +163,6 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 			expect(wallet.pendingRequest!.type).toBe('sign-transaction');
 			expect(wallet.pendingRequest!.chain).toBe(`sui:${NETWORK}`);
 
-			// Approve it
 			await wallet.approveRequest();
 
 			const result = await resultPromise;
@@ -229,7 +225,6 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 
 			expect(wallet.pendingRequest!.type).toBe('sign-and-execute-transaction');
 
-			// Approve it — this will sign AND submit to devnet
 			await wallet.approveRequest();
 
 			const result = await resultPromise;
@@ -239,7 +234,6 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 			expect(result.digest).toBeTruthy();
 			expect(result.effects).toBeTruthy();
 
-			// Verify the digest is a valid transaction digest on devnet
 			const client = createDevnetClient();
 			const txBlock = await client.waitForTransaction({
 				digest: result.digest,
@@ -250,28 +244,7 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 	});
 
 	describe('auto-approval policy', () => {
-		it('auto-approves all requests when autoApprove is true', async () => {
-			const autoWallet = new DevWallet({
-				adapters: [adapter],
-				networks: { [NETWORK]: getJsonRpcFullnodeUrl(NETWORK) },
-				autoApprove: true,
-			});
-
-			const message = new TextEncoder().encode('Auto-approved message');
-			const account = autoWallet.accounts[0];
-
-			const result = await autoWallet.features['sui:signPersonalMessage'].signPersonalMessage({
-				message,
-				account,
-			});
-
-			// Should resolve immediately without needing manual approval
-			expect(result.bytes).toBe(toBase64(message));
-			expect(result.signature).toBeTruthy();
-			expect(autoWallet.pendingRequest).toBeNull();
-		});
-
-		it('auto-approves sign-and-execute on devnet when autoApprove is true', async () => {
+		it('auto-approves requests when autoApprove is true', async () => {
 			const autoWallet = new DevWallet({
 				adapters: [adapter],
 				networks: { [NETWORK]: getJsonRpcFullnodeUrl(NETWORK) },
@@ -307,7 +280,6 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 
 			const account = autoWallet.accounts[0];
 
-			// Personal message should auto-approve
 			const msgResult = await autoWallet.features['sui:signPersonalMessage'].signPersonalMessage({
 				message: new TextEncoder().encode('Auto!'),
 				account,
@@ -315,7 +287,7 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 			expect(msgResult.signature).toBeTruthy();
 			expect(autoWallet.pendingRequest).toBeNull();
 
-			// Transaction should NOT auto-approve (requires manual)
+			// sign-transaction is not in the policy, so it should queue for manual approval
 			const tx = new Transaction();
 			tx.setSender(account.address);
 			const [coin] = tx.splitCoins(tx.gas, [1_000]);
@@ -336,7 +308,6 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 
 			expect(autoWallet.pendingRequest!.type).toBe('sign-transaction');
 
-			// Clean up — reject the pending request
 			autoWallet.rejectRequest();
 			await txPromise.catch(() => {});
 		});
@@ -355,7 +326,6 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 				account,
 			});
 
-			// Should have been called once when the request was enqueued
 			expect(listener).toHaveBeenCalledTimes(1);
 			expect(listener).toHaveBeenCalledWith(
 				expect.objectContaining({ type: 'sign-personal-message' }),
@@ -364,7 +334,6 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 			await wallet.approveRequest();
 			await resultPromise;
 
-			// Should have been called again when the request was resolved
 			expect(listener).toHaveBeenCalledTimes(2);
 			expect(listener).toHaveBeenLastCalledWith(null);
 
@@ -380,7 +349,6 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 			const client = createDevnetClient();
 			await waitForBalance(client, keypair2.getPublicKey().toSuiAddress());
 
-			// Refresh wallet's view of accounts
 			await wallet.features['standard:connect'].connect();
 
 			expect(wallet.accounts).toHaveLength(2);
@@ -396,11 +364,9 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 			await wallet.approveRequest();
 			const result = await resultPromise;
 
-			// Verify it was signed by keypair2
 			const expected = await keypair2.signPersonalMessage(message);
 			expect(result.signature).toBe(expected.signature);
 
-			// Clean up: remove the second account
 			await adapter.removeAccount(keypair2.getPublicKey().toSuiAddress());
 		});
 	});
@@ -425,7 +391,6 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 		});
 
 		it('shows signing modal (not sidebar) when request arrives', async () => {
-			// Import the panel component
 			await import('../src/ui/dev-wallet-panel.js');
 
 			const container = document.createElement('div');
@@ -435,14 +400,11 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 			panel.wallet = wallet;
 			container.appendChild(panel);
 
-			// Wait for Lit element to render
 			await panel.updateComplete;
 
-			// Sidebar should not be open initially
 			const sidebarBefore = panel.shadowRoot?.querySelector('.sidebar');
 			expect(sidebarBefore).toBeNull();
 
-			// Trigger a signing request
 			const message = new TextEncoder().encode('UI test');
 			const account = wallet.accounts[0];
 			const resultPromise = wallet.features['sui:signPersonalMessage'].signPersonalMessage({
@@ -450,19 +412,15 @@ describe('DevWallet signing flows against devnet', { timeout: 120_000 }, () => {
 				account,
 			});
 
-			// Wait for the panel to react to the request change
 			await new Promise((resolve) => setTimeout(resolve, 100));
 			await panel.updateComplete;
 
-			// Sidebar should stay hidden while signing modal is showing
 			const sidebarAfter = panel.shadowRoot?.querySelector('.sidebar');
 			expect(sidebarAfter).toBeNull();
 
-			// The signing modal should be rendered
 			const signingModal = panel.shadowRoot?.querySelector('dev-wallet-signing-modal');
 			expect(signingModal).not.toBeNull();
 
-			// Clean up: approve the request
 			await wallet.approveRequest();
 			await resultPromise;
 

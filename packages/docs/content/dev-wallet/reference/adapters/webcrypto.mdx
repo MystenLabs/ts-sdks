@@ -27,6 +27,9 @@ await adapter.initialize(); // Loads existing keys from IndexedDB
 const account = await adapter.createAccount({ label: 'Persistent Dev' });
 ```
 
+The constructor accepts optional `dbName` and `storeName` to control which IndexedDB database is
+used (defaults: `'dev-wallet-webcrypto'` and `'accounts'`).
+
 ## How Persistence Works
 
 1. When you create an account, a non-extractable `CryptoKeyPair` is generated via

@@ -2,19 +2,10 @@
 title: E2E Testing
 ---
 
-Use Dev Wallet in automated tests with auto-approval so transactions sign without user interaction.
+Automated tests can't click "Approve" in a headless browser. Set `autoApprove: true` and the
+wallet signs everything immediately — same wallet-standard APIs, no approval modal.
 
-## The problem
-
-Automated tests (Playwright, Cypress, vitest) need a wallet that signs without clicking "Approve" in
-a browser. You can't interact with a signing modal in a headless browser.
-
-## Solution
-
-Set `autoApprove: true` and the wallet signs everything immediately. Your dApp code stays exactly
-the same — same wallet-standard APIs, same signing calls — the manual approval step is just skipped.
-
-### Vitest example
+**Vitest:**
 
 ```typescript
 import { DevWallet } from '@mysten/dev-wallet';
@@ -55,7 +46,7 @@ describe('my dApp', () => {
 });
 ```
 
-### With dApp Kit
+**With dApp Kit:**
 
 ```typescript
 devWalletInitializer({

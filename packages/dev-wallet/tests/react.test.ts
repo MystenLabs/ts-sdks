@@ -56,7 +56,6 @@ describe('useDevWallet', () => {
 			}),
 		);
 
-		// May be null initially (async setup)
 		await vi.waitFor(() => {
 			expect(result.current.wallet).not.toBeNull();
 		});
@@ -159,7 +158,7 @@ describe('useDevWallet', () => {
 		expect(result.current.wallet!.name).toBe('My Test Wallet');
 	});
 
-	it('cleans up on unmount (unregisters and removes UI)', async () => {
+	it('mounts UI panel and removes it on unmount', async () => {
 		const adapter = createMockAdapter();
 
 		const { result, unmount } = renderHook(() =>
@@ -174,43 +173,13 @@ describe('useDevWallet', () => {
 			expect(result.current.wallet).not.toBeNull();
 		});
 
-		// UI panel should be present
 		expect(document.querySelector('dev-wallet-panel')).not.toBeNull();
 
 		act(() => {
 			unmount();
 		});
 
-		// After unmount, the panel should be removed from the DOM
 		expect(document.querySelector('dev-wallet-panel')).toBeNull();
-	});
-
-	it('mounts UI panel when mountUI is true', async () => {
-		const adapter = createMockAdapter();
-
-		const { result, unmount } = renderHook(() =>
-			useDevWallet({
-				adapters: [adapter],
-				networks: {},
-				mountUI: true,
-			}),
-		);
-
-		await vi.waitFor(() => {
-			expect(result.current.wallet).not.toBeNull();
-		});
-
-		// The panel element should be appended to the document
-		const panel = document.querySelector('dev-wallet-panel');
-		expect(panel).not.toBeNull();
-
-		act(() => {
-			unmount();
-		});
-
-		// After unmount, panel should be removed
-		const panelAfter = document.querySelector('dev-wallet-panel');
-		expect(panelAfter).toBeNull();
 	});
 
 	it('does not mount UI when mountUI is false', async () => {

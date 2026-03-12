@@ -2,20 +2,12 @@
 title: CLI Signing
 ---
 
-Sign transactions in your dApp with the same address you used to publish your Move contracts.
+If you published a package with `sui move publish` and need to call admin functions from a dApp
+using the same address that owns `AdminCap` or other capability objects, the Remote CLI adapter
+connects to your local `sui` CLI over HTTP — private keys never leave the `sui` binary, only
+transaction bytes are sent for signing.
 
-## The problem
-
-You published a package with `sui move publish` and now you need to call admin functions from a dApp
-with the same address that owns `AdminCap` or other capability objects. But your browser wallet has
-a completely different address.
-
-## Solution
-
-The Remote CLI adapter connects to your local `sui` CLI over HTTP. Private keys never leave the
-`sui` binary — only transaction bytes are sent for signing.
-
-### Standalone wallet (easiest)
+## Standalone wallet (easiest)
 
 Start the standalone wallet. If `sui` is on your PATH, the CLI adapter is enabled automatically:
 
@@ -37,7 +29,7 @@ DevWalletClient.register({ origin: 'http://localhost:5174' });
 Now when your dApp signs a transaction, it opens a popup to the standalone wallet. You approve with
 the same key that deployed your package, giving you access to `AdminCap` and other owned objects.
 
-### Programmatic usage
+## Programmatic usage
 
 ```typescript
 import { RemoteCliAdapter } from '@mysten/dev-wallet/adapters';
@@ -69,4 +61,3 @@ await adapter.initialize();
 - [Remote CLI Adapter reference](/dev-wallet/reference/adapters/remote-cli) — full API
 - [Standalone Mode](/dev-wallet/reference/standalone-mode) — running the wallet as a separate web
   app
-- [Shared Wallet](/dev-wallet/guides/shared-wallet) — sharing the standalone wallet across apps

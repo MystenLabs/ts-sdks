@@ -37,10 +37,7 @@ export const DEFAULT_NETWORK_URLS = {
 	localnet: 'http://127.0.0.1:9000',
 } as const;
 
-/**
- * A pending signing request waiting for user approval via the wallet UI.
- * @internal — use {@link PendingSigningRequest} for public consumption.
- */
+/** A pending signing request waiting for user approval via the wallet UI. */
 export interface WalletRequest {
 	id: string;
 	type: 'sign-transaction' | 'sign-and-execute-transaction' | 'sign-personal-message';
@@ -52,30 +49,21 @@ export interface WalletRequest {
 	reject: (error: Error) => void;
 }
 
-/**
- * Public view of a pending signing request, omitting internal resolve/reject callbacks.
- */
+/** Public view of a pending signing request, omitting internal resolve/reject callbacks. */
 export type PendingSigningRequest = Omit<WalletRequest, 'resolve' | 'reject'>;
 
-/**
- * A pending connect request waiting for user to select which accounts to expose.
- */
 export interface ConnectRequest {
 	id: string;
 	resolve: (result: { accounts: readonly WalletAccount[] }) => void;
 	reject: (error: Error) => void;
 }
 
-/**
- * Public view of a pending connect request, omitting internal resolve/reject callbacks.
- */
+/** Public view of a pending connect request, omitting internal resolve/reject callbacks. */
 export type PendingConnectRequest = Omit<ConnectRequest, 'resolve' | 'reject'>;
 
 /**
  * Auto-approval policy for signing requests.
- *
- * - `true` — approve all requests automatically (useful for testing/CI)
- * - A function — called with the request details, return `true` to auto-approve
+ * `true` approves all requests; a function is called per-request and returns `true` to approve.
  */
 export type AutoApprovePolicy =
 	| boolean
@@ -86,64 +74,34 @@ export type AutoApprovePolicy =
 			data: string | Uint8Array;
 	  }) => boolean);
 
-/**
- * Configuration for creating a DevWallet instance.
- */
 export interface DevWalletConfig {
-	/** The signer adapters that manage accounts and signing. Each adapter manages its own type of accounts. */
 	adapters: SignerAdapter[];
-	/**
-	 * Network URLs by name. Keys are network names, values are gRPC endpoint URLs.
-	 * Defaults to devnet, testnet, and localnet.
-	 *
-	 * @example
-	 * ```ts
-	 * { devnet: 'https://fullnode.devnet.sui.io:443' }
-	 * ```
-	 */
+	/** Network URLs by name (network → gRPC endpoint). Defaults to devnet, testnet, and localnet. */
 	networks?: Record<string, string>;
 	/** Display name for the wallet. Defaults to 'Dev Wallet'. */
 	name?: string;
-	/** Data URI icon for the wallet. */
 	icon?: WalletIcon;
-	/**
-	 * The initially active network. Defaults to the first key in `networks`.
-	 */
+	/** Initially active network. Defaults to the first key in `networks`. */
 	activeNetwork?: string;
 	/**
-	 * Auto-approval policy. When set, matching requests are signed immediately
-	 * without queuing for user approval.
-	 *
-	 * - `true` — approve all requests (replaces burner wallet behavior)
-	 * - A function — fine-grained control over which requests to auto-approve
-	 *
-	 * @default false (all requests require manual approval)
+	 * When set, matching requests are signed immediately without queuing for user approval.
+	 * `true` approves everything; a function is called per-request for fine-grained control.
 	 */
 	autoApprove?: AutoApprovePolicy;
-	/**
-	 * When true, connect requests are auto-approved with all accounts
-	 * (no account picker shown). Useful for testing/CI.
-	 *
-	 * @default false
-	 */
+	/** When true, connect requests resolve immediately with all accounts. */
 	autoConnect?: boolean;
-	/** Factory to create a client for a given network. Defaults to creating SuiGrpcClient instances. */
+	/** Factory to create a client for a given network. Defaults to SuiGrpcClient. */
 	clientFactory?: (network: string, url: string) => ClientWithCoreApi;
 	/**
-	 * Persist network URLs to localStorage. When enabled, custom network
-	 * configurations survive page reloads and are shared with popup windows.
-	 *
-	 * @default false
+	 * Persist network URLs to localStorage so custom configurations survive page reloads
+	 * and are shared with popup windows.
 	 */
 	persistNetworks?: boolean;
 }
 
 /**
- * DevWallet implements the wallet-standard Wallet interface, parameterized by a SignerAdapter.
- *
- * All signing requests are queued and require approval (via UI or programmatic call).
- * This makes it behave like a real wallet — the developer sees what they're signing
- * and explicitly approves or rejects each request.
+ * wallet-standard Wallet implementation for development. All signing requests are queued
+ * and require explicit approval — either via the UI or programmatically via `approveRequest()`.
  */
 export class DevWallet implements Wallet {
 	readonly #adapters: SignerAdapter[];
@@ -248,20 +206,15 @@ export class DevWallet implements Wallet {
 		return this.#pendingRequest;
 	}
 
-	/** The signer adapters backing this wallet. */
 	get adapters(): readonly SignerAdapter[] {
 		return this.#adapters;
 	}
 
-	/** Returns the adapter that owns the given account address, or undefined. */
 	getAdapterForAccount(address: string): SignerAdapter | undefined {
 		return this.#adapters.find((a) => a.getAccount(address) !== undefined);
 	}
 
-	/**
-	 * The configured clients, keyed by network name.
-	 * Note: This eagerly creates clients for all networks. Prefer `getClient()` or `activeClient` for single-network access.
-	 */
+	/** Eagerly creates and returns clients for all configured networks. Prefer `getClient()` or `activeClient` for single-network access. */
 	get clients(): Record<string, ClientWithCoreApi> {
 		for (const name of Object.keys(this.#networkUrls)) {
 			this.#ensureClient(name);
@@ -269,28 +222,23 @@ export class DevWallet implements Wallet {
 		return { ...this.#clients };
 	}
 
-	/** Get or create the client for a specific network name. */
 	getClient(network: string): ClientWithCoreApi {
 		return this.#ensureClient(network);
 	}
 
-	/** The configured network URLs, keyed by network name. */
 	get networkUrls(): Record<string, string> {
 		return { ...this.#networkUrls };
 	}
 
-	/** The currently active network name. */
 	get activeNetwork(): string {
 		return this.#activeNetwork;
 	}
 
-	/** The client for the currently active network. */
 	get activeClient(): ClientWithCoreApi | null {
 		if (!this.#activeNetwork || !this.#networkUrls[this.#activeNetwork]) return null;
 		return this.#ensureClient(this.#activeNetwork);
 	}
 
-	/** List of available network names. */
 	get availableNetworks(): string[] {
 		return Object.keys(this.#networkUrls);
 	}
@@ -306,7 +254,6 @@ export class DevWallet implements Wallet {
 		this.#events.emit('change', { accounts: this.#accounts });
 	}
 
-	/** Add or update a network. Creates a new gRPC client for the URL. */
 	addNetwork(name: string, url: string): void {
 		try {
 			new URL(url);
@@ -319,7 +266,6 @@ export class DevWallet implements Wallet {
 		this.#events.emit('change', { accounts: this.#accounts });
 	}
 
-	/** Remove a network. Resets active network if it was the removed one. */
 	removeNetwork(name: string): void {
 		delete this.#networkUrls[name];
 		delete this.#clients[name];
@@ -330,10 +276,7 @@ export class DevWallet implements Wallet {
 		this.#events.emit('change', { accounts: this.#accounts });
 	}
 
-	/**
-	 * Register this wallet with the wallet-standard registry.
-	 * @returns An unregister function that removes this wallet from the registry.
-	 */
+	/** Register this wallet with the wallet-standard registry. Returns an unregister function. */
 	register(): () => void {
 		if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production') {
 			console.warn(
@@ -344,10 +287,7 @@ export class DevWallet implements Wallet {
 		return walletsApi.register(this);
 	}
 
-	/**
-	 * Clean up all resources: unsubscribe from the adapter, reject any pending
-	 * request, and clear all listeners. The wallet should not be used after this.
-	 */
+	/** Reject any pending requests, unsubscribe from adapters, and clear all listeners. */
 	destroy(): void {
 		this.#destroyed = true;
 		for (const unsub of this.#unsubscribeAdapters) {
@@ -367,10 +307,7 @@ export class DevWallet implements Wallet {
 		this.#events.all.clear();
 	}
 
-	/**
-	 * Approve the current pending request. The wallet signs the request
-	 * using the adapter's signer and resolves the promise.
-	 */
+	/** Sign the pending request using the account's adapter signer and resolve the promise. */
 	async approveRequest(): Promise<void> {
 		const request = this.#pendingRequest;
 		if (!request) {
@@ -394,9 +331,6 @@ export class DevWallet implements Wallet {
 		}
 	}
 
-	/**
-	 * Reject the current pending request with an optional reason.
-	 */
 	rejectRequest(reason?: string): void {
 		const request = this.#pendingRequest;
 		if (!request) {
@@ -407,12 +341,7 @@ export class DevWallet implements Wallet {
 		request.reject(new Error(reason ?? 'Request rejected by user.'));
 	}
 
-	/**
-	 * Subscribe to pending request changes.
-	 * The callback fires whenever a new request is enqueued, approved, or rejected.
-	 *
-	 * @returns An unsubscribe function.
-	 */
+	/** Subscribe to pending request changes. Returns an unsubscribe function. */
 	onRequestChange(callback: (request: PendingSigningRequest | null) => void): () => void {
 		this.#requestListeners.add(callback);
 		return () => {
@@ -425,9 +354,7 @@ export class DevWallet implements Wallet {
 		return this.#pendingConnect;
 	}
 
-	/**
-	 * Approve a connect request, exposing only the given addresses to the dApp.
-	 */
+	/** Expose the given addresses to the dApp. Pass an empty array to expose all accounts. */
 	approveConnect(selectedAddresses: string[]): void {
 		const request = this.#pendingConnect;
 		if (!request) {
@@ -444,9 +371,6 @@ export class DevWallet implements Wallet {
 		request.resolve({ accounts: selected });
 	}
 
-	/**
-	 * Reject a connect request.
-	 */
 	rejectConnect(reason?: string): void {
 		const request = this.#pendingConnect;
 		if (!request) {
@@ -457,9 +381,7 @@ export class DevWallet implements Wallet {
 		request.reject(new Error(reason ?? 'Connection rejected by user.'));
 	}
 
-	/**
-	 * Subscribe to pending connect request changes.
-	 */
+	/** Subscribe to pending connect request changes. Returns an unsubscribe function. */
 	onConnectChange(callback: (request: PendingConnectRequest | null) => void): () => void {
 		this.#connectListeners.add(callback);
 		return () => {

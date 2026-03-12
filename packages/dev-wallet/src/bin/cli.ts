@@ -101,7 +101,6 @@ The wallet automatically detects available adapters:
 		process.exit(1);
 	}
 
-	// Check if sui CLI is available
 	let hasSuiCli = false;
 	try {
 		await execFileAsync('sui', ['--version']);
@@ -110,7 +109,6 @@ The wallet automatically detects available adapters:
 		// sui CLI not available — CLI adapter will not be enabled
 	}
 
-	// Find the pre-built standalone app directory
 	const scriptDir = dirname(new URL(import.meta.url).pathname);
 	const standaloneDir = findStandaloneDir(scriptDir);
 
@@ -121,7 +119,6 @@ The wallet automatically detects available adapters:
 		process.exit(1);
 	}
 
-	// Read index.html and inject __DEV_WALLET_CLI__ flag when sui CLI is available
 	let indexHtml = await readFile(resolve(standaloneDir, 'index.html'), 'utf-8');
 	if (hasSuiCli) {
 		indexHtml = indexHtml.replace(
@@ -133,7 +130,6 @@ The wallet automatically detects available adapters:
 		}
 	}
 
-	// Cache bookmarklet file at startup
 	let bookmarkletJs: string | null = null;
 	try {
 		bookmarkletJs = await readFile(resolve(standaloneDir, 'bookmarklet.js'), 'utf-8');
@@ -141,10 +137,7 @@ The wallet automatically detects available adapters:
 		// bookmarklet not available
 	}
 
-	// --- Hono app ---
 	const app = new Hono();
-
-	// CLI signing middleware (mounted before static routes)
 	let cliToken: string | null = null;
 
 	if (hasSuiCli) {
@@ -154,7 +147,6 @@ The wallet automatically detects available adapters:
 		app.route('/', result.app);
 	}
 
-	// Bookmarklet with CORS (loaded cross-origin by dApp pages)
 	app.get('/bookmarklet.js', cors({ origin: '*' }), (c) => {
 		if (!bookmarkletJs) {
 			return c.text('Bookmarklet not found', 404);
@@ -163,19 +155,14 @@ The wallet automatically detects available adapters:
 		return c.body(bookmarkletJs, { headers: { 'Content-Type': 'application/javascript' } });
 	});
 
-	// Static files from pre-built standalone directory
 	app.get('*', async (c) => {
 		const urlPath = decodeURIComponent(new URL(c.req.url).pathname);
 
-		// Root and index.html get the injected version
 		if (urlPath === '/' || urlPath === '/index.html') {
 			return c.html(indexHtml);
 		}
 
-		// Serve static file if it exists
 		const filePath = resolve(standaloneDir, urlPath.slice(1));
-
-		// Path traversal protection
 		if (!filePath.startsWith(standaloneDir)) {
 			return c.html(indexHtml);
 		}
@@ -186,7 +173,6 @@ The wallet automatically detects available adapters:
 			const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 			return c.body(content, { headers: { 'Content-Type': contentType } });
 		} catch {
-			// File not found — SPA fallback
 			return c.html(indexHtml);
 		}
 	});

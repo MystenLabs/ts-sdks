@@ -2,8 +2,6 @@
 title: Architecture
 ---
 
-A deep dive into how Dev Wallet is designed and how the pieces fit together.
-
 ## System Overview
 
 The request flow through Dev Wallet has three layers:
@@ -23,12 +21,10 @@ flowchart TD
 
 **Your dApp** — calls wallet-standard methods via dApp Kit or directly.
 
-**DevWallet Core** — receives requests, checks auto-approve policy, either executes immediately or
-queues for user approval. On approval, delegates to the adapter's signer. On rejection, returns an
-error.
+**DevWallet Core** — checks auto-approve policy, executes immediately or queues for user approval.
 
-**Adapters** — each adapter manages keys differently (InMemory Ed25519, WebCrypto Secp256r1, Passkey
-WebAuthn, Remote CLI over HTTP) but all implement the same `SignerAdapter` interface.
+**Adapters** — InMemory (Ed25519), WebCrypto (Secp256r1), Passkey (WebAuthn), and Remote CLI (HTTP)
+all implement the same `SignerAdapter` interface.
 
 ## Embedded vs Standalone
 
@@ -66,17 +62,12 @@ communicate via popup windows and PostMessage. Supports CLI signing and team sha
 
 When a dApp calls `signTransaction`:
 
-1. **DevWallet receives the request** via the wallet-standard `sui:signTransaction` feature
-2. **Transaction is serialized** to JSON via `transaction.toJSON()`
-3. **Auto-approve check** — evaluates the `autoApprove` policy and the adapter's `allowAutoSign`
-4. **Queue or execute:**
-   - Auto-approved: immediately calls the adapter's signer
-   - Manual: stores the request as `pendingRequest` and notifies listeners
-5. **UI renders the signing modal** — shows transaction details, approve/reject buttons
-6. **User action:**
-   - Approve: `wallet.approveRequest()` → adapter signs → promise resolves
-   - Reject: `wallet.rejectRequest()` → promise rejects with error
-7. **Result returned** to the dApp
+1. Transaction is serialized to JSON via `transaction.toJSON()`
+2. Auto-approve check: adapter's `allowAutoSign` is evaluated first (adapters can opt out
+   regardless of wallet policy), then the wallet-level `autoApprove` policy
+3. Auto-approved: calls the adapter's signer directly, returns the result
+4. Manual: stored as `pendingRequest`, listeners notified, UI shows the modal
+5. `approveRequest()` → adapter signs → promise resolves; `rejectRequest()` → promise rejects
 
 ## Export Map Architecture
 
@@ -88,8 +79,8 @@ The package is split into subpath exports to support different environments:
 | `@mysten/dev-wallet/adapters` | InMemory, WebCrypto, Passkey, RemoteCli, BaseSignerAdapter |
 | `@mysten/dev-wallet/ui`       | Lit Web Components, `mountDevWallet`                       |
 | `@mysten/dev-wallet/react`    | React hooks, context, component wrappers                   |
-| `@mysten/dev-wallet/client`   | `DevWalletClient` for standalone mode                      |
-| `@mysten/dev-wallet/server`   | Request handling, CLI signing middleware                   |
+| `@mysten/dev-wallet/client`   | `DevWalletClient`, `devWalletClientInitializer`, `parseWalletRequest` |
+| `@mysten/dev-wallet/server`   | `createCliSigningMiddleware` (Hono sub-app for CLI signing) |
 
 ## Wallet-Standard Compliance
 
@@ -98,7 +89,7 @@ Dev Wallet implements the full wallet-standard interface:
 | Feature                         | Version | Description                                    |
 | ------------------------------- | ------- | ---------------------------------------------- |
 | `standard:connect`              | 1.0.0   | Connect with account selection or auto-connect |
-| `standard:disconnect`           | 1.0.0   | Disconnect and clear accounts                  |
+| `standard:disconnect`           | 1.0.0   | Ends the dApp session; wallet state unchanged  |
 | `standard:events`               | 1.0.0   | Subscribe to account and network changes       |
 | `sui:signTransaction`           | 2.0.0   | Sign a transaction without executing           |
 | `sui:signAndExecuteTransaction` | 2.0.0   | Sign and execute a transaction                 |

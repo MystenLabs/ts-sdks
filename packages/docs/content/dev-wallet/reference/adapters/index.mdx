@@ -68,7 +68,7 @@ interface SignerAdapter {
 	createAccount?(options?: CreateAccountOptions): Promise<ManagedAccount>;
 	importAccount?(options: ImportAccountOptions): Promise<ManagedAccount>;
 	listAvailableAccounts?(): Promise<
-		Array<{ address: string; scheme: string; alias?: string | null }>
+		Array<{ address: string; scheme: string; alias: string | null }>
 	>;
 	removeAccount?(address: string): Promise<boolean>;
 	renameAccount?(address: string, label: string): Promise<boolean>;

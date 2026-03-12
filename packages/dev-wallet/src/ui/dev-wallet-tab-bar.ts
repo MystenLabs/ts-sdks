@@ -126,7 +126,6 @@ export class DevWalletTabBar extends LitElement {
 
 		if (newIndex !== -1) {
 			this.#select(tabs[newIndex]);
-			// Focus the newly active tab
 			const buttons = this.shadowRoot?.querySelectorAll<HTMLButtonElement>('.tab');
 			buttons?.[newIndex]?.focus();
 		}

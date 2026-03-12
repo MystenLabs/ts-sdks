@@ -76,19 +76,8 @@ export interface DevWalletClientOptions {
 }
 
 /**
- * A wallet-standard wallet that communicates with a remote DevWallet
- * web app via PostMessage popups.
- *
- * dApps register this client to connect to a dev wallet running as a
- * standalone web app (started via `npx @mysten/dev-wallet serve`).
- *
- * @example
- * ```typescript
- * const unregister = DevWalletClient.register({
- *   origin: 'http://localhost:5174',
- * });
- * // dApp code uses normal dapp-kit hooks — wallet popups for signing
- * ```
+ * Wallet-standard wallet that communicates with a standalone DevWallet
+ * web app via PostMessage popups (started via `npx @mysten/dev-wallet serve`).
  */
 export class DevWalletClient implements Wallet {
 	readonly #name: string;
@@ -104,16 +93,9 @@ export class DevWalletClient implements Wallet {
 		this.#origin = options?.origin ?? DEFAULT_ORIGIN;
 		this.#sessionKey = `dev-wallet:session:${this.#origin}`;
 		this.#events = mitt();
-
-		// Restore session from localStorage
 		this.#tryRestoreSession();
 	}
 
-	/**
-	 * Create and register a DevWalletClient with the wallet-standard registry.
-	 *
-	 * @returns An unregister function that removes the wallet.
-	 */
 	static register(options?: DevWalletClientOptions): () => void {
 		const wallet = new DevWalletClient(options);
 		const wallets = getWallets();

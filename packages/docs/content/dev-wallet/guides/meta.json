@@ -1,4 +1,4 @@
 {
 	"title": "Guides",
-	"pages": ["e2e-testing", "cli-signing", "shared-wallet"]
+	"pages": ["e2e-testing", "cli-signing"]
 }
