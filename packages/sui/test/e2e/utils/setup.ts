@@ -113,6 +113,16 @@ export class TestToolbox {
 		return prePublishedPackages?.[packageName]?.sharedObjects?.[typeName];
 	}
 
+	public getPublisherObjectId(packageName: string): string | undefined {
+		return prePublishedPackages?.[packageName]?.publisherObjectId;
+	}
+
+	public getPublisherKeypair(packageName: string): Ed25519Keypair | undefined {
+		const secretKey = prePublishedPackages?.[packageName]?.publisherSecretKey;
+		if (!secretKey) return undefined;
+		return Ed25519Keypair.fromSecretKey(secretKey);
+	}
+
 	mintNft(name: string = 'Test NFT') {
 		const packageId = this.getPackage('test_data');
 		return (tx: Transaction) => {

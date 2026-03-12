@@ -16,6 +16,7 @@ export interface PrePublishedPackage {
 	sharedObjects?: Record<string, string>; // typeName -> objectId
 	publisherAddress: string;
 	publisherObjectId?: string;
+	publisherSecretKey?: string; // bech32-encoded; reconstruct with Ed25519Keypair.fromSecretKey()
 }
 
 export interface PrePublishConfig {
@@ -99,7 +100,7 @@ export async function prePublishPackages(
 
 			// Store with simplified name (e.g., "shared/serializer" -> "serializer")
 			const simpleName = packagePath.replace('shared/', '');
-			results[simpleName] = result;
+			results[simpleName] = { ...result, publisherSecretKey: keypair.getSecretKey() };
 
 			console.log(`Pre-published ${simpleName}: ${result.packageId}`);
 

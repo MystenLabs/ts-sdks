@@ -185,4 +185,133 @@ describe('Core API - Display', () => {
 			},
 		);
 	});
+
+	describe('display v1 → v2 migration', () => {
+		let migrationBearId = '';
+		let v1Display: {
+			output: Record<string, string> | null;
+			errors: Record<string, string> | null;
+		} | null = null;
+
+		beforeAll(async () => {
+			// Create a MigrationBear — has v1 Display set up in init, no v2 yet
+			const tx = new Transaction();
+			const [bear] = tx.moveCall({
+				target: `${testPackageId}::migration_bear::new`,
+				arguments: [tx.pure.string(BEAR_NAME)],
+			});
+			tx.transferObjects([bear], tx.pure.address(testAddress));
+
+			const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				transaction: tx,
+				signer: toolbox.keypair,
+				options: { showEffects: true, showObjectChanges: true },
+			});
+
+			// Wait for all clients to index the new object
+			await Promise.all([
+				toolbox.jsonRpcClient.core.waitForTransaction({ digest: result.digest }),
+				toolbox.grpcClient.core.waitForTransaction({ digest: result.digest }),
+				toolbox.graphqlClient.core.waitForTransaction({ digest: result.digest }),
+			]);
+
+			for (const change of result.objectChanges ?? []) {
+				if (change.type !== 'created') continue;
+				if (change.objectType.includes('MigrationBear')) {
+					migrationBearId = change.objectId;
+				}
+			}
+			expect(migrationBearId).not.toBe('');
+
+			// Before migration: gRPC has no display (no v2 registry entry yet)
+			const { object: grpcBefore } = await toolbox.grpcClient.core.getObject({
+				objectId: migrationBearId,
+				include: { display: true },
+			});
+			expect(grpcBefore.display).toBeNull();
+
+			// Before migration: JSON-RPC and GraphQL return display from v1
+			const { object: jsonRpcBefore } = await toolbox.jsonRpcClient.core.getObject({
+				objectId: migrationBearId,
+				include: { display: true },
+			});
+			v1Display = jsonRpcBefore.display;
+			expect(v1Display).not.toBeNull();
+			expect(v1Display!.output!['name']).toBe(BEAR_NAME);
+			expect(v1Display!.output!['description']).toBe('A bear for migration testing');
+			expect(v1Display!.errors).toBeNull();
+
+			// Migrate to v2: set up a DisplayRegistry entry for MigrationBear
+			const publisherObjectId = toolbox.getPublisherObjectId('test_data');
+			const publisherKeypair = toolbox.getPublisherKeypair('test_data');
+			expect(publisherObjectId).toBeDefined();
+			expect(publisherKeypair).toBeDefined();
+
+			const DISPLAY_REGISTRY_ID = normalizeSuiAddress('0xd');
+			const MIGRATION_BEAR_TYPE = `${testPackageId}::migration_bear::MigrationBear`;
+
+			const setupTx = new Transaction();
+			const registry = setupTx.object(DISPLAY_REGISTRY_ID);
+			const publisher = setupTx.object(publisherObjectId!);
+
+			const [display, cap] = setupTx.moveCall({
+				target: '0x2::display_registry::new_with_publisher',
+				typeArguments: [MIGRATION_BEAR_TYPE],
+				arguments: [registry, publisher],
+			});
+
+			for (const [key, value] of [
+				['name', '{name}'],
+				[
+					'image_url',
+					'https://images.unsplash.com/photo-1589656966895-2f33e7653819?q=80&w=1000&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cG9sYXIlMjBiZWFyfGVufDB8fDB8fHww',
+				],
+				['description', 'A bear for migration testing'],
+			] as const) {
+				setupTx.moveCall({
+					target: '0x2::display_registry::set',
+					typeArguments: [MIGRATION_BEAR_TYPE],
+					arguments: [display, cap, setupTx.pure.string(key), setupTx.pure.string(value)],
+				});
+			}
+
+			setupTx.moveCall({
+				target: '0x2::display_registry::share',
+				typeArguments: [MIGRATION_BEAR_TYPE],
+				arguments: [display],
+			});
+
+			setupTx.transferObjects(
+				[cap],
+				setupTx.pure.address(publisherKeypair!.getPublicKey().toSuiAddress()),
+			);
+
+			const setupResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				transaction: setupTx,
+				signer: publisherKeypair!,
+				options: { showEffects: true },
+			});
+
+			// Wait for all clients to index the v2 migration
+			await Promise.all([
+				toolbox.jsonRpcClient.core.waitForTransaction({ digest: setupResult.digest }),
+				toolbox.grpcClient.core.waitForTransaction({ digest: setupResult.digest }),
+				toolbox.graphqlClient.core.waitForTransaction({ digest: setupResult.digest }),
+			]);
+		});
+
+		it('all clients agree after v2 migration', async () => {
+			await toolbox.expectAllClientsReturnSameData((client) =>
+				client.core.getObject({ objectId: migrationBearId, include: { display: true } }),
+			);
+		});
+
+		it('gRPC v2 display matches JSON-RPC v1 display', async () => {
+			const { object } = await toolbox.grpcClient.core.getObject({
+				objectId: migrationBearId,
+				include: { display: true },
+			});
+			expect(object.display).toEqual(v1Display);
+		});
+	});
 });
