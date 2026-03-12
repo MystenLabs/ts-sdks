@@ -1581,6 +1581,101 @@ const introspection = {
       },
       {
         "kind": "OBJECT",
+        "name": "CircomG1",
+        "fields": [
+          {
+            "name": "e0",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "e1",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "e2",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "CircomG2",
+        "fields": [
+          {
+            "name": "e00",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "e01",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "e10",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "e11",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "e20",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "e21",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
         "name": "CoinDenyListStateCreateTransaction",
         "fields": [
           {
@@ -3420,6 +3515,47 @@ const introspection = {
             "name": "MoveValue"
           }
         ]
+      },
+      {
+        "kind": "OBJECT",
+        "name": "Ed25519PublicKey",
+        "fields": [
+          {
+            "name": "bytes",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Base64"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "Ed25519Signature",
+        "fields": [
+          {
+            "name": "publicKey",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Base64"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "signature",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Base64"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
       },
       {
         "kind": "OBJECT",
@@ -8303,6 +8439,44 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "asVector",
+            "type": {
+              "kind": "OBJECT",
+              "name": "MoveValueConnection"
+            },
+            "args": [
+              {
+                "name": "after",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              },
+              {
+                "name": "before",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              },
+              {
+                "name": "first",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Int"
+                }
+              },
+              {
+                "name": "last",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Int"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "bcs",
             "type": {
               "kind": "SCALAR",
@@ -8382,6 +8556,92 @@ const introspection = {
         "interfaces": []
       },
       {
+        "kind": "OBJECT",
+        "name": "MoveValueConnection",
+        "fields": [
+          {
+            "name": "edges",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "LIST",
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "MoveValueEdge"
+                  }
+                }
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "nodes",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "LIST",
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "MoveValue"
+                  }
+                }
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "pageInfo",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "PageInfo"
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "MoveValueEdge",
+        "fields": [
+          {
+            "name": "cursor",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String"
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "node",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "MoveValue"
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
         "kind": "ENUM",
         "name": "MoveVisibility",
         "enumValues": [
@@ -8398,6 +8658,128 @@ const introspection = {
             "isDeprecated": false
           }
         ]
+      },
+      {
+        "kind": "OBJECT",
+        "name": "MultisigCommittee",
+        "fields": [
+          {
+            "name": "members",
+            "type": {
+              "kind": "LIST",
+              "ofType": {
+                "kind": "NON_NULL",
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "MultisigMember"
+                }
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "threshold",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "MultisigMember",
+        "fields": [
+          {
+            "name": "publicKey",
+            "type": {
+              "kind": "UNION",
+              "name": "MultisigMemberPublicKey"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "weight",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "UNION",
+        "name": "MultisigMemberPublicKey",
+        "possibleTypes": [
+          {
+            "kind": "OBJECT",
+            "name": "Ed25519PublicKey"
+          },
+          {
+            "kind": "OBJECT",
+            "name": "PasskeyPublicKey"
+          },
+          {
+            "kind": "OBJECT",
+            "name": "Secp256K1PublicKey"
+          },
+          {
+            "kind": "OBJECT",
+            "name": "Secp256R1PublicKey"
+          },
+          {
+            "kind": "OBJECT",
+            "name": "ZkLoginPublicIdentifier"
+          }
+        ]
+      },
+      {
+        "kind": "OBJECT",
+        "name": "MultisigSignature",
+        "fields": [
+          {
+            "name": "bitmap",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "committee",
+            "type": {
+              "kind": "OBJECT",
+              "name": "MultisigCommittee"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "signatures",
+            "type": {
+              "kind": "LIST",
+              "ofType": {
+                "kind": "NON_NULL",
+                "ofType": {
+                  "kind": "UNION",
+                  "name": "SignatureScheme"
+                }
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
       },
       {
         "kind": "OBJECT",
@@ -9697,6 +10079,56 @@ const introspection = {
             "type": {
               "kind": "SCALAR",
               "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "PasskeyPublicKey",
+        "fields": [
+          {
+            "name": "bytes",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Base64"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "PasskeySignature",
+        "fields": [
+          {
+            "name": "authenticatorData",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Base64"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "clientDataJson",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "signature",
+            "type": {
+              "kind": "UNION",
+              "name": "SignatureScheme"
             },
             "args": [],
             "isDeprecated": false
@@ -11046,11 +11478,8 @@ const introspection = {
           {
             "name": "verifyZkLoginSignature",
             "type": {
-              "kind": "NON_NULL",
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "ZkLoginVerifyResult"
-              }
+              "kind": "OBJECT",
+              "name": "ZkLoginVerifyResult"
             },
             "args": [
               {
@@ -11212,6 +11641,88 @@ const introspection = {
             "isDeprecated": false
           }
         ]
+      },
+      {
+        "kind": "OBJECT",
+        "name": "Secp256K1PublicKey",
+        "fields": [
+          {
+            "name": "bytes",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Base64"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "Secp256K1Signature",
+        "fields": [
+          {
+            "name": "publicKey",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Base64"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "signature",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Base64"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "Secp256R1PublicKey",
+        "fields": [
+          {
+            "name": "bytes",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Base64"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "Secp256R1Signature",
+        "fields": [
+          {
+            "name": "publicKey",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Base64"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "signature",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Base64"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
       },
       {
         "kind": "OBJECT",
@@ -11543,6 +12054,36 @@ const introspection = {
           }
         ],
         "interfaces": []
+      },
+      {
+        "kind": "UNION",
+        "name": "SignatureScheme",
+        "possibleTypes": [
+          {
+            "kind": "OBJECT",
+            "name": "Ed25519Signature"
+          },
+          {
+            "kind": "OBJECT",
+            "name": "MultisigSignature"
+          },
+          {
+            "kind": "OBJECT",
+            "name": "PasskeySignature"
+          },
+          {
+            "kind": "OBJECT",
+            "name": "Secp256K1Signature"
+          },
+          {
+            "kind": "OBJECT",
+            "name": "Secp256R1Signature"
+          },
+          {
+            "kind": "OBJECT",
+            "name": "ZkLoginSignature"
+          }
+        ]
       },
       {
         "kind": "OBJECT",
@@ -12685,6 +13226,15 @@ const introspection = {
         "name": "UserSignature",
         "fields": [
           {
+            "name": "scheme",
+            "type": {
+              "kind": "UNION",
+              "name": "SignatureScheme"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
             "name": "signatureBytes",
             "type": {
               "kind": "SCALAR",
@@ -13020,6 +13570,74 @@ const introspection = {
         "interfaces": []
       },
       {
+        "kind": "OBJECT",
+        "name": "ZkLoginClaim",
+        "fields": [
+          {
+            "name": "indexMod4",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "value",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ZkLoginInputs",
+        "fields": [
+          {
+            "name": "addressSeed",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "headerBase64",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "issBase64Details",
+            "type": {
+              "kind": "OBJECT",
+              "name": "ZkLoginClaim"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "proofPoints",
+            "type": {
+              "kind": "OBJECT",
+              "name": "ZkLoginProof"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
         "kind": "ENUM",
         "name": "ZkLoginIntentScope",
         "enumValues": [
@@ -13035,10 +13653,10 @@ const introspection = {
       },
       {
         "kind": "OBJECT",
-        "name": "ZkLoginVerifyResult",
+        "name": "ZkLoginJwkId",
         "fields": [
           {
-            "name": "error",
+            "name": "iss",
             "type": {
               "kind": "SCALAR",
               "name": "String"
@@ -13046,6 +13664,133 @@ const introspection = {
             "args": [],
             "isDeprecated": false
           },
+          {
+            "name": "kid",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ZkLoginProof",
+        "fields": [
+          {
+            "name": "a",
+            "type": {
+              "kind": "OBJECT",
+              "name": "CircomG1"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "b",
+            "type": {
+              "kind": "OBJECT",
+              "name": "CircomG2"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "c",
+            "type": {
+              "kind": "OBJECT",
+              "name": "CircomG1"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ZkLoginPublicIdentifier",
+        "fields": [
+          {
+            "name": "addressSeed",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "iss",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ZkLoginSignature",
+        "fields": [
+          {
+            "name": "inputs",
+            "type": {
+              "kind": "OBJECT",
+              "name": "ZkLoginInputs"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "jwkId",
+            "type": {
+              "kind": "OBJECT",
+              "name": "ZkLoginJwkId"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "maxEpoch",
+            "type": {
+              "kind": "SCALAR",
+              "name": "UInt53"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "publicIdentifier",
+            "type": {
+              "kind": "OBJECT",
+              "name": "ZkLoginPublicIdentifier"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "signature",
+            "type": {
+              "kind": "UNION",
+              "name": "SignatureScheme"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ZkLoginVerifyResult",
+        "fields": [
           {
             "name": "success",
             "type": {

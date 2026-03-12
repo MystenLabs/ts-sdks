@@ -85,6 +85,13 @@ export namespace SuiClientTypes {
 		 * use the `content` field and parse the BCS data directly.
 		 */
 		json?: boolean;
+		/**
+		 * Include the Display v2 rendered output for the object.
+		 *
+		 * Returns a map of display field names to their rendered string values.
+		 * Returns `null` if the object's type does not have an associated Display template.
+		 */
+		display?: boolean;
 	}
 
 	export interface GetObjectsOptions<
@@ -169,6 +176,15 @@ export namespace SuiClientTypes {
 		 * the `content` field and parse the BCS data directly.
 		 */
 		json: Include extends { json: true } ? Record<string, unknown> | null : undefined;
+		/** Display v2 rendered output. `null` if the type has no Display template. */
+		display: Include extends { display: true } ? Display | null : undefined;
+	}
+
+	export interface Display {
+		/** Successfully rendered display field values, keyed by field name. */
+		output: Record<string, string> | null;
+		/** Per-field rendering errors, keyed by field name. `null` if all fields succeeded. */
+		errors: Record<string, string> | null;
 	}
 
 	export interface Coin {

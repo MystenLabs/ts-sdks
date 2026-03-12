@@ -574,6 +574,25 @@ export type CheckpointFilter = {
   beforeCheckpoint?: InputMaybe<Scalars['UInt53']['input']>;
 };
 
+/** A G1 elliptic curve point with 3 base10-encoded Bn254 field elements. */
+export type CircomG1 = {
+  __typename?: 'CircomG1';
+  e0?: Maybe<Scalars['String']['output']>;
+  e1?: Maybe<Scalars['String']['output']>;
+  e2?: Maybe<Scalars['String']['output']>;
+};
+
+/** A G2 elliptic curve point with 6 base10-encoded Bn254 field elements. */
+export type CircomG2 = {
+  __typename?: 'CircomG2';
+  e00?: Maybe<Scalars['String']['output']>;
+  e01?: Maybe<Scalars['String']['output']>;
+  e10?: Maybe<Scalars['String']['output']>;
+  e11?: Maybe<Scalars['String']['output']>;
+  e20?: Maybe<Scalars['String']['output']>;
+  e21?: Maybe<Scalars['String']['output']>;
+};
+
 /** System transaction for creating the coin deny list state. */
 export type CoinDenyListStateCreateTransaction = {
   __typename?: 'CoinDenyListStateCreateTransaction';
@@ -1293,6 +1312,22 @@ export type DynamicFieldName = {
 
 /** The value of a dynamic field (`MoveValue`) or dynamic object field (`MoveObject`). */
 export type DynamicFieldValue = MoveObject | MoveValue;
+
+/** An Ed25519 public key. */
+export type Ed25519PublicKey = {
+  __typename?: 'Ed25519PublicKey';
+  /** The raw public key bytes. */
+  bytes?: Maybe<Scalars['Base64']['output']>;
+};
+
+/** An Ed25519 signature. */
+export type Ed25519Signature = {
+  __typename?: 'Ed25519Signature';
+  /** The public key bytes. */
+  publicKey?: Maybe<Scalars['Base64']['output']>;
+  /** The raw signature bytes. */
+  signature?: Maybe<Scalars['Base64']['output']>;
+};
 
 /** System transaction that supersedes `ChangeEpochTransaction` as the new way to run transactions at the end of an epoch. Behaves similarly to `ChangeEpochTransaction` but can accommodate other optional transactions to run at the end of the epoch. */
 export type EndOfEpochTransaction = {
@@ -2859,6 +2894,12 @@ export type MoveValue = {
    * Values of other types cannot be interpreted as addresses, and `null` is returned.
    */
   asAddress?: Maybe<Address>;
+  /**
+   * Attempts to treat this value as a `vector<T>` and paginate over its elements.
+   *
+   * Values of other types cannot be interpreted as vectors, and `null` is returned.
+   */
+  asVector?: Maybe<MoveValueConnection>;
   /** The BCS representation of this value, Base64-encoded. */
   bcs?: Maybe<Scalars['Base64']['output']>;
   /**
@@ -2898,6 +2939,14 @@ export type MoveValue = {
 };
 
 
+export type MoveValueAsVectorArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
 export type MoveValueExtractArgs = {
   path: Scalars['String']['input'];
 };
@@ -2905,6 +2954,25 @@ export type MoveValueExtractArgs = {
 
 export type MoveValueFormatArgs = {
   format: Scalars['String']['input'];
+};
+
+export type MoveValueConnection = {
+  __typename?: 'MoveValueConnection';
+  /** A list of edges. */
+  edges: Array<MoveValueEdge>;
+  /** A list of nodes. */
+  nodes: Array<MoveValue>;
+  /** Information to aid in pagination. */
+  pageInfo: PageInfo;
+};
+
+/** An edge in a connection. */
+export type MoveValueEdge = {
+  __typename?: 'MoveValueEdge';
+  /** A cursor for use in pagination */
+  cursor: Scalars['String']['output'];
+  /** The item at the end of the edge */
+  node: MoveValue;
 };
 
 /**
@@ -2920,6 +2988,42 @@ export enum MoveVisibility {
   /** A public member can be accessed by any module. */
   Public = 'PUBLIC'
 }
+
+/** The multisig committee definition. */
+export type MultisigCommittee = {
+  __typename?: 'MultisigCommittee';
+  /** The committee members (public key + weight). */
+  members?: Maybe<Array<MultisigMember>>;
+  /** The threshold number of weight needed for a valid multisig. */
+  threshold?: Maybe<Scalars['Int']['output']>;
+};
+
+/** A single member of a multisig committee. */
+export type MultisigMember = {
+  __typename?: 'MultisigMember';
+  /** The member's public key. */
+  publicKey?: Maybe<MultisigMemberPublicKey>;
+  /** The member's weight in the committee. */
+  weight?: Maybe<Scalars['Int']['output']>;
+};
+
+/** A multisig member's public key, varying by scheme. */
+export type MultisigMemberPublicKey = Ed25519PublicKey | PasskeyPublicKey | Secp256K1PublicKey | Secp256R1PublicKey | ZkLoginPublicIdentifier;
+
+/** An aggregated multisig signature. */
+export type MultisigSignature = {
+  __typename?: 'MultisigSignature';
+  /** A bitmap indicating which members of the committee signed. */
+  bitmap?: Maybe<Scalars['Int']['output']>;
+  /** The multisig committee (public keys + weights + threshold). */
+  committee?: Maybe<MultisigCommittee>;
+  /**
+   * The individual member signatures, one per signer who participated.
+   * Compressed signatures within a multisig do not include the signer's public key,
+   * so `publicKey` will be `null` for simple signature schemes (Ed25519, Secp256k1, Secp256r1).
+   */
+  signatures?: Maybe<Array<SignatureScheme>>;
+};
 
 /** A transaction that wanted to mutate a consensus-managed object but couldn't because it became not-consensus-managed before the transaction executed (for example, it was deleted, turned into an owned object, or wrapped). */
 export type MutateConsensusStreamEnded = {
@@ -3442,6 +3546,23 @@ export type PageInfo = {
   startCursor?: Maybe<Scalars['String']['output']>;
 };
 
+/** A Passkey public key. */
+export type PasskeyPublicKey = {
+  __typename?: 'PasskeyPublicKey';
+  /** The raw public key bytes. */
+  bytes?: Maybe<Scalars['Base64']['output']>;
+};
+
+export type PasskeySignature = {
+  __typename?: 'PasskeySignature';
+  /** The authenticator data returned by the passkey device. */
+  authenticatorData?: Maybe<Scalars['Base64']['output']>;
+  /** The client data JSON string passed to the authenticator. */
+  clientDataJson?: Maybe<Scalars['String']['output']>;
+  /** The inner user signature (secp256r1). */
+  signature?: Maybe<SignatureScheme>;
+};
+
 export type PerEpochConfig = {
   __typename?: 'PerEpochConfig';
   /** The per-epoch configuration object as of when the transaction was executed. */
@@ -3762,16 +3883,16 @@ export type Query = {
    */
   type?: Maybe<MoveType>;
   /**
-   * Verify a zkLogin signature os from the given `author`.
+   * Verify a zkLogin signature is from the given `author`.
    *
-   * Returns a `ZkLoginVerifyResult` where `success` is `true` and `error` is empty if the signature is valid. If the signature is invalid, `success` is `false` and `error` contains the relevant error message.
+   * Returns successfully if the signature is valid. If the signature is invalid, returns an error with the reason for the failure.
    *
    * - `bytes` are either the bytes of a serialized personal message, or `TransactionData`, Base64-encoded.
    * - `signature` is a serialized zkLogin signature, also Base64-encoded.
    * - `intentScope` indicates whether `bytes` are to be parsed as a personal message or `TransactionData`.
    * - `author` is the signer's address.
    */
-  verifyZkLoginSignature: ZkLoginVerifyResult;
+  verifyZkLoginSignature?: Maybe<ZkLoginVerifyResult>;
 };
 
 
@@ -4013,6 +4134,38 @@ export enum RegulatedState {
   Unregulated = 'UNREGULATED'
 }
 
+/** A Secp256k1 public key. */
+export type Secp256K1PublicKey = {
+  __typename?: 'Secp256K1PublicKey';
+  /** The raw public key bytes. */
+  bytes?: Maybe<Scalars['Base64']['output']>;
+};
+
+/** A Secp256k1 signature. */
+export type Secp256K1Signature = {
+  __typename?: 'Secp256K1Signature';
+  /** The public key bytes. */
+  publicKey?: Maybe<Scalars['Base64']['output']>;
+  /** The raw signature bytes. */
+  signature?: Maybe<Scalars['Base64']['output']>;
+};
+
+/** A Secp256r1 public key. */
+export type Secp256R1PublicKey = {
+  __typename?: 'Secp256R1PublicKey';
+  /** The raw public key bytes. */
+  bytes?: Maybe<Scalars['Base64']['output']>;
+};
+
+/** A Secp256r1 signature. */
+export type Secp256R1Signature = {
+  __typename?: 'Secp256R1Signature';
+  /** The public key bytes. */
+  publicKey?: Maybe<Scalars['Base64']['output']>;
+  /** The raw signature bytes. */
+  signature?: Maybe<Scalars['Base64']['output']>;
+};
+
 export type ServiceConfig = {
   __typename?: 'ServiceConfig';
   /** Range of checkpoints for which data is available for a query type, field and optional filter. If filter is not provided, the strictest retention range for the query and type is returned. */
@@ -4151,6 +4304,9 @@ export type SharedInput = {
    */
   mutable?: Maybe<Scalars['Boolean']['output']>;
 };
+
+/** The structured details of a signature, varying by scheme. */
+export type SignatureScheme = Ed25519Signature | MultisigSignature | PasskeySignature | Secp256K1Signature | Secp256R1Signature | ZkLoginSignature;
 
 /** The result of simulating a transaction, including the predicted effects. */
 export type SimulationResult = {
@@ -4454,6 +4610,8 @@ export type UpgradeCommand = {
 
 export type UserSignature = {
   __typename?: 'UserSignature';
+  /** The structured signature details, parsed by scheme. */
+  scheme?: Maybe<SignatureScheme>;
   /**
    * The signature bytes, Base64-encoded.
    * For simple signatures: flag || signature || pubkey
@@ -4558,6 +4716,28 @@ export type WriteAccumulatorStorageCostTransaction = {
   _?: Maybe<Scalars['Boolean']['output']>;
 };
 
+/** A Base64-encoded claim from the JWT used in zkLogin. */
+export type ZkLoginClaim = {
+  __typename?: 'ZkLoginClaim';
+  /** The index mod 4 used for Base64 decoding alignment. */
+  indexMod4?: Maybe<Scalars['Int']['output']>;
+  /** The Base64url-unpadded encoded claim value. */
+  value?: Maybe<Scalars['String']['output']>;
+};
+
+/** The zkLogin inputs including proof, claim details, and JWT header. */
+export type ZkLoginInputs = {
+  __typename?: 'ZkLoginInputs';
+  /** The address seed as a base10-encoded string. */
+  addressSeed?: Maybe<Scalars['String']['output']>;
+  /** The Base64-encoded JWT header. */
+  headerBase64?: Maybe<Scalars['String']['output']>;
+  /** The Base64-encoded issuer claim details. */
+  issBase64Details?: Maybe<ZkLoginClaim>;
+  /** The zero-knowledge proof points. */
+  proofPoints?: Maybe<ZkLoginProof>;
+};
+
 /** An enum that specifies the intent scope to be used to parse the bytes for signature verification. */
 export enum ZkLoginIntentScope {
   /** Indicates that the bytes are to be parsed as a personal message. */
@@ -4566,12 +4746,53 @@ export enum ZkLoginIntentScope {
   TransactionData = 'TRANSACTION_DATA'
 }
 
+/** A JWK (JSON Web Key) identifier. */
+export type ZkLoginJwkId = {
+  __typename?: 'ZkLoginJwkId';
+  /** The OIDC provider issuer string. */
+  iss?: Maybe<Scalars['String']['output']>;
+  /** The key ID that identifies the JWK. */
+  kid?: Maybe<Scalars['String']['output']>;
+};
+
+/** The zero-knowledge proof consisting of three elliptic curve points. */
+export type ZkLoginProof = {
+  __typename?: 'ZkLoginProof';
+  /** G1 point 'a'. */
+  a?: Maybe<CircomG1>;
+  /** G2 point 'b'. */
+  b?: Maybe<CircomG2>;
+  /** G1 point 'c'. */
+  c?: Maybe<CircomG1>;
+};
+
+/** A zkLogin public identifier, containing the OAuth issuer and address seed. */
+export type ZkLoginPublicIdentifier = {
+  __typename?: 'ZkLoginPublicIdentifier';
+  /** The address seed as a decimal string. */
+  addressSeed?: Maybe<Scalars['String']['output']>;
+  /** The OAuth provider issuer string (e.g. "https://accounts.google.com"). */
+  iss?: Maybe<Scalars['String']['output']>;
+};
+
+export type ZkLoginSignature = {
+  __typename?: 'ZkLoginSignature';
+  /** The zkLogin inputs including proof, claim details, and JWT header. */
+  inputs?: Maybe<ZkLoginInputs>;
+  /** The JWK identifier used to verify the zkLogin proof. */
+  jwkId?: Maybe<ZkLoginJwkId>;
+  /** The maximum epoch for which this signature is valid. */
+  maxEpoch?: Maybe<Scalars['UInt53']['output']>;
+  /** The public identifier (issuer + address seed) for this zkLogin authenticator. */
+  publicIdentifier?: Maybe<ZkLoginPublicIdentifier>;
+  /** The inner user signature (ed25519/secp256k1/secp256r1). */
+  signature?: Maybe<SignatureScheme>;
+};
+
 /** The result of the zkLogin signature verification. */
 export type ZkLoginVerifyResult = {
   __typename?: 'ZkLoginVerifyResult';
-  /** The error field capture reasons why the signature could not be verified, assuming the inputs are valid and there are no internal errors. */
-  error?: Maybe<Scalars['String']['output']>;
-  /** The boolean result of the verification. If true, errors should be empty. */
+  /** Whether the signature was verified successfully. */
   success?: Maybe<Scalars['Boolean']['output']>;
 };
 
@@ -4668,10 +4889,11 @@ export type GetOwnedObjectsQueryVariables = Exact<{
   includePreviousTransaction?: InputMaybe<Scalars['Boolean']['input']>;
   includeObjectBcs?: InputMaybe<Scalars['Boolean']['input']>;
   includeJson?: InputMaybe<Scalars['Boolean']['input']>;
+  includeDisplay?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
-export type GetOwnedObjectsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', objects?: { __typename?: 'MoveObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'MoveObject', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, json?: unknown | null, type?: { __typename?: 'MoveType', repr: string } | null } | null, owner?:
+export type GetOwnedObjectsQuery = { __typename?: 'Query', address?: { __typename?: 'Address', objects?: { __typename?: 'MoveObjectConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null }, nodes: Array<{ __typename?: 'MoveObject', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, json?: unknown | null, display?: { __typename?: 'Display', output?: unknown | null, errors?: unknown | null } | null, type?: { __typename?: 'MoveType', repr: string } | null } | null, owner?:
           | { __typename: 'AddressOwner', address?: { __typename?: 'Address', address: string } | null }
           | { __typename: 'ConsensusAddressOwner', startVersion?: number | null, address?: { __typename?: 'Address', address: string } | null }
           | { __typename: 'Immutable' }
@@ -4685,10 +4907,11 @@ export type MultiGetObjectsQueryVariables = Exact<{
   includePreviousTransaction?: InputMaybe<Scalars['Boolean']['input']>;
   includeObjectBcs?: InputMaybe<Scalars['Boolean']['input']>;
   includeJson?: InputMaybe<Scalars['Boolean']['input']>;
+  includeDisplay?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
-export type MultiGetObjectsQuery = { __typename?: 'Query', multiGetObjects: Array<{ __typename?: 'Object', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs?: string | null, json?: unknown | null, type?: { __typename?: 'MoveType', repr: string } | null } | null } | null, asMovePackage?: { __typename: 'MovePackage' } | null, owner?:
+export type MultiGetObjectsQuery = { __typename?: 'Query', multiGetObjects: Array<{ __typename?: 'Object', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs?: string | null, json?: unknown | null, display?: { __typename?: 'Display', output?: unknown | null, errors?: unknown | null } | null, type?: { __typename?: 'MoveType', repr: string } | null } | null } | null, asMovePackage?: { __typename: 'MovePackage' } | null, owner?:
       | { __typename: 'AddressOwner', address?: { __typename?: 'Address', address: string } | null }
       | { __typename: 'ConsensusAddressOwner', startVersion?: number | null, address?: { __typename?: 'Address', address: string } | null }
       | { __typename: 'Immutable' }
@@ -4696,7 +4919,7 @@ export type MultiGetObjectsQuery = { __typename?: 'Query', multiGetObjects: Arra
       | { __typename: 'Shared', initialSharedVersion?: number | null }
      | null, previousTransaction?: { __typename?: 'Transaction', digest: string } | null } | null> };
 
-export type Object_FieldsFragment = { __typename?: 'Object', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs?: string | null, json?: unknown | null, type?: { __typename?: 'MoveType', repr: string } | null } | null } | null, asMovePackage?: { __typename: 'MovePackage' } | null, owner?:
+export type Object_FieldsFragment = { __typename?: 'Object', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, asMoveObject?: { __typename?: 'MoveObject', contents?: { __typename?: 'MoveValue', bcs?: string | null, json?: unknown | null, display?: { __typename?: 'Display', output?: unknown | null, errors?: unknown | null } | null, type?: { __typename?: 'MoveType', repr: string } | null } | null } | null, asMovePackage?: { __typename: 'MovePackage' } | null, owner?:
     | { __typename: 'AddressOwner', address?: { __typename?: 'Address', address: string } | null }
     | { __typename: 'ConsensusAddressOwner', startVersion?: number | null, address?: { __typename?: 'Address', address: string } | null }
     | { __typename: 'Immutable' }
@@ -4704,7 +4927,7 @@ export type Object_FieldsFragment = { __typename?: 'Object', address: string, di
     | { __typename: 'Shared', initialSharedVersion?: number | null }
    | null, previousTransaction?: { __typename?: 'Transaction', digest: string } | null };
 
-export type Move_Object_FieldsFragment = { __typename?: 'MoveObject', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, json?: unknown | null, type?: { __typename?: 'MoveType', repr: string } | null } | null, owner?:
+export type Move_Object_FieldsFragment = { __typename?: 'MoveObject', address: string, digest?: string | null, version?: number | null, objectBcs?: string | null, contents?: { __typename?: 'MoveValue', bcs?: string | null, json?: unknown | null, display?: { __typename?: 'Display', output?: unknown | null, errors?: unknown | null } | null, type?: { __typename?: 'MoveType', repr: string } | null } | null, owner?:
     | { __typename: 'AddressOwner', address?: { __typename?: 'Address', address: string } | null }
     | { __typename: 'ConsensusAddressOwner', startVersion?: number | null, address?: { __typename?: 'Address', address: string } | null }
     | { __typename: 'Immutable' }
@@ -4791,7 +5014,7 @@ export type VerifyZkLoginSignatureQueryVariables = Exact<{
 }>;
 
 
-export type VerifyZkLoginSignatureQuery = { __typename?: 'Query', verifyZkLoginSignature: { __typename?: 'ZkLoginVerifyResult', success?: boolean | null, error?: string | null } };
+export type VerifyZkLoginSignatureQuery = { __typename?: 'Query', verifyZkLoginSignature?: { __typename?: 'ZkLoginVerifyResult', success?: boolean | null } | null };
 
 export class TypedDocumentString<TResult, TVariables>
   extends String
@@ -4845,6 +5068,10 @@ export const Object_FieldsFragmentDoc = new TypedDocumentString(`
     contents {
       bcs @include(if: $includeContent)
       json @include(if: $includeJson)
+      display @include(if: $includeDisplay) {
+        output
+        errors
+      }
       type {
         repr
       }
@@ -4891,6 +5118,10 @@ export const Move_Object_FieldsFragmentDoc = new TypedDocumentString(`
   contents {
     bcs @include(if: $includeContent)
     json @include(if: $includeJson)
+    display @include(if: $includeDisplay) {
+      output
+      errors
+    }
     type {
       repr
     }
@@ -5188,7 +5419,7 @@ export const DefaultSuinsNameDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DefaultSuinsNameQuery, DefaultSuinsNameQueryVariables>;
 export const GetOwnedObjectsDocument = new TypedDocumentString(`
-    query getOwnedObjects($owner: SuiAddress!, $limit: Int, $cursor: String, $filter: ObjectFilter, $includeContent: Boolean = false, $includePreviousTransaction: Boolean = false, $includeObjectBcs: Boolean = false, $includeJson: Boolean = false) {
+    query getOwnedObjects($owner: SuiAddress!, $limit: Int, $cursor: String, $filter: ObjectFilter, $includeContent: Boolean = false, $includePreviousTransaction: Boolean = false, $includeObjectBcs: Boolean = false, $includeJson: Boolean = false, $includeDisplay: Boolean = false) {
   address(address: $owner) {
     objects(first: $limit, after: $cursor, filter: $filter) {
       pageInfo {
@@ -5209,6 +5440,10 @@ export const GetOwnedObjectsDocument = new TypedDocumentString(`
   contents {
     bcs @include(if: $includeContent)
     json @include(if: $includeJson)
+    display @include(if: $includeDisplay) {
+      output
+      errors
+    }
     type {
       repr
     }
@@ -5243,7 +5478,7 @@ fragment OBJECT_OWNER_FIELDS on Owner {
   }
 }`) as unknown as TypedDocumentString<GetOwnedObjectsQuery, GetOwnedObjectsQueryVariables>;
 export const MultiGetObjectsDocument = new TypedDocumentString(`
-    query multiGetObjects($objectKeys: [ObjectKey!]!, $includeContent: Boolean = false, $includePreviousTransaction: Boolean = false, $includeObjectBcs: Boolean = false, $includeJson: Boolean = false) {
+    query multiGetObjects($objectKeys: [ObjectKey!]!, $includeContent: Boolean = false, $includePreviousTransaction: Boolean = false, $includeObjectBcs: Boolean = false, $includeJson: Boolean = false, $includeDisplay: Boolean = false) {
   multiGetObjects(keys: $objectKeys) {
     ...OBJECT_FIELDS
   }
@@ -5257,6 +5492,10 @@ export const MultiGetObjectsDocument = new TypedDocumentString(`
     contents {
       bcs @include(if: $includeContent)
       json @include(if: $includeJson)
+      display @include(if: $includeDisplay) {
+        output
+        errors
+      }
       type {
         repr
       }
@@ -5592,7 +5831,6 @@ export const VerifyZkLoginSignatureDocument = new TypedDocumentString(`
     author: $author
   ) {
     success
-    error
   }
 }
     `) as unknown as TypedDocumentString<VerifyZkLoginSignatureQuery, VerifyZkLoginSignatureQueryVariables>;

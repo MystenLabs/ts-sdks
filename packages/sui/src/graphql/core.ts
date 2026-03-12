@@ -100,6 +100,7 @@ export class GraphQLCoreClient extends CoreClient {
 						includePreviousTransaction: options.include?.previousTransaction ?? false,
 						includeObjectBcs: options.include?.objectBcs ?? false,
 						includeJson: options.include?.json ?? false,
+						includeDisplay: options.include?.display ?? false,
 					},
 				},
 				(result) => result.multiGetObjects,
@@ -139,6 +140,11 @@ export class GraphQLCoreClient extends CoreClient {
 								: null
 							: undefined;
 
+						const displayData = mapDisplay(
+							options.include?.display,
+							obj.asMoveObject?.contents?.display,
+						);
+
 						return {
 							objectId: obj.address,
 							version: obj.version?.toString()!,
@@ -150,6 +156,7 @@ export class GraphQLCoreClient extends CoreClient {
 								undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
 							objectBcs: objectBcs as SuiClientTypes.Object<Include>['objectBcs'],
 							json: jsonContent as SuiClientTypes.Object<Include>['json'],
+							display: displayData as SuiClientTypes.Object<Include>['display'],
 						};
 					}),
 			);
@@ -176,6 +183,7 @@ export class GraphQLCoreClient extends CoreClient {
 					includePreviousTransaction: options.include?.previousTransaction ?? false,
 					includeObjectBcs: options.include?.objectBcs ?? false,
 					includeJson: options.include?.json ?? false,
+					includeDisplay: options.include?.display ?? false,
 				},
 			},
 			(result) => result.address?.objects,
@@ -202,6 +210,10 @@ export class GraphQLCoreClient extends CoreClient {
 							? (obj.contents.json as Record<string, unknown>)
 							: null
 						: undefined) as SuiClientTypes.Object<Include>['json'],
+					display: mapDisplay(
+						options.include?.display,
+						obj.contents?.display,
+					) as SuiClientTypes.Object<Include>['display'],
 				}),
 			),
 			hasNextPage: objects.pageInfo.hasNextPage,
@@ -571,7 +583,7 @@ export class GraphQLCoreClient extends CoreClient {
 
 		return {
 			success: result.success ?? false,
-			errors: result.error ? [result.error] : [],
+			errors: [],
 		};
 	}
 
@@ -747,6 +759,18 @@ export type GraphQLResponseErrors = Array<{
 	locations?: { line: number; column: number }[];
 	path?: (string | number)[];
 }>;
+
+function mapDisplay(
+	include: boolean | undefined,
+	display: { output?: unknown | null; errors?: unknown | null } | null | undefined,
+): SuiClientTypes.Display | null | undefined {
+	if (!include) return undefined;
+	if (!display) return null;
+	return {
+		output: (display.output as Record<string, string> | null) ?? null,
+		errors: (display.errors as Record<string, string> | null) ?? null,
+	};
+}
 
 function handleGraphQLErrors(errors: GraphQLResponseErrors | undefined): void {
 	if (!errors || errors.length === 0) return;

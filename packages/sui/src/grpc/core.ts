@@ -74,6 +74,9 @@ export class GrpcCoreClient extends CoreClient {
 		if (options.include?.json) {
 			paths.push('json');
 		}
+		if (options.include?.display) {
+			paths.push('display');
+		}
 
 		for (const batch of batches) {
 			const response = await this.#client.ledgerService.batchGetObjects({
@@ -110,6 +113,11 @@ export class GrpcCoreClient extends CoreClient {
 							: null
 						: undefined;
 
+					const displayData = mapDisplayProto(
+						options.include?.display,
+						object.result.object.display,
+					);
+
 					return {
 						objectId: object.result.object.objectId!,
 						version: object.result.object.version?.toString()!,
@@ -121,6 +129,7 @@ export class GrpcCoreClient extends CoreClient {
 							undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
 						objectBcs: objectBcs as SuiClientTypes.Object<Include>['objectBcs'],
 						json: jsonContent as SuiClientTypes.Object<Include>['json'],
+						display: displayData as SuiClientTypes.Object<Include>['display'],
 					};
 				}),
 			);
@@ -145,6 +154,9 @@ export class GrpcCoreClient extends CoreClient {
 		}
 		if (options.include?.json) {
 			paths.push('json');
+		}
+		if (options.include?.display) {
+			paths.push('display');
 		}
 
 		const response = await this.#client.stateService.listOwnedObjects({
@@ -175,6 +187,10 @@ export class GrpcCoreClient extends CoreClient {
 						? (Value.toJson(object.json) as Record<string, unknown>)
 						: null
 					: undefined) as SuiClientTypes.Object<Include>['json'],
+				display: mapDisplayProto(
+					options.include?.display,
+					object.display,
+				) as SuiClientTypes.Object<Include>['display'],
 			}),
 		);
 
@@ -750,6 +766,24 @@ export class GrpcCoreClient extends CoreClient {
 			return await next();
 		};
 	}
+}
+
+function mapDisplayProto(
+	include: boolean | undefined,
+	display: { output?: Value; errors?: Value } | undefined,
+): SuiClientTypes.Display | null | undefined {
+	if (!include) return undefined;
+	if (display === undefined) return null;
+	return {
+		output:
+			display.output !== undefined
+				? (Value.toJson(display.output) as Record<string, string> | null)
+				: null,
+		errors:
+			display.errors !== undefined
+				? (Value.toJson(display.errors) as Record<string, string> | null)
+				: null,
+	};
 }
 
 function mapOwner(owner: Owner | null | undefined): SuiClientTypes.ObjectOwner | null {
