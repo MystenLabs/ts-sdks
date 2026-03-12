@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { beforeAll, describe, expect } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { Transaction } from '../../../../src/transactions/index.js';
 import { setup, TestToolbox, createTestWithAllClients } from '../../utils/setup.js';
 import { normalizeSuiAddress } from '../../../../src/utils/index.js';
@@ -21,7 +21,7 @@ describe('Core API - Display', () => {
 		toolbox = await setup();
 		testAddress = toolbox.address();
 
-		testPackageId = await toolbox.getPackage('test_data');
+		testPackageId = toolbox.getPackage('test_data');
 
 		// Create a DemoBear (has Display template) and a SimpleObject (no Display)
 		const tx = new Transaction();
@@ -60,6 +60,12 @@ describe('Core API - Display', () => {
 	});
 
 	describe('getObject with display', () => {
+		it('all clients return same data: getObject with display', async () => {
+			await toolbox.expectAllClientsReturnSameData((client) =>
+				client.core.getObject({ objectId: demoBearId, include: { display: true } }),
+			);
+		});
+
 		testWithAllClients(
 			'returns null display for objects without a Display template',
 			async (client) => {
@@ -95,6 +101,24 @@ describe('Core API - Display', () => {
 	});
 
 	describe('getObjects with display', () => {
+		it('all clients return same data: getObjects with display', async () => {
+			await toolbox.expectAllClientsReturnSameData(
+				(client) =>
+					client.core.getObjects({
+						objectIds: [demoBearId, simpleObjectId],
+						include: { display: true },
+					}),
+				// Normalize: sort by objectId since order may vary across transports
+				(result) => ({
+					...result,
+					objects: [...result.objects].sort((a, b) => {
+						if (a instanceof Error || b instanceof Error) return 0;
+						return a.objectId.localeCompare(b.objectId);
+					}),
+				}),
+			);
+		});
+
 		testWithAllClients(
 			'returns display fields for objects with a Display template',
 			async (client) => {
@@ -126,6 +150,23 @@ describe('Core API - Display', () => {
 	});
 
 	describe('listOwnedObjects with display', () => {
+		it('all clients return same data: listOwnedObjects with display', async () => {
+			await toolbox.expectAllClientsReturnSameData(
+				(client) =>
+					client.core.listOwnedObjects({
+						owner: testAddress,
+						type: `${testPackageId}::demo_bear::DemoBear`,
+						include: { display: true },
+					}),
+				// Normalize: ignore cursor and sort by objectId (order may vary across transports)
+				(result) => ({
+					...result,
+					cursor: null,
+					objects: [...result.objects].sort((a, b) => a.objectId.localeCompare(b.objectId)),
+				}),
+			);
+		});
+
 		testWithAllClients(
 			'returns display fields for objects with a Display template',
 			async (client) => {

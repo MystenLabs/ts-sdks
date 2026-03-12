@@ -568,23 +568,30 @@ export class GraphQLCoreClient extends CoreClient {
 				? ZkLoginIntentScope.TransactionData
 				: ZkLoginIntentScope.PersonalMessage;
 
-		const result = await this.#graphqlQuery(
-			{
-				query: VerifyZkLoginSignatureDocument,
-				variables: {
-					bytes: options.bytes,
-					signature: options.signature,
-					intentScope,
-					author: options.address,
+		try {
+			const result = await this.#graphqlQuery(
+				{
+					query: VerifyZkLoginSignatureDocument,
+					variables: {
+						bytes: options.bytes,
+						signature: options.signature,
+						intentScope,
+						author: options.address,
+					},
 				},
-			},
-			(result) => result.verifyZkLoginSignature,
-		);
+				(result) => result.verifyZkLoginSignature,
+			);
 
-		return {
-			success: result.success ?? false,
-			errors: [],
-		};
+			return {
+				success: result.success ?? false,
+				errors: [],
+			};
+		} catch (error) {
+			return {
+				success: false,
+				errors: [error instanceof Error ? error.message : String(error)],
+			};
+		}
 	}
 
 	async defaultNameServiceName(
