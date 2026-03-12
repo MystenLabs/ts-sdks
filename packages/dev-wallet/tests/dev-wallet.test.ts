@@ -804,7 +804,7 @@ describe('DevWallet', () => {
 			const wallet = new DevWallet(createDefaultConfig({ clientFactory }));
 
 			expect(clientFactory).not.toHaveBeenCalled();
-			const _client = wallet.activeClient;
+			wallet.activeClient;
 			expect(clientFactory).toHaveBeenCalledTimes(1);
 		});
 
