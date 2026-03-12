@@ -33,14 +33,14 @@ export function pas<const Name extends string = 'pas'>({
 			const network = client.network;
 
 			// TODO: This should only be mainnet,testnet. We use devnet as there's no testnet addr balances temporarily.
-			if (
-				network !== 'mainnet' &&
-				network !== 'testnet' &&
-				network !== 'devnet' &&
-				!packageConfig
-			) {
-				throw new PASClientError('PAS client only supports mainnet, testnet and devnet');
+			if (network !== 'mainnet' && network !== 'testnet' && !packageConfig) {
+				throw new PASClientError(
+					'PAS client only supports mainnet and testnet. You can supply a custom package configuration for other networks.',
+				);
 			}
+
+			// TODO: Remove when we add mainnet data
+			if (network === 'mainnet') throw new PASClientError('Mainnet is not supported yet.');
 
 			return new PASClient(
 				packageConfig
