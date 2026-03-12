@@ -131,6 +131,7 @@ export class JSONRpcCoreClient extends CoreClient {
 						options.include?.previousTransaction || options.include?.objectBcs ? true : false,
 					showStorageRebate: options.include?.objectBcs ?? false,
 					showContent: options.include?.json ?? false,
+					showDisplay: options.include?.display ?? false,
 				},
 				signal: options.signal,
 			});
@@ -175,6 +176,7 @@ export class JSONRpcCoreClient extends CoreClient {
 					options.include?.previousTransaction || options.include?.objectBcs ? true : false,
 				showStorageRebate: options.include?.objectBcs ?? false,
 				showContent: options.include?.json ?? false,
+				showDisplay: options.include?.display ?? false,
 			},
 			filter,
 			signal: options.signal,
@@ -687,6 +689,12 @@ function parseObject<Include extends SuiClientTypes.ObjectInclude = {}>(
 				? null
 				: undefined;
 
+	const displayData = include?.display
+		? object.display?.data != null
+			? { output: object.display.data as Record<string, string>, errors: null }
+			: null
+		: undefined;
+
 	return {
 		objectId: object.objectId,
 		version: object.version,
@@ -701,6 +709,7 @@ function parseObject<Include extends SuiClientTypes.ObjectInclude = {}>(
 			: undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
 		objectBcs: objectBcs as SuiClientTypes.Object<Include>['objectBcs'],
 		json: jsonContent as SuiClientTypes.Object<Include>['json'],
+		display: displayData as SuiClientTypes.Object<Include>['display'],
 	};
 }
 

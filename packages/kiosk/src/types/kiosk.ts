@@ -93,10 +93,13 @@ export type KioskDisplay = {
 	error: string | null;
 };
 
-export type ObjectWithDisplay = SuiClientTypes.Object<{
-	content: true;
-	previousTransaction: true;
-}> & {
+export type ObjectWithDisplay = Omit<
+	SuiClientTypes.Object<{
+		content: true;
+		previousTransaction: true;
+	}>,
+	'display'
+> & {
 	display?: KioskDisplay;
 };
 

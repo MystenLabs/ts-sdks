@@ -111,6 +111,14 @@ export interface SimulateTransactionResponse {
 	 * @generated from protobuf field: repeated sui.rpc.v2.CommandResult command_outputs = 2;
 	 */
 	commandOutputs: CommandResult[];
+	/**
+	 * A suggested gas price to use, that is above RGP, in order to provide a
+	 * better chance of the transaction being included in the presence of
+	 * congested objects.
+	 *
+	 * @generated from protobuf field: optional uint64 suggested_gas_price = 3;
+	 */
+	suggestedGasPrice?: bigint;
 }
 /**
  * An intermediate result/output from the execution of a single command
@@ -213,6 +221,14 @@ class SimulateTransactionResponse$Type extends MessageType<SimulateTransactionRe
 				kind: 'message',
 				repeat: 1 /*RepeatType.PACKED*/,
 				T: () => CommandResult,
+			},
+			{
+				no: 3,
+				name: 'suggested_gas_price',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
 			},
 		]);
 	}

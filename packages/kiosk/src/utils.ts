@@ -104,7 +104,7 @@ export function extractKioskData(
 export function attachListingsAndPrices(
 	kioskData: KioskData,
 	listings: KioskListing[],
-	listingObjects: SuiClientTypes.Object[],
+	listingObjects: ObjectWithDisplay[],
 ) {
 	const itemListings = listings.reduce<Record<string, KioskListing>>(
 		(acc: Record<string, KioskListing>, item, idx) => {

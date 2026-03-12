@@ -15,6 +15,7 @@ export interface PrePublishedPackage {
 	packageId: string;
 	sharedObjects?: Record<string, string>; // typeName -> objectId
 	publisherAddress: string;
+	publisherObjectId?: string;
 }
 
 export interface PrePublishConfig {
@@ -101,6 +102,21 @@ export async function prePublishPackages(
 			results[simpleName] = result;
 
 			console.log(`Pre-published ${simpleName}: ${result.packageId}`);
+
+			// Set up Display v2 for test_data's DemoBear so gRPC can return display data
+			if (simpleName === 'test_data' && result.publisherObjectId) {
+				try {
+					await setupDemoBearDisplayV2({
+						packageId: result.packageId,
+						publisherObjectId: result.publisherObjectId,
+						keypair,
+						client,
+						address,
+					});
+				} catch (error) {
+					console.warn(`  Warning: Failed to set up Display v2: ${error}`);
+				}
+			}
 			if (result.sharedObjects && Object.keys(result.sharedObjects).length > 0) {
 				console.log(`  Shared objects: ${JSON.stringify(result.sharedObjects)}`);
 			}
@@ -221,11 +237,78 @@ async function publishSinglePackage(options: {
 		}
 	}
 
+	const publisherObject = effects.changedObjects.find((o) => {
+		const type = objectTypes[o.objectId];
+		return o.idOperation === 'Created' && type != null && type.includes('::package::Publisher');
+	});
+
 	return {
 		packageId,
 		sharedObjects: Object.keys(sharedObjects).length > 0 ? sharedObjects : undefined,
 		publisherAddress: address,
+		publisherObjectId: publisherObject?.objectId,
 	};
+}
+
+const DEMO_BEAR_IMAGE_URL =
+	'https://images.unsplash.com/photo-1589656966895-2f33e7653819?q=80&w=1000&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cG9sYXIlMjBiZWFyfGVufDB8fDB8fHww';
+
+async function setupDemoBearDisplayV2(options: {
+	packageId: string;
+	publisherObjectId: string;
+	keypair: Ed25519Keypair;
+	client: SuiGrpcClient;
+	address: string;
+}): Promise<void> {
+	const { packageId, publisherObjectId, keypair, client, address } = options;
+	const DISPLAY_REGISTRY_ID = normalizeSuiAddress('0xd');
+	const BEAR_TYPE = `${packageId}::demo_bear::DemoBear`;
+
+	const tx = new Transaction();
+	const registry = tx.object(DISPLAY_REGISTRY_ID);
+	const publisher = tx.object(publisherObjectId);
+
+	const [display, cap] = tx.moveCall({
+		target: '0x2::display_registry::new_with_publisher',
+		typeArguments: [BEAR_TYPE],
+		arguments: [registry, publisher],
+	});
+
+	for (const [key, value] of [
+		['name', '{name}'],
+		['image_url', DEMO_BEAR_IMAGE_URL],
+		['description', 'The greatest figure for demos'],
+	]) {
+		tx.moveCall({
+			target: '0x2::display_registry::set',
+			typeArguments: [BEAR_TYPE],
+			arguments: [display, cap, tx.pure.string(key), tx.pure.string(value)],
+		});
+	}
+
+	tx.moveCall({
+		target: '0x2::display_registry::share',
+		typeArguments: [BEAR_TYPE],
+		arguments: [display],
+	});
+
+	tx.transferObjects([cap], tx.pure.address(address));
+
+	const result = await keypair.signAndExecuteTransaction({
+		transaction: tx,
+		client,
+	});
+
+	const txn = await client.waitForTransaction({
+		result,
+		include: { effects: true },
+	});
+
+	if (txn.FailedTransaction) {
+		throw new Error(`Display v2 setup failed: ${txn.FailedTransaction.status.error?.message}`);
+	}
+
+	console.log(`  Set up Display v2 for ${BEAR_TYPE}`);
 }
 
 async function execInContainer(
