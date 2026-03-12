@@ -348,7 +348,7 @@ describe.concurrent(
 				}),
 			);
 
-			expect(executeTransaction(toolbox, transaction)).rejects.toThrowError(
+			await expect(executeTransaction(toolbox, transaction)).rejects.toThrowError(
 				'InsufficientFundsForWithdraw',
 			);
 		});

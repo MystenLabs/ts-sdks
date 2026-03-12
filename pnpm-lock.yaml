@@ -1019,9 +1019,6 @@ importers:
       '@mysten/sui':
         specifier: workspace:^
         version: link:../sui
-      '@testcontainers/postgresql':
-        specifier: ^11.11.0
-        version: 11.11.0
       '@types/node':
         specifier: ^25.0.8
         version: 25.0.8
@@ -1031,9 +1028,6 @@ importers:
       prettier:
         specifier: ^3.7.4
         version: 3.7.4
-      testcontainers:
-        specifier: ^11.11.0
-        version: 11.11.0
       ts-retry-promise:
         specifier: ^0.8.1
         version: 0.8.1

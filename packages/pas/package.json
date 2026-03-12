@@ -47,11 +47,9 @@
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",
 		"@mysten/sui": "workspace:^",
-		"@testcontainers/postgresql": "^11.11.0",
 		"@types/node": "^25.0.8",
 		"oxlint": "^1.39.0",
 		"prettier": "^3.7.4",
-		"testcontainers": "^11.11.0",
 		"ts-retry-promise": "^0.8.1",
 		"tsdown": "0.20.0-beta.1",
 		"typescript": "^5.9.3",
