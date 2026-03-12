@@ -60,9 +60,15 @@ function callArgToGrpcInput(arg: CallArg): Input {
 			}
 			throw new Error(`Unknown Object kind: ${JSON.stringify(arg.Object)}`);
 
-		case 'UnresolvedObject':
+		case 'UnresolvedObject': {
 			const unresolved = arg.UnresolvedObject;
+			const kindToInputKind: Record<string, Input_InputKind> = {
+				ImmOrOwnedObject: Input_InputKind.IMMUTABLE_OR_OWNED,
+				SharedObject: Input_InputKind.SHARED,
+				Receiving: Input_InputKind.RECEIVING,
+			};
 			return {
+				kind: unresolved.kind ? kindToInputKind[unresolved.kind] : undefined,
 				objectId: unresolved.objectId,
 				version: unresolved.version
 					? BigInt(unresolved.version)
@@ -72,6 +78,7 @@ function callArgToGrpcInput(arg: CallArg): Input {
 				digest: unresolved.digest ?? undefined,
 				mutable: unresolved.mutable ?? undefined,
 			};
+		}
 
 		case 'UnresolvedPure':
 			throw new Error('UnresolvedPure arguments must be resolved before converting to gRPC format');
