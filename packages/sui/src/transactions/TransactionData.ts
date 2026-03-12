@@ -541,6 +541,15 @@ export class TransactionDataBuilder implements TransactionData {
 						);
 					}
 
+					if (
+						input.UnresolvedObject.kind &&
+						resolvedInput.Object.$kind !== input.UnresolvedObject.kind
+					) {
+						throw new Error(
+							`Object ${input.UnresolvedObject.objectId} was expected to be ${input.UnresolvedObject.kind} but was resolved as ${resolvedInput.Object.$kind}`,
+						);
+					}
+
 					this.inputs[i] = resolvedInput;
 					break;
 			}

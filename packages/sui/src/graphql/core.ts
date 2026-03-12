@@ -694,6 +694,7 @@ export class GraphQLCoreClient extends CoreClient {
 			next: () => Promise<void>,
 		) {
 			const snapshot = transactionData.snapshot();
+
 			// If sender is not set, use a dummy address for resolution purposes
 			if (!snapshot.sender) {
 				snapshot.sender = '0x0000000000000000000000000000000000000000000000000000000000000000';

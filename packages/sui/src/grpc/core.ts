@@ -710,6 +710,7 @@ export class GrpcCoreClient extends CoreClient {
 			next: () => Promise<void>,
 		) {
 			const snapshot = transactionData.snapshot();
+
 			// If sender is not set, use a dummy address for resolution purposes
 			// The resolved transaction will not include the sender if it wasn't set originally
 			if (!snapshot.sender) {
