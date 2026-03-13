@@ -42,6 +42,7 @@ import {
 	transactionDataToGrpcTransaction,
 	transactionToGrpcJson,
 	grpcTransactionToTransactionData,
+	buildObjectInfoFromChangedObjects,
 } from '../client/transaction-resolver.js';
 import { BalanceChange as BalanceChangeType } from '../grpc/proto/sui/rpc/v2/balance_change.js';
 import { TransactionEffects as TransactionEffectsType } from '../grpc/proto/sui/rpc/v2/effects.js';
@@ -732,19 +733,34 @@ export class GraphQLCoreClient extends CoreClient {
 			const resolvedBuilder = TransactionDataBuilder.fromBytes(fromBase64(resolvedTransactionBcs));
 			const resolved = resolvedBuilder.snapshot();
 
+			// Extract object info from effectsJson for ownerKind/type validation
+			let objectInfo: Map<string, { ownerKind?: string; type?: string }> | undefined;
+			const effectsJson = transactionEffects?.effectsJson;
+			if (effectsJson) {
+				const effects = TransactionEffectsType.fromJson(
+					effectsJson as Parameters<typeof TransactionEffectsType.fromJson>[0],
+				);
+				if (effects.changedObjects?.length) {
+					objectInfo = buildObjectInfoFromChangedObjects(effects.changedObjects);
+				}
+			}
+
 			if (options.onlyTransactionKind) {
-				transactionData.applyResolvedData({
-					...resolved,
-					gasData: {
-						budget: null,
-						owner: null,
-						payment: null,
-						price: null,
+				transactionData.applyResolvedData(
+					{
+						...resolved,
+						gasData: {
+							budget: null,
+							owner: null,
+							payment: null,
+							price: null,
+						},
+						expiration: null,
 					},
-					expiration: null,
-				});
+					objectInfo,
+				);
 			} else {
-				transactionData.applyResolvedData(resolved);
+				transactionData.applyResolvedData(resolved, objectInfo);
 			}
 
 			return await next();

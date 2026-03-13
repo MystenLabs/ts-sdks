@@ -18,6 +18,8 @@ import {
 import type { ObjectReference } from '../grpc/proto/sui/rpc/v2/object_reference.js';
 import type { Input } from '../grpc/proto/sui/rpc/v2/input.js';
 import { FundsWithdrawal_Source, Input_InputKind } from '../grpc/proto/sui/rpc/v2/input.js';
+import type { ChangedObject } from '../grpc/proto/sui/rpc/v2/effects.js';
+import { Owner_OwnerKind } from '../grpc/proto/sui/rpc/v2/owner.js';
 import type { Command } from '../grpc/proto/sui/rpc/v2/transaction.js';
 import type { Argument } from '../grpc/proto/sui/rpc/v2/argument.js';
 import { Argument_ArgumentKind } from '../grpc/proto/sui/rpc/v2/argument.js';
@@ -279,26 +281,54 @@ export function transactionDataToGrpcTransaction(data: TransactionData): GrpcTra
 	return transaction;
 }
 
+const OWNER_KIND_MAP: Record<number, string> = {
+	[Owner_OwnerKind.ADDRESS]: 'AddressOwner',
+	[Owner_OwnerKind.OBJECT]: 'ObjectOwner',
+	[Owner_OwnerKind.SHARED]: 'Shared',
+	[Owner_OwnerKind.IMMUTABLE]: 'Immutable',
+	[Owner_OwnerKind.CONSENSUS_ADDRESS]: 'ConsensusAddressOwner',
+};
+
+export function buildObjectInfoFromChangedObjects(
+	changedObjects: ChangedObject[],
+): Map<string, { ownerKind?: string; type?: string }> {
+	const map = new Map<string, { ownerKind?: string; type?: string }>();
+	for (const obj of changedObjects) {
+		if (obj.objectId) {
+			map.set(obj.objectId, {
+				ownerKind: obj.inputOwner?.kind != null ? OWNER_KIND_MAP[obj.inputOwner.kind] : undefined,
+				type: obj.objectType ?? undefined,
+			});
+		}
+	}
+	return map;
+}
+
 export function applyGrpcResolvedTransaction(
 	transactionData: TransactionDataBuilder,
 	resolvedTransaction: GrpcTransaction,
 	options?: { onlyTransactionKind?: boolean },
+	changedObjects?: ChangedObject[],
 ): void {
 	const resolved = grpcTransactionToTransactionData(resolvedTransaction);
+	const objectInfo = changedObjects ? buildObjectInfoFromChangedObjects(changedObjects) : undefined;
 
 	if (options?.onlyTransactionKind) {
-		transactionData.applyResolvedData({
-			...resolved,
-			gasData: {
-				budget: null,
-				owner: null,
-				payment: null,
-				price: null,
+		transactionData.applyResolvedData(
+			{
+				...resolved,
+				gasData: {
+					budget: null,
+					owner: null,
+					payment: null,
+					price: null,
+				},
+				expiration: null,
 			},
-			expiration: null,
-		});
+			objectInfo,
+		);
 	} else {
-		transactionData.applyResolvedData(resolved);
+		transactionData.applyResolvedData(resolved, objectInfo);
 	}
 }
 

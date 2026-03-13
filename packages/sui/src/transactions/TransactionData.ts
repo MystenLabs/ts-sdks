@@ -6,7 +6,7 @@ import type { InferInput } from 'valibot';
 import { parse } from 'valibot';
 
 import { bcs } from '../bcs/index.js';
-import { normalizeSuiAddress } from '../utils/sui-types.js';
+import { normalizeSuiAddress, normalizeStructTag } from '../utils/sui-types.js';
 import type {
 	Argument,
 	CallArg,
@@ -447,7 +447,10 @@ export class TransactionDataBuilder implements TransactionData {
 		});
 	}
 
-	applyResolvedData(resolved: TransactionData) {
+	applyResolvedData(
+		resolved: TransactionData,
+		objectInfo?: Map<string, { ownerKind?: string; type?: string }>,
+	) {
 		if (!this.sender) {
 			this.sender = resolved.sender ?? null;
 		}
@@ -541,18 +544,24 @@ export class TransactionDataBuilder implements TransactionData {
 						);
 					}
 
+					const objectId = normalizeSuiAddress(input.UnresolvedObject.objectId);
+					const info = objectInfo?.get(objectId);
+
 					const ownerKindArr = input.UnresolvedObject.ownerKind;
-					if (ownerKindArr) {
-						// Map resolved input kind to compatible owner kinds
-						const compatibleOwnerKinds: Record<string, string[]> = {
-							SharedObject: ['Shared', 'ConsensusAddressOwner'],
-							ImmOrOwnedObject: ['AddressOwner', 'Immutable'],
-							Receiving: ['AddressOwner', 'ObjectOwner', 'Immutable'],
-						};
-						const compatible = compatibleOwnerKinds[resolvedInput.Object.$kind] ?? [];
-						if (!ownerKindArr.some((kind) => compatible.includes(kind))) {
+					if (ownerKindArr && info?.ownerKind) {
+						if (!ownerKindArr.some((kind) => kind === info.ownerKind)) {
 							throw new Error(
-								`Object ${input.UnresolvedObject.objectId} resolved as '${resolvedInput.Object.$kind}' which is not compatible with expected owner kinds [${ownerKindArr.join(', ')}]`,
+								`Object ${objectId} owner kind '${info.ownerKind}' not in expected kinds [${ownerKindArr.join(', ')}]`,
+							);
+						}
+					}
+
+					const typeArr = input.UnresolvedObject.type;
+					if (typeArr && info?.type) {
+						const normalizedObjectType = normalizeStructTag(info.type);
+						if (!typeArr.some((t) => normalizeStructTag(t) === normalizedObjectType)) {
+							throw new Error(
+								`Object ${objectId} type '${info.type}' not in expected types [${typeArr.join(', ')}]`,
 							);
 						}
 					}

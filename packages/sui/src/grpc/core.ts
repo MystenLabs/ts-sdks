@@ -731,6 +731,7 @@ export class GrpcCoreClient extends CoreClient {
 							'transaction.transaction.expiration',
 							'transaction.transaction.kind',
 							'transaction.effects.status',
+							'transaction.effects.changed_objects',
 						],
 					},
 				});
@@ -761,7 +762,12 @@ export class GrpcCoreClient extends CoreClient {
 				throw new Error('simulateTransaction did not return resolved transaction data');
 			}
 
-			applyGrpcResolvedTransaction(transactionData, response.transaction.transaction, options);
+			applyGrpcResolvedTransaction(
+				transactionData,
+				response.transaction.transaction,
+				options,
+				response.transaction.effects?.changedObjects,
+			);
 
 			return await next();
 		};

@@ -5004,7 +5004,7 @@ export type ResolveTransactionQueryVariables = Exact<{
 }>;
 
 
-export type ResolveTransactionQuery = { __typename?: 'Query', simulateTransaction: { __typename?: 'SimulationResult', effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', transactionBcs?: string | null, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null } | null } | null } | null } };
+export type ResolveTransactionQuery = { __typename?: 'Query', simulateTransaction: { __typename?: 'SimulationResult', effects?: { __typename?: 'TransactionEffects', transaction?: { __typename?: 'Transaction', transactionBcs?: string | null, effects?: { __typename?: 'TransactionEffects', status?: ExecutionStatus | null, effectsJson?: unknown | null, executionError?: { __typename?: 'ExecutionError', message: string, abortCode?: string | null, identifier?: string | null, constant?: string | null, sourceLineNumber?: number | null, instructionOffset?: number | null, module?: { __typename?: 'MoveModule', name: string, package?: { __typename?: 'MovePackage', address: string } | null } | null, function?: { __typename?: 'MoveFunction', name: string } | null } | null } | null } | null } | null } };
 
 export type VerifyZkLoginSignatureQueryVariables = Exact<{
   bytes: Scalars['Base64']['input'];
@@ -5799,6 +5799,7 @@ export const ResolveTransactionDocument = new TypedDocumentString(`
         transactionBcs
         effects {
           status
+          effectsJson
           executionError {
             message
             abortCode

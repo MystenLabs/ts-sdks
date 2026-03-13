@@ -150,6 +150,7 @@ query resolveTransaction($transaction: JSON!, $doGasSelection: Boolean = true) {
 				transactionBcs
 				effects {
 					status
+					effectsJson
 					executionError {
 						message
 						abortCode
