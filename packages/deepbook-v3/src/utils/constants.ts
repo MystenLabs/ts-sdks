@@ -133,7 +133,7 @@ export const mainnetCoins: CoinMap = {
 		scalar: 1000000,
 		feed: '0xd510fcdb3a63f35d3bb118d5db3afc5815a3f13bc55d48abb893b63f0315902a',
 		currencyId: '0x535e826a2acddab687c81cb6c6166553b479f61a9023800ec0020baba8d94731',
-		priceInfoObjectId: '',
+		priceInfoObjectId: '0x68644a3ab7a1aab113a4a68b6115a5b51eba4cb6aaac2d99b734be2e5e748425',
 	},
 	WUSDC: {
 		address: `0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf`,
