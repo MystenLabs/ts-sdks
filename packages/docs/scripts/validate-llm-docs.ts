@@ -6,8 +6,9 @@
  *
  * Checks:
  * 1. Every MDX file has both `title` and `description` in frontmatter
- * 2. Every file referenced in dist/llms-index.md exists on disk
- * 3. dist/llms-index.md is up to date (delegates to generate-llms-index.ts --check)
+ * 2. No orphan MDX files (every .mdx must be referenced in a meta.json `pages` array)
+ * 3. Every file referenced in dist/llms-index.md exists on disk
+ * 4. dist/llms-index.md is up to date (delegates to generate-llms-index.ts --check)
  *
  * Usage:
  *   npx tsx scripts/validate-llm-docs.ts
@@ -27,10 +28,16 @@ const INDEX_FILE = path.join(DIST_DIR, 'llms-index.md');
 const GENERATE_INDEX_SCRIPT = path.join(SCRIPT_DIR, 'generate-llms-index.ts');
 
 let errors = 0;
+let warnings = 0;
 
 function error(msg: string): void {
 	console.error(`ERROR: ${msg}`);
 	errors++;
+}
+
+function warn(msg: string): void {
+	console.warn(`WARN: ${msg}`);
+	warnings++;
 }
 
 function findMdxFiles(dir: string): string[] {
@@ -60,10 +67,69 @@ for (const file of mdxFiles) {
 	}
 	if (!data.description) {
 		error(`${relPath}: missing 'description' in frontmatter`);
+	} else if (data.description.trim().length === 0) {
+		warn(`${relPath}: empty 'description' in frontmatter — reduces LLM routing effectiveness`);
 	}
 }
 
-// Check 2: Dead links in index
+// Check 2: Orphan detection — MDX files not referenced in any meta.json
+console.log('Checking for orphan MDX files...');
+
+function getReferencedPages(dir: string): { referenced: Set<string>; hasRest: boolean } {
+	const referenced = new Set<string>();
+	let hasRest = false;
+	const metaPath = path.join(dir, 'meta.json');
+
+	if (fs.existsSync(metaPath)) {
+		const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+		if (Array.isArray(meta.pages)) {
+			for (const page of meta.pages) {
+				if (page === '...') {
+					hasRest = true;
+				} else {
+					referenced.add(page);
+				}
+			}
+		}
+	}
+
+	return { referenced, hasRest };
+}
+
+function checkOrphans(dir: string): void {
+	const { referenced, hasRest } = getReferencedPages(dir);
+	const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+	for (const entry of entries) {
+		if (entry.name === 'meta.json') continue;
+		const name = entry.name.replace(/\.mdx$/, '');
+
+		if (entry.isDirectory()) {
+			// Recurse into subdirectories
+			checkOrphans(path.join(dir, entry.name));
+			if (
+				referenced.size > 0 &&
+				!hasRest &&
+				!referenced.has(entry.name) &&
+				entry.name !== 'index'
+			) {
+				warn(
+					`${path.relative(CONTENT_DIR, path.join(dir, entry.name))}/: directory not listed in parent meta.json`,
+				);
+			}
+		} else if (entry.name.endsWith('.mdx') && name !== 'index') {
+			if (referenced.size > 0 && !hasRest && !referenced.has(name)) {
+				warn(
+					`${path.relative(CONTENT_DIR, path.join(dir, entry.name))}: not listed in parent meta.json — will be excluded from navigation and index`,
+				);
+			}
+		}
+	}
+}
+
+checkOrphans(CONTENT_DIR);
+
+// Check 3: Dead links in index (checks source .mdx when dist .md doesn't exist)
 console.log('Checking for dead links in llms-index.md...');
 if (fs.existsSync(INDEX_FILE)) {
 	const indexContent = fs.readFileSync(INDEX_FILE, 'utf-8');
@@ -87,7 +153,7 @@ if (fs.existsSync(INDEX_FILE)) {
 	console.log('Skipping dead links check: dist/llms-index.md does not exist yet.');
 }
 
-// Check 3: llms-index freshness (delegates to generate-llms-index.ts --check)
+// Check 4: llms-index freshness (delegates to generate-llms-index.ts --check)
 console.log('Checking llms-index.md freshness...');
 const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 try {
@@ -103,6 +169,9 @@ try {
 
 // Summary
 console.log('');
+if (warnings > 0) {
+	console.warn(`Found ${warnings} warning(s).`);
+}
 if (errors > 0) {
 	console.error(`Found ${errors} error(s). Fix them before merging.`);
 	process.exit(1);

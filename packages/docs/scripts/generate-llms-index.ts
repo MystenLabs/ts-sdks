@@ -13,7 +13,6 @@
 
 import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { generateSectionIndex, readMetaJson } from './docs-utils.js';
@@ -73,13 +72,13 @@ if (checkMode) {
 	}
 
 	// Format in-memory content with prettier before comparing, since the on-disk
-	// file was formatted by the build step.
-	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'llms-index-'));
-	const tmpFile = path.join(tmpDir, 'llms-index.md');
+	// file was formatted by the build step. Use a temp file inside OUTPUT_DIR so
+	// prettier resolves the same config as the build step.
+	const tmpFile = path.join(OUTPUT_DIR, '.llms-index-check.md');
 	fs.writeFileSync(tmpFile, indexContent);
 	execFileSync(npxCmd, ['prettier', '--write', tmpFile], { stdio: 'ignore' });
 	const formatted = fs.readFileSync(tmpFile, 'utf-8');
-	fs.rmSync(tmpDir, { recursive: true });
+	fs.unlinkSync(tmpFile);
 
 	const existing = fs.readFileSync(OUTPUT_FILE, 'utf-8');
 	if (existing !== formatted) {
