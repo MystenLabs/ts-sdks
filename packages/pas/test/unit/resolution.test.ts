@@ -89,6 +89,79 @@ describe('buildMoveCallCommandFromTemplate', () => {
 			});
 		});
 
+		it('should correctly rebase across multiple template commands in the same transaction', () => {
+			// Simulates a 2-command template inserted at offset 5:
+			//   template cmd[0]: a MoveCall that produces a result (no Result args)
+			//   template cmd[1]: a MoveCall that uses Result(0) to reference cmd[0]
+			//
+			// Both share the same commandOffset (5) because Result indices in the
+			// template are relative to the first template command, not each individual one.
+			const templateCmd0 = makeParsedMoveCall([
+				{ Input: { Ext: ['pas', 'request'] } },
+			]);
+			const templateCmd1 = makeParsedMoveCall([
+				{ Result: 0 },
+				{ Input: { Ext: ['pas', 'policy'] } },
+			]);
+
+			const requestArg = { $kind: 'Result' as const, Result: 4 };
+			const policyArg = { $kind: 'Input' as const, Input: 0, type: 'object' as const };
+			const commonArgs = {
+				...dummyBuildArgs,
+				request: requestArg,
+				policy: policyArg,
+			};
+
+			const templateStartIdx = 5;
+			const built0 = buildMoveCallCommandFromTemplate(templateCmd0, commonArgs, templateStartIdx);
+			const built1 = buildMoveCallCommandFromTemplate(templateCmd1, commonArgs, templateStartIdx);
+
+			// cmd[0] should have the request arg passed through (no rebasing needed)
+			expect(built0.MoveCall?.arguments[0]).toEqual(requestArg);
+
+			// cmd[1]'s Result(0) should become Result(5), pointing at template cmd[0]
+			expect(built1.MoveCall?.arguments[0]).toEqual({
+				$kind: 'Result',
+				Result: 5,
+			});
+			// cmd[1]'s policy arg should be passed through unchanged
+			expect(built1.MoveCall?.arguments[1]).toEqual(policyArg);
+		});
+
+		it('should correctly rebase a 3-command template with chained results', () => {
+			// 3-command template at offset 10:
+			//   cmd[0]: produces result (no Result args)
+			//   cmd[1]: uses Result(0) — references cmd[0]
+			//   cmd[2]: uses Result(0) and Result(1) — references cmd[0] and cmd[1]
+			const templateCmd0 = makeParsedMoveCall([]);
+			const templateCmd1 = makeParsedMoveCall([{ Result: 0 }]);
+			const templateCmd2 = makeParsedMoveCall([{ Result: 0 }, { Result: 1 }]);
+
+			const templateStartIdx = 10;
+			const built0 = buildMoveCallCommandFromTemplate(templateCmd0, dummyBuildArgs, templateStartIdx);
+			const built1 = buildMoveCallCommandFromTemplate(templateCmd1, dummyBuildArgs, templateStartIdx);
+			const built2 = buildMoveCallCommandFromTemplate(templateCmd2, dummyBuildArgs, templateStartIdx);
+
+			// cmd[0] has no Result args
+			expect(built0.MoveCall?.arguments).toEqual([]);
+
+			// cmd[1]'s Result(0) -> Result(10)
+			expect(built1.MoveCall?.arguments[0]).toEqual({
+				$kind: 'Result',
+				Result: 10,
+			});
+
+			// cmd[2]'s Result(0) -> Result(10), Result(1) -> Result(11)
+			expect(built2.MoveCall?.arguments[0]).toEqual({
+				$kind: 'Result',
+				Result: 10,
+			});
+			expect(built2.MoveCall?.arguments[1]).toEqual({
+				$kind: 'Result',
+				Result: 11,
+			});
+		});
+
 		it('should not affect non-Result arguments when rebasing', () => {
 			// Mix of Ext-resolved input and a Result
 			const templateCmd = makeParsedMoveCall([
