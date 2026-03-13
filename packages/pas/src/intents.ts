@@ -437,17 +437,24 @@ class Resolver {
 		);
 		const requestArg: Argument = { $kind: 'Result', Result: requestIdx };
 
-		// Issuer-defined approval commands from templates
+		// Issuer-defined approval commands from templates.
+		// Template Result/NestedResult indices are relative to the first template
+		// command, so we capture the absolute offset before pushing any of them.
+		const templateStartIdx = baseIdx + commands.length;
 		for (const templateCmd of templateCmds) {
 			commands.push(
-				buildMoveCallCommandFromTemplate(templateCmd, {
-					addInput: (type, arg) => this.addTemplateInput(type, arg),
-					senderAccount: fromAccountArg,
-					receiverAccount: toAccountArg,
-					policy: policyArg,
-					request: requestArg,
-					systemType: assetType,
-				}),
+				buildMoveCallCommandFromTemplate(
+					templateCmd,
+					{
+						addInput: (type, arg) => this.addTemplateInput(type, arg),
+						senderAccount: fromAccountArg,
+						receiverAccount: toAccountArg,
+						policy: policyArg,
+						request: requestArg,
+						systemType: assetType,
+					},
+					templateStartIdx,
+				),
 			);
 		}
 
@@ -530,17 +537,22 @@ class Resolver {
 		const requestArg: Argument = { $kind: 'Result', Result: requestIdx };
 
 		if (isRestricted) {
-			// Issuer-defined approval commands from templates
+			// Issuer-defined approval commands from templates.
 			const templateCmds = this.resolveTemplateCommands(policyId, 'unlock_funds');
+			const templateStartIdx = baseIdx + commands.length;
 			for (const templateCmd of templateCmds) {
 				commands.push(
-					buildMoveCallCommandFromTemplate(templateCmd, {
-						addInput: (type, arg) => this.addTemplateInput(type, arg),
-						senderAccount: fromAccountArg,
-						policy: policyArg,
-						request: requestArg,
-						systemType: assetType,
-					}),
+					buildMoveCallCommandFromTemplate(
+						templateCmd,
+						{
+							addInput: (type, arg) => this.addTemplateInput(type, arg),
+							senderAccount: fromAccountArg,
+							policy: policyArg,
+							request: requestArg,
+							systemType: assetType,
+						},
+						templateStartIdx,
+					),
 				);
 			}
 
