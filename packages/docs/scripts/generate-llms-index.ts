@@ -11,10 +11,14 @@
  *   npx tsx scripts/generate-llms-index.ts --check   # exit 1 if full index differs
  */
 
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { generateSectionIndex, readMetaJson } from './docs-utils.js';
+
+const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 
 const CONTENT_DIR = path.resolve(new URL('.', import.meta.url).pathname, '..', 'content');
 const OUTPUT_DIR = path.resolve(new URL('.', import.meta.url).pathname, '..', 'dist');
@@ -67,8 +71,18 @@ if (checkMode) {
 		console.error('ERROR: dist/llms-index.md does not exist. Run without --check to generate.');
 		process.exit(1);
 	}
+
+	// Format in-memory content with prettier before comparing, since the on-disk
+	// file was formatted by the build step.
+	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'llms-index-'));
+	const tmpFile = path.join(tmpDir, 'llms-index.md');
+	fs.writeFileSync(tmpFile, indexContent);
+	execFileSync(npxCmd, ['prettier', '--write', tmpFile], { stdio: 'ignore' });
+	const formatted = fs.readFileSync(tmpFile, 'utf-8');
+	fs.rmSync(tmpDir, { recursive: true });
+
 	const existing = fs.readFileSync(OUTPUT_FILE, 'utf-8');
-	if (existing !== indexContent) {
+	if (existing !== formatted) {
 		console.error(
 			'ERROR: dist/llms-index.md is out of date. Run `npx tsx scripts/generate-llms-index.ts` to update.',
 		);
@@ -80,6 +94,7 @@ if (checkMode) {
 
 	// Write the full combined index
 	fs.writeFileSync(OUTPUT_FILE, indexContent);
+	execFileSync(npxCmd, ['prettier', '--write', OUTPUT_FILE], { stdio: 'ignore' });
 	console.log(`Generated ${OUTPUT_FILE}`);
 
 	// Write per-section indices into dist/<section>/llms-index.md
@@ -91,5 +106,8 @@ if (checkMode) {
 		const sectionOutputFile = path.join(sectionOutputDir, 'llms-index.md');
 		fs.writeFileSync(sectionOutputFile, sectionIndex);
 	}
+	execFileSync(npxCmd, ['prettier', '--write', `${OUTPUT_DIR}/**/llms-index.md`], {
+		stdio: 'ignore',
+	});
 	console.log(`Generated per-section indices for ${sections.length} sections`);
 }

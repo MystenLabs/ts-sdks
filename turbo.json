@@ -77,7 +77,7 @@
 			]
 		},
 		"dev": {
-			"dependsOn": ["^build", "build:docs"],
+			"dependsOn": ["^build"],
 			"cache": false,
 			"persistent": true
 		},
