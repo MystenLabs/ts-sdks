@@ -1,5 +1,15 @@
 # @mysten/walrus
 
+## 1.0.4
+
+### Patch Changes
+
+- 43e69f8: Add embedded LLM-friendly docs to published packages
+- Updated dependencies [43e69f8]
+- Updated dependencies [e51dc5d]
+  - @mysten/bcs@2.0.3
+  - @mysten/sui@2.8.0
+
 ## 1.0.3
 
 ### Patch Changes

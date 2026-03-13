@@ -1,5 +1,20 @@
 # @mysten/dapp-kit-core
 
+## 1.2.0
+
+### Minor Changes
+
+- a7237ff: Export `WalletInitializer` type from the public API
+
+### Patch Changes
+
+- 43e69f8: Add embedded LLM-friendly docs to published packages
+- Updated dependencies [43e69f8]
+- Updated dependencies [e51dc5d]
+  - @mysten/slush-wallet@1.0.3
+  - @mysten/sui@2.8.0
+  - @mysten/wallet-standard@0.20.1
+
 ## 1.1.4
 
 ### Patch Changes

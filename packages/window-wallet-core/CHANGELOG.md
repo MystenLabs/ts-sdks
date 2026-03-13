@@ -1,5 +1,12 @@
 # @mysten/window-wallet-core
 
+## 0.1.4
+
+### Patch Changes
+
+- a7237ff: Add optional `label` field to JWT session account schema and include rejection reason in
+  post-message channel error messages
+
 ## 0.1.3
 
 ### Patch Changes

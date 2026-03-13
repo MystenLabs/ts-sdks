@@ -1,5 +1,15 @@
 # @mysten/payment-kit
 
+## 0.1.3
+
+### Patch Changes
+
+- 43e69f8: Add embedded LLM-friendly docs to published packages
+- Updated dependencies [43e69f8]
+- Updated dependencies [e51dc5d]
+  - @mysten/bcs@2.0.3
+  - @mysten/sui@2.8.0
+
 ## 0.1.2
 
 ### Patch Changes
