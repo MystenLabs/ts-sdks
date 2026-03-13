@@ -828,17 +828,12 @@ export async function validateTemplateObjects(
 		objectIds: [...objectIds],
 	});
 
-	const fetched = new Map<string, SuiClientTypes.Object>();
 	for (const obj of fetchedObjects) {
 		if (obj instanceof Error)
 			throw new PASClientError('Failed to fetch template object: ' + obj.message);
-		fetched.set(obj.objectId, obj);
-	}
 
-	// Validate that all objects referenced by templates are shared or immutable.
-	for (const [objectId, obj] of fetched) {
 		if (obj.owner.$kind !== 'Shared' && obj.owner.$kind !== 'Immutable') {
-			throw new InvalidObjectOwnershipError(objectId, obj.owner.$kind);
+			throw new InvalidObjectOwnershipError(obj.objectId, obj.owner.$kind);
 		}
 	}
 }
