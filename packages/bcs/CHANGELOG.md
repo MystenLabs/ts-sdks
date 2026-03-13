@@ -1,5 +1,11 @@
 # Change Log
 
+## 2.0.3
+
+### Patch Changes
+
+- 43e69f8: Add embedded LLM-friendly docs to published packages
+
 ## 2.0.2
 
 ### Patch Changes

@@ -1,5 +1,18 @@
 # @mysten/sui.js
 
+## 2.8.0
+
+### Minor Changes
+
+- e51dc5d: Add credentialId support to PasskeyKeypair for targeted credential selection during
+  signing
+
+### Patch Changes
+
+- 43e69f8: Add embedded LLM-friendly docs to published packages
+- Updated dependencies [43e69f8]
+  - @mysten/bcs@2.0.3
+
 ## 2.7.0
 
 ### Minor Changes

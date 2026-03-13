@@ -1,5 +1,16 @@
 # @mysten/deepbook-v3
 
+## 1.2.1
+
+### Patch Changes
+
+- 1e0aef8: Fix missing DebtType type argument in marginManager.liquidate() to match the on-chain
+  function's 3-type-parameter signature.
+- Updated dependencies [43e69f8]
+- Updated dependencies [e51dc5d]
+  - @mysten/bcs@2.0.3
+  - @mysten/sui@2.8.0
+
 ## 1.2.0
 
 ### Minor Changes

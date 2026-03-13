@@ -1,5 +1,17 @@
 # @mysten/slush-wallet
 
+## 1.0.3
+
+### Patch Changes
+
+- 43e69f8: Add embedded LLM-friendly docs to published packages
+- Updated dependencies [43e69f8]
+- Updated dependencies [e51dc5d]
+- Updated dependencies [a7237ff]
+  - @mysten/sui@2.8.0
+  - @mysten/window-wallet-core@0.1.4
+  - @mysten/wallet-standard@0.20.1
+
 ## 1.0.2
 
 ### Patch Changes
