@@ -25,12 +25,17 @@ function setOwnerKindPlugin(inputIndex: number, ownerKind: OwnerKind[]): Transac
 describe('Core API - Owner Kind Validation', () => {
 	let toolbox: TestToolbox;
 	let testAddress: string;
+	let sharedObjectId: string;
+	let packageId: string;
 
 	const testWithAllClients = createTestWithAllClients(() => toolbox);
 
 	beforeAll(async () => {
 		toolbox = await setup();
 		testAddress = toolbox.address();
+		packageId = toolbox.getPackage('test_data');
+		sharedObjectId = toolbox.getSharedObject('test_data', 'MutableShared')!;
+		expect(sharedObjectId).toBeDefined();
 	});
 
 	describe('correct ownerKind passes validation', () => {
@@ -57,33 +62,10 @@ describe('Core API - Owner Kind Validation', () => {
 		testWithAllClients(
 			'shared object with ownerKind=[Shared] resolves successfully',
 			async (client) => {
-				const packageId = toolbox.getPackage('test_data');
-
-				// Create a shared object
-				const setupTx = new Transaction();
-				setupTx.moveCall({
-					target: `${packageId}::test_objects::create_shared_object`,
-					arguments: [],
-				});
-				const setupResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
-					transaction: setupTx,
-					signer: toolbox.keypair,
-					options: { showEffects: true },
-				});
-				expect(setupResult.effects?.status.status).toBe('success');
-				await toolbox.jsonRpcClient.waitForTransaction({ digest: setupResult.digest });
-
-				const created = setupResult.effects?.created || [];
-				const sharedObject = created.find((obj) => {
-					const owner = obj.owner;
-					return typeof owner === 'object' && 'Shared' in owner;
-				});
-				expect(sharedObject).toBeDefined();
-
 				const tx = new Transaction();
 				tx.moveCall({
-					target: `${packageId}::test_objects::increment_shared`,
-					arguments: [tx.object(sharedObject!.reference.objectId)],
+					target: `${packageId}::serializer_tests::set_value`,
+					arguments: [tx.object(sharedObjectId)],
 				});
 				tx.setSender(testAddress);
 				tx.addBuildPlugin(setOwnerKindPlugin(0, ['Shared']));
@@ -132,33 +114,10 @@ describe('Core API - Owner Kind Validation', () => {
 		});
 
 		testWithAllClients('shared object with ownerKind=[AddressOwner] throws', async (client) => {
-			const packageId = toolbox.getPackage('test_data');
-
-			// Create a shared object
-			const setupTx = new Transaction();
-			setupTx.moveCall({
-				target: `${packageId}::test_objects::create_shared_object`,
-				arguments: [],
-			});
-			const setupResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
-				transaction: setupTx,
-				signer: toolbox.keypair,
-				options: { showEffects: true },
-			});
-			expect(setupResult.effects?.status.status).toBe('success');
-			await toolbox.jsonRpcClient.waitForTransaction({ digest: setupResult.digest });
-
-			const created = setupResult.effects?.created || [];
-			const sharedObject = created.find((obj) => {
-				const owner = obj.owner;
-				return typeof owner === 'object' && 'Shared' in owner;
-			});
-			expect(sharedObject).toBeDefined();
-
 			const tx = new Transaction();
 			tx.moveCall({
-				target: `${packageId}::test_objects::increment_shared`,
-				arguments: [tx.object(sharedObject!.reference.objectId)],
+				target: `${packageId}::serializer_tests::set_value`,
+				arguments: [tx.object(sharedObjectId)],
 			});
 			tx.setSender(testAddress);
 			tx.addBuildPlugin(setOwnerKindPlugin(0, ['AddressOwner']));
