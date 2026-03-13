@@ -17,7 +17,8 @@
 	},
 	"sideEffects": false,
 	"files": [
-		"dist"
+		"dist",
+		"docs"
 	],
 	"repository": {
 		"type": "git",
@@ -29,6 +30,7 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
+		"build:docs": "tsx ../docs/scripts/build-docs.ts",
 		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",

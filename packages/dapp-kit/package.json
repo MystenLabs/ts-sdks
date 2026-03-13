@@ -10,6 +10,7 @@
 		"LICENSE",
 		"README.md",
 		"dist",
+		"docs",
 		"src"
 	],
 	"type": "module",
@@ -26,6 +27,7 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "tsx scripts/build.ts",
+		"build:docs": "tsx ../docs/scripts/build-docs.ts",
 		"test": "pnpm test:typecheck && pnpm vitest run",
 		"test:typecheck": "tsc -b ./test",
 		"prettier:check": "prettier -c --ignore-unknown .",

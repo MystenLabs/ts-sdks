@@ -22,3 +22,7 @@ build/
 target/
 next-env.d.ts
 .env
+
+# Generated per-package LLM docs
+packages/*/docs/
+packages/*/packages/*/docs/

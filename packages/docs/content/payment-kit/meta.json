@@ -1,0 +1,12 @@
+{
+	"root": true,
+	"title": "Payment Kit",
+	"description": "Accept payments in any coin type on Sui",
+	"pages": [
+		"index",
+		"getting-started",
+		"payment-kit-sdk",
+		"payment-processing",
+		"registry-management"
+	]
+}

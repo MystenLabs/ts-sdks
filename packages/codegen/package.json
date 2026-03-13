@@ -18,6 +18,7 @@
 	"files": [
 		"CHANGELOG.md",
 		"dist",
+		"docs",
 		"src"
 	],
 	"bin": {
@@ -28,6 +29,7 @@
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"dev": "pnpm build --watch",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
+		"build:docs": "tsx ../docs/scripts/build-docs.ts",
 		"codegen": "pnpm tsx src/bin/cli.ts generate && pnpm lint:fix",
 		"test": "vitest run",
 		"test:watch": "vitest",

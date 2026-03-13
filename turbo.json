@@ -82,7 +82,7 @@
 			"persistent": true
 		},
 		"build": {
-			"dependsOn": ["^build"],
+			"dependsOn": ["^build", "build:docs"],
 			"inputs": [
 				"src/**",
 				"bin/**",
@@ -94,16 +94,33 @@
 				"tsdown.config.ts",
 				"package.json"
 			],
-			"outputs": ["build/**", "dist/**"]
+			"outputs": ["build/**", "dist/**", "docs/**"]
 		},
-		"@mysten/sdk-docs#build": {
-			"dependsOn": ["^build"],
+		"build:docs": {
+			"inputs": ["../docs/content/**", "../docs/scripts/**"],
+			"outputs": ["docs/**"]
+		},
+		"@mysten/dapp-kit-core#build:docs": {
+			"inputs": ["../../../docs/content/**", "../../../docs/scripts/**"],
+			"outputs": ["docs/**"]
+		},
+		"@mysten/dapp-kit-react#build:docs": {
+			"inputs": ["../../../docs/content/**", "../../../docs/scripts/**"],
+			"outputs": ["docs/**"]
+		},
+		"@mysten/docs#build:docs": {
+			"inputs": ["content/**", "scripts/**"],
+			"outputs": ["dist/**"]
+		},
+		"@mysten/docs#build": {
+			"dependsOn": ["^build", "build:docs"],
 			"inputs": [
 				"content/**",
 				"app/**",
 				"components/**",
 				"lib/**",
 				"examples/**",
+				"scripts/**",
 				"*.ts",
 				"*.mjs",
 				"tsconfig.json",
@@ -112,7 +129,7 @@
 				"typedoc.json",
 				"package.json"
 			],
-			"outputs": [".next/**", "!.next/cache/**", "public/**"]
+			"outputs": [".next/**", "!.next/cache/**", "public/**", "dist/**"]
 		}
 	},
 	"globalEnv": ["VERCEL_ENV", "VITE_NETWORK", "VITE_VERCEL_ANALYTICS_ID", "VITE_SENTRY_SAMPLE_RATE"]

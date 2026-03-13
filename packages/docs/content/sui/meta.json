@@ -5,6 +5,7 @@
 	"pages": [
 		"index",
 		"install",
+		"llm-docs",
 		"hello-sui",
 		"faucet",
 		"clients",

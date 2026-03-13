@@ -1,0 +1,78 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+/**
+ * Generates doc indices from meta.json files and MDX frontmatter:
+ *   - dist/llms-index.md              — full index across all sections
+ *   - dist/<section>/llms-index.md    — per-section index (one per content dir)
+ *
+ * Usage:
+ *   npx tsx scripts/generate-llms-index.ts
+ */
+
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+
+import { generateSectionIndex, readMetaJson } from './docs-utils.js';
+
+const CONTENT_DIR = path.resolve(new URL('.', import.meta.url).pathname, '..', 'content');
+const OUTPUT_DIR = path.resolve(new URL('.', import.meta.url).pathname, '..', 'dist');
+const OUTPUT_FILE = path.join(OUTPUT_DIR, 'llms-index.md');
+
+/** Return sorted list of content section directory names (e.g. ["bcs", "dapp-kit", "sui"]). */
+function getContentSections(): string[] {
+	return fs
+		.readdirSync(CONTENT_DIR)
+		.filter((name) => {
+			const dir = path.join(CONTENT_DIR, name);
+			if (!fs.statSync(dir).isDirectory()) return false;
+			// Skip api-reference — it's auto-generated, not useful for LLM docs
+			if (name === 'api-reference') return false;
+			const meta = readMetaJson(dir);
+			if (meta?.root === true) return true;
+			if (!meta) {
+				return fs.readdirSync(dir).some((f) => f.endsWith('.mdx'));
+			}
+			return false;
+		})
+		.sort();
+}
+
+/** Generate the full combined index across all sections. */
+function generateFullIndex(sections: string[]): string {
+	const lines: string[] = [];
+
+	lines.push('# Sui TypeScript SDK Documentation');
+	lines.push(
+		'> Reference documentation for the @mysten/* TypeScript SDK packages for the Sui blockchain.',
+	);
+	lines.push('');
+
+	for (const sectionName of sections) {
+		const sectionDir = path.join(CONTENT_DIR, sectionName);
+		lines.push(generateSectionIndex(sectionDir, `./${sectionName}`));
+	}
+
+	return lines.join('\n');
+}
+
+// Main
+const sections = getContentSections();
+const indexContent = generateFullIndex(sections);
+
+fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+
+// Write the full combined index
+fs.writeFileSync(OUTPUT_FILE, indexContent);
+console.log(`Generated ${OUTPUT_FILE}`);
+
+// Write per-section indices into dist/<section>/llms-index.md
+for (const sectionName of sections) {
+	const sectionDir = path.join(CONTENT_DIR, sectionName);
+	const sectionIndex = generateSectionIndex(sectionDir, '.', '#');
+	const sectionOutputDir = path.join(OUTPUT_DIR, sectionName);
+	fs.mkdirSync(sectionOutputDir, { recursive: true });
+	const sectionOutputFile = path.join(sectionOutputDir, 'llms-index.md');
+	fs.writeFileSync(sectionOutputFile, sectionIndex);
+}
+console.log(`Generated per-section indices for ${sections.length} sections`);

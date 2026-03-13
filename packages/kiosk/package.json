@@ -18,6 +18,7 @@
 	"files": [
 		"CHANGELOG.md",
 		"dist",
+		"docs",
 		"src"
 	],
 	"engines": {
@@ -32,6 +33,7 @@
 	},
 	"scripts": {
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
+		"build:docs": "tsx ../docs/scripts/build-docs.ts",
 		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
 		"test": "echo 'No unit tests for kiosk SDK'",
 		"pre-commit": "pnpm prettier:fix && pnpm lint && pnpm build",

@@ -18,11 +18,13 @@
 	"sideEffects": false,
 	"files": [
 		"CHANGELOG.md",
-		"dist"
+		"dist",
+		"docs"
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
+		"build:docs": "tsx ../docs/scripts/build-docs.ts",
 		"test": "pnpm test:examples && NODE_OPTIONS='--expose-gc' vitest run",
 		"test:examples": "tsc --project examples/tsconfig.json --noEmit",
 		"codegen": "sui-ts-codegen generate && pnpm lint:fix",

@@ -1,12 +1,18 @@
 {
-	"name": "@mysten/sdk-docs",
-	"version": "0.0.0",
-	"private": true,
+	"name": "@mysten/docs",
+	"version": "0.1.0",
+	"description": "LLM-friendly documentation for the Sui TypeScript SDK ecosystem",
+	"license": "Apache-2.0",
+	"files": [
+		"dist/"
+	],
 	"scripts": {
-		"build": "typedoc && next build",
+		"build": "typedoc && next build && pnpm run build:docs",
+		"build:docs": "tsx scripts/build-docs.ts --all",
 		"dev": "next dev",
 		"start": "next start",
 		"postinstall": "fumadocs-mdx",
+		"validate-docs": "tsx scripts/validate-llm-docs.ts",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"oxlint:check": "oxlint  .",
@@ -43,11 +49,7 @@
 		"gray-matter": "^4.0.3",
 		"next": "^16.1.5",
 		"react": "^19.2.3",
-		"react-dom": "^19.2.3",
-		"remark": "^15.0.1",
-		"remark-gfm": "^4.0.1",
-		"remark-mdx": "^3.1.0",
-		"remark-stringify": "^11.0.0"
+		"react-dom": "^19.2.3"
 	},
 	"devDependencies": {
 		"@tailwindcss/postcss": "^4.1.18",
