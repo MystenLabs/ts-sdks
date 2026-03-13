@@ -78,6 +78,16 @@ When a new SDK package needs documentation:
 - **[Directory Structure](references/structure.md)** — Content layout, meta.json format, how pages are organized by package
 - **[Style Guide](references/style-guide.md)** — Writing conventions, MDX features, code example patterns
 
+## Before Committing
+
+Always validate before committing doc changes:
+
+```bash
+pnpm --filter @mysten/docs validate-docs
+```
+
+This checks frontmatter completeness, dead links in the index, and index freshness. Fix any errors before committing.
+
 ## Build Commands
 
 ```npm
