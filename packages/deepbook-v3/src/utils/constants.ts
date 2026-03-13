@@ -127,6 +127,14 @@ export const mainnetCoins: CoinMap = {
 		currencyId: '0x907bb173bffab7c57bbd3350a633aa32c8770937b496d7d88874087b59200bcc',
 		priceInfoObjectId: '0xa4b9db1866ee6e2a156e8c36fc66be0f68f232388ebb578c949c2c6beb50128b',
 	},
+	USDSUI: {
+		address: `0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1`,
+		type: `0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1::usdsui::USDSUI`,
+		scalar: 1000000,
+		feed: '0xd510fcdb3a63f35d3bb118d5db3afc5815a3f13bc55d48abb893b63f0315902a',
+		currencyId: '0x535e826a2acddab687c81cb6c6166553b479f61a9023800ec0020baba8d94731',
+		priceInfoObjectId: '0x68644a3ab7a1aab113a4a68b6115a5b51eba4cb6aaac2d99b734be2e5e748425',
+	},
 	WUSDC: {
 		address: `0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf`,
 		type: `0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN`,
@@ -195,11 +203,6 @@ export const mainnetCoins: CoinMap = {
 	USDT: {
 		address: `0x375f70cf2ae4c00bf37117d0c85a2c71545e6ee05c4a5c7d282cd66a4504b068`,
 		type: `0x375f70cf2ae4c00bf37117d0c85a2c71545e6ee05c4a5c7d282cd66a4504b068::usdt::USDT`,
-		scalar: 1000000,
-	},
-	USDSUI: {
-		address: `0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1`,
-		type: `0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1::usdsui::USDSUI`,
 		scalar: 1000000,
 	},
 };
@@ -408,6 +411,10 @@ export const mainnetMarginPools = {
 	XBTC: {
 		address: '0x14dfbf54400e0b97e892349310d392bef6d187c2b6709d9b246b8f41c9a13de4',
 		type: '0x876a4b7bce8aeaef60464c11f4026903e9afacab79b9b142686158aa86560b50::xbtc::XBTC',
+	},
+	USDSUI: {
+		address: '0x78a0ddd02745d9b500fb7e9aae2ff8b665d974f00fd1f6060d59f4a8e891402c',
+		type: '0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1::usdsui::USDSUI',
 	},
 };
 

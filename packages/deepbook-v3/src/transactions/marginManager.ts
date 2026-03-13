@@ -455,7 +455,7 @@ export class MarginManagerContract {
 					repayCoin,
 					tx.object.clock(),
 				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
+				typeArguments: [baseCoin.type, quoteCoin.type, debtIsBase ? baseCoin.type : quoteCoin.type],
 			});
 		};
 
