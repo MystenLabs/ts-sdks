@@ -396,10 +396,7 @@ class Resolver {
 
 		const policyId = derivePolicyAddress(assetType, this.#config);
 		const policyObject = this.getObjectOrThrow(policyId, () => new PolicyNotFoundError(assetType));
-		const templateCmds = this.resolveTemplateCommands(
-			policyObject.objectId,
-			PASActionType.SendFunds,
-		);
+		const templateCmds = this.resolveTemplateCommands(policyObject.objectId, 'send_funds');
 
 		const [toAccountArg, commands] = this.resolveAccountArg(toAccountId, to, baseIdx);
 		const [fromAccountArg, fromAccountCommands] = this.resolveAccountArg(
@@ -533,7 +530,7 @@ class Resolver {
 
 		if (isRestricted) {
 			// Issuer-defined approval commands from templates
-			const templateCmds = this.resolveTemplateCommands(policyId, PASActionType.UnlockFunds);
+			const templateCmds = this.resolveTemplateCommands(policyId, 'unlock_funds');
 			for (const templateCmd of templateCmds) {
 				commands.push(
 					buildMoveCallCommandFromTemplate(templateCmd, {
@@ -698,10 +695,10 @@ async function initializeContext(
 		let assetType: string | null = null;
 
 		if (data.action === 'sendBalance') {
-			actionType = PASActionType.SendFunds;
+			actionType = 'send_funds';
 			assetType = data.assetType;
 		} else if (data.action === 'unlockBalance') {
-			actionType = PASActionType.UnlockFunds;
+			actionType = 'unlock_funds';
 			assetType = data.assetType;
 		}
 
@@ -767,28 +764,28 @@ const resolvePASIntents: TransactionPlugin = async (transactionData, buildOption
 		cfg,
 	);
 
-	// Iterate the live command list. replaceCommand mutates the array in place
-	// and shifts all subsequent indices automatically, so we don't need to
-	// track index offsets ourselves -- the iterator sees correct positions.
-	for (const [index, command] of transactionData.commands.entries()) {
+	// Always advance by 1 so we never skip (e.g. a replacement that contains another intent).
+	// When we replace with 0 commands we decrement so the loop's increment nets 0 and we
+	// re-read the slot (where the next intent shifted in).
+	for (let index = 0; index < transactionData.commands.length; index++) {
+		const command = transactionData.commands[index];
 		if (command.$kind !== '$Intent' || command.$Intent.name !== PAS_INTENT_NAME) continue;
 
 		const data = command.$Intent.data as unknown as PASIntentData;
 
-		// -- accountForAddress is handled separately (may produce 0 commands) --
 		if (data.action === 'accountForAddress') {
 			const accountId = deriveAccountAddress(data.owner, cfg);
 			const [accountArg, commands] = ctx.resolveAccountArg(accountId, data.owner, index);
 
 			if (commands.length === 0) {
 				ctx.replaceIntentWithExistingAccount(index, accountArg);
+				index--; // Next iteration will ++, so we re-read this index (next intent moved here)
 			} else {
 				ctx.replaceIntentWithCreatedAccount(index, commands);
 			}
 			continue;
 		}
 
-		// -- Standard action intents --
 		let result: BuildResult;
 		switch (data.action) {
 			case 'sendBalance':

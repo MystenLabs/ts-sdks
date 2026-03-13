@@ -19,14 +19,7 @@ const RECEIVING_BY_ID_EXT = 'receiving_by_id';
 /**
  * Supported PAS action types that can be resolved via Policies.
  */
-export enum PASActionType {
-	/** Transfer funds between accounts */
-	SendFunds = 'send_funds',
-	/** Unlock funds from a account */
-	UnlockFunds = 'unlock_funds',
-	/** Clawback funds from a account */
-	ClawbackFunds = 'clawback_funds',
-}
+export type PASActionType = 'send_funds' | 'unlock_funds' | 'clawback_funds';
 
 /**
  * Parses the Policy object to extract the required approval type names for a given action.
@@ -121,7 +114,7 @@ export function buildMoveCallCommandFromTemplate(
 
 	for (const arg of command.arguments) {
 		if (arg.Ext) throw new PASClientError(`There are no supported ext arguments in this client.`);
-		else if (arg.GasCoin) resolvedArgs.push({ $kind: 'GasCoin', GasCoin: true });
+		else if (arg.GasCoin) throw new PASClientError(`Gas coin is not supported in PAS client.`);
 		else if (arg.NestedResult)
 			resolvedArgs.push({
 				$kind: 'NestedResult',

@@ -260,7 +260,7 @@ query ($sender: String!) {
     }
   }
 }
-`;
+` as const;
 
 type GqlObjectChangeNode = {
 	address: string;
@@ -278,6 +278,15 @@ type GqlTransactionNode = {
 			nodes: GqlObjectChangeNode[];
 		};
 	};
+};
+
+/** Response shape for DISCOVER_PAS_QUERY — use for type-safe query result. */
+type DiscoverPasQueryData = {
+	address?: {
+		transactions: {
+			nodes: GqlTransactionNode[];
+		};
+	} | null;
 };
 
 /**
@@ -298,15 +307,13 @@ async function discoverPasPackage(
 	// The indexer may lag behind the fullnode, so retry until the transactions appear.
 	const result = await retry(
 		async () => {
-			const { data, errors } = await graphqlClient.query({
+			const { data, errors } = await graphqlClient.query<DiscoverPasQueryData>({
 				query: DISCOVER_PAS_QUERY,
 				variables: { sender: senderAddress },
 			});
 
 			if (errors?.length) throw new Error(`GraphQL errors: ${JSON.stringify(errors)}`);
-			const txNodes = (data as any)?.address?.transactions?.nodes as
-				| GqlTransactionNode[]
-				| undefined;
+			const txNodes = data?.address?.transactions?.nodes;
 			if (!txNodes?.length) throw new Error('No transactions found for CLI sender');
 
 			// Find the transaction that created a Namespace object (that's the pas publish).

@@ -184,6 +184,47 @@ describe.concurrent(
 			expect(responseAfter.object).toBeDefined();
 		});
 
+		it('processes second PAS intent when first is accountForAddress with existing account (no skip)', async () => {
+			// Regression: two consecutive PAS intents where the first is accountForAddress
+			// with an existing account (replaced with 0 commands). The second intent
+			// must still be processed; forward iteration over entries() would skip it.
+			const toolbox = await setupToolbox();
+			const demoUsd = new DemoUsdTestHelpers(toolbox);
+			await demoUsd.createPolicy();
+
+			const from = toolbox.address();
+			const to = normalizeSuiAddress('0xB2');
+
+			const fromAccountId = toolbox.client.pas.deriveAccountAddress(from);
+			const toAccountId = toolbox.client.pas.deriveAccountAddress(to);
+
+			await toolbox.createAccountForAddress(from);
+			await toolbox.createAccountForAddress(to);
+			await demoUsd.mintFromFaucetInto(50, fromAccountId);
+
+			const tx = new Transaction();
+			// (1) accountForAddress — account already exists → replaced with 0 commands
+			tx.add(toolbox.client.pas.call.accountForAddress(from));
+			// (2) sendBalance — must not be skipped after (1) is removed
+			tx.add(
+				toolbox.client.pas.call.sendBalance({
+					from,
+					to,
+					amount: 30 * 1_000_000,
+					assetType: demoUsd.demoUsdAssetType,
+				}),
+			);
+
+			await toolbox.executeTransaction(tx);
+
+			const [{ balance: fromBalance }, { balance: toBalance }] = await Promise.all([
+				toolbox.getBalance(fromAccountId, demoUsd.demoUsdAssetType),
+				toolbox.getBalance(toAccountId, demoUsd.demoUsdAssetType),
+			]);
+			expect(Number(fromBalance.balance)).toBe(20 * 1_000_000);
+			expect(Number(toBalance.balance)).toBe(30 * 1_000_000);
+		});
+
 		it('Should deduplicate account creation when multiple intents reference the same non-existent accounts', async () => {
 			const toolbox = await setupToolbox();
 			const demoUsd = new DemoUsdTestHelpers(toolbox);

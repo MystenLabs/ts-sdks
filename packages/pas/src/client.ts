@@ -3,7 +3,7 @@
 
 import type { ClientWithCoreApi } from '@mysten/sui/client';
 
-import { MAINNET_PAS_PACKAGE_CONFIG, TESTNET_PAS_PACKAGE_CONFIG } from './constants.js';
+import { TESTNET_PAS_PACKAGE_CONFIG } from './constants.js';
 import {
 	deriveAccountAddress,
 	derivePolicyAddress,
@@ -29,32 +29,8 @@ export function pas<const Name extends string = 'pas'>({
 } {
 	return {
 		name,
-		register: (client: ClientWithCoreApi): PASClient => {
-			const network = client.network;
-
-			// TODO: This should only be mainnet,testnet. We use devnet as there's no testnet addr balances temporarily.
-			if (network !== 'mainnet' && network !== 'testnet' && !packageConfig) {
-				throw new PASClientError(
-					'PAS client only supports mainnet and testnet. You can supply a custom package configuration for other networks.',
-				);
-			}
-
-			// TODO: Remove when we add mainnet data
-			if (network === 'mainnet') throw new PASClientError('Mainnet is not supported yet.');
-
-			return new PASClient(
-				packageConfig
-					? {
-							packageConfig,
-							suiClient: client,
-							...options,
-						}
-					: {
-							suiClient: client,
-							...options,
-						},
-			);
-		},
+		register: (client: ClientWithCoreApi) =>
+			new PASClient({ packageConfig, suiClient: client, ...options }),
 	};
 }
 
@@ -63,20 +39,31 @@ export class PASClient {
 
 	constructor(config: PASClientConfig) {
 		const network = config.suiClient.network;
-		if (network && !config.packageConfig) {
-			switch (network) {
-				case 'testnet':
-					this.#packageConfig = TESTNET_PAS_PACKAGE_CONFIG;
-					break;
-				case 'mainnet':
-					this.#packageConfig = MAINNET_PAS_PACKAGE_CONFIG;
-					break;
-				default:
-					throw new PASClientError(`Unsupported network: ${network}`);
-			}
-		} else {
-			this.#packageConfig = config.packageConfig!;
+
+		// Mainnet: no custom config allowed (avoid accidental republishing).
+		if (network === 'mainnet' && config.packageConfig) {
+			throw new PASClientError(
+				'Custom package configuration is not allowed on mainnet. Use the built-in mainnet config when mainnet is supported.',
+			);
 		}
+
+		if (config.packageConfig) {
+			this.#packageConfig = config.packageConfig;
+			return;
+		}
+
+		if (!network || (network !== 'mainnet' && network !== 'testnet')) {
+			throw new PASClientError(
+				'PAS client requires a known network (mainnet, testnet) or a custom package configuration.',
+			);
+		}
+
+		// TODO: Remove when we add mainnet data
+		if (network === 'mainnet') {
+			throw new PASClientError('Mainnet is not supported yet.');
+		}
+
+		this.#packageConfig = TESTNET_PAS_PACKAGE_CONFIG;
 	}
 
 	/**
