@@ -541,13 +541,15 @@ export class TransactionDataBuilder implements TransactionData {
 						);
 					}
 
-					if (
-						input.UnresolvedObject.kind &&
-						resolvedInput.Object.$kind !== input.UnresolvedObject.kind
-					) {
-						throw new Error(
-							`Object ${input.UnresolvedObject.objectId} was expected to be ${input.UnresolvedObject.kind} but was resolved as ${resolvedInput.Object.$kind}`,
-						);
+					const ownerKindArr = input.UnresolvedObject.ownerKind;
+					if (ownerKindArr?.length) {
+						const resolvedOwnerKind =
+							resolvedInput.Object.$kind === 'SharedObject' ? 'shared' : 'owned';
+						if (!ownerKindArr.includes(resolvedOwnerKind)) {
+							throw new Error(
+								`Object ${input.UnresolvedObject.objectId} resolved as '${resolvedOwnerKind}' but expected one of [${ownerKindArr.join(', ')}]`,
+							);
+						}
 					}
 
 					this.inputs[i] = resolvedInput;

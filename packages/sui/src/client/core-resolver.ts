@@ -3,7 +3,12 @@
 
 import { parse } from 'valibot';
 
-import { normalizeSuiAddress, normalizeSuiObjectId, SUI_TYPE_ARG } from '../utils/index.js';
+import {
+	normalizeSuiAddress,
+	normalizeSuiObjectId,
+	normalizeStructTag,
+	SUI_TYPE_ARG,
+} from '../utils/index.js';
 import type { ClientWithCoreApi } from './core.js';
 import { ObjectRefSchema } from '../transactions/data/internal.js';
 import type { CallArg, Command } from '../transactions/data/internal.js';
@@ -276,6 +281,7 @@ async function resolveObjectReferences(
 			digest: object.digest,
 			version: object.version,
 			initialSharedVersion,
+			type: object.type,
 		};
 	});
 
@@ -318,11 +324,27 @@ async function resolveObjectReferences(
 			});
 		}
 
-		const kind = input.UnresolvedObject.kind;
-		if (kind && kind !== updated.Object!.$kind) {
-			throw new Error(
-				`Object ${id} was expected to be ${kind} but was resolved as ${updated.Object!.$kind}`,
+		const ownerKindArr = input.UnresolvedObject.ownerKind;
+		if (ownerKindArr?.length) {
+			const isShared = !!(
+				input.UnresolvedObject.initialSharedVersion ?? object?.initialSharedVersion
 			);
+			const resolvedOwnerKind = isShared ? 'shared' : 'owned';
+			if (!ownerKindArr.includes(resolvedOwnerKind)) {
+				throw new Error(
+					`Object ${id} owner kind '${resolvedOwnerKind}' not in expected kinds [${ownerKindArr.join(', ')}]`,
+				);
+			}
+		}
+
+		const typeArr = input.UnresolvedObject.type;
+		if (typeArr?.length && object?.type) {
+			const normalizedObjectType = normalizeStructTag(object.type);
+			if (!typeArr.some((t) => normalizeStructTag(t) === normalizedObjectType)) {
+				throw new Error(
+					`Object ${id} type '${object.type}' not in expected types [${typeArr.join(', ')}]`,
+				);
+			}
 		}
 
 		transactionData.inputs[transactionData.inputs.indexOf(input)] = updated;

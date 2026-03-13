@@ -321,7 +321,8 @@ const CallArgSchema = safeEnum({
 		digest: optional(nullable(string())),
 		initialSharedVersion: optional(nullable(JsonU64)),
 		mutable: optional(nullable(boolean())),
-		kind: optional(nullable(picklist(['ImmOrOwnedObject', 'SharedObject', 'Receiving']))),
+		ownerKind: optional(nullable(array(picklist(['owned', 'shared'])))),
+		type: optional(nullable(array(string()))),
 	}),
 	FundsWithdrawal: FundsWithdrawalArgSchema,
 });

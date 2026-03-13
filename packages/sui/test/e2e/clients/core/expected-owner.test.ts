@@ -8,22 +8,22 @@ import { SUI_TYPE_ARG } from '../../../../src/utils/index.js';
 import type { TransactionPlugin } from '../../../../src/transactions/resolve.js';
 
 /**
- * Creates a transaction plugin that sets kind on a specific input index.
+ * Creates a transaction plugin that sets ownerKind on a specific input index.
  */
-function setExpectedKindPlugin(
+function setOwnerKindPlugin(
 	inputIndex: number,
-	kind: 'ImmOrOwnedObject' | 'SharedObject' | 'Receiving',
+	ownerKind: ('owned' | 'shared')[],
 ): TransactionPlugin {
 	return async (transactionData, _options, next) => {
 		const input = transactionData.inputs[inputIndex];
 		if (input?.UnresolvedObject) {
-			input.UnresolvedObject.kind = kind;
+			input.UnresolvedObject.ownerKind = ownerKind;
 		}
 		await next();
 	};
 }
 
-describe('Core API - Expected Kind Validation', () => {
+describe('Core API - Owner Kind Validation', () => {
 	let toolbox: TestToolbox;
 	let testAddress: string;
 
@@ -34,9 +34,9 @@ describe('Core API - Expected Kind Validation', () => {
 		testAddress = toolbox.address();
 	});
 
-	describe('correct kind passes validation', () => {
+	describe('correct ownerKind passes validation', () => {
 		testWithAllClients(
-			'owned object with kind=ImmOrOwnedObject resolves successfully',
+			'owned object with ownerKind=[owned] resolves successfully',
 			async (client) => {
 				const coins = await client.core.listCoins({
 					owner: testAddress,
@@ -47,7 +47,7 @@ describe('Core API - Expected Kind Validation', () => {
 				const tx = new Transaction();
 				tx.transferObjects([tx.object(coins.objects[0].objectId)], testAddress);
 				tx.setSender(testAddress);
-				tx.addBuildPlugin(setExpectedKindPlugin(0, 'ImmOrOwnedObject'));
+				tx.addBuildPlugin(setOwnerKindPlugin(0, ['owned']));
 
 				// Should not throw
 				const bytes = await tx.build({ client });
@@ -56,7 +56,7 @@ describe('Core API - Expected Kind Validation', () => {
 		);
 
 		testWithAllClients(
-			'shared object with kind=SharedObject resolves successfully',
+			'shared object with ownerKind=[shared] resolves successfully',
 			async (client) => {
 				const packageId = toolbox.getPackage('test_data');
 
@@ -87,17 +87,37 @@ describe('Core API - Expected Kind Validation', () => {
 					arguments: [tx.object(sharedObject!.reference.objectId)],
 				});
 				tx.setSender(testAddress);
-				tx.addBuildPlugin(setExpectedKindPlugin(0, 'SharedObject'));
+				tx.addBuildPlugin(setOwnerKindPlugin(0, ['shared']));
 
 				// Should not throw
 				const bytes = await tx.build({ client });
 				expect(bytes).toBeDefined();
 			},
 		);
+
+		testWithAllClients(
+			'owned object with ownerKind=[owned, shared] resolves successfully',
+			async (client) => {
+				const coins = await client.core.listCoins({
+					owner: testAddress,
+					coinType: SUI_TYPE_ARG,
+				});
+				expect(coins.objects.length).toBeGreaterThan(0);
+
+				const tx = new Transaction();
+				tx.transferObjects([tx.object(coins.objects[0].objectId)], testAddress);
+				tx.setSender(testAddress);
+				tx.addBuildPlugin(setOwnerKindPlugin(0, ['owned', 'shared']));
+
+				// Should not throw - array accepts either kind
+				const bytes = await tx.build({ client });
+				expect(bytes).toBeDefined();
+			},
+		);
 	});
 
-	describe('incorrect kind throws error', () => {
-		testWithAllClients('owned object with kind=SharedObject throws', async (client) => {
+	describe('incorrect ownerKind throws error', () => {
+		testWithAllClients('owned object with ownerKind=[shared] throws', async (client) => {
 			const coins = await client.core.listCoins({
 				owner: testAddress,
 				coinType: SUI_TYPE_ARG,
@@ -107,14 +127,12 @@ describe('Core API - Expected Kind Validation', () => {
 			const tx = new Transaction();
 			tx.transferObjects([tx.object(coins.objects[0].objectId)], testAddress);
 			tx.setSender(testAddress);
-			tx.addBuildPlugin(setExpectedKindPlugin(0, 'SharedObject'));
+			tx.addBuildPlugin(setOwnerKindPlugin(0, ['shared']));
 
-			// JSON-RPC: client-side validation catches the mismatch
-			// gRPC/GraphQL: server rejects the incorrect kind hint during simulation
 			await expect(tx.build({ client })).rejects.toThrow();
 		});
 
-		testWithAllClients('shared object with kind=ImmOrOwnedObject throws', async (client) => {
+		testWithAllClients('shared object with ownerKind=[owned] throws', async (client) => {
 			const packageId = toolbox.getPackage('test_data');
 
 			// Create a shared object
@@ -144,31 +162,9 @@ describe('Core API - Expected Kind Validation', () => {
 				arguments: [tx.object(sharedObject!.reference.objectId)],
 			});
 			tx.setSender(testAddress);
-			tx.addBuildPlugin(setExpectedKindPlugin(0, 'ImmOrOwnedObject'));
+			tx.addBuildPlugin(setOwnerKindPlugin(0, ['owned']));
 
-			// JSON-RPC: client-side validation catches the mismatch
-			// gRPC/GraphQL: server rejects "object ... is not Immutable or AddressOwned"
 			await expect(tx.build({ client })).rejects.toThrow();
 		});
-
-		testWithAllClients(
-			'owned object with kind=Receiving throws when not used as receiving',
-			async (client) => {
-				const coins = await client.core.listCoins({
-					owner: testAddress,
-					coinType: SUI_TYPE_ARG,
-				});
-				expect(coins.objects.length).toBeGreaterThan(0);
-
-				const tx = new Transaction();
-				tx.transferObjects([tx.object(coins.objects[0].objectId)], testAddress);
-				tx.setSender(testAddress);
-				tx.addBuildPlugin(setExpectedKindPlugin(0, 'Receiving'));
-
-				// JSON-RPC: client-side validation catches the mismatch
-				// gRPC/GraphQL: server rejects the incorrect kind during simulation
-				await expect(tx.build({ client })).rejects.toThrow();
-			},
-		);
 	});
 });

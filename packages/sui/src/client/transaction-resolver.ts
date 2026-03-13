@@ -62,13 +62,7 @@ function callArgToGrpcInput(arg: CallArg): Input {
 
 		case 'UnresolvedObject': {
 			const unresolved = arg.UnresolvedObject;
-			const kindToInputKind: Record<string, Input_InputKind> = {
-				ImmOrOwnedObject: Input_InputKind.IMMUTABLE_OR_OWNED,
-				SharedObject: Input_InputKind.SHARED,
-				Receiving: Input_InputKind.RECEIVING,
-			};
 			return {
-				kind: unresolved.kind ? kindToInputKind[unresolved.kind] : undefined,
 				objectId: unresolved.objectId,
 				version: unresolved.version
 					? BigInt(unresolved.version)
