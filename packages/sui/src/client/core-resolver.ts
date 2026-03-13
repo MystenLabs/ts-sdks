@@ -326,7 +326,7 @@ async function resolveObjectReferences(
 		}
 
 		const ownerKindArr = input.UnresolvedObject.ownerKind;
-		if (ownerKindArr?.length && object?.ownerKind) {
+		if (ownerKindArr && object?.ownerKind) {
 			if (!ownerKindArr.some((kind) => kind === object.ownerKind)) {
 				throw new Error(
 					`Object ${id} owner kind '${object.ownerKind}' not in expected kinds [${ownerKindArr.join(', ')}]`,
@@ -335,7 +335,7 @@ async function resolveObjectReferences(
 		}
 
 		const typeArr = input.UnresolvedObject.type;
-		if (typeArr?.length && object?.type) {
+		if (typeArr && object?.type) {
 			const normalizedObjectType = normalizeStructTag(object.type);
 			if (!typeArr.some((t) => normalizeStructTag(t) === normalizedObjectType)) {
 				throw new Error(

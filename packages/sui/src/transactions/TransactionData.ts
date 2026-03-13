@@ -542,7 +542,7 @@ export class TransactionDataBuilder implements TransactionData {
 					}
 
 					const ownerKindArr = input.UnresolvedObject.ownerKind;
-					if (ownerKindArr?.length) {
+					if (ownerKindArr) {
 						// Map resolved input kind to compatible owner kinds
 						const compatibleOwnerKinds: Record<string, string[]> = {
 							SharedObject: ['Shared', 'ConsensusAddressOwner'],
