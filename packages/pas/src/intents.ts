@@ -20,9 +20,10 @@ import {
 	deriveTemplateAddress,
 	deriveTemplateRegistryAddress,
 } from './derivation.js';
-import { PASClientError, PolicyNotFoundError } from './error.js';
+import { InvalidObjectOwnershipError, PASClientError, PolicyNotFoundError } from './error.js';
 import {
 	buildMoveCallCommandFromTemplate,
+	collectTemplateObjectIds,
 	getCommandFromTemplate,
 	getRequiredApprovals,
 	PASActionType,
@@ -733,6 +734,9 @@ async function initializeContext(
 		}
 	}
 
+	// 5. Validate that all objects referenced by templates are shared or immutable.
+	await validateTemplateObjects(client, Array.from(templates.values()));
+
 	return new Resolver({
 		transactionData,
 		objects,
@@ -805,3 +809,36 @@ const resolvePASIntents: TransactionPlugin = async (transactionData, buildOption
 	ctx.shareNewAccounts();
 	return next();
 };
+
+/**
+ * Parses all template commands, collects every object they reference
+ * (fully-resolved refs, shared refs, and ext lookups), batch-fetches
+ * their current state, and rejects any that are not shared or immutable.
+ */
+export async function validateTemplateObjects(
+	client: ClientWithCoreApi,
+	templates: SuiObject[],
+): Promise<void> {
+	const allTemplateCommands = templates.map(getCommandFromTemplate);
+	const objectIds = collectTemplateObjectIds(allTemplateCommands);
+
+	if (objectIds.size === 0) return;
+
+	const { objects: fetchedObjects } = await client.core.getObjects({
+		objectIds: [...objectIds],
+	});
+
+	const fetched = new Map<string, SuiClientTypes.Object>();
+	for (const obj of fetchedObjects) {
+		if (obj instanceof Error)
+			throw new PASClientError('Failed to fetch template object: ' + obj.message);
+		fetched.set(obj.objectId, obj);
+	}
+
+	// Validate that all objects referenced by templates are shared or immutable.
+	for (const [objectId, obj] of fetched) {
+		if (obj.owner.$kind !== 'Shared' && obj.owner.$kind !== 'Immutable') {
+			throw new InvalidObjectOwnershipError(objectId, obj.owner.$kind);
+		}
+	}
+}

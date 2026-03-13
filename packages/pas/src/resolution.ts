@@ -16,6 +16,41 @@ const OBJECT_BY_ID_EXT = 'object_by_id';
 const OBJECT_BY_TYPE_EXT = 'object_by_type';
 const RECEIVING_BY_ID_EXT = 'receiving_by_id';
 
+type ParsedTemplateCommand = ReturnType<typeof parseCommand>;
+
+/**
+ * Extracts all object IDs referenced by template commands, regardless of
+ * how they are specified (fully resolved refs, shared refs, or ext lookups).
+ */
+export function collectTemplateObjectIds(commands: ParsedTemplateCommand[]): Set<string> {
+	const ids = new Set<string>();
+	for (const cmd of commands) {
+		for (const arg of cmd.arguments) {
+			const obj = arg.Input?.Object;
+			if (!obj) continue;
+
+			switch (obj.$kind) {
+				case 'ImmOrOwnedObject':
+					ids.add(obj.ImmOrOwnedObject.object_id);
+					break;
+				case 'SharedObject':
+					ids.add(obj.SharedObject.object_id);
+					break;
+				case 'Receiving':
+					ids.add(obj.Receiving.object_id);
+					break;
+				case 'Ext': {
+					const [kind, value] = obj.Ext.split(':');
+					if (kind === OBJECT_BY_ID_EXT || kind === RECEIVING_BY_ID_EXT) {
+						ids.add(value);
+					}
+					break;
+				}
+			}
+		}
+	}
+	return ids;
+}
 /**
  * Supported PAS action types that can be resolved via Policies.
  */
@@ -56,7 +91,7 @@ export function getRequiredApprovals(
  */
 export function getCommandFromTemplate(
 	template: SuiClientTypes.Object<{ content: true }>,
-): ReturnType<typeof parseCommand> {
+): ParsedTemplateCommand {
 	const df = Field(TypeName, Command).parse(template.content);
 	return parseCommand(df.value);
 }
@@ -105,7 +140,7 @@ interface RawCommandBuildArgs {
  * @returns A Command object ready for `replaceCommand`
  */
 export function buildMoveCallCommandFromTemplate(
-	command: ReturnType<typeof parseCommand>,
+	command: ParsedTemplateCommand,
 	args: RawCommandBuildArgs,
 ): SdkCommand {
 	const resolvedArgs: Argument[] = [];

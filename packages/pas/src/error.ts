@@ -17,3 +17,13 @@ export class PolicyNotFoundError extends PASClientError {
 		this.name = 'PolicyNotFoundError';
 	}
 }
+
+export class InvalidObjectOwnershipError extends PASClientError {
+	constructor(objectId: string, ownerKind: string) {
+		super(
+			`Object ${objectId} has ownership kind "${ownerKind}" which is not allowed in PAS templates. ` +
+				`Only shared and immutable objects can be referenced by templates.`,
+		);
+		this.name = 'InvalidObjectOwnershipError';
+	}
+}
