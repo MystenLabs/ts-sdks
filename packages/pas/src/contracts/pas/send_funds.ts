@@ -1,11 +1,9 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
-
+import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-
+import { type Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@mysten/pas::send_funds';
 /**
  * A transfer request that is generated once a send funds request is initialized.

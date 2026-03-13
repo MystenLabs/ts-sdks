@@ -1,23 +1,21 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
-
 import {
 	MoveStruct,
 	MoveTuple,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
 } from '../utils/index.js';
-import * as type_name from './deps/std/type_name.js';
+import { bcs } from '@mysten/sui/bcs';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 import * as vec_set from './deps/sui/vec_set.js';
+import * as type_name from './deps/std/type_name.js';
 import * as versioning from './versioning.js';
-
 const $moduleName = '@mysten/pas::policy';
 export const Policy = new MoveStruct({
-	name: `${$moduleName}::Policy`,
+	name: `${$moduleName}::Policy<phantom T>`,
 	fields: {
 		id: bcs.Address,
 		/**
@@ -38,7 +36,7 @@ export const Policy = new MoveStruct({
 	},
 });
 export const PolicyCap = new MoveStruct({
-	name: `${$moduleName}::PolicyCap`,
+	name: `${$moduleName}::PolicyCap<phantom T>`,
 	fields: {
 		id: bcs.Address,
 	},

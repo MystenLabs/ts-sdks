@@ -6,11 +6,11 @@ import { Inputs, TransactionCommands } from '@mysten/sui/transactions';
 import type { Argument, CallArg, Command as SdkCommand } from '@mysten/sui/transactions';
 import { normalizeStructTag } from '@mysten/sui/utils';
 
-import { Field } from './bcs.js';
 import { TypeName } from './contracts/pas/deps/std/type_name.js';
 import { Policy } from './contracts/pas/policy.js';
 import { Command, MoveCall } from './contracts/ptb/ptb.js';
 import { PASClientError } from './error.js';
+import { Field } from './contracts/sui/dynamic_field.js';
 
 const OBJECT_BY_ID_EXT = 'object_by_id';
 const OBJECT_BY_TYPE_EXT = 'object_by_type';
@@ -61,14 +61,12 @@ export function getCommandFromTemplate(
 	return parseCommand(df.value);
 }
 
-// TODO: Discuss why this is interpreted as `(number | number[])[])` instead of `[number, number[]]`
-// and if there's a way to solve that.
 function parseCommand([key, cmd]: ReturnType<typeof Command.parse>) {
 	// Support only `Command` for now.
 	if (key !== 0) throw new Error(`Unknown command type: ${key}`);
 
 	// TODO: switch to support more commands like `TransferObjects` etc.
-	return MoveCall.parse(new Uint8Array(cmd as number[]));
+	return MoveCall.parse(new Uint8Array(cmd));
 }
 
 // ---------------------------------------------------------------------------

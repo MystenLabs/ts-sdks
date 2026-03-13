@@ -1,15 +1,15 @@
 import {
 	bcs,
-	BcsEnum,
-	BcsStruct,
-	BcsTuple,
 	BcsType,
 	TypeTag,
 	TypeTagSerializer,
+	BcsStruct,
+	BcsEnum,
+	BcsTuple,
 } from '@mysten/sui/bcs';
-import { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
-import { isArgument, TransactionArgument } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
+import { TransactionArgument, isArgument } from '@mysten/sui/transactions';
+import { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 
 const MOVE_STDLIB_ADDRESS = normalizeSuiAddress('0x1');
 const SUI_FRAMEWORK_ADDRESS = normalizeSuiAddress('0x2');
@@ -218,7 +218,7 @@ export class MoveEnum<
 > extends BcsEnum<T, Name> {}
 
 export class MoveTuple<
-	T extends readonly BcsType<any>[],
+	const T extends readonly BcsType<any>[],
 	const Name extends string,
 > extends BcsTuple<T, Name> {}
 

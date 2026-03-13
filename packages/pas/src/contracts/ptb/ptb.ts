@@ -4,17 +4,15 @@
 
 /** Module: ptb */
 
-import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction as Transaction_1 } from '@mysten/sui/transactions';
-
 import {
-	MoveEnum,
-	MoveStruct,
 	MoveTuple,
+	MoveStruct,
+	MoveEnum,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
 } from '../utils/index.js';
-
+import { bcs, type BcsType } from '@mysten/sui/bcs';
+import { type Transaction as Transaction_1 } from '@mysten/sui/transactions';
 const $moduleName = '@mysten/ptb::ptb';
 export const Command = new MoveTuple({
 	name: `${$moduleName}::Command`,

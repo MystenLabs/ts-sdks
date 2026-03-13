@@ -8,11 +8,19 @@ const config: SuiCodegenConfig = {
 	packages: [
 		{
 			package: '@mysten/pas',
-			path: '../../packages/pas',
+			path: '../../../pas/packages/pas',
 		},
 		{
 			package: '@mysten/ptb',
-			path: '../../packages/ptb',
+			path: '../../../pas/packages/ptb',
+		},
+		{
+			package: '0x0000000000000000000000000000000000000000000000000000000000000002',
+			packageName: 'sui',
+			network: 'testnet',
+			generate: {
+				modules: ['dynamic_field'],
+			},
 		},
 	],
 };

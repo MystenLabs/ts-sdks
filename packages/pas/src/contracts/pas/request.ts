@@ -2,12 +2,10 @@
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
 import { type BcsType } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
-
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import * as type_name from './deps/std/type_name.js';
+import { type Transaction } from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
-
+import * as type_name from './deps/std/type_name.js';
 const $moduleName = '@mysten/pas::request';
 /** A base request type. Examples: `Request<SendFunds<T>>` `Request<UnlockFunds<T>>` */
 export function Request<K extends BcsType<any>>(...typeParameters: [K]) {

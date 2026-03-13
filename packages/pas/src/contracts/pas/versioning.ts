@@ -11,12 +11,10 @@
  * to slowly deprecate an earlier feature.
  */
 
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import * as vec_set from './deps/sui/vec_set.js';
-
 const $moduleName = '@mysten/pas::versioning';
 export const Versioning = new MoveStruct({
 	name: `${$moduleName}::Versioning`,

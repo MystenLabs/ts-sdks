@@ -1,13 +1,14 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
+import { MoveTuple, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-
-import { MoveTuple, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-
 const $moduleName = '@mysten/pas::keys';
-export const PolicyKey = new MoveTuple({ name: `${$moduleName}::PolicyKey`, fields: [bcs.bool()] });
+export const PolicyKey = new MoveTuple({
+	name: `${$moduleName}::PolicyKey<phantom T>`,
+	fields: [bcs.bool()],
+});
 export const AccountKey = new MoveTuple({
 	name: `${$moduleName}::AccountKey`,
 	fields: [bcs.Address],

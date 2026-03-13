@@ -11,12 +11,10 @@
  * 2.  Policies ... any other module we might add in the future
  */
 
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import * as versioning from './versioning.js';
-
 const $moduleName = '@mysten/pas::namespace';
 export const Namespace = new MoveStruct({
 	name: `${$moduleName}::Namespace`,

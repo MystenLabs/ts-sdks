@@ -9,11 +9,9 @@
  * versioning enforcement here, as this is purely an off-chain used endpoint.
  */
 
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-
 const $moduleName = '@mysten/pas::templates';
 export const PAS = new MoveStruct({
 	name: `${$moduleName}::PAS`,
