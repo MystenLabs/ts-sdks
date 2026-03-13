@@ -39,7 +39,7 @@ export type BrowserPasswordProviderOptions = Pick<
 
 export interface PasskeyProvider {
 	create(): Promise<RegistrationCredential>;
-	get(challenge: Uint8Array): Promise<AuthenticationCredential>;
+	get(challenge: Uint8Array, credentialId?: Uint8Array): Promise<AuthenticationCredential>;
 }
 
 // Default browser implementation
@@ -80,12 +80,15 @@ export class BrowserPasskeyProvider implements PasskeyProvider {
 		})) as RegistrationCredential;
 	}
 
-	async get(challenge: Uint8Array): Promise<AuthenticationCredential> {
+	async get(challenge: Uint8Array, credentialId?: Uint8Array): Promise<AuthenticationCredential> {
 		return (await navigator.credentials.get({
 			publicKey: {
 				challenge: challenge as BufferSource,
 				userVerification: this.#options.authenticatorSelection?.userVerification || 'required',
 				timeout: this.#options.timeout ?? 60000,
+				...(credentialId && {
+					allowCredentials: [{ type: 'public-key' as const, id: credentialId as BufferSource }],
+				}),
 			},
 		})) as AuthenticationCredential;
 	}
@@ -98,6 +101,7 @@ export class BrowserPasskeyProvider implements PasskeyProvider {
 export class PasskeyKeypair extends Signer {
 	private publicKey: Uint8Array;
 	private provider: PasskeyProvider;
+	private credentialId?: Uint8Array;
 
 	/**
 	 * Get the key scheme of passkey,
@@ -120,10 +124,20 @@ export class PasskeyKeypair extends Signer {
 	 * If there are existing passkey wallet, use `signAndRecover` to identify the correct
 	 * public key and then initialize the instance. See usage in `signAndRecover`.
 	 */
-	constructor(publicKey: Uint8Array, provider: PasskeyProvider) {
+	constructor(publicKey: Uint8Array, provider: PasskeyProvider, credentialId?: Uint8Array) {
 		super();
 		this.publicKey = publicKey;
 		this.provider = provider;
+		this.credentialId = credentialId;
+	}
+
+	/**
+	 * Return the credential ID for this passkey, if available.
+	 * The credential ID is captured when creating a new passkey via `getPasskeyInstance`
+	 * and can be used to constrain which credential the browser selects during signing.
+	 */
+	getCredentialId(): Uint8Array | undefined {
+		return this.credentialId;
 	}
 
 	/**
@@ -145,7 +159,7 @@ export class PasskeyKeypair extends Signer {
 			const pubkeyUncompressed = parseDerSPKI(new Uint8Array(derSPKI));
 			const pubkey = secp256r1.Point.fromBytes(pubkeyUncompressed);
 			const pubkeyCompressed = pubkey.toBytes(true);
-			return new PasskeyKeypair(pubkeyCompressed, provider);
+			return new PasskeyKeypair(pubkeyCompressed, provider, new Uint8Array(credential.rawId));
 		}
 	}
 
@@ -162,7 +176,7 @@ export class PasskeyKeypair extends Signer {
 	 */
 	async sign(data: Uint8Array) {
 		// asks the passkey to sign over challenge as the data.
-		const credential = await this.provider.get(data);
+		const credential = await this.provider.get(data, this.credentialId);
 
 		// parse authenticatorData (as bytes), clientDataJSON (decoded as string).
 		const authenticatorData = new Uint8Array(credential.response.authenticatorData);
@@ -245,7 +259,7 @@ export class PasskeyKeypair extends Signer {
 	 * const testMessage2 = new TextEncoder().encode('Hello world 2!');
 	 * const possiblePks2 = await PasskeyKeypair.signAndRecover(provider, testMessage2);
 	 * const commonPk = findCommonPublicKey(possiblePks, possiblePks2);
-	 * const signer = new PasskeyKeypair(provider, commonPk.toRawBytes());
+	 * const signer = new PasskeyKeypair(commonPk.toRawBytes(), provider);
 	 * ```
 	 *
 	 * @param provider - the passkey provider.
