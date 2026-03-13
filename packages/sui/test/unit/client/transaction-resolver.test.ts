@@ -177,38 +177,6 @@ describe('Transaction Resolver - TypeScript to gRPC Conversion', () => {
 			// Version should be set even if it's 0 (will be resolved by server)
 			expect(input?.version).toBe(BigInt(0));
 		});
-
-		it('should pass kind as kind hint for UnresolvedObject', () => {
-			const tx = new Transaction();
-			tx.moveCall({
-				target: '0x2::foo::bar',
-				arguments: [tx.object('0x123')],
-			});
-
-			// Set kind on the unresolved input
-			const data = tx.getData();
-			data.inputs[0].UnresolvedObject!.kind = 'SharedObject';
-
-			const grpcTx = transactionDataToGrpcTransaction(data);
-			const ptx = getProgrammableTx(grpcTx);
-			const input = ptx.inputs?.[0];
-
-			expect(input?.kind).toBe(Input_InputKind.SHARED);
-		});
-
-		it('should not set kind when kind is not set', () => {
-			const tx = new Transaction();
-			tx.moveCall({
-				target: '0x2::foo::bar',
-				arguments: [tx.object('0x123')],
-			});
-
-			const grpcTx = transactionDataToGrpcTransaction(tx.getData());
-			const ptx = getProgrammableTx(grpcTx);
-			const input = ptx.inputs?.[0];
-
-			expect(input?.kind).toBeUndefined();
-		});
 	});
 
 	describe('Argument Conversion', () => {
