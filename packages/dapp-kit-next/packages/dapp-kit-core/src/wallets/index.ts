@@ -6,12 +6,12 @@ import type { DAppKitCompatibleClient } from '../core/types.js';
 
 export type UnregisterCallback = () => void;
 
-type InitializeArgs = {
+export type InitializeArgs = {
 	networks: Networks;
 	getClient: (network?: Networks[number]) => DAppKitCompatibleClient;
 };
 
-type InitializeResult = {
+export type InitializeResult = {
 	unregister: () => void;
 };
 
