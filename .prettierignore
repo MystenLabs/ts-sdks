@@ -12,8 +12,6 @@ yarn-debug.log*
 .source/
 .swc/
 .claude
-.agents
-skills-lock.json
 build/
 coverage/
 dist/
@@ -30,3 +28,5 @@ packages/walrus/src/client
 package.json
 pnpm-lock.yaml
 package_summaries/
+packages/*/docs/
+packages/*/packages/*/docs/
