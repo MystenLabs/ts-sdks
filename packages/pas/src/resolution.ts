@@ -41,8 +41,13 @@ export function collectTemplateObjectIds(commands: ParsedTemplateCommand[]): Set
 					break;
 				case 'Ext': {
 					const [kind, value] = obj.Ext.split(':');
-					if (kind === OBJECT_BY_ID_EXT || kind === RECEIVING_BY_ID_EXT) {
-						ids.add(value);
+					switch (kind) {
+						case OBJECT_BY_ID_EXT:
+						case RECEIVING_BY_ID_EXT:
+							ids.add(value);
+							break;
+						default:
+							throw new PASClientError(`Unsupported external object kind: ${kind}`);
 					}
 					break;
 				}
