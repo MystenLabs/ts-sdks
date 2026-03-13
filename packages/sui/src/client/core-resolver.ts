@@ -290,9 +290,10 @@ async function resolveObjectReferences(
 			continue;
 		}
 
-		let updated: CallArg | undefined;
 		const id = normalizeSuiAddress(input.UnresolvedObject.objectId);
 		const object = objectsById.get(id);
+
+		let updated: CallArg;
 
 		if (input.UnresolvedObject.initialSharedVersion ?? object?.initialSharedVersion) {
 			updated = Inputs.SharedObjectRef({
@@ -309,15 +310,22 @@ async function resolveObjectReferences(
 					version: input.UnresolvedObject.version ?? object?.version!,
 				}!,
 			);
-		}
-
-		transactionData.inputs[transactionData.inputs.indexOf(input)] =
-			updated ??
-			Inputs.ObjectRef({
+		} else {
+			updated = Inputs.ObjectRef({
 				objectId: id,
 				digest: input.UnresolvedObject.digest ?? object?.digest!,
 				version: input.UnresolvedObject.version ?? object?.version!,
 			});
+		}
+
+		const kind = input.UnresolvedObject.kind;
+		if (kind && kind !== updated.Object!.$kind) {
+			throw new Error(
+				`Object ${id} was expected to be ${kind} but was resolved as ${updated.Object!.$kind}`,
+			);
+		}
+
+		transactionData.inputs[transactionData.inputs.indexOf(input)] = updated;
 	}
 }
 
