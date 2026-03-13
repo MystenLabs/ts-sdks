@@ -543,11 +543,16 @@ export class TransactionDataBuilder implements TransactionData {
 
 					const ownerKindArr = input.UnresolvedObject.ownerKind;
 					if (ownerKindArr?.length) {
-						const resolvedOwnerKind =
-							resolvedInput.Object.$kind === 'SharedObject' ? 'shared' : 'owned';
-						if (!ownerKindArr.includes(resolvedOwnerKind)) {
+						// Map resolved input kind to compatible owner kinds
+						const compatibleOwnerKinds: Record<string, string[]> = {
+							SharedObject: ['Shared', 'ConsensusAddressOwner'],
+							ImmOrOwnedObject: ['AddressOwner', 'Immutable'],
+							Receiving: ['AddressOwner', 'ObjectOwner', 'Immutable'],
+						};
+						const compatible = compatibleOwnerKinds[resolvedInput.Object.$kind] ?? [];
+						if (!ownerKindArr.some((kind) => compatible.includes(kind))) {
 							throw new Error(
-								`Object ${input.UnresolvedObject.objectId} resolved as '${resolvedOwnerKind}' but expected one of [${ownerKindArr.join(', ')}]`,
+								`Object ${input.UnresolvedObject.objectId} resolved as '${resolvedInput.Object.$kind}' which is not compatible with expected owner kinds [${ownerKindArr.join(', ')}]`,
 							);
 						}
 					}

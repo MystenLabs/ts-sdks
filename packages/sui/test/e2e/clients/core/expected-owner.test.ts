@@ -7,13 +7,12 @@ import { Transaction } from '../../../../src/transactions/index.js';
 import { SUI_TYPE_ARG } from '../../../../src/utils/index.js';
 import type { TransactionPlugin } from '../../../../src/transactions/resolve.js';
 
+type OwnerKind = 'AddressOwner' | 'ObjectOwner' | 'Shared' | 'Immutable' | 'ConsensusAddressOwner';
+
 /**
  * Creates a transaction plugin that sets ownerKind on a specific input index.
  */
-function setOwnerKindPlugin(
-	inputIndex: number,
-	ownerKind: ('owned' | 'shared')[],
-): TransactionPlugin {
+function setOwnerKindPlugin(inputIndex: number, ownerKind: OwnerKind[]): TransactionPlugin {
 	return async (transactionData, _options, next) => {
 		const input = transactionData.inputs[inputIndex];
 		if (input?.UnresolvedObject) {
@@ -36,7 +35,7 @@ describe('Core API - Owner Kind Validation', () => {
 
 	describe('correct ownerKind passes validation', () => {
 		testWithAllClients(
-			'owned object with ownerKind=[owned] resolves successfully',
+			'owned object with ownerKind=[AddressOwner] resolves successfully',
 			async (client) => {
 				const coins = await client.core.listCoins({
 					owner: testAddress,
@@ -47,7 +46,7 @@ describe('Core API - Owner Kind Validation', () => {
 				const tx = new Transaction();
 				tx.transferObjects([tx.object(coins.objects[0].objectId)], testAddress);
 				tx.setSender(testAddress);
-				tx.addBuildPlugin(setOwnerKindPlugin(0, ['owned']));
+				tx.addBuildPlugin(setOwnerKindPlugin(0, ['AddressOwner']));
 
 				// Should not throw
 				const bytes = await tx.build({ client });
@@ -56,7 +55,7 @@ describe('Core API - Owner Kind Validation', () => {
 		);
 
 		testWithAllClients(
-			'shared object with ownerKind=[shared] resolves successfully',
+			'shared object with ownerKind=[Shared] resolves successfully',
 			async (client) => {
 				const packageId = toolbox.getPackage('test_data');
 
@@ -87,7 +86,7 @@ describe('Core API - Owner Kind Validation', () => {
 					arguments: [tx.object(sharedObject!.reference.objectId)],
 				});
 				tx.setSender(testAddress);
-				tx.addBuildPlugin(setOwnerKindPlugin(0, ['shared']));
+				tx.addBuildPlugin(setOwnerKindPlugin(0, ['Shared']));
 
 				// Should not throw
 				const bytes = await tx.build({ client });
@@ -96,7 +95,7 @@ describe('Core API - Owner Kind Validation', () => {
 		);
 
 		testWithAllClients(
-			'owned object with ownerKind=[owned, shared] resolves successfully',
+			'owned object with ownerKind=[AddressOwner, Shared] resolves successfully',
 			async (client) => {
 				const coins = await client.core.listCoins({
 					owner: testAddress,
@@ -107,7 +106,7 @@ describe('Core API - Owner Kind Validation', () => {
 				const tx = new Transaction();
 				tx.transferObjects([tx.object(coins.objects[0].objectId)], testAddress);
 				tx.setSender(testAddress);
-				tx.addBuildPlugin(setOwnerKindPlugin(0, ['owned', 'shared']));
+				tx.addBuildPlugin(setOwnerKindPlugin(0, ['AddressOwner', 'Shared']));
 
 				// Should not throw - array accepts either kind
 				const bytes = await tx.build({ client });
@@ -117,7 +116,7 @@ describe('Core API - Owner Kind Validation', () => {
 	});
 
 	describe('incorrect ownerKind throws error', () => {
-		testWithAllClients('owned object with ownerKind=[shared] throws', async (client) => {
+		testWithAllClients('owned object with ownerKind=[Shared] throws', async (client) => {
 			const coins = await client.core.listCoins({
 				owner: testAddress,
 				coinType: SUI_TYPE_ARG,
@@ -127,12 +126,12 @@ describe('Core API - Owner Kind Validation', () => {
 			const tx = new Transaction();
 			tx.transferObjects([tx.object(coins.objects[0].objectId)], testAddress);
 			tx.setSender(testAddress);
-			tx.addBuildPlugin(setOwnerKindPlugin(0, ['shared']));
+			tx.addBuildPlugin(setOwnerKindPlugin(0, ['Shared']));
 
 			await expect(tx.build({ client })).rejects.toThrow();
 		});
 
-		testWithAllClients('shared object with ownerKind=[owned] throws', async (client) => {
+		testWithAllClients('shared object with ownerKind=[AddressOwner] throws', async (client) => {
 			const packageId = toolbox.getPackage('test_data');
 
 			// Create a shared object
@@ -162,7 +161,7 @@ describe('Core API - Owner Kind Validation', () => {
 				arguments: [tx.object(sharedObject!.reference.objectId)],
 			});
 			tx.setSender(testAddress);
-			tx.addBuildPlugin(setOwnerKindPlugin(0, ['owned']));
+			tx.addBuildPlugin(setOwnerKindPlugin(0, ['AddressOwner']));
 
 			await expect(tx.build({ client })).rejects.toThrow();
 		});

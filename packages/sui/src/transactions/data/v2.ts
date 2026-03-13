@@ -136,7 +136,13 @@ const CallArg = enumUnion({
 		digest: optional(nullable(string())),
 		initialSharedVersion: optional(nullable(JsonU64)),
 		mutable: optional(nullable(boolean())),
-		ownerKind: optional(nullable(array(picklist(['owned', 'shared'])))),
+		ownerKind: optional(
+			nullable(
+				array(
+					picklist(['AddressOwner', 'ObjectOwner', 'Shared', 'Immutable', 'ConsensusAddressOwner']),
+				),
+			),
+		),
 		type: optional(nullable(array(string()))),
 	}),
 	FundsWithdrawal: FundsWithdrawalArgSchema,

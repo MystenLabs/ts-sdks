@@ -281,6 +281,7 @@ async function resolveObjectReferences(
 			digest: object.digest,
 			version: object.version,
 			initialSharedVersion,
+			ownerKind: owner?.$kind ?? null,
 			type: object.type,
 		};
 	});
@@ -325,14 +326,10 @@ async function resolveObjectReferences(
 		}
 
 		const ownerKindArr = input.UnresolvedObject.ownerKind;
-		if (ownerKindArr?.length) {
-			const isShared = !!(
-				input.UnresolvedObject.initialSharedVersion ?? object?.initialSharedVersion
-			);
-			const resolvedOwnerKind = isShared ? 'shared' : 'owned';
-			if (!ownerKindArr.includes(resolvedOwnerKind)) {
+		if (ownerKindArr?.length && object?.ownerKind) {
+			if (!ownerKindArr.some((kind) => kind === object.ownerKind)) {
 				throw new Error(
-					`Object ${id} owner kind '${resolvedOwnerKind}' not in expected kinds [${ownerKindArr.join(', ')}]`,
+					`Object ${id} owner kind '${object.ownerKind}' not in expected kinds [${ownerKindArr.join(', ')}]`,
 				);
 			}
 		}
