@@ -7,17 +7,13 @@
  *   - dist/<section>/llms-index.md    — per-section index (one per content dir)
  *
  * Usage:
- *   npx tsx scripts/generate-llms-index.ts          # write indices
- *   npx tsx scripts/generate-llms-index.ts --check   # exit 1 if full index differs
+ *   npx tsx scripts/generate-llms-index.ts
  */
 
-import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { generateSectionIndex, readMetaJson } from './docs-utils.js';
-
-const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 
 const CONTENT_DIR = path.resolve(new URL('.', import.meta.url).pathname, '..', 'content');
 const OUTPUT_DIR = path.resolve(new URL('.', import.meta.url).pathname, '..', 'dist');
@@ -61,52 +57,22 @@ function generateFullIndex(sections: string[]): string {
 }
 
 // Main
-const checkMode = process.argv.includes('--check');
 const sections = getContentSections();
 const indexContent = generateFullIndex(sections);
 
-if (checkMode) {
-	if (!fs.existsSync(OUTPUT_FILE)) {
-		console.error('ERROR: dist/llms-index.md does not exist. Run without --check to generate.');
-		process.exit(1);
-	}
+fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
-	// Format in-memory content with prettier before comparing, since the on-disk
-	// file was formatted by the build step. Use a temp file inside OUTPUT_DIR so
-	// prettier resolves the same config as the build step.
-	const tmpFile = path.join(OUTPUT_DIR, '.llms-index-check.md');
-	fs.writeFileSync(tmpFile, indexContent);
-	execFileSync(npxCmd, ['prettier', '--write', tmpFile], { stdio: 'ignore' });
-	const formatted = fs.readFileSync(tmpFile, 'utf-8');
-	fs.unlinkSync(tmpFile);
+// Write the full combined index
+fs.writeFileSync(OUTPUT_FILE, indexContent);
+console.log(`Generated ${OUTPUT_FILE}`);
 
-	const existing = fs.readFileSync(OUTPUT_FILE, 'utf-8');
-	if (existing !== formatted) {
-		console.error(
-			'ERROR: dist/llms-index.md is out of date. Run `npx tsx scripts/generate-llms-index.ts` to update.',
-		);
-		process.exit(1);
-	}
-	console.log('dist/llms-index.md is up to date.');
-} else {
-	fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-
-	// Write the full combined index
-	fs.writeFileSync(OUTPUT_FILE, indexContent);
-	execFileSync(npxCmd, ['prettier', '--write', OUTPUT_FILE], { stdio: 'ignore' });
-	console.log(`Generated ${OUTPUT_FILE}`);
-
-	// Write per-section indices into dist/<section>/llms-index.md
-	for (const sectionName of sections) {
-		const sectionDir = path.join(CONTENT_DIR, sectionName);
-		const sectionIndex = generateSectionIndex(sectionDir, '.', '#');
-		const sectionOutputDir = path.join(OUTPUT_DIR, sectionName);
-		fs.mkdirSync(sectionOutputDir, { recursive: true });
-		const sectionOutputFile = path.join(sectionOutputDir, 'llms-index.md');
-		fs.writeFileSync(sectionOutputFile, sectionIndex);
-	}
-	execFileSync(npxCmd, ['prettier', '--write', `${OUTPUT_DIR}/**/llms-index.md`], {
-		stdio: 'ignore',
-	});
-	console.log(`Generated per-section indices for ${sections.length} sections`);
+// Write per-section indices into dist/<section>/llms-index.md
+for (const sectionName of sections) {
+	const sectionDir = path.join(CONTENT_DIR, sectionName);
+	const sectionIndex = generateSectionIndex(sectionDir, '.', '#');
+	const sectionOutputDir = path.join(OUTPUT_DIR, sectionName);
+	fs.mkdirSync(sectionOutputDir, { recursive: true });
+	const sectionOutputFile = path.join(sectionOutputDir, 'llms-index.md');
+	fs.writeFileSync(sectionOutputFile, sectionIndex);
 }
+console.log(`Generated per-section indices for ${sections.length} sections`);

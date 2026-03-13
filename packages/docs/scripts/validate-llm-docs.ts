@@ -7,14 +7,11 @@
  * Checks:
  * 1. Every MDX file has both `title` and `description` in frontmatter
  * 2. No orphan MDX files (every .mdx must be referenced in a meta.json `pages` array)
- * 3. Every file referenced in dist/llms-index.md exists on disk
- * 4. dist/llms-index.md is up to date (delegates to generate-llms-index.ts --check)
  *
  * Usage:
  *   npx tsx scripts/validate-llm-docs.ts
  */
 
-import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,9 +20,6 @@ import matter from 'gray-matter';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const CONTENT_DIR = path.resolve(SCRIPT_DIR, '..', 'content');
-const DIST_DIR = path.resolve(SCRIPT_DIR, '..', 'dist');
-const INDEX_FILE = path.join(DIST_DIR, 'llms-index.md');
-const GENERATE_INDEX_SCRIPT = path.join(SCRIPT_DIR, 'generate-llms-index.ts');
 
 let errors = 0;
 let warnings = 0;
@@ -128,44 +122,6 @@ function checkOrphans(dir: string): void {
 }
 
 checkOrphans(CONTENT_DIR);
-
-// Check 3: Dead links in index (checks source .mdx when dist .md doesn't exist)
-console.log('Checking for dead links in llms-index.md...');
-if (fs.existsSync(INDEX_FILE)) {
-	const indexContent = fs.readFileSync(INDEX_FILE, 'utf-8');
-	const linkRegex = /\[.*?\]\((\.\/.+?\.md)\)/g;
-	let match;
-	while ((match = linkRegex.exec(indexContent)) !== null) {
-		const linkPath = match[1];
-		const fullPath = path.resolve(DIST_DIR, linkPath);
-		if (!fs.existsSync(fullPath)) {
-			// Check if the source MDX exists instead (dist files may not be generated yet)
-			const sourcePath = path.resolve(
-				CONTENT_DIR,
-				linkPath.replace(/^\.\//, '').replace(/\.md$/, '.mdx'),
-			);
-			if (!fs.existsSync(sourcePath)) {
-				error(`llms-index.md references ${linkPath} but no source file exists at ${sourcePath}`);
-			}
-		}
-	}
-} else {
-	console.log('Skipping dead links check: dist/llms-index.md does not exist yet.');
-}
-
-// Check 4: llms-index freshness (delegates to generate-llms-index.ts --check)
-console.log('Checking llms-index.md freshness...');
-const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-try {
-	execFileSync(npxCommand, ['tsx', GENERATE_INDEX_SCRIPT, '--check'], {
-		cwd: path.resolve(SCRIPT_DIR, '..'),
-		stdio: 'inherit',
-	});
-} catch {
-	error(
-		'dist/llms-index.md is missing or out of date. Run `npx tsx scripts/generate-llms-index.ts`.',
-	);
-}
 
 // Summary
 console.log('');

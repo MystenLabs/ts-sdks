@@ -165,11 +165,6 @@ async function buildAll(): Promise<void> {
 	}
 	fs.writeFileSync(path.join(distDir, 'llms-index.md'), fullIndexLines.join('\n'));
 
-	// Format the top-level index
-	execFileSync(npxCmd, ['prettier', '--write', path.join(distDir, 'llms-index.md')], {
-		stdio: 'ignore',
-	});
-
 	console.log(`Generated ${totalFiles} files across ${sections.length} sections in dist/`);
 }
 

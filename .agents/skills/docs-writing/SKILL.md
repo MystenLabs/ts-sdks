@@ -48,9 +48,9 @@ When a new SDK package needs documentation:
 1. Read the full page before editing — understand context.
 2. Keep the `description` frontmatter accurate after changes.
 3. After significant structural changes, regenerate and validate:
-   ```npm
+   ```bash
    pnpm --filter @mysten/docs build:docs
-   npx tsx packages/docs/scripts/generate-llms-index.ts --check
+   pnpm --filter @mysten/docs validate-docs
    ```
 
 ## Key Rules
@@ -86,7 +86,7 @@ Always validate before committing doc changes:
 pnpm --filter @mysten/docs validate-docs
 ```
 
-This checks frontmatter completeness, dead links in the index, and index freshness. Fix any errors before committing.
+This checks frontmatter completeness and orphan detection. Fix any errors before committing.
 
 ## Build Commands
 
@@ -100,10 +100,7 @@ pnpm --filter @mysten/sui build:docs
 # Build everything (includes build:docs automatically via turbo)
 pnpm turbo build
 
-# Check index is up to date
-npx tsx packages/docs/scripts/generate-llms-index.ts --check
-
-# Validate frontmatter + dead links
+# Validate frontmatter + orphan detection
 pnpm --filter @mysten/docs validate-docs
 
 # Full site build (Next.js)
