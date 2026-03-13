@@ -1,0 +1,130 @@
+---
+title: CLI Signer API
+---
+
+HTTP API for signing transactions using the local `sui` CLI keystore. Private keys never leave the
+`sui` binary — only transaction bytes are sent for signing.
+
+This API is served by the dev wallet's standalone server (`npx @mysten/dev-wallet serve`). The
+endpoints are implemented as middleware that can be mounted on any HTTP server.
+
+## Endpoints
+
+### GET /api/v1/accounts
+
+List all accounts available in the Sui CLI keystore.
+
+**Request:**
+
+```http
+GET /api/v1/accounts HTTP/1.1
+Authorization: Bearer <token>
+```
+
+**Response (200):**
+
+```json
+{
+	"accounts": [
+		{
+			"suiAddress": "0x1234567890abcdef...",
+			"publicBase64Key": "AO3a1234...",
+			"keyScheme": "ed25519",
+			"alias": "my-account"
+		}
+	]
+}
+```
+
+| Field             | Type             | Description                                     |
+| ----------------- | ---------------- | ----------------------------------------------- |
+| `suiAddress`      | `string`         | Hex address with `0x` prefix                    |
+| `publicBase64Key` | `string`         | Base64-encoded public key with flag byte prefix |
+| `keyScheme`       | `string`         | `ed25519`, `secp256k1`, or `secp256r1`          |
+| `alias`           | `string \| null` | Human-friendly account name, if set             |
+
+### POST /api/v1/sign-transaction
+
+Sign BCS-serialized TransactionData using the `sui` CLI. Calls `sui keytool sign` under the hood.
+
+**Request:**
+
+```http
+POST /api/v1/sign-transaction HTTP/1.1
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "address": "0x1234567890abcdef...",
+  "txBytes": "oEJ..."
+}
+```
+
+| Field     | Type     | Validation                              | Description                     |
+| --------- | -------- | --------------------------------------- | ------------------------------- |
+| `address` | `string` | Valid Sui address (`isValidSuiAddress`) | Sui address to sign with        |
+| `txBytes` | `string` | Non-empty base64, max ~1M chars         | BCS-serialized transaction data |
+
+**Response (200):**
+
+```json
+{
+	"suiSignature": "AKjTrX9...",
+	"digest": "7f9a2c1b..."
+}
+```
+
+| Field          | Type     | Description                          |
+| -------------- | -------- | ------------------------------------ |
+| `suiSignature` | `string` | Sui signature (includes scheme flag) |
+| `digest`       | `string` | Transaction digest                   |
+
+**Personal message signing is not supported** — `sui keytool sign` only accepts TransactionData.
+
+## Error Responses
+
+All errors return JSON with an `error` field:
+
+```json
+{ "error": "description of what went wrong" }
+```
+
+| Status | When                                                      |
+| ------ | --------------------------------------------------------- |
+| `400`  | Invalid JSON body, bad address format, or invalid txBytes |
+| `401`  | Missing or invalid authentication token                   |
+| `403`  | Request not from localhost                                |
+| `404`  | Address not found in keystore                             |
+| `413`  | Request body exceeds 2 MB (based on `content-length`)     |
+| `500`  | `sui` CLI not found or signing failure                    |
+
+## Authentication
+
+The API uses a **token-in-URL** approach (same pattern as Jupyter notebooks):
+
+1. On server start, a 256-bit random token is generated
+2. The token is printed to the terminal as part of the URL: `http://localhost:5174/?token=<token>`
+3. Opening that URL stores the token in `localStorage`
+4. All API requests require the token in the `Authorization: Bearer <token>` header
+5. Token comparison uses `timingSafeEqual()` to prevent timing attacks
+
+## Client Integration
+
+The `RemoteCliAdapter` from `@mysten/dev-wallet/adapters` implements the browser-side client for
+this API. See [Remote CLI Adapter](/dev-wallet/reference/adapters/remote-cli) for usage.
+
+```typescript
+import { RemoteCliAdapter } from '@mysten/dev-wallet/adapters';
+
+const adapter = new RemoteCliAdapter({
+	serverOrigin: 'http://localhost:5174',
+	token: '<token>',
+});
+await adapter.initialize();
+
+// List accounts available on the server (not yet imported)
+const available = await adapter.listAvailableAccounts();
+
+// Import a specific account for use in the wallet
+await adapter.importAccount({ address: '0x...' });
+```

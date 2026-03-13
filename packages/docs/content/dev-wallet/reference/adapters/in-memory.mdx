@@ -1,0 +1,61 @@
+---
+title: InMemorySignerAdapter
+---
+
+import { InMemoryAdapterDemo } from '../../../../examples/dev-wallet-demos-client';
+
+Generates Ed25519 keypairs held in memory. Keys are lost when the page reloads. Useful for
+prototyping, unit tests, and documentation demos.
+
+## Usage
+
+```typescript
+import { InMemorySignerAdapter } from '@mysten/dev-wallet/adapters';
+
+const adapter = new InMemorySignerAdapter();
+await adapter.initialize();
+
+// Create a new account with a generated Ed25519 keypair
+const account = await adapter.createAccount({ label: 'My Dev Account' });
+console.log(account.address); // 0x...
+console.log(account.label); // 'My Dev Account'
+```
+
+## Try It
+
+Create and manage accounts interactively:
+
+<InMemoryAdapterDemo />
+
+## Importing an Existing Keypair
+
+```typescript
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+
+const keypair = new Ed25519Keypair();
+
+const account = await adapter.importAccount({
+	signer: keypair,
+	label: 'Imported Key',
+});
+```
+
+## API
+
+| Property / Method               | Description                       |
+| ------------------------------- | --------------------------------- |
+| `id`                            | `'in-memory'`                     |
+| `name`                          | `'In-Memory Signer'`              |
+| `allowAutoSign`                 | Not set (auto-sign allowed)       |
+| `initialize()`                  | No-op (no storage to load)        |
+| `createAccount(options?)`       | Generate a new Ed25519 keypair    |
+| `importAccount(options)`        | Import an existing `Signer`       |
+| `removeAccount(address)`        | Remove an account by address      |
+| `renameAccount(address, label)` | Update an account's label         |
+| `getAccounts()`                 | List all managed accounts         |
+| `getAccount(address)`           | Look up a single account          |
+| `onAccountsChanged(callback)`   | Subscribe to account list changes |
+| `destroy()`                     | Clean up listeners                |
+
+`InMemorySignerAdapter` is the only adapter that works identically in both browser and Node.js
+environments.

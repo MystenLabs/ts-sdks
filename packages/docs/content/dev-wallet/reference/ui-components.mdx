@@ -1,0 +1,122 @@
+---
+title: UI Components
+---
+
+Dev Wallet ships [Lit](https://lit.dev/) Web Components for wallet management UI. These work in any
+framework — React, Vue, vanilla JS, or anything that renders HTML.
+
+## Quick Start: mountDevWallet
+
+The simplest way to add the wallet UI:
+
+```typescript
+import { mountDevWallet } from '@mysten/dev-wallet/ui';
+
+// Mount the floating panel (default: appends to document.body)
+const unmount = mountDevWallet(wallet);
+
+// Mount into a specific container
+const unmount = mountDevWallet(wallet, {
+	container: document.getElementById('wallet-root'),
+});
+
+// Clean up
+unmount();
+```
+
+## The Wallet Panel
+
+The `<dev-wallet-panel>` element renders a floating action button (FAB) in the bottom-right corner.
+Clicking it opens a slide-out sidebar with tabs:
+
+- **Assets** — account balances for each coin type
+- **Objects** — owned NFTs and objects
+- **Settings** — network switching, wallet configuration
+
+![Wallet panel open with Assets tab](/dev-wallet/wallet-panel-open.png)
+
+The panel also shows the signing modal when a request is pending.
+
+![Signing modal with Approve and Reject buttons](/dev-wallet/signing-modal.png)
+
+### Settings Tab
+
+The Settings tab lets you manage networks and accounts:
+
+![Settings tab showing networks and accounts](/dev-wallet/network-settings.png)
+
+## Component Catalog
+
+| Component                       | Description                                         |
+| ------------------------------- | --------------------------------------------------- |
+| `<dev-wallet-panel>`            | Full floating panel with FAB trigger + sidebar      |
+| `<dev-wallet-accounts>`         | Account list with selection and management          |
+| `<dev-wallet-balances>`         | Coin balances for the selected account              |
+| `<dev-wallet-new-account>`      | Create account form (adapter picker + label input)  |
+| `<dev-wallet-signing>`          | Signing request display with approve/reject buttons |
+| `<dev-wallet-signing-modal>`    | Centered modal overlay for signing requests         |
+| `<dev-wallet-objects>`          | Owned objects grid                                  |
+| `<dev-wallet-settings>`         | Network management and wallet settings              |
+| `<dev-wallet-connect>`          | Account picker for connect requests                 |
+| `<dev-wallet-account-selector>` | Account selection dropdown                          |
+| `<dev-wallet-network-badge>`    | Network indicator badge                             |
+
+## Using Components Directly
+
+All components accept a `wallet` property:
+
+```html
+<dev-wallet-panel></dev-wallet-panel>
+
+<script type="module">
+	import { DevWallet } from '@mysten/dev-wallet';
+	import '@mysten/dev-wallet/ui';
+
+	const panel = document.querySelector('dev-wallet-panel');
+	panel.wallet = wallet;
+</script>
+```
+
+## Styling
+
+Components use Shadow DOM and CSS custom properties prefixed with `--dev-wallet-*`. They render in a
+self-contained dark theme that doesn't interfere with your app's styles.
+
+### Customizing Colors
+
+Override CSS custom properties on the host element:
+
+```css
+dev-wallet-panel {
+	--dev-wallet-primary: oklch(0.6 0.2 250);
+	--dev-wallet-background: oklch(0.15 0.02 270);
+	--dev-wallet-foreground: oklch(0.95 0 0);
+	--dev-wallet-border: oklch(0.3 0.03 270);
+}
+```
+
+### Available CSS Custom Properties
+
+**Colors:**
+
+- `--dev-wallet-background` — panel background
+- `--dev-wallet-foreground` — text color
+- `--dev-wallet-primary` — accent color (buttons, links)
+- `--dev-wallet-primary-foreground` — text on primary
+- `--dev-wallet-secondary` — secondary backgrounds
+- `--dev-wallet-muted` — subtle backgrounds
+- `--dev-wallet-muted-foreground` — subtle text
+- `--dev-wallet-destructive` — danger/reject color
+- `--dev-wallet-positive` — success/approve color
+- `--dev-wallet-border` — border color
+
+**Layout:**
+
+- `--dev-wallet-radius` — base border radius (default: `12px`)
+
+**Typography:**
+
+- `--dev-wallet-font-sans` — body font family
+- `--dev-wallet-font-mono` — monospace font family
+- `--dev-wallet-font-weight-medium` — medium weight (default: `500`)
+- `--dev-wallet-font-weight-semibold` — semibold weight (default: `600`)

@@ -15,11 +15,13 @@
 		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
 	},
 	"dependencies": {
+		"@lit/react": "^1.0.8",
 		"@mysten/bcs": "workspace:^",
 		"@mysten/dapp-kit": "workspace:^",
 		"@mysten/dapp-kit-core": "workspace:^",
 		"@mysten/dapp-kit-react": "workspace:^",
 		"@mysten/deepbook-v3": "workspace:^",
+		"@mysten/dev-wallet": "workspace:^",
 		"@mysten/enoki": "workspace:^",
 		"@mysten/enoki-connect": "workspace:^",
 		"@mysten/kiosk": "workspace:^",
@@ -41,6 +43,7 @@
 		"fumadocs-typescript": "^5.0.1",
 		"fumadocs-ui": "16.4.7",
 		"gray-matter": "^4.0.3",
+		"mermaid": "^11.12.3",
 		"next": "^16.1.5",
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3",

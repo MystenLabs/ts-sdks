@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Dev Wallet</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+			body {
+				font-family:
+					ui-sans-serif,
+					system-ui,
+					-apple-system,
+					BlinkMacSystemFont,
+					'Segoe UI',
+					Roboto,
+					'Helvetica Neue',
+					Arial,
+					sans-serif;
+				background: oklch(0.175 0.028 283);
+				color: oklch(0.91 0 0);
+				min-height: 100vh;
+			}
+			#app {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				min-height: 100vh;
+				padding: 20px;
+			}
+			.loading {
+				color: oklch(0.62 0.04 280);
+				font-size: 14px;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="app">
+			<p class="loading">Loading wallet...</p>
+		</div>
+		<script type="module" src="./main.ts"></script>
+	</body>
+</html>

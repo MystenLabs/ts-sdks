@@ -1,0 +1,131 @@
+---
+title: Auto-Approval
+---
+
+import { AutoApprovalDemo } from '../../../examples/dev-wallet-demos-client';
+
+Skip the approval modal for automated testing, CI pipelines, or rapid prototyping. Your dApp code
+stays exactly the same — same wallet-standard APIs, same signing calls — auto-approval just removes
+the manual step.
+
+## Boolean Policy
+
+Approve all requests automatically:
+
+```typescript
+const wallet = new DevWallet({
+	adapters: [adapter],
+	autoApprove: true,
+	autoConnect: true, // Also skip the account picker
+});
+```
+
+Every signing request is approved immediately — no modal, no queue. Useful for tests and CI where
+you need zero interaction.
+
+## Function Policy
+
+Fine-grained control over which requests to auto-approve:
+
+```typescript
+const wallet = new DevWallet({
+	adapters: [adapter],
+	autoApprove: ({ type, account, chain }) => {
+		// Auto-approve personal messages, require approval for transactions
+		if (type === 'sign-personal-message') return true;
+
+		// Auto-approve on devnet only
+		if (chain === 'sui:devnet') return true;
+
+		return false;
+	},
+});
+```
+
+### Policy Parameters
+
+The auto-approve function receives:
+
+| Parameter | Type                   | Description                                                                          |
+| --------- | ---------------------- | ------------------------------------------------------------------------------------ |
+| `type`    | `string`               | `'sign-transaction'`, `'sign-and-execute-transaction'`, or `'sign-personal-message'` |
+| `account` | `WalletAccount`        | The account being asked to sign                                                      |
+| `chain`   | `string`               | Chain identifier (e.g., `'sui:devnet'`)                                              |
+| `data`    | `string \| Uint8Array` | Transaction JSON or message bytes                                                    |
+
+## Per-Adapter Override
+
+Adapters can opt out of auto-approval by setting `allowAutoSign: false`. This overrides the
+wallet-level policy. The Passkey and Remote CLI adapters use this because they physically require
+user interaction:
+
+```typescript
+// Even with autoApprove: true, passkey accounts still require biometric
+const wallet = new DevWallet({
+	adapters: [
+		new WebCryptoSignerAdapter(), // allowAutoSign: true → auto-approved
+		new PasskeySignerAdapter(), // allowAutoSign: false → always manual
+	],
+	autoApprove: true,
+});
+```
+
+## Try It
+
+Toggle between manual and auto-approval to see the difference:
+
+<AutoApprovalDemo />
+
+## Testing Example
+
+Using Dev Wallet with `autoApprove` in a vitest test:
+
+```typescript
+import { DevWallet } from '@mysten/dev-wallet';
+import { WebCryptoSignerAdapter } from '@mysten/dev-wallet/adapters';
+import { describe, it, expect } from 'vitest';
+
+describe('my dApp', () => {
+	it('signs a transaction', async () => {
+		const adapter = new WebCryptoSignerAdapter();
+		await adapter.initialize();
+		await adapter.createAccount({ label: 'Test' });
+
+		const wallet = new DevWallet({
+			adapters: [adapter],
+			autoApprove: true,
+			autoConnect: true,
+		});
+
+		// Register and connect
+		wallet.register();
+		await wallet.features['standard:connect'].connect();
+
+		// Sign — resolves immediately, no approval modal
+		const result = await wallet.features['sui:signPersonalMessage'].signPersonalMessage({
+			message: new TextEncoder().encode('test'),
+			account: wallet.accounts[0],
+		});
+
+		expect(result.signature).toBeDefined();
+		expect(result.bytes).toBeDefined();
+
+		wallet.destroy();
+	});
+});
+```
+
+## autoConnect
+
+Separate from `autoApprove`, the `autoConnect` option skips the account picker when a dApp calls
+`standard:connect`:
+
+```typescript
+const wallet = new DevWallet({
+	adapters: [adapter],
+	autoConnect: true, // Connect returns all accounts immediately
+});
+```
+
+Without `autoConnect`, connect requests show an account picker so the user can select which accounts
+to expose.

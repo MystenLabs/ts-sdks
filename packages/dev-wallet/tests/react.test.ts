@@ -1,0 +1,223 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+import { act, renderHook } from '@testing-library/react';
+import { createElement } from 'react';
+import { describe, expect, it, vi } from 'vitest';
+
+import { DevWallet } from '../src/wallet/dev-wallet.js';
+import { DevWalletProvider, useDevWalletInstance } from '../src/react/context.js';
+import { useDevWallet } from '../src/react/useDevWallet.js';
+import { createMockAdapter } from './test-utils.js';
+
+describe('DevWalletProvider / useDevWalletInstance', () => {
+	it('provides wallet via context', () => {
+		const adapter = createMockAdapter();
+		const wallet = new DevWallet({ adapters: [adapter], networks: {} });
+
+		const wrapper = ({ children }: { children: React.ReactNode }) =>
+			createElement(DevWalletProvider, { wallet }, children);
+
+		const { result } = renderHook(() => useDevWalletInstance(), { wrapper });
+
+		expect(result.current).toBe(wallet);
+	});
+
+	it('returns provided wallet instance over context', () => {
+		const adapter1 = createMockAdapter();
+		const adapter2 = createMockAdapter();
+		const contextWallet = new DevWallet({ adapters: [adapter1], networks: {} });
+		const directWallet = new DevWallet({ adapters: [adapter2], networks: {} });
+
+		const wrapper = ({ children }: { children: React.ReactNode }) =>
+			createElement(DevWalletProvider, { wallet: contextWallet }, children);
+
+		const { result } = renderHook(() => useDevWalletInstance(directWallet), { wrapper });
+
+		expect(result.current).toBe(directWallet);
+	});
+
+	it('throws when no context and no wallet provided', () => {
+		expect(() => {
+			renderHook(() => useDevWalletInstance());
+		}).toThrow('Could not find DevWalletContext');
+	});
+});
+
+describe('useDevWallet', () => {
+	it('returns null initially, then wallet after setup', async () => {
+		const adapter = createMockAdapter();
+
+		const { result } = renderHook(() =>
+			useDevWallet({
+				adapters: [adapter],
+				networks: { testnet: 'https://fullnode.testnet.sui.io:443' },
+				mountUI: false,
+			}),
+		);
+
+		await vi.waitFor(() => {
+			expect(result.current.wallet).not.toBeNull();
+		});
+
+		expect(result.current.wallet).toBeInstanceOf(DevWallet);
+		expect(result.current.error).toBeNull();
+	});
+
+	it('initializes the adapter by default', async () => {
+		const adapter = createMockAdapter();
+
+		const { result } = renderHook(() =>
+			useDevWallet({
+				adapters: [adapter],
+				networks: {},
+				mountUI: false,
+			}),
+		);
+
+		await vi.waitFor(() => {
+			expect(result.current.wallet).not.toBeNull();
+		});
+
+		expect(adapter.initialize).toHaveBeenCalledTimes(1);
+	});
+
+	it('skips initialization when autoInitialize is false', async () => {
+		const adapter = createMockAdapter();
+
+		const { result } = renderHook(() =>
+			useDevWallet({
+				adapters: [adapter],
+				networks: {},
+				autoInitialize: false,
+				mountUI: false,
+			}),
+		);
+
+		await vi.waitFor(() => {
+			expect(result.current.wallet).not.toBeNull();
+		});
+
+		expect(adapter.initialize).not.toHaveBeenCalled();
+	});
+
+	it('creates initial account when requested', async () => {
+		const adapter = createMockAdapter();
+
+		const { result } = renderHook(() =>
+			useDevWallet({
+				adapters: [adapter],
+				networks: {},
+				createInitialAccount: true,
+				mountUI: false,
+			}),
+		);
+
+		await vi.waitFor(() => {
+			expect(result.current.wallet).not.toBeNull();
+		});
+
+		expect(adapter.createAccount).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not create account when not requested', async () => {
+		const adapter = createMockAdapter();
+
+		const { result } = renderHook(() =>
+			useDevWallet({
+				adapters: [adapter],
+				networks: {},
+				createInitialAccount: false,
+				mountUI: false,
+			}),
+		);
+
+		await vi.waitFor(() => {
+			expect(result.current.wallet).not.toBeNull();
+		});
+
+		expect(adapter.createAccount).not.toHaveBeenCalled();
+	});
+
+	it('uses custom name', async () => {
+		const adapter = createMockAdapter();
+
+		const { result } = renderHook(() =>
+			useDevWallet({
+				adapters: [adapter],
+				networks: {},
+				name: 'My Test Wallet',
+				mountUI: false,
+			}),
+		);
+
+		await vi.waitFor(() => {
+			expect(result.current.wallet).not.toBeNull();
+		});
+
+		expect(result.current.wallet!.name).toBe('My Test Wallet');
+	});
+
+	it('mounts UI panel and removes it on unmount', async () => {
+		const adapter = createMockAdapter();
+
+		const { result, unmount } = renderHook(() =>
+			useDevWallet({
+				adapters: [adapter],
+				networks: {},
+				mountUI: true,
+			}),
+		);
+
+		await vi.waitFor(() => {
+			expect(result.current.wallet).not.toBeNull();
+		});
+
+		expect(document.querySelector('dev-wallet-panel')).not.toBeNull();
+
+		act(() => {
+			unmount();
+		});
+
+		expect(document.querySelector('dev-wallet-panel')).toBeNull();
+	});
+
+	it('does not mount UI when mountUI is false', async () => {
+		const adapter = createMockAdapter();
+
+		const { result } = renderHook(() =>
+			useDevWallet({
+				adapters: [adapter],
+				networks: {},
+				mountUI: false,
+			}),
+		);
+
+		await vi.waitFor(() => {
+			expect(result.current.wallet).not.toBeNull();
+		});
+
+		const panel = document.querySelector('dev-wallet-panel');
+		expect(panel).toBeNull();
+	});
+
+	it('surfaces initialization errors', async () => {
+		const adapter = createMockAdapter();
+		(adapter.initialize as any).mockRejectedValue(new Error('IndexedDB quota exceeded'));
+
+		const { result } = renderHook(() =>
+			useDevWallet({
+				adapters: [adapter],
+				networks: {},
+				mountUI: false,
+			}),
+		);
+
+		await vi.waitFor(() => {
+			expect(result.current.error).not.toBeNull();
+		});
+
+		expect(result.current.error!.message).toBe('IndexedDB quota exceeded');
+		expect(result.current.wallet).toBeNull();
+	});
+});

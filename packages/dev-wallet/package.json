@@ -1,0 +1,124 @@
+{
+	"name": "@mysten/dev-wallet",
+	"version": "0.0.0",
+	"description": "A modular dev wallet for Sui",
+	"license": "Apache-2.0",
+	"author": "Mysten Labs <build@mystenlabs.com>",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
+	"bin": {
+		"dev-wallet": "dist/bin/cli.mjs"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
+		},
+		"./adapters": {
+			"types": "./dist/adapters/browser.d.mts",
+			"import": "./dist/adapters/browser.mjs"
+		},
+		"./ui": {
+			"types": "./dist/ui/index.d.mts",
+			"import": "./dist/ui/index.mjs"
+		},
+		"./react": {
+			"types": "./dist/react/index.d.mts",
+			"import": "./dist/react/index.mjs"
+		},
+		"./client": {
+			"types": "./dist/client/index.d.mts",
+			"import": "./dist/client/index.mjs"
+		},
+		"./server": {
+			"types": "./dist/server/index.d.mts",
+			"import": "./dist/server/index.mjs"
+		}
+	},
+	"sideEffects": [
+		"dist/ui/*.mjs"
+	],
+	"files": [
+		"CHANGELOG.md",
+		"dist",
+		"src"
+	],
+	"scripts": {
+		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+		"build": "rm -rf dist && tsc --noEmit && tsdown && vite build --config vite.standalone.config.ts && vite build --config vite.bookmarklet.config.ts",
+		"prettier:check": "prettier -c --ignore-unknown .",
+		"prettier:fix": "prettier -w --ignore-unknown .",
+		"oxlint:check": "oxlint  .",
+		"oxlint:fix": "oxlint --fix",
+		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
+		"test": "vitest run --config vitest.config.ts",
+		"test:node": "vitest run --config vitest.config.ts",
+		"test:browser": "vitest run --config vitest.browser.config.ts"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
+	},
+	"bugs": {
+		"url": "https://github.com/mystenlabs/ts-sdks/issues"
+	},
+	"keywords": [
+		"sui",
+		"wallet",
+		"development",
+		"testing",
+		"dapp",
+		"web3",
+		"wallet-standard"
+	],
+	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/dev-wallet#readme",
+	"devDependencies": {
+		"@lit/react": "^1.0.8",
+		"@mysten/signers": "workspace:^",
+		"@mysten/sui": "workspace:^",
+		"@testing-library/react": "^16.3.1",
+		"@types/node": "^25.0.8",
+		"@types/react": "^19.2.8",
+		"@vitest/browser": "^4.0.18",
+		"@vitest/browser-playwright": "^4.0.18",
+		"happy-dom": "^20.1.0",
+		"playwright": "*",
+		"react": "^19.2.3",
+		"react-dom": "^19.2.3",
+		"typescript": "^5.9.3",
+		"vite": "^7.3.1",
+		"vitest": "^4.0.17"
+	},
+	"dependencies": {
+		"@hono/node-server": "^1.19.9",
+		"@mysten/utils": "workspace:^",
+		"@mysten/wallet-sdk": "workspace:^",
+		"@mysten/wallet-standard": "workspace:^",
+		"@mysten/window-wallet-core": "workspace:^",
+		"hono": "^4.12.3",
+		"lit": "^3.3.2"
+	},
+	"peerDependencies": {
+		"@lit/react": "^1.0.8",
+		"@mysten/signers": "workspace:^",
+		"@mysten/sui": "workspace:^",
+		"@types/react": ">=17.0.0",
+		"react": ">=17.0.0"
+	},
+	"peerDependenciesMeta": {
+		"react": {
+			"optional": true
+		},
+		"@types/react": {
+			"optional": true
+		},
+		"@mysten/signers": {
+			"optional": true
+		},
+		"@lit/react": {
+			"optional": true
+		}
+	}
+}

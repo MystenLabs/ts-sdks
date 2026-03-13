@@ -123,7 +123,7 @@ export class DappPostMessageChannel {
 		this.#cleanup();
 
 		if (output.payload.type === 'reject') {
-			this.#reject(new Error('User rejected the request'));
+			this.#reject(new Error(output.payload.reason || 'User rejected the request'));
 		} else if (output.payload.type === 'resolve') {
 			this.#resolve(output.payload.data);
 		}

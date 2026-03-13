@@ -1,0 +1,63 @@
+---
+title: CLI Signing
+---
+
+If you published a package with `sui move publish` and need to call admin functions from a dApp
+using the same address that owns `AdminCap` or other capability objects, the Remote CLI adapter
+connects to your local `sui` CLI over HTTP — private keys never leave the `sui` binary, only
+transaction bytes are sent for signing.
+
+## Standalone wallet (easiest)
+
+Start the standalone wallet. If `sui` is on your PATH, the CLI adapter is enabled automatically:
+
+```bash
+npx @mysten/dev-wallet serve
+```
+
+Open the URL printed in the terminal to authenticate. The wallet UI shows your CLI accounts — import
+the address you used for `sui move publish`.
+
+In your dApp, register the wallet:
+
+```typescript
+import { DevWalletClient } from '@mysten/dev-wallet/client';
+
+DevWalletClient.register({ origin: 'http://localhost:5174' });
+```
+
+Now when your dApp signs a transaction, it opens a popup to the standalone wallet. You approve with
+the same key that deployed your package, giving you access to `AdminCap` and other owned objects.
+
+## Programmatic usage
+
+```typescript
+import { RemoteCliAdapter } from '@mysten/dev-wallet/adapters';
+
+const adapter = new RemoteCliAdapter({
+	serverOrigin: 'http://localhost:5174',
+	token: 'your-auth-token', // Printed in the terminal when the server starts
+});
+
+await adapter.initialize();
+// adapter.getAccounts() returns previously imported CLI accounts
+// Use adapter.listAvailableAccounts() to see all CLI keystore accounts
+// Use adapter.importAccount({ address: '0x...' }) to import one
+```
+
+## Limitations
+
+<Callout type="warn">
+	The CLI adapter **cannot sign personal messages** — `sui keytool sign` only supports
+	TransactionData. It also **never auto-signs** regardless of the `autoApprove` setting.
+</Callout>
+
+- Manage keys via `sui keytool` — the adapter cannot create or remove accounts
+- Requires `sui` CLI installed and on PATH
+- Token-based auth (acceptable for localhost development)
+
+## Related
+
+- [Remote CLI Adapter reference](/dev-wallet/reference/adapters/remote-cli) — full API
+- [Standalone Mode](/dev-wallet/reference/standalone-mode) — running the wallet as a separate web
+  app

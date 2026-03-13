@@ -12,6 +12,8 @@ yarn-debug.log*
 .source/
 .swc/
 .claude
+.agents
+skills-lock.json
 build/
 coverage/
 dist/

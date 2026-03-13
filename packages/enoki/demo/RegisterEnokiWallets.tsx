@@ -15,16 +15,16 @@ export function RegisterEnokiWallets() {
 		if (!isEnokiNetwork(network)) return;
 
 		const { unregister } = registerEnokiWallets({
-			apiKey: 'enoki_public_b995248de4faffd13864f12cd8539a8d',
+			apiKey: 'enoki_public_59ea3ba7809a40bcf25fa030374dd877',
 			providers: {
 				google: {
-					clientId: '705781974144-cltddr1ggjnuc3kaimtc881r2n5bderc.apps.googleusercontent.com',
+					clientId: '589373200629-hkivgs1i0cjcbl0g40b0n3vp8b8b7vhp.apps.googleusercontent.com',
 				},
 				facebook: {
-					clientId: '705781974144-cltddr1ggjnuc3kaimtc881r2n5bderc.apps.googleusercontent.com',
+					clientId: '589373200629-hkivgs1i0cjcbl0g40b0n3vp8b8b7vhp.apps.googleusercontent.com',
 				},
 				twitch: {
-					clientId: '705781974144-cltddr1ggjnuc3kaimtc881r2n5bderc.apps.googleusercontent.com',
+					clientId: '589373200629-hkivgs1i0cjcbl0g40b0n3vp8b8b7vhp.apps.googleusercontent.com',
 				},
 			},
 			client: client as never,
