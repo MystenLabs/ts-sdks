@@ -383,9 +383,9 @@ class Resolver {
 	// The general pattern for a transfer is:
 	//   [account::create (0..N)]  -- only if accounts don't exist yet
 	//   account::new_auth         -- create ownership proof
-	//   account::send_funds   -- initiate the request
+	//   account::send_balance -- initiate the request
 	//   [approval commands]     -- issuer-defined template commands
-	//   send_funds::resolve -- finalize and produce the output
+	//   send_funds::resolve_balance -- finalize and produce the output
 	//
 	// `resultOffset` points at the last command (resolve), whose Result
 	// becomes the intent's output value.
@@ -396,8 +396,8 @@ class Resolver {
 		const toAccountId = deriveAccountAddress(to, this.#config);
 
 		const policyId = derivePolicyAddress(assetType, this.#config);
-		const policyObject = this.getObjectOrThrow(policyId, () => new PolicyNotFoundError(assetType));
-		const templateCmds = this.resolveTemplateCommands(policyObject.objectId, 'send_funds');
+		this.getObjectOrThrow(policyId, () => new PolicyNotFoundError(assetType));
+		const templateCmds = this.resolveTemplateCommands(policyId, 'send_funds');
 
 		const [toAccountArg, commands] = this.resolveAccountArg(toAccountId, to, baseIdx);
 		const [fromAccountArg, fromAccountCommands] = this.resolveAccountArg(
@@ -419,7 +419,7 @@ class Resolver {
 			}),
 		);
 
-		// account::send_funds
+		// account::send_balance
 		const requestIdx = baseIdx + commands.length;
 		commands.push(
 			TransactionCommands.MoveCall({
@@ -451,7 +451,6 @@ class Resolver {
 						receiverAccount: toAccountArg,
 						policy: policyArg,
 						request: requestArg,
-						systemType: assetType,
 					},
 					templateStartIdx,
 				),
@@ -549,7 +548,6 @@ class Resolver {
 							senderAccount: fromAccountArg,
 							policy: policyArg,
 							request: requestArg,
-							systemType: assetType,
 						},
 						templateStartIdx,
 					),
@@ -662,10 +660,12 @@ function collectIntentData(commands: readonly Command[]): IntentDataCollection |
 		}
 	}
 
+	if (intentDataList.length === 0) return null;
+
 	if (!cfg)
 		throw new PASClientError('No package configuration found in intents. This is an internal bug.');
 
-	return intentDataList.length > 0 ? { objectIds, accountRequests, intentDataList, cfg } : null;
+	return { objectIds, accountRequests, intentDataList, cfg };
 }
 
 async function initializeContext(
