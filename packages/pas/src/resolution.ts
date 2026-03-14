@@ -128,8 +128,6 @@ interface RawCommandBuildArgs {
 	policy?: Argument;
 	/** The request argument (already resolved) */
 	request?: Argument;
-	/** The system type T (e.g., "0x2::sui::SUI") */
-	systemType?: string;
 }
 
 /**
