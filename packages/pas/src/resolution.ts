@@ -15,6 +15,7 @@ import { Field } from './contracts/sui/dynamic_field.js';
 const OBJECT_BY_ID_EXT = 'object_by_id';
 const OBJECT_BY_TYPE_EXT = 'object_by_type';
 const RECEIVING_BY_ID_EXT = 'receiving_by_id';
+const PAS_EXT_NAMESPACE = 'pas';
 
 type ParsedTemplateCommand = ReturnType<typeof parseCommand>;
 
@@ -154,11 +155,15 @@ export function buildMoveCallCommandFromTemplate(
 		if (arg.Ext) throw new PASClientError(`There are no supported ext arguments in this client.`);
 		else if (arg.GasCoin) throw new PASClientError(`Gas coin is not supported in PAS client.`);
 		else if (arg.NestedResult)
-			resolvedArgs.push({
-				$kind: 'NestedResult',
-				NestedResult: [arg.NestedResult[0], arg.NestedResult[1]],
-			});
-		else if (arg.Result) resolvedArgs.push({ $kind: 'Result', Result: arg.Result });
+			throw new PASClientError(
+				`NestedResult arguments are not allowed in on-chain templates. ` +
+					`Template commands may only reference results within their own expansion scope.`,
+			);
+		else if (arg.Result)
+			throw new PASClientError(
+				`Result arguments are not allowed in on-chain templates. ` +
+					`Template commands may only reference results within their own expansion scope.`,
+			);
 		else if (arg.Input) {
 			if (arg.Input.Pure)
 				resolvedArgs.push(args.addInput('pure', Inputs.Pure(new Uint8Array(arg.Input.Pure))));
@@ -261,8 +266,11 @@ function resolveRawPasRequest(
 	args: RawCommandBuildArgs,
 	extInput: { _namespace: string; value: string },
 ): Argument {
-	// do the logic on `namespace` here
-	// return error if it's not PAS
+	if (extInput._namespace !== PAS_EXT_NAMESPACE) {
+		throw new PASClientError(
+			`Unsupported Ext namespace "${extInput._namespace}". Only the "${PAS_EXT_NAMESPACE}" namespace is supported.`,
+		);
+	}
 
 	switch (extInput.value) {
 		case 'request':

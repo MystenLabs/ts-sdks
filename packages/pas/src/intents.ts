@@ -79,17 +79,19 @@ type PASIntentData =
  * the cached TransactionResult.
  */
 function createPASIntent(data: PASIntentData): (tx: Transaction) => TransactionResult {
-	let result: TransactionResult | null = null;
+	const results = new WeakMap<Transaction, TransactionResult>();
 	return (tx: Transaction) => {
-		if (result) return result;
+		const existing = results.get(tx);
+		if (existing) return existing;
 		tx.addIntentResolver(PAS_INTENT_NAME, resolvePASIntents);
-		result = tx.add(
+		const result = tx.add(
 			TransactionCommands.Intent({
 				name: PAS_INTENT_NAME,
 				inputs: {},
 				data: data as unknown as Record<string, unknown>,
 			}),
 		);
+		results.set(tx, result);
 		return result;
 	};
 }
@@ -619,7 +621,15 @@ function collectIntentData(commands: readonly Command[]): IntentDataCollection |
 		if (command.$kind !== '$Intent' || command.$Intent.name !== PAS_INTENT_NAME) continue;
 		const data = command.$Intent.data as unknown as PASIntentData;
 
-		if (!cfg) cfg = data.cfg;
+		if (!cfg) {
+			cfg = data.cfg;
+		} else if (data.cfg.packageId !== cfg.packageId || data.cfg.namespaceId !== cfg.namespaceId) {
+			throw new PASClientError(
+				'All PAS intents in a single transaction must share the same PASPackageConfig. ' +
+					`Expected packageId=${cfg.packageId}, namespaceId=${cfg.namespaceId} but found ` +
+					`packageId=${data.cfg.packageId}, namespaceId=${data.cfg.namespaceId}.`,
+			);
+		}
 		intentDataList.push(data);
 
 		switch (data.action) {

@@ -9,7 +9,6 @@ export const TESTNET_PAS_PACKAGE_CONFIG: PASPackageConfig = {
 };
 
 // TODO: also update `client.ts` when adding these variables
-export const MAINNET_PAS_PACKAGE_CONFIG: PASPackageConfig = {
-	packageId: '', // TODO: Replace with actual mainnet package ID
-	namespaceId: '', // TODO: Replace with actual mainnet namespace ID
-};
+// NOTE: Not exported until real values are available. Consumers should use
+// TESTNET_PAS_PACKAGE_CONFIG or provide their own config.
+export const MAINNET_PAS_PACKAGE_CONFIG: PASPackageConfig | null = null;
