@@ -619,6 +619,7 @@ function collectIntentData(commands: readonly Command[]): IntentDataCollection |
 		if (command.$kind !== '$Intent' || command.$Intent.name !== PAS_INTENT_NAME) continue;
 		const data = command.$Intent.data as unknown as PASIntentData;
 
+		// We intentionally initialize the configs to match the first command that uses PAS.
 		if (!cfg) cfg = data.cfg;
 		intentDataList.push(data);
 

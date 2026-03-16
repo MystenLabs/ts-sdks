@@ -229,7 +229,7 @@ export function buildMoveCallCommandFromTemplate(
 			} else if (arg.Input.Ext) {
 				resolvedArgs.push(
 					resolveRawPasRequest(args, {
-						_namespace: arg.Input.Ext[0],
+						namespace: arg.Input.Ext[0],
 						value: arg.Input.Ext[1],
 					}),
 				);
@@ -259,10 +259,10 @@ export function buildMoveCallCommandFromTemplate(
 
 function resolveRawPasRequest(
 	args: RawCommandBuildArgs,
-	extInput: { _namespace: string; value: string },
+	extInput: { namespace: string; value: string },
 ): Argument {
-	// do the logic on `namespace` here
-	// return error if it's not PAS
+	if (!extInput.namespace.endsWith('templates::PAS'))
+		throw new PASClientError(`Unsupported namespace: ${extInput.namespace}`);
 
 	switch (extInput.value) {
 		case 'request':

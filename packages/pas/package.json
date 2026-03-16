@@ -48,8 +48,6 @@
 		"@mysten/codegen": "workspace:^",
 		"@mysten/sui": "workspace:^",
 		"@types/node": "^25.0.8",
-		"oxlint": "^1.39.0",
-		"prettier": "^3.7.4",
 		"ts-retry-promise": "^0.8.1",
 		"tsdown": "0.20.0-beta.1",
 		"typescript": "^5.9.3",

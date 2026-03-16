@@ -1022,12 +1022,6 @@ importers:
       '@types/node':
         specifier: ^25.0.8
         version: 25.0.8
-      oxlint:
-        specifier: ^1.39.0
-        version: 1.39.0(oxlint-tsgolint@0.11.0)
-      prettier:
-        specifier: ^3.7.4
-        version: 3.7.4
       ts-retry-promise:
         specifier: ^0.8.1
         version: 0.8.1
