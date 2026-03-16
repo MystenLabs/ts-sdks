@@ -10,6 +10,7 @@ import {
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { TransactionArgument, isArgument } from '@mysten/sui/transactions';
 import { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
+import { PASClientError } from '../../error.js';
 
 const MOVE_STDLIB_ADDRESS = normalizeSuiAddress('0x1');
 const SUI_FRAMEWORK_ADDRESS = normalizeSuiAddress('0x2');
@@ -87,7 +88,7 @@ export function normalizeMoveArguments(
 ) {
 	const argLen = Array.isArray(args) ? args.length : Object.keys(args).length;
 	if (parameterNames && argLen !== parameterNames.length) {
-		throw new Error(
+		throw new PASClientError(
 			`Invalid number of arguments, expected ${parameterNames.length}, got ${argLen}`,
 		);
 	}
@@ -119,20 +120,20 @@ export function normalizeMoveArguments(
 		let arg;
 		if (Array.isArray(args)) {
 			if (index >= args.length) {
-				throw new Error(
+				throw new PASClientError(
 					`Invalid number of arguments, expected at least ${index + 1}, got ${args.length}`,
 				);
 			}
 			arg = args[index];
 		} else {
 			if (!parameterNames) {
-				throw new Error(`Expected arguments to be passed as an array`);
+				throw new PASClientError(`Expected arguments to be passed as an array`);
 			}
 			const name = parameterNames[index];
 			arg = args[name as keyof typeof args];
 
 			if (arg === undefined) {
-				throw new Error(`Parameter ${name} is required`);
+				throw new PASClientError(`Parameter ${name} is required`);
 			}
 		}
 
@@ -155,7 +156,7 @@ export function normalizeMoveArguments(
 			continue;
 		}
 
-		throw new Error(`Invalid argument ${stringify(arg)} for type ${type}`);
+		throw new PASClientError(`Invalid argument ${stringify(arg)} for type ${type}`);
 	}
 
 	return normalizedArgs;

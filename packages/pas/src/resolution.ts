@@ -103,7 +103,7 @@ export function getCommandFromTemplate(
 
 function parseCommand([key, cmd]: ReturnType<typeof Command.parse>) {
 	// Support only `Command` for now.
-	if (key !== 0) throw new Error(`Unknown command type: ${key}`);
+	if (key !== 0) throw new PASClientError(`Unknown command type: ${key}`);
 
 	// TODO: switch to support more commands like `TransferObjects` etc.
 	return MoveCall.parse(new Uint8Array(cmd));
