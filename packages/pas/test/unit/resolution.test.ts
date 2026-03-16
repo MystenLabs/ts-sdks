@@ -96,10 +96,12 @@ describe('buildMoveCallCommandFromTemplate', () => {
 			//
 			// Both share the same commandOffset (5) because Result indices in the
 			// template are relative to the first template command, not each individual one.
-			const templateCmd0 = makeParsedMoveCall([{ Input: { Ext: ['pas', 'request'] } }]);
+			const templateCmd0 = makeParsedMoveCall([
+				{ Input: { Ext: ['0x1::templates::PAS', 'request'] } },
+			]);
 			const templateCmd1 = makeParsedMoveCall([
 				{ Result: 0 },
-				{ Input: { Ext: ['pas', 'policy'] } },
+				{ Input: { Ext: ['0x1::templates::PAS', 'policy'] } },
 			]);
 
 			const requestArg = { $kind: 'Result' as const, Result: 4 };
@@ -175,7 +177,7 @@ describe('buildMoveCallCommandFromTemplate', () => {
 		it('should not affect non-Result arguments when rebasing', () => {
 			// Mix of Ext-resolved input and a Result
 			const templateCmd = makeParsedMoveCall([
-				{ Input: { Ext: ['pas', 'request'] } },
+				{ Input: { Ext: ['0x1::templates::PAS', 'request'] } },
 				{ Result: 0 },
 			]);
 
