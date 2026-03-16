@@ -128,8 +128,6 @@ interface RawCommandBuildArgs {
 	policy?: Argument;
 	/** The request argument (already resolved) */
 	request?: Argument;
-	/** The system type T (e.g., "0x2::sui::SUI") */
-	systemType?: string;
 }
 
 /**
@@ -142,23 +140,30 @@ interface RawCommandBuildArgs {
  *
  * @param command - The parsed MoveCall from a template object
  * @param args - The resolved arguments and addInput helper
+ * @param commandOffset - Absolute PTB index where the first template command will
+ *   land. Raw `Result` and `NestedResult` values from the on-chain BCS are
+ *   template-relative (i.e. `Result(0)` means "first command in this template").
+ *   We rebase them by adding this offset so they point at the correct position
+ *   in the final transaction.
  * @returns A Command object ready for `replaceCommand`
  */
 export function buildMoveCallCommandFromTemplate(
 	command: ParsedTemplateCommand,
 	args: RawCommandBuildArgs,
+	commandOffset: number,
 ): SdkCommand {
 	const resolvedArgs: Argument[] = [];
 
 	for (const arg of command.arguments) {
 		if (arg.Ext) throw new PASClientError(`There are no supported ext arguments in this client.`);
 		else if (arg.GasCoin) throw new PASClientError(`Gas coin is not supported in PAS client.`);
-		else if (arg.NestedResult)
+		else if (arg.NestedResult != null)
 			resolvedArgs.push({
 				$kind: 'NestedResult',
-				NestedResult: [arg.NestedResult[0], arg.NestedResult[1]],
+				NestedResult: [arg.NestedResult[0] + commandOffset, arg.NestedResult[1]],
 			});
-		else if (arg.Result) resolvedArgs.push({ $kind: 'Result', Result: arg.Result });
+		else if (arg.Result != null)
+			resolvedArgs.push({ $kind: 'Result', Result: arg.Result + commandOffset });
 		else if (arg.Input) {
 			if (arg.Input.Pure)
 				resolvedArgs.push(args.addInput('pure', Inputs.Pure(new Uint8Array(arg.Input.Pure))));

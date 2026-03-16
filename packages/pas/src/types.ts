@@ -31,6 +31,4 @@ export interface PASOptions<Name extends string = 'pas'> {
 	name?: Name;
 	/** The package configuration */
 	packageConfig?: PASPackageConfig;
-	/** The network to use */
-	network?: 'mainnet' | 'testnet';
 }
