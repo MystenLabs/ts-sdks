@@ -51,6 +51,10 @@ export function collectTemplateObjectIds(commands: ParsedTemplateCommand[]): Set
 					}
 					break;
 				}
+				default:
+					throw new PASClientError(
+						'Invariant violation: unhandled variant in `collectTemplateObjectIds`',
+					);
 			}
 		}
 	}
