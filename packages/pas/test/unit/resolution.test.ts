@@ -96,9 +96,7 @@ describe('buildMoveCallCommandFromTemplate', () => {
 			//
 			// Both share the same commandOffset (5) because Result indices in the
 			// template are relative to the first template command, not each individual one.
-			const templateCmd0 = makeParsedMoveCall([
-				{ Input: { Ext: ['pas', 'request'] } },
-			]);
+			const templateCmd0 = makeParsedMoveCall([{ Input: { Ext: ['pas', 'request'] } }]);
 			const templateCmd1 = makeParsedMoveCall([
 				{ Result: 0 },
 				{ Input: { Ext: ['pas', 'policy'] } },
@@ -138,9 +136,21 @@ describe('buildMoveCallCommandFromTemplate', () => {
 			const templateCmd2 = makeParsedMoveCall([{ Result: 0 }, { Result: 1 }]);
 
 			const templateStartIdx = 10;
-			const built0 = buildMoveCallCommandFromTemplate(templateCmd0, dummyBuildArgs, templateStartIdx);
-			const built1 = buildMoveCallCommandFromTemplate(templateCmd1, dummyBuildArgs, templateStartIdx);
-			const built2 = buildMoveCallCommandFromTemplate(templateCmd2, dummyBuildArgs, templateStartIdx);
+			const built0 = buildMoveCallCommandFromTemplate(
+				templateCmd0,
+				dummyBuildArgs,
+				templateStartIdx,
+			);
+			const built1 = buildMoveCallCommandFromTemplate(
+				templateCmd1,
+				dummyBuildArgs,
+				templateStartIdx,
+			);
+			const built2 = buildMoveCallCommandFromTemplate(
+				templateCmd2,
+				dummyBuildArgs,
+				templateStartIdx,
+			);
 
 			// cmd[0] has no Result args
 			expect(built0.MoveCall?.arguments).toEqual([]);
