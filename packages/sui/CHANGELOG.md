@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 2.9.0
+
+### Minor Changes
+
+- c769abb: Add `SUI_COIN_REGISTRY_OBJECT_ID` constant
+
 ## 2.8.0
 
 ### Minor Changes
