@@ -265,6 +265,45 @@ async function handleCertify() {
 This approach ensures that each transaction signing step is separated into different user
 interactions, allowing wallet popups to work properly without being blocked by the browser.
 
+### Running the full flow
+
+If you don't need separate user interactions for each step, you can use `run()` to execute the full
+pipeline as an async iterator. Each step yields a `WriteBlobStep` that you can persist for crash
+recovery:
+
+```ts
+const flow = client.walrus.writeBlobFlow({ blob });
+
+for await (const step of flow.run({ signer, epochs: 3, deletable: true })) {
+	await db.save(fileId, step); // persist for crash recovery
+}
+```
+
+The flow also provides `executeRegister` and `executeCertify` methods that handle signing and return
+typed step results:
+
+```ts
+const flow = client.walrus.writeBlobFlow({ blob });
+const enc = await flow.encode();
+const reg = await flow.executeRegister({ signer, epochs: 3, deletable: true, owner: address });
+const up = await flow.upload({ digest: reg.txDigest });
+const cert = await flow.executeCertify({ signer });
+```
+
+### Resuming uploads
+
+To resume an upload after a crash, pass a saved `WriteBlobStep` as `resume`. The flow will skip
+completed steps, validate the blobId, and only upload slivers that aren't already stored:
+
+```ts
+const saved = await db.load(fileId);
+const flow = client.walrus.writeBlobFlow({ blob, resume: saved });
+
+for await (const step of flow.run({ signer, epochs: 3, deletable: true })) {
+	await db.save(fileId, step);
+}
+```
+
 ## Writing blobs with an upload relay
 
 Writing blobs directly from a client requires a lot of requests to write data to all of the storage
@@ -375,6 +414,19 @@ const { blobId } = await client.walrus.writeBlob({
 	deletable: false,
 	epochs: 3,
 	signer: keypair,
+});
+```
+
+`writeBlob` and `writeFiles` also support `onStep` and `resume` for crash-recoverable uploads:
+
+```ts
+const { blobId } = await client.walrus.writeBlob({
+	blob: file,
+	deletable: true,
+	epochs: 3,
+	signer: keypair,
+	onStep: (step) => db.save(fileId, step),
+	resume: await db.load(fileId), // pass a previously saved step to resume
 });
 ```
 

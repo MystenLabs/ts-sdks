@@ -178,3 +178,18 @@ export const QuiltPatchBlobHeader = bcs.struct('QuiltPatchBlobHeader', {
 	length: bcs.u32(),
 	mask: bcs.u8(),
 });
+
+export const CertificateBcs = bcs.struct('Certificate', {
+	signers: bcs.vector(bcs.u16()),
+	serializedMessage: bcs.byteVector(),
+	signature: bcs.byteVector(),
+});
+
+export function parseCertificateFromBase64(base64: string) {
+	const cert = CertificateBcs.fromBase64(base64);
+	return {
+		signers: cert.signers,
+		serializedMessage: new Uint8Array(cert.serializedMessage),
+		signature: new Uint8Array(cert.signature),
+	};
+}

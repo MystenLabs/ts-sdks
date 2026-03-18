@@ -20,6 +20,11 @@ export const MAINNET_WALRUS_PACKAGE_CONFIG = {
 	stakingPoolId: '0x10b9d30c28448939ce6c4d6c6e0ffce4a7f8a4ada8248bdad09ef8b70e4a3904',
 } satisfies WalrusPackageConfig;
 
+// Below this size (bytes), skip the sliver status check and upload directly since the
+// upload fits in a single RTT (similar cost to the status check itself).
+// TCP payload (1440) × initial congestion window (4) − HTTP overhead (200). Matches Rust SDK.
+export const SLIVER_STATUS_CHECK_THRESHOLD = 5_560;
+
 // Ranking of blob status types from earliest -> latest in the lifecycle of a blob.
 export const statusLifecycleRank: Record<BlobStatus['type'], number> = {
 	nonexistent: 0,

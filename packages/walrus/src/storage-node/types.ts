@@ -138,3 +138,12 @@ export type GetPermanentBlobConfirmationResponse = {
 		};
 	};
 };
+
+export type StoredOnNodeStatus = 'Nonexistent' | 'Buffered' | 'Stored';
+
+export type StoredOnNodeStatusResponse = {
+	success: {
+		code: number;
+		data: StoredOnNodeStatus;
+	};
+};
