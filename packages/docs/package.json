@@ -3,6 +3,14 @@
 	"version": "0.1.2",
 	"description": "LLM-friendly documentation for the Sui TypeScript SDK ecosystem",
 	"license": "Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
+	},
+	"bugs": {
+		"url": "https://github.com/MystenLabs/ts-sdks/issues"
+	},
+	"homepage": "https://sdk.mystenlabs.com",
 	"files": [
 		"dist/"
 	],
