@@ -107,20 +107,61 @@ describe('ValidDuring expiration auto-setting', () => {
 		}
 	});
 
-	it('does NOT set ValidDuring expiration when there are gas payment coins', async () => {
+	it('does not set ValidDuring when there are gas payment coins', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x' + '2'.repeat(64));
-		tx.setGasPrice(1000);
 		tx.setGasBudget(10000000);
-		tx.setGasPayment([ref()]); // Has gas payment coins
+		tx.setGasPayment([ref()]); // Has gas payment coins - versioned objects provide replay protection
 
 		const client = createMockClient();
 		await tx.build({ client: client as any });
 
-		// Verify getChainIdentifier was NOT called (no need for ValidDuring)
+		// Versioned gas coins provide replay protection, so ValidDuring is not needed
 		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();
 
-		// Verify expiration was NOT set
+		const data = tx.getData();
+		expect(data.expiration).toBeNull();
+	});
+
+	it('does not set ValidDuring when there are owned object inputs', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasBudget(10000000);
+		tx.setGasPayment([]); // Empty gas payment - would normally trigger ValidDuring
+
+		// Add an owned object input (ImmOrOwnedObject)
+		tx.object(Inputs.ObjectRef(ref()));
+
+		const client = createMockClient();
+		await tx.build({ client: client as any });
+
+		// Versioned inputs provide replay protection, so ValidDuring is not needed
+		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();
+
+		const data = tx.getData();
+		expect(data.expiration).toBeNull();
+	});
+
+	it('does not set ValidDuring when there are objects with a version', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasBudget(10000000);
+		tx.setGasPayment([]); // Empty gas payment
+
+		// Add an object with an explicit version
+		tx.object(
+			Inputs.ObjectRef({
+				objectId: '0x' + '4'.repeat(64),
+				version: '5',
+				digest: ref().digest,
+			}),
+		);
+
+		const client = createMockClient();
+		await tx.build({ client: client as any });
+
+		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();
+
 		const data = tx.getData();
 		expect(data.expiration).toBeNull();
 	});
@@ -128,7 +169,6 @@ describe('ValidDuring expiration auto-setting', () => {
 	it('does NOT override expiration when already set', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x' + '2'.repeat(64));
-		tx.setGasPrice(1000);
 		tx.setGasBudget(10000000);
 		tx.setGasPayment([]); // Empty gas payment
 		tx.setExpiration({ Epoch: 200 }); // Manually set expiration
@@ -143,7 +183,6 @@ describe('ValidDuring expiration auto-setting', () => {
 		const data = tx.getData();
 		expect(data.expiration?.$kind).toBe('Epoch');
 		if (data.expiration?.$kind === 'Epoch') {
-			// Epoch can be stored as either number or string depending on how it was set
 			expect(String(data.expiration.Epoch)).toBe('200');
 		}
 	});

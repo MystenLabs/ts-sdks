@@ -78,7 +78,11 @@ After the lockfile is updated, check whether any existing overrides in `pnpm.ove
 
 Test overrides one at a time so you can isolate which ones are still needed.
 
-## Phase 6: Final Verification
+## Phase 6: Fix Version Mismatches
+
+Run `pnpm manypkg fix` to ensure any upgraded packages have consistent version ranges across all workspace `package.json` files.
+
+## Phase 7: Final Verification
 
 1. Run `pnpm audit` one final time and report the results.
 2. Run `pnpm install --frozen-lockfile` to verify the lockfile is consistent.
