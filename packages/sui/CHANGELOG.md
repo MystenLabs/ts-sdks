@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 2.9.1
+
+### Patch Changes
+
+- 8835d80: Only set ValidDuring expiration when there are no versioned objects in transaction
+
 ## 2.9.0
 
 ### Minor Changes
