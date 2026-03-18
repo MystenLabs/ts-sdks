@@ -24,6 +24,8 @@ import type {
 	StoreBlobMetadataResponse,
 	StoreSliverRequestInput,
 	StoreSliverResponse,
+	StoredOnNodeStatus,
+	StoredOnNodeStatusResponse,
 } from './types.js';
 import { mergeHeaders } from './utils.js';
 
@@ -224,6 +226,37 @@ export class StorageNodeClient {
 
 		const json: GetPermanentBlobConfirmationResponse = await response.json();
 		return json;
+	}
+
+	/**
+	 * Gets the storage status of a sliver at this storage node.
+	 * Returns whether the sliver is stored, buffered (pending registration), or nonexistent.
+	 */
+	async getSliverStatus(
+		{ blobId, sliverPairIndex, sliverType }: GetSliverRequestInput,
+		options: RequestOptions,
+	): Promise<StoredOnNodeStatus> {
+		const response = await this.#request(
+			`/v1/blobs/${blobId}/slivers/${sliverPairIndex}/${sliverType}/status`,
+			options,
+		);
+
+		const json: StoredOnNodeStatusResponse = await response.json();
+		return json.success.data;
+	}
+
+	/**
+	 * Gets the storage status of blob metadata at this storage node.
+	 * Returns whether the metadata is stored, buffered (pending registration), or nonexistent.
+	 */
+	async getMetadataStatus(
+		{ blobId }: GetBlobMetadataRequestInput,
+		options: RequestOptions,
+	): Promise<StoredOnNodeStatus> {
+		const response = await this.#request(`/v1/blobs/${blobId}/metadata/status`, options);
+
+		const json: StoredOnNodeStatusResponse = await response.json();
+		return json.success.data;
 	}
 
 	async #request(path: string, options: RequestOptions) {

@@ -630,58 +630,58 @@ importers:
   packages/docs:
     dependencies:
       '@mysten/bcs':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../bcs
       '@mysten/dapp-kit':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../dapp-kit
       '@mysten/dapp-kit-core':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../dapp-kit-next/packages/dapp-kit-core
       '@mysten/dapp-kit-react':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../dapp-kit-next/packages/dapp-kit-react
       '@mysten/deepbook-v3':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../deepbook-v3
       '@mysten/enoki':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../enoki
       '@mysten/enoki-connect':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../enoki-connect
       '@mysten/kiosk':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../kiosk
       '@mysten/payment-kit':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../payment-kit
       '@mysten/seal':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../seal
       '@mysten/signers':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../signers
       '@mysten/slush-wallet':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../slush-wallet
       '@mysten/sui':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../sui
       '@mysten/suins':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../suins
       '@mysten/utils':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../utils
       '@mysten/wallet-standard':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../wallet-standard
       '@mysten/walrus':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../walrus
       '@mysten/zksend':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../zksend
       '@tanstack/react-query':
         specifier: ^5.90.16

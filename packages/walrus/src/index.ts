@@ -5,6 +5,7 @@ export { WalrusClient, walrus } from './client.js';
 export type { WalrusClientConfig, WalrusPackageConfig, WalrusOptions } from './types.js';
 export { TESTNET_WALRUS_PACKAGE_CONFIG, MAINNET_WALRUS_PACKAGE_CONFIG } from './constants.js';
 export type { StorageNodeClientOptions } from './storage-node/client.js';
+export type { StoredOnNodeStatus } from './storage-node/types.js';
 export type * from './types.js';
 export * from './storage-node/error.js';
 export * from './error.js';

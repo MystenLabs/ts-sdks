@@ -139,7 +139,9 @@ export type CertifyBlobOptions = {
 			certificate?: never;
 	  }
 	| {
-			certificate: ProtocolMessageCertificate;
+			/** A certificate from the upload relay or combined confirmations.
+			 * Accepts either a ProtocolMessageCertificate object or a BCS-encoded base64 string. */
+			certificate: ProtocolMessageCertificate | string;
 			confirmations?: never;
 	  }
 );
@@ -174,6 +176,8 @@ export type GetVerifiedBlobStatusOptions = ReadBlobOptions;
 export type ComputeBlobMetadataOptions = {
 	bytes: Uint8Array;
 	numShards?: number;
+	/** Provide a nonce from a prior encode to ensure deterministic resume. If omitted, a random nonce is generated. */
+	nonce?: Uint8Array;
 };
 
 export interface SliversForNode {
@@ -230,17 +234,22 @@ export type WriteBlobToUploadRelayOptions = {
 	encodingType?: EncodingType;
 } & WalrusClientRequestOptions;
 
-export type WriteBlobOptions = {
-	blob: Uint8Array;
+export interface WriteBlobBaseOptions {
 	deletable: boolean;
 	/** The number of epochs the blob should be stored for. */
 	epochs: number;
-	signer: Signer;
-	/** Where the blob should be transferred to after it is registered.  Defaults to the signer address. */
+	/** Where the blob should be transferred to after it is registered. Defaults to the signer address. */
 	owner?: string;
 	/** The attributes to write for the blob. */
 	attributes?: Record<string, string | null>;
-} & WalrusClientRequestOptions;
+}
+
+export interface WriteBlobOptions extends WriteBlobBaseOptions, WalrusClientRequestOptions {
+	blob: Uint8Array;
+	signer: Signer;
+	onStep?: (step: WriteBlobStep) => void | Promise<void>;
+	resume?: WriteBlobStep;
+}
 
 export interface WriteQuiltOptions extends Omit<WriteBlobOptions, 'blob'> {
 	blobs: {
@@ -254,22 +263,64 @@ export interface WriteFilesOptions extends Omit<WriteBlobOptions, 'blob'> {
 	files: WalrusFile[];
 }
 
-export interface WriteFilesFlowOptions {
-	files: WalrusFile[];
+export type WriteBlobStep =
+	| WriteBlobStepEncoded
+	| WriteBlobStepRegistered
+	| WriteBlobStepUploaded
+	| WriteBlobStepCertified;
+
+export interface WriteBlobStepEncoded {
+	step: 'encoded';
+	blobId: string;
+	rootHash: string;
+	unencodedSize: number;
+	nonce?: string;
 }
 
-export interface WriteFilesFlowRegisterOptions extends Omit<WriteBlobOptions, 'blob' | 'signer'> {
+export interface WriteBlobStepRegistered {
+	step: 'registered';
+	blobId: string;
+	blobObjectId: string;
+	txDigest: string;
+	nonce?: string;
+}
+
+export interface WriteBlobStepUploaded {
+	step: 'uploaded';
+	blobId: string;
+	blobObjectId: string;
+	txDigest?: string;
+	certificate: string;
+}
+
+export interface WriteBlobStepCertified {
+	step: 'certified';
+	blobId: string;
+	blobObjectId: string;
+	blobObject: (typeof Blob)['$inferType'];
+}
+
+export interface WriteFilesFlowOptions {
+	files: WalrusFile[];
+	resume?: WriteBlobStep;
+}
+
+export interface WriteFilesFlowRegisterOptions extends WriteBlobBaseOptions {
 	owner: string;
 }
 
 export interface WriteFilesFlowUploadOptions {
-	digest: string;
+	digest?: string;
+}
+
+export interface WriteFilesFlowRunOptions extends WriteBlobBaseOptions, WalrusClientRequestOptions {
+	signer: Signer;
 }
 
 export interface WriteFilesFlow {
-	encode: () => Promise<void>;
+	encode: () => Promise<WriteBlobStepEncoded>;
 	register: (options: WriteFilesFlowRegisterOptions) => Transaction;
-	upload: (options: WriteFilesFlowUploadOptions) => Promise<void>;
+	upload: (options?: WriteFilesFlowUploadOptions) => Promise<WriteBlobStepUploaded>;
 	certify: () => Transaction;
 	listFiles: () => Promise<
 		{
@@ -278,29 +329,47 @@ export interface WriteFilesFlow {
 			blobObject: (typeof Blob)['$inferType'];
 		}[]
 	>;
+
+	executeRegister: (
+		options: WriteFilesFlowRegisterOptions & { signer: Signer },
+	) => Promise<WriteBlobStepRegistered>;
+	executeCertify: (options: { signer: Signer }) => Promise<WriteBlobStepCertified>;
+
+	run: (options: WriteFilesFlowRunOptions) => AsyncIterable<WriteBlobStep>;
 }
 
 export interface WriteBlobFlowOptions {
 	blob: Uint8Array;
+	resume?: WriteBlobStep;
 }
 
-export interface WriteBlobFlowRegisterOptions extends Omit<WriteBlobOptions, 'blob' | 'signer'> {
+export interface WriteBlobFlowRegisterOptions extends WriteBlobBaseOptions {
 	owner: string;
 }
 
-export interface WriteBlobFlowUploadOptions {
-	digest: string;
+export interface WriteBlobFlowUploadOptions extends WalrusClientRequestOptions {
+	digest?: string;
+	/** Override the deletable flag when resuming without a prior register step. */
+	deletable?: boolean;
+}
+
+export interface WriteBlobFlowRunOptions extends WriteBlobBaseOptions, WalrusClientRequestOptions {
+	signer: Signer;
 }
 
 export interface WriteBlobFlow {
-	encode: () => Promise<void>;
+	encode: () => Promise<WriteBlobStepEncoded>;
 	register: (options: WriteBlobFlowRegisterOptions) => Transaction;
-	upload: (options: WriteBlobFlowUploadOptions) => Promise<void>;
+	upload: (options?: WriteBlobFlowUploadOptions) => Promise<WriteBlobStepUploaded>;
 	certify: () => Transaction;
-	getBlob: () => Promise<{
-		blobId: string;
-		blobObject: (typeof Blob)['$inferType'];
-	}>;
+	getBlob: () => Promise<WriteBlobStepCertified>;
+
+	executeRegister: (
+		options: WriteBlobFlowRegisterOptions & { signer: Signer },
+	) => Promise<WriteBlobStepRegistered>;
+	executeCertify: (options: { signer: Signer }) => Promise<WriteBlobStepCertified>;
+
+	run: (options: WriteBlobFlowRunOptions) => AsyncIterable<WriteBlobStep>;
 }
 
 export interface DeleteBlobOptions {
