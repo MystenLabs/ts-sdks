@@ -194,6 +194,10 @@ async function setExpiration(
 	client: ClientWithCoreApi,
 	existingSystemState: SystemStateData | null,
 ) {
+	if (transactionData.expiration || hasVersionedInputs(transactionData)) {
+		return;
+	}
+
 	const [systemState, { chainIdentifier }] = await Promise.all([
 		existingSystemState ?? client.core.getCurrentSystemState().then((r) => r.systemState),
 		client.core.getChainIdentifier(),
@@ -211,6 +215,17 @@ async function setExpiration(
 			nonce: (Math.random() * 0x100000000) >>> 0,
 		},
 	};
+}
+
+function hasVersionedInputs(transactionData: TransactionDataBuilder): boolean {
+	if (transactionData.gasData.payment?.length) {
+		return true;
+	}
+
+	return transactionData.inputs.some(
+		(input) =>
+			input.Object?.ImmOrOwnedObject || (input.UnresolvedObject && input.UnresolvedObject.version),
+	);
 }
 
 async function resolveObjectReferences(

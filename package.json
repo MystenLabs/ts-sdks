@@ -20,8 +20,9 @@
 	"pnpm": {
 		"overrides": {
 			"axios": "^1.13.5",
-			"minimatch@>=9.0.0 <9.0.7": ">=9.0.7",
-			"minimatch@>=10.0.0 <10.2.3": ">=10.2.3"
+			"@tootallnate/once": ">=3.0.1",
+			"h3": ">=1.15.6",
+			"immutable": ">=3.8.3"
 		}
 	},
 	"engines": {
