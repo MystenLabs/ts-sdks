@@ -457,6 +457,38 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
+	async getProtocolConfig(
+		options?: SuiClientTypes.GetProtocolConfigOptions,
+	): Promise<SuiClientTypes.GetProtocolConfigResponse> {
+		const result = await this.#jsonRpcClient.getProtocolConfig({ signal: options?.signal });
+
+		const attributes: Record<string, string | null> = {};
+		for (const [key, value] of Object.entries(result.attributes)) {
+			if (value === null) {
+				attributes[key] = null;
+			} else if ('u16' in value) {
+				attributes[key] = value.u16;
+			} else if ('u32' in value) {
+				attributes[key] = value.u32;
+			} else if ('u64' in value) {
+				attributes[key] = value.u64;
+			} else if ('f64' in value) {
+				attributes[key] = value.f64;
+			} else if ('bool' in value) {
+				attributes[key] = value.bool;
+			} else {
+				attributes[key] = JSON.stringify(value);
+			}
+		}
+
+		return {
+			protocolConfig: {
+				featureFlags: { ...result.featureFlags },
+				attributes,
+			},
+		};
+	}
+
 	async getCurrentSystemState(
 		options?: SuiClientTypes.GetCurrentSystemStateOptions,
 	): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {

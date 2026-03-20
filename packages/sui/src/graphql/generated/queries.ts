@@ -4868,6 +4868,11 @@ export type GetMoveFunctionQueryVariables = Exact<{
 
 export type GetMoveFunctionQuery = { __typename?: 'Query', package?: { __typename?: 'MovePackage', module?: { __typename?: 'MoveModule', function?: { __typename?: 'MoveFunction', name: string, visibility?: MoveVisibility | null, isEntry?: boolean | null, typeParameters?: Array<{ __typename?: 'MoveFunctionTypeParameter', constraints: Array<MoveAbility> }> | null, parameters?: Array<{ __typename?: 'OpenMoveType', signature: OpenMoveTypeSignature }> | null, return?: Array<{ __typename?: 'OpenMoveType', signature: OpenMoveTypeSignature }> | null } | null } | null } | null };
 
+export type GetProtocolConfigQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetProtocolConfigQuery = { __typename?: 'Query', epoch?: { __typename?: 'Epoch', protocolConfigs?: { __typename?: 'ProtocolConfigs', protocolVersion: number, featureFlags: Array<{ __typename?: 'FeatureFlag', key: string, value: boolean }>, configs: Array<{ __typename?: 'ProtocolConfig', key: string, value?: string | null }> } | null } | null };
+
 export type GetReferenceGasPriceQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -5402,6 +5407,23 @@ export const GetMoveFunctionDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<GetMoveFunctionQuery, GetMoveFunctionQueryVariables>;
+export const GetProtocolConfigDocument = new TypedDocumentString(`
+    query getProtocolConfig {
+  epoch {
+    protocolConfigs {
+      protocolVersion
+      featureFlags {
+        key
+        value
+      }
+      configs {
+        key
+        value
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<GetProtocolConfigQuery, GetProtocolConfigQueryVariables>;
 export const GetReferenceGasPriceDocument = new TypedDocumentString(`
     query getReferenceGasPrice {
   epoch {

@@ -379,6 +379,12 @@ export class MockSuiClient extends CoreClient {
 		};
 	}
 
+	async getProtocolConfig(
+		_options?: SuiClientTypes.GetProtocolConfigOptions,
+	): Promise<SuiClientTypes.GetProtocolConfigResponse> {
+		throw new Error('getProtocolConfig not implemented in MockSuiClient');
+	}
+
 	async getCurrentSystemState(
 		_options?: SuiClientTypes.GetCurrentSystemStateOptions,
 	): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {

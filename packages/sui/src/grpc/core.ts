@@ -492,6 +492,23 @@ export class GrpcCoreClient extends CoreClient {
 		};
 	}
 
+	async getProtocolConfig(): Promise<SuiClientTypes.GetProtocolConfigResponse> {
+		const response = await this.#client.ledgerService.getEpoch({
+			readMask: { paths: ['protocol_config'] },
+		});
+
+		const protocolConfig = response.response.epoch?.protocolConfig;
+		const featureFlags: Record<string, boolean> = { ...protocolConfig?.featureFlags };
+		const attributes: Record<string, string | null> = {};
+		if (protocolConfig?.attributes) {
+			for (const [key, value] of Object.entries(protocolConfig.attributes)) {
+				attributes[key] = value ?? null;
+			}
+		}
+
+		return { protocolConfig: { featureFlags, attributes } };
+	}
+
 	async getCurrentSystemState(): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
 		const response = await this.#client.ledgerService.getEpoch({
 			readMask: {

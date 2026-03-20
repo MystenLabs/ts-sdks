@@ -100,6 +100,10 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options?: SuiClientTypes.GetCurrentSystemStateOptions,
 	): Promise<SuiClientTypes.GetCurrentSystemStateResponse>;
 
+	abstract getProtocolConfig(
+		options?: SuiClientTypes.GetProtocolConfigOptions,
+	): Promise<SuiClientTypes.GetProtocolConfigResponse>;
+
 	abstract getChainIdentifier(
 		options?: SuiClientTypes.GetChainIdentifierOptions,
 	): Promise<SuiClientTypes.GetChainIdentifierResponse>;

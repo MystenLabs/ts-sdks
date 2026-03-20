@@ -24,6 +24,7 @@ import {
 	GetCoinsDocument,
 	GetCurrentSystemStateDocument,
 	GetMoveFunctionDocument,
+	GetProtocolConfigDocument,
 	GetOwnedObjectsDocument,
 	GetReferenceGasPriceDocument,
 	GetTransactionBlockDocument,
@@ -451,6 +452,26 @@ export class GraphQLCoreClient extends CoreClient {
 		return {
 			referenceGasPrice: result ?? '',
 		};
+	}
+
+	async getProtocolConfig(): Promise<SuiClientTypes.GetProtocolConfigResponse> {
+		const result = await this.#graphqlQuery(
+			{
+				query: GetProtocolConfigDocument,
+			},
+			(result) => result.epoch?.protocolConfigs,
+		);
+
+		const featureFlags: Record<string, boolean> = {};
+		for (const flag of result?.featureFlags ?? []) {
+			featureFlags[flag.key] = flag.value;
+		}
+		const attributes: Record<string, string | null> = {};
+		for (const config of result?.configs ?? []) {
+			attributes[config.key] = config.value ?? null;
+		}
+
+		return { protocolConfig: { featureFlags, attributes } };
 	}
 
 	async getCurrentSystemState(): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
