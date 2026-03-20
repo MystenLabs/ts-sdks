@@ -400,10 +400,7 @@ describe('createBalance', () => {
 	it('coinWithBalance coins path: SplitCoins only, no into_balance or remainder', async () => {
 		const tx = new Transaction();
 		tx.setSenderIfNotSet(SENDER);
-		tx.transferObjects(
-			[coinWithBalance({ type: TEST_TYPE, balance: 50n })],
-			RECEIVER,
-		);
+		tx.transferObjects([coinWithBalance({ type: TEST_TYPE, balance: 50n })], RECEIVER);
 
 		expect(
 			await resolvedData(
@@ -847,10 +844,7 @@ describe('createBalance', () => {
 	it('coinWithBalance mixed coins + address balance: coins sufficient, split only (no AB redeem)', async () => {
 		const tx = new Transaction();
 		tx.setSenderIfNotSet(SENDER);
-		tx.transferObjects(
-			[coinWithBalance({ type: TEST_TYPE, balance: 50n })],
-			RECEIVER,
-		);
+		tx.transferObjects([coinWithBalance({ type: TEST_TYPE, balance: 50n })], RECEIVER);
 
 		expect(
 			await resolvedData(
@@ -1515,10 +1509,7 @@ describe('createBalance', () => {
 	it('coinWithBalance with AB=0 produces only coin-related inputs and commands', async () => {
 		const tx = new Transaction();
 		tx.setSenderIfNotSet(SENDER);
-		tx.transferObjects(
-			[coinWithBalance({ type: TEST_TYPE, balance: 50n })],
-			RECEIVER,
-		);
+		tx.transferObjects([coinWithBalance({ type: TEST_TYPE, balance: 50n })], RECEIVER);
 
 		const result = await resolvedData(
 			tx,
@@ -1540,10 +1531,7 @@ describe('createBalance', () => {
 	it('coinWithBalance with multiple coins: merge + split, no AB top-up', async () => {
 		const tx = new Transaction();
 		tx.setSenderIfNotSet(SENDER);
-		tx.transferObjects(
-			[coinWithBalance({ type: TEST_TYPE, balance: 80n })],
-			RECEIVER,
-		);
+		tx.transferObjects([coinWithBalance({ type: TEST_TYPE, balance: 80n })], RECEIVER);
 
 		expect(
 			await resolvedData(
@@ -1634,10 +1622,7 @@ describe('createBalance', () => {
 	it('coinWithBalance with multiple coins + AB top-up: redeem_funds + merge + split', async () => {
 		const tx = new Transaction();
 		tx.setSenderIfNotSet(SENDER);
-		tx.transferObjects(
-			[coinWithBalance({ type: TEST_TYPE, balance: 100n })],
-			RECEIVER,
-		);
+		tx.transferObjects([coinWithBalance({ type: TEST_TYPE, balance: 100n })], RECEIVER);
 
 		expect(
 			await resolvedData(

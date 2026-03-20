@@ -700,10 +700,7 @@ describe('coinWithBalance', () => {
 						coin: {
 							Input: 1,
 						},
-						amounts: [
-							{ Input: 2 },
-							{ Input: 3 },
-						],
+						amounts: [{ Input: 2 }, { Input: 3 }],
 					},
 				},
 				{
@@ -711,10 +708,7 @@ describe('coinWithBalance', () => {
 						coin: {
 							GasCoin: true,
 						},
-						amounts: [
-							{ Input: 4 },
-							{ Input: 5 },
-						],
+						amounts: [{ Input: 4 }, { Input: 5 }],
 					},
 				},
 				{
