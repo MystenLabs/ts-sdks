@@ -26,6 +26,7 @@ import { Ed25519Keypair } from '../../../src/keypairs/ed25519/index.js';
 import { Transaction, UpgradePolicy } from '../../../src/transactions/index.js';
 import { SUI_TYPE_ARG, normalizeSuiAddress } from '../../../src/utils/index.js';
 import type { ClientWithCoreApi } from '../../../src/client/core.js';
+import type { SuiClientTypes } from '../../../src/client/types.js';
 import type { PrePublishedPackage } from './prePublish.js';
 
 const DEFAULT_FAUCET_URL = import.meta.env.FAUCET_URL ?? getFaucetHost('localnet');
@@ -130,8 +131,15 @@ export class TestToolbox {
 
 	/**
 	 * Wait for a transaction to be indexed by all three clients (JSON-RPC, gRPC, GraphQL).
+	 * Accepts either a digest string or a TransactionResult (same as core API).
 	 */
-	async waitForTransaction(digest: string) {
+	async waitForTransaction(
+		options: { digest: string } | { result: SuiClientTypes.TransactionResult<any> },
+	) {
+		const digest =
+			'result' in options
+				? (options.result.Transaction ?? options.result.FailedTransaction)!.digest
+				: options.digest;
 		await Promise.all([
 			this.jsonRpcClient.core.waitForTransaction({ digest }),
 			this.grpcClient.core.waitForTransaction({ digest }),
@@ -143,16 +151,11 @@ export class TestToolbox {
 	 * Execute a transaction using gRPC and wait for it across all three clients.
 	 * Same API as `client.core.signAndExecuteTransaction`.
 	 */
-	async signAndExecuteTransaction<
-		Include extends import('../../../src/client/types.js').SuiClientTypes.TransactionInclude = {},
-	>(
-		options: import('../../../src/client/types.js').SuiClientTypes.SignAndExecuteTransactionOptions<Include>,
+	async signAndExecuteTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+		options: SuiClientTypes.SignAndExecuteTransactionOptions<Include>,
 	) {
 		const result = await this.grpcClient.core.signAndExecuteTransaction(options);
-		const digest = (result.Transaction ?? result.FailedTransaction)?.digest;
-		if (digest) {
-			await this.waitForTransaction(digest);
-		}
+		await this.waitForTransaction({ result });
 		return result;
 	}
 
@@ -508,11 +511,7 @@ export async function setupWithFundedAddress(
 	// Wait for the faucet transaction on all clients to ensure indexers have caught up
 	const digest = faucetResponse.coins_sent?.[0]?.transferTxDigest;
 	if (digest) {
-		await Promise.all([
-			toolbox.jsonRpcClient.core.waitForTransaction({ digest }),
-			toolbox.grpcClient.core.waitForTransaction({ digest }),
-			toolbox.graphqlClient.core.waitForTransaction({ digest }),
-		]);
+		await toolbox.waitForTransaction({ digest });
 	}
 
 	return toolbox;

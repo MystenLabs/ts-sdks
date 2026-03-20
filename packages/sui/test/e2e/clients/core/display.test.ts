@@ -44,7 +44,7 @@ describe('Core API - Display', () => {
 			options: { showEffects: true, showObjectChanges: true },
 		});
 
-		await toolbox.waitForTransaction(result.digest);
+		await toolbox.waitForTransaction({ digest: result.digest });
 
 		for (const change of result.objectChanges ?? []) {
 			if (change.type !== 'created') continue;
@@ -209,7 +209,7 @@ describe('Core API - Display', () => {
 			});
 
 			// Wait for all clients to index the new object
-			await toolbox.waitForTransaction(result.digest);
+			await toolbox.waitForTransaction({ digest: result.digest });
 
 			for (const change of result.objectChanges ?? []) {
 				if (change.type !== 'created') continue;
@@ -289,7 +289,7 @@ describe('Core API - Display', () => {
 			});
 
 			// Wait for all clients to index the v2 migration
-			await toolbox.waitForTransaction(setupResult.digest);
+			await toolbox.waitForTransaction({ digest: setupResult.digest });
 		});
 
 		it('all clients agree after v2 migration', async () => {

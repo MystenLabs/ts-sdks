@@ -34,7 +34,7 @@ describe('Core API - Object BCS Serialization', () => {
 		expect(createdCoin).toBeDefined();
 		testObjectId = (createdCoin as { objectId: string }).objectId;
 
-		await toolbox.waitForTransaction(setupTxDigest);
+		await toolbox.waitForTransaction({ digest: setupTxDigest });
 	});
 
 	describe('Cross-client consistency', () => {

@@ -37,7 +37,7 @@ describe('Core API - Dynamic Fields', () => {
 		});
 
 		expect(result1.effects?.status.status).toBe('success');
-		await toolbox.waitForTransaction(result1.digest);
+		await toolbox.waitForTransaction({ digest: result1.digest });
 
 		const dfObj = result1.objectChanges?.find(
 			(change) =>
@@ -65,7 +65,7 @@ describe('Core API - Dynamic Fields', () => {
 		});
 
 		expect(result2.effects?.status.status).toBe('success');
-		await toolbox.waitForTransaction(result2.digest);
+		await toolbox.waitForTransaction({ digest: result2.digest });
 
 		const mixedObj = result2.objectChanges?.find(
 			(change) =>
