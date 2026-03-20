@@ -4841,10 +4841,12 @@ export type GetCoinsQuery = { __typename?: 'Query', address?: { __typename?: 'Ad
           | { __typename: 'Shared', initialSharedVersion?: number | null }
          | null, contents?: { __typename?: 'MoveValue', json?: unknown | null, type?: { __typename?: 'MoveType', repr: string } | null } | null }> } | null } | null };
 
-export type GetCurrentSystemStateQueryVariables = Exact<{ [key: string]: never; }>;
+export type GetCurrentSystemStateQueryVariables = Exact<{
+  includeProtocolConfig?: Scalars['Boolean']['input'];
+}>;
 
 
-export type GetCurrentSystemStateQuery = { __typename?: 'Query', epoch?: { __typename?: 'Epoch', epochId: number, referenceGasPrice?: string | null, startTimestamp?: string | null, protocolConfigs?: { __typename?: 'ProtocolConfigs', protocolVersion: number } | null, systemState?: { __typename?: 'MoveValue', json?: unknown | null } | null } | null };
+export type GetCurrentSystemStateQuery = { __typename?: 'Query', epoch?: { __typename?: 'Epoch', epochId: number, referenceGasPrice?: string | null, startTimestamp?: string | null, protocolConfigs?: { __typename?: 'ProtocolConfigs', protocolVersion: number, featureFlags?: Array<{ __typename?: 'FeatureFlag', key: string, value: boolean }>, configs?: Array<{ __typename?: 'ProtocolConfig', key: string, value?: string | null }> } | null, systemState?: { __typename?: 'MoveValue', json?: unknown | null } | null } | null };
 
 export type GetDynamicFieldsQueryVariables = Exact<{
   parentId: Scalars['SuiAddress']['input'];
@@ -5328,13 +5330,21 @@ export const GetCoinsDocument = new TypedDocumentString(`
   }
 }`) as unknown as TypedDocumentString<GetCoinsQuery, GetCoinsQueryVariables>;
 export const GetCurrentSystemStateDocument = new TypedDocumentString(`
-    query getCurrentSystemState {
+    query getCurrentSystemState($includeProtocolConfig: Boolean! = false) {
   epoch {
     epochId
     referenceGasPrice
     startTimestamp
     protocolConfigs {
       protocolVersion
+      featureFlags @include(if: $includeProtocolConfig) {
+        key
+        value
+      }
+      configs @include(if: $includeProtocolConfig) {
+        key
+        value
+      }
     }
     systemState {
       json

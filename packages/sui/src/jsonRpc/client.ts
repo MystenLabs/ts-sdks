@@ -5,6 +5,7 @@ import { fromBase58, toBase64, toHex } from '@mysten/bcs';
 import type { Signer } from '../cryptography/index.js';
 import { BaseClient } from '../client/client.js';
 import type { SuiClientTypes } from '../client/types.js';
+import { isCoinReservationDigest } from '../utils/coin-reservation.js';
 import type { Transaction } from '../transactions/Transaction.js';
 import { isTransaction } from '../transactions/Transaction.js';
 import {
@@ -127,25 +128,6 @@ type NetworkOrTransport =
 	  };
 
 const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiJsonRpcClient') as never;
-
-// Magic number used to identify fake address balance coins (last 20 bytes of the digest)
-// See: sui/crates/sui-types/src/coin_reservation.rs
-const COIN_RESERVATION_MAGIC = new Uint8Array([
-	0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac,
-	0xac, 0xac, 0xac, 0xac,
-]);
-
-/**
- * Checks if a digest indicates a fake address balance coin.
- * These "coins" are created by the JSON RPC to represent address balances
- * and should be filtered out from coin listings.
- */
-function isCoinReservationDigest(digestBase58: string): boolean {
-	const digestBytes = fromBase58(digestBase58);
-	// Check if the last 20 bytes match the magic number
-	const last20Bytes = digestBytes.slice(12, 32);
-	return last20Bytes.every((byte, i) => byte === COIN_RESERVATION_MAGIC[i]);
-}
 
 export function isSuiJsonRpcClient(client: unknown): client is SuiJsonRpcClient {
 	return (

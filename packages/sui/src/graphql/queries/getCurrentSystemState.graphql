@@ -1,13 +1,21 @@
 # Copyright (c) Mysten Labs, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-query getCurrentSystemState {
+query getCurrentSystemState($includeProtocolConfig: Boolean! = false) {
 	epoch {
 		epochId
 		referenceGasPrice
 		startTimestamp
 		protocolConfigs {
 			protocolVersion
+			featureFlags @include(if: $includeProtocolConfig) {
+				key
+				value
+			}
+			configs @include(if: $includeProtocolConfig) {
+				key
+				value
+			}
 		}
 		systemState {
 			json

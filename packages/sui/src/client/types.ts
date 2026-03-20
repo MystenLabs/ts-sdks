@@ -452,16 +452,30 @@ export namespace SuiClientTypes {
 		referenceGasPrice: string;
 	}
 
-	export interface GetCurrentSystemStateOptions extends CoreClientMethodOptions {}
-
-	export interface TransportMethods {
-		getCurrentSystemState?: (
-			options?: GetCurrentSystemStateOptions,
-		) => Promise<GetCurrentSystemStateResponse>;
+	export interface SystemStateInclude {
+		protocolConfig?: boolean;
 	}
 
-	export interface GetCurrentSystemStateResponse {
+	export interface GetCurrentSystemStateOptions<
+		Include extends SystemStateInclude = {},
+	> extends CoreClientMethodOptions {
+		include?: Include & SystemStateInclude;
+	}
+
+	export interface TransportMethods {
+		getCurrentSystemState?: <Include extends SystemStateInclude = {}>(
+			options?: GetCurrentSystemStateOptions<Include>,
+		) => Promise<GetCurrentSystemStateResponse<Include>>;
+	}
+
+	export interface GetCurrentSystemStateResponse<out Include extends SystemStateInclude = {}> {
 		systemState: SystemStateInfo;
+		protocolConfig: Include extends { protocolConfig: true } ? ProtocolConfig : undefined;
+	}
+
+	export interface ProtocolConfig {
+		featureFlags: Record<string, boolean>;
+		attributes: Record<string, string | null>;
 	}
 
 	export interface GetChainIdentifierOptions extends CoreClientMethodOptions {}

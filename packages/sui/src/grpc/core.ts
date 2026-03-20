@@ -492,25 +492,30 @@ export class GrpcCoreClient extends CoreClient {
 		};
 	}
 
-	async getCurrentSystemState(): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
+	async getCurrentSystemState<Include extends SuiClientTypes.SystemStateInclude = {}>(
+		options?: SuiClientTypes.GetCurrentSystemStateOptions<Include>,
+	): Promise<SuiClientTypes.GetCurrentSystemStateResponse<Include>> {
+		const paths = [
+			'system_state.version',
+			'system_state.epoch',
+			'system_state.protocol_version',
+			'system_state.reference_gas_price',
+			'system_state.epoch_start_timestamp_ms',
+			'system_state.safe_mode',
+			'system_state.safe_mode_storage_rewards',
+			'system_state.safe_mode_computation_rewards',
+			'system_state.safe_mode_storage_rebates',
+			'system_state.safe_mode_non_refundable_storage_fee',
+			'system_state.parameters',
+			'system_state.storage_fund',
+			'system_state.stake_subsidy',
+		];
+		if (options?.include?.protocolConfig) {
+			paths.push('protocol_config');
+		}
+
 		const response = await this.#client.ledgerService.getEpoch({
-			readMask: {
-				paths: [
-					'system_state.version',
-					'system_state.epoch',
-					'system_state.protocol_version',
-					'system_state.reference_gas_price',
-					'system_state.epoch_start_timestamp_ms',
-					'system_state.safe_mode',
-					'system_state.safe_mode_storage_rewards',
-					'system_state.safe_mode_computation_rewards',
-					'system_state.safe_mode_storage_rebates',
-					'system_state.safe_mode_non_refundable_storage_fee',
-					'system_state.parameters',
-					'system_state.storage_fund',
-					'system_state.stake_subsidy',
-				],
-			},
+			readMask: { paths },
 		});
 
 		const epoch = response.response.epoch;
@@ -525,7 +530,22 @@ export class GrpcCoreClient extends CoreClient {
 				? Number(systemState.epochStartTimestampMs)
 				: (null as never);
 
+		let parsedProtocolConfig: SuiClientTypes.ProtocolConfig | undefined;
+		if (options?.include?.protocolConfig) {
+			const protocolConfig = epoch?.protocolConfig;
+			const featureFlags: Record<string, boolean> = { ...protocolConfig?.featureFlags };
+			const attributes: Record<string, string | null> = {};
+			if (protocolConfig?.attributes) {
+				for (const [key, value] of Object.entries(protocolConfig.attributes)) {
+					attributes[key] = value ?? null;
+				}
+			}
+			parsedProtocolConfig = { featureFlags, attributes };
+		}
+
 		return {
+			protocolConfig:
+				parsedProtocolConfig as SuiClientTypes.GetCurrentSystemStateResponse<Include>['protocolConfig'],
 			systemState: {
 				systemStateVersion: systemState.version?.toString() ?? (null as never),
 				epoch: systemState.epoch?.toString() ?? (null as never),

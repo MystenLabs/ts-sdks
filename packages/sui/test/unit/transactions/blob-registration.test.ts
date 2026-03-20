@@ -92,6 +92,7 @@ describe('Blob registration transaction building', () => {
 			      "$Intent": {
 			        "data": {
 			          "balance": 1000n,
+			          "outputKind": "coin",
 			          "type": "0x0000000000000000000000000000000000000000000000000000000000000002::wal::WAL",
 			        },
 			        "inputs": {},
@@ -103,6 +104,7 @@ describe('Blob registration transaction building', () => {
 			      "$Intent": {
 			        "data": {
 			          "balance": 123n,
+			          "outputKind": "coin",
 			          "type": "0x0000000000000000000000000000000000000000000000000000000000000002::wal::WAL",
 			        },
 			        "inputs": {},

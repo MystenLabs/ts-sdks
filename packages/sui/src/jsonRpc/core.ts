@@ -457,14 +457,45 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
-	async getCurrentSystemState(
-		options?: SuiClientTypes.GetCurrentSystemStateOptions,
-	): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
-		const systemState = await this.#jsonRpcClient.getLatestSuiSystemState({
-			signal: options?.signal,
-		});
+	async getCurrentSystemState<Include extends SuiClientTypes.SystemStateInclude = {}>(
+		options?: SuiClientTypes.GetCurrentSystemStateOptions<Include>,
+	): Promise<SuiClientTypes.GetCurrentSystemStateResponse<Include>> {
+		const [systemState, protocolConfigResult] = await Promise.all([
+			this.#jsonRpcClient.getLatestSuiSystemState({ signal: options?.signal }),
+			options?.include?.protocolConfig
+				? this.#jsonRpcClient.getProtocolConfig({ signal: options?.signal })
+				: null,
+		]);
+
+		let parsedProtocolConfig: SuiClientTypes.ProtocolConfig | undefined;
+		if (protocolConfigResult) {
+			const attributes: Record<string, string | null> = {};
+			for (const [key, value] of Object.entries(protocolConfigResult.attributes)) {
+				if (value === null) {
+					attributes[key] = null;
+				} else if ('u16' in value) {
+					attributes[key] = value.u16;
+				} else if ('u32' in value) {
+					attributes[key] = value.u32;
+				} else if ('u64' in value) {
+					attributes[key] = value.u64;
+				} else if ('f64' in value) {
+					attributes[key] = value.f64;
+				} else if ('bool' in value) {
+					attributes[key] = value.bool;
+				} else {
+					attributes[key] = JSON.stringify(value);
+				}
+			}
+			parsedProtocolConfig = {
+				featureFlags: { ...protocolConfigResult.featureFlags },
+				attributes,
+			};
+		}
 
 		return {
+			protocolConfig:
+				parsedProtocolConfig as SuiClientTypes.GetCurrentSystemStateResponse<Include>['protocolConfig'],
 			systemState: {
 				systemStateVersion: systemState.systemStateVersion,
 				epoch: systemState.epoch,

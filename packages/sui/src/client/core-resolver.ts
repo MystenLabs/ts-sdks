@@ -1,9 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { toBase58 } from '@mysten/bcs';
 import { parse } from 'valibot';
 
 import { normalizeSuiAddress, normalizeSuiObjectId, SUI_TYPE_ARG } from '../utils/index.js';
+import { COIN_RESERVATION_MAGIC } from '../utils/coin-reservation.js';
 import type { ClientWithCoreApi } from './core.js';
 import { ObjectRefSchema } from '../transactions/data/internal.js';
 import type { CallArg, Command } from '../transactions/data/internal.js';
@@ -55,15 +57,25 @@ interface SystemStateData {
 
 async function setGasData(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
 	let systemState: SystemStateData | null = null;
+	let protocolConfig: SuiClientTypes.ProtocolConfig | undefined;
 
 	if (!transactionData.gasData.price) {
-		const response = await client.core.getCurrentSystemState();
+		const response = await client.core.getCurrentSystemState({
+			include: { protocolConfig: true },
+		});
 		systemState = response.systemState;
+		protocolConfig = response.protocolConfig;
 		transactionData.gasData.price = systemState.referenceGasPrice;
+	} else {
+		// Gas price was pre-set, but we still need protocol config for compat mode
+		const response = await client.core.getCurrentSystemState({
+			include: { protocolConfig: true },
+		});
+		protocolConfig = response.protocolConfig;
 	}
 
 	await setGasBudget(transactionData, client);
-	await setGasPayment(transactionData, client);
+	await setGasPayment(transactionData, client, protocolConfig);
 
 	if (!transactionData.expiration) {
 		await setExpiration(transactionData, client, systemState);
@@ -110,7 +122,11 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Cli
 }
 
 // The current default is just picking _all_ coins we can which may not be ideal.
-async function setGasPayment(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
+async function setGasPayment(
+	transactionData: TransactionDataBuilder,
+	client: ClientWithCoreApi,
+	protocolConfig?: SuiClientTypes.ProtocolConfig,
+) {
 	if (!transactionData.gasData.payment) {
 		const gasPayer = transactionData.gasData.owner ?? transactionData.sender;
 		if (!gasPayer) {
@@ -143,8 +159,12 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Cl
 			return arg;
 		});
 
+		const compatEnabled = usesGasCoin && protocolConfig?.featureFlags?.['coin_reservation'];
+
 		const [suiBalance, coins] = await Promise.all([
-			usesGasCoin ? null : client.core.getBalance({ owner: gasPayer }),
+			// Fetch balance when: not using gas coin (for address-balance-only check),
+			// or compat mode needs the address balance amount
+			!usesGasCoin || compatEnabled ? client.core.getBalance({ owner: gasPayer }) : null,
 			client.core.listCoins({
 				owner: gasPayer,
 				coinType: SUI_TYPE_ARG,
@@ -153,6 +173,7 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Cl
 
 		if (
 			suiBalance?.balance.addressBalance &&
+			!usesGasCoin &&
 			BigInt(suiBalance.balance.addressBalance) >=
 				BigInt(transactionData.gasData.budget || '0') + withdrawals
 		) {
@@ -180,6 +201,20 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Cl
 					version: coin.version,
 				}),
 			);
+
+		// Gas payment compat mode: when GasCoin is used and coin_reservation is enabled,
+		// create a fake coin reservation to represent the address balance portion of gas
+		if (compatEnabled && suiBalance) {
+			const remainingBalance = BigInt(suiBalance.balance.addressBalance) - withdrawals;
+
+			if (remainingBalance > 0n) {
+				transactionData.gasData.payment = [
+					createCoinReservationRef(remainingBalance),
+					...paymentCoins,
+				];
+				return;
+			}
+		}
 
 		if (!paymentCoins.length) {
 			throw new Error('No valid gas coins found for the transaction.');
@@ -517,4 +552,23 @@ function isReceivingType(type: SuiClientTypes.OpenSignature): boolean {
 	}
 
 	return type.body.datatype.typeName === RECEIVING_TYPE;
+}
+
+/**
+ * Creates a fake ObjectRef representing a coin reservation for address balance gas.
+ * The digest encodes the reserved balance in the first 8 bytes and uses
+ * COIN_RESERVATION_MAGIC in the last 20 bytes to signal this is a reservation.
+ */
+function createCoinReservationRef(reservedBalance: bigint) {
+	const digestBytes = new Uint8Array(32);
+	const view = new DataView(digestBytes.buffer);
+	view.setBigUint64(0, reservedBalance, true);
+	// Last 20 bytes are COIN_RESERVATION_MAGIC
+	digestBytes.set(COIN_RESERVATION_MAGIC, 12);
+
+	return parse(ObjectRefSchema, {
+		objectId: normalizeSuiAddress('0x0'),
+		version: String(Math.floor(Math.random() * 0x100000000)),
+		digest: toBase58(digestBytes),
+	});
 }

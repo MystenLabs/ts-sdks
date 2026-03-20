@@ -453,10 +453,15 @@ export class GraphQLCoreClient extends CoreClient {
 		};
 	}
 
-	async getCurrentSystemState(): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
+	async getCurrentSystemState<Include extends SuiClientTypes.SystemStateInclude = {}>(
+		options?: SuiClientTypes.GetCurrentSystemStateOptions<Include>,
+	): Promise<SuiClientTypes.GetCurrentSystemStateResponse<Include>> {
 		const result = await this.#graphqlQuery(
 			{
 				query: GetCurrentSystemStateDocument,
+				variables: {
+					includeProtocolConfig: options?.include?.protocolConfig ?? false,
+				},
 			},
 			(result) => result.epoch,
 		);
@@ -551,6 +556,19 @@ export class GraphQLCoreClient extends CoreClient {
 						systemStateJson?.stake_subsidy?.stake_subsidy_decrease_rate ?? (null as never),
 				},
 			},
+			protocolConfig: (options?.include?.protocolConfig
+				? (() => {
+						const featureFlags: Record<string, boolean> = {};
+						for (const flag of result.protocolConfigs?.featureFlags ?? []) {
+							featureFlags[flag.key] = flag.value;
+						}
+						const attributes: Record<string, string | null> = {};
+						for (const config of result.protocolConfigs?.configs ?? []) {
+							attributes[config.key] = config.value ?? null;
+						}
+						return { featureFlags, attributes };
+					})()
+				: undefined) as SuiClientTypes.GetCurrentSystemStateResponse<Include>['protocolConfig'],
 		};
 	}
 

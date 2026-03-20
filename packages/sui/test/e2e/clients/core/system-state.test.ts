@@ -142,4 +142,91 @@ describe('Core API - System State', () => {
 			);
 		});
 	});
+
+	describe('getCurrentSystemState with protocolConfig', () => {
+		it(
+			'all clients return same data: getCurrentSystemState with protocolConfig',
+			{ retry: 3 },
+			async () => {
+				await toolbox.expectAllClientsReturnSameData(
+					(client) => client.core.getCurrentSystemState({ include: { protocolConfig: true } }),
+					(data) => {
+						// Normalize attributes: filter out null values since some transports
+						// include keys with null values and others omit them entirely
+						const filteredAttributes: Record<string, string> = {};
+						for (const [key, value] of Object.entries(data.protocolConfig.attributes)) {
+							if (value !== null) {
+								filteredAttributes[key] = value;
+							}
+						}
+						return {
+							protocolConfig: {
+								featureFlags: data.protocolConfig.featureFlags,
+								attributes: filteredAttributes,
+							},
+							systemState: {
+								...data.systemState,
+								epochStartTimestampMs: '<normalized>',
+							},
+						};
+					},
+				);
+			},
+		);
+
+		testWithAllClients(
+			'should return feature flags when protocolConfig is included',
+			async (client) => {
+				const result = await client.core.getCurrentSystemState({
+					include: { protocolConfig: true },
+				});
+
+				expect(result.protocolConfig).toBeDefined();
+				expect(result.protocolConfig.featureFlags).toBeDefined();
+				expect(typeof result.protocolConfig.featureFlags).toBe('object');
+
+				// localnet should have at least some feature flags
+				const flagKeys = Object.keys(result.protocolConfig.featureFlags);
+				expect(flagKeys.length).toBeGreaterThan(0);
+
+				// All values should be booleans
+				for (const value of Object.values(result.protocolConfig.featureFlags)) {
+					expect(typeof value).toBe('boolean');
+				}
+			},
+		);
+
+		testWithAllClients(
+			'should return attributes when protocolConfig is included',
+			async (client) => {
+				const result = await client.core.getCurrentSystemState({
+					include: { protocolConfig: true },
+				});
+
+				expect(result.protocolConfig.attributes).toBeDefined();
+				expect(typeof result.protocolConfig.attributes).toBe('object');
+
+				// localnet should have config attributes
+				const attrKeys = Object.keys(result.protocolConfig.attributes);
+				expect(attrKeys.length).toBeGreaterThan(0);
+
+				// Values should be strings or null
+				for (const value of Object.values(result.protocolConfig.attributes)) {
+					expect(value === null || typeof value === 'string').toBe(true);
+				}
+			},
+		);
+
+		testWithAllClients(
+			'should return undefined protocolConfig when not included',
+			async (client) => {
+				const result = await client.core.getCurrentSystemState();
+
+				expect(result.protocolConfig).toBeUndefined();
+				// System state should still be present
+				expect(result.systemState).toBeDefined();
+				expect(result.systemState.epoch).toBeDefined();
+			},
+		);
+	});
 });

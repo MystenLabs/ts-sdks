@@ -96,9 +96,9 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options?: SuiClientTypes.GetReferenceGasPriceOptions,
 	): Promise<SuiClientTypes.GetReferenceGasPriceResponse>;
 
-	abstract getCurrentSystemState(
-		options?: SuiClientTypes.GetCurrentSystemStateOptions,
-	): Promise<SuiClientTypes.GetCurrentSystemStateResponse>;
+	abstract getCurrentSystemState<Include extends SuiClientTypes.SystemStateInclude = {}>(
+		options?: SuiClientTypes.GetCurrentSystemStateOptions<Include>,
+	): Promise<SuiClientTypes.GetCurrentSystemStateResponse<Include>>;
 
 	abstract getChainIdentifier(
 		options?: SuiClientTypes.GetChainIdentifierOptions,
