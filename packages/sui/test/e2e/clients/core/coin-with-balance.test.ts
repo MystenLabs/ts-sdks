@@ -43,11 +43,10 @@ describe('coinWithBalance', () => {
 			],
 		});
 
-		const result = await publishToolbox.grpcClient.signAndExecuteTransaction({
+		await publishToolbox.signAndExecuteTransaction({
 			transaction: mintTx,
 			signer: publishToolbox.keypair,
 		});
-		await publishToolbox.grpcClient.waitForTransaction({ result });
 	});
 
 	testWithAllClients('works with sui', async (client) => {
