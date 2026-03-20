@@ -27,6 +27,7 @@ import { Transaction, UpgradePolicy } from '../../../src/transactions/index.js';
 import { SUI_TYPE_ARG, normalizeSuiAddress } from '../../../src/utils/index.js';
 import type { ClientWithCoreApi } from '../../../src/client/core.js';
 import type { SuiClientTypes } from '../../../src/client/types.js';
+import { SerialQueue } from '../../../src/transactions/executor/queue.js';
 import type { PrePublishedPackage } from './prePublish.js';
 
 const DEFAULT_FAUCET_URL = import.meta.env.FAUCET_URL ?? getFaucetHost('localnet');
@@ -171,67 +172,30 @@ export class TestToolbox {
 
 	/**
 	 * Get a funded signer with specific coin and address balance amounts.
-	 * Signers are drawn from a pool; once taken, a replacement is created in the background.
-	 *
-	 * Call `prepareSigners()` in beforeAll to pre-populate the pool, or signers
-	 * will be created on demand (slightly slower on the first call).
 	 *
 	 * @example
-	 * // In beforeAll — optional, pre-populates the pool:
-	 * await toolbox.prepareSigners([
-	 *   { coins: [200_000_000n], addressBalance: 50_000_000n },
-	 *   { coins: [200_000_000n], addressBalance: 5_000_000n },
-	 * ]);
-	 *
-	 * // In tests — grabs from pool (instant if pre-populated):
 	 * const { keypair, address } = await toolbox.getSigner({
 	 *   coins: [200_000_000n], addressBalance: 50_000_000n,
 	 * });
 	 */
 	#funderKeypair?: Ed25519Keypair;
-	#funderLock: Promise<void> = Promise.resolve();
-	#signerPool = new Map<string, Promise<{ keypair: Ed25519Keypair; address: string }>[]>();
+	#funderQueue = new SerialQueue();
 
-	static #signerConfigKey(config: SignerConfig): string {
-		const coins = (config.coins ?? []).map(String).join(',');
-		return `coins=[${coins}];ab=${config.addressBalance ?? 0}`;
-	}
+	async getSigner(config: SignerConfig): Promise<{ keypair: Ed25519Keypair; address: string }> {
+		return this.#funderQueue.runTask(async () => {
+			if (!this.#funderKeypair) {
+				this.#funderKeypair = Ed25519Keypair.generate();
+			}
 
-	async #ensureFunder(totalNeeded: bigint) {
-		if (!this.#funderKeypair) {
-			this.#funderKeypair = Ed25519Keypair.generate();
-			await requestAndWaitForFaucet(
-				this.#funderKeypair.getPublicKey().toSuiAddress(),
-				this.grpcClient,
-			);
-		}
-
-		const { balance } = await this.grpcClient.core.getBalance({
-			owner: this.#funderKeypair.getPublicKey().toSuiAddress(),
-		});
-		if (BigInt(balance.balance) < totalNeeded) {
-			await requestAndWaitForFaucet(
-				this.#funderKeypair.getPublicKey().toSuiAddress(),
-				this.grpcClient,
-			);
-		}
-	}
-
-	async #buildSigner(config: SignerConfig): Promise<{ keypair: Ed25519Keypair; address: string }> {
-		// Serialize funder access to avoid coin version race conditions
-		const prevLock = this.#funderLock;
-		let releaseLock: () => void;
-		this.#funderLock = new Promise<void>((r) => {
-			releaseLock = r;
-		});
-		await prevLock;
-
-		try {
 			const totalNeeded =
 				(config.coins ?? []).reduce((a, b) => a + b, 0n) +
 				(config.addressBalance ?? 0n) +
 				100_000_000n;
-			await this.#ensureFunder(totalNeeded);
+			await requestAndWaitForFaucet(
+				this.#funderKeypair.getPublicKey().toSuiAddress(),
+				this.grpcClient,
+				totalNeeded,
+			);
 
 			const keypair = new Ed25519Keypair();
 			const address = keypair.getPublicKey().toSuiAddress();
@@ -252,96 +216,13 @@ export class TestToolbox {
 
 			const result = await this.grpcClient.core.signAndExecuteTransaction({
 				transaction: tx,
-				signer: this.#funderKeypair!,
+				signer: this.#funderKeypair,
 			});
-			if (result.$kind !== 'Transaction') throw new Error('buildSigner tx failed');
+			if (result.$kind !== 'Transaction') throw new Error('getSigner tx failed');
 			await this.grpcClient.core.waitForTransaction({ digest: result.Transaction.digest });
 
 			return { keypair, address };
-		} finally {
-			releaseLock!();
-		}
-	}
-
-	#enqueueSigner(config: SignerConfig) {
-		const key = TestToolbox.#signerConfigKey(config);
-		const queue = this.#signerPool.get(key) ?? [];
-		queue.push(this.#buildSigner(config));
-		this.#signerPool.set(key, queue);
-	}
-
-	/**
-	 * Pre-populate the signer pool. Call in beforeAll to avoid on-demand latency.
-	 * Each config gets one signer created; duplicates create multiple.
-	 */
-	async prepareSigners(configs: SignerConfig[]) {
-		// Group by key so we can batch-create in a single transaction
-		const totalNeeded =
-			configs.reduce(
-				(sum, c) => sum + (c.coins ?? []).reduce((a, b) => a + b, 0n) + (c.addressBalance ?? 0n),
-				0n,
-			) + 100_000_000n;
-
-		await this.#ensureFunder(totalNeeded);
-
-		const results: Array<{ keypair: Ed25519Keypair; address: string }> = [];
-		const tx = new Transaction();
-
-		for (const config of configs) {
-			const keypair = new Ed25519Keypair();
-			const address = keypair.getPublicKey().toSuiAddress();
-			results.push({ keypair, address });
-
-			for (const amount of config.coins ?? []) {
-				const [coin] = tx.splitCoins(tx.gas, [amount]);
-				tx.transferObjects([coin], address);
-			}
-			if (config.addressBalance && config.addressBalance > 0n) {
-				const [depositCoin] = tx.splitCoins(tx.gas, [config.addressBalance]);
-				tx.moveCall({
-					target: '0x2::coin::send_funds',
-					typeArguments: ['0x2::sui::SUI'],
-					arguments: [depositCoin, tx.pure.address(address)],
-				});
-			}
-		}
-
-		const result = await this.grpcClient.core.signAndExecuteTransaction({
-			transaction: tx,
-			signer: this.#funderKeypair!,
 		});
-		if (result.$kind !== 'Transaction') throw new Error('prepareSigners tx failed');
-		await this.grpcClient.core.waitForTransaction({ digest: result.Transaction.digest });
-
-		// Enqueue resolved promises into the pool
-		for (let i = 0; i < configs.length; i++) {
-			const key = TestToolbox.#signerConfigKey(configs[i]);
-			const queue = this.#signerPool.get(key) ?? [];
-			queue.push(Promise.resolve(results[i]));
-			this.#signerPool.set(key, queue);
-		}
-	}
-
-	/**
-	 * Get a funded signer. Pulls from the pre-populated pool if available,
-	 * otherwise creates on demand. After taking, a replacement starts building
-	 * in the background.
-	 */
-	async getSigner(config: SignerConfig): Promise<{ keypair: Ed25519Keypair; address: string }> {
-		const key = TestToolbox.#signerConfigKey(config);
-		const queue = this.#signerPool.get(key) ?? [];
-
-		let signer: { keypair: Ed25519Keypair; address: string };
-		if (queue.length > 0) {
-			signer = await queue.shift()!;
-		} else {
-			signer = await this.#buildSigner(config);
-		}
-
-		// Eagerly replenish
-		this.#enqueueSigner(config);
-
-		return signer;
 	}
 
 	/**
@@ -461,18 +342,34 @@ export function getClient(url = DEFAULT_FULLNODE_URL): SuiJsonRpcClient {
 	});
 }
 
-async function requestAndWaitForFaucet(address: string, client: SuiGrpcClient) {
-	const response = await retry(
-		async () => await requestSuiFromFaucetV2({ host: DEFAULT_FAUCET_URL, recipient: address }),
-		{
-			backoff: 'EXPONENTIAL',
-			timeout: 1000 * 60,
-			retryIf: (error: any) => !(error instanceof FaucetRateLimitError),
-		},
-	);
-	const digest = response.coins_sent?.[0]?.transferTxDigest;
-	if (digest) {
-		await client.core.waitForTransaction({ digest });
+async function requestAndWaitForFaucet(
+	address: string,
+	client: SuiGrpcClient,
+	minBalance?: bigint,
+) {
+	const request = async () => {
+		const response = await retry(
+			async () => await requestSuiFromFaucetV2({ host: DEFAULT_FAUCET_URL, recipient: address }),
+			{
+				backoff: 'EXPONENTIAL',
+				timeout: 1000 * 60,
+				retryIf: (error: any) => !(error instanceof FaucetRateLimitError),
+			},
+		);
+		const digest = response.coins_sent?.[0]?.transferTxDigest;
+		if (digest) {
+			await client.core.waitForTransaction({ digest });
+		}
+	};
+
+	await request();
+
+	if (minBalance) {
+		while (true) {
+			const { balance } = await client.core.getBalance({ owner: address });
+			if (BigInt(balance.balance) >= minBalance) break;
+			await request();
+		}
 	}
 }
 
