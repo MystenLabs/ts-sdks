@@ -2,4 +2,4 @@
 '@mysten/sui': patch
 ---
 
-Add `pollInterval` option to `waitForTransaction` with exponential backoff (starts at 200ms, caps at 2s)
+Improve `waitForTransaction` polling with schedule-based timing tuned to actual indexing latency. Default schedule polls at 0, 300, 600, 1500, 3500ms then every 2s. Add `pollSchedule` option for custom absolute-time schedules.

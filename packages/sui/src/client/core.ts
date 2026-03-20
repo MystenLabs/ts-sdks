@@ -217,7 +217,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 	async waitForTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.WaitForTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		const { signal, timeout = 60 * 1000, pollInterval, include } = options;
+		const { signal, timeout = 60 * 1000, pollSchedule, include } = options;
 
 		const digest =
 			'result' in options && options.result
@@ -236,8 +236,35 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 			// Swallow unhandled rejections that might be thrown after early return
 		});
 
-		let delay = pollInterval ?? 200;
+		// Default schedule tuned to testnet measurements:
+		// - Fullnode (gRPC/JSON-RPC): p50=130ms, p95=330ms
+		// - GraphQL indexer: p50=1300ms, p95=1430ms
+		// After schedule exhausted, repeats the last interval.
+		const schedule = pollSchedule ?? [0, 300, 600, 1500, 3500];
+		const t0 = Date.now();
+		let scheduleIndex = 0;
+		const lastInterval =
+			schedule.length > 0
+				? schedule[schedule.length - 1] - (schedule[schedule.length - 2] ?? 0)
+				: 2_000;
+
 		while (true) {
+			if (scheduleIndex < schedule.length) {
+				const remaining = t0 + schedule[scheduleIndex] - Date.now();
+				scheduleIndex++;
+				if (remaining > 0) {
+					await Promise.race([
+						new Promise((resolve) => setTimeout(resolve, remaining)),
+						abortPromise,
+					]);
+				}
+			} else {
+				await Promise.race([
+					new Promise((resolve) => setTimeout(resolve, lastInterval)),
+					abortPromise,
+				]);
+			}
+
 			abortSignal.throwIfAborted();
 			try {
 				return await this.getTransaction({
@@ -245,13 +272,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 					include,
 					signal: abortSignal,
 				});
-			} catch {
-				await Promise.race([new Promise((resolve) => setTimeout(resolve, delay)), abortPromise]);
-				if (!pollInterval) {
-					// Exponential backoff, capped at 2s
-					delay = Math.min(delay * 2, 2_000);
-				}
-			}
+			} catch {}
 		}
 	}
 
