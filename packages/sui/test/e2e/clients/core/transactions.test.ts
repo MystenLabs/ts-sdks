@@ -38,8 +38,12 @@ describe('Core API - Transactions', () => {
 
 		executedTxDigest = result.digest;
 
-		// Wait for transaction to be indexed
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: executedTxDigest });
+		// Wait for transaction to be indexed on all transports
+		await Promise.all([
+			toolbox.jsonRpcClient.waitForTransaction({ digest: executedTxDigest }),
+			toolbox.grpcClient.core.waitForTransaction({ digest: executedTxDigest }),
+			toolbox.graphqlClient.core.waitForTransaction({ digest: executedTxDigest }),
+		]);
 	});
 
 	describe('getTransaction', () => {

@@ -36,7 +36,7 @@ describe('Core API - Object BCS Serialization', () => {
 
 		await Promise.all([
 			toolbox.jsonRpcClient.core.waitForTransaction({ digest: setupTxDigest }),
-
+			toolbox.grpcClient.core.waitForTransaction({ digest: setupTxDigest }),
 			toolbox.graphqlClient.core.waitForTransaction({ digest: setupTxDigest }),
 		]);
 	});

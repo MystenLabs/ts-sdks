@@ -42,7 +42,11 @@ describe('Core API - Coins', () => {
 			},
 		});
 
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
+		await Promise.all([
+			toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest }),
+			toolbox.grpcClient.core.waitForTransaction({ digest: result.digest }),
+			toolbox.graphqlClient.core.waitForTransaction({ digest: result.digest }),
+		]);
 	});
 
 	describe('getCoins', () => {

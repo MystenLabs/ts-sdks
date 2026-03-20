@@ -37,7 +37,11 @@ describe('Core API - Dynamic Fields', () => {
 		});
 
 		expect(result1.effects?.status.status).toBe('success');
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: result1.digest });
+		await Promise.all([
+			toolbox.jsonRpcClient.waitForTransaction({ digest: result1.digest }),
+			toolbox.grpcClient.core.waitForTransaction({ digest: result1.digest }),
+			toolbox.graphqlClient.core.waitForTransaction({ digest: result1.digest }),
+		]);
 
 		const dfObj = result1.objectChanges?.find(
 			(change) =>
@@ -65,7 +69,11 @@ describe('Core API - Dynamic Fields', () => {
 		});
 
 		expect(result2.effects?.status.status).toBe('success');
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: result2.digest });
+		await Promise.all([
+			toolbox.jsonRpcClient.waitForTransaction({ digest: result2.digest }),
+			toolbox.grpcClient.core.waitForTransaction({ digest: result2.digest }),
+			toolbox.graphqlClient.core.waitForTransaction({ digest: result2.digest }),
+		]);
 
 		const mixedObj = result2.objectChanges?.find(
 			(change) =>

@@ -44,7 +44,11 @@ describe('Core API - Display', () => {
 			options: { showEffects: true, showObjectChanges: true },
 		});
 
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
+		await Promise.all([
+			toolbox.jsonRpcClient.core.waitForTransaction({ digest: result.digest }),
+			toolbox.grpcClient.core.waitForTransaction({ digest: result.digest }),
+			toolbox.graphqlClient.core.waitForTransaction({ digest: result.digest }),
+		]);
 
 		for (const change of result.objectChanges ?? []) {
 			if (change.type !== 'created') continue;
