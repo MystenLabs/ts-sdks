@@ -8,6 +8,5 @@ export default defineConfig({
 	format: 'esm',
 	dts: true,
 	outDir: 'dist',
-	// Bundle all dependencies
-	external: [],
+	unbundle: true,
 });
