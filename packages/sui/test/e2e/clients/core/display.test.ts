@@ -44,11 +44,7 @@ describe('Core API - Display', () => {
 			options: { showEffects: true, showObjectChanges: true },
 		});
 
-		await Promise.all([
-			toolbox.jsonRpcClient.core.waitForTransaction({ digest: result.digest }),
-			toolbox.grpcClient.core.waitForTransaction({ digest: result.digest }),
-			toolbox.graphqlClient.core.waitForTransaction({ digest: result.digest }),
-		]);
+		await toolbox.waitForTransaction(result.digest);
 
 		for (const change of result.objectChanges ?? []) {
 			if (change.type !== 'created') continue;
@@ -213,11 +209,7 @@ describe('Core API - Display', () => {
 			});
 
 			// Wait for all clients to index the new object
-			await Promise.all([
-				toolbox.jsonRpcClient.core.waitForTransaction({ digest: result.digest }),
-				toolbox.grpcClient.core.waitForTransaction({ digest: result.digest }),
-				toolbox.graphqlClient.core.waitForTransaction({ digest: result.digest }),
-			]);
+			await toolbox.waitForTransaction(result.digest);
 
 			for (const change of result.objectChanges ?? []) {
 				if (change.type !== 'created') continue;
@@ -297,11 +289,7 @@ describe('Core API - Display', () => {
 			});
 
 			// Wait for all clients to index the v2 migration
-			await Promise.all([
-				toolbox.jsonRpcClient.core.waitForTransaction({ digest: setupResult.digest }),
-				toolbox.grpcClient.core.waitForTransaction({ digest: setupResult.digest }),
-				toolbox.graphqlClient.core.waitForTransaction({ digest: setupResult.digest }),
-			]);
+			await toolbox.waitForTransaction(setupResult.digest);
 		});
 
 		it('all clients agree after v2 migration', async () => {

@@ -26,24 +26,12 @@ describe('Core API - Transactions', () => {
 		const tx = new Transaction();
 		tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
-		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const result = await toolbox.signAndExecuteTransaction({
 			transaction: tx,
 			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-				showBalanceChanges: true,
-				showObjectChanges: true,
-			},
 		});
 
-		executedTxDigest = result.digest;
-
-		// Wait for transaction to be indexed on all transports
-		await Promise.all([
-			toolbox.jsonRpcClient.waitForTransaction({ digest: executedTxDigest }),
-			toolbox.grpcClient.core.waitForTransaction({ digest: executedTxDigest }),
-			toolbox.graphqlClient.core.waitForTransaction({ digest: executedTxDigest }),
-		]);
+		executedTxDigest = result.Transaction!.digest;
 	});
 
 	describe('getTransaction', () => {

@@ -48,11 +48,7 @@ describe('Core API - Objects', () => {
 		});
 
 		// Wait for the transaction to be indexed on all clients
-		await Promise.all([
-			toolbox.jsonRpcClient.core.waitForTransaction({ digest: result.digest }),
-			toolbox.grpcClient.core.waitForTransaction({ digest: result.digest }),
-			toolbox.graphqlClient.core.waitForTransaction({ digest: result.digest }),
-		]);
+		await toolbox.waitForTransaction(result.digest);
 
 		// Get the first created object ID for individual object tests
 		const createdObject = result.objectChanges?.find(
