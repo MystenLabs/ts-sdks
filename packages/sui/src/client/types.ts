@@ -479,6 +479,7 @@ export namespace SuiClientTypes {
 	}
 
 	export interface ProtocolConfig {
+		protocolVersion: string;
 		featureFlags: Record<string, boolean>;
 		attributes: Record<string, string | null>;
 	}

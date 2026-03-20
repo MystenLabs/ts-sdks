@@ -498,15 +498,25 @@ export class GrpcCoreClient extends CoreClient {
 		});
 
 		const protocolConfig = response.response.epoch?.protocolConfig;
-		const featureFlags: Record<string, boolean> = { ...protocolConfig?.featureFlags };
+		if (!protocolConfig) {
+			throw new Error('Protocol config not found in response');
+		}
+
+		const featureFlags: Record<string, boolean> = { ...protocolConfig.featureFlags };
 		const attributes: Record<string, string | null> = {};
-		if (protocolConfig?.attributes) {
+		if (protocolConfig.attributes) {
 			for (const [key, value] of Object.entries(protocolConfig.attributes)) {
 				attributes[key] = value ?? null;
 			}
 		}
 
-		return { protocolConfig: { featureFlags, attributes } };
+		return {
+			protocolConfig: {
+				protocolVersion: protocolConfig.protocolVersion?.toString() ?? (null as never),
+				featureFlags,
+				attributes,
+			},
+		};
 	}
 
 	async getCurrentSystemState(): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {

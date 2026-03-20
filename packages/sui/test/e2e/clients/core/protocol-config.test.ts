@@ -20,7 +20,7 @@ describe('Core API - Protocol Config', () => {
 				(data) => {
 					// Normalize attributes: filter out null values since some transports
 					// include keys with null values and others omit them entirely
-					const filteredAttributes: Record<string, string> = {};
+					const filteredAttributes: Record<string, string | null> = {};
 					for (const [key, value] of Object.entries(data.protocolConfig.attributes)) {
 						if (value !== null) {
 							filteredAttributes[key] = value;
@@ -28,6 +28,7 @@ describe('Core API - Protocol Config', () => {
 					}
 					return {
 						protocolConfig: {
+							protocolVersion: data.protocolConfig.protocolVersion,
 							featureFlags: data.protocolConfig.featureFlags,
 							attributes: filteredAttributes,
 						},

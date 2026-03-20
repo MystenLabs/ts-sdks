@@ -477,12 +477,14 @@ export class JSONRpcCoreClient extends CoreClient {
 			} else if ('bool' in value) {
 				attributes[key] = value.bool;
 			} else {
-				attributes[key] = JSON.stringify(value);
+				const entries = Object.entries(value);
+				attributes[key] = entries.length === 1 ? String(entries[0][1]) : JSON.stringify(value);
 			}
 		}
 
 		return {
 			protocolConfig: {
+				protocolVersion: result.protocolVersion,
 				featureFlags: { ...result.featureFlags },
 				attributes,
 			},

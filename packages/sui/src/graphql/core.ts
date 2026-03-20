@@ -471,7 +471,13 @@ export class GraphQLCoreClient extends CoreClient {
 			attributes[config.key] = config.value ?? null;
 		}
 
-		return { protocolConfig: { featureFlags, attributes } };
+		return {
+			protocolConfig: {
+				protocolVersion: result?.protocolVersion?.toString() ?? (null as never),
+				featureFlags,
+				attributes,
+			},
+		};
 	}
 
 	async getCurrentSystemState(): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
