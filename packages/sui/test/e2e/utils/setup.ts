@@ -83,7 +83,7 @@ export class TestToolbox {
 	}
 
 	async getGasObjectsOwnedByAddress() {
-		return await this.jsonRpcClient.getCoins({
+		return await this.grpcClient.core.listCoins({
 			owner: this.address(),
 			coinType: SUI_TYPE_ARG,
 		});
@@ -126,6 +126,34 @@ export class TestToolbox {
 		const secretKey = prePublishedPackages?.[packageName]?.publisherSecretKey;
 		if (!secretKey) return undefined;
 		return Ed25519Keypair.fromSecretKey(secretKey);
+	}
+
+	/**
+	 * Wait for a transaction to be indexed by all three clients (JSON-RPC, gRPC, GraphQL).
+	 */
+	async waitForTransaction(digest: string) {
+		await Promise.all([
+			this.jsonRpcClient.core.waitForTransaction({ digest }),
+			this.grpcClient.core.waitForTransaction({ digest }),
+			this.graphqlClient.core.waitForTransaction({ digest }),
+		]);
+	}
+
+	/**
+	 * Execute a transaction using gRPC and wait for it across all three clients.
+	 * Same API as `client.core.signAndExecuteTransaction`.
+	 */
+	async signAndExecuteTransaction<
+		Include extends import('../../../src/client/types.js').SuiClientTypes.TransactionInclude = {},
+	>(
+		options: import('../../../src/client/types.js').SuiClientTypes.SignAndExecuteTransactionOptions<Include>,
+	) {
+		const result = await this.grpcClient.core.signAndExecuteTransaction(options);
+		const digest = (result.Transaction ?? result.FailedTransaction)?.digest;
+		if (digest) {
+			await this.waitForTransaction(digest);
+		}
+		return result;
 	}
 
 	mintNft(name: string = 'Test NFT') {

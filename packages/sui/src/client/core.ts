@@ -217,7 +217,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 	async waitForTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.WaitForTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		const { signal, timeout = 60 * 1000, include } = options;
+		const { signal, timeout = 60 * 1000, pollInterval = 200, include } = options;
 
 		const digest =
 			'result' in options && options.result
@@ -236,6 +236,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 			// Swallow unhandled rejections that might be thrown after early return
 		});
 
+		let delay = pollInterval;
 		while (true) {
 			abortSignal.throwIfAborted();
 			try {
@@ -245,7 +246,9 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 					signal: abortSignal,
 				});
 			} catch {
-				await Promise.race([new Promise((resolve) => setTimeout(resolve, 2_000)), abortPromise]);
+				await Promise.race([new Promise((resolve) => setTimeout(resolve, delay)), abortPromise]);
+				// Exponential backoff, capped at 2s
+				delay = Math.min(delay * 2, 2_000);
 			}
 		}
 	}

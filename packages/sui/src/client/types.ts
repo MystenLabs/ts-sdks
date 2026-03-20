@@ -404,6 +404,7 @@ export namespace SuiClientTypes {
 		Include extends TransactionInclude = {},
 	> extends GetTransactionOptions<Include> {
 		timeout?: number;
+		pollInterval?: number;
 		result?: never;
 	}
 
@@ -413,6 +414,7 @@ export namespace SuiClientTypes {
 		result: TransactionResult<any>;
 		include?: Include & TransactionInclude;
 		timeout?: number;
+		pollInterval?: number;
 		digest?: never;
 	}
 
