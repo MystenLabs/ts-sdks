@@ -61,7 +61,6 @@ describe('Balance Withdrawal', () => {
 			options: { showEffects: true, showBalanceChanges: true },
 		});
 
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: withdrawResult.digest });
 		expect(withdrawResult.effects?.status.status).toEqual('success');
 	});
 
@@ -142,7 +141,6 @@ describe('Balance Withdrawal', () => {
 			options: { showEffects: true, showBalanceChanges: true },
 		});
 
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
 		expect(result.effects?.status.status).toEqual('success');
 	});
 
@@ -203,7 +201,6 @@ describe('Balance Withdrawal', () => {
 			options: { showEffects: true, showBalanceChanges: true },
 		});
 
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
 		expect(result.effects?.status.status).toEqual('success');
 
 		// Verify expiration was automatically set

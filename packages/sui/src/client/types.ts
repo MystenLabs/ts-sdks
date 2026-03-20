@@ -404,6 +404,8 @@ export namespace SuiClientTypes {
 		Include extends TransactionInclude = {},
 	> extends GetTransactionOptions<Include> {
 		timeout?: number;
+		/** Absolute times (ms from start) to poll, e.g. [0, 300, 600, 1500]. After exhausted, repeats the last interval. */
+		pollSchedule?: number[];
 		result?: never;
 	}
 
@@ -413,6 +415,8 @@ export namespace SuiClientTypes {
 		result: TransactionResult<any>;
 		include?: Include & TransactionInclude;
 		timeout?: number;
+		/** Absolute times (ms from start) to poll, e.g. [0, 300, 600, 1500]. After exhausted, repeats the last interval. */
+		pollSchedule?: number[];
 		digest?: never;
 	}
 

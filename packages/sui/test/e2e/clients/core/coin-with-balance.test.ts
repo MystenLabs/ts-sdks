@@ -17,6 +17,7 @@ describe('coinWithBalance', () => {
 	let packageId: string;
 	let testType: string;
 	let testTypeZero: string;
+	let treasuryCapId: string;
 
 	const testWithAllClients = createTestWithAllClients(() => toolbox);
 
@@ -27,7 +28,7 @@ describe('coinWithBalance', () => {
 		testTypeZero = normalizeSuiAddress(packageId) + '::test_zero::TEST_ZERO';
 
 		// Get the TreasuryCap shared object to mint TEST coins
-		const treasuryCapId = publishToolbox.getSharedObject('test_data', 'TreasuryCap<TEST>');
+		treasuryCapId = publishToolbox.getSharedObject('test_data', 'TreasuryCap<TEST>')!;
 		if (!treasuryCapId) {
 			throw new Error('TreasuryCap not found in pre-published package');
 		}
@@ -43,14 +44,33 @@ describe('coinWithBalance', () => {
 			],
 		});
 
-		const result = await publishToolbox.grpcClient.signAndExecuteTransaction({
+		await publishToolbox.signAndExecuteTransaction({
 			transaction: mintTx,
 			signer: publishToolbox.keypair,
 		});
-		await publishToolbox.grpcClient.waitForTransaction({ result });
 	});
 
+	/** Get a fresh funded signer with SUI and TEST coins for isolated test runs. */
+	async function getFundedTestSigner(amount: number = 10) {
+		const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
+		const mintTx = new Transaction();
+		mintTx.moveCall({
+			target: `${packageId}::test::mint`,
+			arguments: [
+				mintTx.object(treasuryCapId),
+				mintTx.pure.u64(amount),
+				mintTx.pure.address(address),
+			],
+		});
+		await publishToolbox.signAndExecuteTransaction({
+			transaction: mintTx,
+			signer: publishToolbox.keypair,
+		});
+		return { keypair, address };
+	}
+
 	testWithAllClients('works with sui', async (client) => {
+		const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 		const tx = new Transaction();
 		const receiver = new Ed25519Keypair();
 
@@ -63,7 +83,7 @@ describe('coinWithBalance', () => {
 			],
 			receiver.toSuiAddress(),
 		);
-		tx.setSender(publishToolbox.keypair.toSuiAddress());
+		tx.setSender(address);
 
 		expect(
 			JSON.parse(
@@ -86,7 +106,7 @@ describe('coinWithBalance', () => {
 					},
 				},
 			],
-			sender: publishToolbox.keypair.toSuiAddress(),
+			sender: address,
 			commands: [
 				{
 					$Intent: {
@@ -141,7 +161,7 @@ describe('coinWithBalance', () => {
 					},
 				},
 			],
-			sender: publishToolbox.keypair.toSuiAddress(),
+			sender: address,
 			commands: [
 				{
 					SplitCoins: {
@@ -173,13 +193,16 @@ describe('coinWithBalance', () => {
 
 		const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
 			transaction: tx,
-			signer: publishToolbox.keypair,
+			signer: keypair,
 		});
 
-		const result = await toolbox.jsonRpcClient.waitForTransaction({
-			digest,
-			options: { showEffects: true, showBalanceChanges: true },
-		});
+		const [result] = await Promise.all([
+			toolbox.jsonRpcClient.waitForTransaction({
+				digest,
+				options: { showEffects: true, showBalanceChanges: true },
+			}),
+			toolbox.waitForTransaction({ digest }),
+		]);
 
 		expect(result.effects?.status.status).toBe('success');
 		expect(
@@ -199,6 +222,7 @@ describe('coinWithBalance', () => {
 	});
 
 	testWithAllClients('works with custom coin', async (client) => {
+		const { keypair, address } = await getFundedTestSigner(10);
 		const tx = new Transaction();
 		const receiver = new Ed25519Keypair();
 
@@ -211,7 +235,7 @@ describe('coinWithBalance', () => {
 			],
 			receiver.toSuiAddress(),
 		);
-		tx.setSender(publishToolbox.keypair.toSuiAddress());
+		tx.setSender(address);
 
 		expect(
 			JSON.parse(
@@ -234,7 +258,7 @@ describe('coinWithBalance', () => {
 					},
 				},
 			],
-			sender: publishToolbox.keypair.toSuiAddress(),
+			sender: address,
 			commands: [
 				{
 					$Intent: {
@@ -294,7 +318,7 @@ describe('coinWithBalance', () => {
 					},
 				},
 			],
-			sender: publishToolbox.keypair.toSuiAddress(),
+			sender: address,
 			commands: [
 				{
 					SplitCoins: {
@@ -322,15 +346,11 @@ describe('coinWithBalance', () => {
 
 		const result = await client.core.signAndExecuteTransaction({
 			transaction: tx,
-			signer: publishToolbox.keypair,
+			signer: keypair,
 			include: {
 				effects: true,
 				balanceChanges: true,
 			},
-		});
-
-		await client.core.waitForTransaction({
-			result,
 		});
 
 		expect(result.Transaction?.status.success).toBe(true);
@@ -346,6 +366,7 @@ describe('coinWithBalance', () => {
 	});
 
 	testWithAllClients('works with zero balance coin', async (client) => {
+		const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 		const tx = new Transaction();
 		const receiver = new Ed25519Keypair();
 
@@ -361,7 +382,7 @@ describe('coinWithBalance', () => {
 			],
 			receiver.toSuiAddress(),
 		);
-		tx.setSender(publishToolbox.keypair.toSuiAddress());
+		tx.setSender(address);
 
 		expect(
 			JSON.parse(
@@ -384,7 +405,7 @@ describe('coinWithBalance', () => {
 					},
 				},
 			],
-			sender: publishToolbox.keypair.toSuiAddress(),
+			sender: address,
 			commands: [
 				{
 					$Intent: {
@@ -429,7 +450,7 @@ describe('coinWithBalance', () => {
 			JSON.parse(
 				await tx.toJSON({
 					supportedIntents: [],
-					client: publishToolbox.jsonRpcClient,
+					client,
 				}),
 			),
 		).toEqual({
@@ -447,7 +468,7 @@ describe('coinWithBalance', () => {
 					},
 				},
 			],
-			sender: publishToolbox.keypair.toSuiAddress(),
+			sender: address,
 			commands: [
 				{
 					MoveCall: {
@@ -483,16 +504,12 @@ describe('coinWithBalance', () => {
 
 		const result = await client.core.signAndExecuteTransaction({
 			transaction: tx,
-			signer: publishToolbox.keypair,
+			signer: keypair,
 			include: {
 				effects: true,
 				balanceChanges: true,
 				objectTypes: true,
 			},
-		});
-
-		await client.core.waitForTransaction({
-			result,
 		});
 
 		expect(result.Transaction?.status.success).toBe(true);
@@ -516,6 +533,7 @@ describe('coinWithBalance', () => {
 	});
 
 	testWithAllClients('works with multiple coins', async (client) => {
+		const { keypair, address } = await getFundedTestSigner(10);
 		const tx = new Transaction();
 		const receiver = new Ed25519Keypair();
 
@@ -530,7 +548,7 @@ describe('coinWithBalance', () => {
 			receiver.toSuiAddress(),
 		);
 
-		tx.setSender(publishToolbox.keypair.toSuiAddress());
+		tx.setSender(address);
 
 		expect(
 			JSON.parse(
@@ -553,7 +571,7 @@ describe('coinWithBalance', () => {
 					},
 				},
 			],
-			sender: publishToolbox.keypair.toSuiAddress(),
+			sender: address,
 			commands: [
 				{
 					$Intent: {
@@ -637,7 +655,7 @@ describe('coinWithBalance', () => {
 			JSON.parse(
 				await tx.toJSON({
 					supportedIntents: [],
-					client: publishToolbox.jsonRpcClient,
+					client,
 				}),
 			),
 		).toEqual({
@@ -680,7 +698,7 @@ describe('coinWithBalance', () => {
 					},
 				},
 			],
-			sender: publishToolbox.keypair.toSuiAddress(),
+			sender: address,
 			commands: [
 				{
 					SplitCoins: {
@@ -759,16 +777,12 @@ describe('coinWithBalance', () => {
 
 		const result = await client.core.signAndExecuteTransaction({
 			transaction: tx,
-			signer: publishToolbox.keypair,
+			signer: keypair,
 			include: {
 				effects: true,
 				balanceChanges: true,
 				objectTypes: true,
 			},
-		});
-
-		await client.core.waitForTransaction({
-			result,
 		});
 
 		expect(result.Transaction?.status.success).toBe(true);

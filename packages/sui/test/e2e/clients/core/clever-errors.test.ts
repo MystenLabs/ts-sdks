@@ -29,6 +29,7 @@ describe('Core API - Clever Errors', () => {
 		testWithAllClients(
 			'should return MoveAbort with location info via simulation',
 			async (client, kind) => {
+				const { address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				const tx = new Transaction();
 				tx.moveCall({
 					target: `${packageId}::test_objects::abort_with_clever_error`,
@@ -36,13 +37,13 @@ describe('Core API - Clever Errors', () => {
 				});
 
 				// Manually configure gas to bypass resolution failures
-				tx.setSender(testAddress);
-				tx.setGasOwner(testAddress);
+				tx.setSender(address);
+				tx.setGasOwner(address);
 				tx.setGasBudget(50_000_000);
 				tx.setGasPrice(1000);
 
 				const coins = await toolbox.jsonRpcClient.getCoins({
-					owner: testAddress,
+					owner: address,
 					coinType: SUI_TYPE_ARG,
 				});
 				tx.setGasPayment([
@@ -90,6 +91,7 @@ describe('Core API - Clever Errors', () => {
 		testWithAllClients(
 			'executed transaction should return MoveAbort with location info',
 			async (client, kind) => {
+				const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				const tx = new Transaction();
 				tx.moveCall({
 					target: `${packageId}::test_objects::abort_with_clever_error`,
@@ -97,13 +99,14 @@ describe('Core API - Clever Errors', () => {
 				});
 
 				// Manually configure gas to bypass resolution failures
-				tx.setSender(testAddress);
-				tx.setGasOwner(testAddress);
+				tx.setSender(address);
+				tx.setGasOwner(address);
 				tx.setGasBudget(50_000_000);
 				tx.setGasPrice(1000);
 
+				// Use jsonRpcClient for building to avoid gRPC/GraphQL simulation catching the abort
 				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-				const signature = await toolbox.keypair.signTransaction(bytes);
+				const signature = await keypair.signTransaction(bytes);
 
 				const result = await client.core.executeTransaction({
 					transaction: bytes,
@@ -147,6 +150,7 @@ describe('Core API - Clever Errors', () => {
 		testWithAllClients(
 			'should include location info in error message for aborting transaction',
 			async (client, kind) => {
+				const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				const tx = new Transaction();
 				tx.moveCall({
 					target: `${packageId}::test_objects::abort_with_clever_error`,
@@ -154,13 +158,13 @@ describe('Core API - Clever Errors', () => {
 				});
 
 				// Manually configure gas to bypass resolution failures (transaction will abort)
-				tx.setSender(testAddress);
-				tx.setGasOwner(testAddress);
+				tx.setSender(address);
+				tx.setGasOwner(address);
 				tx.setGasBudget(50_000_000);
 				tx.setGasPrice(1000);
 
 				const coins = await toolbox.jsonRpcClient.getCoins({
-					owner: testAddress,
+					owner: address,
 					coinType: SUI_TYPE_ARG,
 				});
 				tx.setGasPayment([
@@ -173,7 +177,7 @@ describe('Core API - Clever Errors', () => {
 
 				// Build (no resolution needed) and sign the transaction
 				const bytes = await tx.build({});
-				const signature = await toolbox.keypair.signTransaction(bytes);
+				const signature = await keypair.signTransaction(bytes);
 
 				// Execute the transaction - should return FailedTransaction
 				const result = await client.core.executeTransaction({
@@ -209,6 +213,7 @@ describe('Core API - Clever Errors', () => {
 		testWithAllClients(
 			'raw abort should not have cleverError.constantName',
 			async (client, _kind) => {
+				const { address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				const tx = new Transaction();
 				tx.moveCall({
 					target: `${packageId}::test_objects::abort_always`,
@@ -216,13 +221,13 @@ describe('Core API - Clever Errors', () => {
 				});
 
 				// Manually configure gas to bypass resolution failures
-				tx.setSender(testAddress);
-				tx.setGasOwner(testAddress);
+				tx.setSender(address);
+				tx.setGasOwner(address);
 				tx.setGasBudget(50_000_000);
 				tx.setGasPrice(1000);
 
 				const coins = await toolbox.jsonRpcClient.getCoins({
-					owner: testAddress,
+					owner: address,
 					coinType: SUI_TYPE_ARG,
 				});
 				tx.setGasPayment([
@@ -400,6 +405,7 @@ describe('Core API - Clever Errors', () => {
 		testWithAllClients(
 			'signAndExecuteTransaction should throw SimulationError with structured error data',
 			async (client, kind) => {
+				const { keypair } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				const tx = new Transaction();
 				tx.moveCall({
 					target: `${packageId}::test_objects::abort_with_clever_error`,
@@ -414,7 +420,7 @@ describe('Core API - Clever Errors', () => {
 				const executeError = await client.core
 					.signAndExecuteTransaction({
 						transaction: tx,
-						signer: toolbox.keypair,
+						signer: keypair,
 					})
 					.catch((e) => e);
 

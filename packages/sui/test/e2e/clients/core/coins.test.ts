@@ -34,15 +34,10 @@ describe('Core API - Coins', () => {
 		});
 		tx.transferObjects([coin], tx.pure.address(testAddress));
 
-		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		await toolbox.signAndExecuteTransaction({
 			transaction: tx,
 			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-			},
 		});
-
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
 	});
 
 	describe('getCoins', () => {

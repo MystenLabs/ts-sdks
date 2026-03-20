@@ -26,20 +26,17 @@ describe('Core API - Transactions', () => {
 		const tx = new Transaction();
 		tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
-		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const result = await toolbox.signAndExecuteTransaction({
 			transaction: tx,
 			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-				showBalanceChanges: true,
-				showObjectChanges: true,
-			},
 		});
 
-		executedTxDigest = result.digest;
-
-		// Wait for transaction to be indexed
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: executedTxDigest });
+		if (result.$kind !== 'Transaction') {
+			throw new Error(
+				`Setup tx failed: ${result.FailedTransaction.status.error?.message ?? 'unknown error'}`,
+			);
+		}
+		executedTxDigest = result.Transaction.digest;
 	});
 
 	describe('getTransaction', () => {
@@ -107,13 +104,14 @@ describe('Core API - Transactions', () => {
 
 	describe('executeTransaction', () => {
 		testWithAllClients('should execute a valid transaction', async (client) => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 			const tx = new Transaction();
-			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(address));
 
 			// Build and sign the transaction
-			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-			const signature = await toolbox.keypair.signTransaction(bytes);
+			tx.setSender(address);
+			const bytes = await tx.build({ client });
+			const signature = await keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
 				transaction: bytes,
@@ -127,18 +125,16 @@ describe('Core API - Transactions', () => {
 			if (result.Transaction!.effects && 'success' in result.Transaction!.effects.status) {
 				expect(result.Transaction!.effects.status.success).toBe(true);
 			}
-
-			// Wait for transaction to be indexed to avoid races with subsequent tests
-			await client.core.waitForTransaction({ result });
 		});
 
 		testWithAllClients('should execute transaction and return balance changes', async (client) => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 			const tx = new Transaction();
-			tx.transferObjects([tx.splitCoins(tx.gas, [500])], tx.pure.address(testAddress));
+			tx.transferObjects([tx.splitCoins(tx.gas, [500])], tx.pure.address(address));
 
-			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-			const signature = await toolbox.keypair.signTransaction(bytes);
+			tx.setSender(address);
+			const bytes = await tx.build({ client });
+			const signature = await keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
 				transaction: bytes,
@@ -151,9 +147,6 @@ describe('Core API - Transactions', () => {
 			expect(Array.isArray(result.Transaction!.balanceChanges)).toBe(true);
 			expect(result.Transaction!.effects?.changedObjects).toBeDefined();
 			expect(Array.isArray(result.Transaction!.effects?.changedObjects)).toBe(true);
-
-			// Wait for transaction to be indexed to avoid races with subsequent tests
-			await client.core.waitForTransaction({ result });
 		});
 
 		testWithAllClients('should fail for invalid signature', async (client) => {
@@ -176,14 +169,16 @@ describe('Core API - Transactions', () => {
 		});
 
 		testWithAllClients('should fail for insufficient gas', async (client) => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 			// Create a transaction with gas budget higher than what we have
 			const tx = new Transaction();
 			tx.setGasBudget(999999999999999);
-			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(address));
 
-			tx.setSender(testAddress);
+			tx.setSender(address);
+			// Use jsonRpcClient for building to avoid gRPC/GraphQL gas selection rejecting during build
 			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-			const signature = await toolbox.keypair.signTransaction(bytes);
+			const signature = await keypair.signTransaction(bytes);
 
 			await expect(
 				client.core.executeTransaction({
@@ -366,13 +361,14 @@ describe('Core API - Transactions', () => {
 
 	describe('waitForTransaction', () => {
 		testWithAllClients('should wait for executed transaction', async (client) => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 			// Execute a transaction
 			const tx = new Transaction();
-			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(address));
 
-			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-			const signature = await toolbox.keypair.signTransaction(bytes);
+			tx.setSender(address);
+			const bytes = await tx.build({ client });
+			const signature = await keypair.signTransaction(bytes);
 
 			const executeResult = await client.core.executeTransaction({
 				transaction: bytes,
@@ -394,12 +390,13 @@ describe('Core API - Transactions', () => {
 		});
 
 		testWithAllClients('should wait for transaction and return balance changes', async (client) => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 			const tx = new Transaction();
-			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(address));
 
-			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-			const signature = await toolbox.keypair.signTransaction(bytes);
+			tx.setSender(address);
+			const bytes = await tx.build({ client });
+			const signature = await keypair.signTransaction(bytes);
 
 			const executeResult = await client.core.executeTransaction({
 				transaction: bytes,
@@ -461,6 +458,7 @@ describe('Core API - Transactions', () => {
 
 	describe('events', () => {
 		testWithAllClients('should return events for transaction that emits events', async (client) => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 			// Call a function that emits events
 			const tx = new Transaction();
 			tx.moveCall({
@@ -468,17 +466,15 @@ describe('Core API - Transactions', () => {
 				arguments: [tx.pure.u64(42)],
 			});
 
-			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-			const signature = await toolbox.keypair.signTransaction(bytes);
+			tx.setSender(address);
+			const bytes = await tx.build({ client });
+			const signature = await keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
 				transaction: bytes,
 				signatures: [signature.signature],
 				include: { events: true },
 			});
-			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({ result });
 
 			// Verify events field exists
 			expect(result.Transaction!.events).toBeDefined();
@@ -489,7 +485,7 @@ describe('Core API - Transactions', () => {
 			const event = result.Transaction!.events?.[0];
 			expect(event?.packageId).toBe(packageId);
 			expect(event?.module).toBe('test_objects');
-			expect(event?.sender).toBe(testAddress);
+			expect(event?.sender).toBe(address);
 			expect(event?.eventType).toContain('ObjectCreated');
 			expect(event?.bcs).toBeInstanceOf(Uint8Array);
 
@@ -503,22 +499,20 @@ describe('Core API - Transactions', () => {
 		testWithAllClients(
 			'should return empty events array for transactions without events',
 			async (client) => {
+				const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				// Simple transfer without events
 				const tx = new Transaction();
-				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(address));
 
-				tx.setSender(testAddress);
-				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-				const signature = await toolbox.keypair.signTransaction(bytes);
+				tx.setSender(address);
+				const bytes = await tx.build({ client });
+				const signature = await keypair.signTransaction(bytes);
 
 				const result = await client.core.executeTransaction({
 					transaction: bytes,
 					signatures: [signature.signature],
 					include: { events: true },
 				});
-
-				// Wait for transaction to be indexed
-				await client.core.waitForTransaction({ result });
 
 				expect(result.Transaction!.events).toBeDefined();
 				expect(Array.isArray(result.Transaction!.events)).toBe(true);
@@ -527,6 +521,7 @@ describe('Core API - Transactions', () => {
 		);
 
 		testWithAllClients('should include events in getTransaction response', async (client) => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 			// Execute a transaction with events
 			const tx = new Transaction();
 			tx.moveCall({
@@ -534,9 +529,9 @@ describe('Core API - Transactions', () => {
 				arguments: [tx.pure.u64(123)],
 			});
 
-			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-			const signature = await toolbox.keypair.signTransaction(bytes);
+			tx.setSender(address);
+			const bytes = await tx.build({ client });
+			const signature = await keypair.signTransaction(bytes);
 
 			const executeResult = await client.core.executeTransaction({
 				transaction: bytes,
@@ -754,21 +749,19 @@ describe('Core API - Transactions', () => {
 
 	describe('executeTransaction - Include Options', () => {
 		testWithAllClients('should work with no includes', async (client) => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 			const tx = new Transaction();
-			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(address));
 
-			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-			const signature = await toolbox.keypair.signTransaction(bytes);
+			tx.setSender(address);
+			const bytes = await tx.build({ client });
+			const signature = await keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
 				transaction: bytes,
 				signatures: [signature.signature],
 				include: {},
 			});
-
-			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({ result });
 
 			expect(result.Transaction!.digest).toBeDefined();
 
@@ -787,20 +780,18 @@ describe('Core API - Transactions', () => {
 		testWithAllClients(
 			'should always return status even without include options',
 			async (client) => {
+				const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				const tx = new Transaction();
-				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(address));
 
-				tx.setSender(testAddress);
-				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-				const signature = await toolbox.keypair.signTransaction(bytes);
+				tx.setSender(address);
+				const bytes = await tx.build({ client });
+				const signature = await keypair.signTransaction(bytes);
 
 				const result = await client.core.executeTransaction({
 					transaction: bytes,
 					signatures: [signature.signature],
 				});
-
-				// Wait for transaction to be indexed
-				await client.core.waitForTransaction({ result });
 
 				// Status should always be present
 				expect(result.Transaction!.status).toBeDefined();
@@ -810,12 +801,13 @@ describe('Core API - Transactions', () => {
 		);
 
 		testWithAllClients('should include transaction when requested', async (client) => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 			const tx = new Transaction();
-			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(address));
 
-			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-			const signature = await toolbox.keypair.signTransaction(bytes);
+			tx.setSender(address);
+			const bytes = await tx.build({ client });
+			const signature = await keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
 				transaction: bytes,
@@ -823,23 +815,21 @@ describe('Core API - Transactions', () => {
 				include: { transaction: true },
 			});
 
-			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({ result });
-
 			expect(result.Transaction!.transaction).toBeDefined();
-			expect(result.Transaction!.transaction?.sender).toBe(testAddress);
+			expect(result.Transaction!.transaction?.sender).toBe(address);
 			expect(result.Transaction!.balanceChanges).toBeUndefined();
 			expect(result.Transaction!.events).toBeUndefined();
 			expect(result.Transaction!.effects).toBeUndefined();
 		});
 
 		testWithAllClients('should include all fields when all includes requested', async (client) => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 			const tx = new Transaction();
-			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(address));
 
-			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-			const signature = await toolbox.keypair.signTransaction(bytes);
+			tx.setSender(address);
+			const bytes = await tx.build({ client });
+			const signature = await keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
 				transaction: bytes,
@@ -852,8 +842,6 @@ describe('Core API - Transactions', () => {
 					objectTypes: true,
 				},
 			});
-			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({ result });
 
 			expect(result.Transaction!.transaction).toBeDefined();
 			expect(result.Transaction!.effects).toBeDefined();
@@ -865,21 +853,19 @@ describe('Core API - Transactions', () => {
 		});
 
 		testWithAllClients('should include bcs when requested', async (client) => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 			const tx = new Transaction();
-			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(address));
 
-			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-			const signature = await toolbox.keypair.signTransaction(bytes);
+			tx.setSender(address);
+			const bytes = await tx.build({ client });
+			const signature = await keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
 				transaction: bytes,
 				signatures: [signature.signature],
 				include: { bcs: true },
 			});
-
-			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({ result });
 
 			expect(result.Transaction!.digest).toBeDefined();
 			expect(result.Transaction!.bcs).toBeDefined();
@@ -1198,25 +1184,23 @@ describe('Core API - Transactions', () => {
 		testWithAllClients(
 			'should return object types for created objects in executeTransaction',
 			async (client) => {
+				const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				const tx = new Transaction();
 				const [bear] = tx.moveCall({
 					target: `${packageId}::demo_bear::new`,
 					arguments: [tx.pure.string('Test Bear')],
 				});
-				tx.transferObjects([bear], tx.pure.address(testAddress));
+				tx.transferObjects([bear], tx.pure.address(address));
 
-				tx.setSender(testAddress);
-				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-				const signature = await toolbox.keypair.signTransaction(bytes);
+				tx.setSender(address);
+				const bytes = await tx.build({ client });
+				const signature = await keypair.signTransaction(bytes);
 
 				const result = await client.core.executeTransaction({
 					transaction: bytes,
 					signatures: [signature.signature],
 					include: { objectTypes: true, effects: true },
 				});
-
-				// Wait for transaction to be indexed
-				await client.core.waitForTransaction({ result });
 
 				expect(result.Transaction).toBeDefined();
 				const objectTypes = result.Transaction!.objectTypes;
@@ -1235,17 +1219,18 @@ describe('Core API - Transactions', () => {
 		testWithAllClients(
 			'should return object types for created objects in getTransaction',
 			async (client) => {
+				const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				// First execute a transaction that creates an object
 				const tx = new Transaction();
 				const [bear] = tx.moveCall({
 					target: `${packageId}::demo_bear::new`,
 					arguments: [tx.pure.string('Test Bear for Get')],
 				});
-				tx.transferObjects([bear], tx.pure.address(testAddress));
+				tx.transferObjects([bear], tx.pure.address(address));
 
-				tx.setSender(testAddress);
-				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-				const signature = await toolbox.keypair.signTransaction(bytes);
+				tx.setSender(address);
+				const bytes = await tx.build({ client });
+				const signature = await keypair.signTransaction(bytes);
 
 				const executeResult = await client.core.executeTransaction({
 					transaction: bytes,
@@ -1310,22 +1295,20 @@ describe('Core API - Transactions', () => {
 		);
 
 		testWithAllClients('should return object types for coin operations', async (client) => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 			const tx = new Transaction();
 			const [coin] = tx.splitCoins(tx.gas, [1000]);
-			tx.transferObjects([coin], tx.pure.address(testAddress));
+			tx.transferObjects([coin], tx.pure.address(address));
 
-			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-			const signature = await toolbox.keypair.signTransaction(bytes);
+			tx.setSender(address);
+			const bytes = await tx.build({ client });
+			const signature = await keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
 				transaction: bytes,
 				signatures: [signature.signature],
 				include: { objectTypes: true, effects: true },
 			});
-
-			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({ result });
 
 			expect(result.Transaction).toBeDefined();
 			const objectTypes = result.Transaction!.objectTypes;
@@ -1340,25 +1323,23 @@ describe('Core API - Transactions', () => {
 		});
 
 		testWithAllClients('objectTypes map should have object IDs as keys', async (client) => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 			const tx = new Transaction();
 			const [bear] = tx.moveCall({
 				target: `${packageId}::demo_bear::new`,
 				arguments: [tx.pure.string('Test Bear Keys')],
 			});
-			tx.transferObjects([bear], tx.pure.address(testAddress));
+			tx.transferObjects([bear], tx.pure.address(address));
 
-			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-			const signature = await toolbox.keypair.signTransaction(bytes);
+			tx.setSender(address);
+			const bytes = await tx.build({ client });
+			const signature = await keypair.signTransaction(bytes);
 
 			const result = await client.core.executeTransaction({
 				transaction: bytes,
 				signatures: [signature.signature],
 				include: { objectTypes: true, effects: true },
 			});
-
-			// Wait for transaction to be indexed
-			await client.core.waitForTransaction({ result });
 
 			const objectTypes = result.Transaction!.objectTypes;
 			expect(objectTypes).toBeDefined();
@@ -1381,6 +1362,7 @@ describe('Core API - Transactions', () => {
 		testWithAllClients(
 			'executeTransaction should return FailedTransaction for execution failures',
 			async (client) => {
+				const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				// Create a transaction that calls a function that aborts
 				// We need to fully resolve it to avoid the budget calculation failing
 				const tx = new Transaction();
@@ -1390,13 +1372,14 @@ describe('Core API - Transactions', () => {
 				});
 
 				// Manually configure gas to bypass the resolution that fails on abort
-				tx.setSender(testAddress);
-				tx.setGasOwner(testAddress);
+				tx.setSender(address);
+				tx.setGasOwner(address);
 				tx.setGasBudget(50_000_000);
 				tx.setGasPrice(1000);
 
+				// Use jsonRpcClient for building to avoid gRPC/GraphQL simulation catching the abort
 				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
-				const signature = await toolbox.keypair.signTransaction(bytes);
+				const signature = await keypair.signTransaction(bytes);
 
 				const result = await client.core.executeTransaction({
 					transaction: bytes,

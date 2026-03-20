@@ -47,10 +47,8 @@ describe('Core API - Objects', () => {
 			},
 		});
 
-		// Wait for the transaction to be indexed
-		await toolbox.jsonRpcClient.waitForTransaction({
-			digest: result.digest,
-		});
+		// Wait for the transaction to be indexed on all clients
+		await toolbox.waitForTransaction({ digest: result.digest });
 
 		// Get the first created object ID for individual object tests
 		const createdObject = result.objectChanges?.find(

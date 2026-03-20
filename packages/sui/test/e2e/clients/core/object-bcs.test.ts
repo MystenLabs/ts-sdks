@@ -34,11 +34,7 @@ describe('Core API - Object BCS Serialization', () => {
 		expect(createdCoin).toBeDefined();
 		testObjectId = (createdCoin as { objectId: string }).objectId;
 
-		await Promise.all([
-			toolbox.jsonRpcClient.core.waitForTransaction({ digest: setupTxDigest }),
-
-			toolbox.graphqlClient.core.waitForTransaction({ digest: setupTxDigest }),
-		]);
+		await toolbox.waitForTransaction({ digest: setupTxDigest });
 	});
 
 	describe('Cross-client consistency', () => {

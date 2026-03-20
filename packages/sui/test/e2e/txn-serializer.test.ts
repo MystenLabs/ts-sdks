@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '@mysten/bcs';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { Transaction } from '../../src/transactions/index.js';
 import { TransactionDataBuilder } from '../../src/transactions/TransactionData.js';
@@ -14,13 +14,9 @@ let packageId: string;
 let sharedObjectId: string;
 
 beforeAll(async () => {
-	const initToolbox = await setup();
-	packageId = await initToolbox.getPackage('test_data');
-	sharedObjectId = initToolbox.getSharedObject('test_data', 'MutableShared')!;
-});
-
-beforeEach(async () => {
 	toolbox = await setup();
+	packageId = await toolbox.getPackage('test_data');
+	sharedObjectId = toolbox.getSharedObject('test_data', 'MutableShared')!;
 });
 
 describe('Transaction bcs Serialization and deserialization', () => {

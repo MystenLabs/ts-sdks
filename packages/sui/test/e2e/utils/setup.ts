@@ -26,6 +26,8 @@ import { Ed25519Keypair } from '../../../src/keypairs/ed25519/index.js';
 import { Transaction, UpgradePolicy } from '../../../src/transactions/index.js';
 import { SUI_TYPE_ARG, normalizeSuiAddress } from '../../../src/utils/index.js';
 import type { ClientWithCoreApi } from '../../../src/client/core.js';
+import type { SuiClientTypes } from '../../../src/client/types.js';
+import { SerialQueue } from '../../../src/transactions/executor/queue.js';
 import type { PrePublishedPackage } from './prePublish.js';
 
 const DEFAULT_FAUCET_URL = import.meta.env.FAUCET_URL ?? getFaucetHost('localnet');
@@ -43,6 +45,11 @@ export const DEFAULT_SEND_AMOUNT = 1000;
 const prePublishedPackages = inject('prePublishedPackages') as
 	| Record<string, PrePublishedPackage>
 	| undefined;
+
+export interface SignerConfig {
+	coins?: bigint[];
+	addressBalance?: bigint;
+}
 
 export class TestToolbox {
 	keypair: Ed25519Keypair;
@@ -123,6 +130,33 @@ export class TestToolbox {
 		return Ed25519Keypair.fromSecretKey(secretKey);
 	}
 
+	/**
+	 * Wait for a transaction to be indexed by all three clients (JSON-RPC, gRPC, GraphQL).
+	 * Same API as `client.core.waitForTransaction`.
+	 */
+	async waitForTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+		options: SuiClientTypes.WaitForTransactionOptions<Include>,
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
+		const [result] = await Promise.all([
+			this.grpcClient.core.waitForTransaction(options),
+			this.jsonRpcClient.core.waitForTransaction(options),
+			this.graphqlClient.core.waitForTransaction(options),
+		]);
+		return result;
+	}
+
+	/**
+	 * Execute a transaction using gRPC and wait for it across all three clients.
+	 * Same API as `client.core.signAndExecuteTransaction`.
+	 */
+	async signAndExecuteTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+		options: SuiClientTypes.SignAndExecuteTransactionOptions<Include>,
+	) {
+		const result = await this.grpcClient.core.signAndExecuteTransaction(options);
+		await this.waitForTransaction({ result });
+		return result;
+	}
+
 	mintNft(name: string = 'Test NFT') {
 		const packageId = this.getPackage('test_data');
 		return (tx: Transaction) => {
@@ -131,6 +165,65 @@ export class TestToolbox {
 				arguments: [tx.pure.string(name)],
 			});
 		};
+	}
+
+	/**
+	 * Get a funded signer with specific coin and address balance amounts.
+	 *
+	 * @example
+	 * const { keypair, address } = await toolbox.getSigner({
+	 *   coins: [200_000_000n], addressBalance: 50_000_000n,
+	 * });
+	 */
+	#funderKeypair?: Ed25519Keypair;
+	#funderQueue = new SerialQueue();
+
+	async getSigner(config: SignerConfig): Promise<{ keypair: Ed25519Keypair; address: string }> {
+		return this.#funderQueue.runTask(async () => {
+			if (!this.#funderKeypair) {
+				this.#funderKeypair = Ed25519Keypair.generate();
+			}
+
+			const totalNeeded =
+				(config.coins ?? []).reduce((a, b) => a + b, 0n) +
+				(config.addressBalance ?? 0n) +
+				100_000_000n;
+			await requestAndWaitForFaucet(
+				this.#funderKeypair.getPublicKey().toSuiAddress(),
+				this.grpcClient,
+				totalNeeded,
+			);
+
+			const keypair = new Ed25519Keypair();
+			const address = keypair.getPublicKey().toSuiAddress();
+			const tx = new Transaction();
+
+			for (const amount of config.coins ?? []) {
+				const [coin] = tx.splitCoins(tx.gas, [amount]);
+				tx.transferObjects([coin], address);
+			}
+			if (config.addressBalance && config.addressBalance > 0n) {
+				const [depositCoin] = tx.splitCoins(tx.gas, [config.addressBalance]);
+				tx.moveCall({
+					target: '0x2::coin::send_funds',
+					typeArguments: ['0x2::sui::SUI'],
+					arguments: [depositCoin, tx.pure.address(address)],
+				});
+			}
+
+			const result = await this.grpcClient.core.signAndExecuteTransaction({
+				transaction: tx,
+				signer: this.#funderKeypair,
+			});
+			if (result.$kind !== 'Transaction') {
+				throw new Error(
+					`getSigner tx failed: ${result.FailedTransaction.status.error?.message ?? 'unknown error'}`,
+				);
+			}
+			await this.waitForTransaction({ digest: result.Transaction.digest });
+
+			return { keypair, address };
+		});
 	}
 
 	/**
@@ -250,6 +343,41 @@ export function getClient(url = DEFAULT_FULLNODE_URL): SuiJsonRpcClient {
 	});
 }
 
+async function requestAndWaitForFaucet(
+	address: string,
+	client: SuiGrpcClient,
+	minBalance?: bigint,
+) {
+	const request = async () => {
+		const response = await retry(
+			async () => await requestSuiFromFaucetV2({ host: DEFAULT_FAUCET_URL, recipient: address }),
+			{
+				backoff: 'EXPONENTIAL',
+				timeout: 1000 * 60,
+				retryIf: (error: any) => !(error instanceof FaucetRateLimitError),
+			},
+		);
+		const digest = response.coins_sent?.[0]?.transferTxDigest;
+		if (digest) {
+			await client.core.waitForTransaction({ digest });
+		}
+	};
+
+	await request();
+
+	if (minBalance) {
+		const maxAttempts = 10;
+		for (let attempt = 0; attempt < maxAttempts; attempt++) {
+			const { balance } = await client.core.getBalance({ owner: address });
+			if (BigInt(balance.balance) >= minBalance) return;
+			await request();
+		}
+		throw new Error(
+			`Failed to reach minimum balance ${minBalance} for ${address} after ${maxAttempts} faucet requests`,
+		);
+	}
+}
+
 export async function setup(options: { graphQLURL?: string; rpcURL?: string } = {}) {
 	const keypair = Ed25519Keypair.generate();
 	const address = keypair.getPublicKey().toSuiAddress();
@@ -285,11 +413,7 @@ export async function setupWithFundedAddress(
 	// Wait for the faucet transaction on all clients to ensure indexers have caught up
 	const digest = faucetResponse.coins_sent?.[0]?.transferTxDigest;
 	if (digest) {
-		await Promise.all([
-			toolbox.jsonRpcClient.core.waitForTransaction({ digest }),
-			toolbox.grpcClient.core.waitForTransaction({ digest }),
-			toolbox.graphqlClient.core.waitForTransaction({ digest }),
-		]);
+		await toolbox.waitForTransaction({ digest });
 	}
 
 	return toolbox;
