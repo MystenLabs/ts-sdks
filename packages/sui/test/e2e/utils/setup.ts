@@ -85,7 +85,7 @@ export class TestToolbox {
 	}
 
 	async getGasObjectsOwnedByAddress() {
-		return await this.grpcClient.core.listCoins({
+		return await this.jsonRpcClient.getCoins({
 			owner: this.address(),
 			coinType: SUI_TYPE_ARG,
 		});
@@ -132,20 +132,17 @@ export class TestToolbox {
 
 	/**
 	 * Wait for a transaction to be indexed by all three clients (JSON-RPC, gRPC, GraphQL).
-	 * Accepts either a digest string or a TransactionResult (same as core API).
+	 * Same API as `client.core.waitForTransaction`.
 	 */
-	async waitForTransaction(
-		options: { digest: string } | { result: SuiClientTypes.TransactionResult<any> },
-	) {
-		const digest =
-			'result' in options
-				? (options.result.Transaction ?? options.result.FailedTransaction)!.digest
-				: options.digest;
-		await Promise.all([
-			this.jsonRpcClient.core.waitForTransaction({ digest }),
-			this.grpcClient.core.waitForTransaction({ digest }),
-			this.graphqlClient.core.waitForTransaction({ digest }),
+	async waitForTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+		options: SuiClientTypes.WaitForTransactionOptions<Include>,
+	): Promise<SuiClientTypes.TransactionResult<Include>> {
+		const [result] = await Promise.all([
+			this.grpcClient.core.waitForTransaction(options),
+			this.jsonRpcClient.core.waitForTransaction(options),
+			this.graphqlClient.core.waitForTransaction(options),
 		]);
+		return result;
 	}
 
 	/**
