@@ -215,8 +215,12 @@ export class TestToolbox {
 				transaction: tx,
 				signer: this.#funderKeypair,
 			});
-			if (result.$kind !== 'Transaction') throw new Error('getSigner tx failed');
-			await this.grpcClient.core.waitForTransaction({ digest: result.Transaction.digest });
+			if (result.$kind !== 'Transaction') {
+				throw new Error(
+					`getSigner tx failed: ${result.FailedTransaction.status.error?.message ?? 'unknown error'}`,
+				);
+			}
+			await this.waitForTransaction({ digest: result.Transaction.digest });
 
 			return { keypair, address };
 		});
@@ -362,11 +366,15 @@ async function requestAndWaitForFaucet(
 	await request();
 
 	if (minBalance) {
-		while (true) {
+		const maxAttempts = 10;
+		for (let attempt = 0; attempt < maxAttempts; attempt++) {
 			const { balance } = await client.core.getBalance({ owner: address });
-			if (BigInt(balance.balance) >= minBalance) break;
+			if (BigInt(balance.balance) >= minBalance) return;
 			await request();
 		}
+		throw new Error(
+			`Failed to reach minimum balance ${minBalance} for ${address} after ${maxAttempts} faucet requests`,
+		);
 	}
 }
 

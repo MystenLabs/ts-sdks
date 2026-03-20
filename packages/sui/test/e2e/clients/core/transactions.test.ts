@@ -31,7 +31,12 @@ describe('Core API - Transactions', () => {
 			signer: toolbox.keypair,
 		});
 
-		executedTxDigest = result.Transaction!.digest;
+		if (result.$kind !== 'Transaction') {
+			throw new Error(
+				`Setup tx failed: ${result.FailedTransaction.status.error?.message ?? 'unknown error'}`,
+			);
+		}
+		executedTxDigest = result.Transaction.digest;
 	});
 
 	describe('getTransaction', () => {
