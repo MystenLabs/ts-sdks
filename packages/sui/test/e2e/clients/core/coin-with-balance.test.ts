@@ -175,10 +175,13 @@ describe('coinWithBalance', () => {
 			signer: publishToolbox.keypair,
 		});
 
-		const result = await toolbox.jsonRpcClient.waitForTransaction({
-			digest,
-			options: { showEffects: true, showBalanceChanges: true },
-		});
+		const [result] = await Promise.all([
+			toolbox.jsonRpcClient.waitForTransaction({
+				digest,
+				options: { showEffects: true, showBalanceChanges: true },
+			}),
+			toolbox.waitForTransaction({ digest }),
+		]);
 
 		expect(result.effects?.status.status).toBe('success');
 		expect(
