@@ -468,6 +468,22 @@ export namespace SuiClientTypes {
 		systemState: SystemStateInfo;
 	}
 
+	export interface GetProtocolConfigOptions extends CoreClientMethodOptions {}
+
+	export interface TransportMethods {
+		getProtocolConfig?: (options?: GetProtocolConfigOptions) => Promise<GetProtocolConfigResponse>;
+	}
+
+	export interface GetProtocolConfigResponse {
+		protocolConfig: ProtocolConfig;
+	}
+
+	export interface ProtocolConfig {
+		protocolVersion: string;
+		featureFlags: Record<string, boolean>;
+		attributes: Record<string, string | null>;
+	}
+
 	export interface GetChainIdentifierOptions extends CoreClientMethodOptions {}
 
 	export interface TransportMethods {
