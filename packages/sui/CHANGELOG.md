@@ -1,5 +1,14 @@
 # @mysten/sui.js
 
+## 2.11.0
+
+### Minor Changes
+
+- 319aae1: Remove WebSocket client and streaming subscription APIs from the JSON-RPC transport. The
+  `subscribe` method, `WebSocketConstructor` option, `websocket` option,
+  `JsonRpcTransportSubscribeOptions` type, and `Unsubscribe` type have been removed from the public
+  API.
+
 ## 2.10.0
 
 ### Minor Changes
