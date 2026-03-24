@@ -1,5 +1,18 @@
 # @mysten/sui.js
 
+## 2.10.0
+
+### Minor Changes
+
+- 78a577b: Add `getProtocolConfig()` Core API method returning protocol version, feature flags, and
+  config attributes.
+
+### Patch Changes
+
+- 2ee1a2a: Improve `waitForTransaction` polling with schedule-based timing tuned to actual indexing
+  latency. Default schedule polls at 0, 300, 600, 1500, 3500ms then every 2s. Add `pollSchedule`
+  option for custom absolute-time schedules.
+
 ## 2.9.1
 
 ### Patch Changes
