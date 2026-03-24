@@ -922,7 +922,7 @@ importers:
         version: 9.0.3
 
   packages/ledgerjs-hw-app-sui:
-    devDependencies:
+    dependencies:
       '@ledgerhq/devices':
         specifier: ^8.9.0
         version: 8.9.0
@@ -935,27 +935,25 @@ importers:
       '@ledgerhq/hw-transport':
         specifier: ^6.31.16
         version: 6.31.16
-      '@ledgerhq/hw-transport-mocker':
-        specifier: ^6.30.1
-        version: 6.30.1
       '@ledgerhq/ledger-cal-service':
         specifier: ^1.10.0
         version: 1.10.0
-      '@ledgerhq/ledger-trust-service':
-        specifier: ^0.5.0
-        version: 0.5.0
-      '@types/node':
-        specifier: ^25.0.8
-        version: 25.0.8
-      '@types/semver':
-        specifier: ^7.7.1
-        version: 7.7.1
       fast-sha256:
         specifier: ^1.3.0
         version: 1.3.0
       semver:
         specifier: '>=7.5.2'
         version: 7.7.3
+    devDependencies:
+      '@ledgerhq/hw-transport-mocker':
+        specifier: ^6.30.1
+        version: 6.30.1
+      '@types/node':
+        specifier: ^25.0.8
+        version: 25.0.8
+      '@types/semver':
+        specifier: ^7.7.1
+        version: 7.7.1
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -3219,9 +3217,6 @@ packages:
 
   '@ledgerhq/ledger-cal-service@1.10.0':
     resolution: {integrity: sha512-kIU5YlbgXK9DAkNqaaEq690ANTe4+ZpBIMx2Z5edgw51TofiaRagkELTqntMryoO6Gc7fsNoFn5xa7tYrD6cQQ==}
-
-  '@ledgerhq/ledger-trust-service@0.5.0':
-    resolution: {integrity: sha512-NrVHdkkeQi/OSWiq3fW4jrQo4AMRR2bqihBiRi/M7eyGi6Rm81xweMPbOarSMnd3w/axfXNvwheLlpl4mzOW7A==}
 
   '@ledgerhq/live-env@2.24.0':
     resolution: {integrity: sha512-1J6TxHjQ5IggGyOeVgpKQda22EIGScCJDTEFAiDpojV6FayrqB36cAn6S4xav9YD7/U6oGJRVedYnu4hh6fOhw==}
@@ -12450,13 +12445,6 @@ snapshots:
       events: 3.3.0
 
   '@ledgerhq/ledger-cal-service@1.10.0':
-    dependencies:
-      '@ledgerhq/live-env': 2.24.0
-      '@ledgerhq/live-network': 2.1.5
-    transitivePeerDependencies:
-      - debug
-
-  '@ledgerhq/ledger-trust-service@0.5.0':
     dependencies:
       '@ledgerhq/live-env': 2.24.0
       '@ledgerhq/live-network': 2.1.5
