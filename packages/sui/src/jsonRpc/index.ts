@@ -4,7 +4,6 @@
 export {
 	type JsonRpcTransport,
 	type JsonRpcTransportRequestOptions,
-	type JsonRpcTransportSubscribeOptions,
 	type HttpHeaders,
 	type JsonRpcHTTPTransportOptions,
 	JsonRpcHTTPTransport,

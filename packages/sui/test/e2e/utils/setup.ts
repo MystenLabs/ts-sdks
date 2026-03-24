@@ -6,7 +6,6 @@ import type { ContainerRuntimeClient } from 'testcontainers';
 import { getContainerRuntimeClient } from 'testcontainers';
 import { retry } from 'ts-retry-promise';
 import { expect, inject, it, test } from 'vitest';
-import { WebSocket } from 'ws';
 
 import type { SuiObjectChangePublished } from '../../../src/jsonRpc/index.js';
 import {
@@ -64,7 +63,6 @@ export class TestToolbox {
 			network: 'localnet',
 			transport: new JsonRpcHTTPTransport({
 				url,
-				WebSocketConstructor: WebSocket as never,
 			}),
 		});
 		this.grpcClient = new SuiGrpcClient({
@@ -338,7 +336,6 @@ export function getClient(url = DEFAULT_FULLNODE_URL): SuiJsonRpcClient {
 		network: 'localnet',
 		transport: new JsonRpcHTTPTransport({
 			url,
-			WebSocketConstructor: WebSocket as never,
 		}),
 	});
 }

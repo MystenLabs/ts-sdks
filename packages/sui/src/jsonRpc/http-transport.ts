@@ -3,8 +3,6 @@
 
 import { PACKAGE_VERSION, TARGETED_RPC_VERSION } from '../version.js';
 import { JsonRpcError, SuiHTTPStatusError } from './errors.js';
-import type { WebsocketClientOptions } from './rpc-websocket-client.js';
-import { WebsocketClient } from './rpc-websocket-client.js';
 
 /**
  * An object defining headers to be passed to the RPC server
@@ -13,13 +11,9 @@ export type HttpHeaders = { [header: string]: string };
 
 export interface JsonRpcHTTPTransportOptions {
 	fetch?: typeof fetch;
-	WebSocketConstructor?: typeof WebSocket;
 	url: string;
 	rpc?: {
 		headers?: HttpHeaders;
-		url?: string;
-	};
-	websocket?: WebsocketClientOptions & {
 		url?: string;
 	};
 }
@@ -30,25 +24,13 @@ export interface JsonRpcTransportRequestOptions {
 	signal?: AbortSignal;
 }
 
-export interface JsonRpcTransportSubscribeOptions<T> {
-	method: string;
-	unsubscribe: string;
-	params: unknown[];
-	onMessage: (event: T) => void;
-	signal?: AbortSignal;
-}
-
 export interface JsonRpcTransport {
 	request<T = unknown>(input: JsonRpcTransportRequestOptions): Promise<T>;
-	subscribe<T = unknown>(
-		input: JsonRpcTransportSubscribeOptions<T>,
-	): Promise<() => Promise<boolean>>;
 }
 
 export class JsonRpcHTTPTransport implements JsonRpcTransport {
 	#requestId = 0;
 	#options: JsonRpcHTTPTransportOptions;
-	#websocketClient?: WebsocketClient;
 
 	constructor(options: JsonRpcHTTPTransportOptions) {
 		this.#options = options;
@@ -64,27 +46,6 @@ export class JsonRpcHTTPTransport implements JsonRpcTransport {
 		}
 
 		return fetchFn(input, init);
-	}
-
-	#getWebsocketClient(): WebsocketClient {
-		if (!this.#websocketClient) {
-			const WebSocketConstructor = this.#options.WebSocketConstructor ?? WebSocket;
-			if (!WebSocketConstructor) {
-				throw new Error(
-					'The current environment does not support WebSocket, you can provide a WebSocketConstructor in the options for SuiHTTPTransport.',
-				);
-			}
-
-			this.#websocketClient = new WebsocketClient(
-				this.#options.websocket?.url ?? this.#options.url,
-				{
-					WebSocketConstructor,
-					...this.#options.websocket,
-				},
-			);
-		}
-
-		return this.#websocketClient;
 	}
 
 	async request<T>(input: JsonRpcTransportRequestOptions): Promise<T> {
@@ -124,18 +85,5 @@ export class JsonRpcHTTPTransport implements JsonRpcTransport {
 		}
 
 		return data.result;
-	}
-
-	async subscribe<T>(input: JsonRpcTransportSubscribeOptions<T>): Promise<() => Promise<boolean>> {
-		const unsubscribe = await this.#getWebsocketClient().subscribe(input);
-
-		if (input.signal) {
-			input.signal.throwIfAborted();
-			input.signal.addEventListener('abort', () => {
-				unsubscribe();
-			});
-		}
-
-		return async () => !!(await unsubscribe());
 	}
 }
