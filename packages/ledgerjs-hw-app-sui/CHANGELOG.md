@@ -1,5 +1,13 @@
 # @mysten/ledgerjs-hw-app-sui
 
+## 0.8.0
+
+### Minor Changes
+
+- ef90be0: Switch from bundled to unbundled ESM build. This fixes a runtime error
+  (`createRequire is not a function`) in React Native and browser environments caused by Node.js
+  built-ins being inlined into the bundle via transitive dependencies (axios, semver, etc.).
+
 ## 0.7.1
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @mysten/signers
 
+## 1.0.2
+
+### Patch Changes
+
+- Updated dependencies [78a577b]
+- Updated dependencies [ef90be0]
+- Updated dependencies [2ee1a2a]
+  - @mysten/sui@2.10.0
+  - @mysten/ledgerjs-hw-app-sui@0.8.0
+
 ## 1.0.1
 
 ### Patch Changes
