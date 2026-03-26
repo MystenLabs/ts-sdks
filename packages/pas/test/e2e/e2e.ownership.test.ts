@@ -10,7 +10,7 @@ import { TypeName } from '../../src/contracts/pas/deps/std/type_name.js';
 import { Command, MoveCall } from '../../src/contracts/ptb/ptb.js';
 import { InvalidObjectOwnershipError } from '../../src/error.js';
 import { validateTemplateObjects } from '../../src/intents.js';
-import { getClient, setupToolbox } from './setup.ts';
+import { getClient, setupToolbox } from './setup.js';
 
 type SuiObject = SuiClientTypes.Object<{ content: true }>;
 
