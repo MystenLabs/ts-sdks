@@ -60,3 +60,24 @@ const key = bcsType.serialize({ value: 1 }).toBytes();
 // Derive the object ID for the key `DemoStruct { value: 1 }`.
 deriveObjectID('0xc0ffee', `0xc0ffee::demo::DemoStruct`, key);
 ```
+
+### Deriving with fieldless structs
+
+In Move, structs with no user-defined fields automatically get a `dummy_field: bool` injected by the
+compiler. This means their BCS encoding is not empty — it's a single `0x00` byte (the encoding of
+`false`). You can treat this as a constant.
+
+A real-world example is `0x2::coin_registry::CurrencyKey<T>`, which is a fieldless generic struct
+used to derive `Currency` objects from the coin registry (`0xc`) based on their type:
+
+```typescript
+// On-chain: `public struct CurrencyKey<phantom T>() has copy, store, drop`
+// The compiler injects `dummy_field: bool`, always `false`.
+const key = new Uint8Array([0]);
+
+const coinType = '0x2::sui::SUI';
+const currencyId = deriveObjectID('0xc', `0x2::coin_registry::CurrencyKey<${coinType}>`, key);
+```
+
+This applies to any struct with no fields — phantom type parameters don't add any BCS-encoded data,
+so the key is always `new Uint8Array([0])`.
