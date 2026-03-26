@@ -21,8 +21,10 @@
 		"overrides": {
 			"axios": "^1.13.5",
 			"@tootallnate/once": ">=3.0.1",
-			"h3": ">=1.15.6",
-			"immutable": ">=3.8.3"
+			"h3": ">=1.15.9",
+			"immutable": ">=3.8.3",
+			"yaml": ">=2.8.3",
+			"picomatch": ">=4.0.4"
 		}
 	},
 	"engines": {

@@ -3,6 +3,7 @@
 
 import { describe, expect, test, beforeEach } from 'vitest';
 import {
+	GRPC_URLS,
 	TEST_DEFAULT_NETWORK,
 	TEST_NETWORKS,
 	TestWalletInitializeResult,
@@ -21,13 +22,6 @@ describe('[Integration] connectWallet action', () => {
 	let uiWallets: UiWallet[];
 
 	beforeEach(() => {
-		const GRPC_URLS = {
-			testnet: 'https://fullnode.testnet.sui.io:443',
-			mainnet: 'https://fullnode.mainnet.sui.io:443',
-			devnet: 'https://fullnode.devnet.sui.io:443',
-			localnet: 'http://127.0.0.1:9000',
-		} as const;
-
 		dAppKit = createDAppKit({
 			networks: TEST_NETWORKS,
 			defaultNetwork: TEST_DEFAULT_NETWORK,
