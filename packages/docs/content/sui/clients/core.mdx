@@ -363,14 +363,12 @@ non-entry Move functions (the equivalent of `devInspectTransactionBlock` in JSON
 ```typescript
 const result = await client.core.simulateTransaction({
 	transaction: transactionBytes,
-	checksEnabled: false, // allows calling non-public/non-entry functions
+	checksEnabled: false,
 	include: {
 		commandResults: true,
 	},
 });
 ```
-
-
 
 ### signAndExecuteTransaction
 
