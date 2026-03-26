@@ -356,6 +356,75 @@ export class JSONRpcCoreClient extends CoreClient {
 				})
 			: (options.transaction as Uint8Array);
 
+		const useDevInspect = options.checksEnabled === false;
+
+		if (useDevInspect) {
+			const sender = tx.getData().sender ?? normalizeSuiAddress('0x0');
+			const devInspectResult = await this.#jsonRpcClient.devInspectTransactionBlock({
+				sender,
+				transactionBlock: tx,
+				signal: options.signal,
+			});
+
+			const { effects, objectTypes } = parseTransactionEffectsJson({
+				effects: devInspectResult.effects,
+				objectChanges: [],
+			});
+
+			const transactionData: SuiClientTypes.Transaction<Include> = {
+				digest: TransactionDataBuilder.getDigestFromBytes(transactionBytes),
+				epoch: null,
+				status: effects.status,
+				effects: (options.include?.effects
+					? effects
+					: undefined) as SuiClientTypes.Transaction<Include>['effects'],
+				objectTypes: (options.include?.objectTypes
+					? objectTypes
+					: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
+				signatures: [],
+				transaction: undefined as SuiClientTypes.Transaction<Include>['transaction'],
+				bcs: (options.include?.bcs
+					? transactionBytes
+					: undefined) as SuiClientTypes.Transaction<Include>['bcs'],
+				balanceChanges: undefined as SuiClientTypes.Transaction<Include>['balanceChanges'],
+				events: (options.include?.events
+					? (devInspectResult.events?.map((event) => ({
+							packageId: event.packageId,
+							module: event.transactionModule,
+							sender: event.sender,
+							eventType: event.type,
+							bcs: 'bcs' in event ? fromBase64(event.bcs) : new Uint8Array(),
+							json: (event.parsedJson as Record<string, unknown>) ?? null,
+						})) ?? [])
+					: undefined) as SuiClientTypes.Transaction<Include>['events'],
+			};
+
+			const commandResults = options.include?.commandResults
+				? devInspectResult.results?.map((result) => ({
+						returnValues: (result.returnValues ?? []).map(([bytes]) => ({
+							bcs: new Uint8Array(bytes),
+						})),
+						mutatedReferences: (result.mutableReferenceOutputs ?? []).map(([, bytes]) => ({
+							bcs: new Uint8Array(bytes),
+						})),
+					}))
+				: undefined;
+
+			return effects.status.success
+				? {
+						$kind: 'Transaction',
+						Transaction: transactionData,
+						commandResults:
+							commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
+					}
+				: {
+						$kind: 'FailedTransaction',
+						FailedTransaction: transactionData,
+						commandResults:
+							commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
+					};
+		}
+
 		const result = await this.#jsonRpcClient.dryRunTransactionBlock({
 			transactionBlock: transactionBytes,
 			signal: options.signal,

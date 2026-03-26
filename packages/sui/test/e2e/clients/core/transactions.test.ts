@@ -1215,17 +1215,14 @@ describe('Core API - Transactions', () => {
 					include: { commandResults: true, effects: true },
 				});
 
-				// With checks disabled, calling a non-public function should succeed
 				expect(result.commandResults).toBeDefined();
 				expect(result.commandResults!.length).toBeGreaterThan(0);
 
-				// The non_public_add function returns a u64
 				const firstCommand = result.commandResults![0];
 				expect(firstCommand.returnValues).toBeDefined();
 				expect(firstCommand.returnValues.length).toBe(1);
 				expect(firstCommand.returnValues[0].bcs).toBeInstanceOf(Uint8Array);
 			},
-			{ skip: ['jsonrpc'] }, // JSON-RPC dryRun doesn't support disabling checks
 		);
 
 		testWithAllClients(
@@ -1256,7 +1253,6 @@ describe('Core API - Transactions', () => {
 
 				const bytes = await tx.build({});
 
-				// With checks enabled (default), calling a non-public function should fail
 				await expect(
 					client.core.simulateTransaction({
 						transaction: bytes,
@@ -1264,7 +1260,6 @@ describe('Core API - Transactions', () => {
 					}),
 				).rejects.toThrow();
 			},
-			{ skip: ['jsonrpc'] }, // JSON-RPC dryRun doesn't support disabling checks
 		);
 	});
 
