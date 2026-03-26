@@ -1253,12 +1253,13 @@ describe('Core API - Transactions', () => {
 
 				const bytes = await tx.build({});
 
-				await expect(
-					client.core.simulateTransaction({
-						transaction: bytes,
-						include: { effects: true },
-					}),
-				).rejects.toThrow();
+				const result = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true },
+				});
+
+				expect(result.$kind).toBe('FailedTransaction');
+				expect(result.FailedTransaction?.status.success).toBe(false);
 			},
 		);
 	});
