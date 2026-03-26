@@ -4,8 +4,8 @@ import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { Account } from '../../src/contracts/pas/account.js';
-import { DemoUsdTestHelpers } from './demoUsd.ts';
-import { setupToolbox, TestToolbox } from './setup.ts';
+import { DemoUsdTestHelpers } from './demoUsd.js';
+import { setupToolbox, TestToolbox } from './setup.js';
 
 describe('e2e tests with shared PAS package (all tests run in the same PAS package)', () => {
 	let toolbox: TestToolbox;

@@ -34,7 +34,9 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
-		"test": "NODE_OPTIONS='--expose-gc' vitest run",
+		"test": "pnpm test:typecheck && pnpm test:unit",
+		"test:typecheck": "tsc -p ./test",
+		"test:unit": "vitest run unit __tests__",
 		"test:e2e": "vitest run e2e",
 		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
 		"prettier:check": "prettier -c --ignore-unknown .",

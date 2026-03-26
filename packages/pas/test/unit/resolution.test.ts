@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { MoveCall } from '../../src/contracts/ptb/ptb.js';
 import { buildMoveCallCommandFromTemplate } from '../../src/resolution.js';
 
 /**
@@ -14,7 +15,7 @@ function makeParsedMoveCall(args: Record<string, unknown>[]) {
 		package_id: '0x1',
 		module_name: 'test',
 		function: 'func',
-		arguments: args,
+		arguments: args as ReturnType<typeof MoveCall.parse>['arguments'],
 		type_arguments: [] as string[],
 	};
 }

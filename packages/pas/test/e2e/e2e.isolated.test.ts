@@ -2,13 +2,13 @@ import { Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, it } from 'vitest';
 
-import { DemoUsdTestHelpers } from './demoUsd.ts';
+import { DemoUsdTestHelpers } from './demoUsd.js';
 import {
 	executeTransaction,
 	setupToolbox,
 	simulateFailingTransaction,
 	type TestToolbox,
-} from './setup.ts';
+} from './setup.js';
 
 async function expectBalances(
 	toolbox: TestToolbox,

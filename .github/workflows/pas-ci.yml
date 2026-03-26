@@ -1,4 +1,4 @@
-name: PAS tests (unit & e2e)
+name: PAS e2e tests
 on:
   pull_request:
   workflow_dispatch:
@@ -34,4 +34,4 @@ jobs:
         run: pnpm turbo build --filter @mysten/pas
 
       - name: Run tests
-        run: pnpm --filter @mysten/pas test
+        run: pnpm --filter @mysten/pas test:e2e

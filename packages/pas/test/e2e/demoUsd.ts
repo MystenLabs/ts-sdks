@@ -1,10 +1,10 @@
 import { Transaction } from '@mysten/sui/transactions';
 
-import { execSuiTools, type PublishedPackage, type TestToolbox } from './setup.ts';
+import { execSuiTools, type PublishedPackage, type TestToolbox } from './setup.js';
 
 export class DemoUsdTestHelpers {
 	toolbox: TestToolbox;
-	#publicationData: PublishedPackage;
+	#publicationData: PublishedPackage | undefined;
 	#cacheKey: string;
 
 	constructor(toolbox: TestToolbox, cacheKey?: string) {
