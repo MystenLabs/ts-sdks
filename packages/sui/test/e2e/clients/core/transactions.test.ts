@@ -1233,7 +1233,7 @@ describe('Core API - Transactions', () => {
 						$kind: result.$kind,
 						status: data?.status,
 						balanceChanges: data?.balanceChanges,
-					} as typeof result;
+					} as unknown as typeof result;
 				},
 			);
 		});
@@ -1252,7 +1252,7 @@ describe('Core API - Transactions', () => {
 						$kind: result.$kind,
 						commandResults: result.commandResults,
 						status: data?.status,
-					} as typeof result;
+					} as unknown as typeof result;
 				},
 			);
 		});
@@ -1289,7 +1289,7 @@ describe('Core API - Transactions', () => {
 					return {
 						$kind: result.$kind,
 						success: data?.status.success,
-					} as typeof result;
+					} as unknown as typeof result;
 				},
 			);
 		});
