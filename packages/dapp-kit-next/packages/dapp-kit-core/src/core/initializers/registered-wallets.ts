@@ -18,7 +18,19 @@ export function syncRegisteredWallets({ $registeredWallets }: DAppKitStores) {
 
 		const onWalletsChanged = () => {
 			const wallets = walletsApi.get();
-			$registeredWallets.set(wallets.map(getOrCreateUiWalletForStandardWallet));
+			const uiWallets = [];
+			for (const wallet of wallets) {
+				try {
+					uiWallets.push(getOrCreateUiWalletForStandardWallet(wallet));
+				} catch {
+					// Skip wallets that don't fully comply with the Wallet Standard
+					// (e.g. undefined accounts, chains, or features).
+					console.warn(
+						`[dapp-kit] Skipping wallet "${wallet.name}" because it does not comply with the Wallet Standard.`,
+					);
+				}
+			}
+			$registeredWallets.set(uiWallets);
 		};
 
 		const subscribeToWalletEvents = (wallet: WalletWithFeatures<StandardEventsFeature>) => {
