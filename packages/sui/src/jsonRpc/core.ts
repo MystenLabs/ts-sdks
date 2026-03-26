@@ -5,6 +5,8 @@ import { fromBase64, type InferBcsInput } from '@mysten/bcs';
 
 import { bcs, TypeTagSerializer } from '../bcs/index.js';
 import type {
+	DevInspectResults,
+	DryRunTransactionBlockResponse,
 	ExecutionStatus as JsonRpcExecutionStatus,
 	ObjectOwner,
 	SuiMoveAbilitySet,
@@ -356,83 +358,44 @@ export class JSONRpcCoreClient extends CoreClient {
 				})
 			: (options.transaction as Uint8Array);
 
-		const useDevInspect = options.checksEnabled === false;
+		const sender = tx.getData().sender ?? normalizeSuiAddress('0x0');
+		const checksDisabled = options.checksEnabled === false;
 
-		if (useDevInspect) {
-			const sender = tx.getData().sender ?? normalizeSuiAddress('0x0');
-			const devInspectResult = await this.#jsonRpcClient.devInspectTransactionBlock({
-				sender,
-				transactionBlock: tx,
+		let dryRunResult: DryRunTransactionBlockResponse | null = null;
+		try {
+			dryRunResult = await this.#jsonRpcClient.dryRunTransactionBlock({
+				transactionBlock: transactionBytes,
 				signal: options.signal,
 			});
-
-			const { effects, objectTypes } = parseTransactionEffectsJson({
-				effects: devInspectResult.effects,
-				objectChanges: [],
-			});
-
-			const transactionData: SuiClientTypes.Transaction<Include> = {
-				digest: TransactionDataBuilder.getDigestFromBytes(transactionBytes),
-				epoch: null,
-				status: effects.status,
-				effects: (options.include?.effects
-					? effects
-					: undefined) as SuiClientTypes.Transaction<Include>['effects'],
-				objectTypes: (options.include?.objectTypes
-					? objectTypes
-					: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
-				signatures: [],
-				transaction: undefined as SuiClientTypes.Transaction<Include>['transaction'],
-				bcs: (options.include?.bcs
-					? transactionBytes
-					: undefined) as SuiClientTypes.Transaction<Include>['bcs'],
-				balanceChanges: undefined as SuiClientTypes.Transaction<Include>['balanceChanges'],
-				events: (options.include?.events
-					? (devInspectResult.events?.map((event) => ({
-							packageId: event.packageId,
-							module: event.transactionModule,
-							sender: event.sender,
-							eventType: event.type,
-							bcs: 'bcs' in event ? fromBase64(event.bcs) : new Uint8Array(),
-							json: (event.parsedJson as Record<string, unknown>) ?? null,
-						})) ?? [])
-					: undefined) as SuiClientTypes.Transaction<Include>['events'],
-			};
-
-			const commandResults = options.include?.commandResults
-				? devInspectResult.results?.map((result) => ({
-						returnValues: (result.returnValues ?? []).map(([bytes]) => ({
-							bcs: new Uint8Array(bytes),
-						})),
-						mutatedReferences: (result.mutableReferenceOutputs ?? []).map(([, bytes]) => ({
-							bcs: new Uint8Array(bytes),
-						})),
-					}))
-				: undefined;
-
-			return effects.status.success
-				? {
-						$kind: 'Transaction',
-						Transaction: transactionData,
-						commandResults:
-							commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
-					}
-				: {
-						$kind: 'FailedTransaction',
-						FailedTransaction: transactionData,
-						commandResults:
-							commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
-					};
+		} catch (e) {
+			if (!checksDisabled) {
+				throw e;
+			}
 		}
 
-		const result = await this.#jsonRpcClient.dryRunTransactionBlock({
-			transactionBlock: transactionBytes,
-			signal: options.signal,
-		});
+		let devInspectResult: DevInspectResults | null = null;
+		if (options.include?.commandResults || checksDisabled) {
+			try {
+				devInspectResult = await this.#jsonRpcClient.devInspectTransactionBlock({
+					sender,
+					transactionBlock: tx,
+					signal: options.signal,
+				});
+			} catch {}
+		}
+
+		const dryRunFailed = !dryRunResult || dryRunResult.effects.status.status !== 'success';
+		const effectsSource =
+			checksDisabled && dryRunFailed && devInspectResult
+				? devInspectResult
+				: (dryRunResult ?? devInspectResult);
+		if (!effectsSource) {
+			throw new Error('simulateTransaction failed: no results from dryRun or devInspect');
+		}
 
 		const { effects, objectTypes } = parseTransactionEffectsJson({
-			effects: result.effects,
-			objectChanges: result.objectChanges,
+			effects: effectsSource.effects,
+			objectChanges: dryRunResult?.objectChanges ?? [],
 		});
 
 		const transactionData: SuiClientTypes.Transaction<Include> = {
@@ -460,15 +423,15 @@ export class JSONRpcCoreClient extends CoreClient {
 			bcs: (options.include?.bcs
 				? transactionBytes
 				: undefined) as SuiClientTypes.Transaction<Include>['bcs'],
-			balanceChanges: (options.include?.balanceChanges
-				? result.balanceChanges.map((change) => ({
+			balanceChanges: (options.include?.balanceChanges && dryRunResult
+				? dryRunResult.balanceChanges.map((change) => ({
 						coinType: normalizeStructTag(change.coinType),
 						address: parseOwnerAddress(change.owner)!,
 						amount: change.amount,
 					}))
 				: undefined) as SuiClientTypes.Transaction<Include>['balanceChanges'],
 			events: (options.include?.events
-				? (result.events?.map((event) => ({
+				? (effectsSource.events?.map((event) => ({
 						packageId: event.packageId,
 						module: event.transactionModule,
 						sender: event.sender,
@@ -480,26 +443,15 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 
 		let commandResults: SuiClientTypes.CommandResult[] | undefined;
-		if (options.include?.commandResults) {
-			try {
-				const sender = tx.getData().sender ?? normalizeSuiAddress('0x0');
-				const devInspectResult = await this.#jsonRpcClient.devInspectTransactionBlock({
-					sender,
-					transactionBlock: tx,
-					signal: options.signal,
-				});
-
-				if (devInspectResult.results) {
-					commandResults = devInspectResult.results.map((result) => ({
-						returnValues: (result.returnValues ?? []).map(([bytes]) => ({
-							bcs: new Uint8Array(bytes),
-						})),
-						mutatedReferences: (result.mutableReferenceOutputs ?? []).map(([, bytes]) => ({
-							bcs: new Uint8Array(bytes),
-						})),
-					}));
-				}
-			} catch {}
+		if (options.include?.commandResults && devInspectResult?.results) {
+			commandResults = devInspectResult.results.map((result) => ({
+				returnValues: (result.returnValues ?? []).map(([bytes]) => ({
+					bcs: new Uint8Array(bytes),
+				})),
+				mutatedReferences: (result.mutableReferenceOutputs ?? []).map(([, bytes]) => ({
+					bcs: new Uint8Array(bytes),
+				})),
+			}));
 		}
 
 		return effects.status.success

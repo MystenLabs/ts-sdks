@@ -354,11 +354,10 @@ console.log(result.effects);
 console.log(result.balanceChanges);
 ```
 
-#### Disabling Checks (Dev Inspect)
+#### Disabling Checks
 
-By default, `simulateTransaction` runs with full transaction validation. To inspect non-public or
-non-entry Move functions (the equivalent of `devInspectTransactionBlock` in JSON-RPC), set
-`checksEnabled: false`:
+By default, `simulateTransaction` runs with full transaction validation. For example when inspecting
+non-public or non-entry Move functions set `checksEnabled: false`:
 
 ```typescript
 const result = await client.core.simulateTransaction({
