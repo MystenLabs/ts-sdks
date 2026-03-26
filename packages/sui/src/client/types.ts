@@ -442,6 +442,14 @@ export namespace SuiClientTypes {
 	> extends CoreClientMethodOptions {
 		transaction: Uint8Array | TransactionInstance;
 		include?: Include & SimulateTransactionInclude;
+		/**
+		 * When set to `false`, disables transaction validation checks during simulation.
+		 * This allows inspecting non-public/non-entry Move functions and other transactions
+		 * that would normally fail validation.
+		 *
+		 * Defaults to `true` (checks enabled).
+		 */
+		checksEnabled?: boolean;
 	}
 
 	export interface GetReferenceGasPriceOptions extends CoreClientMethodOptions {}

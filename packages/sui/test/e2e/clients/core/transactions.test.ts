@@ -1180,6 +1180,94 @@ describe('Core API - Transactions', () => {
 		);
 	});
 
+	describe('simulateTransaction - checksEnabled', () => {
+		testWithAllClients(
+			'should allow calling non-public functions with checksEnabled: false',
+			async (client) => {
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::test_objects::non_public_add`,
+					arguments: [tx.pure.u64(3), tx.pure.u64(5)],
+				});
+
+				tx.setSender(testAddress);
+				tx.setGasOwner(testAddress);
+				tx.setGasBudget(50_000_000);
+				tx.setGasPrice(1000);
+
+				const coins = await toolbox.jsonRpcClient.getCoins({
+					owner: testAddress,
+					coinType: SUI_TYPE_ARG,
+				});
+				tx.setGasPayment([
+					{
+						objectId: coins.data[0].coinObjectId,
+						version: coins.data[0].version,
+						digest: coins.data[0].digest,
+					},
+				]);
+
+				const bytes = await tx.build({});
+
+				const result = await client.core.simulateTransaction({
+					transaction: bytes,
+					checksEnabled: false,
+					include: { commandResults: true, effects: true },
+				});
+
+				// With checks disabled, calling a non-public function should succeed
+				expect(result.commandResults).toBeDefined();
+				expect(result.commandResults!.length).toBeGreaterThan(0);
+
+				// The non_public_add function returns a u64
+				const firstCommand = result.commandResults![0];
+				expect(firstCommand.returnValues).toBeDefined();
+				expect(firstCommand.returnValues.length).toBe(1);
+				expect(firstCommand.returnValues[0].bcs).toBeInstanceOf(Uint8Array);
+			},
+			{ skip: ['jsonrpc'] }, // JSON-RPC dryRun doesn't support disabling checks
+		);
+
+		testWithAllClients(
+			'should fail calling non-public functions with checksEnabled: true (default)',
+			async (client) => {
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::test_objects::non_public_add`,
+					arguments: [tx.pure.u64(3), tx.pure.u64(5)],
+				});
+
+				tx.setSender(testAddress);
+				tx.setGasOwner(testAddress);
+				tx.setGasBudget(50_000_000);
+				tx.setGasPrice(1000);
+
+				const coins = await toolbox.jsonRpcClient.getCoins({
+					owner: testAddress,
+					coinType: SUI_TYPE_ARG,
+				});
+				tx.setGasPayment([
+					{
+						objectId: coins.data[0].coinObjectId,
+						version: coins.data[0].version,
+						digest: coins.data[0].digest,
+					},
+				]);
+
+				const bytes = await tx.build({});
+
+				// With checks enabled (default), calling a non-public function should fail
+				await expect(
+					client.core.simulateTransaction({
+						transaction: bytes,
+						include: { effects: true },
+					}),
+				).rejects.toThrow();
+			},
+			{ skip: ['jsonrpc'] }, // JSON-RPC dryRun doesn't support disabling checks
+		);
+	});
+
 	describe('objectTypes', () => {
 		testWithAllClients(
 			'should return object types for created objects in executeTransaction',

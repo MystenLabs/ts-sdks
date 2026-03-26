@@ -406,6 +406,7 @@ export class GraphQLCoreClient extends CoreClient {
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeCommandResults: options.include?.commandResults ?? false,
 					includeBcs: options.include?.bcs ?? false,
+					checksEnabled: options.checksEnabled ?? true,
 				},
 			},
 			(result) => result.simulateTransaction,

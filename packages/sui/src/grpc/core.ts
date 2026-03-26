@@ -44,6 +44,7 @@ import {
 	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
 import { Value } from './proto/google/protobuf/struct.js';
+import { SimulateTransactionRequest_TransactionChecks } from './proto/sui/rpc/v2/transaction_execution_service.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
@@ -447,6 +448,10 @@ export class GrpcCoreClient extends CoreClient {
 				paths,
 			},
 			doGasSelection: false,
+			checks:
+				options.checksEnabled === false
+					? SimulateTransactionRequest_TransactionChecks.DISABLED
+					: SimulateTransactionRequest_TransactionChecks.ENABLED,
 		});
 
 		const transactionResult = parseTransaction(response.transaction!, options.include);
