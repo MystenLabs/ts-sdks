@@ -1,4 +1,4 @@
-name: PAS tests (unit & e2e)
+name: PAS e2e tests
 on:
   pull_request:
   workflow_dispatch:
