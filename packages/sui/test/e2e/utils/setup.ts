@@ -232,9 +232,9 @@ export class TestToolbox {
 	 * @param normalize - Optional function to normalize results before comparison (e.g., to ignore cursor differences)
 	 * @param options - Options to skip the test entirely
 	 */
-	async expectAllClientsReturnSameData<T>(
+	async expectAllClientsReturnSameData<T, N = T>(
 		queryFn: (client: ClientWithCoreApi, kind: 'jsonrpc' | 'grpc' | 'graphql') => Promise<T>,
-		normalize?: (result: T) => T,
+		normalize?: (result: T) => N,
 		options?: { skip?: boolean },
 	) {
 		if (options?.skip) {
