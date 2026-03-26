@@ -5,6 +5,7 @@ import type { DAppKitStores } from '../../src/core/store.js';
 import { createStores } from '../../src/core/store.js';
 import {
 	createTestUiWallets,
+	GRPC_URLS,
 	TEST_DEFAULT_NETWORK,
 	TEST_NETWORKS,
 	unbindStoreListeners,
@@ -13,13 +14,6 @@ import { SuiGrpcClient } from '@mysten/sui/grpc';
 import type { MockWalletOptions } from '../mocks/mock-wallet.js';
 import { createMockWallets } from '../mocks/mock-wallet.js';
 import { createMockAccount } from '../mocks/mock-account.js';
-
-const GRPC_URLS = {
-	devnet: 'https://fullnode.devnet.sui.io:443',
-	testnet: 'https://fullnode.testnet.sui.io:443',
-	localnet: 'http://127.0.0.1:9000',
-	mainnet: 'https://fullnode.mainnet.sui.io:443',
-};
 
 export function createTestStores({
 	currentNetwork = TEST_DEFAULT_NETWORK,

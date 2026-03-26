@@ -2,23 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, test, vi } from 'vitest';
-import { TEST_DEFAULT_NETWORK, TEST_NETWORKS, TestWalletInitializeResult } from '../test-utils.js';
-import { createMockWallets, MockWallet } from '../mocks/mock-wallet.js';
-import { createDAppKit, DAppKit } from '../../src/index.js';
+import {
+	GRPC_URLS,
+	TEST_DEFAULT_NETWORK,
+	TEST_NETWORKS,
+	TestWalletInitializeResult,
+} from '../test-utils.js';
+import { createMockWallets } from '../mocks/mock-wallet.js';
+import { createDAppKit } from '../../src/index.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import type { Wallet } from '@mysten/wallet-standard';
 import { getWallets } from '@mysten/wallet-standard';
 
-const GRPC_URLS = {
-	testnet: 'https://fullnode.testnet.sui.io:443',
-	mainnet: 'https://fullnode.mainnet.sui.io:443',
-	devnet: 'https://fullnode.devnet.sui.io:443',
-	localnet: 'http://127.0.0.1:9000',
-} as const;
-
 /**
  * Creates a wallet object that simulates a non-compliant wallet extension
- * (like Bybit Wallet) where `accounts` is undefined instead of an array.
+ * where `accounts` is undefined instead of an array.
  */
 function createNonCompliantWallet(name: string): Wallet {
 	return {
@@ -41,76 +39,51 @@ function createNonCompliantWallet(name: string): Wallet {
 	};
 }
 
+function createTestDAppKit(initialize: () => TestWalletInitializeResult) {
+	return createDAppKit({
+		networks: TEST_NETWORKS,
+		defaultNetwork: TEST_DEFAULT_NETWORK,
+		createClient(network) {
+			return new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] });
+		},
+		walletInitializers: [{ id: 'Test Wallets', initialize }],
+		slushWalletConfig: null,
+	});
+}
+
 describe('[Integration] Non-compliant wallets', () => {
 	test('Non-compliant wallet with undefined accounts does not crash the app', () => {
-		let compliantWallets: MockWallet[] = [];
-
-		const dAppKit: DAppKit<typeof TEST_NETWORKS> = createDAppKit({
-			networks: TEST_NETWORKS,
-			defaultNetwork: TEST_DEFAULT_NETWORK,
-			createClient(network) {
-				return new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] });
-			},
-			walletInitializers: [
-				{
-					id: 'Test Wallets',
-					initialize(): TestWalletInitializeResult {
-						compliantWallets = createMockWallets({ name: 'Good Wallet' });
-						const nonCompliantWallet = createNonCompliantWallet('Bad Wallet');
-						const walletsApi = getWallets();
-						return {
-							unregister: walletsApi.register(...compliantWallets, nonCompliantWallet),
-						};
-					},
-				},
-			],
-			slushWalletConfig: null,
+		const dAppKit = createTestDAppKit(() => {
+			const walletsApi = getWallets();
+			return {
+				unregister: walletsApi.register(
+					...createMockWallets({ name: 'Good Wallet' }),
+					createNonCompliantWallet('Bad Wallet'),
+				),
+			};
 		});
 
-		// The app should still function — the compliant wallet should be available
-		const wallets = dAppKit.stores.$wallets.get();
-		expect(wallets.length).toBeGreaterThanOrEqual(1);
-		expect(wallets.some((w) => w.name === 'Good Wallet')).toBe(true);
-		// The non-compliant wallet should have been silently skipped
-		expect(wallets.every((w) => w.name !== 'Bad Wallet')).toBe(true);
+		const walletNames = dAppKit.stores.$wallets.get().map((w) => w.name);
+		expect(walletNames).toContain('Good Wallet');
+		expect(walletNames).not.toContain('Bad Wallet');
 	});
 
 	test('Non-compliant wallet registered after init does not crash the app', () => {
-		let compliantWallets: MockWallet[] = [];
-
-		const dAppKit: DAppKit<typeof TEST_NETWORKS> = createDAppKit({
-			networks: TEST_NETWORKS,
-			defaultNetwork: TEST_DEFAULT_NETWORK,
-			createClient(network) {
-				return new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] });
-			},
-			walletInitializers: [
-				{
-					id: 'Test Wallets',
-					initialize(): TestWalletInitializeResult {
-						compliantWallets = createMockWallets({ name: 'Good Wallet' });
-						const walletsApi = getWallets();
-						return { unregister: walletsApi.register(...compliantWallets) };
-					},
-				},
-			],
-			slushWalletConfig: null,
+		const dAppKit = createTestDAppKit(() => {
+			const walletsApi = getWallets();
+			return { unregister: walletsApi.register(...createMockWallets({ name: 'Good Wallet' })) };
 		});
 
-		// Subscribe to trigger the mount
-		const wallets = dAppKit.stores.$wallets.get();
-		expect(wallets.some((w) => w.name === 'Good Wallet')).toBe(true);
+		expect(dAppKit.stores.$wallets.get().map((w) => w.name)).toContain('Good Wallet');
 
-		// Now register a non-compliant wallet — this should not throw
-		const nonCompliantWallet = createNonCompliantWallet('Late Bad Wallet');
+		// Register a non-compliant wallet after init — should not throw
 		const walletsApi = getWallets();
 		expect(() => {
-			walletsApi.register(nonCompliantWallet);
+			walletsApi.register(createNonCompliantWallet('Late Bad Wallet'));
 		}).not.toThrow();
 
-		// The good wallet should still be available
-		const updatedWallets = dAppKit.stores.$wallets.get();
-		expect(updatedWallets.some((w) => w.name === 'Good Wallet')).toBe(true);
-		expect(updatedWallets.every((w) => w.name !== 'Late Bad Wallet')).toBe(true);
+		const walletNames = dAppKit.stores.$wallets.get().map((w) => w.name);
+		expect(walletNames).toContain('Good Wallet');
+		expect(walletNames).not.toContain('Late Bad Wallet');
 	});
 });
