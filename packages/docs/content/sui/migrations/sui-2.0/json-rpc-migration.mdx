@@ -57,10 +57,26 @@ These JSON-RPC methods have direct replacements in the core API:
 | `multiGetObjects`            | `getObjects`                                      |
 | `getDynamicFields`           | `listDynamicFields`                               |
 | `getDynamicFieldObject`      | `getDynamicField`                                 |
-| `devInspectTransactionBlock` | `simulateTransaction`                             |
+| `devInspectTransactionBlock` | `simulateTransaction` with `checksEnabled: false` |
 | `dryRunTransactionBlock`     | `simulateTransaction`                             |
 | `getNormalizedMoveFunction`  | `getMoveFunction`                                 |
 | `getMoveFunctionArgTypes`    | `getMoveFunction`                                 |
+
+### Example: Migrating devInspectTransactionBlock
+
+```diff
+- const result = await jsonRpcClient.devInspectTransactionBlock({
+-   sender: '0xabc...',
+-   transactionBlock: tx,
+- });
+- const returnValues = result.results?.[0]?.returnValues;
++ const result = await client.core.simulateTransaction({
++   transaction: tx,
++   checksEnabled: false,
++   include: { commandResults: true },
++ });
++ const returnValues = result.commandResults?.[0]?.returnValues;
+```
 
 ### Example: Migrating getOwnedObjects
 

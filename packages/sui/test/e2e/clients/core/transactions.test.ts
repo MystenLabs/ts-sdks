@@ -1180,6 +1180,134 @@ describe('Core API - Transactions', () => {
 		);
 	});
 
+	describe('simulateTransaction - checksEnabled', () => {
+		let nonPublicTxBytes: Uint8Array;
+		let validTxBytes: Uint8Array;
+
+		beforeAll(async () => {
+			const coins = await toolbox.jsonRpcClient.getCoins({
+				owner: testAddress,
+				coinType: SUI_TYPE_ARG,
+			});
+			const gasPayment = [
+				{
+					objectId: coins.data[0].coinObjectId,
+					version: coins.data[0].version,
+					digest: coins.data[0].digest,
+				},
+			];
+
+			const nonPublicTx = new Transaction();
+			nonPublicTx.moveCall({
+				target: `${packageId}::test_objects::non_public_add`,
+				arguments: [nonPublicTx.pure.u64(3), nonPublicTx.pure.u64(5)],
+			});
+			nonPublicTx.setSender(testAddress);
+			nonPublicTx.setGasOwner(testAddress);
+			nonPublicTx.setGasBudget(50_000_000);
+			nonPublicTx.setGasPrice(1000);
+			nonPublicTx.setGasPayment(gasPayment);
+			nonPublicTxBytes = await nonPublicTx.build({});
+
+			const validTx = new Transaction();
+			validTx.transferObjects([validTx.gas], testAddress);
+			validTx.setSender(testAddress);
+			validTx.setGasOwner(testAddress);
+			validTx.setGasBudget(50_000_000);
+			validTx.setGasPrice(1000);
+			validTx.setGasPayment(gasPayment);
+			validTxBytes = await validTx.build({});
+		});
+
+		it('all clients return same data: valid tx with checksEnabled false', async () => {
+			await toolbox.expectAllClientsReturnSameData(
+				(client) =>
+					client.core.simulateTransaction({
+						transaction: validTxBytes,
+						checksEnabled: false,
+						include: { effects: true, balanceChanges: true },
+					}),
+				(result) => {
+					const data = result.Transaction ?? result.FailedTransaction;
+					return {
+						$kind: result.$kind,
+						status: data?.status,
+						balanceChanges: data?.balanceChanges,
+					};
+				},
+			);
+		});
+
+		it('all clients return same data: non-public fn with checksEnabled false', async () => {
+			await toolbox.expectAllClientsReturnSameData(
+				(client) =>
+					client.core.simulateTransaction({
+						transaction: nonPublicTxBytes,
+						checksEnabled: false,
+						include: { commandResults: true, effects: true },
+					}),
+				(result) => {
+					const data = result.Transaction ?? result.FailedTransaction;
+					return {
+						$kind: result.$kind,
+						commandResults: result.commandResults,
+						status: data?.status,
+					};
+				},
+			);
+		});
+
+		testWithAllClients(
+			'should allow calling non-public functions with checksEnabled: false',
+			async (client) => {
+				const result = await client.core.simulateTransaction({
+					transaction: nonPublicTxBytes,
+					checksEnabled: false,
+					include: { commandResults: true, effects: true },
+				});
+
+				expect(result.$kind).toBe('Transaction');
+				expect(result.commandResults).toBeDefined();
+				expect(result.commandResults!.length).toBeGreaterThan(0);
+
+				const firstCommand = result.commandResults![0];
+				expect(firstCommand.returnValues).toBeDefined();
+				expect(firstCommand.returnValues.length).toBe(1);
+				expect(firstCommand.returnValues[0].bcs).toBeInstanceOf(Uint8Array);
+			},
+		);
+
+		it('all clients return same data: non-public fn with checksEnabled true (default)', async () => {
+			await toolbox.expectAllClientsReturnSameData(
+				(client) =>
+					client.core.simulateTransaction({
+						transaction: nonPublicTxBytes,
+						include: { effects: true },
+					}),
+				(result) => {
+					const data = result.Transaction ?? result.FailedTransaction;
+					return {
+						$kind: result.$kind,
+						success: data?.status.success,
+					};
+				},
+			);
+		});
+
+		testWithAllClients(
+			'should fail calling non-public functions with checksEnabled: true (default)',
+			async (client) => {
+				const result = await client.core.simulateTransaction({
+					transaction: nonPublicTxBytes,
+					include: { effects: true },
+				});
+
+				expect(result.$kind).toBe('FailedTransaction');
+				expect(result.FailedTransaction?.status.success).toBe(false);
+			},
+		);
+	});
+
 	describe('objectTypes', () => {
 		testWithAllClients(
 			'should return object types for created objects in executeTransaction',

@@ -354,6 +354,21 @@ console.log(result.effects);
 console.log(result.balanceChanges);
 ```
 
+#### Disabling Checks
+
+By default, `simulateTransaction` runs with full transaction validation. For example when inspecting
+non-public or non-entry Move functions set `checksEnabled: false`:
+
+```typescript
+const result = await client.core.simulateTransaction({
+	transaction: transactionBytes,
+	checksEnabled: false,
+	include: {
+		commandResults: true,
+	},
+});
+```
+
 ### signAndExecuteTransaction
 
 Sign and execute a transaction in one step.
