@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 2.12.0
+
+### Minor Changes
+
+- bfeff69: Add `checksEnabled` option to `simulateTransaction` to allow disabling transaction
+  validation checks during simulation, enabling inspection of non-public/non-entry Move functions.
+
 ## 2.11.0
 
 ### Minor Changes

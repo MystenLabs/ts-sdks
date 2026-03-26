@@ -1,5 +1,16 @@
 # @mysten/dapp-kit-core
 
+## 1.2.1
+
+### Patch Changes
+
+- a085d92: Gracefully handle non-compliant wallet extensions that provide undefined values for
+  required Wallet Standard fields like `accounts`, preventing an uncaught TypeError from crashing
+  the app.
+- Updated dependencies [bfeff69]
+  - @mysten/sui@2.12.0
+  - @mysten/wallet-standard@0.20.1
+
 ## 1.2.0
 
 ### Minor Changes
