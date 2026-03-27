@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '../../../src/transactions/Transaction.js';
-import { coinWithBalance, TransactionArgument } from '../../../src/transactions/index.js';
+import { TransactionArgument } from '../../../src/transactions/index.js';
 import type { TransactionObjectArgument } from '../../../src/transactions/Transaction.js';
 
 describe('Blob registration transaction building', () => {
@@ -19,12 +19,10 @@ describe('Blob registration transaction building', () => {
 			fn: (coin: TransactionObjectArgument, tx: Transaction) => Promise<T>,
 		): (tx: Transaction) => Promise<T> {
 			return async (tx: Transaction) => {
-				const coin = tx.add(
-					coinWithBalance({
-						balance: amount,
-						type: '0x2::wal::WAL',
-					}),
-				);
+				const coin = tx.coin({
+					balance: amount,
+					type: '0x2::wal::WAL',
+				});
 
 				const result = await fn(coin, tx);
 
@@ -92,6 +90,7 @@ describe('Blob registration transaction building', () => {
 			      "$Intent": {
 			        "data": {
 			          "balance": 1000n,
+			          "outputKind": "coin",
 			          "type": "0x0000000000000000000000000000000000000000000000000000000000000002::wal::WAL",
 			        },
 			        "inputs": {},
@@ -103,6 +102,7 @@ describe('Blob registration transaction building', () => {
 			      "$Intent": {
 			        "data": {
 			          "balance": 123n,
+			          "outputKind": "coin",
 			          "type": "0x0000000000000000000000000000000000000000000000000000000000000002::wal::WAL",
 			        },
 			        "inputs": {},

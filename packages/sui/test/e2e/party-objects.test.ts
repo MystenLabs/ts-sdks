@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { beforeAll, describe, expect, it } from 'vitest';
 import { setup, TestToolbox } from './utils/setup.js';
-import { coinWithBalance, Transaction } from '../../src/transactions/index.js';
+import { Transaction } from '../../src/transactions/index.js';
 import { SuiClientTypes } from '../../src/client/index.js';
 
 describe('Party Objects', () => {
@@ -26,7 +26,7 @@ describe('Party Objects', () => {
 		createPartyTxn.moveCall({
 			target: '0x2::transfer::public_party_transfer',
 			typeArguments: ['0x2::coin::Coin<0x2::sui::SUI>'],
-			arguments: [coinWithBalance({ balance: 1 }), party],
+			arguments: [createPartyTxn.coin({ balance: 1 }), party],
 		});
 
 		const result = await toolbox.keypair.signAndExecuteTransaction({
@@ -90,7 +90,7 @@ describe('Party Objects', () => {
 		createPartyTxn.moveCall({
 			target: '0x2::transfer::public_party_transfer',
 			typeArguments: ['0x2::coin::Coin<0x2::sui::SUI>'],
-			arguments: [coinWithBalance({ balance: 1 }), party],
+			arguments: [createPartyTxn.coin({ balance: 1 }), party],
 		});
 
 		const result = await toolbox.keypair.signAndExecuteTransaction({

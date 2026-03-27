@@ -31,7 +31,12 @@ import { createPure } from './pure.js';
 import { TransactionDataBuilder } from './TransactionData.js';
 import { getIdFromCallArg } from './utils.js';
 import { namedPackagesPlugin } from './plugins/NamedPackagesPlugin.js';
-import { COIN_WITH_BALANCE, resolveCoinBalance } from './intents/CoinWithBalance.js';
+import {
+	COIN_WITH_BALANCE,
+	resolveCoinBalance,
+	coinWithBalance,
+	createBalance,
+} from './intents/CoinWithBalance.js';
 import type { ClientWithCoreApi } from '../client/core.js';
 
 export type TransactionObjectArgument =
@@ -305,6 +310,38 @@ export class Transaction {
 	/** Returns an argument for the gas coin, to be used in a transaction. */
 	get gas() {
 		return { $kind: 'GasCoin' as const, GasCoin: true as const };
+	}
+
+	/**
+	 * Creates a coin of the specified type and balance.
+	 * Sourced from address balance when available, falling back to owned coins.
+	 */
+	coin({
+		type,
+		balance,
+		useGasCoin,
+	}: {
+		balance: bigint | number;
+		type?: string;
+		useGasCoin?: boolean;
+	}): TransactionResult {
+		return this.add(coinWithBalance({ type, balance, useGasCoin }));
+	}
+
+	/**
+	 * Creates a Balance object of the specified type and balance.
+	 * Sourced from address balance when available, falling back to owned coins.
+	 */
+	balance({
+		type,
+		balance,
+		useGasCoin,
+	}: {
+		balance: bigint | number;
+		type?: string;
+		useGasCoin?: boolean;
+	}): TransactionResult {
+		return this.add(createBalance({ type, balance, useGasCoin }));
 	}
 
 	/**
