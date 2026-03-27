@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 2.12.1
+
+### Patch Changes
+
+- f9067d5: Fix JSON-RPC `simulateTransaction` failing when passed a Transaction instance with
+  unresolved object inputs
+
 ## 2.12.0
 
 ### Minor Changes
