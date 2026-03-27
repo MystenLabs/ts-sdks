@@ -1,12 +1,16 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { toBase58 } from '@mysten/bcs';
+import { fromBase58, toBase58 } from '@mysten/bcs';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Transaction } from '../../../src/transactions/index.js';
 import { Inputs } from '../../../src/transactions/Inputs.js';
 import { coreClientResolveTransactionPlugin } from '../../../src/client/core-resolver.js';
+import {
+	isCoinReservationDigest,
+	parseCoinReservationBalance,
+} from '../../../src/utils/coin-reservation.js';
 
 function ref(): { objectId: string; version: string; digest: string } {
 	return {
@@ -24,7 +28,23 @@ function ref(): { objectId: string; version: string; digest: string } {
 // Mock chain identifier (32-byte digest)
 const MOCK_CHAIN_IDENTIFIER = toBase58(new Uint8Array(32).fill(1));
 
-function createMockClient() {
+interface MockClientOptions {
+	coins?: { objectId: string; version: string; digest: string; balance: string }[];
+	addressBalance?: string;
+	featureFlags?: Record<string, boolean>;
+}
+
+function createMockClient(options?: MockClientOptions) {
+	const defaultCoin = {
+		objectId: '0x' + '1'.repeat(64),
+		version: '1',
+		digest: toBase58(new Uint8Array(32).fill(2)),
+		balance: '10000000000',
+	};
+	const coins = options?.coins ?? [defaultCoin];
+	const addressBalance = options?.addressBalance ?? '0';
+	const featureFlags = options?.featureFlags ?? {};
+
 	const mockClient = {
 		core: {
 			getChainIdentifier: vi.fn().mockResolvedValue({
@@ -39,17 +59,30 @@ function createMockClient() {
 			getReferenceGasPrice: vi.fn().mockResolvedValue({
 				referenceGasPrice: '1000',
 			}),
+			getBalance: vi.fn().mockResolvedValue({
+				balance: {
+					coinType: '0x2::sui::SUI',
+					totalBalance: String(
+						BigInt(addressBalance) + coins.reduce((sum, c) => sum + BigInt(c.balance), 0n),
+					),
+					addressBalance,
+					coinObjectCount: coins.length,
+				},
+			}),
 			listCoins: vi.fn().mockResolvedValue({
-				objects: [
-					{
-						objectId: '0x' + '1'.repeat(64),
-						version: '1',
-						digest: toBase58(new Uint8Array(32).fill(2)),
-					},
-				],
+				objects: coins,
+				hasNextPage: false,
+				cursor: null,
 			}),
 			getObjects: vi.fn().mockResolvedValue({
 				objects: [],
+			}),
+			getProtocolConfig: vi.fn().mockResolvedValue({
+				protocolConfig: {
+					protocolVersion: '1',
+					featureFlags,
+					attributes: {},
+				},
 			}),
 			getMoveFunction: vi.fn(),
 			simulateTransaction: vi.fn().mockResolvedValue({
@@ -107,63 +140,32 @@ describe('ValidDuring expiration auto-setting', () => {
 		}
 	});
 
-	it('does not set ValidDuring when there are gas payment coins', async () => {
+	it('does not set ValidDuring when gas payment is non-empty', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x' + '2'.repeat(64));
 		tx.setGasBudget(10000000);
-		tx.setGasPayment([ref()]); // Has gas payment coins - versioned objects provide replay protection
+		tx.setGasPayment([ref()]);
 
 		const client = createMockClient();
 		await tx.build({ client: client as any });
-
-		// Versioned gas coins provide replay protection, so ValidDuring is not needed
-		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();
 
 		const data = tx.getData();
 		expect(data.expiration).toBeNull();
 	});
 
-	it('does not set ValidDuring when there are owned object inputs', async () => {
+	it('sets ValidDuring when payment is empty even with owned object inputs', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x' + '2'.repeat(64));
 		tx.setGasBudget(10000000);
-		tx.setGasPayment([]); // Empty gas payment - would normally trigger ValidDuring
+		tx.setGasPayment([]);
 
-		// Add an owned object input (ImmOrOwnedObject)
 		tx.object(Inputs.ObjectRef(ref()));
 
 		const client = createMockClient();
 		await tx.build({ client: client as any });
 
-		// Versioned inputs provide replay protection, so ValidDuring is not needed
-		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();
-
 		const data = tx.getData();
-		expect(data.expiration).toBeNull();
-	});
-
-	it('does not set ValidDuring when there are objects with a version', async () => {
-		const tx = new Transaction();
-		tx.setSender('0x' + '2'.repeat(64));
-		tx.setGasBudget(10000000);
-		tx.setGasPayment([]); // Empty gas payment
-
-		// Add an object with an explicit version
-		tx.object(
-			Inputs.ObjectRef({
-				objectId: '0x' + '4'.repeat(64),
-				version: '5',
-				digest: ref().digest,
-			}),
-		);
-
-		const client = createMockClient();
-		await tx.build({ client: client as any });
-
-		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();
-
-		const data = tx.getData();
-		expect(data.expiration).toBeNull();
+		expect(data.expiration?.$kind).toBe('ValidDuring');
 	});
 
 	it('does NOT override expiration when already set', async () => {
@@ -185,5 +187,270 @@ describe('ValidDuring expiration auto-setting', () => {
 		if (data.expiration?.$kind === 'Epoch') {
 			expect(String(data.expiration.Epoch)).toBe('200');
 		}
+	});
+
+	it('sets ValidDuring when transaction has withdrawal with empty payment', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasBudget(10000000);
+		tx.setGasPayment([]);
+
+		tx.withdrawal({ amount: 1000, type: '0x2::sui::SUI' });
+
+		const client = createMockClient();
+		await tx.build({ client: client as any });
+
+		const data = tx.getData();
+		expect(data.expiration?.$kind).toBe('ValidDuring');
+	});
+
+	it('does not set ValidDuring when withdrawal has non-empty payment', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasBudget(10000000);
+		tx.setGasPayment([ref()]);
+
+		tx.withdrawal({ amount: 1000, type: '0x2::sui::SUI' });
+
+		const client = createMockClient();
+		await tx.build({ client: client as any });
+
+		const data = tx.getData();
+		expect(data.expiration).toBeNull();
+	});
+});
+
+describe('Gas payment resolution', () => {
+	it('uses empty payment when address balance covers budget', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+
+		const client = createMockClient({
+			addressBalance: '100000000000',
+			coins: [
+				{
+					objectId: '0x' + '1'.repeat(64),
+					version: '1',
+					digest: toBase58(new Uint8Array(32).fill(2)),
+					balance: '5000000000',
+				},
+			],
+		});
+		await tx.build({ client: client as any });
+
+		const data = tx.getData();
+		expect(data.gasData.payment).toEqual([]);
+	});
+
+	it('uses coin objects when address balance is insufficient', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+
+		const client = createMockClient({
+			addressBalance: '0',
+			coins: [
+				{
+					objectId: '0x' + '1'.repeat(64),
+					version: '1',
+					digest: toBase58(new Uint8Array(32).fill(2)),
+					balance: '10000000000',
+				},
+			],
+		});
+		await tx.build({ client: client as any });
+
+		const data = tx.getData();
+		expect(data.gasData.payment?.length).toBeGreaterThan(0);
+		expect(data.gasData.payment?.[0].objectId).toBe('0x' + '1'.repeat(64));
+	});
+
+	it('uses empty payment when budget is zero', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasBudget(0);
+
+		const client = createMockClient({ addressBalance: '0' });
+		await tx.build({ client: client as any });
+
+		const data = tx.getData();
+		expect(data.gasData.payment).toEqual([]);
+	});
+});
+
+describe('Coin reservation compat mode', () => {
+	it('creates reservation ref when usesGasCoin and enable_coin_reservation_obj_refs enabled', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasBudget(2000000);
+		tx.splitCoins(tx.gas, [1000]);
+
+		const client = createMockClient({
+			addressBalance: '5000000000',
+			coins: [
+				{
+					objectId: '0x' + '1'.repeat(64),
+					version: '1',
+					digest: toBase58(new Uint8Array(32).fill(2)),
+					balance: '1000000',
+				},
+			],
+			featureFlags: { enable_coin_reservation_obj_refs: true },
+		});
+		await tx.build({ client: client as any });
+
+		const data = tx.getData();
+		expect(data.gasData.payment!.length).toBeGreaterThanOrEqual(1);
+
+		const reservationRef = data.gasData.payment![0];
+		expect(isCoinReservationDigest(reservationRef.digest)).toBe(true);
+		// Version should be "0" (SequenceNumber::new())
+		expect(reservationRef.version).toBe('0');
+		// ObjectId should be non-zero (derived from accumulator XOR chain identifier)
+		expect(reservationRef.objectId).not.toBe(
+			'0x0000000000000000000000000000000000000000000000000000000000000000',
+		);
+	});
+
+	it('reserves full address balance when usesGasCoin', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasBudget(2000000);
+		tx.splitCoins(tx.gas, [1000]);
+
+		const client = createMockClient({
+			addressBalance: '5000000000',
+			coins: [
+				{
+					objectId: '0x' + '1'.repeat(64),
+					version: '1',
+					digest: toBase58(new Uint8Array(32).fill(2)),
+					balance: '1000000',
+				},
+			],
+			featureFlags: { enable_coin_reservation_obj_refs: true },
+		});
+		await tx.build({ client: client as any });
+
+		const data = tx.getData();
+		expect(data.gasData.payment!.length).toBe(2);
+
+		const reservationRef = data.gasData.payment![0];
+		expect(isCoinReservationDigest(reservationRef.digest)).toBe(true);
+		expect(parseCoinReservationBalance(reservationRef.digest)).toBe(5000000000n);
+		// Verify epoch (100) is encoded in digest bytes 8-11 as LE u32
+		const digestBytes = fromBase58(reservationRef.digest);
+		const epochView = new DataView(
+			digestBytes.buffer,
+			digestBytes.byteOffset,
+			digestBytes.byteLength,
+		);
+		expect(epochView.getUint32(8, true)).toBe(100);
+		expect(reservationRef.version).toBe('0');
+
+		expect(data.gasData.payment![1].objectId).toBe('0x' + '1'.repeat(64));
+	});
+
+	it('does not create reservation when enable_coin_reservation_obj_refs flag is disabled', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasBudget(2000000);
+		tx.splitCoins(tx.gas, [1000]);
+
+		const client = createMockClient({
+			addressBalance: '5000000000',
+			coins: [
+				{
+					objectId: '0x' + '1'.repeat(64),
+					version: '1',
+					digest: toBase58(new Uint8Array(32).fill(2)),
+					balance: '10000000000',
+				},
+			],
+			featureFlags: {},
+		});
+		await tx.build({ client: client as any });
+
+		const data = tx.getData();
+		for (const coin of data.gasData.payment ?? []) {
+			expect(isCoinReservationDigest(coin.digest)).toBe(false);
+		}
+	});
+
+	it('does not create reservation when coins cover budget without usesGasCoin', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasBudget(1000000);
+
+		const client = createMockClient({
+			addressBalance: '0',
+			coins: [
+				{
+					objectId: '0x' + '1'.repeat(64),
+					version: '1',
+					digest: toBase58(new Uint8Array(32).fill(2)),
+					balance: '10000000000',
+				},
+			],
+			featureFlags: { enable_coin_reservation_obj_refs: true },
+		});
+		await tx.build({ client: client as any });
+
+		const data = tx.getData();
+		for (const coin of data.gasData.payment ?? []) {
+			expect(isCoinReservationDigest(coin.digest)).toBe(false);
+		}
+	});
+
+	it('no reservation when usesGasCoin + flag enabled + addressBalance is 0', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasBudget(1000000);
+		tx.splitCoins(tx.gas, [100n]); // usesGasCoin = true
+
+		const client = createMockClient({
+			addressBalance: '0',
+			coins: [
+				{
+					objectId: '0x' + '1'.repeat(64),
+					version: '1',
+					digest: toBase58(new Uint8Array(32).fill(2)),
+					balance: '10000000000',
+				},
+			],
+			featureFlags: { enable_coin_reservation_obj_refs: true },
+		});
+		await tx.build({ client: client as any });
+
+		const data = tx.getData();
+		// reservationAmount = 0 - 0 = 0, which is not > 0, so no reservation ref
+		for (const coin of data.gasData.payment ?? []) {
+			expect(isCoinReservationDigest(coin.digest)).toBe(false);
+		}
+	});
+});
+
+describe('Protocol config and chain identifier fetch gating', () => {
+	it('does not fetch getProtocolConfig or getChainIdentifier when !usesGasCoin', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasBudget(1000000);
+		// No tx.gas reference, so usesGasCoin = false
+
+		const client = createMockClient({
+			addressBalance: '0',
+			coins: [
+				{
+					objectId: '0x' + '1'.repeat(64),
+					version: '1',
+					digest: toBase58(new Uint8Array(32).fill(2)),
+					balance: '10000000000',
+				},
+			],
+			featureFlags: { enable_coin_reservation_obj_refs: true },
+		});
+		await tx.build({ client: client as any });
+
+		expect(client.core.getProtocolConfig).not.toHaveBeenCalled();
+		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();
 	});
 });
