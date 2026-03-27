@@ -144,6 +144,10 @@ fun non_public_add(a: u64, b: u64): u64 {
     a + b
 }
 
+fun non_public_get_value(obj: &SimpleObject): u64 {
+    obj.value
+}
+
 /// Function that always aborts - used for testing FailedTransaction handling
 public fun abort_always() {
     abort 42

@@ -368,6 +368,51 @@ describe('Core API - Transactions', () => {
 		);
 
 		testWithAllClients(
+			'should simulate unserialized non-public function with object references and checksEnabled: false',
+			async (client) => {
+				// First create an object to reference
+				const createTx = new Transaction();
+				const [obj] = createTx.moveCall({
+					target: `${packageId}::test_objects::create_simple_object`,
+					arguments: [createTx.pure.u64(42)],
+				});
+				createTx.transferObjects([obj], createTx.pure.address(testAddress));
+
+				const createResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+					transaction: createTx,
+					signer: toolbox.keypair,
+					options: { showObjectChanges: true },
+				});
+				await toolbox.waitForTransaction({ digest: createResult.digest });
+
+				const createdObject = createResult.objectChanges?.find(
+					(change) => change.type === 'created' && change.objectType.includes('SimpleObject'),
+				);
+				expect(createdObject).toBeDefined();
+				const createdObjectId = (createdObject as { objectId: string }).objectId;
+
+				// Simulate a non-public function with unresolved object reference
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::test_objects::non_public_get_value`,
+					arguments: [tx.object(createdObjectId)],
+				});
+				tx.setSender(testAddress);
+
+				const result = await client.core.simulateTransaction({
+					transaction: tx,
+					checksEnabled: false,
+					include: { effects: true, commandResults: true },
+				});
+
+				expect(result.$kind).toBe('Transaction');
+				expect(result.commandResults).toBeDefined();
+				expect(result.commandResults!.length).toBe(1);
+				expect(result.commandResults![0].returnValues.length).toBe(1);
+			},
+		);
+
+		testWithAllClients(
 			'should produce same results for serialized and unserialized transactions',
 			async (client) => {
 				const tx = new Transaction();
@@ -1346,6 +1391,48 @@ describe('Core API - Transactions', () => {
 
 				expect(result.$kind).toBe('FailedTransaction');
 				expect(result.FailedTransaction?.status.success).toBe(false);
+			},
+		);
+	});
+
+	describe('build with onlyTransactionKind', () => {
+		testWithAllClients(
+			'should build onlyTransactionKind with non-public function and unresolved objects',
+			async (client) => {
+				// First create an object to reference
+				const createTx = new Transaction();
+				const [obj] = createTx.moveCall({
+					target: `${packageId}::test_objects::create_simple_object`,
+					arguments: [createTx.pure.u64(42)],
+				});
+				createTx.transferObjects([obj], createTx.pure.address(testAddress));
+
+				const createResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+					transaction: createTx,
+					signer: toolbox.keypair,
+					options: { showObjectChanges: true },
+				});
+				await toolbox.waitForTransaction({ digest: createResult.digest });
+
+				const createdObject = createResult.objectChanges?.find(
+					(change) => change.type === 'created' && change.objectType.includes('SimpleObject'),
+				);
+				expect(createdObject).toBeDefined();
+				const createdObjectId = (createdObject as { objectId: string }).objectId;
+
+				// Build with onlyTransactionKind — should resolve objects without gas estimation
+				// This works even with non-public functions because onlyTransactionKind skips
+				// setGasBudget (which would fail due to checks-enabled simulation)
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::test_objects::non_public_get_value`,
+					arguments: [tx.object(createdObjectId)],
+				});
+				tx.setSender(testAddress);
+
+				const bytes = await tx.build({ client, onlyTransactionKind: true });
+				expect(bytes).toBeInstanceOf(Uint8Array);
+				expect(bytes.length).toBeGreaterThan(0);
 			},
 		);
 	});
