@@ -14,7 +14,7 @@ describe('Balance Withdrawal', () => {
 	});
 
 	it('deposits SUI to address balance and withdraws it', async () => {
-		const depositAmount = 100_000_000n; // 0.1 SUI
+		const depositAmount = 200_000_000n; // 0.2 SUI
 
 		const depositTx = new Transaction();
 		const [coinToDeposit] = depositTx.splitCoins(depositTx.gas, [depositAmount]);
@@ -36,8 +36,9 @@ describe('Balance Withdrawal', () => {
 
 		const withdrawTx = new Transaction();
 
+		const withdrawalAmount = 100_000_000n; // 0.1 SUI — less than deposit to leave room for gas
 		const withdrawal = withdrawTx.withdrawal({
-			amount: depositAmount,
+			amount: withdrawalAmount,
 			type: '0x2::sui::SUI',
 		});
 
