@@ -45,6 +45,7 @@ import {
 } from '../client/transaction-resolver.js';
 import { Value } from './proto/google/protobuf/struct.js';
 import { SimulateTransactionRequest_TransactionChecks } from './proto/sui/rpc/v2/transaction_execution_service.js';
+import { setGasData } from '../client/core-resolver.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
@@ -736,6 +737,7 @@ export class GrpcCoreClient extends CoreClient {
 
 	resolveTransactionPlugin() {
 		const client = this.#client;
+		const grpcSuiClient = this.#client;
 		return async function resolveTransactionData(
 			transactionData: TransactionDataBuilder,
 			options: BuildTransactionOptions,
@@ -748,14 +750,15 @@ export class GrpcCoreClient extends CoreClient {
 				snapshot.sender = '0x0000000000000000000000000000000000000000000000000000000000000000';
 			}
 			const grpcTransaction = transactionDataToGrpcTransaction(snapshot);
+			const needsGasSelection =
+				!options.onlyTransactionKind &&
+				(snapshot.gasData.budget == null || snapshot.gasData.payment == null);
 
 			let response;
 			try {
 				const result = await client.transactionExecutionService.simulateTransaction({
 					transaction: grpcTransaction,
-					doGasSelection:
-						!options.onlyTransactionKind &&
-						(snapshot.gasData.budget == null || snapshot.gasData.payment == null),
+					doGasSelection: needsGasSelection,
 					readMask: {
 						paths: [
 							'transaction.transaction.sender',
@@ -763,6 +766,7 @@ export class GrpcCoreClient extends CoreClient {
 							'transaction.transaction.expiration',
 							'transaction.transaction.kind',
 							'transaction.effects.status',
+							'transaction.effects.gas_used',
 						],
 					},
 				});
@@ -775,12 +779,76 @@ export class GrpcCoreClient extends CoreClient {
 				throw error;
 			}
 
-			if (
+			// If the simulation failed (e.g. due to non-entry function checks), retry with
+			// checks disabled to allow resolution of transactions calling private Move functions.
+			// Note: doGasSelection is ignored when checks are disabled, so gas data must be
+			// resolved separately after this retry.
+			const simulationFailed =
 				!options.onlyTransactionKind &&
 				response.transaction?.effects?.status &&
-				!response.transaction.effects.status.success
-			) {
-				const executionError = response.transaction.effects.status.error
+				!response.transaction.effects.status.success;
+
+			if (simulationFailed) {
+				try {
+					const retryResult = await client.transactionExecutionService.simulateTransaction({
+						transaction: grpcTransaction,
+						checks: SimulateTransactionRequest_TransactionChecks.DISABLED,
+						readMask: {
+							paths: [
+								'transaction.transaction.sender',
+								'transaction.transaction.gas_payment',
+								'transaction.transaction.expiration',
+								'transaction.transaction.kind',
+								'transaction.effects.status',
+								'transaction.effects.gas_used',
+							],
+						},
+					});
+					const retryResponse = retryResult.response;
+
+					// If the retry also fails, throw the original error from the first attempt
+					if (
+						retryResponse.transaction?.effects?.status &&
+						!retryResponse.transaction.effects.status.success
+					) {
+						const executionError = response.transaction?.effects?.status?.error
+							? parseGrpcExecutionError(response.transaction.effects.status.error)
+							: undefined;
+						const errorMessage = executionError?.message ?? 'Transaction failed';
+						throw new SimulationError(`Transaction resolution failed: ${errorMessage}`, {
+							executionError,
+						});
+					}
+
+					if (!retryResponse.transaction?.transaction) {
+						throw new Error('simulateTransaction did not return resolved transaction data');
+					}
+
+					// Apply the resolved transaction data (objects, commands, etc.)
+					applyGrpcResolvedTransaction(
+						transactionData,
+						retryResponse.transaction.transaction,
+						options,
+					);
+
+					// Since doGasSelection is ignored when checks are disabled, resolve gas
+					// data (budget, payment, price, expiration) using the core resolver which
+					// will simulate with checksEnabled: false for gas estimation.
+					if (needsGasSelection && !options.onlyTransactionKind) {
+						await setGasData(transactionData, grpcSuiClient);
+					}
+
+					return await next();
+				} catch (retryError) {
+					// If the retry itself throws (not a simulation failure), fall through
+					// to throw the original error
+					if (retryError instanceof SimulationError) {
+						throw retryError;
+					}
+					// Fall through to throw the original error
+				}
+
+				const executionError = response.transaction?.effects?.status?.error
 					? parseGrpcExecutionError(response.transaction.effects.status.error)
 					: undefined;
 				const errorMessage = executionError?.message ?? 'Transaction failed';

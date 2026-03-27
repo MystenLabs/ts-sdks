@@ -53,7 +53,7 @@ interface SystemStateData {
 	referenceGasPrice: string;
 }
 
-async function setGasData(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
+export async function setGasData(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
 	let systemState: SystemStateData | null = null;
 
 	if (!transactionData.gasData.price) {
@@ -85,6 +85,7 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Cli
 			},
 		}),
 		include: { effects: true },
+		checksEnabled: false,
 	});
 
 	if (simulateResult.$kind === 'FailedTransaction') {
@@ -110,7 +111,7 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Cli
 }
 
 // The current default is just picking _all_ coins we can which may not be ideal.
-async function setGasPayment(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
+export async function setGasPayment(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
 	if (!transactionData.gasData.payment) {
 		const gasPayer = transactionData.gasData.owner ?? transactionData.sender;
 		if (!gasPayer) {
@@ -189,10 +190,10 @@ async function setGasPayment(transactionData: TransactionDataBuilder, client: Cl
 	}
 }
 
-async function setExpiration(
+export async function setExpiration(
 	transactionData: TransactionDataBuilder,
 	client: ClientWithCoreApi,
-	existingSystemState: SystemStateData | null,
+	existingSystemState: SystemStateData | null = null,
 ) {
 	if (transactionData.expiration || hasVersionedInputs(transactionData)) {
 		return;
