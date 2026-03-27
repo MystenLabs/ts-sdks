@@ -326,6 +326,48 @@ describe('Core API - Transactions', () => {
 		);
 
 		testWithAllClients(
+			'should simulate unserialized Transaction with object references',
+			async (client) => {
+				// First create an object to reference
+				const createTx = new Transaction();
+				const [obj] = createTx.moveCall({
+					target: `${packageId}::test_objects::create_simple_object`,
+					arguments: [createTx.pure.u64(42)],
+				});
+				createTx.transferObjects([obj], createTx.pure.address(testAddress));
+
+				const createResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+					transaction: createTx,
+					signer: toolbox.keypair,
+					options: { showObjectChanges: true },
+				});
+				await toolbox.waitForTransaction({ digest: createResult.digest });
+
+				const createdObject = createResult.objectChanges?.find(
+					(change) => change.type === 'created' && change.objectType.includes('SimpleObject'),
+				);
+				expect(createdObject).toBeDefined();
+				const createdObjectId = (createdObject as { objectId: string }).objectId;
+
+				// Now simulate a transaction that references this object via tx.object() (UnresolvedObject)
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::test_objects::update_value`,
+					arguments: [tx.object(createdObjectId), tx.pure.u64(99)],
+				});
+				tx.setSender(testAddress);
+
+				// Pass Transaction instance directly — this should work even with UnresolvedObject inputs
+				const result = await client.core.simulateTransaction({
+					transaction: tx,
+					include: { effects: true },
+				});
+
+				expect(result.Transaction!.status.success).toBe(true);
+			},
+		);
+
+		testWithAllClients(
 			'should produce same results for serialized and unserialized transactions',
 			async (client) => {
 				const tx = new Transaction();

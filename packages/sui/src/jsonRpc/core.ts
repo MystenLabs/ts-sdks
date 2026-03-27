@@ -336,7 +336,7 @@ export class JSONRpcCoreClient extends CoreClient {
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		if (!(options.transaction instanceof Uint8Array)) {
-			await options.transaction.prepareForSerialization({ client: this });
+			await options.transaction.build({ client: this, onlyTransactionKind: true });
 		}
 
 		const tx = Transaction.from(options.transaction);
