@@ -818,7 +818,7 @@ describe('coinWithBalance', () => {
 				signer: toolbox.keypair,
 			});
 			if (depositResult.$kind !== 'Transaction') throw new Error('Deposit failed');
-			await client.core.waitForTransaction({ digest: depositResult.Transaction.digest });
+			await toolbox.waitForTransaction({ digest: depositResult.Transaction.digest });
 
 			const receiver = new Ed25519Keypair();
 			const requestAmount1 = 25_000_000n;
@@ -973,7 +973,7 @@ describe('coinWithBalance', () => {
 				signer: publishToolbox.keypair,
 			});
 			if (depositResult.$kind !== 'Transaction') throw new Error('Deposit failed');
-			await client.core.waitForTransaction({ digest: depositResult.Transaction.digest });
+			await toolbox.waitForTransaction({ digest: depositResult.Transaction.digest });
 
 			const receiver = new Ed25519Keypair();
 			const requestAmount1 = 1n;
@@ -1252,7 +1252,7 @@ describe('coinWithBalance', () => {
 					signer: publishToolbox.keypair,
 				});
 				if (depositResult.$kind !== 'Transaction') throw new Error('Deposit failed');
-				await client.core.waitForTransaction({ digest: depositResult.Transaction.digest });
+				await toolbox.waitForTransaction({ digest: depositResult.Transaction.digest });
 
 				const receiver = new Ed25519Keypair();
 				const requestAmount1 = 10n;
@@ -1409,7 +1409,7 @@ describe('coinWithBalance', () => {
 				transaction: setupTx,
 				signer: publishToolbox.keypair,
 			});
-			await publishToolbox.grpcClient.waitForTransaction({ result: setupResult });
+			await toolbox.waitForTransaction({ result: setupResult });
 
 			// Deposit 5 TEST to coinsAndBalanceKeypair's address balance
 			const coins = await publishToolbox.grpcClient.core.listCoins({
@@ -1434,7 +1434,7 @@ describe('coinWithBalance', () => {
 				transaction: depositTx,
 				signer: coinsAndBalanceKeypair,
 			});
-			await publishToolbox.grpcClient.waitForTransaction({ result: depositResult });
+			await toolbox.waitForTransaction({ result: depositResult });
 		});
 
 		// Helper: resolve intent and simulate in one step
@@ -1538,7 +1538,7 @@ describe('coinWithBalance', () => {
 					signer: coinsOnlyKeypair,
 				});
 				if (depositResult.$kind !== 'Transaction') throw new Error('Deposit failed');
-				await client.core.waitForTransaction({ digest: depositResult.Transaction.digest });
+				await toolbox.waitForTransaction({ digest: depositResult.Transaction.digest });
 
 				const tx = new Transaction();
 				const bal = tx.balance({ type: 'gas', balance: 10_000_000n });
@@ -1888,7 +1888,7 @@ describe('coinWithBalance', () => {
 				transaction: fundTx,
 				signer: toolbox.keypair,
 			});
-			await client.core.waitForTransaction({ result: fundResult });
+			await toolbox.waitForTransaction({ result: fundResult });
 
 			// Deposit SUI into address balance via send_funds
 			const depositTx = new Transaction();
@@ -1902,7 +1902,7 @@ describe('coinWithBalance', () => {
 				transaction: depositTx,
 				signer: signer,
 			});
-			await client.core.waitForTransaction({ result: depositResult });
+			await toolbox.waitForTransaction({ result: depositResult });
 
 			// Now use tx.coin with gas type — should use coin reservation
 			const receiver = new Ed25519Keypair();
@@ -1961,7 +1961,7 @@ describe('coinWithBalance', () => {
 				transaction: fundTx,
 				signer: toolbox.keypair,
 			});
-			await client.core.waitForTransaction({ result: fundResult });
+			await toolbox.waitForTransaction({ result: fundResult });
 
 			// Also deposit into address balance
 			const addressBalanceAmount = 500_000_000n;
@@ -1976,7 +1976,7 @@ describe('coinWithBalance', () => {
 				transaction: depositTx,
 				signer: signer,
 			});
-			await client.core.waitForTransaction({ result: depositResult });
+			await toolbox.waitForTransaction({ result: depositResult });
 
 			// Get signer's coin balance to know how much they have
 			const coins = await client.core.listCoins({
@@ -2032,7 +2032,7 @@ describe('coinWithBalance', () => {
 				transaction: fundTx,
 				signer: toolbox.keypair,
 			});
-			await client.core.waitForTransaction({ result: fundResult });
+			await toolbox.waitForTransaction({ result: fundResult });
 
 			const depositTx = new Transaction();
 			const [coinToDeposit] = depositTx.splitCoins(depositTx.gas, [depositAmount]);
@@ -2045,7 +2045,7 @@ describe('coinWithBalance', () => {
 				transaction: depositTx,
 				signer: signer,
 			});
-			await client.core.waitForTransaction({ result: depositResult });
+			await toolbox.waitForTransaction({ result: depositResult });
 
 			// Use tx.balance instead of tx.coin — produces Balance<SUI>
 			// Path 1 (all balance, AB sufficient) uses redeem_funds directly,
@@ -2089,7 +2089,7 @@ describe('coinWithBalance', () => {
 				transaction: fundTx,
 				signer: toolbox.keypair,
 			});
-			await client.core.waitForTransaction({ result: fundResult });
+			await toolbox.waitForTransaction({ result: fundResult });
 
 			const depositTx = new Transaction();
 			const [coinToDeposit] = depositTx.splitCoins(depositTx.gas, [depositAmount]);
@@ -2102,7 +2102,7 @@ describe('coinWithBalance', () => {
 				transaction: depositTx,
 				signer: signer,
 			});
-			await client.core.waitForTransaction({ result: depositResult });
+			await toolbox.waitForTransaction({ result: depositResult });
 
 			// Build a transaction that triggers reservation
 			const tx = new Transaction();
