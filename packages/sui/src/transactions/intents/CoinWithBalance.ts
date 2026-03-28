@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { InferInput } from 'valibot';
-import { bigint, object, parse, string } from 'valibot';
+import { bigint, object, optional, parse, picklist, string } from 'valibot';
 
 import { bcs } from '../../bcs/index.js';
 import { normalizeStructTag } from '../../utils/sui-types.js';
@@ -43,6 +43,7 @@ export function coinWithBalance({
 				data: {
 					type: coinType === SUI_TYPE && useGasCoin ? 'gas' : coinType,
 					balance: BigInt(balance),
+					outputKind: 'coin',
 				} satisfies InferInput<typeof CoinWithBalanceData>,
 			}),
 		);
@@ -51,9 +52,45 @@ export function coinWithBalance({
 	};
 }
 
+export function createBalance({
+	type = SUI_TYPE,
+	balance,
+	useGasCoin = true,
+}: {
+	balance: bigint | number;
+	type?: string;
+	useGasCoin?: boolean;
+}): (tx: Transaction) => TransactionResult {
+	let balanceResult: TransactionResult | null = null;
+
+	return (tx: Transaction) => {
+		if (balanceResult) {
+			return balanceResult;
+		}
+
+		tx.addIntentResolver(COIN_WITH_BALANCE, resolveCoinBalance);
+		const coinType = type === 'gas' ? type : normalizeStructTag(type);
+
+		balanceResult = tx.add(
+			TransactionCommands.Intent({
+				name: COIN_WITH_BALANCE,
+				inputs: {},
+				data: {
+					type: coinType === SUI_TYPE && useGasCoin ? 'gas' : coinType,
+					balance: BigInt(balance),
+					outputKind: 'balance',
+				} satisfies InferInput<typeof CoinWithBalanceData>,
+			}),
+		);
+
+		return balanceResult;
+	};
+}
+
 const CoinWithBalanceData = object({
 	type: string(),
 	balance: bigint(),
+	outputKind: optional(picklist(['coin', 'balance'])),
 });
 
 export async function resolveCoinBalance(
@@ -61,24 +98,48 @@ export async function resolveCoinBalance(
 	buildOptions: BuildTransactionOptions,
 	next: () => Promise<void>,
 ) {
+	type IntentInfo = { balance: bigint; outputKind: 'coin' | 'balance' };
+
 	const coinTypes = new Set<string>();
 	const totalByType = new Map<string, bigint>();
+	const intentsByType = new Map<string, IntentInfo[]>();
 
 	if (!transactionData.sender) {
 		throw new Error('Sender must be set to resolve CoinWithBalance');
 	}
 
-	for (const command of transactionData.commands) {
-		if (command.$kind === '$Intent' && command.$Intent.name === COIN_WITH_BALANCE) {
-			const { type, balance } = parse(CoinWithBalanceData, command.$Intent.data);
-
-			if (type !== 'gas' && balance > 0n) {
-				coinTypes.add(type);
-			}
-
-			totalByType.set(type, (totalByType.get(type) ?? 0n) + balance);
+	// First pass: scan intents, collect per-type data, and resolve zero-balance intents in place.
+	for (const [i, command] of transactionData.commands.entries()) {
+		if (command.$kind !== '$Intent' || command.$Intent.name !== COIN_WITH_BALANCE) {
+			continue;
 		}
+
+		const { type, balance, outputKind } = parse(CoinWithBalanceData, command.$Intent.data);
+
+		// Zero-balance intents are resolved immediately — no coins or AB needed.
+		// This is a 1:1 replacement so indices don't shift.
+		if (balance === 0n) {
+			const coinType = type === 'gas' ? SUI_TYPE : type;
+			transactionData.replaceCommand(
+				i,
+				TransactionCommands.MoveCall({
+					target: (outputKind ?? 'coin') === 'balance' ? '0x2::balance::zero' : '0x2::coin::zero',
+					typeArguments: [coinType],
+				}),
+			);
+			continue;
+		}
+
+		if (type !== 'gas') {
+			coinTypes.add(type);
+		}
+
+		totalByType.set(type, (totalByType.get(type) ?? 0n) + balance);
+
+		if (!intentsByType.has(type)) intentsByType.set(type, []);
+		intentsByType.get(type)!.push({ balance, outputKind: outputKind ?? 'coin' });
 	}
+
 	const usedIds = new Set<string>();
 
 	for (const input of transactionData.inputs) {
@@ -126,9 +187,17 @@ export async function resolveCoinBalance(
 	]);
 
 	const mergedCoins = new Map<string, Argument>();
+	const exactBalanceByType = new Map<string, boolean>();
 
-	for (const [index, transaction] of transactionData.commands.entries()) {
+	// Per-type state for Path 2 combined splits
+	type TypeState = { results: Argument[]; nextIntent: number };
+	const typeState = new Map<string, TypeState>();
+
+	let index = 0;
+	while (index < transactionData.commands.length) {
+		const transaction = transactionData.commands[index];
 		if (transaction.$kind !== '$Intent' || transaction.$Intent.name !== COIN_WITH_BALANCE) {
+			index++;
 			continue;
 		}
 
@@ -136,25 +205,23 @@ export async function resolveCoinBalance(
 			type: string;
 			balance: bigint;
 		};
-
-		if (balance === 0n) {
-			transactionData.replaceCommand(
-				index,
-				TransactionCommands.MoveCall({
-					target: '0x2::coin::zero',
-					typeArguments: [type === 'gas' ? SUI_TYPE : type],
-				}),
-			);
-			continue;
-		}
+		const coinType = type === 'gas' ? SUI_TYPE : type;
+		const totalRequired = totalByType.get(type)!;
+		const addressBalance = addressBalanceByType.get(type) ?? 0n;
 
 		const commands = [];
+		let intentResult: Argument;
 
-		if (addressBalanceByType.get(type)! >= totalByType.get(type)!) {
+		const intentsForType = intentsByType.get(type) ?? [];
+		const allBalance = intentsForType.every((i) => i.outputKind === 'balance');
+
+		if (allBalance && addressBalance >= totalRequired) {
+			// Path 1: All balance intents and AB sufficient — direct per-intent withdrawal.
+			// No coins touched, enables parallel execution.
 			commands.push(
 				TransactionCommands.MoveCall({
-					target: '0x2::coin::redeem_funds',
-					typeArguments: [type === 'gas' ? SUI_TYPE : type],
+					target: '0x2::balance::redeem_funds',
+					typeArguments: [coinType],
 					arguments: [
 						transactionData.addInput(
 							'withdrawal',
@@ -163,106 +230,170 @@ export async function resolveCoinBalance(
 									$kind: 'MaxAmountU64',
 									MaxAmountU64: String(balance),
 								},
-								typeArg: {
-									$kind: 'Balance',
-									Balance: type === 'gas' ? SUI_TYPE : type,
-								},
-								withdrawFrom: {
-									$kind: 'Sender',
-									Sender: true,
-								},
+								typeArg: { $kind: 'Balance', Balance: coinType },
+								withdrawFrom: { $kind: 'Sender', Sender: true },
 							}),
 						),
 					],
 				}),
 			);
-		} else {
-			if (!mergedCoins.has(type)) {
-				const addressBalance = addressBalanceByType.get(type) ?? 0n;
-				const coinType = type === 'gas' ? SUI_TYPE : type;
 
-				let baseCoin: Argument;
-				let restCoins: Argument[];
+			intentResult = {
+				$kind: 'NestedResult',
+				NestedResult: [index + commands.length - 1, 0],
+			};
+		} else {
+			// Path 2: Merge and Split — build a merged coin, split all intents at once.
+
+			if (!typeState.has(type)) {
+				const intents = intentsForType;
+
+				// Step 1: Build sources and merge
+				const sources: Argument[] = [];
 
 				if (type === 'gas') {
-					baseCoin = { $kind: 'GasCoin', GasCoin: true };
-					restCoins = [];
+					sources.push({ $kind: 'GasCoin', GasCoin: true });
 				} else {
-					[baseCoin, ...restCoins] = coinsByType.get(type)!.map((coin) =>
-						transactionData.addInput(
-							'object',
-							Inputs.ObjectRef({
-								objectId: coin.objectId,
-								digest: coin.digest,
-								version: coin.version,
+					const coins = coinsByType.get(type)!;
+					const loadedCoinBalance = coins.reduce((sum, c) => sum + BigInt(c.balance), 0n);
+					const abNeeded =
+						totalRequired > loadedCoinBalance ? totalRequired - loadedCoinBalance : 0n;
+
+					exactBalanceByType.set(type, loadedCoinBalance + abNeeded === totalRequired);
+
+					for (const coin of coins) {
+						sources.push(
+							transactionData.addInput(
+								'object',
+								Inputs.ObjectRef({
+									objectId: coin.objectId,
+									digest: coin.digest,
+									version: coin.version,
+								}),
+							),
+						);
+					}
+
+					if (abNeeded > 0n) {
+						commands.push(
+							TransactionCommands.MoveCall({
+								target: '0x2::coin::redeem_funds',
+								typeArguments: [coinType],
+								arguments: [
+									transactionData.addInput(
+										'withdrawal',
+										Inputs.FundsWithdrawal({
+											reservation: {
+												$kind: 'MaxAmountU64',
+												MaxAmountU64: String(abNeeded),
+											},
+											typeArg: { $kind: 'Balance', Balance: coinType },
+											withdrawFrom: { $kind: 'Sender', Sender: true },
+										}),
+									),
+								],
 							}),
-						),
-					);
+						);
+						sources.push({ $kind: 'Result', Result: index + commands.length - 1 });
+					}
 				}
 
-				if (addressBalance > 0n) {
-					commands.push(
-						TransactionCommands.MoveCall({
-							target: '0x2::coin::redeem_funds',
-							typeArguments: [coinType],
-							arguments: [
-								transactionData.addInput(
-									'withdrawal',
-									Inputs.FundsWithdrawal({
-										reservation: {
-											$kind: 'MaxAmountU64',
-											MaxAmountU64: String(addressBalance),
-										},
-										typeArg: {
-											$kind: 'Balance',
-											Balance: coinType,
-										},
-										withdrawFrom: {
-											$kind: 'Sender',
-											Sender: true,
-										},
-									}),
-								),
-							],
-						}),
-					);
-
-					commands.push(
-						TransactionCommands.MergeCoins(baseCoin, [
-							{ $kind: 'Result', Result: index + commands.length - 1 },
-							...restCoins,
-						]),
-					);
-				} else if (restCoins.length > 0) {
-					commands.push(TransactionCommands.MergeCoins(baseCoin, restCoins));
+				const baseCoin = sources[0];
+				const rest = sources.slice(1);
+				for (let i = 0; i < rest.length; i += 500) {
+					commands.push(TransactionCommands.MergeCoins(baseCoin, rest.slice(i, i + 500)));
 				}
 
 				mergedCoins.set(type, baseCoin);
+
+				// Step 2: Combined SplitCoins for all intents of this type
+				const splitCmdIndex = index + commands.length;
+				commands.push(
+					TransactionCommands.SplitCoins(
+						baseCoin,
+						intents.map((i) =>
+							transactionData.addInput('pure', Inputs.Pure(bcs.u64().serialize(i.balance))),
+						),
+					),
+				);
+
+				// Build per-intent results, adding into_balance conversions for balance intents
+				const results: Argument[] = [];
+				for (let i = 0; i < intents.length; i++) {
+					const splitResult: Argument = {
+						$kind: 'NestedResult',
+						NestedResult: [splitCmdIndex, i],
+					};
+
+					if (intents[i].outputKind === 'balance') {
+						commands.push(
+							TransactionCommands.MoveCall({
+								target: '0x2::coin::into_balance',
+								typeArguments: [coinType],
+								arguments: [splitResult],
+							}),
+						);
+						results.push({
+							$kind: 'NestedResult',
+							NestedResult: [index + commands.length - 1, 0],
+						});
+					} else {
+						results.push(splitResult);
+					}
+				}
+
+				typeState.set(type, { results, nextIntent: 0 });
 			}
 
-			commands.push(
-				TransactionCommands.SplitCoins(mergedCoins.get(type)!, [
-					transactionData.addInput('pure', Inputs.Pure(bcs.u64().serialize(balance))),
-				]),
-			);
+			const state = typeState.get(type)!;
+			intentResult = state.results[state.nextIntent++];
 		}
 
-		transactionData.replaceCommand(index, commands);
+		transactionData.replaceCommand(
+			index,
+			commands,
+			intentResult as { NestedResult: [number, number] },
+		);
 
-		transactionData.mapArguments((arg, _command, commandIndex) => {
-			if (commandIndex >= index && commandIndex < index + commands.length) {
-				return arg;
-			}
+		// Advance past the replacement. When commands is empty (subsequent intents
+		// of a combined split), the command was removed and the next command shifted
+		// into this position — so we stay at the same index.
+		index += commands.length;
+	}
 
-			if (arg.$kind === 'Result' && arg.Result === index) {
-				return {
-					$kind: 'NestedResult',
-					NestedResult: [index + commands.length - 1, 0],
-				};
-			}
+	// Step 3: Remainder handling
+	for (const [type, mergedCoin] of mergedCoins) {
+		if (type === 'gas') continue;
 
-			return arg;
-		});
+		const hasBalanceIntent = intentsByType.get(type)?.some((i) => i.outputKind === 'balance');
+
+		if (hasBalanceIntent) {
+			// Balance intents exist: send remainder coin back to sender's address balance.
+			// coin::send_funds is gasless-eligible and handles zero amounts.
+			transactionData.commands.push(
+				TransactionCommands.MoveCall({
+					target: '0x2::coin::send_funds',
+					typeArguments: [type],
+					arguments: [
+						mergedCoin,
+						transactionData.addInput(
+							'pure',
+							Inputs.Pure(bcs.Address.serialize(transactionData.sender!)),
+						),
+					],
+				}),
+			);
+		} else if (exactBalanceByType.get(type)) {
+			// Coin-only with exact match: destroy the zero-value dust coin.
+			transactionData.commands.push(
+				TransactionCommands.MoveCall({
+					target: '0x2::coin::destroy_zero',
+					typeArguments: [type],
+					arguments: [mergedCoin],
+				}),
+			);
+		}
+		// Coin-only with surplus: merged coin stays with sender as an owned object
 	}
 
 	return next();
@@ -324,25 +455,20 @@ async function getCoinsAndBalanceOfType({
 
 		await balanceRequest;
 
-		if (remainingBalance > 0n) {
-			for (const coin of objects) {
-				if (usedIds.has(coin.objectId)) {
-					continue;
-				}
-
-				const coinBalance = BigInt(coin.balance);
-
-				coins.push(coin);
-				remainingBalance -= coinBalance;
-
-				if (remainingBalance <= 0) {
-					break;
-				}
+		// Always load all coins from the page (except already-used ones).
+		// This merges all available coins rather than leaving dust.
+		for (const coin of objects) {
+			if (usedIds.has(coin.objectId)) {
+				continue;
 			}
 
-			if (hasNextPage) {
-				return loadMoreCoins(nextCursor);
-			}
+			coins.push(coin);
+			remainingBalance -= BigInt(coin.balance);
+		}
+
+		// Only paginate if loaded coins + AB are still insufficient
+		if (remainingBalance > 0n && hasNextPage) {
+			return loadMoreCoins(nextCursor);
 		}
 
 		return coins;
