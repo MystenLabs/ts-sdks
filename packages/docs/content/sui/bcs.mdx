@@ -36,7 +36,6 @@ the following pre-defined schemes:
 - `SharedObjectRef`
 - `StructTag`
 - `SuiObjectRef`
-- `Transaction`
 - `TransactionData`
 - `TransactionDataV1`
 - `TransactionExpiration`
@@ -44,8 +43,6 @@ the following pre-defined schemes:
 - `TypeTag`
 - `Object` - Complete object with data, owner, previousTransaction, and storageRebate
 - `TransactionEffects` - Transaction execution effects (supports both V1 and V2)
-- `TransactionEffectsV1` - Legacy transaction effects format
-- `TransactionEffectsV2` - Current transaction effects format with detailed object changes
 
 All the upper-cased values are `BcsType` instances, and can be used directly to parse and serialize
 data.
@@ -89,12 +86,18 @@ object response, so you typically only need `content`.
 ```typescript
 import { bcs } from '@mysten/sui/bcs';
 
-// Parse a full object envelope (from objectBcs include option)
-const envelope = bcs.Object.parse(object.objectBcs);
-console.log('Owner:', envelope.owner);
-console.log('Inner struct bytes:', envelope.data.Move.contents);
+// Parse a BCS-encoded object
+const { objects } = await grpcClient.getObjects({
+	objectIds: [objectId],
+	include: { objectBcs: true },
+});
 
-// Serialize a full object envelope
+const parsed = bcs.Object.parse(objects[0].objectBcs);
+console.log('Owner:', parsed.owner);
+console.log('Previous Transaction:', parsed.previousTransaction);
+console.log('Storage Rebate:', parsed.storageRebate);
+
+// Serialize an object
 const serialized = bcs.Object.serialize({
 	data: {
 		Move: {
