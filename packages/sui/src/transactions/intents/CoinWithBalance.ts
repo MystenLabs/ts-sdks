@@ -102,7 +102,6 @@ export async function resolveCoinBalance(
 
 	const coinTypes = new Set<string>();
 	const totalByType = new Map<string, bigint>();
-	const hasBalanceByType = new Map<string, boolean>();
 	const intentsByType = new Map<string, IntentInfo[]>();
 
 	if (!transactionData.sender) {
@@ -116,10 +115,6 @@ export async function resolveCoinBalance(
 		}
 
 		const { type, balance, outputKind } = parse(CoinWithBalanceData, command.$Intent.data);
-
-		if (outputKind === 'balance') {
-			hasBalanceByType.set(type, true);
-		}
 
 		// Zero-balance intents are resolved immediately — no coins or AB needed.
 		// This is a 1:1 replacement so indices don't shift.
@@ -216,7 +211,8 @@ export async function resolveCoinBalance(
 		const commands = [];
 		let intentResult: Argument;
 
-		const allBalance = intentsByType.get(type)!.every((i) => i.outputKind === 'balance');
+		const intentsForType = intentsByType.get(type) ?? [];
+		const allBalance = intentsForType.every((i) => i.outputKind === 'balance');
 
 		if (allBalance && addressBalance >= totalRequired) {
 			// Path 1: All balance intents and AB sufficient — direct per-intent withdrawal.
@@ -249,7 +245,7 @@ export async function resolveCoinBalance(
 			// Path 2: Merge and Split — build a merged coin, split all intents at once.
 
 			if (!typeState.has(type)) {
-				const intents = intentsByType.get(type)!;
+				const intents = intentsForType;
 
 				// Step 1: Build sources and merge
 				const sources: Argument[] = [];
@@ -366,23 +362,17 @@ export async function resolveCoinBalance(
 	for (const [type, mergedCoin] of mergedCoins) {
 		if (type === 'gas') continue;
 
-		if (hasBalanceByType.get(type)) {
-			// Balance intents exist: convert remainder to balance and return to AB
-			transactionData.commands.push(
-				TransactionCommands.MoveCall({
-					target: '0x2::coin::into_balance',
-					typeArguments: [type],
-					arguments: [mergedCoin],
-				}),
-			);
-			const intoBalanceIdx = transactionData.commands.length - 1;
+		const hasBalanceIntent = intentsByType.get(type)?.some((i) => i.outputKind === 'balance');
 
+		if (hasBalanceIntent) {
+			// Balance intents exist: send remainder coin back to sender's address balance.
+			// coin::send_funds is gasless-eligible and takes Coin<T> directly.
 			transactionData.commands.push(
 				TransactionCommands.MoveCall({
-					target: '0x2::balance::send_funds',
+					target: '0x2::coin::send_funds',
 					typeArguments: [type],
 					arguments: [
-						{ $kind: 'Result', Result: intoBalanceIdx },
+						mergedCoin,
 						transactionData.addInput(
 							'pure',
 							Inputs.Pure(bcs.Address.serialize(transactionData.sender!)),
@@ -391,7 +381,7 @@ export async function resolveCoinBalance(
 				}),
 			);
 		}
-		// Coin-only: merged coin is an owned object — it stays with the sender automatically.
+		// Coin-only: merged coin stays with sender as an owned object
 	}
 
 	return next();
