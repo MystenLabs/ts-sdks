@@ -71,6 +71,8 @@ export async function coreClientResolveTransactionPlugin(
 	}
 
 	const needsSystemState = needsGasPrice || (needsPayment && usesGasCoin);
+	const needsProtocolConfig =
+		!options.onlyTransactionKind && ((needsPayment && usesGasCoin) || needsGasPrice);
 	const [, systemStateResult, balanceResult, coinsResult, protocolConfigResult, chainIdResult] =
 		await Promise.all([
 			normalizeInputs(transactionData, client),
@@ -79,7 +81,7 @@ export async function coreClientResolveTransactionPlugin(
 			needsPayment && gasPayer
 				? client.core.listCoins({ owner: gasPayer, coinType: SUI_TYPE_ARG })
 				: null,
-			needsPayment && usesGasCoin ? client.core.getProtocolConfig() : null,
+			needsProtocolConfig ? client.core.getProtocolConfig() : null,
 			needsPayment && usesGasCoin ? client.core.getChainIdentifier() : null,
 		]);
 
@@ -87,6 +89,20 @@ export async function coreClientResolveTransactionPlugin(
 
 	if (!options.onlyTransactionKind) {
 		const systemState = systemStateResult?.systemState ?? null;
+		const protocolConfig = protocolConfigResult?.protocolConfig;
+
+		// Auto-detect gasless eligibility: if gas price and budget are not set,
+		// check if all commands qualify for free tier and the flag is enabled.
+		if (
+			!transactionData.gasData.price &&
+			!transactionData.gasData.budget &&
+			protocolConfig?.featureFlags?.['enable_gasless'] &&
+			isGaslessEligible(transactionData)
+		) {
+			transactionData.gasData.price = '0';
+			transactionData.gasData.budget = '0';
+			transactionData.gasData.payment = [];
+		}
 
 		if (systemState && !transactionData.gasData.price) {
 			transactionData.gasData.price = systemState.referenceGasPrice;
@@ -94,7 +110,7 @@ export async function coreClientResolveTransactionPlugin(
 
 		await setGasBudget(transactionData, client);
 
-		if (needsPayment) {
+		if (needsPayment && !transactionData.gasData.payment) {
 			if (!balanceResult || !coinsResult) {
 				throw new Error(
 					'Could not resolve gas payment: a gas owner or sender must be set to fetch balance and coins.',
@@ -106,7 +122,7 @@ export async function coreClientResolveTransactionPlugin(
 				coins: coinsResult,
 				usesGasCoin,
 				withdrawals,
-				protocolConfig: protocolConfigResult?.protocolConfig,
+				protocolConfig,
 				gasPayer: gasPayer!,
 				chainIdentifier: chainIdResult?.chainIdentifier ?? null,
 				epoch: systemState?.epoch ?? null,
@@ -551,4 +567,40 @@ function isReceivingType(type: SuiClientTypes.OpenSignature): boolean {
 	}
 
 	return type.body.datatype.typeName === RECEIVING_TYPE;
+}
+
+const SUI_FRAMEWORK = normalizeSuiAddress('0x2');
+
+// Gasless-allowed functions from sui-types/src/transaction.rs
+const GASLESS_FUNCTIONS = new Set([
+	`${SUI_FRAMEWORK}::balance::send_funds`,
+	`${SUI_FRAMEWORK}::balance::redeem_funds`,
+	`${SUI_FRAMEWORK}::balance::split`,
+	`${SUI_FRAMEWORK}::balance::zero`,
+	`${SUI_FRAMEWORK}::funds_accumulator::withdrawal_split`,
+	`${SUI_FRAMEWORK}::coin::into_balance`,
+	`${SUI_FRAMEWORK}::coin::redeem_funds`,
+	`${SUI_FRAMEWORK}::coin::send_funds`,
+	`${SUI_FRAMEWORK}::coin::put`,
+]);
+
+function isGaslessEligible(transactionData: TransactionDataBuilder): boolean {
+	if (transactionData.commands.length === 0) return false;
+
+	for (const command of transactionData.commands) {
+		if (command.$kind === 'MergeCoins' || command.$kind === 'SplitCoins') {
+			continue;
+		}
+		if (command.$kind !== 'MoveCall') {
+			return false;
+		}
+
+		const { package: pkg, module, function: fn } = command.MoveCall;
+		const target = `${normalizeSuiAddress(pkg)}::${module}::${fn}`;
+		if (!GASLESS_FUNCTIONS.has(target)) {
+			return false;
+		}
+	}
+
+	return true;
 }

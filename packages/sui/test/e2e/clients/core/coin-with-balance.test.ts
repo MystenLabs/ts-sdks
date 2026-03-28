@@ -2062,4 +2062,166 @@ describe('coinWithBalance', () => {
 			expect(reservedBalance).toBe(depositAmount);
 		});
 	});
+
+	describe('gasless (free tier)', () => {
+		it('tx.balance + send_funds resolves as gasless when sender has only address balance', async () => {
+			const client = toolbox.jsonRpcClient;
+
+			const { keypair, address } = await toolbox.getSigner({ addressBalance: 500_000_000n });
+
+			const receiver = new Ed25519Keypair();
+			const tx = new Transaction();
+			const bal = tx.balance({ type: 'gas', balance: 100_000_000n });
+			tx.moveCall({
+				target: '0x2::balance::send_funds',
+				typeArguments: ['0x2::sui::SUI'],
+				arguments: [bal, tx.pure.address(receiver.toSuiAddress())],
+			});
+			tx.setSender(address);
+
+			const bytes = await tx.build({ client });
+			const built = Transaction.from(bytes);
+			const data = built.getData();
+
+			// Gasless: price=0, budget=0, empty payment
+			expect(data.gasData.price).toBe('0');
+			expect(data.gasData.budget).toBe('0');
+			expect(data.gasData.payment).toEqual([]);
+
+			// Should execute successfully with zero gas cost
+			const result = await client.core.signAndExecuteTransaction({
+				transaction: tx,
+				signer: keypair,
+				include: { effects: true },
+			});
+
+			expect(result.$kind).toBe('Transaction');
+			if (result.$kind === 'Transaction') {
+				expect(result.Transaction.effects?.status.success).toBe(true);
+				expect(result.Transaction.effects?.gasUsed?.computationCost).toBe('0');
+			}
+		});
+
+		it('tx.balance + send_funds resolves as gasless when sender has only coins', async () => {
+			const client = toolbox.jsonRpcClient;
+
+			const { keypair, address } = await toolbox.getSigner({ coins: [500_000_000n] });
+
+			const receiver = new Ed25519Keypair();
+			const tx = new Transaction();
+			const bal = tx.balance({ type: 'gas', balance: 100_000_000n });
+			tx.moveCall({
+				target: '0x2::balance::send_funds',
+				typeArguments: ['0x2::sui::SUI'],
+				arguments: [bal, tx.pure.address(receiver.toSuiAddress())],
+			});
+			tx.setSender(address);
+
+			const bytes = await tx.build({ client });
+			const built = Transaction.from(bytes);
+			const data = built.getData();
+
+			expect(data.gasData.price).toBe('0');
+			expect(data.gasData.budget).toBe('0');
+			expect(data.gasData.payment).toEqual([]);
+
+			const result = await client.core.signAndExecuteTransaction({
+				transaction: tx,
+				signer: keypair,
+				include: { effects: true },
+			});
+
+			expect(result.$kind).toBe('Transaction');
+			if (result.$kind === 'Transaction') {
+				expect(result.Transaction.effects?.status.success).toBe(true);
+				expect(result.Transaction.effects?.gasUsed?.computationCost).toBe('0');
+			}
+		});
+
+		it('tx.balance + send_funds resolves as gasless when sender has both coins and address balance', async () => {
+			const client = toolbox.jsonRpcClient;
+
+			const { keypair, address } = await toolbox.getSigner({
+				coins: [200_000_000n],
+				addressBalance: 200_000_000n,
+			});
+
+			const receiver = new Ed25519Keypair();
+			const tx = new Transaction();
+			const bal = tx.balance({ type: 'gas', balance: 100_000_000n });
+			tx.moveCall({
+				target: '0x2::balance::send_funds',
+				typeArguments: ['0x2::sui::SUI'],
+				arguments: [bal, tx.pure.address(receiver.toSuiAddress())],
+			});
+			tx.setSender(address);
+
+			const bytes = await tx.build({ client });
+			const built = Transaction.from(bytes);
+			const data = built.getData();
+
+			expect(data.gasData.price).toBe('0');
+			expect(data.gasData.budget).toBe('0');
+			expect(data.gasData.payment).toEqual([]);
+
+			const result = await client.core.signAndExecuteTransaction({
+				transaction: tx,
+				signer: keypair,
+				include: { effects: true },
+			});
+
+			expect(result.$kind).toBe('Transaction');
+			if (result.$kind === 'Transaction') {
+				expect(result.Transaction.effects?.status.success).toBe(true);
+			}
+		});
+
+		it('tx with TransferObjects is not detected as gasless', async () => {
+			const client = toolbox.jsonRpcClient;
+
+			const { address } = await toolbox.getSigner({
+				coins: [500_000_000n],
+				addressBalance: 500_000_000n,
+			});
+
+			const receiver = new Ed25519Keypair();
+			const tx = new Transaction();
+			tx.transferObjects(
+				[tx.coin({ type: 'gas', balance: 100_000_000n })],
+				receiver.toSuiAddress(),
+			);
+			tx.setSender(address);
+
+			const bytes = await tx.build({ client });
+			const built = Transaction.from(bytes);
+			const data = built.getData();
+
+			// TransferObjects is not a gasless-eligible command
+			expect(data.gasData.price).not.toBe('0');
+		});
+
+		it('respects user-set gas price (no auto-gasless override)', async () => {
+			const client = toolbox.jsonRpcClient;
+
+			const { address } = await toolbox.getSigner({ addressBalance: 500_000_000n });
+
+			const receiver = new Ed25519Keypair();
+			const tx = new Transaction();
+			const bal = tx.balance({ type: 'gas', balance: 100_000_000n });
+			tx.moveCall({
+				target: '0x2::balance::send_funds',
+				typeArguments: ['0x2::sui::SUI'],
+				arguments: [bal, tx.pure.address(receiver.toSuiAddress())],
+			});
+			tx.setSender(address);
+			tx.setGasPrice(1000);
+
+			const bytes = await tx.build({ client });
+			const built = Transaction.from(bytes);
+			const data = built.getData();
+
+			// User set gas price, so it should be respected
+			expect(data.gasData.price).toBe('1000');
+		});
+	});
 });
