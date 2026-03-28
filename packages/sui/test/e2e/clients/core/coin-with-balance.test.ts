@@ -1583,7 +1583,7 @@ describe('coinWithBalance', () => {
 
 				const { resolved, simResult } = await resolveAndSimulate(tx, client);
 
-				// Path 2: SplitCoins → into_balance (intent) → from_balance → transfer → into_balance + send_funds (remainder)
+				// Path 2: SplitCoins → into_balance (intent) → from_balance → transfer → coin::send_funds (remainder)
 				// Inputs: [0: receiver, 1: coin_object, 2: u64(1), 3: sender_addr]
 				expect(resolved.commands).toEqual([
 					{
@@ -1620,21 +1620,77 @@ describe('coinWithBalance', () => {
 						MoveCall: {
 							package: normalizeSuiAddress('0x2'),
 							module: 'coin',
-							function: 'into_balance',
-							typeArguments: [testType],
-							arguments: [{ Input: 1 }],
-						},
-					},
-					{
-						MoveCall: {
-							package: normalizeSuiAddress('0x2'),
-							module: 'balance',
 							function: 'send_funds',
 							typeArguments: [testType],
-							arguments: [{ Result: 4 }, { Input: 3 }],
+							arguments: [{ Input: 1 }, { Input: 3 }],
 						},
 					},
 				]);
+
+				expect(simResult.$kind).toBe('Transaction');
+			},
+		);
+
+		// --- Path 2: Exact coin balance → destroy_zero remainder ---
+		testWithAllClients(
+			'Path 2 — coinWithBalance with exact coin balance triggers destroy_zero',
+			async (client) => {
+				// coinsOnlyKeypair has exactly 50 TEST in coins, no address balance.
+				// tx.coin() is coin-only (no balance intent), so remainder uses destroy_zero.
+				const tx = new Transaction();
+				tx.transferObjects(
+					[tx.coin({ type: testType, balance: 50n })],
+					new Ed25519Keypair().toSuiAddress(),
+				);
+				tx.setSender(coinsOnlyKeypair.toSuiAddress());
+
+				const { resolved, simResult } = await resolveAndSimulate(tx, client);
+
+				expect(resolved.commands[0]).toHaveProperty('SplitCoins');
+
+				const destroyZeroCmd = resolved.commands.find(
+					(c: any) => c.MoveCall?.module === 'coin' && c.MoveCall?.function === 'destroy_zero',
+				);
+				expect(destroyZeroCmd).toBeDefined();
+
+				// No send_funds for coin-only path
+				const sendFundsCmd = resolved.commands.find(
+					(c: any) => c.MoveCall?.function === 'send_funds',
+				);
+				expect(sendFundsCmd).toBeUndefined();
+
+				expect(simResult.$kind).toBe('Transaction');
+			},
+		);
+
+		// --- Path 2: Balance intent with exact coins → send_funds (not destroy_zero) ---
+		testWithAllClients(
+			'Path 2 — createBalance with exact coin balance uses send_funds for remainder',
+			async (client) => {
+				// tx.balance() is a balance intent, so remainder goes to AB via send_funds
+				const tx = new Transaction();
+				const bal = tx.balance({ type: testType, balance: 50n });
+				const [coin] = tx.moveCall({
+					target: '0x2::coin::from_balance',
+					typeArguments: [testType],
+					arguments: [bal],
+				});
+				tx.transferObjects([coin], new Ed25519Keypair().toSuiAddress());
+				tx.setSender(coinsOnlyKeypair.toSuiAddress());
+
+				const { resolved, simResult } = await resolveAndSimulate(tx, client);
+
+				// send_funds for balance intent remainder (gasless-eligible)
+				const sendFundsCmd = resolved.commands.find(
+					(c: any) => c.MoveCall?.function === 'send_funds',
+				);
+				expect(sendFundsCmd).toBeDefined();
+
+				// No destroy_zero — balance intents always use send_funds
+				const destroyZeroCmd = resolved.commands.find(
+					(c: any) => c.MoveCall?.function === 'destroy_zero',
+				);
+				expect(destroyZeroCmd).toBeUndefined();
 
 				expect(simResult.$kind).toBe('Transaction');
 			},
@@ -1702,11 +1758,17 @@ describe('coinWithBalance', () => {
 					},
 				});
 
-				// 2 into_balance for intent conversions + 1 for remainder = 3
+				// 2 into_balance for intent conversions (remainder uses coin::send_funds directly)
 				const intoBalanceCmds = resolved.commands.filter(
 					(c: any) => c.MoveCall?.function === 'into_balance',
 				);
-				expect(intoBalanceCmds.length).toBe(3);
+				expect(intoBalanceCmds.length).toBe(2);
+
+				// Remainder is sent back via coin::send_funds
+				const coinSendFundsCmd = resolved.commands.find(
+					(c: any) => c.MoveCall?.module === 'coin' && c.MoveCall?.function === 'send_funds',
+				);
+				expect(coinSendFundsCmd).toBeDefined();
 
 				expect(simResult.$kind).toBe('Transaction');
 			},

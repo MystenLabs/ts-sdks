@@ -187,6 +187,7 @@ export async function resolveCoinBalance(
 	]);
 
 	const mergedCoins = new Map<string, Argument>();
+	const exactBalanceByType = new Map<string, boolean>();
 
 	// Per-type state for Path 2 combined splits
 	type TypeState = { results: Argument[]; nextIntent: number };
@@ -257,6 +258,8 @@ export async function resolveCoinBalance(
 					const loadedCoinBalance = coins.reduce((sum, c) => sum + BigInt(c.balance), 0n);
 					const abNeeded =
 						totalRequired > loadedCoinBalance ? totalRequired - loadedCoinBalance : 0n;
+
+					exactBalanceByType.set(type, loadedCoinBalance + abNeeded === totalRequired);
 
 					for (const coin of coins) {
 						sources.push(
@@ -366,7 +369,7 @@ export async function resolveCoinBalance(
 
 		if (hasBalanceIntent) {
 			// Balance intents exist: send remainder coin back to sender's address balance.
-			// coin::send_funds is gasless-eligible and takes Coin<T> directly.
+			// coin::send_funds is gasless-eligible and handles zero amounts.
 			transactionData.commands.push(
 				TransactionCommands.MoveCall({
 					target: '0x2::coin::send_funds',
@@ -380,8 +383,17 @@ export async function resolveCoinBalance(
 					],
 				}),
 			);
+		} else if (exactBalanceByType.get(type)) {
+			// Coin-only with exact match: destroy the zero-value dust coin.
+			transactionData.commands.push(
+				TransactionCommands.MoveCall({
+					target: '0x2::coin::destroy_zero',
+					typeArguments: [type],
+					arguments: [mergedCoin],
+				}),
+			);
 		}
-		// Coin-only: merged coin stays with sender as an owned object
+		// Coin-only with surplus: merged coin stays with sender as an owned object
 	}
 
 	return next();
