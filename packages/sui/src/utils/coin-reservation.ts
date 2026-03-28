@@ -48,9 +48,7 @@ function deriveReservationObjectId(owner: string, chainIdentifier: string): stri
 	const accBytes = fromHex(accumulatorId.slice(2));
 	const chainBytes = fromBase58(chainIdentifier);
 	if (chainBytes.length !== 32) {
-		throw new Error(
-			`Invalid chain identifier length: expected 32 bytes, got ${chainBytes.length}`,
-		);
+		throw new Error(`Invalid chain identifier length: expected 32 bytes, got ${chainBytes.length}`);
 	}
 	const xored = new Uint8Array(32);
 	for (let i = 0; i < 32; i++) {
