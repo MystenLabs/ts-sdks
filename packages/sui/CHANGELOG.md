@@ -1,5 +1,23 @@
 # @mysten/sui.js
 
+## 2.13.0
+
+### Minor Changes
+
+- 329350a: Add `tx.coin()` and `tx.balance()` methods and rewrite CoinWithBalance intent resolution.
+  - `tx.coin({ type, balance })` — produces a `Coin<T>` of the requested balance, sourced from owned
+    coins and gas
+  - `tx.balance({ type, balance })` — produces a `Balance<T>` of the requested balance, sourced from
+    address balance or owned coins
+  - When balance intents are used, the merged pool remainder is converted to Balance and returned to
+    the sender's address balance via `send_funds`
+  - Multiple intents of the same coin type are now resolved with a single combined `SplitCoins`
+    instead of per-intent splits
+
+- 3c83909: Optimize transaction resolver to parallelize independent network requests (system state,
+  balance, coins, protocol config) and add coin reservation compat mode for address balance gas
+  payment when `coin_reservation` feature flag is enabled.
+
 ## 2.12.1
 
 ### Patch Changes
