@@ -1,64 +1,241 @@
 ---
-title: Transaction Intents
-description: Use high-level intents to simplify transaction building
+title: Coins and Balances
+description: Work with coin objects and address balances in transactions
 ---
 
-Transaction Intents enable 3rd party SDKs and [Transaction Plugins](../plugins) to more easily add
-complex operations to a Transaction. The Typescript SDK currently only includes a single Intent
-(CoinWithBalance), but more will be added in the future.
+Sui has two systems for holding fungible token balances: **coin objects** and **address balances**.
 
-## The CoinWithBalance intent
+**Coin objects** are individual on-chain objects, each with its own ID, version, and balance. You
+own specific coin objects and need to split, merge, and track them.
 
-The `CoinWithBalance` intent makes it easy to get a coin with a specific balance. For SUI, this has
-generally been done by splitting the gas coin:
+**Address balances** are an accumulator per address per coin type. There are no objects to manage —
+deposits automatically merge into a single balance, and you withdraw from it as needed.
 
-```typescript
+Both systems coexist. An address's total balance for a given coin type is the sum of its coin object
+balances and its address balance.
+
+Address balances have no object versions. When a transaction has no versioned object inputs (for
+example, a balance transfer built entirely from address balance withdrawals), it won't be
+invalidated by other transactions from the same address executing concurrently.
+
+## tx.coin and tx.balance
+
+`tx.coin()` and `tx.balance()` are the recommended ways to get tokens in a transaction. They
+automatically draw from both coin objects and address balances.
+
+### Getting a Coin
+
+`tx.coin()` produces a `Coin<T>` — use it for transfers and most operations:
+
+```tsx
+import { Transaction } from '@mysten/sui/transactions';
+
 const tx = new Transaction();
 
-const [coin] = tx.splitCoins(tx.gas, [100]);
+// SUI (balance is in MIST — 1 SUI = 1,000,000,000 MIST)
+tx.transferObjects([tx.coin({ balance: 1_000_000_000n })], '0xRecipientAddress');
 
-tx.transferObjects([coin], recipient);
-```
-
-This approach works well for SUI, but can't be used for other coin types. The CoinWithBalance intent
-solves this by providing a helper function that automatically adds the correct SplitCoins and
-MergeCoins commands to the transaction:
-
-```typescript
-import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
-
-const tx = new Transaction();
-
-// Setting the sender is required for the CoinWithBalance intent to resolve coins when not using the gas coin
-tx.setSender(keypair.toSuiAddress());
-
+// Another coin type
 tx.transferObjects(
-	[
-		// Create a SUI coin (balance is in MIST)
-		coinWithBalance({ balance: 100 }),
-		// Create a coin of another type
-		coinWithBalance({ balance: 100, type: '0x123::foo:Bar' }),
-	],
-	recipient,
+	[tx.coin({ balance: 1_000_000n, type: '0xPackageId::module::CoinType' })],
+	'0xRecipientAddress',
 );
 ```
 
-Splitting the gas coin also causes problems for sponsored transactions. When sponsoring
-transactions, the gas coin comes from the sponsor instead of the transaction sender. Transaction
-sponsors usually do not sponsor transactions that use the gas coin for anything other than gas. To
-transfer SUI that does not use the gas coin, you can set the `useGasCoin` option to `false`:
+### Getting a Balance
 
-```typescript
+`tx.balance()` produces a `Balance<T>` — use it for Move functions that expect a balance directly,
+or for gasless transactions:
+
+```tsx
 const tx = new Transaction();
-tx.transferObjects([coinWithBalance({ balance: 100, useGasCoin: false })], recipient);
+
+tx.moveCall({
+	target: '0xPackage::module::deposit',
+	arguments: [tx.object('0xPoolId'), tx.balance({ balance: 1_000_000_000n })],
+});
 ```
 
-It's important to only set `useGasCoin` option to false for sponsored transactions, otherwise the
-coinWithBalance intent may use all the SUI coins, leaving no coins to use for gas.
+### Sending to address balances
 
-## How it works
+To deposit tokens into a recipient's address balance (instead of creating a coin object), use
+`tx.balance()` with `balance::send_funds`:
 
-When the `CoinWithBalance` intent is resolved, it will look up the senders owned coins for each type
-that needs to be created. It will then find a set of coins with sufficient balance to cover the
-desired balance, to combine them into a single coin. This coin is then used in a `SplitCoins`
-command to create the desired coin.
+```tsx
+const tx = new Transaction();
+
+tx.moveCall({
+	target: '0x2::balance::send_funds',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.balance({ balance: 1_000_000_000n }), tx.pure.address('0xRecipientAddress')],
+});
+```
+
+<Callout type="info">
+	Transactions built entirely from `tx.balance()` and gasless-eligible Move calls like `send_funds`
+	and `redeem_funds` may qualify for free tier (zero gas) when the network supports it.
+</Callout>
+
+### Options
+
+| Option       | Type               | Default | Description                                                              |
+| ------------ | ------------------ | ------- | ------------------------------------------------------------------------ |
+| `balance`    | `bigint \| number` | —       | Amount in base units (MIST for SUI)                                      |
+| `type`       | `string`           | SUI     | Coin type. Defaults to `0x2::sui::SUI`                                   |
+| `useGasCoin` | `boolean`          | `true`  | For SUI, split from the gas coin. Set `false` for sponsored transactions |
+
+For SUI, `tx.coin()` splits from the gas coin by default. For sponsored transactions where the gas
+coin belongs to the sponsor, set `useGasCoin: false`:
+
+```tsx
+tx.transferObjects([tx.coin({ balance: 100n, useGasCoin: false })], recipient);
+```
+
+### coinWithBalance
+
+`coinWithBalance()` is a standalone alias for `tx.coin()`:
+
+```tsx
+import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+tx.transferObjects([coinWithBalance({ balance: 1_000_000_000 })], recipient);
+```
+
+## How resolution works
+
+When you call `tx.coin()` or `tx.balance()`, the SDK adds a placeholder intent to the transaction.
+At build time, the resolver replaces it with concrete commands based on the sender's funds:
+
+- **`tx.balance()` with sufficient address balance:** Uses a direct `FundsWithdrawal` via
+  `balance::redeem_funds`. No coin objects are used, so the transaction has no versioned object
+  inputs from this intent — keeping it eligible for parallel execution.
+
+- **Otherwise (coins needed):** Fetches the sender's coin objects and address balance in parallel.
+  Merges available coins (topping up from address balance if needed), then splits the exact amounts.
+  For `tx.balance()` intents, the split results are converted to `Balance<T>` via
+  `coin::into_balance`, and any remainder is returned to the sender's address balance via
+  `coin::send_funds`.
+
+The resolver prefers address balances when possible to avoid introducing versioned object
+dependencies.
+
+Zero-balance requests resolve to `balance::zero` or `coin::zero` with no network lookups.
+
+## Checking balances
+
+Use `getBalance` to see both coin objects and address balance:
+
+```tsx
+const { balance } = await grpcClient.getBalance({
+	owner: '0xMyAddress',
+});
+
+console.log(balance.balance); // total balance as string (coin objects + address balance)
+console.log(balance.coinBalance); // balance from coin objects only
+console.log(balance.addressBalance); // balance from address balance only
+console.log(balance.coinType); // e.g. "0x2::sui::SUI"
+```
+
+All balance values are returned as strings. Use `BigInt(balance.balance)` for arithmetic.
+
+## Manual coin operations
+
+For fine-grained control, you can split and merge coins manually.
+
+### Splitting coins
+
+`splitCoins` creates new coins from an existing coin:
+
+```tsx
+const tx = new Transaction();
+
+// Split specific amounts from a coin you own
+const [coin1, coin2] = tx.splitCoins('0xMyCoinId', [1_000_000, 2_000_000]);
+
+tx.transferObjects([coin1], '0xAlice');
+tx.transferObjects([coin2], '0xBob');
+```
+
+Split the gas coin for SUI:
+
+```tsx
+const [coin] = tx.splitCoins(tx.gas, [1_000_000_000]);
+tx.transferObjects([coin], '0xRecipientAddress');
+```
+
+### Merging coins
+
+`mergeCoins` combines multiple coins into one:
+
+```tsx
+const tx = new Transaction();
+
+tx.mergeCoins('0xCoin1', ['0xCoin2', '0xCoin3']);
+```
+
+## Working with address balances directly
+
+### Withdrawing from address balance
+
+Create a withdrawal input and redeem it to get a `Coin<T>`:
+
+```tsx
+const tx = new Transaction();
+
+const [coin] = tx.moveCall({
+	target: '0x2::coin::redeem_funds',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.withdrawal({ amount: 1_000_000_000 })],
+});
+
+tx.transferObjects([coin], '0xRecipientAddress');
+```
+
+Or get a `Balance<T>` directly:
+
+```tsx
+const [balance] = tx.moveCall({
+	target: '0x2::balance::redeem_funds',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.withdrawal({ amount: 1_000_000_000 })],
+});
+```
+
+For non-SUI coin types, pass the `type` parameter:
+
+```tsx
+const [coin] = tx.moveCall({
+	target: '0x2::coin::redeem_funds',
+	typeArguments: ['0xPackageId::module::USDC'],
+	arguments: [tx.withdrawal({ amount: 1_000_000, type: '0xPackageId::module::USDC' })],
+});
+```
+
+### Depositing into address balances
+
+Use `coin::send_funds` to deposit a coin into a recipient's address balance:
+
+```tsx
+const tx = new Transaction();
+
+tx.moveCall({
+	target: '0x2::coin::send_funds',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.object('0xMyCoinObjectId'), tx.pure.address('0xRecipientAddress')],
+});
+```
+
+## Listing coin objects
+
+Use `listCoins` to see specific coin objects:
+
+```tsx
+const { objects, hasNextPage, cursor } = await grpcClient.listCoins({
+	owner: '0xMyAddress',
+});
+
+for (const coin of objects) {
+	console.log(coin.objectId, coin.balance);
+}
+```
