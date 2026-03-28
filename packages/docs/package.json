@@ -52,7 +52,7 @@
 		"fumadocs-core": "16.4.7",
 		"fumadocs-docgen": "^3.0.5",
 		"fumadocs-mdx": "14.2.5",
-		"fumadocs-typescript": "^5.0.1",
+		"fumadocs-typescript": "^5.2.0",
 		"fumadocs-ui": "16.4.7",
 		"gray-matter": "^4.0.3",
 		"next": "^16.1.7",

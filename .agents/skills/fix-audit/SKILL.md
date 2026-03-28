@@ -44,7 +44,12 @@ For vulnerabilities not fixed by direct upgrades:
      }
    }
    ```
-3. Run `pnpm install` to apply the overrides.
+3. **Scoped overrides**: When a package has multiple major versions (e.g., brace-expansion 1.x, 2.x, 4.x), use pnpm's version selector syntax to avoid breaking incompatible consumers:
+   ```json
+   "brace-expansion@>=4": ">=5.0.5"
+   ```
+   An unscoped override like `"brace-expansion": ">=5.0.5"` would force ALL consumers to 5.x, breaking packages that depend on 1.x or 2.x APIs.
+4. Run `pnpm install` to apply the overrides.
 
 ## Phase 4: Handle minimumReleaseAge Failures
 
@@ -66,17 +71,25 @@ To work around this:
 
 **CRITICAL**: Never leave `minimumReleaseAge` commented out. Always restore it, even if subsequent steps fail.
 
+**Alternative**: Use `minimumReleaseAgeExclude` in `pnpm-workspace.yaml` instead of commenting out the age restriction:
+
+```yaml
+minimumReleaseAgeExclude:
+  - path-to-regexp
+```
+
+This is safer but should still be removed after the lockfile is updated.
+
 ## Phase 5: Clean Up Stale Overrides
 
 After the lockfile is updated, check whether any existing overrides in `pnpm.overrides` are now unnecessary:
 
 1. Read the current `pnpm.overrides` from root `package.json`.
-2. For each override entry, temporarily remove it and run `pnpm audit --json`.
-3. If the audit still passes clean for that package (no new vulnerability), the override is stale — leave it removed.
-4. If removing it reintroduces a vulnerability, restore it.
-5. After testing all overrides, run a final `pnpm install` to ensure the lockfile is consistent.
+2. Remove ALL overrides, run `pnpm install` to regenerate the lockfile, then run `pnpm audit --json`.
+3. Check which vulnerabilities reappear — only those overrides are still needed.
+4. Add back only the needed overrides, run `pnpm install` to apply.
 
-Test overrides one at a time so you can isolate which ones are still needed.
+**Important**: You must run `pnpm install` after changing overrides because `pnpm audit` checks the lockfile, and the lockfile retains previously resolved versions until regenerated. Simply removing an override and running audit without install will show the old (safe) versions and give a false "stale" result.
 
 ## Phase 6: Fix Version Mismatches
 

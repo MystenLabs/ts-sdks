@@ -1,11 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { parse } from 'valibot';
-
-import { normalizeSuiAddress, normalizeSuiObjectId, SUI_TYPE_ARG } from '../utils/index.js';
+import {
+	normalizeSuiAddress,
+	normalizeSuiObjectId,
+	normalizeStructTag,
+	SUI_TYPE_ARG,
+} from '../utils/index.js';
+import { createCoinReservationRef } from '../utils/coin-reservation.js';
 import type { ClientWithCoreApi } from './core.js';
-import { ObjectRefSchema } from '../transactions/data/internal.js';
 import type { CallArg, Command } from '../transactions/data/internal.js';
 import type { SuiClientTypes } from './types.js';
 import { SimulationError } from './errors.js';
@@ -38,36 +41,89 @@ export async function coreClientResolveTransactionPlugin(
 ) {
 	const client = getClient(options);
 
-	await normalizeInputs(transactionData, client);
+	const needsGasPrice = !options.onlyTransactionKind && !transactionData.gasData.price;
+	const needsPayment = !options.onlyTransactionKind && !transactionData.gasData.payment;
+	const gasPayer = transactionData.gasData.owner ?? transactionData.sender;
+
+	let usesGasCoin = false;
+	let withdrawals = 0n;
+
+	transactionData.mapArguments((arg) => {
+		if (arg.$kind === 'GasCoin') usesGasCoin = true;
+		return arg;
+	});
+
+	const normalizedGasPayer = gasPayer ? normalizeSuiAddress(gasPayer) : null;
+	for (const input of transactionData.inputs) {
+		if (input.$kind !== 'FundsWithdrawal' || !normalizedGasPayer) continue;
+		if (normalizeStructTag(input.FundsWithdrawal.typeArg.Balance) !== SUI_TYPE_ARG) continue;
+
+		const withdrawalOwner = input.FundsWithdrawal.withdrawFrom.Sender
+			? transactionData.sender
+			: gasPayer;
+		if (
+			withdrawalOwner &&
+			normalizeSuiAddress(withdrawalOwner) === normalizedGasPayer &&
+			input.FundsWithdrawal.reservation.$kind === 'MaxAmountU64'
+		) {
+			withdrawals += BigInt(input.FundsWithdrawal.reservation.MaxAmountU64);
+		}
+	}
+
+	const needsSystemState = needsGasPrice || (needsPayment && usesGasCoin);
+	const [, systemStateResult, balanceResult, coinsResult, protocolConfigResult, chainIdResult] =
+		await Promise.all([
+			normalizeInputs(transactionData, client),
+			needsSystemState ? client.core.getCurrentSystemState() : null,
+			needsPayment && gasPayer ? client.core.getBalance({ owner: gasPayer }) : null,
+			needsPayment && gasPayer
+				? client.core.listCoins({ owner: gasPayer, coinType: SUI_TYPE_ARG })
+				: null,
+			needsPayment && usesGasCoin ? client.core.getProtocolConfig() : null,
+			needsPayment && usesGasCoin ? client.core.getChainIdentifier() : null,
+		]);
+
 	await resolveObjectReferences(transactionData, client);
 
 	if (!options.onlyTransactionKind) {
-		await setGasData(transactionData, client);
+		const systemState = systemStateResult?.systemState ?? null;
+
+		if (systemState && !transactionData.gasData.price) {
+			transactionData.gasData.price = systemState.referenceGasPrice;
+		}
+
+		await setGasBudget(transactionData, client);
+
+		if (needsPayment) {
+			if (!balanceResult || !coinsResult) {
+				throw new Error(
+					'Could not resolve gas payment: a gas owner or sender must be set to fetch balance and coins.',
+				);
+			}
+			setGasPayment({
+				transactionData,
+				balance: balanceResult,
+				coins: coinsResult,
+				usesGasCoin,
+				withdrawals,
+				protocolConfig: protocolConfigResult?.protocolConfig,
+				gasPayer: gasPayer!,
+				chainIdentifier: chainIdResult?.chainIdentifier ?? null,
+				epoch: systemState?.epoch ?? null,
+			});
+		}
+
+		if (!transactionData.expiration && transactionData.gasData.payment?.length === 0) {
+			await setExpiration(
+				transactionData,
+				client,
+				systemState,
+				chainIdResult?.chainIdentifier ?? null,
+			);
+		}
 	}
 
 	return await next();
-}
-
-interface SystemStateData {
-	epoch: string;
-	referenceGasPrice: string;
-}
-
-async function setGasData(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
-	let systemState: SystemStateData | null = null;
-
-	if (!transactionData.gasData.price) {
-		const response = await client.core.getCurrentSystemState();
-		systemState = response.systemState;
-		transactionData.gasData.price = systemState.referenceGasPrice;
-	}
-
-	await setGasBudget(transactionData, client);
-	await setGasPayment(transactionData, client);
-
-	if (!transactionData.expiration) {
-		await setExpiration(transactionData, client, systemState);
-	}
 }
 
 async function setGasBudget(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
@@ -109,100 +165,89 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Cli
 	);
 }
 
-// The current default is just picking _all_ coins we can which may not be ideal.
-async function setGasPayment(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
-	if (!transactionData.gasData.payment) {
-		const gasPayer = transactionData.gasData.owner ?? transactionData.sender;
-		if (!gasPayer) {
-			throw new Error('Either a gas owner or sender must be set to determine gas payment.');
-		}
+function setGasPayment({
+	transactionData,
+	balance,
+	coins,
+	usesGasCoin,
+	withdrawals,
+	protocolConfig,
+	gasPayer,
+	chainIdentifier,
+	epoch,
+}: {
+	transactionData: TransactionDataBuilder;
+	balance: SuiClientTypes.GetBalanceResponse;
+	coins: SuiClientTypes.ListCoinsResponse;
+	usesGasCoin: boolean;
+	withdrawals: bigint;
+	protocolConfig: SuiClientTypes.ProtocolConfig | undefined;
+	gasPayer: string;
+	chainIdentifier: string | null;
+	epoch: string | null;
+}) {
+	const budget = BigInt(transactionData.gasData.budget!);
+	const addressBalance = BigInt(balance.balance.addressBalance);
 
-		const normalizedGasPayer = normalizeSuiAddress(gasPayer);
-		let usesGasCoin = false;
-		let withdrawals = 0n;
+	if (budget === 0n || (!usesGasCoin && addressBalance >= budget + withdrawals)) {
+		transactionData.gasData.payment = [];
+		return;
+	}
 
-		transactionData.mapArguments((arg) => {
-			if (arg.$kind === 'GasCoin') {
-				usesGasCoin = true;
-			} else if (arg.$kind === 'Input') {
-				const input = transactionData.inputs[arg.Input];
-
-				if (input.$kind === 'FundsWithdrawal') {
-					const withdrawalOwner = input.FundsWithdrawal.withdrawFrom.Sender
-						? transactionData.sender
-						: gasPayer;
-
-					if (withdrawalOwner && normalizeSuiAddress(withdrawalOwner) === normalizedGasPayer) {
-						if (input.FundsWithdrawal.reservation.$kind === 'MaxAmountU64') {
-							withdrawals += BigInt(input.FundsWithdrawal.reservation.MaxAmountU64);
-						}
-					}
-				}
+	const filteredCoins = coins.objects.filter((coin) => {
+		const matchingInput = transactionData.inputs.find((input) => {
+			if (input.Object?.ImmOrOwnedObject) {
+				return coin.objectId === input.Object.ImmOrOwnedObject.objectId;
 			}
 
-			return arg;
+			return false;
 		});
 
-		const [suiBalance, coins] = await Promise.all([
-			usesGasCoin ? null : client.core.getBalance({ owner: gasPayer }),
-			client.core.listCoins({
-				owner: gasPayer,
-				coinType: SUI_TYPE_ARG,
-			}),
-		]);
+		return !matchingInput;
+	});
 
-		if (
-			suiBalance?.balance.addressBalance &&
-			BigInt(suiBalance.balance.addressBalance) >=
-				BigInt(transactionData.gasData.budget || '0') + withdrawals
-		) {
-			transactionData.gasData.payment = [];
-			return;
-		}
+	const paymentCoins = filteredCoins.map((coin) => ({
+		objectId: coin.objectId,
+		digest: coin.digest,
+		version: coin.version,
+	}));
 
-		const paymentCoins = coins.objects
-			// Filter out coins that are also used as input:
-			.filter((coin) => {
-				const matchingInput = transactionData.inputs.find((input) => {
-					if (input.Object?.ImmOrOwnedObject) {
-						return coin.objectId === input.Object.ImmOrOwnedObject.objectId;
-					}
+	const reservationAmount = addressBalance - withdrawals;
 
-					return false;
-				});
-
-				return !matchingInput;
-			})
-			.map((coin) =>
-				parse(ObjectRefSchema, {
-					objectId: coin.objectId,
-					digest: coin.digest,
-					version: coin.version,
-				}),
-			);
-
-		if (!paymentCoins.length) {
-			throw new Error('No valid gas coins found for the transaction.');
-		}
-
+	if (
+		usesGasCoin &&
+		reservationAmount > 0n &&
+		protocolConfig?.featureFlags?.['enable_coin_reservation_obj_refs'] &&
+		chainIdentifier &&
+		epoch
+	) {
+		transactionData.gasData.payment = [
+			createCoinReservationRef(reservationAmount, gasPayer, chainIdentifier, epoch),
+			...paymentCoins,
+		];
+	} else if (!filteredCoins.length) {
+		throw new Error('No valid gas coins found for the transaction.');
+	} else {
 		transactionData.gasData.payment = paymentCoins;
 	}
+}
+
+interface SystemStateData {
+	epoch: string;
+	referenceGasPrice: string;
 }
 
 async function setExpiration(
 	transactionData: TransactionDataBuilder,
 	client: ClientWithCoreApi,
-	existingSystemState: SystemStateData | null,
+	systemState: SystemStateData | null,
+	existingChainIdentifier: string | null = null,
 ) {
-	if (transactionData.expiration || hasVersionedInputs(transactionData)) {
-		return;
-	}
-
-	const [systemState, { chainIdentifier }] = await Promise.all([
-		existingSystemState ?? client.core.getCurrentSystemState().then((r) => r.systemState),
-		client.core.getChainIdentifier(),
+	const [chainIdentifier, resolvedSystemState] = await Promise.all([
+		existingChainIdentifier ?? client.core.getChainIdentifier().then((r) => r.chainIdentifier),
+		systemState ?? client.core.getCurrentSystemState().then((r) => r.systemState),
 	]);
-	const currentEpoch = BigInt(systemState.epoch);
+	const currentEpoch = BigInt(resolvedSystemState.epoch);
 
 	transactionData.expiration = {
 		$kind: 'ValidDuring',
@@ -215,17 +260,6 @@ async function setExpiration(
 			nonce: (Math.random() * 0x100000000) >>> 0,
 		},
 	};
-}
-
-function hasVersionedInputs(transactionData: TransactionDataBuilder): boolean {
-	if (transactionData.gasData.payment?.length) {
-		return true;
-	}
-
-	return transactionData.inputs.some(
-		(input) =>
-			input.Object?.ImmOrOwnedObject || (input.UnresolvedObject && input.UnresolvedObject.version),
-	);
 }
 
 async function resolveObjectReferences(

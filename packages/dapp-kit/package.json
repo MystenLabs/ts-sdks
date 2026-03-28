@@ -62,7 +62,7 @@
 		"@vanilla-extract/vite-plugin": "^5.1.4",
 		"autoprefixer": "^10.4.23",
 		"esbuild": "^0.27.2",
-		"happy-dom": "^20.1.0",
+		"happy-dom": "^20.8.8",
 		"jsdom": "^27.4.0",
 		"postcss": "^8.5.6",
 		"postcss-prefix-selector": "^2.1.1",

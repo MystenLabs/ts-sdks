@@ -1189,21 +1189,12 @@ describe('coinWithBalance', () => {
 		testWithAllClients(
 			'combines address balance and coins when neither is sufficient alone',
 			async (client) => {
-				const depositAmount = 50_000_000n;
-				const depositTx = new Transaction();
-				const [coinToDeposit] = depositTx.splitCoins(depositTx.gas, [depositAmount]);
-				depositTx.moveCall({
-					target: '0x2::coin::send_funds',
-					typeArguments: ['0x2::sui::SUI'],
-					arguments: [coinToDeposit, depositTx.pure.address(toolbox.address())],
+				// Use a fresh signer with controlled balances to ensure
+				// neither coins nor address balance alone is sufficient
+				const { keypair: signer, address: signerAddress } = await toolbox.getSigner({
+					coins: [600_000_000n],
+					addressBalance: 600_000_000n,
 				});
-
-				const depositResult = await client.core.signAndExecuteTransaction({
-					transaction: depositTx,
-					signer: toolbox.keypair,
-				});
-				if (depositResult.$kind !== 'Transaction') throw new Error('Deposit failed');
-				await client.core.waitForTransaction({ digest: depositResult.Transaction.digest });
 
 				const receiver = new Ed25519Keypair();
 				const requestAmount1 = 500_000_000n;
@@ -1218,7 +1209,7 @@ describe('coinWithBalance', () => {
 					],
 					receiver.toSuiAddress(),
 				);
-				tx.setSender(toolbox.address());
+				tx.setSender(signerAddress);
 
 				expect(
 					JSON.parse(
@@ -1241,7 +1232,7 @@ describe('coinWithBalance', () => {
 							},
 						},
 					],
-					sender: toolbox.address(),
+					sender: signerAddress,
 					commands: [
 						{
 							$Intent: {
@@ -1352,7 +1343,7 @@ describe('coinWithBalance', () => {
 
 				const result = await client.core.signAndExecuteTransaction({
 					transaction: tx,
-					signer: toolbox.keypair,
+					signer,
 					include: { balanceChanges: true },
 				});
 
