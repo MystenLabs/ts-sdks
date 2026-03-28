@@ -189,7 +189,7 @@ function setGasPayment({
 	const budget = BigInt(transactionData.gasData.budget!);
 	const addressBalance = BigInt(balance.balance.addressBalance);
 
-	if (budget === 0n || (!usesGasCoin && budget <= addressBalance - withdrawals)) {
+	if (budget === 0n || (!usesGasCoin && addressBalance >= budget + withdrawals)) {
 		transactionData.gasData.payment = [];
 		return;
 	}
