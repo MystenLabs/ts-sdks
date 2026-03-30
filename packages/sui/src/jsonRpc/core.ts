@@ -20,7 +20,7 @@ import type {
 	TransactionEffects,
 } from './types/index.js';
 import { Transaction } from '../transactions/Transaction.js';
-import { coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
+import { computeGasBudget, coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
 import { normalizeSuiAddress, normalizeStructTag } from '../utils/sui-types.js';
@@ -395,8 +395,18 @@ export class JSONRpcCoreClient extends CoreClient {
 
 		const { effects, objectTypes } = parseTransactionEffectsJson({
 			effects: effectsSource.effects,
-			objectChanges: dryRunResult?.objectChanges ?? [],
+			objectChanges: (!dryRunFailed ? dryRunResult?.objectChanges : null) ?? [],
 		});
+
+		let parsedTransaction: SuiClientTypes.TransactionData | undefined;
+		if (options.include?.transaction) {
+			parsedTransaction = parseTransactionBcs(transactionBytes);
+			if (data && !dryRunFailed && effects.gasUsed) {
+				if (!data.gasData.budget) {
+					parsedTransaction.gasData.budget = computeGasBudget(effects.gasUsed);
+				}
+			}
+		}
 
 		const transactionData: SuiClientTypes.Transaction<Include> = {
 			digest: TransactionDataBuilder.getDigestFromBytes(transactionBytes),
@@ -409,21 +419,12 @@ export class JSONRpcCoreClient extends CoreClient {
 				? objectTypes
 				: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 			signatures: [],
-			transaction: (options.include?.transaction
-				? parseTransactionBcs(
-						options.transaction instanceof Uint8Array
-							? options.transaction
-							: await options.transaction
-									.build({
-										client: this,
-									})
-									.catch(() => null as never),
-					)
-				: undefined) as SuiClientTypes.Transaction<Include>['transaction'],
+			transaction: (parsedTransaction ??
+				undefined) as SuiClientTypes.Transaction<Include>['transaction'],
 			bcs: (options.include?.bcs
 				? transactionBytes
 				: undefined) as SuiClientTypes.Transaction<Include>['bcs'],
-			balanceChanges: (options.include?.balanceChanges && dryRunResult
+			balanceChanges: (options.include?.balanceChanges && dryRunResult && !dryRunFailed
 				? dryRunResult.balanceChanges.map((change) => ({
 						coinType: normalizeStructTag(change.coinType),
 						address: parseOwnerAddress(change.owner)!,

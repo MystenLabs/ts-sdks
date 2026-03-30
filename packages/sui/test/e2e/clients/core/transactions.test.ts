@@ -1393,6 +1393,57 @@ describe('Core API - Transactions', () => {
 				expect(result.FailedTransaction?.status.success).toBe(false);
 			},
 		);
+
+		testWithAllClients(
+			'should not error with all includes for non-public fn with checksEnabled: false',
+			async (client) => {
+				const result = await client.core.simulateTransaction({
+					transaction: nonPublicTxBytes,
+					checksEnabled: false,
+					include: {
+						effects: true,
+						balanceChanges: true,
+						events: true,
+						objectTypes: true,
+						transaction: true,
+						bcs: true,
+						commandResults: true,
+					},
+				});
+
+				expect(result.$kind).toBe('Transaction');
+				const data = result.Transaction!;
+				expect(data.effects).toBeDefined();
+				expect(data.events).toBeDefined();
+				expect(data.transaction).toBeDefined();
+				expect(data.bcs).toBeInstanceOf(Uint8Array);
+				expect(result.commandResults).toBeDefined();
+				expect(result.commandResults!.length).toBeGreaterThan(0);
+			},
+		);
+
+		testWithAllClients(
+			'should handle unbuilt Transaction object with transaction include',
+			async (client) => {
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::test_objects::non_public_add`,
+					arguments: [tx.pure.u64(3), tx.pure.u64(5)],
+				});
+				tx.setSender(testAddress);
+
+				const result = await client.core.simulateTransaction({
+					transaction: tx,
+					checksEnabled: false,
+					include: { effects: true, transaction: true, commandResults: true },
+				});
+
+				expect(result.$kind).toBe('Transaction');
+				expect(result.Transaction!.effects).toBeDefined();
+				expect(result.Transaction!.transaction).toBeDefined();
+				expect(result.commandResults).toBeDefined();
+			},
+		);
 	});
 
 	describe('build with onlyTransactionKind', () => {

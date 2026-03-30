@@ -25,6 +25,20 @@ const MAX_OBJECTS_PER_FETCH = 50;
 const GAS_SAFE_OVERHEAD = 1000n;
 const MAX_GAS = 50_000_000_000;
 
+/** Compute a gas budget from gasUsed effects data. */
+export function computeGasBudget(
+	gasUsed: { computationCost: string; storageCost: string; storageRebate: string },
+	gasPrice: bigint | string = 1n,
+): string {
+	const safeOverhead = GAS_SAFE_OVERHEAD * BigInt(gasPrice);
+	const baseComputationCostWithOverhead = BigInt(gasUsed.computationCost) + safeOverhead;
+	const gasBudget =
+		baseComputationCostWithOverhead + BigInt(gasUsed.storageCost) - BigInt(gasUsed.storageRebate);
+	return String(
+		gasBudget > baseComputationCostWithOverhead ? gasBudget : baseComputationCostWithOverhead,
+	);
+}
+
 function getClient(options: BuildTransactionOptions): ClientWithCoreApi {
 	if (!options.client) {
 		throw new Error(
@@ -152,16 +166,9 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Cli
 		});
 	}
 
-	const gasUsed = simulateResult.Transaction.effects!.gasUsed;
-	const safeOverhead = GAS_SAFE_OVERHEAD * BigInt(transactionData.gasData.price || 1n);
-
-	const baseComputationCostWithOverhead = BigInt(gasUsed.computationCost) + safeOverhead;
-
-	const gasBudget =
-		baseComputationCostWithOverhead + BigInt(gasUsed.storageCost) - BigInt(gasUsed.storageRebate);
-
-	transactionData.gasData.budget = String(
-		gasBudget > baseComputationCostWithOverhead ? gasBudget : baseComputationCostWithOverhead,
+	transactionData.gasData.budget = computeGasBudget(
+		simulateResult.Transaction.effects!.gasUsed,
+		transactionData.gasData.price ? String(transactionData.gasData.price) : undefined,
 	);
 }
 
