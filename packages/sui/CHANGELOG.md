@@ -1,5 +1,14 @@
 # @mysten/sui.js
 
+## 2.13.2
+
+### Patch Changes
+
+- 0819c73: Fix JSON-RPC `defaultNameServiceName` returning `undefined` instead of `null` when no
+  name is found.
+- 8491b8e: Fix `parseStructTag` to reject malformed inputs: empty address/module/name components
+  (e.g. `::foo::Bar`) and trailing content after type parameters (e.g. `Coin<u8>GARBAGE`).
+
 ## 2.13.1
 
 ### Patch Changes
