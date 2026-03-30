@@ -607,7 +607,7 @@ export class JSONRpcCoreClient extends CoreClient {
 	async defaultNameServiceName(
 		options: SuiClientTypes.DefaultNameServiceNameOptions,
 	): Promise<SuiClientTypes.DefaultNameServiceNameResponse> {
-		const name = (await this.#jsonRpcClient.resolveNameServiceNames(options)).data[0];
+		const name = (await this.#jsonRpcClient.resolveNameServiceNames(options)).data[0] ?? null;
 		return {
 			data: {
 				name,
