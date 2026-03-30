@@ -398,6 +398,15 @@ export class JSONRpcCoreClient extends CoreClient {
 			objectChanges: (!dryRunFailed ? dryRunResult?.objectChanges : null) ?? [],
 		});
 
+		let resolvedTransactionBytes = transactionBytes;
+		if (options.include?.transaction && !(options.transaction instanceof Uint8Array)) {
+			if (!dryRunFailed && effects.gasUsed && !options.transaction.getData().gasData.budget) {
+				options.transaction.setGasBudget(computeGasBudget(effects.gasUsed));
+			}
+			resolvedTransactionBytes =
+				(await options.transaction.build({ client: this }).catch(() => null)) ?? transactionBytes;
+		}
+
 		const transactionData: SuiClientTypes.Transaction<Include> = {
 			digest: TransactionDataBuilder.getDigestFromBytes(transactionBytes),
 			epoch: null,
@@ -410,20 +419,7 @@ export class JSONRpcCoreClient extends CoreClient {
 				: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 			signatures: [],
 			transaction: (options.include?.transaction
-				? await (async () => {
-						if (options.transaction instanceof Uint8Array) {
-							return parseTransactionBcs(transactionBytes);
-						}
-						if (!dryRunFailed && effects.gasUsed && !options.transaction.getData().gasData.budget) {
-							options.transaction.setGasBudget(
-								computeGasBudget(effects.gasUsed),
-							);
-						}
-						const resolvedBytes = await options.transaction
-							.build({ client: this })
-							.catch(() => null);
-						return parseTransactionBcs(resolvedBytes ?? transactionBytes);
-					})()
+				? parseTransactionBcs(resolvedTransactionBytes)
 				: undefined) as SuiClientTypes.Transaction<Include>['transaction'],
 			bcs: (options.include?.bcs
 				? transactionBytes
