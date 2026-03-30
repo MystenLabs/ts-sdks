@@ -399,9 +399,9 @@ export class JSONRpcCoreClient extends CoreClient {
 		});
 
 		let resolvedTransactionBytes = transactionBytes;
-		if (options.include?.transaction && !(options.transaction instanceof Uint8Array)) {
+		if (options.include?.transaction && !(options.transaction instanceof Uint8Array) && !dryRunFailed) {
 			const txCopy = Transaction.from(options.transaction);
-			if (!dryRunFailed && effects.gasUsed && !txCopy.getData().gasData.budget) {
+			if (effects.gasUsed && !txCopy.getData().gasData.budget) {
 				txCopy.setGasBudget(computeGasBudget(effects.gasUsed));
 			}
 			resolvedTransactionBytes =
