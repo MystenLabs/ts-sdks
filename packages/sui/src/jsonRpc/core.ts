@@ -400,11 +400,12 @@ export class JSONRpcCoreClient extends CoreClient {
 
 		let resolvedTransactionBytes = transactionBytes;
 		if (options.include?.transaction && !(options.transaction instanceof Uint8Array)) {
-			if (!dryRunFailed && effects.gasUsed && !options.transaction.getData().gasData.budget) {
-				options.transaction.setGasBudget(computeGasBudget(effects.gasUsed));
+			const txCopy = Transaction.from(options.transaction);
+			if (!dryRunFailed && effects.gasUsed && !txCopy.getData().gasData.budget) {
+				txCopy.setGasBudget(computeGasBudget(effects.gasUsed));
 			}
 			resolvedTransactionBytes =
-				(await options.transaction.build({ client: this }).catch(() => null)) ?? transactionBytes;
+				(await txCopy.build({ client: this }).catch(() => null)) ?? transactionBytes;
 		}
 
 		const transactionData: SuiClientTypes.Transaction<Include> = {
