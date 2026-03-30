@@ -34,7 +34,9 @@ export function computeGasBudget(
 	const baseComputationCostWithOverhead = BigInt(gasUsed.computationCost) + safeOverhead;
 	const gasBudget =
 		baseComputationCostWithOverhead + BigInt(gasUsed.storageCost) - BigInt(gasUsed.storageRebate);
-	return String(gasBudget > baseComputationCostWithOverhead ? gasBudget : baseComputationCostWithOverhead);
+	return String(
+		gasBudget > baseComputationCostWithOverhead ? gasBudget : baseComputationCostWithOverhead,
+	);
 }
 
 function getClient(options: BuildTransactionOptions): ClientWithCoreApi {
