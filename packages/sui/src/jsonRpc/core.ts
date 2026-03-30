@@ -398,14 +398,14 @@ export class JSONRpcCoreClient extends CoreClient {
 			objectChanges: (!dryRunFailed ? dryRunResult?.objectChanges : null) ?? [],
 		});
 
-		let resolvedTransactionBytes = transactionBytes;
-		if (options.include?.transaction && !(options.transaction instanceof Uint8Array) && !dryRunFailed) {
-			const txCopy = Transaction.from(options.transaction);
-			if (effects.gasUsed && !txCopy.getData().gasData.budget) {
-				txCopy.setGasBudget(computeGasBudget(effects.gasUsed));
+		let parsedTransaction: SuiClientTypes.TransactionData | undefined;
+		if (options.include?.transaction) {
+			parsedTransaction = parseTransactionBcs(transactionBytes);
+			if (data && !dryRunFailed && effects.gasUsed) {
+				if (!data.gasData.budget) {
+					parsedTransaction.gasData.budget = computeGasBudget(effects.gasUsed);
+				}
 			}
-			resolvedTransactionBytes =
-				(await txCopy.build({ client: this }).catch(() => null)) ?? transactionBytes;
 		}
 
 		const transactionData: SuiClientTypes.Transaction<Include> = {
@@ -419,9 +419,8 @@ export class JSONRpcCoreClient extends CoreClient {
 				? objectTypes
 				: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 			signatures: [],
-			transaction: (options.include?.transaction
-				? parseTransactionBcs(resolvedTransactionBytes)
-				: undefined) as SuiClientTypes.Transaction<Include>['transaction'],
+			transaction: (parsedTransaction ??
+				undefined) as SuiClientTypes.Transaction<Include>['transaction'],
 			bcs: (options.include?.bcs
 				? transactionBytes
 				: undefined) as SuiClientTypes.Transaction<Include>['bcs'],
