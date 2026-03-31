@@ -158,7 +158,7 @@ export const parsePaymentTransactionUri = (uri: string): PaymentUriParams => {
 		nonce: nonce,
 		label: params.get('label') ?? undefined,
 		message: params.get('message') ?? undefined,
-		iconUrl: params.get('icon') ?? undefined,
+		iconUrl: params.get('iconUrl') ?? undefined,
 	};
 
 	if (registryId) {

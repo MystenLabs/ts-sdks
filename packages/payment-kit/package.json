@@ -37,11 +37,14 @@
 		"oxlint:check": "oxlint  .",
 		"oxlint:fix": "oxlint --fix",
 		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
-		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
+		"test": "vitest run",
+		"vitest": "vitest"
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",
-		"typescript": "^5.9.3"
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.17"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:^",
