@@ -35,9 +35,7 @@ describe('extractMvrTypes', () => {
 	});
 
 	it('extracts MVR types from top-level vector', () => {
-		expect([...extractMvrTypes('vector<@mvr/demo::baz::Qux>')]).toEqual([
-			'@mvr/demo::baz::Qux',
-		]);
+		expect([...extractMvrTypes('vector<@mvr/demo::baz::Qux>')]).toEqual(['@mvr/demo::baz::Qux']);
 	});
 
 	it('extracts MVR types from types with mixed MVR and primitive params', () => {
