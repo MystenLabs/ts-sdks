@@ -332,6 +332,10 @@ function validateOverrides(overrides?: {
 export function extractMvrTypes(type: string | StructTag, types = new Set<string>()) {
 	if (typeof type === 'string' && !hasMvrName(type)) return types;
 
+	if (typeof type === 'string' && type.startsWith('vector<') && type.endsWith('>')) {
+		return extractMvrTypes(type.slice(7, -1), types);
+	}
+
 	const tag = isStructTag(type) ? type : parseStructTag(type);
 
 	if (hasMvrName(tag.address)) types.add(`${tag.address}::${tag.module}::${tag.name}`);
@@ -348,6 +352,14 @@ export function extractMvrTypes(type: string | StructTag, types = new Set<string
  * based on the supplied type cache.
  */
 function replaceMvrNames(tag: string | StructTag, typeCache: Record<string, string>): string {
+	if (typeof tag === 'string' && !tag.includes('::')) {
+		return tag;
+	}
+
+	if (typeof tag === 'string' && tag.startsWith('vector<') && tag.endsWith('>')) {
+		return `vector<${replaceMvrNames(tag.slice(7, -1), typeCache)}>`;
+	}
+
 	const type = isStructTag(tag) ? tag : parseStructTag(tag);
 
 	const typeTag = `${type.address}::${type.module}::${type.name}`;
