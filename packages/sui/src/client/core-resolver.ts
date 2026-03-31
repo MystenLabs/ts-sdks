@@ -85,16 +85,15 @@ export async function coreClientResolveTransactionPlugin(
 	}
 
 	const needsSystemState = needsGasPrice || (needsPayment && usesGasCoin);
-	const [, systemStateResult, balanceResult, coinsResult, chainIdResult] =
-		await Promise.all([
-			normalizeInputs(transactionData, client),
-			needsSystemState ? client.core.getCurrentSystemState() : null,
-			needsPayment && gasPayer ? client.core.getBalance({ owner: gasPayer }) : null,
-			needsPayment && gasPayer
-				? client.core.listCoins({ owner: gasPayer, coinType: SUI_TYPE_ARG })
-				: null,
-			needsPayment && usesGasCoin ? client.core.getChainIdentifier() : null,
-		]);
+	const [, systemStateResult, balanceResult, coinsResult, chainIdResult] = await Promise.all([
+		normalizeInputs(transactionData, client),
+		needsSystemState ? client.core.getCurrentSystemState() : null,
+		needsPayment && gasPayer ? client.core.getBalance({ owner: gasPayer }) : null,
+		needsPayment && gasPayer
+			? client.core.listCoins({ owner: gasPayer, coinType: SUI_TYPE_ARG })
+			: null,
+		needsPayment && usesGasCoin ? client.core.getChainIdentifier() : null,
+	]);
 
 	await resolveObjectReferences(transactionData, client);
 
