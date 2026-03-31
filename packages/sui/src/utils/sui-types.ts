@@ -154,6 +154,12 @@ export function parseStructTag(type: string): StructTag {
 }
 
 export function normalizeStructTag(type: string | StructTag): string {
+	if (typeof type === 'string' && type.startsWith('vector<')) {
+		const parsed = parseTypeTag(type);
+		if (typeof parsed === 'string') return parsed;
+		return normalizeStructTag(parsed);
+	}
+
 	const { address, module, name, typeParams } =
 		typeof type === 'string' ? parseStructTag(type) : type;
 

@@ -179,6 +179,27 @@ describe('normalizeStructTag', () => {
 		);
 	});
 
+	it('normalizes top-level vector types', () => {
+		expect(normalizeStructTag('vector<0x2::sui::SUI>')).toEqual(
+			'vector<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>',
+		);
+
+		expect(normalizeStructTag('vector<u8>')).toEqual('vector<u8>');
+
+		expect(normalizeStructTag('vector<vector<0x2::sui::SUI>>')).toEqual(
+			'vector<vector<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>>',
+		);
+
+		expect(normalizeStructTag('vector<0x2::coin::Coin<0x2::sui::SUI>>')).toEqual(
+			'vector<0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>>',
+		);
+	});
+
+	it('rejects malformed top-level vector types', () => {
+		expect(() => normalizeStructTag('vector<>')).toThrow();
+		expect(() => normalizeStructTag('vector<u8')).toThrow();
+	});
+
 	it('normalizes named package addresses', () => {
 		const checks = [
 			'@mvr/demo::foo::bar<inner.mvr.sui/demo::baz::qux,bool>',
