@@ -37,11 +37,10 @@ export function saveAccountToStorage(
 	account: UiWalletAccount,
 	supportedIntents: string[],
 ) {
-	const walletIdentifier = getWalletUniqueIdentifier(account);
-	storage.setItem(
-		storageKey,
-		`${walletIdentifier.replace(':', '_')}:${account.address}:${supportedIntents.join(',')}:`,
-	);
+	const walletId = getWalletUniqueIdentifier(account).replace(':', '_');
+	const intents = supportedIntents.join(',');
+	const value = [walletId, account.address, intents, ''].join(':');
+	storage.setItem(storageKey, value);
 }
 
 function isLocalStorageAvailable() {
