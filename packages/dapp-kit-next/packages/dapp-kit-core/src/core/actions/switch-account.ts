@@ -21,22 +21,18 @@ export function switchAccountCreator(
 	 * Switches the currently selected account to the specified account.
 	 */
 	return function switchAccount({ account }: SwitchAccountArgs) {
-		const { wallet } = $connection.get();
-		if (!wallet) {
+		const connection = $connection.get();
+		if (!connection.wallet) {
 			throw new WalletNotConnectedError('No wallet is connected.');
 		}
 
-		if (!uiWalletAccountBelongsToUiWallet(account, wallet)) {
+		if (!uiWalletAccountBelongsToUiWallet(account, connection.wallet)) {
 			throw new WalletAccountNotFoundError(
-				`No account with address ${account.address} is connected to ${wallet.name}.`,
+				`No account with address ${account.address} is connected to ${connection.wallet.name}.`,
 			);
 		}
 
-		const connection = $baseConnection.get();
 		$baseConnection.setKey('currentAccount', account);
-
-		if (connection.status === 'connected') {
-			saveAccountToStorage(storage, storageKey, account, connection.supportedIntents);
-		}
+		saveAccountToStorage(storage, storageKey, account, connection.supportedIntents);
 	};
 }
