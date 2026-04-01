@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 2.13.4
+
+### Patch Changes
+
+- 2f76ba2: Revert removal of coin reservation feature flag check in core resolver
+
 ## 2.13.3
 
 ### Patch Changes
