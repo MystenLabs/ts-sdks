@@ -5,13 +5,18 @@ import type { DAppKitStores } from '../store.js';
 import { uiWalletAccountBelongsToUiWallet } from '@wallet-standard/ui';
 import type { UiWalletAccount } from '@wallet-standard/ui';
 import { WalletNotConnectedError, WalletAccountNotFoundError } from '../../utils/errors.js';
+import type { StateStorage } from '../../utils/storage.js';
+import { saveAccountToStorage } from '../../utils/storage.js';
 
 export type SwitchAccountArgs = {
 	/** The account to switch to. */
 	account: UiWalletAccount;
 };
 
-export function switchAccountCreator({ $baseConnection, $connection }: DAppKitStores) {
+export function switchAccountCreator(
+	{ $baseConnection, $connection }: DAppKitStores,
+	{ storage, storageKey }: { storage: StateStorage; storageKey: string },
+) {
 	/**
 	 * Switches the currently selected account to the specified account.
 	 */
@@ -27,6 +32,11 @@ export function switchAccountCreator({ $baseConnection, $connection }: DAppKitSt
 			);
 		}
 
+		const connection = $baseConnection.get();
 		$baseConnection.setKey('currentAccount', account);
+
+		if (connection.status === 'connected') {
+			saveAccountToStorage(storage, storageKey, account, connection.supportedIntents);
+		}
 	};
 }

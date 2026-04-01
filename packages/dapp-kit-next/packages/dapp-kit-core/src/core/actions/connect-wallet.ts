@@ -15,6 +15,8 @@ import {
 import { WalletAccountNotFoundError, WalletNoAccountsConnectedError } from '../../utils/errors.js';
 import { getChain } from '../../utils/networks.js';
 import type { Networks } from '../../utils/networks.js';
+import type { StateStorage } from '../../utils/storage.js';
+import { saveAccountToStorage } from '../../utils/storage.js';
 
 export type ConnectWalletArgs = {
 	/** The wallet to connect to. */
@@ -30,6 +32,7 @@ export type ConnectWalletArgs = {
 export function connectWalletCreator(
 	{ $baseConnection }: DAppKitStores,
 	supportedNetworks: Networks,
+	{ storage, storageKey }: { storage: StateStorage; storageKey: string },
 ) {
 	/**
 	 * Prompts the specified wallet to connect and authorize new accounts for the current domain.
@@ -62,11 +65,16 @@ export function connectWalletCreator(
 					);
 				}
 
+				const selectedAccount = account ?? suiAccounts[0];
+				const resolvedIntents = supportedIntents ?? [];
+
 				$baseConnection.set({
 					status: 'connected',
-					currentAccount: account ?? suiAccounts[0],
-					supportedIntents: supportedIntents ?? [],
+					currentAccount: selectedAccount,
+					supportedIntents: resolvedIntents,
 				});
+
+				saveAccountToStorage(storage, storageKey, selectedAccount, resolvedIntents);
 
 				return { accounts: suiAccounts };
 			} catch (error) {

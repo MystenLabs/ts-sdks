@@ -56,9 +56,6 @@ describe('[Integration] switchAccount action', () => {
 		const firstAccount = uiWallet.accounts[0];
 		const secondAccount = uiWallet.accounts[1];
 
-		// Subscribe to keep the $connection store mounted so syncStateToStorage fires:
-		const unsubscribe = dAppKit.stores.$connection.subscribe(() => {});
-
 		await dAppKit.connectWallet({ wallet: uiWallet });
 
 		// Verify initial connection is to the first account:
@@ -79,7 +76,5 @@ describe('[Integration] switchAccount action', () => {
 		savedValue = await storage.getItem(storageKey);
 		expect(savedValue).toContain(secondAccount.address);
 		expect(savedValue).not.toContain(firstAccount.address);
-
-		unsubscribe();
 	});
 });
