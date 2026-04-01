@@ -21,7 +21,13 @@ export function syncStateToStorage({
 }) {
 	onMount($connection, () => {
 		return $connection.listen((connection, oldConnection) => {
-			if (!oldConnection || oldConnection.status === connection.status) return;
+			if (
+				!oldConnection ||
+				(oldConnection.status === connection.status &&
+					oldConnection.account === connection.account)
+			) {
+				return;
+			}
 
 			if (connection.account) {
 				storage.setItem(
