@@ -1,5 +1,16 @@
 # @mysten/payment-kit
 
+## 0.1.4
+
+### Patch Changes
+
+- 510d96f: Fix `parsePaymentTransactionUri` to read `iconUrl` parameter correctly. The
+  `createPaymentTransactionUri` function writes the key as `iconUrl`, but
+  `parsePaymentTransactionUri` was reading it as `icon`, causing the icon URL to be lost during URI
+  round-trips.
+- Updated dependencies [3324a93]
+  - @mysten/sui@2.13.3
+
 ## 0.1.3
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @mysten/docs
 
+## 0.1.10
+
+### Patch Changes
+
+- Updated dependencies [510d96f]
+- Updated dependencies [220c140]
+- Updated dependencies [3324a93]
+  - @mysten/payment-kit@0.1.4
+  - @mysten/dapp-kit-core@1.2.2
+  - @mysten/sui@2.13.3
+  - @mysten/wallet-standard@0.20.1
+
 ## 0.1.9
 
 ### Patch Changes
