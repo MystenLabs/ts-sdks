@@ -8,7 +8,6 @@ import { createStores } from './store.js';
 import { syncRegisteredWallets } from './initializers/registered-wallets.js';
 import { autoConnectWallet } from './initializers/autoconnect-wallet.js';
 import { createInMemoryStorage, DEFAULT_STORAGE_KEY, getDefaultStorage } from '../utils/storage.js';
-import { syncStateToStorage } from './initializers/sync-state-to-storage.js';
 import { manageWalletConnection } from './initializers/manage-connection.js';
 import { createNetworkConfig } from '../utils/networks.js';
 import type { Networks } from '../utils/networks.js';
@@ -81,7 +80,6 @@ export function createDAppKit<
 	}
 
 	storage ||= createInMemoryStorage();
-	syncStateToStorage({ stores, storageKey, storage });
 
 	syncRegisteredWallets(stores);
 	manageWalletConnection(stores);
@@ -105,9 +103,9 @@ export function createDAppKit<
 		signTransaction: signTransactionCreator(stores),
 		signAndExecuteTransaction: signAndExecuteTransactionCreator(stores),
 		signPersonalMessage: signPersonalMessageCreator(stores),
-		connectWallet: connectWalletCreator(stores, networks),
+		connectWallet: connectWalletCreator(stores, networks, { storage, storageKey }),
 		disconnectWallet: disconnectWalletCreator(stores, { storage, storageKey }),
-		switchAccount: switchAccountCreator(stores),
+		switchAccount: switchAccountCreator(stores, { storage, storageKey }),
 		switchNetwork: switchNetworkCreator(stores),
 		stores: {
 			$wallets: stores.$compatibleWallets,
