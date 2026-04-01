@@ -39,7 +39,7 @@ export function saveAccountToStorage(
 ) {
 	const walletId = getWalletUniqueIdentifier(account).replace(':', '_');
 	const intents = supportedIntents.join(',');
-	const value = [walletId, account.address, intents, ''].join(':');
+	const value = [walletId, account.address, intents].join(':');
 	storage.setItem(storageKey, value);
 }
 
