@@ -1,5 +1,15 @@
 # @mysten/dapp-kit-core
 
+## 1.2.2
+
+### Patch Changes
+
+- 220c140: Fix selected account not persisting to storage on account switch, causing the first
+  account to be restored on page refresh.
+- Updated dependencies [3324a93]
+  - @mysten/sui@2.13.3
+  - @mysten/wallet-standard@0.20.1
+
 ## 1.2.1
 
 ### Patch Changes

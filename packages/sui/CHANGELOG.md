@@ -1,5 +1,13 @@
 # @mysten/sui.js
 
+## 2.13.3
+
+### Patch Changes
+
+- 3324a93: Remove `enable_coin_reservation_obj_refs` feature flag check from core resolver. Coin
+  reservation refs are now created whenever address balance is non-zero, removing the need for the
+  `getProtocolConfig` call during transaction building.
+
 ## 2.13.2
 
 ### Patch Changes
