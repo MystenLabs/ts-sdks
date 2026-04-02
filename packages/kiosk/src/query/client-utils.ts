@@ -101,7 +101,7 @@ export async function getAllObjects(
 					const displayData = obj.asMoveObject?.contents?.display;
 					const display: KioskDisplay | undefined = displayData
 						? {
-								data: (displayData.output as Record<string, string> | null) ?? null,
+								data: (displayData.output as Record<string, unknown> | null) ?? null,
 								error: displayData.errors ? JSON.stringify(displayData.errors) : null,
 							}
 						: undefined;
