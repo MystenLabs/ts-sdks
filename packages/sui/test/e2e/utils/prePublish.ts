@@ -77,16 +77,8 @@ export async function prePublishPackages(
 
 	const containerClient = await getContainerRuntimeClient();
 
-	const configPath = '/test-data/prepublish-client.yaml';
-	await execInContainer(containerClient, config.containerId, [
-		'sui',
-		'client',
-		'--yes',
-		'--client.config',
-		configPath,
-	]);
-
-	// Publish each package
+	// Publish each package. The default sui config at /root/.sui/sui_config/client.yaml
+	// (written by globalSetup) already points at localnet, so no separate config is needed.
 	for (const packagePath of PACKAGES_TO_PREPUBLISH) {
 		try {
 			const result = await publishSinglePackage({
@@ -95,7 +87,6 @@ export async function prePublishPackages(
 				client,
 				containerClient,
 				containerId: config.containerId,
-				configPath,
 			});
 
 			// Store with simplified name (e.g., "shared/serializer" -> "serializer")
@@ -140,19 +131,19 @@ async function publishSinglePackage(options: {
 	client: SuiGrpcClient;
 	containerClient: ContainerRuntimeClient;
 	containerId: string;
-	configPath: string;
 }): Promise<PrePublishedPackage> {
-	const { packagePath, keypair, client, containerClient, containerId, configPath } = options;
+	const { packagePath, keypair, client, containerClient, containerId } = options;
 	const address = keypair.getPublicKey().toSuiAddress();
 
-	// Build the package
+	// Build the package. Use --build-env testnet so the compiler resolves
+	// framework deps correctly even though the active env is localnet.
 	const buildResult = await execInContainer(containerClient, containerId, [
 		'sui',
 		'move',
-		'--client.config',
-		configPath,
 		'build',
 		'--dump-bytecode-as-base64',
+		'--build-env',
+		'testnet',
 		'--path',
 		`/test-data/${packagePath}`,
 	]);
