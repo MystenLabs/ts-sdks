@@ -1,5 +1,15 @@
 # @mysten/sui.js
 
+## 2.14.1
+
+### Patch Changes
+
+- 2d57e9c: Fix `normalizeStructTag` to reject top-level vector type strings with a clear error.
+  Previously, calling `normalizeStructTag('vector<0x2::sui::SUI>')` would produce a corrupted result
+  because the vector string was passed directly to `parseStructTag`, which misinterpreted it. The
+  function now throws an error directing callers to use `normalizeTypeTag` instead.
+- a3f2b49: Remove coin reservation feature flag check from core resolver
+
 ## 2.14.0
 
 ### Minor Changes
