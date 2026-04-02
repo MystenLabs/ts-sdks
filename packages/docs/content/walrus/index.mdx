@@ -3,6 +3,18 @@ title: Walrus SDK
 description: Store and retrieve blobs on Walrus decentralized storage
 ---
 
+The Walrus TypeScript SDK works directly with Walrus storage nodes or with the Walrus upload relay.
+When you use the Walrus SDK without an upload relay, reading and writing Walrus blobs requires many
+requests (approximately 2200 to write a blob and approximately 335 to read a blob). The upload relay
+reduces the number of requests needed to write a blob, but reads through the Walrus SDK still
+require many requests. For many applications, using publishers and aggregators is recommended, but
+the TypeScript SDK is useful when building applications where the application needs to directly
+interact with Walrus, or when users need to pay for their own storage directly.
+
+The Walrus SDK exposes high-level methods for reading and writing blobs, as well as lower-level
+methods for the individual steps in the process. You can use the lower-level methods to implement
+more complex flows when you want more control over optimization.
+
 ## Installation
 
 ```bash npm2yarn
@@ -11,8 +23,8 @@ npm install --save @mysten/walrus @mysten/sui
 
 ## Setup
 
-To use the walrus SDK you will need to create a Client from the typescript SDK, and extend it with
-the walrus SDK.
+To use the Walrus SDK, you need to create a client from the TypeScript SDK and extend it with the
+Walrus SDK.
 
 ```ts
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -24,9 +36,9 @@ const client = new SuiGrpcClient({
 }).$extend(walrus());
 ```
 
-The walrus SDK currently includes all the relevant package and object IDs needed for connecting to
-testnet. You can also manually configure the walrus sdk to use a different set of ids, allowing you
-to connect to a different network or updated deployment of the walrus contracts.
+The Walrus SDK includes all the relevant package and object IDs needed for connecting to Testnet.
+You can also manually configure the Walrus SDK to use a different set of IDs, allowing you to
+connect to a different network or updated deployment of the Walrus contracts.
 
 ```ts
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -45,7 +57,7 @@ const client = new SuiGrpcClient({
 );
 ```
 
-For some environments you may need to customize how data is fetched:
+Some environments require you to customize how data is fetched:
 
 ```ts
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -67,37 +79,22 @@ const client = new SuiGrpcClient({
 );
 ```
 
-This can be used to implement a fetch function with custom timeouts, rate limits, retry logic, or
-any other desired behavior.
+You can use this approach to implement a fetch function with custom timeouts, rate limits, retry
+logic, or any other desired behavior.
 
-## SDK Overview
+## `WalrusFile` API
 
-The Walrus TS SDK is designed to work directly with walrus storage nodes, or with the walrus upload
-relay. When using the walrus SDK without an upload relay, it is important to understand that reading
-and writing walrus blobs requires a lot of requests (~2200 to write a blob, ~335 to read a blob).
-The upload relay will reduce the number of requests needed to write a blob, but reads through the
-walrus SDK will still require a lot of requests. For many applications, using publishers and
-aggregators is recommended, but the TS SDK can be useful when building applications where the
-application needs to directly interact with walrus or users need to pay for their own storage
-directly.
-
-The walrus sdk exposes high level methods for reading and writing blobs, as well as lower level
-methods for the individual steps in the process that can be used to implement more complex flows
-when you want more control to implement more optimized implementations.
-
-## WalrusFiles
-
-The `WalrusFile` API provides a higher level abstraction so that applications don't need to worry
-about how data is stored in walrus. Today it handles data stored directly in blobs, and data stored
-in Quilts, but may be expanded to cover other storage patterns in the future.
+The `WalrusFile` API provides a higher-level abstraction so that applications do not need to worry
+about how data is stored in Walrus. It handles data stored directly in blobs and data stored in
+quilts, but might expand to cover other storage patterns in the future.
 
 ### Reading files
 
-To read files, you can use the `getFiles` method. This method accepts both Blob IDs and Quilt IDs,
-and will return a `WalrusFile`.
+To read files, use the `getFiles` method. This method accepts both blob IDs and quilt IDs, and
+returns a `WalrusFile`.
 
-It is encouraged to always read files in batches when possible, which will allow the client to be
-more efficient when loading multiple files from the same quilt.
+Read files in batches when possible, which allows the client to be more efficient when loading
+multiple files from the same quilt.
 
 ```ts
 const [file1, file2] = await client.walrus.getFiles({ ids: [anyBlobId, orQuiltId] });
@@ -114,17 +111,16 @@ const text = await file1.text();
 const json = await file2.json();
 ```
 
-A `WalrusFile` may also have and `identifier` and `tags` properties if the file was stored in a
-quilt.
+A `WalrusFile` might also have `identifier` and `tags` properties if the file was stored in a quilt.
 
 ```ts
 const identifier: string | null = await file1.getIdentifier();
 const tags: Record<string, string> = await file1.getTags();
 ```
 
-### WalrusBlobs
+#### `WalrusBlob`
 
-You can also get a `WalrusBlob` instead of a `WalrusFile` if you have the blobId:
+You can also get a `WalrusBlob` instead of a `WalrusFile` if you have the `blobId`:
 
 ```ts
 const blob = await client.walrus.getBlob({ blobId });
@@ -145,8 +141,8 @@ const filesById = await blob.files({ ids: [quiltID] });
 
 ### Writing files
 
-You can also construct a `WalrusFile` from a `Uint8Array`, `Blob`, or a `string` which can then be
-stored on walrus:
+You can also construct a `WalrusFile` from a `Uint8Array`, `Blob`, or a `string`, which you can then
+store on Walrus:
 
 ```ts
 const file1 = WalrusFile.from({
@@ -166,15 +162,15 @@ const file3 = WalrusFile.from({
 });
 ```
 
-Once you have your files you can use the `writeFiles` method to write them to walrus.
+After you have your files, use the `writeFiles` method to write them to Walrus.
 
-Along with the files, you will also need to provide a `Signer` instance that signs and pays for the
-transaction/storage fees. The signer's address will need to have sufficient `SUI` to cover the
-transactions that register the blob, and certify its availability after it's been uploaded. The
-Signer must own sufficient `WAL` to pay to store the blob for the specified number of epochs, as
-well as the write fee for writing the blob.
+Along with the files, you also need to provide a `Signer` instance that signs and pays for the
+transaction and storage fees. The signer's address needs sufficient SUI to cover the transactions
+that register the blob and certify its availability after upload. The signer must own sufficient WAL
+to pay to store the blob for the specified number of epochs, as well as the write fee for writing
+the blob.
 
-The exact costs will depend on the size of the blobs, as well as the current gas and storage prices.
+The exact costs depend on the size of the blobs, as well as the current gas and storage prices.
 
 ```ts
 const results: {
@@ -189,32 +185,32 @@ const results: {
 });
 ```
 
-Currently, the provided files will all be written into a single quilt. Future versions of the SDK
-may optimize how files are stored to be more efficient by splitting files into multiple quilts.
+The provided files are all written into a single quilt. Future versions of the SDK might optimize
+how files are stored to be more efficient by splitting files into multiple quilts.
 
 The current quilt encoding is less efficient for single files, so writing multiple files together is
 recommended when possible. Writing raw blobs directly is also possible using the `writeBlob` API
-(described below)
+described below.
 
-### Writing files in browser environments
+#### Writing files in browser environments
 
-When the transactions to upload a blob are signed by a wallet in a browser, some wallets will use
-popups to prompt the user for a signature. If the popups are not opened in direct response to a user
-interaction, they may be blocked by the browser.
+When the transactions to upload a blob are signed by a wallet in a browser, some wallets use popups
+to prompt you for a signature. If the popups are not opened in direct response to a user
+interaction, the browser might block them.
 
-To avoid this, we need to ensure that we execute the transactions that register and certify the blob
-in separate events handlers by creating separate buttons for the user to click for each step.
+To avoid this, execute the transactions that register and certify the blob in separate event
+handlers by creating separate buttons for each step.
 
 The `client.writeFilesFlow` method returns an object with a set of methods that break the write flow
 into several smaller steps:
 
-1. `encode` - Encodes the files and generates a blobId
-2. `register` - returns a transaction that will register the blob on-chain
-3. `upload` - Uploads the data to storage nodes
-4. `certify` - returns a transaction that will certify the blob on-chain
-5. `listFiles` - returns a list of the created files
+1. `encode`: Encodes the files and generates a `blobId`.
+2. `register`: Returns a transaction that registers the blob onchain.
+3. `upload`: Uploads the data to storage nodes.
+4. `certify`: Returns a transaction that certifies the blob onchain.
+5. `listFiles`: Returns a list of the created files.
 
-Here's a simplified example showing the core API usage with separate user interactions:
+The following simplified example shows the core API usage with separate user interactions:
 
 ```tsx
 // Step 1: Create and encode the flow (can be done immediately when file is selected)
@@ -270,9 +266,8 @@ interactions, allowing wallet popups to work properly without being blocked by t
 
 ### Running the full flow
 
-If you don't need separate user interactions for each step, you can use `run()` to execute the full
-pipeline as an async iterator. Each step yields a `WriteBlobStep` that you can persist for crash
-recovery:
+If you do not need separate user interactions for each step, use `run()` to execute the full
+pipeline as an async iterator.
 
 ```ts
 const flow = client.walrus.writeBlobFlow({ blob });
@@ -293,10 +288,11 @@ const up = await flow.upload({ digest: reg.txDigest });
 const cert = await flow.executeCertify({ signer });
 ```
 
-### Resuming uploads
+#### Resuming uploads
 
-To resume an upload after a crash, pass a saved `WriteBlobStep` as `resume`. The flow will skip
-completed steps, validate the blobId, and only upload slivers that aren't already stored:
+Each step executed by `run()` produces a `WriteBlobStep` that you can persist for crash recovery. To
+resume an upload after a crash, pass a saved `WriteBlobStep` as `resume`. The flow skips completed
+steps, validates the `blobId`, and only uploads slivers that are not already stored:
 
 ```ts
 const saved = await db.load(fileId);
@@ -307,13 +303,12 @@ for await (const step of flow.run({ signer, epochs: 3, deletable: true })) {
 }
 ```
 
-## Writing blobs with an upload relay
+## Using an upload relay
 
-Writing blobs directly from a client requires a lot of requests to write data to all the storage
-nodes. An upload relay can be used to offload the work of these writes to a server, reducing
-complexity for the client.
+Writing blobs directly from a client requires many requests to write data to all the storage nodes.
+An upload relay offloads the work of these writes to a server, reducing complexity for the client.
 
-To use an upload relay, you can add the `uploadRelay` option when adding the walrus extension:
+To use an upload relay, add the `uploadRelay` option when adding the Walrus extension:
 
 ```ts
 const client = new SuiGrpcClient({
@@ -331,18 +326,18 @@ const client = new SuiGrpcClient({
 );
 ```
 
-The `host` option is required, and indicates the url for your upload relay. Upload relays may
-require a tip to be included to cover the cost of writing the blob. You can configure a maximum tip
-(paid in MIST) and the `WalrusClient` will automatically determine the required tip for your upload
-relay, or you can manually configure the tip configuration as shown below.
+The `host` option is required and indicates the URL for your upload relay. Upload relays might
+require a tip to cover the cost of writing the blob. You can configure a maximum tip (paid in MIST)
+and the `WalrusClient` automatically determines the required tip for your upload relay. You can also
+manually configure the tip as shown below.
 
-The tip required by an upload relay can be found using the `tip-config` endpoint: (e.g.
-`https://upload-relay.testnet.walrus.space/v1/tip-config`) and may either be a `const` or a `linear`
-tip.
+Find the tip required by an upload relay using the `tip-config` endpoint (for example,
+`https://upload-relay.testnet.walrus.space/v1/tip-config`). The tip is either a `const` or a
+`linear` type.
 
 ### `const` tip
 
-A `const` will send a fixed amount for each blob written to the upload relay.
+A `const` tip sends a fixed amount for each blob written to the upload relay.
 
 ```ts
 const client = new SuiGrpcClient({
@@ -365,8 +360,8 @@ const client = new SuiGrpcClient({
 
 ### `linear` tip
 
-A `linear` tip will send a fixed amount for each blob written to the fan out proxy, plus a
-multiplier based on the size of the blob.
+A `linear` tip sends a fixed amount for each blob written to the upload relay, plus a multiplier
+based on the size of the blob.
 
 ```ts
 const client = new SuiGrpcClient({
@@ -392,22 +387,22 @@ const client = new SuiGrpcClient({
 
 ## Interacting with blobs directly
 
-In case you do not want to use the `WalrusFile` abstractions, you can use the `readBlob` and
-`writeBlob` APIs directly
+If you do not want to use the `WalrusFile` abstractions, use the `readBlob` and `writeBlob` APIs
+directly.
 
 ### Reading blobs
 
-The `readBlob` method will read a blob given the blobId and return Uint8Array containing the blobs
+The `readBlob` method reads a blob given the `blobId` and returns a `Uint8Array` containing the blob
 content:
 
 ```ts
 const blob = await client.walrus.readBlob({ blobId });
 ```
 
-### Writing Blobs
+### Writing blobs
 
-The writeBlob method can be used to write a blob (as a `Uint8Array`) to walrus. You will need to
-specify how long the blob should be stored for, and if the blob should be deletable.
+The `writeBlob` method writes a blob (as a `Uint8Array`) to Walrus. You need to specify how long the
+blob should be stored for and whether the blob should be deletable.
 
 ```ts
 const file = new TextEncoder().encode('Hello from the TS SDK!!!\n');
@@ -433,26 +428,14 @@ const { blobId } = await client.walrus.writeBlob({
 });
 ```
 
-## Full API
-
-For a complete overview of the available methods on the `WalrusClient` you can reference type
-[TypeDocs](/typedoc/classes/_mysten_walrus.WalrusClient.html)
-
-## Examples
-
-There are a number of simple
-[examples you can reference](https://github.com/MystenLabs/ts-sdks/tree/main/packages/walrus/examples)
-in the `ts-sdks` repo that show things like building simple aggregators and publishers with the
-walrus SDK
-
 ## Error handling
 
 The SDK exports all the error classes for different types of errors that can be thrown. Walrus is a
-fault-tolerant distributed system, where many types of errors can be recovered from. During epoch
-changes there may be times when the data cached in the `WalrusClient` can become invalid. Errors
-that result from this situation will extend the `RetryableWalrusClientError` class.
+fault-tolerant distributed system where many types of errors can be recovered from. During epoch
+changes, the data cached in the `WalrusClient` can become invalid. Errors that result from this
+situation extend the `RetryableWalrusClientError` class.
 
-You can check for these errors, and reset the client before retrying:
+You can check for these errors and reset the client before retrying:
 
 ```ts
 import { RetryableWalrusClientError } from '@mysten/walrus';
@@ -464,25 +447,25 @@ if (error instanceof RetryableWalrusClientError) {
 }
 ```
 
-`RetryableWalrusClientError` are not guaranteed to succeed after resetting the client and retrying,
-but this pattern can be used to handle some edge cases.
+`RetryableWalrusClientError` errors are not guaranteed to succeed after resetting the client and
+retrying, but this pattern handles some edge cases.
 
-High level methods like `readBlob` already handle various error cases and will automatically retry
-when hitting these methods, as well as handling cases where only a subset of nodes need to respond
+High-level methods like `readBlob` already handle various error cases and automatically retry when
+encountering these errors, as well as handling cases where only a subset of nodes need to respond
 successfully to read or publish a blob.
 
-When using the lower level methods to build your own read or publish flows, it is recommended to
-understand the number of shards/sliver that need to be successfully written or read for you
-operation to succeed, and gracefully handle cases where some nodes may be in a bad state.
+When using the lower-level methods to build your own read or publish flows, understand the number of
+shards and slivers that need to be successfully written or read for your operation to succeed.
+Gracefully handle cases where some nodes might be in a bad state.
 
 ### Network errors
 
-Walrus is designed to handle some nodes being down, and the SDK will only throw errors when it can't
-read from or write to enough storage nodes. When trying to troubleshoot problems, it can be
-challenging to figure out what's going wrong when you don't see all the individual network errors.
+Walrus handles some nodes being down, and the SDK only throws errors when it cannot read from or
+write to enough storage nodes. When troubleshooting problems, figuring out what went wrong can be
+challenging because you do not see all the individual network errors.
 
-You can pass an `onError` option in the storageNodeClientOptions to get the individual errors from
-failed requests:
+Pass an `onError` option in the `storageNodeClientOptions` to get the individual errors from failed
+requests:
 
 ```ts
 const client = new SuiGrpcClient({
@@ -499,16 +482,14 @@ const client = new SuiGrpcClient({
 
 ## Configuring network requests
 
-Reading and writing blobs directly from storage nodes requires a lot of requests. The walrus SDK
-will issue all requests needed to complete these operations, but does not handling all the
-complexities a robust aggregator or publisher might encounter.
+Reading and writing blobs directly from storage nodes requires many requests. The Walrus SDK issues
+all requests needed to complete these operations, but does not handle all the complexities a robust
+aggregator or publisher might encounter.
 
-By default, all requests are issued using the global `fetch` for whatever runtime the SDK is running
-in.
+By default, all requests use the global `fetch` for whatever runtime the SDK runs in.
 
-This will not impose any limitations on concurrency, and will be subject to default timeouts and
-behavior defined by your runtime. To customize how requests are made, you can provide a custom
-`fetch` method:
+This does not impose any limitations on concurrency, and is subject to default timeouts and behavior
+defined by your runtime. To customize how requests are made, provide a custom `fetch` method:
 
 ```ts
 import type { RequestInfo, RequestInit } from 'undici';
@@ -535,15 +516,15 @@ const client = new SuiGrpcClient({
 );
 ```
 
-## Loading the wasm module in vite or client side apps
+## Loading the WASM module in Vite or client-side apps
 
-The walrus SDK requires wasm bindings to encode and decode blobs. When running in node or bun and
-some bundlers this will work without any additional configuration.
+The Walrus SDK requires WASM bindings to encode and decode blobs. When running in Node.js or Bun,
+and with some bundlers, this works without any additional configuration.
 
-In some cases you may need to manually specify where the SDK loads the wasm bindings from.
+In some cases, you might need to manually specify where the SDK loads the WASM bindings from.
 
-In vite you can get the url for the wasm bindings by importing the wasm file with a `?url` suffix,
-and then passed into the walrus client:
+In Vite, get the URL for the WASM bindings by importing the WASM file with a `?url` suffix, then
+pass it into the Walrus client:
 
 ```ts
 import walrusWasmUrl from '@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url';
@@ -558,8 +539,8 @@ const client = new SuiGrpcClient({
 );
 ```
 
-If you are unable to get a url for the wasm file in your bundler or build system, you can self host
-the wasm bindings, or load them from a CDN:
+If you are unable to get a URL for the WASM file in your bundler or build system, you can self-host
+the WASM bindings or load them from a CDN:
 
 ```ts
 const client = new SuiGrpcClient({
@@ -572,8 +553,8 @@ const client = new SuiGrpcClient({
 );
 ```
 
-In next.js when using walrus in API routes, you may need to tell next.js to skip bundling for the
-walrus packages:
+In Next.js, when using Walrus in API routes, you might need to tell Next.js to skip bundling for the
+Walrus packages:
 
 ```ts
 // next.config.ts
@@ -582,9 +563,21 @@ const nextConfig: NextConfig = {
 };
 ```
 
-## Known fetch limitations you might run into
+## Known fetch limitations
 
-- Some nodes can be slow to respond. When running in node, the default connectTimeout is 10 seconds
-  and can cause request timeouts
-- In `bun` the `abort` signal will stop requests from responding, but they still wait for completion
-  before their promises reject
+- Some nodes can be slow to respond. When running in Node.js, the default `connectTimeout` is 10
+  seconds and can cause request timeouts.
+- In Bun, the `abort` signal stops requests from responding, but the requests still wait for
+  completion before their promises reject.
+
+## Full API
+
+For a complete overview of the available methods on the `WalrusClient`, reference the
+[TypeDocs](/typedoc/classes/_mysten_walrus.WalrusClient.html).
+
+## Examples
+
+There are a number of
+[examples you can reference](https://github.com/MystenLabs/ts-sdks/tree/main/packages/walrus/examples)
+in the `ts-sdks` repository that show things like building aggregators and publishers with the
+Walrus SDK.
