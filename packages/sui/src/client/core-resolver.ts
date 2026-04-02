@@ -85,17 +85,15 @@ export async function coreClientResolveTransactionPlugin(
 	}
 
 	const needsSystemState = needsGasPrice || (needsPayment && usesGasCoin);
-	const [, systemStateResult, balanceResult, coinsResult, protocolConfigResult, chainIdResult] =
-		await Promise.all([
-			normalizeInputs(transactionData, client),
-			needsSystemState ? client.core.getCurrentSystemState() : null,
-			needsPayment && gasPayer ? client.core.getBalance({ owner: gasPayer }) : null,
-			needsPayment && gasPayer
-				? client.core.listCoins({ owner: gasPayer, coinType: SUI_TYPE_ARG })
-				: null,
-			needsPayment && usesGasCoin ? client.core.getProtocolConfig() : null,
-			needsPayment && usesGasCoin ? client.core.getChainIdentifier() : null,
-		]);
+	const [, systemStateResult, balanceResult, coinsResult, chainIdResult] = await Promise.all([
+		normalizeInputs(transactionData, client),
+		needsSystemState ? client.core.getCurrentSystemState() : null,
+		needsPayment && gasPayer ? client.core.getBalance({ owner: gasPayer }) : null,
+		needsPayment && gasPayer
+			? client.core.listCoins({ owner: gasPayer, coinType: SUI_TYPE_ARG })
+			: null,
+		needsPayment && usesGasCoin ? client.core.getChainIdentifier() : null,
+	]);
 
 	await resolveObjectReferences(transactionData, client);
 
@@ -120,7 +118,6 @@ export async function coreClientResolveTransactionPlugin(
 				coins: coinsResult,
 				usesGasCoin,
 				withdrawals,
-				protocolConfig: protocolConfigResult?.protocolConfig,
 				gasPayer: gasPayer!,
 				chainIdentifier: chainIdResult?.chainIdentifier ?? null,
 				epoch: systemState?.epoch ?? null,
@@ -178,7 +175,6 @@ function setGasPayment({
 	coins,
 	usesGasCoin,
 	withdrawals,
-	protocolConfig,
 	gasPayer,
 	chainIdentifier,
 	epoch,
@@ -188,7 +184,6 @@ function setGasPayment({
 	coins: SuiClientTypes.ListCoinsResponse;
 	usesGasCoin: boolean;
 	withdrawals: bigint;
-	protocolConfig: SuiClientTypes.ProtocolConfig | undefined;
 	gasPayer: string;
 	chainIdentifier: string | null;
 	epoch: string | null;
@@ -221,13 +216,7 @@ function setGasPayment({
 
 	const reservationAmount = addressBalance - withdrawals;
 
-	if (
-		usesGasCoin &&
-		reservationAmount > 0n &&
-		protocolConfig?.featureFlags?.['enable_coin_reservation_obj_refs'] &&
-		chainIdentifier &&
-		epoch
-	) {
+	if (usesGasCoin && reservationAmount > 0n && chainIdentifier && epoch) {
 		transactionData.gasData.payment = [
 			createCoinReservationRef(reservationAmount, gasPayer, chainIdentifier, epoch),
 			...paymentCoins,
