@@ -1025,13 +1025,13 @@ importers:
       '@mysten/bcs':
         specifier: workspace:^
         version: link:../bcs
-      '@mysten/sui':
-        specifier: workspace:^
-        version: link:../sui
     devDependencies:
       '@mysten/codegen':
         specifier: workspace:^
         version: link:../codegen
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
