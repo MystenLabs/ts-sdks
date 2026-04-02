@@ -31,7 +31,6 @@ const MOCK_CHAIN_IDENTIFIER = toBase58(new Uint8Array(32).fill(1));
 interface MockClientOptions {
 	coins?: { objectId: string; version: string; digest: string; balance: string }[];
 	addressBalance?: string;
-	featureFlags?: Record<string, boolean>;
 }
 
 function createMockClient(options?: MockClientOptions) {
@@ -43,7 +42,6 @@ function createMockClient(options?: MockClientOptions) {
 	};
 	const coins = options?.coins ?? [defaultCoin];
 	const addressBalance = options?.addressBalance ?? '0';
-	const featureFlags = options?.featureFlags ?? {};
 
 	const mockClient = {
 		core: {
@@ -76,13 +74,6 @@ function createMockClient(options?: MockClientOptions) {
 			}),
 			getObjects: vi.fn().mockResolvedValue({
 				objects: [],
-			}),
-			getProtocolConfig: vi.fn().mockResolvedValue({
-				protocolConfig: {
-					protocolVersion: '1',
-					featureFlags,
-					attributes: {},
-				},
 			}),
 			getMoveFunction: vi.fn(),
 			simulateTransaction: vi.fn().mockResolvedValue({
@@ -277,8 +268,8 @@ describe('Gas payment resolution', () => {
 	});
 });
 
-describe('Coin reservation compat mode', () => {
-	it('creates reservation ref when usesGasCoin and enable_coin_reservation_obj_refs enabled', async () => {
+describe('Coin reservation', () => {
+	it('creates reservation ref when usesGasCoin and addressBalance > 0', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x' + '2'.repeat(64));
 		tx.setGasBudget(2000000);
@@ -294,7 +285,6 @@ describe('Coin reservation compat mode', () => {
 					balance: '1000000',
 				},
 			],
-			featureFlags: { enable_coin_reservation_obj_refs: true },
 		});
 		await tx.build({ client: client as any });
 
@@ -327,7 +317,6 @@ describe('Coin reservation compat mode', () => {
 					balance: '1000000',
 				},
 			],
-			featureFlags: { enable_coin_reservation_obj_refs: true },
 		});
 		await tx.build({ client: client as any });
 
@@ -350,32 +339,6 @@ describe('Coin reservation compat mode', () => {
 		expect(data.gasData.payment![1].objectId).toBe('0x' + '1'.repeat(64));
 	});
 
-	it('does not create reservation when enable_coin_reservation_obj_refs flag is disabled', async () => {
-		const tx = new Transaction();
-		tx.setSender('0x' + '2'.repeat(64));
-		tx.setGasBudget(2000000);
-		tx.splitCoins(tx.gas, [1000]);
-
-		const client = createMockClient({
-			addressBalance: '5000000000',
-			coins: [
-				{
-					objectId: '0x' + '1'.repeat(64),
-					version: '1',
-					digest: toBase58(new Uint8Array(32).fill(2)),
-					balance: '10000000000',
-				},
-			],
-			featureFlags: {},
-		});
-		await tx.build({ client: client as any });
-
-		const data = tx.getData();
-		for (const coin of data.gasData.payment ?? []) {
-			expect(isCoinReservationDigest(coin.digest)).toBe(false);
-		}
-	});
-
 	it('does not create reservation when coins cover budget without usesGasCoin', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x' + '2'.repeat(64));
@@ -391,7 +354,6 @@ describe('Coin reservation compat mode', () => {
 					balance: '10000000000',
 				},
 			],
-			featureFlags: { enable_coin_reservation_obj_refs: true },
 		});
 		await tx.build({ client: client as any });
 
@@ -401,7 +363,7 @@ describe('Coin reservation compat mode', () => {
 		}
 	});
 
-	it('no reservation when usesGasCoin + flag enabled + addressBalance is 0', async () => {
+	it('no reservation when usesGasCoin and addressBalance is 0', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x' + '2'.repeat(64));
 		tx.setGasBudget(1000000);
@@ -417,7 +379,6 @@ describe('Coin reservation compat mode', () => {
 					balance: '10000000000',
 				},
 			],
-			featureFlags: { enable_coin_reservation_obj_refs: true },
 		});
 		await tx.build({ client: client as any });
 
@@ -429,8 +390,8 @@ describe('Coin reservation compat mode', () => {
 	});
 });
 
-describe('Protocol config and chain identifier fetch gating', () => {
-	it('does not fetch getProtocolConfig or getChainIdentifier when !usesGasCoin', async () => {
+describe('Chain identifier fetch gating', () => {
+	it('does not fetch getChainIdentifier when !usesGasCoin', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x' + '2'.repeat(64));
 		tx.setGasBudget(1000000);
@@ -446,11 +407,9 @@ describe('Protocol config and chain identifier fetch gating', () => {
 					balance: '10000000000',
 				},
 			],
-			featureFlags: { enable_coin_reservation_obj_refs: true },
 		});
 		await tx.build({ client: client as any });
 
-		expect(client.core.getProtocolConfig).not.toHaveBeenCalled();
 		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();
 	});
 });
