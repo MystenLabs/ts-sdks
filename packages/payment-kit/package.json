@@ -43,11 +43,14 @@
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",
+		"@mysten/sui": "workspace:^",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.17"
 	},
 	"dependencies": {
-		"@mysten/bcs": "workspace:^",
+		"@mysten/bcs": "workspace:^"
+	},
+	"peerDependencies": {
 		"@mysten/sui": "workspace:^"
 	}
 }
