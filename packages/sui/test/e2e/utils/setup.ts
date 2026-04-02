@@ -1,7 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import path from 'path';
 import type { ContainerRuntimeClient } from 'testcontainers';
 import { getContainerRuntimeClient } from 'testcontainers';
 import { retry } from 'ts-retry-promise';
@@ -379,9 +378,7 @@ export async function setup(options: { graphQLURL?: string; rpcURL?: string } = 
 	const keypair = Ed25519Keypair.generate();
 	const address = keypair.getPublicKey().toSuiAddress();
 
-	const configDir = path.join('/test-data', `${Math.random().toString(36).substring(2, 15)}`);
-	await execSuiTools(['mkdir', '-p', configDir]);
-	const configPath = path.join(configDir, 'client.yaml');
+	const configPath = '/test-data/localnet-client.yaml';
 	return setupWithFundedAddress(keypair, address, configPath, options);
 }
 
@@ -403,22 +400,6 @@ export async function setupWithFundedAddress(
 		},
 	);
 
-	// Write a sui client config pointing at localnet so Move builds don't depend on testnet.
-	await execSuiTools([
-		'bash',
-		'-c',
-		`cat > ${configPath} << 'EOFCFG'
----
-keystore:
-  File: /root/.sui/sui_config/sui.keystore
-envs:
-  - alias: localnet
-    rpc: "http://127.0.0.1:9000"
-    ws: ~
-active_env: localnet
-active_address: "0x0000000000000000000000000000000000000000000000000000000000000000"
-EOFCFG`,
-	]);
 	const toolbox = new TestToolbox(keypair, rpcURL, configPath);
 
 	// Wait for the faucet transaction on all clients to ensure indexers have caught up
