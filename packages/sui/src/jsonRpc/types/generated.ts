@@ -187,7 +187,7 @@ export interface DevInspectResults {
 }
 export interface DisplayFieldsResponse {
 	data?: {
-		[key: string]: string;
+		[key: string]: unknown;
 	} | null;
 	error?: ObjectResponseError | null;
 }

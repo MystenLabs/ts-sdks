@@ -189,7 +189,7 @@ describe('Core API - Display', () => {
 	describe('display v1 → v2 migration', () => {
 		let migrationBearId = '';
 		let v1Display: {
-			output: Record<string, string> | null;
+			output: Record<string, unknown> | null;
 			errors: Record<string, string> | null;
 		} | null = null;
 

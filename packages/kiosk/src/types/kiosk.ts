@@ -89,7 +89,7 @@ export type KioskListing = {
 };
 
 export type KioskDisplay = {
-	data: Record<string, string> | null;
+	data: Record<string, unknown> | null;
 	error: string | null;
 };
 

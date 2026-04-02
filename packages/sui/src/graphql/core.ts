@@ -792,7 +792,7 @@ function mapDisplay(
 	if (!include) return undefined;
 	if (!display) return null;
 	return {
-		output: (display.output as Record<string, string> | null) ?? null,
+		output: (display.output as Record<string, unknown> | null) ?? null,
 		errors: (display.errors as Record<string, string> | null) ?? null,
 	};
 }
