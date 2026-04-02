@@ -403,8 +403,22 @@ export async function setupWithFundedAddress(
 		},
 	);
 
-	// Create toolbox early so we can wait on all clients
-	await execSuiTools(['sui', 'client', '--yes', '--client.config', configPath]);
+	// Write a sui client config pointing at localnet so Move builds don't depend on testnet.
+	await execSuiTools([
+		'bash',
+		'-c',
+		`cat > ${configPath} << 'EOFCFG'
+---
+keystore:
+  File: /root/.sui/sui_config/sui.keystore
+envs:
+  - alias: localnet
+    rpc: "http://127.0.0.1:9000"
+    ws: ~
+active_env: localnet
+active_address: "0x0000000000000000000000000000000000000000000000000000000000000000"
+EOFCFG`,
+	]);
 	const toolbox = new TestToolbox(keypair, rpcURL, configPath);
 
 	// Wait for the faucet transaction on all clients to ensure indexers have caught up
@@ -431,6 +445,8 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 				toolbox.configPath,
 				'build',
 				'--dump-bytecode-as-base64',
+				'--build-env',
+				'testnet',
 				'--path',
 				`/test-data/${packageName}`,
 			]);
@@ -509,6 +525,8 @@ export async function upgradePackage(
 		toolbox.configPath,
 		'build',
 		'--dump-bytecode-as-base64',
+		'--build-env',
+		'testnet',
 		'--path',
 		`/test-data/${packageName}`,
 	]);
