@@ -179,6 +179,20 @@ describe('normalizeStructTag', () => {
 		);
 	});
 
+	it('rejects vector types (use normalizeTypeTag instead)', () => {
+		expect(() => normalizeStructTag('vector<0x2::sui::SUI>')).toThrow(
+			'normalizeStructTag does not support vector types. Use normalizeTypeTag instead.',
+		);
+		expect(() => normalizeStructTag('vector<u8>')).toThrow(
+			'normalizeStructTag does not support vector types. Use normalizeTypeTag instead.',
+		);
+		expect(() => normalizeStructTag('vector<vector<0x2::sui::SUI>>')).toThrow(
+			'normalizeStructTag does not support vector types. Use normalizeTypeTag instead.',
+		);
+		expect(() => normalizeStructTag('vector<>')).toThrow();
+		expect(() => normalizeStructTag('vector<u8')).toThrow();
+	});
+
 	it('normalizes named package addresses', () => {
 		const checks = [
 			'@mvr/demo::foo::bar<inner.mvr.sui/demo::baz::qux,bool>',
