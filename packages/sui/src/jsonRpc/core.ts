@@ -747,7 +747,7 @@ function parseObject<Include extends SuiClientTypes.ObjectInclude = {}>(
 
 	const displayData = include?.display
 		? object.display?.data != null
-			? { output: object.display.data as Record<string, string>, errors: null }
+			? { output: object.display.data as Record<string, unknown>, errors: null }
 			: null
 		: undefined;
 

@@ -809,7 +809,7 @@ function mapDisplayProto(
 	return {
 		output:
 			display.output !== undefined
-				? (Value.toJson(display.output) as Record<string, string> | null)
+				? (Value.toJson(display.output) as Record<string, unknown> | null)
 				: null,
 		errors:
 			display.errors !== undefined

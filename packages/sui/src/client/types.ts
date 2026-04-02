@@ -88,7 +88,10 @@ export namespace SuiClientTypes {
 		/**
 		 * Include the Display v2 rendered output for the object.
 		 *
-		 * Returns a map of display field names to their rendered string values.
+		 * Returns a map of display field names to their rendered values. Most values
+		 * are strings, but Display v2 templates can produce structured JSON values
+		 * (objects, arrays) for fields that use the `:json` transform or reference
+		 * non-string Move types.
 		 * Returns `null` if the object's type does not have an associated Display template.
 		 */
 		display?: boolean;
@@ -181,8 +184,14 @@ export namespace SuiClientTypes {
 	}
 
 	export interface Display {
-		/** Successfully rendered display field values, keyed by field name. */
-		output: Record<string, string> | null;
+		/**
+		 * Successfully rendered display field values, keyed by field name.
+		 *
+		 * Most values are strings, but Display v2 templates can produce structured
+		 * JSON values (objects, arrays) for fields that reference non-string Move
+		 * types or use the `:json` transform.
+		 */
+		output: Record<string, unknown> | null;
 		/** Per-field rendering errors, keyed by field name. `null` if all fields succeeded. */
 		errors: Record<string, string> | null;
 	}
