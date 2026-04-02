@@ -1,5 +1,20 @@
 # @mysten/kiosk
 
+## 1.2.0
+
+### Minor Changes
+
+- d0a401e: Update `Display.output` type from `Record<string, string>` to `Record<string, unknown>`
+  to match actual API behavior. Display v2 templates can produce structured JSON values (objects,
+  arrays) for fields that reference non-string Move types or use the `:json` transform. This affects
+  the core client type, the JSON-RPC `DisplayFieldsResponse` type, and all three transport
+  implementations (gRPC, GraphQL, JSON-RPC).
+
+### Patch Changes
+
+- Updated dependencies [d0a401e]
+  - @mysten/sui@2.14.0
+
 ## 1.1.3
 
 ### Patch Changes
