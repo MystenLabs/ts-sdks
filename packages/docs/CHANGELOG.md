@@ -1,5 +1,12 @@
 # @mysten/docs
 
+## 0.1.14
+
+### Patch Changes
+
+- Updated dependencies [1b2f786]
+  - @mysten/payment-kit@0.1.5
+
 ## 0.1.13
 
 ### Patch Changes

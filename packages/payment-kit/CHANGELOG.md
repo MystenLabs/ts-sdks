@@ -1,5 +1,11 @@
 # @mysten/payment-kit
 
+## 0.1.5
+
+### Patch Changes
+
+- 1b2f786: Move @mysten/sui from dependencies to peerDependencies to match SDK conventions
+
 ## 0.1.4
 
 ### Patch Changes
