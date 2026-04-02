@@ -1,5 +1,14 @@
 # @mysten/docs
 
+## 0.1.12
+
+### Patch Changes
+
+- Updated dependencies [d0a401e]
+  - @mysten/sui@2.14.0
+  - @mysten/kiosk@1.2.0
+  - @mysten/wallet-standard@0.20.1
+
 ## 0.1.11
 
 ### Patch Changes
