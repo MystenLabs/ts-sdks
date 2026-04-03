@@ -14,6 +14,7 @@ import { Inputs } from '@mysten/sui/transactions';
 import {
 	DEFAULT_OBJECTS,
 	DEFAULT_MOVE_FUNCTIONS,
+	FRAMEWORK_MOVE_FUNCTIONS,
 	DEFAULT_GAS_PRICE,
 	CoinStruct,
 	createMockCoin,
@@ -25,6 +26,7 @@ import {
 export class MockSuiClient extends CoreClient {
 	#objects = new Map<string, SuiClientTypes.Object<{ content: true }>>();
 	#moveFunctions = new Map<string, SuiClientTypes.FunctionResponse>();
+	#addressBalances = new Map<string, Map<string, bigint>>();
 	#gasPrice = DEFAULT_GAS_PRICE;
 	#nextDryRunResult: SuiClientTypes.TransactionResult<any> | null = null;
 
@@ -45,7 +47,7 @@ export class MockSuiClient extends CoreClient {
 		}
 
 		// Add all default move functions
-		for (const fn of DEFAULT_MOVE_FUNCTIONS) {
+		for (const fn of [...DEFAULT_MOVE_FUNCTIONS, ...FRAMEWORK_MOVE_FUNCTIONS]) {
 			const normalizedPackageId = normalizeSuiAddress(fn.packageId);
 			const key = `${normalizedPackageId}::${fn.moduleName}::${fn.name}`;
 			this.#moveFunctions.set(key, fn);
@@ -102,6 +104,15 @@ export class MockSuiClient extends CoreClient {
 		const normalizedPackageId = normalizeSuiAddress(fn.packageId);
 		const key = `${normalizedPackageId}::${fn.moduleName}::${fn.name}`;
 		this.#moveFunctions.set(key, fn);
+	}
+
+	setAddressBalance(owner: string, coinType: string, amount: bigint): void {
+		const normalizedOwner = normalizeSuiAddress(owner);
+		const normalizedType = normalizeStructTag(coinType);
+		if (!this.#addressBalances.has(normalizedOwner)) {
+			this.#addressBalances.set(normalizedOwner, new Map());
+		}
+		this.#addressBalances.get(normalizedOwner)!.set(normalizedType, amount);
 	}
 
 	setNextDryRunResult(result: SuiClientTypes.TransactionResult<any>): void {
@@ -164,9 +175,11 @@ export class MockSuiClient extends CoreClient {
 			const isOwnedByAddress = this.#isOwnedByAddress(obj, options.owner);
 			if (!isOwnedByAddress) return false;
 
-			// Filter by coin type
-			const coinType = obj.type.match(/0x2::coin::Coin<(.+)>/)?.[1];
-			return coinType === options.coinType;
+			// Filter by coin type using parsed struct tag for normalized comparison
+			const innerType = parsedType.typeParams[0];
+			if (!innerType || !options.coinType) return false;
+			const coinType = normalizeStructTag(innerType);
+			return coinType === normalizeStructTag(options.coinType);
 		});
 
 		const objects: SuiClientTypes.Coin[] = coinObjects.map((obj) => {
@@ -214,16 +227,23 @@ export class MockSuiClient extends CoreClient {
 			coinType: options.coinType,
 		});
 
-		const totalBalance = coins.objects.reduce((sum: bigint, coin: SuiClientTypes.Coin) => {
+		const coinBalance = coins.objects.reduce((sum: bigint, coin: SuiClientTypes.Coin) => {
 			return sum + BigInt(coin.balance);
 		}, 0n);
 
+		const normalizedOwner = normalizeSuiAddress(options.owner);
+		const normalizedType = normalizeStructTag(
+			options.coinType ?? `${SUI_FRAMEWORK_ADDRESS}::sui::SUI`,
+		);
+		const addressBalance = this.#addressBalances.get(normalizedOwner)?.get(normalizedType) ?? 0n;
+		const totalBalance = coinBalance + addressBalance;
+
 		return {
 			balance: {
-				coinType: options.coinType ?? `${SUI_FRAMEWORK_ADDRESS}::sui::SUI`,
+				coinType: normalizedType,
 				balance: totalBalance.toString(),
-				coinBalance: totalBalance.toString(),
-				addressBalance: '0',
+				coinBalance: coinBalance.toString(),
+				addressBalance: addressBalance.toString(),
 			},
 		};
 	}
@@ -246,8 +266,10 @@ export class MockSuiClient extends CoreClient {
 		const balancesByType = new Map<string, bigint>();
 
 		for (const obj of allObjects) {
-			const coinType = obj.type.match(/0x2::coin::Coin<(.+)>/)?.[1];
-			if (!coinType) continue;
+			const parsedType = parseStructTag(obj.type);
+			const innerType = parsedType.typeParams[0];
+			if (!innerType) continue;
+			const coinType = normalizeStructTag(innerType);
 
 			try {
 				const parsedCoin = CoinStruct.parse(obj.content);
@@ -259,13 +281,28 @@ export class MockSuiClient extends CoreClient {
 			}
 		}
 
+		const normalizedOwner = normalizeSuiAddress(options.owner);
+		const ownerAddressBalances = this.#addressBalances.get(normalizedOwner);
+
+		// Include address balance types that might not have coins
+		if (ownerAddressBalances) {
+			for (const [coinType, ab] of ownerAddressBalances) {
+				if (!balancesByType.has(coinType) && ab > 0n) {
+					balancesByType.set(coinType, 0n);
+				}
+			}
+		}
+
 		const balances: SuiClientTypes.Balance[] = Array.from(balancesByType.entries()).map(
-			([coinType, totalBalance]) => ({
-				coinType,
-				balance: totalBalance.toString(),
-				coinBalance: totalBalance.toString(),
-				addressBalance: '0',
-			}),
+			([coinType, coinBal]) => {
+				const addressBalance = ownerAddressBalances?.get(coinType) ?? 0n;
+				return {
+					coinType,
+					balance: (coinBal + addressBalance).toString(),
+					coinBalance: coinBal.toString(),
+					addressBalance: addressBalance.toString(),
+				};
+			},
 		);
 
 		return {

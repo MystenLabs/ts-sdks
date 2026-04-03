@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
+import { isCoinReservationDigest } from './coin-reservation.js';
 import { createAnalyzer } from '../analyzer.js';
 import type { TransactionAnalysisIssue } from '../analyzer.js';
 
@@ -28,6 +29,7 @@ export const objectIds = createAnalyzer({
 							issues.push({ message: `Unexpected unresolved input: ${JSON.stringify(input)}` });
 							return false;
 						case 'Pure':
+						case 'FundsWithdrawal':
 							return false;
 						case 'Object':
 							return true;
@@ -53,7 +55,11 @@ export const objectIds = createAnalyzer({
 				return { issues };
 			}
 
-			const gasObjects = data.gasData.payment?.map((obj) => obj.objectId) || [];
+			// Exclude synthetic coin reservation refs (they don't exist on-chain)
+			const gasObjects =
+				data.gasData.payment
+					?.filter((obj) => !isCoinReservationDigest(obj.digest))
+					.map((obj) => obj.objectId) || [];
 
 			return {
 				result: Array.from(new Set([...inputs, ...gasObjects])),

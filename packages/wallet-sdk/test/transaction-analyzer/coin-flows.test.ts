@@ -3,6 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
+
 import { analyze } from '../../src/transaction-analyzer/analyzer.js';
 import { coinFlows } from '../../src/transaction-analyzer/rules/coin-flows.js';
 import { MockSuiClient } from '../mocks/MockSuiClient.js';
