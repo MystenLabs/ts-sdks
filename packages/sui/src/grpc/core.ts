@@ -3,6 +3,7 @@
 
 import type { CoreClientOptions, SuiClientTypes } from '../client/index.js';
 import { CoreClient, formatMoveAbortMessage, SimulationError } from '../client/index.js';
+import { SuiGrpcRequestError } from './errors.js';
 import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2/owner.js';
 import { Owner_OwnerKind } from './proto/sui/rpc/v2/owner.js';
@@ -90,12 +91,13 @@ export class GrpcCoreClient extends CoreClient {
 			results.push(
 				...response.response.objects.map((object): SuiClientTypes.Object<Include> | Error => {
 					if (object.result.oneofKind === 'error') {
-						// TODO: improve error handling
-						return new Error(object.result.error.message);
+						return new SuiGrpcRequestError(object.result.error);
 					}
 
 					if (object.result.oneofKind !== 'object') {
-						return new Error('Unexpected result type');
+						return new Error(
+							`Unexpected gRPC result kind: "${object.result.oneofKind}" — expected "object" or "error"`,
+						);
 					}
 
 					const bcsContent = object.result.object.contents?.value ?? undefined;
