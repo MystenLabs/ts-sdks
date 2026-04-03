@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { normalizeStructTag } from '@mysten/sui/utils';
+import { normalizeSuiAddress, normalizeStructTag } from '@mysten/sui/utils';
 import type { TransactionAnalysisIssue } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
 import { bcs } from '@mysten/sui/bcs';
@@ -15,6 +15,8 @@ export interface CoinFlow {
 	coinType: string;
 	amount: bigint;
 }
+
+const SUI_FRAMEWORK = normalizeSuiAddress('0x2');
 
 export const coinFlows = createAnalyzer({
 	dependencies: { data, commands, inputs, coins, gasCoins },
@@ -31,6 +33,7 @@ export const coinFlows = createAnalyzer({
 						return trackedCoins.get(`result:${ref.index[0]},${ref.index[1]}`) ?? null;
 					case 'Unknown':
 					case 'Pure':
+					case 'Withdrawal':
 						return null;
 				}
 			};
@@ -88,18 +91,168 @@ export const coinFlows = createAnalyzer({
 				for (const obj of command.objects) {
 					const tracked = getTrackedCoin(obj);
 
-					// If coin is transferred to the sender, we can track the transfer in the gas coin
 					if (tracked && address && data.sender === address) {
-						trackedCoins.get('gas')!.remainingBalance += tracked.remainingBalance;
+						addReturned(tracked.coinType, tracked.remainingBalance);
 					}
 
 					tracked?.consume();
 				}
 			};
 
+			const addReturned = (coinType: string, amount: bigint) => {
+				returnedByType.set(coinType, (returnedByType.get(coinType) ?? 0n) + amount);
+			};
+
+			/** Get the coin type from a MoveCall's first type argument, normalized. */
+			const getCoinTypeFromTypeArgs = (
+				command: Extract<AnalyzedCommand, { $kind: 'MoveCall' }>,
+			): string | null => {
+				const typeArg = command.command.typeArguments?.[0];
+				return typeArg ? normalizeStructTag(typeArg) : null;
+			};
+
+			/**
+			 * Handle framework MoveCall commands from 0x2::coin and 0x2::balance.
+			 * Returns true if the command was handled, false to fall through to generic consume.
+			 */
+			const handleFrameworkMoveCall = (
+				command: Extract<AnalyzedCommand, { $kind: 'MoveCall' }>,
+			): boolean => {
+				const pkg = normalizeSuiAddress(command.command.package);
+				if (pkg !== SUI_FRAMEWORK) return false;
+
+				const mod = command.command.module;
+				const fn = command.command.function;
+				const coinType = getCoinTypeFromTypeArgs(command);
+
+				// --- Address balance operations ---
+
+				if (fn === 'redeem_funds' && (mod === 'balance' || mod === 'coin')) {
+					// balance::redeem_funds(Withdrawal) -> Balance<T>
+					// coin::redeem_funds(Withdrawal, &mut TxContext) -> Coin<T>
+					const arg = command.arguments[0];
+					if (arg.$kind === 'Withdrawal') {
+						const owned = arg.withdrawFrom === 'Sender';
+						trackedCoins.set(
+							`result:${command.index},0`,
+							new TrackedCoin(arg.coinType, arg.amount, owned),
+						);
+					}
+					return true;
+				}
+
+				if (fn === 'send_funds' && (mod === 'coin' || mod === 'balance')) {
+					// coin::send_funds(Coin<T>, address)
+					// balance::send_funds(Balance<T>, address)
+					const tracked = getTrackedCoin(command.arguments[0]);
+					const addrArg = command.arguments[1];
+					const address = addrArg?.$kind === 'Pure' ? bcs.Address.fromBase64(addrArg.bytes) : null;
+
+					if (tracked && address && data.sender === address) {
+						addReturned(tracked.coinType, tracked.remainingBalance);
+					}
+					tracked?.consume();
+					return true;
+				}
+
+				// --- Conversions ---
+
+				if (
+					(fn === 'into_balance' && mod === 'coin') ||
+					(fn === 'from_balance' && mod === 'coin')
+				) {
+					// coin::into_balance(Coin<T>) -> Balance<T>
+					// coin::from_balance(Balance<T>, &mut TxContext) -> Coin<T>
+					const tracked = getTrackedCoin(command.arguments[0]);
+					if (tracked) {
+						trackedCoins.set(
+							`result:${command.index},0`,
+							new TrackedCoin(tracked.coinType, tracked.remainingBalance, false),
+						);
+						tracked.consume();
+					}
+					return true;
+				}
+
+				// --- Split operations ---
+
+				if (
+					(fn === 'split' && (mod === 'coin' || mod === 'balance')) ||
+					(fn === 'take' && mod === 'coin')
+				) {
+					// coin::split(&mut Coin<T>, u64, &mut TxContext) -> Coin<T>
+					// balance::split(&mut Balance<T>, u64) -> Balance<T>
+					// coin::take(&mut Balance<T>, u64, &mut TxContext) -> Coin<T>
+					const source = getTrackedCoin(command.arguments[0]);
+					if (!source) return true;
+
+					const amountArg = command.arguments[1];
+					if (amountArg?.$kind !== 'Pure') {
+						source.consume();
+						return true;
+					}
+
+					const amount = BigInt(bcs.u64().fromBase64(amountArg.bytes));
+					source.remainingBalance -= amount;
+					trackedCoins.set(
+						`result:${command.index},0`,
+						new TrackedCoin(source.coinType, amount, false),
+					);
+					return true;
+				}
+
+				if (fn === 'withdraw_all' && mod === 'balance') {
+					// balance::withdraw_all(&mut Balance<T>) -> Balance<T>
+					const source = getTrackedCoin(command.arguments[0]);
+					if (source) {
+						trackedCoins.set(
+							`result:${command.index},0`,
+							new TrackedCoin(source.coinType, source.remainingBalance, false),
+						);
+						source.remainingBalance = 0n;
+					}
+					return true;
+				}
+
+				// --- Join operations ---
+
+				if (
+					(fn === 'join' && (mod === 'coin' || mod === 'balance')) ||
+					(fn === 'put' && mod === 'coin')
+				) {
+					// coin::join(&mut Coin<T>, Coin<T>)
+					// balance::join(&mut Balance<T>, Balance<T>) -> u64
+					// coin::put(&mut Balance<T>, Coin<T>)
+					const dest = getTrackedCoin(command.arguments[0]);
+					const source = getTrackedCoin(command.arguments[1]);
+					if (dest && source) {
+						dest.remainingBalance += source.remainingBalance;
+					}
+					source?.consume();
+					return true;
+				}
+
+				// --- Zero creation ---
+
+				if (fn === 'zero' && (mod === 'coin' || mod === 'balance')) {
+					// coin::zero(&mut TxContext) -> Coin<T>
+					// balance::zero() -> Balance<T>
+					if (coinType) {
+						trackedCoins.set(`result:${command.index},0`, new TrackedCoin(coinType, 0n, false));
+					}
+					return true;
+				}
+
+				// All other 0x2::coin / 0x2::balance functions (destroy_zero, divide_into_n,
+				// value, etc.) fall through to the generic MoveCall handler which consumes
+				// all by-value arguments.
+				return false;
+			};
+
 			const issues: TransactionAnalysisIssue[] = [];
 
 			const trackedCoins = new Map<string, TrackedCoin>();
+			const returnedByType = new Map<string, bigint>();
 
 			trackedCoins.set(
 				'gas',
@@ -144,10 +297,15 @@ export const coinFlows = createAnalyzer({
 						});
 						break;
 					case 'MoveCall':
-						command.arguments.forEach((arg) => {
-							const tracked = getTrackedCoin(arg);
-							tracked?.consume();
-						});
+						if (!handleFrameworkMoveCall(command)) {
+							// Generic MoveCall: consume tracked coin/balance arguments passed
+							// by value or &mut. Immutable references (&) can't move value.
+							command.arguments.forEach((arg) => {
+								if (arg.accessLevel === 'read') return;
+								const tracked = getTrackedCoin(arg);
+								tracked?.consume();
+							});
+						}
 						break;
 					case 'Upgrade':
 					case 'Publish':
@@ -168,6 +326,13 @@ export const coinFlows = createAnalyzer({
 				}
 
 				outflows[coin.coinType].amount += coin.initialBalance - coin.remainingBalance;
+			}
+
+			// Subtract value returned to sender (send_funds to self, transferObjects to self)
+			for (const [coinType, amount] of returnedByType) {
+				if (outflows[coinType]) {
+					outflows[coinType].amount -= amount;
+				}
 			}
 
 			if (issues.length) {

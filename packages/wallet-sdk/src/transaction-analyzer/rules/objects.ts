@@ -28,6 +28,7 @@ export const objectIds = createAnalyzer({
 							issues.push({ message: `Unexpected unresolved input: ${JSON.stringify(input)}` });
 							return false;
 						case 'Pure':
+						case 'FundsWithdrawal':
 							return false;
 						case 'Object':
 							return true;
