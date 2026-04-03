@@ -38,9 +38,7 @@ describe('formatAmount', () => {
 
 	it('handles values beyond MAX_SAFE_INTEGER', () => {
 		const u128Max = 2n ** 128n - 1n;
-		expect(formatAmount(u128Max, 9)).toEqual(
-			'340282366920938463463374607431.768211455',
-		);
+		expect(formatAmount(u128Max, 9)).toEqual('340282366920938463463374607431.768211455');
 	});
 });
 
