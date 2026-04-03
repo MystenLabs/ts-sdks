@@ -52,5 +52,11 @@ export const themeStyles = css`
 		);
 		--dapp-kit-font-weight-medium: var(--font-medium, 500);
 		--dapp-kit-font-weight-semibold: var(--font-semibold, 600);
+
+		/** Cursors */
+		--dapp-kit-cursor-button: var(--cursor-button, default);
+		--dapp-kit-cursor-menu-item: var(--cursor-menu-item, default);
+		--dapp-kit-cursor-radio: var(--cursor-radio, default);
+		--dapp-kit-cursor-disabled: var(--cursor-disabled, not-allowed);
 	}
 `;

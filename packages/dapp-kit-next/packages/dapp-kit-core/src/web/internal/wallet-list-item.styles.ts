@@ -19,6 +19,7 @@ export const styles = [
 			gap: 12px;
 			width: 100%;
 			padding: 12px;
+			cursor: var(--dapp-kit-cursor-menu-item);
 		}
 
 		.wallet-button:hover {
