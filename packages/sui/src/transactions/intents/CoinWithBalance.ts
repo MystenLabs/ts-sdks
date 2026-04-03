@@ -390,7 +390,10 @@ export async function resolveCoinBalance(
 
 	// Step 3: Remainder handling
 	for (const [type, mergedCoin] of mergedCoins) {
-		if (type === 'gas') continue;
+		// When gas type used GasCoin (not AB), leftover stays in the gas coin — no remainder needed.
+		if (type === 'gas' && !usedAddressBalance.has(type)) continue;
+
+		const coinType = type === 'gas' ? SUI_TYPE : type;
 		const hasBalanceIntent = intentsByType.get(type)?.some((i) => i.outputKind === 'balance');
 		const sourcedFromAB = usedAddressBalance.has(type);
 
@@ -400,7 +403,7 @@ export async function resolveCoinBalance(
 			transactionData.commands.push(
 				TransactionCommands.MoveCall({
 					target: '0x2::coin::send_funds',
-					typeArguments: [type],
+					typeArguments: [coinType],
 					arguments: [
 						mergedCoin,
 						transactionData.addInput(
@@ -415,7 +418,7 @@ export async function resolveCoinBalance(
 			transactionData.commands.push(
 				TransactionCommands.MoveCall({
 					target: '0x2::coin::destroy_zero',
-					typeArguments: [type],
+					typeArguments: [coinType],
 					arguments: [mergedCoin],
 				}),
 			);

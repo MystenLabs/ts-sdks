@@ -1937,6 +1937,24 @@ describe('tx.balance', () => {
 			        ],
 			      },
 			    },
+			    {
+			      "MoveCall": {
+			        "arguments": [
+			          {
+			            "Result": 2,
+			          },
+			          {
+			            "Input": 7,
+			          },
+			        ],
+			        "function": "send_funds",
+			        "module": "coin",
+			        "package": "0x0000000000000000000000000000000000000000000000000000000000000002",
+			        "typeArguments": [
+			          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+			        ],
+			      },
+			    },
 			  ],
 			  "inputs": [
 			    {
@@ -1989,6 +2007,11 @@ describe('tx.balance', () => {
 			    {
 			      "Pure": {
 			        "bytes": "BQAAAAAAAAA=",
+			      },
+			    },
+			    {
+			      "Pure": {
+			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASM=",
 			      },
 			    },
 			    {
@@ -2065,10 +2088,7 @@ describe('tx.balance', () => {
 		tx.setSenderIfNotSet(SENDER);
 		tx.transferObjects([tx.coin({ balance: 50n })], RECEIVER);
 
-		const result = await resolvedData(
-			tx,
-			mockClient({ addressBalance: 200n, coinBalance: 0n }),
-		);
+		const result = await resolvedData(tx, mockClient({ addressBalance: 200n, coinBalance: 0n }));
 
 		// Should use coin::redeem_funds from AB, not GasCoin
 		expect(result.commands[0].MoveCall?.function).toBe('redeem_funds');
@@ -2089,10 +2109,7 @@ describe('tx.balance', () => {
 		tx.setSenderIfNotSet(SENDER);
 		tx.transferObjects([tx.coin({ balance: 50n })], RECEIVER);
 
-		const result = await resolvedData(
-			tx,
-			mockClient({ addressBalance: 10n, coinBalance: 90n }),
-		);
+		const result = await resolvedData(tx, mockClient({ addressBalance: 10n, coinBalance: 90n }));
 
 		// Should use GasCoin since AB is insufficient
 		const splitCmd = result.commands.find((c: any) => c.SplitCoins);
