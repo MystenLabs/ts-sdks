@@ -3,6 +3,7 @@
 
 export { SuiGrpcClient, isSuiGrpcClient } from './client.js';
 export { GrpcCoreClient } from './core.js';
+export { SuiGrpcRequestError, GrpcStatusCode } from './errors.js';
 export type { SuiGrpcClientOptions } from './client.js';
 export type { GrpcCoreClientOptions } from './core.js';
 
