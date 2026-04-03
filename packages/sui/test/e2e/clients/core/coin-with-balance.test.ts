@@ -1261,10 +1261,41 @@ describe('coinWithBalance', () => {
 		testWithAllClients(
 			'uses coins directly when address balance is insufficient',
 			async (client) => {
+				// Use a fresh signer with only TEST coins and zero TEST AB
+				// to avoid accumulated state from prior tests.
+				const signer = new Ed25519Keypair();
+
+				// Fund with SUI for gas
+				const fundTx = new Transaction();
+				fundTx.transferObjects(
+					[fundTx.splitCoins(fundTx.gas, [2_000_000_000n])],
+					signer.toSuiAddress(),
+				);
+				const fundResult = await client.core.signAndExecuteTransaction({
+					transaction: fundTx,
+					signer: toolbox.keypair,
+				});
+				await toolbox.waitForTransaction({ result: fundResult });
+
+				// Mint TEST coins to the fresh signer
+				const mintTx = new Transaction();
+				mintTx.moveCall({
+					target: `${packageId}::test::mint`,
+					arguments: [
+						mintTx.object(treasuryCapId),
+						mintTx.pure.u64(50),
+						mintTx.pure.address(signer.toSuiAddress()),
+					],
+				});
+				const mintResult = await client.core.signAndExecuteTransaction({
+					transaction: mintTx,
+					signer: publishToolbox.keypair,
+				});
+				await toolbox.waitForTransaction({ result: mintResult });
+
 				const receiver = new Ed25519Keypair();
-				// Request amounts large enough to exceed any accumulated AB from prior tests
-				const requestAmount1 = 40n;
-				const requestAmount2 = 20n;
+				const requestAmount1 = 10n;
+				const requestAmount2 = 5n;
 				const totalAmount = requestAmount1 + requestAmount2;
 
 				const tx = new Transaction();
@@ -1275,62 +1306,7 @@ describe('coinWithBalance', () => {
 					],
 					receiver.toSuiAddress(),
 				);
-				tx.setSender(publishToolbox.address());
-
-				expect(
-					JSON.parse(
-						await tx.toJSON({
-							supportedIntents: ['CoinWithBalance'],
-						}),
-					),
-				).toEqual({
-					expiration: null,
-					gasData: {
-						budget: null,
-						owner: null,
-						payment: null,
-						price: null,
-					},
-					inputs: [
-						{
-							Pure: {
-								bytes: toBase64(fromHex(receiver.toSuiAddress())),
-							},
-						},
-					],
-					sender: publishToolbox.address(),
-					commands: [
-						{
-							$Intent: {
-								data: {
-									balance: String(requestAmount1),
-									type: testType,
-									outputKind: 'coin',
-								},
-								inputs: {},
-								name: 'CoinWithBalance',
-							},
-						},
-						{
-							$Intent: {
-								data: {
-									balance: String(requestAmount2),
-									type: testType,
-									outputKind: 'coin',
-								},
-								inputs: {},
-								name: 'CoinWithBalance',
-							},
-						},
-						{
-							TransferObjects: {
-								objects: [{ Result: 0 }, { Result: 1 }],
-								address: { Input: 0 },
-							},
-						},
-					],
-					version: 2,
-				});
+				tx.setSender(signer.toSuiAddress());
 
 				const resolved = JSON.parse(
 					await tx.toJSON({
@@ -1339,7 +1315,7 @@ describe('coinWithBalance', () => {
 					}),
 				);
 
-				// Coins sufficient — combined SplitCoins, no FundsWithdrawal
+				// No TEST AB exists — coins used directly, no FundsWithdrawal
 				expect(resolved.commands).toEqual([
 					{
 						SplitCoins: {
@@ -1355,9 +1331,12 @@ describe('coinWithBalance', () => {
 					},
 				]);
 
+				const hasWithdrawal = resolved.inputs.some((i: any) => i.FundsWithdrawal);
+				expect(hasWithdrawal).toBe(false);
+
 				const result = await client.core.signAndExecuteTransaction({
 					transaction: tx,
-					signer: publishToolbox.keypair,
+					signer,
 					include: { balanceChanges: true },
 				});
 
