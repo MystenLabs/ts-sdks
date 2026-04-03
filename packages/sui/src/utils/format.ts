@@ -90,6 +90,7 @@ export function parseAmount(value: string, decimals: number): bigint {
 		);
 	}
 
+	// When decimals=0, padEnd produces '' which BigInt() can't parse
 	const paddedFraction = fraction.padEnd(decimals, '0') || '0';
 	const result = BigInt(whole) * 10n ** BigInt(decimals) + BigInt(paddedFraction);
 
