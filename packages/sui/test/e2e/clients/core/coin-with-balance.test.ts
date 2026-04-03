@@ -897,39 +897,46 @@ describe('coinWithBalance', () => {
 				}),
 			);
 
-			// Coin intents go through Path 2. Gas type → SplitCoins from GasCoin.
-			expect(resolved.inputs).toEqual([
-				{
-					Pure: {
-						bytes: toBase64(fromHex(receiver.toSuiAddress())),
-					},
-				},
-				{
-					Pure: {
-						bytes: toBase64(bcs.u64().serialize(requestAmount1).toBytes()),
-					},
-				},
-				{
-					Pure: {
-						bytes: toBase64(bcs.u64().serialize(requestAmount2).toBytes()),
-					},
-				},
-			]);
+			// Coin intents go through Path 2. AB sufficient → coin::redeem_funds from AB.
+			// FundsWithdrawal input for the full amount
+			expect(resolved.inputs).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						FundsWithdrawal: expect.objectContaining({
+							reservation: {
+								$kind: 'MaxAmountU64',
+								MaxAmountU64: String(totalAmount),
+							},
+						}),
+					}),
+				]),
+			);
 
-			expect(resolved.commands).toEqual([
-				{
-					SplitCoins: {
-						coin: { GasCoin: true },
-						amounts: [{ Input: 1 }, { Input: 2 }],
-					},
+			// coin::redeem_funds → SplitCoins → TransferObjects → coin::send_funds (remainder)
+			expect(resolved.commands[0]).toEqual({
+				MoveCall: expect.objectContaining({
+					function: 'redeem_funds',
+					module: 'coin',
+				}),
+			});
+			expect(resolved.commands[1]).toEqual({
+				SplitCoins: {
+					coin: { Result: 0 },
+					amounts: [{ Input: expect.any(Number) }, { Input: expect.any(Number) }],
 				},
-				{
-					TransferObjects: {
-						objects: [{ NestedResult: [0, 0] }, { NestedResult: [0, 1] }],
-						address: { Input: 0 },
-					},
+			});
+			expect(resolved.commands[2]).toEqual({
+				TransferObjects: {
+					objects: [{ NestedResult: [1, 0] }, { NestedResult: [1, 1] }],
+					address: { Input: 0 },
 				},
-			]);
+			});
+			expect(resolved.commands[3]).toEqual({
+				MoveCall: expect.objectContaining({
+					function: 'send_funds',
+					module: 'coin',
+				}),
+			});
 
 			const result = await client.core.signAndExecuteTransaction({
 				transaction: tx,
@@ -1052,21 +1059,45 @@ describe('coinWithBalance', () => {
 				}),
 			);
 
-			// Coin intents go through Path 2: combined SplitCoins from coin objects
-			expect(resolved.commands).toEqual([
-				{
-					SplitCoins: {
-						coin: { Input: expect.any(Number) },
-						amounts: [{ Input: expect.any(Number) }, { Input: expect.any(Number) }],
-					},
+			// Coin intents go through Path 2. AB sufficient → coin::redeem_funds from AB.
+			expect(resolved.inputs).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						FundsWithdrawal: expect.objectContaining({
+							reservation: {
+								$kind: 'MaxAmountU64',
+								MaxAmountU64: String(totalAmount),
+							},
+						}),
+					}),
+				]),
+			);
+
+			// coin::redeem_funds → SplitCoins → TransferObjects → coin::send_funds (remainder)
+			expect(resolved.commands[0]).toEqual({
+				MoveCall: expect.objectContaining({
+					function: 'redeem_funds',
+					module: 'coin',
+				}),
+			});
+			expect(resolved.commands[1]).toEqual({
+				SplitCoins: {
+					coin: { Result: 0 },
+					amounts: [{ Input: expect.any(Number) }, { Input: expect.any(Number) }],
 				},
-				{
-					TransferObjects: {
-						objects: [{ NestedResult: [0, 0] }, { NestedResult: [0, 1] }],
-						address: { Input: 0 },
-					},
+			});
+			expect(resolved.commands[2]).toEqual({
+				TransferObjects: {
+					objects: [{ NestedResult: [1, 0] }, { NestedResult: [1, 1] }],
+					address: { Input: 0 },
 				},
-			]);
+			});
+			expect(resolved.commands[3]).toEqual({
+				MoveCall: expect.objectContaining({
+					function: 'send_funds',
+					module: 'coin',
+				}),
+			});
 
 			const result = await client.core.signAndExecuteTransaction({
 				transaction: tx,
@@ -1228,35 +1259,12 @@ describe('coinWithBalance', () => {
 		);
 
 		testWithAllClients(
-			'uses coins directly when coin balance is sufficient (ignores available address balance)',
+			'uses coins directly when address balance is insufficient',
 			async (client) => {
-				const coins = await client.core.listCoins({
-					owner: publishToolbox.address(),
-					coinType: testType,
-				});
-				expect(coins.objects.length).toBeGreaterThan(0);
-
-				const depositAmount = 2n;
-				const depositTx = new Transaction();
-				const [coinToDeposit] = depositTx.splitCoins(depositTx.object(coins.objects[0].objectId), [
-					depositAmount,
-				]);
-				depositTx.moveCall({
-					target: '0x2::coin::send_funds',
-					typeArguments: [testType],
-					arguments: [coinToDeposit, depositTx.pure.address(publishToolbox.address())],
-				});
-
-				const depositResult = await client.core.signAndExecuteTransaction({
-					transaction: depositTx,
-					signer: publishToolbox.keypair,
-				});
-				if (depositResult.$kind !== 'Transaction') throw new Error('Deposit failed');
-				await toolbox.waitForTransaction({ digest: depositResult.Transaction.digest });
-
 				const receiver = new Ed25519Keypair();
-				const requestAmount1 = 10n;
-				const requestAmount2 = 5n;
+				// Request amounts large enough to exceed any accumulated AB from prior tests
+				const requestAmount1 = 40n;
+				const requestAmount2 = 20n;
 				const totalAmount = requestAmount1 + requestAmount2;
 
 				const tx = new Transaction();
@@ -1871,10 +1879,10 @@ describe('coinWithBalance', () => {
 			return built.getData().gasData.payment;
 		}
 
-		it('tx.coin with gas type uses coin reservation ref when only address balance exists', async () => {
+		it('tx.coin with gas type uses coin reservation ref when AB is insufficient', async () => {
 			const client = toolbox.jsonRpcClient;
 
-			// Create a fresh signer with only address balance (no coin objects except gas)
+			// Create a fresh signer with coins + address balance
 			const signer = new Ed25519Keypair();
 			const depositAmount = 500_000_000n;
 
@@ -1904,9 +1912,9 @@ describe('coinWithBalance', () => {
 			});
 			await toolbox.waitForTransaction({ result: depositResult });
 
-			// Now use tx.coin with gas type — should use coin reservation
+			// Request more than AB — forces GasCoin usage, which triggers reservation
 			const receiver = new Ed25519Keypair();
-			const requestAmount = 100_000_000n;
+			const requestAmount = 600_000_000n;
 			const tx = new Transaction();
 			tx.transferObjects(
 				[tx.coin({ type: 'gas', balance: requestAmount })],
@@ -2104,10 +2112,11 @@ describe('coinWithBalance', () => {
 			});
 			await toolbox.waitForTransaction({ result: depositResult });
 
-			// Build a transaction that triggers reservation
+			// Build a transaction that triggers reservation — request > AB so GasCoin is used
+			const requestAmount = 300_000_000n;
 			const tx = new Transaction();
 			tx.transferObjects(
-				[tx.coin({ type: 'gas', balance: 50_000_000n })],
+				[tx.coin({ type: 'gas', balance: requestAmount })],
 				new Ed25519Keypair().toSuiAddress(),
 			);
 			tx.setSender(signer.toSuiAddress());
@@ -2119,7 +2128,7 @@ describe('coinWithBalance', () => {
 			expect(reservationRef.version).toBe('0');
 			expect(isCoinReservationDigest(reservationRef.digest)).toBe(true);
 
-			// The reserved balance should equal the address balance
+			// The reserved balance should equal the address balance (no withdrawals from AB)
 			const reservedBalance = parseCoinReservationBalance(reservationRef.digest);
 			expect(reservedBalance).toBe(depositAmount);
 		});
