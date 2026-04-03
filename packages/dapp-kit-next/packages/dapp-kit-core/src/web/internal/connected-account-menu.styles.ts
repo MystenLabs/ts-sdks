@@ -96,6 +96,7 @@ export const styles = [
 			height: 48px;
 			padding: 16px;
 			gap: 8px;
+			cursor: var(--dapp-kit-cursor-button);
 		}
 
 		.disconnect-button:hover {
@@ -143,6 +144,7 @@ export const styles = [
 
 		.copy-address-button {
 			display: inline-flex;
+			cursor: var(--dapp-kit-cursor-button);
 		}
 
 		.copy-address-button svg {
@@ -181,7 +183,7 @@ export const styles = [
 			border-radius: 50%;
 			background-color: var(--dapp-kit-input);
 			border: 1px solid var(--dapp-kit-input);
-			cursor: pointer;
+			cursor: var(--dapp-kit-cursor-radio);
 			position: relative;
 			outline: none;
 			transition: box-shadow 0.2s;
