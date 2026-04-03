@@ -175,9 +175,11 @@ export class MockSuiClient extends CoreClient {
 			const isOwnedByAddress = this.#isOwnedByAddress(obj, options.owner);
 			if (!isOwnedByAddress) return false;
 
-			// Filter by coin type
-			const coinType = obj.type.match(/0x2::coin::Coin<(.+)>/)?.[1];
-			return coinType === options.coinType;
+			// Filter by coin type using parsed struct tag for normalized comparison
+			const innerType = parsedType.typeParams[0];
+			if (!innerType || !options.coinType) return false;
+			const coinType = normalizeStructTag(innerType);
+			return coinType === normalizeStructTag(options.coinType);
 		});
 
 		const objects: SuiClientTypes.Coin[] = coinObjects.map((obj) => {
@@ -264,8 +266,10 @@ export class MockSuiClient extends CoreClient {
 		const balancesByType = new Map<string, bigint>();
 
 		for (const obj of allObjects) {
-			const coinType = obj.type.match(/0x2::coin::Coin<(.+)>/)?.[1];
-			if (!coinType) continue;
+			const parsedType = parseStructTag(obj.type);
+			const innerType = parsedType.typeParams[0];
+			if (!innerType) continue;
+			const coinType = normalizeStructTag(innerType);
 
 			try {
 				const parsedCoin = CoinStruct.parse(obj.content);

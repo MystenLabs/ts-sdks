@@ -1190,6 +1190,352 @@ describe('Coin Flows - Combination Chain Tests', () => {
 	});
 });
 
+describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
+	// Helper to resolve intents and analyze in one step.
+	// toJSON({ client }) runs prepareForSerialization which resolves CoinWithBalance intents.
+	async function analyzeWithIntents(tx: Transaction, client: MockSuiClient) {
+		const json = await tx.toJSON({ client });
+		return analyze({ coinFlows }, { client, transaction: json });
+	}
+
+	// --- tx.coin() with SUI ---
+
+	it('tx.coin() SUI from gas coin (coins only, no AB)', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const coin = tx.coin({ balance: 1_000_000_000n }); // 1 SUI from gas
+		tx.transferObjects([coin], tx.pure.address('0x456'));
+
+		const results = await analyzeWithIntents(tx, client);
+
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
+		// 1 SUI transferred + gas budget
+		expect(suiFlow).toBeDefined();
+		expect(suiFlow!.amount).toBeGreaterThanOrEqual(1_000_000_000n);
+	});
+
+	it('tx.coin() SUI from gas coin, transfer to self (no outflow beyond gas)', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const coin = tx.coin({ balance: 500_000_000n });
+		tx.transferObjects([coin], tx.pure.address(DEFAULT_SENDER));
+
+		const results = await analyzeWithIntents(tx, client);
+
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
+		expect(suiFlow).toBeDefined();
+		// Only gas budget should be the outflow (split returned to self)
+		expect(suiFlow!.amount).toBeLessThan(500_000_000n);
+	});
+
+	// --- tx.coin() with non-SUI ---
+
+	it('tx.coin() non-SUI from coins only (no AB)', async () => {
+		const client = new MockSuiClient();
+		// Default mock has 1000 USDC in coins, 0 AB
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const coin = tx.coin({ type: '0xa0b::usdc::USDC', balance: 200_000_000n });
+		tx.transferObjects([coin], tx.pure.address('0x456'));
+
+		const results = await analyzeWithIntents(tx, client);
+
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcFlow).toBeDefined();
+		expect(usdcFlow!.amount).toBe(200_000_000n);
+	});
+
+	it('tx.coin() non-SUI from AB only (no coins)', async () => {
+		// Use a token type that has no default coin objects, only AB
+		const freshClient = new MockSuiClient();
+		freshClient.setAddressBalance(DEFAULT_SENDER, '0xa0b::usdc::USDC', 500_000_000n);
+		// Remove default USDC coins by creating a client that only has SUI coins
+		// Actually the default mock already has USDC coins. Let's test with a type that has no coins.
+		freshClient.setAddressBalance(DEFAULT_SENDER, '0xfff::token::TOKEN', 500_000_000n);
+
+		// Register the token type function for the moveFunctions analyzer
+		freshClient.addMoveFunction({
+			packageId: '0x999',
+			moduleName: 'test',
+			name: 'use_token',
+			visibility: 'public',
+			isEntry: false,
+			parameters: [
+				{
+					reference: null,
+					body: {
+						$kind: 'datatype',
+						datatype: {
+							typeName: '0x2::coin::Coin',
+							typeParameters: [{ $kind: 'typeParameter', index: 0 }],
+						},
+					},
+				},
+			],
+		});
+
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const coin = tx.coin({ type: '0xfff::token::TOKEN', balance: 200_000_000n, useGasCoin: false });
+		tx.transferObjects([coin], tx.pure.address('0x456'));
+
+		const results = await analyzeWithIntents(tx, freshClient);
+
+		const tokenType = normalizeStructTag('0xfff::token::TOKEN');
+		const tokenFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === tokenType);
+		expect(tokenFlow).toBeDefined();
+		expect(tokenFlow!.amount).toBe(200_000_000n);
+	});
+
+	it('tx.coin() non-SUI from coins + AB combined', async () => {
+		const client = new MockSuiClient();
+		// Default mock has 1000 USDC in coins. Add 500 USDC AB.
+		client.setAddressBalance(DEFAULT_SENDER, '0xa0b::usdc::USDC', 500_000_000n);
+
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		// Request more than coins alone can provide (1000 USDC coins + 500 AB = 1500 total)
+		const coin = tx.coin({ type: '0xa0b::usdc::USDC', balance: 1_200_000_000n });
+		tx.transferObjects([coin], tx.pure.address('0x456'));
+
+		const results = await analyzeWithIntents(tx, client);
+
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcFlow).toBeDefined();
+		expect(usdcFlow!.amount).toBe(1_200_000_000n);
+	});
+
+	// --- tx.balance() with SUI ---
+
+	it('tx.balance() SUI from gas coin', async () => {
+		const client = new MockSuiClient();
+		client.setAddressBalance(DEFAULT_SENDER, '0x2::sui::SUI', 2_000_000_000n);
+
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const balance = tx.balance({ balance: 500_000_000n });
+		// Use the balance in a MoveCall
+		tx.moveCall({
+			target: '0x999::test::consume_coin',
+			typeArguments: [normalizeStructTag('0x2::sui::SUI')],
+			arguments: [balance, balance],
+		});
+
+		const results = await analyzeWithIntents(tx, client);
+
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
+		expect(suiFlow).toBeDefined();
+		expect(suiFlow!.amount).toBeGreaterThanOrEqual(500_000_000n);
+	});
+
+	// --- tx.balance() with non-SUI ---
+
+	it('tx.balance() non-SUI from AB only (Path 1 - direct withdrawal)', async () => {
+		const client = new MockSuiClient();
+		// Set up enough AB so Path 1 (all-balance + AB sufficient) is used
+		client.setAddressBalance(DEFAULT_SENDER, '0xa0b::usdc::USDC', 1_000_000_000n);
+
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const balance = tx.balance({ type: '0xa0b::usdc::USDC', balance: 300_000_000n });
+		tx.moveCall({
+			target: '0x999::test::consume_coin',
+			typeArguments: [normalizeStructTag('0xa0b::usdc::USDC')],
+			arguments: [balance, balance],
+		});
+
+		const results = await analyzeWithIntents(tx, client);
+
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcFlow).toBeDefined();
+		expect(usdcFlow!.amount).toBe(300_000_000n);
+	});
+
+	it('tx.balance() non-SUI from coins only (Path 2 - merge and split)', async () => {
+		const client = new MockSuiClient();
+		// Default: 1000 USDC in coins, 0 AB → Path 2
+
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const balance = tx.balance({ type: '0xa0b::usdc::USDC', balance: 300_000_000n });
+		tx.moveCall({
+			target: '0x999::test::consume_coin',
+			typeArguments: [normalizeStructTag('0xa0b::usdc::USDC')],
+			arguments: [balance, balance],
+		});
+
+		const results = await analyzeWithIntents(tx, client);
+
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcFlow).toBeDefined();
+		expect(usdcFlow!.amount).toBe(300_000_000n);
+	});
+
+	it('tx.balance() non-SUI from coins + AB (Path 2 with AB top-up)', async () => {
+		const client = new MockSuiClient();
+		// 1000 USDC in coins + 500 AB. Request more than coins alone.
+		client.setAddressBalance(DEFAULT_SENDER, '0xa0b::usdc::USDC', 500_000_000n);
+
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const balance = tx.balance({ type: '0xa0b::usdc::USDC', balance: 1_200_000_000n });
+		tx.moveCall({
+			target: '0x999::test::consume_coin',
+			typeArguments: [normalizeStructTag('0xa0b::usdc::USDC')],
+			arguments: [balance, balance],
+		});
+
+		const results = await analyzeWithIntents(tx, client);
+
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcFlow).toBeDefined();
+		expect(usdcFlow!.amount).toBe(1_200_000_000n);
+	});
+
+	// --- Mixed tx.coin() + tx.balance() ---
+
+	it('tx.coin() + tx.balance() same non-SUI type', async () => {
+		const client = new MockSuiClient();
+		client.setAddressBalance(DEFAULT_SENDER, '0xa0b::usdc::USDC', 500_000_000n);
+
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const coin = tx.coin({ type: '0xa0b::usdc::USDC', balance: 100_000_000n });
+		const balance = tx.balance({ type: '0xa0b::usdc::USDC', balance: 200_000_000n });
+
+		tx.transferObjects([coin], tx.pure.address('0x456'));
+		tx.moveCall({
+			target: '0x999::test::consume_coin',
+			typeArguments: [normalizeStructTag('0xa0b::usdc::USDC')],
+			arguments: [balance, balance],
+		});
+
+		const results = await analyzeWithIntents(tx, client);
+
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcFlow).toBeDefined();
+		expect(usdcFlow!.amount).toBe(300_000_000n); // 100 + 200
+	});
+
+	it('tx.coin() SUI + tx.balance() non-SUI in same transaction', async () => {
+		const client = new MockSuiClient();
+		client.setAddressBalance(DEFAULT_SENDER, '0xa0b::usdc::USDC', 500_000_000n);
+
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const suiCoin = tx.coin({ balance: 1_000_000_000n });
+		const usdcBalance = tx.balance({ type: '0xa0b::usdc::USDC', balance: 200_000_000n });
+
+		tx.transferObjects([suiCoin], tx.pure.address('0x456'));
+		tx.moveCall({
+			target: '0x999::test::consume_coin',
+			typeArguments: [normalizeStructTag('0xa0b::usdc::USDC')],
+			arguments: [usdcBalance, usdcBalance],
+		});
+
+		const results = await analyzeWithIntents(tx, client);
+
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
+		expect(suiFlow).toBeDefined();
+		expect(suiFlow!.amount).toBeGreaterThanOrEqual(1_000_000_000n);
+
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcFlow).toBeDefined();
+		expect(usdcFlow!.amount).toBe(200_000_000n);
+	});
+
+	it('multiple tx.coin() same non-SUI type', async () => {
+		const client = new MockSuiClient();
+
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		// 3 coins of 100 USDC each (default has 1000 USDC total)
+		const coin1 = tx.coin({ type: '0xa0b::usdc::USDC', balance: 100_000_000n });
+		const coin2 = tx.coin({ type: '0xa0b::usdc::USDC', balance: 100_000_000n });
+		const coin3 = tx.coin({ type: '0xa0b::usdc::USDC', balance: 100_000_000n });
+
+		tx.transferObjects([coin1, coin2, coin3], tx.pure.address('0x456'));
+
+		const results = await analyzeWithIntents(tx, client);
+
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcFlow).toBeDefined();
+		expect(usdcFlow!.amount).toBe(300_000_000n);
+	});
+
+	it('multiple tx.balance() same non-SUI type from AB (Path 1)', async () => {
+		const client = new MockSuiClient();
+		client.setAddressBalance(DEFAULT_SENDER, '0xa0b::usdc::USDC', 1_000_000_000n);
+
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const b1 = tx.balance({ type: '0xa0b::usdc::USDC', balance: 100_000_000n });
+		const b2 = tx.balance({ type: '0xa0b::usdc::USDC', balance: 150_000_000n });
+
+		tx.moveCall({
+			target: '0x999::test::consume_coin',
+			typeArguments: [normalizeStructTag('0xa0b::usdc::USDC')],
+			arguments: [b1, b2],
+		});
+
+		const results = await analyzeWithIntents(tx, client);
+
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcFlow).toBeDefined();
+		expect(usdcFlow!.amount).toBe(250_000_000n);
+	});
+
+	// --- Zero balance ---
+
+	it('tx.coin() with zero balance', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const coin = tx.coin({ type: '0xa0b::usdc::USDC', balance: 0n });
+		tx.transferObjects([coin], tx.pure.address('0x456'));
+
+		const results = await analyzeWithIntents(tx, client);
+
+		// No USDC outflow for zero balance
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcFlow).toBeUndefined();
+	});
+
+	it('tx.balance() with zero balance', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const balance = tx.balance({ type: '0xa0b::usdc::USDC', balance: 0n });
+		tx.moveCall({
+			target: '0x999::test::consume_coin',
+			typeArguments: [normalizeStructTag('0xa0b::usdc::USDC')],
+			arguments: [balance, balance],
+		});
+
+		const results = await analyzeWithIntents(tx, client);
+
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcFlow).toBeUndefined();
+	});
+});
+
 describe('Coin Flows - Transfer to Self Bug Fix', () => {
 	it('should not create outflow for non-SUI transfer to self', async () => {
 		const client = new MockSuiClient();
