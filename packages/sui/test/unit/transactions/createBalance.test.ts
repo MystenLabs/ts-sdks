@@ -1937,24 +1937,6 @@ describe('tx.balance', () => {
 			        ],
 			      },
 			    },
-			    {
-			      "MoveCall": {
-			        "arguments": [
-			          {
-			            "Result": 2,
-			          },
-			          {
-			            "Input": 7,
-			          },
-			        ],
-			        "function": "send_funds",
-			        "module": "coin",
-			        "package": "0x0000000000000000000000000000000000000000000000000000000000000002",
-			        "typeArguments": [
-			          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
-			        ],
-			      },
-			    },
 			  ],
 			  "inputs": [
 			    {
@@ -2007,11 +1989,6 @@ describe('tx.balance', () => {
 			    {
 			      "Pure": {
 			        "bytes": "BQAAAAAAAAA=",
-			      },
-			    },
-			    {
-			      "Pure": {
-			        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASM=",
 			      },
 			    },
 			    {
