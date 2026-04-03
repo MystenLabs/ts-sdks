@@ -1,7 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-export { formatAddress, formatDigest } from './format.js';
+export {
+	formatAddress,
+	formatDigest,
+	formatAmount,
+	parseAmount,
+	formatSui,
+	parseSui,
+} from './format.js';
 export {
 	isValidStructTag,
 	isValidSuiAddress,
