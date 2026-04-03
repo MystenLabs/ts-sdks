@@ -1,5 +1,12 @@
 # @mysten/docs
 
+## 0.1.15
+
+### Patch Changes
+
+- Updated dependencies [875b1b7]
+  - @mysten/dapp-kit-core@1.3.0
+
 ## 0.1.14
 
 ### Patch Changes
