@@ -35,6 +35,13 @@ describe('formatAmount', () => {
 		expect(() => formatAmount(1n, -1)).toThrow('Invalid decimals');
 		expect(() => formatAmount(1n, 78)).toThrow('Invalid decimals');
 	});
+
+	it('handles values beyond MAX_SAFE_INTEGER', () => {
+		const u128Max = 2n ** 128n - 1n;
+		expect(formatAmount(u128Max, 9)).toEqual(
+			'340282366920938463463374607431.768211455',
+		);
+	});
 });
 
 describe('parseAmount', () => {
@@ -67,6 +74,16 @@ describe('parseAmount', () => {
 		expect(() => parseAmount(' 1 ', 9)).toThrow('Invalid amount');
 		expect(() => parseAmount('1e5', 9)).toThrow('Invalid amount');
 	});
+
+	it('throws on invalid decimals', () => {
+		expect(() => parseAmount('1', -1)).toThrow('Invalid decimals');
+		expect(() => parseAmount('1', 78)).toThrow('Invalid decimals');
+	});
+
+	it('handles values beyond MAX_SAFE_INTEGER', () => {
+		const u128Max = 2n ** 128n - 1n;
+		expect(parseAmount('340282366920938463463374607431.768211455', 9)).toEqual(u128Max);
+	});
 });
 
 describe('formatAmount/parseAmount round-trip', () => {
@@ -80,6 +97,7 @@ describe('formatAmount/parseAmount round-trip', () => {
 			[-1500000000n, 9],
 			[1500000n, 6],
 			[42n, 0],
+			[2n ** 128n - 1n, 9],
 		];
 		for (const [value, decimals] of cases) {
 			expect(parseAmount(formatAmount(value, decimals), decimals)).toEqual(value);
