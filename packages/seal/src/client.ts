@@ -82,7 +82,7 @@ export class SealClient {
 			.map((server) => server.weight)
 			.reduce((sum, term) => sum + term, 0);
 
-		this.#verifyKeyServers = options.verifyKeyServers ?? true;
+		this.#verifyKeyServers = options.verifyKeyServers ?? false;
 		this.#timeout = options.timeout ?? 10_000;
 	}
 
