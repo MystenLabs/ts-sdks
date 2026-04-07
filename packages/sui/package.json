@@ -160,6 +160,8 @@
 	"devDependencies": {
 		"@0no-co/graphqlsp": "^1.15.2",
 		"@graphql-codegen/add": "^6.0.0",
+		"@grpc/grpc-js": "^1.13.3",
+		"@protobuf-ts/grpc-transport": "^2.11.1",
 		"@graphql-codegen/cli": "^6.1.1",
 		"@graphql-codegen/typed-document-node": "^6.1.5",
 		"@graphql-codegen/typescript": "5.0.7",
