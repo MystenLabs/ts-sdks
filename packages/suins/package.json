@@ -51,7 +51,7 @@
 		"@types/tmp": "^0.2.6",
 		"ts-retry-promise": "^0.8.1",
 		"typescript": "^5.9.3",
-		"vite": "^7.3.1",
+		"vite": "^8.0.5",
 		"vitest": "^4.0.17"
 	},
 	"peerDependencies": {

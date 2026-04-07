@@ -20,7 +20,8 @@
 	"pnpm": {
 		"overrides": {
 			"axios": "^1.13.5",
-			"lodash": ">=4.18.0"
+			"lodash": ">=4.18.0",
+			"defu": ">=6.1.5"
 		}
 	},
 	"engines": {
