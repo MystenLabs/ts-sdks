@@ -1,5 +1,19 @@
 # @mysten/sui.js
 
+## 2.15.0
+
+### Minor Changes
+
+- 43b2670: Re-export `GrpcWebFetchTransport`, `GrpcWebOptions`, and `RpcTransport` from
+  `@mysten/sui/grpc` so users can configure custom transports without adding `@protobuf-ts/*` as
+  direct dependencies.
+
+### Patch Changes
+
+- ef0b8a7: Error when mixing SUI CoinWithBalance intents that use the gas coin with ones that set
+  useGasCoin: false in the same transaction, preventing potential double-counting of address
+  balance.
+
 ## 2.14.1
 
 ### Patch Changes
