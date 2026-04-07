@@ -110,9 +110,6 @@ const grpcClient = new SuiGrpcClient({
 | gRPC-web (default) | Browser + Node.js | HTTP/1.1 or HTTP/2 | Web apps, universal/isomorphic code |
 | Native gRPC | Server-side (Node.js, Bun) | HTTP/2 | Server-side apps, backend services, CLI tools |
 
-The native gRPC transport may offer better performance for high-throughput server-side applications
-since it uses HTTP/2 directly without the gRPC-web translation layer.
-
 ## Using service clients
 
 The `SuiGrpcClient` exposes several service clients for lower-level access to the gRPC API. These
