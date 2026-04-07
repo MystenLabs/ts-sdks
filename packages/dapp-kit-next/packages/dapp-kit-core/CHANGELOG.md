@@ -1,5 +1,21 @@
 # @mysten/dapp-kit-core
 
+## 1.3.0
+
+### Minor Changes
+
+- 875b1b7: Add customizable cursor CSS tokens for interactive elements. New CSS custom properties
+  `--cursor-button`, `--cursor-menu-item`, `--cursor-radio`, and `--cursor-disabled` allow consumers
+  to override the default cursor style on buttons, wallet list items, radio inputs, and disabled
+  elements.
+
+### Patch Changes
+
+- Updated dependencies [43b2670]
+- Updated dependencies [ef0b8a7]
+  - @mysten/sui@2.15.0
+  - @mysten/wallet-standard@0.20.1
+
 ## 1.2.2
 
 ### Patch Changes
