@@ -140,6 +140,12 @@ export async function resolveCoinBalance(
 		intentsByType.get(type)!.push({ balance, outputKind: outputKind ?? 'coin' });
 	}
 
+	if (totalByType.has('gas') && totalByType.has(SUI_TYPE)) {
+		throw new Error(
+			'Cannot mix SUI CoinWithBalance intents that use the gas coin with ones that do not (useGasCoin: false). Use one or the other.',
+		);
+	}
+
 	const usedIds = new Set<string>();
 
 	for (const input of transactionData.inputs) {
@@ -254,7 +260,6 @@ export async function resolveCoinBalance(
 
 				if (addressBalance >= totalRequired) {
 					// AB sufficient — source entirely from address balance, no coins needed.
-					exactBalanceByType.set(type, true);
 					usedAddressBalance.add(type);
 
 					commands.push(

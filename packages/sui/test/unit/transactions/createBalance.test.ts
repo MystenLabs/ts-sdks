@@ -2178,6 +2178,18 @@ describe('tx.balance', () => {
 		]);
 	});
 
+	it('errors when mixing gas and useGasCoin:false SUI intents', async () => {
+		const SUI_TYPE = normalizeStructTag('0x2::sui::SUI');
+		const tx = new Transaction();
+		tx.setSenderIfNotSet(SENDER);
+		tx.transferObjects([tx.coin({ balance: 60n })], RECEIVER);
+		tx.transferObjects([tx.coin({ type: SUI_TYPE, balance: 60n, useGasCoin: false })], RECEIVER);
+
+		await expect(
+			resolvedData(tx, mockClient({ addressBalance: 100n, coinBalance: 0n })),
+		).rejects.toThrow('Cannot mix SUI CoinWithBalance intents');
+	});
+
 	it('two different custom types in same transaction resolve independently', async () => {
 		const tx = new Transaction();
 		tx.setSenderIfNotSet(SENDER);
