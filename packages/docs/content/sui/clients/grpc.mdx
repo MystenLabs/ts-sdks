@@ -106,17 +106,6 @@ const grpcClient = new SuiGrpcClient({
 });
 ```
 
-### Which transport should I use?
-
-| Transport | Environment | Protocol | When to use |
-| --- | --- | --- | --- |
-| gRPC-web (default) | Browser + Node.js | HTTP/1.1 or HTTP/2 | Web apps, universal/isomorphic code |
-| Native gRPC | Server-side (Node.js, Bun) | HTTP/2 | Server-side apps, backend services, CLI tools |
-
-Both transports deliver similar end-to-end latency since network time dominates. The native gRPC
-transport uses ~20% less CPU per request because it skips the base64 encoding layer that gRPC-web
-text format requires, and avoids fetch API overhead.
-
 ## Using service clients
 
 The `SuiGrpcClient` exposes several service clients for lower-level access to the gRPC API. These
