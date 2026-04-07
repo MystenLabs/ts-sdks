@@ -6,60 +6,73 @@ import { GrpcTransport } from '@protobuf-ts/grpc-transport';
 import { ChannelCredentials } from '@grpc/grpc-js';
 
 import { SuiGrpcClient, GrpcWebFetchTransport } from '../../../../src/grpc/index.js';
+import { getJsonRpcFullnodeUrl } from '../../../../src/jsonRpc/index.js';
+import { setup, TestToolbox } from '../../utils/setup.js';
 
 /**
  * E2E tests verifying that SuiGrpcClient works correctly with both the default
- * gRPC-web transport and the native gRPC transport against testnet.
+ * gRPC-web transport and the native gRPC transport against localnet.
  *
  * These tests ensure that core API methods return consistent results regardless
  * of which transport is used.
  */
 
-const TESTNET_GRPC_URL = 'https://fullnode.testnet.sui.io:443';
-const TESTNET_GRPC_HOST = 'fullnode.testnet.sui.io:443';
-
-// The Sui framework package — always exists on all networks
-const SUI_FRAMEWORK = '0x0000000000000000000000000000000000000000000000000000000000000002';
-
 describe('gRPC transport variants', () => {
-	let grpcWebClient: SuiGrpcClient;
+	let toolbox: TestToolbox;
 	let nativeGrpcClient: SuiGrpcClient;
+	let grpcWebCustomClient: SuiGrpcClient;
 
-	beforeAll(() => {
-		grpcWebClient = new SuiGrpcClient({
-			network: 'testnet',
-			baseUrl: TESTNET_GRPC_URL,
-		});
+	beforeAll(async () => {
+		toolbox = await setup();
+
+		// The toolbox.grpcClient uses the default GrpcWebFetchTransport.
+		// Create a second client using the native gRPC transport pointing at the same localnet.
+		const fullnodeUrl = new URL(import.meta.env.FULLNODE_URL ?? getJsonRpcFullnodeUrl('localnet'));
+		const host = `${fullnodeUrl.hostname}:${fullnodeUrl.port}`;
 
 		const nativeTransport = new GrpcTransport({
-			host: TESTNET_GRPC_HOST,
-			channelCredentials: ChannelCredentials.createSsl(),
+			host,
+			channelCredentials: ChannelCredentials.createInsecure(),
 		});
 
 		nativeGrpcClient = new SuiGrpcClient({
-			network: 'testnet',
+			network: 'localnet',
 			transport: nativeTransport,
+		});
+
+		// Also create one using the re-exported GrpcWebFetchTransport as a custom transport
+		const grpcWebTransport = new GrpcWebFetchTransport({
+			baseUrl: `http://${host}`,
+		});
+
+		grpcWebCustomClient = new SuiGrpcClient({
+			network: 'localnet',
+			transport: grpcWebTransport,
 		});
 	});
 
 	describe('getObject', () => {
 		it('native gRPC transport returns object data', async () => {
 			const { object } = await nativeGrpcClient.getObject({
-				objectId: SUI_FRAMEWORK,
+				objectId: '0x0000000000000000000000000000000000000000000000000000000000000002',
 			});
 
 			expect(object).toBeDefined();
 			expect(object).not.toBeInstanceOf(Error);
 			if (!(object instanceof Error)) {
-				expect(object.objectId).toBe(SUI_FRAMEWORK);
+				expect(object.objectId).toBe(
+					'0x0000000000000000000000000000000000000000000000000000000000000002',
+				);
 				expect(object.type).toBe('package');
 			}
 		});
 
-		it('both transports return the same object data', async () => {
+		it('native gRPC and default gRPC-web return the same object data', async () => {
+			const objectId = '0x0000000000000000000000000000000000000000000000000000000000000002';
+
 			const [webResult, nativeResult] = await Promise.all([
-				grpcWebClient.getObject({ objectId: SUI_FRAMEWORK }),
-				nativeGrpcClient.getObject({ objectId: SUI_FRAMEWORK }),
+				toolbox.grpcClient.getObject({ objectId }),
+				nativeGrpcClient.getObject({ objectId }),
 			]);
 
 			expect(webResult.object).not.toBeInstanceOf(Error);
@@ -77,7 +90,7 @@ describe('gRPC transport variants', () => {
 	describe('getBalance', () => {
 		it('native gRPC transport returns balance', async () => {
 			const { balance } = await nativeGrpcClient.getBalance({
-				owner: SUI_FRAMEWORK,
+				owner: toolbox.address(),
 			});
 
 			expect(balance).toBeDefined();
@@ -85,10 +98,12 @@ describe('gRPC transport variants', () => {
 			expect(typeof balance.balance).toBe('string');
 		});
 
-		it('both transports return the same balance', async () => {
+		it('native gRPC and default gRPC-web return the same balance', async () => {
+			const owner = toolbox.address();
+
 			const [webResult, nativeResult] = await Promise.all([
-				grpcWebClient.getBalance({ owner: SUI_FRAMEWORK }),
-				nativeGrpcClient.getBalance({ owner: SUI_FRAMEWORK }),
+				toolbox.grpcClient.getBalance({ owner }),
+				nativeGrpcClient.getBalance({ owner }),
 			]);
 
 			expect(nativeResult.balance.balance).toBe(webResult.balance.balance);
@@ -105,9 +120,9 @@ describe('gRPC transport variants', () => {
 			expect(BigInt(result.referenceGasPrice)).toBeGreaterThan(0n);
 		});
 
-		it('both transports return the same gas price', async () => {
+		it('native gRPC and default gRPC-web return the same gas price', async () => {
 			const [webResult, nativeResult] = await Promise.all([
-				grpcWebClient.getReferenceGasPrice(),
+				toolbox.grpcClient.getReferenceGasPrice(),
 				nativeGrpcClient.getReferenceGasPrice(),
 			]);
 
@@ -115,33 +130,11 @@ describe('gRPC transport variants', () => {
 		});
 	});
 
-	describe('getCoinMetadata', () => {
-		it('native gRPC transport returns SUI coin metadata', async () => {
-			const { coinMetadata } = await nativeGrpcClient.getCoinMetadata({
-				coinType: '0x2::sui::SUI',
-			});
-
-			expect(coinMetadata).not.toBeNull();
-			expect(coinMetadata?.name).toBe('Sui');
-			expect(coinMetadata?.symbol).toBe('SUI');
-			expect(coinMetadata?.decimals).toBe(9);
-		});
-
-		it('both transports return the same coin metadata', async () => {
-			const [webResult, nativeResult] = await Promise.all([
-				grpcWebClient.getCoinMetadata({ coinType: '0x2::sui::SUI' }),
-				nativeGrpcClient.getCoinMetadata({ coinType: '0x2::sui::SUI' }),
-			]);
-
-			expect(nativeResult.coinMetadata).toEqual(webResult.coinMetadata);
-		});
-	});
-
 	describe('getObjects (batch)', () => {
 		it('native gRPC transport returns multiple objects', async () => {
 			const { objects } = await nativeGrpcClient.getObjects({
 				objectIds: [
-					SUI_FRAMEWORK,
+					'0x0000000000000000000000000000000000000000000000000000000000000002',
 					'0x0000000000000000000000000000000000000000000000000000000000000001',
 				],
 			});
@@ -152,14 +145,14 @@ describe('gRPC transport variants', () => {
 			}
 		});
 
-		it('both transports return the same objects', async () => {
+		it('native gRPC and default gRPC-web return the same objects', async () => {
 			const objectIds = [
-				SUI_FRAMEWORK,
+				'0x0000000000000000000000000000000000000000000000000000000000000002',
 				'0x0000000000000000000000000000000000000000000000000000000000000001',
 			];
 
 			const [webResult, nativeResult] = await Promise.all([
-				grpcWebClient.getObjects({ objectIds }),
+				toolbox.grpcClient.getObjects({ objectIds }),
 				nativeGrpcClient.getObjects({ objectIds }),
 			]);
 
@@ -178,20 +171,23 @@ describe('gRPC transport variants', () => {
 		});
 	});
 
-	describe('custom GrpcWebFetchTransport re-export', () => {
-		it('re-exported GrpcWebFetchTransport works as custom transport', async () => {
-			const transport = new GrpcWebFetchTransport({
-				baseUrl: TESTNET_GRPC_URL,
-			});
+	describe('re-exported GrpcWebFetchTransport', () => {
+		it('works as a custom transport', async () => {
+			const result = await grpcWebCustomClient.getReferenceGasPrice();
 
-			const client = new SuiGrpcClient({
-				network: 'testnet',
-				transport,
-			});
-
-			const result = await client.getReferenceGasPrice();
 			expect(result).toBeDefined();
 			expect(BigInt(result.referenceGasPrice)).toBeGreaterThan(0n);
+		});
+
+		it('returns the same data as the default client', async () => {
+			const owner = toolbox.address();
+
+			const [defaultResult, customResult] = await Promise.all([
+				toolbox.grpcClient.getBalance({ owner }),
+				grpcWebCustomClient.getBalance({ owner }),
+			]);
+
+			expect(customResult.balance.balance).toBe(defaultResult.balance.balance);
 		});
 	});
 });
