@@ -30,7 +30,16 @@ const grpcClient = new SuiGrpcClient({
 });
 ```
 
-You can also provide a custom transport for advanced use cases:
+## Transport options
+
+By default, `SuiGrpcClient` uses `GrpcWebFetchTransport` from
+[protobuf-ts](https://github.com/timostamm/protobuf-ts), which works in browsers and Node.js via
+the Fetch API. You can also provide a custom transport for advanced use cases.
+
+### gRPC-web transport (default)
+
+The default transport uses the gRPC-web protocol over HTTP/1.1 or HTTP/2. You can customize it by
+passing `GrpcWebFetchTransport` options directly:
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -38,7 +47,7 @@ import { GrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
 
 const transport = new GrpcWebFetchTransport({
 	baseUrl: 'https://your-custom-grpc-endpoint.com',
-	// Additional transport options
+	// Additional transport options like fetchInit
 });
 
 const grpcClient = new SuiGrpcClient({
@@ -46,6 +55,63 @@ const grpcClient = new SuiGrpcClient({
 	transport,
 });
 ```
+
+### Native gRPC transport (Node.js only)
+
+For Node.js server-side applications, you can use the native gRPC transport with
+`@protobuf-ts/grpc-transport` and `@grpc/grpc-js`. This uses HTTP/2 for full gRPC protocol support
+including client streaming and bidirectional streaming.
+
+Install the required packages:
+
+```bash
+npm install @protobuf-ts/grpc-transport @grpc/grpc-js
+```
+
+Then create the client with a `GrpcTransport`:
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { GrpcTransport } from '@protobuf-ts/grpc-transport';
+import { ChannelCredentials } from '@grpc/grpc-js';
+
+const transport = new GrpcTransport({
+	host: 'fullnode.testnet.sui.io:443',
+	channelCredentials: ChannelCredentials.createSsl(),
+});
+
+const grpcClient = new SuiGrpcClient({
+	network: 'testnet',
+	transport,
+});
+```
+
+For local development without TLS:
+
+```typescript
+import { GrpcTransport } from '@protobuf-ts/grpc-transport';
+import { ChannelCredentials } from '@grpc/grpc-js';
+
+const transport = new GrpcTransport({
+	host: '127.0.0.1:9000',
+	channelCredentials: ChannelCredentials.createInsecure(),
+});
+
+const grpcClient = new SuiGrpcClient({
+	network: 'localnet',
+	transport,
+});
+```
+
+### Which transport should I use?
+
+| Transport | Environment | Protocol | When to use |
+| --- | --- | --- | --- |
+| gRPC-web (default) | Browser + Node.js | HTTP/1.1 or HTTP/2 | Web apps, universal/isomorphic code |
+| Native gRPC | Node.js only | HTTP/2 | Server-side apps, backend services, CLI tools |
+
+The native gRPC transport may offer better performance for high-throughput Node.js applications since
+it uses HTTP/2 directly without the gRPC-web translation layer.
 
 ## Using service clients
 
