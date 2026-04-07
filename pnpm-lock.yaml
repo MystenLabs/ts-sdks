@@ -1199,12 +1199,18 @@ importers:
       '@graphql-codegen/typescript-operations':
         specifier: ^5.0.7
         version: 5.0.9(graphql@16.13.2)
+      '@grpc/grpc-js':
+        specifier: ^1.13.3
+        version: 1.14.3
       '@iarna/toml':
         specifier: ^2.2.5
         version: 2.2.5
       '@parcel/watcher':
         specifier: ^2.5.4
         version: 2.5.6
+      '@protobuf-ts/grpc-transport':
+        specifier: ^2.11.1
+        version: 2.11.1(@grpc/grpc-js@1.14.3)
       '@types/node':
         specifier: ^25.0.8
         version: 25.5.0
@@ -3408,6 +3414,11 @@ packages:
   '@pnpm/npm-conf@3.0.2':
     resolution: {integrity: sha512-h104Kh26rR8tm+a3Qkc5S4VLYint3FE48as7+/5oCEcKR2idC/pF1G6AhIXKI+eHPJa/3J9i5z0Al47IeGHPkA==}
     engines: {node: '>=12'}
+
+  '@protobuf-ts/grpc-transport@2.11.1':
+    resolution: {integrity: sha512-l6wrcFffY+tuNnuyrNCkRM8hDIsAZVLA8Mn7PKdVyYxITosYh60qW663p9kL6TWXYuDCL3oxH8ih3vLKTDyhtg==}
+    peerDependencies:
+      '@grpc/grpc-js': ^1.6.0
 
   '@protobuf-ts/grpcweb-transport@2.11.1':
     resolution: {integrity: sha512-1W4utDdvOB+RHMFQ0soL4JdnxjXV+ddeGIUg08DvZrA8Ms6k5NN6GBFU2oHZdTOcJVpPrDJ02RJlqtaoCMNBtw==}
@@ -11828,6 +11839,12 @@ snapshots:
       '@pnpm/config.env-replace': 1.1.0
       '@pnpm/network.ca-file': 1.0.2
       config-chain: 1.1.13
+
+  '@protobuf-ts/grpc-transport@2.11.1(@grpc/grpc-js@1.14.3)':
+    dependencies:
+      '@grpc/grpc-js': 1.14.3
+      '@protobuf-ts/runtime': 2.11.1
+      '@protobuf-ts/runtime-rpc': 2.11.1
 
   '@protobuf-ts/grpcweb-transport@2.11.1':
     dependencies:

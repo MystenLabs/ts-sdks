@@ -30,19 +30,78 @@ const grpcClient = new SuiGrpcClient({
 });
 ```
 
-You can also provide a custom transport for advanced use cases:
+## Transport options
+
+By default, `SuiGrpcClient` uses `GrpcWebFetchTransport` from
+[protobuf-ts](https://github.com/timostamm/protobuf-ts), which works in browsers and Node.js via the
+Fetch API. You can also provide a custom transport for advanced use cases.
+
+The `GrpcWebFetchTransport` class, `GrpcWebOptions` type, and `RpcTransport` type are all
+re-exported from `@mysten/sui/grpc` for convenience.
+
+### gRPC-web transport (default)
+
+The default transport uses the gRPC-web protocol over HTTP/1.1 or HTTP/2. You can customize it by
+passing `GrpcWebFetchTransport` options directly:
 
 ```typescript
-import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { GrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
+import { SuiGrpcClient, GrpcWebFetchTransport } from '@mysten/sui/grpc';
 
 const transport = new GrpcWebFetchTransport({
 	baseUrl: 'https://your-custom-grpc-endpoint.com',
-	// Additional transport options
+	format: 'binary', // default is 'text' (base64-encoded)
+	// Additional transport options like fetchInit
 });
 
 const grpcClient = new SuiGrpcClient({
 	network: 'testnet',
+	transport,
+});
+```
+
+### Native gRPC transport
+
+For server-side applications (Node.js, Bun, etc.), you can use the native gRPC transport with
+`@protobuf-ts/grpc-transport` and `@grpc/grpc-js`. This uses HTTP/2 with the native gRPC protocol
+rather than the gRPC-web translation layer.
+
+Install the required packages:
+
+```bash
+npm install @protobuf-ts/grpc-transport @grpc/grpc-js
+```
+
+Then create the client with a `GrpcTransport`:
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { GrpcTransport } from '@protobuf-ts/grpc-transport';
+import { ChannelCredentials } from '@grpc/grpc-js';
+
+const transport = new GrpcTransport({
+	host: 'fullnode.testnet.sui.io:443',
+	channelCredentials: ChannelCredentials.createSsl(),
+});
+
+const grpcClient = new SuiGrpcClient({
+	network: 'testnet',
+	transport,
+});
+```
+
+For local development without TLS:
+
+```typescript
+import { GrpcTransport } from '@protobuf-ts/grpc-transport';
+import { ChannelCredentials } from '@grpc/grpc-js';
+
+const transport = new GrpcTransport({
+	host: '127.0.0.1:9000',
+	channelCredentials: ChannelCredentials.createInsecure(),
+});
+
+const grpcClient = new SuiGrpcClient({
+	network: 'localnet',
 	transport,
 });
 ```
