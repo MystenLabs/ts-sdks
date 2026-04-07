@@ -36,17 +36,20 @@ By default, `SuiGrpcClient` uses `GrpcWebFetchTransport` from
 [protobuf-ts](https://github.com/timostamm/protobuf-ts), which works in browsers and Node.js via
 the Fetch API. You can also provide a custom transport for advanced use cases.
 
+The `GrpcWebFetchTransport` class, `GrpcWebOptions` type, and `RpcTransport` type are all
+re-exported from `@mysten/sui/grpc` for convenience.
+
 ### gRPC-web transport (default)
 
 The default transport uses the gRPC-web protocol over HTTP/1.1 or HTTP/2. You can customize it by
 passing `GrpcWebFetchTransport` options directly:
 
 ```typescript
-import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { GrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
+import { SuiGrpcClient, GrpcWebFetchTransport } from '@mysten/sui/grpc';
 
 const transport = new GrpcWebFetchTransport({
 	baseUrl: 'https://your-custom-grpc-endpoint.com',
+	format: 'binary', // default is 'text' (base64-encoded)
 	// Additional transport options like fetchInit
 });
 

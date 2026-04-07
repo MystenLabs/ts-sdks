@@ -3,8 +3,8 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
-import { SuiGrpcClient } from '../../../src/grpc/client.js';
+import type { RpcTransport } from '../../../src/grpc/index.js';
+import { SuiGrpcClient, GrpcWebFetchTransport } from '../../../src/grpc/index.js';
 
 /**
  * Creates a mock RpcTransport for testing custom transport injection.
@@ -119,5 +119,29 @@ describe('SuiGrpcClient with custom transport', () => {
 			});
 			expect(client).toBeDefined();
 		}
+	});
+
+	it('should re-export GrpcWebFetchTransport from @mysten/sui/grpc', () => {
+		expect(GrpcWebFetchTransport).toBeDefined();
+		expect(typeof GrpcWebFetchTransport).toBe('function');
+
+		const transport = new GrpcWebFetchTransport({
+			baseUrl: 'http://localhost:9000',
+		});
+		expect(transport).toBeDefined();
+	});
+
+	it('should accept a GrpcWebFetchTransport as custom transport', () => {
+		const transport = new GrpcWebFetchTransport({
+			baseUrl: 'http://localhost:9000',
+		});
+
+		const client = new SuiGrpcClient({
+			network: 'localnet',
+			transport,
+		});
+
+		expect(client).toBeDefined();
+		expect(client.ledgerService).toBeDefined();
 	});
 });
