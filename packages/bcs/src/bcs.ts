@@ -1,6 +1,44 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { encoder, compareBcsBytes } from './bcs-encode.js';
+import { decoder } from './bcs-decode.js';
+
+const {
+	encodeU8,
+	encodeU16,
+	encodeU32,
+	encodeU64,
+	encodeU128,
+	encodeU256,
+	encodeBool,
+	encodeFixedBytes,
+	encodeString,
+	encodeByteVector,
+	writeUleb,
+	ensure,
+	buildVectorEncoder,
+	buildFixedArrayEncoder,
+	buildOptionEncoder,
+	buildMapEncoder,
+} = encoder;
+const {
+	decodeU8,
+	decodeU16,
+	decodeU32,
+	decodeU64,
+	decodeU128,
+	decodeU256,
+	decodeBool,
+	decodeFixedBytes,
+	decodeString,
+	decodeByteVector,
+	readUleb,
+	buildVectorDecoder,
+	buildFixedArrayDecoder,
+	buildOptionDecoder,
+	buildMapDecoder,
+} = decoder;
 import type { BcsTypeOptions } from './bcs-type.js';
 import {
 	BcsEnum,
@@ -8,10 +46,8 @@ import {
 	BcsTuple,
 	BcsType,
 	bigUIntBcsType,
-	dynamicSizeBcsType,
 	fixedSizeBcsType,
 	lazyBcsType,
-	stringLikeBcsType,
 	uIntBcsType,
 } from './bcs-type.js';
 import type {
@@ -21,7 +57,18 @@ import type {
 	InferBcsType,
 	JoinString,
 } from './types.js';
-import { ulebEncode } from './uleb.js';
+
+/** Byte length of a ULEB128-encoded value, without allocating. */
+function ulebLength(n: number): number {
+	if (n < 0x80) return 1;
+	if (n < 0x4000) return 2;
+	if (n < 0x200000) return 3;
+	if (n < 0x10000000) return 4;
+	if (n < 0x800000000) return 5;
+	if (n < 0x40000000000) return 6;
+	if (n < 0x2000000000000) return 7;
+	return 8;
+}
 
 function fixedArray<T extends BcsType<any>, Name extends string = string>(
 	size: number,
@@ -46,29 +93,22 @@ function fixedArray<T extends BcsType<any>, Name extends string = `${T['name']}[
 		Name
 	>,
 ): BcsType<InferBcsType<T>[], Iterable<InferBcsInput<T>> & { length: number }, Name> {
+	const fixedElementSize =
+		type.name === 'u8' ? 1 : type.name === 'u16' ? 2 : type.name === 'u32' ? 4 : 0;
+	const encode = buildFixedArrayEncoder(size, type._validatedWrite, type._codec.kind);
+	const decode = buildFixedArrayDecoder(size, type._codec.read, type._codec.kind);
 	return new BcsType<InferBcsType<T>[], Iterable<InferBcsInput<T>> & { length: number }, Name>({
-		read: (reader) => {
-			const result: InferBcsType<T>[] = new Array(size);
-			for (let i = 0; i < size; i++) {
-				result[i] = type.read(reader);
-			}
-			return result;
-		},
-		write: (value, writer) => {
-			for (const item of value) {
-				type.write(item, writer);
-			}
-		},
+		read: decode as never,
+		write: encode as never,
+		serializedSize: fixedElementSize > 0 ? () => size * fixedElementSize : undefined,
 		...options,
 		name: (options?.name ?? `${type.name}[${size}]`) as Name,
 		validate: (value) => {
 			options?.validate?.(value);
-			if (!value || typeof value !== 'object' || !('length' in value)) {
+			if (!value || typeof value !== 'object' || !('length' in value))
 				throw new TypeError(`Expected array, found ${typeof value}`);
-			}
-			if (value.length !== size) {
+			if (value.length !== size)
 				throw new TypeError(`Expected array of length ${size}, found ${value.length}`);
-			}
 		},
 	});
 }
@@ -82,27 +122,17 @@ function option<T, Input, Name extends string = string>(
 function option<T extends BcsType<any>>(
 	type: T,
 ): BcsType<InferBcsType<T> | null, InferBcsInput<T> | null | undefined, `Option<${T['name']}>`> {
-	return bcs
-		.enum(`Option<${type.name}>`, {
-			None: null,
-			Some: type,
-		})
-		.transform({
-			input: (value: InferBcsInput<T> | null | undefined) => {
-				if (value == null) {
-					return { None: true };
-				}
-
-				return { Some: value };
-			},
-			output: (value) => {
-				if (value.$kind === 'Some') {
-					return value.Some as InferBcsType<T>;
-				}
-
-				return null;
-			},
-		});
+	const decode = buildOptionDecoder(type._codec.read);
+	const encode = buildOptionEncoder(type._validatedWrite as (v: unknown) => void);
+	return new BcsType<
+		InferBcsType<T> | null,
+		InferBcsInput<T> | null | undefined,
+		`Option<${T['name']}>`
+	>({
+		name: `Option<${type.name}>` as `Option<${T['name']}>`,
+		read: decode.decode as never,
+		write: encode as never,
+	});
 }
 
 function vector<T extends BcsType<any>, Name extends string = `vector<${T['name']}>`>(
@@ -125,46 +155,31 @@ function vector<T extends BcsType<any>, Name extends string = `vector<${T['name'
 		Name
 	>,
 ): BcsType<InferBcsType<T>[], Iterable<InferBcsInput<T>> & { length: number }, Name> {
+	const elementSize =
+		type.name === 'u8' ? 1 : type.name === 'u16' ? 2 : type.name === 'u32' ? 4 : 0;
+	const encode = buildVectorEncoder(type._validatedWrite, type._codec.kind);
+	const decode = buildVectorDecoder(type._codec.read, type._codec.kind);
 	return new BcsType<InferBcsType<T>[], Iterable<InferBcsInput<T>> & { length: number }, Name>({
-		read: (reader) => {
-			const length = reader.readULEB();
-			const result: InferBcsType<T>[] = new Array(length);
-			for (let i = 0; i < length; i++) {
-				result[i] = type.read(reader);
-			}
-			return result;
-		},
-		write: (value, writer) => {
-			writer.writeULEB(value.length);
-			for (const item of value) {
-				type.write(item, writer);
-			}
-		},
+		read: decode as never,
+		write: encode as never,
+		serializedSize:
+			elementSize > 0
+				? (value) => {
+						const arr = value as Iterable<InferBcsInput<T>> & { length: number };
+						return ulebLength(arr.length) + arr.length * elementSize;
+					}
+				: undefined,
 		...options,
 		name: (options?.name ?? `vector<${type.name}>`) as Name,
 		validate: (value) => {
 			options?.validate?.(value);
-			if (!value || typeof value !== 'object' || !('length' in value)) {
+			if (!value || typeof value !== 'object' || !('length' in value))
 				throw new TypeError(`Expected array, found ${typeof value}`);
-			}
 		},
 	});
 }
 
-/**
- * Compares two byte arrays using lexicographic ordering.
- * This matches Rust's Ord implementation for Vec<u8>/[u8] which is used for BTreeMap key ordering.
- * Comparison is done byte-by-byte first, then by length if all compared bytes are equal.
- */
-export function compareBcsBytes(a: Uint8Array, b: Uint8Array): number {
-	for (let i = 0; i < Math.min(a.length, b.length); i++) {
-		if (a[i] !== b[i]) {
-			return a[i] - b[i];
-		}
-	}
-
-	return a.length - b.length;
-}
+export { compareBcsBytes };
 
 function map<K extends BcsType<any>, V extends BcsType<any>>(
 	keyType: K,
@@ -186,28 +201,19 @@ function map<K extends BcsType<any>, V extends BcsType<any>>(
 	Map<InferBcsInput<K>, InferBcsInput<V>>,
 	`Map<${K['name']}, ${V['name']}>`
 > {
-	return new BcsType({
-		name: `Map<${keyType.name}, ${valueType.name}>`,
-		read: (reader) => {
-			const length = reader.readULEB();
-			const result = new Map<InferBcsType<K>, InferBcsType<V>>();
-			for (let i = 0; i < length; i++) {
-				result.set(keyType.read(reader), valueType.read(reader));
-			}
-			return result;
-		},
-		write: (value, writer) => {
-			const entries = [...value.entries()].map(
-				([key, val]) => [keyType.serialize(key).toBytes(), val] as const,
-			);
-			entries.sort(([a], [b]) => compareBcsBytes(a, b));
-
-			writer.writeULEB(entries.length);
-			for (const [keyBytes, val] of entries) {
-				writer.writeBytes(keyBytes);
-				valueType.write(val, writer);
-			}
-		},
+	const decode = buildMapDecoder(keyType._codec.read, valueType._codec.read);
+	const encode = buildMapEncoder(
+		keyType._validatedWrite as (v: unknown) => void,
+		valueType._validatedWrite as (v: unknown) => void,
+	);
+	return new BcsType<
+		Map<InferBcsType<K>, InferBcsType<V>>,
+		Map<InferBcsInput<K>, InferBcsInput<V>>,
+		`Map<${K['name']}, ${V['name']}>`
+	>({
+		name: `Map<${keyType.name}, ${valueType.name}>` as `Map<${K['name']}, ${V['name']}>`,
+		read: decode as never,
+		write: encode as never,
 	});
 }
 
@@ -219,15 +225,15 @@ export const bcs = {
 	 */
 	u8(options?: BcsTypeOptions<number>) {
 		return uIntBcsType({
-			readMethod: 'read8',
-			writeMethod: 'write8',
 			size: 1,
 			maxValue: 2 ** 8 - 1,
 			...options,
 			name: (options?.name ?? 'u8') as 'u8',
+			read: decodeU8,
+			write: encodeU8,
+			kind: 'u8',
 		});
 	},
-
 	/**
 	 * Creates a BcsType that can be used to read and write a 16-bit unsigned integer.
 	 * @example
@@ -235,15 +241,15 @@ export const bcs = {
 	 */
 	u16(options?: BcsTypeOptions<number>) {
 		return uIntBcsType({
-			readMethod: 'read16',
-			writeMethod: 'write16',
 			size: 2,
 			maxValue: 2 ** 16 - 1,
 			...options,
 			name: (options?.name ?? 'u16') as 'u16',
+			read: decodeU16,
+			write: encodeU16,
+			kind: 'u16',
 		});
 	},
-
 	/**
 	 * Creates a BcsType that can be used to read and write a 32-bit unsigned integer.
 	 * @example
@@ -251,15 +257,15 @@ export const bcs = {
 	 */
 	u32(options?: BcsTypeOptions<number>) {
 		return uIntBcsType({
-			readMethod: 'read32',
-			writeMethod: 'write32',
 			size: 4,
 			maxValue: 2 ** 32 - 1,
 			...options,
 			name: (options?.name ?? 'u32') as 'u32',
+			read: decodeU32,
+			write: encodeU32,
+			kind: 'u32',
 		});
 	},
-
 	/**
 	 * Creates a BcsType that can be used to read and write a 64-bit unsigned integer.
 	 * @example
@@ -267,15 +273,15 @@ export const bcs = {
 	 */
 	u64(options?: BcsTypeOptions<string, number | bigint | string>) {
 		return bigUIntBcsType({
-			readMethod: 'read64',
-			writeMethod: 'write64',
 			size: 8,
 			maxValue: 2n ** 64n - 1n,
 			...options,
 			name: (options?.name ?? 'u64') as 'u64',
+			read: decodeU64,
+			write: encodeU64,
+			kind: 'u64',
 		});
 	},
-
 	/**
 	 * Creates a BcsType that can be used to read and write a 128-bit unsigned integer.
 	 * @example
@@ -283,15 +289,15 @@ export const bcs = {
 	 */
 	u128(options?: BcsTypeOptions<string, number | bigint | string>) {
 		return bigUIntBcsType({
-			readMethod: 'read128',
-			writeMethod: 'write128',
 			size: 16,
 			maxValue: 2n ** 128n - 1n,
 			...options,
 			name: (options?.name ?? 'u128') as 'u128',
+			read: decodeU128,
+			write: encodeU128,
+			kind: 'u128',
 		});
 	},
-
 	/**
 	 * Creates a BcsType that can be used to read and write a 256-bit unsigned integer.
 	 * @example
@@ -299,15 +305,15 @@ export const bcs = {
 	 */
 	u256(options?: BcsTypeOptions<string, number | bigint | string>) {
 		return bigUIntBcsType({
-			readMethod: 'read256',
-			writeMethod: 'write256',
 			size: 32,
 			maxValue: 2n ** 256n - 1n,
 			...options,
 			name: (options?.name ?? 'u256') as 'u256',
+			read: decodeU256,
+			write: encodeU256,
+			kind: 'u256',
 		});
 	},
-
 	/**
 	 * Creates a BcsType that can be used to read and write boolean values.
 	 * @example
@@ -316,35 +322,32 @@ export const bcs = {
 	bool(options?: BcsTypeOptions<boolean>) {
 		return fixedSizeBcsType({
 			size: 1,
-			read: (reader) => reader.read8() === 1,
-			write: (value, writer) => writer.write8(value ? 1 : 0),
+			read: decodeBool,
+			write: encodeBool,
+			kind: 'bool',
 			...options,
 			name: (options?.name ?? 'bool') as 'bool',
 			validate: (value) => {
 				options?.validate?.(value);
-				if (typeof value !== 'boolean') {
+				if (typeof value !== 'boolean')
 					throw new TypeError(`Expected boolean, found ${typeof value}`);
-				}
 			},
 		});
 	},
-
 	/**
 	 * Creates a BcsType that can be used to read and write unsigned LEB encoded integers
-	 * @example
-	 *
 	 */
 	uleb128(options?: BcsTypeOptions<number>) {
-		return dynamicSizeBcsType({
-			read: (reader) => reader.readULEB(),
-			serialize: (value) => {
-				return Uint8Array.from(ulebEncode(value));
+		return new BcsType<number, number, 'uleb128'>({
+			read: readUleb,
+			write: (v: number) => {
+				ensure(10);
+				writeUleb(v);
 			},
 			...options,
 			name: (options?.name ?? 'uleb128') as 'uleb128',
 		});
 	},
-
 	/**
 	 * Creates a BcsType representing a fixed length byte array
 	 * @param size The number of bytes this types represents
@@ -354,24 +357,20 @@ export const bcs = {
 	bytes<T extends number>(size: T, options?: BcsTypeOptions<Uint8Array, Iterable<number>>) {
 		return fixedSizeBcsType<Uint8Array, Iterable<number>, `bytes[${T}]`>({
 			size,
-			read: (reader) => reader.readBytes(size),
-			write: (value, writer) => {
-				writer.writeBytes(new Uint8Array(value));
-			},
+			read: () => decodeFixedBytes(size),
+			write: (v) => encodeFixedBytes(v, size),
+			kind: 'fixedBytes',
 			...options,
 			name: (options?.name ?? `bytes[${size}]`) as `bytes[${T}]`,
 			validate: (value) => {
 				options?.validate?.(value);
-				if (!value || typeof value !== 'object' || !('length' in value)) {
+				if (!value || typeof value !== 'object' || !('length' in value))
 					throw new TypeError(`Expected array, found ${typeof value}`);
-				}
-				if (value.length !== size) {
+				if (value.length !== size)
 					throw new TypeError(`Expected array of length ${size}, found ${value.length}`);
-				}
 			},
 		});
 	},
-
 	/**
 	 * Creates a BcsType representing a variable length byte array
 	 *
@@ -380,42 +379,42 @@ export const bcs = {
 	 */
 	byteVector(options?: BcsTypeOptions<Uint8Array, Iterable<number>>) {
 		return new BcsType<Uint8Array, Iterable<number>, 'vector<u8>'>({
-			read: (reader) => {
-				const length = reader.readULEB();
-
-				return reader.readBytes(length);
-			},
-			write: (value, writer) => {
-				const array = new Uint8Array(value);
-				writer.writeULEB(array.length);
-				writer.writeBytes(array);
-			},
+			read: decodeByteVector,
+			write: encodeByteVector,
+			kind: 'byteVector',
 			...options,
 			name: (options?.name ?? 'vector<u8>') as 'vector<u8>',
 			serializedSize: (value) => {
 				const length = 'length' in value ? (value.length as number) : null;
-				return length == null ? null : ulebEncode(length).length + length;
+				return length == null ? null : ulebLength(length) + length;
 			},
 			validate: (value) => {
 				options?.validate?.(value);
-				if (!value || typeof value !== 'object' || !('length' in value)) {
+				if (!value || typeof value !== 'object' || !('length' in value))
 					throw new TypeError(`Expected array, found ${typeof value}`);
-				}
 			},
 		});
 	},
-
 	/**
 	 * Creates a BcsType that can ser/de string values.  Strings will be UTF-8 encoded
 	 * @example
 	 * bcs.string().serialize('a').toBytes() // Uint8Array [ 1, 97 ]
 	 */
 	string(options?: BcsTypeOptions<string>) {
-		return stringLikeBcsType({
-			toBytes: (value) => new TextEncoder().encode(value),
-			fromBytes: (bytes) => new TextDecoder().decode(bytes),
+		return new BcsType<string, string, 'string'>({
 			...options,
 			name: (options?.name ?? 'string') as 'string',
+			read: decodeString,
+			write: encodeString,
+			kind: 'string',
+			validate: (value) => {
+				if (typeof value !== 'string') {
+					throw new TypeError(
+						`Invalid ${options?.name ?? 'string'} value: ${value}. Expected string`,
+					);
+				}
+				options?.validate?.(value);
+			},
 		});
 	},
 	/**
@@ -460,21 +459,13 @@ export const bcs = {
 	>(
 		fields: T,
 		options?: BcsTypeOptions<
-			{
-				-readonly [K in keyof T]: T[K] extends BcsType<infer T, any> ? T : never;
-			},
-			{
-				[K in keyof T]: T[K] extends BcsType<any, infer T> ? T : never;
-			},
+			{ -readonly [K in keyof T]: T[K] extends BcsType<infer T, any> ? T : never },
+			{ [K in keyof T]: T[K] extends BcsType<any, infer T> ? T : never },
 			Name
 		>,
 	) {
-		return new BcsTuple<T, Name>({
-			fields,
-			...options,
-		});
+		return new BcsTuple<T, Name>({ fields, ...options });
 	},
-
 	/**
 	 * Creates a BcsType representing a struct of a given set of fields
 	 * @param name The name of the struct
@@ -492,23 +483,14 @@ export const bcs = {
 		fields: T,
 		options?: Omit<
 			BcsTypeOptions<
-				{
-					[K in keyof T]: T[K] extends BcsType<infer U, any> ? U : never;
-				},
-				{
-					[K in keyof T]: T[K] extends BcsType<any, infer U> ? U : never;
-				}
+				{ [K in keyof T]: T[K] extends BcsType<infer U, any> ? U : never },
+				{ [K in keyof T]: T[K] extends BcsType<any, infer U> ? U : never }
 			>,
 			'name'
 		>,
 	) {
-		return new BcsStruct<T>({
-			name,
-			fields,
-			...options,
-		});
+		return new BcsStruct<T>({ name, fields, ...options });
 	},
-
 	/**
 	 * Creates a BcsType representing an enum of a given set of options
 	 * @param name The name of the enum
@@ -530,9 +512,7 @@ export const bcs = {
 		fields: T,
 		options?: Omit<
 			BcsTypeOptions<
-				EnumOutputShape<{
-					[K in keyof T]: T[K] extends BcsType<infer U, any, any> ? U : true;
-				}>,
+				EnumOutputShape<{ [K in keyof T]: T[K] extends BcsType<infer U, any, any> ? U : true }>,
 				EnumInputShape<{
 					[K in keyof T]: T[K] extends BcsType<any, infer U, any> ? U : boolean | object | null;
 				}>,
@@ -541,13 +521,8 @@ export const bcs = {
 			'name'
 		>,
 	) {
-		return new BcsEnum<T, Name>({
-			name,
-			fields,
-			...options,
-		});
+		return new BcsEnum<T, Name>({ name, fields, ...options });
 	},
-
 	/**
 	 * Creates a BcsType representing a map of a given key and value type
 	 * @param keyType The BcsType of the key
