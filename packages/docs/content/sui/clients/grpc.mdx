@@ -59,8 +59,8 @@ const grpcClient = new SuiGrpcClient({
 ### Native gRPC transport
 
 For server-side applications (Node.js, Bun, etc.), you can use the native gRPC transport with
-`@protobuf-ts/grpc-transport` and `@grpc/grpc-js`. This uses HTTP/2 for full gRPC protocol support
-including client streaming and bidirectional streaming.
+`@protobuf-ts/grpc-transport` and `@grpc/grpc-js`. This uses HTTP/2 with the native gRPC protocol
+rather than the gRPC-web translation layer.
 
 Install the required packages:
 
