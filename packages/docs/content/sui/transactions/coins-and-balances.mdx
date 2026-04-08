@@ -73,7 +73,7 @@ tx.moveCall({
 
 <Callout type="info">
 	Transactions built entirely from `tx.balance()` and gasless-eligible Move calls like `send_funds`
-	and `redeem_funds` may qualify for free tier (zero gas) when the network supports it.
+	and `redeem_funds` may qualify as [gasless transactions](#gasless-transactions).
 </Callout>
 
 ### Options
@@ -239,3 +239,63 @@ for (const coin of objects) {
 	console.log(coin.objectId, coin.balance);
 }
 ```
+
+## Gasless transactions
+
+Gasless transactions enable peer-to-peer payments of qualified stablecoins to execute without paying
+gas fees in SUI. The sender does not need to hold SUI in their wallet. Gasless transactions are an
+extension of
+[address balances](https://docs.sui.io/guides/developer/digital-assets/address-balances), using
+`send_funds()` with `gas=0` and `gas_budget=0`. See the
+[Sui gasless transactions guide](https://docs.sui.io/guides/developer/transactions/gasless-transactions)
+for full details.
+
+Gasless transactions are limited to the Move functions `withdrawal_split`, `redeem_funds`, and
+`send_funds`. They cannot be used to write any object. When the network is congested, transactions
+that pay gas fees are prioritized over gasless transactions.
+
+### Qualified stablecoins
+
+The following stablecoins are qualified for gasless transactions:
+
+- USDC
+- USDY (Ondo)
+- AUSD (Agora)
+- FdUSD (First Digital)
+- BUCK (Bucket Protocol)
+- YLSD (Figure)
+
+### SDK support (gRPC and GraphQL)
+
+When using the gRPC or GraphQL transports, gasless detection is automatic. During transaction
+resolution, the SDK delegates gas selection to the network. If the transaction qualifies, the
+network returns `gas=0` and `gas_budget=0` with an empty payment list. No special configuration is
+needed.
+
+```tsx
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Transaction } from '@mysten/sui/transactions';
+
+const client = new SuiGrpcClient({ url: 'https://grpc.mainnet.sui.io:443' });
+
+const tx = new Transaction();
+tx.setSender(keypair.toSuiAddress());
+
+tx.moveCall({
+	target: '0x2::balance::send_funds',
+	typeArguments: ['0x...::usdc::USDC'],
+	arguments: [
+		tx.balance({ type: '0x...::usdc::USDC', balance: 1_000_000 }),
+		tx.pure.address(recipient),
+	],
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+The JSON-RPC transport does not automatically detect gasless eligibility. You can opt in by setting
+the gas price to zero with `tx.setGasPrice(0)`, but this will cause the transaction to fail if it is
+not actually gasless-eligible.
