@@ -1,5 +1,11 @@
 # @mysten/codegen
 
+## 0.8.4
+
+### Patch Changes
+
+- 6fd995d: Use type imports in generated code for verbatimModuleSyntax compatibility
+
 ## 0.8.3
 
 ### Patch Changes

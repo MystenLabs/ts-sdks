@@ -1,5 +1,11 @@
 # @mysten/suins
 
+## 1.0.3
+
+### Patch Changes
+
+- 6fd995d: Use type imports in generated code for verbatimModuleSyntax compatibility
+
 ## 1.0.2
 
 ### Patch Changes

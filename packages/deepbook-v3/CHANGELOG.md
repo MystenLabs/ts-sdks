@@ -1,5 +1,11 @@
 # @mysten/deepbook-v3
 
+## 1.2.2
+
+### Patch Changes
+
+- 6fd995d: Use type imports in generated code for verbatimModuleSyntax compatibility
+
 ## 1.2.1
 
 ### Patch Changes

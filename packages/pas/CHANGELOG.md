@@ -1,5 +1,11 @@
 # @mysten/pas
 
+## 0.0.3
+
+### Patch Changes
+
+- 6fd995d: Use type imports in generated code for verbatimModuleSyntax compatibility
+
 ## 0.0.2
 
 ### Patch Changes

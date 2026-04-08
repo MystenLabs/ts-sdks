@@ -1,5 +1,11 @@
 # @mysten/walrus
 
+## 1.1.1
+
+### Patch Changes
+
+- 6fd995d: Use type imports in generated code for verbatimModuleSyntax compatibility
+
 ## 1.1.0
 
 ### Minor Changes

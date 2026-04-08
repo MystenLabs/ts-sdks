@@ -1,5 +1,13 @@
 # @mysten/create-dapp
 
+## 0.6.4
+
+### Patch Changes
+
+- 6fd995d: Use type imports in generated code for verbatimModuleSyntax compatibility
+- Updated dependencies [6fd995d]
+  - @mysten/codegen@0.8.4
+
 ## 0.6.3
 
 ### Patch Changes
