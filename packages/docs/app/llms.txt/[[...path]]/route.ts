@@ -51,7 +51,6 @@ function buildIndex(baseUrl: string) {
 		let content = fs.readFileSync(distIndex, 'utf-8');
 		// Rewrite relative links (./section/page.md) to absolute URLs
 		content = content.replace(/\(\.\/([^)]+\.md)\)/g, `(${baseUrl}/$1)`);
-		content = content.replace(/\(\.\/([^)]+\/index\.md)\)/g, `(${baseUrl}/$1)`);
 		return new Response(content, {
 			headers: {
 				'Content-Type': 'text/plain; charset=utf-8',
