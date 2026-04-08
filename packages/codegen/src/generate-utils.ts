@@ -4,16 +4,16 @@
 export const utilsContent = /* ts */ `
 import {
 	bcs,
-	BcsType,
-	TypeTag,
+	type BcsType,
+	type TypeTag,
 	TypeTagSerializer,
 	BcsStruct,
 	BcsEnum,
 	BcsTuple,
 } from '@mysten/sui/bcs';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
-import { TransactionArgument, isArgument } from '@mysten/sui/transactions';
-import { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
+import { type TransactionArgument, isArgument } from '@mysten/sui/transactions';
+import { type ClientWithCoreApi, type SuiClientTypes } from '@mysten/sui/client';
 
 const MOVE_STDLIB_ADDRESS = normalizeSuiAddress('0x1');
 const SUI_FRAMEWORK_ADDRESS = normalizeSuiAddress('0x2');
