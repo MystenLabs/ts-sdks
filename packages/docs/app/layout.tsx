@@ -43,6 +43,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 				<meta name="algolia-site-verification" content="BCA21DA2879818D2" />
 			</head>
 			<body className="flex flex-col min-h-screen">
+				<a
+					href="/llms.txt"
+					style={{
+						position: 'absolute',
+						width: '1px',
+						height: '1px',
+						overflow: 'hidden',
+						clip: 'rect(0,0,0,0)',
+						whiteSpace: 'nowrap',
+					}}
+				>
+					llms.txt
+				</a>
 				<Banner id="sdk-2-migration">
 					@mysten/sui v2.0 and a new dApp Kit are here!&nbsp;
 					<Link href="/sui/migrations/sui-2.0" className="underline">
