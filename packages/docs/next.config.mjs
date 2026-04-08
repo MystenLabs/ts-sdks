@@ -21,6 +21,10 @@ const config = {
 				source: '/:path*/llms.txt',
 				destination: '/llms.txt/:path*',
 			},
+			{
+				source: '/:path*.md',
+				destination: '/api/md/:path*',
+			},
 		];
 	},
 	redirects: () => {

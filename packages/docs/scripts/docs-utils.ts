@@ -194,7 +194,7 @@ export function getPageEntries(
 					addEntry({
 						title: fm.title || subTitle,
 						description: fm.description || subMeta?.description || '',
-						relativePath: `${basePath}/${pageName}/index.md`,
+						relativePath: `${basePath}/${pageName}.md`,
 					});
 				}
 
@@ -203,10 +203,12 @@ export function getPageEntries(
 				entries.push(...subEntries);
 			} else if (fs.existsSync(mdxFile)) {
 				const fm = readMdxFrontmatter(mdxFile);
+				// index.mdx represents the parent directory's page, not a child page
+				const relativePath = pageName === 'index' ? `${basePath}.md` : `${basePath}/${pageName}.md`;
 				addEntry({
 					title: fm.title || pageName,
 					description: fm.description || '',
-					relativePath: `${basePath}/${pageName}.md`,
+					relativePath,
 				});
 			}
 		}
@@ -271,14 +273,14 @@ export function generateSectionIndex(
 	if (fs.existsSync(indexFile)) {
 		const fm = readMdxFrontmatter(indexFile);
 		const desc = fm.description || 'Overview and getting started';
-		lines.push(`- [${fm.title || sectionTitle}](${basePath}/index.md): ${desc}`);
+		lines.push(`- [${fm.title || sectionTitle}](${basePath}.md): ${desc}`);
 	}
 
 	// Add all pages
 	const entries = getPageEntries(sectionDir, basePath);
 	for (const entry of entries) {
 		// Skip if it's the same as the index we just added
-		if (entry.relativePath === `${basePath}/index.md`) continue;
+		if (entry.relativePath === `${basePath}.md`) continue;
 
 		// Skip excluded subdirectories (check relative to basePath)
 		if (sectionExclusions.some((excl) => entry.relativePath.startsWith(`${basePath}/${excl}/`))) {
