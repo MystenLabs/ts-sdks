@@ -20,6 +20,7 @@
 		"dev": "next dev",
 		"start": "next start",
 		"postinstall": "fumadocs-mdx",
+		"test": "tsx scripts/validate-llm-docs.ts",
 		"validate-docs": "tsx scripts/validate-llm-docs.ts",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
