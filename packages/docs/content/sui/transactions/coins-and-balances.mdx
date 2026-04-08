@@ -250,27 +250,14 @@ extension of
 [Sui gasless transactions guide](https://docs.sui.io/guides/developer/transactions/gasless-transactions)
 for full details.
 
-Gasless transactions are limited to the Move functions `withdrawal_split`, `redeem_funds`, and
-`send_funds`. They cannot be used to write any object. When the network is congested, transactions
-that pay gas fees are prioritized over gasless transactions.
-
-### Qualified stablecoins
-
-The following stablecoins are qualified for gasless transactions:
-
-- USDC
-- USDY (Ondo)
-- AUSD (Agora)
-- FdUSD (First Digital)
-- BUCK (Bucket Protocol)
-- YLSD (Figure)
+Gasless transactions are limited to transactions that send funds as balances for specific
+stablecoins. Using `0x2::balance::send_funds` with `tx.balance()` is the recommended way to build
+gasless transactions with the Typescript SDK.
 
 ### SDK support (gRPC and GraphQL)
 
-When using the gRPC or GraphQL transports, gasless detection is automatic. During transaction
-resolution, the SDK delegates gas selection to the network. If the transaction qualifies, the
-network returns `gas=0` and `gas_budget=0` with an empty payment list. No special configuration is
-needed.
+When using the gRPC or GraphQL transports, transactions that qualify are automatically detected, and
+the gas price will be set when the transaction is built.
 
 ```tsx
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -299,3 +286,12 @@ const result = await client.signAndExecuteTransaction({
 The JSON-RPC transport does not automatically detect gasless eligibility. You can opt in by setting
 the gas price to zero with `tx.setGasPrice(0)`, but this will cause the transaction to fail if it is
 not actually gasless-eligible.
+
+<Callout type="warning">
+	When executing through a wallet (using dapp-kit), you may need to build the transaction first if
+	the wallet itself is still using JSON-RPC to execute transactions.
+
+    You can call `tx.build({ client: grpcClient })` which will use your grpc client to set the gas price
+    correctly for your transaction.
+
+</Callout>
