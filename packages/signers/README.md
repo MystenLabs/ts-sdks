@@ -195,7 +195,7 @@ console.log(signer.toSuiAddress());
 
 // Define a test transaction:
 const testTransaction = new Transaction();
-const transactionBytes = await testTransaction.build();
+const transactionBytes = await testTransaction.build({ client: suiClient });
 
 // Sign a test transaction:
 const { signature } = await signer.signTransaction(transactionBytes);
