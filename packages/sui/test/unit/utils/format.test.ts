@@ -1,113 +1,90 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
-import { formatAmount, formatSui, parseAmount, parseSui } from '../../../src/utils/format.js';
+import { parseToMist, parseToUnits } from '../../../src/utils/format.js';
 
-describe('formatAmount', () => {
-	it('formats whole numbers', () => {
-		expect(formatAmount(1000000000n, 9)).toEqual('1');
-		expect(formatAmount(5000000000n, 9)).toEqual('5');
-		expect(formatAmount(0n, 9)).toEqual('0');
+describe('parseToUnits', () => {
+	test('parses whole and fractional amounts', () => {
+		expect(parseToUnits('1', 9)).toEqual(1000000000n);
+		expect(parseToUnits('1.5', 9)).toEqual(1500000000n);
+		expect(parseToUnits('0.000000001', 9)).toEqual(1n);
+		expect(parseToUnits('0', 9)).toEqual(0n);
 	});
 
-	it('formats fractional amounts and strips trailing zeros', () => {
-		expect(formatAmount(1500000000n, 9)).toEqual('1.5');
-		expect(formatAmount(1230000000n, 9)).toEqual('1.23');
-		expect(formatAmount(100000000n, 9)).toEqual('0.1');
-		expect(formatAmount(1n, 9)).toEqual('0.000000001');
+	test('handles negative values', () => {
+		expect(parseToUnits('-1.5', 9)).toEqual(-1500000000n);
+		expect(parseToUnits('-0.5', 9)).toEqual(-500000000n);
 	});
 
-	it('works with different decimal places', () => {
-		expect(formatAmount(1000000n, 6)).toEqual('1');
-		expect(formatAmount(1500000n, 6)).toEqual('1.5');
-		expect(formatAmount(42n, 0)).toEqual('42');
+	test('normalizes negative zero to 0n', () => {
+		expect(parseToUnits('-0', 9)).toEqual(0n);
+		expect(parseToUnits('-0.0', 9)).toEqual(0n);
+		expect(parseToUnits('-0.000000000', 9)).toEqual(0n);
 	});
 
-	it('handles negative values', () => {
-		expect(formatAmount(-1n, 9)).toEqual('-0.000000001');
-		expect(formatAmount(-1500000000n, 9)).toEqual('-1.5');
-		expect(formatAmount(-1000000000n, 9)).toEqual('-1');
+	test('accepts leading zeros (ecosystem norm)', () => {
+		expect(parseToUnits('01.5', 9)).toEqual(1500000000n);
+		expect(parseToUnits('007', 9)).toEqual(7000000000n);
 	});
 
-	it('throws on invalid decimals', () => {
-		expect(() => formatAmount(1n, -1)).toThrow('Invalid decimals');
-		expect(() => formatAmount(1n, 78)).toThrow('Invalid decimals');
+	test('works with different decimal places', () => {
+		expect(parseToUnits('1.5', 6)).toEqual(1500000n);
+		expect(parseToUnits('42', 0)).toEqual(42n);
 	});
 
-	it('handles values beyond MAX_SAFE_INTEGER', () => {
+	test('throws on too many decimal places', () => {
+		expect(() => parseToUnits('1.0000000001', 9)).toThrow('Too many decimal places');
+	});
+
+	test('rejects invalid input', () => {
+		expect(() => parseToUnits('', 9)).toThrow('Invalid amount');
+		expect(() => parseToUnits('0x1', 9)).toThrow('Invalid amount');
+		expect(() => parseToUnits('.5', 9)).toThrow('Invalid amount');
+		expect(() => parseToUnits('1.', 9)).toThrow('Invalid amount');
+		expect(() => parseToUnits('1.2.3', 9)).toThrow('Invalid amount');
+		expect(() => parseToUnits(' 1 ', 9)).toThrow('Invalid amount');
+		expect(() => parseToUnits('1e5', 9)).toThrow('Invalid amount');
+	});
+
+	test('throws on invalid decimals', () => {
+		expect(() => parseToUnits('1', -1)).toThrow('Invalid decimals');
+		expect(() => parseToUnits('1', 78)).toThrow('Invalid decimals');
+	});
+
+	test('preserves precision for values above Number.MAX_SAFE_INTEGER', () => {
+		// The naive workaround `BigInt(Math.round(parseFloat(s) * 1e9))` silently
+		// loses precision for amounts above ~9M SUI (MAX_SAFE_INTEGER / 1e9).
+		// These cases are the whole reason parseToUnits exists.
+		expect(parseToUnits('10000000', 9)).toEqual(10_000_000_000_000_000n);
+		expect(parseToUnits('9007199.254740993', 9)).toEqual(9_007_199_254_740_993n);
+
 		const u128Max = 2n ** 128n - 1n;
-		expect(formatAmount(u128Max, 9)).toEqual('340282366920938463463374607431.768211455');
+		expect(parseToUnits('340282366920938463463374607431.768211455', 9)).toEqual(u128Max);
 	});
 });
 
-describe('parseAmount', () => {
-	it('parses whole and fractional amounts', () => {
-		expect(parseAmount('1', 9)).toEqual(1000000000n);
-		expect(parseAmount('1.5', 9)).toEqual(1500000000n);
-		expect(parseAmount('0.000000001', 9)).toEqual(1n);
-		expect(parseAmount('0', 9)).toEqual(0n);
+describe('parseToMist', () => {
+	test('parses SUI decimal strings into MIST', () => {
+		expect(parseToMist('1')).toEqual(1000000000n);
+		expect(parseToMist('1.5')).toEqual(1500000000n);
+		expect(parseToMist('0.000000001')).toEqual(1n);
 	});
 
-	it('handles negative values', () => {
-		expect(parseAmount('-1.5', 9)).toEqual(-1500000000n);
-		expect(parseAmount('-0.5', 9)).toEqual(-500000000n);
+	test('handles negative values', () => {
+		expect(parseToMist('-1.5')).toEqual(-1500000000n);
 	});
 
-	it('works with different decimal places', () => {
-		expect(parseAmount('1.5', 6)).toEqual(1500000n);
-		expect(parseAmount('42', 0)).toEqual(42n);
+	test('rejects invalid input', () => {
+		expect(() => parseToMist('1.')).toThrow('Invalid amount');
+		expect(() => parseToMist('1.0000000001')).toThrow('Too many decimal places');
 	});
 
-	it('throws on too many decimal places', () => {
-		expect(() => parseAmount('1.0000000001', 9)).toThrow('Too many decimal places');
-	});
-
-	it('rejects invalid input', () => {
-		expect(() => parseAmount('', 9)).toThrow('Invalid amount');
-		expect(() => parseAmount('0x1', 9)).toThrow('Invalid amount');
-		expect(() => parseAmount('.5', 9)).toThrow('Invalid amount');
-		expect(() => parseAmount('1.2.3', 9)).toThrow('Invalid amount');
-		expect(() => parseAmount(' 1 ', 9)).toThrow('Invalid amount');
-		expect(() => parseAmount('1e5', 9)).toThrow('Invalid amount');
-	});
-
-	it('throws on invalid decimals', () => {
-		expect(() => parseAmount('1', -1)).toThrow('Invalid decimals');
-		expect(() => parseAmount('1', 78)).toThrow('Invalid decimals');
-	});
-
-	it('handles values beyond MAX_SAFE_INTEGER', () => {
-		const u128Max = 2n ** 128n - 1n;
-		expect(parseAmount('340282366920938463463374607431.768211455', 9)).toEqual(u128Max);
-	});
-});
-
-describe('formatAmount/parseAmount round-trip', () => {
-	it('round-trips across value ranges and decimal configurations', () => {
-		const cases: [bigint, number][] = [
-			[0n, 9],
-			[1n, 9],
-			[1500000000n, 9],
-			[999999999n, 9],
-			[-1n, 9],
-			[-1500000000n, 9],
-			[1500000n, 6],
-			[42n, 0],
-			[2n ** 128n - 1n, 9],
-		];
-		for (const [value, decimals] of cases) {
-			expect(parseAmount(formatAmount(value, decimals), decimals)).toEqual(value);
-		}
-	});
-});
-
-describe('formatSui/parseSui', () => {
-	it('formats MIST to SUI and back', () => {
-		expect(formatSui(1000000000n)).toEqual('1');
-		expect(formatSui(1500000000n)).toEqual('1.5');
-		expect(parseSui('1')).toEqual(1000000000n);
-		expect(parseSui('1.5')).toEqual(1500000000n);
+	test('preserves precision above Number.MAX_SAFE_INTEGER', () => {
+		// Same precision guarantee as parseToUnits — parseToMist is just a
+		// 9-decimal wrapper, but test it independently so the contract is
+		// documented at the SUI-specific entry point.
+		expect(parseToMist('9007199.254740993')).toEqual(9_007_199_254_740_993n);
 	});
 });
