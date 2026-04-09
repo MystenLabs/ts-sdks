@@ -34,6 +34,10 @@ const AMOUNT_REGEX = /^-?[0-9]+(\.[0-9]+)?$/;
  * Throws on excess decimal places rather than rounding: callers must handle precision
  * explicitly.
  *
+ * @throws error if `decimals` is negative, non-integer, or greater than 77.
+ * @throws error if `amount` is not a valid decimal string (rejects whitespace, scientific notation, bare dots).
+ * @throws error if `amount` has more fractional digits than `decimals` allows.
+ *
  * @example
  * ```ts
  * parseToUnits('1', 9)      // => 1000000000n

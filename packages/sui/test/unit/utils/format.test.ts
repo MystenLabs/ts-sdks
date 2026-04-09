@@ -32,6 +32,7 @@ describe('parseToUnits', () => {
 	test('works with different decimal places', () => {
 		expect(parseToUnits('1.5', 6)).toEqual(1500000n);
 		expect(parseToUnits('42', 0)).toEqual(42n);
+		expect(parseToUnits('1', 77)).toEqual(10n ** 77n);
 	});
 
 	test('throws on too many decimal places', () => {
@@ -51,6 +52,7 @@ describe('parseToUnits', () => {
 	test('throws on invalid decimals', () => {
 		expect(() => parseToUnits('1', -1)).toThrow('Invalid decimals');
 		expect(() => parseToUnits('1', 78)).toThrow('Invalid decimals');
+		expect(() => parseToUnits('1', 1.5)).toThrow('Invalid decimals');
 	});
 
 	test('preserves precision for values above Number.MAX_SAFE_INTEGER', () => {
