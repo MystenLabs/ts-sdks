@@ -20,7 +20,7 @@ export function formatDigest(digest: string) {
 	return `${digest.slice(0, 10)}${ELLIPSIS}`;
 }
 
-const AMOUNT_REGEX = /^-?[0-9]*\.?[0-9]+$/;
+const AMOUNT_REGEX = /^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$/;
 
 /** Parse a decimal string into its smallest-unit bigint representation. No floating point. */
 export function parseToUnits(amount: string, decimals: number): bigint {
@@ -49,7 +49,7 @@ export function parseToUnits(amount: string, decimals: number): bigint {
 	return negative ? -result : result;
 }
 
-/** Parse a SUI decimal string into MIST (10^-9 SUI). */
+/** Parse a SUI decimal string into MIST. */
 export function parseToMist(amount: string): bigint {
 	return parseToUnits(amount, SUI_DECIMALS);
 }

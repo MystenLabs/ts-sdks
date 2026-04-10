@@ -24,7 +24,7 @@ describe('parseToUnits', () => {
 		expect(parseToUnits('-0.000000000', 9)).toEqual(0n);
 	});
 
-	test('accepts leading zeros (ecosystem norm)', () => {
+	test('accepts leading zeros', () => {
 		expect(parseToUnits('01.5', 9)).toEqual(1500000000n);
 		expect(parseToUnits('007', 9)).toEqual(7000000000n);
 	});
@@ -51,6 +51,8 @@ describe('parseToUnits', () => {
 		expect(() => parseToUnits('1.2.3', 9)).toThrow('Invalid amount');
 		expect(() => parseToUnits(' 1 ', 9)).toThrow('Invalid amount');
 		expect(() => parseToUnits('1e5', 9)).toThrow('Invalid amount');
+		expect(() => parseToUnits('1,000', 9)).toThrow('Invalid amount');
+		expect(() => parseToUnits('+1.5', 9)).toThrow('Invalid amount');
 	});
 
 	test('throws on invalid decimals', () => {
