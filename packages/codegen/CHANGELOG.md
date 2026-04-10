@@ -1,5 +1,12 @@
 # @mysten/codegen
 
+## 0.8.5
+
+### Patch Changes
+
+- 23fee00: Fix vector type codegen for union inner types (e.g. `vector<u64>`) by using `Array<T>`
+  instead of `T[]` to prevent incorrect TypeScript type parsing when T is a union type.
+
 ## 0.8.4
 
 ### Patch Changes

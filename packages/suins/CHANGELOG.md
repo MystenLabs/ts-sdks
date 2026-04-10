@@ -1,5 +1,12 @@
 # @mysten/suins
 
+## 1.0.4
+
+### Patch Changes
+
+- 993aa1f: Bump `axios` to `^1.15.0` to patch GHSA-3p68-rc4w-qgx5 (NO_PROXY hostname normalization
+  SSRF).
+
 ## 1.0.3
 
 ### Patch Changes
