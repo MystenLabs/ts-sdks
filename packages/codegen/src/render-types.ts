@@ -116,7 +116,7 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 	if ('vector' in type) {
 		switch (options.format) {
 			case 'typescriptArg':
-				return `${renderTypeSignature(type.vector, options)}[]`;
+				return `Array<${renderTypeSignature(type.vector, options)}>`;
 			case 'typeTag':
 				return `vector<${renderTypeSignature(type.vector, options)}>`;
 			case 'bcs':

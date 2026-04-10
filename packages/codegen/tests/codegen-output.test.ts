@@ -435,7 +435,7 @@ describe('function codegen output', () => {
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface BatchSetArguments {
 			    counter: RawTransactionArgument<string>;
-			    values: RawTransactionArgument<number | bigint[]>;
+			    values: RawTransactionArgument<Array<number | bigint>>;
 			}"
 		`);
 	});
