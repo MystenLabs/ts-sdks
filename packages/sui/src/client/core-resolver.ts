@@ -11,7 +11,7 @@ import { createCoinReservationRef } from '../utils/coin-reservation.js';
 import type { ClientWithCoreApi } from './core.js';
 import type { CallArg, Command } from '../transactions/data/internal.js';
 import type { SuiClientTypes } from './types.js';
-import { SimulationError } from './errors.js';
+import { ObjectError, SimulationError } from './errors.js';
 import { Inputs } from '../transactions/Inputs.js';
 import { getPureBcsSchema, isTxContext } from '../transactions/serializer.js';
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
@@ -294,17 +294,18 @@ async function resolveObjectReferences(
 		}),
 	);
 
-	const invalidObjects = Array.from(responsesById)
-		.filter(([_, obj]) => obj instanceof Error)
-		.map(([_, obj]) => (obj as Error).message);
-
-	if (invalidObjects.length) {
-		throw new Error(`The following input objects are invalid: ${invalidObjects.join(', ')}`);
+	// Rethrow the first ObjectError so `instanceof ObjectError` and `error.code` still narrow.
+	// Multi-invalid aggregation is out of scope; introduce `AggregateObjectError` if needed later.
+	const firstInvalid = Array.from(responsesById.values()).find(
+		(obj): obj is ObjectError => obj instanceof ObjectError,
+	);
+	if (firstInvalid) {
+		throw firstInvalid;
 	}
 
 	const objects = resolved.map((object) => {
-		if (object instanceof Error) {
-			throw new Error(`Failed to fetch object: ${object.message}`);
+		if (object instanceof ObjectError) {
+			throw object;
 		}
 		const owner = object.owner;
 		const initialSharedVersion =

@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Transaction } from '../../../src/transactions/index.js';
 import { Inputs } from '../../../src/transactions/Inputs.js';
 import { coreClientResolveTransactionPlugin } from '../../../src/client/core-resolver.js';
+import { ObjectError } from '../../../src/client/errors.js';
 import {
 	isCoinReservationDigest,
 	parseCoinReservationBalance,
@@ -411,5 +412,44 @@ describe('Chain identifier fetch gating', () => {
 		await tx.build({ client: client as any });
 
 		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();
+	});
+});
+
+describe('coreClientResolveTransactionPlugin object error propagation', () => {
+	it('rethrows the original ObjectError instance when an unresolved input is missing', async () => {
+		// Regression test for the case where `resolveObjectReferences` previously flattened
+		// `ObjectError` results from `client.core.getObjects` into a plain `new Error(...)`.
+		// The contract the PR unifies — `instanceof ObjectError` works consistently across
+		// the call sites — must hold through the transaction resolver path as well, not
+		// only through `CoreClient.getObject` direct calls.
+		const missingId = '0x' + '9'.repeat(64);
+		const wireError = { code: 'notExists' as const, object_id: missingId };
+		const objErr = new ObjectError('notFound', missingId, {
+			transportDetails: { $kind: 'jsonRpc', response: wireError },
+		});
+
+		const client = createMockClient();
+		client.core.getObjects = vi.fn().mockResolvedValue({ objects: [objErr] });
+
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasBudget(10000000);
+		tx.setGasPayment([]); // skip gas payment resolution
+		tx.object(missingId);
+
+		let thrown: unknown;
+		try {
+			await tx.build({ client: client as any });
+		} catch (e) {
+			thrown = e;
+		}
+
+		// Reference identity — the resolver must rethrow the exact instance the
+		// core client produced, preserving `code`, `objectId`, and `transportDetails`.
+		expect(thrown).toBe(objErr);
+		expect(thrown).toBeInstanceOf(ObjectError);
+		expect((thrown as ObjectError).code).toBe('notFound');
+		expect((thrown as ObjectError).objectId).toBe(missingId);
+		expect((thrown as ObjectError).transportDetails.$kind).toBe('jsonRpc');
 	});
 });

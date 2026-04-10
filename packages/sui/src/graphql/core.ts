@@ -108,12 +108,17 @@ export class GraphQLCoreClient extends CoreClient {
 			);
 			results.push(
 				...batch
-					.map((id) => normalizeSuiAddress(id))
-					.map(
-						(id) =>
-							page.find((obj) => obj?.address === id) ??
-							new ObjectError('notFound', `Object ${id} not found`),
-					)
+					.map((rawId) => {
+						// Normalize for server lookup, but preserve `rawId` on ObjectError so
+						// `error.objectId` matches what the user passed in.
+						const normalized = normalizeSuiAddress(rawId);
+						return (
+							page.find((obj) => obj?.address === normalized) ??
+							new ObjectError('notFound', rawId, {
+								transportDetails: { $kind: 'graphql' },
+							})
+						);
+					})
 					.map((obj) => {
 						if (obj instanceof ObjectError) {
 							return obj;
