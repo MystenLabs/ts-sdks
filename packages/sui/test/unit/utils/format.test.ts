@@ -32,6 +32,7 @@ describe('parseToUnits', () => {
 	test('accepts shorthand decimal notation', () => {
 		expect(parseToUnits('.5', 9)).toEqual(500000000n);
 		expect(parseToUnits('.000000001', 9)).toEqual(1n);
+		expect(parseToUnits('-.5', 9)).toEqual(-500000000n);
 	});
 
 	test('works with different decimal places', () => {

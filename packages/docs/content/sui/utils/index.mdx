@@ -34,13 +34,10 @@ You can use the following helpers to format various values:
 
 ## Parsers
 
-You can use the following helpers to parse human-readable decimal strings into their on-chain
-smallest-unit representation. These use pure bigint arithmetic — no floating point — so precision is
-preserved for values well above `Number.MAX_SAFE_INTEGER`, where the common
-`BigInt(Math.round(parseFloat(s) * 1e9))` workaround silently corrupts amounts above ~9M SUI.
+You can use the following helpers to parse decimal strings into on-chain smallest-unit bigints:
 
 - `parseToUnits`: Parse a decimal string into a `bigint`, given a coin's `decimals`
-- `parseToMist`: Parse a SUI decimal string into MIST (SUI's smallest unit, 9 decimals)
+- `parseToMist`: Parse a SUI decimal string into MIST (9 decimals)
 
 ## Validators
 
