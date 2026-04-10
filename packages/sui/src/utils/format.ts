@@ -20,34 +20,11 @@ export function formatDigest(digest: string) {
 	return `${digest.slice(0, 10)}${ELLIPSIS}`;
 }
 
-// Requires at least one digit before an optional fractional part, and if a
-// fractional part is present it must have at least one digit. This rejects
-// ambiguous forms like "1." or "." while still accepting leading zeros
-// ("01.5") which are an ecosystem norm (e.g. viem's parseUnits).
-const AMOUNT_REGEX = /^-?[0-9]+(\.[0-9]+)?$/;
+const AMOUNT_REGEX = /^-?[0-9]*\.?[0-9]+$/;
 
-/**
- * Parse a human-readable decimal string into a bigint in the smallest unit for a coin
- * with the given number of decimals. Uses pure bigint arithmetic — no floating point —
- * so it preserves precision for values well above `Number.MAX_SAFE_INTEGER`.
- *
- * Throws on excess decimal places rather than rounding: callers must handle precision
- * explicitly.
- *
- * @throws error if `decimals` is negative, non-integer, or greater than 77.
- * @throws error if `amount` is not a valid decimal string (rejects whitespace, scientific notation, bare dots).
- * @throws error if `amount` has more fractional digits than `decimals` allows.
- *
- * @example
- * ```ts
- * parseToUnits('1', 9)      // => 1000000000n
- * parseToUnits('1.5', 9)    // => 1500000000n
- * parseToUnits('0.0001', 6) // => 100n
- * parseToUnits('-1.5', 9)   // => -1500000000n
- * ```
- */
+/** Parse a decimal string into its smallest-unit bigint representation. No floating point. */
 export function parseToUnits(amount: string, decimals: number): bigint {
-	if (decimals < 0 || !Number.isInteger(decimals) || decimals > 77) {
+	if (decimals < 0 || !Number.isInteger(decimals)) {
 		throw new Error(`Invalid decimals: ${decimals}`);
 	}
 
@@ -58,7 +35,7 @@ export function parseToUnits(amount: string, decimals: number): bigint {
 	const negative = amount.startsWith('-');
 	const stripped = negative ? amount.slice(1) : amount;
 
-	const [whole = '0', fraction = ''] = stripped.split('.');
+	const [whole, fraction = ''] = stripped.split('.');
 
 	if (fraction.length > decimals) {
 		throw new Error(
@@ -66,23 +43,13 @@ export function parseToUnits(amount: string, decimals: number): bigint {
 		);
 	}
 
-	// When decimals=0, padEnd produces '' which BigInt() can't parse
 	const paddedFraction = fraction.padEnd(decimals, '0') || '0';
-	const result = BigInt(whole) * 10n ** BigInt(decimals) + BigInt(paddedFraction);
+	const result = BigInt(whole || '0') * 10n ** BigInt(decimals) + BigInt(paddedFraction);
 
 	return negative ? -result : result;
 }
 
-/**
- * Parse a human-readable SUI decimal string into MIST (SUI's smallest unit, 10^-9 SUI).
- * Thin wrapper around {@link parseToUnits} that hard-codes SUI's 9-decimal precision.
- *
- * @example
- * ```ts
- * parseToMist('1')   // => 1000000000n
- * parseToMist('1.5') // => 1500000000n
- * ```
- */
+/** Parse a SUI decimal string into MIST (10^-9 SUI). */
 export function parseToMist(amount: string): bigint {
 	return parseToUnits(amount, SUI_DECIMALS);
 }
