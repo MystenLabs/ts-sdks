@@ -140,7 +140,7 @@ export function encodeQuilt({ blobs, numShards, encodingType }: EncodeQuiltOptio
 		encodingType,
 	);
 
-	const sortedBlobs = blobs.sort((a, b) => (a.identifier < b.identifier ? -1 : 1));
+	const sortedBlobs = [...blobs].sort((a, b) => (a.identifier < b.identifier ? -1 : 1));
 	const identifiers = new Set<string>();
 	const index = {
 		patches: [] as (typeof QuiltPatchV1.$inferInput & { startIndex: number })[],
