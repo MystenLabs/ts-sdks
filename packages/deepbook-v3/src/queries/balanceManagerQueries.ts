@@ -17,6 +17,7 @@ export class BalanceManagerQueries {
 
 	async checkManagerBalance(managerKey: string, coinKey: string): Promise<ManagerBalance> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.config.address);
 		const coin = this.#ctx.config.getCoin(coinKey);
 
 		tx.add(this.#ctx.balanceManager.checkManagerBalance(managerKey, coinKey));

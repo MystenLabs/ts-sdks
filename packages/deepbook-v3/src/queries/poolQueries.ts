@@ -25,6 +25,7 @@ export class PoolQueries {
 	async whitelisted(poolKey: string): Promise<boolean> {
 		const tx = new Transaction();
 
+		tx.setSender(this.#ctx.config.address);
 		tx.add(this.#ctx.deepBook.whitelisted(poolKey));
 		const res = await this.#ctx.client.core.simulateTransaction({
 			transaction: tx,
@@ -94,6 +95,7 @@ export class PoolQueries {
 	async poolTradeParams(poolKey: string): Promise<PoolTradeParams> {
 		const tx = new Transaction();
 
+		tx.setSender(this.#ctx.config.address);
 		tx.add(this.#ctx.deepBook.poolTradeParams(poolKey));
 		const res = await this.#ctx.client.core.simulateTransaction({
 			transaction: tx,
@@ -117,6 +119,7 @@ export class PoolQueries {
 		const baseScalar = this.#ctx.config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#ctx.config.getCoin(pool.quoteCoin).scalar;
 
+		tx.setSender(this.#ctx.config.address);
 		tx.add(this.#ctx.deepBook.poolBookParams(poolKey));
 		const res = await this.#ctx.client.core.simulateTransaction({
 			transaction: tx,
