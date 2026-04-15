@@ -1,11 +1,12 @@
 ---
 title: SuiJsonRpcClient
-description: Connect to Sui via JSON-RPC with SuiJsonRpcClient
+description: Connect to Sui through JSON-RPC with SuiJsonRpcClient.
+keywords: [SuiJsonRpcClient, JSON-RPC, Sui client, deprecated, TypeScript SDK, Core API, @mysten/sui, migration]
 ---
 
 <Callout type="warn">
 	The Sui JSON-RPC API has been deprecated. We recommend migration to
-	[SuiGrpcClient](/sui/clients/grpc) or [SuiGraphQLClient](/sui/clients/graphql) as soon as
+	[`SuiGrpcClient`](/sui/clients/grpc) or [`SuiGraphQLClient`](/sui/clients/graphql) as soon as
 	possible.
 </Callout>
 
@@ -157,9 +158,9 @@ const result = await client.executeTransactionBlock({
 
 #### Arguments
 
-- `transactionBlock` - either a Transaction or BCS serialized transaction data bytes as a Uint8Array
+- `transactionBlock`: either a Transaction or BCS serialized transaction data bytes as a Uint8Array
   or as a base-64 encoded string.
-- `signature` - A signature, or list of signatures committed to the intent message of the
+- `signature`: A signature, or list of signatures committed to the intent message of the
   transaction data, as a base-64 encoded string.
 - `options`:
   - `showBalanceChanges`: Whether to show balance_changes. Default to be False
@@ -192,9 +193,9 @@ if (result.$kind === 'FailedTransaction') {
 
 #### Arguments
 
-- `transaction` - BCS serialized transaction data bytes as a Uint8Array or as a base-64 encoded
+- `transaction`: BCS serialized transaction data bytes as a Uint8Array or as a base-64 encoded
   string.
-- `signer` - A `Keypair` instance to sign the transaction
+- `signer`: A `Keypair` instance to sign the transaction
 - `options`:
   - `showBalanceChanges`: Whether to show balance_changes. Default to be False
   - `showEffects`: Whether to show transaction effects. Default to be False
@@ -206,7 +207,7 @@ if (result.$kind === 'FailedTransaction') {
 ### `waitForTransaction`
 
 Wait for a transaction result to be available over the API. This can be used in conjunction with
-`signAndExecuteTransaction` to wait for the transaction to be available via the API. This currently
+`signAndExecuteTransaction` to wait for the transaction to be available through the API. This currently
 polls the `getTransactionBlock` API to check for the transaction.
 
 ```tsx
@@ -232,10 +233,10 @@ const transaction = await client.waitForTransaction({
 
 #### Arguments
 
-- `digest` - the digest of the queried transaction
-- `signal` - An optional abort signal that can be used to cancel the request
-- `timeout` - The amount of time to wait for a transaction. Defaults to one minute.
-- `pollInterval` - The amount of time to wait between checks for the transaction. Defaults to 2
+- `digest`: the digest of the queried transaction
+- `signal`: An optional abort signal that can be used to cancel the request
+- `timeout`: The amount of time to wait for a transaction. Defaults to one minute.
+- `pollInterval`: The amount of time to wait between checks for the transaction. Defaults to 2
   seconds.
 - `options`:
   - `showBalanceChanges`: Whether to show balance_changes. Default to be False

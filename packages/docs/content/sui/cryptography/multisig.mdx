@@ -1,6 +1,7 @@
 ---
 title: Multi-Signature Transactions
-description: Create multi-signature transactions with multiple signers
+description: Create multi-signature transactions with multiple signers on Sui.
+keywords: [multisig, multi-signature, MultiSigPublicKey, threshold, cryptography, Sui, signing, TypeScript SDK]
 ---
 
 The Sui TypeScript SDK provides a `MultiSigPublicKey` class to support
@@ -72,7 +73,7 @@ const isValid = await multiSigPublicKey.verifyPersonalMessage(message, combinedS
 
 The `MultiSigSigner` class allows you to create a Signer that can be used to sign personal messages
 and Transactions like any other keypair or signer class. This is often easier than manually
-combining signatures, since many methods accept Signers and handle signing directly.
+combining signatures, because many methods accept Signers and handle signing directly.
 
 A `MultiSigSigner` is created by providing the underlying Signers to the `getSigner` method on the
 `MultiSigPublicKey`. You can provide a subset of the Signers that make up the public key, so long as
@@ -152,7 +153,7 @@ const zkLoginSig = getZkLoginSignature({
 const multisig = multiSigPublicKey.combinePartialSignatures([zkLoginSig]);
 ```
 
-### Benefits and Design for zkLogin in Multisig
+### Benefits and design for zkLogin in multisig
 
 Because zkLogin assumes the application client ID and its issuer (such as Google) liveliness, using
 zkLogin with multisig provides improved recoverability to a zkLogin account. In the previous example
@@ -173,7 +174,7 @@ In this case, Charlie can always use their Google account for transactions out o
 address for the threshold. At the same time, Charlie still has access to his account by combining
 partial signatures from Alice and Bob.
 
-## Multisig with Passkey
+## Multisig with passkey
 
 You can use a `PasskeyKeypair` (a `Keypair`) and `PasskeyPublicKey` (a `PublicKey`) as components in
 a Multisig setup. Once initialized, they support both Multisig address derivation and transaction

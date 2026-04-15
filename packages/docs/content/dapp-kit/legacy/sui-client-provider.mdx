@@ -1,6 +1,7 @@
 ---
 title: SuiClientProvider
-description: React provider for Sui client configuration
+description: React provider for managing the active SuiJsonRpcClient in legacy dApp Kit.
+keywords: [SuiClientProvider, React provider, Sui client, JSON RPC, network config, legacy, dApp Kit]
 ---
 
 The `SuiClientProvider` manages the active `SuiJsonRpcClient` that hooks and components use in the
@@ -78,7 +79,7 @@ function App() {
 }
 ```
 
-## SuiJsonRpcClient customization
+## `SuiJsonRpcClient` customization
 
 The following example demonstrates how to create a custom `SuiJsonRpcClient`.
 
@@ -116,7 +117,7 @@ function App() {
 }
 ```
 
-## Using the SuiJsonRpcClient from the provider
+## Using the `SuiJsonRpcClient` from the provider
 
 To use the `SuiJsonRpcClient` from the provider, import the `useSuiClient` function from the
 `@mysten/dapp-kit` module.
@@ -154,7 +155,7 @@ function NetworkSelector() {
 
 ## Using network specific configuration
 
-If your dApp runs on multiple networks, the IDs for packages and other configurations might change,
+If your app runs on multiple networks, the IDs for packages and other configurations might change,
 depending on which network you're using. You can use `createNetworkConfig` to create per-network
 configurations that your components can access.
 

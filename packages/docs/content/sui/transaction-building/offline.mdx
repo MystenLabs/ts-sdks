@@ -1,21 +1,22 @@
 ---
 title: Building Offline
-description: Build transactions without a network connection
+description: Build transactions without a network connection.
+keywords: [offline transactions, transaction building, gas configuration, Sui, sender address, expiration, TypeScript SDK]
 ---
 
 To build a transaction offline (with no `client` required), you need to fully define all of your
 inputs, gas configuration, and expiration.
 
-## Required Configuration
+## Required configuration
 
 When building offline, you must set the following:
 
-- **Sender address** - The address that will execute the transaction
-- **Gas price** - The price per gas unit (can be obtained from the network beforehand)
-- **Gas budget** - The maximum gas to spend on this transaction
-- **Gas payment** - One or more coin object references to use for gas, or an empty array for Address
+- Sender address: The address that will execute the transaction
+- Gas price: The price per gas unit (can be obtained from the network beforehand)
+- Gas budget: The maximum gas to spend on this transaction
+- Gas payment: One or more coin object references to use for gas, or an empty array for Address
   Balances
-- **Expiration** - Only needed when using address balances for gas
+- Expiration: Only needed when using address balances for gas
 
 ```tsx
 import { Transaction } from '@mysten/sui/transactions';
@@ -39,7 +40,7 @@ tx.setGasPayment([
 const bytes = await tx.build();
 ```
 
-## Object References
+## Object references
 
 For objects used in your transaction, you must provide full object references using the `Inputs`
 helper:

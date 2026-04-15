@@ -1,6 +1,7 @@
 ---
 title: BCS
-description: Binary Canonical Serialization for encoding Sui Move types
+description: Binary Canonical Serialization for encoding Sui Move types.
+keywords: [BCS, binary canonical serialization, Sui, @mysten/sui/bcs, encoding, Move types, schemas, TypeScript]
 ---
 
 The `@mysten/sui/bcs` package extends `@mysten/bcs` with Sui specific scheme definitions.
@@ -42,10 +43,10 @@ the following pre-defined schemes:
 - `TransactionExpiration`
 - `TransactionKind`
 - `TypeTag`
-- `Object` - Complete object with data, owner, previousTransaction, and storageRebate
-- `TransactionEffects` - Transaction execution effects (supports both V1 and V2)
-- `TransactionEffectsV1` - Legacy transaction effects format
-- `TransactionEffectsV2` - Current transaction effects format with detailed object changes
+- `Object`: Complete object with data, owner, previousTransaction, and storageRebate
+- `TransactionEffects`: Transaction execution effects (supports both V1 and V2)
+- `TransactionEffectsV1`: Legacy transaction effects format
+- `TransactionEffectsV2`: Current transaction effects format with detailed object changes
 
 All the upper-cased values are `BcsType` instances, and can be used directly to parse and serialize
 data.
@@ -62,9 +63,9 @@ bcs.TypeTag.serialize({
 });
 ```
 
-## Working with Objects
+## Working with objects
 
-To parse on-chain objects, fetch them with `include: { content: true }` and pass `object.content` to
+To parse onchain objects, fetch them with `include: { content: true }` and pass `object.content` to
 a generated BCS type or a manual struct definition. The `content` field contains only the inner Move
 struct bytes:
 
@@ -79,9 +80,9 @@ const { object } = await client.core.getObject({
 const parsed = MyStruct.parse(object.content);
 ```
 
-### `bcs.Object` — Full object envelope
+### `bcs.Object`: Full object envelope
 
-The `bcs.Object` schema represents the complete on-chain object, including metadata (type, owner,
+The `bcs.Object` schema represents the complete onchain object, including metadata (type, owner,
 version, previous transaction, storage rebate) wrapping the inner struct bytes. This is what the
 `objectBcs` include option returns. Most of this metadata is already available as fields on the
 object response, so you typically only need `content`.
@@ -111,12 +112,12 @@ const serialized = bcs.Object.serialize({
 ```
 
 <Callout type="warn">
-	Do not pass `objectBcs` bytes to a Move struct parser — it contains wrapping metadata that will
+	Do not pass `objectBcs` bytes to a Move struct parser. It contains wrapping metadata that will
 	cause parsing to fail. Use `content` for parsing Move struct fields. See the [Core API
 	docs](/sui/clients/core#objectbcs) for details.
 </Callout>
 
-## Working with Transaction Effects
+## Working with transaction effects
 
 The `bcs.TransactionEffects` schema can be used to parse transaction effects:
 

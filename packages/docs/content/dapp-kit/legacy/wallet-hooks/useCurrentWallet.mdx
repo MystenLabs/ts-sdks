@@ -1,11 +1,12 @@
 ---
 title: useCurrentWallet
-description: Get the current wallet connection
+description: Legacy React hook to get the currently connected wallet and connection status.
+keywords: [useCurrentWallet, React hook, current wallet, connection status, legacy, dApp Kit, Sui]
 ---
 
 import { UseCurrentWalletExample } from '../../../../examples/wallet-hooks-client';
 
-The `useCurrentWallet` hook retrieves the wallet that is currently connected to the dApp, if one
+The `useCurrentWallet` hook retrieves the wallet that is currently connected to the app, if one
 exists.
 
 ```ts
@@ -44,22 +45,22 @@ function MyComponent() {
 
 ## Wallet properties
 
-- `name` - The name of the wallet.
-- `version` - The version of the wallet as a string.
-- `icon` - A data URL of the wallet icon as an SVG.
-- `accounts` - An array of accounts that are available in the wallet.
-- `features` - An object with all the
-  [wallet-standard](https://github.com/wallet-standard/wallet-standard) features implemented by the
+- `name`: The name of the wallet.
+- `version`: The version of the wallet as a string.
+- `icon`: A data URL of the wallet icon as an SVG.
+- `accounts`: An array of accounts that are available in the wallet.
+- `features`: An object with all the
+  [`wallet-standard`](https://github.com/wallet-standard/wallet-standard) features implemented by the
   wallet.
-- `chains` - An array of chain identifiers that the wallet supports.
+- `chains`: An array of chain identifiers that the wallet supports.
 
 ## Connection status properties
 
 - `connectionStatus`
-  - `disconnected` - When no wallet is connected to the dApp.
-  - `connecting` - When a wallet connection attempt is in progress.
-  - `connected` - When a wallet is connected to the dApp.
+  - `disconnected`: When no wallet is connected to the app.
+  - `connecting`: When a wallet connection attempt is in progress.
+  - `connected`: When a wallet is connected to the app.
 
-- `isDisconnected` - A derived boolean from the status variable above, provided for convenience.
-- `isConnecting` - A derived boolean from the status variable above, provided for convenience.
-- `isConnected` - A derived boolean from the status variable above, provided for convenience.
+- `isDisconnected`: A derived boolean from the status variable above, provided for convenience.
+- `isConnecting`: A derived boolean from the status variable above, provided for convenience.
+- `isConnected`: A derived boolean from the status variable above, provided for convenience.

@@ -1,6 +1,7 @@
 ---
 title: SuiGraphQLClient
-description: Connect to Sui via GraphQL with SuiGraphQLClient
+description: Connect to Sui through GraphQL with SuiGraphQLClient.
+keywords: [SuiGraphQLClient, GraphQL, Sui client, queries, TypeScript SDK, Core API, @mysten/sui, type-safe]
 ---
 
 The `SuiGraphQLClient` enables type-safe GraphQL queries against the Sui GraphQL API.
@@ -54,7 +55,7 @@ async function getChainIdentifier() {
 
 ## Type-safety for GraphQL queries
 
-You may have noticed the example above does not include any type definitions for the query. The
+You might have noticed the example above does not include any type definitions for the query. The
 `graphql` function used in the example is powered by [`gql.tada`](https://gql-tada.0no.co/) and will
 automatically provide the required type information to ensure that your queries are properly typed
 when executed through `SuiGraphQLClient`.
@@ -86,7 +87,7 @@ async function getDefaultSuinsName(address: string) {
 ## Using typed GraphQL queries with other GraphQL clients
 
 The `graphql` function returns document nodes that implement the
-[TypedDocumentNode](https://github.com/dotansimha/graphql-typed-document-node) standard, and will
+[`TypedDocumentNode`](https://github.com/dotansimha/graphql-typed-document-node) standard, and will
 work with the majority of popular GraphQL clients to provide queries that are automatically typed.
 
 ```typescript

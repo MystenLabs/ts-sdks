@@ -1,10 +1,11 @@
 ---
 title: Transaction Intents
-description: Use high-level intents to simplify transaction building
+description: Use high-level intents to simplify transaction building.
+keywords: [transaction intents, CoinWithBalance, transaction building, Sui, plugins, coin management, TypeScript SDK]
 ---
 
-Transaction Intents enable 3rd party SDKs and [Transaction Plugins](../plugins) to more easily add
-complex operations to a Transaction. The Typescript SDK currently only includes a single Intent
+Transaction Intents enable third-party SDKs and [Transaction Plugins](../plugins) to more easily add
+operations to a Transaction. The TypeScript SDK currently only includes a single Intent
 (CoinWithBalance), but more will be added in the future.
 
 ## The CoinWithBalance intent
@@ -54,7 +55,7 @@ tx.transferObjects([coinWithBalance({ balance: 100, useGasCoin: false })], recip
 ```
 
 It's important to only set `useGasCoin` option to false for sponsored transactions, otherwise the
-coinWithBalance intent may use all the SUI coins, leaving no coins to use for gas.
+coinWithBalance intent might use all the SUI coins, leaving no coins to use for gas.
 
 ## How it works
 

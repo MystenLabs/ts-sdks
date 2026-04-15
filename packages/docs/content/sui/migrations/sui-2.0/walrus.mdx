@@ -1,9 +1,10 @@
 ---
 title: '@mysten/walrus'
-description: Migrate @mysten/walrus to 2.0
+description: Migrate @mysten/walrus to 2.0 with required client parameter and updated API.
+keywords: [migration, @mysten/walrus, Walrus, 2.0, WalrusClient, storage, client extension, breaking changes]
 ---
 
-## Breaking Changes
+## Breaking changes
 
 - **Client required**: `WalrusClient` can no longer be created with just an RPC URL. You must pass a
   Sui client.
@@ -12,7 +13,7 @@ description: Migrate @mysten/walrus to 2.0
 - **Removed deprecated method**: `WalrusClient.experimental_asClientExtension()` has been removed.
   Use the `walrus()` function instead.
 
-## Updated Usage
+## Updated usage
 
 If you were creating `WalrusClient` directly:
 

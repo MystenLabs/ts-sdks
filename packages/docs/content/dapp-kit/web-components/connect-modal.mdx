@@ -1,25 +1,26 @@
 ---
 title: Connect Modal
-description: Framework-agnostic web component for wallet selection
+description: Framework-agnostic web component for wallet selection and connection in Sui dApps.
+keywords: [connect modal, web component, wallet selection, framework-agnostic, dApp Kit, Sui, custom element]
 ---
 
 The `<mysten-dapp-kit-connect-modal>` Web Component provides a modal dialog for wallet connection.
 While most apps should use the [`Connect Button`](./connect-button) which includes an integrated
 modal, the standalone modal is useful for advanced scenarios requiring custom trigger mechanisms.
 
-## When to Use
+## When to use
 
 Use the standalone modal when you need:
 
-- **Custom trigger elements** - Menu items, keyboard shortcuts, or other non-button triggers
-- **Complex UI flows** - Integration into existing navigation or custom wallet management interfaces
-- **Programmatic control** - Opening the modal based on application logic or user actions
-- **Multiple triggers** - Different parts of your UI that can open the same modal
+- **Custom trigger elements:** Menu items, keyboard shortcuts, or other non-button triggers
+- **Complex UI flows:** Integration into existing navigation or custom wallet management interfaces
+- **Programmatic control:** Opening the modal based on application logic or user actions
+- **Multiple triggers:** Different parts of your UI that can open the same modal
 
 For standard wallet connection with a button, use the [Connect Button](./connect-button) component
 instead.
 
-## Basic Usage
+## Basic usage
 
 ### Vanilla
 
@@ -93,8 +94,8 @@ DApp Kit React bindings provide a [React wrapper](../react/components/connect-mo
 
 ## Properties
 
-- **instance** - The dApp Kit instance
-- **open** - Boolean to control modal visibility programmatically
+- **instance:** The dApp Kit instance
+- **open:** Boolean to control modal visibility programmatically
 - **filterFn** (optional) - Function to filter available wallets
   - Type: `(wallet: UiWallet, index: number, array: UiWallet[]) => boolean`
 - **sortFn** (optional) - Function to sort available wallets
@@ -124,11 +125,11 @@ await modal?.close('user-cancelled');
 
 The modal fires several events during its lifecycle:
 
-- **open** - Fired before the modal opens (cancelable)
-- **opened** - Fired after the modal has fully opened
-- **close** - Fired before the modal closes (cancelable)
-- **closed** - Fired after the modal has fully closed
-- **cancel** - Fired when clicking backdrop or pressing Escape (cancelable)
+- **open:** Fired before the modal opens (cancelable)
+- **opened:** Fired after the modal has fully opened
+- **close:** Fired before the modal closes (cancelable)
+- **closed:** Fired after the modal has fully closed
+- **cancel:** Fired when clicking backdrop or pressing Escape (cancelable)
 
 ```js
 const modal = document.querySelector('mysten-dapp-kit-connect-modal');
@@ -154,7 +155,7 @@ modal?.addEventListener('cancel', (event) => {
 
 ## Examples
 
-### Programmatic Control
+### Programmatic control
 
 ```js
 const modal = document.querySelector('mysten-dapp-kit-connect-modal');
@@ -174,7 +175,7 @@ async function performAction() {
 }
 ```
 
-## Server-Side Rendering (SSR)
+## Server-side rendering (SSR)
 
 The `<mysten-dapp-kit-connect-modal>` Web Component can be only client-side rendered, as wallets are
 detected in the browser. For Next.js guide see [here](../getting-started/next-js).

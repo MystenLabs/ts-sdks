@@ -1,6 +1,7 @@
 ---
-title: dApp Integration
-description: Connect your dApp to Slush Wallet
+title: App Integration
+description: Connect your app to Slush Wallet using the Slush Wallet SDK and wallet standard.
+keywords: [Slush Wallet, app integration, registerSlushWallet, wallet standard, Sui, web wallet, SDK]
 ---
 
 <Callout type="info">
@@ -8,12 +9,12 @@ description: Connect your dApp to Slush Wallet
 	the Slush wallet. [Read how to integrate with dapp-kit.](/dapp-kit/legacy/slush)
 </Callout>
 
-Using the Slush Wallet SDK, you can allow users to connect to the Slush wallet from your dApp. The
+Using the Slush Wallet SDK, you can allow users to connect to the Slush wallet from your app. The
 wallet is provided through the [Wallet Standard](https://docs.sui.io/standards/wallet-standard), and
 should appear automatically in your existing wallet connection UI.
 
 <Callout>
-	The Slush Wallet SDK is only needed if you want to support the Slush web wallet in your dApp. If
+	The Slush Wallet SDK is only needed if you want to support the Slush web wallet in your app. If
 	you want to integrate with the Slush browser extension or native mobile wallet, you do not need to
 	install any additional packages - they will work automatically through the Wallet Standard.
 </Callout>
@@ -26,7 +27,7 @@ your application's lifecycle.
 
 `registerSlushWallet` takes two arguments:
 
-- `name`: The name of your dApp. This will be shown to the user when they are asked to approve the
+- `name`: The name of your app. This is shown to the user when they are asked to approve the
   connection in Slush.
 - `options`: An optional object with the following properties:
   - `origin`: The origin of the Slush website. Defaults to `https://[TODO]`.
@@ -67,18 +68,18 @@ function SlushOnly() {
 }
 ```
 
-# Migration from Stashed Wallet -> Slush Wallet
+# Migration from Stashed Wallet to Slush Wallet
 
 If you're currently using `@mysten/zksend`'s `registerStashedWallet` directly, you should migrate to
 the `@mysten/slush-wallet` package to ensure compatibility with the new Slush experience.
 
-## 🚀 Installation
+## Installation
 
 ```bash
 pnpm install @mysten/slush-wallet
 ```
 
-## 🔁 Migration
+## Migration
 
 If you're using `registerStashedWallet`, switch to `registerSlushWallet`:
 
@@ -102,6 +103,6 @@ If you're using dapp-kit, update to the latest dapp-kit version and change the `
 on WalletProvider to `slushWallet`
 
 <Callout>
-	Note: In the connect modal, users with the Slush Wallet extension installed will only see the
-	extension. If they don’t have it, the connection will default to the Slush web app.
+	In the connect modal, users with the Slush Wallet extension installed only see the
+	extension. If they don’t have it, the connection defaults to the Slush web app.
 </Callout>

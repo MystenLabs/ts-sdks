@@ -1,6 +1,7 @@
 ---
 title: Registry Management
-description: Manage payment registries and accepted coin types
+description: Create, configure, and manage payment registries and accepted coin types on Sui.
+keywords: [PaymentRegistry, registry management, coin types, expiration, onchain, Sui, Payment Kit]
 ---
 
 <Callout type="info">
@@ -12,16 +13,16 @@ description: Manage payment registries and accepted coin types
 Payment registries are the core of Payment Kit's duplicate prevention and payment tracking system.
 This guide covers creating, configuring, and managing payment registries.
 
-## Understanding Payment Registries
+## Understanding payment registries
 
-A `PaymentRegistry` is an on-chain object that:
+A `PaymentRegistry` is an onchain object that:
 
 - Stores `PaymentRecord` dynamic fields for each unique payment
 - Manages configuration settings (expiration, fund management)
 - Can be owned and administered by a specific account
 - Provides namespaced payment tracking
 
-### Default Registry
+### Default registry
 
 Payment Kit provides a default registry that's ready to use:
 
@@ -36,7 +37,7 @@ const tx = client.paymentKit.tx.processRegistryPayment({
 });
 ```
 
-### When to Create a Custom Registry
+### When to create a custom registry
 
 Consider creating your own registry when:
 
@@ -46,11 +47,11 @@ Consider creating your own registry when:
 - You need better indexing of your payments
 - You want to avoid potential congestion on the default registry
 
-## Creating a Registry
+## Creating a registry
 
-### Basic Registry Creation
+### Basic registry creation
 
-Creating a registry is simple - you only need to provide a unique name:
+Creating a registry is straightforward. You only need to provide a unique name:
 
 ```ts
 // Create a new registry
@@ -76,14 +77,14 @@ console.log('Registry created!');
 console.log('Transaction:', result.Transaction.digest);
 ```
 
-### What Gets Created
+### What gets created
 
 When you create a registry, two objects are created:
 
 1. **PaymentRegistry**: The registry object that stores payment records
 2. **RegistryAdminCap**: A capability object that grants admin permissions
 
-### Extracting the Admin Capability
+### Extracting the admin capability
 
 The `RegistryAdminCap` is crucial for configuring your registry:
 
@@ -107,7 +108,7 @@ if (adminCapObject && 'objectId' in adminCapObject) {
 }
 ```
 
-### Deriving the Registry ID
+### Deriving the registry ID
 
 Payment Kit derives registry IDs deterministically from the registry name:
 
@@ -121,15 +122,15 @@ console.log('Registry ID:', registryId);
 
 This allows you to reference registries by name throughout your application.
 
-## Registry Configuration
+## Registry configuration
 
 Registries have two main configuration options:
 
-### 1. Epoch Expiration Duration
+### Step 1: Epoch expiration duration
 
 Controls how long payment records persist before they can be deleted.
 
-**Default**: 30 epochs (~30 days on mainnet)
+**Default**: 30 epochs (~30 days on Mainnet)
 
 ```ts
 // Set expiration to 60 epochs
@@ -170,7 +171,7 @@ anyone can delete the record to reclaim storage fees:
 - **Medium expiration (30-60 epochs)**: Standard e-commerce transactions
 - **Long expiration (180+ epochs)**: Important financial records requiring long-term verification
 
-### 2. Registry Managed Funds
+### Step 2: Registry managed funds
 
 Controls whether payments must be sent to the registry itself for later withdrawal.
 
@@ -192,7 +193,7 @@ await client.signAndExecuteTransaction({
 console.log('Registry now manages funds');
 ```
 
-**How It Works:**
+**How it works:**
 
 When enabled:
 
@@ -222,7 +223,7 @@ const tx = client.paymentKit.tx.processRegistryPayment({
 - Scenarios with very high transaction volumes
 - Simplified accounting and reconciliation
 
-### Configuring Both Settings
+### Configuring both settings
 
 You can configure both settings independently:
 
@@ -256,7 +257,7 @@ await client.signAndExecuteTransaction({
 });
 ```
 
-## Withdrawing Funds from a Registry
+## Withdrawing funds from a registry
 
 If you've enabled registry-managed funds, you can withdraw accumulated coins:
 
@@ -279,14 +280,14 @@ const result = await client.signAndExecuteTransaction({
 console.log('Funds withdrawn!');
 ```
 
-**Important Notes:**
+**Important notes:**
 
 - Only the admin cap owner can withdraw funds
 - You must specify the coin type to withdraw
 - All coins of that type are withdrawn in one operation
 - The withdrawn coins are sent to the transaction sender
 
-### Withdrawing Multiple Coin Types
+### Withdrawing multiple coin types
 
 If your registry accumulates different coin types:
 
@@ -317,7 +318,7 @@ await client.signAndExecuteTransaction({
 });
 ```
 
-## Deleting Expired Payment Records
+## Deleting expired payment records
 
 After the expiration period, payment records can be deleted to reclaim storage fees:
 
@@ -339,14 +340,14 @@ const result = await client.signAndExecuteTransaction({
 console.log('Record deleted, storage rebate received');
 ```
 
-**Key Points:**
+**Key points:**
 
 - Records can only be deleted after expiration
 - Anyone can delete expired records (permissionless cleanup)
 - The deleter receives a small storage rebate
 - This incentivizes automatic cleanup of old records
 
-### Checking If a Record Can Be Deleted
+### Checking if a record can be deleted
 
 ```ts
 // Get the payment record
@@ -373,7 +374,7 @@ if (record) {
 }
 ```
 
-## Using Registry ID Directly
+## Using registry ID directly
 
 If you know the registry ID, you can use it instead of the name:
 
@@ -400,7 +401,7 @@ const record = await client.paymentKit.getPaymentRecord({
 });
 ```
 
-## Complete Registry Setup Example
+## Complete registry setup example
 
 Here's a complete workflow for setting up a custom registry:
 
@@ -509,28 +510,28 @@ if (paymentResult.$kind === 'FailedTransaction') {
 console.log('First payment processed:', paymentResult.Transaction.digest);
 ```
 
-## Best Practices
+## Best practices
 
-1. **Store Admin Caps Securely**: Treat your admin capability like private keys - they control your
+1. **Store admin caps securely**: Treat your admin capability like private keys - they control your
    registry
 
-2. **Use Descriptive Names**: Choose registry names that clearly identify their purpose (e.g.,
+2. **Use descriptive names**: Choose registry names that clearly identify their purpose (for example,
    `acme-subscriptions`, `store-123-payments`)
 
-3. **Set Appropriate Expiration**: Balance storage costs with verification needs
+3. **Set appropriate expiration**: Balance storage costs with verification needs
    - Short expiration = lower storage costs
    - Long expiration = longer verification period
 
-4. **Monitor Registry Growth**: Track the number of payment records to anticipate storage costs
+4. **Monitor registry growth**: Track the number of payment records to anticipate storage costs
 
-5. **Plan Fund Management**: Decide upfront whether to use registry-managed funds based on your
+5. **Plan fund management**: Decide upfront whether to use registry-managed funds based on your
    withdrawal patterns
 
-6. **Document Your Configuration**: Keep records of your registry settings for operational
+6. **Document your configuration**: Keep records of your registry settings for operational
    consistency
 
-7. **Test Thoroughly**: Always test registry operations on testnet before mainnet deployment
+7. **Test thoroughly**: Always test registry operations on Testnet before Mainnet deployment
 
-## Next Steps
+## Next steps
 
 - [SDK API Reference](./payment-kit-sdk) - Complete SDK API documentation

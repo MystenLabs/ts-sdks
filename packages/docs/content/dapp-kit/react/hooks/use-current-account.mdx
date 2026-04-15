@@ -1,13 +1,14 @@
 ---
 title: useCurrentAccount
-description: React hook to get the current wallet account
+description: React hook to get the currently selected wallet account in a Sui dApp.
+keywords: [useCurrentAccount, React hook, wallet account, current account, dApp Kit, Sui]
 ---
 
 The `useCurrentAccount` hook provides access to the currently selected account.
 
 <Callout type="warn">
 	All dApp Kit hooks must be used within components that are descendants of
-	[DAppKitProvider](../dapp-kit-provider). Using them outside will result in an error.
+	[`DAppKitProvider`](../dapp-kit-provider). Using them outside will result in an error.
 </Callout>
 
 ## Usage
@@ -31,7 +32,7 @@ export function MyComponent() {
 }
 ```
 
-## Return Value
+## Return value
 
 ```tsx
 UiWalletAccount | null;

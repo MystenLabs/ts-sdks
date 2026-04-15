@@ -1,6 +1,7 @@
 ---
 title: useCurrentClient
-description: React hook to get the current Sui client instance
+description: React hook to get the current Sui client instance for the active network.
+keywords: [useCurrentClient, React hook, Sui client, blockchain client, dApp Kit, network, TypeScript]
 ---
 
 The `useCurrentClient` hook provides access to the blockchain client instance for the current
@@ -14,7 +15,7 @@ network.
 
 <Callout type="warn">
 	All dApp Kit hooks must be used within components that are descendants of
-	[DAppKitProvider](../dapp-kit-provider). Using them outside will result in an error.
+	[`DAppKitProvider`](../dapp-kit-provider). Using them outside will result in an error.
 </Callout>
 
 ## Usage
@@ -36,7 +37,7 @@ export function MyComponent() {
 }
 ```
 
-## Return Value
+## Return value
 
 ```tsx
 SuiClient;

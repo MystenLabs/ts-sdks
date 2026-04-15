@@ -1,11 +1,12 @@
 ---
 title: React
-description: Set up dApp Kit in a React application
+description: Set up dApp Kit in a React application.
+keywords: [React, dApp Kit, getting started, Vite, TypeScript, wallet connection, Sui]
 ---
 
 This guide walks you through integrating dApp Kit into a React application.
 
-## Quick Start with create-dapp
+## Quick start with create-dapp
 
 The fastest way to get started is using our CLI tool:
 
@@ -29,7 +30,7 @@ See the [create-dapp guide](/dapp-kit/getting-started/create-dapp) for more deta
 
 ---
 
-## Manual Installation
+## Manual installation
 
 ```sh npm2yarn
 npm i @mysten/dapp-kit-react @mysten/sui
@@ -37,7 +38,7 @@ npm i @mysten/dapp-kit-react @mysten/sui
 
 ## Setup
 
-### 1. Create a dApp Kit Instance
+### Step 1: Create a dApp Kit instance
 
 Create a file to configure your dApp Kit instance:
 
@@ -63,7 +64,7 @@ declare module '@mysten/dapp-kit-react' {
 }
 ```
 
-### 2. Add the Provider
+### Step 2: Add the provider
 
 Wrap your application with `DAppKitProvider`:
 
@@ -86,7 +87,7 @@ export default function App() {
 }
 ```
 
-### 3. Display Connection Status
+### Step 3: Display connection status
 
 Use hooks to access wallet state:
 
@@ -112,7 +113,7 @@ function WalletStatus() {
 }
 ```
 
-### 4. Execute Transactions
+### Step 4: Execute transactions
 
 Use the `useDAppKit` hook to sign and execute transactions:
 
@@ -149,35 +150,35 @@ function TransferButton() {
 }
 ```
 
-## Available Hooks
+## Available hooks
 
 | Hook                                                               | Description                              |
 | ------------------------------------------------------------------ | ---------------------------------------- |
-| [useDAppKit](/dapp-kit/react/hooks/use-dapp-kit)                   | Access the dApp Kit instance and actions |
-| [useWalletConnection](/dapp-kit/react/hooks/use-wallet-connection) | Full connection state with status flags  |
-| [useCurrentAccount](/dapp-kit/react/hooks/use-current-account)     | Currently selected account               |
-| [useCurrentWallet](/dapp-kit/react/hooks/use-current-wallet)       | Currently connected wallet               |
-| [useCurrentNetwork](/dapp-kit/react/hooks/use-current-network)     | Current network                          |
-| [useCurrentClient](/dapp-kit/react/hooks/use-current-client)       | SuiClient for current network            |
-| [useWallets](/dapp-kit/react/hooks/use-wallets)                    | List of available wallets                |
+| [`useDAppKit`](/dapp-kit/react/hooks/use-dapp-kit)                   | Access the dApp Kit instance and actions |
+| [`useWalletConnection`](/dapp-kit/react/hooks/use-wallet-connection) | Full connection state with status flags  |
+| [`useCurrentAccount`](/dapp-kit/react/hooks/use-current-account)     | Currently selected account               |
+| [`useCurrentWallet`](/dapp-kit/react/hooks/use-current-wallet)       | Currently connected wallet               |
+| [`useCurrentNetwork`](/dapp-kit/react/hooks/use-current-network)     | Current network                          |
+| [`useCurrentClient`](/dapp-kit/react/hooks/use-current-client)       | SuiClient for current network            |
+| [`useWallets`](/dapp-kit/react/hooks/use-wallets)                    | List of available wallets                |
 
 ## Components
 
 | Component                                                  | Description                       |
 | ---------------------------------------------------------- | --------------------------------- |
-| [ConnectButton](/dapp-kit/react/components/connect-button) | Complete wallet connection UI     |
-| [ConnectModal](/dapp-kit/react/components/connect-modal)   | Standalone wallet selection modal |
-| [DAppKitProvider](/dapp-kit/react/dapp-kit-provider)       | Context provider for hooks        |
+| [`ConnectButton`](/dapp-kit/react/components/connect-button) | Complete wallet connection UI     |
+| [`ConnectModal`](/dapp-kit/react/components/connect-modal)   | Standalone wallet selection modal |
+| [`DAppKitProvider`](/dapp-kit/react/dapp-kit-provider)       | Context provider for hooks        |
 
-## Example Application
+## Example application
 
 See the complete
 [React example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/dapp-kit-next/examples/react/simple)
 on GitHub.
 
-## Next Steps
+## Next steps
 
-- [DAppKitProvider](/dapp-kit/react/dapp-kit-provider) - Provider configuration
+- [`DAppKitProvider`](/dapp-kit/react/dapp-kit-provider) - Provider configuration
 - [Hooks Reference](/dapp-kit/react/hooks) - All available hooks
 - [Components](/dapp-kit/react/components) - UI components
 - [Theming](/dapp-kit/theming) - Customize appearance

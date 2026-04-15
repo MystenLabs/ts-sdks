@@ -1,6 +1,7 @@
 ---
 title: Paying for Sui Transactions with Gas Coins
-description: 'Configure gas budget, price, and coin selection for transactions'
+description: 'Configure gas budget, price, and coin selection for Sui transactions.'
+keywords: [gas, gas budget, gas price, coin selection, Sui transactions, splitCoin, mergeCoins, payment]
 ---
 
 With Programmable Transactions, you can use the gas payment coin to construct coins with a set
@@ -36,7 +37,7 @@ beforehand. The dry run gas consumption is then used to determine a balance for 
 can override this behavior by explicitly setting a gas budget for the transaction, by calling
 `setGasBudget` on the transaction builder.
 
-**Note:** The gas budget is represented in Sui, and should take the gas price of the transaction
+The gas budget is represented in Sui and should take the gas price of the transaction
 into account.
 
 ```tsx

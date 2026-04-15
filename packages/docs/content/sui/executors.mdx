@@ -1,16 +1,17 @@
 ---
 title: Transaction Executors
-description: Manage transaction execution with queuing and parallel strategies
+description: Manage transaction execution with queuing and parallel strategies.
+keywords: [transaction executor, SerialTransactionExecutor, ParallelTransactionExecutor, Sui, gas coins, execution, queuing, TypeScript SDK]
 ---
 
-The Typescript SDK ships 2 Transaction executor classes that simplify the processes of efficiently
+The TypeScript SDK ships two Transaction executor classes that simplify the processes of efficiently
 executing multiple transactions signed by the same address. These executors help manage object
 versions and gas coins which significantly reduces the number of requests made to RPC nodes, and for
 many cases avoids the need to wait for the RPC nodes to index previously executed transactions.
 
 ## `SerialTransactionExecutor`
 
-The `SerialTransactionExecutor` is designed for use in wallet implementations, and dapps where the
+The `SerialTransactionExecutor` is designed for use in wallet implementations and apps where the
 objects owned by the address executing transactions are unlikely to be changed by transactions not
 executed through the executor.
 
@@ -65,7 +66,7 @@ const [{ digest: digest1 }, { digest: digest2 }] = await Promise.all([
 ## `ParallelTransactionExecutor`
 
 <Callout type="warn">
-	`ParallelTransactionExecutor` is experimental and may change rapidly as it is being developed.
+	`ParallelTransactionExecutor` is experimental and might change rapidly as it is being developed.
 </Callout>
 
 The `ParallelTransactionExecutor` class works similarly to the `SerialTransactionExecutor`, but
@@ -75,8 +76,8 @@ gas pool as needed.
 
 <Callout type="warn">
 	Using other client methods or wallets to execute additional transactions while
-	`ParallelTransactionExecutor` is in use may consume/combine gas coins in the gasPool, causing
-	transactions to fail. This may also result in the coins becoming locked for the remainder of the
+	`ParallelTransactionExecutor` is in use might consume or combine gas coins in the gasPool, causing
+	transactions to fail. This might also result in the coins becoming locked for the remainder of the
 	current epoch, preventing them from being used in future transactions.
 
     Running multiple instances of `ParallelTransactionExecutor` using the same `sourceCoins` will
@@ -107,7 +108,7 @@ way that avoids conflicts between transactions using the same object ids.
   maximum number of concurrent transactions (default 50),
 - `sourceCoins`: An array of coins to use to create the gas pool, defaults to using all coins owned
   by the signer.
-- `epochBoundaryWindow` Time to wait before/after the expected epoch boundary before re-fetching the
+- `epochBoundaryWindow` Time to wait before or after the expected epoch boundary before re-fetching the
   gas pool (in milliseconds). Building transactions will be paused for up to 2x this duration around
   each epoch boundary to ensure the gas price is up-to-date for the next epoch. (default `1000`)
 
@@ -135,24 +136,24 @@ const [{ digest: digest1 }, { digest: digest2 }] = await Promise.all([
 ]);
 ```
 
-## Building and Executing Transactions with Executors
+## Building and executing transactions with executors
 
 The executor classes will significantly improve efficiency when executing multiple transactions, but
 to get the best results there are some best practices to follow:
 
 When building transactions, always prefer using unresolved object IDs rather than specifying the
-full `id`/`version`/`digest` for an object input (eg use `tx.object(id)` rather than
+full `id`, `version`, and `digest` for an object input (for example, use `tx.object(id)` rather than
 `tx.objectRef({ objectId, version, digest })`). By doing this, you allow the executor to use object
 versions and digests from the cache, and will avoid executing transactions using stale object
 versions.
 
-If the signer executes transactions that are not sent through the executor that may cause
+If the signer executes transactions that are not sent through the executor, that might cause
 transactions to fail. The executor classes will handle this by invalidating the cache for any
 objects used in the transaction, so you will often be able to recover by re-trying a failed
 transaction once. If it was caused by a stale cache, it should succeed on the second execution.
 
 <Callout type="warn">
-	Transaction plugins and intents may resolve their own data (such as object references) that are
+	Transaction plugins and intents might resolve their own data (such as object references) that are
 	not automatically managed by the executor's object cache. This can cause transactions to include
 	stale object versions. The `coinWithBalance` intent is partially supported by the executors and
 	will work correctly when all coin types are either SUI or the required balances are available as

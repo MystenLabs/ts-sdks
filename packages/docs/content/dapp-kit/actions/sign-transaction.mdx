@@ -1,6 +1,7 @@
 ---
 title: Sign Transaction
-description: Sign a transaction without executing it
+description: Sign a Sui transaction without executing it for deferred or multi-signature scenarios.
+keywords: [sign transaction, dApp Kit, multi-signature, transaction signing, Sui, wallet, TypeScript]
 ---
 
 The `signTransaction` action prompts the connected wallet to sign a transaction without executing
@@ -29,16 +30,16 @@ const { bytes, signature } = await dAppKit.signTransaction({
 
 ## Parameters
 
-- **`transaction`** - `Transaction | string` - The transaction to sign. Can be either a Transaction
+- **`transaction`:** `Transaction | string` - The transaction to sign. Can be either a Transaction
   instance or base64-encoded bcs bytes for the transaction.
 - **`signal`** (optional) - `AbortSignal` - An abort signal to cancel the signing request.
 
-## Return Value
+## Return value
 
 Returns a `Promise` that resolves to an object containing:
 
-- **`bytes`** - `string` - The signed transaction as a base64-encoded BCS string
-- **`signature`** - `string` - The signature as a base64-encoded string
+- **`bytes`:** `string` - The signed transaction as a base64-encoded BCS string
+- **`signature`:** `string` - The signature as a base64-encoded string
 
 ```typescript
 const result = await dAppKit.signTransaction({ transaction });
@@ -46,7 +47,7 @@ console.log('Signed transaction bytes:', result.bytes);
 console.log('Signature:', result.signature);
 ```
 
-## Transaction Building
+## Transaction building
 
 When passing a Transaction instance, the action automatically:
 
@@ -54,7 +55,7 @@ When passing a Transaction instance, the action automatically:
 2. Builds the transaction using the current network's client
 3. Converts it to the appropriate format for the wallet
 
-## Wallet Compatibility
+## Wallet compatibility
 
 - The action transparently handles both `sui:signTransaction` and `sui:signTransactionBlock`
   wallet-standard features

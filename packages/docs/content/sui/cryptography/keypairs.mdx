@@ -1,6 +1,7 @@
 ---
 title: Key pairs
-description: 'Create and manage Ed25519, Secp256k1, and Secp256r1 keypairs'
+description: 'Create and manage Ed25519, Secp256k1, and Secp256r1 keypairs for Sui transaction signing.'
+keywords: [keypairs, Ed25519, Secp256k1, Secp256r1, cryptography, signing, Sui, TypeScript SDK]
 ---
 
 The Sui TypeScript SDK provides `Keypair` classes that handle logic for signing and verification
@@ -143,10 +144,10 @@ await verifyTransactionSignature(bytes, signature, {
 ## Verifying zkLogin signatures
 
 ZkLogin signatures can't be verified purely on the client. When verifying a zkLogin signature, the
-SDK uses the GraphQL API to verify the signature. This will work for mainnet signatures without any
+SDK uses the GraphQL API to verify the signature. This works for Mainnet signatures without any
 additional configuration.
 
-For testnet signatures, you will need to provide a testnet GraphQL Client:
+For Testnet signatures, you need to provide a Testnet GraphQL Client:
 
 ```typescript
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
@@ -159,7 +160,7 @@ const publicKey = await verifyPersonalMessageSignature(message, zkSignature, {
 });
 ```
 
-For some zklogin accounts, there are 2 valid addresses for a given set of inputs. This means you may
+For some zklogin accounts, there are two valid addresses for a given set of inputs. This means you might
 run into issues if you try to compare the address returned by `publicKey.toSuiAddress()` directly
 with an expected address.
 

@@ -1,6 +1,7 @@
 ---
 title: Sui TypeScript SDK Quick Start
-description: TypeScript SDK for building on the Sui blockchain
+description: The Sui TypeScript SDK is a modular library of tools for interacting with the Sui blockchain.
+keywords: [Sui, TypeScript SDK, quick start, blockchain, @mysten/sui, installation, RPC, network]
 ---
 
 The Sui TypeScript SDK is a modular library of tools for interacting with the Sui blockchain. Use it
@@ -17,7 +18,7 @@ npm i @mysten/sui
 The following table lists the locations for Sui networks.
 
 | Network | Full node                             | faucet                                   |
-| ------- | ------------------------------------- | ---------------------------------------- |
+|: ------ |: ------------------------------------ |: --------------------------------------- |
 | local   | `http://127.0.0.1:9000` (default)     | `http://127.0.0.1:9123/v2/gas` (default) |
 | Devnet  | `https://fullnode.devnet.sui.io:443`  | `https://faucet.devnet.sui.io/v2/gas`    |
 | Testnet | `https://fullnode.testnet.sui.io:443` | `https://faucet.testnet.sui.io/v2/gas`   |
@@ -41,18 +42,18 @@ for Sui on the [Sui Dev Portal](https://sui.io/developers#dev-tools) using the *
 The SDK contains a set of modular packages that you can use independently or together. Import just
 what you need to keep your code light and compact.
 
-- [`@mysten/sui/client`](/sui/clients) - A client for interacting with Sui RPC nodes.
-- [`@mysten/sui/bcs`](/sui/bcs) - A BCS builder with pre-defined types for Sui.
-- [`@mysten/sui/transactions`](/sui/transaction-building/basics) - Utilities for building and
+- [`@mysten/sui/client`](/sui/clients): A client for interacting with Sui RPC nodes.
+- [`@mysten/sui/bcs`](/sui/bcs): A BCS builder with pre-defined types for Sui.
+- [`@mysten/sui/transactions`](/sui/transaction-building/basics): Utilities for building and
   interacting with transactions.
-- [`@mysten/sui/keypairs/*`](/sui/cryptography/keypairs) - Modular exports for specific KeyPair
+- [`@mysten/sui/keypairs/*`](/sui/cryptography/keypairs): Modular exports for specific KeyPair
   implementations.
-- [`@mysten/sui/verify`](/sui/cryptography/keypairs#verifying-signatures-without-a-key-pair) -
+- [`@mysten/sui/verify`](/sui/cryptography/keypairs#verifying-signatures-without-a-key-pair): 
   Methods for verifying transactions and messages.
-- [`@mysten/sui/cryptography`](/sui/cryptography/keypairs) - Shared types and classes for
+- [`@mysten/sui/cryptography`](/sui/cryptography/keypairs): Shared types and classes for
   cryptography.
-- [`@mysten/sui/multisig`](/sui/cryptography/multisig) - Utilities for working with multisig
+- [`@mysten/sui/multisig`](/sui/cryptography/multisig): Utilities for working with multisig
   signatures.
-- [`@mysten/sui/utils`](/sui/utils) - Utilities for formatting and parsing various Sui types.
-- [`@mysten/sui/faucet`](/sui/faucet) - Methods for requesting SUI from a faucet.
-- [`@mysten/sui/zklogin`](/sui/zklogin) - Utilities for working with zkLogin.
+- [`@mysten/sui/utils`](/sui/utils): Utilities for formatting and parsing various Sui types.
+- [`@mysten/sui/faucet`](/sui/faucet): Methods for requesting SUI from a faucet.
+- [`@mysten/sui/zklogin`](/sui/zklogin): Utilities for working with zkLogin.

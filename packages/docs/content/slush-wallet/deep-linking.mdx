@@ -1,18 +1,19 @@
 ---
 title: Deep Linking
-description: Deep linking configuration for Slush Wallet
+description: Configure deep links to open Slush Wallet directly to specific screens or actions.
+keywords: [deep linking, Slush Wallet, universal links, URL scheme, mobile, Sui, app links]
 ---
 
 Deep linking allows external applications, websites, and services to open Slush directly to specific
 screens or trigger specific actions. This enables seamless integrations where users can be directed
-into the wallet to perform actions like swapping tokens, claiming assets, or browsing dApps.
+into the wallet to perform actions like swapping tokens, claiming assets, or browsing apps.
 
 ## Overview
 
 Slush supports two types of deep linking:
 
 1. **Custom URL Schemes** - Direct links using `slush://` (mobile app only)
-2. **Universal Links & App Links** - HTTPS links that work across mobile and desktop
+2. **Universal Links and App Links** - HTTPS links that work across mobile and desktop
 
 <Callout type="info">
 	For most integrations, use `my.slush.app` HTTPS links. They work on iOS, Android, and desktop
@@ -28,7 +29,7 @@ Slush supports two types of deep linking:
 	characters like colons (`:`). See [URL Encode Parameters](#url-encode-parameters) for examples.
 </Callout>
 
-## URL Schemes
+## URL schemes
 
 Slush registers a custom URL scheme:
 
@@ -36,7 +37,7 @@ Slush registers a custom URL scheme:
 | ---------- | ----------------------------------- |
 | `slush://` | Primary scheme for the Slush wallet |
 
-### Basic Format
+### Basic format
 
 ```
 slush://<path>?<parameters>
@@ -49,7 +50,7 @@ slush://swap?fromCoinType=0x2::sui::SUI
 slush://browse/https://app.example.com
 ```
 
-## Universal Links & App Links
+## Universal links and app links
 
 Slush responds to HTTPS links (Universal Links on iOS, App Links on Android) from the following
 domains:
@@ -58,7 +59,7 @@ domains:
 | -------------- | -------------------------------------------- |
 | `my.slush.app` | `/browse/*`, `/claim/*`, `/swap/*`, `/pay/*` |
 
-### Cross-Platform Behavior
+### Cross-platform behavior
 
 The `my.slush.app` domain is recommended because it works across all platforms:
 
@@ -83,15 +84,15 @@ https://my.slush.app/browse/https://app.turbos.finance
 https://my.slush.app/claim?claimUrl=abc123xyz
 ```
 
-## Supported Routes
+## Supported routes
 
-### dApp Browser
+### App browser
 
 Open the in-app browser to load a specific URL:
 
 | Route         | Description                     |
 | ------------- | ------------------------------- |
-| `browse/:url` | Opens a URL in the dApp browser |
+| `browse/:url` | Opens a URL in the app browser |
 
 **Parameters:**
 
@@ -106,9 +107,9 @@ slush://browse/https://app.turbos.finance
 https://my.slush.app/browse/https://app.cetus.zone
 ```
 
-<Callout>The URL must be a complete, valid URL including the protocol (e.g., `https://`).</Callout>
+<Callout>The URL must be a complete, valid URL including the protocol (for example, `https://`).</Callout>
 
-### Token Swap
+### Token swap
 
 Open the token swap screen with optional pre-filled values:
 
@@ -137,7 +138,7 @@ slush://swap?fromCoinType=0x2::sui::SUI&toCoinType=0xdba34672e30cb065b1f93e3ab55
 slush://swap?fromCoinType=0x2::sui::SUI&presetAmount=100
 ```
 
-### Claim Assets
+### Claim assets
 
 Open the claim screen to receive stashed or gifted tokens:
 
@@ -158,7 +159,7 @@ slush://claim?claimUrl=https://zksend.com/claim/abc123xyz
 slush://claim?claimUrl=https://getstashed.com/claim/def456
 ```
 
-### Token Details
+### Token details
 
 View details for a specific token:
 
@@ -182,7 +183,7 @@ slush://tokens?coinType=0x2::sui::SUI
 slush://tokens?coinType=0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC
 ```
 
-### Receive / QR Code
+### Receive / QR code
 
 Open the receive screen to display the wallet address or scan a QR code:
 
@@ -206,7 +207,7 @@ slush://suime?action=RECEIVE
 slush://suime?action=SCAN_QR_CODE
 ```
 
-### DeFi Strategies
+### DeFi strategies
 
 Access yield strategies and DeFi opportunities:
 
@@ -259,7 +260,7 @@ slush://staking/native-stake
 slush://staking/liquid-stake
 ```
 
-### Send Tokens
+### Send tokens
 
 Access the send flow:
 
@@ -280,7 +281,7 @@ slush://send-coins/camera
 ### Payment Kit
 
 Open the payment flow using Payment Kit URIs. Slush supports the `sui:pay` protocol for processing
-on-chain payments with optional registry support.
+onchain payments with optional registry support.
 
 | Route | Description                 |
 | ----- | --------------------------- |
@@ -300,8 +301,8 @@ https://my.slush.app/pay?receiver=<address>&amount=<amount>&coinType=<coinType>&
 | Parameter  | Type   | Required | Description                                            |
 | ---------- | ------ | -------- | ------------------------------------------------------ |
 | `receiver` | string | Yes      | Recipient Sui address                                  |
-| `amount`   | string | Yes      | Payment amount in smallest unit (e.g., MIST for SUI)   |
-| `coinType` | string | Yes      | Coin type (e.g., `0x2::sui::SUI`)                      |
+| `amount`   | string | Yes      | Payment amount in smallest unit (for example, MIST for SUI)   |
+| `coinType` | string | Yes      | Coin type (for example, `0x2::sui::SUI`)                      |
 | `nonce`    | string | Yes      | Unique payment identifier (max 36 characters)          |
 | `registry` | string | No       | Registry name or object ID for registry-based payments |
 | `label`    | string | No       | Human-readable label for the payment                   |
@@ -329,9 +330,9 @@ https://my.slush.app/pay?receiver=0x1234...abcd&amount=5000000&coinType=0xdba346
 	Kit documentation](/payment-kit/getting-started) for more details.
 </Callout>
 
-## Implementation Examples
+## Implementation examples
 
-### Web Integration
+### Web integration
 
 Link to Slush from any web page (mobile or desktop):
 
@@ -402,9 +403,9 @@ val customIntent = Intent(Intent.ACTION_VIEW, Uri.parse("slush://swap"))
 startActivity(customIntent)
 ```
 
-## Best Practices
+## Best practices
 
-### Use my.slush.app Links for Maximum Compatibility
+### Use my.slush.app links for maximum compatibility
 
 When linking from any platform, prefer `my.slush.app` links over custom URL schemes. These links
 work everywhere - mobile apps, mobile browsers, and desktop browsers - providing a seamless
@@ -423,7 +424,7 @@ experience for all users.
 	specifically need to detect whether the mobile app is installed.
 </Callout>
 
-### URL Encode Parameters
+### URL encode parameters
 
 Always URL-encode parameter values, especially token type addresses which contain special
 characters:
@@ -434,7 +435,7 @@ const encodedCoinType = encodeURIComponent(coinType);
 const url = `slush://swap?fromCoinType=${encodedCoinType}`;
 ```
 
-### Check App Installation (Custom Schemes Only)
+### Check app installation (custom schemes only)
 
 If you're using custom URL schemes (`slush://`), check if the app is installed to provide
 appropriate fallbacks. This is not needed when using `my.slush.app` links, which automatically fall
@@ -450,28 +451,28 @@ if (canOpenSlush) {
 }
 ```
 
-### Handle Missing Parameters Gracefully
+### Handle missing parameters gracefully
 
 Slush will attempt to open the requested screen even if optional parameters are missing. Required
 parameters that are missing will result in the app opening to a default or error state.
 
 ## Troubleshooting
 
-### Link Not Opening the App
+### Link not opening the app
 
 1. **Verify the app is installed** - Custom URL schemes only work if Slush is installed
 2. **Check URL format** - Ensure the URL is properly formatted and encoded
 3. **iOS Universal Links** - Must be clicked from Safari or apps that support Universal Links;
-   copied/pasted URLs may not trigger the app
+   copied or pasted URLs might not trigger the app
 4. **Android App Links** - Ensure the device has verified the app link association
 
-### Wrong Screen Opens
+### Wrong screen opens
 
 1. **Check the path** - Verify the route matches one of the supported routes above
 2. **Check parameters** - Ensure all required parameters are provided
 3. **Check parameter encoding** - Special characters in coin types must be URL-encoded
 
-### Universal Links Open in Browser Instead of App
+### Universal links open in browser instead of app
 
 This can happen if:
 

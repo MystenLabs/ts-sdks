@@ -1,6 +1,7 @@
 ---
 title: Migrating from JSON-RPC
-description: Migrate from JSON-RPC to the new Core API
+description: Migrate from JSON-RPC to the new Core API using SuiGrpcClient or SuiGraphQLClient.
+keywords: [migration, JSON-RPC, Core API, SuiGrpcClient, SuiGraphQLClient, deprecated, Sui client, transport]
 ---
 
 This guide covers migrating from `SuiJsonRpcClient` to the new client APIs. The JSON-RPC API is
@@ -11,14 +12,14 @@ being deprecated in favor of `SuiGrpcClient` and `SuiGraphQLClient`.
 	like filtering transactions and events.
 </Callout>
 
-## Choosing a Client
+## Choosing a client
 
 | Client             | Best For                                                        |
 | ------------------ | --------------------------------------------------------------- |
 | `SuiGrpcClient`    | Most operations, SDK integrations, real-time data               |
 | `SuiGraphQLClient` | Complex queries, filtering transactions/events, historical data |
 
-## Quick Migration to gRPC
+## Quick migration to gRPC
 
 For most use cases, migrate to `SuiGrpcClient`:
 
@@ -38,13 +39,13 @@ For most use cases, migrate to `SuiGrpcClient`:
 
 Both clients use the same full node URLs, so you can use the same endpoint when migrating.
 
-## Core API Methods
+## Core API methods
 
 The gRPC client should work with almost all mysten SDKs as a drop in replacement for the JSON-RPC
 client. When using the client directly, the methods and data returned will not be exactly the same
 as what was available in JSON-RPC.
 
-## Methods Replaced by Core API
+## Methods replaced by core API
 
 These JSON-RPC methods have direct replacements in the core API:
 
@@ -91,7 +92,7 @@ These JSON-RPC methods have direct replacements in the core API:
 + });
 ```
 
-## Methods Replaced by gRPC Services
+## Methods replaced by gRPC services
 
 These JSON-RPC methods can be replaced by calling gRPC service clients directly:
 
@@ -112,7 +113,7 @@ These JSON-RPC methods can be replaced by calling gRPC service clients directly:
 | `resolveNameServiceAddress`         | `nameService.lookupName`          |
 | `resolveNameServiceNames`           | `nameService.reverseLookupName`   |
 
-### Example: Using gRPC Service Clients
+### Example: using gRPC service clients
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -142,7 +143,7 @@ const { response: address } = await client.nameService.lookupName({
 });
 ```
 
-## Methods Requiring GraphQL
+## Methods requiring GraphQL
 
 Some JSON-RPC methods don't have gRPC equivalents and require using `SuiGraphQLClient` instead:
 
@@ -160,7 +161,7 @@ Some JSON-RPC methods don't have gRPC equivalents and require using `SuiGraphQLC
 | `getAddressMetrics`         | Use indexer                        |
 | `getMoveCallMetrics`        | Use indexer                        |
 
-### Setting Up GraphQL Client
+### Setting up GraphQL client
 
 ```typescript
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
@@ -171,7 +172,7 @@ const graphqlClient = new SuiGraphQLClient({
 });
 ```
 
-### Querying Transactions
+### Querying transactions
 
 Replace `queryTransactionBlocks` with a GraphQL query:
 
@@ -207,14 +208,14 @@ const result = await graphqlClient.query({
 
 **Available transaction filters:**
 
-- `sentAddress` - Filter by sender address
-- `affectedAddress` - Filter by any address involved in the transaction
-- `affectedObject` - Filter by object ID that was affected
-- `function` - Filter by Move function called (e.g., `0x2::coin::transfer`)
-- `kind` - Filter by transaction kind (`SYSTEM` or `PROGRAMMABLE`)
+- `sentAddress`: Filter by sender address
+- `affectedAddress`: Filter by any address involved in the transaction
+- `affectedObject`: Filter by object ID that was affected
+- `function`: Filter by Move function called (for example, `0x2::coin::transfer`)
+- `kind`: Filter by transaction kind (`SYSTEM` or `PROGRAMMABLE`)
 - `atCheckpoint` / `beforeCheckpoint` / `afterCheckpoint` - Filter by checkpoint
 
-### Querying Events
+### Querying events
 
 Replace `queryEvents` with a GraphQL query:
 
@@ -254,12 +255,12 @@ const result = await graphqlClient.query({
 
 **Available event filters:**
 
-- `type` - Filter by event type (package, package::module, or full type)
-- `module` - Filter by emitting module
-- `sender` - Filter by transaction sender
-- `atCheckpoint` / `beforeCheckpoint` / `afterCheckpoint` - Filter by checkpoint
+- `type`: Filter by event type (package, package::module, or full type)
+- `module`: Filter by emitting module
+- `sender`: Filter by transaction sender
+- `atCheckpoint` / `beforeCheckpoint` / `afterCheckpoint`: Filter by checkpoint
 
-### Fetching Multiple Transactions
+### Fetching multiple transactions
 
 Replace `multiGetTransactionBlocks` with a GraphQL query:
 
@@ -283,7 +284,7 @@ const result = await graphqlClient.query({
 });
 ```
 
-### Querying Historical Objects
+### Querying historical objects
 
 Replace `tryGetPastObject` with a GraphQL query specifying a version:
 
@@ -311,7 +312,7 @@ const result = await graphqlClient.query({
 });
 ```
 
-### Querying Coin Metadata
+### Querying coin metadata
 
 Replace `getCoinMetadata` and `getTotalSupply` with a GraphQL query:
 
@@ -335,7 +336,7 @@ const result = await graphqlClient.query({
 });
 ```
 
-### Querying Staked SUI
+### Querying staked SUI
 
 Replace `getStakes` with a GraphQL query:
 
@@ -363,10 +364,10 @@ const result = await graphqlClient.query({
 });
 ```
 
-## Response Format Differences
+## Response format differences
 
 The gRPC client uses the core API response format, which differs from JSON-RPC responses. See the
-[@mysten/sui migration guide](/sui/migrations/sui-2.0/sui#transaction-executors-now-accept-any-client)
+[`@mysten/sui` migration guide](/sui/migrations/sui-2.0/sui#transaction-executors-now-accept-any-client)
 for details on the new response format.
 
 Key differences:
@@ -382,7 +383,7 @@ Key differences:
 + { effects: true, events: true }
 ```
 
-## Client Extensions
+## Client extensions
 
 Client extensions work the same way with both clients:
 
@@ -401,7 +402,7 @@ await client.deepbook.checkManagerBalance(manager, asset);
 await client.suins.getName('0xabc...');
 ```
 
-## See Also
+## See also
 
 - [SuiGrpcClient Documentation](/sui/clients/grpc) - Full gRPC client documentation
 - [SuiGraphQLClient Documentation](/sui/clients/graphql) - GraphQL client documentation

@@ -1,6 +1,7 @@
 ---
 title: '@mysten/suins'
-description: Migrate @mysten/suins to 2.0
+description: Migrate @mysten/suins to 2.0 with client extension pattern.
+keywords: [migration, @mysten/suins, SuiNS, 2.0, client extension, name service, breaking changes]
 ---
 
 This package now exports a client extension that integrates with Sui clients.
@@ -25,9 +26,9 @@ This package now exports a client extension that integrates with Sui clients.
 + const nameRecord = await client.suins.getNameRecord('example.sui');
 ```
 
-## Custom Package IDs
+## Custom package IDs
 
-For custom deployments or networks other than mainnet/testnet, you can provide custom package info:
+For custom deployments or networks other than Mainnet or Testnet, you can provide custom package info:
 
 ```ts
 import { SuiGrpcClient } from '@mysten/sui/grpc';
