@@ -40,6 +40,7 @@ export class MoveModuleBuilder extends FileBuilder {
 	summary: ModuleSummary;
 	#depsDir = './deps';
 	#addressMappings: Record<string, string>;
+	#moduleSummaries: Record<string, ModuleSummary> = {};
 	#includedTypes: Set<string> = new Set();
 	#includedFunctions: Set<string> = new Set();
 	#orderedTypes: string[] = [];
@@ -225,6 +226,10 @@ export class MoveModuleBuilder extends FileBuilder {
 	}
 
 	includeTypes(moduleBuilders: Record<string, MoveModuleBuilder>, option?: TypesOption) {
+		this.#moduleSummaries = Object.fromEntries(
+			Object.entries(moduleBuilders).map(([key, builder]) => [key, builder.summary]),
+		);
+
 		if (option === false) return;
 
 		const names = Array.isArray(option)
@@ -574,6 +579,8 @@ export class MoveModuleBuilder extends FileBuilder {
 						typeParameters: func.type_parameters,
 						includePhantomTypeParameters: false,
 						resolveAddress: (address: string) => this.#resolveAddress(address),
+						getModuleSummary: (address: string, module: string) =>
+							this.#moduleSummaries[`${address}::${module}`],
 						onTypeParameter: (typeParameter: number | string) =>
 							usedTypeParameters.add(typeParameter),
 					};
@@ -656,6 +663,8 @@ export class MoveModuleBuilder extends FileBuilder {
 									typeParameters: func.type_parameters,
 									includePhantomTypeParameters: false,
 									resolveAddress: (address) => this.#resolveAddress(address),
+									getModuleSummary: (address: string, module: string) =>
+										this.#moduleSummaries[`${address}::${module}`],
 								}),
 							)
 							.map((tag) =>

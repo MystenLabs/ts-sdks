@@ -324,7 +324,54 @@ describe('normalizeMoveArguments', () => {
 }"`);
 	});
 
-	it('should reject raw strings for non-pure custom types', () => {
+	it('should allow raw strings for key object custom types', async () => {
+		const tx = new Transaction();
+		tx.moveCall({
+			target: '0x0::test:test',
+			arguments: normalizeMoveArguments(
+				{ counter: '0x123' },
+				['0x0::counter::Counter'],
+				['counter'],
+			),
+		});
+
+		expect(await tx.toJSON()).toMatchInlineSnapshot(`"{
+  "version": 2,
+  "sender": null,
+  "expiration": null,
+  "gasData": {
+    "budget": null,
+    "price": null,
+    "owner": null,
+    "payment": null
+  },
+  "inputs": [
+    {
+      "UnresolvedObject": {
+        "objectId": "0x0000000000000000000000000000000000000000000000000000000000000123"
+      }
+    }
+  ],
+  "commands": [
+    {
+      "MoveCall": {
+        "package": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "module": "test:test",
+        "function": "",
+        "typeArguments": [],
+        "arguments": [
+          {
+            "Input": 0
+          }
+        ]
+      }
+    }
+  ]
+}"
+`);
+	});
+
+	it('should reject raw strings for non-key custom types', () => {
 		expect(() => normalizeMoveArguments({ counter: '0x123' }, [null], ['counter'])).toThrow(
 			'Invalid argument 0x123 for type null',
 		);

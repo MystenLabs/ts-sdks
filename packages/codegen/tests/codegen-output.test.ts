@@ -374,7 +374,7 @@ describe('function codegen output', () => {
 		const argInterface = output.match(/export interface IncrementArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface IncrementArguments {
-			    counter: RawTransactionArgument<never>;
+			    counter: RawTransactionArgument<string>;
 			}"
 		`);
 
@@ -383,7 +383,7 @@ describe('function codegen output', () => {
 			"export function increment(options: IncrementOptions) {
 			    const packageAddress = options.package ?? '@test/testpkg';
 			    const argumentsTypes = [
-			        null
+			        '0x0000000000000000000000000000000000000000000000000000000000000000::counter::Counter'
 			    ] satisfies (string | null)[];
 			    const parameterNames = ["counter"];
 			    return (tx: Transaction) => tx.moveCall({
@@ -405,7 +405,7 @@ describe('function codegen output', () => {
 		const argInterface = output.match(/export interface ValueArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface ValueArguments {
-			    counter: RawTransactionArgument<never>;
+			    counter: RawTransactionArgument<string>;
 			}"
 		`);
 	});
@@ -419,7 +419,7 @@ describe('function codegen output', () => {
 		const argInterface = output.match(/export interface SetOptionalArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface SetOptionalArguments {
-			    counter: RawTransactionArgument<never>;
+			    counter: RawTransactionArgument<string>;
 			    newValue: RawTransactionArgument<number | bigint | null>;
 			}"
 		`);
@@ -434,7 +434,7 @@ describe('function codegen output', () => {
 		const argInterface = output.match(/export interface BatchSetArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface BatchSetArguments {
-			    counter: RawTransactionArgument<never>;
+			    counter: RawTransactionArgument<string>;
 			    values: RawTransactionArgument<Array<number | bigint>>;
 			}"
 		`);
@@ -492,7 +492,7 @@ describe('function codegen output', () => {
 			"export function getValueAndOwner(options: GetValueAndOwnerOptions) {
 			    const packageAddress = options.package ?? '@test/testpkg';
 			    const argumentsTypes = [
-			        null
+			        '0x0000000000000000000000000000000000000000000000000000000000000000::counter::Counter'
 			    ] satisfies (string | null)[];
 			    const parameterNames = ["counter"];
 			    return (tx: Transaction) => tx.moveCall({
@@ -516,7 +516,7 @@ describe('function codegen output', () => {
 			"export function reset(options: ResetOptions) {
 			    const packageAddress = options.package ?? '@test/testpkg';
 			    const argumentsTypes = [
-			        null
+			        '0x0000000000000000000000000000000000000000000000000000000000000000::counter::Counter'
 			    ] satisfies (string | null)[];
 			    const parameterNames = ["counter"];
 			    return (tx: Transaction) => tx.moveCall({
@@ -538,7 +538,7 @@ describe('function codegen output', () => {
 		const argInterface = output.match(/export interface ValueWithClockArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface ValueWithClockArguments {
-			    counter: RawTransactionArgument<never>;
+			    counter: RawTransactionArgument<string>;
 			}"
 		`);
 

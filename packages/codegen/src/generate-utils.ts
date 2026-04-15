@@ -156,6 +156,11 @@ export function normalizeMoveArguments(
 			continue;
 		}
 
+		if (typeof arg === 'string' && type !== null) {
+			normalizedArgs.push((tx) => tx.object(arg));
+			continue;
+		}
+
 		throw new Error(\`Invalid argument \${stringify(arg)} for type \${type}\`);
 	}
 

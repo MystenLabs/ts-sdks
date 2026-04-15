@@ -7,6 +7,7 @@ import type {
 	Datatype,
 	DatatypeParameter,
 	ModuleSummary,
+	StructSummary,
 	Type,
 	TypeParameter,
 } from './types/summary.js';
@@ -21,6 +22,7 @@ interface RenderTypeSignatureOptions {
 	summary: ModuleSummary;
 	typeParameters?: TypeParameter[];
 	onDependency?: (address: string, module: string, type: string) => string | undefined;
+	getModuleSummary?: (address: string, module: string) => ModuleSummary | undefined;
 	bcsImport?: () => string;
 	onTypeParameter?: (typeParameter: number | string) => void;
 	resolveAddress: (address: string) => string;
@@ -116,7 +118,9 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 	if ('vector' in type) {
 		switch (options.format) {
 			case 'typescriptArg':
-				return `Array<${renderTypeSignature(type.vector, options)}>`;
+				return getRawTransactionInputKind(type, options) === 'pure'
+					? `Array<${renderTypeSignature(type.vector, options)}>`
+					: 'never';
 			case 'typeTag':
 				return `vector<${renderTypeSignature(type.vector, options)}>`;
 			case 'bcs':
@@ -224,24 +228,41 @@ export function isPureSignature(type: Type, options: RenderTypeSignatureOptions)
 	throw new Error(`Unknown type signature: ${JSON.stringify(type, null, 2)}`);
 }
 
-export function isSupportedRawTransactionInput(
+type RawTransactionInputKind = 'pure' | 'object' | 'none';
+
+function getDatatypeSummary(
+	type: Datatype,
+	options: RenderTypeSignatureOptions,
+): StructSummary | null {
+	const address = options.resolveAddress(type.module.address);
+	const isCurrentModule =
+		address === options.resolveAddress(options.summary.id.address) &&
+		type.module.name === options.summary.id.name;
+	const moduleSummary = isCurrentModule
+		? options.summary
+		: options.getModuleSummary?.(address, type.module.name);
+
+	return moduleSummary?.structs[type.name] ?? null;
+}
+
+function getRawTransactionInputKind(
 	type: Type,
 	options: RenderTypeSignatureOptions,
-): boolean {
+): RawTransactionInputKind {
 	if (typeof type === 'string') {
-		return true;
+		return 'pure';
 	}
 
 	if ('Reference' in type) {
-		return isSupportedRawTransactionInput(type.Reference[1], options);
+		return getRawTransactionInputKind(type.Reference[1], options);
 	}
 
 	if ('vector' in type) {
-		return isSupportedRawTransactionInput(type.vector, options);
+		return getRawTransactionInputKind(type.vector, options) === 'pure' ? 'pure' : 'none';
 	}
 
 	if ('TypeParameter' in type || 'NamedTypeParameter' in type) {
-		return true;
+		return 'pure';
 	}
 
 	if ('Datatype' in type) {
@@ -253,7 +274,7 @@ export function isSupportedRawTransactionInput(
 			(Datatype.module.name === 'ascii' || Datatype.module.name === 'string') &&
 			Datatype.name === 'String'
 		) {
-			return true;
+			return 'pure';
 		}
 
 		if (
@@ -261,7 +282,9 @@ export function isSupportedRawTransactionInput(
 			Datatype.module.name === 'option' &&
 			Datatype.name === 'Option'
 		) {
-			return isSupportedRawTransactionInput(Datatype.type_arguments[0].argument, options);
+			return getRawTransactionInputKind(Datatype.type_arguments[0].argument, options) === 'pure'
+				? 'pure'
+				: 'none';
 		}
 
 		if (
@@ -269,13 +292,24 @@ export function isSupportedRawTransactionInput(
 			Datatype.module.name === 'object' &&
 			(Datatype.name === 'ID' || Datatype.name === 'UID')
 		) {
-			return true;
+			return 'pure';
 		}
 
-		return false;
+		return getDatatypeSummary(Datatype, options)?.abilities.includes('Key') ? 'object' : 'none';
 	}
 
 	throw new Error(`Unknown type signature: ${JSON.stringify(type, null, 2)}`);
+}
+
+function isObjectDatatype(type: Datatype, options: RenderTypeSignatureOptions): boolean {
+	return getRawTransactionInputKind({ Datatype: type }, options) === 'object';
+}
+
+export function isSupportedRawTransactionInput(
+	type: Type,
+	options: RenderTypeSignatureOptions,
+): boolean {
+	return getRawTransactionInputKind(type, options) !== 'none';
 }
 
 function isPureDataType(type: Datatype, options: RenderTypeSignatureOptions) {
@@ -302,6 +336,7 @@ function isPureDataType(type: Datatype, options: RenderTypeSignatureOptions) {
 
 function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): string {
 	const address = options.resolveAddress(type.module.address);
+	const filteredTypeArguments = type.type_arguments.filter((arg) => !arg.phantom);
 
 	if (options.format === 'typeTag') {
 		if (address === SUI_FRAMEWORK_ADDRESS) {
@@ -328,6 +363,15 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 				const innerType = renderTypeSignature(type.type_arguments[0].argument, options);
 				return `0x1::option::Option<${innerType}>`;
 			}
+		}
+
+		if (isObjectDatatype(type, options)) {
+			const typeArgs = filteredTypeArguments.map((type) =>
+				renderTypeSignature(type.argument, options),
+			);
+			return typeArgs.length > 0
+				? `${address}::${type.module.name}::${type.name}<${typeArgs.join(', ')}>`
+				: `${address}::${type.module.name}::${type.name}`;
 		}
 
 		return 'null';
@@ -383,11 +427,9 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 		? type.name
 		: `${importName ?? getSafeName(type.module.name)}.${getSafeName(type.name)}`;
 
-	const filteredTypeArguments = type.type_arguments.filter((arg) => !arg.phantom);
-
 	switch (options.format) {
 		case 'typescriptArg':
-			return 'string';
+			return isObjectDatatype(type, options) ? 'string' : 'never';
 		case 'bcs':
 			if (filteredTypeArguments.length === 0) {
 				return typeNameRef;
