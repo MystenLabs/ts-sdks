@@ -154,9 +154,6 @@ export function normalizeMoveArguments(
 			const bytes = bcsType.serialize(arg as never);
 			normalizedArgs.push((tx) => tx.pure(bytes));
 			continue;
-		} else if (typeof arg === 'string') {
-			normalizedArgs.push((tx) => tx.object(arg));
-			continue;
 		}
 
 		throw new Error(\`Invalid argument \${stringify(arg)} for type \${type}\`);

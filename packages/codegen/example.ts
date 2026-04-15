@@ -179,7 +179,7 @@ export function enokiBorrowWithCodegen(id: string, type: string) {
 
 	const [parentNft, promise] = tx.add(
 		managedObjectModule.borrow({
-			arguments: [ENOKI_OBJECT_ID, id],
+			arguments: [tx.object(ENOKI_OBJECT_ID), tx.pure.id(id)],
 			typeArguments: [type],
 		}),
 	);
@@ -191,7 +191,7 @@ export function enokiBorrowWithCodegen(id: string, type: string) {
 
 	tx.add(
 		managedObjectModule.put_back({
-			arguments: [ENOKI_OBJECT_ID, parentNft, promise],
+			arguments: [tx.object(ENOKI_OBJECT_ID), parentNft, promise],
 			typeArguments: [type],
 		}),
 	);

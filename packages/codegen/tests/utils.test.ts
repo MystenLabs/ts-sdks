@@ -323,4 +323,10 @@ describe('normalizeMoveArguments', () => {
   ]
 }"`);
 	});
+
+	it('should reject raw strings for non-pure custom types', () => {
+		expect(() => normalizeMoveArguments({ counter: '0x123' }, [null], ['counter'])).toThrow(
+			'Invalid argument 0x123 for type null',
+		);
+	});
 });

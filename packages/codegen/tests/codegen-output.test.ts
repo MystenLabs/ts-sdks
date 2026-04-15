@@ -374,7 +374,7 @@ describe('function codegen output', () => {
 		const argInterface = output.match(/export interface IncrementArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface IncrementArguments {
-			    counter: RawTransactionArgument<string>;
+			    counter: RawTransactionArgument<never>;
 			}"
 		`);
 
@@ -405,7 +405,7 @@ describe('function codegen output', () => {
 		const argInterface = output.match(/export interface ValueArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface ValueArguments {
-			    counter: RawTransactionArgument<string>;
+			    counter: RawTransactionArgument<never>;
 			}"
 		`);
 	});
@@ -419,7 +419,7 @@ describe('function codegen output', () => {
 		const argInterface = output.match(/export interface SetOptionalArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface SetOptionalArguments {
-			    counter: RawTransactionArgument<string>;
+			    counter: RawTransactionArgument<never>;
 			    newValue: RawTransactionArgument<number | bigint | null>;
 			}"
 		`);
@@ -434,7 +434,7 @@ describe('function codegen output', () => {
 		const argInterface = output.match(/export interface BatchSetArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface BatchSetArguments {
-			    counter: RawTransactionArgument<string>;
+			    counter: RawTransactionArgument<never>;
 			    values: RawTransactionArgument<Array<number | bigint>>;
 			}"
 		`);
@@ -538,7 +538,7 @@ describe('function codegen output', () => {
 		const argInterface = output.match(/export interface ValueWithClockArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface ValueWithClockArguments {
-			    counter: RawTransactionArgument<string>;
+			    counter: RawTransactionArgument<never>;
 			}"
 		`);
 
@@ -556,7 +556,7 @@ describe('function codegen output', () => {
 		const argInterface = output.match(/export interface IsActiveArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface IsActiveArguments {
-			    status: RawTransactionArgument<string>;
+			    status: RawTransactionArgument<never>;
 			}"
 		`);
 	});

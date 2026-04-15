@@ -224,6 +224,60 @@ export function isPureSignature(type: Type, options: RenderTypeSignatureOptions)
 	throw new Error(`Unknown type signature: ${JSON.stringify(type, null, 2)}`);
 }
 
+export function isSupportedRawTransactionInput(
+	type: Type,
+	options: RenderTypeSignatureOptions,
+): boolean {
+	if (typeof type === 'string') {
+		return true;
+	}
+
+	if ('Reference' in type) {
+		return isSupportedRawTransactionInput(type.Reference[1], options);
+	}
+
+	if ('vector' in type) {
+		return isSupportedRawTransactionInput(type.vector, options);
+	}
+
+	if ('TypeParameter' in type || 'NamedTypeParameter' in type) {
+		return true;
+	}
+
+	if ('Datatype' in type) {
+		const { Datatype } = type;
+		const address = options.resolveAddress(Datatype.module.address);
+
+		if (
+			address === MOVE_STDLIB_ADDRESS &&
+			(Datatype.module.name === 'ascii' || Datatype.module.name === 'string') &&
+			Datatype.name === 'String'
+		) {
+			return true;
+		}
+
+		if (
+			address === MOVE_STDLIB_ADDRESS &&
+			Datatype.module.name === 'option' &&
+			Datatype.name === 'Option'
+		) {
+			return isSupportedRawTransactionInput(Datatype.type_arguments[0].argument, options);
+		}
+
+		if (
+			address === SUI_FRAMEWORK_ADDRESS &&
+			Datatype.module.name === 'object' &&
+			(Datatype.name === 'ID' || Datatype.name === 'UID')
+		) {
+			return true;
+		}
+
+		return false;
+	}
+
+	throw new Error(`Unknown type signature: ${JSON.stringify(type, null, 2)}`);
+}
+
 function isPureDataType(type: Datatype, options: RenderTypeSignatureOptions) {
 	const address = options.resolveAddress(type.module.address);
 
