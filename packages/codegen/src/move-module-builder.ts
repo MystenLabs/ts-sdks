@@ -529,7 +529,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		}
 	}
 
-	async renderFunctions() {
+	async renderFunctions(moduleBuilders?: Record<string, MoveModuleBuilder>) {
 		const names = [];
 
 		if (!this.hasFunctions()) {
@@ -537,6 +537,23 @@ export class MoveModuleBuilder extends FileBuilder {
 		}
 
 		const transactionTypeName = this.#getImportName('Transaction');
+		const resolveAbilities = (address: string, mod: string, name: string) => {
+			const resolvedAddress = this.#resolveAddress(address);
+			// Check the current module first.
+			if (
+				resolvedAddress === this.#resolveAddress(this.summary.id.address) &&
+				mod === this.summary.id.name
+			) {
+				return this.summary.structs[name]?.abilities ?? this.summary.enums[name]?.abilities;
+			}
+			// Fall back to cross-module lookup via the shared builder map.
+			if (!moduleBuilders) return undefined;
+			// moduleBuilders may be keyed by either the resolved or unresolved address.
+			const builder =
+				moduleBuilders[`${address}::${mod}`] ?? moduleBuilders[`${resolvedAddress}::${mod}`];
+			if (!builder) return undefined;
+			return builder.summary.structs[name]?.abilities ?? builder.summary.enums[name]?.abilities;
+		};
 
 		for (const [name, func] of Object.entries(this.summary.functions)) {
 			if (func.macro_ || !this.#includedFunctions.has(name)) {
@@ -573,6 +590,7 @@ export class MoveModuleBuilder extends FileBuilder {
 						typeParameters: func.type_parameters,
 						includePhantomTypeParameters: false,
 						resolveAddress: (address) => this.#resolveAddress(address),
+						resolveAbilities,
 						onTypeParameter: (typeParameter) => usedTypeParameters.add(typeParameter),
 					}),
 				)

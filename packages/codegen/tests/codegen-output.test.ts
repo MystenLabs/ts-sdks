@@ -40,10 +40,14 @@ async function createBuilders(includePhantomTypeParameters = false) {
 /** Render a builder to string (types only, functions only, or both) */
 async function render(
 	builder: MoveModuleBuilder,
-	options: { types?: boolean; functions?: boolean } = { types: true, functions: true },
+	options: {
+		types?: boolean;
+		functions?: boolean;
+		moduleBuilders?: Record<string, MoveModuleBuilder>;
+	} = { types: true, functions: true },
 ) {
 	if (options.types) await builder.renderBCSTypes();
-	if (options.functions) await builder.renderFunctions();
+	if (options.functions) await builder.renderFunctions(options.moduleBuilders);
 	return builder.toString('./', './testpkg/test.ts');
 }
 
@@ -553,10 +557,13 @@ describe('function codegen output', () => {
 		registry.includeFunctions(['is_active']);
 		const output = await render(registry);
 
+		// Enums are never `key` so they cannot be referenced by object id; the
+		// generated argument type must be `never` so only a prior transaction
+		// result (TransactionArgument) is accepted.
 		const argInterface = output.match(/export interface IsActiveArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface IsActiveArguments {
-			    status: RawTransactionArgument<string>;
+			    status: RawTransactionArgument<never>;
 			}"
 		`);
 	});
@@ -719,6 +726,175 @@ describe('name collision handling', () => {
 		// Verify the generated code structure is correct
 		const fnBody = output.match(/export function createTransaction[\s\S]*?^}/m);
 		expect(fnBody?.[0]).toContain('Transaction_1');
+	});
+
+	it('non-key struct parameter is typed as never (not string)', async () => {
+		// Only structs with `key` are addressable via object id; anything else
+		// must come from a prior transaction result.
+		const nonKeyStructSummary = {
+			id: { address: 'testpkg', name: 'non_key' },
+			doc: '',
+			immediate_dependencies: [],
+			attributes: [],
+			functions: {
+				use_receipt: {
+					source_index: 0,
+					index: 0,
+					doc: '',
+					attributes: [],
+					visibility: 'Public',
+					entry: false,
+					macro_: false,
+					type_parameters: [],
+					parameters: [
+						{
+							name: 'receipt',
+							type_: {
+								Datatype: {
+									module: { address: 'testpkg', name: 'non_key' },
+									name: 'Receipt',
+									type_arguments: [],
+								},
+							},
+						},
+					],
+					return_: [],
+				},
+			},
+			structs: {
+				Receipt: {
+					index: 0,
+					doc: '',
+					attributes: [],
+					// Note: no `Key` ability.
+					abilities: ['Drop', 'Store'],
+					type_parameters: [],
+					fields: {
+						positional_fields: false,
+						fields: {
+							value: { index: 0, doc: null, type_: 'u64' },
+						},
+					},
+				},
+			},
+			enums: {},
+		};
+
+		const builder = new MoveModuleBuilder({
+			summary: nonKeyStructSummary as any,
+			addressMappings: ADDRESS_MAPPINGS,
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+		const all = { 'testpkg::non_key': builder };
+		builder.includeTypes(all);
+		builder.includeFunctions();
+		const output = await render(builder);
+
+		const argInterface = output.match(/export interface UseReceiptArguments[\s\S]*?^}/m);
+		expect(argInterface?.[0]).toMatchInlineSnapshot(`
+			"export interface UseReceiptArguments {
+			    receipt: RawTransactionArgument<never>;
+			}"
+		`);
+	});
+
+	it('cross-module key struct parameter is typed as string', async () => {
+		// A key struct defined in a dependency module should still render as
+		// `string` when used as a parameter from another module.
+		const keyModuleSummary = {
+			id: { address: 'testpkg', name: 'key_mod' },
+			doc: '',
+			immediate_dependencies: [],
+			attributes: [],
+			functions: {},
+			structs: {
+				KeyObj: {
+					index: 0,
+					doc: '',
+					attributes: [],
+					abilities: ['Key'],
+					type_parameters: [],
+					fields: {
+						positional_fields: false,
+						fields: {
+							id: { index: 0, doc: null, type_: 'address' },
+						},
+					},
+				},
+			},
+			enums: {},
+		};
+
+		const consumerSummary = {
+			id: { address: 'testpkg', name: 'consumer' },
+			doc: '',
+			immediate_dependencies: [{ address: 'testpkg', name: 'key_mod' }],
+			attributes: [],
+			functions: {
+				borrow_key: {
+					source_index: 0,
+					index: 0,
+					doc: '',
+					attributes: [],
+					visibility: 'Public',
+					entry: false,
+					macro_: false,
+					type_parameters: [],
+					parameters: [
+						{
+							name: 'obj',
+							type_: {
+								Reference: [
+									false,
+									{
+										Datatype: {
+											module: { address: 'testpkg', name: 'key_mod' },
+											name: 'KeyObj',
+											type_arguments: [],
+										},
+									},
+								],
+							},
+						},
+					],
+					return_: [],
+				},
+			},
+			structs: {},
+			enums: {},
+		};
+
+		const keyBuilder = new MoveModuleBuilder({
+			summary: keyModuleSummary as any,
+			addressMappings: ADDRESS_MAPPINGS,
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+		const consumerBuilder = new MoveModuleBuilder({
+			summary: consumerSummary as any,
+			addressMappings: ADDRESS_MAPPINGS,
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+		const all = {
+			'testpkg::key_mod': keyBuilder,
+			'testpkg::consumer': consumerBuilder,
+		};
+		consumerBuilder.includeTypes(all);
+		consumerBuilder.includeFunctions();
+		const output = await render(consumerBuilder, {
+			types: true,
+			functions: true,
+			moduleBuilders: all,
+		});
+
+		const argInterface = output.match(/export interface BorrowKeyArguments[\s\S]*?^}/m);
+		expect(argInterface?.[0]).toMatchInlineSnapshot(`
+			"export interface BorrowKeyArguments {
+			    obj: RawTransactionArgument<string>;
+			}"
+		`);
 	});
 
 	it('getUnusedName reserves generated aliases to prevent duplicates', () => {

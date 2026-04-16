@@ -156,7 +156,7 @@ export async function generateFromPackageSummary({
 		modules.map(async (mod) => {
 			if ((mod.isMainPackage || !prune) && mod.builder.hasTypesOrFunctions()) {
 				await mod.builder.renderBCSTypes();
-				await mod.builder.renderFunctions();
+				await mod.builder.renderFunctions(moduleBuilders);
 			} else if (mod.isMainPackage) {
 				return;
 			} else if (mod.builder.hasBcsTypes()) {

@@ -4,6 +4,7 @@
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
 import type {
+	Ability,
 	Datatype,
 	DatatypeParameter,
 	ModuleSummary,
@@ -24,6 +25,14 @@ interface RenderTypeSignatureOptions {
 	bcsImport?: () => string;
 	onTypeParameter?: (typeParameter: number | string) => void;
 	resolveAddress: (address: string) => string;
+	/**
+	 * Resolve the abilities of a datatype from another module (or the current one).
+	 * Required for correct `typescriptArg` rendering of struct/enum parameters —
+	 * only structs with the `Key` ability can be passed by object id (`string`);
+	 * everything else must come from a prior transaction result
+	 * (represented as `RawTransactionArgument<never>` in the generated signature).
+	 */
+	resolveAbilities?: (address: string, module: string, name: string) => Ability[] | undefined;
 	includePhantomTypeParameters: boolean;
 }
 
@@ -174,6 +183,18 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 	}
 
 	throw new Error(`Unknown type signature: ${JSON.stringify(type, null, 2)}`);
+}
+
+function resolveAbilitiesFromSummary(
+	type: Datatype,
+	summary: ModuleSummary,
+): Ability[] | undefined {
+	// Only the current module's summary is directly accessible here.
+	// For cross-module lookups the caller must provide `resolveAbilities`.
+	if (type.module.address !== summary.id.address || type.module.name !== summary.id.name) {
+		return undefined;
+	}
+	return summary.structs[type.name]?.abilities ?? summary.enums[type.name]?.abilities;
 }
 
 export function usesBcs(type: Type, options: RenderTypeSignatureOptions): boolean {
@@ -332,8 +353,19 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 	const filteredTypeArguments = type.type_arguments.filter((arg) => !arg.phantom);
 
 	switch (options.format) {
-		case 'typescriptArg':
-			return 'string';
+		case 'typescriptArg': {
+			// Only structs with the `key` ability can be passed as an object id (a string).
+			// Everything else (non-key structs, enums) must be produced by a prior
+			// transaction call and is typed as `never` so it only accepts a
+			// `TransactionArgument` through the `RawTransactionArgument<T>` wrapper.
+			const abilities =
+				options.resolveAbilities?.(type.module.address, type.module.name, type.name) ??
+				resolveAbilitiesFromSummary(type, options.summary);
+			if (abilities && abilities.includes('Key')) {
+				return 'string';
+			}
+			return 'never';
+		}
 		case 'bcs':
 			if (filteredTypeArguments.length === 0) {
 				return typeNameRef;
