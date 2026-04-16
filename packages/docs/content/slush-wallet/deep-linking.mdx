@@ -12,8 +12,8 @@ into the wallet to perform actions like swapping tokens, claiming assets, or bro
 
 Slush supports two types of deep linking:
 
-1. **Custom URL Schemes** - Direct links using `slush://` (mobile app only)
-2. **Universal Links and App Links** - HTTPS links that work across mobile and desktop
+1. **Custom URL schemes**: Direct links using `slush://` (mobile app only)
+2. **Universal links and app links**: HTTPS links that work across mobile and desktop
 
 <Callout type="info">
 	For most integrations, use `my.slush.app` HTTPS links. They work on iOS, Android, and desktop
@@ -70,17 +70,17 @@ The `my.slush.app` domain is recommended because it works across all platforms:
 | Desktop browser            | Opens the Slush web app                            |
 
 <Callout type="info">
-	Unlike custom URL schemes (`slush://`), `my.slush.app` links never fail - they always open either
+	Unlike custom URL schemes (`slush://`), `my.slush.app` links never fail. They always open either
 	the native app or the web app, ensuring users can complete their intended action.
 </Callout>
 
 ### Examples
 
 ```
-# Opens dApp browser - works on mobile and desktop
+# Opens dApp browser: works on mobile and desktop
 https://my.slush.app/browse/https://app.turbos.finance
 
-# Opens claim flow - works on mobile and desktop
+# Opens claim flow: works on mobile and desktop
 https://my.slush.app/claim?claimUrl=abc123xyz
 ```
 
@@ -408,7 +408,7 @@ startActivity(customIntent)
 ### Use my.slush.app links for maximum compatibility
 
 When linking from any platform, prefer `my.slush.app` links over custom URL schemes. These links
-work everywhere - mobile apps, mobile browsers, and desktop browsers - providing a seamless
+work everywhere, mobile apps, mobile browsers, and desktop browsers, providing a seamless
 experience for all users.
 
 ```html
@@ -460,17 +460,17 @@ parameters that are missing will result in the app opening to a default or error
 
 ### Link not opening the app
 
-1. **Verify the app is installed** - Custom URL schemes only work if Slush is installed
-2. **Check URL format** - Ensure the URL is properly formatted and encoded
-3. **iOS Universal Links** - Must be clicked from Safari or apps that support Universal Links;
+1. **Verify the app is installed**: Custom URL schemes only work if Slush is installed
+2. **Check URL format**: Ensure the URL is properly formatted and encoded
+3. **iOS Universal Links**: Must be clicked from Safari or apps that support Universal Links;
    copied or pasted URLs might not trigger the app
-4. **Android App Links** - Ensure the device has verified the app link association
+4. **Android App Links**: Ensure the device has verified the app link association
 
 ### Wrong screen opens
 
-1. **Check the path** - Verify the route matches one of the supported routes above
-2. **Check parameters** - Ensure all required parameters are provided
-3. **Check parameter encoding** - Special characters in coin types must be URL-encoded
+1. **Check the path**: Verify the route matches one of the supported routes above
+2. **Check parameters**: Ensure all required parameters are provided
+3. **Check parameter encoding**: Special characters in coin types must be URL-encoded
 
 ### Universal links open in browser instead of app
 

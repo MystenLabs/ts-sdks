@@ -1,7 +1,6 @@
 ---
 title: DApp Kit Instance
-description: Create and configure a DAppKit instance for wallet and client management.
-keywords: [createDAppKit, dApp Kit, configuration, wallet management, Sui client, network setup, TypeScript]
+description: Create and configure a DAppKit instance for wallet and client management
 ---
 
 The `createDAppKit` function is the foundation of your Sui app. It creates an instance that manages
@@ -43,19 +42,19 @@ This instance provides:
 
 ## Parameters
 
-- **autoConnect** (optional) - Enables automatically connecting to the most recently used wallet
+- **autoConnect** (optional): Enables automatically connecting to the most recently used wallet
   account (default: `true`)
 - **networks:** A list of networks supported by the application (for example, `['mainnet', 'testnet']`)
-- **defaultNetwork** (optional) - Initial network to use (default: first network in the array)
+- **defaultNetwork** (optional): Initial network to use (default: first network in the array)
 - **createClient:** Creates a new client instance for the given network
-- **enableBurnerWallet** (optional) - Enable development-only burner wallet (default: `false`)
-- **storage** (optional) - Configures how the most recently connected to wallet account is stored
+- **enableBurnerWallet** (optional): Enable development-only burner wallet (default: `false`)
+- **storage** (optional): Configures how the most recently connected to wallet account is stored
   (default: `localStorage`, set to `null` to disable)
-- **storageKey** (optional) - The key to use to store the most recently connected wallet account
+- **storageKey** (optional): The key to use to store the most recently connected wallet account
   (default: `'mysten-dapp-kit:selected-wallet-and-address'`)
-- **walletInitializers** (optional) - A list of wallet initializers used for registering additional
+- **walletInitializers** (optional): A list of wallet initializers used for registering additional
   wallet standard wallets.
-- **slushWalletConfig** (optional) - Configuration for Slush wallet (set to `null` to disable the
+- **slushWalletConfig** (optional): Configuration for Slush wallet (set to `null` to disable the
   wallet)
 
 ## Return value
@@ -124,7 +123,7 @@ export async function connectWalletAndLog({
 
 <Callout>
 	If you use the React bindings, see [Getting Started in React](./getting-started/react) and
-	[`DAppKitProvider`](./react/dapp-kit-provider).
+	[DAppKitProvider](./react/dapp-kit-provider).
 </Callout>
 
 ## Development configuration
