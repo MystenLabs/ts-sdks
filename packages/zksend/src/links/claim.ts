@@ -4,7 +4,6 @@
 import { bcs } from '@mysten/sui/bcs';
 import type { Keypair } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import type { TransactionObjectArgument } from '@mysten/sui/transactions';
 import { Transaction } from '@mysten/sui/transactions';
 import {
 	fromBase64,
@@ -16,7 +15,7 @@ import {
 
 import type { ZkSendLinkBuilderOptions } from './builder.js';
 import { ZkSendLinkBuilder } from './builder.js';
-import type { LinkAssets } from './utils.js';
+import type { ClaimedAsset, LinkAssets } from './utils.js';
 import type { ZkBagContractOptions } from './zk-bag.js';
 import { getContractIds, ZkBag, ZkBagStruct } from './zk-bag.js';
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
@@ -208,6 +207,10 @@ export class ZkSendLink {
 		return result;
 	}
 
+	/**
+	 * Build a complete claim transaction that transfers all assets to `address`.
+	 * For composable claims, use {@link createClaimCommands} instead.
+	 */
 	createClaimTransaction(
 		address: string,
 		{
@@ -216,13 +219,52 @@ export class ZkSendLink {
 			reclaim?: boolean;
 		} = {},
 	) {
-		if (!this.keypair && !reclaim) {
-			throw new Error('Cannot claim assets without the links keypair');
-		}
-
 		const tx = new Transaction();
 		const sender = reclaim ? address : this.keypair!.toSuiAddress();
 		tx.setSender(sender);
+
+		const { assets, finalize } = this.createClaimCommands(tx, { reclaim });
+
+		if (assets.length > 0) {
+			tx.transferObjects(
+				assets.map((a) => a.argument),
+				address,
+			);
+		}
+
+		finalize();
+
+		return tx;
+	}
+
+	/**
+	 * Add claim commands to an existing transaction and return the claimed
+	 * assets for composition. The caller is responsible for transferring or
+	 * using every asset and calling `finalize()` when done.
+	 *
+	 * @example
+	 * ```ts
+	 * const tx = new Transaction();
+	 * const { assets, finalize } = link.createClaimCommands(tx);
+	 *
+	 * const record = assets.find(a => a.type.includes('::record::Record'));
+	 * tx.moveCall({ target: 'player::add_record', arguments: [player, record.argument] });
+	 * tx.transferObjects(assets.filter(a => a !== record).map(a => a.argument), address);
+	 *
+	 * finalize();
+	 * ```
+	 */
+	createClaimCommands(
+		tx: Transaction,
+		{
+			reclaim,
+		}: {
+			reclaim?: boolean;
+		} = {},
+	): { assets: ClaimedAsset[]; finalize: () => void } {
+		if (!this.keypair && !reclaim) {
+			throw new Error('Cannot claim assets without the links keypair');
+		}
 
 		const store = tx.object(this.#contract.ids.bagStoreId);
 		const command = reclaim
@@ -231,34 +273,30 @@ export class ZkSendLink {
 
 		const [bag, proof] = tx.add(command);
 
-		const objectsToTransfer: TransactionObjectArgument[] = [];
-
 		const objects = [...(this.assets?.coins ?? []), ...(this.assets?.nfts ?? [])];
 
-		for (const object of objects) {
-			objectsToTransfer.push(
-				this.#contract.claim({
-					arguments: [
-						bag,
-						proof,
-						tx.receivingRef({
-							objectId: object.objectId,
-							version: object.version,
-							digest: object.digest,
-						}),
-					],
-					typeArguments: [object.type],
-				}),
-			);
-		}
+		const assets: ClaimedAsset[] = objects.map((object) => ({
+			argument: this.#contract.claim({
+				arguments: [
+					bag,
+					proof,
+					tx.receivingRef({
+						objectId: object.objectId,
+						version: object.version,
+						digest: object.digest,
+					}),
+				],
+				typeArguments: [object.type],
+			}),
+			type: object.type,
+			objectId: object.objectId,
+		}));
 
-		if (objectsToTransfer.length > 0) {
-			tx.transferObjects(objectsToTransfer, address);
-		}
+		const finalize = () => {
+			tx.add(this.#contract.finalize({ arguments: [bag, proof] }));
+		};
 
-		tx.add(this.#contract.finalize({ arguments: [bag, proof] }));
-
-		return tx;
+		return { assets, finalize };
 	}
 
 	async createRegenerateTransaction(

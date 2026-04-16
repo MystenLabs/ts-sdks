@@ -20,4 +20,4 @@ export { ZkSendLink, type ZkSendLinkOptions } from './links/claim.js';
 export { type ZkBagContractOptions, ZkBag } from './links/zk-bag.js';
 export { MAINNET_CONTRACT_IDS, TESTNET_CONTRACT_IDS } from './links/zk-bag.js';
 
-export { isClaimTransaction } from './links/utils.js';
+export { isClaimTransaction, type ClaimedAsset } from './links/utils.js';
