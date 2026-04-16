@@ -281,6 +281,75 @@ describe('Contract links', () => {
 		}
 	}, 60_000);
 
+	test('createClaimCommands — compose with claimed assets', async () => {
+		const link = client.zksend.linkBuilder({
+			sender: keypair.toSuiAddress(),
+		});
+
+		const bears = await createBears(2);
+
+		for (const bear of bears) {
+			link.addClaimableObject(bear.objectId);
+		}
+
+		link.addClaimableMist(100n);
+
+		const linkUrl = link.getLink();
+
+		await link.create({
+			signer: keypair,
+			waitForTransaction: true,
+		});
+
+		const claimLink = await client.zksend.loadLinkFromUrl(linkUrl);
+		expect(claimLink.assets!.nfts.length).toEqual(2);
+
+		// Build a composable claim transaction
+		const tx = new Transaction();
+		tx.setSender(claimLink.keypair!.toSuiAddress());
+
+		const { assets, finalize } = claimLink.createClaimCommands(tx);
+
+		// Verify assets have type metadata
+		expect(assets.length).toEqual(3); // 2 bears + 1 SUI coin
+		const bearAssets = assets.filter((a) => a.type.includes('::demo_bear::DemoBear'));
+		const coinAssets = assets.filter((a) => !a.type.includes('::demo_bear::DemoBear'));
+		expect(bearAssets.length).toEqual(2);
+		expect(coinAssets.length).toEqual(1);
+
+		// Compose: transfer bears and coins separately (simulates using them in a Move call)
+		tx.transferObjects(
+			bearAssets.map((a) => a.argument),
+			keypair.toSuiAddress(),
+		);
+		tx.transferObjects(
+			coinAssets.map((a) => a.argument),
+			keypair.toSuiAddress(),
+		);
+
+		finalize();
+
+		// Execute with dual signing (ephemeral key is sender, test keypair pays gas)
+		tx.setGasOwner(keypair.toSuiAddress());
+		const txBytes = await tx.build({ client });
+		const ephemeralSig = await claimLink.keypair!.signTransaction(txBytes);
+		const gasSig = await keypair.signTransaction(txBytes);
+
+		const result = await client.executeTransaction({
+			transaction: txBytes,
+			signatures: [ephemeralSig.signature, gasSig.signature],
+		});
+
+		await client.core.waitForTransaction({
+			result,
+			include: { effects: true },
+		});
+
+		// Link should be claimed
+		const link2 = await client.zksend.loadLinkFromUrl(linkUrl);
+		expect(link2.claimed).toEqual(true);
+	}, 30_000);
+
 	test('create link with minted assets', async () => {
 		const link = client.zksend.linkBuilder({
 			sender: keypair.toSuiAddress(),
