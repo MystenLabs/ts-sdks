@@ -26,6 +26,7 @@ export class MarginManagerQueries {
 	async getMarginManagerOwner(marginManagerKey: string): Promise<string> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginManager.ownerByPoolKey(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -40,6 +41,7 @@ export class MarginManagerQueries {
 	async getMarginManagerDeepbookPool(marginManagerKey: string): Promise<string> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginManager.deepbookPool(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -54,6 +56,7 @@ export class MarginManagerQueries {
 	async getMarginManagerMarginPoolId(marginManagerKey: string): Promise<string | null> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginManager.marginPoolId(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -69,6 +72,7 @@ export class MarginManagerQueries {
 	async getMarginManagerBorrowedShares(marginManagerKey: string): Promise<BorrowedShares> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginManager.borrowedShares(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -87,6 +91,7 @@ export class MarginManagerQueries {
 	async getMarginManagerBorrowedBaseShares(marginManagerKey: string): Promise<string> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginManager.borrowedBaseShares(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -101,6 +106,7 @@ export class MarginManagerQueries {
 	async getMarginManagerBorrowedQuoteShares(marginManagerKey: string): Promise<string> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginManager.borrowedQuoteShares(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -115,6 +121,7 @@ export class MarginManagerQueries {
 	async getMarginManagerHasBaseDebt(marginManagerKey: string): Promise<boolean> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginManager.hasBaseDebt(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -154,6 +161,7 @@ export class MarginManagerQueries {
 	): Promise<MarginManagerAssets> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginManager.calculateAssets(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -192,6 +200,7 @@ export class MarginManagerQueries {
 		const debtCoinKey = hasBaseDebt ? pool.baseCoin : pool.quoteCoin;
 
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginManager.calculateDebts(manager.poolKey, debtCoinKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -229,6 +238,7 @@ export class MarginManagerQueries {
 	): Promise<MarginManagerState> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginManager.managerState(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -322,6 +332,7 @@ export class MarginManagerQueries {
 		}
 
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 
 		for (const [managerId, poolKey] of entries) {
 			tx.add(this.#ctx.marginManager.managerState(poolKey, managerId));
@@ -419,6 +430,7 @@ export class MarginManagerQueries {
 	): Promise<string> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginManager.baseBalance(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -449,6 +461,7 @@ export class MarginManagerQueries {
 	): Promise<string> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginManager.quoteBalance(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -479,6 +492,7 @@ export class MarginManagerQueries {
 	): Promise<string> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginManager.deepBalance(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -512,6 +526,7 @@ export class MarginManagerQueries {
 		}
 
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 
 		for (const [managerId, poolKey] of entries) {
 			tx.add(this.#ctx.marginManager.baseBalance(poolKey, managerId));

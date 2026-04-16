@@ -17,6 +17,7 @@ export class BalanceManagerQueries {
 
 	async checkManagerBalance(managerKey: string, coinKey: string): Promise<ManagerBalance> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const coin = this.#ctx.config.getCoin(coinKey);
 
 		tx.add(this.#ctx.balanceManager.checkManagerBalance(managerKey, coinKey));
@@ -41,6 +42,7 @@ export class BalanceManagerQueries {
 		coinKey: string,
 	): Promise<ManagerBalance> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const coin = this.#ctx.config.getCoin(coinKey);
 
 		tx.moveCall({
@@ -74,6 +76,7 @@ export class BalanceManagerQueries {
 		}
 
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const coins = coinKeys.map((coinKey) => this.#ctx.config.getCoin(coinKey));
 
 		for (const managerAddress of managerAddresses) {
@@ -128,6 +131,7 @@ export class BalanceManagerQueries {
 
 	async getBalanceManagerIds(owner: string): Promise<string[]> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.getBalanceManagerIds(owner));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -143,6 +147,7 @@ export class BalanceManagerQueries {
 
 	async accountExists(poolKey: string, managerKey: string): Promise<boolean> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.accountExists(poolKey, managerKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({

@@ -27,6 +27,7 @@ export class QuantityQueries {
 		baseQuantity: number | bigint,
 	): Promise<QuoteQuantityOut> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseScalar = this.#ctx.config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#ctx.config.getCoin(pool.quoteCoin).scalar;
@@ -54,6 +55,7 @@ export class QuantityQueries {
 		quoteQuantity: number | bigint,
 	): Promise<BaseQuantityOut> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseScalar = this.#ctx.config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#ctx.config.getCoin(pool.quoteCoin).scalar;
@@ -82,6 +84,7 @@ export class QuantityQueries {
 		quoteQuantity: number | bigint,
 	): Promise<QuantityOut> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseScalar = this.#ctx.config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#ctx.config.getCoin(pool.quoteCoin).scalar;
@@ -110,6 +113,7 @@ export class QuantityQueries {
 		baseQuantity: number | bigint,
 	): Promise<QuoteQuantityOut> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseScalar = this.#ctx.config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#ctx.config.getCoin(pool.quoteCoin).scalar;
@@ -137,6 +141,7 @@ export class QuantityQueries {
 		quoteQuantity: number | bigint,
 	): Promise<BaseQuantityOut> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseScalar = this.#ctx.config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#ctx.config.getCoin(pool.quoteCoin).scalar;
@@ -165,6 +170,7 @@ export class QuantityQueries {
 		quoteQuantity: number | bigint,
 	): Promise<QuantityOut> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseScalar = this.#ctx.config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#ctx.config.getCoin(pool.quoteCoin).scalar;
@@ -194,6 +200,7 @@ export class QuantityQueries {
 		payWithDeep: boolean,
 	): Promise<BaseQuantityIn> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseScalar = this.#ctx.config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#ctx.config.getCoin(pool.quoteCoin).scalar;
@@ -221,6 +228,7 @@ export class QuantityQueries {
 		payWithDeep: boolean,
 	): Promise<QuoteQuantityIn> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseScalar = this.#ctx.config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#ctx.config.getCoin(pool.quoteCoin).scalar;
@@ -248,6 +256,7 @@ export class QuantityQueries {
 		price: number | bigint,
 	): Promise<OrderDeepRequiredResult> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.getOrderDeepRequired(poolKey, baseQuantity, price));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
