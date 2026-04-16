@@ -19,6 +19,7 @@ export class OrderQueries {
 
 	async accountOpenOrders(poolKey: string, managerKey: string): Promise<string[]> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 
 		tx.add(this.#ctx.deepBook.accountOpenOrders(poolKey, managerKey));
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -33,6 +34,7 @@ export class OrderQueries {
 
 	async getOrder(poolKey: string, orderId: string): Promise<ReturnType<typeof Order.parse> | null> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 
 		tx.add(this.#ctx.deepBook.getOrder(poolKey, orderId));
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -50,6 +52,7 @@ export class OrderQueries {
 
 	async getOrderNormalized(poolKey: string, orderId: string) {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.getOrder(poolKey, orderId));
 		const res = await this.#ctx.client.core.simulateTransaction({
 			transaction: tx,
@@ -95,6 +98,7 @@ export class OrderQueries {
 		orderIds: string[],
 	): Promise<ReturnType<typeof Order.parse>[] | null> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 
 		tx.add(this.#ctx.deepBook.getOrders(poolKey, orderIds));
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -117,6 +121,7 @@ export class OrderQueries {
 		isBid: boolean,
 	): Promise<Level2Range> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseCoin = this.#ctx.config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#ctx.config.getCoin(pool.quoteCoin);
@@ -144,6 +149,7 @@ export class OrderQueries {
 
 	async getLevel2TicksFromMid(poolKey: string, ticks: number): Promise<Level2TicksFromMid> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseCoin = this.#ctx.config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#ctx.config.getCoin(pool.quoteCoin);
@@ -185,6 +191,7 @@ export class OrderQueries {
 		managerKey: string,
 	): Promise<ReturnType<typeof Order.parse>[] | []> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.getAccountOrderDetails(poolKey, managerKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
