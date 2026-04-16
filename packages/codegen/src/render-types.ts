@@ -197,6 +197,84 @@ function resolveAbilitiesFromSummary(
 	return summary.structs[type.name]?.abilities ?? summary.enums[type.name]?.abilities;
 }
 
+function getDatatypeAbilities(
+	type: Datatype,
+	options: Pick<RenderTypeSignatureOptions, 'summary' | 'resolveAbilities'>,
+): Ability[] | undefined {
+	return (
+		options.resolveAbilities?.(type.module.address, type.module.name, type.name) ??
+		resolveAbilitiesFromSummary(type, options.summary)
+	);
+}
+
+/**
+ * Can this type be expressed as a plain TS value (i.e. a concrete runtime input
+ * that `normalizeMoveArguments` can serialize), or must it come from a prior
+ * transaction call (a `TransactionArgument`)?
+ *
+ * Returns `false` when the type, or any type nested inside it, is a non-`key`
+ * datatype (struct or enum). In that case the only valid argument at the outer
+ * parameter level is a `TransactionArgument`, so we emit
+ * `RawTransactionArgument<never>` instead of trying to spell out the inner
+ * shape as e.g. `Array<never>`.
+ */
+export function isSupportedRawTransactionInput(
+	type: Type,
+	options: Pick<RenderTypeSignatureOptions, 'summary' | 'resolveAbilities' | 'resolveAddress'>,
+): boolean {
+	if (typeof type === 'string') {
+		return true;
+	}
+
+	if ('Reference' in type) {
+		return isSupportedRawTransactionInput(type.Reference[1], options);
+	}
+
+	if ('vector' in type) {
+		return isSupportedRawTransactionInput(type.vector, options);
+	}
+
+	if ('TypeParameter' in type || 'NamedTypeParameter' in type) {
+		return true;
+	}
+
+	if ('Datatype' in type) {
+		const { Datatype } = type;
+		const address = options.resolveAddress(Datatype.module.address);
+
+		// Well-known pure datatypes.
+		if (
+			address === MOVE_STDLIB_ADDRESS &&
+			(Datatype.module.name === 'ascii' || Datatype.module.name === 'string') &&
+			Datatype.name === 'String'
+		) {
+			return true;
+		}
+
+		if (
+			address === MOVE_STDLIB_ADDRESS &&
+			Datatype.module.name === 'option' &&
+			Datatype.name === 'Option'
+		) {
+			return isSupportedRawTransactionInput(Datatype.type_arguments[0].argument, options);
+		}
+
+		if (
+			address === SUI_FRAMEWORK_ADDRESS &&
+			Datatype.module.name === 'object' &&
+			(Datatype.name === 'ID' || Datatype.name === 'UID')
+		) {
+			return true;
+		}
+
+		// Arbitrary datatype: only `key` structs can be passed as an object id.
+		const abilities = getDatatypeAbilities(Datatype, options);
+		return abilities?.includes('Key') ?? false;
+	}
+
+	return true;
+}
+
 export function usesBcs(type: Type, options: RenderTypeSignatureOptions): boolean {
 	if (typeof type === 'string') {
 		return true;
@@ -297,6 +375,18 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 			}
 		}
 
+		// For `key` datatypes, emit the canonical Move type tag so the runtime
+		// normalizer can coerce a raw object-id string into `tx.object(...)`.
+		// Non-key datatypes fall through to `null` because they cannot be
+		// normalized from a plain TS value — they must come from a prior
+		// transaction result.
+		const abilities = getDatatypeAbilities(type, options);
+		if (abilities?.includes('Key')) {
+			const typeArgs = type.type_arguments.map((arg) => renderTypeSignature(arg.argument, options));
+			const base = `${address}::${type.module.name}::${type.name}`;
+			return typeArgs.length > 0 ? `${base}<${typeArgs.join(', ')}>` : base;
+		}
+
 		return 'null';
 	}
 
@@ -358,9 +448,7 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 			// Everything else (non-key structs, enums) must be produced by a prior
 			// transaction call and is typed as `never` so it only accepts a
 			// `TransactionArgument` through the `RawTransactionArgument<T>` wrapper.
-			const abilities =
-				options.resolveAbilities?.(type.module.address, type.module.name, type.name) ??
-				resolveAbilitiesFromSummary(type, options.summary);
+			const abilities = getDatatypeAbilities(type, options);
 			if (abilities && abilities.includes('Key')) {
 				return 'string';
 			}

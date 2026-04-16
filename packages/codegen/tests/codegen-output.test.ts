@@ -387,7 +387,7 @@ describe('function codegen output', () => {
 			"export function increment(options: IncrementOptions) {
 			    const packageAddress = options.package ?? '@test/testpkg';
 			    const argumentsTypes = [
-			        null
+			        '0x0000000000000000000000000000000000000000000000000000000000000000::counter::Counter'
 			    ] satisfies (string | null)[];
 			    const parameterNames = ["counter"];
 			    return (tx: Transaction) => tx.moveCall({
@@ -496,7 +496,7 @@ describe('function codegen output', () => {
 			"export function getValueAndOwner(options: GetValueAndOwnerOptions) {
 			    const packageAddress = options.package ?? '@test/testpkg';
 			    const argumentsTypes = [
-			        null
+			        '0x0000000000000000000000000000000000000000000000000000000000000000::counter::Counter'
 			    ] satisfies (string | null)[];
 			    const parameterNames = ["counter"];
 			    return (tx: Transaction) => tx.moveCall({
@@ -520,7 +520,7 @@ describe('function codegen output', () => {
 			"export function reset(options: ResetOptions) {
 			    const packageAddress = options.package ?? '@test/testpkg';
 			    const argumentsTypes = [
-			        null
+			        '0x0000000000000000000000000000000000000000000000000000000000000000::counter::Counter'
 			    ] satisfies (string | null)[];
 			    const parameterNames = ["counter"];
 			    return (tx: Transaction) => tx.moveCall({
@@ -726,6 +726,152 @@ describe('name collision handling', () => {
 		// Verify the generated code structure is correct
 		const fnBody = output.match(/export function createTransaction[\s\S]*?^}/m);
 		expect(fnBody?.[0]).toContain('Transaction_1');
+	});
+
+	it('vector<NonKeyStruct> parameter collapses to RawTransactionArgument<never>', async () => {
+		// A vector of non-`key` datatypes is not a shape that
+		// `normalizeMoveArguments` can serialize from a plain TS value, so the
+		// entire parameter must come from a prior transaction call.
+		const vecNonKeySummary = {
+			id: { address: 'testpkg', name: 'vec_non_key' },
+			doc: '',
+			immediate_dependencies: [],
+			attributes: [],
+			functions: {
+				use_receipts: {
+					source_index: 0,
+					index: 0,
+					doc: '',
+					attributes: [],
+					visibility: 'Public',
+					entry: false,
+					macro_: false,
+					type_parameters: [],
+					parameters: [
+						{
+							name: 'receipts',
+							type_: {
+								vector: {
+									Datatype: {
+										module: { address: 'testpkg', name: 'vec_non_key' },
+										name: 'Receipt',
+										type_arguments: [],
+									},
+								},
+							},
+						},
+					],
+					return_: [],
+				},
+			},
+			structs: {
+				Receipt: {
+					index: 0,
+					doc: '',
+					attributes: [],
+					abilities: ['Drop', 'Store'],
+					type_parameters: [],
+					fields: {
+						positional_fields: false,
+						fields: {
+							value: { index: 0, doc: null, type_: 'u64' },
+						},
+					},
+				},
+			},
+			enums: {},
+		};
+
+		const builder = new MoveModuleBuilder({
+			summary: vecNonKeySummary as any,
+			addressMappings: ADDRESS_MAPPINGS,
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+		const all = { 'testpkg::vec_non_key': builder };
+		builder.includeTypes(all);
+		builder.includeFunctions();
+		const output = await render(builder);
+
+		const argInterface = output.match(/export interface UseReceiptsArguments[\s\S]*?^}/m);
+		expect(argInterface?.[0]).toMatchInlineSnapshot(`
+			"export interface UseReceiptsArguments {
+			    receipts: RawTransactionArgument<never>;
+			}"
+		`);
+	});
+
+	it('vector<NonKeyStruct> parameter collapses to RawTransactionArgument<never>', async () => {
+		// A vector of non-`key` datatypes is not a shape that
+		// `normalizeMoveArguments` can serialize from a plain TS value, so the
+		// entire parameter must come from a prior transaction call.
+		const vecNonKeySummary = {
+			id: { address: 'testpkg', name: 'vec_non_key' },
+			doc: '',
+			immediate_dependencies: [],
+			attributes: [],
+			functions: {
+				use_receipts: {
+					source_index: 0,
+					index: 0,
+					doc: '',
+					attributes: [],
+					visibility: 'Public',
+					entry: false,
+					macro_: false,
+					type_parameters: [],
+					parameters: [
+						{
+							name: 'receipts',
+							type_: {
+								vector: {
+									Datatype: {
+										module: { address: 'testpkg', name: 'vec_non_key' },
+										name: 'Receipt',
+										type_arguments: [],
+									},
+								},
+							},
+						},
+					],
+					return_: [],
+				},
+			},
+			structs: {
+				Receipt: {
+					index: 0,
+					doc: '',
+					attributes: [],
+					abilities: ['Drop', 'Store'],
+					type_parameters: [],
+					fields: {
+						positional_fields: false,
+						fields: {
+							value: { index: 0, doc: null, type_: 'u64' },
+						},
+					},
+				},
+			},
+			enums: {},
+		};
+
+		const builder = new MoveModuleBuilder({
+			summary: vecNonKeySummary as any,
+			addressMappings: ADDRESS_MAPPINGS,
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+		const all = { 'testpkg::vec_non_key': builder };
+		builder.includeTypes(all);
+		builder.includeFunctions();
+		const output = await render(builder);
+
+		const argInterface = output.match(/export interface UseReceiptsArguments[\s\S]*?^}/m);
+		expect(argInterface?.[0]).toMatchInlineSnapshot(`
+			"export interface UseReceiptsArguments {
+			    receipts: RawTransactionArgument<never>;
+			}"
+		`);
 	});
 
 	it('non-key struct parameter is typed as never (not string)', async () => {

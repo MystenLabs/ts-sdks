@@ -4,6 +4,7 @@
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import type { DeserializedModule, TypeSignature } from './types/deserialized.js';
 import type {
+	Ability,
 	EnumSummary,
 	Field,
 	FunctionSummary,
@@ -12,6 +13,18 @@ import type {
 	Type,
 	Variant,
 } from './types/summary.js';
+
+// Ability bit flags in the Move bytecode spec.
+const ABILITY_FLAGS: Array<[number, Ability]> = [
+	[0x1, 'Copy'],
+	[0x2, 'Drop'],
+	[0x4, 'Store'],
+	[0x8, 'Key'],
+];
+
+function abilitiesFromBits(bits: number): Ability[] {
+	return ABILITY_FLAGS.filter(([flag]) => (bits & flag) !== 0).map(([, ability]) => ability);
+}
 
 export function summaryFromDeserializedModule(mod: DeserializedModule) {
 	const moduleHandle = mod.module_handles[mod.self_module_handle_idx];
@@ -56,7 +69,7 @@ function functionSummaryFromDeserializedFunction(mod: DeserializedModule, index:
 		type_parameters: handle.type_parameters.map((p) => {
 			return {
 				phantom: p.is_phantom,
-				constraints: [],
+				constraints: abilitiesFromBits(p.constraints),
 			};
 		}),
 		parameters: mod.signatures[handle.parameters].map((type) => ({
@@ -75,11 +88,11 @@ function structSummaryFromDeserializedStruct(mod: DeserializedModule, index: num
 
 	const structSummary: StructSummary = {
 		index,
-		abilities: [],
+		abilities: abilitiesFromBits(handle.abilities),
 		type_parameters: handle.type_parameters.map((p) => {
 			return {
 				phantom: p.is_phantom,
-				constraints: [],
+				constraints: abilitiesFromBits(p.constraints),
 			};
 		}),
 		fields: {
@@ -102,11 +115,11 @@ function enumSummaryFromDeserializedEnum(mod: DeserializedModule, index: number)
 
 	const enumSummary: EnumSummary = {
 		index,
-		abilities: [],
+		abilities: abilitiesFromBits(handle.abilities),
 		type_parameters: handle.type_parameters.map((p) => {
 			return {
 				phantom: p.is_phantom,
-				constraints: [],
+				constraints: abilitiesFromBits(p.constraints),
 			};
 		}),
 		variants: Object.fromEntries(

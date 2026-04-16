@@ -5,6 +5,7 @@ import { FileBuilder } from './file-builder.js';
 import { readFile } from 'node:fs/promises';
 import {
 	getSafeName,
+	isSupportedRawTransactionInput,
 	renderTypeSignature,
 	SUI_FRAMEWORK_ADDRESS,
 	SUI_SYSTEM_ADDRESS,
@@ -583,17 +584,29 @@ export class MoveModuleBuilder extends FileBuilder {
 				requiredParameters.length > 0 ? this.#getImportName('RawTransactionArgument') : null;
 
 			const argumentsTypes = requiredParameters
-				.map((param) =>
-					renderTypeSignature(param.type_, {
-						format: 'typescriptArg',
+				.map((param) => {
+					const renderOptions = {
+						format: 'typescriptArg' as const,
 						summary: this.summary,
 						typeParameters: func.type_parameters,
 						includePhantomTypeParameters: false,
-						resolveAddress: (address) => this.#resolveAddress(address),
+						resolveAddress: (address: string) => this.#resolveAddress(address),
 						resolveAbilities,
-						onTypeParameter: (typeParameter) => usedTypeParameters.add(typeParameter),
-					}),
-				)
+						onTypeParameter: (typeParameter: number | string) =>
+							usedTypeParameters.add(typeParameter),
+					};
+
+					// Parameters whose shape cannot be produced from a plain TS
+					// value (vectors/options of non-key datatypes, non-key struct
+					// or enum refs) must come from a prior transaction call, so
+					// they are typed as `never` — `RawTransactionArgument<never>`
+					// collapses to `TransactionArgument`.
+					if (!isSupportedRawTransactionInput(param.type_, renderOptions)) {
+						return 'never';
+					}
+
+					return renderTypeSignature(param.type_, renderOptions);
+				})
 				.map((type, i) =>
 					requiredParameters[i].name
 						? `${camelCase(requiredParameters[i].name)}: ${rawTxArgName}<${type}>`

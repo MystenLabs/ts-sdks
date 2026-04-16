@@ -154,7 +154,13 @@ export function normalizeMoveArguments(
 			const bytes = bcsType.serialize(arg as never);
 			normalizedArgs.push((tx) => tx.pure(bytes));
 			continue;
-		} else if (typeof arg === 'string') {
+		}
+
+		// Only coerce a raw string into an object reference when the codegen
+		// knows the parameter is an object (i.e. a \`key\` struct). For
+		// non-object parameters (type === null) a bare string is no longer
+		// valid — those arguments must come from a prior Move call.
+		if (typeof arg === 'string' && type !== null) {
 			normalizedArgs.push((tx) => tx.object(arg));
 			continue;
 		}
