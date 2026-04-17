@@ -3,6 +3,7 @@
 
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
+import type { ModuleRegistry } from './module-registry.js';
 import type {
 	Ability,
 	Datatype,
@@ -24,16 +25,29 @@ interface RenderTypeSignatureOptions {
 	onDependency?: (address: string, module: string, type: string) => string | undefined;
 	bcsImport?: () => string;
 	onTypeParameter?: (typeParameter: number | string) => void;
-	resolveAddress: (address: string) => string;
 	/**
-	 * Resolve the abilities of a datatype from another module (or the current one).
-	 * Required for correct `typescriptArg` rendering of struct/enum parameters —
-	 * only structs with the `Key` ability can be passed by object id (`string`);
-	 * everything else must come from a prior transaction result
-	 * (represented as `RawTransactionArgument<never>` in the generated signature).
+	 * Cross-module registry used for address normalization and lookups
+	 * (abilities, summaries). When omitted, only the `options.summary` module
+	 * is visible — fine for leaf BCS rendering, but `typescriptArg` /
+	 * `typeTag` rendering of cross-module datatypes needs a registry.
 	 */
-	resolveAbilities?: (address: string, module: string, name: string) => Ability[] | undefined;
+	registry?: ModuleRegistry;
+	/**
+	 * Resolve an address alias (e.g. `"sui"` → `"0x2"`). Falls back to
+	 * `registry.resolveAddress` when not provided, or the identity function
+	 * if neither is given.
+	 */
+	resolveAddress?: (address: string) => string;
 	includePhantomTypeParameters: boolean;
+}
+
+function resolveAddress(
+	options: Pick<RenderTypeSignatureOptions, 'registry' | 'resolveAddress'>,
+	address: string,
+): string {
+	if (options.resolveAddress) return options.resolveAddress(address);
+	if (options.registry) return options.registry.resolveAddress(address);
+	return address;
 }
 
 function getFilteredTypeParameterIndex(
@@ -185,26 +199,17 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 	throw new Error(`Unknown type signature: ${JSON.stringify(type, null, 2)}`);
 }
 
-function resolveAbilitiesFromSummary(
-	type: Datatype,
-	summary: ModuleSummary,
-): Ability[] | undefined {
-	// Only the current module's summary is directly accessible here.
-	// For cross-module lookups the caller must provide `resolveAbilities`.
-	if (type.module.address !== summary.id.address || type.module.name !== summary.id.name) {
-		return undefined;
-	}
-	return summary.structs[type.name]?.abilities ?? summary.enums[type.name]?.abilities;
-}
-
 function getDatatypeAbilities(
 	type: Datatype,
-	options: Pick<RenderTypeSignatureOptions, 'summary' | 'resolveAbilities'>,
+	options: Pick<RenderTypeSignatureOptions, 'summary' | 'registry'>,
 ): Ability[] | undefined {
-	return (
-		options.resolveAbilities?.(type.module.address, type.module.name, type.name) ??
-		resolveAbilitiesFromSummary(type, options.summary)
-	);
+	// Prefer the current module's summary so we don't depend on the registry
+	// being populated in tests that only build a single module.
+	const { summary } = options;
+	if (type.module.address === summary.id.address && type.module.name === summary.id.name) {
+		return summary.structs[type.name]?.abilities ?? summary.enums[type.name]?.abilities;
+	}
+	return options.registry?.getAbilities(type.module.address, type.module.name, type.name);
 }
 
 /**
@@ -220,7 +225,7 @@ function getDatatypeAbilities(
  */
 export function isSupportedRawTransactionInput(
 	type: Type,
-	options: Pick<RenderTypeSignatureOptions, 'summary' | 'resolveAbilities' | 'resolveAddress'>,
+	options: Pick<RenderTypeSignatureOptions, 'summary' | 'registry' | 'resolveAddress'>,
 ): boolean {
 	if (typeof type === 'string') {
 		return true;
@@ -240,7 +245,7 @@ export function isSupportedRawTransactionInput(
 
 	if ('Datatype' in type) {
 		const { Datatype } = type;
-		const address = options.resolveAddress(Datatype.module.address);
+		const address = resolveAddress(options as RenderTypeSignatureOptions, Datatype.module.address);
 
 		// Well-known pure datatypes.
 		if (
@@ -324,7 +329,7 @@ export function isPureSignature(type: Type, options: RenderTypeSignatureOptions)
 }
 
 function isPureDataType(type: Datatype, options: RenderTypeSignatureOptions) {
-	const address = options.resolveAddress(type.module.address);
+	const address = resolveAddress(options, type.module.address);
 
 	if (address === MOVE_STDLIB_ADDRESS) {
 		if ((type.module.name === 'ascii' || type.module.name === 'string') && type.name === 'String') {
@@ -346,7 +351,7 @@ function isPureDataType(type: Datatype, options: RenderTypeSignatureOptions) {
 }
 
 function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): string {
-	const address = options.resolveAddress(type.module.address);
+	const address = resolveAddress(options, type.module.address);
 
 	if (options.format === 'typeTag') {
 		if (address === SUI_FRAMEWORK_ADDRESS) {
@@ -431,7 +436,7 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 	}
 
 	const isCurrentModule =
-		address === options.resolveAddress(options.summary.id.address) &&
+		address === resolveAddress(options, options.summary.id.address) &&
 		type.module.name === options.summary.id.name;
 
 	const importName = options.onDependency?.(type.module.address, type.module.name, type.name);

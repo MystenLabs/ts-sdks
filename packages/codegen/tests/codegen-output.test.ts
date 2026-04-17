@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
+import { ModuleRegistry } from '../src/module-registry.js';
 import { MoveModuleBuilder } from '../src/move-module-builder.js';
 import { FileBuilder } from '../src/file-builder.js';
 
@@ -14,10 +15,14 @@ const ADDRESS_MAPPINGS = {
 	testpkg: '0x0000000000000000000000000000000000000000000000000000000000000000',
 };
 
-async function createBuilder(module: 'counter' | 'registry', includePhantomTypeParameters = false) {
+async function createBuilder(
+	module: 'counter' | 'registry',
+	includePhantomTypeParameters = false,
+	registry: ModuleRegistry = new ModuleRegistry(ADDRESS_MAPPINGS),
+) {
 	return MoveModuleBuilder.fromSummaryFile(
 		join(SUMMARIES_DIR, 'testpkg', `${module}.json`),
-		ADDRESS_MAPPINGS,
+		registry,
 		'@test/testpkg',
 		'.js',
 		includePhantomTypeParameters,
@@ -25,29 +30,22 @@ async function createBuilder(module: 'counter' | 'registry', includePhantomTypeP
 }
 
 async function createBuilders(includePhantomTypeParameters = false) {
-	const counter = await createBuilder('counter', includePhantomTypeParameters);
-	const registry = await createBuilder('registry', includePhantomTypeParameters);
+	const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
+	const counter = await createBuilder('counter', includePhantomTypeParameters, registry);
+	const registryBuilder = await createBuilder('registry', includePhantomTypeParameters, registry);
 	return {
 		counter,
-		registry,
-		all: {
-			'testpkg::counter': counter,
-			'testpkg::registry': registry,
-		},
+		registry: registryBuilder,
 	};
 }
 
 /** Render a builder to string (types only, functions only, or both) */
 async function render(
 	builder: MoveModuleBuilder,
-	options: {
-		types?: boolean;
-		functions?: boolean;
-		moduleBuilders?: Record<string, MoveModuleBuilder>;
-	} = { types: true, functions: true },
+	options: { types?: boolean; functions?: boolean } = { types: true, functions: true },
 ) {
 	if (options.types) await builder.renderBCSTypes();
-	if (options.functions) await builder.renderFunctions(options.moduleBuilders);
+	if (options.functions) await builder.renderFunctions();
 	return builder.toString('./', './testpkg/test.ts');
 }
 
@@ -67,8 +65,8 @@ function extractBody(output: string): string {
 
 describe('struct codegen output', () => {
 	it('simple struct with key ability (Counter)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all, ['Counter']);
+		const { counter } = await createBuilders();
+		counter.includeTypes(['Counter']);
 		const output = await render(counter, { types: true, functions: false });
 
 		expect(extractBody(output)).toMatchInlineSnapshot(`
@@ -82,8 +80,8 @@ describe('struct codegen output', () => {
 	});
 
 	it('struct with key+store abilities (AdminCap)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all, ['AdminCap']);
+		const { counter } = await createBuilders();
+		counter.includeTypes(['AdminCap']);
 		const output = await render(counter, { types: true, functions: false });
 
 		expect(extractBody(output)).toMatchInlineSnapshot(`
@@ -95,8 +93,8 @@ describe('struct codegen output', () => {
 	});
 
 	it('struct with copy+drop abilities (CounterCreated)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all, ['CounterCreated']);
+		const { counter } = await createBuilders();
+		counter.includeTypes(['CounterCreated']);
 		const output = await render(counter, { types: true, functions: false });
 
 		expect(extractBody(output)).toMatchInlineSnapshot(`
@@ -109,8 +107,8 @@ describe('struct codegen output', () => {
 	});
 
 	it('struct with all primitive types (Primitives)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all, ['Primitives']);
+		const { counter } = await createBuilders();
+		counter.includeTypes(['Primitives']);
 		const output = await render(counter, { types: true, functions: false });
 
 		expect(extractBody(output)).toMatchInlineSnapshot(`
@@ -129,8 +127,8 @@ describe('struct codegen output', () => {
 	});
 
 	it('struct with composite types (Composites)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all, ['Composites']);
+		const { counter } = await createBuilders();
+		counter.includeTypes(['Composites']);
 		const output = await render(counter, { types: true, functions: false });
 
 		expect(extractBody(output)).toMatchInlineSnapshot(`
@@ -155,8 +153,8 @@ describe('struct codegen output', () => {
 	});
 
 	it('generic struct with non-phantom type parameter (Wrapper<T>)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all, ['Wrapper']);
+		const { counter } = await createBuilders();
+		counter.includeTypes(['Wrapper']);
 		const output = await render(counter, { types: true, functions: false });
 
 		expect(extractBody(output)).toMatchInlineSnapshot(`
@@ -174,8 +172,8 @@ describe('struct codegen output', () => {
 	});
 
 	it('generic struct with phantom + non-phantom type parameters (Pair<T, U>)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all, ['Pair']);
+		const { counter } = await createBuilders();
+		counter.includeTypes(['Pair']);
 		const output = await render(counter, { types: true, functions: false });
 
 		expect(extractBody(output)).toMatchInlineSnapshot(`
@@ -193,8 +191,8 @@ describe('struct codegen output', () => {
 	});
 
 	it('phantom type index remapping (PhantomFirst<phantom A, B>)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all, ['PhantomFirst']);
+		const { counter } = await createBuilders();
+		counter.includeTypes(['PhantomFirst']);
 		const output = await render(counter, { types: true, functions: false });
 
 		// B is at original index 1 but should use typeParameters[0] after filtering phantom A
@@ -216,8 +214,8 @@ describe('struct codegen output', () => {
 	});
 
 	it('struct with enum and vector fields (Entry)', async () => {
-		const { registry, all } = await createBuilders();
-		registry.includeTypes(all, ['Entry']);
+		const { registry } = await createBuilders();
+		registry.includeTypes(['Entry']);
 		const output = await render(registry, { types: true, functions: false });
 
 		expect(extractBody(output)).toMatchInlineSnapshot(`
@@ -240,8 +238,8 @@ describe('struct codegen output', () => {
 	});
 
 	it('struct with phantom generic (Container<phantom T>)', async () => {
-		const { registry, all } = await createBuilders();
-		registry.includeTypes(all, ['Container']);
+		const { registry } = await createBuilders();
+		registry.includeTypes(['Container']);
 		const output = await render(registry, { types: true, functions: false });
 
 		expect(extractBody(output)).toMatchInlineSnapshot(`
@@ -256,8 +254,8 @@ describe('struct codegen output', () => {
 
 describe('enum codegen output', () => {
 	it('enum with unit and named-field variants (Status)', async () => {
-		const { registry, all } = await createBuilders();
-		registry.includeTypes(all, ['Status']);
+		const { registry } = await createBuilders();
+		registry.includeTypes(['Status']);
 		const output = await render(registry, { types: true, functions: false });
 
 		expect(extractBody(output)).toMatchInlineSnapshot(`
@@ -274,8 +272,8 @@ describe('enum codegen output', () => {
 	});
 
 	it('generic enum (Result<T>)', async () => {
-		const { registry, all } = await createBuilders();
-		registry.includeTypes(all, ['Result']);
+		const { registry } = await createBuilders();
+		registry.includeTypes(['Result']);
 		const output = await render(registry, { types: true, functions: false });
 
 		expect(extractBody(output)).toMatchInlineSnapshot(`
@@ -298,8 +296,8 @@ describe('enum codegen output', () => {
 	});
 
 	it('enum with all phantom type parameters becomes const (PhantomResult<phantom T>)', async () => {
-		const { registry, all } = await createBuilders();
-		registry.includeTypes(all, ['PhantomResult']);
+		const { registry } = await createBuilders();
+		registry.includeTypes(['PhantomResult']);
 		const output = await render(registry, { types: true, functions: false });
 
 		// All type params are phantom, so it becomes a const (not a function)
@@ -316,8 +314,8 @@ describe('enum codegen output', () => {
 	});
 
 	it('enum phantom type index remapping (MixedResult<phantom T, V>)', async () => {
-		const { registry, all } = await createBuilders();
-		registry.includeTypes(all, ['MixedResult']);
+		const { registry } = await createBuilders();
+		registry.includeTypes(['MixedResult']);
 		const output = await render(registry, { types: true, functions: false });
 
 		// V is at original index 1 but should use typeParameters[0] after filtering phantom T
@@ -342,8 +340,8 @@ describe('enum codegen output', () => {
 
 describe('function codegen output', () => {
 	it('public entry function (create)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all);
+		const { counter } = await createBuilders();
+		counter.includeTypes();
 		counter.includeFunctions(['create']);
 		const output = await render(counter);
 		const fnMatch = output.match(/export interface CreateOptions[\s\S]*?^}/m);
@@ -370,8 +368,8 @@ describe('function codegen output', () => {
 	});
 
 	it('public function with &mut ref and return (increment)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all);
+		const { counter } = await createBuilders();
+		counter.includeTypes();
 		counter.includeFunctions(['increment']);
 		const output = await render(counter);
 
@@ -401,8 +399,8 @@ describe('function codegen output', () => {
 	});
 
 	it('public function with immutable ref (value)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all);
+		const { counter } = await createBuilders();
+		counter.includeTypes();
 		counter.includeFunctions(['value']);
 		const output = await render(counter);
 
@@ -415,8 +413,8 @@ describe('function codegen output', () => {
 	});
 
 	it('function with Option parameter (set_optional)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all);
+		const { counter } = await createBuilders();
+		counter.includeTypes();
 		counter.includeFunctions(['set_optional']);
 		const output = await render(counter);
 
@@ -430,8 +428,8 @@ describe('function codegen output', () => {
 	});
 
 	it('function with vector parameter (batch_set)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all);
+		const { counter } = await createBuilders();
+		counter.includeTypes();
 		counter.includeFunctions(['batch_set']);
 		const output = await render(counter);
 
@@ -445,8 +443,8 @@ describe('function codegen output', () => {
 	});
 
 	it('generic function (wrap<T>)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all);
+		const { counter } = await createBuilders();
+		counter.includeTypes();
 		counter.includeFunctions(['wrap']);
 		const output = await render(counter);
 
@@ -465,8 +463,8 @@ describe('function codegen output', () => {
 	});
 
 	it('multi-generic function (create_pair<T, U>)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all);
+		const { counter } = await createBuilders();
+		counter.includeTypes();
 		counter.includeFunctions(['create_pair']);
 		const output = await render(counter);
 
@@ -486,8 +484,8 @@ describe('function codegen output', () => {
 	});
 
 	it('function with multiple return values (get_value_and_owner)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all);
+		const { counter } = await createBuilders();
+		counter.includeTypes();
 		counter.includeFunctions(['get_value_and_owner']);
 		const output = await render(counter);
 
@@ -510,8 +508,8 @@ describe('function codegen output', () => {
 	});
 
 	it('private entry function (reset)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all);
+		const { counter } = await createBuilders();
+		counter.includeTypes();
 		counter.includeFunctions(['reset']);
 		const output = await render(counter);
 
@@ -534,8 +532,8 @@ describe('function codegen output', () => {
 	});
 
 	it('function with well-known Clock parameter (value_with_clock)', async () => {
-		const { counter, all } = await createBuilders();
-		counter.includeTypes(all);
+		const { counter } = await createBuilders();
+		counter.includeTypes();
 		counter.includeFunctions(['value_with_clock']);
 		const output = await render(counter);
 
@@ -552,8 +550,8 @@ describe('function codegen output', () => {
 	});
 
 	it('function with enum parameter (is_active)', async () => {
-		const { registry, all } = await createBuilders();
-		registry.includeTypes(all);
+		const { registry } = await createBuilders();
+		registry.includeTypes();
 		registry.includeFunctions(['is_active']);
 		const output = await render(registry);
 
@@ -569,8 +567,8 @@ describe('function codegen output', () => {
 	});
 
 	it('function returning generic enum (ok_result)', async () => {
-		const { registry, all } = await createBuilders();
-		registry.includeTypes(all);
+		const { registry } = await createBuilders();
+		registry.includeTypes();
 		registry.includeFunctions(['ok_result']);
 		const output = await render(registry);
 
@@ -697,8 +695,7 @@ describe('name collision handling', () => {
 
 	it('struct named Transaction does not collide with SDK Transaction import', async () => {
 		const builder = createTransactionModuleBuilder();
-		const all = { 'testpkg::transaction_module': builder };
-		builder.includeTypes(all);
+		builder.includeTypes();
 		builder.includeFunctions();
 		const output = await render(builder);
 
@@ -718,8 +715,7 @@ describe('name collision handling', () => {
 
 	it('function-only codegen with Transaction struct still aliases SDK import', async () => {
 		const builder = createTransactionModuleBuilder();
-		const all = { 'testpkg::transaction_module': builder };
-		builder.includeTypes(all);
+		builder.includeTypes();
 		builder.includeFunctions();
 		const output = await render(builder);
 
@@ -788,8 +784,7 @@ describe('name collision handling', () => {
 			mvrNameOrAddress: '@test/testpkg',
 			importExtension: '.js',
 		});
-		const all = { 'testpkg::vec_non_key': builder };
-		builder.includeTypes(all);
+		builder.includeTypes();
 		builder.includeFunctions();
 		const output = await render(builder);
 
@@ -861,8 +856,7 @@ describe('name collision handling', () => {
 			mvrNameOrAddress: '@test/testpkg',
 			importExtension: '.js',
 		});
-		const all = { 'testpkg::vec_non_key': builder };
-		builder.includeTypes(all);
+		builder.includeTypes();
 		builder.includeFunctions();
 		const output = await render(builder);
 
@@ -932,8 +926,7 @@ describe('name collision handling', () => {
 			mvrNameOrAddress: '@test/testpkg',
 			importExtension: '.js',
 		});
-		const all = { 'testpkg::non_key': builder };
-		builder.includeTypes(all);
+		builder.includeTypes();
 		builder.includeFunctions();
 		const output = await render(builder);
 
@@ -1011,29 +1004,25 @@ describe('name collision handling', () => {
 			enums: {},
 		};
 
-		const keyBuilder = new MoveModuleBuilder({
+		// Sharing a registry is what makes cross-module ability lookups work
+		// without threading builders through call sites.
+		const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		const _keyBuilder = new MoveModuleBuilder({
 			summary: keyModuleSummary as any,
-			addressMappings: ADDRESS_MAPPINGS,
+			registry,
 			mvrNameOrAddress: '@test/testpkg',
 			importExtension: '.js',
 		});
 		const consumerBuilder = new MoveModuleBuilder({
 			summary: consumerSummary as any,
-			addressMappings: ADDRESS_MAPPINGS,
+			registry,
 			mvrNameOrAddress: '@test/testpkg',
 			importExtension: '.js',
 		});
-		const all = {
-			'testpkg::key_mod': keyBuilder,
-			'testpkg::consumer': consumerBuilder,
-		};
-		consumerBuilder.includeTypes(all);
+		consumerBuilder.includeTypes();
 		consumerBuilder.includeFunctions();
-		const output = await render(consumerBuilder, {
-			types: true,
-			functions: true,
-			moduleBuilders: all,
-		});
+		const output = await render(consumerBuilder);
 
 		const argInterface = output.match(/export interface BorrowKeyArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
@@ -1059,8 +1048,8 @@ describe('name collision handling', () => {
 
 describe('includePhantomTypeParameters option', () => {
 	it('includes phantom type parameters when enabled (Pair<T, U>)', async () => {
-		const { counter, all } = await createBuilders(true);
-		counter.includeTypes(all, ['Pair']);
+		const { counter } = await createBuilders(true);
+		counter.includeTypes(['Pair']);
 		const output = await render(counter, { types: true, functions: false });
 
 		expect(extractBody(output)).toMatchInlineSnapshot(`
@@ -1079,8 +1068,8 @@ describe('includePhantomTypeParameters option', () => {
 	});
 
 	it('includes phantom type parameters when enabled (Container<T>)', async () => {
-		const { registry, all } = await createBuilders(true);
-		registry.includeTypes(all, ['Container']);
+		const { registry } = await createBuilders(true);
+		registry.includeTypes(['Container']);
 		const output = await render(registry, { types: true, functions: false });
 
 		expect(extractBody(output)).toMatchInlineSnapshot(`
