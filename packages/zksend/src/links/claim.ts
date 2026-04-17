@@ -242,6 +242,16 @@ export class ZkSendLink {
 			throw new Error('Cannot claim assets without the links keypair');
 		}
 
+		if (this.claimed) {
+			throw new Error('Assets have already been claimed');
+		}
+
+		if (!this.assets) {
+			throw new Error(
+				'Link assets have not been loaded. Call `loadAssets()` or use `ZkSendLink.fromUrl()` / `ZkSendLink.fromAddress()` before calling `claimFlow()`.',
+			);
+		}
+
 		const storeId = this.#contract.ids.bagStoreId;
 		const initCommand = reclaim
 			? this.#contract.reclaim({ arguments: [storeId, this.address] })
@@ -256,7 +266,7 @@ export class ZkSendLink {
 			return result;
 		};
 
-		const objects = [...(this.assets?.coins ?? []), ...(this.assets?.nfts ?? [])];
+		const objects = [...this.assets.coins, ...this.assets.nfts];
 
 		const assets: ClaimedAsset[] = objects.map((object) => ({
 			type: object.type,
