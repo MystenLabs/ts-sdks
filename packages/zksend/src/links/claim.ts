@@ -247,11 +247,13 @@ export class ZkSendLink {
 			? this.#contract.reclaim({ arguments: [storeId, this.address] })
 			: this.#contract.init_claim({ arguments: [storeId] });
 
-		let bagProof: ReturnType<typeof initCommand> | undefined;
+		let bag: ReturnType<typeof initCommand>[0] | undefined;
+		let proof: ReturnType<typeof initCommand>[1] | undefined;
 
 		const init = (tx: Transaction) => {
-			bagProof = tx.add(initCommand);
-			return bagProof;
+			const result = tx.add(initCommand);
+			[bag, proof] = result;
+			return result;
 		};
 
 		const objects = [...(this.assets?.coins ?? []), ...(this.assets?.nfts ?? [])];
@@ -263,8 +265,8 @@ export class ZkSendLink {
 				tx.add(
 					this.#contract.claim({
 						arguments: [
-							bagProof![0],
-							bagProof![1],
+							bag!,
+							proof!,
 							tx.receivingRef({
 								objectId: object.objectId,
 								version: object.version,
@@ -277,7 +279,7 @@ export class ZkSendLink {
 		}));
 
 		const finalize = (tx: Transaction) => {
-			tx.add(this.#contract.finalize({ arguments: [bagProof![0], bagProof![1]] }));
+			tx.add(this.#contract.finalize({ arguments: [bag!, proof!] }));
 		};
 
 		return { init, assets, finalize };
