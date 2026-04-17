@@ -1,6 +1,7 @@
 ---
 title: Theming
-description: Customize the appearance of dApp Kit UI components
+description: Customize the appearance of dApp Kit UI components.
+keywords: [theming, CSS variables, shadcn/ui, dApp Kit, web components, customization, styling]
 ---
 
 The dApp Kit web components use a theming system compatible with
@@ -14,47 +15,47 @@ properties (CSS variables), allowing you to match them to your application's des
 	builder](https://ui.shadcn.com/themes) to create custom themes.
 </Callout>
 
-## CSS Custom Properties
+## CSS custom properties
 
 All dApp Kit web components support the following CSS custom properties:
 
 ### Colors
 
 These color variables follow the shadcn/ui naming convention. Colors can be defined using any valid
-CSS color format (hex, rgb, hsl, oklch, etc.).
+CSS color format (hex, rgb, hsl, oklch, and others).
 
-- **`--background`** - Background color of the component. Used as the default background for UI
+- **`--background`:** Background color of the component. Used as the default background for UI
   elements.
-- **`--foreground`** - Foreground color of the component. Used as the default text color.
-- **`--primary`** - Primary color used for interactive elements such as buttons and links.
-- **`--primary-foreground`** - Text or icon color placed on top of primary elements.
-- **`--secondary`** - Secondary color used for less prominent interactive elements.
-- **`--secondary-foreground`** - Text or icon color placed on top of secondary elements.
-- **`--border`** - Border color for UI elements.
-- **`--accent`** - Accent color used for highlights and decorative elements.
-- **`--accent-foreground`** - Text or icon color placed on top of accent elements.
-- **`--muted`** - Background color for subtle or muted UI elements (e.g., placeholders, disabled
-  states).
-- **`--muted-foreground`** - Text or icon color for muted UI elements.
-- **`--popover`** - Background color for floating elements such as popovers, dropdowns, or tooltips.
-- **`--popover-foreground`** - Text or icon color inside popover elements.
-- **`--ring`** - Color used for focus rings (visible focus indicators on interactive elements).
+- **`--foreground`:** Foreground color of the component. Used as the default text color.
+- **`--primary`:** Primary color used for interactive elements such as buttons and links.
+- **`--primary-foreground`:** Text or icon color placed on top of primary elements.
+- **`--secondary`:** Secondary color used for less prominent interactive elements.
+- **`--secondary-foreground`:** Text or icon color placed on top of secondary elements.
+- **`--border`:** Border color for UI elements.
+- **`--accent`:** Accent color used for highlights and decorative elements.
+- **`--accent-foreground`:** Text or icon color placed on top of accent elements.
+- **`--muted`:** Background color for subtle or muted UI elements (for example, placeholders and
+  disabled states).
+- **`--muted-foreground`:** Text or icon color for muted UI elements.
+- **`--popover`:** Background color for floating elements such as popovers, dropdowns, or tooltips.
+- **`--popover-foreground`:** Text or icon color inside popover elements.
+- **`--ring`:** Color used for focus rings (visible focus indicators on interactive elements).
 
 ### Typography
 
-- **`--font-sans`** - Font family used for text content.
-- **`--font-weight-medium`** - Medium font weight for text (typically used for buttons and
+- **`--font-sans`:** Font family used for text content.
+- **`--font-weight-medium`:** Medium font weight for text (typically used for buttons and
   interactive elements).
-- **`--font-weight-semibold`** - Semibold font weight for text (typically used for headings or
+- **`--font-weight-semibold`:** Semibold font weight for text (typically used for headings or
   emphasized text).
 
 ### Layout
 
-- **`--radius`** - Border radius used for UI elements.
+- **`--radius`:** Border radius used for UI elements.
 
 ## Usage
 
-### Global Theming
+### Global theming
 
 Apply custom properties to affect all dApp Kit components:
 
@@ -70,7 +71,7 @@ Apply custom properties to affect all dApp Kit components:
 }
 ```
 
-### Component-Specific Theming
+### Component-specific theming
 
 Target specific components:
 
@@ -87,7 +88,7 @@ mysten-dapp-kit-connect-modal {
 }
 ```
 
-### Dark Mode
+### Dark mode
 
 Implement dark mode by overriding the custom properties:
 
@@ -129,7 +130,7 @@ Or use a class-based approach:
 </div>
 ```
 
-## Example: Complete Theme
+## Example: complete theme
 
 Here's a complete theme example matching a custom design system:
 
@@ -162,7 +163,7 @@ Here's a complete theme example matching a custom design system:
 }
 ```
 
-## Framework Integration
+## Framework integration
 
 ### React
 

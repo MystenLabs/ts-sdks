@@ -1,6 +1,7 @@
 ---
 title: useAutoConnectWallet
-description: Automatically reconnect to the last connected wallet
+description: Legacy React hook to check the auto-connection status for the last connected wallet.
+keywords: [useAutoConnectWallet, React hook, auto-connect, wallet, legacy, dApp Kit, Sui]
 ---
 
 import { UseAutoConnectionStatusExample } from '../../../../examples/wallet-hooks-client';
@@ -28,8 +29,8 @@ function MyComponent() {
 
 ## Auto-connection status properties
 
-- `disabled` - When the auto-connection functionality is disabled.
-- `idle` - When the initial auto-connection attempt hasn't been made yet.
-- `attempted` - When an auto-connection attempt has been made. This means either that there is no
+- `disabled`: When the auto-connection functionality is disabled.
+- `idle`: When the initial auto-connection attempt hasn't been made yet.
+- `attempted`: When an auto-connection attempt has been made. This means either that there is no
   previously connected wallet, the previously connected wallet was not found, or that it has
   successfully connected to a wallet.

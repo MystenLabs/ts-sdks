@@ -1,6 +1,17 @@
 ---
 title: Payment Kit
-description: Accept payments in any coin type on Sui
+description:
+  Accept payments in any coin type on the Sui blockchain with built-in duplicate prevention.
+keywords:
+  [
+    Payment Kit,
+    Sui payments,
+    payment processing,
+    registry,
+    receipts,
+    TypeScript,
+    blockchain payments,
+  ]
 ---
 
 <Callout type="info">
@@ -9,8 +20,8 @@ description: Accept payments in any coin type on Sui
 	before using in production environments.
 </Callout>
 
-The Sui Payment Kit SDK is a TypeScript library that provides a simple and secure way to process
-blockchain payments on the Sui network. It offers flexible payment processing with built-in
+The Sui Payment Kit SDK is a TypeScript library that provides a straightforward and secure way to
+process blockchain payments on the Sui network. It offers flexible payment processing with built-in
 duplicate prevention, configurable payment registries, and comprehensive receipt management.
 
 ## Overview
@@ -22,10 +33,10 @@ with minimal setup. The SDK provides two payment models:
   expiration
 - **Ephemeral payments**: Lightweight payment processing without persistent storage
 
-All payments emit a `PaymentReceipt` that can be stored off-chain for verification and
+All payments emit a `PaymentReceipt` that can be stored offchain for verification and
 record-keeping.
 
-## Key Features
+## Key features
 
 - **Duplicate Prevention**: Registry-based payments automatically prevent duplicate transactions
 - **Flexible Payment Models**: Choose between registry-based or ephemeral payment processing
@@ -41,7 +52,7 @@ record-keeping.
 npm install --save @mysten/payment-kit @mysten/sui
 ```
 
-## Quick Start
+## Quick start
 
 ```ts
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -74,7 +85,7 @@ if (result.$kind === 'FailedTransaction') {
 }
 ```
 
-## Network Support
+## Network support
 
 Payment Kit supports the following Sui networks:
 
@@ -84,9 +95,9 @@ Payment Kit supports the following Sui networks:
 The SDK automatically configures the correct package and object IDs based on the network specified
 in your `SuiGrpcClient` configuration.
 
-## Core Concepts
+## Core concepts
 
-### Payment Processing
+### Payment processing
 
 Payment Kit offers two distinct payment processing models to suit different application needs:
 
@@ -95,7 +106,7 @@ Payment Kit offers two distinct payment processing models to suit different appl
 2. **Ephemeral Payments**: Processes payments without persistent storage, suitable for scenarios
    where duplicate prevention is handled externally
 
-### Payment Registries
+### Payment registries
 
 A `PaymentRegistry` manages payment records and configurations. Benefits include:
 
@@ -104,7 +115,7 @@ A `PaymentRegistry` manages payment records and configurations. Benefits include
 - Optional fund management
 - Custom naming for easy identification and indexing
 
-### Payment Records
+### Payment records
 
 When using registry-based payments, a `PaymentRecord` is created as a Dynamic Field on the registry.
 Records are identified by a composite key derived from:
@@ -114,7 +125,7 @@ Records are identified by a composite key derived from:
 - Coin type
 - Receiver address
 
-### Payment Receipts
+### Payment receipts
 
 Every payment (registry-based or ephemeral) emits a `PaymentReceipt` event containing:
 
@@ -129,7 +140,7 @@ type PaymentReceipt = {
 };
 ```
 
-## Next Steps
+## Next steps
 
 - [Getting Started Guide](/payment-kit/getting-started) - Detailed setup and usage instructions
 - [Payment Processing](/payment-kit/payment-processing) - Learn about different payment models

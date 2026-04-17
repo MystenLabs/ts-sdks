@@ -1,6 +1,16 @@
 ---
 title: Payment Kit SDK
-description: Payment Kit SDK API reference and configuration
+description: Payment Kit SDK API reference and configuration for the PaymentKitClient.
+keywords:
+  [
+    Payment Kit SDK,
+    API reference,
+    PaymentKitClient,
+    configuration,
+    Sui,
+    TypeScript,
+    client extension,
+  ]
 ---
 
 <Callout type="info">
@@ -11,7 +21,7 @@ description: Payment Kit SDK API reference and configuration
 
 Complete API reference for the Payment Kit SDK.
 
-## Client Setup
+## Client setup
 
 ### PaymentKitClient
 
@@ -51,7 +61,7 @@ client.paymentKit.tx.processRegistryPayment(/* ... */);
 
 - `PaymentKitClientError` if network is unsupported
 
-## Transaction Methods
+## Transaction methods
 
 Transaction methods create complete, ready-to-sign transactions.
 
@@ -79,7 +89,7 @@ type ProcessRegistryPaymentOptions = {
 
 **Returns:** `Transaction` - Ready-to-sign transaction
 
-**Note:** If you rather provide the `registryId` you can do so instead of the `registryName`.
+If you prefer to provide the `registryId`, you can do so instead of the `registryName`.
 
 **Example:**
 
@@ -409,7 +419,7 @@ const result = await client.signAndExecuteTransaction({
 - Removes the payment record from the registry
 - Sender receives storage rebate
 
-## Query Methods
+## Query methods
 
 ### `client.paymentKit.getPaymentRecord()`
 
@@ -467,7 +477,7 @@ if (record) {
 - Check for duplicate payments before processing
 - Retrieve payment details for reconciliation
 
-## Call Methods
+## Call methods
 
 Call methods return transaction commands that can be composed in custom transactions. Use these when
 you need fine-grained control over transaction construction.
@@ -522,7 +532,7 @@ await client.signAndExecuteTransaction({
 });
 ```
 
-### Other Call Methods
+### Other call methods
 
 All transaction methods have corresponding call methods:
 
@@ -535,7 +545,7 @@ All transaction methods have corresponding call methods:
 
 ## Types
 
-### PaymentReceipt Event
+### PaymentReceipt event
 
 Emitted when a payment is processed (registry or ephemeral).
 
@@ -573,7 +583,7 @@ if (receiptEvent) {
 }
 ```
 
-## Error Handling
+## Error handling
 
 ### PaymentKitClientError
 
@@ -585,13 +595,13 @@ class PaymentKitClientError extends Error {
 }
 ```
 
-## URI Utilities
+## URI utilities
 
 Payment Kit provides utility functions for creating and parsing payment transaction URIs. These URIs
 follow the `sui:pay` protocol and can be used to encode payment parameters for QR codes, deep links,
 or other sharing mechanisms.
 
-### URI Format
+### URI format
 
 Payment URIs follow the `sui:pay` protocol:
 
@@ -609,12 +619,12 @@ sui:pay?
 
 **Required Parameters:**
 
-| Parameter  | Description                                  |
-| ---------- | -------------------------------------------- |
-| `receiver` | Recipient Sui address                        |
-| `amount`   | Payment amount in smallest unit (e.g., MIST) |
-| `coinType` | Coin type (e.g., `0x2::sui::SUI`)            |
-| `nonce`    | Unique payment identifier (max 36 chars)     |
+| Parameter  | Description                                         |
+| ---------- | --------------------------------------------------- |
+| `receiver` | Recipient Sui address                               |
+| `amount`   | Payment amount in smallest unit (for example, MIST) |
+| `coinType` | Coin type (for example, `0x2::sui::SUI`)            |
+| `nonce`    | Unique payment identifier (max 36 chars)            |
 
 **Optional Parameters:**
 
@@ -748,7 +758,7 @@ const tx = client.paymentKit.tx.processRegistryPayment({
 - `PaymentKitUriError` if nonce exceeds 36 characters
 - `PaymentKitUriError` if amount is not a positive number
 
-### Future Versions
+### Future versions
 
 Check the
 [CHANGELOG](https://github.com/MystenLabs/ts-sdks/blob/main/packages/payment-kit/CHANGELOG.md) for

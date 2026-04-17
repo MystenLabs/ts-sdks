@@ -1,12 +1,13 @@
 ---
 title: '@mysten/create-dapp'
-description: Create a Sui dApp with one command
+description: Create a Sui app with one command using the create-dapp CLI scaffolding tool.
+keywords: [create-dapp, CLI, scaffolding, Sui, React, Vite, Tailwind CSS, project template]
 ---
 
-`@mysten/create-dapp` is a CLI tool that scaffolds a complete Sui dApp project with best practices
+`@mysten/create-dapp` is a CLI tool that scaffolds a complete Sui app project with best practices
 built in.
 
-## Quick Start
+## Quick start
 
 ```sh npm2yarn
 npm create @mysten/dapp
@@ -18,7 +19,7 @@ The CLI prompts you to choose a template and project name, then creates a ready-
 
 ### react-client-dapp
 
-A basic React dApp that demonstrates wallet connection and fetching owned objects:
+A basic React app that demonstrates wallet connection and fetching owned objects:
 
 - Wallet connection with `ConnectButton`
 - Display connected wallet address
@@ -35,7 +36,7 @@ A complete end-to-end example with Move smart contract integration:
 - MVR (Move Registry) name resolution for package IDs
 - Full transaction signing and execution
 
-## Tech Stack
+## Tech stack
 
 Both templates include:
 
@@ -51,7 +52,7 @@ The e2e-counter template also includes:
 
 - [`@mysten/codegen`](/codegen) - Generate TypeScript from Move code
 
-## Project Structure
+## Project structure
 
 ### react-client-dapp
 
@@ -83,9 +84,9 @@ move/
 └── counter/           # Move smart contract
 ```
 
-## Using the e2e-counter Template
+## Using the e2e-counter template
 
-### 1. Deploy the Move Contract
+### Step 1: Deploy the Move contract
 
 First, install the [Sui CLI](https://docs.sui.io/build/install) and set up testnet:
 
@@ -101,7 +102,7 @@ cd move
 sui client publish --gas-budget 100000000 counter
 ```
 
-### 2. Configure the Package ID
+### Step 2: Configure the package ID
 
 Copy the `packageId` from the publish output to `src/constants.ts`:
 
@@ -109,7 +110,7 @@ Copy the `packageId` from the publish output to `src/constants.ts`:
 export const TESTNET_COUNTER_PACKAGE_ID = '<YOUR_PACKAGE_ID>';
 ```
 
-### 3. Generate TypeScript Bindings
+### Step 3: Generate TypeScript bindings
 
 ```bash
 pnpm codegen
@@ -117,7 +118,7 @@ pnpm codegen
 
 This generates type-safe functions in `src/contracts/` for interacting with your Move modules.
 
-### 4. Start Development
+### Step 4: Start development
 
 ```bash
 pnpm install
@@ -136,7 +137,7 @@ project.
 
 Theme variables are defined in `src/index.css` using Tailwind's `@theme` directive.
 
-## CLI Options
+## CLI options
 
 You can skip prompts with command-line flags:
 

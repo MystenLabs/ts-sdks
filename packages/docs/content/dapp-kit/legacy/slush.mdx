@@ -1,16 +1,17 @@
 ---
 title: Slush Integration
-description: Slush wallet integration for dApp Kit
+description: Integrate Slush wallet with the legacy dApp Kit WalletProvider.
+keywords: [Slush wallet, dApp Kit, wallet integration, legacy, WalletProvider, Sui, mobile wallet]
 ---
 
-dApp Kit provides out-of-the-box opt-in support for the [Slush wallet](/slush-wallet/dapp).
+The dApp Kit provides out-of-the-box opt-in support for the [Slush wallet](/slush-wallet/dapp).
 
 ## Setup
 
 To enable support for Slush wallets, pass the `slushWallet` object to the `WalletProvider`
 component. This object has the following properties:
 
-- **`name`** - The name of your dApp, shown to the user when connecting to the dApp.
+- **`name`:** The name of your app, shown to the user when connecting to the app.
 
 ```tsx
 function App({ children }) {
@@ -27,6 +28,6 @@ function App({ children }) {
 ```
 
 <Callout>
-	Note: In the connect modal, users with the Slush Wallet extension installed will only see the
-	extension. If they don’t have it, the connection will default to the Slush web app.
+	In the connect modal, users with the Slush Wallet extension installed will only see the extension.
+	If they do not have it, the connection defaults to the Slush web app.
 </Callout>

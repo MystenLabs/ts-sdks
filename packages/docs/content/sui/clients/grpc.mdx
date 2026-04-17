@@ -1,6 +1,17 @@
 ---
 title: SuiGrpcClient
-description: Connect to Sui via gRPC with SuiGrpcClient
+description: Connect to Sui through gRPC with SuiGrpcClient.
+keywords:
+  [
+    SuiGrpcClient,
+    gRPC,
+    Sui client,
+    full node,
+    TypeScript SDK,
+    Core API,
+    '@mysten/sui',
+    protocol buffers,
+  ]
 ---
 
 The `SuiGrpcClient` provides access to the Full Node gRPC API.
@@ -33,8 +44,8 @@ const grpcClient = new SuiGrpcClient({
 ## Transport options
 
 By default, `SuiGrpcClient` uses `GrpcWebFetchTransport` from
-[protobuf-ts](https://github.com/timostamm/protobuf-ts), which works in browsers and Node.js via the
-Fetch API. You can also provide a custom transport for advanced use cases.
+[protobuf-ts](https://github.com/timostamm/protobuf-ts), which works in browsers and Node.js through
+the Fetch API. You can also provide a custom transport for advanced use cases.
 
 The `GrpcWebFetchTransport` class, `GrpcWebOptions` type, and `RpcTransport` type are all
 re-exported from `@mysten/sui/grpc` for convenience.
@@ -61,7 +72,7 @@ const grpcClient = new SuiGrpcClient({
 
 ### Native gRPC transport
 
-For server-side applications (Node.js, Bun, etc.), you can use the native gRPC transport with
+For server-side applications (Node.js, Bun, and others), you can use the native gRPC transport with
 `@protobuf-ts/grpc-transport` and `@grpc/grpc-js`. This uses HTTP/2 with the native gRPC protocol
 rather than the gRPC-web translation layer.
 
@@ -131,7 +142,7 @@ await grpcClient.getCoins({
 
 To query additional data not available in the core API, you can use the service clients directly:
 
-### Transaction Execution Service
+### Transaction execution service
 
 ```typescript
 const { response } = await grpcClient.transactionExecutionService.executeTransaction({
@@ -153,7 +164,7 @@ if (!response.finality?.effects?.status?.success) {
 }
 ```
 
-### Ledger Service
+### Ledger service
 
 ```typescript
 // Get transaction by digest
@@ -165,7 +176,7 @@ const { response } = await grpcClient.ledgerService.getTransaction({
 const { response: epochInfo } = await grpcClient.ledgerService.getEpoch({});
 ```
 
-### State Service
+### State service
 
 ```typescript
 // List owned objects
@@ -180,7 +191,7 @@ const { response: fields } = await grpcClient.stateService.listDynamicFields({
 });
 ```
 
-### Move Package Service
+### Move package service
 
 ```typescript
 // Get function information
@@ -191,7 +202,7 @@ const { response } = await grpcClient.movePackageService.getFunction({
 });
 ```
 
-### Name Service
+### Name service
 
 ```typescript
 // Reverse lookup address to get name
@@ -200,7 +211,7 @@ const { response } = await grpcClient.nameService.reverseLookupName({
 });
 ```
 
-### Signature Verification Service
+### Signature verification service
 
 ```typescript
 // Verify a signature
