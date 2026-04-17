@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/walrus::storage_accounting';
 export const FutureAccounting = new MoveStruct({
@@ -27,11 +27,11 @@ export const FutureAccountingRingBuffer = new MoveStruct({
 	},
 });
 export interface MaxEpochsAheadArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface MaxEpochsAheadOptions {
 	package?: string;
-	arguments: MaxEpochsAheadArguments | [self: RawTransactionArgument<string>];
+	arguments: MaxEpochsAheadArguments | [self: TransactionArgument];
 }
 /** The maximum number of epochs for which we can use `self`. */
 export function maxEpochsAhead(options: MaxEpochsAheadOptions) {
@@ -47,14 +47,14 @@ export function maxEpochsAhead(options: MaxEpochsAheadOptions) {
 		});
 }
 export interface RingLookupArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	epochsInFuture: RawTransactionArgument<number>;
 }
 export interface RingLookupOptions {
 	package?: string;
 	arguments:
 		| RingLookupArguments
-		| [self: RawTransactionArgument<string>, epochsInFuture: RawTransactionArgument<number>];
+		| [self: TransactionArgument, epochsInFuture: RawTransactionArgument<number>];
 }
 /** Read-only lookup for an element in the `FutureAccountingRingBuffer` */
 export function ringLookup(options: RingLookupOptions) {
@@ -70,11 +70,11 @@ export function ringLookup(options: RingLookupOptions) {
 		});
 }
 export interface EpochArguments {
-	accounting: RawTransactionArgument<string>;
+	accounting: TransactionArgument;
 }
 export interface EpochOptions {
 	package?: string;
-	arguments: EpochArguments | [accounting: RawTransactionArgument<string>];
+	arguments: EpochArguments | [accounting: TransactionArgument];
 }
 /** Accessor for epoch, read-only. */
 export function epoch(options: EpochOptions) {
@@ -90,11 +90,11 @@ export function epoch(options: EpochOptions) {
 		});
 }
 export interface UsedCapacityArguments {
-	accounting: RawTransactionArgument<string>;
+	accounting: TransactionArgument;
 }
 export interface UsedCapacityOptions {
 	package?: string;
-	arguments: UsedCapacityArguments | [accounting: RawTransactionArgument<string>];
+	arguments: UsedCapacityArguments | [accounting: TransactionArgument];
 }
 /** Accessor for used_capacity, read-only. */
 export function usedCapacity(options: UsedCapacityOptions) {
@@ -110,11 +110,11 @@ export function usedCapacity(options: UsedCapacityOptions) {
 		});
 }
 export interface RewardsArguments {
-	accounting: RawTransactionArgument<string>;
+	accounting: TransactionArgument;
 }
 export interface RewardsOptions {
 	package?: string;
-	arguments: RewardsArguments | [accounting: RawTransactionArgument<string>];
+	arguments: RewardsArguments | [accounting: TransactionArgument];
 }
 /** Accessor for rewards, read-only. */
 export function rewards(options: RewardsOptions) {

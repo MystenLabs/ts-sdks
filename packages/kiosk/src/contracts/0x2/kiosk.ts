@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as balance from './balance.js';
 const $moduleName = '0x2::kiosk';
 export const Kiosk = new MoveStruct({
@@ -521,26 +521,6 @@ export function uidMutAsOwner(options: UidMutAsOwnerOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
 		});
 }
-export interface SetAllowExtensionsOptions {
-	package?: string;
-	arguments: [
-		RawTransactionArgument<string>,
-		RawTransactionArgument<string>,
-		RawTransactionArgument<boolean>,
-	];
-}
-export function setAllowExtensions(options: SetAllowExtensionsOptions) {
-	const packageAddress =
-		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = [null, null, 'bool'] satisfies (string | null)[];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'kiosk',
-			function: 'set_allow_extensions',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-		});
-}
 export interface UidOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>];
@@ -705,11 +685,7 @@ export function borrowVal(options: BorrowValOptions) {
 }
 export interface ReturnValOptions<T0 extends BcsType<any>> {
 	package?: string;
-	arguments: [
-		RawTransactionArgument<string>,
-		RawTransactionArgument<T0>,
-		RawTransactionArgument<string>,
-	];
+	arguments: [RawTransactionArgument<string>, RawTransactionArgument<T0>, TransactionArgument];
 	typeArguments: [string];
 }
 export function returnVal<T0 extends BcsType<any>>(options: ReturnValOptions<T0>) {
@@ -793,5 +769,25 @@ export function purchaseCapMinPrice(options: PurchaseCapMinPriceOptions) {
 			function: 'purchase_cap_min_price',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
 			typeArguments: options.typeArguments,
+		});
+}
+export interface SetAllowExtensionsOptions {
+	package?: string;
+	arguments: [
+		RawTransactionArgument<string>,
+		RawTransactionArgument<string>,
+		RawTransactionArgument<boolean>,
+	];
+}
+export function setAllowExtensions(options: SetAllowExtensionsOptions) {
+	const packageAddress =
+		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
+	const argumentsTypes = [null, null, 'bool'] satisfies (string | null)[];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'kiosk',
+			function: 'set_allow_extensions',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
 		});
 }

@@ -6,7 +6,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@suins/coupons::range';
 export const Range = new MoveStruct({
 	name: `${$moduleName}::Range`,
@@ -38,14 +38,14 @@ export function _new(options: NewOptions) {
 		});
 }
 export interface IsInRangeArguments {
-	range: RawTransactionArgument<string>;
+	range: TransactionArgument;
 	number: RawTransactionArgument<number>;
 }
 export interface IsInRangeOptions {
 	package?: string;
 	arguments:
 		| IsInRangeArguments
-		| [range: RawTransactionArgument<string>, number: RawTransactionArgument<number>];
+		| [range: TransactionArgument, number: RawTransactionArgument<number>];
 }
 export function isInRange(options: IsInRangeOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
@@ -60,11 +60,11 @@ export function isInRange(options: IsInRangeOptions) {
 		});
 }
 export interface FromArguments {
-	range: RawTransactionArgument<string>;
+	range: TransactionArgument;
 }
 export interface FromOptions {
 	package?: string;
-	arguments: FromArguments | [range: RawTransactionArgument<string>];
+	arguments: FromArguments | [range: TransactionArgument];
 }
 /** Get floor limit for the range. */
 export function _from(options: FromOptions) {
@@ -80,11 +80,11 @@ export function _from(options: FromOptions) {
 		});
 }
 export interface ToArguments {
-	range: RawTransactionArgument<string>;
+	range: TransactionArgument;
 }
 export interface ToOptions {
 	package?: string;
-	arguments: ToArguments | [range: RawTransactionArgument<string>];
+	arguments: ToArguments | [range: TransactionArgument];
 }
 /** Get upper limit for the range. */
 export function to(options: ToOptions) {

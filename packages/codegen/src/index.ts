@@ -3,6 +3,7 @@
 
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
+import { ModuleRegistry } from './module-registry.js';
 import { MoveModuleBuilder } from './move-module-builder.js';
 import { existsSync, statSync } from 'node:fs';
 import { utilsContent } from './generate-utils.js';
@@ -90,6 +91,7 @@ export async function generateFromPackageSummary({
 		return pkgDir === packageName;
 	};
 
+	const registry = new ModuleRegistry(addressMappings);
 	const modules = (
 		await Promise.all(
 			packages.map(async (pkgDir) => {
@@ -103,7 +105,7 @@ export async function generateFromPackageSummary({
 							module: basename(mod, '.json'),
 							builder: await MoveModuleBuilder.fromSummaryFile(
 								join(summaryDir, pkgDir, mod),
-								addressMappings,
+								registry,
 								isMainPackage(pkgDir) ? mvrNameOrAddress : undefined,
 								importExtension,
 								includePhantomTypeParameters,
@@ -113,10 +115,6 @@ export async function generateFromPackageSummary({
 			}),
 		)
 	).flat();
-
-	const moduleBuilders = Object.fromEntries(
-		modules.map((mod) => [`${mod.package}::${mod.module}`, mod.builder]),
-	);
 
 	const packageGenerate: PackageGenerate | undefined = 'generate' in pkg ? pkg.generate : undefined;
 	const pkgModules = packageGenerate?.modules;
@@ -142,7 +140,7 @@ export async function generateFromPackageSummary({
 		const types = moduleGenerate === true ? pkgTypes : (moduleGenerate.types ?? false);
 		const functions = moduleGenerate === true ? pkgFunctions : (moduleGenerate.functions ?? false);
 
-		mod.builder.includeTypes(moduleBuilders, types);
+		mod.builder.includeTypes(types);
 		mod.builder.includeFunctions(functions);
 	}
 

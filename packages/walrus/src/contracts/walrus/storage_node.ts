@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as group_ops from './deps/sui/group_ops.js';
 import * as extended_field from './extended_field.js';
 import * as event_blob from './event_blob.js';
@@ -36,11 +36,11 @@ export const StorageNodeCap = new MoveStruct({
 	},
 });
 export interface IdArguments {
-	cap: RawTransactionArgument<string>;
+	cap: TransactionArgument;
 }
 export interface IdOptions {
 	package?: string;
-	arguments: IdArguments | [cap: RawTransactionArgument<string>];
+	arguments: IdArguments | [cap: TransactionArgument];
 }
 /** Return the node ID of the storage node. */
 export function id(options: IdOptions) {

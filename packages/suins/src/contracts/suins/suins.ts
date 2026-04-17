@@ -29,7 +29,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@suins/core::suins';
 export const AdminCap = new MoveStruct({
@@ -231,7 +231,7 @@ export function assertAppIsAuthorized(options: AssertAppIsAuthorizedOptions) {
 export interface AppAddBalanceArguments<App extends BcsType<any>> {
 	_: RawTransactionArgument<App>;
 	self: RawTransactionArgument<string>;
-	balance: RawTransactionArgument<string>;
+	balance: TransactionArgument;
 }
 export interface AppAddBalanceOptions<App extends BcsType<any>> {
 	package?: string;
@@ -240,7 +240,7 @@ export interface AppAddBalanceOptions<App extends BcsType<any>> {
 		| [
 				_: RawTransactionArgument<App>,
 				self: RawTransactionArgument<string>,
-				balance: RawTransactionArgument<string>,
+				balance: TransactionArgument,
 		  ];
 	typeArguments: [string];
 }
@@ -261,7 +261,7 @@ export function appAddBalance<App extends BcsType<any>>(options: AppAddBalanceOp
 export interface AppAddCustomBalanceArguments<App extends BcsType<any>> {
 	self: RawTransactionArgument<string>;
 	_: RawTransactionArgument<App>;
-	balance: RawTransactionArgument<string>;
+	balance: TransactionArgument;
 }
 export interface AppAddCustomBalanceOptions<App extends BcsType<any>> {
 	package?: string;
@@ -270,7 +270,7 @@ export interface AppAddCustomBalanceOptions<App extends BcsType<any>> {
 		| [
 				self: RawTransactionArgument<string>,
 				_: RawTransactionArgument<App>,
-				balance: RawTransactionArgument<string>,
+				balance: TransactionArgument,
 		  ];
 	typeArguments: [string, string];
 }

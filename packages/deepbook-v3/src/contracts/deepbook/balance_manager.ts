@@ -19,7 +19,7 @@ import {
 	type RawTransactionArgument,
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as bag from './deps/sui/bag.js';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as type_name from './deps/std/type_name.js';
@@ -699,13 +699,13 @@ export function getBalanceManagerReferralId(options: GetBalanceManagerReferralId
 }
 export interface ValidateProofArguments {
 	balanceManager: RawTransactionArgument<string>;
-	proof: RawTransactionArgument<string>;
+	proof: TransactionArgument;
 }
 export interface ValidateProofOptions {
 	package?: string;
 	arguments:
 		| ValidateProofArguments
-		| [balanceManager: RawTransactionArgument<string>, proof: RawTransactionArgument<string>];
+		| [balanceManager: RawTransactionArgument<string>, proof: TransactionArgument];
 }
 export function validateProof(options: ValidateProofOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';

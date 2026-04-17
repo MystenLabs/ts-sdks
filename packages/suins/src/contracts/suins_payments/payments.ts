@@ -8,7 +8,7 @@ import {
 	type RawTransactionArgument,
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as type_name from './deps/std/type_name.js';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@suins/payments::payments';
@@ -39,7 +39,7 @@ export const PaymentsConfig = new MoveStruct({
 export interface HandleBasePaymentArguments {
 	suins: RawTransactionArgument<string>;
 	bbbVault: RawTransactionArgument<string>;
-	intent: RawTransactionArgument<string>;
+	intent: TransactionArgument;
 	payment: RawTransactionArgument<string>;
 }
 export interface HandleBasePaymentOptions {
@@ -49,7 +49,7 @@ export interface HandleBasePaymentOptions {
 		| [
 				suins: RawTransactionArgument<string>,
 				bbbVault: RawTransactionArgument<string>,
-				intent: RawTransactionArgument<string>,
+				intent: TransactionArgument,
 				payment: RawTransactionArgument<string>,
 		  ];
 	typeArguments: [string];
@@ -75,7 +75,7 @@ export function handleBasePayment(options: HandleBasePaymentOptions) {
 export interface HandlePaymentArguments {
 	suins: RawTransactionArgument<string>;
 	bbbVault: RawTransactionArgument<string>;
-	intent: RawTransactionArgument<string>;
+	intent: TransactionArgument;
 	payment: RawTransactionArgument<string>;
 	priceInfoObject: RawTransactionArgument<string>;
 	userPriceGuard: RawTransactionArgument<number | bigint>;
@@ -87,7 +87,7 @@ export interface HandlePaymentOptions {
 		| [
 				suins: RawTransactionArgument<string>,
 				bbbVault: RawTransactionArgument<string>,
-				intent: RawTransactionArgument<string>,
+				intent: TransactionArgument,
 				payment: RawTransactionArgument<string>,
 				priceInfoObject: RawTransactionArgument<string>,
 				userPriceGuard: RawTransactionArgument<number | bigint>,
@@ -170,13 +170,13 @@ export function calculatePrice(options: CalculatePriceOptions) {
 }
 export interface CalculatePriceAfterDiscountArguments {
 	suins: RawTransactionArgument<string>;
-	intent: RawTransactionArgument<string>;
+	intent: TransactionArgument;
 }
 export interface CalculatePriceAfterDiscountOptions {
 	package?: string;
 	arguments:
 		| CalculatePriceAfterDiscountArguments
-		| [suins: RawTransactionArgument<string>, intent: RawTransactionArgument<string>];
+		| [suins: RawTransactionArgument<string>, intent: TransactionArgument];
 	typeArguments: [string];
 }
 export function calculatePriceAfterDiscount(options: CalculatePriceAfterDiscountOptions) {
@@ -195,7 +195,7 @@ export function calculatePriceAfterDiscount(options: CalculatePriceAfterDiscount
 export interface NewCoinTypeDataArguments {
 	coinMetadata: RawTransactionArgument<string>;
 	discountPercentage: RawTransactionArgument<number>;
-	priceFeedId: RawTransactionArgument<number[]>;
+	priceFeedId: RawTransactionArgument<Array<number>>;
 }
 export interface NewCoinTypeDataOptions {
 	package?: string;
@@ -204,7 +204,7 @@ export interface NewCoinTypeDataOptions {
 		| [
 				coinMetadata: RawTransactionArgument<string>,
 				discountPercentage: RawTransactionArgument<number>,
-				priceFeedId: RawTransactionArgument<number[]>,
+				priceFeedId: RawTransactionArgument<Array<number>>,
 		  ];
 	typeArguments: [string];
 }
@@ -223,8 +223,8 @@ export function newCoinTypeData(options: NewCoinTypeDataOptions) {
 		});
 }
 export interface NewPaymentsConfigArguments {
-	setups: RawTransactionArgument<string[]>;
-	baseCurrency: RawTransactionArgument<string>;
+	setups: TransactionArgument;
+	baseCurrency: TransactionArgument;
 	maxAge: RawTransactionArgument<number | bigint>;
 	burnBps: RawTransactionArgument<number | bigint>;
 }
@@ -233,8 +233,8 @@ export interface NewPaymentsConfigOptions {
 	arguments:
 		| NewPaymentsConfigArguments
 		| [
-				setups: RawTransactionArgument<string[]>,
-				baseCurrency: RawTransactionArgument<string>,
+				setups: TransactionArgument,
+				baseCurrency: TransactionArgument,
 				maxAge: RawTransactionArgument<number | bigint>,
 				burnBps: RawTransactionArgument<number | bigint>,
 		  ];

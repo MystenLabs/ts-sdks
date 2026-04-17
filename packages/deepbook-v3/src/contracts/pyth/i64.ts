@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::i64';
 export const I64 = new MoveStruct({
 	name: `${$moduleName}::I64`,
@@ -30,7 +30,7 @@ export function _new(options: NewOptions) {
 }
 export interface GetIsNegativeOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getIsNegative(options: GetIsNegativeOptions) {
 	const packageAddress =
@@ -46,7 +46,7 @@ export function getIsNegative(options: GetIsNegativeOptions) {
 }
 export interface GetMagnitudeIfPositiveOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getMagnitudeIfPositive(options: GetMagnitudeIfPositiveOptions) {
 	const packageAddress =
@@ -62,7 +62,7 @@ export function getMagnitudeIfPositive(options: GetMagnitudeIfPositiveOptions) {
 }
 export interface GetMagnitudeIfNegativeOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getMagnitudeIfNegative(options: GetMagnitudeIfNegativeOptions) {
 	const packageAddress =

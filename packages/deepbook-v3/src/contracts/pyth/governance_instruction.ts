@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as governance_action from './governance_action.js';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::governance_instruction';
@@ -18,7 +18,7 @@ export const GovernanceInstruction = new MoveStruct({
 });
 export interface FromByteVecOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<number[]>];
+	arguments: [RawTransactionArgument<Array<number>>];
 }
 export function fromByteVec(options: FromByteVecOptions) {
 	const packageAddress =
@@ -34,7 +34,7 @@ export function fromByteVec(options: FromByteVecOptions) {
 }
 export interface GetModuleOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getModule(options: GetModuleOptions) {
 	const packageAddress =
@@ -50,7 +50,7 @@ export function getModule(options: GetModuleOptions) {
 }
 export interface GetActionOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getAction(options: GetActionOptions) {
 	const packageAddress =
@@ -66,7 +66,7 @@ export function getAction(options: GetActionOptions) {
 }
 export interface GetTargetChainIdOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getTargetChainId(options: GetTargetChainIdOptions) {
 	const packageAddress =
@@ -82,7 +82,7 @@ export function getTargetChainId(options: GetTargetChainIdOptions) {
 }
 export interface DestroyOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function destroy(options: DestroyOptions) {
 	const packageAddress =

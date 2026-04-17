@@ -137,3 +137,61 @@ export const ProtocolVersionUpdated = new MoveStruct({
 		protocol_version: bcs.u64(),
 	},
 });
+export const PricesUpdated = new MoveStruct({
+	name: `${$moduleName}::PricesUpdated`,
+	fields: {
+		epoch: bcs.u32(),
+		storage_price: bcs.u64(),
+		write_price: bcs.u64(),
+	},
+});
+export const StoragePoolCreated = new MoveStruct({
+	name: `${$moduleName}::StoragePoolCreated`,
+	fields: {
+		epoch: bcs.u32(),
+		storage_pool_id: bcs.Address,
+		reserved_encoded_capacity_bytes: bcs.u64(),
+		start_epoch: bcs.u32(),
+		end_epoch: bcs.u32(),
+	},
+});
+export const PooledBlobRegistered = new MoveStruct({
+	name: `${$moduleName}::PooledBlobRegistered`,
+	fields: {
+		epoch: bcs.u32(),
+		blob_id: bcs.u256(),
+		unencoded_size: bcs.u64(),
+		encoding_type: bcs.u8(),
+		deletable: bcs.bool(),
+		object_id: bcs.Address,
+		storage_pool_id: bcs.Address,
+	},
+});
+export const PooledBlobCertified = new MoveStruct({
+	name: `${$moduleName}::PooledBlobCertified`,
+	fields: {
+		epoch: bcs.u32(),
+		blob_id: bcs.u256(),
+		deletable: bcs.bool(),
+		object_id: bcs.Address,
+		storage_pool_id: bcs.Address,
+	},
+});
+export const PooledBlobDeleted = new MoveStruct({
+	name: `${$moduleName}::PooledBlobDeleted`,
+	fields: {
+		epoch: bcs.u32(),
+		blob_id: bcs.u256(),
+		object_id: bcs.Address,
+		was_certified: bcs.bool(),
+		storage_pool_id: bcs.Address,
+	},
+});
+export const StoragePoolExtended = new MoveStruct({
+	name: `${$moduleName}::StoragePoolExtended`,
+	fields: {
+		epoch: bcs.u32(),
+		storage_pool_id: bcs.Address,
+		new_end_epoch: bcs.u32(),
+	},
+});

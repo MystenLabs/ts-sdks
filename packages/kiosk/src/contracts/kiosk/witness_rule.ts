@@ -21,7 +21,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/kiosk::witness_rule';
 export const Rule = new MoveStruct({
 	name: `${$moduleName}::Rule<phantom Proof>`,
@@ -60,7 +60,7 @@ export function add(options: AddOptions) {
 export interface ProveArguments<Proof extends BcsType<any>> {
 	Proof: RawTransactionArgument<Proof>;
 	policy: RawTransactionArgument<string>;
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 }
 export interface ProveOptions<Proof extends BcsType<any>> {
 	package?: string;
@@ -69,7 +69,7 @@ export interface ProveOptions<Proof extends BcsType<any>> {
 		| [
 				Proof: RawTransactionArgument<Proof>,
 				policy: RawTransactionArgument<string>,
-				request: RawTransactionArgument<string>,
+				request: TransactionArgument,
 		  ];
 	typeArguments: [string, string];
 }

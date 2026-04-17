@@ -4,9 +4,9 @@
 
 /** Account module manages the account data for each user. */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as balances from './balances.js';
 const $moduleName = '@deepbook/core::account';
@@ -27,11 +27,11 @@ export const Account = new MoveStruct({
 	},
 });
 export interface OpenOrdersArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface OpenOrdersOptions {
 	package?: string;
-	arguments: OpenOrdersArguments | [self: RawTransactionArgument<string>];
+	arguments: OpenOrdersArguments | [self: TransactionArgument];
 }
 export function openOrders(options: OpenOrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -46,11 +46,11 @@ export function openOrders(options: OpenOrdersOptions) {
 		});
 }
 export interface TakerVolumeArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface TakerVolumeOptions {
 	package?: string;
-	arguments: TakerVolumeArguments | [self: RawTransactionArgument<string>];
+	arguments: TakerVolumeArguments | [self: TransactionArgument];
 }
 export function takerVolume(options: TakerVolumeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -65,11 +65,11 @@ export function takerVolume(options: TakerVolumeOptions) {
 		});
 }
 export interface MakerVolumeArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface MakerVolumeOptions {
 	package?: string;
-	arguments: MakerVolumeArguments | [self: RawTransactionArgument<string>];
+	arguments: MakerVolumeArguments | [self: TransactionArgument];
 }
 export function makerVolume(options: MakerVolumeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -84,11 +84,11 @@ export function makerVolume(options: MakerVolumeOptions) {
 		});
 }
 export interface TotalVolumeArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface TotalVolumeOptions {
 	package?: string;
-	arguments: TotalVolumeArguments | [self: RawTransactionArgument<string>];
+	arguments: TotalVolumeArguments | [self: TransactionArgument];
 }
 export function totalVolume(options: TotalVolumeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -103,11 +103,11 @@ export function totalVolume(options: TotalVolumeOptions) {
 		});
 }
 export interface ActiveStakeArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface ActiveStakeOptions {
 	package?: string;
-	arguments: ActiveStakeArguments | [self: RawTransactionArgument<string>];
+	arguments: ActiveStakeArguments | [self: TransactionArgument];
 }
 export function activeStake(options: ActiveStakeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -122,11 +122,11 @@ export function activeStake(options: ActiveStakeOptions) {
 		});
 }
 export interface InactiveStakeArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface InactiveStakeOptions {
 	package?: string;
-	arguments: InactiveStakeArguments | [self: RawTransactionArgument<string>];
+	arguments: InactiveStakeArguments | [self: TransactionArgument];
 }
 export function inactiveStake(options: InactiveStakeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -141,11 +141,11 @@ export function inactiveStake(options: InactiveStakeOptions) {
 		});
 }
 export interface CreatedProposalArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface CreatedProposalOptions {
 	package?: string;
-	arguments: CreatedProposalArguments | [self: RawTransactionArgument<string>];
+	arguments: CreatedProposalArguments | [self: TransactionArgument];
 }
 export function createdProposal(options: CreatedProposalOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -160,11 +160,11 @@ export function createdProposal(options: CreatedProposalOptions) {
 		});
 }
 export interface VotedProposalArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface VotedProposalOptions {
 	package?: string;
-	arguments: VotedProposalArguments | [self: RawTransactionArgument<string>];
+	arguments: VotedProposalArguments | [self: TransactionArgument];
 }
 export function votedProposal(options: VotedProposalOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -179,11 +179,11 @@ export function votedProposal(options: VotedProposalOptions) {
 		});
 }
 export interface SettledBalancesArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface SettledBalancesOptions {
 	package?: string;
-	arguments: SettledBalancesArguments | [self: RawTransactionArgument<string>];
+	arguments: SettledBalancesArguments | [self: TransactionArgument];
 }
 export function settledBalances(options: SettledBalancesOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';

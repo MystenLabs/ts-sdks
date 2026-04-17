@@ -140,11 +140,11 @@ export function divRoundUp(options: DivRoundUpOptions) {
 		});
 }
 export interface MedianArguments {
-	v: RawTransactionArgument<number | bigint[]>;
+	v: RawTransactionArgument<Array<number | bigint>>;
 }
 export interface MedianOptions {
 	package?: string;
-	arguments: MedianArguments | [v: RawTransactionArgument<number | bigint[]>];
+	arguments: MedianArguments | [v: RawTransactionArgument<Array<number | bigint>>];
 }
 /** given a vector of u128, return the median */
 export function median(options: MedianOptions) {

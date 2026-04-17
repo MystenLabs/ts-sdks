@@ -13,7 +13,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@suins/core::core_config';
@@ -39,26 +39,26 @@ export const CoreConfig = new MoveStruct({
 	},
 });
 export interface NewArguments {
-	publicKey: RawTransactionArgument<number[]>;
+	publicKey: RawTransactionArgument<Array<number>>;
 	minLabelLength: RawTransactionArgument<number>;
 	maxLabelLength: RawTransactionArgument<number>;
 	paymentsVersion: RawTransactionArgument<number>;
 	maxYears: RawTransactionArgument<number>;
-	validTlds: RawTransactionArgument<string[]>;
-	extra: RawTransactionArgument<string>;
+	validTlds: RawTransactionArgument<Array<string>>;
+	extra: TransactionArgument;
 }
 export interface NewOptions {
 	package?: string;
 	arguments:
 		| NewArguments
 		| [
-				publicKey: RawTransactionArgument<number[]>,
+				publicKey: RawTransactionArgument<Array<number>>,
 				minLabelLength: RawTransactionArgument<number>,
 				maxLabelLength: RawTransactionArgument<number>,
 				paymentsVersion: RawTransactionArgument<number>,
 				maxYears: RawTransactionArgument<number>,
-				validTlds: RawTransactionArgument<string[]>,
-				extra: RawTransactionArgument<string>,
+				validTlds: RawTransactionArgument<Array<string>>,
+				extra: TransactionArgument,
 		  ];
 }
 export function _new(options: NewOptions) {
@@ -90,11 +90,11 @@ export function _new(options: NewOptions) {
 		});
 }
 export interface PublicKeyArguments {
-	config: RawTransactionArgument<string>;
+	config: TransactionArgument;
 }
 export interface PublicKeyOptions {
 	package?: string;
-	arguments: PublicKeyArguments | [config: RawTransactionArgument<string>];
+	arguments: PublicKeyArguments | [config: TransactionArgument];
 }
 export function publicKey(options: PublicKeyOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -109,11 +109,11 @@ export function publicKey(options: PublicKeyOptions) {
 		});
 }
 export interface MinLabelLengthArguments {
-	config: RawTransactionArgument<string>;
+	config: TransactionArgument;
 }
 export interface MinLabelLengthOptions {
 	package?: string;
-	arguments: MinLabelLengthArguments | [config: RawTransactionArgument<string>];
+	arguments: MinLabelLengthArguments | [config: TransactionArgument];
 }
 export function minLabelLength(options: MinLabelLengthOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -128,11 +128,11 @@ export function minLabelLength(options: MinLabelLengthOptions) {
 		});
 }
 export interface MaxLabelLengthArguments {
-	config: RawTransactionArgument<string>;
+	config: TransactionArgument;
 }
 export interface MaxLabelLengthOptions {
 	package?: string;
-	arguments: MaxLabelLengthArguments | [config: RawTransactionArgument<string>];
+	arguments: MaxLabelLengthArguments | [config: TransactionArgument];
 }
 export function maxLabelLength(options: MaxLabelLengthOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -147,14 +147,14 @@ export function maxLabelLength(options: MaxLabelLengthOptions) {
 		});
 }
 export interface IsValidTldArguments {
-	config: RawTransactionArgument<string>;
+	config: TransactionArgument;
 	tld: RawTransactionArgument<string>;
 }
 export interface IsValidTldOptions {
 	package?: string;
 	arguments:
 		| IsValidTldArguments
-		| [config: RawTransactionArgument<string>, tld: RawTransactionArgument<string>];
+		| [config: TransactionArgument, tld: RawTransactionArgument<string>];
 }
 export function isValidTld(options: IsValidTldOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -169,11 +169,11 @@ export function isValidTld(options: IsValidTldOptions) {
 		});
 }
 export interface PaymentsVersionArguments {
-	config: RawTransactionArgument<string>;
+	config: TransactionArgument;
 }
 export interface PaymentsVersionOptions {
 	package?: string;
-	arguments: PaymentsVersionArguments | [config: RawTransactionArgument<string>];
+	arguments: PaymentsVersionArguments | [config: TransactionArgument];
 }
 export function paymentsVersion(options: PaymentsVersionOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -188,11 +188,11 @@ export function paymentsVersion(options: PaymentsVersionOptions) {
 		});
 }
 export interface MaxYearsArguments {
-	config: RawTransactionArgument<string>;
+	config: TransactionArgument;
 }
 export interface MaxYearsOptions {
 	package?: string;
-	arguments: MaxYearsArguments | [config: RawTransactionArgument<string>];
+	arguments: MaxYearsArguments | [config: TransactionArgument];
 }
 export function maxYears(options: MaxYearsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
