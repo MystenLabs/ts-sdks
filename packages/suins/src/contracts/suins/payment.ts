@@ -8,7 +8,7 @@ import {
 	type RawTransactionArgument,
 } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as domain_1 from './domain.js';
 import * as vec_map from './deps/sui/vec_map.js';
 import * as type_name from './deps/std/type_name.js';
@@ -92,7 +92,7 @@ export const Receipt = new MoveEnum({
 	},
 });
 export interface ApplyPercentageDiscountArguments<A extends BcsType<any>> {
-	intent: RawTransactionArgument<string>;
+	intent: TransactionArgument;
 	suins: RawTransactionArgument<string>;
 	_: RawTransactionArgument<A>;
 	discountKey: RawTransactionArgument<string>;
@@ -104,7 +104,7 @@ export interface ApplyPercentageDiscountOptions<A extends BcsType<any>> {
 	arguments:
 		| ApplyPercentageDiscountArguments<A>
 		| [
-				intent: RawTransactionArgument<string>,
+				intent: TransactionArgument,
 				suins: RawTransactionArgument<string>,
 				_: RawTransactionArgument<A>,
 				discountKey: RawTransactionArgument<string>,
@@ -148,7 +148,7 @@ export function applyPercentageDiscount<A extends BcsType<any>>(
 		});
 }
 export interface FinalizePaymentArguments<A extends BcsType<any>> {
-	intent: RawTransactionArgument<string>;
+	intent: TransactionArgument;
 	suins: RawTransactionArgument<string>;
 	app: RawTransactionArgument<A>;
 	coin: RawTransactionArgument<string>;
@@ -158,7 +158,7 @@ export interface FinalizePaymentOptions<A extends BcsType<any>> {
 	arguments:
 		| FinalizePaymentArguments<A>
 		| [
-				intent: RawTransactionArgument<string>,
+				intent: TransactionArgument,
 				suins: RawTransactionArgument<string>,
 				app: RawTransactionArgument<A>,
 				coin: RawTransactionArgument<string>,
@@ -246,14 +246,14 @@ export function initRenewal(options: InitRenewalOptions) {
 		});
 }
 export interface RegisterArguments {
-	receipt: RawTransactionArgument<string>;
+	receipt: TransactionArgument;
 	suins: RawTransactionArgument<string>;
 }
 export interface RegisterOptions {
 	package?: string;
 	arguments:
 		| RegisterArguments
-		| [receipt: RawTransactionArgument<string>, suins: RawTransactionArgument<string>];
+		| [receipt: TransactionArgument, suins: RawTransactionArgument<string>];
 }
 /**
  * Register a domain with the given receipt. This is a hot-potato and can only be
@@ -272,7 +272,7 @@ export function register(options: RegisterOptions) {
 		});
 }
 export interface RenewArguments {
-	receipt: RawTransactionArgument<string>;
+	receipt: TransactionArgument;
 	suins: RawTransactionArgument<string>;
 	nft: RawTransactionArgument<string>;
 }
@@ -281,7 +281,7 @@ export interface RenewOptions {
 	arguments:
 		| RenewArguments
 		| [
-				receipt: RawTransactionArgument<string>,
+				receipt: TransactionArgument,
 				suins: RawTransactionArgument<string>,
 				nft: RawTransactionArgument<string>,
 		  ];
@@ -303,11 +303,11 @@ export function renew(options: RenewOptions) {
 		});
 }
 export interface RequestDataArguments {
-	intent: RawTransactionArgument<string>;
+	intent: TransactionArgument;
 }
 export interface RequestDataOptions {
 	package?: string;
-	arguments: RequestDataArguments | [intent: RawTransactionArgument<string>];
+	arguments: RequestDataArguments | [intent: TransactionArgument];
 }
 /** Getters */
 export function requestData(options: RequestDataOptions) {
@@ -323,11 +323,11 @@ export function requestData(options: RequestDataOptions) {
 		});
 }
 export interface YearsArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface YearsOptions {
 	package?: string;
-	arguments: YearsArguments | [self: RawTransactionArgument<string>];
+	arguments: YearsArguments | [self: TransactionArgument];
 }
 export function years(options: YearsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -342,11 +342,11 @@ export function years(options: YearsOptions) {
 		});
 }
 export interface BaseAmountArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface BaseAmountOptions {
 	package?: string;
-	arguments: BaseAmountArguments | [self: RawTransactionArgument<string>];
+	arguments: BaseAmountArguments | [self: TransactionArgument];
 }
 export function baseAmount(options: BaseAmountOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -361,11 +361,11 @@ export function baseAmount(options: BaseAmountOptions) {
 		});
 }
 export interface DomainArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface DomainOptions {
 	package?: string;
-	arguments: DomainArguments | [self: RawTransactionArgument<string>];
+	arguments: DomainArguments | [self: TransactionArgument];
 }
 export function domain(options: DomainOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -380,11 +380,11 @@ export function domain(options: DomainOptions) {
 		});
 }
 export interface DiscountAppliedArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface DiscountAppliedOptions {
 	package?: string;
-	arguments: DiscountAppliedArguments | [self: RawTransactionArgument<string>];
+	arguments: DiscountAppliedArguments | [self: TransactionArgument];
 }
 /** Returns true if at least one discount has been applied to the payment intent. */
 export function discountApplied(options: DiscountAppliedOptions) {
@@ -400,11 +400,11 @@ export function discountApplied(options: DiscountAppliedOptions) {
 		});
 }
 export interface DiscountsAppliedArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface DiscountsAppliedOptions {
 	package?: string;
-	arguments: DiscountsAppliedArguments | [self: RawTransactionArgument<string>];
+	arguments: DiscountsAppliedArguments | [self: TransactionArgument];
 }
 /** A list of discounts that have been applied to the payment intent. */
 export function discountsApplied(options: DiscountsAppliedOptions) {
@@ -420,14 +420,14 @@ export function discountsApplied(options: DiscountsAppliedOptions) {
 		});
 }
 export interface CalculateTotalAfterDiscountArguments {
-	data: RawTransactionArgument<string>;
+	data: TransactionArgument;
 	discount: RawTransactionArgument<number>;
 }
 export interface CalculateTotalAfterDiscountOptions {
 	package?: string;
 	arguments:
 		| CalculateTotalAfterDiscountArguments
-		| [data: RawTransactionArgument<string>, discount: RawTransactionArgument<number>];
+		| [data: TransactionArgument, discount: RawTransactionArgument<number>];
 }
 /** Public helper to calculate price after a percentage discount has been applied. */
 export function calculateTotalAfterDiscount(options: CalculateTotalAfterDiscountOptions) {

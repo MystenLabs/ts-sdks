@@ -1,8 +1,8 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { type Transaction } from '@mysten/sui/transactions';
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as price_identifier from './price_identifier.js';
 import * as price from './price.js';
 const $moduleName =
@@ -17,11 +17,7 @@ export const PriceFeed = new MoveStruct({
 });
 export interface NewOptions {
 	package?: string;
-	arguments: [
-		RawTransactionArgument<string>,
-		RawTransactionArgument<string>,
-		RawTransactionArgument<string>,
-	];
+	arguments: [TransactionArgument, TransactionArgument, TransactionArgument];
 }
 export function _new(options: NewOptions) {
 	const packageAddress =
@@ -37,7 +33,7 @@ export function _new(options: NewOptions) {
 }
 export interface FromOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function _from(options: FromOptions) {
 	const packageAddress =
@@ -53,7 +49,7 @@ export function _from(options: FromOptions) {
 }
 export interface GetPriceIdentifierOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getPriceIdentifier(options: GetPriceIdentifierOptions) {
 	const packageAddress =
@@ -69,7 +65,7 @@ export function getPriceIdentifier(options: GetPriceIdentifierOptions) {
 }
 export interface GetPriceOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getPrice(options: GetPriceOptions) {
 	const packageAddress =
@@ -85,7 +81,7 @@ export function getPrice(options: GetPriceOptions) {
 }
 export interface GetEmaPriceOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getEmaPrice(options: GetEmaPriceOptions) {
 	const packageAddress =

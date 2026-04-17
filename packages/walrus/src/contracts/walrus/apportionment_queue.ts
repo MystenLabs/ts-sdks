@@ -10,7 +10,7 @@
 
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as uq64_64 from './deps/std/uq64_64.js';
 const $moduleName = '@local-pkg/walrus::apportionment_queue';
 export function Entry<T extends BcsType<any>>(...typeParameters: [T]) {
@@ -54,11 +54,11 @@ export function _new(options: NewOptions) {
 		});
 }
 export interface PopMaxArguments {
-	pq: RawTransactionArgument<string>;
+	pq: TransactionArgument;
 }
 export interface PopMaxOptions {
 	package?: string;
-	arguments: PopMaxArguments | [pq: RawTransactionArgument<string>];
+	arguments: PopMaxArguments | [pq: TransactionArgument];
 	typeArguments: [string];
 }
 /** Pop the entry with the highest priority value. */
@@ -76,8 +76,8 @@ export function popMax(options: PopMaxOptions) {
 		});
 }
 export interface InsertArguments<T extends BcsType<any>> {
-	pq: RawTransactionArgument<string>;
-	priority: RawTransactionArgument<string>;
+	pq: TransactionArgument;
+	priority: TransactionArgument;
 	tieBreaker: RawTransactionArgument<number | bigint>;
 	value: RawTransactionArgument<T>;
 }
@@ -86,8 +86,8 @@ export interface InsertOptions<T extends BcsType<any>> {
 	arguments:
 		| InsertArguments<T>
 		| [
-				pq: RawTransactionArgument<string>,
-				priority: RawTransactionArgument<string>,
+				pq: TransactionArgument,
+				priority: TransactionArgument,
 				tieBreaker: RawTransactionArgument<number | bigint>,
 				value: RawTransactionArgument<T>,
 		  ];

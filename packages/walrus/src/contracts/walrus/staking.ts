@@ -6,7 +6,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/walrus::staking';
 export const Staking = new MoveStruct({
 	name: `${$moduleName}::Staking`,
@@ -21,10 +21,10 @@ export interface RegisterCandidateArguments {
 	staking: RawTransactionArgument<string>;
 	name: RawTransactionArgument<string>;
 	networkAddress: RawTransactionArgument<string>;
-	metadata: RawTransactionArgument<string>;
-	publicKey: RawTransactionArgument<number[]>;
-	networkPublicKey: RawTransactionArgument<number[]>;
-	proofOfPossession: RawTransactionArgument<number[]>;
+	metadata: TransactionArgument;
+	publicKey: RawTransactionArgument<Array<number>>;
+	networkPublicKey: RawTransactionArgument<Array<number>>;
+	proofOfPossession: RawTransactionArgument<Array<number>>;
 	commissionRate: RawTransactionArgument<number>;
 	storagePrice: RawTransactionArgument<number | bigint>;
 	writePrice: RawTransactionArgument<number | bigint>;
@@ -38,10 +38,10 @@ export interface RegisterCandidateOptions {
 				staking: RawTransactionArgument<string>,
 				name: RawTransactionArgument<string>,
 				networkAddress: RawTransactionArgument<string>,
-				metadata: RawTransactionArgument<string>,
-				publicKey: RawTransactionArgument<number[]>,
-				networkPublicKey: RawTransactionArgument<number[]>,
-				proofOfPossession: RawTransactionArgument<number[]>,
+				metadata: TransactionArgument,
+				publicKey: RawTransactionArgument<Array<number>>,
+				networkPublicKey: RawTransactionArgument<Array<number>>,
+				proofOfPossession: RawTransactionArgument<Array<number>>,
 				commissionRate: RawTransactionArgument<number>,
 				storagePrice: RawTransactionArgument<number | bigint>,
 				writePrice: RawTransactionArgument<number | bigint>,
@@ -123,7 +123,7 @@ export function setNextCommission(options: SetNextCommissionOptions) {
 export interface CollectCommissionArguments {
 	staking: RawTransactionArgument<string>;
 	nodeId: RawTransactionArgument<string>;
-	auth: RawTransactionArgument<string>;
+	auth: TransactionArgument;
 }
 export interface CollectCommissionOptions {
 	package?: string;
@@ -132,7 +132,7 @@ export interface CollectCommissionOptions {
 		| [
 				staking: RawTransactionArgument<string>,
 				nodeId: RawTransactionArgument<string>,
-				auth: RawTransactionArgument<string>,
+				auth: TransactionArgument,
 		  ];
 }
 /**
@@ -154,8 +154,8 @@ export function collectCommission(options: CollectCommissionOptions) {
 export interface SetCommissionReceiverArguments {
 	staking: RawTransactionArgument<string>;
 	nodeId: RawTransactionArgument<string>;
-	auth: RawTransactionArgument<string>;
-	receiver: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	receiver: TransactionArgument;
 }
 export interface SetCommissionReceiverOptions {
 	package?: string;
@@ -164,8 +164,8 @@ export interface SetCommissionReceiverOptions {
 		| [
 				staking: RawTransactionArgument<string>,
 				nodeId: RawTransactionArgument<string>,
-				auth: RawTransactionArgument<string>,
-				receiver: RawTransactionArgument<string>,
+				auth: TransactionArgument,
+				receiver: TransactionArgument,
 		  ];
 }
 /** Sets the commission receiver for the node. */
@@ -184,8 +184,8 @@ export function setCommissionReceiver(options: SetCommissionReceiverOptions) {
 export interface SetGovernanceAuthorizedArguments {
 	staking: RawTransactionArgument<string>;
 	nodeId: RawTransactionArgument<string>;
-	auth: RawTransactionArgument<string>;
-	authorized: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	authorized: TransactionArgument;
 }
 export interface SetGovernanceAuthorizedOptions {
 	package?: string;
@@ -194,8 +194,8 @@ export interface SetGovernanceAuthorizedOptions {
 		| [
 				staking: RawTransactionArgument<string>,
 				nodeId: RawTransactionArgument<string>,
-				auth: RawTransactionArgument<string>,
-				authorized: RawTransactionArgument<string>,
+				auth: TransactionArgument,
+				authorized: TransactionArgument,
 		  ];
 }
 /** Sets the governance authorized object for the pool. */
@@ -228,6 +228,26 @@ export function committee(options: CommitteeOptions) {
 			package: packageAddress,
 			module: 'staking',
 			function: 'committee',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface PreviousCommitteeArguments {
+	staking: RawTransactionArgument<string>;
+}
+export interface PreviousCommitteeOptions {
+	package?: string;
+	arguments: PreviousCommitteeArguments | [staking: RawTransactionArgument<string>];
+}
+/** Get the previous committee. */
+export function previousCommittee(options: PreviousCommitteeOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['staking'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'staking',
+			function: 'previous_committee',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -335,6 +355,33 @@ export function setNodeCapacityVote(options: SetNodeCapacityVoteOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface UpdatePricesArguments {
+	staking: RawTransactionArgument<string>;
+	system: RawTransactionArgument<string>;
+}
+export interface UpdatePricesOptions {
+	package?: string;
+	arguments:
+		| UpdatePricesArguments
+		| [staking: RawTransactionArgument<string>, system: RawTransactionArgument<string>];
+}
+/**
+ * Recalculates the quorum storage and write prices from the current committee and
+ * applies them to the system. Should be called after price votes are cast (in the
+ * same PTB) and is also called during epoch change.
+ */
+export function updatePrices(options: UpdatePricesOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['staking', 'system'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'staking',
+			function: 'update_prices',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface NodeMetadataArguments {
 	self: RawTransactionArgument<string>;
 	nodeId: RawTransactionArgument<string>;
@@ -361,8 +408,8 @@ export function nodeMetadata(options: NodeMetadataOptions) {
 export interface SetNextPublicKeyArguments {
 	self: RawTransactionArgument<string>;
 	cap: RawTransactionArgument<string>;
-	publicKey: RawTransactionArgument<number[]>;
-	proofOfPossession: RawTransactionArgument<number[]>;
+	publicKey: RawTransactionArgument<Array<number>>;
+	proofOfPossession: RawTransactionArgument<Array<number>>;
 }
 export interface SetNextPublicKeyOptions {
 	package?: string;
@@ -371,8 +418,8 @@ export interface SetNextPublicKeyOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				cap: RawTransactionArgument<string>,
-				publicKey: RawTransactionArgument<number[]>,
-				proofOfPossession: RawTransactionArgument<number[]>,
+				publicKey: RawTransactionArgument<Array<number>>,
+				proofOfPossession: RawTransactionArgument<Array<number>>,
 		  ];
 }
 /**
@@ -450,7 +497,7 @@ export function setNetworkAddress(options: SetNetworkAddressOptions) {
 export interface SetNetworkPublicKeyArguments {
 	self: RawTransactionArgument<string>;
 	cap: RawTransactionArgument<string>;
-	networkPublicKey: RawTransactionArgument<number[]>;
+	networkPublicKey: RawTransactionArgument<Array<number>>;
 }
 export interface SetNetworkPublicKeyOptions {
 	package?: string;
@@ -459,7 +506,7 @@ export interface SetNetworkPublicKeyOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				cap: RawTransactionArgument<string>,
-				networkPublicKey: RawTransactionArgument<number[]>,
+				networkPublicKey: RawTransactionArgument<Array<number>>,
 		  ];
 }
 /** Sets the public key used for TLS communication for a node. */
@@ -478,7 +525,7 @@ export function setNetworkPublicKey(options: SetNetworkPublicKeyOptions) {
 export interface SetNodeMetadataArguments {
 	self: RawTransactionArgument<string>;
 	cap: RawTransactionArgument<string>;
-	metadata: RawTransactionArgument<string>;
+	metadata: TransactionArgument;
 }
 export interface SetNodeMetadataOptions {
 	package?: string;
@@ -487,7 +534,7 @@ export interface SetNodeMetadataOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				cap: RawTransactionArgument<string>,
-				metadata: RawTransactionArgument<string>,
+				metadata: TransactionArgument,
 		  ];
 }
 /** Sets the metadata of a storage node. */
@@ -538,11 +585,6 @@ export interface InitiateEpochChangeOptions {
 		| InitiateEpochChangeArguments
 		| [staking: RawTransactionArgument<string>, system: RawTransactionArgument<string>];
 }
-/**
- * Initiates the epoch change if the current time allows.
- *
- * Emits the `EpochChangeStart` event.
- */
 export function initiateEpochChange(options: InitiateEpochChangeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
@@ -552,6 +594,38 @@ export function initiateEpochChange(options: InitiateEpochChangeOptions) {
 			package: packageAddress,
 			module: 'staking',
 			function: 'initiate_epoch_change',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface InitiateEpochChangeV2Arguments {
+	staking: RawTransactionArgument<string>;
+	system: RawTransactionArgument<string>;
+	treasury: RawTransactionArgument<string>;
+}
+export interface InitiateEpochChangeV2Options {
+	package?: string;
+	arguments:
+		| InitiateEpochChangeV2Arguments
+		| [
+				staking: RawTransactionArgument<string>,
+				system: RawTransactionArgument<string>,
+				treasury: RawTransactionArgument<string>,
+		  ];
+}
+/**
+ * Initiates the epoch change if the current time allows.
+ *
+ * Emits the `EpochChangeStart` event.
+ */
+export function initiateEpochChangeV2(options: InitiateEpochChangeV2Options) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null, null, null, '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['staking', 'system', 'treasury'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'staking',
+			function: 'initiate_epoch_change_v2',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -697,8 +771,8 @@ export function tryJoinActiveSet(options: TryJoinActiveSetOptions) {
 }
 export interface AddCommissionToPoolsArguments {
 	staking: RawTransactionArgument<string>;
-	nodeIds: RawTransactionArgument<string[]>;
-	commissions: RawTransactionArgument<string[]>;
+	nodeIds: RawTransactionArgument<Array<string>>;
+	commissions: TransactionArgument;
 }
 export interface AddCommissionToPoolsOptions {
 	package?: string;
@@ -706,8 +780,8 @@ export interface AddCommissionToPoolsOptions {
 		| AddCommissionToPoolsArguments
 		| [
 				staking: RawTransactionArgument<string>,
-				nodeIds: RawTransactionArgument<string[]>,
-				commissions: RawTransactionArgument<string[]>,
+				nodeIds: RawTransactionArgument<Array<string>>,
+				commissions: TransactionArgument,
 		  ];
 }
 /** Adds `commissions[i]` to the commission of pool `node_ids[i]`. */

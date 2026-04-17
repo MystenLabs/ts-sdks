@@ -6,7 +6,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::metadata';
 export const Metadata = new MoveStruct({
@@ -30,7 +30,7 @@ export function _new(options: NewOptions = {}) {
 		});
 }
 export interface InsertOrUpdateArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	key: RawTransactionArgument<string>;
 	value: RawTransactionArgument<string>;
 }
@@ -39,7 +39,7 @@ export interface InsertOrUpdateOptions {
 	arguments:
 		| InsertOrUpdateArguments
 		| [
-				self: RawTransactionArgument<string>,
+				self: TransactionArgument,
 				key: RawTransactionArgument<string>,
 				value: RawTransactionArgument<string>,
 		  ];
@@ -65,14 +65,12 @@ export function insertOrUpdate(options: InsertOrUpdateOptions) {
 		});
 }
 export interface RemoveArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	key: RawTransactionArgument<string>;
 }
 export interface RemoveOptions {
 	package?: string;
-	arguments:
-		| RemoveArguments
-		| [self: RawTransactionArgument<string>, key: RawTransactionArgument<string>];
+	arguments: RemoveArguments | [self: TransactionArgument, key: RawTransactionArgument<string>];
 }
 /** Removes the metadata associated with the given key. */
 export function remove(options: RemoveOptions) {
@@ -88,14 +86,14 @@ export function remove(options: RemoveOptions) {
 		});
 }
 export interface RemoveIfExistsArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	key: RawTransactionArgument<string>;
 }
 export interface RemoveIfExistsOptions {
 	package?: string;
 	arguments:
 		| RemoveIfExistsArguments
-		| [self: RawTransactionArgument<string>, key: RawTransactionArgument<string>];
+		| [self: TransactionArgument, key: RawTransactionArgument<string>];
 }
 /**
  * Removes the metadata associated with the given key, if it exists.

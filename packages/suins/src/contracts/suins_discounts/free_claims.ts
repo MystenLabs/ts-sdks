@@ -18,7 +18,7 @@ import {
 	type RawTransactionArgument,
 } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as pricing_config from './deps/suins/pricing_config.js';
 import * as linked_table from './deps/sui/linked_table.js';
 const $moduleName = '@suins/discounts::free_claims';
@@ -40,7 +40,7 @@ export const FreeClaimsConfig = new MoveStruct({
 export interface FreeClaimArguments<T extends BcsType<any>> {
 	self: RawTransactionArgument<string>;
 	suins: RawTransactionArgument<string>;
-	intent: RawTransactionArgument<string>;
+	intent: TransactionArgument;
 	object: RawTransactionArgument<T>;
 }
 export interface FreeClaimOptions<T extends BcsType<any>> {
@@ -50,7 +50,7 @@ export interface FreeClaimOptions<T extends BcsType<any>> {
 		| [
 				self: RawTransactionArgument<string>,
 				suins: RawTransactionArgument<string>,
-				intent: RawTransactionArgument<string>,
+				intent: TransactionArgument,
 				object: RawTransactionArgument<T>,
 		  ];
 	typeArguments: [string];
@@ -75,7 +75,7 @@ export function freeClaim<T extends BcsType<any>>(options: FreeClaimOptions<T>) 
 export interface FreeClaimWithDayOneArguments {
 	self: RawTransactionArgument<string>;
 	suins: RawTransactionArgument<string>;
-	intent: RawTransactionArgument<string>;
+	intent: TransactionArgument;
 	dayOne: RawTransactionArgument<string>;
 }
 export interface FreeClaimWithDayOneOptions {
@@ -85,7 +85,7 @@ export interface FreeClaimWithDayOneOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				suins: RawTransactionArgument<string>,
-				intent: RawTransactionArgument<string>,
+				intent: TransactionArgument,
 				dayOne: RawTransactionArgument<string>,
 		  ];
 }
@@ -104,7 +104,7 @@ export function freeClaimWithDayOne(options: FreeClaimWithDayOneOptions) {
 export interface AuthorizeTypeArguments {
 	self: RawTransactionArgument<string>;
 	_: RawTransactionArgument<string>;
-	domainLengthRange: RawTransactionArgument<string>;
+	domainLengthRange: TransactionArgument;
 }
 export interface AuthorizeTypeOptions {
 	package?: string;
@@ -113,7 +113,7 @@ export interface AuthorizeTypeOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				_: RawTransactionArgument<string>,
-				domainLengthRange: RawTransactionArgument<string>,
+				domainLengthRange: TransactionArgument,
 		  ];
 	typeArguments: [string];
 }

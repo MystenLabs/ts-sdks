@@ -33,7 +33,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/kiosk::royalty_rule';
 export const Rule = new MoveStruct({
 	name: `${$moduleName}::Rule`,
@@ -86,7 +86,7 @@ export function add(options: AddOptions) {
 }
 export interface PayArguments {
 	policy: RawTransactionArgument<string>;
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 	payment: RawTransactionArgument<string>;
 }
 export interface PayOptions {
@@ -95,7 +95,7 @@ export interface PayOptions {
 		| PayArguments
 		| [
 				policy: RawTransactionArgument<string>,
-				request: RawTransactionArgument<string>,
+				request: TransactionArgument,
 				payment: RawTransactionArgument<string>,
 		  ];
 	typeArguments: [string];
