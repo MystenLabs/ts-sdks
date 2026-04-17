@@ -29,7 +29,7 @@ const keypair = Ed25519Keypair.fromSecretKey(
 // Automatically get gas from testnet is not working reliably, manually request gas via discord,
 // or uncomment the beforeAll and gas function below
 beforeAll(async () => {
-	const balance = await client.core.getBalance({
+	const balance = await client.getBalance({
 		owner: keypair.toSuiAddress(),
 	});
 
@@ -84,7 +84,7 @@ describe('Contract links', () => {
 
 		const claim = await claimLink.claimAssets(keypair.toSuiAddress());
 
-		const res = await client.core.waitForTransaction({
+		const res = await client.waitForTransaction({
 			result: claim,
 			include: {
 				effects: true,
@@ -124,7 +124,7 @@ describe('Contract links', () => {
 			waitForTransaction: true,
 		});
 
-		await client.core.waitForTransaction({ result: createResult });
+		await client.waitForTransaction({ result: createResult });
 
 		const lostLink = await client.zksend.loadLink({
 			address: linkKp.toSuiAddress(),
@@ -140,7 +140,7 @@ describe('Contract links', () => {
 			client,
 		});
 
-		await client.core.waitForTransaction({ digest: result.Transaction!.digest });
+		await client.waitForTransaction({ digest: result.Transaction!.digest });
 
 		const claimLink = await client.zksend.loadLinkFromUrl(url);
 
@@ -156,7 +156,7 @@ describe('Contract links', () => {
 
 		const claim = await claimLink.claimAssets(keypair.toSuiAddress());
 
-		const res = await client.core.waitForTransaction({
+		const res = await client.waitForTransaction({
 			result: claim,
 			include: {
 				effects: true,
@@ -195,7 +195,7 @@ describe('Contract links', () => {
 			waitForTransaction: true,
 		});
 
-		await client.core.waitForTransaction({ result: createResult });
+		await client.waitForTransaction({ result: createResult });
 
 		const lostLink = await client.zksend.loadLink({
 			address: linkKp.toSuiAddress(),
@@ -206,7 +206,7 @@ describe('Contract links', () => {
 			sign: async (tx) => (await keypair.signTransaction(tx)).signature,
 		});
 
-		const result = await client.core.waitForTransaction({
+		const result = await client.waitForTransaction({
 			digest: claimTx!.digest,
 			include: {
 				effects: true,
@@ -243,7 +243,7 @@ describe('Contract links', () => {
 			client,
 		});
 
-		await client.core.waitForTransaction({ digest: result.Transaction!.digest });
+		await client.waitForTransaction({ digest: result.Transaction!.digest });
 
 		for (const link of links) {
 			const linkUrl = link.getLink();
@@ -265,7 +265,7 @@ describe('Contract links', () => {
 
 			const claim = await claimLink.claimAssets(keypair.toSuiAddress());
 
-			const res = await client.core.waitForTransaction({
+			const res = await client.waitForTransaction({
 				digest: claim.Transaction!.digest,
 				include: {
 					effects: true,
@@ -281,7 +281,7 @@ describe('Contract links', () => {
 		}
 	}, 60_000);
 
-	test('createClaimCommands — compose with claimed assets', async () => {
+	test('claimFlow — compose with claimed assets', async () => {
 		const link = client.zksend.linkBuilder({
 			sender: keypair.toSuiAddress(),
 		});
@@ -304,20 +304,19 @@ describe('Contract links', () => {
 		const claimLink = await client.zksend.loadLinkFromUrl(linkUrl);
 		expect(claimLink.assets!.nfts.length).toEqual(2);
 
-		// Build a composable claim transaction
 		const tx = new Transaction();
 		tx.setSender(claimLink.keypair!.toSuiAddress());
 
-		const { assets, finalize } = claimLink.createClaimCommands(tx);
+		const { init, assets, finalize } = claimLink.claimFlow();
+		expect(assets.length).toEqual(3);
 
-		// Verify assets have type metadata
-		expect(assets.length).toEqual(3); // 2 bears + 1 SUI coin
 		const bearAssets = assets.filter((a) => a.type.includes('::demo_bear::DemoBear'));
 		const coinAssets = assets.filter((a) => !a.type.includes('::demo_bear::DemoBear'));
 		expect(bearAssets.length).toEqual(2);
 		expect(coinAssets.length).toEqual(1);
 
-		// Compose: transfer bears and coins separately (simulates using them in a Move call)
+		tx.add(init);
+
 		tx.transferObjects(
 			bearAssets.map((a) => a.argument),
 			keypair.toSuiAddress(),
@@ -327,9 +326,8 @@ describe('Contract links', () => {
 			keypair.toSuiAddress(),
 		);
 
-		finalize();
+		tx.add(finalize);
 
-		// Execute with dual signing (ephemeral key is sender, test keypair pays gas)
 		tx.setGasOwner(keypair.toSuiAddress());
 		const txBytes = await tx.build({ client });
 		const ephemeralSig = await claimLink.keypair!.signTransaction(txBytes);
@@ -340,12 +338,11 @@ describe('Contract links', () => {
 			signatures: [ephemeralSig.signature, gasSig.signature],
 		});
 
-		await client.core.waitForTransaction({
-			result,
+		await client.waitForTransaction({
+			digest: result.Transaction!.digest,
 			include: { effects: true },
 		});
 
-		// Link should be claimed
 		const link2 = await client.zksend.loadLinkFromUrl(linkUrl);
 		expect(link2.claimed).toEqual(true);
 	}, 30_000);
@@ -393,7 +390,7 @@ describe('Contract links', () => {
 
 		const claim = await claimLink.claimAssets(keypair.toSuiAddress());
 
-		const res = await client.core.waitForTransaction({
+		const res = await client.waitForTransaction({
 			result: claim,
 			include: {
 				effects: true,
@@ -433,11 +430,11 @@ async function createBears(totalBears: number) {
 		client,
 	});
 
-	await client.core.waitForTransaction({
+	await client.waitForTransaction({
 		digest: res.Transaction!.digest,
 	});
 
-	const objects = await client.core.getObjects({
+	const objects = await client.getObjects({
 		objectIds: res
 			.Transaction!.effects!.changedObjects.filter((obj) => obj.idOperation === 'Created')
 			.map((obj) => obj.objectId),

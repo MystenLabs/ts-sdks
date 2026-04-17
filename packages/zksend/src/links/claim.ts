@@ -207,10 +207,6 @@ export class ZkSendLink {
 		return result;
 	}
 
-	/**
-	 * Build a complete claim transaction that transfers all assets to `address`.
-	 * For composable claims, use {@link createClaimCommands} instead.
-	 */
 	createClaimTransaction(
 		address: string,
 		{
@@ -220,10 +216,10 @@ export class ZkSendLink {
 		} = {},
 	) {
 		const tx = new Transaction();
-		const sender = reclaim ? address : this.keypair!.toSuiAddress();
-		tx.setSender(sender);
+		tx.setSender(reclaim ? address : this.keypair!.toSuiAddress());
 
-		const { assets, finalize } = this.createClaimCommands(tx, { reclaim });
+		const { init, assets, finalize } = this.claimFlow({ reclaim });
+		tx.add(init);
 
 		if (assets.length > 0) {
 			tx.transferObjects(
@@ -232,71 +228,55 @@ export class ZkSendLink {
 			);
 		}
 
-		finalize();
+		tx.add(finalize);
 
 		return tx;
 	}
 
-	/**
-	 * Add claim commands to an existing transaction and return the claimed
-	 * assets for composition. The caller is responsible for transferring or
-	 * using every asset and calling `finalize()` when done.
-	 *
-	 * @example
-	 * ```ts
-	 * const tx = new Transaction();
-	 * const { assets, finalize } = link.createClaimCommands(tx);
-	 *
-	 * const record = assets.find(a => a.type.includes('::record::Record'));
-	 * tx.moveCall({ target: 'player::add_record', arguments: [player, record.argument] });
-	 * tx.transferObjects(assets.filter(a => a !== record).map(a => a.argument), address);
-	 *
-	 * finalize();
-	 * ```
-	 */
-	createClaimCommands(
-		tx: Transaction,
-		{
-			reclaim,
-		}: {
-			reclaim?: boolean;
-		} = {},
-	): { assets: ClaimedAsset[]; finalize: () => void } {
+	claimFlow({
+		reclaim,
+	}: {
+		reclaim?: boolean;
+	} = {}) {
 		if (!this.keypair && !reclaim) {
 			throw new Error('Cannot claim assets without the links keypair');
 		}
 
-		const store = tx.object(this.#contract.ids.bagStoreId);
-		const command = reclaim
-			? this.#contract.reclaim({ arguments: [store, this.address] })
-			: this.#contract.init_claim({ arguments: [store] });
-
-		const [bag, proof] = tx.add(command);
+		const storeId = this.#contract.ids.bagStoreId;
+		const init = reclaim
+			? this.#contract.reclaim({ arguments: [storeId, this.address] })
+			: this.#contract.init_claim({ arguments: [storeId] });
 
 		const objects = [...(this.assets?.coins ?? []), ...(this.assets?.nfts ?? [])];
 
 		const assets: ClaimedAsset[] = objects.map((object) => ({
-			argument: this.#contract.claim({
-				arguments: [
-					bag,
-					proof,
-					tx.receivingRef({
-						objectId: object.objectId,
-						version: object.version,
-						digest: object.digest,
-					}),
-				],
-				typeArguments: [object.type],
-			}),
 			type: object.type,
 			objectId: object.objectId,
+			argument: (tx: Transaction) => {
+				const [bag, proof] = tx.add(init);
+				return tx.add(
+					this.#contract.claim({
+						arguments: [
+							bag,
+							proof,
+							tx.receivingRef({
+								objectId: object.objectId,
+								version: object.version,
+								digest: object.digest,
+							}),
+						],
+						typeArguments: [object.type],
+					}),
+				);
+			},
 		}));
 
-		const finalize = () => {
+		const finalize = (tx: Transaction) => {
+			const [bag, proof] = tx.add(init);
 			tx.add(this.#contract.finalize({ arguments: [bag, proof] }));
 		};
 
-		return { assets, finalize };
+		return { init, assets, finalize };
 	}
 
 	async createRegenerateTransaction(
