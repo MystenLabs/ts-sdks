@@ -790,6 +790,77 @@ describe('name collision handling', () => {
 		`);
 	});
 
+	it('vector<KeyStruct> parameter collapses to RawTransactionArgument<never>', async () => {
+		// An array of object ids can't be passed directly — callers must use
+		// tx.makeMoveVec(...) and pass the resulting TransactionArgument.
+		const vecKeySummary = {
+			id: { address: 'testpkg', name: 'vec_key' },
+			doc: '',
+			immediate_dependencies: [],
+			attributes: [],
+			functions: {
+				use_objs: {
+					source_index: 0,
+					index: 0,
+					doc: '',
+					attributes: [],
+					visibility: 'Public',
+					entry: false,
+					macro_: false,
+					type_parameters: [],
+					parameters: [
+						{
+							name: 'objs',
+							type_: {
+								vector: {
+									Datatype: {
+										module: { address: 'testpkg', name: 'vec_key' },
+										name: 'Obj',
+										type_arguments: [],
+									},
+								},
+							},
+						},
+					],
+					return_: [],
+				},
+			},
+			structs: {
+				Obj: {
+					index: 0,
+					doc: '',
+					attributes: [],
+					abilities: ['Key'],
+					type_parameters: [],
+					fields: {
+						positional_fields: false,
+						fields: {
+							id: { index: 0, doc: null, type_: 'address' },
+						},
+					},
+				},
+			},
+			enums: {},
+		};
+
+		const builder = new MoveModuleBuilder({
+			summary: vecKeySummary as any,
+			addressMappings: ADDRESS_MAPPINGS,
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+		builder.includeTypes();
+		builder.includeFunctions();
+		const output = await render(builder);
+
+		const argInterface = output.match(/export interface UseObjsArguments[\s\S]*?^}/m);
+		expect(argInterface?.[0]).toMatchInlineSnapshot(`
+			"export interface UseObjsArguments {
+			    objs: RawTransactionArgument<never>;
+			}"
+		`);
+	});
+
 	it('non-key struct parameter is typed as never (not string)', async () => {
 		const nonKeyStructSummary = {
 			id: { address: 'testpkg', name: 'non_key' },

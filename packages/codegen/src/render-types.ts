@@ -196,6 +196,42 @@ function getDatatypeAbilities(
 	return options.registry?.getAbilities(type.module.address, type.module.name, type.name);
 }
 
+function isPureVectorElement(
+	type: Type,
+	options: Pick<RenderTypeSignatureOptions, 'summary' | 'registry'>,
+): boolean {
+	if (typeof type === 'string') return true;
+	if ('Reference' in type) return isPureVectorElement(type.Reference[1], options);
+	if ('vector' in type) return isPureVectorElement(type.vector, options);
+	if ('TypeParameter' in type || 'NamedTypeParameter' in type) return false;
+	if ('Datatype' in type) {
+		const address = resolveAddress(options, type.Datatype.module.address);
+		if (
+			address === MOVE_STDLIB_ADDRESS &&
+			(type.Datatype.module.name === 'ascii' || type.Datatype.module.name === 'string') &&
+			type.Datatype.name === 'String'
+		) {
+			return true;
+		}
+		if (
+			address === MOVE_STDLIB_ADDRESS &&
+			type.Datatype.module.name === 'option' &&
+			type.Datatype.name === 'Option'
+		) {
+			return isPureVectorElement(type.Datatype.type_arguments[0].argument, options);
+		}
+		if (
+			address === SUI_FRAMEWORK_ADDRESS &&
+			type.Datatype.module.name === 'object' &&
+			(type.Datatype.name === 'ID' || type.Datatype.name === 'UID')
+		) {
+			return true;
+		}
+		return false;
+	}
+	return false;
+}
+
 export function isSupportedRawTransactionInput(
 	type: Type,
 	options: Pick<RenderTypeSignatureOptions, 'summary' | 'registry'>,
@@ -209,7 +245,9 @@ export function isSupportedRawTransactionInput(
 	}
 
 	if ('vector' in type) {
-		return isSupportedRawTransactionInput(type.vector, options);
+		// Vectors of non-pure elements (e.g. vector<KeyStruct>) can't be built
+		// from a plain array — they require tx.makeMoveVec(...).
+		return isPureVectorElement(type.vector, options);
 	}
 
 	if ('TypeParameter' in type || 'NamedTypeParameter' in type) {
