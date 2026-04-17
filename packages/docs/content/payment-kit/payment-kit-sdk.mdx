@@ -1,7 +1,16 @@
 ---
 title: Payment Kit SDK
 description: Payment Kit SDK API reference and configuration for the PaymentKitClient.
-keywords: [Payment Kit SDK, API reference, PaymentKitClient, configuration, Sui, TypeScript, client extension]
+keywords:
+  [
+    Payment Kit SDK,
+    API reference,
+    PaymentKitClient,
+    configuration,
+    Sui,
+    TypeScript,
+    client extension,
+  ]
 ---
 
 <Callout type="info">
@@ -610,12 +619,12 @@ sui:pay?
 
 **Required Parameters:**
 
-| Parameter  | Description                                  |
-| ---------- | -------------------------------------------- |
-| `receiver` | Recipient Sui address                        |
+| Parameter  | Description                                         |
+| ---------- | --------------------------------------------------- |
+| `receiver` | Recipient Sui address                               |
 | `amount`   | Payment amount in smallest unit (for example, MIST) |
 | `coinType` | Coin type (for example, `0x2::sui::SUI`)            |
-| `nonce`    | Unique payment identifier (max 36 chars)     |
+| `nonce`    | Unique payment identifier (max 36 chars)            |
 
 **Optional Parameters:**
 

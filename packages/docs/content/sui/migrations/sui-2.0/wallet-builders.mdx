@@ -1,7 +1,16 @@
 ---
 title: Wallet Builders
 description: Migration guide for wallet extension developers upgrading to 2.0.
-keywords: [migration, wallet builders, wallet-standard, 2.0, signAndExecuteTransaction, wallet extension, breaking changes]
+keywords:
+  [
+    migration,
+    wallet builders,
+    wallet-standard,
+    2.0,
+    signAndExecuteTransaction,
+    wallet extension,
+    breaking changes,
+  ]
 ---
 
 This guide covers the breaking changes for wallet builders implementing the
@@ -21,8 +30,8 @@ The most significant change is how you obtain BCS-encoded effects for the
 
 ## Migrating `signAndExecuteTransaction`
 
-The wallet standard output format hasn't changed. What's different is how you obtain the BCS
-effects when using the new Sui client APIs.
+The wallet standard output format hasn't changed. What's different is how you obtain the BCS effects
+when using the new Sui client APIs.
 
 ```diff
 #signAndExecuteTransaction: SuiSignAndExecuteTransactionMethod = async ({

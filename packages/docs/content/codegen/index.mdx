@@ -92,12 +92,12 @@ local (from source) or onchain (fetched from a network).
 
 #### Local packages
 
-| Option        | Type                     | Required | Description                                        |
-| ------------- | ------------------------ | -------- | -------------------------------------------------- |
+| Option        | Type                     | Required | Description                                               |
+| ------------- | ------------------------ | -------- | --------------------------------------------------------- |
 | `package`     | `string`                 | yes      | Package identifier (for example, `@local-pkg/my-package`) |
-| `path`        | `string`                 | yes      | Path to the Move package directory                 |
-| `packageName` | `string`                 | no       | Custom name for generated code directory           |
-| `generate`    | `PackageGenerateOptions` | no       | Control what gets generated from this package      |
+| `path`        | `string`                 | yes      | Path to the Move package directory                        |
+| `packageName` | `string`                 | no       | Custom name for generated code directory                  |
+| `generate`    | `PackageGenerateOptions` | no       | Control what gets generated from this package             |
 
 ```typescript
 {
@@ -206,8 +206,8 @@ Only generate code from specific modules of the Sui framework:
 }
 ```
 
-Only generate a single type from a dependency (functions are omitted automatically because `generate`
-is configured and `functions` is not specified):
+Only generate a single type from a dependency (functions are omitted automatically because
+`generate` is configured and `functions` is not specified):
 
 ```typescript
 {

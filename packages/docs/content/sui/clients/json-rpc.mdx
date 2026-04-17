@@ -160,8 +160,8 @@ const result = await client.executeTransactionBlock({
 
 - `transactionBlock`: either a Transaction or BCS serialized transaction data bytes as a Uint8Array
   or as a base-64 encoded string.
-- `signature`: A signature, or list of signatures committed to the intent message of the
-  transaction data, as a base-64 encoded string.
+- `signature`: A signature, or list of signatures committed to the intent message of the transaction
+  data, as a base-64 encoded string.
 - `options`:
   - `showBalanceChanges`: Whether to show balance_changes. Default to be False
   - `showEffects`: Whether to show transaction effects. Default to be False
@@ -207,8 +207,8 @@ if (result.$kind === 'FailedTransaction') {
 ### `waitForTransaction`
 
 Wait for a transaction result to be available over the API. This can be used in conjunction with
-`signAndExecuteTransaction` to wait for the transaction to be available through the API. This currently
-polls the `getTransactionBlock` API to check for the transaction.
+`signAndExecuteTransaction` to wait for the transaction to be available through the API. This
+currently polls the `getTransactionBlock` API to check for the transaction.
 
 ```tsx
 const tx = new Transaction();

@@ -1,24 +1,33 @@
 ---
 title: Building SDKs
 description: Build custom SDKs on top of the Sui TypeScript SDK.
-keywords: [SDK development, ClientWithCoreApi, peer dependencies, Sui TypeScript SDK, client extensions, library authors, transport-agnostic]
+keywords:
+  [
+    SDK development,
+    ClientWithCoreApi,
+    peer dependencies,
+    Sui TypeScript SDK,
+    client extensions,
+    library authors,
+    transport-agnostic,
+  ]
 ---
 
 This guide covers recommended patterns for building TypeScript SDKs that integrate with the Sui SDK.
 Following these patterns ensures your SDK integrates seamlessly with the ecosystem, works across
 different transports (JSON-RPC, GraphQL, gRPC), and composes well with other SDKs.
 
-All SDKs should depend on [`ClientWithCoreApi`](./clients/core), which is the
-transport-agnostic interface implemented by all Sui clients. This ensures your SDK works with any
-client the user chooses.
+All SDKs should depend on [`ClientWithCoreApi`](./clients/core), which is the transport-agnostic
+interface implemented by all Sui clients. This ensures your SDK works with any client the user
+chooses.
 
 ## Package setup
 
 ### Use Mysten packages as peer dependencies
 
-SDKs should declare all `@mysten/*` packages as peer dependencies rather than direct
-dependencies. This ensures users get a single shared instance of each package, avoiding version
-conflicts and duplicate code.
+SDKs should declare all `@mysten/*` packages as peer dependencies rather than direct dependencies.
+This ensures users get a single shared instance of each package, avoiding version conflicts and
+duplicate code.
 
 ```json title="package.json"
 {
@@ -119,13 +128,13 @@ Several official SDKs use this pattern:
 Most Mysten SDKs do not strictly follow these patterns yet, but we recommend scoping methods on your
 client extension into the following categories for clarity and consistency:
 
-| Property | Purpose                                                   | Example                             |
-| -------- | --------------------------------------------------------- | ----------------------------------- |
+| Property | Purpose                                                       | Example                             |
+| -------- | ------------------------------------------------------------- | ----------------------------------- |
 | Methods  | Top-level operations (execute actions or read and parse data) | `sdk.readBlob()`, `sdk.getConfig()` |
-| `tx`     | Methods that create transactions without executing        | `sdk.tx.registerBlob()`             |
-| `bcs`    | BCS type definitions for encoding and decoding            | `sdk.bcs.MyStruct`                  |
-| `call`   | Methods returning Move calls that can be used with tx.add | `sdk.call.myFunction()`             |
-| `view`   | Methods that use simulate API to read onchain state       | `sdk.view.getState()`               |
+| `tx`     | Methods that create transactions without executing            | `sdk.tx.registerBlob()`             |
+| `bcs`    | BCS type definitions for encoding and decoding                | `sdk.bcs.MyStruct`                  |
+| `call`   | Methods returning Move calls that can be used with tx.add     | `sdk.call.myFunction()`             |
+| `view`   | Methods that use simulate API to read onchain state           | `sdk.view.getState()`               |
 
 ```typescript
 import { Transaction } from '@mysten/sui/transactions';

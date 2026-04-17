@@ -21,8 +21,8 @@ import {
 ## Create a new passkey
 
 To create a new passkey with the passkey device, and initialize a `PasskeyKeypair`, you can use the
-`PasskeyProvider` and provide the `rpName`, `rpId`, and additional options. The
-`getPasskeyInstance` call initializes a new passkey wallet for the origin.
+`PasskeyProvider` and provide the `rpName`, `rpId`, and additional options. The `getPasskeyInstance`
+call initializes a new passkey wallet for the origin.
 
 ```typescript
 const keypair = await PasskeyKeypair.getPasskeyInstance(
@@ -57,9 +57,9 @@ experience because they do not remember which passkey is the way that the wallet
 
 However, if the user is logged out or uses a different browser or device, or the `PasskeyKeypair`
 instance is no longer present for any reason, the user should be prompted to recover the public key
-(for example, through a "Log in to existing passkey wallet" flow) to be able to use the passkey wallet again. If the user
-is prompted to create a new key in passkey device, a fresh new wallet with new address will be
-created.
+(for example, through a "Log in to existing passkey wallet" flow) to be able to use the passkey
+wallet again. If the user is prompted to create a new key in passkey device, a fresh new wallet with
+new address will be created.
 
 One can recover the unique public key with exactly two passkey signatures on two messages. This
 means that if the user is asked to sign two messages, the developer can recover an unique public key
@@ -84,8 +84,9 @@ const keypair = new PasskeyKeypair(commonPk.toRawBytes(), provider);
 Alternatively, the developer can choose to ask the user to only sign one personal message that
 returns two possible public keys. Then the frontend might derive the addresses for both and check
 onchain for the unique address that contains assets. Or the frontend might retrieve additional
-signatures from past transaction history for the given address. This might be a preferred user experience
-because the user is only prompted to sign one message, but the frontend needs to do extra work.
+signatures from past transaction history for the given address. This might be a preferred user
+experience because the user is only prompted to sign one message, but the frontend needs to do extra
+work.
 
 ## Usage
 

@@ -23,8 +23,8 @@ The new dApp kit SDK represents a complete rewrite with these key changes:
 - Web Components: UI components built with Lit Elements for cross-framework compatibility
 - Smaller bundle size: No React Query dependency, lighter state management with nanostores
 - Better SSR support: Compatible with SSR frameworks like Next.js
-- Cross-framework compatibility: Core functionality can be used in vanilla JS, Vue, React, and
-  other frameworks
+- Cross-framework compatibility: Core functionality can be used in vanilla JS, Vue, React, and other
+  frameworks
 
 ## Step-by-step migration
 
@@ -70,8 +70,8 @@ declare module '@mysten/dapp-kit-react' {
 
 The `declare module` block in the previous step registers your dApp kit instance's type globally.
 This enables all hooks like `useDAppKit()`, `useCurrentNetwork()`, and `useCurrentClient()` to
-automatically infer the correct types based on your configuration (for example, your specific networks and
-client type).
+automatically infer the correct types based on your configuration (for example, your specific
+networks and client type).
 
 ```tsx
 declare module '@mysten/dapp-kit-react' {
@@ -190,9 +190,9 @@ The built-in mutation hooks have been removed. Use TanStack Query's `useMutation
 
 **Chain parameter replaced with network:**
 
-In the old dApp kit, you could optionally pass a `chain` parameter (for example, `sui:mainnet`) to methods
-like `signTransaction` and `signAndExecuteTransaction`. In the new dApp kit, use the `network`
-parameter instead - the chain is automatically derived from the network.
+In the old dApp kit, you could optionally pass a `chain` parameter (for example, `sui:mainnet`) to
+methods like `signTransaction` and `signAndExecuteTransaction`. In the new dApp kit, use the
+`network` parameter instead - the chain is automatically derived from the network.
 
 ```diff
 - const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();

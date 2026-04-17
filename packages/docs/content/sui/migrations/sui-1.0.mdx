@@ -1,7 +1,17 @@
 ---
 title: Migrate to 1.0
 description: Migrate to Sui TypeScript SDK 1.0 with new features and API changes.
-keywords: [migration, 1.0, upgrade, breaking changes, Sui TypeScript SDK, GraphQL client, transaction executors, intents]
+keywords:
+  [
+    migration,
+    1.0,
+    upgrade,
+    breaking changes,
+    Sui TypeScript SDK,
+    GraphQL client,
+    transaction executors,
+    intents,
+  ]
 ---
 
 We are excited to announce the 1.0 release of the TypeScript SDK. This release includes a lot of new
@@ -361,8 +371,8 @@ redesigned to work the updated wallet-standard methods.
 `useSignAndExecuteTransaction` no-longer accepts the options passed to
 `suiClient.executeTransactionBlock` for returning additional data.
 
-By default `useSignAndExecuteTransactionBlock` will now return an object with the transaction `digest`
-and the BCS encoded transaction effects:
+By default `useSignAndExecuteTransactionBlock` will now return an object with the transaction
+`digest` and the BCS encoded transaction effects:
 
 ```ts
 const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction()

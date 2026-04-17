@@ -1,7 +1,17 @@
 ---
 title: Sui Programmable Transaction Basics
 description: Construct programmable transaction blocks with the Transaction API.
-keywords: [programmable transactions, Transaction, transaction building, Sui, splitCoins, moveCall, transferObjects, TypeScript SDK]
+keywords:
+  [
+    programmable transactions,
+    Transaction,
+    transaction building,
+    Sui,
+    splitCoins,
+    moveCall,
+    transferObjects,
+    TypeScript SDK,
+  ]
 ---
 
 This example starts by constructing a transaction to send SUI. To construct transactions, import the
@@ -281,9 +291,9 @@ tx.transferObjects([mintMany[0], mintMany[1]], address);
 If you need the transaction bytes, instead of signing or executing the transaction, you can use the
 `build` method on the transaction builder itself.
 
-You might need to explicitly call `setSender()` on the transaction to ensure that the
-`sender` field is populated. This is normally done by the signer before signing the transaction, but
-will not be done automatically if you’re building the transaction bytes yourself.
+You might need to explicitly call `setSender()` on the transaction to ensure that the `sender` field
+is populated. This is normally done by the signer before signing the transaction, but will not be
+done automatically if you’re building the transaction bytes yourself.
 
 ```tsx
 const tx = new Transaction();

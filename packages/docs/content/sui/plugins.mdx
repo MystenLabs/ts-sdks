@@ -1,7 +1,17 @@
 ---
 title: Transaction Plugins
 description: Extend transaction building with reusable plugins.
-keywords: [transaction plugins, plugin API, Transaction builder, Sui, intents, serialization, middleware, extensibility]
+keywords:
+  [
+    transaction plugins,
+    plugin API,
+    Transaction builder,
+    Sui,
+    intents,
+    serialization,
+    middleware,
+    extensibility,
+  ]
 ---
 
 <Callout type="warn">
@@ -39,8 +49,8 @@ takes depend on the command, but they will be one of a few different types:
 - `GasCoin`: A reference to the coin used to pay for gas.
 - `Input`: An input to the transaction (described below).
 - `Result`: The result of a previous command.
-- `NestedResult`: If a previous command returns a tuple (for example, `SplitCoin`), a `NestedResult` is
-  used to refer to a specific value in that tuple.
+- `NestedResult`: If a previous command returns a tuple (for example, `SplitCoin`), a `NestedResult`
+  is used to refer to a specific value in that tuple.
 
 Transactions also store a list of Inputs, which refer to user-provided values. Inputs can either be
 objects or Pure values and can be represented in several different ways:

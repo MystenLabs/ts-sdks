@@ -90,8 +90,8 @@ https://my.slush.app/claim?claimUrl=abc123xyz
 
 Open the in-app browser to load a specific URL:
 
-| Route         | Description                     |
-| ------------- | ------------------------------- |
+| Route         | Description                    |
+| ------------- | ------------------------------ |
 | `browse/:url` | Opens a URL in the app browser |
 
 **Parameters:**
@@ -107,7 +107,9 @@ slush://browse/https://app.turbos.finance
 https://my.slush.app/browse/https://app.cetus.zone
 ```
 
-<Callout>The URL must be a complete, valid URL including the protocol (for example, `https://`).</Callout>
+<Callout>
+	The URL must be a complete, valid URL including the protocol (for example, `https://`).
+</Callout>
 
 ### Token swap
 
@@ -298,16 +300,16 @@ https://my.slush.app/pay?receiver=<address>&amount=<amount>&coinType=<coinType>&
 
 **Parameters:**
 
-| Parameter  | Type   | Required | Description                                            |
-| ---------- | ------ | -------- | ------------------------------------------------------ |
-| `receiver` | string | Yes      | Recipient Sui address                                  |
-| `amount`   | string | Yes      | Payment amount in smallest unit (for example, MIST for SUI)   |
-| `coinType` | string | Yes      | Coin type (for example, `0x2::sui::SUI`)                      |
-| `nonce`    | string | Yes      | Unique payment identifier (max 36 characters)          |
-| `registry` | string | No       | Registry name or object ID for registry-based payments |
-| `label`    | string | No       | Human-readable label for the payment                   |
-| `message`  | string | No       | Message or memo for the payment                        |
-| `iconUrl`  | string | No       | URL to an icon image for display purposes              |
+| Parameter  | Type   | Required | Description                                                 |
+| ---------- | ------ | -------- | ----------------------------------------------------------- |
+| `receiver` | string | Yes      | Recipient Sui address                                       |
+| `amount`   | string | Yes      | Payment amount in smallest unit (for example, MIST for SUI) |
+| `coinType` | string | Yes      | Coin type (for example, `0x2::sui::SUI`)                    |
+| `nonce`    | string | Yes      | Unique payment identifier (max 36 characters)               |
+| `registry` | string | No       | Registry name or object ID for registry-based payments      |
+| `label`    | string | No       | Human-readable label for the payment                        |
+| `message`  | string | No       | Message or memo for the payment                             |
+| `iconUrl`  | string | No       | URL to an icon image for display purposes                   |
 
 **Examples:**
 
@@ -408,8 +410,8 @@ startActivity(customIntent)
 ### Use my.slush.app links for maximum compatibility
 
 When linking from any platform, prefer `my.slush.app` links over custom URL schemes. These links
-work everywhere, mobile apps, mobile browsers, and desktop browsers, providing a seamless
-experience for all users.
+work everywhere, mobile apps, mobile browsers, and desktop browsers, providing a seamless experience
+for all users.
 
 ```html
 <!-- Recommended: Works on mobile (app or browser) and desktop -->
@@ -462,8 +464,8 @@ parameters that are missing will result in the app opening to a default or error
 
 1. **Verify the app is installed**: Custom URL schemes only work if Slush is installed
 2. **Check URL format**: Ensure the URL is properly formatted and encoded
-3. **iOS Universal Links**: Must be clicked from Safari or apps that support Universal Links;
-   copied or pasted URLs might not trigger the app
+3. **iOS Universal Links**: Must be clicked from Safari or apps that support Universal Links; copied
+   or pasted URLs might not trigger the app
 4. **Android App Links**: Ensure the device has verified the app link association
 
 ### Wrong screen opens

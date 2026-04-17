@@ -1,7 +1,8 @@
 ---
 title: Migrate to 0.38.0
 description: Migrate from SDK version 0.37 to 0.38 with updated module structure and API changes.
-keywords: [migration, 0.38.0, upgrade, breaking changes, Sui TypeScript SDK, module structure, refactoring]
+keywords:
+  [migration, 0.38.0, upgrade, breaking changes, Sui TypeScript SDK, module structure, refactoring]
 ---
 
 <Callout type="warn">
@@ -39,8 +40,8 @@ The Sui TypeScript SDK deprecates the following classes with version 0.38.0:
 - The `superstruct` type definitions for `JsonRPCProvider` types are replaced with generated types
   exported from `@mysten/sui/client`. The new type definitions are pure TypeScript types that you
   can't use for runtime validation.
-- A more stable JSON-RPC API has reduced the need for many of the SDK getter methods, which are
-  now deprecated.
+- A more stable JSON-RPC API has reduced the need for many of the SDK getter methods, which are now
+  deprecated.
 
 ### Signing transactions
 

@@ -1,20 +1,20 @@
 ---
 title: Sui Clients
 description: 'Choose and configure gRPC, GraphQL, or JSON-RPC clients for the Sui network.'
-keywords: [Sui client, gRPC, GraphQL, JSON-RPC, SuiGrpcClient, SuiGraphQLClient, SuiJsonRpcClient, Core API]
+keywords:
+  [Sui client, gRPC, GraphQL, JSON-RPC, SuiGrpcClient, SuiGraphQLClient, SuiJsonRpcClient, Core API]
 ---
 
 The Sui TypeScript SDK provides multiple client implementations for interacting with the Sui
 network. Each client connects to a different API but provides two levels of access:
 
 - Native API: Full access to everything the underlying API offers
-- [Core API](/sui/clients/core): A consistent interface across all clients for common
-  operations
+- [Core API](/sui/clients/core): A consistent interface across all clients for common operations
 
 ## Available clients
 
-| Client                                                 | API                                                                |
-| ------------------------------------------------------ | ------------------------------------------------------------------ |
+| Client                                                   | API                                                                |
+| -------------------------------------------------------- | ------------------------------------------------------------------ |
 | [`SuiGrpcClient`](/sui/clients/grpc) (recommended)       | [Full Node gRPC](https://docs.sui.io/references/fullnode-protocol) |
 | [`SuiGraphQLClient`](/sui/clients/graphql)               | [GraphQL](https://docs.sui.io/references/sui-graphql)              |
 | [`SuiJsonRpcClient`](/sui/clients/json-rpc) (deprecated) | [JSON-RPC (deprecated)](https://docs.sui.io/sui-api-ref)           |
@@ -24,7 +24,8 @@ All clients are compatible with Mysten SDKs like `@mysten/walrus`, `@mysten/seal
 
 For most application gRPC is a good default. The JSON RPC API has been deprecated and will be
 decommissioned soon. The GraphQL can be used for more advanced query patterns that can not be
-supported directly on full nodes (for example, querying for transactions or events with various filters).
+supported directly on full nodes (for example, querying for transactions or events with various
+filters).
 
 ## Quick start
 

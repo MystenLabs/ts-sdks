@@ -1,6 +1,7 @@
 ---
 title: Key pairs
-description: 'Create and manage Ed25519, Secp256k1, and Secp256r1 keypairs for Sui transaction signing.'
+description:
+  'Create and manage Ed25519, Secp256k1, and Secp256r1 keypairs for Sui transaction signing.'
 keywords: [keypairs, Ed25519, Secp256k1, Secp256r1, cryptography, signing, Sui, TypeScript SDK]
 ---
 
@@ -160,9 +161,9 @@ const publicKey = await verifyPersonalMessageSignature(message, zkSignature, {
 });
 ```
 
-For some zklogin accounts, there are two valid addresses for a given set of inputs. This means you might
-run into issues if you try to compare the address returned by `publicKey.toSuiAddress()` directly
-with an expected address.
+For some zklogin accounts, there are two valid addresses for a given set of inputs. This means you
+might run into issues if you try to compare the address returned by `publicKey.toSuiAddress()`
+directly with an expected address.
 
 Instead, you can either pass in the expected address during verification, or use the
 `publicKey.verifyAddress(address)` method:

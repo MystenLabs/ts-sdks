@@ -15,15 +15,15 @@ packages will now be published as ESM only packages.
 
 | Package                                                               | Key Changes                                                                              |
 | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| [`@mysten/sui`](/sui/migrations/sui-2.0/sui)                            | Client API stabilization, SuiClient removal, BCS schema alignment, transaction executors |
-| [`@mysten/dapp-kit`](/sui/migrations/sui-2.0/dapp-kit)                  | Complete rewrite with framework-agnostic core                                            |
-| [`@mysten/kiosk`](/sui/migrations/sui-2.0/kiosk)                        | Client extension pattern, low-level helpers removed, KioskTransaction pattern            |
-| [`@mysten/zksend`](/sui/migrations/sui-2.0/zksend)                      | Client extension pattern                                                                 |
-| [`@mysten/suins`](/sui/migrations/sui-2.0/suins)                        | Client extension pattern                                                                 |
-| [`@mysten/deepbook-v3`](/sui/migrations/sui-2.0/deepbook-v3)            | Client extension pattern                                                                 |
-| [`@mysten/walrus`](/sui/migrations/sui-2.0/walrus)                      | Client extension pattern, requires client instead of RPC URL                             |
-| [`@mysten/seal`](/sui/migrations/sui-2.0/seal)                          | Client extension pattern                                                                 |
-| [`@mysten/wallet-standard`](/sui/migrations/sui-2.0/wallet-builders)    | Removal of reportTransactionEffects, new core API response format                        |
+| [`@mysten/sui`](/sui/migrations/sui-2.0/sui)                          | Client API stabilization, SuiClient removal, BCS schema alignment, transaction executors |
+| [`@mysten/dapp-kit`](/sui/migrations/sui-2.0/dapp-kit)                | Complete rewrite with framework-agnostic core                                            |
+| [`@mysten/kiosk`](/sui/migrations/sui-2.0/kiosk)                      | Client extension pattern, low-level helpers removed, KioskTransaction pattern            |
+| [`@mysten/zksend`](/sui/migrations/sui-2.0/zksend)                    | Client extension pattern                                                                 |
+| [`@mysten/suins`](/sui/migrations/sui-2.0/suins)                      | Client extension pattern                                                                 |
+| [`@mysten/deepbook-v3`](/sui/migrations/sui-2.0/deepbook-v3)          | Client extension pattern                                                                 |
+| [`@mysten/walrus`](/sui/migrations/sui-2.0/walrus)                    | Client extension pattern, requires client instead of RPC URL                             |
+| [`@mysten/seal`](/sui/migrations/sui-2.0/seal)                        | Client extension pattern                                                                 |
+| [`@mysten/wallet-standard`](/sui/migrations/sui-2.0/wallet-builders)  | Removal of reportTransactionEffects, new core API response format                        |
 | [Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration) | Migrate from deprecated JSON-RPC to gRPC and GraphQL                                     |
 
 ## Common migration patterns
@@ -142,8 +142,8 @@ For detailed migration instructions, see the SDK-specific guides:
   low-level helpers removed
 - **[`@mysten/zksend`](/sui/migrations/sui-2.0/zksend):** zkSend SDK now exports a client extension
 - **[`@mysten/suins`](/sui/migrations/sui-2.0/suins):** SuiNS now exports a client extension
-- **[`@mysten/deepbook-v3`](/sui/migrations/sui-2.0/deepbook-v3):** DeepBook DEX now exports a client
-  extension
+- **[`@mysten/deepbook-v3`](/sui/migrations/sui-2.0/deepbook-v3):** DeepBook DEX now exports a
+  client extension
 - **[`@mysten/walrus`](/sui/migrations/sui-2.0/walrus):** Walrus storage now exports a client
   extension
 - **[`@mysten/seal`](/sui/migrations/sui-2.0/seal):** Seal encryption now exports a client extension
@@ -159,5 +159,5 @@ For wallet builders and SDK maintainers building on the Sui ecosystem:
 
 - **[Wallet builders](/sui/migrations/sui-2.0/wallet-builders):** Guide for wallet implementations
   adapting to `reportTransactionEffects` removal and new core API response format
-- **[SDK maintainers](/sui/migrations/sui-2.0/sdk-maintainers):** Guide for SDK authors migrating
-  to `ClientWithCoreApi` and the new transport-agnostic architecture
+- **[SDK maintainers](/sui/migrations/sui-2.0/sdk-maintainers):** Guide for SDK authors migrating to
+  `ClientWithCoreApi` and the new transport-agnostic architecture
