@@ -95,22 +95,22 @@ These JSON-RPC methods have direct replacements in the core API:
 
 These JSON-RPC methods can be replaced by calling gRPC service clients directly:
 
-| JSON-RPC Method                     | gRPC Service Replacement                                            |
-| ----------------------------------- | ------------------------------------------------------------------- |
-| `getCheckpoint`                     | `ledgerService.getCheckpoint`                                       |
-| `getCheckpoints`                    | `ledgerService.listCheckpoints`                                     |
-| `getLatestCheckpointSequenceNumber` | `ledgerService.getCheckpoint`                                       |
-| `getEpochs`                         | `ledgerService.listEpochs`                                          |
-| `getCurrentEpoch`                   | `ledgerService.getEpoch`                                            |
-| `getLatestSuiSystemState`           | `ledgerService.getSystemState`                                      |
-| `getCommitteeInfo`                  | `ledgerService.getCommittee`                                        |
-| `getValidatorsApy`                  | `ledgerService.getValidators`                                       |
-| `getProtocolConfig`                 | `ledgerService.getProtocolConfig`                                   |
-| `getNormalizedMoveModule`           | `movePackageService.getPackage` (pick the module from the response) |
-| `getNormalizedMoveModulesByPackage` | `movePackageService.getPackage`                                     |
-| `getNormalizedMoveStruct`           | `movePackageService.getDatatype`                                    |
-| `resolveNameServiceAddress`         | `nameService.lookupName`                                            |
-| `resolveNameServiceNames`           | `nameService.reverseLookupName`                                     |
+| JSON-RPC Method                     | gRPC Service Replacement                                        |
+| ----------------------------------- | --------------------------------------------------------------- |
+| `getCheckpoint`                     | `ledgerService.getCheckpoint`                                   |
+| `getCheckpoints`                    | `ledgerService.listCheckpoints`                                 |
+| `getLatestCheckpointSequenceNumber` | `ledgerService.getCheckpoint`                                   |
+| `getEpochs`                         | `ledgerService.listEpochs`                                      |
+| `getCurrentEpoch`                   | `ledgerService.getEpoch`                                        |
+| `getLatestSuiSystemState`           | `ledgerService.getSystemState`                                  |
+| `getCommitteeInfo`                  | `ledgerService.getCommittee`                                    |
+| `getValidatorsApy`                  | `ledgerService.getValidators`                                   |
+| `getProtocolConfig`                 | `ledgerService.getProtocolConfig`                               |
+| `getNormalizedMoveModule`           | `movePackageService.getPackage` (response includes all modules) |
+| `getNormalizedMoveModulesByPackage` | `movePackageService.getPackage`                                 |
+| `getNormalizedMoveStruct`           | `movePackageService.getDatatype`                                |
+| `resolveNameServiceAddress`         | `nameService.lookupName`                                        |
+| `resolveNameServiceNames`           | `nameService.reverseLookupName`                                 |
 
 ### Example: Using gRPC Service Clients
 
