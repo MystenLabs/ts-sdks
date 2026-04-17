@@ -54,7 +54,10 @@ function getFilteredTypeParameterIndex(
 }
 
 export function renderTypeSignature(type: Type, options: RenderTypeSignatureOptions): string {
-	const bcs = options.format === 'bcs' ? (options.bcsImport?.() ?? 'bcs') : 'bcs';
+	const bcs =
+		options.format === 'bcs' && options.bcsImport && rendersBcsExpression(type, options)
+			? options.bcsImport()
+			: 'bcs';
 
 	switch (type) {
 		case 'address':
@@ -222,6 +225,15 @@ function isPureType(type: Type, options: TypeCheckOptions): boolean {
 	if (typeof type === 'string') return true;
 	if ('Reference' in type) return isPureType(type.Reference[1], options);
 	if ('vector' in type) return isPureType(type.vector, options);
+	if ('Datatype' in type) return isPureDatatype(type.Datatype, options);
+	return false;
+}
+
+/** Does rendering this type as BCS emit a `bcs.xxx` expression? */
+function rendersBcsExpression(type: Type, options: TypeCheckOptions): boolean {
+	if (typeof type === 'string') return true;
+	if ('Reference' in type) return rendersBcsExpression(type.Reference[1], options);
+	if ('vector' in type) return true;
 	if ('Datatype' in type) return isPureDatatype(type.Datatype, options);
 	return false;
 }
