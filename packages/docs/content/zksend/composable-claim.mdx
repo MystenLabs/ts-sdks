@@ -1,0 +1,72 @@
+---
+title: Composable Claims
+description: Claim a zkSend link and use the assets in the same transaction
+---
+
+By default, `link.claimAssets(address)` builds a claim transaction that transfers every asset to the
+recipient and submits it via a Mysten-hosted sponsor. If you want to _use_ a claimed object in the
+same transaction — for example, inserting a claimed NFT into another on-chain object, staking a
+claimed coin, or depositing into a vault — use `link.claimFlow()` to compose the claim into your own
+transaction.
+
+## How it works
+
+`link.claimFlow()` returns three transaction thunks:
+
+- **`init`** — adds the `init_claim` (or `reclaim`) move call that creates the claim proof.
+- **`assets`** — an array of claimable assets. Each `asset.argument` is a lazy
+  `TransactionObjectArgument` that emits the backing `claim<T>` move call the first time it's used.
+- **`finalize`** — consumes the claim proof. Must be added after every asset is claimed.
+
+```ts
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+tx.setSender(claimLink.keypair!.toSuiAddress());
+
+const { init, assets, finalize } = claimLink.claimFlow();
+
+tx.add(init);
+
+for (const asset of assets) {
+	if (asset.type === `${PACKAGE_ID}::record::Record`) {
+		// Insert the claimed record directly into the recipient's player object
+		tx.moveCall({
+			target: `${PACKAGE_ID}::player::add_record`,
+			arguments: [tx.object(playerId), asset.argument],
+		});
+	} else {
+		tx.transferObjects([asset.argument], recipient);
+	}
+}
+
+tx.add(finalize);
+```
+
+Every asset in the returned list must be claimed somewhere in the transaction — assets that are
+never used won't create a `claim<T>` command and the transaction will fail. If you only want the
+default claim-and-transfer behavior, use `link.createClaimTransaction(address)` instead.
+
+## Sponsorship
+
+`link.claimAssets(address)` uses a sponsorship flow so the claimer does not need gas to claim the
+assets, but it only accepts the standard `init_claim` → `claim<T>` → transfer → `finalize` shape.
+Transactions built with `claimFlow()` may include extra move calls, so the default sponsor may
+reject them.
+
+Apps using `claimFlow()` are responsible for their own gas and sponsorship. The ephemeral link
+keypair is still the transaction sender (it authorizes the claim), so the typical pattern is dual
+signing: the link keypair signs as sender and your app's sponsor signs for gas.
+
+```ts
+tx.setGasOwner(sponsorAddress);
+const txBytes = await tx.build({ client });
+
+const linkSig = await claimLink.keypair!.signTransaction(txBytes);
+const sponsorSig = await sponsor.signTransaction(txBytes);
+
+const result = await client.core.executeTransaction({
+	transaction: txBytes,
+	signatures: [linkSig.signature, sponsorSig.signature],
+});
+```
