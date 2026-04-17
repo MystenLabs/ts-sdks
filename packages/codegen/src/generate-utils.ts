@@ -156,7 +156,7 @@ export function normalizeMoveArguments(
 			continue;
 		}
 
-		if (typeof arg === 'string' && type !== null) {
+		if (typeof arg === 'string') {
 			normalizedArgs.push((tx) => tx.object(arg));
 			continue;
 		}

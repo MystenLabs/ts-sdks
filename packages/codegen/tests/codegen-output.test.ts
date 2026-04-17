@@ -385,7 +385,7 @@ describe('function codegen output', () => {
 			"export function increment(options: IncrementOptions) {
 			    const packageAddress = options.package ?? '@test/testpkg';
 			    const argumentsTypes = [
-			        '0x0000000000000000000000000000000000000000000000000000000000000000::counter::Counter'
+			        null
 			    ] satisfies (string | null)[];
 			    const parameterNames = ["counter"];
 			    return (tx: Transaction) => tx.moveCall({
@@ -494,7 +494,7 @@ describe('function codegen output', () => {
 			"export function getValueAndOwner(options: GetValueAndOwnerOptions) {
 			    const packageAddress = options.package ?? '@test/testpkg';
 			    const argumentsTypes = [
-			        '0x0000000000000000000000000000000000000000000000000000000000000000::counter::Counter'
+			        null
 			    ] satisfies (string | null)[];
 			    const parameterNames = ["counter"];
 			    return (tx: Transaction) => tx.moveCall({
@@ -518,7 +518,7 @@ describe('function codegen output', () => {
 			"export function reset(options: ResetOptions) {
 			    const packageAddress = options.package ?? '@test/testpkg';
 			    const argumentsTypes = [
-			        '0x0000000000000000000000000000000000000000000000000000000000000000::counter::Counter'
+			        null
 			    ] satisfies (string | null)[];
 			    const parameterNames = ["counter"];
 			    return (tx: Transaction) => tx.moveCall({
@@ -558,7 +558,7 @@ describe('function codegen output', () => {
 		const argInterface = output.match(/export interface IsActiveArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface IsActiveArguments {
-			    status: RawTransactionArgument<never>;
+			    status: TransactionArgument;
 			}"
 		`);
 	});
@@ -785,7 +785,7 @@ describe('name collision handling', () => {
 		const argInterface = output.match(/export interface UseReceiptsArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface UseReceiptsArguments {
-			    receipts: RawTransactionArgument<never>;
+			    receipts: TransactionArgument;
 			}"
 		`);
 	});
@@ -856,7 +856,7 @@ describe('name collision handling', () => {
 		const argInterface = output.match(/export interface UseObjsArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface UseObjsArguments {
-			    objs: RawTransactionArgument<never>;
+			    objs: TransactionArgument;
 			}"
 		`);
 	});
@@ -923,7 +923,7 @@ describe('name collision handling', () => {
 		const argInterface = output.match(/export interface UseReceiptArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface UseReceiptArguments {
-			    receipt: RawTransactionArgument<never>;
+			    receipt: TransactionArgument;
 			}"
 		`);
 	});
@@ -1016,110 +1016,6 @@ describe('name collision handling', () => {
 			    obj: RawTransactionArgument<string>;
 			}"
 		`);
-	});
-
-	it('key struct with non-key type argument renders a canonical type tag', async () => {
-		// Guards against `Coin<SUI>`-shaped params emitting `Wrap<null>`.
-		const markerSummary = {
-			id: { address: 'testpkg', name: 'marker' },
-			doc: '',
-			immediate_dependencies: [],
-			attributes: [],
-			functions: {},
-			structs: {
-				Marker: {
-					index: 0,
-					doc: '',
-					attributes: [],
-					abilities: ['Drop'],
-					type_parameters: [],
-					fields: { positional_fields: false, fields: {} },
-				},
-			},
-			enums: {},
-		};
-
-		const wrapSummary = {
-			id: { address: 'testpkg', name: 'key_wrap' },
-			doc: '',
-			immediate_dependencies: [{ address: 'testpkg', name: 'marker' }],
-			attributes: [],
-			functions: {
-				use_wrap: {
-					source_index: 0,
-					index: 0,
-					doc: '',
-					attributes: [],
-					visibility: 'Public',
-					entry: false,
-					macro_: false,
-					type_parameters: [],
-					parameters: [
-						{
-							name: 'wrap',
-							type_: {
-								Datatype: {
-									module: { address: 'testpkg', name: 'key_wrap' },
-									name: 'Wrap',
-									type_arguments: [
-										{
-											phantom: true,
-											argument: {
-												Datatype: {
-													module: { address: 'testpkg', name: 'marker' },
-													name: 'Marker',
-													type_arguments: [],
-												},
-											},
-										},
-									],
-								},
-							},
-						},
-					],
-					return_: [],
-				},
-			},
-			structs: {
-				Wrap: {
-					index: 0,
-					doc: '',
-					attributes: [],
-					abilities: ['Key'],
-					type_parameters: [{ phantom: true, constraints: [] }],
-					fields: {
-						positional_fields: false,
-						fields: {
-							id: { index: 0, doc: null, type_: 'address' },
-						},
-					},
-				},
-			},
-			enums: {},
-		};
-
-		const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		const _markerBuilder = new MoveModuleBuilder({
-			summary: markerSummary as any,
-			registry,
-			mvrNameOrAddress: '@test/testpkg',
-			importExtension: '.js',
-		});
-		const wrapBuilder = new MoveModuleBuilder({
-			summary: wrapSummary as any,
-			registry,
-			mvrNameOrAddress: '@test/testpkg',
-			importExtension: '.js',
-		});
-		wrapBuilder.includeTypes();
-		wrapBuilder.includeFunctions();
-		const output = await render(wrapBuilder);
-
-		expect(output).toContain(
-			"'0x0000000000000000000000000000000000000000000000000000000000000000::key_wrap::Wrap<0x0000000000000000000000000000000000000000000000000000000000000000::marker::Marker>'",
-		);
-		expect(output).not.toContain('<null>');
 	});
 
 	it('getUnusedName reserves generated aliases to prevent duplicates', () => {

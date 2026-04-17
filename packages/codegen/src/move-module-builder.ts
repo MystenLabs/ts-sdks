@@ -26,6 +26,7 @@ import { join } from 'node:path';
 
 const IMPORT_MAP = {
 	Transaction: { module: '@mysten/sui/transactions', isType: true },
+	TransactionArgument: { module: '@mysten/sui/transactions', isType: true },
 	BcsType: { module: '@mysten/sui/bcs', isType: true },
 	bcs: { module: '@mysten/sui/bcs', isType: false },
 	MoveStruct: { module: '~root/../utils/index', isType: false },
@@ -527,31 +528,38 @@ export class MoveModuleBuilder extends FileBuilder {
 
 			const usedTypeParameters = new Set<number | string>();
 
-			const rawTxArgName =
-				requiredParameters.length > 0 ? this.#getImportName('RawTransactionArgument') : null;
+			const renderedArgTypes = requiredParameters.map((param) => {
+				const renderOptions = {
+					format: 'typescriptArg' as const,
+					summary: this.summary,
+					typeParameters: func.type_parameters,
+					includePhantomTypeParameters: false,
+					registry: this.registry,
+					onTypeParameter: (typeParameter: number | string) =>
+						usedTypeParameters.add(typeParameter),
+				};
 
-			const argumentsTypes = requiredParameters
-				.map((param) => {
-					const renderOptions = {
-						format: 'typescriptArg' as const,
-						summary: this.summary,
-						typeParameters: func.type_parameters,
-						includePhantomTypeParameters: false,
-						registry: this.registry,
-						onTypeParameter: (typeParameter: number | string) =>
-							usedTypeParameters.add(typeParameter),
-					};
+				return isSupportedRawTransactionInput(param.type_, renderOptions)
+					? renderTypeSignature(param.type_, renderOptions)
+					: null;
+			});
 
-					if (!isSupportedRawTransactionInput(param.type_, renderOptions)) {
-						return 'never';
-					}
+			const anyRawInput = renderedArgTypes.some((t) => t !== null);
+			const anyTransactionOnly = renderedArgTypes.some((t) => t === null);
 
-					return renderTypeSignature(param.type_, renderOptions);
-				})
+			const rawTxArgName = anyRawInput ? this.#getImportName('RawTransactionArgument') : null;
+			const transactionArgName = anyTransactionOnly
+				? this.#getImportName('TransactionArgument')
+				: null;
+
+			const wrap = (type: string | null): string =>
+				type === null ? transactionArgName! : `${rawTxArgName}<${type}>`;
+
+			const argumentsTypes = renderedArgTypes
 				.map((type, i) =>
 					requiredParameters[i].name
-						? `${camelCase(requiredParameters[i].name)}: ${rawTxArgName}<${type}>`
-						: `${rawTxArgName}<${type}>`,
+						? `${camelCase(requiredParameters[i].name)}: ${wrap(type)}`
+						: wrap(type),
 				)
 				.join(',\n');
 

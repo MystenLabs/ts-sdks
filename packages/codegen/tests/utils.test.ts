@@ -328,11 +328,7 @@ describe('normalizeMoveArguments', () => {
 		const tx = new Transaction();
 		tx.moveCall({
 			target: '0x0::test::test',
-			arguments: normalizeMoveArguments(
-				{ counter: '0x123' },
-				['0x0::counter::Counter'],
-				['counter'],
-			),
+			arguments: normalizeMoveArguments({ counter: '0x123' }, [null], ['counter']),
 		});
 
 		const json = JSON.parse(await tx.toJSON());
@@ -343,11 +339,5 @@ describe('normalizeMoveArguments', () => {
 				},
 			},
 		]);
-	});
-
-	it('rejects raw strings for non-`key` types (argType === null)', () => {
-		expect(() => normalizeMoveArguments({ counter: '0x123' }, [null], ['counter'])).toThrow(
-			/Invalid argument .* for type null/,
-		);
 	});
 });
