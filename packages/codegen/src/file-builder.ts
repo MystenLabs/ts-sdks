@@ -35,6 +35,9 @@ export class FileBuilder {
 	}
 
 	addStarImport(module: string, name: string) {
+		for (const [existingName, existingModule] of this.starImports) {
+			if (existingModule === module) return existingName;
+		}
 		const importName = this.getUnusedName(name);
 		this.starImports.set(importName, module);
 		return importName;
