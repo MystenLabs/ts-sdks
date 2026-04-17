@@ -52,21 +52,19 @@ export class MoveModuleBuilder extends FileBuilder {
 	constructor({
 		mvrNameOrAddress,
 		summary,
-		addressMappings,
 		registry,
 		importExtension = '.js',
 		includePhantomTypeParameters = false,
 	}: {
 		summary: ModuleSummary;
-		addressMappings?: Record<string, string>;
-		registry?: ModuleRegistry;
+		registry: ModuleRegistry;
 		mvrNameOrAddress?: string;
 		importExtension?: ImportExtension;
 		includePhantomTypeParameters?: boolean;
 	}) {
 		super();
 		this.summary = summary;
-		this.registry = registry ?? new ModuleRegistry(addressMappings ?? {});
+		this.registry = registry;
 		this.registry.register(this);
 		this.#mvrNameOrAddress = mvrNameOrAddress;
 		this.#importExtension = importExtension;
@@ -75,18 +73,15 @@ export class MoveModuleBuilder extends FileBuilder {
 
 	static async fromSummaryFile(
 		file: string,
-		addressMappingsOrRegistry: Record<string, string> | ModuleRegistry,
+		registry: ModuleRegistry,
 		mvrNameOrAddress?: string,
 		importExtension?: ImportExtension,
 		includePhantomTypeParameters?: boolean,
 	) {
 		const summary = JSON.parse(await readFile(file, 'utf-8'));
-
-		const isRegistry = addressMappingsOrRegistry instanceof ModuleRegistry;
 		return new MoveModuleBuilder({
 			summary,
-			addressMappings: isRegistry ? undefined : addressMappingsOrRegistry,
-			registry: isRegistry ? addressMappingsOrRegistry : undefined,
+			registry,
 			mvrNameOrAddress,
 			importExtension,
 			includePhantomTypeParameters,

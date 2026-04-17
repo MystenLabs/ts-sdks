@@ -684,7 +684,7 @@ describe('name collision handling', () => {
 	function createTransactionModuleBuilder() {
 		return new MoveModuleBuilder({
 			summary: transactionModuleSummary as any,
-			addressMappings: ADDRESS_MAPPINGS,
+			registry: new ModuleRegistry(ADDRESS_MAPPINGS),
 			mvrNameOrAddress: '@test/testpkg',
 			importExtension: '.js',
 		});
@@ -774,7 +774,7 @@ describe('name collision handling', () => {
 
 		const builder = new MoveModuleBuilder({
 			summary: vecNonKeySummary as any,
-			addressMappings: ADDRESS_MAPPINGS,
+			registry: new ModuleRegistry(ADDRESS_MAPPINGS),
 			mvrNameOrAddress: '@test/testpkg',
 			importExtension: '.js',
 		});
@@ -845,7 +845,7 @@ describe('name collision handling', () => {
 
 		const builder = new MoveModuleBuilder({
 			summary: vecKeySummary as any,
-			addressMappings: ADDRESS_MAPPINGS,
+			registry: new ModuleRegistry(ADDRESS_MAPPINGS),
 			mvrNameOrAddress: '@test/testpkg',
 			importExtension: '.js',
 		});
@@ -912,7 +912,7 @@ describe('name collision handling', () => {
 
 		const builder = new MoveModuleBuilder({
 			summary: nonKeyStructSummary as any,
-			addressMappings: ADDRESS_MAPPINGS,
+			registry: new ModuleRegistry(ADDRESS_MAPPINGS),
 			mvrNameOrAddress: '@test/testpkg',
 			importExtension: '.js',
 		});
