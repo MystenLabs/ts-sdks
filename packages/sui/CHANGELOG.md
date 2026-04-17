@@ -1,5 +1,20 @@
 # @mysten/sui.js
 
+## 2.16.0
+
+### Minor Changes
+
+- 6adc085: Add `parseToUnits` and `parseToMist` balance parsing utilities using pure bigint
+  arithmetic.
+
+### Patch Changes
+
+- b1bf49a: Fix `extractMvrTypes` and `replaceMvrNames` to handle vector and primitive type
+  parameters. Previously, these functions passed all string type parameters directly to
+  `parseStructTag`, which produced corrupted results for vector types (e.g.,
+  `vector<@mvr/demo::baz::Qux>`) and threw on primitives (e.g., `u8`). Vector types are now
+  unwrapped and recursed into, and primitive types are passed through unchanged.
+
 ## 2.15.0
 
 ### Minor Changes

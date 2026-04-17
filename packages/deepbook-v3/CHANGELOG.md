@@ -1,5 +1,22 @@
 # @mysten/deepbook-v3
 
+## 1.3.1
+
+### Patch Changes
+
+- e149b58: Set the transaction sender on all read-only query methods so they work under
+  `SuiJsonRpcClient`. Previously these queries built a `Transaction` without calling
+  `tx.setSender(...)`, which was tolerated by the gRPC core client (it substitutes `0x0` for a
+  missing sender during resolution) but failed under JSON-RPC with `Missing transaction sender`.
+  JSON-RPC is scheduled to be sunset on July 31, 2026 — migrate to `SuiGrpcClient` when possible.
+- e9570a1: Regenerated Move call bindings. Parameters that can't accept a plain value (non-`key`
+  struct or enum, `vector<KeyStruct>`, etc.) are now typed as `TransactionArgument`, forcing callers
+  to pass a prior move-call result or `tx.makeMoveVec(...)`. Passing a bare string or array for
+  these parameters was always broken at runtime.
+- Updated dependencies [6adc085]
+- Updated dependencies [b1bf49a]
+  - @mysten/sui@2.16.0
+
 ## 1.3.0
 
 ### Minor Changes

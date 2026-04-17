@@ -1,5 +1,24 @@
 # @mysten/docs
 
+## 0.1.18
+
+### Patch Changes
+
+- Updated dependencies [6adc085]
+- Updated dependencies [e149b58]
+- Updated dependencies [b1bf49a]
+- Updated dependencies [6661fe2]
+- Updated dependencies [e9570a1]
+- Updated dependencies [069a7de]
+  - @mysten/sui@2.16.0
+  - @mysten/deepbook-v3@1.3.1
+  - @mysten/walrus@1.1.2
+  - @mysten/suins@1.0.5
+  - @mysten/payment-kit@0.1.7
+  - @mysten/kiosk@1.2.2
+  - @mysten/zksend@1.1.0
+  - @mysten/wallet-standard@0.20.1
+
 ## 0.1.17
 
 ### Patch Changes

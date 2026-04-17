@@ -1,5 +1,17 @@
 # @mysten/kiosk
 
+## 1.2.2
+
+### Patch Changes
+
+- e9570a1: Regenerated Move call bindings. Parameters that can't accept a plain value (non-`key`
+  struct or enum, `vector<KeyStruct>`, etc.) are now typed as `TransactionArgument`, forcing callers
+  to pass a prior move-call result or `tx.makeMoveVec(...)`. Passing a bare string or array for
+  these parameters was always broken at runtime.
+- Updated dependencies [6adc085]
+- Updated dependencies [b1bf49a]
+  - @mysten/sui@2.16.0
+
 ## 1.2.1
 
 ### Patch Changes
