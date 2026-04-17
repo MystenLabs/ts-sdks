@@ -32,22 +32,14 @@ interface RenderTypeSignatureOptions {
 	 * `typeTag` rendering of cross-module datatypes needs a registry.
 	 */
 	registry?: ModuleRegistry;
-	/**
-	 * Resolve an address alias (e.g. `"sui"` → `"0x2"`). Falls back to
-	 * `registry.resolveAddress` when not provided, or the identity function
-	 * if neither is given.
-	 */
-	resolveAddress?: (address: string) => string;
 	includePhantomTypeParameters: boolean;
 }
 
 function resolveAddress(
-	options: Pick<RenderTypeSignatureOptions, 'registry' | 'resolveAddress'>,
+	options: Pick<RenderTypeSignatureOptions, 'registry'>,
 	address: string,
 ): string {
-	if (options.resolveAddress) return options.resolveAddress(address);
-	if (options.registry) return options.registry.resolveAddress(address);
-	return address;
+	return options.registry?.resolveAddress(address) ?? address;
 }
 
 function getFilteredTypeParameterIndex(
@@ -225,7 +217,7 @@ function getDatatypeAbilities(
  */
 export function isSupportedRawTransactionInput(
 	type: Type,
-	options: Pick<RenderTypeSignatureOptions, 'summary' | 'registry' | 'resolveAddress'>,
+	options: Pick<RenderTypeSignatureOptions, 'summary' | 'registry'>,
 ): boolean {
 	if (typeof type === 'string') {
 		return true;
@@ -245,7 +237,7 @@ export function isSupportedRawTransactionInput(
 
 	if ('Datatype' in type) {
 		const { Datatype } = type;
-		const address = resolveAddress(options as RenderTypeSignatureOptions, Datatype.module.address);
+		const address = resolveAddress(options, Datatype.module.address);
 
 		// Well-known pure datatypes.
 		if (
@@ -350,6 +342,28 @@ function isPureDataType(type: Datatype, options: RenderTypeSignatureOptions) {
 	return false;
 }
 
+function renderCanonicalTypeTag(type: Type, options: RenderTypeSignatureOptions): string {
+	if (typeof type === 'string' || 'TypeParameter' in type || 'NamedTypeParameter' in type) {
+		return renderTypeSignature(type, options);
+	}
+	if ('Reference' in type) {
+		return renderCanonicalTypeTag(type.Reference[1], options);
+	}
+	if ('vector' in type) {
+		return `vector<${renderCanonicalTypeTag(type.vector, options)}>`;
+	}
+	if ('Datatype' in type) {
+		const { Datatype } = type;
+		const address = resolveAddress(options, Datatype.module.address);
+		const typeArgs = Datatype.type_arguments.map((arg) =>
+			renderCanonicalTypeTag(arg.argument, options),
+		);
+		const base = `${address}::${Datatype.module.name}::${Datatype.name}`;
+		return typeArgs.length > 0 ? `${base}<${typeArgs.join(', ')}>` : base;
+	}
+	throw new Error(`Unknown type signature: ${JSON.stringify(type, null, 2)}`);
+}
+
 function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): string {
 	const address = resolveAddress(options, type.module.address);
 
@@ -375,7 +389,7 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 				return '0x1::string::String';
 			}
 			if (type.module.name === 'option' && type.name === 'Option') {
-				const innerType = renderTypeSignature(type.type_arguments[0].argument, options);
+				const innerType = renderCanonicalTypeTag(type.type_arguments[0].argument, options);
 				return `0x1::option::Option<${innerType}>`;
 			}
 		}
@@ -387,7 +401,9 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 		// transaction result.
 		const abilities = getDatatypeAbilities(type, options);
 		if (abilities?.includes('Key')) {
-			const typeArgs = type.type_arguments.map((arg) => renderTypeSignature(arg.argument, options));
+			const typeArgs = type.type_arguments.map((arg) =>
+				renderCanonicalTypeTag(arg.argument, options),
+			);
 			const base = `${address}::${type.module.name}::${type.name}`;
 			return typeArgs.length > 0 ? `${base}<${typeArgs.join(', ')}>` : base;
 		}

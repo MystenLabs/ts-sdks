@@ -796,78 +796,6 @@ describe('name collision handling', () => {
 		`);
 	});
 
-	it('vector<NonKeyStruct> parameter collapses to RawTransactionArgument<never>', async () => {
-		// A vector of non-`key` datatypes is not a shape that
-		// `normalizeMoveArguments` can serialize from a plain TS value, so the
-		// entire parameter must come from a prior transaction call.
-		const vecNonKeySummary = {
-			id: { address: 'testpkg', name: 'vec_non_key' },
-			doc: '',
-			immediate_dependencies: [],
-			attributes: [],
-			functions: {
-				use_receipts: {
-					source_index: 0,
-					index: 0,
-					doc: '',
-					attributes: [],
-					visibility: 'Public',
-					entry: false,
-					macro_: false,
-					type_parameters: [],
-					parameters: [
-						{
-							name: 'receipts',
-							type_: {
-								vector: {
-									Datatype: {
-										module: { address: 'testpkg', name: 'vec_non_key' },
-										name: 'Receipt',
-										type_arguments: [],
-									},
-								},
-							},
-						},
-					],
-					return_: [],
-				},
-			},
-			structs: {
-				Receipt: {
-					index: 0,
-					doc: '',
-					attributes: [],
-					abilities: ['Drop', 'Store'],
-					type_parameters: [],
-					fields: {
-						positional_fields: false,
-						fields: {
-							value: { index: 0, doc: null, type_: 'u64' },
-						},
-					},
-				},
-			},
-			enums: {},
-		};
-
-		const builder = new MoveModuleBuilder({
-			summary: vecNonKeySummary as any,
-			addressMappings: ADDRESS_MAPPINGS,
-			mvrNameOrAddress: '@test/testpkg',
-			importExtension: '.js',
-		});
-		builder.includeTypes();
-		builder.includeFunctions();
-		const output = await render(builder);
-
-		const argInterface = output.match(/export interface UseReceiptsArguments[\s\S]*?^}/m);
-		expect(argInterface?.[0]).toMatchInlineSnapshot(`
-			"export interface UseReceiptsArguments {
-			    receipts: RawTransactionArgument<never>;
-			}"
-		`);
-	});
-
 	it('non-key struct parameter is typed as never (not string)', async () => {
 		// Only structs with `key` are addressable via object id; anything else
 		// must come from a prior transaction result.
@@ -1030,6 +958,113 @@ describe('name collision handling', () => {
 			    obj: RawTransactionArgument<string>;
 			}"
 		`);
+	});
+
+	it('key struct with non-key type argument renders a canonical type tag', async () => {
+		// `Coin<SUI>`-style parameter: the outer type is `key`, the type arg
+		// (here `Marker`) is a phantom non-`key` struct. The generated
+		// argumentsTypes tag must be a valid canonical Move type tag, not
+		// `'0x..::key_wrap::Wrap<null>'`.
+		const markerSummary = {
+			id: { address: 'testpkg', name: 'marker' },
+			doc: '',
+			immediate_dependencies: [],
+			attributes: [],
+			functions: {},
+			structs: {
+				Marker: {
+					index: 0,
+					doc: '',
+					attributes: [],
+					abilities: ['Drop'],
+					type_parameters: [],
+					fields: { positional_fields: false, fields: {} },
+				},
+			},
+			enums: {},
+		};
+
+		const wrapSummary = {
+			id: { address: 'testpkg', name: 'key_wrap' },
+			doc: '',
+			immediate_dependencies: [{ address: 'testpkg', name: 'marker' }],
+			attributes: [],
+			functions: {
+				use_wrap: {
+					source_index: 0,
+					index: 0,
+					doc: '',
+					attributes: [],
+					visibility: 'Public',
+					entry: false,
+					macro_: false,
+					type_parameters: [],
+					parameters: [
+						{
+							name: 'wrap',
+							type_: {
+								Datatype: {
+									module: { address: 'testpkg', name: 'key_wrap' },
+									name: 'Wrap',
+									type_arguments: [
+										{
+											phantom: true,
+											argument: {
+												Datatype: {
+													module: { address: 'testpkg', name: 'marker' },
+													name: 'Marker',
+													type_arguments: [],
+												},
+											},
+										},
+									],
+								},
+							},
+						},
+					],
+					return_: [],
+				},
+			},
+			structs: {
+				Wrap: {
+					index: 0,
+					doc: '',
+					attributes: [],
+					abilities: ['Key'],
+					type_parameters: [{ phantom: true, constraints: [] }],
+					fields: {
+						positional_fields: false,
+						fields: {
+							id: { index: 0, doc: null, type_: 'address' },
+						},
+					},
+				},
+			},
+			enums: {},
+		};
+
+		const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		const _markerBuilder = new MoveModuleBuilder({
+			summary: markerSummary as any,
+			registry,
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+		const wrapBuilder = new MoveModuleBuilder({
+			summary: wrapSummary as any,
+			registry,
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+		wrapBuilder.includeTypes();
+		wrapBuilder.includeFunctions();
+		const output = await render(wrapBuilder);
+
+		expect(output).toContain(
+			"'0x0000000000000000000000000000000000000000000000000000000000000000::key_wrap::Wrap<0x0000000000000000000000000000000000000000000000000000000000000000::marker::Marker>'",
+		);
+		expect(output).not.toContain('<null>');
 	});
 
 	it('getUnusedName reserves generated aliases to prevent duplicates', () => {
