@@ -555,9 +555,6 @@ describe('function codegen output', () => {
 		registry.includeFunctions(['is_active']);
 		const output = await render(registry);
 
-		// Enums are never `key` so they cannot be referenced by object id; the
-		// generated argument type must be `never` so only a prior transaction
-		// result (TransactionArgument) is accepted.
 		const argInterface = output.match(/export interface IsActiveArguments[\s\S]*?^}/m);
 		expect(argInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface IsActiveArguments {
@@ -725,9 +722,6 @@ describe('name collision handling', () => {
 	});
 
 	it('vector<NonKeyStruct> parameter collapses to RawTransactionArgument<never>', async () => {
-		// A vector of non-`key` datatypes is not a shape that
-		// `normalizeMoveArguments` can serialize from a plain TS value, so the
-		// entire parameter must come from a prior transaction call.
 		const vecNonKeySummary = {
 			id: { address: 'testpkg', name: 'vec_non_key' },
 			doc: '',
@@ -797,8 +791,6 @@ describe('name collision handling', () => {
 	});
 
 	it('non-key struct parameter is typed as never (not string)', async () => {
-		// Only structs with `key` are addressable via object id; anything else
-		// must come from a prior transaction result.
 		const nonKeyStructSummary = {
 			id: { address: 'testpkg', name: 'non_key' },
 			doc: '',
@@ -834,7 +826,6 @@ describe('name collision handling', () => {
 					index: 0,
 					doc: '',
 					attributes: [],
-					// Note: no `Key` ability.
 					abilities: ['Drop', 'Store'],
 					type_parameters: [],
 					fields: {
@@ -867,8 +858,6 @@ describe('name collision handling', () => {
 	});
 
 	it('cross-module key struct parameter is typed as string', async () => {
-		// A key struct defined in a dependency module should still render as
-		// `string` when used as a parameter from another module.
 		const keyModuleSummary = {
 			id: { address: 'testpkg', name: 'key_mod' },
 			doc: '',
@@ -932,8 +921,6 @@ describe('name collision handling', () => {
 			enums: {},
 		};
 
-		// Sharing a registry is what makes cross-module ability lookups work
-		// without threading builders through call sites.
 		const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		const _keyBuilder = new MoveModuleBuilder({
@@ -961,10 +948,7 @@ describe('name collision handling', () => {
 	});
 
 	it('key struct with non-key type argument renders a canonical type tag', async () => {
-		// `Coin<SUI>`-style parameter: the outer type is `key`, the type arg
-		// (here `Marker`) is a phantom non-`key` struct. The generated
-		// argumentsTypes tag must be a valid canonical Move type tag, not
-		// `'0x..::key_wrap::Wrap<null>'`.
+		// Guards against `Coin<SUI>`-shaped params emitting `Wrap<null>`.
 		const markerSummary = {
 			id: { address: 'testpkg', name: 'marker' },
 			doc: '',

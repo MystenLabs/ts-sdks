@@ -14,7 +14,6 @@ import type {
 	Variant,
 } from './types/summary.js';
 
-// Ability bit flags in the Move bytecode spec.
 const ABILITY_FLAGS: Array<[number, Ability]> = [
 	[0x1, 'Copy'],
 	[0x2, 'Drop'],

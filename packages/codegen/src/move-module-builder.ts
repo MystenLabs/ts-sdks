@@ -58,17 +58,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		includePhantomTypeParameters = false,
 	}: {
 		summary: ModuleSummary;
-		/**
-		 * Address alias mappings used when no `registry` is supplied. When a
-		 * registry is supplied, its address mappings take precedence.
-		 */
 		addressMappings?: Record<string, string>;
-		/**
-		 * Shared cross-module registry. Pass the same instance to every
-		 * builder that should see each other (dependency resolution,
-		 * ability lookups). When omitted, a fresh registry is created just
-		 * for this builder.
-		 */
 		registry?: ModuleRegistry;
 		mvrNameOrAddress?: string;
 		importExtension?: ImportExtension;
@@ -557,11 +547,6 @@ export class MoveModuleBuilder extends FileBuilder {
 							usedTypeParameters.add(typeParameter),
 					};
 
-					// Parameters whose shape cannot be produced from a plain TS
-					// value (vectors/options of non-key datatypes, non-key struct
-					// or enum refs) must come from a prior transaction call, so
-					// they are typed as `never` — `RawTransactionArgument<never>`
-					// collapses to `TransactionArgument`.
 					if (!isSupportedRawTransactionInput(param.type_, renderOptions)) {
 						return 'never';
 					}

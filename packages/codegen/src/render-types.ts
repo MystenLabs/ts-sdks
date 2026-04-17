@@ -25,12 +25,6 @@ interface RenderTypeSignatureOptions {
 	onDependency?: (address: string, module: string, type: string) => string | undefined;
 	bcsImport?: () => string;
 	onTypeParameter?: (typeParameter: number | string) => void;
-	/**
-	 * Cross-module registry used for address normalization and lookups
-	 * (abilities, summaries). When omitted, only the `options.summary` module
-	 * is visible — fine for leaf BCS rendering, but `typescriptArg` /
-	 * `typeTag` rendering of cross-module datatypes needs a registry.
-	 */
 	registry?: ModuleRegistry;
 	includePhantomTypeParameters: boolean;
 }
@@ -195,8 +189,6 @@ function getDatatypeAbilities(
 	type: Datatype,
 	options: Pick<RenderTypeSignatureOptions, 'summary' | 'registry'>,
 ): Ability[] | undefined {
-	// Prefer the current module's summary so we don't depend on the registry
-	// being populated in tests that only build a single module.
 	const { summary } = options;
 	if (type.module.address === summary.id.address && type.module.name === summary.id.name) {
 		return summary.structs[type.name]?.abilities ?? summary.enums[type.name]?.abilities;
@@ -204,17 +196,6 @@ function getDatatypeAbilities(
 	return options.registry?.getAbilities(type.module.address, type.module.name, type.name);
 }
 
-/**
- * Can this type be expressed as a plain TS value (i.e. a concrete runtime input
- * that `normalizeMoveArguments` can serialize), or must it come from a prior
- * transaction call (a `TransactionArgument`)?
- *
- * Returns `false` when the type, or any type nested inside it, is a non-`key`
- * datatype (struct or enum). In that case the only valid argument at the outer
- * parameter level is a `TransactionArgument`, so we emit
- * `RawTransactionArgument<never>` instead of trying to spell out the inner
- * shape as e.g. `Array<never>`.
- */
 export function isSupportedRawTransactionInput(
 	type: Type,
 	options: Pick<RenderTypeSignatureOptions, 'summary' | 'registry'>,
@@ -239,7 +220,6 @@ export function isSupportedRawTransactionInput(
 		const { Datatype } = type;
 		const address = resolveAddress(options, Datatype.module.address);
 
-		// Well-known pure datatypes.
 		if (
 			address === MOVE_STDLIB_ADDRESS &&
 			(Datatype.module.name === 'ascii' || Datatype.module.name === 'string') &&
@@ -264,7 +244,6 @@ export function isSupportedRawTransactionInput(
 			return true;
 		}
 
-		// Arbitrary datatype: only `key` structs can be passed as an object id.
 		const abilities = getDatatypeAbilities(Datatype, options);
 		return abilities?.includes('Key') ?? false;
 	}
@@ -394,11 +373,6 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 			}
 		}
 
-		// For `key` datatypes, emit the canonical Move type tag so the runtime
-		// normalizer can coerce a raw object-id string into `tx.object(...)`.
-		// Non-key datatypes fall through to `null` because they cannot be
-		// normalized from a plain TS value — they must come from a prior
-		// transaction result.
 		const abilities = getDatatypeAbilities(type, options);
 		if (abilities?.includes('Key')) {
 			const typeArgs = type.type_arguments.map((arg) =>
@@ -465,12 +439,8 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 
 	switch (options.format) {
 		case 'typescriptArg': {
-			// Only structs with the `key` ability can be passed as an object id (a string).
-			// Everything else (non-key structs, enums) must be produced by a prior
-			// transaction call and is typed as `never` so it only accepts a
-			// `TransactionArgument` through the `RawTransactionArgument<T>` wrapper.
 			const abilities = getDatatypeAbilities(type, options);
-			if (abilities && abilities.includes('Key')) {
+			if (abilities?.includes('Key')) {
 				return 'string';
 			}
 			return 'never';
