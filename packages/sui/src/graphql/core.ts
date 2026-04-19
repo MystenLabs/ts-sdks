@@ -34,7 +34,7 @@ import {
 	VerifyZkLoginSignatureDocument,
 	ZkLoginIntentScope,
 } from './generated/queries.js';
-import { ObjectError, SimulationError } from '../client/errors.js';
+import { ObjectError, SimulationError, SuiClientError } from '../client/errors.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 import { formatMoveAbortMessage, parseTransactionEffectsBcs } from '../client/utils.js';
@@ -109,7 +109,8 @@ export class GraphQLCoreClient extends CoreClient {
 			results.push(
 				...batch
 					.map((rawId) => {
-						// Normalize for lookup, but echo rawId back on ObjectError
+						// Normalize for lookup, but echo rawId back on ObjectError.
+						// GraphQL omits absent objects without saying why — cannot distinguish 'deleted'.
 						const normalized = normalizeSuiAddress(rawId);
 						return (
 							page.find((obj) => obj?.address === normalized) ??
@@ -810,14 +811,17 @@ function handleGraphQLErrors(errors: GraphQLResponseErrors | undefined): void {
 		throw errorInstances[0];
 	}
 
-	throw new AggregateError(errorInstances);
+	throw new SuiClientError(`GraphQL response returned ${errorInstances.length} errors`, {
+		cause: new AggregateError(errorInstances),
+		transportDetails: { $kind: 'graphql' },
+	});
 }
 
-class GraphQLResponseError extends Error {
+class GraphQLResponseError extends SuiClientError {
 	locations?: Array<{ line: number; column: number }>;
 
 	constructor(error: GraphQLResponseErrors[0]) {
-		super(error.message);
+		super(error.message, { transportDetails: { $kind: 'graphql' } });
 		this.locations = error.locations;
 	}
 }
