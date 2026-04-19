@@ -50,17 +50,16 @@ export class SimulationError extends SuiClientError {
 	}
 }
 
-export type ObjectErrorCode = 'notFound' | 'unknown';
+export type ObjectErrorCode = 'notFound' | 'deleted' | 'unknown';
 
 export class ObjectError extends SuiClientError {
 	readonly code: ObjectErrorCode;
 	readonly objectId: string;
-	declare readonly transportDetails: TransportDetails;
 
 	constructor(
 		code: ObjectErrorCode,
 		objectId: string,
-		options: { cause?: unknown; transportDetails: TransportDetails },
+		options?: { cause?: unknown; transportDetails?: TransportDetails },
 	) {
 		super(ObjectError.#formatMessage(code, objectId), options);
 		this.code = code;
@@ -71,8 +70,24 @@ export class ObjectError extends SuiClientError {
 		switch (code) {
 			case 'notFound':
 				return `Object not found: ${objectId}`;
+			case 'deleted':
+				return `Object deleted: ${objectId}`;
 			case 'unknown':
 				return `Unknown object error: ${objectId}`;
 		}
+	}
+}
+
+export class AggregateObjectError extends SuiClientError {
+	readonly errors: ObjectError[];
+
+	constructor(errors: ObjectError[], options?: { cause?: unknown }) {
+		super(AggregateObjectError.#formatMessage(errors), options);
+		this.errors = errors;
+	}
+
+	static #formatMessage(errors: ObjectError[]): string {
+		const ids = errors.map((e) => e.objectId).join(', ');
+		return `${errors.length} object errors: ${ids}`;
 	}
 }

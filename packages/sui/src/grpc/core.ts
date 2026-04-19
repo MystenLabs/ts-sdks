@@ -53,7 +53,7 @@ import { Value } from './proto/google/protobuf/struct.js';
 import { SimulateTransactionRequest_TransactionChecks } from './proto/sui/rpc/v2/transaction_execution_service.js';
 
 // google.rpc.Code.NOT_FOUND — the only status we map to ObjectError('notFound');
-// any other code collapses to 'unknown'.
+// any other code collapses to 'unknown'. gRPC cannot distinguish 'deleted' from never-existed.
 const GRPC_CODE_NOT_FOUND = 5;
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {

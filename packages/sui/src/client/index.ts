@@ -26,6 +26,7 @@ export {
 	SuiClientError,
 	SimulationError,
 	ObjectError,
+	AggregateObjectError,
 	type ObjectErrorCode,
 	type TransportDetails,
 } from './errors.js';

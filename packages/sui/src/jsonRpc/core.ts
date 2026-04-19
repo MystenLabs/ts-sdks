@@ -46,8 +46,9 @@ const MAX_GAS = 50_000_000_000;
 
 function mapJsonRpcObjectErrorCode(wireCode: ObjectResponseError['code']): ObjectErrorCode {
 	switch (wireCode) {
-		case 'notExists':
 		case 'deleted':
+			return 'deleted';
+		case 'notExists':
 		case 'dynamicFieldNotFound':
 			return 'notFound';
 		case 'displayError':
