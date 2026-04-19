@@ -109,8 +109,7 @@ export class GraphQLCoreClient extends CoreClient {
 			results.push(
 				...batch
 					.map((rawId) => {
-						// Normalize for server lookup, but preserve `rawId` on ObjectError so
-						// `error.objectId` matches what the user passed in.
+						// Normalize for lookup, but echo rawId back on ObjectError
 						const normalized = normalizeSuiAddress(rawId);
 						return (
 							page.find((obj) => obj?.address === normalized) ??
