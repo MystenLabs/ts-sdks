@@ -11,7 +11,7 @@ import { createCoinReservationRef } from '../utils/coin-reservation.js';
 import type { ClientWithCoreApi } from './core.js';
 import type { CallArg, Command } from '../transactions/data/internal.js';
 import type { SuiClientTypes } from './types.js';
-import { ObjectError, SimulationError } from './errors.js';
+import { AggregateObjectError, ObjectError, SimulationError } from './errors.js';
 import { Inputs } from '../transactions/Inputs.js';
 import { getPureBcsSchema, isTxContext } from '../transactions/serializer.js';
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
@@ -294,19 +294,17 @@ async function resolveObjectReferences(
 		}),
 	);
 
-	// Rethrow the first ObjectError so `instanceof ObjectError` and `error.code` still narrow.
-	// Multi-invalid aggregation is out of scope; introduce `AggregateObjectError` if needed later.
-	const firstInvalid = Array.from(responsesById.values()).find(
+	const objectErrors = Array.from(responsesById.values()).filter(
 		(obj): obj is ObjectError => obj instanceof ObjectError,
 	);
-	if (firstInvalid) {
-		throw firstInvalid;
+	if (objectErrors.length === 1) {
+		throw objectErrors[0];
+	}
+	if (objectErrors.length > 1) {
+		throw new AggregateObjectError(objectErrors);
 	}
 
-	const objects = resolved.map((object) => {
-		if (object instanceof ObjectError) {
-			throw object;
-		}
+	const objects = (resolved as Exclude<(typeof resolved)[number], ObjectError>[]).map((object) => {
 		const owner = object.owner;
 		const initialSharedVersion =
 			owner && typeof owner === 'object'
