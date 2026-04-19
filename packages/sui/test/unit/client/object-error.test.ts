@@ -3,8 +3,12 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import type { TransportDetails } from '../../../src/client/errors.js';
-import { ObjectError, SimulationError, SuiClientError } from '../../../src/client/errors.js';
+import {
+	AggregateObjectError,
+	ObjectError,
+	SimulationError,
+	SuiClientError,
+} from '../../../src/client/errors.js';
 import { JSONRpcCoreClient } from '../../../src/jsonRpc/core.js';
 import type { SuiJsonRpcClient } from '../../../src/jsonRpc/client.js';
 import type {
@@ -16,37 +20,36 @@ import type { SuiGrpcClient } from '../../../src/grpc/client.js';
 import { GraphQLCoreClient } from '../../../src/graphql/core.js';
 import type { SuiGraphQLClient } from '../../../src/graphql/client.js';
 
-// `transportDetails` is required on every `ObjectError` in practice; tests that
-// don't care which transport produced the error use this minimal graphql tag.
-const ANY_TRANSPORT: TransportDetails = { $kind: 'graphql' };
-
 describe('ObjectError', () => {
 	it('extends SuiClientError and Error', () => {
-		const err = new ObjectError('notFound', '0x123', { transportDetails: ANY_TRANSPORT });
+		const err = new ObjectError('notFound', '0x123');
 		expect(err).toBeInstanceOf(Error);
 		expect(err).toBeInstanceOf(SuiClientError);
 		expect(err).toBeInstanceOf(ObjectError);
 	});
 
 	it('sets code and objectId from constructor', () => {
-		const err = new ObjectError('notFound', '0xabc', { transportDetails: ANY_TRANSPORT });
+		const err = new ObjectError('notFound', '0xabc');
 		expect(err.code).toBe('notFound');
 		expect(err.objectId).toBe('0xabc');
 	});
 
+	it('constructs with no options arg', () => {
+		const err = new ObjectError('notFound', '0x1');
+		expect(err.transportDetails).toBeUndefined();
+	});
+
 	it.each([
 		['notFound', '0x1', 'Object not found: 0x1'],
-		['unknown', '0x2', 'Unknown object error: 0x2'],
+		['deleted', '0x2', 'Object deleted: 0x2'],
+		['unknown', '0x3', 'Unknown object error: 0x3'],
 	] as const)('generates canonical message for code=%s', (code, id, expected) => {
-		expect(new ObjectError(code, id, { transportDetails: ANY_TRANSPORT }).message).toBe(expected);
+		expect(new ObjectError(code, id).message).toBe(expected);
 	});
 
 	it('preserves cause', () => {
 		const rawError = { code: 'notExists', object_id: '0x123' };
-		const err = new ObjectError('notFound', '0x123', {
-			cause: rawError,
-			transportDetails: ANY_TRANSPORT,
-		});
+		const err = new ObjectError('notFound', '0x123', { cause: rawError });
 		expect(err.cause).toBe(rawError);
 	});
 
@@ -80,10 +83,31 @@ describe('ObjectError', () => {
 	});
 
 	it('is distinguishable from SimulationError', () => {
-		const objErr = new ObjectError('notFound', '0x1', { transportDetails: ANY_TRANSPORT });
+		const objErr = new ObjectError('notFound', '0x1');
 		const simErr = new SimulationError('sim failed');
 		expect(objErr).not.toBeInstanceOf(SimulationError);
 		expect(simErr).not.toBeInstanceOf(ObjectError);
+	});
+});
+
+describe('AggregateObjectError', () => {
+	it('extends SuiClientError and exposes errors[]', () => {
+		const errs = [new ObjectError('notFound', '0x1'), new ObjectError('deleted', '0x2')];
+		const agg = new AggregateObjectError(errs);
+		expect(agg).toBeInstanceOf(Error);
+		expect(agg).toBeInstanceOf(SuiClientError);
+		expect(agg).toBeInstanceOf(AggregateObjectError);
+		expect(agg.errors).toBe(errs);
+	});
+
+	it('summarizes child object ids in the message', () => {
+		const agg = new AggregateObjectError([
+			new ObjectError('notFound', '0x1'),
+			new ObjectError('deleted', '0x2'),
+		]);
+		expect(agg.message).toContain('2 object errors');
+		expect(agg.message).toContain('0x1');
+		expect(agg.message).toContain('0x2');
 	});
 });
 
@@ -194,7 +218,7 @@ describe('JSONRpcCoreClient.listOwnedObjects error escalation', () => {
 		}
 	});
 
-	it('normalizes deleted wire code to ObjectError(notFound) with object_id', async () => {
+	it('maps deleted wire code to ObjectError(deleted) with object_id', async () => {
 		const wireError: ObjectResponseError = {
 			code: 'deleted',
 			object_id: '0xbeef',
@@ -209,7 +233,7 @@ describe('JSONRpcCoreClient.listOwnedObjects error escalation', () => {
 		const err = await captureThrow(core);
 		expect(err).toBeInstanceOf(ObjectError);
 		if (err instanceof ObjectError) {
-			expect(err.code).toBe('notFound');
+			expect(err.code).toBe('deleted');
 			expect(err.objectId).toBe('0xbeef');
 		}
 	});
@@ -248,7 +272,7 @@ describe('JSONRpcCoreClient.getObjects error mapping', () => {
 
 	it.each([
 		['notExists', { code: 'notExists', object_id: '0xaaa' }, 'notFound'],
-		['deleted', { code: 'deleted', object_id: '0xbbb', digest: '0xd', version: '1' }, 'notFound'],
+		['deleted', { code: 'deleted', object_id: '0xbbb', digest: '0xd', version: '1' }, 'deleted'],
 		[
 			'dynamicFieldNotFound',
 			{ code: 'dynamicFieldNotFound', parent_object_id: '0xccc' },
@@ -269,7 +293,7 @@ describe('JSONRpcCoreClient.getObjects error mapping', () => {
 				// getObjects uses the input id (batch[idx]), not the extracted wire id,
 				// so every returned ObjectError has a known objectId regardless of wire code.
 				expect(err.objectId).toBe('0xtarget');
-				expect(err.transportDetails.$kind).toBe('jsonRpc');
+				expect(err.transportDetails?.$kind).toBe('jsonRpc');
 			}
 		},
 	);
@@ -280,7 +304,7 @@ describe('JSONRpcCoreClient.getObjects error mapping', () => {
 		const { objects } = await core.getObjects({ objectIds: ['0xtarget'] });
 		const err = objects[0];
 		expect(err).toBeInstanceOf(ObjectError);
-		if (err instanceof ObjectError && err.transportDetails.$kind === 'jsonRpc') {
+		if (err instanceof ObjectError && err.transportDetails?.$kind === 'jsonRpc') {
 			// Reference identity, not just structural equality — the raw wire payload
 			// round-trips through the mapper without copy, spread, or transformation.
 			expect(err.transportDetails.response).toBe(wireError);
@@ -328,8 +352,8 @@ describe('GrpcCoreClient.getObjects error mapping', () => {
 			if (err instanceof ObjectError) {
 				expect(err.code).toBe(expectedCode);
 				expect(err.objectId).toBe('0xtarget');
-				expect(err.transportDetails.$kind).toBe('grpc');
-				if (err.transportDetails.$kind === 'grpc') {
+				expect(err.transportDetails?.$kind).toBe('grpc');
+				if (err.transportDetails?.$kind === 'grpc') {
 					expect(err.transportDetails.status.code).toBe(statusCode);
 				}
 			}
@@ -368,7 +392,7 @@ describe('GraphQLCoreClient.getObjects error mapping', () => {
 			// at construction, and GraphQL now does too.
 			expect(err.objectId).toBe('0x9999');
 			expect(err.code).toBe('notFound');
-			expect(err.transportDetails.$kind).toBe('graphql');
+			expect(err.transportDetails?.$kind).toBe('graphql');
 		}
 	});
 
